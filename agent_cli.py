@@ -5519,6 +5519,22 @@ def cmd_grant(args):
             print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
         return 0
 
+    if args.bootstrap:
+        # t384 peer-side ceremony: stamp the instance marker into the LOCAL acl.json so the
+        # split commit's upstream delete meets a local modify (a loud conflict, never a silent
+        # deletion). Grants untouched; refuses on missing/corrupt. Run BEFORE pulling the split.
+        try:
+            out = grant_writer.bootstrap(by=os.environ.get("AKASHIC_AGENT_ID") or "operator")
+            if args.json:
+                return _emit(out)
+            print(f"[grant] BOOTSTRAPPED instance {out['hostname']} "
+                  f"({out['grants_preserved']} grants preserved) -- the file is now "
+                  f"instance-local; the next pull of the split commit will CONFLICT (keep local)")
+            return 0
+        except (PermissionError, ValueError) as e:
+            print(f"grant REFUSED: {e}")
+            return 2
+
     if args.list or (not args.agent_id and not args.revoke):
         rows = grant_writer.listing()
         if args.json:
@@ -7570,6 +7586,9 @@ def build_parser():
 
     gr = sub.add_parser("grant", help="S-3: mint / revoke / list ACL grants (atomic + audited). "
                                       "NOT an auth boundary -- see the module docstring")
+    gr.add_argument("--bootstrap", action="store_true", help="t384: stamp the instance marker "
+                    "into the local acl.json (peer-side ceremony BEFORE pulling the split; "
+                    "grants untouched)")
     gr.add_argument("agent_id", nargs="?", help="the seat receiving the grant")
     gr.add_argument("--role", default=None, help="super_admin|admin|member|restricted|quarantined")
     gr.add_argument("--by", default=None, help="the GRANTER's agent id (must hold admin.grant)")
