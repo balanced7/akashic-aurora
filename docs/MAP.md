@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 171 modules lack both pin and paper by name)
+## GAP queue (40 of 172 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -188,10 +188,11 @@ Class: reference
 | `learning_store.py` | Learning Store: Persists and retrieves experiment outcomes via the Store. | GAP | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md | `AI_SETUP` |
 | `vfx_chunk_lessons.py` | Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration. | GAP | GAP | `AI_SETUP` |
 
-## core/recall/  (15 modules)
+## core/recall/  (16 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
+| `actions.py` | The importable recall-at-action contract for EXTERNAL consumers (deepseek harness posttool / | tests/test_recall_actions.py | docs/library/design/20260805_t196-ask-transaction-spec_b59657.md |  |
 | `anchors.py` | Lesson anchor resolver -- does a lesson's premise still hold? | tests/test_lesson_anchors.py | GAP | `AI_SETUP` |
 | `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_BENCH_PROBE_DAYS`, `AKASHIC_BENCH_PROBE_MAX`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS`, `AKASHIC_VERB_FLOOR` |
 | `curator.py` | Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report. | GAP | GAP |  |
