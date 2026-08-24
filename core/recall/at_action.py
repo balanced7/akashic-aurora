@@ -921,7 +921,8 @@ def _set_outcome(session_id: str, target: str, status: str) -> None:
         pass
 
 
-def resolve_action_outcome(session_id: str, target: str, success: bool, *, store=None) -> Dict[str, Any]:
+def resolve_action_outcome(session_id: str, target: str, success: bool, *, store=None,
+                           agent_id: Optional[str] = None) -> Dict[str, Any]:
     """PostToolUse resolver, full report. If `target` SUCCEEDS now after having JUST FAILED:
     (1) credit the lessons surfaced for it with 'helped' (consume-on-credit, so one flip can't be
     farmed), and (2) append the flip to the per-session FLIP LOG -- a flip is the moment a lesson
@@ -946,7 +947,8 @@ def resolve_action_outcome(session_id: str, target: str, success: bool, *, store
         # Stage separation: record EVERY resolution, flipped or not. Purely additive --
         # the flip path above is byte-for-byte unchanged, and nothing here steers ranking.
         _log_outcome_stage(session_id, target, success, surfaced_sources=srcs_now,
-                           flipped=out["flipped"], credited=out["credited"])
+                           flipped=out["flipped"], credited=out["credited"],
+                           agent_id=agent_id)
         _set_outcome(session_id, target, "SUCCESS" if success else "FAIL")
     except Exception:
         pass
@@ -969,7 +971,8 @@ def _log_flip(session_id: str, target: str, credited: int, sources) -> None:
 
 
 def _log_outcome_stage(session_id: str, target: str, success: bool, *,
-                       surfaced_sources, flipped: bool, credited: int) -> None:
+                       surfaced_sources, flipped: bool, credited: int,
+                       agent_id: Optional[str] = None) -> None:
     """Record the OUTCOME stage for EVERY resolution -- not only for flips.
 
     STAGE SEPARATION (the 2026-07-25 four-seat debate's unanimous result). "surfaced",
@@ -1004,7 +1007,10 @@ def _log_outcome_stage(session_id: str, target: str, success: bool, *,
     rec = {"at": time.time(), "t": str(target or ""), "ok": bool(success),
            "surfaced": bool(srcs), "s": srcs,
            "flipped": bool(flipped), "credited": int(credited or 0),
-           "agent": str(os.getenv("AKASHIC_AGENT_ID") or "")}
+           # t383 identity thread: the explicit param beats env — a harness seat that
+           # INHERITS a foreign AKASHIC_AGENT_ID (the DSH-under-Claude-Code case) must
+           # not stamp its outcome rows with the parent's identity.
+           "agent": str(agent_id or os.getenv("AKASHIC_AGENT_ID") or "")}
     try:
         os.makedirs(_STAGE_DIR, exist_ok=True)
         with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"),

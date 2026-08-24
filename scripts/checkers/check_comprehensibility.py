@@ -49,12 +49,6 @@ _REF_RE = re.compile(
 # silent dumping ground. Keep this SMALL -- root-anchoring already excludes most false positives.
 REF_ALLOWLIST = {
     # "some/path.py": {"expires": "2026-12-31", "reason": "why this ref is legitimately not on disk"},
-    "agent/harness/actions.py": {
-        "expires": "2026-08-31",
-        "reason": "FORWARD REFERENCE (t383 reconciliation): the extraction module is the "
-                  "next assigned build; docs/DSH_INTEGRATION.md names it as 'landing next'. "
-                  "REMOVE this entry in the commit that lands the module.",
-    },
     "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
         "expires": "2026-09-15",
         "reason": "RENEWED 2026-08-24 (first expiry lapsed mid-marathon): the path lives as "
