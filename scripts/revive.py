@@ -86,15 +86,35 @@ def observe() -> Dict[str, Dict[str, Any]]:
         out["redis"] = {"healthy": False,
                         "detail": f"{type(e).__name__}: {str(e)[:80]}"}
     cmds = _cmdlines()
-    daemon_n = cmds.count("bifrost_daemon.py")
-    runner_n = sum(cmds.count(f"bifrost_runner_{a}") for a in DAEMON_AGENTS)
+    # PER AGENT, never in aggregate (drill 2026-08-24). Counting processes asked
+    # "is anything alive?" when the only useful question is "is EVERY seat alive?" --
+    # so one surviving daemon reported the whole rung healthy and PROVE confirmed a
+    # heal that never happened. And counting SCRIPT names could not distinguish
+    # agents at all: every runner agent runs bifrost_runner_deepseek.py, so
+    # `bifrost_runner_kimi` matched nothing ever while `bifrost_runner_deepseek`
+    # matched both. The discriminator is `--agent <name>`, which is the only place
+    # a process states which seat it IS.
+    def _live(pattern_agent: str, script: str) -> bool:
+        return any(script in ln and f"--agent {pattern_agent}" in ln
+                   for ln in cmds.splitlines())
+
+    dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
+    dead_runners = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_runner_")]
     gateway_n = cmds.count("bifrost_runner_discord.py")
-    out["daemon"] = {"healthy": daemon_n > 0,
-                     "detail": f"{daemon_n} daemon process(es)"}
-    out["runners"] = {"healthy": runner_n >= len(DAEMON_AGENTS),
-                      "detail": f"{runner_n}/{len(DAEMON_AGENTS)} runner "
-                                f"process(es) (daemon's children -- healed by "
-                                f"the daemon rung, verified here)"}
+    out["daemon"] = {
+        "healthy": not dead_daemons,
+        "detail": (f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
+                   if not dead_daemons else
+                   f"DOWN: {', '.join(dead_daemons)} "
+                   f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})"),
+        "dead": dead_daemons}
+    out["runners"] = {
+        "healthy": not dead_runners,
+        "detail": (f"all {len(DAEMON_AGENTS)} runner(s) alive: {', '.join(DAEMON_AGENTS)}"
+                   if not dead_runners else
+                   f"DOWN: {', '.join(dead_runners)} (daemon's children -- healed by "
+                   f"the daemon rung, verified here)"),
+        "dead": dead_runners}
     out["gateway"] = {"healthy": gateway_n > 0,
                       "detail": f"{gateway_n} gateway process(es)"}
     return out
