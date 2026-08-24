@@ -1,0 +1,11 @@
+{
+  "name": "dsh-akashic-recall",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Akashic Aurora recall-at-action for the DSH harness (tools/post-execute). V0 = capture-first observer, injection unwired.",
+  "type": "module",
+  "main": "lib/index.js",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  }
+}
