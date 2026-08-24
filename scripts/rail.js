@@ -165,7 +165,9 @@
     '.rtile .l{font-size:9.5px;color:var(--muted,#9297ab);letter-spacing:.05em;text-transform:uppercase;margin-top:1px}',
 
     /* side channels — a namespace is a room */
-    '.rchan{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border,rgba(255,255,255,.07));font-size:11.5px}',
+    '.rchan{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border,rgba(255,255,255,.07));font-size:11.5px;cursor:pointer;border-radius:6px;margin:0 -6px;padding-left:6px;padding-right:6px;transition:background .15s}',
+    '.rchan:hover{background:rgba(255,255,255,.04)}',
+    '.rchan.current{background:rgba(122,162,247,.09);border-color:rgba(122,162,247,.2)}',
     '.rchan:first-of-type{border-top:0}',
     '.rchan .nm{font-family:var(--mono,ui-monospace,monospace);color:var(--text,#eef0f7);flex:none}',
     '.rchan .who{color:var(--faint,#5c6178);font-size:10px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -366,13 +368,35 @@
       // where the bottom USED to be. Jump instantly, then re-assert on the next few frames until
       // the target stops moving. Instant is also the honest interaction: the button says take me
       // to the bottom, not take me toward it.
-      var tries = 0;
-      (function land() {
-        log.scrollTop = log.scrollHeight;
-        if (++tries < 8 && (log.scrollHeight - log.scrollTop - log.clientHeight) > 2) {
-          requestAnimationFrame(land);
-        } else { sync(); }
-      })();
+      //
+      // WHY ONE CLICK MUST ARRIVE, AND WHY THE OLD LOOP COULD NOT.
+      //   #log's .msg rows carry `content-visibility:auto` + `contain-intrinsic-size:auto 64px`
+      //   (bifrost_ui.py:1771). That means an off-screen row reports an ESTIMATED 64px height
+      //   until the browser actually lays it out. A scrollTo({top: scrollHeight}) therefore aims
+      //   at a scrollHeight built from guesses -- and the moment a guessed row enters the
+      //   viewport it resolves to its REAL height (code blocks, markdown: often 200-600px),
+      //   which pushes the true bottom FURTHER down. Every click advanced ~one viewport of
+      //   estimation error, hence "many clicks".
+      //   The fix is to stop targeting a scrollHeight (a number) and instead target the ACTUAL
+      //   last message ELEMENT: scrollIntoView measures the real geometry of the thing we want
+      //   to reach rather than a projected total. No row can be "estimated" once it is the
+      //   explicit scroll target -- the browser must lay it out to scroll to it.
+      //
+      //   Scroll into the LAST message node (skip the composer's own sentinel), then clamp to the
+      //   absolute bottom so even a feed with no message elements (e.g. only bookkeeping) lands.
+      var nodes = log.querySelectorAll('.msg');
+      var target = nodes.length ? nodes[nodes.length - 1] : null;
+      if (target) {
+        // behavior:'instant' here too: #log carries scroll-behavior:smooth, and scrollIntoView
+        // with the default 'auto' would INHERIT that smooth and animate toward the target.
+        target.scrollIntoView({ block: 'end', behavior: 'instant' });
+      }
+      // One instant jump to the true bottom as the final word. behavior:'instant' is mandatory:
+      // a bare `scrollTop =` on a scroll-behavior:smooth #log starts a SMOOTH scroll that
+      // autoscroll() cancels mid-flight each time a new message arrives. Over-scrolling is
+      // harmless (scrollTop clamps), so aiming past the real bottom just pins us to it.
+      log.scrollTo({ top: log.scrollHeight, behavior: 'instant' });
+      sync();
     };
     setInterval(sync, 1500);   // catches new messages arriving while scrolled away
     sync();
@@ -553,14 +577,16 @@
     if (chans && chans.channels) {
       h += '<section class="rcard"><h3>Rooms<span class="cnt">' + chans.channels.length + '</span></h3>';
       chans.channels.forEach(function (c) {
-        h += '<div class="rchan" title="namespace ' + esc(c.ns) + ' · ' + c.count + ' live seat(s)">' +
+        h += '<div class="rchan' + (c.is_default ? ' current' : '') + '" data-ns="' + esc(c.ns) +
+             '" title="namespace ' + esc(c.ns) + ' · ' + c.count + ' live seat(s)' +
+             (c.is_default ? ' (current)' : ' — click to enter') + '">' +
              '<span class="nm">' + esc(c.ns) + '</span>' +
              '<span class="rchip ' + (c.is_default ? 'mute' : 'good') + '">' +
                 (c.is_default ? 'main' : 'side') + '</span>' +
              '<span class="who">' + esc(c.agents.join(', ')) + '</span></div>';
       });
-      h += '<div class="rfoot">A room is a bus namespace. Side rooms are invisible to this feed by ' +
-           'design — listing them here is the only way you can see one exists. ' +
+      h += '<div class="rfoot">Click a room to view its conversation and speak into it. ' +
+           'The current room is highlighted. ' +
            esc(chans.not_checked || '') + '</div></section>';
     }
 
@@ -588,6 +614,14 @@
         c.el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         rail.querySelectorAll('.rchap.here').forEach(function (o) { o.classList.remove('here'); });
         el.classList.add('here');
+      };
+    });
+    rail.querySelectorAll('.rchan').forEach(function (el) {
+      el.onclick = function () {
+        var ns = el.dataset.ns;
+        if (!ns) return;
+        // call the main page's room-switch function (defined in the inline PAGE script)
+        if (typeof switchRoom === 'function') switchRoom(ns);
       };
     });
   }
