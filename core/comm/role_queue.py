@@ -30,8 +30,11 @@ THE LAYER CONTRACT (Sol review 2, adopted -- each layer owns ONE thing):
     consumer name reclaiming across cycles (the ABA race) -- is REFUSED.
     Fenced ONLY at commit, not blanket: pure/read-only role work pays nothing extra.
     EXTERNAL side effects that cannot validate the token before landing must be idempotent
-    via a durable key -- bus sends already are (packet sha + idempotency_key, T040/T043);
-    anything else needs an outbox record BEFORE the effect. Checking the token immediately
+    via a durable key -- bus sends carry a packet sha (T044 dual-delivery dedup) but the
+    contracted idempotency_key seam (T116) is NOT YET IMPLEMENTED (prose-only in
+    packet_spec.py:22; zero producer stamp, zero consumer check). Until T116 lands,
+    consumers must maintain their own idempotency sentinels (e.g., _reply_already_sent).
+    Anything else needs an outbox record BEFORE the effect. Checking the token immediately
     before an external call is NOT sufficient (the pause-between-check-and-act race).
   * FRESHNESS (P4): publish() stamps fresh_until; delivery past it is DROPPED-AS-STALE
     (acked + loud), never handed to a consumer -- the resent packet that arrived too late
