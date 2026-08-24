@@ -8327,8 +8327,21 @@ def cmd_run(args):
         return 0
     here = os.path.abspath(__file__)
     def _invoke(argv):
-        print(f"[run:{args.name}] -> {' '.join(argv)}")
-        return subprocess.call([sys.executable, here] + list(argv))
+        # stdout-surfacing (Daniil pin 6ba50eab34). The old subprocess.call inherited handles, so
+        # the child's block-buffered stdout could vanish into the parent's already-replaced stream
+        # (a runner/CI redirection the child inherited but never flushed into). CAPTURE + RE-EMIT
+        # removes the whole class: we read the child's bytes explicitly and write them to OUR
+        # current stdout, so a step's real output always reaches the caller regardless of tty,
+        # buffering mode, or who launched agent_cli.py. rc still governs stop-at-first-failure.
+        print(f"[run:{args.name}] -> {' '.join(argv)}", flush=True)
+        r = subprocess.run([sys.executable, here] + list(argv),
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        if r.stdout:
+            sys.stdout.write(r.stdout); sys.stdout.flush()
+        if r.stderr:
+            sys.stderr.write(r.stderr); sys.stderr.flush()
+        return r.returncode
     rc = tb.resolve_and_run(args.name, runner=_invoke, args=args.args)
     print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
     return rc

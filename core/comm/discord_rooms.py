@@ -33,8 +33,10 @@ from core.comm.discord_bridge import (DISCORD_MAX, _content_str, chunk, redact,
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-#: env-first-then-gitignored-file, the same order as every credential here.
-FORUM_URL_FILE = _ROOT / ".secrets" / "discord_forum_webhook.url"
+#: T365: this credential was previously two things — a module-path constant (the dangerous
+#: class AKASHIC_SECRETS_DIR can't redirect) AND a dead name (forum_url() below reads it
+#: through secrets_dir() directly). The constant is removed; the ONE resolution rule is
+#: forum_url()'s secrets_dir()/env-first path, documented there.
 
 #: ask_id -> {thread_id, title, created}. A thread id is a NEW address dialect and is
 #: registered in the T362 census from birth — unrecorded addresses are how dialects fracture.

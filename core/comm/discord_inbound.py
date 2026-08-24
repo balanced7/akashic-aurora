@@ -30,7 +30,11 @@ from typing import Any, Callable, Dict, Optional
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: The R1 allowlist file — one line, all digits. env override is for pins only.
-OPERATOR_ID_FILE = _ROOT / ".secrets" / "discord_operator_id"
+#: T365: resolve through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault.
+def _secrets_file(name: str) -> Path:
+    from core.comm.secret_intake import secrets_dir
+    return secrets_dir() / name
+OPERATOR_ID_FILE = _secrets_file("discord_operator_id")
 
 #: R1 v2 (2026-08-20). Daniil, giving his friend the keys: "he has his own ID. This is
 #: my trusted friend, I am flying out to be his best man at his wedding. This is not an
@@ -39,14 +43,14 @@ OPERATOR_ID_FILE = _ROOT / ".secrets" / "discord_operator_id"
 #: house learns more than one name instead. Absent is not broken: no file means one
 #: operator, exactly as on day one.
 #: Shape: {"<snowflake>": {"agent": "simon", "tier": "operator"|"guest"}}
-PEOPLE_FILE = _ROOT / ".secrets" / "discord_people.json"
+PEOPLE_FILE = _secrets_file("discord_people.json")
 
 #: CO-ROOT registry (2026-08-20, Daniil: "make co root"). Two properties used to belong
 #: to exactly one id -- it could BOOT the ear, and no people.json row could demote it.
 #: Every id listed here holds both. The ear now refuses only when NO root resolves from
 #: either source, so fail-closed survives co-rootship intact.
 #: Shape: {"<snowflake>": {"agent": "simon"}}  (a bare string name is accepted too)
-ROOTS_FILE = _ROOT / ".secrets" / "discord_roots.json"
+ROOTS_FILE = _secrets_file("discord_roots.json")
 
 #: LAST-RESORT name for the root operator, used only when the registry does not name
 #: him. It is a fallback, never a truth: whoever holds the root id is NOT necessarily

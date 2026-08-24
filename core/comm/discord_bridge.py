@@ -39,7 +39,11 @@ from core.outcome import BoundaryOutcome
 DISCORD_MAX = 2000
 
 #: Same env-first-then-gitignored-file order every other credential here uses.
-URL_FILE = Path(__file__).resolve().parents[2] / ".secrets" / "discord_webhook.url"
+#: T365: route through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault
+#: (a module-path constant can't be redirected; that class already leaked a credential once).
+def _url_file() -> Path:
+    from core.comm.secret_intake import secrets_dir
+    return secrets_dir() / "discord_webhook.url"
 
 #: AN ALLOWLIST, NEVER A DENYLIST. A denylist silently leaks every kind added after it was
 #: written, and this repo adds kinds regularly -- 31 at the T177 census, with 14 hand-kept
@@ -79,7 +83,7 @@ def webhook_url() -> str:
     if v and v.strip():
         return v.strip()
     try:
-        return URL_FILE.read_text(encoding="utf-8").strip()
+        return _url_file().read_text(encoding="utf-8").strip()
     except OSError:
         return ""
 
