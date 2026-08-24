@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c1a0b064. A bound you discover by collision is not awareness -- this sheet
+> Derived at c11250c9. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (220 names)
+## Configuration flags (221 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -143,7 +143,7 @@ Class: reference
 | `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +8 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
-| `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py |
+| `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py, scripts/bifrost_runner_deepseek.py |
 | `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/hooks/_activity.py +32 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
@@ -163,6 +163,7 @@ Class: reference
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MAX_CMD_TIMEOUT` | `"300"` | core/comm/toolbox.py |
 | `DEEPSEEK_MAX_RETRIES` | `"1"` | scripts/deepseek_chat.py |
+| `DEEPSEEK_MAX_TOOL_ROUNDS` | `"0"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MODEL` | `"deepseek-v4-pro"` | scripts/ask_deepseek.py |
 | `DEEPSEEK_READ_TIMEOUT` | `"120"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_RECALL_AT` | `` | core/comm/toolbox.py, scripts/bifrost_runner_deepseek.py |
@@ -234,7 +235,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (117 numeric constants)
+## Mechanical bounds (116 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -298,7 +299,6 @@ Class: reference
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
-| `MAX_TOOL_ROUNDS` | 30 | scripts/deepseek_chat.py |  |
 | `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |

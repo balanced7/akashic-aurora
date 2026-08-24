@@ -151,3 +151,15 @@ def test_supported_reflects_the_pinned_limitations():
     assert registry.supported("cursor", "T4"), "postToolUseFailure is a direct fail signal"
     assert not registry.supported("bare-cli", "T4"), "manual contract, not automation"
     assert registry.capability("no-such-harness", "T0") == ""
+
+
+def test_deepseek_harness_row_is_honest_not_flattering():
+    """The dsh row says what is TRUE today (T0 exec-proven, T1 blocked by inherited env,
+    T2-T6 awaiting inventory) -- the scoreboard must never read 'pending' as automated."""
+    assert registry.supported("deepseek-harness", "T0"), "exec proven: drives the house CLI"
+    assert not registry.supported("deepseek-harness", "T1"), \
+        "AKASHIC_AGENT_ID inherited from Claude Code; no dsh-side id yet"
+    for t in ("T2", "T3", "T4", "T5", "T6"):
+        assert not registry.supported("deepseek-harness", t), \
+            f"{t} is pending, not automated -- must not count toward the tier scoreboard"
+    assert "dsh_agent" == registry.HARNESSES["deepseek-harness"]["default_agent_id"]

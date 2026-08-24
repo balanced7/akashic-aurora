@@ -35,6 +35,23 @@ HARNESSES = {
             "T6": "yes -- SessionEnd/PreCompact -> chronicles/last-session-draft.md",
         },
     },
+    "deepseek-harness": {
+        "default_agent_id": "dsh_agent",
+        "adapters": "out-of-tree dsh-posttool (cordis) plugin -> "
+                    "core/recall/actions.py::recall_context (importable contract)",
+        "tiers": {
+            "T0": "yes -- exec proven: the dsh seat drives the house CLI (py agent_cli.py) "
+                  "and messages peers over the Bifrost bus",
+            "T1": "no -- AKASHIC_AGENT_ID is inherited from the parent env (Claude Code, "
+                  "=claude); the dsh-side stamp is assigned to 'dsh_agent', so attribution "
+                  "does not yet carry the harness's own id",
+            "T2": "pending -- awaiting event inventory",
+            "T3": "pending -- awaiting event inventory",
+            "T4": "pending -- awaiting event inventory",
+            "T5": "pending -- awaiting event inventory",
+            "T6": "pending -- awaiting event inventory",
+        },
+    },
     "cursor": {
         "default_agent_id": "composer",
         "adapters": "agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)",
@@ -79,6 +96,8 @@ def capability(harness: str, tier: str) -> str:
 
 def supported(harness: str, tier: str) -> bool:
     """True iff the tier works on this harness WITHOUT the agent doing it by hand
-    ('manual -- ...' counts as unsupported automation; the contract still covers it)."""
+    ('manual -- ...' counts as unsupported automation; the contract still covers it).
+    'pending -- ...' (declared but not yet wired) is likewise unsupported -- the
+    scoreboard must not read a not-yet-built tier as automated."""
     how = capability(harness, tier).lower()
-    return bool(how) and not how.startswith(("unavailable", "manual", "no "))
+    return bool(how) and not how.startswith(("unavailable", "manual", "no ", "pending "))
