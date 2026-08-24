@@ -89,6 +89,31 @@ def test_plugin_pins_generation_freshness_probe():
     assert "freshness-drift" in src                           # durable capture, not console-only
 
 
+# --- T3 injection contract (the one-beat-late delivery seam, 2026-08-24) ---
+
+def test_t3_injection_rides_decision_additional_contexts():
+    """The injection seam, pinned against the harness contract: PostToolDecision.
+    additionalContexts?: UserMessage[] (dsh-tool-cordis types), ferried onto the result
+    by dsh-tools postExecute, consumed by dsh-agent-loop:183 into the active batch --
+    the model's NEXT step. attachContext must append to THAT field, never a sibling."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "additionalContexts" in src
+    assert "decision.additionalContexts" in src               # the field, not a sibling
+    assert "return { ...decision, additionalContexts" in src  # enrich, never replace
+    assert "attachContext(decision" in src                   # both post-execute branches use it
+
+
+def test_t3_injection_message_shape_is_user_contract():
+    """The context item must satisfy the dsh-llm message contract (id + role + content
+    + source) with a first-class source slot: kind 'plugin', form 'recall' (the source
+    vocabulary's own slot for lifted material). A malformed source crashes the ferry."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "role: 'user'" in src
+    assert "content: [{ type: 'text', text }]" in src
+    assert "kind: 'plugin'" in src and "form: 'recall'" in src
+    assert "id:" in src and "akashic-" in src                # id + stable prefix
+
+
 # --- T6 DSH session-end shim (auto-handoff flagship, 2026-08-24) ---
 
 def test_dsh_parse_calls_pairs_real_session_records():
