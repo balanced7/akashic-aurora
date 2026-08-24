@@ -20,7 +20,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bench` | S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29) | `<agent_id>*` `<action> {list,park,unpark}` `<ref>` `--reason` `--by` |
 | `bifrost-ack` | durably record you HANDLED a salient bus message (P6) | `<agent_id>*` `<msg_id>*` `--note` `--json` |
 | `bifrost-drain` | request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer) | `<agent_id>*` `--to*` `--reason` |
-| `bifrost-fetch` | fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill) | `--get` `--out` |
+| `bifrost-fetch` | fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill) | `--get` `--out` `--agent` |
 | `bifrost-nudge` | targeted fidelity signal to ONE peer (interrupt/steer/inform) | `<agent_id>*` `<text>*` `--to` `--mode` `--json` |
 | `bifrost-pause` | freeze bus auto-responders (human barge-in); --soft to let seats finish first | `--reason` `--by` `--ttl` `--soft` `--json` |
 | `bifrost-resume` | un-freeze bus auto-responders |  |
