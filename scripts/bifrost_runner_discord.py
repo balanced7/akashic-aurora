@@ -61,6 +61,7 @@ from typing import Optional
 from core.comm.discord_inbound import (EarConfigError, build_config,
                                       credential_horizon_days,
                                       credential_warning, handle_message,
+                                      spawn_closing_report,
                                       spawn_credential_refusal,
                                       spawn_stillborn_reason)
 
@@ -73,6 +74,10 @@ _ROOT = Path(__file__).resolve().parents[1]
 # on a thread and speaks in a follow-up; only an INSTANT death rides the reply.
 _SPAWN_PROOF_SECONDS = float(os.getenv("AKASHIC_SPAWN_PROOF_SECONDS") or 25.0)
 _SPAWN_INSTANT_SECONDS = float(os.getenv("AKASHIC_SPAWN_INSTANT_SECONDS") or 2.0)
+#: How long a spawned seat may work in silence before its silence is itself reported.
+#: The proof window (25s) answers "did it live"; this answers "did it ever say anything",
+#: which is the question Daniil was actually asking on 2026-08-24 and did not get back.
+_SPAWN_REPORT_DEADLINE = float(os.getenv("AKASHIC_SPAWN_REPORT_DEADLINE") or 600.0)
 #: Vault names, not paths. Resolved through secret_intake.secrets_dir() so
 #: AKASHIC_SECRETS_DIR redirects them -- a module-path constant is UNISOLATABLE, and a pin
 #: one ambient file away from a real credential eventually does something real to a third
@@ -360,9 +365,10 @@ def main() -> int:
         proc, log = rec
         loop = asyncio.get_running_loop()
 
-        async def _confess(text: str) -> None:
+        async def _confess(text: str, warn: bool = True) -> None:
             try:
-                await message.add_reaction("⚠️")
+                if warn:                    # a closing report is news, not an alarm --
+                    await message.add_reaction("⚠️")   # only a stillbirth wears the siren
             except Exception:                                           # noqa: BLE001
                 pass                        # the reaction is garnish; the words matter
             try:                            # 1900 < Discord's 2000: a confession that
@@ -372,6 +378,7 @@ def main() -> int:
                       f": {e}) -- it stands in this log only", flush=True)
 
         def _watch() -> None:
+            started = time.time()
             try:
                 code = proc.wait(timeout=_SPAWN_PROOF_SECONDS)
             except subprocess.TimeoutExpired:
@@ -380,6 +387,29 @@ def main() -> int:
             if not reason:
                 print(f"[discord-in] spawn {pid} still breathing after "
                       f"{_SPAWN_PROOF_SECONDS:.0f}s -- the sprout holds", flush=True)
+                # KEEP LISTENING. Until 2026-08-24 the thread ENDED on this line, so a
+                # seat that outlived the 25s proof window was never heard from again --
+                # and "the sprout holds" went to this log, not to the man who asked. The
+                # proof window answers "did it live"; the wait below answers "did it ever
+                # say anything", which is the question he was actually asking.
+                if code is None:
+                    try:
+                        code = proc.wait(timeout=_SPAWN_REPORT_DEADLINE)
+                    except subprocess.TimeoutExpired:
+                        code = None
+                report = spawn_closing_report(
+                    code, _spawn_said(log),
+                    elapsed_s=time.time() - started,
+                    deadline_s=_SPAWN_REPORT_DEADLINE)
+                if not report:
+                    return
+                print(f"[discord-in] spawn {pid} closing report ({log.name})", flush=True)
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        _confess(f"🌱 `{log.name}` — {report}", warn=False), loop)
+                except Exception as e:                                  # noqa: BLE001
+                    print(f"[discord-in] could not relay the closing report: {e}",
+                          flush=True)
                 return
             print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
             horizon = credential_warning(_credential_horizon())

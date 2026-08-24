@@ -291,6 +291,68 @@ def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
     return reason[:max_len]
 
 
+#: Lines the HARNESS emits around a seat's own speech. They are not its answer, and on
+#: 2026-08-24 they were the LAST lines in the log -- so a naive "relay the tail" would have
+#: handed Daniil a file-not-found traceback instead of the seat saying it could not comply.
+_HARNESS_NOISE = (
+    "sessionend hook", "sessionstart hook", "pretooluse hook", "posttooluse hook",
+    "stop hook", "notification hook", "traceback (most recent call last)",
+)
+
+
+def _seat_words(log_text: str, max_len: int = 1700) -> str:
+    """The seat's OWN closing speech, with harness chatter removed.
+
+    Keeps the TAIL, because a seat says what it concluded at the end -- and clips rather
+    than truncates from the front, so the conclusion survives a long transcript."""
+    lines = [ln.rstrip() for ln in str(log_text or "").splitlines()]
+    kept = [ln for ln in lines
+            if ln.strip() and not any(m in ln.lower() for m in _HARNESS_NOISE)]
+    if not kept:
+        return ""
+    out = "\n".join(kept).strip()
+    if len(out) > max_len:
+        out = "…(clipped)\n" + out[-(max_len - 12):]
+    return out
+
+
+def spawn_closing_report(exit_code: Optional[int], log_text: str, *,
+                         elapsed_s: float, deadline_s: float,
+                         max_len: int = 1900) -> Optional[str]:
+    """What to tell the requester about a spawn that has finished -- or overstayed.
+
+    THE DEFECT THIS RETIRES (2026-08-24): the gateway read the child's entire output,
+    handed it to `spawn_stillborn_reason`, and discarded it unless a fatal marker matched.
+    A seat that ran and said something got silence; a seat that ran and said NOTHING got
+    the same silence; a seat still hanging got the same silence again. Daniil ran `!spawn`
+    three times against a dead conductor and every one of them looked identical from his
+    phone.
+
+    The original kindness is preserved and is not a fiction: a seat working inside its
+    deadline generates no chatter at all. That virtue only needed its sibling -- BE
+    LEGIBLE -- wired in beside it. Only an exit, or a deadline passed in silence, speaks.
+
+    Returns None when there is honestly nothing to say yet.
+    """
+    said = _seat_words(log_text)
+
+    if exit_code is None:
+        if elapsed_s < deadline_s:
+            return None                 # genuinely working: his channel stays quiet
+        mins = elapsed_s / 60.0
+        # `exit_code is None` means "still running", which is ALSO exactly what a hang
+        # looks like. At the deadline that ambiguity is handed to him, not absorbed.
+        head = (f"still running after {mins:.0f}m")
+        body = (f" -- latest it said:\n{said}" if said else
+                " and has said nothing back -- breathing, not answering")
+        return (head + body)[:max_len]
+
+    if not said:
+        return (f"the seat exited (code {exit_code}) and said nothing back -- no word, "
+                f"so there is no receipt beyond the exit code")[:max_len]
+    return said[:max_len]
+
+
 def _rooms_reverse() -> Dict[str, str]:
     """thread_id -> ask_id, from the rooms registry. The registry maps the route;
     message content never does (R3)."""
