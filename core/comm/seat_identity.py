@@ -131,6 +131,35 @@ def resolved_from(session_id: str, binding_dir: Optional[str] = None,
     return "unknown"
 
 
+#: Non-routable by construction (RFC 6762 reserves .local for mDNS), so a seat address can
+#: never resolve, never receive mail, and never collide with a real GitHub account. A seat
+#: that borrowed a routable address would mis-attribute work to a PERSON.
+GIT_IDENTITY_DOMAIN = "akashic-aurora.local"
+
+
+def git_identity_env(agent_id) -> dict:
+    """The env a launcher merges into a seat's process so git records the SEAT as author.
+
+    t384 RULING 2. The measured defect: commit b66e6f67 was authored by a seat per the bus
+    and the ledger, while git recorded the machine owner -- because seats commit through
+    exec using the human's git config. The seam is the LAUNCHER, not a commit hook: git
+    resolves authorship when it builds the commit object, so a hook (running in a child
+    process, after the fact) cannot change the author already in flight.
+
+    AUTHOR only, never COMMITTER -- that is git's own distinction between who wrote a change
+    and who applied it, and it keeps the human honestly in the history rather than erasing
+    them. Returns {} for an unidentified or malformed id: an unknown process must fall
+    through to the human's git config, which is at least honest about not knowing, rather
+    than receive a fabricated seat identity. Reusing valid() also makes the values
+    shell-safe for free -- _ID_RE admits no spaces, quotes, or metacharacters.
+    """
+    aid = str(agent_id).strip() if agent_id else ""
+    if not valid(aid):
+        return {}
+    return {"GIT_AUTHOR_NAME": aid,
+            "GIT_AUTHOR_EMAIL": f"{aid}@{GIT_IDENTITY_DOMAIN}"}
+
+
 def clear(session_id: str, binding_dir: Optional[str] = None) -> bool:
     """Drop this session's binding (its own only -- a sibling's is unreachable from here)."""
     try:

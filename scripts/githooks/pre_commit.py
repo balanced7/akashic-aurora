@@ -75,6 +75,59 @@ def _comprehensibility_fast():
         return 0, ""   # guard crashed/slow -> fail open, per the policy in the docstring
 
 
+# --------------------------------------------------------------------------- ATTRIBUTION GATE
+
+def check_author_matches_seat(agent, author_ident):
+    """t384 RULING 2: in a SEAT context, git's author must be that seat.
+
+    The stamp itself lives in the launcher (core/comm/seat_identity.git_identity_env);
+    this is the guard that makes its ABSENCE loud. Without it the stamp could silently
+    stop working -- a launcher spawned without the env, a hand-relaunch that omits it --
+    and every commit would quietly re-attribute a seat's work to the machine owner, which
+    is exactly the defect measured at b66e6f67 and exactly the kind of silence this house
+    has paid for twice (a stale plugin generation, a door narrower than its grant).
+
+    Silent outside seat context: a human at their own terminal has no AKASHIC_AGENT_ID and
+    is never touched -- the goal is attribution TRUTH, not universal stamping.
+    Fails OPEN when git reports no author: a guard that bricks every commit is worse than
+    the drift it watches for (same policy as the comprehensibility backstop below).
+    """
+    if not agent:
+        return True, ""                      # not a seat context -- the human's own commit
+    if not author_ident:
+        return True, ""                      # unreadable -> fail open, never brick the commit
+    try:
+        sys.path.insert(0, ROOT)
+        from core.comm.seat_identity import git_identity_env
+        want = git_identity_env(agent)
+    except Exception:
+        return True, ""                      # guard unavailable -> fail open
+    if not want:
+        return True, ""                      # malformed id: nothing to assert against
+    expected = f"{want['GIT_AUTHOR_NAME']} <{want['GIT_AUTHOR_EMAIL']}>"
+    if str(author_ident).startswith(expected):
+        return True, ""
+    return False, (
+        f"pre-commit BLOCKED: AKASHIC_AGENT_ID is '{agent}' but git will record this commit as\n"
+        f"    {author_ident}\n"
+        f"so a seat's work would be attributed to someone else in git history (t384).\n"
+        f"Expected: {expected}\n"
+        f"Fix -- stamp the seat identity in the LAUNCHER that spawned this process, or for a\n"
+        f"one-off: GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
+        f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} git commit ...\n"
+        f"(COMMITTER stays the machine owner on purpose -- author wrote it, committer applied it.)")
+
+
+def _git_author_ident():
+    """What git WILL record as author for this commit (env, else config)."""
+    try:
+        r = subprocess.run(["git", "var", "GIT_AUTHOR_IDENT"],
+                           capture_output=True, text=True, timeout=10, cwd=ROOT)
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+
+
 # --------------------------------------------------------------------------- WRITE-EDGE GATES
 # Root-cause fix, 2026-08-01, after CI sat red for 30 consecutive days. The repo had five good
 # guardrails, four debt allowlists and a suite baseline -- and enforced NONE of it at the moment
@@ -310,6 +363,14 @@ def regenerate_derived(stage: bool = True):
 
 def main():
     ok, reason = check_staged(_staged_files(), os.getenv("AKASHIC_AGENT_ID"))
+    if not ok:
+        sys.stderr.write(reason + "\n")
+        return 1
+
+    # ATTRIBUTION GATE (t384): in a seat context, git's author must be that seat. Runs
+    # early and cheap -- a commit that would land under the wrong name should be refused
+    # before any generator regenerates anything on its behalf.
+    ok, reason = check_author_matches_seat(os.getenv("AKASHIC_AGENT_ID"), _git_author_ident())
     if not ok:
         sys.stderr.write(reason + "\n")
         return 1

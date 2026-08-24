@@ -1,6 +1,8 @@
 {
   "env": {
-    "AKASHIC_AGENT_ID": "claude"
+    "AKASHIC_AGENT_ID": "claude",
+    "GIT_AUTHOR_NAME": "claude",
+    "GIT_AUTHOR_EMAIL": "claude@akashic-aurora.local"
   },
   "permissions": {
     "allow": [
