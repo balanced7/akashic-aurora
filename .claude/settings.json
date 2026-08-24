@@ -51,7 +51,9 @@
       "mcp__akashic-aurora__lock",
       "mcp__akashic-aurora__log",
       "mcp__akashic-aurora__bifrost_send",
-      "Edit(research/reviewed/**)"
+      "Edit(research/reviewed/**)",
+      "Bash(py scripts/bifrost_wake.py*)",
+      "Bash(py agent_cli.py unwedge*)"
     ]
   },
   "hooks": {
