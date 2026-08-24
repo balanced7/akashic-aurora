@@ -118,8 +118,57 @@ def _provenance_path() -> str:
         os.path.dirname(os.path.abspath(__file__)), "conductor_gate.provenance.log")
 
 
+#: How often a STAND-DOWN writes a heartbeat. The runners evaluate every 60s each, so a
+#: line per beat would drown the log and an unread log is the same as no log. But silence
+#: must remain EVIDENCE, so the interval is minutes rather than hours.
+HEARTBEAT_EVERY_S = 900.0
+
+#: Last heartbeat written, so the rate limit is stateful without a file.
+_heartbeat_state = {"t": 0.0, "reason": ""}
+
+
+def _reset_heartbeat() -> None:
+    """Test seam: forget the last heartbeat so rate-limiting is deterministic."""
+    _heartbeat_state["t"] = 0.0
+    _heartbeat_state["reason"] = ""
+
+
+def _heartbeat(reason: str, *, now: Optional[float] = None) -> bool:
+    """Write a rate-limited stand-down line. Returns whether it wrote.
+
+    Rate-limited so the fleet's 60s cadence does not drown the log -- but a CHANGED
+    verdict always writes immediately. The transition from 'conductor alive' to
+    'conductor dead, operator present' is the most interesting line this log can
+    carry, and it must never wait out a timer to appear.
+    """
+    now = now if now is not None else time.time()
+    every = _env_float("AKASHIC_CONDUCTOR_HEARTBEAT_S", HEARTBEAT_EVERY_S)
+    changed = reason != _heartbeat_state.get("reason")
+    due = (now - float(_heartbeat_state.get("t") or 0.0)) >= every
+    if not (changed or due):
+        return False
+    _heartbeat_state["t"] = now
+    _heartbeat_state["reason"] = reason
+    append_provenance(f"[live] stand-down (heartbeat): {reason}")
+    return True
+
+
 def append_provenance(line: str, keep: int = 400) -> None:
     """One auditable line per activation/refusal. Best-effort; rotates never discards."""
+    # AKASHIC_CONDUCTOR_PROVENANCE is consulted FIRST. Until 2026-08-24 it was reachable
+    # only AFTER the wake_seat writer failed -- which it never does -- so the env var
+    # advertised control it did not have, and every pytest run wrote into the production
+    # audit trail. Reading that trail during a real outage, a drill's deliberate
+    # RuntimeError("probe exploded") parses as a live detection-that-crashed.
+    override = os.environ.get(PROVENANCE_ENV)
+    if override:
+        try:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(override, "a", encoding="utf-8") as f:
+                f.write(f"[{stamp}] {line}\n")
+            return
+        except Exception:
+            pass
     try:
         from core.comm.wake_seat import append_provenance as _wp
         _wp("conductor_gate", line, keep=keep)
@@ -195,29 +244,53 @@ def _conductor_two_factor(agent: str = CONDUCTOR,
         snapshot = ws.process_snapshot()
         if snapshot is None:
             return "unknown"           # K8: cannot tell -> not provably dead
-        worst = "alive"
+        # ONE CORPSE MUST NOT CONDEMN THE LIVING (2026-08-24). This loop used to
+        # `return "orphan"` on the FIRST dead seat it met, never reading the rest --
+        # so a single stale sibling marker overruled a seat that was demonstrably
+        # beating. The 12:01 GPU crash left four dead claude markers behind, and from
+        # 14:30 they outvoted the live seat every 60s: the gate declared the conductor
+        # provably dead, repeatedly, while the conductor was awake and mid-conversation
+        # with Daniil. The outage's own wreckage became the evidence it was still dead.
+        #
+        # That is the aggregation escape with the sign flipped -- ANY-dead reported as
+        # ALL-dead -- and its mirror image was fixed in the revive lever the same
+        # morning (d496c5ea, one survivor certifying a dead tier). Same class, opposite
+        # polarity: there, one survivor certified the dead; here, one corpse condemned
+        # the living.
+        #
+        # So: scan EVERY seat, remember any orphan evidence, and let ANY proof of life
+        # veto. K7's "an idle-but-alive seat is immune BY CONSTRUCTION" is only true if
+        # the live seat is actually read, and K8 (fail toward alive) is only true if a
+        # single ambiguous sibling cannot end the scan.
+        alive_seen = False
+        orphan_evidence: Optional[str] = None
         for path, sid in seats:
             pid = ws.read_pid(path)
             if pid is None:
                 continue
             alive = ws._pid_alive_tristate(pid)
             if alive is not False:
-                worst = "alive-or-unknown"
+                alive_seen = True
                 continue
             # pid dead: check marker + chain (the slow path)
             marker = ws.activity_age_min(agent, sid) if sid else None
             if marker is not None and marker < fresh:
-                worst = "alive"
+                alive_seen = True
                 continue
             try:
                 chain_ok, evidence = ws.chain_alive(pid, snapshot)
             except Exception:
-                continue                    # K8: probe error -> alive
+                alive_seen = True           # K8: probe error -> alive
+                continue
             if chain_ok:
-                worst = "alive"
-            else:
-                return f"orphan (marker {marker if marker is not None else 'missing'}, {evidence})"
-        return worst
+                alive_seen = True
+            elif orphan_evidence is None:
+                orphan_evidence = (f"orphan (marker "
+                                   f"{marker if marker is not None else 'missing'}, "
+                                   f"{evidence})")
+        if alive_seen:
+            return "alive-or-unknown"       # a living seat vetoes every corpse
+        return orphan_evidence or "alive"
     except Exception:
         return "unknown"                # any probe error -> not provably dead (K8)
 
@@ -496,11 +569,16 @@ def decide_and_act(*, agent_self: Optional[str] = None, bus=None, dry_run: bool 
     """
     v = evaluate_succession(agent_self=agent_self, reap_fn=reap_fn, att_fn=att_fn,
                             op_present_fn=op_present_fn, bus=bus, now=now)
+    # A run with INJECTED probes (or a dry run) is a DRILL, and must never be readable
+    # as a live incident. On 2026-08-24 the 09:46 drill activation sat in the same log,
+    # in the same shape, as a real succession would -- and a reader three hours into an
+    # outage cannot be expected to know which is which from the words alone.
+    tag = "[drill] " if (dry_run or any((reap_fn, att_fn, op_present_fn))) else "[live] "
     if not v.activate or dry_run:
-        append_provenance(f"stand-down: {v.reason}")
+        append_provenance(f"{tag}stand-down: {v.reason}")
         return v
 
-    line = (f"ACTIVATION: conductor {CONDUCTOR} provably dead {v.conductor_watcher!r} / "
+    line = (f"{tag}ACTIVATION: conductor {CONDUCTOR} provably dead {v.conductor_watcher!r} / "
             f"{v.conductor_state}; absence conductor-specific ({','.join(v.successors_alive)}); "
             f"operator absent. Acting conductor = {v.successor} for {v.mandate_hours:.0f}h "
             f"(max role {MANDATE_MAX_ROLE}, scope {MANDATE_MAX_SCOPE}).")
@@ -554,10 +632,23 @@ def notice_conductor_absence(*, agent_self: str, bus=None,
     try:
         v = evaluate_succession(agent_self=agent_self, bus=bus, now=now)
         if not v.activate:
+            # THE HEARTBEAT (2026-08-24). This used to `return v` in silence, which made
+            # "correctly stood down", "never evaluated" and "the runner was dead too"
+            # the same observation: an empty log. Across a real 2h44m conductor outage
+            # the gate produced no production output at all, and that silence could not
+            # be read in either direction. A defense whose only receipt is "it fired"
+            # is indistinguishable from a defense that is not running -- so the
+            # stand-down now leaves a rate-limited line NAMING the condition that held,
+            # and absence of that line becomes evidence in its own right.
+            _heartbeat(v.reason, now=now)
             return v
         return decide_and_act(agent_self=agent_self, bus=bus, now=now)
     except Exception as e:  # noqa: BLE001 -- fail-closed: never raise out of the loop top
-        append_provenance(f"notice refused: probe error {type(e).__name__} -> stand-down")
+        # Carry the MESSAGE, not just the class. The old line logged only the exception
+        # type, so a real probe failure and a drill's RuntimeError("probe exploded")
+        # rendered identically and neither said what actually broke.
+        append_provenance(f"[live] notice refused: probe error {type(e).__name__}: "
+                          f"{str(e)[:140]} -> stand-down")
         return ConductorVerdict(
             activate=False,
             reason=f"notice refused on probe error {type(e).__name__} -> stand-down "
