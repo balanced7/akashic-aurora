@@ -4,8 +4,12 @@ Three harnesses each needed the same sequence and two carried deliberate copies
 (claude_pretooluse._recall_context, cursor_posttooluse._recall_block + outcome flow,
 claude_userpromptsubmit.build_plan_recall). The DeepSeek Harness arriving as the third
 triggered this module, exactly as the tiers doc pre-declared. Adapters translate their
-runtime's JSON and call these; every policy decision lives here (the architecture rule:
-nothing in this file knows a harness name).
+runtime's JSON and call these; the SHARED policy lives here (the architecture rule:
+nothing in this file knows a harness name). One deliberate exclusion, per the t383
+adversarial review (F2): claude_posttooluse's outcome flow stays in that hook — it is
+not the same shape (it BACKFILLS transcript-synthesized FAIL halves before the success,
+and its flip event carries an enriched detail with alt/query reconstruction). That
+enrichment policy lives there until a second harness needs transcript synthesis.
 
 The three doors (sealed signatures, fences/t383-dsh-adapter/reconciliation.md):
 
@@ -31,7 +35,10 @@ same value for both; DSH splits them (constant identity, per-session repeats).
 IDENTITY THREAD (the t383 leak fix): agent_id explicit beats env at every exit —
 recall ranking, the flip event, the nudge, and the engine's outcome-stage record
 (resolve_action_outcome forwards it). Default None falls back to AKASHIC_AGENT_ID,
-which is exactly what the hooks did, so claude/cursor behavior is unchanged.
+which is exactly what the hooks did, so claude/cursor behavior is unchanged. Deriving
+agent_id FROM session_key was rejected because the in-tree hooks pass their session
+UUID as session_key — deriving would have fed a UUID into recall's self-echo author
+match and silently broken self-echo suppression for claude/cursor (review F3).
 
 Fail-open by contract: any exception returns "" — recall must never brick an action.
 Kill switches: AKASHIC_RECALL_AT_ACTION=0 (action altitude), AKASHIC_PLAN_RECALL=0
