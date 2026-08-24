@@ -39,9 +39,15 @@ def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
     assert rec and rec["seat"] == seat, f"{word!r} -> {rec}"
 
 
+# SUPERSEDED ENTRY, recorded rather than quietly dropped: `"vandor"` was in this list
+# when the file was written, asserting it must stay a task. Daniil then asked for
+# `!spawn vandor` to launch the app and a seat, so the bare word now resolves BY
+# INSTRUCTION. The invariant it was protecting is unchanged and still pinned below —
+# a SENTENCE beginning with a seat name is still a task, vandor included.
 @pytest.mark.parametrize("word", [
     "rill and check the ui", "fix the wedge", "", "   ",
-    "boot and take the watch", "spawn a seat to audit the gate", "vandor",
+    "boot and take the watch", "spawn a seat to audit the gate",
+    "vandor and take the watch", "vandor please drain the lane",
 ])
 def test_a_sentence_is_a_TASK_and_must_not_be_hijacked_into_a_launch(word):
     """The historical behaviour must stay reachable for everything that is not exactly a
@@ -112,3 +118,92 @@ def test_an_undrilled_lever_does_not_read_like_a_drilled_one():
 
 def test_the_note_carries_the_url_when_the_seat_serves_one():
     assert "127.0.0.1:3080" in sl.launch_note(sl.resolve_seat("rill"))
+
+
+# ============================================================================
+# THE EXEC PIN. Daniil, 2026-08-24: "lets make sure the cli version it spawns is
+# exec enabled so it can respond, we have been bitten by that so many times."
+#
+# A seat spawned read-only cannot arm its own wake watcher, drain its mail, commit,
+# or run a test. It boots, appears on every dial, and can do nothing — which is
+# indistinguishable from a working seat until he needs one. The house has paid for
+# this repeatedly. These pins make the regression impossible rather than unlikely.
+# ============================================================================
+@pytest.mark.parametrize("mode", ["default", "arm", "", None, "nonsense", "ARM", "Default"])
+def test_a_spawned_claude_seat_can_ALWAYS_exec(mode):
+    """Bash must ride the launch line for every mode that is not the break-glass one.
+    An unknown mode degrades to ARMED, never silently to read-only."""
+    flags = " ".join(sl.claude_permission_flags(mode))
+    assert "Bash" in flags, f"mode {mode!r} spawned a seat that cannot exec: {flags}"
+    assert "Write" in flags and "Edit" in flags, flags
+    assert "acceptEdits" in flags, flags
+
+
+def test_dangerous_is_the_only_mode_that_skips_permissions():
+    assert sl.claude_permission_flags("dangerous") == ["--dangerously-skip-permissions"]
+    for m in ("default", "arm", "nonsense"):
+        assert "--dangerously-skip-permissions" not in sl.claude_permission_flags(m)
+
+
+# ------------------------------------------------------------------ flag parsing
+def test_flags_parse_off_so_a_flagged_seat_still_resolves():
+    rec, flags = sl.parse_spawn_target("vandor --repair")
+    assert rec and rec["seat"] == "claude" and flags == {"--repair"}
+
+
+def test_a_flagged_SENTENCE_is_still_a_task():
+    rec, _ = sl.parse_spawn_target("vandor --repair and then audit the gate")
+    assert rec is None, "a sentence must not become a launch just because it carries a flag"
+
+
+# --------------------------------------------------------- options, not surprises
+def _plan(**kw):
+    base = dict(app_healthy=False, app_repairable=True, app_detail="status Modified",
+                live_seats=0, flags=set())
+    base.update(kw)
+    return sl.claude_seat_plan(**base)
+
+
+def test_app_missing_with_no_flag_OFFERS_rather_than_acting():
+    """Daniil: 'have it give me options if claude code is not detected'. Package surgery
+    triggered from a phone by a bare word is not something this house does silently."""
+    p = _plan()
+    assert p["action"] == "options", p
+    assert "NOT DETECTED" in p["message"], p["message"]
+    for choice in ("--repair", "--seat", "!revive --target app"):
+        assert choice in p["message"], p["message"]
+
+
+def test_the_options_message_does_not_read_like_it_acted():
+    m = _plan()["message"].lower()
+    assert "spawning" not in m and "launched" not in m, m
+
+
+def test_repair_is_opt_in_and_says_what_it_will_do():
+    p = _plan(flags={"--repair"})
+    assert p["action"] == "repair_then_spawn"
+    assert "verifying payload" in p["message"] and "stale status bit" in p["message"]
+    # And it must not read as proven. The MSIX rung is drilled; the end-to-end
+    # app-down -> repair -> seat chain is not, and cannot be from inside the app.
+    assert "NOT" in p["message"] and "end-to-end" in p["message"].lower(), p["message"]
+
+
+def test_seat_flag_skips_the_app_because_the_cli_works_without_it():
+    p = _plan(flags={"--seat"})
+    assert p["action"] == "spawn" and "works without it" in p["message"]
+
+
+def test_a_healthy_app_just_spawns_without_a_menu():
+    p = _plan(app_healthy=True, app_detail="status Ok", live_seats=2)
+    assert p["action"] == "spawn" and "2 live claude seat(s)" in p["message"]
+
+
+def test_status_reports_and_never_acts_even_when_everything_is_fine():
+    p = _plan(app_healthy=True, app_detail="status Ok", flags={"--status"})
+    assert p["action"] == "options", p
+
+
+def test_an_unrepairable_app_refuses_repair_by_name_instead_of_trying():
+    p = _plan(app_repairable=False, app_detail="status Tampered", flags={"--repair"})
+    assert p["action"] == "options"
+    assert "NOT repairable" in p["message"], p["message"]

@@ -141,3 +141,101 @@ def launch_note(rec: Dict[str, Any]) -> str:
     return (f"launching {who}{where}; NOTE: this lever is wired but NOT yet drilled from "
             f"cold — it is safe to run when the seat is already up, and unproven at "
             f"raising a dead one")
+
+
+# ---------------------------------------------------------------- the claude seat
+# `vandor` is not a daemon or a server -- it is a CLI seat, and it has TWO
+# preconditions that today proved are independent: the Claude Code DESKTOP APP (the
+# MSIX package that died at 12:01:59 and stayed dead until 14:45:52) and the `claude`
+# CLI, which kept working the entire time the app was down. So the app is ensured
+# DELIBERATELY, and never as a side effect of asking for a seat.
+_SEATS["vandor"] = {
+    "seat": "claude", "callsign": "Vandor", "kind": "claude_seat",
+    "url": None,
+    "drilled": "",     # the app-then-seat path is NOT yet drilled from cold
+}
+_ALIASES.update({"vandor": "vandor", "claude": "vandor"})
+
+#: Flags a spawn target may carry. Parsed off before the bare-name check, so
+#: `!spawn vandor --repair` still resolves to a seat rather than falling through to
+#: the task path.
+SPAWN_FLAGS = ("--repair", "--seat", "--status")
+
+
+def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
+    """(seat, flags) for an operator's `!spawn` argument. Pure.
+
+    A seat resolves only when what REMAINS after removing known flags is a bare name,
+    so a sentence is still a task and `--repair` does not turn one into a launch."""
+    words = str(text or "").split()
+    flags = {w.lower() for w in words if w.lower() in SPAWN_FLAGS}
+    rest = " ".join(w for w in words if w.lower() not in SPAWN_FLAGS)
+    return resolve_seat(rest), flags
+
+
+def claude_permission_flags(mode: str = "default") -> List[str]:
+    """The CLI permission flags a spawned claude seat launches with.
+
+    THIS IS THE ONE THAT KEEPS BITING. A seat spawned read-only cannot arm its own wake
+    watcher, cannot drain its mail, cannot commit, and cannot run a test -- so it looks
+    alive on every dial and can do nothing, which is the failure this house has paid for
+    repeatedly (unattended_spawn_cannot_use_write_or_exec_only_mcp_tools;
+    spawn_grant_flags_must_ride_the_launch_line;
+    hand_spawned_runner_narrows_the_door_below_the_acl). It is a decidable rule, so it
+    lives in core WITH ITS PINS instead of inline in the gateway, and an unknown mode
+    degrades to `arm` rather than silently to read-only."""
+    m = str(mode or "default").strip().lower()
+    if m == "dangerous":
+        return ["--dangerously-skip-permissions"]
+    return ["--permission-mode", "acceptEdits",
+            "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep"]
+
+
+def claude_seat_plan(*, app_healthy: bool, app_repairable: bool, app_detail: str,
+                     live_seats: int, flags: set) -> Dict[str, Any]:
+    """What `!spawn vandor` should DO, given the world. Pure.
+
+    When the app is missing, this REPORTS AND OFFERS rather than acting. Package surgery
+    triggered from a phone by a bare word is not a thing this house should do silently --
+    and the whole point of the day was that a lever which acts without showing its reasons
+    is indistinguishable from one that lies. So the ambiguous case hands him the choice.
+    """
+    seats = f"{live_seats} live claude seat(s)"
+    if "--status" in flags:
+        return {"action": "options", "message":
+                f"Claude Code app: {'UP' if app_healthy else 'DOWN'} — {app_detail}\n"
+                f"{seats}\n" + _choices(app_healthy, app_repairable)}
+    if app_healthy or "--seat" in flags:
+        return {"action": "spawn", "message":
+                (f"app UP ({app_detail}); {seats} — spawning a fresh seat"
+                 if app_healthy else
+                 f"app DOWN ({app_detail}) — skipping it as asked; spawning a CLI seat, "
+                 f"which works without it")}
+    if "--repair" in flags:
+        if not app_repairable:
+            return {"action": "options", "message":
+                    f"app DOWN and NOT repairable by this lever — {app_detail}\n"
+                    + _choices(app_healthy, app_repairable)}
+        return {"action": "repair_then_spawn", "message":
+                f"app DOWN ({app_detail}) — verifying payload, then clearing only the "
+                f"stale status bit, then proving by launch, then spawning a seat.\n"
+                f"NOTE: the repair rung itself is drilled (executed falsifiers, real "
+                f"package verifies 2348/2348 files, 11411/11411 blocks), but this "
+                f"END-TO-END app-down → repair → seat chain is NOT — it cannot be "
+                f"drilled from inside the app it repairs."}
+    return {"action": "options", "message":
+            f"Claude Code app NOT DETECTED — {app_detail}\n{seats}\n"
+            + _choices(app_healthy, app_repairable)}
+
+
+def _choices(app_healthy: bool, app_repairable: bool) -> str:
+    lines = ["How to proceed:"]
+    if not app_healthy and app_repairable:
+        lines.append("  `!spawn vandor --repair`  verify payload → clear the stale MSIX "
+                     "bit → launch → then a seat")
+    elif not app_healthy:
+        lines.append("  (no repair offered: this lever has no rung for that state)")
+    lines.append("  `!spawn vandor --seat`    skip the app; spawn a CLI seat, which works "
+                 "without it")
+    lines.append("  `!revive --target app`    the app alone, no seat")
+    return "\n".join(lines)
