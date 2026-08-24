@@ -124,7 +124,7 @@ Class: reference
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
 | `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | GAP | `BIFROST_NAMESPACE` |
 | `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
-| `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | GAP | `BIFROST_NAMESPACE` |
+| `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | docs/library/design/remote-bifrost-bridge-serge-onepager.md | `BIFROST_NAMESPACE` |
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
 | `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_t256_fan_presets.py | GAP |  |
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |

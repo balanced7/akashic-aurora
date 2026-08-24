@@ -14,6 +14,8 @@ command> -- so flips could never credit. This file pins the fixed contract.
 """
 import argparse
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from agent.harness.dsh_plugin import bridge
@@ -73,3 +75,58 @@ def test_plugin_wiring_pins_path_command_not_joined_target():
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "['--target', target]" not in src
     assert "'--path', path" in src and "'--command', command" in src
+
+
+# --- T6 DSH session-end shim (auto-handoff flagship, 2026-08-24) ---
+
+def test_dsh_parse_calls_pairs_real_session_records():
+    """parse_dsh_calls pairs the REAL tool/call <-> tool/result shapes (callId rides
+    message.source.callId) and reads the REAL failure marker (data.error). Pinned
+    against verbatim records from session-1266b57c's log."""
+    calls, truncated = bridge.parse_dsh_calls(str(FIXDIR / "dsh_session_sample.jsonl"))
+    assert truncated is False
+    assert sorted(c["tool"] for c in calls) == ["pwsh", "read"]
+    read = next(c for c in calls if c["tool"] == "read")
+    pwsh = next(c for c in calls if c["tool"] == "pwsh")
+    assert read["target"] == normalize_target("E:\\AI-Setup\\.env", None)
+    assert pwsh["target"].startswith("c:")   # command target, surface-shaped
+    assert read["ok"] is False               # the data.error record
+    assert pwsh["ok"] is True
+    assert all("at" in c and "target" in c for c in calls)
+
+
+def test_dsh_session_log_location_matches_real_layout():
+    """The shim must find the session log under the REAL layout:
+    $DSH_HOME/sessions/<workspace-slug>/session-<id>/session.jsonl.zstd."""
+    with tempfile.TemporaryDirectory() as home:
+        sid = "session-1266b57c-82cc-4ac2-ad45-d3d44549bfc7"
+        d = Path(home) / "sessions" / "--E-AI-Setup--" / sid
+        d.mkdir(parents=True)
+        log = d / "session.jsonl.zstd"
+        log.write_bytes(b"x")
+        assert bridge.locate_dsh_session_log(home, sid) == str(log)
+
+
+def test_presence_offline_declares_departure_not_a_beat():
+    """The presence door's offline phase must call go_offline -- a declared departure
+    that renders OFFLINE in the roster -- never heartbeat the key alive (the old
+    placeholder defect that kept ended sessions rendering LIVE)."""
+    import uuid
+    ns = "t383pre" + uuid.uuid4().hex[:6]
+    old = os.environ.get("BIFROST_NAMESPACE")
+    os.environ["BIFROST_NAMESPACE"] = ns
+    try:
+        a = argparse.Namespace(phase="offline", session_id="seat-0001")
+        assert bridge.cmd_presence(a) == 0
+        from core.comm import roster
+        rows = roster.roster(ns)
+        mine = [r for r in rows if r.get("seat") == "dsh_agent#seat-000"]
+        assert mine and mine[0]["state"] == "OFFLINE", (
+            f"presence offline must render OFFLINE via go_offline: {mine}")
+        assert not [r for r in rows if r.get("state") == "LIVE"], (
+            f"an offline declaration must not leave a LIVE row behind: {rows}")
+    finally:
+        if old is None:
+            os.environ.pop("BIFROST_NAMESPACE", None)
+        else:
+            os.environ["BIFROST_NAMESPACE"] = old

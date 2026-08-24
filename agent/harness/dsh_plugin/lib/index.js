@@ -1,6 +1,6 @@
 // dsh-akashic-recall — the five-listener adapter (sealed fence t383-dsh-adapter).
-// STILL UNWIRED: no cordis.patch.yml entry / profile dependency until the cold
-// start (wiring rides the same fresh session as the T1 receipt).
+// WIRED LIVE 2026-08-24: mount fixed via cordis.patch.yml insert form with a
+// relative-file name (see tests/test_dsh_contract.py for the pinned contract).
 //
 // Listeners and their sealed tier mapping:
 //   session/created        -> T2 trigger: boot whisper fetched, presence idle

@@ -9,6 +9,10 @@ is an override of a nonexistent entry and is skipped with "patch: entry not foun
 - `dsh_capture_pair_pwsh.json` -- the capture PAIR (surface + resolve) for the target-
   join law: same session_key, same (path, command) on both sides. The values are the
   actual arguments of that session's live tool calls.
+- `dsh_session_sample.jsonl` -- verbatim records from the real DSH session log
+  (session.jsonl.zstd decompressed): two complete tool/call <-> tool/result pairs, one
+  pwsh success and one read FAILURE (data.error). Pins the T6 shim's parser
+  (callId pairing via message.source.callId, failure via data.error).
 
 The contract under test (tests/test_dsh_contract.py, the F4-owed capture-pair test):
   - the pinned payload is the shape the plugin ACTUALLY emits;
