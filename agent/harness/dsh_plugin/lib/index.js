@@ -23,7 +23,7 @@
 // loud log. R1 dynamic half: once-per-session marker probe, confirmed by
 // scanning the session/event feed; silence = loud "context dropped".
 // R2: dsh-invariants registration asserts the post-execute listener exists.
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { appendFileSync, mkdirSync, statSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -34,6 +34,15 @@ const BRIDGE = join(PLUGIN_DIR, '..', 'bridge.py')
 const SESSION_KEY = 'dsh_agent'
 const CAP_DIR = join(tmpdir(), 'akashic_recall', 'payloads_dsh')
 const LOG = (...a) => console.log('[dsh-akashic-recall]', ...a)
+
+// GENERATION FRESHNESS (Vandor's ask + Rill's refinement, 2026-08-24): the ESM cache
+// serves the module object loaded at FIRST import, while apply() RE-EXECUTES on entry
+// restart -- so a module-scope stamp survives every reload and an apply-time re-stat
+// exposes exactly the lie "I just applied a fix". No invariants service needed; the
+// bug becomes its own detector.
+const LOADED_MTIME = (() => {
+  try { return statSync(fileURLToPath(import.meta.url)).mtimeMs } catch { return 0 }
+})()
 
 let listenerRegistered = false
 let observeOnly = false
@@ -127,6 +136,14 @@ export function apply(ctx) {
   if (observeOnly) {
     LOG(`OBSERVE-ONLY: AKASHIC_AGENT_ID=${process.env.AKASHIC_AGENT_ID} != ${SESSION_KEY}; injecting nothing, mis-attributing nothing`)
   }
+  // Freshness probe -- fires at the exact moment someone believes they reloaded.
+  try {
+    const diskMtime = statSync(fileURLToPath(import.meta.url)).mtimeMs
+    if (diskMtime > LOADED_MTIME) {
+      LOG(`STALE GENERATION: module loaded at mtime ${LOADED_MTIME}, file on disk is newer (${diskMtime}) -- the running code is NOT the fixed code. REMEDY: restart the server (module code does not hot-reload; patch-row edits do)`)
+      capture({ at: Date.now(), kind: 'freshness-drift', loadedMtime: LOADED_MTIME, diskMtime })
+    }
+  } catch {}
   // R1 static half
   let contextSuppressed = false
   try {

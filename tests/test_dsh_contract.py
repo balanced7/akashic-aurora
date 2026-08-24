@@ -77,6 +77,18 @@ def test_plugin_wiring_pins_path_command_not_joined_target():
     assert "'--path', path" in src and "'--command', command" in src
 
 
+def test_plugin_pins_generation_freshness_probe():
+    """The stale-generation guard (Vandor's ask, 2026-08-24): the JS module captures
+    its own mtime at FIRST import (module scope -- survives the ESM cache) and
+    re-stats inside apply() (which RE-EXECUTES on entry restart), so disk-newer-than-
+    loaded is LOUD with a named remedy, never silent. The bug becomes its own detector."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "LOADED_MTIME" in src
+    assert "statSync(fileURLToPath(import.meta.url))" in src   # module-scope stamp
+    assert "restart the server" in src                        # remedy, named for foreign readers
+    assert "freshness-drift" in src                           # durable capture, not console-only
+
+
 # --- T6 DSH session-end shim (auto-handoff flagship, 2026-08-24) ---
 
 def test_dsh_parse_calls_pairs_real_session_records():
