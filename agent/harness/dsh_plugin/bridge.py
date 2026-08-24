@@ -94,7 +94,9 @@ def cmd_boot_whisper(a) -> int:
 def cmd_action_recall(a) -> int:
     try:
         recall_block, _, _ = _import_actions()
-        text = recall_block(a.session_key, a.seen_key, a.path, a.command)
+        # identity thread on ALL doors (t383 review F1): explicit beats inherited env
+        text = recall_block(a.session_key, a.seen_key, a.path, a.command,
+                            agent_id=a.session_key)
         return _emit({"text": text or ""})
     except Exception as e:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
@@ -113,7 +115,7 @@ def cmd_outcome_credit(a) -> int:
 def cmd_plan_recall(a) -> int:
     try:
         _, _, plan_block = _import_actions()
-        text = plan_block(a.prompt, a.session_key, a.seen_key)
+        text = plan_block(a.prompt, a.session_key, a.seen_key, agent_id=a.session_key)
         return _emit({"text": text or ""})
     except Exception as e:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
