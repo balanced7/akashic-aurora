@@ -179,7 +179,8 @@
 - `private_plane.py` — The private-plane leak guard: ingress, at the one place everything must pass.
 - `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r
 
-## core/fleet/  (5 modules)
+## core/fleet/  (6 modules)
+- `app_package.py` — app_package -- the rung the ladder did not have on 2026-08-24.
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
 - `model_roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
 - `residents.py` — The resident registry -- who a seat IS, and the receipts that earned the name.
