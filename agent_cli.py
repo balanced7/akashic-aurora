@@ -6490,7 +6490,7 @@ def cmd_blob(args):
         # The peer I shipped T220 to hit this within the hour: "your blob pointer was dead on
         # my side". Extending the resolver serves the address the message actually has;
         # rewriting the pointer to name some other door would only move the lie.
-        data = _fetch_bus_body(ref)
+        data = _fetch_bus_body(ref, agent=str(getattr(args, "agent", "") or ""))
     if data is None:
         print(f"# no blob or bus message for {ref}\n"
               f"# (blob refs are content-addressed and never rewritten -- a miss means it was "
@@ -6514,12 +6514,19 @@ def _looks_like_stream_id(ref: str) -> bool:
     return len(parts) == 2 and all(p.isdigit() for p in parts) and len(parts[0]) >= 10
 
 
-def _fetch_bus_body(mid: str):
+def _fetch_bus_body(mid: str, agent: str = ""):
     """The body of a bus message, by stream id, as bytes. None when unreachable.
 
     T222. Scans the streams THIS agent can read rather than guessing one: a message lands on
     the work lane, the legacy inbox, or a broadcast depending on kind and era, and the whole
     point of this door is that the caller holding a clipped render does not know which.
+
+    T222 (residual, W169): the original scan hardcoded `Bus("claude")` and claude-only stream
+    keys, so it resolved ONLY claude's mail. A non-claude seat (dsh_agent, kimi, sol, deepseek)
+    running `bifrost-fetch --get <id>` on a message addressed to ITSELF never found the body
+    even though it sat in the seat's own inbox -- the T222 test never caught it because the
+    only exercise ran AS claude (tested the mechanism, not the wiring, on both sides of the
+    fix). Thread the calling agent through so each seat resolves its own streams.
 
     Reassembles T043 fragments when the id names a fragmented send, because a body that
     clipped is exactly the size that fragments -- resolving only the first part would hand
@@ -6527,13 +6534,23 @@ def _fetch_bus_body(mid: str):
     """
     try:
         from core.comm.bus import Bus
-        b = Bus("claude")
+        agent = (agent or "").strip() or os.environ.get("AKASHIC_AGENT_ID", "claude")
+        b = Bus(agent)
         r = b._client
         if r is None:
             return None
         seen = []
-        for key in (f"{b.ns}:work:inbox:claude", f"{b.ns}:inbox:claude",
-                    f"{b.ns}:work:broadcast", f"{b.ns}:broadcast"):
+        # The calling seat's own inbox + seat stream + work lane, plus BOTH broadcasts
+        # (a clipped broadcast body is also resolvable). A sender resolving its OWN sent
+        # message still needs the recipient's stream, but the dominant case (the addressee
+        # reading a clipped body) is the recipient's own -- and a miss stays LOUD (caller
+        # is told exactly that, never a silent empty).
+        sid8 = b._my_sid8()
+        keys = [f"{b.ns}:work:inbox:{agent}", f"{b.ns}:inbox:{agent}",
+                f"{b.ns}:work:broadcast", f"{b.ns}:broadcast"]
+        if sid8:
+            keys.insert(0, f"{b.ns}:inbox:{agent}#{sid8}")   # seat-directed takes priority
+        for key in keys:
             try:
                 got = r.xrange(key, min=mid, max=mid)
             except Exception:
@@ -7848,6 +7865,8 @@ def build_parser():
                                       "(the retrieval half of T113's oversize-send spill)")
     blb.add_argument("--get", default="", help="the blob:<sha> ref from a spill notice")
     blb.add_argument("--out", default="", help="write bytes to this file instead of stdout")
+    blb.add_argument("--agent", default="", help="whose streams to scan for a stream-id ref "
+                      "(default $AKASHIC_AGENT_ID; override to resolve a peer's clipped body)")
     blb.set_defaults(fn=cmd_blob)
 
     # ---- W154: recreation, institutionalized (2026-08-13, "I am having a blast") ----

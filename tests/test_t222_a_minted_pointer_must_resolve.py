@@ -96,3 +96,28 @@ def test_spill_blobs_still_resolve():
     ref = get_blob_store().put(b"T222 spill regression payload")
     got = _cli("bifrost-fetch", "--get", ref)
     assert "spill regression payload" in got, f"broke the original resolver: {got[:200]}"
+
+
+def test_a_non_claude_seat_resolves_a_body_addressed_to_itself():
+    """W169 residual: the T222 resolver hardcoded Bus("claude") + claude-only stream keys, so
+    ONLY claude could resolve a clipped stream-id. Any other seat (dsh_agent, kimi, sol,
+    deepseek) running `bifrost-fetch --get <id>` on a message addressed to ITSELF got
+    "# no blob or bus message" while the body sat in the seat's own inbox. The original pin
+    never caught it because the only exercise ran AS claude (mechanism, not wiring). This pin
+    sends a message TO a non-claude seat, then resolves it AS that seat."""
+    sys.path.insert(0, str(REPO))
+    from core.comm.bus import Bus
+
+    other = "dsh_agent"
+    body = "W169 PROBE HEAD. " + ("pad " * 900) + " W169 PROBE TAIL SENTINEL."
+    b = Bus(other)
+    mid = str(b.send(other, "note", body) or "")
+    assert mid, "could not send a probe message to a non-claude seat"
+
+    # Resolve AS the non-claude seat (the agent whose inbox holds the message).
+    got = _cli("bifrost-fetch", "--get", mid, "--agent", other)
+    assert "no blob" not in got.lower(), (
+        f"a {other} seat could not resolve a body addressed to itself (the W169 residual):\n"
+        f"{got[:300]}")
+    assert "W169 PROBE TAIL SENTINEL" in got, (
+        f"resolver returned something for {other}, but not the clipped tail:\n{got[:300]}")

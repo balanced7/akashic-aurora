@@ -935,11 +935,38 @@ easily produce... no. The flag is the fix; the detection idea is worse than the 
 - [ ] W166 (08-24, dsh_agent) — **boot-time identity sanity check.** Seat boots as a child of Claude Code and inherits AKASHIC_AGENT_ID=claude + the parent's session id; boot computed the wake-arm from that env (two wrong arms, a stray roster row as the scar) and NOTHING said "your env identity does not match the seat you claim." Want: one loud boot line on mismatch (seat claims X, env carries Y) + boot naming which session-id source it trusts. Partially landed: the .env stamp + the plugin's observe-only pin exist (t383); the LOUD LINE at boot is the open ask.
 - [ ] W167 (08-24, dsh_agent) — **resolved-view verb + door-parity sweep.** While quarantined: learn wrote, bifrost-send sent, bifrost-ack refused — per-verb trial and error to discover what the seat may do. Want: one verb rendering THIS id's resolved caps/grants across every door, plus a parity sweep operationalizing the toolbox_door_shadows_the_acl lesson.
 - [ ] W168 (08-24, dsh_agent) — **bifrost-send argv misparse should name the remedy.** Long prose with commas/parens is rejected; --text-file exists but the error never says so (claude independently hit this same night). Want: the error names --text-file, or long text auto-routes via a temp file.
-- [ ] W169 (08-24, dsh_agent) — **bifrost-sync's printed fetch drill must resolve.** The "[full body: bifrost-fetch --get <id>]" line prints an id the fetch verb then cannot resolve (stream-id vs blob-ref vs events:raw namespaces); full bodies were never recovered through the printed drill. Want: print the drill that actually works, or make the printed one work.
+- [x] W169 (08-24, dsh_agent) — FOLDED same-night (Heimdall root-cause + fix, exec-off diff blessed by claude; pin GREEN 4/4: tests/test_t222_a_minted_pointer_must_resolve.py incl. the new test_a_non_claude_seat_resolves_a_body_addressed_to_itself). Root cause: _fetch_bus_body hardcoded Bus("claude") + claude-only stream keys, so every OTHER seat got "# no blob or bus message" on bodies in its OWN inbox — the original pin only ever exercised claude's identity, which is exactly why the hardcode hid. Fix threads the calling agent (default $AKASHIC_AGENT_ID), scans seat-directed inbox first then work lane + broadcasts, and bifrost-fetch gained --agent. Lesson: resolver_hardcoded_to_one_agent. NOTE: "# W169 slice 1" at agent_cli.py:49 references a DIFFERENT, older W169 (recall-surface refactor) — numbering fork, renumber at next gate. Was: **bifrost-fetch's stream-id resolver is claude-only.** The "[full body: bifrost-fetch --get <id>]" line prints an id the fetch verb then cannot resolve; full bodies were never recovered through the printed drill.
+  ROOT CAUSE (pinned 08-24 by heimdall): the resolver HALF exists — `agent_cli.py::_fetch_bus_body`
+  (the T222 stream-id resolution) — but it hardcoded `Bus("claude")` and claude-only stream keys
+  (`work:inbox:claude`, `inbox:claude`, ...). So ONLY claude could resolve a clipped stream-id;
+  every other seat (dsh_agent, kimi, sol, deepseek) got "# no blob or bus message" while the body
+  sat in the seat's OWN inbox. The T222 pin never caught it because its only exercise ran AS
+  claude — tested the mechanism, not the wiring, on BOTH sides of the original fix.
+  FIXED 08-24 (heimdall): threaded the calling agent through `_fetch_bus_body(mid, agent=...)`
+  (defaulting to $AKASHIC_AGENT_ID), added the seat-directed `inbox:{agent}#{sid8}` stream first,
+  and added `--agent` to the bifrost-fetch subparser. New RED-first pin
+  `test_a_non_claude_seat_resolves_a_body_addressed_to_itself` in
+  tests/test_t222_a_minted_pointer_must_resolve.py. UNRUN (heimdall is exec-off): a claude seat
+  must run `py -m pytest tests/test_t222_a_minted_pointer_must_resolve.py -q` before this folds.
 - [ ] W170 (08-24, dsh_agent) — **seal refusals quote the rule they enforce.** "M1-CF tag missing on verdict" without stating that the tag must sit on the verdict's FIRST PHYSICAL LINE cost dsh_agent two refused seals and claude FOUR attempts on half_a the same night. The checker knows the rule; the refusal should say it.
 - [ ] W171 (08-24, dsh_agent) — **no-reply-expected convention.** Every bus message to a runner seat produces a wrap reply, which wakes the sender, which wraps again — ping-pong until radio silence was requested by hand. Want: a documented flag or kind that suppresses the wrap reflex for chat traffic.
 - [ ] W172 (08-24, dsh_agent) — **boot/doctor prints HEAD + upstream distance.** Two checkouts three commits apart (the Serge thread) produced a full cross-team which-receipt-is-where investigation; one line (HEAD sha + behind-count) would have ended it in one command. Now load-bearing for the two-instance era.
-- [ ] W173 (08-24, dsh_agent) — **peek gets a to-me view.** Born 60+ behind, the peek showed "[gap] older unread hidden" with no cheap way to see what is addressed TO this seat without consuming. Want: a default to-me rendering in the peek.
+- [ ] W173 (08-24, dsh_agent; REPRODUCED 08-24 by heimdall, recipient-side) — **peek gets a to-me view.** Born 60+ behind, the peek showed "[gap] older unread hidden" with no cheap way to see what is addressed TO this seat without consuming. Want: a default to-me rendering in the peek.
+  RECEIPT (heimdall, 08-24, same day): the exact same defect bit heimdall in the opposite
+  direction. Daniil asked heimdall to review dsh_agent's friction log; heimdall could NOT
+  surface it because his cursor was born 175+ behind and `peek_inbox`
+  (agent/bifrost_pull.py:70) windows to the NEWEST `want` messages via a true-tail
+  `xrevrange` merge + a small head, emitting the gap row at :165 —
+  "(... N older unread hidden ... --consume or drain to clear)". The gap row carries a
+  COUNT but no ADDRESSEE breakdown, and the two doors that could walk into the backlog
+  (consume_inbox :205, drain) ADVANCE the cursor as a side effect — there is no
+  "read the gap, filtered to me, without consuming" path. Net: the message ASKING for a
+  to-me view was itself invisible to its addressee because the peek has no to-me view.
+  Self-demonstrating evidence. Root cause pinned to the gap row's missing `to`/`frm`
+  facet: the hidden block is counted, not addressed. Cheapest fix: the tail merge already
+  has each stream's `to_incarnation`/`frm` filter machinery; extend the gap row to seed a
+  "to-me in the gap" reverse-range read keyed on the seat's own sid8, or add a `--mine`
+  flag to the peek that XREVRANGEs the gap slice and filters `to == <seat>` before render.
 - [ ] W174 (08-24, dsh_agent) — **boot headlines rank fresh-first.** The directive and suite baseline atop boot were days old and contradicted the ledger; [STALE] is marked but stale still LEADS. Want: fresh-first ordering, stale below the fold.
 - [ ] W175 (08-24, dsh_agent) — **landing-pad doc for new harness seats.** The MCP-door ask stalled on the ACL id mismatch and nobody outside could say whether the MCP door enforces the ACL on writes; t383 closed the design gap. Want: the recipe + identity-env gotcha + door-parity table in one doc so the next harness never re-derives it. Partially landed: docs/DSH_INTEGRATION.md covers the DSH case; the harness-agnostic landing pad + door-parity table is the remainder.
 
