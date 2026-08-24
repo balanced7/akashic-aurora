@@ -8,10 +8,28 @@
     "brief": {
       "by": "claude",
       "at": "2026-08-24T12:18:04.829632+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-08-24T12:21:29.055968+00:00"
+    },
+    "half_b": {
+      "by": "dsh_agent",
+      "at": "2026-08-24T12:23:59.307092+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-08-24T12:26:42.913695+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-08-24T12:25:08.644503+00:00",
+    "missing_count": 8
+  },
   "authors": {
-    "brief": "claude"
+    "brief": "claude",
+    "half_a": "deepseek",
+    "half_b": "dsh_agent",
+    "reconciliation": "claude"
   }
 }
