@@ -3056,6 +3056,77 @@ def cmd_discord(args):
     return 0 if o else 1
 
 
+def cmd_gateway(args):
+    """gateway -- the INBOUND Discord ear (bifrost_runner_discord.py), NOT the outbound
+    `discord` bridge. `gateway restart` is the managed resuscitation lever: find the live
+    gateway python process, kill it, and relaunch it detached with stdio redirected to its
+    log (no redirection = no process and no log to diagnose from -- the
+    runner_relaunch_without_lane_env lesson). One atomic lever, so it can never become a
+    shutdown-with-no-relaunch that strands the operator mid-Discord.
+
+    Restart is DELIBERATELY a mutating verb gated behind the same door as every other
+    mutation; it is NOT in the unattended-read allowlist, which is the whole point --
+    arbitrary process kill+relaunch should need an approver, not ride a read verb.
+    """
+    import subprocess
+    from pathlib import Path
+    from core.comm import wake_seat as _WS
+
+    _ROOT = Path(__file__).resolve().parent
+    runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
+    marker = "bifrost_runner_discord"
+
+    if args.action == "status":
+        snap = _WS.process_snapshot()
+        live = [pid for pid, r in (snap or {}).items()
+                if marker in (r.get("cmdline") or "")]
+        if args.json:
+            print(json.dumps({"live": live, "count": len(live)})); return 0
+        if not live:
+            print("# gateway: NOT RUNNING (no live bifrost_runner_discord.py process)")
+            return 1
+        for pid in live:
+            print(f"# gateway: LIVE pid {pid}")
+        return 0
+
+    if args.action != "restart":
+        # unknown action is a refusal, never a silent do-nothing
+        print(f"gateway: unknown action {args.action!r} (status|restart)")
+        return 2
+
+    # restart: find -> kill -> relaunch, atomically, all under the mutation gate.
+    snap = _WS.process_snapshot()
+    live = [pid for pid, r in (snap or {}).items()
+            if marker in (r.get("cmdline") or "") and pid != os.getpid()]
+    killed = []
+    for pid in live:
+        if _WS.taskkill(pid):
+            killed.append(pid)
+        else:
+            print(f"[gateway] could not kill pid {pid} -- aborting restart rather than "
+                  f"double-spawning (a half-restart strands the operator)")
+            return 1
+    # Relaunch detached, stdio -> the gateway's own log (AKASHIC_DISCORD_GATEWAY_LOG or the
+    # default). CREATE_NO_WINDOW: no console box. CREATE_NEW_PROCESS_GROUP so our own teardown
+    # cannot signal it.
+    import time as _t
+    if killed:
+        _t.sleep(1.0)             # let the socket release before the child reclaims it
+    log = Path(os.getenv("AKASHIC_DISCORD_GATEWAY_LOG")
+               or (_ROOT / "state" / "logs" / "discord-gateway.log"))
+    log.parent.mkdir(parents=True, exist_ok=True)
+    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) \
+        | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+    with open(log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n[gateway-restart {_t.time():.0f}] relaunching (killed: {killed})\n")
+        subprocess.Popen([sys.executable, str(runner)],
+                         cwd=str(_ROOT), stdout=fh, stderr=fh,
+                         creationflags=flags)
+    print(f"[gateway] restarted (killed {', '.join(map(str, killed)) or 'none'}; "
+          f"relaunched detached -> {log})")
+    return 0
+
+
 def cmd_sift(args):
     """sift -- the nested ask (T217). Tiered read that returns DISSENT, not consensus.
 
@@ -6957,6 +7028,15 @@ def build_parser():
     dsc.add_argument("--kind", default="chat", help="kind for `send` (default chat)")
     dsc.add_argument("--json", action="store_true")
     dsc.set_defaults(fn=cmd_discord)
+
+    gw = sub.add_parser("gateway", help="the INBOUND Discord ear (bifrost_runner_discord.py): "
+                                        "status = is it running; restart = kill+relaunch it "
+                                        "detached (managed resuscitation, gated like any mutation)")
+    gw.add_argument("action", nargs="?", default="status", choices=["status", "restart"],
+                    help="status = report the live gateway pid(s); restart = kill + relaunch "
+                         "the gateway detached with stdio -> its log")
+    gw.add_argument("--json", action="store_true")
+    gw.set_defaults(fn=cmd_gateway)
 
     sf = sub.add_parser("sift", help="the NESTED ask (T217): evidence -> hat fan -> curator "
                                      "pairs -> DISSENT FIRST. Use it when the answer needs "
