@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from core.paths import repo_root as _repo_root
 import re
 import time
 from typing import Any, Dict, List, Optional
@@ -67,9 +68,9 @@ class AtomFamily:
     isolation flag's fixture path (T069/T070 lineage).
     """
 
-    def __init__(self, store: Any, jsonl_dir: str = DEFAULT_JSONL_DIR, repo_root: str = "E:\\AI-Setup"):
+    def __init__(self, store: Any, jsonl_dir: str = DEFAULT_JSONL_DIR, repo_root: str = ""):
         self.store = store
-        self.jsonl_dir = jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root, jsonl_dir)
+        self.jsonl_dir = jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root or str(_repo_root()), jsonl_dir)
 
     # ---------- validation ----------
 

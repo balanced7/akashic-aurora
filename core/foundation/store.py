@@ -33,6 +33,7 @@ with what callers already expect.
 """
 
 import os
+from core.paths import repo_root
 import json
 import time
 import shutil
@@ -366,7 +367,7 @@ class FileStore(Store):
     DATA_BUCKETS = ("kv", "hash", "list", "set", "zset")
 
     def __init__(self, path: Optional[str] = None):
-        base = Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "session_logs"
+        base = repo_root() / "session_logs"
         base.mkdir(parents=True, exist_ok=True)
         self._path = Path(path) if path else base / "store_state.json"
         self._lock = threading.RLock()

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 981c8b06. A bound you discover by collision is not awareness -- this sheet
+> Derived at 7a2ac912. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -14,7 +14,7 @@ Class: reference
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +20 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +11 |
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |

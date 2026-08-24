@@ -54,7 +54,7 @@ try:
     from core.paths import repo_root as _rr
     ROOT = _rr()
 except Exception:
-    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
+    ROOT = Path(os.getenv("AI_SETUP") or ".").resolve()
 PROTECTED = ["core"]  # dirs whose boundaries we enforce (add context/ etc. later)
 
 # Pre-existing debt: (rule, relative_path) -> reason. Visible, tracked, not silent.

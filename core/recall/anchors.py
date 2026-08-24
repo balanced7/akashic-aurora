@@ -54,13 +54,14 @@ reads UNCHECKABLE (blindness), never RESOLVED and never MISSING (absence).
 from __future__ import annotations
 
 import os
+from core.paths import repo_root
 import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-ROOT = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+ROOT = repo_root()
 
 _ATOM = re.compile(r"^art_\d{8}_[a-z0-9\-]+_[0-9a-f]{6}$")
 _TASK = re.compile(r"^T\d{2,4}$")
