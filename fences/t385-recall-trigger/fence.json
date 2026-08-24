@@ -1,0 +1,17 @@
+{
+  "id": "t385-recall-trigger",
+  "question": "What should a recall target be derived from, and should a lesson be able to declare the class it governs?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-08-24T14:27:41.730883+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-08-24T14:27:42.331296+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
