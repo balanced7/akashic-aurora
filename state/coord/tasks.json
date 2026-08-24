@@ -1,5 +1,5 @@
 {
-  "seq": 380,
+  "seq": 382,
   "tasks": [
     {
       "id": "T001",
@@ -2230,11 +2230,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "verifying",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "927d7854",
+      "verified_by": "claude",
       "created": "2026-07-14T13:11:08+00:00",
-      "updated": "2026-07-14T23:17:37+00:00",
+      "updated": "2026-08-24T16:00:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -2260,6 +2260,11 @@
           "to": "verifying",
           "by": "",
           "at": "2026-07-14T23:17:37+00:00"
+        },
+        {
+          "to": "done",
+          "by": "claude",
+          "at": "2026-08-24T16:00:33+00:00"
         }
       ]
     },
@@ -13832,17 +13837,17 @@
       "id": "T374",
       "title": "Two-store census + master-declaration doctrine + mechanized reconciler -- (1) CENSUS: enumerate every fact living in 2+ stores (redis/git-files/sqlite-echo/state-coord/caches), one master declared per fact, classified by cause: transitional/physics/cache/accidental. (2) DOCTRINE: no peer truths -- master + derived only; derived carries generation stamps, regenerable; writes only through the master's door. (3) MECHANIZE: reconciler on cadence via durable_reconcile + doctor drift section (compare stamps, heal=regenerate-projection, BACKFILL never overwrite per lesson heal_must_backfill_never_overwrite). (4) End-date every transitional dual-write (finish T045 cutover, retire legacy stream). (5) D-catalog drift drill: skew a projection deliberately, prove detection+heal, dated receipt. Provenance: Daniil's four questions 2026-08-22 morning (why arise / need both / mechanize sync) following the LangFuse drift-class thread",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-22T12:55:37+00:00",
-      "updated": "2026-08-22T14:10:26+00:00",
+      "updated": "2026-08-23T02:51:47+00:00",
       "history": [
         {
           "to": "proposed",
@@ -13853,6 +13858,11 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-22T14:10:26+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-23T02:51:47+00:00"
         }
       ]
     },
@@ -13903,17 +13913,17 @@
       "id": "T376",
       "title": "Fleet metabolism slice (D of the 2026-08-22 attention deck) -- generalize runner-style stale-code self-restart (detect HEAD drift, wait for idle boundary, exit clean, spawn successor, singleton-lock guards) to the discord gateway, bifrost daemon, and UI; unify with OOB Law-6 succession as ONE organ with three triggers (stale-code / wedged / deadline). Receipt: a rolling-refresh drill -- commit a trivial change, observe all long-lived organs rotate hands-free. Provenance: the 2026-08-22 autonomous runner rotation + Daniil's sequencing",
       "desc": "",
-      "owner": "",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-22T14:05:18+00:00",
-      "updated": "2026-08-22T14:10:27+00:00",
+      "updated": "2026-08-23T13:22:57+00:00",
       "history": [
         {
           "to": "proposed",
@@ -13924,6 +13934,11 @@
           "to": "approved",
           "by": "daniil",
           "at": "2026-08-22T14:10:27+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-23T13:22:57+00:00"
         }
       ]
     },
@@ -14014,13 +14029,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "e3a26162",
+      "verified_by": "G1 live drills x4 (Test/Syn/Boop/Yest, operator-observed pixels; his own reports drove v1.1-v1.3), G2 dead-path pinned, seen-join verified on-wire (438649a4 packet_sha), fire-time receipt measured at 28ms",
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-22T16:52:44+00:00",
-      "updated": "2026-08-22T16:55:16+00:00",
+      "updated": "2026-08-23T05:06:12+00:00",
       "history": [
         {
           "to": "proposed",
@@ -14036,6 +14051,82 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-22T16:55:16+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-08-23T05:06:12+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-08-23T05:06:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T381",
+      "title": "Map v1 (c-map-design reconciled): the living map's first render -- pure build_map fold over ledger/doctor/forecasts/streams/routes, stamp block (generation ts + HEAD + source cursors) in the FIRST render, deck-as-terrain landmarks dominant, red banner on any page-grade, static state/map/index.html regenerated on demand + at gates. Slices M1-M4 per fences/c-map-design/reconciliation.md. Provenance: Daniil verbatim 'Lets build it' + the ironman-suit/vr-headset lineage (q1-prior-art doc)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-23T17:06:00+00:00",
+      "updated": "2026-08-23T17:06:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-23T17:06:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-23T17:06:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-23T17:06:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T382",
+      "title": "Revive ladder L0-L2 + drills (docs/library/design/20260823_revive-ladder-battle-plan): scripts/revive.py observe/skip/heal/verify reconciler (single-flight, gentlest-lever, no kills on default path) + !revive and !status-deep control words (roots only, R3 amendment ratified) + doctor line on discord_feed_post_failed + schtasks watchdog running the gateway rung + drills D1/D3/D4/D5 with dated receipts in state/drills/. Provenance: the 2026-08-23 incident + Daniil verbatim 'Lets run the drills'",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "claimed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-23T21:57:00+00:00",
+      "updated": "2026-08-23T21:57:12+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-23T21:57:00+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-08-23T21:57:12+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-08-23T21:57:12+00:00"
         }
       ]
     }
