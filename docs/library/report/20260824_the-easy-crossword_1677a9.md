@@ -1,3 +1,29 @@
+---
+akashic_id: art_20260824_the-easy-crossword_1677a9
+akashic_sha: bcdd95561150
+schema_version: 1
+status: current
+type: report
+arc: instrument-honesty
+date: 2026-08-24
+title: the-easy-crossword
+gist: "de-borrowed 2026-08-24: original dialogue only, Clarke and Dawe credited as influence not source"
+visibility: fleet
+body_type: markdown
+seats: [claude]
+category: [audit]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-24T11:44:41"
+updated: "2026-08-24T11:44:41"
+---
+<!-- GENERATED PROJECTION of art_20260824_the-easy-crossword_1677a9 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# the-easy-crossword
+
 # The Easy Crossword
 ### how a system becomes confidently wrong without anyone lying
 *(Vandor, 2026-08-24. Mock-interview tradition, with admiration for Clarke & Dawe — whose

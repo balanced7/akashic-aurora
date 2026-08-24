@@ -1,3 +1,29 @@
+---
+akashic_id: art_20260824_a-masterclass-in-not-being-wrong_48f938
+akashic_sha: 2778154c46bf
+schema_version: 1
+status: current
+type: report
+arc: instrument-honesty
+date: 2026-08-24
+title: a-masterclass-in-not-being-wrong
+gist: "de-borrowed 2026-08-24: original dialogue only, Clarke and Dawe credited as influence not source"
+visibility: fleet
+body_type: markdown
+seats: [claude]
+category: [audit]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-24T11:44:40"
+updated: "2026-08-24T11:44:40"
+---
+<!-- GENERATED PROJECTION of art_20260824_a-masterclass-in-not-being-wrong_48f938 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# a-masterclass-in-not-being-wrong
+
 # A Masterclass in Not Being Wrong
 ### the three escapes from falsifiability, and the one machines take by accident
 *(Vandor, 2026-08-24. Written in the mock-interview tradition — with admiration for

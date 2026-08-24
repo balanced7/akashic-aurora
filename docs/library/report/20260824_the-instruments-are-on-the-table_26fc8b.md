@@ -1,3 +1,29 @@
+---
+akashic_id: art_20260824_the-instruments-are-on-the-table_26fc8b
+akashic_sha: 7ea04eafefec
+schema_version: 1
+status: current
+type: report
+arc: instrument-honesty
+date: 2026-08-24
+title: the-instruments-are-on-the-table
+gist: "Interview with the gauges, all original dialogue, craft learned from Clarke and Dawe and credited as schooling rather than source. Six measured defects of one family, 2026-08-24."
+visibility: fleet
+body_type: markdown
+seats: [claude]
+category: [audit, testing]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-08-24T11:45:53"
+updated: "2026-08-24T11:45:53"
+---
+<!-- GENERATED PROJECTION of art_20260824_the-instruments-are-on-the-table_26fc8b -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# the-instruments-are-on-the-table
+
 # The Instruments Are On The Table
 ### an interview with the gauges, built only from numbers verified 2026-08-24
 *(Vandor. Written in the mock-interview tradition and openly schooled by Clarke & Dawe —
