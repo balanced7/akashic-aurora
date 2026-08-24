@@ -154,6 +154,28 @@ def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
         return {"ok": False, "resumed_after_s": None}
 
 
+def go_offline(ns: str, agent: str, session_id: str, *, client=None,
+               _beat_ts: Optional[float] = None) -> dict:
+    """Declared departure (presence-offline API, 2026-08-24). Removes the worklive key
+    NOW -- a departing seat must not render STALE for the rest of the TTL -- and stamps
+    the seatseen witness with offline_ts so the roster renders OFFLINE (declared) instead
+    of DEAD (unexplained expiry). Reversible by construction: the next heartbeat
+    re-creates the worklive key and the seat is LIVE again. `_beat_ts` is injectable for
+    pins only. Never raises."""
+    try:
+        client = client or _connect()
+        full_sid = str(session_id or "")
+        sid8 = full_sid[:8]
+        now = float(_beat_ts if _beat_ts is not None else time.time())
+        client.delete(_key(ns, agent, sid8))
+        doc = {"full_sid": full_sid, "beat_ts": now, "phase": "offline",
+               "offline_ts": now, "code_sha": _liveness_code_sha()}
+        client.set(_seen_key(ns, agent, sid8), json.dumps(doc), ex=SEATSEEN_TTL_S)
+        return {"ok": True, "offline_ts": now}
+    except Exception:
+        return {"ok": False}
+
+
 def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
     """T3 (torrent bitfield): the seat's consumed-through positions -- inventory POINTERS,
     never payload (T5). kimi F2: keys are DERIVED THROUGH THE BUS DOOR (the organ that owns
@@ -185,7 +207,7 @@ def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
 CHURN_WINDOW_S = float(os.environ.get("AKASHIC_ROSTER_CHURN_WINDOW_S", "3600") or 3600)
 CHURN_AT = int(os.environ.get("AKASHIC_ROSTER_CHURN_AT", "3") or 3)
 
-_STATE_RANK = {"LIVE": 3, "STALE": 2, "DEAD": 1}
+_STATE_RANK = {"LIVE": 3, "STALE": 2, "OFFLINE": 1.5, "DEAD": 1}
 
 
 def by_agent(rows, *, churn_window_s: Optional[float] = None,
@@ -228,6 +250,7 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None,
         live = [r for r in rs if str(r.get("state")) == "LIVE"]
         stale = [r for r in rs if str(r.get("state")) == "STALE"]
         dead = [r for r in rs if str(r.get("state")) == "DEAD"]
+        offline = [r for r in rs if str(r.get("state")) == "OFFLINE"]
         recent_deaths = [r for r in dead if _recent(r)]
         newest_death = min((float(r["beat_age_s"]) for r in dead
                             if r.get("beat_age_s") is not None), default=None)
@@ -244,7 +267,8 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None,
             "split_brain": len(live) > 1,
             "phase": str(best.get("phase") or "?"),
             "beat_age_s": best.get("beat_age_s"),
-            "n_total": len(rs), "n_live": len(live), "n_stale": len(stale), "n_dead": len(dead),
+            "n_total": len(rs), "n_live": len(live), "n_stale": len(stale),
+            "n_dead": len(dead), "n_offline": len(offline),
             "deaths_in_window": len(recent_deaths),
             "newest_death_age_s": newest_death,
             "churn_window_s": window,
@@ -306,7 +330,15 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
         if dead:
             # kimi F1: a seat that EVER beat renders DEAD with its last beat age -- never
             # silent absence; the reaper keys on absence, the RENDER confesses the death.
-            state = "DEAD"
+            offline_ts = float(doc.get("offline_ts") or 0)
+            if offline_ts:
+                # presence-offline: a DECLARED departure renders OFFLINE, aged from the
+                # departure, not DEAD -- death claims an unexplained expiry, and this seat
+                # told us it left.
+                state = "OFFLINE"
+                age = now - offline_ts
+            else:
+                state = "DEAD"
         else:
             # kimi F3: LIVE's window derives from the seat's OWN cadence (2x EMA, floored),
             # falling back to FRESH_S only for seats with no rhythm yet. A wedged loop's
@@ -324,6 +356,15 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
             "have": _have_summary(client, ns, agent, sid8),
             "code_sha": str(doc.get("code_sha") or ""),
             "code_state": code_state(doc.get("code_sha")),
+            # DSH bridge rich fields (Lane 2): passed through defensively so the UI card can
+            # read profile/hop/plugin_present when the bridge stamps them. Absent -> empty/None,
+            # never a fabricated value: the card treats None as "unknown", not a false alarm.
+            "bridge": {
+                "profile": doc.get("profile") or "",
+                "hop": doc.get("hop"),
+                "plugin_present": doc.get("plugin_present"),
+                "plugin": doc.get("plugin"),
+            },
         })
     rows.sort(key=lambda r: (r["agent"], -(r["beat_ts"] or 0)))
     return rows

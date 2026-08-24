@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at e8434e08. A bound you discover by collision is not awareness -- this sheet
+> Derived at afd5b4aa. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -104,7 +104,7 @@ Class: reference
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
-| `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
+| `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHOW_CONSOLES` | `` | core/__init__.py, core/comm/launcher.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_SPAWN_INSTANT_SECONDS` | `` | scripts/bifrost_runner_discord.py |
@@ -170,7 +170,7 @@ Class: reference
 | `DEEPSEEK_RECALL_AT` | `` | core/comm/toolbox.py, scripts/bifrost_runner_deepseek.py |
 | `DEEPSEEK_RUNNER_MAX_TOKENS` | `"8000"` | scripts/bifrost_runner_deepseek.py |
 | `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py |
-| `DSH_HOME` | `` | scripts/install_dsh_plugin.py |
+| `DSH_HOME` | `` | agent/harness/dsh_plugin/bridge.py, scripts/install_dsh_plugin.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |

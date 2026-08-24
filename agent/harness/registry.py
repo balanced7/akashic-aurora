@@ -56,8 +56,10 @@ HARNESSES = {
                   "still unobserved)",
             "T5": "pending -- per-prompt session/event + system-prompt/assemble "
                   "plan-recall path wired; unobserved at a live prompt yet",
-            "T6": "pending -- session/flush+disposed listener wired; the T6 distiller "
-                  "consumes Claude-shaped transcripts, DSH shim owed (t383 README gap 4)",
+            "T6": "yes -- session/disposed+flush fire presence-offline + the DSH-native "
+                  "session-end shim (zstd log -> last-session-draft + session_signals); "
+                  "shim dogfooded end-to-end 2026-08-24, first live fire rides the next "
+                  "session close",
         },
     },
     "cursor": {
