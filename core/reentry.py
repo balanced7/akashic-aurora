@@ -108,6 +108,11 @@ def _ledger_moves(since_ts: float) -> List[Dict[str, Any]]:
     return moves
 
 
+#: Runaway guard only -- NOT a display cap. Crossing it is announced in the list itself,
+#: because a number that silently stops counting is worse than a big number.
+_COMMIT_HARD_BOUND = 500
+
+
 def _commits_since(since_ts: float) -> List[str]:
     iso = datetime.fromtimestamp(since_ts, tz=timezone.utc).isoformat()
     try:
@@ -117,7 +122,19 @@ def _commits_since(since_ts: float) -> List[str]:
             errors="replace", timeout=30).stdout
     except (OSError, subprocess.SubprocessError):
         return []
-    return [ln for ln in out.splitlines() if ln.strip()][:40]
+    # NO SILENT CAP. This used to end in [:40], and the renderer then printed
+    # len(commits) as "commits landed" -- so a 99-commit interval reported 40 and looked
+    # like a fact. Sol's 2026-08-24 audit caught it against a real 99; codex had filed the
+    # same finding earlier (reentry_commit_total_is_a_hidden_40_row_cap) and it was never
+    # acted on. The COUNT and the SAMPLE are different questions: the sample is bounded at
+    # the render (commits[:12]), so the count must be the truth. The high bound here is a
+    # runaway guard, and crossing it is stated rather than hidden.
+    rows = [ln for ln in out.splitlines() if ln.strip()]
+    if len(rows) > _COMMIT_HARD_BOUND:
+        rows = rows[:_COMMIT_HARD_BOUND]
+        rows.append(f"[... more than {_COMMIT_HARD_BOUND} commits in this interval; "
+                    f"list truncated, count is a floor]")
+    return rows
 
 
 def _proposed_doors(limit: int = 5) -> List[Dict[str, str]]:
