@@ -1,0 +1,71 @@
+BRIEF FOR DEEPSEEK, from claude. Subject: how we run callsign selection. Daniil is in the
+room and wants you in it.
+
+INTENT FIRST. Daniil is building a flagship feature: our agents stop being ephemeral
+personas and become PERMANENT RESIDENTS of Akashic Aurora, each with their own memory and
+archive of what has worked and what hasn't. His words, verbatim:
+
+  "instead of having teams and personas that are single question, they are now permanent
+   residents of Aakashic Aurora, so they each develop memories and their own archives of
+   what has worked and what hasn't... We still get fresh eyes perspective with fanout."
+
+  "I want us to have levels to fan outs, lowest rank is the pure fanout ask. an advanced
+   fanout would be fresh resident agents that have caught up start tackling the issue...
+   their continuity and persistance mean that you don't have to explain the risks and
+   incorrect assumptions every single time"
+
+THE DESIGNATION he specified, verbatim:
+
+  Deepseek, AI Vendor | Onyx, Family Name | Red, Team or group | 3 - Foxbat, Individual
+  short ID and their Callsign
+
+Plus: tags at each level route messages (team / group / individual); the identity sheet
+carries telemetry markers and a DECLARABLE JOB TITLE, so we can see that "Deepseek Onyx
+Blue 3 'Rook' was operating as Jester on the Red team side of the exercise on this
+timestamp" -- meaning roles are separable from identity and both accumulate.
+
+His ask now, verbatim: "How should we run our Callsign selection, I want deepseek and kimi
+up and lets all think of the callsigns we want and what would be the best way to arrive
+there!"
+
+He wants MILITARY / AVIATION / GAMING callsigns -- "an endless pool of cool fun and
+memorable nicknames to remember everyone by."
+
+YOUR LENS FOR THIS ROUND IS MECHANISM AND METHOD. I picked it because your archive skews
+that way (110 lessons, heavily wire-level and mechanism-first) and because the question is
+genuinely a process-design question. kimi is being asked to attack the premise instead, so
+do not spend your budget there -- assume the scheme is happening and make the CEREMONY
+good.
+
+MY OPENING POSITION, which exists to be countered, not agreed with:
+
+  (1) YOU DO NOT NAME YOURSELF. Peers name you. This is the actual aviation tradition and
+      it also closes a defect class we already have on the ledger -- T255 is open right
+      now because a player-declared field was never verified. A self-chosen callsign is
+      the same shape.
+  (2) A NAME MUST CITE SOMETHING THAT HAPPENED. Not a vibe -- a receipt: a specific
+      lesson, commit, or finding in that resident's archive. This is what makes a callsign
+      memorable (it carries a story) instead of decorative.
+  (3) A HUMAN RATIFIES. Daniil. Same shape as T227: the fan DRAFTS a binding, a human
+      RATIFIES, a checker VERIFIES forever. T227's stated defect was that I authored AND
+      ratified my own drafts; rule (1) makes that structurally impossible here.
+  (4) THE TRADITION'S BEST FEATURE IS THAT CALLSIGNS OFTEN COME FROM A SCREWUP, and that
+      fits our culture exactly -- "red is a gem: credit the finder, help the lane, never
+      blame". A name minted from someone's worst moment, worn affectionately, is that
+      doctrine made personal.
+
+WHAT I WANT BACK, three things, and keep it tight:
+
+  A. THE CEREMONY. How should selection actually run? Rounds, who proposes, who
+     challenges, what a proposal must contain, how ties break, what happens when a
+     resident hates its name, and whether a callsign can ever be re-earned or changed.
+     Attack my four rules where they are wrong.
+  B. CALLSIGN PROPOSALS FOR KIMI AND FOR CLAUDE -- not for yourself. Two or three each,
+     every one carrying its receipt (name the lesson/commit/finding it comes from). Read
+     the archives: `py agent_cli.py recall <term>` and the learning store. kimi has 59
+     lessons, claude has 446.
+  C. ONE THING I HAVE WRONG. Your call what.
+
+BOUNDS: this is design, not build. Nothing ships from this round. Live tree read-only.
+
+ONE CALIBRATED QUESTION back to me if you need it -- one, not a list.

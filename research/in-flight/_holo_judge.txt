@@ -1,0 +1,60 @@
+[core/comm/control_channel.py]
+  DOING: This project builds a distributed agent system with out-of-band control channels to recover agents that become unreachable when the primary message bus blocks.
+  VALUES: honesty about limitations, determinism over registries, defense against stale state
+[core/comm/toolbox.py]
+  DOING: The project is building a collaborative, multi-model AI coding fleet that uses a shared, guarded tool surface and a knowledge base to work on a software codebase safely.
+  VALUES: security, shared knowledge, guardrails
+[core/comm/dispatcher.py]
+  DOING: Build a resilient multi-agent runtime where a zero-token triage gate wakes agents only for high-priority messages, with durable streams preventing message loss.
+  VALUES: Durability, Resource efficiency, Testability
+[core/comm/role_queue.py]
+  DOING: Building a distributed agent work queue that guarantees exactly-once, role-addressed execution using Redis streams and side-effect fences to prevent double-processing.
+  VALUES: exactly-once execution, fail-closed safety, freshness and stale-drop.
+[core/comm/bus.py]
+  DOING: Building a reliable, ephemeral message bus for local agents over Redis Streams with guaranteed delivery and observable integrity.
+  VALUES: Correctness, Visible failures, Separation of concerns
+[core/comm/failure_class.py]
+  DOING: A distributed messaging and transport system that classifies dead message asks into actionable causes for recovery without modifying transport behavior.
+  VALUES: observability, non-interference, precise diagnosis
+[core/coord/defer_queue.py]
+  DOING: Building a multi-agent coordination system where commands can be deferred and later discharged by a seat with the required capability, with durable, auditable state.
+  VALUES: accountability (mandatory receipts), capability-aware access control, data durability (atomic git-tracked state)
+[core/coord/fence_workspace.py]
+  DOING: The project is building a mechanically-enforced adversarial debate framework where a "fence" with two halves and evidence is owned by the workspace, not by filename convention.
+  VALUES: Mechanical checks at commitment, Anti-confabulation (derived paths), Adversarial independence
+[core/coord/task_ledger.py]
+  DOING: Building a deterministic, git-durable task state machine to coordinate an AI agent fleet and prevent rework caused by reading uncurated message streams.
+  VALUES: Deterministic governance, sequential correctness, zero-rework guarantees
+[core/learning/consolidation.py]
+  DOING: The project is building an AI agent that continuously distills episodic experiences and experiment outcomes into a compact, curated chronicle while preserving unmodified raw sources as the single source of truth.
+  VALUES: data integrity, lossless source pointers, canonical single-writer path
+[core/learning/vfx_chunk_lessons.py]
+  DOING: This project is building a recall system for a shader-based VFX pipeline that can extract human-authored rules and warnings from chunk header metadata, so past mistakes aren't repeated.
+  VALUES: single source of truth, re-runnability without duplication, bridging authoring surfaces to retrieval
+[core/events/event_index.py]
+  DOING: A real-time event capture and indexing system that provides durable, bounded storage with fast time-range and reference lookbacks.
+  VALUES: event durability, bounded index, recall correctness
+[scripts/checkers/check_comprehensibility.py]
+  DOING: The project is an AI agent system (the "Akashic Aurora fleet") that uses automated guard scripts to keep its own documentation and architecture maps continuously understandable, preventing drift and decay.
+  VALUES: comprehensibility, enforcement, freshness
+[scripts/checkers/check_preregistration.py]
+  DOING: The project enforces a test-first methodology by blocking commits that ship new pre-registered test files together with implementation source.
+  VALUES: contract integrity, methodology enforcement, test-first discipline
+[scripts/checkers/check_bus_atom_pointers.py]
+  DOING: The project builds a bus-based collaboration system that enforces a “mint first, point later” pattern: any long, design-shaped message body must live as a durable atom or note elsewhere, and the bus carries only a pointer.
+  VALUES: durable knowledge artifacts, structural integrity of bus messages, automated rules-as-code.
+[tests/test_coord_metrics.py]
+  DOING: The project is building a coordination framework that tracks solution-space diversity and correctness across multiple AI agent runs to detect collapse or stagnation in multi-agent code generation.
+  VALUES: diversity of approaches, correctness monitoring, healthy convergence
+[tests/test_t158_canary_oracle.py]
+  DOING: The project implements a tamper‑evident canary oracle to measure defect‑detection effectiveness, distinguishing true completeness from pool exhaustion using classified planted defects.
+  VALUES: honesty, reproducibility, calibration
+[tests/test_episode.py]
+  DOING: Building a session journaling tool that structures work into intent-driven episodes, captures action beats, and drafts summaries with AI review.
+  VALUES: explicit intent, temporal integrity, AI seam
+[docs/PRINCIPLES.md]
+  DOING: It builds a knowledge-compiler system that captures and curates reasoning from human‑AI interaction, preserving all source material so that useful reasoning can be faithfully recreated from minimal stored information.
+  VALUES: Append-only truth, measured outcomes, enforced mechanical guards
+[docs/CONDUCT.md]
+  DOING: The project is building a self-governing execution fleet where a conductor enforces ten multiplicative laws to institutionalize a founder's vision of leadership that shapes environment and turns interactions into compounding improvement.
+  VALUES: multiplicative environment, intent-first, learning from failure

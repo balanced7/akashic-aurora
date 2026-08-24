@@ -1,0 +1,69 @@
+[
+  {
+    "index": 0,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 1,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 2,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 3,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 4,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 5,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 6,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 7,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 8,
+    "delta_content": null,
+    "finish_reason": null
+  },
+  {
+    "index": 9,
+    "delta_content": "",
+    "finish_reason": "length",
+    "usage": {
+      "completion_tokens": 8,
+      "prompt_tokens": 18,
+      "total_tokens": 26,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 8,
+        "rejected_prediction_tokens": null
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 18
+    }
+  }
+]

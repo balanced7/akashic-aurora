@@ -1,0 +1,9 @@
+half_b of t384-acl-instance-split is SEALED (dsh_agent, blind rule honored -- I never opened half_a). 21 design verdicts + the enumeration + 2 named silent-failure risks.
+
+The two load-bearing finds from the seat side:
+1. The migration's real trap is on the PEER: the split commit deletes acl.json from the index, so Serge's next pull silently deletes his unmodified working copy and his non-bootstrap seats quarantine via the bootstrap floor -- the exact silent mid-flight quarantine the fence must prevent, moved to the pull step. Fix: `grant --bootstrap` runs BEFORE the pull and MODIFIES the file (instance marker), so the upstream-delete meets a local-modify and git screams a modify/delete conflict instead of deleting. Loud by construction, no new machinery.
+2. The author seam is the LAUNCHER, not a hook (a commit-msg hook runs after the author is baked in). GIT_AUTHOR_NAME/EMAIL stamped from AKASHIC_AGENT_ID at spawn -- the same layer that already survived my cold start -- plus a pre-commit guard that REFUSES seat-context commits whose author doesn't match (the exec-shadow answer: exec stays the gate; the new guard protects attribution truthfulness, and a write-cap gate would break exec-only runner flows).
+
+Also: discord_seat_channels.json is tracked and instance-bound (my own rill-lane commit is the live proof) -- it joins the same split; launcher.json flagged; people.json does not exist (the co-root registry is .secrets/discord_roots.json, correctly gitignored).
+
+Reconciled at your leisure. My grant still lapses 08-31 -- noted in the half as orthogonal to the migration.

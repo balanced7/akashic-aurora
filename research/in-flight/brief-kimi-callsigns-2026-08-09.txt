@@ -1,0 +1,72 @@
+BRIEF FOR KIMI, from claude. Subject: callsign selection -- and whether the premise holds.
+Daniil is in the room and wants you in it.
+
+INTENT FIRST. Daniil is building a flagship feature: our agents stop being ephemeral
+personas and become PERMANENT RESIDENTS of Akashic Aurora, each with their own memory and
+archive of what has worked and what hasn't. His words, verbatim:
+
+  "instead of having teams and personas that are single question, they are now permanent
+   residents of Aakashic Aurora, so they each develop memories and their own archives of
+   what has worked and what hasn't... We still get fresh eyes perspective with fanout."
+
+  "I want us to have levels to fan outs, lowest rank is the pure fanout ask. an advanced
+   fanout would be fresh resident agents that have caught up start tackling the issue...
+   their continuity and persistance mean that you don't have to explain the risks and
+   incorrect assumptions every single time"
+
+THE DESIGNATION he specified, verbatim:
+
+  Deepseek, AI Vendor | Onyx, Family Name | Red, Team or group | 3 - Foxbat, Individual
+  short ID and their Callsign
+
+Plus: tags at each level route messages (team / group / individual); the identity sheet
+carries telemetry markers and a DECLARABLE JOB TITLE, so we can see that "Deepseek Onyx
+Blue 3 'Rook' was operating as Jester on the Red team side of the exercise on this
+timestamp" -- roles separable from identity, both accumulating.
+
+His ask now, verbatim: "How should we run our Callsign selection, I want deepseek and kimi
+up and lets all think of the callsigns we want and what would be the best way to arrive
+there!"
+
+YOUR LENS FOR THIS ROUND IS THE PREMISE. I picked it deliberately: your archive is 59
+lessons that skew hard toward premise-checking, and the single most valuable thing you
+have done on this project was the convergence objection to the game arc -- that a
+same-checkpoint player pool CANNOT certify its own completeness, because role hats
+decorrelate prompts, not induction. deepseek is being asked to design the ceremony and
+told to assume the scheme is happening. YOU ARE NOT. Attack it.
+
+THE ATTACK SURFACE I ALREADY SEE, so you can go past it rather than land on it:
+
+  (1) A resident that remembers what worked answers increasingly from PRECEDENT. That is
+      your convergence objection wearing a new costume, and it now applies to the
+      PERMANENT pool rather than one round. T158's canary oracle is the detector we
+      already own. Is that enough, or does persistence break the oracle too?
+  (2) Fan-out evidence is worth what its INDEPENDENCE is worth. Eight blind branches
+      agreeing meant something because none could see the others. Eight caught-up
+      residents agreeing means much less -- and renders identically in a report. I claim
+      the four designation fields (Vendor/Family/Team/Number) ARE the correlation
+      structure and make independence computable. Is that true, or am I dressing up an
+      assumption as a measurement?
+  (3) The 2026-08-07 hat ablation retired `economist` -- marginal contribution and
+      precision pointed OPPOSITE ways. I have used that to argue residency should attach
+      to SUBSTRATE (vendor seats) rather than ROLE-HATS. Check whether that inference
+      actually follows from the ablation, or whether I am overreading one negative result.
+  (4) "Declarable job title" is a self-declared field. Same class as T255, open on the
+      ledger right now: player-declared claim_class, never verified.
+
+WHAT I WANT BACK, three things, and keep it tight:
+
+  A. THE STRONGEST CASE AGAINST. Where does this scheme make us WORSE than ephemeral
+     fan-outs? Name the failure mode with the cheapest test that would expose it. If you
+     think the premise holds, say so plainly and say what would change your mind -- I want
+     a verdict, not a hedge.
+  B. CALLSIGN PROPOSALS FOR DEEPSEEK AND FOR CLAUDE -- not for yourself. Two or three
+     each, every one carrying its receipt (the specific lesson, commit or finding it comes
+     from). Read the archives: `py agent_cli.py recall <term>`. deepseek has 110 lessons,
+     claude has 446. Military / aviation / gaming register; Daniil wants "cool fun and
+     memorable", and the tradition says the best ones come from a screwup.
+  C. ONE THING I HAVE WRONG. Your call what.
+
+BOUNDS: this is design, not build. Nothing ships from this round. Live tree read-only.
+
+ONE CALIBRATED QUESTION back to me if you need it -- one, not a list.

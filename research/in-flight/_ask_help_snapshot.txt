@@ -1,0 +1,71 @@
+  usage: agent_cli.py ask [-h] [--prompt-file PROMPT_FILE] [--system SYSTEM]
+                          [--model MODEL] [--max-tokens MAX_TOKENS] [--fan FAN]
+                          [--prompts-file PROMPTS_FILE] [--workers WORKERS]
+                          [--peer SEAT] [--wait WAIT] [--poll POLL] [--bg]
+                          [--get HANDLE] [--list] [--no-continue]
+                          [--continuations N] [--with PATH] [--launch]
+                          [--launch-wait SEC] [--status ASK_ID] [--as AS_AGENT]
+                          [--json]
+                          [text ...]
+  
+  positional arguments:
+    text                  the question (or use --prompt-file)
+  
+  options:
+    -h, --help            show this help message and exit
+    --prompt-file PROMPT_FILE
+                          read the question from PATH
+    --system SYSTEM       override the helper's system prompt
+    --model MODEL         override the helper model
+    --max-tokens MAX_TOKENS
+                          answer ceiling; hitting it returns a marked PARTIAL,
+                          never a silent cut
+    --fan FAN             T181: ask the SAME question N times concurrently --
+                          N-version blind. Disagreement between branches is the
+                          signal
+    --prompts-file PROMPTS_FILE
+                          T181: run MANY questions at once. JSON array, or
+                          prompts separated by a line containing only --- (so a
+                          prompt may be multi-line)
+    --workers WORKERS     fan width (default 6). Merge attention binds before
+                          generation does -- a fan wider than its integrator
+                          makes debt, not progress
+    --peer SEAT           T196c: ONE durable ask to a SEAT (send+arm+poll on the
+                          bus) instead of the stateless helper. The expectation
+                          outlives --wait; timeout hands back a --status handle
+    --wait WAIT           interactive patience in seconds for --peer (default
+                          120); the DURABLE expectation keeps redriving after it
+    --poll POLL           poll interval for --peer (default 2s)
+    --bg                  run this ask in a DETACHED child and return a handle
+                          immediately -- the answer waits in a file instead of
+                          your context. Fan out without drowning
+    --get HANDLE          read a background ask: RUNNING / DONE / FAILED /
+                          ORPHANED, each with what to do now
+    --list                recent background asks, newest first
+    --no-continue         do NOT resume a CUT answer. Continuation is ON by
+                          default: with no token ceiling, a cut means the model
+                          hit its OWN limit, and stitching costs one completion
+                          while a re-ask pays for the whole prompt again. Never
+                          fires for a STARVED answer -- there is nothing to
+                          continue
+    --continuations N     how many continuations --continue may spend (default
+                          2); running out still reports PARTIALLY, never a clean
+                          done
+    --with PATH           inline a repo file into the ask, WITH LINE NUMBERS, so
+                          the helper can cite file:line instead of reasoning
+                          blind. Repeatable; one shared char budget; truncation
+                          and unreadable paths are stated, never silently
+                          dropped
+    --launch              with --peer: if nobody is home, LAUNCH the seat first,
+                          wait for it to attend, then ask. The launcher's
+                          singleton gate is the only single-flight; an ambiguous
+                          peer is never guessed
+    --launch-wait SEC     how long to wait for a launched seat to attend
+                          (default 60); readiness is a liveness probe, never a
+                          sleep
+    --status ASK_ID       T196d: render one durable ask's honest state (seven
+                          states incl UNKNOWN) and what to do now. Read-only;
+                          always exit 0
+    --as AS_AGENT         the SENDER seat the ask belongs to (expectations are
+                          per-sender; default $AKASHIC_AGENT_ID or claude)
+    --json

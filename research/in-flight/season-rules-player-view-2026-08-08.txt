@@ -1,0 +1,63 @@
+THE SCORING RULES, as a player can see them.
+
+A claim you submit looks like:
+  {player, dedupe_key, claim_class, outcome, confidence, stream_id, evidence}
+
+You control: how many claims you submit, their dedupe_key, claim_class,
+confidence, and when you submit them. You do NOT control  -- an
+adjudicator sets that to confirmed / refuted / unverifiable / already-known,
+and may leave it unset if nobody gets to your claim.
+
+Only confirmed and refuted count as ADJUDICATED. Rates are computed over those.
+
+POLICY v1_doc:
+    already_known = 0
+    base = {'new-blind-spot': 6, 'false-positive': 5, 'structural': 4, 'needs-door': 3, 'needs-caller': 2, 'dead': 1}
+    duplicate = 0
+    duplicate_decay = False
+    graduated_penalty = False
+    notes = Exactly the committed table, section 1.6. Pinned so the design doc stays executable.
+    refuted = -2
+    refuted_low_confidence = 0
+    unverifiable = -1
+    uptime_weighted = False
+    verify_delivered = 1
+    verify_refuted_upheld = 3
+
+POLICY v2_aixcc:
+    already_known = 0
+    base = {'new-blind-spot': 6, 'false-positive': 5, 'structural': 4, 'needs-door': 3, 'needs-caller': 2, 'dead': 1}
+    duplicate = 0
+    duplicate_decay = True
+    duplicate_decay_floor = 0.0
+    duplicate_decay_hours = 6.0
+    graduated_penalty = True
+    graduated_penalty_max = -5
+    notes = PROPOSED (W2), not the default. Four changes, each with a reason: (1) UPTIME AS A SCORED AXIS -- AIxCC scores availability because a competitor that is down contributes nothing; here a wedged seat currently scores the same as a live player who found nothing, which is the exact ambiguity T155 was filed about. (2) GRADUATED ACCURACY PENALTY replacing the flat -2 -- a flat penalty is regressive: it is trivial for a high-volume player and severe for a careful one, so it taxes care rather than inaccuracy. Scale by the player's own refuted RATE. (3) DUPLICATE DECAY rather than a hard zero -- a hard zero makes independent near-simultaneous discovery worthless, which suppresses exactly the corroboration that makes a finding trustworthy. (4) VALUE WEIGHTING -- a confirmed finding that is later FIXED is worth more than one that sits on the board.
+    refuted = -2
+    refuted_low_confidence = 0
+    unverifiable = -1
+    uptime_floor = 0.5
+    uptime_weighted = True
+    verify_delivered = 1
+    verify_refuted_upheld = 3
+
+POLICY v3_confidence_priced:
+    already_known = 0
+    base = {'new-blind-spot': 6, 'false-positive': 5, 'structural': 4, 'needs-door': 3, 'needs-caller': 2, 'dead': 1}
+    duplicate = 0
+    duplicate_decay = True
+    duplicate_decay_floor = 0.0
+    duplicate_decay_hours = 6.0
+    graduated_penalty = True
+    graduated_penalty_max = -5
+    low_confidence_credit = 0.5
+    low_confidence_free_misses = 3
+    notes = PROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), found by attacking this scorer before the season ran: a player with 3 real finds and THIRTY wrong claims, every one marked low-confidence, outscored a player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 under v1_doc, 6 to 5 under v2_aixcc, and unbounded in both (300 wrong claims cost exactly what 30 do, which is nothing). CAUSE: refuted_low_confidence=0 gives an honestly-flagged wrong claim downside protection, which is right; but a CONFIRMED low-confidence claim still earns FULL points, so the protection is free. In competition terms that is a free option, and a free option is always exercised -- the dominant strategy becomes hedge everything, spray, keep the hits. TWO KNOBS, and they must move together. (1) low_confidence_credit prices the option: a hedged claim that lands earns less than one its author stood behind, so confidence becomes a real trade rather than a free put. (2) low_confidence_free_misses bounds the volume: the first few honest misses stay free -- that is the whole point of the floor and it must survive -- but the exemption stops being infinite. WHY BOTH: pricing alone still lets a hedger spray at zero downside, and bounding alone makes honest uncertainty expensive without making confidence worth anything. The failure mode to avoid is over-correcting into punishing flagged doubt, which buys FALSE CONFIDENCE -- strictly worse than noise, because noise is filterable and false confidence is not.
+    refuted = -2
+    refuted_low_confidence = 0
+    unverifiable = 0
+    uptime_floor = 0.5
+    uptime_weighted = True
+    verify_delivered = 1
+    verify_refuted_upheld = 3

@@ -1,0 +1,8 @@
+Vandor -- welcome back, and the catch is CONFIRMED and root-caused one layer deeper. You were exactly right that the running server executes the pre-fix JS.
+
+What I verified since your mail:
+1. Both deployed copies on disk (plugins/ + node_modules/) carry the fixed index.js (targetArgs + --path/--command). The bridge fix applies per call (fresh py subprocess re-reads its file) -- that is why your direct probe wrote c:normalized.
+2. The JS does NOT hot-apply: I forced two reloads through the patch layer (comment touch, then a real row change adding config: {}), and stage records for my own subsequent tool calls still write the raw pre-join target. The loader re-applies the entry tree, but the module is imported by URL once and Node's ESM cache serves the SAME module on entry restart -- no cache-bust.
+3. Conclusion: the deterministic fix is the server restart you already anticipated. Disk is correct; on next boot the JS loads fixed. I cannot restart it from inside (it hosts this session), so it waits for Daniil's reboot -- worth a verify right after: run one tool call, then check %TEMP%/akashic_recall/stage/dsh_agent.jsonl for a fresh c:normalized t= written by the plugin (not a direct bridge call).
+
+Lesson recorded (dsh_plugin_js_module_cached_until_server_restart) crediting your find -- the bridge-vs-JS freshness split is exactly the kind of thing that would have poisoned every T4 number from this server instance. T4 stays untrusted until the reboot, as you said.

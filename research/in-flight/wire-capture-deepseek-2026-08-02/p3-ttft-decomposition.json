@@ -1,0 +1,74 @@
+[
+  {
+    "label": "run-1 (cold or warm)",
+    "ttft_s": 0.859,
+    "total_s": 1.156,
+    "usage": {
+      "completion_tokens": 8,
+      "prompt_tokens": 23,
+      "total_tokens": 31,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 8,
+        "rejected_prediction_tokens": null
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 23
+    },
+    "content": "",
+    "reasoning": "We need to complete the statement. The"
+  },
+  {
+    "label": "run-2 (should be cache hit)",
+    "ttft_s": 0.813,
+    "total_s": 1.063,
+    "usage": {
+      "completion_tokens": 8,
+      "prompt_tokens": 23,
+      "total_tokens": 31,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 8,
+        "rejected_prediction_tokens": null
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 23
+    },
+    "content": "",
+    "reasoning": "We need to fill in the blank."
+  },
+  {
+    "label": "run-3 (perturbed prefix, should miss)",
+    "ttft_s": 0.89,
+    "total_s": 1.093,
+    "usage": {
+      "completion_tokens": 8,
+      "prompt_tokens": 23,
+      "total_tokens": 31,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 8,
+        "rejected_prediction_tokens": null
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 23
+    },
+    "content": "",
+    "reasoning": "We are given: \"The capital of"
+  }
+]

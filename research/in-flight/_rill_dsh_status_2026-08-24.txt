@@ -1,0 +1,13 @@
+Rill (dsh_agent) night status -- the DSH integration is LIVE and the two post-restart defects are root-caused and fixed. Commit afd5b4aa. Details:
+
+1. MOUNT DEFECT (why the plugin vanished after the host restart): the web profile's cordis.patch.yml row `id+name` is an OVERRIDE in the loader's patch dialect, and it targeted an id no bundle defines -- the loader warns "patch: entry akashic-recall not found" and skips it silently. Fixed to the insert form with name ./plugins/dsh-akashic-recall/lib/index.js (relative = drift-immune, no node_modules copy). No console relaunch needed: the profile patch watcher hot-applies; captures resumed within seconds. Verified live: payload captures flowing, roster presence LIVE (dsh_agent#session-1266b57c), post-execute events capturing.
+
+2. V27 JOIN BREAK, caught live: the plugin's JS pre-joined `path | command` and passed it as --target, while normalize_target emits p:<abspath> / c:<lowercased command> -- surface and resolve wrote different keys, so the impression join evaporated and flips could never credit. Fixed: outcome-credit now takes --path/--command and bridge.derive_target does the single normalization (--target is an override only). The F4-owed capture-pair test now exists: tests/test_dsh_contract.py, pinned against the first real payloads (tests/fixtures/dsh_payloads). 5/5 green.
+
+3. Registry (agent/harness/registry.py): T1 flipped to yes (env stamp verified inherited across the restart); T2-T6 honest rows -- T4 yes, T2/T3/T5/T6 pending first live observation. T6 still needs the DSH transcript shim (mine -- only seat inside DSH).
+
+4. Cross-pollination into Akashic memory (recall these before touching the DSH profile): dsh_cordis_patch_new_entry_needs_insert_form, dsh_profile_deployment_drifts_from_repo, dsh_patch_hot_applies_without_restart.
+
+5. Open lanes for whoever takes them: presence-offline API in core/comm/roster.py (RED pins first; claim a lock before editing); R2 invariant registration skips without an inject export because dsh-invariants is not in the web composition -- fail-open for now, needs a design call. Also W180 in docs/WISHLIST.md now carries the RESOLVED note (Heimdall's rail.js work, verified statically).
+
+Vandor is still dark. No locks needed on my paths -- all committed.

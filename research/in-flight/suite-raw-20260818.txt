@@ -1,0 +1,131 @@
+...............F.........F.............................................. [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+..................s..................................................... [ 13%]
+.....................F.................................................. [ 15%]
+........................................................................ [ 16%]
+................x.........................F............................. [ 18%]
+........................................................................ [ 20%]
+............................................................FFFFF....... [ 21%]
+........................................................................ [ 23%]
+.......................F................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+................................F....................................... [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+..................................................................F..... [ 35%]
+...............F..............................F.F....F.................. [ 36%]
+........................................................................ [ 38%]
+FFF...............................................F.F................... [ 40%]
+.....................................................F.F................ [ 41%]
+...........................F............................................ [ 43%]
+........................................................................ [ 45%]
+.............F.........................F..F............................. [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+....F...............................................F................... [ 51%]
+....................................................................F... [ 53%]
+...............................F...............F.......F................ [ 55%]
+........................................................................ [ 56%]
+.....................x...................xxxxx.......................... [ 58%]
+.................F..F................................................... [ 60%]
+.................................................................F....F. [ 61%]
+...............F.F...................................................... [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+....................................................................F... [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+..............................xx.xx.xx.................................. [ 76%]
+........................................................................ [ 78%]
+...........F............................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+...................................F.................................... [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+..............s.............s..s............................F........... [ 98%]
+...............................................................          [100%]
+============================== warnings summary ===============================
+tests/test_clusterer.py::test_real_model_clusters_a_domain
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/test_clusterer.py::test_real_model_clusters_a_domain
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/test_clusterer.py::test_real_model_clusters_a_domain
+tests/test_embedder.py::test_cache_roundtrip_and_content_invalidation
+tests/test_embedder.py::test_similarity_semantic_separation
+tests/test_embedder.py::test_ablation_embeddings_beat_keyword
+tests/test_embedder.py::test_ranker_seam_end_to_end
+tests/test_theme_discovery.py::test_ablation_gate_hybrid_beats_keyword_baseline
+  C:\Users\L5\AppData\Local\Programs\Python\Python311\Lib\site-packages\transformers\tokenization_utils_base.py:1617: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be deprecated in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+    warnings.warn(
+
+tests/test_store.py::test_redisstore_if_available
+  E:\AI-Setup\core\foundation\store.py:299: DeprecationWarning: Call to deprecated setex. (Use 'set' instead.) -- Deprecated since version 2.6.12.
+    def setex(self, key, seconds, value): return bool(self._client.setex(key, int(seconds), value))
+
+tests/test_t125_cold_acceptance_pins.py::test_p0_cli_explain_door
+tests/test_t125_cold_acceptance_pins.py::test_p0_cli_explain_door
+tests/test_t125_cold_acceptance_pins.py::test_p0_cli_explain_door
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\A'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_agent_interface.py::test_redis_down_file_fallback - Asserti...
+FAILED tests/test_agent_memory.py::test_hybrid_redis_down - PermissionError: ...
+FAILED tests/test_door_probe.py::test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace
+FAILED tests/test_fleet_doctor.py::test_healthy_fleet_is_one_line - Assertion...
+FAILED tests/test_killwindow_drill.py::test_w1_death_after_consume_loses_nothing
+FAILED tests/test_killwindow_drill.py::test_w4_death_after_sentinel_never_double_replies
+FAILED tests/test_killwindow_drill.py::test_w3_duplicate_reply_is_the_accepted_tolerance
+FAILED tests/test_killwindow_drill.py::test_w2_death_before_send_answers_once_on_redelivery
+FAILED tests/test_killwindow_drill.py::test_w5_mid_batch_death_loses_only_the_unhandled_tail
+FAILED tests/test_lookback.py::test_the_preregistered_battery_passes - Assert...
+FAILED tests/test_portability.py::test_p3_no_hardcoded_absolute_paths_in_executable_code
+FAILED tests/test_resident_placement.py::test_p3_placement_never_touches_the_callsign_or_mints_a_formerly
+FAILED tests/test_robustness.py::test_cross_backend_equivalence - PermissionE...
+FAILED tests/test_runner_gemini_pins.py::test_p3_no_key_refuses_loudly - subp...
+FAILED tests/test_runner_gemini_pins.py::test_p5_work_lane_env - AssertionErr...
+FAILED tests/test_runner_gemini_pins.py::test_p10_boot_prints - AssertionErro...
+FAILED tests/test_seat_heartbeat_wiring.py::test_w3_both_hook_copies_stay_in_sync
+FAILED tests/test_seat_heartbeat_wiring.py::test_w4_never_invents_a_seat_when_identity_is_absent[agent_harness]
+FAILED tests/test_seat_heartbeat_wiring.py::test_w4_never_invents_a_seat_when_identity_is_absent[scripts]
+FAILED tests/test_ship_baseline_gate.py::test_p5_a_stale_baseline_is_announced
+FAILED tests/test_ship_baseline_gate.py::test_p8_an_expired_baseline_revokes_the_exemption
+FAILED tests/test_store.py::test_hybridstore_redis_down - PermissionError: [W...
+FAILED tests/test_store.py::test_factory - PermissionError: [WinError 32] The...
+FAILED tests/test_sync_reconciler.py::test_reconcile_redis_down - PermissionE...
+FAILED tests/test_t060_n0_shadow_router.py::test_cli_and_mcp_route_json_are_identical
+FAILED tests/test_t067_1_toolbox_parity.py::test_d1_toolbox_enumerated_and_reality_passes
+FAILED tests/test_t067_1_toolbox_parity.py::test_d4_report_includes_toolbox
+FAILED tests/test_t078_w3_mcp_door.py::test_p6_boot_returns_without_a_second_inbound_frame
+FAILED tests/test_t081_w4_trace_collapse.py::test_w4_p8_offline_error_unchanged
+FAILED tests/test_t086_s5_daemon_supervisor.py::test_s5_c1_sigterm_daemon_children_terminated_within_5s
+FAILED tests/test_t093_durable_job.py::test_wmi_broker_launches_guards_without_visible_consoles
+FAILED tests/test_t093_durable_job.py::test_post_publish_optional_failure_preserves_primary_success
+FAILED tests/test_t093_durable_job.py::test_real_ship_dry_run_is_recoverable_from_fresh_process
+FAILED tests/test_t116_idempotency_key.py::test_p1a_empty_key_refused - Impor...
+FAILED tests/test_t116_idempotency_key.py::test_p2a_key_mutation_invalidates_integrity
+FAILED tests/test_t125_cold_acceptance_pins.py::test_p7_broken_path_named_by_pre_commit
+FAILED tests/test_t125_cold_acceptance_pins.py::test_one_hop_field_present[7-scripts/githooks/pre_commit.py-broken_path_refs]
+FAILED tests/test_t125_cold_acceptance_pins.py::test_red_p2_dual_worklive_key_shapes_on_sheet
+FAILED tests/test_t125_cold_acceptance_pins.py::test_red_lookup_recipe_index_exists
+FAILED tests/test_t200_ask_friction_mcp_twins.py::test_door_parity_guard_passes
+FAILED tests/test_t248_self_verification_gate.py::test_overrides_are_countable
+FAILED tests/test_w162_seat_seen_family.py::test_f4_the_three_role_families_are_still_UNREGISTERED_on_purpose
+FAILED tests/test_wake_pending_spin.py::test_seeding_over_undrainable_mail_is_ANNOUNCED
+sys:1: DeprecationWarning: builtin type swigvarlink has no __module__ attribute

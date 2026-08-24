@@ -1,0 +1,7 @@
+Lane done -- grant --bootstrap is built, pinned, drilled, and committed (15/15 with the t163 suite). Details:
+
+- grant_writer.bootstrap: stamps _instance{hostname, bootstrapped_at} into the LOCAL acl.json; grants untouched (P1, byte-content-preserved); REFUSES on missing (P2: never mints authority from nothing) and on corrupt (P3: original bytes untouched); idempotent (P4); the marker changes the bytes so the tracked blob can never match (P5). Journals acl_bootstrap to the event ledger.
+- CLI: grant --bootstrap (agent_cli.py), dogfooded against a temp copy of the REAL 12-grant file -- receipt: 12 grants preserved, marker stamped.
+- FAR-SIDE DRILL (P6, real two-repo git in tmp): the split commit upstream deletes the tracked ACL; an uncommitted bootstrapped peer pull ABORTS loudly naming the file (nothing deleted); after committing the marker locally, the pull gives the true modify/delete CONFLICT; keep-local (add+commit) leaves claude=super_admin and dsh_agent=admin SERVING through the real resolve(). One refinement to the ruling's wording: git does not reach "CONFLICT" while the file is uncommitted -- it aborts the merge first, which is louder, not quieter; the conflict arrives on the next pull after the local commit. The runbook should say "commit the bootstrapped file, then pull, then keep local".
+
+The ceremony Serge's machine runs is now: grant --bootstrap; git add security/acl.json; git commit -m 'instance acl'; git pull (conflict) -> keep local.

@@ -1,0 +1,55 @@
+[suite-baseline] running: pytest tests/
+# 46 failure(s) -- baseline @2d7a050e vs HEAD @4af09d1  [STALE: attribution is limited]
+
+UNKNOWN (13): cannot be attributed: the baseline is stale or absent, so this may have arrived any time in the gap -- BISECT this one (stash or a worktree at HEAD), or re-record the baseline first
+    tests/test_atoms_v11.py::test_lineage_resolve_current_and_lineage_backlinks
+    tests/test_t086_s3_backstop.py::test_s3b_live_twin_seat_suppresses_nag
+    tests/test_t116_idempotency_key.py::test_p1a_empty_key_refused
+    tests/test_t116_idempotency_key.py::test_p2a_key_mutation_invalidates_integrity
+    tests/test_t125_cold_acceptance_pins.py::test_one_hop_field_present[7-scripts/githooks/pre_commit.py-broken_path_refs]
+    tests/test_t125_cold_acceptance_pins.py::test_p7_broken_path_named_by_pre_commit
+    tests/test_t125_cold_acceptance_pins.py::test_red_lookup_recipe_index_exists
+    tests/test_t125_cold_acceptance_pins.py::test_red_p2_dual_worklive_key_shapes_on_sheet
+    tests/test_t149_send_stdout_tells_the_truth.py::test_c2_an_identical_resend_says_collapsed_on_stdout
+    tests/test_t149_send_stdout_tells_the_truth.py::test_c3_the_collapsed_line_names_the_id_it_collapsed_onto
+    tests/test_t149_send_stdout_tells_the_truth.py::test_c4_stderr_keeps_its_existing_notice
+    tests/test_t200_ask_friction_mcp_twins.py::test_door_parity_guard_passes
+    tests/test_w162_seat_seen_family.py::test_f4_the_three_role_families_are_still_UNREGISTERED_on_purpose
+
+LIKELY_INHERITED (33): was failing when the baseline was taken, but that baseline is STALE -- probably not yours, though it could have been fixed and re-broken in the gap; re-record the baseline to be sure
+    tests/test_agent_interface.py::test_redis_down_file_fallback
+    tests/test_agent_memory.py::test_hybrid_redis_down
+    tests/test_door_probe.py::test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace
+    tests/test_fleet_doctor.py::test_healthy_fleet_is_one_line
+    tests/test_killwindow_drill.py::test_w1_death_after_consume_loses_nothing
+    tests/test_killwindow_drill.py::test_w2_death_before_send_answers_once_on_redelivery
+    tests/test_killwindow_drill.py::test_w3_duplicate_reply_is_the_accepted_tolerance
+    tests/test_killwindow_drill.py::test_w4_death_after_sentinel_never_double_replies
+    tests/test_killwindow_drill.py::test_w5_mid_batch_death_loses_only_the_unhandled_tail
+    tests/test_lookback.py::test_the_preregistered_battery_passes
+    tests/test_portability.py::test_p3_no_hardcoded_absolute_paths_in_executable_code
+    tests/test_resident_placement.py::test_p3_placement_never_touches_the_callsign_or_mints_a_formerly
+    tests/test_robustness.py::test_cross_backend_equivalence
+    tests/test_runner_gemini_pins.py::test_p10_boot_prints
+    tests/test_runner_gemini_pins.py::test_p3_no_key_refuses_loudly
+    tests/test_runner_gemini_pins.py::test_p5_work_lane_env
+    tests/test_seat_heartbeat_wiring.py::test_w3_both_hook_copies_stay_in_sync
+    tests/test_seat_heartbeat_wiring.py::test_w4_never_invents_a_seat_when_identity_is_absent[agent_harness]
+    tests/test_seat_heartbeat_wiring.py::test_w4_never_invents_a_seat_when_identity_is_absent[scripts]
+    tests/test_ship_baseline_gate.py::test_p5_a_stale_baseline_is_announced
+    tests/test_ship_baseline_gate.py::test_p8_an_expired_baseline_revokes_the_exemption
+    tests/test_store.py::test_factory
+    tests/test_store.py::test_hybridstore_redis_down
+    tests/test_sync_reconciler.py::test_reconcile_redis_down
+    tests/test_t060_n0_shadow_router.py::test_cli_and_mcp_route_json_are_identical
+    tests/test_t078_w3_mcp_door.py::test_p6_boot_returns_without_a_second_inbound_frame
+    tests/test_t081_w4_trace_collapse.py::test_w4_p8_offline_error_unchanged
+    tests/test_t086_s5_daemon_supervisor.py::test_s5_c1_sigterm_daemon_children_terminated_within_5s
+    tests/test_t093_durable_job.py::test_post_publish_optional_failure_preserves_primary_success
+    tests/test_t093_durable_job.py::test_real_ship_dry_run_is_recoverable_from_fresh_process
+    tests/test_t093_durable_job.py::test_wmi_broker_launches_guards_without_visible_consoles
+    tests/test_t248_self_verification_gate.py::test_overrides_are_countable
+    tests/test_wake_pending_spin.py::test_seeding_over_undrainable_mail_is_ANNOUNCED
+
+fixed since baseline (1) -- re-record to keep attribution sharp:
+    tests/test_w38_family_guard.py::test_p4_live_core_comm_is_clean

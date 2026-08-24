@@ -1,0 +1,153 @@
+{
+  "status": "success",
+  "n_chunks": 10,
+  "chunks": [
+    {
+      "index": 0,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": "assistant",
+        "tool_calls": null,
+        "reasoning_content": ""
+      },
+      "logprobs": null,
+      "finish_reason": null
+    },
+    {
+      "index": 1,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": "We"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': 'We', 'logprob': -0.0029158953, 'bytes': [87, 101], 'top_logprobs': [{'token': 'We', 'logprob': -0.0029158953, 'bytes': [87, 101]}, {'token': 'The', 'logprob': -5.8439536, 'bytes': [84, 104, 101]}, {'token': 'User', 'logprob': -12.6563015, 'bytes': [85, 115, 101, 114]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 2,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": " are"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': ' are', 'logprob': -0.009482109, 'bytes': [32, 97, 114, 101], 'top_logprobs': [{'token': ' are', 'logprob': -0.009482109, 'bytes': [32, 97, 114, 101]}, {'token': ' need', 'logprob': -4.6634545, 'bytes': [32, 110, 101, 101, 100]}, {'token': \"'re\", 'logprob': -13.601092, 'bytes': [39, 114, 101]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 3,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": " asked"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': ' asked', 'logprob': -0.0010469438, 'bytes': [32, 97, 115, 107, 101, 100], 'top_logprobs': [{'token': ' asked', 'logprob': -0.0010469438, 'bytes': [32, 97, 115, 107, 101, 100]}, {'token': ' instructed', 'logprob': -7.0912476, 'bytes': [32, 105, 110, 115, 116, 114, 117, 99, 116, 101, 100]}, {'token': ' told', 'logprob': -9.205555, 'bytes': [32, 116, 111, 108, 100]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 4,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": ":"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': ':', 'logprob': -0.00015519845, 'bytes': [58], 'top_logprobs': [{'token': ':', 'logprob': -0.00015519845, 'bytes': [58]}, {'token': ' to', 'logprob': -8.773669, 'bytes': [32, 116, 111]}, {'token': ' \"', 'logprob': -15.336034, 'bytes': [32, 34]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 5,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": " \""
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': ' \"', 'logprob': -1.1920922e-06, 'bytes': [32, 34], 'top_logprobs': [{'token': ' \"', 'logprob': -1.1920922e-06, 'bytes': [32, 34]}, {'token': \" '\", 'logprob': -13.798934, 'bytes': [32, 39]}, {'token': ' \"\\'', 'logprob': -16.470446, 'bytes': [32, 34, 39]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 6,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": "Say"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': 'Say', 'logprob': -3.3378547e-06, 'bytes': [83, 97, 121], 'top_logprobs': [{'token': 'Say', 'logprob': -3.3378547e-06, 'bytes': [83, 97, 121]}, {'token': 'say', 'logprob': -13.127131, 'bytes': [115, 97, 121]}, {'token': ' Say', 'logprob': -14.773381, 'bytes': [32, 83, 97, 121]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 7,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": " '"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': \" '\", 'logprob': -9.5367386e-07, 'bytes': [32, 39], 'top_logprobs': [{'token': \" '\", 'logprob': -9.5367386e-07, 'bytes': [32, 39]}, {'token': ' ', 'logprob': -15.198995, 'bytes': [32]}, {'token': ' hello', 'logprob': -15.4256935, 'bytes': [32, 104, 101, 108, 108, 111]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 8,
+      "delta": {
+        "content": null,
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": "hello"
+      },
+      "logprobs": "ChoiceLogprobs(content=None, refusal=None, reasoning_content=[{'token': 'hello', 'logprob': -3.576278e-07, 'bytes': [104, 101, 108, 108, 111], 'top_logprobs': [{'token': 'hello', 'logprob': -3.576278e-07, 'bytes': [104, 101, 108, 108, 111]}, {'token': 'Hello', 'logprob': -15.489231, 'bytes': [72, 101, 108, 108, 111]}, {'token': ' hello', 'logprob': -16.499062, 'bytes': [32, 104, 101, 108, 108, 111]}]}])",
+      "finish_reason": null
+    },
+    {
+      "index": 9,
+      "delta": {
+        "content": "",
+        "function_call": null,
+        "refusal": null,
+        "role": null,
+        "tool_calls": null,
+        "reasoning_content": null
+      },
+      "logprobs": null,
+      "finish_reason": "length",
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 12,
+        "total_tokens": 20,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 8,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 12
+      }
+    }
+  ]
+}
