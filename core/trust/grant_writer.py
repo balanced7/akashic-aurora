@@ -196,3 +196,42 @@ def listing() -> list:
     return sorted(doc.get("grants", []),
                   key=lambda g: (g.get("expires_at") is None, str(g.get("expires_at") or ""),
                                  str(g.get("agent_id"))))
+
+
+def bootstrap(by: str = "operator") -> dict:
+    """t384 peer-side ceremony: stamp THIS instance into the local ACL so the upcoming
+    split commit cannot silently delete it. The marker is the ONLY change -- grants are
+    untouched -- and it guarantees the file differs from the tracked blob, so the peer's
+    pull meets a local-modify and git raises a modify/delete conflict (loud) instead of
+    deleting acl.json (silent quarantine of every non-bootstrap seat).
+
+    Fail-closed: a MISSING or CORRUPT ACL refuses loudly and creates nothing -- bootstrap
+    must never mint an empty authority file from nothing. Grants are NOT minted here, so no
+    granter guard applies; the event journal records who ran it."""
+    import socket
+    try:
+        doc = _read_doc()                               # raises on missing/corrupt -- the refusal
+    except FileNotFoundError:
+        raise ValueError(
+            "no ACL file to bootstrap -- bootstrap preserves THIS instance's grants, it never "
+            "mints a fresh authority file from nothing; mint grants with `grant` first")
+    before = list(doc.get("grants", []))
+    doc["_instance"] = {
+        "hostname": socket.gethostname(),
+        "bootstrapped_at": _now_iso(),
+        "note": "instance-local marker (t384-acl-instance-split): makes the peer's pull "
+                "conflict LOUD. Grants above are untouched.",
+    }
+    _write_doc(doc)
+    try:
+        from core.events.event_log import capture_event
+        capture_event("acl_bootstrap",
+                      f"ACL bootstrapped for instance {doc['_instance']['hostname']} "
+                      f"({len(before)} grants preserved)",
+                      agent_id=by, detail={"hostname": doc["_instance"]["hostname"],
+                                           "grants_preserved": len(before)})
+    except Exception:
+        pass   # the journal is audit, never the gate
+    return {"hostname": doc["_instance"]["hostname"],
+            "bootstrapped_at": doc["_instance"]["bootstrapped_at"],
+            "grants_preserved": len(before)}
