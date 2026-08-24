@@ -143,26 +143,106 @@ def test_the_heartbeat_records_which_condition_held(prov):
 
 
 # ------------------------------------------------- the guard against regression
-def test_the_gate_drill_suite_cannot_write_to_the_production_log(monkeypatch, tmp_path):
-    """A conftest-level autouse fixture must isolate EVERY test, so a future drill
-    file added by any seat is safe by default rather than by remembering."""
-    import subprocess
-    import sys
-    from pathlib import Path
+def test_isolation_is_ACTIVE_in_a_test_that_never_asked_for_it():
+    """A conftest-level AUTOUSE fixture must isolate EVERY test, so a future drill file
+    added by any seat is safe by default rather than by remembering.
 
-    root = Path(__file__).resolve().parents[1]
-    probe = (
-        "import os, sys; sys.path.insert(0, r'%s');"
-        "from core.comm import conductor_gate as cg;"
-        "print(cg._provenance_path())" % str(root)
-    )
-    # The production path, resolved with no env override -- what an unisolated test
-    # would write to.
-    out = subprocess.run([sys.executable, "-c", probe], capture_output=True,
-                         text=True, cwd=str(root)).stdout.strip()
-    assert out, "could not resolve the production provenance path"
+    NOTE this pin takes no `prov` fixture -- that is the point. It asserts that the
+    redirect is already in force for a test that requested nothing, which is the only
+    way to prove autouse coverage rather than opt-in coverage.
 
-    conftest = (root / "tests" / "conftest.py").read_text(encoding="utf-8")
-    assert cg.PROVENANCE_ENV in conftest, (
-        "tests/conftest.py must redirect the conductor-gate audit log for every test; "
-        "isolation by remembering is isolation that will lapse")
+    (An earlier version of this pin grepped tests/conftest.py for the literal env-var
+    name. That tested a STRING, not the mechanism: a conftest that referenced the
+    constant symbolically -- which is the better code -- would fail it, and a conftest
+    that mentioned the name in a comment while isolating nothing would pass it.
+    Replaced with the behavioural check per
+    a_pin_that_supplies_its_own_input_tests_the_mechanism_not_the_wiring.)"""
+    import os
+
+    active = os.environ.get(cg.PROVENANCE_ENV)
+    assert active, ("no autouse redirect is in force -- every test in this suite can "
+                    "write into the production conductor-gate audit trail")
+
+    from core.comm.wake_seat import provenance_path
+    production = provenance_path("conductor_gate")
+    assert os.path.abspath(active) != os.path.abspath(production), (
+        f"the redirect points AT the production log ({production}) -- isolation that "
+        f"resolves to the thing it is isolating from is not isolation")
+
+    # And the write must actually follow the redirect, not merely be configured to.
+    cg.append_provenance("autouse isolation probe")
+    assert os.path.exists(active) and "autouse isolation probe" in \
+        open(active, encoding="utf-8").read(), \
+        "the redirect is set but writes are not following it"
+
+
+# ============================================================================
+# LIVE DEFECT, found 2026-08-24 16:02 while verifying the heartbeat.
+#
+# The gate had been emitting real ACTIVATIONs every ~60s since 15:21 -- declaring
+# the conductor provably dead while the conductor was awake and working, and while
+# Daniil was mid-conversation with it. Root cause is in _conductor_two_factor's
+# seat loop: it `return`s "orphan" on the FIRST dead seat it encounters and never
+# examines the rest, so a single corpse condemns a living conductor.
+#
+# The corpses were made by the outage itself. The 12:01 GPU crash left four dead
+# claude seat markers behind; from 14:30 (when the runners came back) those four
+# have been outvoting the live seat. The outage's own wreckage became the evidence
+# that the conductor was still dead.
+#
+# This is the aggregation escape from [[a-masterclass-in-not-being-wrong]] with the
+# sign flipped -- ANY-dead reported as ALL-dead. Its mirror image was fixed in the
+# revive lever the same morning (d496c5ea, "one survivor certifies the tier").
+# Same class, opposite polarity, different file: one survivor certifying the dead,
+# and now one corpse condemning the living.
+# ============================================================================
+def _fake_seats(monkeypatch, rows):
+    """rows: [(sid, pid, pid_alive, marker_age_min, chain_ok)] in iteration order."""
+    from core.comm import wake_seat as ws
+    by_pid = {r[1]: r for r in rows}
+    monkeypatch.setattr(ws, "iter_seats", lambda a: [(f"/x/{r[0]}", r[0]) for r in rows])
+    monkeypatch.setattr(ws, "fresh_minutes", lambda: 10.0)
+    monkeypatch.setattr(ws, "process_snapshot", lambda: {1: {"ppid": 0}})
+    monkeypatch.setattr(ws, "read_pid", lambda p: next(
+        r[1] for r in rows if r[0] == str(p).rsplit("/", 1)[-1]))
+    monkeypatch.setattr(ws, "_pid_alive_tristate", lambda pid: by_pid[pid][2])
+    monkeypatch.setattr(ws, "activity_age_min",
+                        lambda a, sid: next(r[3] for r in rows if r[0] == sid))
+    monkeypatch.setattr(ws, "chain_alive", lambda pid, snap: (by_pid[pid][4], "chain probe"))
+
+
+def test_a_dead_sibling_seat_cannot_condemn_a_LIVING_conductor(monkeypatch):
+    """THE defect. A corpse listed before the live seat must not short-circuit the scan.
+    K7 says an idle-but-alive seat is immune BY CONSTRUCTION -- that guarantee is void if
+    one stale sibling can return `orphan` before the live seat is ever read."""
+    _fake_seats(monkeypatch, [
+        ("dead-sid", 111, False, 999.0, False),   # a 12:01 corpse, scanned FIRST
+        ("live-sid", 222, True, 0.1, True),       # the seat that is actually working
+    ])
+    verdict = cg._conductor_two_factor("claude")
+    assert not verdict.startswith("orphan"), (
+        f"a live seat must veto a dead sibling, got {verdict!r} -- one corpse "
+        f"condemning the living is the aggregation escape with the sign flipped")
+
+
+def test_the_fix_does_not_disable_detection_when_EVERY_seat_is_dead(monkeypatch):
+    """Calibration, and the half that matters most: a detector that can no longer say
+    'dead' is not a fix, it is the defect the succession gate exists to prevent."""
+    _fake_seats(monkeypatch, [
+        ("dead-a", 111, False, 999.0, False),
+        ("dead-b", 112, False, 998.0, False),
+    ])
+    verdict = cg._conductor_two_factor("claude")
+    assert verdict.startswith("orphan"), \
+        f"all seats dead MUST still read as orphan, got {verdict!r}"
+
+
+def test_a_live_seat_listed_LAST_still_vetoes(monkeypatch):
+    """Order independence: the verdict must not depend on which seat the filesystem
+    happened to yield first."""
+    _fake_seats(monkeypatch, [
+        ("dead-a", 111, False, 999.0, False),
+        ("dead-b", 112, False, 998.0, False),
+        ("live-c", 222, True, 0.1, True),
+    ])
+    assert not cg._conductor_two_factor("claude").startswith("orphan")

@@ -130,3 +130,32 @@ if sys.platform == "win32" and not os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
     _pp = os.environ.get("PYTHONPATH", "")
     if _quiet not in _pp.split(os.pathsep):
         os.environ["PYTHONPATH"] = (_quiet + os.pathsep + _pp) if _pp else _quiet
+
+
+# ---------------------------------------------------------------------------
+# The conductor gate's audit trail must never be written by a test run.
+#
+# 2026-08-24: `append_provenance` resolves to a machine-global %TEMP% path, so
+# tests/drill_conductor_gate.py -- which deliberately raises
+# RuntimeError("probe exploded") and runs a dry_run activation -- wrote into the
+# PRODUCTION audit log. During the triage of a real 2h44m conductor outage those
+# lines parsed as a live 12:04:59 detection-that-crashed and nearly became the
+# post-mortem's headline finding. An audit log that manufactures false incident
+# narratives is worse than no audit log, because it is believed.
+#
+# Fixed HERE rather than in each drill file, and autouse rather than opt-in, for
+# the same reason the console-quieting above is: isolation that depends on the
+# next author remembering is isolation that will lapse. A new gate drill added
+# by any seat is now safe by default.
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _isolate_conductor_gate_provenance(tmp_path_factory, monkeypatch):
+    try:
+        from core.comm.conductor_gate import PROVENANCE_ENV, _reset_heartbeat
+    except Exception:                                                   # noqa: BLE001
+        return                      # gate absent/renamed: nothing to isolate
+    d = tmp_path_factory.mktemp("conductor_gate_prov")
+    monkeypatch.setenv(PROVENANCE_ENV, str(d / "conductor_gate.provenance.log"))
+    _reset_heartbeat()              # rate-limit state must not leak between tests
