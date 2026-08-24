@@ -48,6 +48,7 @@ sys.path.insert(0, HERE)
 
 from core.comm.bus import Bus
 from core.comm import control
+from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm import liveness, roster
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
@@ -343,7 +344,7 @@ def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, 
                              max_output_tokens=MAX_OUTPUT_TOKENS, service_tier=service_tier)
 
     def _one(prompt: str) -> str:
-        text, _calls, _items = SolTransport.extract(
+        text, _calls, reasoning, _items = SolTransport.extract(
             transport.respond(system, [{"role": "user", "content": prompt}]))
         return text or "(sol produced no final answer)"
 
@@ -786,6 +787,15 @@ def main() -> int:
             # A1: stale-code self-restart -- loop-top only, nothing claimed. The fresh
             # copy takes the lock at a higher generation; this process stands down
             # through the same takeover path a crash would use. Proven staleness only.
+            # TURN BOUNDARY (shift loop, step 2). ONE shared decision for every
+            # runner -- never a local next_beat block; four call sites is already
+            # past the rule of three. Never raises: idle is the fail-closed answer,
+            # because an exception here would wedge every runner at once.
+            _beat = _shift_turn.turn_beat(args.agent)
+            if _beat.get("action") not in ("idle", "blocked"):
+                print(f"[sol-runner] shift: {_beat['action']}"
+                      + (f" {_beat['task']}" if _beat.get('task') else '')
+                      + f" -- {_beat.get('reason','')}")
             _sr = self_restart.maybe_self_restart(args.agent)
             if _sr:
                 print(f"[sol-runner] {_sr} -- exiting clean; the successor takes the lock.")

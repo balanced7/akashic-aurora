@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 155917b8. A bound you discover by collision is not awareness -- this sheet
+> Derived at 3bc2a72d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (225 names)
+## Configuration flags (226 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -107,6 +107,7 @@ Class: reference
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
+| `AKASHIC_SHIFT_LOOP` | `"1"` | core/comm/shift_turn.py |
 | `AKASHIC_SHOW_CONSOLES` | `` | core/__init__.py, core/comm/launcher.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_SPAWN_INSTANT_SECONDS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_SPAWN_PROOF_SECONDS` | `` | scripts/bifrost_runner_discord.py |

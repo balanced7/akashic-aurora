@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 175 modules lack both pin and paper by name)
+## GAP queue (40 of 176 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -83,7 +83,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (62 modules)
+## core/comm/  (63 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -142,6 +142,7 @@ Class: reference
 | `self_restart.py` | self_restart (A1) -- a runner that knows it is stale restarts itself. | tests/test_a1_stale_self_restart.py | GAP | `AKASHIC_SELF_RESTART_MIN_BEHIND`, `AKASHIC_SELF_RESTART_MIN_UPTIME_S` |
 | `session_exit.py` | session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3). | GAP | GAP | `AKASHIC_CLEAN_DEATH` |
 | `session_state.py` | Session State — snapshot the live Bifrost session so it can be resumed later. | GAP | GAP |  |
+| `shift_turn.py` | The runner turn boundary: one shared decision per loop top, for every runner. | tests/test_shift_turn_boundary.py | GAP | `AKASHIC_SHIFT_LOOP` |
 | `storm_detect.py` | storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery). | GAP | GAP | `STORM_DEPTH_THRESHOLD`, `STORM_DEPTH_WINDOW`, `STORM_REPEAT_THRESHOLD` |
 | `timescale.py` | Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking. | GAP | GAP | `AKASHIC_TIMEOUT_MULTIPLIER` |
 | `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
