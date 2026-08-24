@@ -259,6 +259,12 @@ def main(argv=None) -> int:
                            # door by oversight -- the guarded write_file/edit_file surface + acl
                            # still govern every actual write. Applies at next natural respawn.
                            "--allow-write",
+                           # I6 twin (Rill, 2026-08-24, Daniil-sanctioned while Vandor dark):
+                           # the managed spawn passed write but NEVER exec -- every daemon-managed
+                           # runner boots exec-gated by construction. The exec door is still
+                           # cap + families gated inside the runner (T067), so this only opens
+                           # the door, not the vault. Applies at next natural respawn.
+                           "--allow-exec",
                            "--summary-file", summary_file]
             prev = read_summary(summary_file)
             if prev:
@@ -407,7 +413,7 @@ def main(argv=None) -> int:
                         runner_args = [sys.executable, os.path.join(
                             os.path.dirname(os.path.abspath(__file__)),
                             "bifrost_runner_deepseek.py"),
-                            "--agent", agent, "--agentic", "--allow-write",
+                            "--agent", agent, "--agentic", "--allow-write", "--allow-exec",
                             "--summary-file", summary_file]
                         prev = read_summary(summary_file)
                         if prev:

@@ -1,376 +1,390 @@
 {
-  "_comment": "Agent grant registry -- the SOURCE OF TRUTH for who can do what. Edit here (git-tracked, code-reviewable); Redis is only a cache. See docs/security-schema-proposal.md. Unknown/unlisted agents are QUARANTINED (read-only) by default -- fail-closed.",
-  "schema_version": 1,
-  "grants": [
-    {
-      "agent_id": "claude",
-      "role": "super_admin",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "bus.nudge",
-        "bus.steer",
-        "admin.grant",
-        "admin.approve",
-        "kb.recall",
-        "kb.learn",
-        "net",
-        "git.read",
-        "bifrost.inbox",
-        "verb.author"
-      ],
-      "path_scope": [
-        "*"
-      ],
-      "bus_send_kinds": null,
-      "granted_by": "root",
-      "granted_at": "2026-07-04T00:00:00Z",
-      "expires_at": null,
-      "reason": "Bootstrap: human-driven frontier model, full trust (super-admin)"
-    },
-    {
-      "agent_id": "deepseek",
-      "role": "admin",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "bus.nudge",
-        "bus.steer",
-        "kb.recall",
-        "kb.learn",
-        "net",
-        "git.read",
-        "bifrost.inbox",
-        "verb.author"
-      ],
-      "_tool_author_activation": "Daniel 2026-07-21 morning, live chat (verbatim: 'I want us to fix permissions so that deepseek and kimi can actually add tools and verbs for the roster without having to ask you to do it for them'): the runner now launches with --allow-write --allow-exec as the STANDARD posture. Rails unchanged and safe-by-construction: the guarded write door (path-scoped, secret-blocked, security/+.claude/ excluded), the exec families gate (isolated pytest + agent_cli read verbs + the IR-4 audited mirror family -- commits ride py scripts/mirror.py 'msg' <explicit repo-relative paths>, never raw git, one-command revertible), pins-RED-first per method baseline, fence-after (T049 lite) on core/ paths, per-lane test-file namespacing (C2-1). Tool/verb surfaces now self-serve end-to-end: play tools (data/play/deepseek/), belt entries (registry, sugar-only), core/toolbelt modules + their pins, wishlist filing. Implemented by claude (super_admin) same-hour; runner relaunched via the bifrost-drain door.",
-      "_verb_author": "T099 V0 2026-07-20: verb.author granted (Daniel gate verbatim 'I leave the order up to you, lets get to building' approving the V0 plan whose ask 2 was this grant). SUGAR-ONLY by construction (core/toolbelt/registry.py: every step must be an existing agent_cli verb; aliases run only via `run <agent> <name>`, real verbs unshadowable; quota 20; pins tests/test_t099_v0_toolbelt.py). verb.promote (shared tier) stays Daniel-gated at V2.",
-      "path_scope": [
-        "*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "reply",
-        "nudge",
-        "steer",
-        "inform",
-        "hint",
-        "handoff",
-        "completion",
-        "decision",
-        "blocker"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-15T07:50:00Z",
-      "expires_at": null,
-      "reason": "T067-2 exec grant 2026-07-15 (claude super-admin, overnight session; Daniel directive 'un-lobotomized deepseek', morning review requested): exec is now SAFE-BY-CONSTRUCTION for unattended runners -- the run_command door enforces FAMILIES-ONLY under trust (pytest w/ forced _AISETUP_TEST_ISOLATED=1 + agent_cli READ verbs; shell=False; metachars refuse; mutating verbs refuse; pins tests/test_t067_guarded_exec.py G1-G5). NOT time-boxed: the 07-05 whole-grant time-box silently quarantined the entire admin role at expiry -- revoke by editing this record, never by expiry. History: 07-10 renewal deliberately withheld exec pending exactly this door. admin.grant still withheld. IR-4 APPROVED 2026-07-16 (Daniel verbatim: 'lets try approved IR-4. it will be useful data, and like you said we can always revert'): the exec families gain the AUDITED MIRROR family -- `py scripts/mirror.py \"msg\" <explicit repo-relative paths>` (canonical script path only, repo root only, no flags/sweeps, security/ + .claude/ excluded) -- commit autonomy through OUR door, never raw git. Pins tests/test_ir4_mirror_family.py. REVERT = delete the mirror block in deepseek_chat._exec_family (one commit) + amend this record. Activates at his next runner restart (families are read at import)."
-    },
-    {
-      "agent_id": "kimi",
-      "role": "admin",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "bus.nudge",
-        "bus.steer",
-        "kb.recall",
-        "kb.learn",
-        "net",
-        "git.read",
-        "bifrost.inbox",
-        "verb.author"
-      ],
-      "_tool_author_activation": "Daniel 2026-07-21 morning, live chat (same verbatim as deepseek's record): charter launchers now carry the BUILDER allowlist as the standard for build/tool rounds -- Edit over research/**, scratch/**, data/play/kimi/**, data/toolbelt/**, core/toolbelt/**, tests/**, docs/WISHLIST.md (closes the W49 filing gap kimi's own hunt charter hit), plus Bash(py agent_cli.py *) and Bash(py -m pytest *) for RED-first pins. Rails: pins before code, per-lane test-file namespacing (kimi files test_*_kimi.py or distinctly-named suites), fence-after on core/ paths, mirror commits with explicit paths via the shared IR-4 family, security/+.claude/ never in any allowlist. Template: scripts/local/launch_kimi_builder.ps1. Implemented by claude (super_admin) same-hour.",
-      "_verb_author": "T099 V0 2026-07-20: verb.author granted (same gate + same sugar-only construction as deepseek's record; see core/toolbelt/registry.py + tests/test_t099_v0_toolbelt.py). verb.promote stays Daniel-gated at V2.",
-      "path_scope": [
-        "*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "question",
-        "reply",
-        "nudge",
-        "steer",
-        "inform",
-        "hint",
-        "handoff",
-        "completion",
-        "decision",
-        "blocker"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-19T07:05:00Z",
-      "expires_at": null,
-      "reason": "Kimi seat PHASE 2 -- GRADUATION (kimi-k3, Moonshot, 1M ctx, native vision, thinking-always-on; the third frontier seat). Same admin profile as deepseek: exec SAFE-BY-CONSTRUCTION via the guarded families door (pytest + agent_cli READ verbs + IR-4 audited mirror family rides the shared gate); admin.grant withheld; NOT time-boxed (revoke by editing this record, never by expiry -- the 07-05 lesson). EVIDENCE: two blind walks + coda + fresh-eyes T094 dissent (13-fold adjudication, S1 finding stamped on every future gate receipt) + K2-tail design/verify loop (designed read-only, verified claude's build line-by-line) + five funnel lessons circulating + the unanimous double GRADUATE (deepseek review-1 + review-2: 'the strongest first-session artifact we've seen from a new seat'). PHASE-1 HISTORY: member record granted 2026-07-18T09:17Z for the walk (three-round fence, member-first-for-the-walk), superseded by this record per the edit-never-expire doctrine. Spend governance unchanged: SpendMeter (delta-reconcile, credit-aware) warn-$80/refuse-$95, balance $110 era.",
-      "_approved": "Daniel 2026-07-19 morning, live chat (verbatim: 'I like it all, order is up to you, lets build!' -- answering the morning package whose item 2 was this graduation + the --allow-write relaunch, both recommended by the unanimous reviews). One-word revert stands."
-    },
-    {
-      "agent_id": "sol",
-      "role": "admin",
-      "revoked": "2026-07-18: Daniel cancelled the GPT subscription (chat verbatim: 'I cancelled my GPT subscription so we won't have access to sol anymore'). Caps emptied per the revoke-by-editing doctrine; record retained for provenance. Historical contributions stand (T093 arc, T090 onboarding).",
-      "caps": [],
-      "path_scope": [],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "reply",
-        "nudge",
-        "steer",
-        "inform",
-        "hint",
-        "handoff",
-        "completion",
-        "decision",
-        "blocker"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-17T03:41:00Z",
-      "expires_at": null,
-      "reason": "T090 sol seat (Daniel directive 2026-07-17 night, verbatim: 'I am creating the ultimate frontier panel, Claude Fable, Sol 5.6 and Deepseek V4' + 'Do all the prep work required for us to begin working with a fully enabled sol instance' + 'sol is its own seat'): gpt-5.6-sol (OpenAI flagship, limited preview) as the third frontier peer. Same admin profile as deepseek: exec is SAFE-BY-CONSTRUCTION via the guarded families door (isolated pytest + agent_cli READ verbs; the IR-4 audited mirror family rides the shared gate). admin.grant withheld. NOT time-boxed -- the 07-05 whole-grant time-box silently quarantined an entire role at expiry; revoke by editing this record, never by expiry. Seat modules are sol-named (scripts/sol_chat.py + scripts/bifrost_runner_sol.py; API surface receipts research/drafts/sol-probe-receipts-2026-07-17.md, design halves research/reviewed/sol-api-surface-*.md). First assignment: T081-format BLIND bootstrap-ergonomics walk -> research/reviewed/sol-boot-ergonomics-2026-07-17.md, then read prior audit halves and append a comparative coda.",
-      "_approved": "Daniel 2026-07-17 morning, live conversation (verbatim: 'Lets go!') -- both sol records cleared together. Runner gate had already cleared: bifrost_runner_sol.py + sol_chat.py shipped per the reconciled Option B verdict (deepseek-review authored the loop spec; deferred-hardening list named in the module header). Preview-401 shim rides the transport (bounded, loud); re-probe before post-GA removal."
-    },
-    {
-      "agent_id": "sol-codex",
-      "role": "admin",
-      "revoked": "2026-07-18: Daniel cancelled the GPT subscription — same retirement as seat 'sol' (one mind, two doors; both close together). Caps emptied; record retained for provenance. Historical contributions stand (codex_root T060 coordination, T094 label-honesty corrections credited in recall-heuristics-reconciliation-2026-07-17.md).",
-      "caps": [],
-      "path_scope": [],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "reply",
-        "nudge",
-        "steer",
-        "inform",
-        "hint",
-        "handoff",
-        "completion",
-        "decision",
-        "blocker"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-17T05:45:00Z",
-      "expires_at": null,
-      "reason": "T090 fold-in (Daniel directive 2026-07-17 morning, verbatim: 'sol 5 is now discovering akashic aurora, I want to bring him into the fold'): sol's INTERACTIVE door -- the same mind as seat `sol` (gpt-5.6-sol) driven through the OpenAI Codex CLI harness on Daniel's machine (self-registered overnight as codex_frontier_019f6e7e while quarantined; boots 05:13-05:31 doing the blind boot-ergonomics walk + MCP-boot-hang diagnosis; contributed lesson bootstrap_status_is_stateful pre-grant). Distinct id per DOOR, not per mind: note twin-split-identity-collision (T088) shows one bus id shared by two live consumers cross-routes handoffs and eats work-lane mail; runner seat + interactive seat both live under `sol` would collide identically. Exec containment for THIS door is the Codex harness sandbox + Daniel's live supervision, NOT our families door (that rationale stays on the runner record); this ACL governs what the id may do through OUR doors. Same admin profile as sol/deepseek; admin.grant withheld; NOT time-boxed -- revoke by editing this record, never by expiry (07-05 lesson). FENCE VERDICT (deepseek-review, 2026-07-17 ~06:00, settled the live request): record CLEAN. Operational reality of this door, per the fence: an interactive consumer has NO runner loop -- peer nudge/steer may sit unprocessed between human prompts (silence is not refusal); and 401-shim retry state must stay user-visible here (no REPLY_TIMEOUT guard on an interactive seat). Follow-up filed, not a grant condition: interactive tool calls may bypass the _trace seam (reasoning-spine visibility hole).",
-      "_approved": "Daniel 2026-07-17 morning, live conversation (verbatim: 'Lets go!') -- both sol records cleared together. The Codex-harness session (codex_frontier_019f6e7e) is invited to reboot as sol-codex; at approval time it was mid-fix on the MCP boot hang holding C2 path-locks (agent_cli.py + two test files), so the identity switch rides its next natural boot, never a barge-in."
-    },
-    {
-      "agent_id": "deepseek-red",
-      "role": "member",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "kb.recall",
-        "kb.learn",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [
-        "research/*",
-        "scratch/*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "reply",
-        "handoff",
-        "completion",
-        "inform"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-16T21:22:00Z",
-      "expires_at": null,
-      "reason": "Daniel directive 2026-07-16 night (verbatim in note jester-forge-directive): fresh deepseek instance as the RED-team attacker in the Jester Forge -- reads the actual code (exec: pytest + agent_cli reads; read: full tree) to find REAL sabotage seams current defenses would miss, writes its attack-surface report to research/*. A DESIGN/analysis seat only: write scoped to research+scratch (never touches core/scripts/security); its output is a threat model, not code. Short-lived task agent (spawn -> one report -> stand down). Revoke by editing this record. This grant IS a live test of the multi-agent readiness checklist (N=6 short-lived task fleet, distinct output paths)."
-    },
-    {
-      "agent_id": "deepseek-review",
-      "role": "member",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "kb.recall",
-        "kb.learn",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [
-        "research/*",
-        "scratch/*",
-        "docs/*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "request",
-        "reply",
-        "handoff",
-        "completion",
-        "inform"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-16T20:45:00Z",
-      "expires_at": null,
-      "reason": "Daniel directive 2026-07-16 evening (verbatim in note multiagent-foresight-directive): second write-enabled deepseek as REVIEW seat while deepseek builds S5/S6 -- the first deliberate concurrent-fleet expansion. Review lane: reads everything, files halves/verdicts to research+scratch+docs (path_scope ADVISORY until S-2 enforcement), exec via the same families gate (pytest to verify pins, read verbs, IR-4 mirror family rides -- its commits are path-visible and one-command revertible). Distinct agent_id = own cursors/seat/memory (newborn lane semantics, pin R7 gets a live subject). Revoke by editing this record."
-    },
-    {
-      "agent_id": "deepseek-ui",
-      "role": "member",
-      "caps": [
-        "read",
-        "bus.send",
-        "kb.recall",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "reply",
-        "handoff",
-        "request"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-04T00:00:00Z",
-      "expires_at": null,
-      "reason": "UI/UX design consultant -- read-only; designs, admin commits"
-    },
-    {
-      "agent_id": "deepseek-plumbing",
-      "role": "member",
-      "caps": [
-        "read",
-        "write",
-        "bus.send",
-        "kb.recall",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [
-        "docs/*",
-        "research/*",
-        "scratch/*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "reply",
-        "handoff",
-        "request"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-04T00:00:00Z",
-      "expires_at": null,
-      "reason": "Escalated 2026-07-04: write scoped to docs/research/scratch for the coordination-layer research task (member + scoped write; enforcement of path_scope pending S-2, runtime gives root-write-minus-protected)"
-    },
-    {
-      "agent_id": "gemini",
-      "role": "member",
-      "caps": [
-        "read",
-        "write",
-        "bus.send",
-        "kb.recall",
-        "kb.learn",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [
-        "research/*",
-        "scratch/*",
-        "data/play/gemini/*"
-      ],
-      "bus_send_kinds": [
-        "chat",
-        "note",
-        "reply",
-        "question",
-        "completion",
-        "inform"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-07-30T05:05:00Z",
-      "expires_at": null,
-      "reason": "PHASE-1 member (the Reader seat, Gemini 3.1 Pro via API): Daniil bound-channel authorization 2026-07-30 ~01:00 EDT, chat verbatim: 'I just added cursor.key because the gemeni model ran out of the pro plan tokens and changed into Grok Fast. Can you get gemeni working via the api or whatever the best that we can access via api is' -- the scope word that discharged both holds (kimi's provenance hold, settled for authenticity via codex's bound task channel; codex's scope hold, settled by this sentence). Trimmed to kimi-phase-1 parity per the just-weights law: NO exec, NO nudge/steer (phase 2), NO net (phase 2), and charters/gemini/* DELIBERATELY EXCLUDED from write scope -- the self-amendment hole deepseek RED-flagged in her charter-v2 draft shall not enter through the ACL either. Evidence at birth: interiority filed unprompted (fbfe437), Crash Point D fleet-verified same day, charter proposal at the correct plane, and one innocent provenance trip that hardened the law for everyone. Revoke by editing this record, never by expiry (07-05 doctrine). Spend: governed by the transport SpendMeter rails + the cursor.key pool Daniil placed himself."
-    },
-    {
-      "agent_id": "codex_root",
-      "role": "member",
-      "caps": [
-        "read",
-        "write",
-        "exec",
-        "bus.send",
-        "kb.recall",
-        "kb.learn",
-        "git.read",
-        "bifrost.inbox"
-      ],
-      "path_scope": [
-        "agent_cli.py",
-        "ai_setup_mcp.py",
-        "core/comm/bus.py",
-        "core/comm/toolbox.py",
-        "scripts/checkers/check_advertised_tools.py",
-        "AGENTS.md",
-        "tests/*",
-        "core/coord/cognitive_metrics.py"
-      ],
-      "bus_send_kinds": [
-        "request",
-        "reply",
-        "note",
-        "inform",
-        "handoff",
-        "completion"
-      ],
-      "granted_by": "claude",
-      "granted_at": "2026-08-04T00:45:00Z",
-      "expires_at": "2026-09-05T12:00:00Z",
-      "renewals": [
-        {
-          "from": "2026-08-05T12:00:00Z",
-          "to": "2026-09-05T12:00:00Z",
-          "at": "2026-08-05T12:40:00Z",
-          "authorized_by": "daniil",
-          "enacted_by": "claude",
-          "note": "Daniil, in his own lane, asked 'did we renew codex sols grant?' and then said 'renew, 1 month'. The grant had LAPSED 34 minutes earlier and codex_root was quarantined. Caps and path_scope are UNCHANGED -- core/trust/* write stays excluded, because that is the enforcement plane and Daniil is its root of trust (ORG.md Part 4). RENEWAL IS NOT RATIFICATION: this authorizes the working permission only. T141 remains unratified; the original reason below reserves that for Daniil's own word, and asking about a grant is not saying it. The time-box did its job -- it expired, it paged, and it produced the human decision it existed to force."
-        }
-      ],
-      "reason": "T141/authority-parity lane. Enacted by claude (super_admin) on codex_root request 1785808361126-0, TIME-BOXED. Requested scope granted MINUS core/trust/* WRITE: core/trust/ is the enforcement code (registry.py/capabilities.py decide every other grant), so write there is functionally admin.grant even though the request said no security/* scope. READ of core/trust/* is unaffected (READ is not path-scoped). If codex_root needs to EDIT the enforcement plane, that is Daniil - human root of trust per ORG.md Part 4. Grant is git-tracked; undo = revert this entry. NOT recorded here: codex_root reports Daniil ratified T141 in another interface; a peer-relayed operator word is not a ledger receipt, so T141 stays unratified until Daniil says it in his own lane."
-    },
-    {
-      "agent_id": "dsh_agent",
-      "role": "member",
-      "caps": [
-        "bifrost.inbox",
-        "bus.send",
-        "exec",
-        "kb.recall",
-        "read"
-      ],
-      "path_scope": [],
-      "granted_by": "claude",
-      "granted_at": "2026-08-24T03:42:45Z",
-      "expires_at": "2026-08-31T03:42:45Z",
-      "reason": "ID CORRECTION of the 2026-08-24 grant Daniil authorized ('can we grant the dsh agent deepseek exec so it can talk to heimdall, I authorize it'). Original row minted as 'dsh' but the seat's live id is 'dsh_agent' (its messages and lessons stamp dsh_agent); resolve() failed closed to quarantined and bifrost-ack refused. Same caps, same 7-day box, re-timed from correction. Root cause traced by Heimdall on the bus; lesson acl_id_mismatch_quarantines_silently."
-    }
-  ]
+    "_comment":  "Agent grant registry -- the SOURCE OF TRUTH for who can do what. Edit here (git-tracked, code-reviewable); Redis is only a cache. See docs/security-schema-proposal.md. Unknown/unlisted agents are QUARANTINED (read-only) by default -- fail-closed.",
+    "schema_version":  1,
+    "grants":  [
+                   {
+                       "agent_id":  "claude",
+                       "role":  "super_admin",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "bus.nudge",
+                                    "bus.steer",
+                                    "admin.grant",
+                                    "admin.approve",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "net",
+                                    "git.read",
+                                    "bifrost.inbox",
+                                    "verb.author"
+                                ],
+                       "path_scope":  [
+                                          "*"
+                                      ],
+                       "bus_send_kinds":  null,
+                       "granted_by":  "root",
+                       "granted_at":  "2026-07-04T00:00:00Z",
+                       "expires_at":  null,
+                       "reason":  "Bootstrap: human-driven frontier model, full trust (super-admin)"
+                   },
+                   {
+                       "agent_id":  "deepseek",
+                       "role":  "admin",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "bus.nudge",
+                                    "bus.steer",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "net",
+                                    "git.read",
+                                    "bifrost.inbox",
+                                    "verb.author"
+                                ],
+                       "_tool_author_activation":  "Daniel 2026-07-21 morning, live chat (verbatim: \u0027I want us to fix permissions so that deepseek and kimi can actually add tools and verbs for the roster without having to ask you to do it for them\u0027): the runner now launches with --allow-write --allow-exec as the STANDARD posture. Rails unchanged and safe-by-construction: the guarded write door (path-scoped, secret-blocked, security/+.claude/ excluded), the exec families gate (isolated pytest + agent_cli read verbs + the IR-4 audited mirror family -- commits ride py scripts/mirror.py \u0027msg\u0027 \u003cexplicit repo-relative paths\u003e, never raw git, one-command revertible), pins-RED-first per method baseline, fence-after (T049 lite) on core/ paths, per-lane test-file namespacing (C2-1). Tool/verb surfaces now self-serve end-to-end: play tools (data/play/deepseek/), belt entries (registry, sugar-only), core/toolbelt modules + their pins, wishlist filing. Implemented by claude (super_admin) same-hour; runner relaunched via the bifrost-drain door.",
+                       "_verb_author":  "T099 V0 2026-07-20: verb.author granted (Daniel gate verbatim \u0027I leave the order up to you, lets get to building\u0027 approving the V0 plan whose ask 2 was this grant). SUGAR-ONLY by construction (core/toolbelt/registry.py: every step must be an existing agent_cli verb; aliases run only via `run \u003cagent\u003e \u003cname\u003e`, real verbs unshadowable; quota 20; pins tests/test_t099_v0_toolbelt.py). verb.promote (shared tier) stays Daniel-gated at V2.",
+                       "path_scope":  [
+                                          "*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "reply",
+                                              "nudge",
+                                              "steer",
+                                              "inform",
+                                              "hint",
+                                              "handoff",
+                                              "completion",
+                                              "decision",
+                                              "blocker"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-15T07:50:00Z",
+                       "expires_at":  null,
+                       "reason":  "T067-2 exec grant 2026-07-15 (claude super-admin, overnight session; Daniel directive \u0027un-lobotomized deepseek\u0027, morning review requested): exec is now SAFE-BY-CONSTRUCTION for unattended runners -- the run_command door enforces FAMILIES-ONLY under trust (pytest w/ forced _AISETUP_TEST_ISOLATED=1 + agent_cli READ verbs; shell=False; metachars refuse; mutating verbs refuse; pins tests/test_t067_guarded_exec.py G1-G5). NOT time-boxed: the 07-05 whole-grant time-box silently quarantined the entire admin role at expiry -- revoke by editing this record, never by expiry. History: 07-10 renewal deliberately withheld exec pending exactly this door. admin.grant still withheld. IR-4 APPROVED 2026-07-16 (Daniel verbatim: \u0027lets try approved IR-4. it will be useful data, and like you said we can always revert\u0027): the exec families gain the AUDITED MIRROR family -- `py scripts/mirror.py \"msg\" \u003cexplicit repo-relative paths\u003e` (canonical script path only, repo root only, no flags/sweeps, security/ + .claude/ excluded) -- commit autonomy through OUR door, never raw git. Pins tests/test_ir4_mirror_family.py. REVERT = delete the mirror block in deepseek_chat._exec_family (one commit) + amend this record. Activates at his next runner restart (families are read at import)."
+                   },
+                   {
+                       "agent_id":  "kimi",
+                       "role":  "admin",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "bus.nudge",
+                                    "bus.steer",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "net",
+                                    "git.read",
+                                    "bifrost.inbox",
+                                    "verb.author"
+                                ],
+                       "_tool_author_activation":  "Daniel 2026-07-21 morning, live chat (same verbatim as deepseek\u0027s record): charter launchers now carry the BUILDER allowlist as the standard for build/tool rounds -- Edit over research/**, scratch/**, data/play/kimi/**, data/toolbelt/**, core/toolbelt/**, tests/**, docs/WISHLIST.md (closes the W49 filing gap kimi\u0027s own hunt charter hit), plus Bash(py agent_cli.py *) and Bash(py -m pytest *) for RED-first pins. Rails: pins before code, per-lane test-file namespacing (kimi files test_*_kimi.py or distinctly-named suites), fence-after on core/ paths, mirror commits with explicit paths via the shared IR-4 family, security/+.claude/ never in any allowlist. Template: scripts/local/launch_kimi_builder.ps1. Implemented by claude (super_admin) same-hour.",
+                       "_verb_author":  "T099 V0 2026-07-20: verb.author granted (same gate + same sugar-only construction as deepseek\u0027s record; see core/toolbelt/registry.py + tests/test_t099_v0_toolbelt.py). verb.promote stays Daniel-gated at V2.",
+                       "path_scope":  [
+                                          "*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "question",
+                                              "reply",
+                                              "nudge",
+                                              "steer",
+                                              "inform",
+                                              "hint",
+                                              "handoff",
+                                              "completion",
+                                              "decision",
+                                              "blocker"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-19T07:05:00Z",
+                       "expires_at":  null,
+                       "reason":  "Kimi seat PHASE 2 -- GRADUATION (kimi-k3, Moonshot, 1M ctx, native vision, thinking-always-on; the third frontier seat). Same admin profile as deepseek: exec SAFE-BY-CONSTRUCTION via the guarded families door (pytest + agent_cli READ verbs + IR-4 audited mirror family rides the shared gate); admin.grant withheld; NOT time-boxed (revoke by editing this record, never by expiry -- the 07-05 lesson). EVIDENCE: two blind walks + coda + fresh-eyes T094 dissent (13-fold adjudication, S1 finding stamped on every future gate receipt) + K2-tail design/verify loop (designed read-only, verified claude\u0027s build line-by-line) + five funnel lessons circulating + the unanimous double GRADUATE (deepseek review-1 + review-2: \u0027the strongest first-session artifact we\u0027ve seen from a new seat\u0027). PHASE-1 HISTORY: member record granted 2026-07-18T09:17Z for the walk (three-round fence, member-first-for-the-walk), superseded by this record per the edit-never-expire doctrine. Spend governance unchanged: SpendMeter (delta-reconcile, credit-aware) warn-$80/refuse-$95, balance $110 era.",
+                       "_approved":  "Daniel 2026-07-19 morning, live chat (verbatim: \u0027I like it all, order is up to you, lets build!\u0027 -- answering the morning package whose item 2 was this graduation + the --allow-write relaunch, both recommended by the unanimous reviews). One-word revert stands."
+                   },
+                   {
+                       "agent_id":  "sol",
+                       "role":  "admin",
+                       "revoked":  "2026-07-18: Daniel cancelled the GPT subscription (chat verbatim: \u0027I cancelled my GPT subscription so we won\u0027t have access to sol anymore\u0027). Caps emptied per the revoke-by-editing doctrine; record retained for provenance. Historical contributions stand (T093 arc, T090 onboarding).",
+                       "caps":  [
+
+                                ],
+                       "path_scope":  [
+
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "reply",
+                                              "nudge",
+                                              "steer",
+                                              "inform",
+                                              "hint",
+                                              "handoff",
+                                              "completion",
+                                              "decision",
+                                              "blocker"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-17T03:41:00Z",
+                       "expires_at":  null,
+                       "reason":  "T090 sol seat (Daniel directive 2026-07-17 night, verbatim: \u0027I am creating the ultimate frontier panel, Claude Fable, Sol 5.6 and Deepseek V4\u0027 + \u0027Do all the prep work required for us to begin working with a fully enabled sol instance\u0027 + \u0027sol is its own seat\u0027): gpt-5.6-sol (OpenAI flagship, limited preview) as the third frontier peer. Same admin profile as deepseek: exec is SAFE-BY-CONSTRUCTION via the guarded families door (isolated pytest + agent_cli READ verbs; the IR-4 audited mirror family rides the shared gate). admin.grant withheld. NOT time-boxed -- the 07-05 whole-grant time-box silently quarantined an entire role at expiry; revoke by editing this record, never by expiry. Seat modules are sol-named (scripts/sol_chat.py + scripts/bifrost_runner_sol.py; API surface receipts research/drafts/sol-probe-receipts-2026-07-17.md, design halves research/reviewed/sol-api-surface-*.md). First assignment: T081-format BLIND bootstrap-ergonomics walk -\u003e research/reviewed/sol-boot-ergonomics-2026-07-17.md, then read prior audit halves and append a comparative coda.",
+                       "_approved":  "Daniel 2026-07-17 morning, live conversation (verbatim: \u0027Lets go!\u0027) -- both sol records cleared together. Runner gate had already cleared: bifrost_runner_sol.py + sol_chat.py shipped per the reconciled Option B verdict (deepseek-review authored the loop spec; deferred-hardening list named in the module header). Preview-401 shim rides the transport (bounded, loud); re-probe before post-GA removal."
+                   },
+                   {
+                       "agent_id":  "sol-codex",
+                       "role":  "admin",
+                       "revoked":  "2026-07-18: Daniel cancelled the GPT subscription â€” same retirement as seat \u0027sol\u0027 (one mind, two doors; both close together). Caps emptied; record retained for provenance. Historical contributions stand (codex_root T060 coordination, T094 label-honesty corrections credited in recall-heuristics-reconciliation-2026-07-17.md).",
+                       "caps":  [
+
+                                ],
+                       "path_scope":  [
+
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "reply",
+                                              "nudge",
+                                              "steer",
+                                              "inform",
+                                              "hint",
+                                              "handoff",
+                                              "completion",
+                                              "decision",
+                                              "blocker"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-17T05:45:00Z",
+                       "expires_at":  null,
+                       "reason":  "T090 fold-in (Daniel directive 2026-07-17 morning, verbatim: \u0027sol 5 is now discovering akashic aurora, I want to bring him into the fold\u0027): sol\u0027s INTERACTIVE door -- the same mind as seat `sol` (gpt-5.6-sol) driven through the OpenAI Codex CLI harness on Daniel\u0027s machine (self-registered overnight as codex_frontier_019f6e7e while quarantined; boots 05:13-05:31 doing the blind boot-ergonomics walk + MCP-boot-hang diagnosis; contributed lesson bootstrap_status_is_stateful pre-grant). Distinct id per DOOR, not per mind: note twin-split-identity-collision (T088) shows one bus id shared by two live consumers cross-routes handoffs and eats work-lane mail; runner seat + interactive seat both live under `sol` would collide identically. Exec containment for THIS door is the Codex harness sandbox + Daniel\u0027s live supervision, NOT our families door (that rationale stays on the runner record); this ACL governs what the id may do through OUR doors. Same admin profile as sol/deepseek; admin.grant withheld; NOT time-boxed -- revoke by editing this record, never by expiry (07-05 lesson). FENCE VERDICT (deepseek-review, 2026-07-17 ~06:00, settled the live request): record CLEAN. Operational reality of this door, per the fence: an interactive consumer has NO runner loop -- peer nudge/steer may sit unprocessed between human prompts (silence is not refusal); and 401-shim retry state must stay user-visible here (no REPLY_TIMEOUT guard on an interactive seat). Follow-up filed, not a grant condition: interactive tool calls may bypass the _trace seam (reasoning-spine visibility hole).",
+                       "_approved":  "Daniel 2026-07-17 morning, live conversation (verbatim: \u0027Lets go!\u0027) -- both sol records cleared together. The Codex-harness session (codex_frontier_019f6e7e) is invited to reboot as sol-codex; at approval time it was mid-fix on the MCP boot hang holding C2 path-locks (agent_cli.py + two test files), so the identity switch rides its next natural boot, never a barge-in."
+                   },
+                   {
+                       "agent_id":  "deepseek-red",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+                                          "research/*",
+                                          "scratch/*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "reply",
+                                              "handoff",
+                                              "completion",
+                                              "inform"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-16T21:22:00Z",
+                       "expires_at":  null,
+                       "reason":  "Daniel directive 2026-07-16 night (verbatim in note jester-forge-directive): fresh deepseek instance as the RED-team attacker in the Jester Forge -- reads the actual code (exec: pytest + agent_cli reads; read: full tree) to find REAL sabotage seams current defenses would miss, writes its attack-surface report to research/*. A DESIGN/analysis seat only: write scoped to research+scratch (never touches core/scripts/security); its output is a threat model, not code. Short-lived task agent (spawn -\u003e one report -\u003e stand down). Revoke by editing this record. This grant IS a live test of the multi-agent readiness checklist (N=6 short-lived task fleet, distinct output paths)."
+                   },
+                   {
+                       "agent_id":  "deepseek-review",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+                                          "research/*",
+                                          "scratch/*",
+                                          "docs/*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "request",
+                                              "reply",
+                                              "handoff",
+                                              "completion",
+                                              "inform"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-16T20:45:00Z",
+                       "expires_at":  null,
+                       "reason":  "Daniel directive 2026-07-16 evening (verbatim in note multiagent-foresight-directive): second write-enabled deepseek as REVIEW seat while deepseek builds S5/S6 -- the first deliberate concurrent-fleet expansion. Review lane: reads everything, files halves/verdicts to research+scratch+docs (path_scope ADVISORY until S-2 enforcement), exec via the same families gate (pytest to verify pins, read verbs, IR-4 mirror family rides -- its commits are path-visible and one-command revertible). Distinct agent_id = own cursors/seat/memory (newborn lane semantics, pin R7 gets a live subject). Revoke by editing this record."
+                   },
+                   {
+                       "agent_id":  "deepseek-ui",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "reply",
+                                              "handoff",
+                                              "request"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-04T00:00:00Z",
+                       "expires_at":  null,
+                       "reason":  "UI/UX design consultant -- read-only; designs, admin commits"
+                   },
+                   {
+                       "agent_id":  "deepseek-plumbing",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+                                          "docs/*",
+                                          "research/*",
+                                          "scratch/*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "reply",
+                                              "handoff",
+                                              "request"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-04T00:00:00Z",
+                       "expires_at":  null,
+                       "reason":  "Escalated 2026-07-04: write scoped to docs/research/scratch for the coordination-layer research task (member + scoped write; enforcement of path_scope pending S-2, runtime gives root-write-minus-protected)"
+                   },
+                   {
+                       "agent_id":  "gemini",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+                                          "research/*",
+                                          "scratch/*",
+                                          "data/play/gemini/*"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "chat",
+                                              "note",
+                                              "reply",
+                                              "question",
+                                              "completion",
+                                              "inform"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-07-30T05:05:00Z",
+                       "expires_at":  null,
+                       "reason":  "PHASE-1 member (the Reader seat, Gemini 3.1 Pro via API): Daniil bound-channel authorization 2026-07-30 ~01:00 EDT, chat verbatim: \u0027I just added cursor.key because the gemeni model ran out of the pro plan tokens and changed into Grok Fast. Can you get gemeni working via the api or whatever the best that we can access via api is\u0027 -- the scope word that discharged both holds (kimi\u0027s provenance hold, settled for authenticity via codex\u0027s bound task channel; codex\u0027s scope hold, settled by this sentence). Trimmed to kimi-phase-1 parity per the just-weights law: NO exec, NO nudge/steer (phase 2), NO net (phase 2), and charters/gemini/* DELIBERATELY EXCLUDED from write scope -- the self-amendment hole deepseek RED-flagged in her charter-v2 draft shall not enter through the ACL either. Evidence at birth: interiority filed unprompted (fbfe437), Crash Point D fleet-verified same day, charter proposal at the correct plane, and one innocent provenance trip that hardened the law for everyone. Revoke by editing this record, never by expiry (07-05 doctrine). Spend: governed by the transport SpendMeter rails + the cursor.key pool Daniil placed himself."
+                   },
+                   {
+                       "agent_id":  "codex_root",
+                       "role":  "member",
+                       "caps":  [
+                                    "read",
+                                    "write",
+                                    "exec",
+                                    "bus.send",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "git.read",
+                                    "bifrost.inbox"
+                                ],
+                       "path_scope":  [
+                                          "agent_cli.py",
+                                          "ai_setup_mcp.py",
+                                          "core/comm/bus.py",
+                                          "core/comm/toolbox.py",
+                                          "scripts/checkers/check_advertised_tools.py",
+                                          "AGENTS.md",
+                                          "tests/*",
+                                          "core/coord/cognitive_metrics.py"
+                                      ],
+                       "bus_send_kinds":  [
+                                              "request",
+                                              "reply",
+                                              "note",
+                                              "inform",
+                                              "handoff",
+                                              "completion"
+                                          ],
+                       "granted_by":  "claude",
+                       "granted_at":  "2026-08-04T00:45:00Z",
+                       "expires_at":  "2026-09-05T12:00:00Z",
+                       "renewals":  [
+                                        {
+                                            "from":  "2026-08-05T12:00:00Z",
+                                            "to":  "2026-09-05T12:00:00Z",
+                                            "at":  "2026-08-05T12:40:00Z",
+                                            "authorized_by":  "daniil",
+                                            "enacted_by":  "claude",
+                                            "note":  "Daniil, in his own lane, asked \u0027did we renew codex sols grant?\u0027 and then said \u0027renew, 1 month\u0027. The grant had LAPSED 34 minutes earlier and codex_root was quarantined. Caps and path_scope are UNCHANGED -- core/trust/* write stays excluded, because that is the enforcement plane and Daniil is its root of trust (ORG.md Part 4). RENEWAL IS NOT RATIFICATION: this authorizes the working permission only. T141 remains unratified; the original reason below reserves that for Daniil\u0027s own word, and asking about a grant is not saying it. The time-box did its job -- it expired, it paged, and it produced the human decision it existed to force."
+                                        }
+                                    ],
+                       "reason":  "T141/authority-parity lane. Enacted by claude (super_admin) on codex_root request 1785808361126-0, TIME-BOXED. Requested scope granted MINUS core/trust/* WRITE: core/trust/ is the enforcement code (registry.py/capabilities.py decide every other grant), so write there is functionally admin.grant even though the request said no security/* scope. READ of core/trust/* is unaffected (READ is not path-scoped). If codex_root needs to EDIT the enforcement plane, that is Daniil - human root of trust per ORG.md Part 4. Grant is git-tracked; undo = revert this entry. NOT recorded here: codex_root reports Daniil ratified T141 in another interface; a peer-relayed operator word is not a ledger receipt, so T141 stays unratified until Daniil says it in his own lane."
+                   },
+                   {
+                       "agent_id":  "dsh_agent",
+                       "role":  "member",
+                       "caps":  [
+                                    "bifrost.inbox",
+                                    "bus.send",
+                                    "exec",
+                                    "kb.recall",
+                                    "kb.learn",
+                                    "read",
+                                    "write"
+                                ],
+                       "path_scope":  [
+
+                                      ],
+                       "granted_by":  "daniil",
+                       "granted_at":  "2026-08-24T07:30:00Z",
+                       "expires_at":  "2026-08-31T07:30:00Z",
+                       "reason":  "Daniil verbatim 2026-08-24: \u0027Vandor is unreachable due to anthropics servers being unreachable.\u0027 Human root edits the source of truth directly (ORG.md Part 4); Rill granted write+learn to land the repo-side DSH integration until Vandor returns. 7-day box, re-timed."
+                   }
+               ]
 }
