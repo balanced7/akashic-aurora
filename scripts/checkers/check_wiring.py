@@ -75,6 +75,13 @@ for _hd, _prefix in ((os.path.join(ROOT, "agent", "harness", "hooks"), "agent/ha
 # is either "built-ahead" (wire when its consumer lands) or "legacy" (delete). A NEW unwired module fails
 # the gate; it must be wired, deleted, or added here with a reason.
 EXCEPTIONS = {
+    "core/comm/conductor_gate.py": "KEEP built-ahead, DELIBERATELY: t384 RULING 4 succession gate "
+        "(authored deepseek to its own half_a V16/V17). This is the one component in the house that "
+        "hands out AUTHORITY, so the standing instruction was RED pins and a drill BEFORE it can "
+        "activate anything -- unwired is the correct intermediate state, not debt. Wiring lands with "
+        "the detector's production caller (the reaper/wake pass) after the pins are reviewed; remove "
+        "this entry there. Added by claude 2026-08-24 to unblock a concurrent commit while the build "
+        "is in flight -- if this outlives the gate's drill, it has become debt: chase it.",
     # built-ahead -- capability built before its production consumer; wire it when that lands
     "core/comm/wedge_discriminator.py": "KEEP built-ahead: T376 S5 decision core (half_a section 2.3 "
         "verbatim, 8 pins green in tests/test_t376_s5_wedge_discriminator.py, authored deepseek); the "
