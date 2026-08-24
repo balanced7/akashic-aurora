@@ -125,6 +125,10 @@ def _credential_horizon() -> Optional[float]:
 # pid -> (Popen, log path), handed from the spawner to the watcher. Bounded by how
 # many times he can type !spawn; entries are popped by the watcher that claims them.
 _pending_spawns: dict = {}
+#: pid -> the launch note for a SEAT launch (url + whether the lever is drilled). It is
+#: delivered to the channel immediately rather than left in this log -- "wrote it to a file
+#: nobody reads" is the exact defect this day was spent closing.
+_launch_notes: dict = {}
 
 
 def _spawn_said(log) -> str:
@@ -284,6 +288,35 @@ def main() -> int:
         import shutil
         import subprocess
         import time as _t
+        # `!spawn <bare seat name>` launches THAT seat (2026-08-24). Until today the word
+        # was only ever a TASK STRING, so when he typed `!spawn rill` -- locked out, with
+        # the conductor dead -- the gateway spawned a claude seat to go and think about
+        # the word "rill". It investigated Rill, wrote a report, and stopped. Rill itself
+        # was never started and stayed down all day. Every layer worked; the lever meant
+        # something other than what he meant.
+        #
+        # Anything that is not EXACTLY a seat name falls through to the historical path
+        # below, unchanged -- a lever that sometimes swallows your sentence because it
+        # began with a name would be worse than the one it replaces.
+        from core.fleet import seat_launchers as _sl
+        _seat = _sl.resolve_seat(task)
+        if _seat:
+            argv, env_overlay, cwd = _sl.launch_argv(_seat, root=str(_ROOT))
+            lenv = os.environ.copy()
+            lenv.update(env_overlay)          # the seat states its OWN id; never inherits
+            logs = _ROOT / "state" / "spawn-logs"
+            logs.mkdir(parents=True, exist_ok=True)
+            log = logs / f"launch-{_seat['slug']}-{int(_t.time())}.log"
+            flags = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                     | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            with open(log, "w", encoding="utf-8") as fh:
+                p = subprocess.Popen(argv, env=lenv, cwd=cwd, stdout=fh, stderr=fh,
+                                     creationflags=flags)
+            note = _sl.launch_note(_seat)
+            _launch_notes[p.pid] = note
+            _pending_spawns[p.pid] = (p, log)
+            print(f"[discord-in] 🚀 {note} (pid {p.pid} -> {log.name})", flush=True)
+            return p.pid
         exe = shutil.which("claude")
         if not exe:
             raise RuntimeError("claude CLI not on PATH -- cannot spawn a fresh seat")
@@ -379,6 +412,16 @@ def main() -> int:
 
         def _watch() -> None:
             started = time.time()
+            # A seat launch says what it is and whether the lever is proven, NOW -- not at
+            # a deadline ten minutes away, and not only into this log. An undrilled lever
+            # must announce that it is undrilled while he can still act on it.
+            note = _launch_notes.pop(pid, None)
+            if note:
+                try:
+                    asyncio.run_coroutine_threadsafe(_confess(f"🚀 {note}", warn=False),
+                                                     loop)
+                except Exception as e:                                  # noqa: BLE001
+                    print(f"[discord-in] could not relay the launch note: {e}", flush=True)
             try:
                 code = proc.wait(timeout=_SPAWN_PROOF_SECONDS)
             except subprocess.TimeoutExpired:
