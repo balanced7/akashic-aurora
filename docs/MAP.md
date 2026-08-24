@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 177 modules lack both pin and paper by name)
+## GAP queue (40 of 178 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -262,7 +262,7 @@ Class: reference
 | `private_plane.py` | The private-plane leak guard: ingress, at the one place everything must pass. | tests/test_private_plane_guard.py | GAP |  |
 | `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH` |
 
-## core/fleet/  (6 modules)
+## core/fleet/  (7 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -271,6 +271,7 @@ Class: reference
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
 | `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md |  |
 | `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
+| `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launchers.py | GAP | `DSH_HOME` |
 | `verdicts.py` | Verdict file-back -- what a fan branch SAID, and what a non-author later ESTABLISHED. | GAP | docs/library/design/20260723_deepseek-a1-fence-verdicts_5f2e15.md | `AKASHIC_ADJUDICATORS` |
 
 ## core/state/  (2 modules)
