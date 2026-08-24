@@ -198,6 +198,10 @@ class TaskLedger:
         self._client = client
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self._seq = 0
+        # T270 CAS: the on-disk seq this instance last successfully wrote (or loaded). save()
+        # refuses to clobber a peer's newer write by comparing the file's CURRENT seq against
+        # this watermark -- a lost update is PREVENTED (raise) rather than silently applied.
+        self._base_seq = 0
         self.load()
 
     def _mirror_client(self):
@@ -219,22 +223,49 @@ class TaskLedger:
     # --- persistence (git-durable source of truth) ---------------------------------------------
     def load(self) -> None:
         if not os.path.exists(self.path):
+            self._base_seq = 0
             return
         try:
             with open(self.path, encoding="utf-8") as fh:
                 data = json.load(fh)
             self.tasks = {t["id"]: t for t in data.get("tasks", [])}
             self._seq = int(data.get("seq", len(self.tasks)))
+            self._base_seq = self._seq      # T270: the watermark save() CASes against
         except Exception as e:
             raise LedgerError(f"ledger unreadable at {self.path}: {e}")
 
+    def _on_disk_seq(self) -> int:
+        """The ledger's CURRENT on-disk seq, or self._base_seq when the file is absent
+        (nothing committed yet). Read fresh every call -- the CAS anchor, never cached."""
+        if not os.path.exists(self.path):
+            return self._base_seq
+        try:
+            with open(self.path, encoding="utf-8") as fh:
+                return int(json.load(fh).get("seq", 0))
+        except Exception:
+            return self._base_seq
+
     def save(self) -> None:
+        # T270 CAS — a lost update is PREVENTED, not silently applied. Two processes each
+        # hold a TaskLedger loaded from the same on-disk seq; both propose; both save. Without
+        # this, the second os.replace clobbers the first's whole-file write and BOTH believe
+        # they succeeded (the FileStore coherence class, on the governed allocator — the live
+        # seq=367/T368 race, deferred 77e485bb23). The guard: if the file's seq has moved past
+        # the watermark we last wrote/loaded, another process landed a write since — refuse so
+        # the caller re-reads and re-decides, rather than silently destroying a committed task.
+        disk = self._on_disk_seq()
+        if disk != self._base_seq:
+            raise LedgerError(
+                f"save refused (lost-update): the ledger advanced from {self._base_seq} to "
+                f"{disk} on disk since this instance last saw it — another process wrote. "
+                f"Re-read the ledger and re-apply; never clobber a peer's commit.")
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         payload = {"seq": self._seq, "tasks": list(self.tasks.values())}
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2)
         os.replace(tmp, self.path)   # atomic write — never a half-written ledger
+        self._base_seq = self._seq   # T270: advance the watermark to what we just committed
         self._mirror()               # write-through to the Redis read cache (best-effort)
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------

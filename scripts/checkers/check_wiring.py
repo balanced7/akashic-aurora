@@ -101,6 +101,12 @@ EXCEPTIONS = {
         "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
+    "core/coord/shift_loop.py": "KEEP built-ahead (2026-08-24, deepseek): the autonomous shift "
+        "loop decision core (fence shift-loop, docs/library/design/autonomous-shift-loop-design.md). "
+        "12 hermetic pins green in tests/test_shift_loop.py. Its production consumer is the runner "
+        "turn boundary (wiring CLAIM/HANDOFF beside the existing maybe_self_restart call) — FENCED for "
+        "operator+Vandor review, deliberately not built tonight (live self-modification). UNWIRE-WHEN: "
+        "the runner turn boundary calls next_beat() + reads the shift-state note; then remove this entry.",
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
     "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
     "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",

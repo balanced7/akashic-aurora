@@ -58,7 +58,14 @@ BASE_URL = os.getenv("AKASHIC_ASK_BASE_URL", "https://api.deepseek.com")
 # before generation does, so a fan wider than an integrator can absorb produces merge debt
 # rather than progress. Raise it once something downstream is proven able to consume more.
 DEFAULT_FAN_WORKERS = int(os.getenv("AKASHIC_ASK_FAN_WORKERS", "6"))
-KEY_FILE = Path(__file__).resolve().parents[2] / ".secrets" / "deepseek.key"
+# T365: the key file resolves through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR can
+# redirect the whole vault (module-path constants could not, which is the credential-leak class
+# this house already paid for once). Import is lazy here because secret_intake lives in the same
+# package and the module-level _load_key needs it only at call time, but resolving HERE once is
+# clearer than re-deriving in every loader.
+def _key_file(name: str) -> Path:
+    from core.comm.secret_intake import secrets_dir
+    return secrets_dir() / name
 DEFAULT_SYSTEM = (
     "You are a helper called synchronously by claude, the conductor of the Akashic Aurora fleet. "
     "You have no memory of previous calls and no tools. Answer the question directly and briefly. "
@@ -76,7 +83,7 @@ def _load_key() -> Optional[str]:
     if v and v.strip():
         return v.strip()
     try:
-        return KEY_FILE.read_text(encoding="utf-8").strip() or None
+        return _key_file("deepseek.key").read_text(encoding="utf-8").strip() or None
     except Exception:
         return None
 
@@ -149,7 +156,7 @@ def _load_key_for(vendor: dict) -> Optional[str]:
     if v and v.strip():
         return v.strip()
     try:
-        path = Path(__file__).resolve().parents[2] / ".secrets" / vendor["key_file"]
+        path = _key_file(vendor["key_file"])
         return path.read_text(encoding="utf-8").strip() or None
     except Exception:
         return None

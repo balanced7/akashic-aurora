@@ -87,7 +87,7 @@
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (24 modules)
+## core/coord/  (25 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -103,6 +103,7 @@
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
 - `preregistration.py` — preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix).
+- `shift_loop.py` — Autonomous shift loop — the missing cadence between existing primitives.
 - `sift.py` — sift -- the nested ask: a tiered read that returns dissent instead of consensus.
 - `suite_baseline.py` — suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4).
 - `task_costs.py` — Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed.
