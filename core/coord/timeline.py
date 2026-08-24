@@ -101,8 +101,16 @@ def _events_rows(since: Optional[float] = None, agent: str = "", **_) -> List[Di
 
 
 def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict]:
+    # ENCODING IS EXPLICIT, and this is a correctness fix rather than tidiness. `text=True`
+    # alone decodes with the LOCALE codec -- cp1252 on this box -- so one commit subject
+    # carrying a character outside cp1252 raised UnicodeDecodeError and took the ENTIRE git
+    # domain to zero rows. Reproduced 2026-08-24: byte 0x8f at position 13456, from the
+    # emoji in this repo's own T380 ladder commit subject. Git speaks UTF-8; read it as
+    # UTF-8, and never let one unlucky character decide whether history is visible.
+    # errors="replace" so a mangled byte costs one glyph, never the whole report.
     r = subprocess.run(["git", "log", f"-{int(limit)}", "--format=%H%x1f%at%x1f%an%x1f%s"],
                        cwd=_ROOT, capture_output=True, text=True, timeout=30,
+                       encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or "git log failed").strip()[:200])
