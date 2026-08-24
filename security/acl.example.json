@@ -1,0 +1,12 @@
+{
+  "_comment": "TEMPLATE ONLY -- copy to security/acl.json on a fresh instance, then mint grants with `py agent_cli.py grant`. This file is TRACKED; the real acl.json is INSTANCE-LOCAL and gitignored (fence t384), because a grant minted on one instance must never apply on another. Role templates are NOT here: policy lives in code at core/trust/capabilities.py::ROLE_TEMPLATES, and this file only ever holds grants.",
+  "_why_empty": "An empty grants list is the CORRECT and SAFE starting state, not an unfinished one. core/trust/registry.py::BOOTSTRAP_ROLES already gives this instance's own conductor super_admin and its own deepseek admin when no grant matches, and quarantines every other id -- so a fresh instance boots fail-closed with its core seats functional and nothing else authorized. Shipping example grants here would be worse than useless: someone would copy them, and a template would have minted real authority.",
+  "_first_steps": [
+    "1. cp security/acl.example.json security/acl.json   (only if you have no acl.json yet)",
+    "2. py agent_cli.py grant --list                     (confirm the bootstrap floor is what you expect)",
+    "3. py agent_cli.py grant <seat> --role member --by <your-root> --caps \"read,exec\" --hours 168 --reason \"<why>\"",
+    "4. py agent_cli.py grant --bootstrap                (stamps this instance's marker; REQUIRED before pulling a split commit -- see docs/DSH_INTEGRATION.md 8b)"
+  ],
+  "schema_version": 1,
+  "grants": []
+}

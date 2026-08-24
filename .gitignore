@@ -129,6 +129,11 @@ research/shift-console-*.log.err
 !state/coord/
 !state/coord/**
 
+# EXCEPTION to the exception (t384): instance-bound, NOT durable source. This maps ONE
+# Discord server's channel ids to seats; on a peer instance those ids address channels
+# that do not exist, so pulled seat traffic routes into the void.
+state/coord/discord_seat_channels.json
+
 # EXCEPTION: the guardrail baseline is the RATCHET's memory, not runtime scratch (T178).
 # Untracked, it was per-machine: every fresh clone and CI itself ran with no baseline, and
 # ratchet_ok read a missing baseline as nothing-to-compare and PASSED. The debt allowance has
@@ -183,3 +188,10 @@ chronicles/transcripts/*.jsonl
 !assets/
 !assets/avatars/
 !assets/avatars/*.png
+
+# INSTANCE-LOCAL AUTHORITY (t384). A grant minted on one Aurora instance must never apply
+# on another: this file is per-machine truth, like .secrets/ and .claude/settings.local.json.
+# Policy is NOT here -- role templates live in core/trust/capabilities.py::ROLE_TEMPLATES.
+# Tracked template: security/acl.example.json. Ceremony: docs/DSH_INTEGRATION.md 8b.
+security/acl.json
+security/acl.json.bak*
