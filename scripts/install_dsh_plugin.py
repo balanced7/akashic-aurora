@@ -107,7 +107,9 @@ def main() -> int:
 
     patch_yml = os.path.join(a.dsh_home, "profiles", a.profile, "cordis.patch.yml")
     print(f"[install] WIRING (manual, ties to the T1 cold-start receipt): add to {patch_yml}:")
-    print(f"[install]   - plugins/dsh-akashic-recall/lib/index.js")
+    print("[install]   - insert:")
+    print("[install]       - id: akashic-recall")
+    print("[install]         name: ./plugins/dsh-akashic-recall/lib/index.js")
     print("[install] done" + (" (dry run)" if a.dry_run else ""))
     return 0
 

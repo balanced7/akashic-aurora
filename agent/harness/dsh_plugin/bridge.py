@@ -22,8 +22,10 @@ Subcommands:
   boot-whisper   --cwd --agent-id --session-id   -> agent.harness.context.build_autoboot_context
   action-recall  --session-key --seen-key [--path P] [--command C]
                  -> agent.harness.actions.recall_block (T3, one beat late)
-  outcome-credit --session-key --seen-key --target T --success 0|1
-                 -> agent.harness.actions.outcome_block (T4, direct)
+  outcome-credit --session-key --seen-key [--path P] [--command C] [--target T] --success 0|1
+                 -> agent.harness.actions.outcome_block (T4, direct). The target
+                 derives via normalize_target(path, command) -- --target is only an
+                 already-normalized override (V27).
   plan-recall    --session-key --seen-key --prompt P
                  -> agent.harness.actions.plan_block (T5, derived)
   session-end    --session-id SID
@@ -102,17 +104,25 @@ def cmd_action_recall(a) -> int:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
 
 
+def derive_target(path=None, command=None, target=None) -> str:
+    """V27 target-join law: the resolve target MUST be the same derivation as the
+    surface target. recall_block normalizes internally (normalize_target), so the
+    resolve door derives from the SAME path/command inputs here. --target is only an
+    already-normalized override. Pinned by tests/test_dsh_contract.py."""
+    if path or command:
+        from core.recall.at_action import normalize_target
+        return normalize_target(path or None, command or None)
+    return target or ""
+
+
 def cmd_outcome_credit(a) -> int:
     try:
         _, outcome_block, _ = _import_actions()
-        # V27 target-join law (caught LIVE in the 2026-08-24 drill): the target must be
-        # THE SAME derivation at surface and resolve. Surface (recall_block) normalizes
-        # internally, so outcome derives through the same normalize_target from the same
-        # path/command inputs. --target remains only as an already-normalized override.
-        target = a.target
-        if a.path or a.command:
-            from core.recall.at_action import normalize_target
-            target = normalize_target(a.path or None, a.command or None)
+        # V27 target-join law (broken LIVE, fixed 2026-08-24): the plugin once pre-joined
+        # 'path | command' in JS and passed it as --target, while normalize_target emits
+        # p:<abspath>/c:<lowercased command> -- the join evaporated and flips could never
+        # credit. The JS now sends --path/--command; the bridge does the single derivation.
+        target = derive_target(a.path, a.command, a.target)
         text = outcome_block(a.session_key, a.seen_key, target, bool(a.success),
                              agent_id=a.session_key)
         return _emit({"text": text or ""})
@@ -146,6 +156,24 @@ def cmd_session_end(a) -> int:
         return _emit({"ran": False, "error": type(e).__name__, "error_detail": str(e)[:200]})
 
 
+def _build_outcome_parser(sub=None):
+    """The outcome-credit door accepts --path/--command so the resolve target is
+    derived from the same inputs as the surface target (V27). --target stays as an
+    already-normalized override. Built as a named helper so tests can pin the shape;
+    with sub=None it builds a standalone parser for tests."""
+    if sub is None:
+        sub = argparse.ArgumentParser(prog="bridge.py").add_subparsers(dest="cmd")
+    o = sub.add_parser("outcome-credit")
+    o.add_argument("--session-key", required=True)
+    o.add_argument("--seen-key", default="")
+    o.add_argument("--path", default=None)
+    o.add_argument("--command", default=None)
+    o.add_argument("--target", default=None)
+    o.add_argument("--success", type=int, choices=(0, 1), default=1)
+    o.set_defaults(fn=cmd_outcome_credit)
+    return o
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="bridge.py")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -168,12 +196,7 @@ def main() -> int:
     r.add_argument("--command", default=None)
     r.set_defaults(fn=cmd_action_recall)
 
-    o = sub.add_parser("outcome-credit")
-    o.add_argument("--session-key", required=True)
-    o.add_argument("--seen-key", default="")
-    o.add_argument("--target", required=True)
-    o.add_argument("--success", type=int, choices=(0, 1), default=1)
-    o.set_defaults(fn=cmd_outcome_credit)
+    o = _build_outcome_parser(sub)
 
     pl = sub.add_parser("plan-recall")
     pl.add_argument("--session-key", required=True)

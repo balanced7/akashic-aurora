@@ -193,15 +193,20 @@ export function apply(ctx) {
       if (!path && !command && !(result && result.isError)) return decision
       const sid = activeSid()
       const base = ['--session-key', SESSION_KEY, '--seen-key', sid]
-      const target = [path, command].filter(Boolean).join(' | ') || 'unknown'
+      // V27 target-join law: outcome-credit gets the SAME --path/--command the
+      // action-recall door got, so the bridge's normalize_target derivation matches
+      // the surface impression byte-for-byte. NEVER pre-join a target here (the
+      // 'path | command' join evaporated the impression join, pinned by
+      // tests/test_dsh_contract.py).
+      const targetArgs = [...(path ? ['--path', path] : []), ...(command ? ['--command', command] : [])]
       if (result && result.isError) {
-        const credit = await spawnBridge(['outcome-credit', ...base, '--target', target, '--success', '0'])
+        const credit = await spawnBridge(['outcome-credit', ...base, ...targetArgs, '--success', '0'])
         const rec = path || command
           ? await spawnBridge(['action-recall', ...base, ...(path ? ['--path', path] : []), ...(command ? ['--command', command] : [])])
           : null
         return attachContext(decision, [rec && rec.text, credit && credit.text].filter(Boolean).join('\n'))
       }
-      const credit = await spawnBridge(['outcome-credit', ...base, '--target', target, '--success', '1'])
+      const credit = await spawnBridge(['outcome-credit', ...base, ...targetArgs, '--success', '1'])
       if (credit && credit.text) return attachContext(decision, credit.text) // flip nudge wins the slot
       const rec = await spawnBridge(['action-recall', ...base, ...(path ? ['--path', path] : []), ...(command ? ['--command', command] : [])])
       return attachContext(decision, rec && rec.text)

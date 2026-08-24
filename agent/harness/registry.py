@@ -42,14 +42,22 @@ HARNESSES = {
         "tiers": {
             "T0": "yes -- exec proven: the dsh seat drives the house CLI (py agent_cli.py) "
                   "and messages peers over the Bifrost bus",
-            "T1": "no -- AKASHIC_AGENT_ID is inherited from the parent env (Claude Code, "
-                  "=claude); the dsh-side stamp is assigned to 'dsh_agent', so attribution "
-                  "does not yet carry the harness's own id",
-            "T2": "pending -- awaiting event inventory",
-            "T3": "pending -- awaiting event inventory",
-            "T4": "pending -- awaiting event inventory",
-            "T5": "pending -- awaiting event inventory",
-            "T6": "pending -- awaiting event inventory",
+            "T1": "yes -- $DSH_HOME/.env user-env layer (dsh-launch-environment) stamps "
+                  "AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: "
+                  "child processes inherit the stamp across a host restart",
+            "T2": "pending -- session/created -> boot-whisper listener wired; first live "
+                  "observation rides the next fresh session (plugin mounted mid-session "
+                  "2026-08-24)",
+            "T3": "pending -- tools/post-execute capture verified live 2026-08-24 "
+                  "(payloads flowing to %TEMP%/akashic_recall/payloads_dsh); injection "
+                  "unwired, so no lessons arrive at the action yet",
+            "T4": "yes -- tools/post-execute carries a direct fail signal; outcome-credit "
+                  "wired, subcommand verified live 2026-08-24 (first real flip-credit "
+                  "still unobserved)",
+            "T5": "pending -- per-prompt session/event + system-prompt/assemble "
+                  "plan-recall path wired; unobserved at a live prompt yet",
+            "T6": "pending -- session/flush+disposed listener wired; the T6 distiller "
+                  "consumes Claude-shaped transcripts, DSH shim owed (t383 README gap 4)",
         },
     },
     "cursor": {

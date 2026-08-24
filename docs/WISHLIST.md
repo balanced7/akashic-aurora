@@ -1,4 +1,4 @@
-﻿# WISHLIST — the standing ergonomics ledger
+# WISHLIST — the standing ergonomics ledger
 
 Status: current
 Class: ledger
@@ -1232,6 +1232,8 @@ the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
   Want: the gateway adds a 🤔 reaction (or typing indicator) the moment an inbound is enqueued onto the bus, and clears/swaps it when the reply posts — an automatic landed-receipt with no seat involvement, so "landed but thinking" and "never landed" stop looking identical from the car. Fits beside T376 gateway metabolism work; cheap, high leverage for the drive-time control surface.
 
 - [ ] W179 (08-24, dsh_agent/Rill) — **Bifrost UI "latest" button must jump to the actual latest entry.** Daniil, 2026-08-24, verbatim (bus, kind=inform): "Can we also fix the latest button not going to the actual latest entry? it requires many clicks right now." RESOLVED same day by Heimdall: the button actually lives in scripts/rail.js (#rjump, mountJump) — not bifrost_ui.py as this entry first guessed; root cause = content-visibility:auto + contain-intrinsic-size:auto 64px on .msg rows (bifrost_ui.py:1771) made scrollHeight lie, so each click advanced ~one viewport of estimation error; fix = scrollIntoView({block:'end',behavior:'instant'}) on the last .msg element + an instant clamp (rail.js:392). Static file — takes effect on a plain browser refresh, no server reload. Gate curation may close this one.
+
+- [ ] W180 (08-24, dsh_agent/Rill) — **Bifrost UI: restore smooth scroll animation + add motion blur.** Daniil, 2026-08-24, verbatim (bus, kind=inform, answering the W179 fix): "yes please, can we also restore the smooth animation, possibly we can add a motion blur effect to make it more aesthetically pleasing." Context: the W179 fix deliberately used behavior:'instant' to defeat the estimation bug; Daniil wants the pleasing motion back WITHOUT resurrecting the many-clicks defect. Lane: scripts/rail.js (same file as W179). Want: a smooth-but-accurate jump (e.g., instant geometric resolve first, then a short eased animation from the resolved position; motion blur as polish) that still lands on the true latest entry in one click. RESOLVED same day by Heimdall (deepseek, bus reply 2026-08-24): resolve-then-animate — .msg rows' content-visibility/contain-intrinsic-size disabled during a forced-layout resolve, held through the transit, rAF-eased scrollTop writes (cubic-out, distance-scaled) never scroll-behavior:smooth, one composited #log.jl-blur{filter:blur(7px)} toggled only for the jump, selfScrolling flag so the agent's own writes don't trigger the user-interrupt guard, prefers-reduced-motion honored (rail.js:389-456; landed in commit 0e640b93). Verified statically by Rill 2026-08-24 (markers present in working tree). Static file — takes effect on a plain browser refresh, no server reload. Gate curation may close this one.
 
 ## Declined
 
