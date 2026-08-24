@@ -298,6 +298,7 @@
 - `season_llm_player.py` — season_llm_player -- an LLM player for the Season 1 bounty loop (T184).
 - `seed_narrative.py` — seed_narrative.py -- dogfood the spine: ingest real git history as Beats, then chronicle.
 - `seed_world.py` — Seed a lower world from a higher one. Read-only on the source, always.
+- `shift_daemon.py` — shift_daemon — the autonomous shift supervisor that makes multi-hour unattended work real.
 - `ship.py` — ship.py -- one disciplined command to ship a slice: GATE -> commit+push -> (lesson) -> snapshot.
 - `ship_gate.py` — ship_gate -- the suite gate as a ONE-WAY RATCHET (T031 unblock, 2026-07-27).
 - `snapshot.py` — Snapshot the current Bifrost session for later resume. Run before shutting down.
