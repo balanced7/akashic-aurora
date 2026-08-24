@@ -47,6 +47,7 @@ a backend switch replays (the coordinator already dedups by agent_id:signal_numb
 """
 
 import os
+from core.paths import repo_root
 import re
 import json
 import time
@@ -183,7 +184,7 @@ class FileLedger(Ledger):
 
     def __init__(self, base_dir: Optional[str] = None):
         base = Path(base_dir) if base_dir else \
-            Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "session_logs" / "ledger"
+            repo_root() / "session_logs" / "ledger"
         base.mkdir(parents=True, exist_ok=True)
         self._base = base
         self._lock = threading.RLock()

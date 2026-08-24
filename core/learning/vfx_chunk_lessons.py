@@ -25,6 +25,7 @@ import hashlib
 import io
 import json
 import os
+from core.paths import repo_root
 from typing import Any, Dict, List, Optional
 
 # A note that tells you what NOT to do is a disconfirmer, and recall treats those differently from
@@ -138,7 +139,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     import argparse
     from core.learning.learning_store import get_learning_store_instance
 
-    repo = os.getenv("AI_SETUP", "E:\\AI-Setup")
+    repo = str(repo_root())
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--chunks", default=os.path.join(repo, "design", "vfx-chunks"))
     ap.add_argument("--force", action="store_true", help="re-adopt even if the note is unchanged")

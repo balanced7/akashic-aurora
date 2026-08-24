@@ -14,6 +14,7 @@ the full-corpus walk + maps.
 from __future__ import annotations
 
 import os
+from core.paths import repo_root as _repo_root
 import time
 from typing import Any, Dict
 
@@ -91,10 +92,10 @@ def projection_relpath(atom: Dict[str, Any]) -> str:
     return os.path.join(DEFAULT_LIBRARY_DIR, atom["header"]["type"], fname)
 
 
-def render_atom(atom: Dict[str, Any], repo_root: str = "E:\\AI-Setup") -> str:
+def render_atom(atom: Dict[str, Any], repo_root: str = "") -> str:
     """Write the atom's single projection file; returns the absolute path."""
     rel = projection_relpath(atom)
-    path = os.path.join(repo_root, rel)
+    path = os.path.join(repo_root or str(_repo_root()), rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     h = atom["header"]
     banner = ""

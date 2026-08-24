@@ -15,7 +15,9 @@ repo-side piece; this runbook covers the rest. Written 2026-08-24 against DSH
 
 1. **Repo-side code never knows where the repo lives.** `core/paths.py::repo_root()`
    resolves it on every machine. If you find a hardcoded absolute path in live code,
-   that's a bug — file it.
+   that's a bug — file it. (Receipt: a five-shard fan swept every `AI-Setup` reference
+   in live code on 2026-08-24 — 2 real hazards + 11 non-portable fallbacks found, all
+   swapped to `repo_root()`; record in `research/reviewed/portability-fan-2026-08-24.md`.)
 2. **Out-of-tree artifacts carry zero absolute paths.** The DSH plugin lives in
    `$DSH_HOME` (outside git); its ONE per-instance seam is `$DSH_HOME/.env`, and the
    installer stamps it. The bridge resolves the repo via env `AKASHIC_REPO`, falling

@@ -37,8 +37,9 @@ from typing import Dict, Any, Optional, List
 from pathlib import Path
 from datetime import datetime
 import os
+from core.paths import repo_root
 
-log_dir = Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "session_logs"
+log_dir = repo_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
