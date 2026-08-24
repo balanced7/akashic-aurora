@@ -42,6 +42,11 @@ ENTRY_POINTS = [
     # (called from the daemon's own loop) reported built-not-wired while being precisely
     # wired. Same class as the 2026-08-01 runner-enumeration incident recorded above.
     "scripts/bifrost_daemon.py",
+    # 2026-08-24: the DSH bridge (agent/harness/dsh_plugin/bridge.py) is the cordis
+    # plugin's production caller, DEPLOYED OUT-OF-TREE to $DSH_HOME -- no in-tree walk
+    # reaches it, so core/comm/roster.py::go_offline (called ONLY from here) reported
+    # built-not-wired while being precisely wired. Same class as the supervisor line.
+    "agent/harness/dsh_plugin/bridge.py",
 ]
 
 # EVERY seat runner, enumerated rather than listed by hand (2026-08-01). The hand-written list
@@ -107,6 +112,16 @@ EXCEPTIONS = {
         "turn boundary (wiring CLAIM/HANDOFF beside the existing maybe_self_restart call) — FENCED for "
         "operator+Vandor review, deliberately not built tonight (live self-modification). UNWIRE-WHEN: "
         "the runner turn boundary calls next_beat() + reads the shift-state note; then remove this entry.",
+    "core/comm/remote_relay.py": "KEEP built-ahead (2026-08-24, deepseek): outbound-only "
+        "Akashic<->Akashic bridge v0.1 (fence remote-bridge, "
+        "docs/library/design/remote-bifrost-bridge-design.md). 9 pins green in "
+        "tests/test_remote_relay_pins.py, all offline (transport injected). Deliberately "
+        "inert-until-keyed + unrouted-refuses: NO production consumer BY DESIGN until v1's "
+        "inbound HTTP listener (the dangerous half) lands and a caller invokes push(). "
+        "Wiring push() before v1 would POST on every forwardable message with zero delivery "
+        "semantics, contradicting the module's own absent-is-not-broken property. "
+        "UNWIRE-WHEN: the v1 inbound listener + a production push() caller land; then remove "
+        "this entry.",
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
     "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
     "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",

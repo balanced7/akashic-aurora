@@ -54,8 +54,9 @@ HARNESSES = {
             "T4": "yes -- tools/post-execute carries a direct fail signal; outcome-credit "
                   "wired, subcommand verified live 2026-08-24 (first real flip-credit "
                   "still unobserved)",
-            "T5": "pending -- per-prompt session/event + system-prompt/assemble "
-                  "plan-recall path wired; unobserved at a live prompt yet",
+            "T5": "pending -- trigger observed live 2026-08-24 (user/message captured, "
+                  "planPending set post-mount) and the plan-recall door verified end-to-end; "
+                  "the assemble-time injection itself is still unobserved",
             "T6": "yes -- session/disposed+flush fire presence-offline + the DSH-native "
                   "session-end shim (zstd log -> last-session-draft + session_signals); "
                   "shim dogfooded end-to-end 2026-08-24, first live fire rides the next "
