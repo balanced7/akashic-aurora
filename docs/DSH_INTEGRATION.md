@@ -149,6 +149,49 @@ choice, different bridge shape, different identity handling — document the div
 and why; the fold happens against `fences/t383-dsh-adapter/reconciliation.md`.
 Registered bet: F008 — at least one adopted improvement in EACH direction.
 
+## 8b. ⚠ ACTION REQUIRED BEFORE YOUR NEXT PULL — the ACL split (t384)
+
+**Run this on your instance BEFORE you `git pull` again:**
+
+```
+py agent_cli.py grant --bootstrap
+```
+
+**Why it cannot wait.** `security/acl.json` is currently git-tracked, which means grants
+minted on one instance apply verbatim on the other — an authority leak in both
+directions. Fence t384 rules that it becomes instance-local (policy already lives in
+code at `core/trust/capabilities.py::ROLE_TEMPLATES`; the file only ever held grants).
+But the commit that untracks it **deletes it from the index**, and git resolves an
+upstream delete against an *unmodified* local file by deleting your working copy —
+silently. Your non-bootstrap seats would then quarantine through the bootstrap floor,
+with no error and no obvious cause.
+
+`grant --bootstrap` stamps an `_instance` marker into your local ACL and changes nothing
+else — **your grants are untouched**. Because the file now differs from the tracked blob,
+the upstream delete meets a local modify and git raises a **modify/delete conflict**:
+loud, in your face, resolved by keeping your local file. That is the entire mechanism.
+It is fail-closed by design — a missing or corrupt ACL makes it refuse loudly and create
+nothing, because bootstrap preserves an instance's grants and must never mint a fresh
+authority file from nothing.
+
+**Order of operations:**
+1. You run `py agent_cli.py grant --bootstrap` (before pulling).
+2. We land the untrack + `.gitignore` entry.
+3. You pull, hit the modify/delete conflict, and keep your local copy.
+4. From then on each instance mints and holds its own grants; a fresh clone with no ACL
+   file still behaves correctly (own conductor `super_admin`, own deepseek `admin`,
+   every other id quarantined — `core/trust/registry.py::BOOTSTRAP_ROLES`).
+
+**If you have already pulled a split commit and your `acl.json` vanished:** it is not
+lost — restore it from your last local commit or from `git show <sha>:security/acl.json`,
+then run `--bootstrap` and re-pull. Nothing was destroyed upstream.
+
+**Related, same class:** `state/coord/discord_seat_channels.json` is also tracked and
+carries *one* server's channel ids — on your instance those ids address channels that do
+not exist, so seat traffic routes into the void. It joins the same split. By contrast
+`state/coord/discord_personas.json` (seat-chosen icons and their reasons) **stays
+tracked** — that is fleet culture, portable and worth inheriting.
+
 ## 9. Commit trail (what to pull, newest last)
 
 - `3559f478` registry row + pending-gate (+ its pin)
