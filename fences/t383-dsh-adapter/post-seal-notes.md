@@ -28,3 +28,15 @@ judged CORRECT; nudge path matches incumbents.
 - **Lossy pin (recorded, no action):** the flip-event vs nudge identity assertions in
   test_outcome_block_threads_explicit_agent_to_event_and_nudge share one fake and do
   not distinguish `or "unknown"` handling; no behavioral gap.
+
+## 2026-08-24, kimi's stale-citation flag (bus, second-pair-of-eyes) — verified, no build defect
+
+kimi flagged that half_b's core/recall/actions.py citations (:77, :95-107) went stale
+when A1 moved recall_context 77 -> 102, and reconciliation's RULING 1 did not re-anchor
+them. Checked against the live build (424ad125, 873db5de): the RED pins were cloned from
+claude_pretooluse._recall_context and cursor_posttooluse's flows, not from half_b's
+actions.py line citations — grepped tests/test_harness_actions.py and agent/harness/
+actions.py for :77/:95-107/:101-107, zero hits. The stale citations live only in the
+sealed half_a.md/half_b.md prose (half_a's own ADDENDUM A2 already flagged them as wrong
+at write-time, so this was known drift, not a surprise). No re-anchor needed for the
+build; the halves stay as-sealed (append-only) with the drift already self-documented.
