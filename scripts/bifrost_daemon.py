@@ -38,6 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Top-level so check_wiring's reachability graph SEES the edge — the feed beat below is the
 # production caller that makes the T223 bridge real (built != wired was this exact feature's
 # recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
+from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
 
@@ -272,7 +273,7 @@ def main(argv=None) -> int:
                 runner_args.extend(["--inject-summary", summary_file])
             child = ManagedChild(
                 runner_args,
-                env=dict(os.environ),
+                env={**os.environ, **_GIT_ID(agent)},   # t384: git author = the seat
                 cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 on_blocker=_send_blocker,
                 breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),
@@ -424,7 +425,7 @@ def main(argv=None) -> int:
                             runner_args.extend(["--inject-summary", summary_file])
                         child = ManagedChild(
                             runner_args,
-                            env=dict(os.environ),
+                            env={**os.environ, **_GIT_ID(agent)},   # t384: git author = the seat
                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             on_blocker=_send_blocker,
                             breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),
