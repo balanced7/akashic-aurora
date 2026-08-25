@@ -4,18 +4,22 @@ Daniil, 2026-08-24: "design an akashic aurora to akashic aurora bridge ... so Se
 agent can communicate with us ... I don't want everyone having access."
 Design: docs/library/design/remote-bifrost-bridge-design.md (fence: remote-bridge).
 
-V0 IS OUTBOUND-ONLY, AND THAT IS A SECURITY PROPERTY NOT A ROADMAP NOTE — the exact lesson
-discord_bridge.py already earned. A peer relay is a prompt-injection door into a fleet
-holding a shell, a repo and an API budget; the only safe first half is OUTBOUND (we push to
-Serge), with inbound (Serge pushes to us) shipped only after an identity pin + HMAC + the
-same redaction/allowlist the Discord inbound gate enforces. Until then Serge's replies come
-back manually — ~80% of the value at ~0% added attack surface.
+STATUS: v1. Outbound (push/enqueue/tick) AND the inbound gate (accept) are both live; the
+HTTP door is scripts/remote_bridge_listener.py. v0.1 was outbound-only ON PURPOSE — a peer
+relay is a prompt-injection door into a fleet holding a shell, a repo and an API budget, so
+inbound shipped only once it had an identity pin, HMAC + replay window, the kind allowlist,
+redaction, and parked-not-bussed delivery. That sequencing was the point, not a delay.
+
+(This paragraph read "V0 IS OUTBOUND-ONLY" for half a day after inbound shipped. A module
+docstring is a claim about the code, and it rots the moment the code moves — Zadkiel found
+three such rotted claims in this file at once.)
 
 WHAT V0 GUARANTEES (the three load-bearing properties, each inherited not invented):
 
 1. NO CREDENTIAL ON GITHUB. The committed config (state/coord/remote_bridge.json) names the
    peer URL + which secret FILE, never the secret. The secret is HMAC material in
-   .secrets/remote_bridge/, already gitignored, handed to Serge out-of-band.
+   .secrets/ (already gitignored), captured through the vault door
+   `py agent_cli.py secret remote_bridge_outbound.key`, handed to the peer out-of-band.
 
 2. NOT EVERYONE HAS ACCESS. Outbound direction is one peer (the configured route). Holding
    our outbound secret lets an attacker push INTO Serge's relay only — not read us, not
@@ -28,8 +32,10 @@ WHAT V0 GUARANTEES (the three load-bearing properties, each inherited not invent
 
 NEIGHBOUR LAW: this module copies discord_bridge's GUARDS, not just its shape — allowlist
 never denylist, visible redaction, absent-is-not-broken, never raise into a bus caller,
-injectable transport so every pin runs offline. It does NOT re-derive the allowlist; it
-imports discord_bridge.FORWARD_KINDS and should_forward so the two bridges cannot drift.
+injectable transport so every pin runs offline. It still imports discord_bridge's REDACTION,
+so credential-scrubbing cannot fork. It deliberately does NOT share the allowlist: see
+BRIDGE_KINDS for why FORWARD_KINDS answers a different question, and why the anti-drift
+guarantee moved to a pin instead.
 """
 
 from __future__ import annotations
@@ -52,8 +58,14 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: A route is inert without the key; the key travels out-of-band (the "Serge one-pager").
 CONFIG_FILE = _ROOT / "state" / "coord" / "remote_bridge.json"
 
-#: Direction secrets live under .secrets/remote_bridge/, handed out-of-band. Both files
-#: are gitignored (the .secrets/ tree is ignored house-wide). Outbound = v0; inbound = v1.
+#: Direction secrets live FLAT in .secrets/ under these exact names, gitignored house-wide,
+#: captured via `py agent_cli.py secret <name>` and handed to the peer out-of-band.
+#:
+#: An earlier design named them serge_*.key under a .secrets/remote_bridge/ subdir. Nothing
+#: ever read those names — THE FLAT NAMES BELOW ARE THE AUTHORITY, because they are what the
+#: code opens. Zadkiel (Serge's seat) caught the docstring and a refusal message still
+#: teaching the dead ones, which is the worst kind of stale doc: an error that hands a
+#: stuck reader a filename that will not work.
 OUTBOUND_KEY_FILE = "remote_bridge_outbound.key"
 INBOUND_KEY_FILE = "remote_bridge_inbound.key"
 
@@ -273,9 +285,10 @@ def push(msg: Dict[str, Any], *, url: Optional[str] = None,
     key = secret if secret is not None else _secret(OUTBOUND_KEY_FILE)
     if not key:
         return BoundaryOutcome.failed(
-            "remote bridge has no outbound secret — hand Serge the serge_outbound.key "
-            "out-of-band and drop it into .secrets/remote_bridge/. Inert-until-keyed is "
-            "the 'not everyone has access' gate.")
+            "remote bridge has no outbound secret. Capture one with "
+            "`py agent_cli.py secret remote_bridge_outbound.key` (the vault door keeps it "
+            "out of every transcript), then hand the peer the SAME value out-of-band. "
+            "Inert-until-keyed is the 'not everyone has access' gate.")
     envelope = build_envelope(msg, key)
     try:
         (post or _default_post)(target, envelope)
