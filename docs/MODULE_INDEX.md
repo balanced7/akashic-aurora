@@ -254,6 +254,7 @@
 - `bridge_doctor.py` — bridge_doctor — diagnose YOUR side of the bridge and report it back across the bridge.
 - `config.py` — Centralized Configuration - Akashic Aurora
 - `peer_connect.py` — peer_connect — get a remote Akashic Aurora talking to ours in one command.
+- `seat_topology.py` — seat_topology — who is actually running, under which seat id, driven by what.
 
 ## scripts/
 - `arc_scorecard.py` — (no docstring)

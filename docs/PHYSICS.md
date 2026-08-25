@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at d8cb4973. A bound you discover by collision is not awareness -- this sheet
+> Derived at 85b98285. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (247 names)
+## Configuration flags (248 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +28 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +29 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -151,7 +151,7 @@ Class: reference
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
 | `BIFROST_AGENT_ID` | `` | core/comm/conductor_gate.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
-| `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py |
+| `BIFROST_CONSUME_LANE` | `` | core/comm/bifrost_api.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_kimi.py +1 |
 | `BIFROST_INCARNATION` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +8 |
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
@@ -182,6 +182,7 @@ Class: reference
 | `DEEPSEEK_RUNNER_MAX_TOKENS` | `"8000"` | scripts/bifrost_runner_deepseek.py |
 | `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py |
 | `DSH_HOME` | `` | agent/harness/dsh_plugin/bridge.py, core/fleet/seat_launchers.py, scripts/install_dsh_plugin.py |
+| `DSH_SESSION_ID` | `` | seat_topology.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |
