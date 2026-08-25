@@ -123,3 +123,51 @@ def test_the_house_vocabulary_is_expressible_from_the_outcome():
                      url="https://example.invalid/hook", force=True, post=_sent([]))
     assert (ok.ok and not ok.partial) is True, "the good path must render as done"
     assert (not bad.ok) is True, "the refusal must render as failed"
+
+
+# ============================================================================
+# GUARD C: `discord send` must not have a silent global-webhook default.
+#
+# 2026-08-25, Daniil: "Your reply didn't go to the vandor chat". agent_cli's discord
+# command resolves url = DB.webhook_url() -- the GLOBAL channel -- while per-seat lanes
+# exist and work (discord_feed.seat_channel_url), and the AUTOMATIC feed already routes
+# operator-directed traffic to them. Only the MANUAL verb never learned.
+#
+# It printed "[discord] posted", which was true about the call and wrong about the
+# arrival. The guard is not "remember to pass a lane" -- it is that the target is chosen
+# BY CONSTRUCTION and any fallback is SAID OUT LOUD.
+# ============================================================================
+from core.comm import discord_feed as DF
+
+
+def test_send_prefers_the_callers_own_seat_lane():
+    """His lane with THIS seat is where he is reading. That must be the default, not an
+    option I have to remember at 1am."""
+    url, source, note = DF.send_target("claude", seat_url="https://lane/vandor",
+                                       global_url="https://global/hook")
+    assert url == "https://lane/vandor", (url, source)
+    assert "lane" in source.lower() or "seat" in source.lower(), source
+
+
+def test_a_fallback_to_global_is_ANNOUNCED_never_silent():
+    """A silent fallback is how a reply ends up in the wrong room while the sender reads
+    'posted'. If we cannot resolve the lane, the operator hears about it."""
+    url, source, note = DF.send_target("claude", seat_url="",
+                                       global_url="https://global/hook")
+    assert url == "https://global/hook"
+    assert note, "falling back to the global channel must produce a spoken note"
+    assert "global" in note.lower(), note
+
+
+def test_no_target_at_all_REFUSES_rather_than_returning_something_falsy_and_quiet():
+    url, source, note = DF.send_target("claude", seat_url="", global_url="")
+    assert not url
+    assert note and ("not configured" in note.lower() or "no " in note.lower()), note
+
+
+def test_the_happy_path_says_WHERE_it_is_going():
+    """Yesterday's whole arc: a receipt must name what it proved. 'posted' is not a
+    receipt if it cannot tell you which room."""
+    _, source, _ = DF.send_target("claude", seat_url="https://lane/vandor",
+                                  global_url="https://global/hook")
+    assert source and source.strip(), "the target must be nameable in the receipt"
