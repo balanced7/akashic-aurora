@@ -225,19 +225,40 @@ def resolve_peer(body_b64: str, sig: str, *, within_s: int = SKEW_WINDOW_S):
     return None, None
 
 
-def peer_row(name: str = ""):
-    """The config row for a named peer, or the default one. None when the name is unknown.
+def peer_row(selector: str = ""):
+    """The config row for an outbound selector, or the default. None when unknown.
 
     A PEER IS A PAIR OF DIRECTIONS, NOT AN INBOX (Chronos, 2026-08-25). Inbound identity comes
-    from the key that verified; outbound identity has to come from somewhere too, and this is
-    it — the row carries BOTH the url we speak to and the key we sign with.
+    from the key that verified; outbound identity comes from here — the row carries the url we
+    speak to and the key we sign with.
+
+    TWO FIELDS, BECAUSE ONE FIELD WAS ANSWERING TWO QUESTIONS (Chronos again, hours later):
+
+        `name`  WHO SENT IT      — the label stamped on arriving mail
+        `as`    WHO WE SIGN AS   — our local identity on this route
+
+    On OUR topology they coincide (one local identity, N remote peers), which is exactly why
+    a single field survived review. Chronos's topology inverts it — ONE remote peer, TWO local
+    identities — and there the two jobs disagree: inbound wants both rows labelled `daniil`,
+    outbound needs them distinguishable. It measured the consequence before writing any config:
+    push(peer="chronos") refused with "configured peers are ['daniil','daniil']", and
+    push(peer="daniil") always took the first row, so chronos could never speak as itself.
+
+    The selector matches EITHER field, so rows with no `as` behave exactly as before. An
+    AMBIGUOUS selector is refused rather than resolved to the first match: picking one of two
+    valid answers is a silent misdelivery, and this is the one moment it is still cheap to say
+    so out loud.
     """
     rows = peers()
-    if not name:
+    if not selector:
         return rows[0] if rows else None
-    for r in rows:
-        if str(r.get("name") or "").strip() == name.strip():
-            return r
+    sel = selector.strip()
+    hits = [r for r in rows
+            if str(r.get("as") or "").strip() == sel or str(r.get("name") or "").strip() == sel]
+    if len(hits) == 1:
+        return hits[0]
+    if len(hits) > 1:
+        return "AMBIGUOUS"
     return None
 
 
@@ -247,13 +268,16 @@ def peer_url(name: str = "") -> str:
     if v and v.strip() and not name:
         return v.strip()
     row = peer_row(name)
-    return str((row or {}).get("url") or "")
+    if not isinstance(row, dict):
+        return ""                      # unknown OR ambiguous -> unrouted, never a guess
+    return str(row.get("url") or "")
 
 
 def _outbound_key_for(name: str = "") -> bytes:
     row = peer_row(name)
-    fname = str((row or {}).get("outbound_secret_file") or OUTBOUND_KEY_FILE)
-    return _secret(fname)
+    if not isinstance(row, dict):
+        return b""                     # unknown OR ambiguous -> inert, never the wrong key
+    return _secret(str(row.get("outbound_secret_file") or OUTBOUND_KEY_FILE))
 
 
 def sign(payload_bytes: bytes, secret: bytes) -> str:
@@ -339,7 +363,14 @@ def push(msg: Dict[str, Any], *, url: Optional[str] = None,
     # AN UNKNOWN PEER IS A REFUSAL, NEVER A FALLBACK. Silently defaulting to "the first
     # peer" would send one fleet's message to another fleet -- a misdelivery that returns 202
     # and looks like success, which is the worst shape a bug can take.
-    if peer and peer_row(peer) is None:
+    _row = peer_row(peer) if peer else None
+    if peer and _row == "AMBIGUOUS":
+        return BoundaryOutcome.failed(
+            f"AMBIGUOUS outbound selector {peer!r} — more than one configured row answers to "
+            f"it. Give the rows distinct `as` values (your local identity on each route); "
+            f"`name` stays the REMOTE sender's label. Refusing rather than taking the first "
+            f"match: choosing between two valid rows is a misdelivery that returns 202.")
+    if peer and _row is None:
         return BoundaryOutcome.failed(
             f"unknown peer {peer!r} — configured peers are "
             f"{[str(r.get('name')) for r in peers()] or '(none)'}. Refusing rather than "
