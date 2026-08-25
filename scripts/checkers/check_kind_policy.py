@@ -70,6 +70,16 @@ PLANES = {
     # K-D caught this the moment the set landed and refused the commit, which is the same
     # bedside test working a second time: I did not have to remember, and I would not have.
     "FORWARD_KINDS": "bus",
+    # The remote Akashic<->Akashic bridge allowlist: which bus kinds may cross a FLEET
+    # BOUNDARY. Bus plane, and deliberately a SEPARATE SET from FORWARD_KINDS above even
+    # though both filter seat-to-seat messages -- the two answer different questions.
+    # FORWARD_KINDS asks "worth buzzing the operator's phone?", so it rightly contains halt
+    # and nudge; BRIDGE_KINDS asks "safe to accept from ANOTHER FLEET?", where a control verb
+    # is the one thing that must never cross. v0.1 imported FORWARD_KINDS to stop the two
+    # bridges drifting and silently handed a remote peer two control verbs. Anti-drift now
+    # rides a pin (test_bridge_allowlist_contains_no_control_kind) instead of a shared name.
+    # K-D caught this set the moment it landed -- the third time the bedside test has worked.
+    "BRIDGE_KINDS": "bus",
     # the event plane -- what a seat DID
     "EVENT_KINDS": "event",
     # T196a: friction's map of durable terminal-event kinds -> episode outcomes. These are

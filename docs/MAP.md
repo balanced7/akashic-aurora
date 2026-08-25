@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 179 modules lack both pin and paper by name)
+## GAP queue (40 of 180 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -83,7 +83,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (63 modules)
+## core/comm/  (64 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -130,6 +130,7 @@ Class: reference
 | `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_t256_fan_presets.py | GAP |  |
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |
 | `reaper.py` | reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded. | tests/test_t108_s4_reaper_hardening.py | research/reviewed/fence-lite-s4-reaper-kimi-2026-07-28.md |  |
+| `remote_relay.py` | Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1). | tests/test_remote_relay_pins.py | GAP | `AKASHIC_REMOTE_BRIDGE_PEER_URL` |
 | `role_queue.py` | role_queue -- T108 S1: load-balanced role-addressed work with claim semantics. | tests/test_t108_role_queue.py | GAP |  |
 | `room_feed.py` | Namespace-aware feed-stream discovery -- the backend half of readable side rooms. | tests/test_room_feed_namespace.py | GAP |  |
 | `roster.py` | roster -- S2: the lobby. Per-seat liveness the whole fleet can read. | tests/test_s2_roster.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md | `AKASHIC_RESUME_GAP_S`, `AKASHIC_ROSTER_CHURN_AT`, `AKASHIC_ROSTER_CHURN_WINDOW_S`, `AKASHIC_WORKLIVE_FRESH_S`, `AKASHIC_WORKLIVE_TTL_S` |

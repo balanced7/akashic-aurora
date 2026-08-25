@@ -128,3 +128,37 @@ def test_the_outbound_bridge_exposes_no_inbound_door():
     for banned in ("receive", "poll", "listen", "on_message", "read_channel"):
         assert not hasattr(DB, banned), (
             f"discord_bridge exposes {banned!r} -- phase 2 must not arrive by accident")
+
+
+# ------------------------------------------------------- redaction vs the CURRENT key formats
+@pytest.mark.parametrize("key", [
+    "sk-ant-api03-AAAABBBBCCCCDDDDEEEEFFFF",   # Anthropic -- the format THIS HOUSE's keys use
+    "sk-proj-AAAABBBBCCCCDDDD",                 # OpenAI project-scoped
+    "sk-AAAABBBBCCCCDDDD",                      # OpenAI legacy (the shape the regex was born on)
+    "ghp_AAAABBBBCCCCDDDD",                     # GitHub PAT
+    "xoxb-1234567890-abcdefghij",               # Slack bot
+    "AIzaSyAAAABBBBCCCCDDDD",                   # Google
+])
+def test_redaction_covers_prefixed_provider_keys(key):
+    """FOUND 2026-08-24, live: the pattern was `sk-[A-Za-z0-9]{8,}`, written when an OpenAI key
+    was `sk-` plus one alphanumeric blob. Both vendors moved to PREFIXED keys, the character
+    class stops at the first hyphen (`sk-ant` is three chars, fails {8,}), and every
+    `sk-ant-api03-*` and `sk-proj-*` key forwarded to Discord INTACT.
+
+    The parametrize list is the point: a redaction pattern is a claim about a FORMAT SOMEONE
+    ELSE OWNS and can change without telling us. Pinning one example per vendor is what turns
+    "we redact keys" from a belief into something that fails loudly when a vendor moves."""
+    assert "[REDACTED-KEY]" in DB.redact(f"the key is {key} ok")
+    assert key[:14] not in DB.redact(f"the key is {key} ok")
+
+
+@pytest.mark.parametrize("innocent", [
+    "the task-force-alpha plan", "desk-based-review of the code", "ask-me-anything session",
+    "disk-io-scheduler tuning", "risk-benefit-analysis",
+])
+def test_redaction_does_not_eat_ordinary_prose(innocent):
+    """The sibling pin, and the reason the fix keeps the word boundary and an alphanumeric
+    tail. redact()'s own docstring names over-redaction as the failure that gets a safety
+    feature switched off entirely -- so widening the pattern must be pinned on BOTH sides or
+    the next widening is unfalsifiable. Note `desk-based-review` contains `sk-` and survives."""
+    assert DB.redact(innocent) == innocent

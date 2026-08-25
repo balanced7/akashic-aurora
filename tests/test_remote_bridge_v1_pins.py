@@ -69,6 +69,18 @@ class FakePost:
         return {"ok": True}
 
 
+@pytest.fixture(autouse=True)
+def _isolate_state(tmp_path, monkeypatch):
+    """Every pin gets its own outbox/inbox files. A test that writes into state/coord/ would
+    both pollute the repo and quietly share the idempotency ledger between pins — which would
+    make the dedupe assertions pass or fail depending on test ORDER."""
+    monkeypatch.setenv("AKASHIC_REMOTE_BRIDGE_INBOX", str(tmp_path / "inbox.jsonl"))
+    monkeypatch.setenv("AKASHIC_REMOTE_BRIDGE_OUTBOX", str(tmp_path / "outbox.jsonl"))
+    RR._reset_cache()
+    yield
+    RR._reset_cache()
+
+
 @pytest.fixture()
 def outbox(tmp_path, monkeypatch):
     """A private outbox file per test — durability is pinned by re-reading from disk."""

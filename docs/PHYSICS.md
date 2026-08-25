@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c3bfd195. A bound you discover by collision is not awareness -- this sheet
+> Derived at e362c50f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (246 names)
+## Configuration flags (247 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -97,6 +97,7 @@ Class: reference
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py, research/in-flight/t342/dead-modules/context__learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py, research/in-flight/t342/dead-modules/context__relevance_budget.py |
+| `AKASHIC_REMOTE_BRIDGE_PEER_URL` | `` | core/comm/remote_relay.py |
 | `AKASHIC_REPO` | `` | agent/harness/dsh_plugin/bridge.py |
 | `AKASHIC_RESTORE_PROD` | `` | scripts/ops/snapshot_knowledge.py |
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
@@ -260,7 +261,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (151 numeric constants)
+## Mechanical bounds (152 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -380,6 +381,7 @@ Class: reference
 | `SENTINEL_DOWN_AFTER_MS` | 5,000 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py |  |
 | `SIGNIFICANCE_THRESHOLD` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py |  |
 | `SILENCE_THRESHOLD_MINUTES` | 5 | research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py | Consider silent if no log entries in this time |
+| `SKEW_WINDOW_S` | 300 | core/comm/remote_relay.py |  |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py |  |
 | `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py |  |
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |
