@@ -48,17 +48,15 @@ HARNESSES = {
             "T2": "pending -- session/created -> boot-whisper listener wired; first live "
                   "observation rides the next fresh session (plugin mounted mid-session "
                   "2026-08-24)",
-            "T3": "pending -- tools/post-execute capture verified live 2026-08-24 "
-                  "(payloads flowing to %TEMP%/akashic_recall/payloads_dsh); injection "
-                  "unwired, so no lessons arrive at the action yet",
+            "T3": "one-beat-late -- post-execute recall attaches via decision.additionalContexts "
+                  "(the harness contract, pinned in tests/test_dsh_contract.py); recall-at "
+                  "contexts observed arriving at the next step in live sessions 2026-08-24 "
+                  "(they ride the loop's active batch, same shape as cursor's tier)",
             "T4": "yes -- tools/post-execute carries a direct fail signal; outcome-credit "
-                  "wired, subcommand verified live 2026-08-24 (first real flip-credit "
-                  "still unobserved, and WHY is now known: the DSH server running at that "
-                  "hour loaded the plugin at 03:02 while the V27 target-join fix landed in "
-                  "lib/index.js at 03:36, so the live generation still pre-joined the "
-                  "target raw -- surface keyed c:<normalized>, outcome keyed <raw>, join "
-                  "evaporates, flips credit zero silently. Code correct on disk; awaiting "
-                  "a plugin-generation reload to observe a real credit)",
+                  "wired. The stale-generation doubt is RETIRED: post-reboot 2026-08-24 the "
+                  "plugin writes c:-normalized targets (stage file evidence), so the V27 "
+                  "join keys surface and resolve identically; the first real flip-credit is "
+                  "the remaining unobserved event",
             "T5": "pending -- trigger observed live 2026-08-24 (user/message captured, "
                   "planPending set post-mount) and the plan-recall door verified end-to-end; "
                   "the assemble-time injection itself is still unobserved",
