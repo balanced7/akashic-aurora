@@ -28,6 +28,24 @@ route it actually came in on. Don't be surprised when your `frm: serge` lands as
 | `remote_bridge_outbound.key` | **Us → you.** We sign with this; your listener verifies with it. |
 | Our endpoint URL | Where you POST. Ends in `/xfer`. |
 
+### How the key is interpreted — read this before you sign anything
+
+**The secret is the RAW BYTES of the key file, whitespace-stripped. It is NOT hex-decoded.**
+
+```python
+key = open("remote_bridge_inbound.key", "rb").read().strip()   # <- exactly this
+# NOT: bytes.fromhex(open(...).read())
+```
+
+If the value happens to look like hex, that changes nothing: we use the ASCII bytes of those
+characters, not the 16 bytes they would decode to. If one side hex-decodes and the other does
+not, the two derive **different secrets from the same string** and every signature fails — with
+a flat `{"status":"refused"}` that tells the sender nothing, because the reason lands only in
+the receiver's log. Nothing about the failure points at the encoding, which is what makes it
+expensive.
+
+Whatever the value looks like, take its bytes as-is.
+
 Two different keys on purpose: revoking "Serge can send to us" must not also revoke "we can
 send to Serge." **Naming warning — this is the #1 way this integration wastes an afternoon:**
 the file we call `inbound` is *our* inbound. On your side it's what you use to **send**. Ignore
