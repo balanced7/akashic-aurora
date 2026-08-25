@@ -1,0 +1,28 @@
+{
+  "id": "t386-pre-execute-recall-gate",
+  "question": "Should a pre-execute recall gate deny-with-teaching on scope-matched lessons, and what is its contract so both harnesses implement one seam?",
+  "tier": "full",
+  "opened_by": "",
+  "opened_at": "2026-08-25T00:43:36.244055+00:00",
+  "seals": {
+    "brief": {
+      "by": "dsh_agent",
+      "at": "2026-08-25T00:43:36.797099+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-08-25T00:00:00.000000+00:00",
+      "note": "sealed to file (half_a.md); slot confirmed post-seal on a seat with the `fence seal` verb"
+    },
+    "half_b": {
+      "by": "dsh_agent",
+      "at": "2026-08-25T00:48:31.647319+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "dsh_agent",
+    "half_a": "deepseek",
+    "half_b": "dsh_agent"
+  }
+}
