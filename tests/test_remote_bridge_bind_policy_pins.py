@@ -55,6 +55,12 @@ def test_loopback_always_allowed(host):
     ("172.16.0.9", "RFC1918 /12"),
     ("169.254.10.10", "link-local"),
     ("fd00::1", "IPv6 ULA"),
+    # RFC 5737 documentation range. Python's is_private covers it because the IANA
+    # special-purpose registry marks it never-routed -- and "never routed" is exactly the
+    # property this policy cares about, so private is the CORRECT answer, not a leak. Pinned
+    # deliberately: the first draft of this file listed it as an example of "globally
+    # routable" and went red, which is the check earning its keep on its first run.
+    ("203.0.113.9", "TEST-NET-3 -- reserved, never routed"),
 ])
 def test_private_overlay_allowed_without_the_public_flag(host, label):
     """THE POINT OF THE WHOLE FIX. A tailnet address is not the internet, and making someone
@@ -65,8 +71,8 @@ def test_private_overlay_allowed_without_the_public_flag(host, label):
 
 
 @pytest.mark.parametrize("host,label", [
-    ("203.0.113.9", "TEST-NET-3, globally routable"),
-    ("8.8.8.8", "public resolver"),
+    ("8.8.8.8", "public resolver -- genuinely routable"),
+    ("1.1.1.1", "public resolver -- genuinely routable"),
     ("26.245.203.188", "Radmin VPN -- squatted PUBLIC space, documented false positive"),
 ])
 def test_public_address_still_requires_the_flag(host, label):
@@ -90,7 +96,7 @@ def test_receipt_names_the_category_truthfully():
     """The log line is the whole reason this fix exists. A tailnet bind must not print the
     word the operator would read as 'exposed to the internet'."""
     assert "PUBLIC" not in L.bind_banner("100.101.102.103").upper()
-    assert "PUBLIC" in L.bind_banner("203.0.113.9").upper()
+    assert "PUBLIC" in L.bind_banner("8.8.8.8").upper()
     assert L.bind_banner("127.0.0.1").strip() == "", "loopback needs no warning at all"
 
 
