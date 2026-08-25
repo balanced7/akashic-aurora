@@ -230,6 +230,7 @@ async function doorHandshake() {
   })
   if (!init || init.error) {
     LOG('MCP initialize failed:', init && init.error && init.error.message)
+    capture({ at: Date.now(), kind: 'door-init-failed', reason: String(init && init.error && init.error.message) })
     return false
   }
   await doorRpc('notifications/initialized', undefined, false)
@@ -237,6 +238,7 @@ async function doorHandshake() {
   const tools = listed && listed.result && listed.result.tools
   if (!Array.isArray(tools)) {
     LOG('MCP tools/list failed -- typed tools unavailable')
+    capture({ at: Date.now(), kind: 'door-tools-list-failed', reason: String((listed && listed.error && listed.error.message) || 'no tools array') })
     return false
   }
   door.tools = new Map(tools.map((t) => [t.name, t]))
