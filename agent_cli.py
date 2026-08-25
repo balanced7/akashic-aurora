@@ -3051,9 +3051,32 @@ def cmd_discord(args):
         print(("[discord] " + (o.why or "posted")) if not o else "[discord] posted")
         return 0 if o else 1
 
-    o = DB.forward({"kind": args.kind, "frm": "claude", "content": args.text}, force=True)
-    print(("[discord] " + (o.why or "")) if not o else "[discord] posted")
-    return 0 if o else 1
+    # ROUTE TO HIS LANE WITH THIS SEAT, BY CONSTRUCTION (2026-08-25). This verb used to
+    # post to the GLOBAL webhook while per-seat lanes existed and the automatic feed
+    # already used them -- Daniil: "Your reply didn't go to the vandor chat". A fallback is
+    # now ANNOUNCED, because a silent one is how a reply lands in the wrong room while the
+    # sender reads success.
+    from core.comm import discord_feed as _DF
+    _seat = os.getenv("AKASHIC_AGENT_ID") or "claude"
+    _url, _source, _note = _DF.send_target(_seat)
+    if _note:
+        print(f"[discord] {_note}")
+    if not _url:
+        return 1
+    o = DB.forward({"kind": args.kind, "frm": _seat, "content": args.text},
+                   url=_url, force=True)
+    # T181 vocabulary, branched failed -> PARTIALLY -> done in that order. Testing bare
+    # truthiness prints "posted" for a HALF-SENT multi-part message, which is the
+    # boundary_outcome_ok_includes_partial_double_strike defect -- and the receipt now
+    # names the room, because "posted" is not a receipt if it cannot say where.
+    if not o:
+        print("[discord] " + (o.why or "not sent"))
+        return 1
+    if o.partial:
+        print(f"[discord] PARTIALLY sent to {_source} -- some parts did not land")
+        return 1
+    print(f"[discord] posted to {_source}")
+    return 0
 
 
 def cmd_gateway(args):

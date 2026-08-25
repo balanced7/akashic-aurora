@@ -226,3 +226,40 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
     return BoundaryOutcome.done(ref=f"forwarded={forwarded} failed={failed}",
                                 forwarded=forwarded, initialized=initialized,
                                 failed=failed)
+
+
+def send_target(agent: str, *, seat_url: Optional[str] = None,
+                global_url: Optional[str] = None) -> tuple:
+    """Where a MANUAL `discord send` from `agent` should post: (url, source, note).
+
+    THE DEFECT THIS RETIRES (2026-08-25). The manual verb resolved its target as the
+    GLOBAL webhook while per-seat lanes existed and worked, and the automatic feed already
+    used them. Daniil: "Your reply didn't go to the vandor chat". The command printed
+    "[discord] posted" -- true about the call, wrong about the arrival, which is the whole
+    family of defect this delivery layer has been shedding for two days.
+
+    THREE PROPERTIES, and the second is the one that matters:
+      - his lane with THIS seat is the DEFAULT, chosen by construction rather than by the
+        sender remembering it at one in the morning;
+      - a fallback to the global channel is ANNOUNCED. A silent fallback is precisely how
+        a reply lands in the wrong room while the sender reads success;
+      - `source` names the room, so a receipt can say WHERE it went. "Posted" is not a
+        receipt if it cannot tell you that.
+
+    Both urls are injectable so a pin runs without a vault or a network.
+    """
+    seat = str(agent or "").split("#", 1)[0].lower()
+    lane = seat_url if seat_url is not None else seat_channel_url(seat)
+    glob = global_url if global_url is not None else DB.webhook_url()
+
+    if lane:
+        return lane, f"{seat}'s own seat lane", ""
+    if glob:
+        return glob, "the GLOBAL channel", (
+            f"no seat lane resolved for {seat!r} -- falling back to the GLOBAL channel. "
+            f"If this was meant for his lane with this seat, that lane is missing "
+            f"(discord_channel_<callsign>.url); saying so rather than posting quietly "
+            f"into the wrong room.")
+    return "", "", (
+        "discord is not configured -- no seat lane and no global webhook. Nothing was "
+        "sent, and this is a configuration state rather than a delivery failure.")
