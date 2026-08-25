@@ -291,6 +291,22 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
             "discord bridge not configured -- set AKASHIC_DISCORD_WEBHOOK or write "
             ".secrets/discord_webhook.url. This is a configuration state, not a delivery "
             "failure: the bridge is opt-in and most seats will never set it.")
+    # REFUSE AN EMPTY BODY (2026-08-25). render_parts returns the head alone when there is
+    # no body, and forward used to post it -- so a message with nothing in it arrived
+    # looking like a delivered reply. Simon, on the receiving end: "getting empty responses
+    # here labeled reply". That is a green light produced by absence, on the one path where
+    # the reader has no way to tell it from a delivery failure.
+    #
+    # The refusal NAMES the field, because the way this happens in practice is a bus-shaped
+    # dict: the bus carries its body in `text`, render_parts reads `content`, and the
+    # mismatch is invisible until a human says the replies are blank. A refusal that only
+    # said "failed" would be the original silence with punctuation on it.
+    if not _content_str(msg.get("content")).strip():
+        return BoundaryOutcome.failed(
+            "refusing to post an EMPTY body -- a header with nothing under it reads as a "
+            "delivered reply and carries no information, which the reader cannot tell from "
+            "a failed send. If your message came off the bus, its body is in 'text' and "
+            "this renderer reads 'content'; that mismatch is the usual cause.")
     parts = render_parts(msg)
     try:
         for content in parts:
