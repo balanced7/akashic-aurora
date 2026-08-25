@@ -36,6 +36,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import base64
 import ipaddress
 import json
 import sys
@@ -208,6 +209,57 @@ def handle_request(method: str, path: str, body: bytes, *,
         return 400, FLAT_REFUSAL, f"400 handler caught {type(e).__name__}: {e}"
 
 
+def handle_blob(method: str, path: str, body: bytes, *,
+                secret: Optional[bytes] = None, blobs: Any = None) -> Tuple[int, Any, str]:
+    """The blob door: a SIGNED request naming a ref, answered with bytes. NEVER RAISES.
+
+    Same auth as /xfer -- signed envelope, replay window, flat refusal -- because a second
+    authentication path is a second thing to get wrong, and this one hands out file contents.
+
+    WHY THIS IS SAFE IN A WAY A FILE ENDPOINT USUALLY IS NOT: the request names a HASH, never
+    a path. There is no `..` to reject and no allowlist to misconfigure, and you can only ask
+    for a blob whose digest you already hold -- so the endpoint cannot be enumerated either.
+
+    An unknown ref returns the SAME flat refusal as a forged signature. Distinguishing them
+    would make this an oracle for what this fleet holds, which is exactly the property the
+    message gate's flat refusal exists to deny.
+    """
+    try:
+        if str(path).split("?")[0].rstrip("/") != "/blob":
+            return 404, FLAT_REFUSAL, f"404 no such path {path!r}"
+        if str(method).upper() != "POST":
+            return 405, FLAT_REFUSAL, f"405 method {method!r} on /blob (POST only)"
+        if not length_allowed(len(body or b"")):
+            return 413, FLAT_REFUSAL, "413 blob request over the cap"
+        try:
+            env = json.loads((body or b"").decode("utf-8"))
+            b64, sig = str(env.get("body") or ""), str(env.get("sig") or "")
+        except Exception as e:                                    # noqa: BLE001
+            return 400, FLAT_REFUSAL, f"400 unreadable blob request ({type(e).__name__})"
+
+        key = secret
+        if key is None:
+            _name, key = RR.resolve_peer(b64, sig)
+        if not key or not RR.verify(b64, sig, key):
+            return 400, FLAT_REFUSAL, "400 blob request failed HMAC/replay verification"
+
+        try:
+            ref = str(json.loads(base64.b64decode(b64).decode("utf-8")).get("ref") or "")
+        except Exception as e:                                    # noqa: BLE001
+            return 400, FLAT_REFUSAL, f"400 blob request payload unreadable ({type(e).__name__})"
+
+        # INJECTABLE, because get_blob_store() is a cached singleton whose base is
+        # <repo>/blobs with no env override -- a store that cannot be redirected is a store
+        # that cannot be pinned (the T365 credential-constant lesson, one module over).
+        from core.comm.blobs import get_blob_store
+        data = (blobs or get_blob_store()).get(ref)
+        if data is None:
+            return 404, FLAT_REFUSAL, f"404 no blob for ref {ref[:40]!r} (flat: not an oracle)"
+        return 200, data, f"200 served {ref[:24]} ({len(data)}B)"
+    except Exception as e:                                        # noqa: BLE001
+        return 400, FLAT_REFUSAL, f"400 blob door caught {type(e).__name__}: {e}"
+
+
 class _Handler(BaseHTTPRequestHandler):
     server_version = "akashic-bridge/1.0"
     peer_name = ""
@@ -216,6 +268,17 @@ class _Handler(BaseHTTPRequestHandler):
         raw = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        try:
+            self.wfile.write(raw)
+        except OSError:
+            pass
+        print(f"[{time.strftime('%H:%M:%S')}] {self.client_address[0]} {log}", flush=True)
+
+    def _respond_bytes(self, status: int, raw: bytes, log: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         try:
@@ -233,6 +296,15 @@ class _Handler(BaseHTTPRequestHandler):
             body = self.rfile.read(int(declared))
         except (OSError, ValueError) as e:
             self._respond(400, FLAT_REFUSAL, f"400 body read failed ({type(e).__name__}: {e})")
+            return
+        # Two doors, one auth path. /blob answers with BYTES rather than JSON, so it gets
+        # its own responder -- but the same signed envelope, replay window and flat refusal.
+        if str(self.path).split("?")[0].rstrip("/") == "/blob":
+            status, payload, log = handle_blob("POST", self.path, body)
+            if status == 200 and isinstance(payload, (bytes, bytearray)):
+                self._respond_bytes(status, bytes(payload), log)
+            else:
+                self._respond(status, payload, log)
             return
         self._respond(*handle_request("POST", self.path, body, peer=self.peer_name))
 

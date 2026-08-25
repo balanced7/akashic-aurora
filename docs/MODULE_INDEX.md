@@ -296,6 +296,7 @@
 - `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
+- `remote_bridge_fetch.py` — Follow a blob ref across the bridge and write the bytes to disk.
 - `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
 - `remote_bridge_relay.py` — remote_bridge_relay — drain parked peer mail onto the LOCAL bus, safely, forever.
 - `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
