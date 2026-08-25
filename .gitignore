@@ -195,3 +195,13 @@ chronicles/transcripts/*.jsonl
 # Tracked template: security/acl.example.json. Ceremony: docs/DSH_INTEGRATION.md 8b.
 security/acl.json
 security/acl.json.bak*
+
+# INSTANCE-LOCAL ROUTE (2026-08-24, found by Zadkiel on Serge's instance). A peer route is a
+# fact about THIS machine's relationship to another, so committing it asserts one fleet's
+# relationship as everyone's -- two correctly-configured Auroras will always disagree here,
+# which makes a shared copy a guaranteed conflict rather than a risked one. Exactly the
+# acl.json class (t384). Tracked template: state/coord/remote_bridge.example.json.
+# Env override, no file edit needed: AKASHIC_REMOTE_BRIDGE_PEER_URL.
+state/coord/remote_bridge.json
+state/coord/remote_bridge_inbox.jsonl
+state/coord/remote_bridge_outbox.jsonl

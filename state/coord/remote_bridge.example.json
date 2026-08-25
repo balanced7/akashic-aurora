@@ -1,0 +1,9 @@
+{
+  "peer": {
+    "name": "",
+    "url": "",
+    "inbound_secret_file": "remote_bridge_inbound.key",
+    "outbound_secret_file": "remote_bridge_outbound.key"
+  },
+  "note": "TEMPLATE. Copy to remote_bridge.json (gitignored, instance-local) and fill in. peer.name is what YOU call THEM -- provenance is assigned locally from it and never read off an arriving payload, so the two sides' configs never need to agree, and MUST NOT be shared. peer.url is THIS machine's route to that peer; committing one asserts one fleet's relationship as everyone's, which is why the live file is untracked (same ceremony as security/acl.json, t384). Secrets never live here -- only the FILENAMES that hold them; capture those via `py agent_cli.py secret <name>`. AKASHIC_REMOTE_BRIDGE_PEER_URL overrides peer.url with no file edit at all, which is what a service or container should use."
+}
