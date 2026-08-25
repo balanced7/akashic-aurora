@@ -24,7 +24,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (63 modules)
+## core/comm/  (64 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -68,6 +68,7 @@
 - `presets.py` — Fan presets: a named answer contract bound to the parser that reads it back.
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `reaper.py` — reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded.
+- `remote_relay.py` — Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1).
 - `role_queue.py` — role_queue -- T108 S1: load-balanced role-addressed work with claim semantics.
 - `room_feed.py` — Namespace-aware feed-stream discovery -- the backend half of readable side rooms.
 - `roster.py` — roster -- S2: the lobby. Per-seat liveness the whole fleet can read.

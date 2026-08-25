@@ -63,8 +63,20 @@ _OPERATORS = frozenset({"user", "daniel", "daniil", "human", "operator"})
 
 _SECRET_PATTERNS = (
     # provider keys: sk-..., ghp_..., xoxb-..., AIza..., and generic KEY=<blob>
-    (re.compile(r"\b(sk-[A-Za-z0-9]{8,}|ghp_[A-Za-z0-9]{8,}|xox[baprs]-[A-Za-z0-9-]{8,}"
-                r"|AIza[A-Za-z0-9_\-]{10,})"), "[REDACTED-KEY]"),
+    #
+    # THE HYPHEN, 2026-08-24. This pattern was written when an OpenAI key was `sk-` + one
+    # alphanumeric blob, and `[A-Za-z0-9]{8,}` was exactly right for that shape. Both vendors
+    # then moved to PREFIXED keys -- `sk-ant-api03-...` (Anthropic, the format this house's own
+    # credentials use) and `sk-proj-...` (OpenAI) -- and the character class stops dead at the
+    # first hyphen: `sk-ant` is three characters, fails {8,}, no match, key forwarded intact.
+    # Verified by hand before the fix: sk-ant-api03-* and sk-proj-* both passed through
+    # `redact()` unchanged, while the legacy sk-* form redacted correctly. A guard that was
+    # right on the day it was written and was never re-read against the thing it guards.
+    #
+    # The body now admits internal hyphens but must still START and END alphanumeric, so a
+    # trailing "-" or a bare "sk--" is not swallowed and prose is left alone.
+    (re.compile(r"\b(sk-[A-Za-z0-9][A-Za-z0-9\-]{6,}[A-Za-z0-9]|ghp_[A-Za-z0-9]{8,}"
+                r"|xox[baprs]-[A-Za-z0-9-]{8,}|AIza[A-Za-z0-9_\-]{10,})"), "[REDACTED-KEY]"),
     (re.compile(r"((?:API_?KEY|TOKEN|SECRET|PASSWORD)\s*[=:]\s*)(\S{6,})", re.IGNORECASE),
      r"\1[REDACTED]"),
     # a webhook URL leaking through the channel it posts to
