@@ -36,6 +36,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import sys
 import time
@@ -66,23 +67,103 @@ FLAT_REFUSAL: Dict[str, str] = {"status": "refused"}
 _ACCEPTED = {"status": "accepted"}
 
 
-def bind_allowed(host: str, *, allow_public: bool) -> Tuple[bool, str]:
-    """May we bind here? Non-loopback is REFUSED unless opted into by name.
+def bind_class(host: Any) -> str:
+    """Classify a bind target: 'loopback' | 'private' | 'public' | 'unknown'. NEVER RAISES.
 
-    A flag that merely warns is a flag that gets ignored, and the dangerous case must not be
-    reachable by a typo or a copy-pasted command line. Loopback is always fine — that is the
-    tunnel-terminated shape (ssh -L / Tailscale / cloudflared), which is also how the peer
-    should reach us in production: let a real tunnel own the transport security and keep this
-    door facing an interface only the machine itself can speak to.
+    THREE CATEGORIES, BECAUSE THE WORLD HAS THREE. v1 had two, and the missing one is the
+    common case now that a real peer exists: a mesh address (Tailscale 100.64/10, RFC1918,
+    link-local) is reachable only by nodes already admitted to that network — a different and
+    far smaller population than "the internet".
+
+    THE WILDCARD IS PUBLIC, NOT PRIVATE. `0.0.0.0` binds every interface at once, including
+    any public one, so it is the worst case rather than a neutral one and can never be
+    inferred safe from its own digits.
+
+    KNOWN LIMIT, DOCUMENTED RATHER THAN HIDDEN: this reads ranges, and some overlays squat
+    ranges that are formally public — Radmin VPN hands out 26.x.x.x, and 26.0.0.0/8 is real
+    IANA space. Such an address classifies 'public' and still needs the operator to say
+    --allow-public out loud. That is the intended trade: silently trusting an unrecognised
+    public range to be somebody's private mesh is the worse failure of the two.
     """
-    local = host in ("127.0.0.1", "localhost", "::1")
-    if local or allow_public:
+    try:
+        h = str(host).strip().lower()
+    except Exception:                                             # noqa: BLE001
+        return "unknown"
+    if h in ("localhost",):
+        return "loopback"
+    if h in ("0.0.0.0", "::", "*"):
+        return "public"                       # binds EVERY interface — never inferred safe
+    try:
+        addr = ipaddress.ip_address(h)
+    except ValueError:
+        return "unknown"                      # absent knowledge is refusal, never permission
+    if addr.is_loopback:
+        return "loopback"
+    if addr.is_private or addr.is_link_local:
+        return "private"
+    # 100.64.0.0/10 — the CGNAT range Tailscale builds its tailnet on. Python calls it
+    # global, and for the public internet it is; for us it is the whole point of the fix.
+    if addr.version == 4 and addr in ipaddress.ip_network("100.64.0.0/10"):
+        return "private"
+    return "public"
+
+
+def _owning_interface(host: str) -> str:
+    """Which local adapter holds this address, for the receipt. Best-effort and never fatal —
+    a banner that cannot be rendered must not stop a listener from starting."""
+    try:
+        import subprocess
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             f"(Get-NetIPAddress -IPAddress '{host}' -ErrorAction SilentlyContinue)"
+             f".InterfaceAlias"], capture_output=True, text=True, timeout=8).stdout.strip()
+        return out.splitlines()[0].strip() if out else ""
+    except Exception:                                             # noqa: BLE001
+        return ""
+
+
+def bind_banner(host: Any) -> str:
+    """The line printed at startup. It must be TRUE above all — the reason this fix exists is
+    that '[PUBLIC]' printed over a tailnet address is a false sentence, and an operator who
+    learns the banner overstates will stop reading it."""
+    kind = bind_class(host)
+    if kind == "loopback":
+        return ""                             # nothing outside the machine — no warning owed
+    if kind == "private":
+        iface = _owning_interface(str(host))
+        where = f' on "{iface}"' if iface else ""
+        # Deliberately avoids the literal word the operator scans for. An earlier draft read
+        # "NOT from the public internet" — true, and containing the exact string a skimming
+        # reader treats as the alarm. A banner is read at a glance or not at all.
+        return (f"[PRIVATE NETWORK] bound to {host}{where} — reachable by nodes on that "
+                f"network only, and not routable from the open internet")
+    if kind == "public":
+        return (f"[PUBLIC] bound to {host} — REACHABLE FROM THE INTERNET. The HMAC gate is "
+                f"now the only thing in front of this door.")
+    return f"[UNKNOWN] {host} could not be classified"
+
+
+def bind_allowed(host: Any, *, allow_public: bool) -> Tuple[bool, str]:
+    """May we bind here? NEVER RAISES.
+
+    Loopback and private-network addresses are permitted outright; only a genuinely public
+    address (or the wildcard) needs --allow-public. A flag that must be typed for the SAFE
+    case is a flag that gets typed reflexively, and then it is not a gate — it is a habit.
+    """
+    kind = bind_class(host)
+    if kind in ("loopback", "private"):
+        return True, ""
+    if kind == "unknown":
+        return False, (
+            f"refusing to bind {host!r}: not a recognisable address, so its exposure cannot "
+            f"be judged. Absent knowledge is refusal, never permission — pass an explicit IP.")
+    if allow_public:
         return True, ""
     return False, (
-        f"refusing to bind {host!r}: that is a PUBLIC interface and this is the inbound half "
-        f"of a fleet bridge. Re-run with --allow-public if you meant it, or (better) bind "
-        f"loopback and put a tunnel in front so the transport security is owned by something "
-        f"built for it.")
+        f"refusing to bind {host!r}: that is a PUBLIC interface (or the wildcard, which is "
+        f"every interface at once) and this is the inbound half of a fleet bridge. Prefer a "
+        f"private mesh address — a Tailscale/LAN address binds with no flag at all, because "
+        f"it is not the internet. Use --allow-public only if you genuinely mean the internet.")
 
 
 def length_allowed(declared: int) -> bool:
@@ -180,8 +261,11 @@ def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *,
 
     _Handler.peer_name = peer
     httpd = ThreadingHTTPServer((host, port), _Handler)
-    print(f"akashic remote-bridge listener on http://{host}:{port}/xfer  peer={peer or '?'}"
-          f"{'  [PUBLIC]' if host not in ('127.0.0.1', 'localhost', '::1') else ''}", flush=True)
+    print(f"akashic remote-bridge listener on http://{host}:{port}/xfer  peer={peer or '?'}",
+          flush=True)
+    banner = bind_banner(host)
+    if banner:
+        print(banner, flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
