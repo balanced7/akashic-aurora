@@ -61,6 +61,27 @@ def peer_ids() -> dict:
     return out
 
 
+def peer_reachable() -> bool:
+    """Can we open a socket to the peer's listener? NEVER RAISES.
+
+    Deliberately a TCP connect and not a signed POST: this must answer "is the door there",
+    which is a different question from "does the door admit me", and conflating them would
+    make a key problem look like an outage. It also must never write anything to the peer --
+    a liveness probe that delivers mail is a liveness probe you cannot run often.
+    """
+    import socket as _s
+    url = RR.peer_url()
+    if not url:
+        return False
+    try:
+        host = url.split("//", 1)[-1].split("/", 1)[0]
+        h, _, p = host.partition(":")
+        _s.create_connection((h, int(p or 80)), timeout=5).close()
+        return True
+    except Exception:                                             # noqa: BLE001
+        return False
+
+
 def render(r: dict) -> str:
     t = datetime.datetime.fromtimestamp(int(r.get("admitted_at") or 0)).strftime("%H:%M:%S")
     skew = int(r.get("sent_at") or 0) - int(r.get("admitted_at") or 0)
@@ -104,6 +125,9 @@ def main(argv=None) -> int:
     ap.add_argument("--loop", action="store_true",
                     help="keep watching after an announcement instead of exiting "
                          "(what a standing service wants)")
+    ap.add_argument("--check-peer", action="store_true",
+                    help="also watch the PEER's listener and report up/down transitions — "
+                         "makes the link's death a finding instead of a silence")
     a = ap.parse_args(argv)
 
     seen = peer_ids()
@@ -111,9 +135,34 @@ def main(argv=None) -> int:
           f"{RR.inbox_path()}", flush=True)
     print(f"  baseline: {sorted(seen)}", flush=True)
 
+    peer_up = peer_reachable() if a.check_peer else None
+    if a.check_peer:
+        print(f"  peer listener at start: {'UP' if peer_up else 'DOWN'}", flush=True)
+
     deadline = time.time() + a.timeout_min * 60
     while time.time() < deadline:
         time.sleep(a.poll_sec)
+
+        # THE LINK'S DEATH MUST BE A FINDING, NOT A SILENCE. A bridge that stops carrying
+        # mail looks exactly like a bridge nobody is using, and the whole arc that produced
+        # this file was one announce-nothing failure after another. Only TRANSITIONS are
+        # reported -- a peer that is down stays down without saying so every four seconds,
+        # because a watcher that cries continuously gets muted, which is the same silence
+        # arrived at by a longer road.
+        if a.check_peer:
+            now_up = peer_reachable()
+            if now_up != peer_up:
+                stamp = datetime.datetime.now().strftime("%H:%M:%S")
+                if now_up:
+                    print(f"\n[{stamp}] PEER LISTENER RECOVERED — {RR.peer_url()} answering "
+                          f"again; anything queued in the outbox ships on the next tick",
+                          flush=True)
+                else:
+                    print(f"\n[{stamp}] PEER LISTENER WENT DOWN — {RR.peer_url()} not "
+                          f"answering. Outbound mail is RETAINED, not lost; it replays when "
+                          f"they return. Nothing to do unless it stays down.", flush=True)
+                peer_up = now_up
+
         try:
             now = peer_ids()
         except Exception as e:                                    # noqa: BLE001
