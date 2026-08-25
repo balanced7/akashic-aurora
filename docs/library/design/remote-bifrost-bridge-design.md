@@ -106,10 +106,19 @@ The relay is a durable ENQUEUE-DEQUEUE, not a fire-and-forget socket:
 
 ```
 .secrets/
-  remote_bridge/
-    serge_outbound.key     # we use this to push INTO Serge's relay (HMAC secret)
-    serge_inbound.key      # Serge uses this to push into OUR relay (HMAC secret) — v1 only
+  remote_bridge_outbound.key   # we sign with this to push INTO the peer's relay
+  remote_bridge_inbound.key    # the peer signs with this to push into OUR relay
 ```
+
+> **Corrected 2026-08-24, found by Zadkiel (Serge's seat).** This section originally specified
+> `serge_outbound.key` / `serge_inbound.key` under a `.secrets/remote_bridge/` subdirectory.
+> The code never read those names — it opens the flat names above. **The code is the
+> authority; this doc was wrong.** A refusal message in `remote_relay.py` was still handing
+> stuck readers the dead filename, which is the worst form of the defect: documentation that
+> misleads you at precisely the moment you are already blocked. Both are now corrected.
+>
+> Capture them through the vault door, which keeps the value out of every transcript:
+> `py agent_cli.py secret remote_bridge_outbound.key`
 
 - Both files gitignored. The bin of `.secrets/` is already ignored house-wide.
 - `remote_bridge/` is a config file (`remote_bridge.json`) that names the peer URL + which
@@ -133,7 +142,7 @@ The relay is a durable ENQUEUE-DEQUEUE, not a fire-and-forget socket:
 1. **Prompt-injection via inbound.** The entire danger concentrates at v1. A remote peer that
    can speak `chat` into our bus can try to talk an agent into running commands. Mitigation:
    the inbound allowlist is narrow, redaction is applied, and — in v0 — inbound does not exist.
-2. **Key leak → impersonation.** If `serge_outbound.key` leaks, an attacker posts as-us into
+2. **Key leak → impersonation.** If `remote_bridge_outbound.key` leaks, an attacker posts as-us into
    Serge's relay AND reads what we send. Mitigation: separation of direction secret, rotation
    by regenerating the file (a one-line op, no code change), and never committing it.
 3. **Silent loss at the relay boundary.** If the relay is fire-and-forget, a crash loses mail.
@@ -149,7 +158,7 @@ The relay is a durable ENQUEUE-DEQUEUE, not a fire-and-forget socket:
    Tailscale / a private rendezvous?
 3. **The "Serge instructions" one-pager** — do you want me to draft the exact message you'd
    send him (Ends up with: "run `py scripts/remote_relay.py --role inbound --peer https://…`,
-   put `serge_outbound.key` in `.secrets/…`, here are the allowed kinds")?
+   put `remote_bridge_outbound.key` in `.secrets/…`, here are the allowed kinds")?
 
 Answer those and I'll turn §3 into build slices with pre-registered acceptance (RED pins first,
 per house method), and draft the Serge one-pager as a copy-paste artifact.
