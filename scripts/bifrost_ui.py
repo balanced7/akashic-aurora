@@ -66,6 +66,11 @@ def _fmt(sid, fields):
         "content": _loads(fields.get("content", '""')),
         "ts": fields.get("ts", ""),
         "meta": _loads(fields.get("meta", "{}")),
+        # T044/T045: the dual-write twin's content identity. The legacy copy carries the
+        # envelope sha; the trace-lane copy is stamped only every-Nth, so the CLIENT's
+        # dedupe key is a content hash computed identically from both copies -- sha is
+        # surfaced for diagnostics, never as the key.
+        "sha": fields.get("sha", ""),
     }
     # T121 composition seam: attach the typed EpistemicView product so the
     # browser's m.epistemic boundary is populated. Fail-closed: a derivation
@@ -2578,6 +2583,15 @@ PAGE = r"""<!doctype html>
 <script>
 const log = document.getElementById('log');
 const seen = new Set();
+// T044/T045 content identity: dedupe by WHAT the message is, never by WHICH stream it
+// came in on. The dual-write twins share from/to/kind/ts/content but carry different
+// stream entry ids -- keying on m.id rendered every trace-kind message twice. The hash
+// is computed identically for both copies (sha is surfaced by the server but is stamped
+// only every-Nth on the trace lane, so it can never be the key).
+function msgKey(m){
+  var c = (typeof m.content === 'string') ? m.content : JSON.stringify(m.content || '');
+  return (m.from||'') + '|' + (m.to||'') + '|' + (m.kind||'') + '|' + (m.ts||'') + '|' + c;
+}
 let paused = false, nearBottom = true, lastFrom = null;
 
 log.addEventListener('scroll', ()=>{
@@ -2859,7 +2873,7 @@ function renderThreadBanner(){
 }
 
 function addMsg(m){
-  if(m.id && m.id!=='0'){ if(seen.has(m.id)) return; seen.add(m.id); }
+  if(m.from || m.kind){ const k = msgKey(m); if(seen.has(k)) return; seen.add(k); }
   if((m.kind||'chat')==='_ready') return;
   if(!_inThread(m)) return;                       // thread filter: silent skip, not an error
   // negotiation verdict: display prominently

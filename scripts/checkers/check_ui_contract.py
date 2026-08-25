@@ -118,7 +118,7 @@ def _check_gauge_axes(lines: list[str]) -> list[str]:
 
 # ---------------------------------------------------------------- M-L3: earned-accent
 def _check_earned_accent(lines: list[str]) -> list[str]:
-    """Alarm colors only on alarm states. Proximity heuristic.
+    r"""Alarm colors only on alarm states. Proximity heuristic.
 
     FENCE-CORRECTED (2026-07-23, claude fence RED #1/#2):
     - ALARM_CLASSES uses word-boundary regex so --warn-ink doesn't fire on "warn".
@@ -199,11 +199,28 @@ def _load_baseline(path: Path) -> dict:
     return (_load_baseline_raw() or {}).get(_baseline_key(path), {})
 
 
-# Law names used in both exit paths — single source
+def _check_dedupe_identity(lines: list[str]) -> list[str]:
+    """T044/T045 dedupe identity: the UI's seen-set must key on CONTENT identity
+    (msgKey: from/to/kind/ts/content), never on the per-stream entry id -- stream-id
+    dedupe renders every dual-write twin twice (the duplicated-tool-call defect,
+    2026-08-24). _fmt must also surface the envelope sha for diagnostics."""
+    problems: list[str] = []
+    src = "\n".join(lines)
+    if "function msgKey(m)" not in src:
+        problems.append("  msgKey() content-identity function missing -- dual-write twins would render twice")
+    if "seen.has(m.id)" in src:
+        problems.append("  stream-id dedupe found (seen.has(m.id)) -- the exact T044/T045 violation; key on msgKey instead")
+    if '"sha": fields.get("sha", "")' not in src:
+        problems.append("  _fmt does not surface the envelope sha -- diagnostics lost, dedupe unverifiable")
+    return problems
+
+
+# Law names used in both exit paths -- single source
 _LAW_NAMES = [
     ("token law M-L8", _check_raw_hex, True),       # ship-grade
     ("axis law M-L1a (label-presence)", _check_gauge_axes, True),  # ship-grade
     ("earned-accent M-L3 (warn-tier)", _check_earned_accent, False),  # advisory-only
+    ("dedupe identity T044/T045", _check_dedupe_identity, True),  # ship-grade
 ]
 
 
