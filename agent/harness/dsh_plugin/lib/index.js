@@ -28,6 +28,7 @@ import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { defineTool } from '@deepseek-ai/dsh-tools'
 
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
 const BRIDGE = join(PLUGIN_DIR, '..', 'bridge.py')
@@ -122,16 +123,208 @@ function attachContext(decision, text) {
 
 const _probeToken = () => `akashic-probe-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 
-export const name = 'dsh-akashic-recall'
-// NO inject export: this cordis fork treats every declared inject as REQUIRED
-// (_refresh goes INACTIVE on any missing key — no optional mechanism exists), and
-// invariants/systemPrompt are not mounted in every profile. The R2 invariant check
-// therefore registers via try/catch and logs 'skipped' where the service is absent;
-// the WEB wiring gives R2 its real home (a config-level inject there, where
-// dsh-invariants is mounted). Drilled 2026-08-24: with an inject export the plugin
-// sat 'pending (waiting for service)' in headless and the whole tree refused to boot.
+// ---------------------------------------------------------------------------
+// MCP DOOR CLIENT -- the typed-tools finish (2026-08-24). One PERSISTENT child
+// runs `py ai_setup_mcp.py` (the MCP twin of agent_cli.py); the plugin registers
+// each curated door tool as a NATIVE cordis tool, so the seat stops shelling for
+// every verb. Schemas come from tools/list at runtime -- the plugin never hardcodes
+// the door's contract, so the two surfaces cannot drift. Fail-open throughout: if
+// the door cannot start or a call fails, the tool reports the error shape; the
+// recall listeners never depend on it.
+// ---------------------------------------------------------------------------
+const DOOR_TOOLS = [
+  'boot', 'learn', 'recall', 'recall_at', 'recall_feedback', 'note', 'notes',
+  'status', 'task', 'mailbox', 'stats', 'injections', 'graduate', 'log',
+  'handoff', 'story', 'events', 'promoted', 'locks', 'lock', 'unlock',
+  'bifrost_sync', 'bifrost_send', 'bifrost_inbox', 'bifrost_presence',
+  'knowledge_map', 'friction', 'tag_anti_pattern',
+]
+const DOOR_PREFIX = 'akashic_'
+const DOOR_TIMEOUT_MS = 60000
 
-export function apply(ctx) {
+const door = { proc: null, nextId: 1, pending: new Map(), tools: new Map(), ready: false }
+
+function doorSpawn() {
+  const repo = process.env.AKASHIC_REPO
+  if (!repo) {
+    LOG('MCP door NOT spawned: AKASHIC_REPO unset (the .env stamp is missing) -- typed tools unavailable, listeners unaffected')
+    capture({ at: Date.now(), kind: 'door-unavailable', reason: 'no AKASHIC_REPO' })
+    return null
+  }
+  try {
+    const proc = spawn('py', ['ai_setup_mcp.py'], {
+      cwd: repo, windowsHide: true,
+      stdio: ['pipe', 'pipe', 'ignore'],
+    })
+    let buf = ''
+    proc.stdout.on('data', (d) => {
+      buf += d.toString('utf8')
+      let nl
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim()
+        buf = buf.slice(nl + 1)
+        if (!line) continue
+        let msg
+        try { msg = JSON.parse(line) } catch { continue }   // tolerate stray non-JSON lines
+        const id = msg.id
+        if (id !== undefined && door.pending.has(id)) {
+          const { resolve, timer } = door.pending.get(id)
+          door.pending.delete(id)
+          clearTimeout(timer)
+          resolve(msg)
+        }
+      }
+    })
+    proc.on('error', () => { door.ready = false; door.proc = null })
+    proc.on('exit', () => {
+      door.ready = false
+      door.proc = null
+      for (const { resolve, timer } of door.pending.values()) {
+        clearTimeout(timer)
+        resolve({ id: null, error: { message: 'door process exited' } })
+      }
+      door.pending.clear()
+      capture({ at: Date.now(), kind: 'door-exit' })
+    })
+    door.proc = proc
+    return proc
+  } catch (e) {
+    LOG('MCP door spawn failed:', e && e.message)
+    capture({ at: Date.now(), kind: 'door-unavailable', reason: String(e && e.message) })
+    return null
+  }
+}
+
+function doorRpc(method, params, expectReply = true) {
+  const proc = door.proc
+  if (!proc || !proc.stdin.writable) return Promise.resolve(null)
+  const id = door.nextId++
+  const req = { jsonrpc: '2.0', method }
+  if (params !== undefined) req.params = params
+  if (expectReply) req.id = id
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      if (door.pending.has(id)) {
+        door.pending.delete(id)
+        resolve({ id, error: { message: `door timeout after ${DOOR_TIMEOUT_MS}ms` } })
+      }
+    }, DOOR_TIMEOUT_MS)
+    if (expectReply) door.pending.set(id, { resolve, timer })
+    try {
+      proc.stdin.write(JSON.stringify(req) + '\n')
+    } catch {
+      if (expectReply) { door.pending.delete(id); clearTimeout(timer) }
+      resolve(null)
+    }
+    if (!expectReply) resolve(null)   // notifications: fire and forget, nothing to wait for
+  })
+}
+
+async function doorHandshake() {
+  const proc = doorSpawn()
+  if (!proc) return false
+  const init = await doorRpc('initialize', {
+    protocolVersion: '2024-11-05',
+    capabilities: {},
+    clientInfo: { name: 'dsh-akashic-recall', version: '0' },
+  })
+  if (!init || init.error) {
+    LOG('MCP initialize failed:', init && init.error && init.error.message)
+    return false
+  }
+  await doorRpc('notifications/initialized', undefined, false)
+  const listed = await doorRpc('tools/list', {})
+  const tools = listed && listed.result && listed.result.tools
+  if (!Array.isArray(tools)) {
+    LOG('MCP tools/list failed -- typed tools unavailable')
+    return false
+  }
+  door.tools = new Map(tools.map((t) => [t.name, t]))
+  door.ready = true
+  LOG(`MCP door ready: ${tools.length} tools; registering ${DOOR_TOOLS.length} curated`)
+  capture({ at: Date.now(), kind: 'door-ready', tools: tools.length })
+  return true
+}
+
+async function doorCall(toolName, args) {
+  if (!door.ready) {
+    return { text: 'akashic door is not running (see console log); the recall listeners are unaffected', isError: true }
+  }
+  const resp = await doorRpc('tools/call', { name: toolName, arguments: args ?? {} })
+  if (!resp || resp.error) {
+    return { text: `door error: ${(resp && resp.error && resp.error.message) || 'no response'}`, isError: true }
+  }
+  const r = resp.result || {}
+  const text = Array.isArray(r.content)
+    ? r.content.map((b) => (b && typeof b.text === 'string' ? b.text : '')).join('\n')
+    : JSON.stringify(r, null, 2)
+  return { text, isError: !!r.isError }
+}
+
+function translateSchema(schema) {
+  const out = {}
+  const props = (schema && schema.properties) || {}
+  const required = (schema && schema.required) || []
+  for (const [k, v] of Object.entries(props)) {
+    if (!v || typeof v !== 'object') continue
+    const param = {
+      type: v.type === 'integer' ? 'number' : (v.type || 'string'),
+      description: v.description || '',
+    }
+    if (required.includes(k)) param.required = true
+    if (Array.isArray(v.enum)) param.enum = v.enum
+    out[k] = param
+  }
+  return out
+}
+
+async function registerDoorTools(ctx) {
+  if (!door.ready) return
+  try {
+    for (const name of DOOR_TOOLS) {
+      const t = door.tools.get(name)
+      if (!t || !t.inputSchema) continue
+      ctx.tools.register(defineTool({
+        name: DOOR_PREFIX + name,
+        description: `[Akashic door] ${t.description || name}`,
+        parameters: translateSchema(t.inputSchema),
+        output: {
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              text: { type: 'string' },
+              isError: { type: 'boolean' },
+            },
+          },
+          render: (_args, value) => [{
+            type: 'text',
+            text: `${value.isError ? '[door error]\n' : ''}${value.text || '(no output)'}`,
+          }],
+        },
+        async execute(args) {
+          const result = await doorCall(name, args)
+          if (result.isError) {
+            // Report the door's error, never pretend it worked.
+            return result
+          }
+          return result
+        },
+      }))
+    }
+    LOG(`registered ${DOOR_TOOLS.length} akashic_* door tools`)
+  } catch (e) {
+    LOG('tool registration failed:', e && e.message)
+    capture({ at: Date.now(), kind: 'door-register-failed', reason: String(e && e.message) })
+  }
+}
+
+export const name = 'dsh-akashic-recall'
+export const inject = ['tools']   // REQUIRED by this fork: typed door tools. dsh-tools is
+// mounted in the web profile's bundle (dump-config: id 'tools' -> @deepseek-ai/dsh-tools),
+// so this inject is satisfiable; do NOT mount this plugin in a tools-less profile.
+
+export async function apply(ctx) {
   observeOnly = !!process.env.AKASHIC_AGENT_ID && process.env.AKASHIC_AGENT_ID !== SESSION_KEY
   if (observeOnly) {
     LOG(`OBSERVE-ONLY: AKASHIC_AGENT_ID=${process.env.AKASHIC_AGENT_ID} != ${SESSION_KEY}; injecting nothing, mis-attributing nothing`)
@@ -269,4 +462,14 @@ export function apply(ctx) {
 
   listenerRegistered = true
   LOG('activated: five listeners registered; observeOnly =', observeOnly)
+
+  // The typed door tools (fail-open: if the door cannot start, the listeners above
+  // keep working and the seat simply lacks akashic_* tools until the next restart).
+  try {
+    const ready = await doorHandshake()
+    if (ready) await registerDoorTools(ctx)
+  } catch (e) {
+    LOG('door bootstrap failed:', e && e.message)
+    capture({ at: Date.now(), kind: 'door-bootstrap-failed', reason: String(e && e.message) })
+  }
 }

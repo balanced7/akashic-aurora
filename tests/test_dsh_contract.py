@@ -114,6 +114,32 @@ def test_t3_injection_message_shape_is_user_contract():
     assert "id:" in src and "akashic-" in src                # id + stable prefix
 
 
+# --- MCP door tools (the typed-tools finish, 2026-08-24) ---
+
+def test_plugin_hosts_persistent_mcp_door():
+    """The typed-tools design: ONE persistent `py ai_setup_mcp.py` child + runtime
+    tools/list schemas + ctx.tools.register -- the seat stops shelling per verb, and
+    the door's contract is never hardcoded (no drift)."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "ai_setup_mcp.py" in src
+    assert "tools/list" in src
+    assert "ctx.tools.register" in src
+    assert "defineTool" in src
+    assert "export const inject = ['tools']" in src          # satisfiable in the web bundle
+    assert "doorHandshake" in src
+
+
+def test_door_verbs_never_spawn_per_call():
+    """Door tools must ride the persistent child (doorCall), never a per-call py spawn
+    (spawnBridge) -- the spawn-per-verb pathology this slice retires. The event-driven
+    bridge subcommands (presence/whisper/recall/credit/session-end) keep spawnBridge."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "doorCall" in src
+    door_block = src.split("MCP DOOR CLIENT", 1)[-1].split("export const name", 1)[0]
+    assert "spawnBridge" not in door_block, (
+        "a door verb must never spawn per call -- that is the pathology being retired")
+
+
 # --- T6 DSH session-end shim (auto-handoff flagship, 2026-08-24) ---
 
 def test_dsh_parse_calls_pairs_real_session_records():
