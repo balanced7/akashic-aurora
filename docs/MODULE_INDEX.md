@@ -251,6 +251,7 @@
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
+- `bridge_doctor.py` — bridge_doctor — diagnose YOUR side of the bridge and report it back across the bridge.
 - `config.py` — Centralized Configuration - Akashic Aurora
 - `peer_connect.py` — peer_connect — get a remote Akashic Aurora talking to ours in one command.
 
@@ -295,6 +296,7 @@
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
+- `remote_bridge_relay.py` — remote_bridge_relay — drain parked peer mail onto the LOCAL bus, safely, forever.
 - `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
