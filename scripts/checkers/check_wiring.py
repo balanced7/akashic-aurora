@@ -120,16 +120,18 @@ EXCEPTIONS = {
         "turn boundary (wiring CLAIM/HANDOFF beside the existing maybe_self_restart call) — FENCED for "
         "operator+Vandor review, deliberately not built tonight (live self-modification). UNWIRE-WHEN: "
         "the runner turn boundary calls next_beat() + reads the shift-state note; then remove this entry.",
-    "core/comm/remote_relay.py": "KEEP built-ahead (2026-08-24, deepseek): outbound-only "
-        "Akashic<->Akashic bridge v0.1 (fence remote-bridge, "
-        "docs/library/design/remote-bifrost-bridge-design.md). 9 pins green in "
-        "tests/test_remote_relay_pins.py, all offline (transport injected). Deliberately "
-        "inert-until-keyed + unrouted-refuses: NO production consumer BY DESIGN until v1's "
-        "inbound HTTP listener (the dangerous half) lands and a caller invokes push(). "
-        "Wiring push() before v1 would POST on every forwardable message with zero delivery "
-        "semantics, contradicting the module's own absent-is-not-broken property. "
-        "UNWIRE-WHEN: the v1 inbound listener + a production push() caller land; then remove "
-        "this entry.",
+    "core/comm/remote_relay.py": "KEEP built-ahead, HALF-DISCHARGED (v0.1 outbound 2026-08-24 "
+        "deepseek; v1 outbox+inbound gate 2026-08-24 claude/Vandor). Fence remote-bridge, "
+        "docs/library/design/remote-bifrost-bridge-design.md. 25 pins green across "
+        "tests/test_remote_relay_pins.py + tests/test_remote_bridge_v1_pins.py, all offline. "
+        "THE INBOUND HALF IS NOW WIRED: scripts/remote_bridge_listener.py calls accept() on "
+        "POST /xfer (14 further pins). THE OUTBOUND HALF IS STILL UNWIRED BY DESIGN: nothing "
+        "in production calls enqueue()/tick() yet, because deciding WHICH of our bus traffic "
+        "crosses a fleet boundary is Daniil's call, not a default -- and the v0.1 reasoning "
+        "still holds, that auto-pushing every forwardable message is a policy nobody chose. "
+        "Deliberately inert-until-keyed + unrouted-refuses, so the module is safe at rest. "
+        "UNWIRE-WHEN: a production caller invokes enqueue() on a chosen slice of bus traffic; "
+        "then remove this entry.",
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
     "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
     "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",
