@@ -1,0 +1,23 @@
+{
+  "ran_at": "2026-08-25T18:21:51.654660+00:00",
+  "verified": [
+    "half_a: core/comm/discord_bridge.py",
+    "half_a: core/comm/remote_relay.py",
+    "half_a: core/learning/domains.py",
+    "half_a: core/learning/learning_store.py",
+    "half_a: core/learning/vfx_chunk_lessons.py",
+    "half_a: core/trust/private_plane.py",
+    "half_a: core/world_seed.py",
+    "half_a: scripts/checkers/check_secrets.py",
+    "half_a: scripts/ops/snapshot_knowledge.py",
+    "half_b: chronicles/lessons.md",
+    "half_b: chronicles/story.md",
+    "half_b: chronicles/story.md:38",
+    "half_b: core/comm/remote_relay.py",
+    "half_b: core/learning/consolidation.py"
+  ],
+  "missing": [
+    "half_b: publish/lessons.jsonl",
+    "half_b: publish/lessons.md"
+  ]
+}

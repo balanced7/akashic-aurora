@@ -1,0 +1,35 @@
+{
+  "id": "lesson-publication-design",
+  "question": "How should Aurora publish its 1115 lessons to GitHub so peer instances benefit, classified by scope and sensitivity, given that publishing is a one-way door?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-08-25T18:13:10.610260+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-08-25T18:13:51.799152+00:00"
+    },
+    "half_b": {
+      "by": "kimi",
+      "at": "2026-08-25T18:17:33.853613+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-08-25T18:18:16.413438+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-08-25T18:22:09.749560+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-08-25T18:21:51.654660+00:00",
+    "missing_count": 2
+  },
+  "authors": {
+    "brief": "claude",
+    "half_a": "deepseek",
+    "half_b": "kimi",
+    "reconciliation": "claude"
+  }
+}
