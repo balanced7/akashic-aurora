@@ -19,6 +19,7 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -742,6 +743,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(get_launcher().registry())
         if path == "/episode/current":
             return self._json(self._episode_current())
+        # Report shelf (claude, standalone module -- scripts/bifrost_reports.py). It owns
+        # exactly these four paths and returns None for anything else, so this block can
+        # never shadow a route added later. Read-only by construction: the shelf viewer
+        # has no write door, which is what keeps the private shelf private.
+        if path in ("/reports", "/api/reports", "/api/report", "/api/reports/compare"):
+            import urllib.parse as _up
+            from scripts import bifrost_reports as _reports
+            _q = _up.parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+            _hit = _reports.handle(path, _q)
+            if _hit is not None:
+                _code, _ctype, _body = _hit
+                self.send_response(_code)
+                self.send_header("Content-Type", _ctype)
+                self.send_header("Content-Length", str(len(_body)))
+                self.end_headers()
+                self.wfile.write(_body)
+                return
         if path == "/aurora-shader.js":
             return self._static("scripts/aurora-shader.js", "application/javascript")
         if path == "/bifrost_viz.js":
@@ -868,12 +886,32 @@ class Handler(BaseHTTPRequestHandler):
                                 "runner": bool(runner_lock.holder(aid))}
         except Exception:
             signals = {}
-        # Known: ALL registered agents (always visible, even offline) + any agent currently online.
-        # The roster shows every agent the user might want to message, not just ACL-registered ones.
+        # Known: the roster of who the user can actually TALK to. Daniil, 2026-08-19, looking at
+        # the selector: it listed "claude, codex_root, deepseek, deepseek-plumbing, deepseek-red,
+        # deepseek-review, deepseek-ui, gemini, kimi, sol, sol-codex, user" -- five retired/dead
+        # deepseek-* grants and two REVOKED sol grants (caps:[]) shown as if they were people.
+        # The roster must come from RESIDENCY + LIVENESS, not from the raw ACL grant list:
+        #   (1) every RATIFIED resident (a seat with an earned callsign is always reachable,
+        #       even offline);
+        #   (2) every agent currently ON the bus (online-but-unratified is messageable RIGHT NOW,
+        #       and shows the ⚠ unknown cue);
+        # A revoked/retired grant (empty caps) or a non-resident one-shot id is none of those, so
+        # it drops out. Fail-soft: if the residents store is unreachable, fall back to online
+        # agents only -- never back to the grant list, which is the thing that produced the noise.
         known = []
+        residents_ids = set()
         try:
-            known = sorted([g.agent_id for g in registry.grants()])
-            # Always include agents that have ever appeared on the bus (even if not ACL'd)
+            from core.fleet import residents as _res
+            # enumerate ratified residents via the index (the module exposes no list-all; the
+            # index is "every id ever nominated", get() returns None for non-ratified ones)
+            index_key = getattr(_res, "_INDEX_KEY", "residents:all")
+            for aid in (_res._store().lrange(index_key, 0, -1) or []):
+                if _res.get(aid) is not None:
+                    residents_ids.add(aid)
+        except Exception:
+            pass
+        known = sorted(residents_ids)
+        try:
             for a in agents:
                 aid = a.get("agent")
                 if aid and aid not in known:
@@ -881,9 +919,34 @@ class Handler(BaseHTTPRequestHandler):
             known.sort()
         except Exception:
             pass
+        # T338: the seats have NAMES and this surface never showed them. Daniil, 2026-08-17:
+        # "I called Navi and Heimdall kimi and deepseek because of seeing their name displayed
+        # as such in the bifrost." Measured the same night: eye freq on callsign|Heimdall|Navi
+        # returns agent 121 / operator 21 -- the callsigns live almost entirely in
+        # agent-to-agent speech, and the one surface he reads showed the vendor id instead.
+        # So the UI was not merely omitting the names; it was the only channel that could
+        # have taught them, teaching the other one. Fail-soft: an unratified seat (sol) simply
+        # has no entry and the front-end falls back to the agent id.
+        residents = {}
+        try:
+            from core.fleet import residents as _res
+            for aid in set(known) | {a.get("agent") for a in agents if a.get("agent")}:
+                r = _res.get(aid)
+                if isinstance(r, dict) and r.get("callsign"):
+                    residents[aid] = {
+                        "callsign": r.get("callsign"), "vendor": r.get("vendor"),
+                        "family": r.get("family"), "team": r.get("team"),
+                        "number": r.get("number"), "state": r.get("state"),
+                        # the schema line as the boot block renders it, so one spelling
+                        # travels: "Anthropic | Amber | Blue | 1 - Vandor"
+                        "schema": f"{r.get('vendor')} | {r.get('family')} | "
+                                  f"{r.get('team')} | {r.get('number')} - {r.get('callsign')}",
+                    }
+        except Exception:
+            residents = {}
         return {"paused": control.is_paused(), "pause": control.pause_status(),
                 "agents": agents, "known": known, "activities": control.get_activities(),
-                "signals": signals, "max_hops": control.MAX_HOPS,
+                "signals": signals, "max_hops": control.MAX_HOPS, "residents": residents,
                 "halted": control.halted_agents(),
                 "narration": control.get_narration_level()}   # claude reasoning visibility: off|key|full
 
@@ -972,6 +1035,47 @@ class Handler(BaseHTTPRequestHandler):
                         progress[a] = pv
             except Exception:
                 progress = {}
+            # ---- DSH rich presence (Lane 2): beat-age -> state, phase/profile/hop,
+            #      plus the "running WITHOUT the plugin" honesty badge. -------------
+            # Derived from the WORKLIVE hash (core/comm/roster.py), NOT BUS.presence():
+            # the bridge stamps {phase, profile, hop, plugin...} there, and roster.roster()
+            # already turns beat_ts into LIVE/STALE/DEAD. Defensive: profile/hop/plugin are
+            # read with .get() fallbacks so this degrades to "phase only" until the bridge
+            # lands the richer schema -- it must never raise or mis-report a seat.
+            dsh_card = None
+            try:
+                import os as _os
+                from core.comm import roster as _roster
+                _ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
+                rows = _roster.roster(_ns)
+                # find the dsh_agent row (best = LIVE > STALE > DEAD), honoring the
+                # roster's own state rank so a corpse never masquerades as the seat.
+                dsh_rows = [r for r in rows if r.get("agent") == "dsh_agent"]
+                if dsh_rows:
+                    _rank = {"LIVE": 3, "STALE": 2, "DEAD": 1}
+                    best = max(dsh_rows, key=lambda r: (_rank.get(str(r.get("state")), 0),
+                                                        -(float(r.get("beat_age_s") or 1e12))))
+                    # beat age -> green/amber/gray, the operator's core ask
+                    _state = str(best.get("state") or "?")
+                    _age = best.get("beat_age_s")
+                    _color = { "LIVE": "green", "STALE": "amber", "DEAD": "gray" }.get(_state, "gray")
+                    dsh_card = {
+                        "state": _state,
+                        "color": _color,
+                        "beat_age_s": _age,
+                        "phase": str(best.get("phase") or "?"),
+                        "session_id8": str(best.get("sid8") or ""),
+                        # bridge-stamped rich fields (roster.roster now passes them under
+                        # "bridge"; schema lands later, .get is the guard)
+                        "profile": (best.get("bridge") or {}).get("profile") or "",
+                        "hop": (best.get("bridge") or {}).get("hop"),
+                        # "running WITHOUT the plugin" only fires when the bridge has
+                        # EXPLICITLY stamped plugin_present=false. Absent = unknown, NOT
+                        # absent plugin -- never false-alarm a not-yet-stamped seat.
+                        "plugin_present": (best.get("bridge") or {}).get("plugin_present"),
+                    }
+            except Exception:
+                dsh_card = None
             # ---- assemble --------------------------------------------------------
             return {
                 "status": status,
@@ -980,6 +1084,7 @@ class Handler(BaseHTTPRequestHandler):
                 "seat_class": seat_class,
                 "daemon_live": daemon_live,
                 "progress": progress,
+                "dsh_card": dsh_card,
             }
         except Exception:
             return {}
@@ -1143,6 +1248,8 @@ class Handler(BaseHTTPRequestHandler):
             if not name:
                 return self._json({"ok": False, "error": "name required"})
             return self._json(_vfx_presets_write(name, data.get("value")))
+        if path == "/lib/run":
+            return self._lib_run(data)
         if path == "/send":
             return self._send(data)
         if path == "/pause":
@@ -1245,6 +1352,42 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": "level must be off|key|full"}, 400)
         control.set_narration_level(level, by="user")
         return self._json({"ok": True, "level": level})
+
+    def _lib_run(self, data):
+        """Run a command quoted in a message, through the SAME exec allowlist the agents use.
+
+        QoL run button (Daniil 2026-08-24). The gate is core/comm/toolbox.py::_exec_family --
+        literally imported, not re-implemented, so the browser can never run anything the fleet's
+        own guarded exec door would refuse. shell=False always, metacharacters refused, and only
+        the unattended families (pytest / agent_cli READ verbs / play_sandbox / mirror) pass.
+        Anything else -- including PowerShell like `Stop-Process` -- returns a REFUSED that the
+        UI renders as the red B-option warning, never a shell-out.
+        """
+        command = str(data.get("command") or "").strip()
+        if not command:
+            return self._json({"ok": False, "refused": "empty command"}, 400)
+        try:
+            from core.comm.toolbox import ToolBox
+            # trust=True + allow_exec=True picks the family-allowlist path ONLY (no interactive
+            # confirm); agent_id is None so the ACL/runner-identity branch never fires. We do NOT
+            # call toolbox.run_command() -- that method hard-gates on the *agent's* exec cap,
+            # which the console (posting as 'user') correctly does not hold. We call the one
+            # primitive that IS the policy: _exec_family.
+            tb = ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
+                         confirm=lambda _p: False, agent_id=None)
+            argv, env_extra, why = tb._exec_family(command)
+            if argv is None:
+                return self._json({"ok": False, "refused": why}, 200)
+            import subprocess
+            env = dict(os.environ)
+            env.update(env_extra or {})
+            p = subprocess.run(argv, cwd=REPO, capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=60, env=env)
+            body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
+            return self._json({"ok": True, "argv": argv, "exit": p.returncode,
+                               "output": body[:12000] or "(no output)"}, 200)
+        except Exception as exc:
+            return self._json({"ok": False, "refused": f"run failed: {type(exc).__name__}: {exc}"}, 200)
 
     def _send_bus(self, ns):
         """Get or construct a Bus("user", namespace=ns). Cached per ns; never per-request."""
@@ -1577,6 +1720,29 @@ PAGE = r"""<!doctype html>
   /* The composer grows to match. He offered: "We can make the textbox bigger." */
   #ash-frame.has-av ~ #ash-label, #ash.big #ash-label{font-size:12px}
   .cwrap.tall textarea{min-height:150px}
+  /* SHORT-VIEWPORT ADAPTATION (Serge, 2026-08-24: 1080p at 125% scaling = 864 CSS px tall).
+     The pairing above is deliberate and stays -- the composer matches the 192px hero avatar,
+     which is Daniil's ask. What was wrong is that both magnitudes are ABSOLUTE, tuned on a
+     tall monitor. Measured on an 864px viewport before this rule: header 72 + dsh-card 41 +
+     composer 293 = 406px of chrome, 47% of the screen, with the composer alone at 34% while
+     holding zero typed characters. He was reading the fleet through half a window.
+
+     Keyed on max-height, not max-width: the constraint is VERTICAL, and a 1920-wide window
+     at 125% scaling is not narrow -- a width breakpoint would have missed him entirely.
+     Nothing changes above 900px, so Daniil's layout is untouched. */
+  @media (max-height:900px){
+    .cwrap.tall textarea{min-height:84px}
+    .composer{padding:8px 16px 10px}
+    /* Hints are guidance, not data. They keep their place when they have something to say
+       and surrender it when they do not -- :empty rather than a display toggle, so nothing
+       has to remember to hide them. */
+    .composer .hint:empty{display:none}
+    #dsh-card{margin-top:4px; padding:6px 12px}
+  }
+  @media (max-height:780px){
+    .cwrap.tall textarea{min-height:64px}
+    header{padding-top:6px; padding-bottom:6px}
+  }
   /* Controls are never sacrificed to make room for data. */
   #epiChip,#reloadBtn,#gearBtn,#lnchrBtn,#vizBtn,#pauseBtn{flex:none}
   .pill{display:flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--border);
@@ -1624,9 +1790,27 @@ PAGE = r"""<!doctype html>
      content-visibility:auto lets the engine skip layout+paint for rows outside the viewport
      entirely -- the single largest win available here, because the feed is almost all off-screen.
      contain-intrinsic-size keeps the scrollbar honest while rows are skipped. */
-  .msg{display:flex; gap:12px; margin-bottom:18px; animation:fade .28s ease;
+  .msg{display:flex; gap:12px; margin-bottom:18px; animation:msgIn .32s cubic-bezier(.2,.8,.3,1) both;
        content-visibility:auto; contain-intrinsic-size:auto 64px}
+  /* ENTRY MOTION-BLUR: a message blooms INTO focus rather than merely fading up. The blur+rise
+     reads as the residual smear of motion (the classic "it came from somewhere" cue) and costs
+     nothing per-frame beyond the one composited transition -- no trail buffer, no WebGL, no
+     TDR risk on a fragile display driver. The blur is subtle (6px) and short (.32s) so it reads
+     as polish, not as "the feed is loading".
+     content-visibility lives OUTSIDE the keyframe on purpose: animating it would re-engage the
+     culled rows the motion-budget comment guards against. */
+  @keyframes msgIn{
+    from{opacity:0; transform:translateY(10px) scale(.99); filter:blur(6px)}
+    to{opacity:1; transform:none; filter:blur(0)}
+  }
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  /* BLOOM: the soft motion-blur variant for small telemetry (trace lines + cards). Lighter than
+     msgIn (4px vs 6px blur, less travel) so a burst of streamed toolcalls reads as a gentle
+     pulse into view, not a cascade of heavy transitions. Shares the same zero-cost rationale. */
+  @keyframes bloom{
+    from{opacity:0; transform:translateY(4px); filter:blur(4px)}
+    to{opacity:1; transform:none; filter:blur(0)}
+  }
   /* CONTRACT §1 motion budget, global floor: ambient motion is a nicety and must never be the
      reason a frame is missed. Honors the OS setting rather than inventing a project dial. */
   @media (prefers-reduced-motion:reduce){
@@ -1677,6 +1861,38 @@ PAGE = r"""<!doctype html>
     font:12.5px/1.5 "SF Mono",SFMono-Regular,Consolas,monospace}
   .content pre{background:#0b0d13; border:1px solid var(--border); border-radius:9px; padding:11px 13px;
     overflow-x:auto; margin:8px 0} .content pre code{background:none;border:none;padding:0}
+  /* QoL code-block actions (Daniil 2026-08-24): copy + run, INSIDE each fenced block.
+     The action bar slides in on hover; it never reflows the code, just overlays the top-right.
+     Run (▶) is the SAFE option -- it posts to /lib/run, which reuses the exact agent exec
+     allowlist. The red B option is presentation-only: it does not execute, it teaches the risk. */
+  .content pre{position:relative}
+  .code-acts{position:absolute; top:6px; right:6px; display:flex; gap:5px; opacity:0; transition:opacity .15s}
+  .content pre:hover .code-acts{opacity:1}
+  .code-acts button{font:inherit; font-size:11px; font-weight:700; line-height:1; padding:4px 7px;
+    border-radius:6px; cursor:pointer; border:1px solid var(--border); background:var(--panel2);
+    color:var(--muted); transition:.12s; display:flex; align-items:center; gap:3px}
+  .code-acts .ca-copy:hover{color:var(--text); border-color:#39405a; background:#1c1f2a}
+  .code-acts .ca-copy.done{color:var(--user); border-color:rgba(95,211,155,.45); background:rgba(95,211,155,.12)}
+  .code-acts .ca-run{color:var(--accent); border-color:rgba(122,162,247,.35); background:rgba(122,162,247,.08)}
+  .code-acts .ca-run:hover{border-color:rgba(122,162,247,.6); background:rgba(122,162,247,.16)}
+  .code-acts .ca-run.running{color:var(--amber); border-color:rgba(240,178,70,.5); animation:caPulse 1s ease-in-out infinite}
+  .code-acts .ca-b{color:var(--danger); border-color:rgba(240,102,110,.45); background:rgba(240,102,110,.1)}
+  .code-acts .ca-b:hover{background:rgba(240,102,110,.2); border-color:rgba(240,102,110,.65)}
+  @keyframes caPulse{0%,100%{opacity:.55}50%{opacity:1}}
+  /* the B-option explanation is a TOOLTIP, not a dialog: hover/click reveals the risk, never runs */
+  .code-acts .ca-b-wrap{position:relative}
+  .code-acts .ca-b-note{display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:25;
+    width:280px; background:#1a0d0e; border:1px solid rgba(240,102,110,.55); border-radius:9px;
+    padding:10px 12px; font-size:11.5px; line-height:1.45; color:#ffd9dc; box-shadow:var(--shadow);
+    text-align:left; font-weight:450; cursor:default}
+  .code-acts .ca-b-wrap:hover .ca-b-note{display:block}
+  .code-acts .ca-b-note b{color:var(--danger)}
+  /* run result strip under the block */
+  .code-run-result{margin:-4px 0 8px; padding:8px 12px; border:1px solid var(--border); border-radius:8px;
+    background:var(--panel); font:12px/1.5 "SF Mono",SFMono-Regular,Consolas,monospace; color:var(--muted);
+    white-space:pre-wrap; word-break:break-word; max-height:280px; overflow-y:auto; animation:fade .2s ease}
+  .code-run-result.ok{border-color:rgba(95,211,155,.3)}
+  .code-run-result.refused{border-color:rgba(240,102,110,.35); color:#ffd9dc}
   /* user msgs: right aligned */
   .msg.me{flex-direction:row-reverse}
   .msg.me .bubble{background:linear-gradient(135deg,rgba(95,211,155,.14),rgba(95,211,155,.06));
@@ -1689,14 +1905,14 @@ PAGE = r"""<!doctype html>
   .sys.guard span{color:var(--amber); border-color:rgba(240,178,70,.3); background:rgba(240,178,70,.08)}
   /* live trace: DeepSeek's tool calls + thinking, streamed as compact dim lines */
   .traceline{display:flex; gap:8px; align-items:baseline; margin:1px 0 1px 46px; font-size:12px;
-    font-family:"SF Mono",SFMono-Regular,Consolas,monospace; animation:fade .18s ease}
+    font-family:"SF Mono",SFMono-Regular,Consolas,monospace; animation:bloom .24s ease both}
   .traceline .trav{font-weight:600; opacity:.85; flex:none; min-width:56px}
   .traceline .trav.deepseek{color:var(--deepseek)} .traceline .trav.claude{color:var(--claude)}
   .traceline .trav.system{color:var(--system)}
   .traceline .trat{color:var(--faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   /* T002: collapsible trace card — consecutive same-agent traces fold into ONE card */
   .trace-card{margin:4px 0 4px 46px; border:1px solid var(--border); border-radius:8px;
-    background:var(--panel); overflow:hidden; animation:fade .2s ease}
+    background:var(--panel); overflow:hidden; animation:bloom .26s ease both}
   .trace-card-header{display:flex; align-items:center; gap:8px; padding:6px 10px;
     cursor:pointer; user-select:none; font-size:12px; color:var(--muted)}
   .trace-card-header:hover{background:rgba(255,255,255,.03)}
@@ -2157,6 +2373,25 @@ PAGE = r"""<!doctype html>
   .er-label{color:var(--faint); font-size:10px; text-transform:uppercase; letter-spacing:.4px}
   .er-val{font-weight:650; font-size:13px}
   .er-val.green{color:var(--user)} .er-val.amber{color:var(--amber)} .er-val.red{color:var(--danger)} .er-val.off{color:var(--muted)}
+  /* ===== DSH SEAT CARD (Lane 2): beat-age -> green/amber/gray + phase/profile/hop +
+          the "running WITHOUT the plugin" honesty badge ===== */
+  #dsh-card[hidden]{display:none}
+  #dsh-card{display:flex; align-items:center; gap:12px; margin:6px 16px 0; padding:10px 14px;
+    background:var(--glass); border:1px solid var(--glass-line); border-radius:14px;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    font-size:12.5px; flex-wrap:wrap}
+  #dsh-card .dsh-dot{width:9px;height:9px;border-radius:50%;flex:none}
+  #dsh-card.green .dsh-dot{background:#5fd39b; box-shadow:0 0 10px rgba(95,211,155,.55)}
+  #dsh-card.amber .dsh-dot{background:var(--amber); box-shadow:0 0 10px rgba(240,178,70,.5)}
+  #dsh-card.gray .dsh-dot{background:var(--faint)}
+  #dsh-card .dsh-name{font-weight:650; color:var(--text)}
+  #dsh-card .dsh-kv{display:inline-flex; align-items:center; gap:5px; color:var(--muted)}
+  #dsh-card .dsh-kv b{color:var(--text); font-weight:600}
+  #dsh-card .dsh-kv .k{color:var(--faint); font-size:10px; text-transform:uppercase; letter-spacing:.4px}
+  #dsh-card .dsh-badge{font-size:10px; font-weight:700; padding:1px 7px; border-radius:6px;
+    text-transform:uppercase; letter-spacing:.3px; border:1px solid; white-space:nowrap}
+  #dsh-card .dsh-badge.noplugin{color:var(--danger); border-color:rgba(240,102,110,.5);
+    background:rgba(240,102,110,.12)}
   /* heartbeat ring — pulsing circle */
   .er-hb{width:14px;height:14px;border-radius:50%;flex:none}
   .er-hb.active{background:var(--user); box-shadow:0 0 8px var(--user); animation:hbPulse 1.5s infinite}
@@ -2208,6 +2443,7 @@ PAGE = r"""<!doctype html>
   </div>
   <div id="hud"><div id="hud-toggle" class="show" onclick="toggleHUD()" title="collapse HUD">⌃ collapse</div></div>
   <div id="engine-room"></div>
+  <div id="dsh-card" hidden></div>
   <div id="deck"><div class="deck-cards" id="deckCards"></div><div class="slide-dots" id="deckDots"></div><div class="deck-controls"><span class="deck-ctrl" id="deckPrev" onclick="deckPrev()">◀ prev</span><span class="deck-ctrl" id="deckPause" onclick="deckTogglePause()">⏸ pause</span><span class="deck-ctrl" id="deckNext" onclick="deckNext()">next ▶</span></div></div>
   <div id="lnchr">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -2296,6 +2532,7 @@ PAGE = r"""<!doctype html>
     </div>
   </div>
   <div id="log"></div>
+  <div id="threadBanner" style="display:none"></div>
   <div class="activity" id="activity"></div>
   <div class="composer">
     <div class="ladder" id="ladder">
@@ -2322,6 +2559,7 @@ PAGE = r"""<!doctype html>
     <div id="ash-content"></div>
     <div class="roster-pop" id="rosterPop"></div>
     <div class="hint" id="fidhint">↳ Inform = adopt next turn · Steer = fold into current task (no stop) · Interrupt = drop &amp; switch · ⏸ Pause = freeze everyone · 📎 Ctrl+V paste images or drag &amp; drop files</div>
+    <div class="hint" id="codehint" style="margin-top:2px">⬛ Code blocks now have <b>📋 Copy</b> (always) + <b>▶ Run</b> (safe: reuse the agent exec allowlist) · <b style="color:var(--danger)">B</b> = disabled unsafe-exec path (hover to read why it stays off)</div>
   </div>
 </div>
 <div id="drop"><div class="dz" id="dropZone"><div class="big">Drop files to share</div><div class="sub">saved into the project · agents can read them with their tools<br><span style="color:var(--faint);font-size:11px;margin-top:4px;display:inline-block">also: Ctrl+V to paste images from clipboard</span></div><img class="preview" id="dropPreview"><div class="filenames" id="dropFilenames"></div></div></div>
@@ -2350,9 +2588,104 @@ log.addEventListener('scroll', ()=>{
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function fmt(s){
   s = esc(s);
-  s = s.replace(/```([\s\S]*?)```/g, (m,c)=>'<pre><code>'+c.replace(/^\n/,'')+'</code></pre>');
+  s = s.replace(/```([\s\S]*?)```/g, (m,c)=>{
+    const code = c.replace(/^\n/,'');
+    const isCmd = /^\s*(py(thon3?)?|pytest|python|python3)(\s|$)/.test(code.trim());
+    const acts = codeBlockActs(code, isCmd);
+    return '<div class="code-block-host"><pre><code>'+code+'</code></pre>'+acts+'</div>';
+  });
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
   return s;
+}
+// Build the copy/run/B action bar for one fenced code block. isRun=true only when the block
+// reads as a *command* (py/python/pytest). Copy is always offered; Run (▶) is the SAFE option;
+// B is the red disabled option explaining why arbitrary shell-out is not one click away.
+function codeBlockActs(code, isRun){
+  const copy = '<button class="ca-copy" title="copy to clipboard">\u{1f4cb} Copy</button>';
+  const bOpt = isRun
+    ? ('<span class="ca-b-wrap"><button class="ca-b" title="unsafe exec">B</button>'
+       + '<span class="ca-b-note"><b>Option B — unsafe, disabled.</b> This would run '
+       + '<b>anything</b> the block quotes (PowerShell, arbitrary scripts, raw commands) — a new '
+       + 'unconfined exec surface for the browser, beyond the fleet\'s own allowlist. It stays '
+       + 'OFF until you ratify it as an operator-in-the-loop action with a per-run confirmation. '
+       + 'Option A (▶) is the safe path: it reuses the exact agent exec allowlist and refuses '
+       + 'everything else.</span></span>')
+    : ('<span class="ca-b-wrap"><button class="ca-b" title="not a command — B option N/A">B</button>'
+       + '<span class="ca-b-note"><b>Not a runnable command.</b> This block isn\'t a '
+       + '<code>py</code>/<code>pytest</code> command, so the run option does not apply.</span></span>');
+  const run = isRun ? '<button class="ca-run" title="run (safe allowlist)">\u25b6 Run</button>' : '';
+  return '<span class="code-acts">'+copy+run+bOpt+'</span>';
+}
+
+// ---- code-block action handlers (event delegation; works for live + history) ----
+function bindCodeActs(){
+  const host = document.getElementById('log');
+  if(!host) return;
+  host.addEventListener('click', function(e){
+    const t = e.target;
+    const btn = t.closest ? t.closest('button') : null;
+    if(!btn) return;
+    const preHost = t.closest ? t.closest('.code-block-host') : null;
+    if(!preHost) return;
+    const codeEl = preHost.querySelector('pre code');
+    const code = codeEl ? codeEl.textContent : '';
+    if(btn.classList.contains('ca-copy')){
+      copyText(code, btn);
+      return;
+    }
+    if(btn.classList.contains('ca-run')){
+      runCodeBlock(code, btn, preHost);
+      return;
+    }
+  });
+}
+function copyText(text, btn){
+  const done = ()=>{ btn.classList.add('done'); btn.textContent='\u2713 Copied';
+    setTimeout(()=>{ btn.classList.remove('done'); btn.textContent='\u{1f4cb} Copy'; }, 1400); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta); done();
+  }catch(err){ /* non-secure context, no copy -- silent no-op */ }
+}
+function runCodeBlock(code, btn, preHost){
+  // strip a leading prompt symbol if present (e.g. "py ..." is fine; "> py ..." is not)
+  const cmd = code.trim().replace(/^>\s*/, '');
+  if(!cmd) return;
+  // remove any trailing result lines the renderer didn't fence as code (defensive)
+  btn.classList.add('running'); btn.textContent='\u2026 running';
+  let old = preHost.querySelector('.code-run-result');
+  if(old) old.remove();
+  fetch('/lib/run', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd})
+  }).then(r=>r.json()).then(res=>{
+    btn.classList.remove('running'); btn.textContent='\u25b6 Run';
+    const d = document.createElement('div');
+    if(res.ok){
+      d.className='code-run-result ok';
+      d.textContent = '"'+res.argv.join(' ')+'"\n[exit '+res.exit+']\n'+res.output;
+    } else {
+      d.className='code-run-result refused';
+      d.textContent = 'REFUSED: '+(res.refused||'unknown refusal');
+    }
+    preHost.appendChild(d);
+  }).catch(err=>{
+    btn.classList.remove('running'); btn.textContent='\u25b6 Run';
+    const d = document.createElement('div');
+    d.className='code-run-result refused';
+    d.textContent = 'run error: '+err;
+    preHost.appendChild(d);
+  });
 }
 function initials(a){ return (a||'?').slice(0,2).toUpperCase(); }
 function cls(a){ return (a==='claude'||a==='deepseek'||a==='user') ? a : 'system'; }
@@ -2392,6 +2725,7 @@ const HISTORY_BATCH = 100;                    // messages re-hydrated per scroll
 
 // T002: trace-run accumulator — consecutive same-agent traces fold into one collapsible card
 var _traceRun = {agent:null, traces:[], firstIdx:null};
+var _traceFlushTimer = null;   // debounced realtime flush (see addMsg trace branch)
 
 function _buildTraceCard(run){
   // count by kind
@@ -2406,14 +2740,14 @@ function _buildTraceCard(run){
   var hdr = document.createElement('div');
   hdr.className = 'trace-card-header';
   hdr.innerHTML = '<span class="tc-arrow">▶</span>'+
-    '<span class="trav '+cls(run.agent)+'">'+esc(run.agent)+'</span>'+
+    '<span class="trav '+cls(run.agent)+'">'+esc(name(run.agent))+'</span>'+
     '<span class="tc-counts">'+esc(summary)+'</span>';
   // body
   var body = document.createElement('div');
   body.className = 'trace-card-body';
   run.traces.forEach(function(t){
     var tl = document.createElement('div'); tl.className = 'traceline';
-    tl.innerHTML = '<span class="trav '+cls(run.agent)+'">'+esc(run.agent)+'</span><span class="trat">'+esc(t.text||'')+'</span>';
+    tl.innerHTML = '<span class="trav '+cls(run.agent)+'">'+esc(name(run.agent))+'</span><span class="trat">'+esc(t.text||'')+'</span>';
     body.appendChild(tl);
   });
   card.appendChild(hdr); card.appendChild(body);
@@ -2456,7 +2790,7 @@ function renderMsg(m){                        // build a message's DOM node (no 
   const isGuard = /loop-guard/i.test(m.content||'');
   if(kind==='trace'){
     const d=document.createElement('div'); d.className='traceline';
-    d.innerHTML='<span class="trav '+cls(from)+'">'+esc(from)+'</span><span class="trat">'+esc(m.content||'')+'</span>';
+    d.innerHTML='<span class="trav '+cls(from)+'">'+esc(name(from))+'</span><span class="trat">'+esc(m.content||'')+'</span>';
     return d;
   }
   if(from==='system' || kind==='note'){
@@ -2472,16 +2806,62 @@ function renderMsg(m){                        // build a message's DOM node (no 
   const epimark = epi.marker? '<span class="epi epi-mark epi-'+epi.tier+'">'+epi.marker+'</span>' : '';
   const epig = '<span class="epi epi-'+epi.tier+'" data-epi-tier="'+epi.tier+'" title="'+epi.tier+(epi.unknown?' (no stamp — status unknown)':'')+'">'+epi.glyph+'</span>';
   wrap.innerHTML =
-    '<div class="av '+c+'">'+initials(from)+'</div>'+
-    '<div class="bubble"><div class="row"><span class="who '+c+'">'+esc(from)+'</span>'+
+    '<div class="av '+c+'">'+initials(name(from))+'</div>'+
+    '<div class="bubble"><div class="row"><span class="who '+c+'" style="cursor:pointer" title="click to talk 1:1 with '+esc(name(from))+'" onclick="if(from!==\'user\'&&from!==\'system\')setThread(from===\'_threadPeer\'?\'\':from)">'+esc(name(from))+'</span>'+
     '<span class="time">'+now(m.ts)+'</span>'+epig+epimark+intent+hop+'</div>'+
     '<div class="content">'+_msgRenderer(m)+'</div></div>';
   return wrap;
 }
 
+// ---- 1:1 private-thread filter (B) ------------------------------------------------
+// "talk privately": collapse the firehose to just you <-> one peer, so replies live in the
+// SAME surface you type from. _threadPeer='' means broadcast (no filter). The bus already
+// carries to/from + meta.reply_id, so a 1:1 thread is a CLIENT-SIDE view, not new routing.
+var _threadPeer = '';
+function _inThread(m){
+  if(!_threadPeer) return true;                       // broadcast: show everything
+  var f = m.from || 'system', t = (m.to || '');
+  if(f === _threadPeer || t === _threadPeer) return true;   // the peer spoke, or was spoken to
+  // system/user chatter about the peer (e.g. "[shared file]" addressed to a seat) stays visible
+  if(f === 'user' || f === 'system') return t === _threadPeer || t === 'all' || t === '*';
+  return false;
+}
+function setThread(peer){
+  _threadPeer = peer;
+  // clear + re-render the whole buffer through the filter (bounded: allMsgs is the session window)
+  var logEl = document.getElementById('log');
+  if(logEl) logEl.innerHTML = '';
+  seen.clear();                   // re-add will re-mark; ids are stable so no duplicate risk on re-render
+  _traceRun = {agent:null, traces:[], firstIdx:null};
+  _bkCount = 0; _bkLast = '';
+  var bkEl = document.getElementById('bkFooter'); if(bkEl) bkEl.remove();
+  for(var i=0;i<allMsgs.length;i++){ addMsg(allMsgs[i]); }
+  autoscroll();
+  renderThreadBanner();
+  // keep the selector pointing at the peer so 'who am I talking to' never diverges from the view
+  if(peer){ setRecipients([peer]); }
+}
+
+function renderThreadBanner(){
+  var el = document.getElementById('threadBanner'); if(!el) return;
+  if(!_threadPeer){
+    el.style.display='none'; el.innerHTML=''; return;
+  }
+  el.style.display='block';
+  el.style.cssText = 'font-size:13px;font-weight:600;color:var(--text);padding:8px 14px;margin:0 0 2px;'+
+    'background:rgba(122,162,247,.10);border:1px solid rgba(122,162,247,.30);border-radius:10px;'+
+    'display:flex;align-items:center;gap:10px;justify-content:space-between;';
+  el.innerHTML = '<span>🔒 Talking with <b>'+esc(name(_threadPeer))+'</b></span>'+
+    '<span style="display:flex;gap:8px">'+
+    '<button onclick="setThread(\'\')" style="cursor:pointer;font:inherit;font-size:11px;padding:3px 10px;'+
+    'border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--muted)">show all</button>'+
+    '</span>';
+}
+
 function addMsg(m){
   if(m.id && m.id!=='0'){ if(seen.has(m.id)) return; seen.add(m.id); }
   if((m.kind||'chat')==='_ready') return;
+  if(!_inThread(m)) return;                       // thread filter: silent skip, not an error
   // negotiation verdict: display prominently
   const kind = m.kind||'chat';
   if(kind === 'verdict' || (kind === 'halt' && (m.meta||{}).intent === 'verdict')){
@@ -2516,9 +2896,18 @@ function addMsg(m){
       _flushTraceRun();
       _traceRun = {agent:from, traces:[{kind:kind, text:m.content||'', ts:m.ts}], firstIdx:idx};
     }
+    // REALTIME TRACE FLUSH (fixes "only see it after the fact"). Traces used to accumulate
+    // invisibly until the NEXT non-trace message flushed the card -- a quiet agent's toolcalls
+    // and thinking sat hidden until its answer landed. Now a debounced timer flushes the
+    // accumulated card ~300ms after the trace stream goes quiet, so reasoning appears within a
+    // heartbeat while a dense BURST still collapses into one card (the timer keeps resetting as
+    // long as traces keep arriving back-to-back). Cheap: at most one pending rAF per burst.
+    if(_traceFlushTimer) clearTimeout(_traceFlushTimer);
+    _traceFlushTimer = setTimeout(function(){ _traceFlushTimer = null; _flushTraceRun(); }, 300);
     return;  // don't render individually — the flush handles rendering
   }
   // non-trace message: flush any pending trace run, then render normally
+  if(_traceFlushTimer){ clearTimeout(_traceFlushTimer); _traceFlushTimer = null; }
   _flushTraceRun();
   const node = renderMsg(m); if(!node) return;
   node.dataset.mi = idx;
@@ -2582,7 +2971,18 @@ function trimLog(){
   // tail window: at the live tail keep it lean (250); scrollback stays for reading history + re-hydration
   if(nearBottom) while(log.childElementCount > MAX_LOG_NODES) log.removeChild(log.firstElementChild);
 }
-function autoscroll(){ trimLog(); if(nearBottom) log.scrollTo({top: log.scrollHeight, behavior: 'instant'}); }
+function autoscroll(){
+  trimLog();
+  if(!nearBottom) return;
+  // SMOOTH WHEN CLOSE, INSTANT WHEN FAR. The jump-to-latest bug (Daniil: "many clicks") was
+  // that a smooth scroll toward scrollHeight chases a MOVING target -- content-visibility rows
+  // resolve taller mid-flight, so the glide lands short. But a smooth scroll for the COMMON
+  // case (one new message arrived, glide down a few hundred px) is exactly the pleasant motion
+  // worth keeping. Distance-bound it: near the bottom, glide (cheap, lands correctly); far
+  // away, snap (the long jump must arrive, not drift).
+  var dist = log.scrollHeight - log.scrollTop - log.clientHeight;
+  log.scrollTo({ top: log.scrollHeight, behavior: dist < 600 ? 'smooth' : 'instant' });
+}
 // real rich presence: what each agent is actually doing, from /status (not a client-side guess)
 const ICON = {thinking:'💭', reading:'📖', searching:'🔍', inspecting:'🔎', recalling:'🧠', running:'⚙️', writing:'✍️', working:'⚡'};
 const VERB = {thinking:'thinking', reading:'reading', searching:'searching', inspecting:'inspecting git', recalling:'searching memory', running:'running a command', writing:'writing', working:'working'};
@@ -2609,7 +3009,11 @@ var _avatarsOff = false;
 // looked identical to "the change never shipped". On a host with a documented display-driver
 // TDR history that path is not hypothetical. The box is now set first and kept regardless.
 function sizeHeroFrame(frame){
-  var SIZE = 192;                              // 2in at the CSS reference 96dpi (Daniil's ask)
+  // 192px = 2in at the CSS reference 96dpi (Daniil's ask). Held EXACTLY on any viewport tall
+  // enough to afford it; below that it scales, because the composer scales with it (see the
+  // max-height:900px block) and a full-size hero beside a shrunken composer breaks the very
+  // pairing the .tall class exists to create. The floor keeps it a portrait, not a favicon.
+  var SIZE = Math.max(112, Math.min(192, Math.round(window.innerHeight * 0.21)));
   frame.style.width = SIZE + 'px';
   frame.style.height = SIZE + 'px';
   frame.style.borderRadius = '26px';
@@ -3090,6 +3494,7 @@ const es = new EventSource('/events');
   es.onmessage = e=>{ try{ addMsg(JSON.parse(e.data)); }catch(err){} };
   es.onerror = ()=>{ /* browser auto-reconnects */ };
 }
+bindCodeActs();                                  // code-block copy/run/B actions (event delegation, bound once)
 connect();
 setFidelity('inform');                           // default fidelity + light the ladder (renderRecipient runs after _recips is defined, below)
 document.addEventListener('click', function(e){  // click-away closes the roster popover
@@ -3100,7 +3505,40 @@ document.addEventListener('click', function(e){  // click-away closes the roster
 // --- send ---
 const input = document.getElementById('input');
 input.addEventListener('input', ()=>{ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,160)+'px'; });
-input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+// BROADCAST ARM-GUARD (Daniil 2026-08-24: "I keep sending broadcasts on accident"). Enter only
+// fires instantly for a TARGETED send (one agent / multi-select). For a broadcast to ALL agents,
+// the first Enter ARMS the send and tells you who it will reach; a second Enter within
+// ARM_TIMEOUT fires it. Shift+Enter (newline) is untouched, and the armed state auto-clears so a
+// stale "armed" send never fires minutes later. Deliberately NOT a modal: text is flowing, a
+// modal breaks flow; a second keypress is the confirm.
+const ARM_TIMEOUT = 4000;   // ms the "send to all?" arm stays hot
+var _broadcastArmed = false, _broadcastArmTimer = null;
+function _disarmBroadcast(){
+  _broadcastArmed = false;
+  if(_broadcastArmTimer){ clearTimeout(_broadcastArmTimer); _broadcastArmTimer = null; }
+  var b=document.getElementById('sendBtn'); if(b) b.textContent='➤';
+}
+input.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    var isAll = _recips.length===1 && _recips[0]==='all';
+    if(isAll && !_broadcastArmed){
+      // arm: one more Enter to confirm the broadcast
+      _broadcastArmed = true;
+      var n = _aiRoster().length;
+      var b=document.getElementById('sendBtn'); if(b) b.textContent='⚠';
+      toast('⚠ Broadcast to '+n+' agent'+(n===1?'':'s')+' — press Enter again to send (or Esc to cancel)');
+      if(_broadcastArmTimer) clearTimeout(_broadcastArmTimer);
+      _broadcastArmTimer = setTimeout(_disarmBroadcast, ARM_TIMEOUT);
+      return;
+    }
+    _disarmBroadcast();
+    send();
+    return;
+  }
+  if(e.key==='Escape'){ _disarmBroadcast(); return; }
+  if(e.key!=='Enter'){ _disarmBroadcast(); }   // typing anything drops the arm so text isn't sent half-thought
+});
 const FIDLABEL = {chat:'💬 sent', inform:'🟢 informed', steer:'🔵 steered (folds into current task)', interrupt:'🔴 interrupted (drop & switch)'};
 function fidChanged(){
   var f = document.getElementById('fidelity'); if(!f) return;
@@ -3151,15 +3589,34 @@ async function send(){
 // --- Slice 2: animated recipient selector (state = who you're messaging; last-messaged persists) ---
 var _recips = ['all'];                          // ['all'] (broadcast) or a list of agent ids
 var _onlineAgents = [];                         // bus agents currently online (excludes 'user'); gates the smart negotiation round
+// DISPLAY-NAME OVERRIDES: a seat renamed by the operator before the callsign ceremony has been
+// ratified. Declared UP HERE (before avatarInfo/name) on purpose: avatarInfo() is called at script
+// parse time by the renderRecipient() first-paint below, and a `var` assigned LATER would be
+// undefined at that moment — reading a property off it throws and blanks the whole recipient strip
+// (the "Kimi disappeared from broadcast" bug). Must exist before its first read.
+var _DISPLAY_OVERRIDES = { 'dsh_agent': 'Rill' };
+// Vendor/hue alias: Rill is a DeepSeek seat, so it wears the SAME color and (deepseek) suffix as
+// the other DeepSeek residents rather than a hashed dynamic hue — recognisably one family.
+var _VENDOR_OVERRIDES = { 'dsh_agent': 'deepseek' };
 function _aiRoster(){                            // AI agents in the hidden target select (excludes 'all')
   var t=document.getElementById('target'); if(!t) return [];
   return [].map.call(t.options,function(o){return o.value;}).filter(function(v){return v!=='all';});
 }
 function avatarInfo(a){
-  var m={claude:['#f0a56c','#e0724f','C'], deepseek:['#7aa2f7','#9d7cf7','D'], user:['#48e6bf','#2fbf8f','U']};
-  if(m[a]) return {a:m[a][0], b:m[a][1], l:m[a][2]};
+  // Letter comes from the CALLSIGN (Heimdall -> H), not the vendor id (deepseek -> D). Colors
+  // stay keyed on the stable vendor id so each seat keeps one recognizable hue; the letter is the
+  // identity the operator reads. Falls back to id-first-letter for unratified seats. The display
+  // override (Rill) participates here too, so the chip reads "R" not the raw-id "D".
+  var m={claude:['#f0a56c','#e0724f'], deepseek:['#7aa2f7','#9d7cf7'], user:['#48e6bf','#2fbf8f']};
+  var ov = (typeof _VENDOR_OVERRIDES === 'object' && _VENDOR_OVERRIDES) ? _VENDOR_OVERRIDES : {};
+  var vend = ov[a] || a;                         // Rill -> deepseek: same hue as the family
+  var base = m[vend] ? m[vend] : null;
+  var r = _residents[a];
+  var cs = (r && r.callsign) ? r.callsign : (typeof _DISPLAY_OVERRIDES === 'object' && _DISPLAY_OVERRIDES ? (_DISPLAY_OVERRIDES[a] || '') : '');
+  var letter = cs ? cs[0].toUpperCase() : ((a&&a[0])||'?').toUpperCase();
+  if(base) return {a:base[0], b:base[1], l:letter};
   var h=0; for(var i=0;i<a.length;i++){ h=(h*31+a.charCodeAt(i))%360; }   // dynamic agents -> stable hue
-  return {a:'hsl('+h+' 68% 62%)', b:'hsl('+((h+38)%360)+' 62% 52%)', l:(a[0]||'?').toUpperCase()};
+  return {a:'hsl('+h+' 68% 62%)', b:'hsl('+((h+38)%360)+' 62% 52%)', l:letter};
 }
 function _cav(a){
   var v=avatarInfo(a), el=document.createElement('div');
@@ -3197,11 +3654,12 @@ function renderRecipient(){
   var ids=_recipIds(); if(!ids.length) ids=_aiRoster();
   animateGroup(stack, ids.slice(0,4), _cav);
   label.innerHTML = isAll ? '<b>Broadcast</b><span class="cue"> · '+ids.length+' agent'+(ids.length===1?'':'s')+'</span>'
-                  : ids.length===1 ? '<b>'+esc(ids[0])+'</b><span class="cue"> · last messaged</span>'
+                  : ids.length===1 ? '<b>'+esc(name(ids[0]))+'</b><span class="cue"> · last messaged</span>'
                   : '<b>'+ids.length+' agents</b><span class="cue"> · multi-cast</span>';
   if(box){ box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
   var t=document.getElementById('target'); if(t){ t.value = isAll ? 'all' : (_recips.length===1 ? _recips[0] : 'all'); }
   renderRosterPop();
+  if(typeof updateAshChroma==='function') updateAshChroma();   // keep ash label + chroma truthful on every path
 }
 function setRecipients(list){ _recips = (list && list.length) ? list : ['all']; renderRecipient(); }
 function toggleRecipient(a){
@@ -3210,20 +3668,40 @@ function toggleRecipient(a){
   if(s.has(a)) s.delete(a); else s.add(a);
   setRecipients(Array.from(s));
 }
+// SHIFT/CTRL-CLICK = ADD to (or remove from) the current selection, never replace it. Plain click
+// keeps the old single-select-replace behaviour so nothing a user has learned changes underneath
+// them. This is the multi-select gesture: click one, then shift-click the rest.
+function accumulateRecipient(a, additive){
+  if(a==='all'){ setRecipients(['all']); return; }
+  if(!additive){ toggleRecipient(a); return; }   // plain click: unchanged toggle behaviour
+  var s=new Set(_recips.filter(function(x){return x!=='all';}));
+  if(s.has(a)) s.delete(a); else s.add(a);
+  // never let an additive multi-select collapse into a confusing empty set; keep at least last
+  setRecipients(s.size ? Array.from(s) : _recips.slice());
+}
 function toggleRoster(){ var p=document.getElementById('rosterPop'); if(p){ renderRosterPop(); p.classList.toggle('show'); } }
 function renderRosterPop(){
   var p=document.getElementById('rosterPop'); if(!p) return;
   var ids=_aiRoster(), isAll=_recips.length===1 && _recips[0]==='all';
   var rows='<div class="ri'+(isAll?' sel':'')+'" onclick="toggleRecipient(\'all\')"><div class="cav" style="background:linear-gradient(140deg,#7aa2f7,#48e6bf)">*</div>All agents<span class="chk">✓</span></div>';
   rows+=ids.map(function(a){ var v=avatarInfo(a), sel=!isAll && _recips.indexOf(a)>=0;
-    return '<div class="ri'+(sel?' sel':'')+'" onclick="toggleRecipient(\''+esc(a)+'\')"><div class="cav" style="background:linear-gradient(140deg,'+v.a+','+v.b+')">'+v.l+'</div>'+esc(a)+'<span class="chk">✓</span></div>';
+    return '<div class="ri'+(sel?' sel':'')+'" onclick="accumulateRecipient(\''+esc(a)+'\', event.shiftKey||event.ctrlKey||event.metaKey)" title="'+(sel?'click: deselect · ':'click: select · ')+'shift/ctrl-click: '+((sel?'remove from':'add to')+' multi-select')+'"><div class="cav" style="background:linear-gradient(140deg,'+v.a+','+v.b+')">'+v.l+'</div>'+esc(name(a))+'<span class="chk">✓</span></div>';
   }).join('');
   p.innerHTML=rows;
 }
 renderRecipient();                                // first paint (now that _recips + helpers are defined)
 
 // --- pill click -> set composer target ---
-function setTarget(aid){
+function setTarget(aid, additive){
+  if(additive){                                 // shift/ctrl/meta-click: ADD to selection, never replace
+    var tsel0=document.getElementById('target');
+    if(tsel0 && ![].some.call(tsel0.options,function(o){return o.value===aid;})){
+      var opt0=document.createElement('option'); opt0.value=aid; opt0.textContent=aid; tsel0.appendChild(opt0);
+    }
+    accumulateRecipient(aid, true);
+    if(typeof updateAshChroma==='function') updateAshChroma();
+    return;
+  }
   var tsel=document.getElementById('target');
   if(tsel && ![].some.call(tsel.options,function(o){return o.value===aid;})){
     var opt=document.createElement('option'); opt.value=aid; opt.textContent=aid; tsel.appendChild(opt);
@@ -3245,8 +3723,31 @@ async function togglePause(){
   catch(e){ toast('control failed — bus offline?'); }
 }
 var _lastRosterSig = '';   // fingerprint cache: only rebuild DOM when agent state actually changed
+var _residents = {};       // aid -> {callsign, vendor, ...} — the seat NAMES, from /status (server reads core/fleet/residents)
+
+// T338 (Daniil): the message "from", roster pill, and recipient selector all render the raw
+// agent id (deepseek, kimi), never the callsign — this surface was the ONLY channel that could
+// have taught the names, teaching the vendor id instead. Look up the name in ONE place so both
+// surfaces (UI + Discord rooms) teach the SAME spelling: "Heimdall (deepseek)". Fall back to the
+// bare aid when a seat is unratified (no residents entry) — same as the server's fail-soft.
+//
+// A seat in _DISPLAY_OVERRIDES (declared up top, before any call) shows its operator-given name
+// until a ratified resident callsign supersedes it — the ceremony is the durable source of truth,
+// this table is only the unratified-seat fallback. Rill is a DeepSeek seat, so it renders with
+// the same vendor suffix the other DeepSeek residents get: "Rill (deepseek)".
+function name(a){
+  var r = _residents[a];
+  if(r && r.callsign) return r.callsign + (r.vendor ? ' (' + r.vendor + ')' : '');
+  if(typeof _DISPLAY_OVERRIDES === 'object' && _DISPLAY_OVERRIDES && _DISPLAY_OVERRIDES[a] !== undefined){
+    var ov = (typeof _VENDOR_OVERRIDES === 'object' && _VENDOR_OVERRIDES) ? _VENDOR_OVERRIDES : {};
+    var v = ov[a];
+    return _DISPLAY_OVERRIDES[a] + (v ? ' (' + v + ')' : '');
+  }
+  return a;
+}
 
 function applyStatus(s){
+  if(s.residents) _residents = s.residents;
   paused = !!s.paused;
   const b=document.getElementById('pauseBtn'), banner=document.getElementById('banner');
   b.textContent = paused ? '▶ Resume' : '⏸ Pause';
@@ -3286,7 +3787,7 @@ function applyStatus(s){
                 +(g.steer_pending?'<span class="sig steer" title="steer facts queued">↝'+g.steer_pending+'</span>':'')
                 +(g.nudged?'<span class="sig nudge" title="interrupt pending">⚡</span>':'')
                 +(unknown?' <span title="online but not ACL-registered — security onboarding cue" style="color:var(--amber);font-size:11px">⚠ unknown</span>':'');
-      return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\')" title="click to message '+esc(a)+(unknown?' (unregistered)':'')+'"><span class="dot"></span>'+esc(a)+(isOnline?'':' 💤')+marks+'</div>';
+      return '<div class="pill'+(isOnline?' on':' off')+'" onclick="setTarget(\''+esc(a)+'\', event.shiftKey||event.ctrlKey||event.metaKey)" title="click to message '+esc(name(a))+' · shift/ctrl-click to '+((_recips.indexOf(a)>=0&&_recips.length!==1)?'remove from':'add to')+' multi-select'+(unknown?' (unregistered)':'')+'"><span class="dot"></span>'+esc(name(a))+(isOnline?'':' 💤')+marks+'</div>';
     }).join('');
   }
   // keep the recipient dropdown in sync with union of ACL-registered + online agents
@@ -3297,7 +3798,7 @@ function applyStatus(s){
     if(tsel.dataset.sig!==sigStr){
       const cur=tsel.value||'all';
       tsel.innerHTML='<option value="all">All</option>'+targets.map(a=>{
-        const label=esc(a)+(isKnown.has(a)?'':' ⚠');
+        const label=esc(name(a))+(isKnown.has(a)?'':' ⚠');
         return '<option value="'+esc(a)+'">'+label+'</option>';
       }).join('');
       tsel.value=[...tsel.options].some(o=>o.value===cur)?cur:'all';
@@ -3436,6 +3937,39 @@ function applyNow(data){
       }
     }
   }
+  renderDshCard((data||{}).dsh_card || null);
+}
+// ===== DSH SEAT CARD (Lane 2): one honest row — beat age -> color, phase, profile,
+//      hop, and the "running WITHOUT the plugin" badge when the bridge proves absence.
+//      renderDshCard is called from applyNow on every poll; it hides itself entirely
+//      when there is no dsh_card (bridge not yet stamped / seat absent), so it can
+//      never introduce a phantom row. Additive to pills/gcards/rail — its own element.
+function renderDshCard(card){
+  var el = document.getElementById('dsh-card');
+  if(!el) return;
+  if(!card){
+    el.setAttribute('hidden','');
+    el.className = '';
+    return;
+  }
+  el.removeAttribute('hidden');
+  el.className = (card.color === 'green') ? 'green' : (card.color === 'amber' ? 'amber' : 'gray');
+  var age = (card.beat_age_s === null || card.beat_age_s === undefined) ? 'never' : (card.beat_age_s + 's');
+  var kv = function(k, v){ return v ? '<span class="dsh-kv"><span class="k">'+esc(k)+'</span><b>'+esc(v)+'</b></span>' : ''; };
+  var hop = (card.hop === null || card.hop === undefined || card.hop === '') ? '' : String(card.hop);
+  var noPlugin = '';
+  if(card.plugin_present === false){
+    noPlugin = '<span class="dsh-badge noplugin" title="the dsh seat is beating on the bus but its posttool plugin did not stamp presence — integration incomplete">⚠ running WITHOUT the plugin</span>';
+  }
+  var html =
+    '<span class="dsh-dot"></span>' +
+    '<span class="dsh-name">'+esc(name('dsh_agent'))+'</span>' +
+    '<span class="dsh-kv"><span class="k">beat</span><b>'+esc(age)+'</b></span>' +
+    kv('phase', card.phase === '?' ? '' : card.phase) +
+    kv('profile', card.profile) +
+    kv('hop', hop) +
+    noPlugin;
+  el.innerHTML = html;
 }
 async function pollNow(){
   try{
@@ -4062,8 +4596,11 @@ function toggleAsh(){
   c.classList.toggle('show',_ashOpen);
   s.style.display=_ashOpen?'block':'none';
   if(_ashOpen){
-    var agents=_glassCardData.agents||[];
-    animateExpandTiles(c, agents, {onSelect:setTargetAndCloseAsh});
+    // Read the SAME roster the pills + recipient chip use (the hidden #target select), not the
+    // _glassCardData.agents snapshot — that only exists on the glass-card/iso-cube tile branch,
+    // so the popover opened empty/stale on any other variant. This is the "who did I select?"
+    // root cause: one picker reading a different list than the other.
+    animateExpandTiles(c, _aiRoster(), {onSelect:setTargetAndCloseAsh});
   }
 }
 function setTargetAndCloseAsh(aid){
@@ -4072,15 +4609,30 @@ function setTargetAndCloseAsh(aid){
   document.getElementById('ash-frame').classList.remove('open');
   document.getElementById('ash-content').classList.remove('show');
   document.getElementById('ash-sep').style.display='none';
+  updateAshLabel();
+}
+function updateAshLabel(){
+  // THE missing piece: #ash-label ships as "— / no target" and NOTHING ever wrote it, so the
+  // name under the avatar never appeared (Daniil: "I want the name of the ai underneath it").
+  var lab=document.getElementById('ash-label'); if(!lab) return;
+  var nm=lab.querySelector('.nm'), st=lab.querySelector('.st');
+  var tsel=document.getElementById('target');
+  var aid=(tsel&&tsel.value!=='all')?tsel.value:'';
+  if(!aid){ if(nm) nm.textContent='—'; if(st){ st.textContent='no target'; st.classList.remove('live'); } return; }
+  if(nm) nm.textContent=name(aid);
+  if(st){ var online=_onlineAgents.indexOf(aid)>=0; st.textContent=online?'live':'offline'; st.classList.toggle('live', online); }
 }
 function updateAshChroma(){
   var f=document.getElementById('ash-frame');
   var tsel=document.getElementById('target');
   var aid=(tsel&&tsel.value!=='all')?tsel.value:'';
-  f.className=f.className.replace(/\s*chroma-\w+/g,'');
+  var base=f.className.replace(/\s*chroma-\w+/g,'');
+  f.className=base;
   if(aid==='claude') f.classList.add('chroma-claude');
   else if(aid==='deepseek') f.classList.add('chroma-deepseek');
   else if(aid) f.classList.add('chroma-user');
+  // keep the under-avatar name + live state in step with the target (same source of truth)
+  if(typeof updateAshLabel==='function') updateAshLabel();
 }
 
 // ---- settings panel ----
@@ -4130,6 +4682,7 @@ mountAll();
 var _auroraShader = null;
 var _auroraEnabled = false;
 function auroraFlagKey(){ return 'bifrost_aurora_shader'; }
+function auroraBlurKey(){ return 'bifrost_aurora_blur'; }   // motion-blur strength 0..1 (stringified float)
 function hudFlagKey(){ return 'bifrost_hud_strip'; }
 function tracesFlagKey(){ return 'bifrost_traces'; }  // W99: traces expanded/collapsed
 function initAurora(){
@@ -4141,6 +4694,11 @@ function initAurora(){
     var canvas = document.getElementById('aurora-canvas');
     if (!canvas) return false;
     _auroraShader = new window.AuroraGlass.AuroraShader(canvas);
+    // Motion blur: persisted strength, default the soft long-exposure smear. isSupported() already
+    // bailed under prefers-reduced-motion, so a reduced-motion user never reaches this line and
+    // keeps the CSS fallback (no blur, no animation) -- the OS preference wins by construction.
+    var b = parseFloat(localStorage.getItem(auroraBlurKey()));
+    _auroraShader.setMotionBlur((b > 0 && b <= 1) ? b : 0.22);
     _auroraShader.start();
     // Kill the CSS fallback (body::before conic blur) — the shader is the light bed now
     var ss = document.createElement('style');
