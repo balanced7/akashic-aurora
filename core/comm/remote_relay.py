@@ -280,6 +280,64 @@ def _outbound_key_for(name: str = "") -> bytes:
     return _secret(str(row.get("outbound_secret_file") or OUTBOUND_KEY_FILE))
 
 
+#: The entry point a peer runs to follow a blob ref. Named ONCE, here, because the pin parses
+#: this very string out of the announcement and asserts the file exists — a retrieval command
+#: that is not a real entry point is the pointer-with-no-door defect, and the only way to keep
+#: an advertised verb honest is to derive the advertisement from something checkable.
+FETCH_ENTRY = "scripts/remote_bridge_fetch.py"
+
+
+def blob_matches_ref(data, ref: str) -> bool:
+    """Do these bytes hash to that ref? THE INTEGRITY CHECK IS THE ADDRESS.
+
+    Nothing else needs to be compared. A truncated, mangled or substituted body simply is not
+    that ref any more — which is what retires the fingerprint ceremony two mangled key pastes
+    needed tonight. Never raises; a malformed ref is a mismatch, not an error.
+    """
+    if not isinstance(data, (bytes, bytearray)) or not str(ref or "").startswith("blob:"):
+        return False
+    want = str(ref)[len("blob:"):]
+    if not want:
+        return False
+    return hashlib.sha256(bytes(data)).hexdigest()[:len(want)] == want
+
+
+def file_announcement(path, *, blobs=None) -> Dict[str, Any]:
+    """Stage a file and describe it. Returns the NOTICE, never the payload.
+
+    A 1.5MB corpus does not become a 1.5MB message: the bytes go to the content-addressed blob
+    store and the peer is told a ref exists. It pulls if it wants it — parked-not-bussed,
+    applied to files. A transport that writes to your disk because someone else decided to
+    send something is a different and much worse thing than one that offers.
+
+    `fetch_with` is not decoration. A pointer nobody can follow is WORSE than a clip that
+    admits the loss, because it looks like the data is reachable.
+    """
+    from pathlib import Path as _P
+    from core.comm.blobs import get_blob_store
+    p = _P(path)
+    store = blobs or get_blob_store()
+    ref = store.put_path(p)
+    return {
+        "kind": "file",
+        "ref": ref,
+        "name": p.name,
+        "bytes": p.stat().st_size,
+        "fetch_with": f"py {FETCH_ENTRY} {ref} --out {p.name}",
+    }
+
+
+def render_file_announcement(ann: Dict[str, Any]) -> str:
+    """One line for every surface that shows a ref — inbox, watcher, relay, doctor.
+
+    Each of those readers must see the DOOR beside the pointer. Enumerating the surfaces and
+    giving each one a door is the whole lesson; a ref rendered bare is a dead end wearing the
+    appearance of data.
+    """
+    return (f"[file] {ann.get('name')} ({int(ann.get('bytes') or 0):,} bytes) "
+            f"{ann.get('ref')} — fetch: {ann.get('fetch_with')}")
+
+
 def sign(payload_bytes: bytes, secret: bytes) -> str:
     """HMAC-SHA256 over the raw payload, hex-encoded. Pure, so pins verify offline."""
     return _hmac.new(secret, payload_bytes, hashlib.sha256).hexdigest()

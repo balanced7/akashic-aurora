@@ -79,7 +79,7 @@ def test_a_valid_signed_request_returns_the_exact_bytes(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     data = b"corpus bytes, 1083 lessons pretend" * 40
     ref = store.put(data)
-    status, body, _log = L.handle_blob("POST", "/blob", blob_request(ref), secret=KEY)
+    status, body, _log = L.handle_blob("POST", "/blob", blob_request(ref), secret=KEY, blobs=store)
     assert status == 200, f"a legitimate fetch failed: {body}"
     assert body == data, "returned bytes are not the stored bytes"
 
@@ -90,7 +90,7 @@ def test_the_ref_is_the_integrity_check(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     data = b"x" * 5000
     ref = store.put(data)
-    _s, got, _l = L.handle_blob("POST", "/blob", blob_request(ref), secret=KEY)
+    _s, got, _l = L.handle_blob("POST", "/blob", blob_request(ref), secret=KEY, blobs=store)
     assert RR.blob_matches_ref(got, ref), "the returned bytes did not hash to their own ref"
     assert not RR.blob_matches_ref(got[:-1], ref), "a truncated body passed verification"
 
@@ -98,7 +98,7 @@ def test_the_ref_is_the_integrity_check(tmp_path):
 def test_an_unsigned_or_forged_request_is_refused(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     ref = store.put(b"secret-ish")
-    s1, b1, _ = L.handle_blob("POST", "/blob", blob_request(ref, secret=b"wrong"), secret=KEY)
+    s1, b1, _ = L.handle_blob("POST", "/blob", blob_request(ref, secret=b"wrong"), secret=KEY, blobs=store)
     assert s1 == 400 and b1 == L.FLAT_REFUSAL
     s2, b2, _ = L.handle_blob("POST", "/blob", b"{}", secret=KEY)
     assert s2 == 400 and b2 == L.FLAT_REFUSAL
@@ -110,7 +110,7 @@ def test_a_stale_request_is_refused(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     ref = store.put(b"data")
     old = blob_request(ref, sent_at=int(time.time()) - 99_999)
-    status, body, _ = L.handle_blob("POST", "/blob", old, secret=KEY)
+    status, body, _ = L.handle_blob("POST", "/blob", old, secret=KEY, blobs=store)
     assert status == 400 and body == L.FLAT_REFUSAL
 
 
