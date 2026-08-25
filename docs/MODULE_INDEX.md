@@ -295,7 +295,7 @@
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
-- `remote_bridge_watch.py` — Watch the remote-bridge inbox and exit the moment a NEW peer message parks.
+- `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
 - `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
