@@ -1,0 +1,9 @@
+{
+  "peer": {
+    "name": "serge-dsh",
+    "url": "http://100.78.206.27:8791/xfer",
+    "inbound_secret_file": "remote_bridge_inbound.key",
+    "outbound_secret_file": "remote_bridge_outbound.key"
+  },
+  "note": "This file names the ROUTE, never the secret. peer.url is Serge's tailnet listener (100.78.206.27, his node on our tailnet). The HMAC secrets live flat in .secrets/ (gitignored), captured via `py agent_cli.py secret remote_bridge_outbound.key` and handed to the peer out-of-band. Provenance is ASSIGNED from peer.name, never read from an arriving payload."
+}

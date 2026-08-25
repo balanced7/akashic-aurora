@@ -252,6 +252,7 @@
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
 - `config.py` — Centralized Configuration - Akashic Aurora
+- `peer_connect.py` — peer_connect — get a remote Akashic Aurora talking to ours in one command.
 
 ## scripts/
 - `arc_scorecard.py` — (no docstring)
