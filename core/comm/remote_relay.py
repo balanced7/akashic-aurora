@@ -225,12 +225,35 @@ def resolve_peer(body_b64: str, sig: str, *, within_s: int = SKEW_WINDOW_S):
     return None, None
 
 
-def peer_url() -> str:
-    """The configured peer's inbound endpoint, or "" when unrouted (absent is not broken)."""
+def peer_row(name: str = ""):
+    """The config row for a named peer, or the default one. None when the name is unknown.
+
+    A PEER IS A PAIR OF DIRECTIONS, NOT AN INBOX (Chronos, 2026-08-25). Inbound identity comes
+    from the key that verified; outbound identity has to come from somewhere too, and this is
+    it — the row carries BOTH the url we speak to and the key we sign with.
+    """
+    rows = peers()
+    if not name:
+        return rows[0] if rows else None
+    for r in rows:
+        if str(r.get("name") or "").strip() == name.strip():
+            return r
+    return None
+
+
+def peer_url(name: str = "") -> str:
+    """The endpoint for a named peer (or the default). "" when unrouted or unknown."""
     v = os.getenv("AKASHIC_REMOTE_BRIDGE_PEER_URL")
-    if v and v.strip():
+    if v and v.strip() and not name:
         return v.strip()
-    return str((_config().get("peer") or {}).get("url") or "")
+    row = peer_row(name)
+    return str((row or {}).get("url") or "")
+
+
+def _outbound_key_for(name: str = "") -> bytes:
+    row = peer_row(name)
+    fname = str((row or {}).get("outbound_secret_file") or OUTBOUND_KEY_FILE)
+    return _secret(fname)
 
 
 def sign(payload_bytes: bytes, secret: bytes) -> str:
@@ -303,7 +326,7 @@ def build_envelope(msg: Dict[str, Any], secret: bytes) -> Dict[str, str]:
 
 def push(msg: Dict[str, Any], *, url: Optional[str] = None,
          post: Optional[Callable[[str, Dict[str, str]], Any]] = None,
-         secret: Optional[bytes] = None) -> BoundaryOutcome:
+         secret: Optional[bytes] = None, peer: str = "") -> BoundaryOutcome:
     """Push one message to the remote peer's relay. NEVER RAISES.
 
     OUTBOUND-ONLY, v0.1: a single best-effort POST. The durable outbox (def tick below)
@@ -313,13 +336,21 @@ def push(msg: Dict[str, Any], *, url: Optional[str] = None,
         return BoundaryOutcome.failed(
             f"kind {str(msg.get('kind') or '?')!r} is not on the forward allowlist — the "
             f"remote bridge inherits the Discord list; unknown kinds don't cross the bridge")
-    target = url if url is not None else peer_url()
+    # AN UNKNOWN PEER IS A REFUSAL, NEVER A FALLBACK. Silently defaulting to "the first
+    # peer" would send one fleet's message to another fleet -- a misdelivery that returns 202
+    # and looks like success, which is the worst shape a bug can take.
+    if peer and peer_row(peer) is None:
+        return BoundaryOutcome.failed(
+            f"unknown peer {peer!r} — configured peers are "
+            f"{[str(r.get('name')) for r in peers()] or '(none)'}. Refusing rather than "
+            f"falling back: delivering to the wrong fleet would look exactly like success.")
+    target = url if url is not None else peer_url(peer)
     if not target:
         return BoundaryOutcome.failed(
             "remote bridge not routed — set AKASHIC_REMOTE_BRIDGE_PEER_URL or write the "
             "peer url into state/coord/remote_bridge.json. A configuration state, not a "
             "delivery failure: the bridge is opt-in.")
-    key = secret if secret is not None else _secret(OUTBOUND_KEY_FILE)
+    key = secret if secret is not None else _outbound_key_for(peer)
     if not key:
         return BoundaryOutcome.failed(
             "remote bridge has no outbound secret. Capture one with "
@@ -376,7 +407,8 @@ def verify(body_b64: str, sig: str, secret: bytes, *, within_s: int = SKEW_WINDO
 # =============================================================================================
 
 
-def enqueue(msg: Dict[str, Any], *, secret: Optional[bytes] = None) -> BoundaryOutcome:
+def enqueue(msg: Dict[str, Any], *, secret: Optional[bytes] = None,
+            peer: str = "") -> BoundaryOutcome:
     """Park one message for delivery. NEVER RAISES.
 
     REFUSES AT THE DOOR, not at the tick. A message that can never be delivered (wrong kind)
@@ -394,7 +426,16 @@ def enqueue(msg: Dict[str, Any], *, secret: Optional[bytes] = None) -> BoundaryO
     mid = _stable_id(msg)
     if any(str(r.get("id")) == mid for r in rows):
         return BoundaryOutcome.done(ref=mid, chars=0)           # RB-26: idempotent enqueue
-    rows.append({"id": mid, "msg": msg, "queued_at": int(time.time()), "attempts": 0})
+    if peer and peer_row(peer) is None:
+        return BoundaryOutcome.failed(
+            f"unknown peer {peer!r} — refusing to queue mail for a fleet that is not "
+            f"configured. A queue entry with no valid address is a message that will be "
+            f"delivered to whoever happens to be first when it drains.")
+    # THE OUTBOX CARRIES THE ADDRESS, NOT JUST THE LETTER. A queue that forgets who a message
+    # was for delivers it to whoever is configured first at drain time -- which is a
+    # misdelivery that reports success.
+    rows.append({"id": mid, "msg": msg, "peer": peer,
+                 "queued_at": int(time.time()), "attempts": 0})
     _write_jsonl(path, rows)
     return BoundaryOutcome.done(ref=mid, chars=len(rows))
 
@@ -421,7 +462,10 @@ def tick(*, post: Optional[Callable[[str, Dict[str, str]], Any]] = None,
 
     kept, sent, failed, last_why = [], 0, 0, ""
     for row in rows[:limit]:
-        out = push(row.get("msg") or {}, url=url, post=post, secret=secret)
+        # Each entry goes to ITS peer. One unreachable fleet must not strand another's
+        # mail -- the head-of-line rule, applied ACROSS peers rather than only within a queue.
+        out = push(row.get("msg") or {}, url=url, post=post, secret=secret,
+                   peer=str(row.get("peer") or ""))
         if out.ok:
             sent += 1
             continue
