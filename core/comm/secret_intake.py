@@ -42,6 +42,10 @@ TARGETS: Dict[str, str] = {
     "discord_channel_rill.url":     "the #rill seat-channel webhook (his lane with dsh_agent)",
     "remote_bridge_outbound.key":   "HMAC secret we use to push INTO a remote peer's relay "
                                     "(outbound direction; remote-bridge v0)",
+    "chronos_inbound.key":          "HMAC secret CHRONOS uses to push into our relay -- its "
+                                    "own key so its mail resolves to remote:chronos instead "
+                                    "of collapsing into another peer's identity",
+    "chronos_outbound.key":         "HMAC secret we use to push INTO Chronos's relay",
     "remote_bridge_inbound.key":    "HMAC secret a remote peer uses to push into OUR relay "
                                     "(inbound direction; remote-bridge v1 only)",
     "openai.key":                "OpenAI API key",
