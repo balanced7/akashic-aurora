@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 178 modules lack both pin and paper by name)
+## GAP queue (40 of 179 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -295,7 +295,7 @@ Class: reference
 | `reinforce.py` | ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use | GAP | GAP |  |
 | `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_narrative_schema.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 
-## agent/harness/  (10 modules)
+## agent/harness/  (11 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -303,6 +303,7 @@ Class: reference
 | `capture.py` | Payload-truth capture shared by every harness adapter (Integration Tiers H1). | tests/test_bifrost_console_capture.py | docs/library/chronicle/20260723_last-session-draft-auto-captured-2026-07_1dd6ee.md | `AKASHIC_PAYLOAD_CAPTURE` |
 | `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES` |
 | `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_t052_delta_door.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
+| `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | GAP | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |

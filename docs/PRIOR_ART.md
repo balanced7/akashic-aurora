@@ -35,12 +35,12 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->4), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->7), reviewed 2026-07-26
-- `agent/harness` -- DRIFT (9->10), reviewed 2026-07-26
+- `agent/harness` -- DRIFT (9->11), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->18), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->7), reviewed 2026-07-26
-- `tests` -- DRIFT (331->612), reviewed 2026-07-26
+- `tests` -- DRIFT (331->613), reviewed 2026-07-26
 
 ---
 
@@ -380,7 +380,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `agent/harness` -- 10 modules  ·  DRIFT (9->10)
+## `agent/harness` -- 11 modules  ·  DRIFT (9->11)
 
 **What it does.** The seat side of the fleet: how an agent session is launched, kept alive, woken from idle, and stood down. Includes the wake listener, seat lifecycle and the runner glue that turns a bus message into a live turn.
 
@@ -517,7 +517,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 612 modules  ·  DRIFT (331->612)
+## `tests` -- 613 modules  ·  DRIFT (331->613)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 
