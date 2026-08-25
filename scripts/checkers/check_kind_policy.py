@@ -80,6 +80,15 @@ PLANES = {
     # rides a pin (test_bridge_allowlist_contains_no_control_kind) instead of a shared name.
     # K-D caught this set the moment it landed -- the third time the bedside test has worked.
     "BRIDGE_KINDS": "bus",
+    # The relay's list: which admitted peer kinds may be SPOKEN TO LOCAL SEATS. Bus plane,
+    # and a THIRD set beside FORWARD_KINDS and BRIDGE_KINDS because it answers a third
+    # question. FORWARD_KINDS: worth buzzing the operator's phone. BRIDGE_KINDS: safe to
+    # accept from another fleet. RELAY_KINDS: safe to put in front of an agent that will act
+    # on what it reads. Each is strictly narrower than the last, and collapsing any two would
+    # make one of the three questions un-askable -- the exact drift K-D exists to surface.
+    # Caught by K-D on the commit that introduced it, the fourth time this test has refused a
+    # set nobody remembered to classify.
+    "RELAY_KINDS": "bus",
     # the event plane -- what a seat DID
     "EVENT_KINDS": "event",
     # T196a: friction's map of durable terminal-event kinds -> episode outcomes. These are
