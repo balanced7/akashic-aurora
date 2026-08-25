@@ -188,6 +188,43 @@ def _secret(filename: str) -> bytes:
         return b""
 
 
+def peers() -> list:
+    """Every configured peer, newest schema first, falling back to the single-peer shape.
+
+    A fleet that upgrades and silently stops admitting its only peer has been BROKEN by a
+    fix, so the legacy `peer` block stays first-class rather than deprecated.
+    """
+    cfg = _config()
+    rows = cfg.get("peers")
+    if isinstance(rows, list) and rows:
+        return [r for r in rows if isinstance(r, dict)]
+    one = cfg.get("peer")
+    return [one] if isinstance(one, dict) and one else []
+
+
+def resolve_peer(body_b64: str, sig: str, *, within_s: int = SKEW_WINDOW_S):
+    """Which configured peer signed this? Returns (name, secret) or (None, None).
+
+    THE KEY IS THE IDENTITY. A flag is our launcher's assertion; `frm` is the sender's
+    assertion; only the HMAC is cryptography's assertion — whoever signed this held that
+    secret, and secrets are per-peer by construction. So identity is whatever the maths says
+    and nothing else, which is the payload-frm rule applied one level up: having stopped
+    trusting the sender's claim, we also stop trusting our own configuration's guess.
+
+    Order-independent by construction: every candidate is tried and the answer is the one
+    that verifies, so a config reshuffle can never change who a message came from.
+    """
+    for row in peers():
+        name = str(row.get("name") or "").strip()
+        fname = str(row.get("inbound_secret_file") or INBOUND_KEY_FILE)
+        key = _secret(fname)
+        if not key or not name:
+            continue
+        if verify(body_b64, sig, key, within_s=within_s):
+            return name, key
+    return None, None
+
+
 def peer_url() -> str:
     """The configured peer's inbound endpoint, or "" when unrouted (absent is not broken)."""
     v = os.getenv("AKASHIC_REMOTE_BRIDGE_PEER_URL")
@@ -447,15 +484,39 @@ def accept(envelope: Dict[str, str], *, secret: Optional[bytes] = None,
     if not isinstance(envelope, dict):
         return BoundaryOutcome.failed("inbound envelope is not an object — refused unread")
 
-    key = secret if secret is not None else _secret(INBOUND_KEY_FILE)
+    body_b64 = str(envelope.get("body") or "")
+    sig = str(envelope.get("sig") or "")
+
+    # IDENTITY BY KEY, decided before anything else is believed. When no secret is injected,
+    # every configured peer's key is tried and the one that VERIFIES names the sender. An
+    # explicit `secret=` (drills, single-key callers) keeps the old path.
+    resolved = ""
+    if secret is None:
+        resolved, key = resolve_peer(body_b64, sig, within_s=within_s)
+        if not key:
+            # Could be no keys at all, or a stranger's signature. Both are refusals, and the
+            # wire cannot be told which -- that distinction is exactly the oracle we refuse
+            # to be. The LOG separates them.
+            if not any(_secret(str(r.get("inbound_secret_file") or INBOUND_KEY_FILE))
+                       for r in peers()):
+                return BoundaryOutcome.failed(
+                    "no inbound secret for any configured peer — the bridge is "
+                    "INERT-UNTIL-KEYED. An absent allowlist must not resolve to 'allow' (the "
+                    "obvious sin) and must not resolve to a guess (discord_inbound's "
+                    "refusal). Capture one: py agent_cli.py secret remote_bridge_inbound.key")
+            return BoundaryOutcome.failed(
+                "no configured peer's key verifies this envelope — refused. Identity here is "
+                "decided by WHICH KEY SIGNED IT, so an unrecognised signature is an "
+                "unrecognised sender, and an unrecognised sender is not admitted under a "
+                "placeholder name. (Also fires on a stale replay outside the skew window.)")
+    else:
+        key = secret
+
     if not key:
         return BoundaryOutcome.failed(
             "no inbound secret — the bridge is INERT-UNTIL-KEYED. An absent allowlist must "
-            "not resolve to 'allow' (the obvious sin) and must not resolve to a guess "
-            "(discord_inbound's refusal). Drop remote_bridge_inbound.key into .secrets/.")
+            "not resolve to 'allow' and must not resolve to a guess.")
 
-    body_b64 = str(envelope.get("body") or "")
-    sig = str(envelope.get("sig") or "")
     if not verify(body_b64, sig, key, within_s=within_s):
         return BoundaryOutcome.failed(
             "inbound envelope failed HMAC or replay-window verification — refused. This is "
@@ -480,7 +541,14 @@ def accept(envelope: Dict[str, str], *, secret: Optional[bytes] = None,
             f"written does not cross, and no control verb crosses in any costume.")
 
     # ---- provenance is ASSIGNED, never read: the payload's `frm` is the peer's costume ----
-    route = (peer or str((_config().get("peer") or {}).get("name") or "") or "unknown-peer").strip()
+    # THE KEY WINS. `resolved` came from cryptography; `peer` is our launcher's opinion and
+    # may only fill in when the key proved nothing (the injected-secret path). A flag that
+    # could rename a peer the maths already identified would reintroduce, on our own side,
+    # exactly the trust-the-label hole we refuse the sender.
+    route = (resolved
+             or peer
+             or str((_config().get("peer") or {}).get("name") or "")
+             or "unknown-peer").strip()
     parked = {
         "id": str(payload.get("id") or _stable_id(payload)),
         "frm": f"remote:{route}",
