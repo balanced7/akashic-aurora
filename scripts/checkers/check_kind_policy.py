@@ -65,6 +65,10 @@ PLANES = {
     # moment it landed and demanded this line -- which is the bedside test working: nobody had to
     # REMEMBER to classify the new set.
     "NON_CARGO_KINDS": "bus",
+    # 2026-08-26: the guest reply path's outbound refusal (core/comm/discord_guest_reply.py)
+    # -- answered, never steered. Bus plane: it filters seat-to-seat message kinds, same as
+    # every other set here; K-B caught it unassigned the moment it landed.
+    "CONTROL_KINDS": "bus",
     # T223: the outbound Discord bridge's forward allowlist -- which bus kinds are worth
     # buzzing a phone. Bus plane, same as every other set that filters seat-to-seat messages.
     # K-D caught this the moment the set landed and refused the commit, which is the same
