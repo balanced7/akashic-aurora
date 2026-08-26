@@ -70,22 +70,34 @@ _OPERATOR_INBOXES = ("daniil", "daniel", "user")
 
 
 def seat_channel_url(agent: str) -> str:
-    """The webhook of his lane with this seat — callsign-derived (registry-fed,
-    never a second roster), vaulted by discord_setup. Empty when unconfigured."""
+    """The webhook of his lane with this seat, vaulted by ``discord_setup``.
+
+    The stable seat address is authoritative and therefore checked first.  A ratified
+    callsign is a backwards-compatible display alias for the four original lanes.  Both
+    candidates must exist in the vault allowlist before any path is constructed: a bus
+    sender string is not permission to read an arbitrary file.  This also lets an
+    unratified seat such as ``sol`` have transport without inventing a callsign ceremony.
+    """
     base = str(agent or "").split("#", 1)[0].lower()
     try:
         from core.fleet import residents as _R
         cs = str((_R.get(base) or {}).get("callsign") or "").strip().lower()
     except Exception:                                                   # noqa: BLE001
         cs = ""
-    if not cs:
-        return ""
-    from core.comm.secret_intake import secrets_dir
-    try:
-        return (secrets_dir() / f"discord_channel_{cs}.url").read_text(
-            encoding="utf-8").strip()
-    except OSError:
-        return ""
+    from core.comm.secret_intake import TARGETS, secrets_dir
+    candidates = [f"discord_channel_{base}.url"]
+    if cs:
+        candidates.append(f"discord_channel_{cs}.url")
+    for name in dict.fromkeys(candidates):
+        if name not in TARGETS:
+            continue
+        try:
+            value = (secrets_dir() / name).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if value:
+            return value
+    return ""
 
 
 def _streams(bus: Any) -> List[str]:

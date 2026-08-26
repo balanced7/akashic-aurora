@@ -8,10 +8,11 @@ channels into state/coord/discord_seat_channels.json, webhooks into the VAULT th
 the secret_intake door — the first credentials this house ever delivered to itself.
 
 Creates:
-  - three mentionable roles in family colors (Vandor/Amber, Heimdall/Onyx, Navi/Jade)
+  - four mentionable resident roles in family colors (Vandor, Heimdall, Navi, Rill)
   - #aurora-rooms as a FORUM channel (falls back to text if the guild lacks Community;
     the mode is recorded so the router knows which physics apply)
-  - #vandor, #heimdall, #navi seat channels under an "Akashic Aurora" category —
+  - #vandor, #heimdall, #navi, #rill, and #sol seat channels under an
+    "Akashic Aurora" category —
     each a bidirectional lane: seat questions land there, his replies route back
   - a webhook per created channel, saved via the vault door
 
@@ -35,15 +36,18 @@ _ROOT = Path(__file__).resolve().parents[1]
 API = "https://discord.com/api/v10"
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
-ROLES = [("Vandor", 0xE8A13C), ("Heimdall", 0x2B2B33), ("Navi", 0x27A17A)]
-SEAT_CHANNELS = [("vandor", "claude"), ("heimdall", "deepseek"), ("navi", "kimi")]
+ROLES = [("Vandor", 0xE8A13C), ("Heimdall", 0x2B2B33), ("Navi", 0x27A17A),
+         ("Rill", 0x7AA2F7)]   # Rill = DeepSeek-family seat (dsh_agent); deepseek hue #7aa2f7
+SEAT_CHANNELS = [("vandor", "claude"), ("heimdall", "deepseek"), ("navi", "kimi"),
+                 ("rill", "dsh_agent"), ("sol", "sol")]
 
 
 def _token() -> str:
     v = os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
     if v and v.strip():
         return v.strip()
-    return (_ROOT / ".secrets" / "discord_bot.token").read_text(encoding="utf-8").strip()
+    return (VAULT.secrets_dir() / "discord_bot.token").read_text(
+        encoding="utf-8").strip()
 
 
 class D:
@@ -131,6 +135,10 @@ def main() -> int:
                 print(f"[setup] webhook on #{channel['name']}: WOULD create"); return
             ours = d.post(f"/channels/{channel['id']}/webhooks",
                           {"name": "Akashic Aurora"})
+        if dry:
+            print(f"[setup] webhook on #{channel['name']}: already stands; "
+                  "vault unchanged [dry-run]")
+            return
         url = f"https://discord.com/api/webhooks/{ours['id']}/{ours['token']}"
         receipt = VAULT.save_secret(vault_target, url)
         print(f"[setup] webhook on #{channel['name']}: in the vault "

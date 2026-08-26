@@ -3036,9 +3036,10 @@ def cmd_discord(args):
 
     url = DB.webhook_url()
     if args.action == "status":
+        url_file = DB.url_file()
         out = {"configured": bool(url),
                "source": ("env AKASHIC_DISCORD_WEBHOOK" if os.getenv("AKASHIC_DISCORD_WEBHOOK")
-                          else (str(DB.URL_FILE) if url else None)),
+                          else (str(url_file) if url else None)),
                "forwards_kinds": sorted(DB.FORWARD_KINDS),
                "direction": "outbound only (inbound needs the R1-R3 identity gate)"}
         if args.json:
@@ -3046,7 +3047,7 @@ def cmd_discord(args):
         if not url:
             print("# discord bridge: NOT CONFIGURED (this is a state, not a failure)")
             print(f"#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
-            print(f"#   2. save it to {DB.URL_FILE}")
+            print(f"#   2. save it to {url_file}")
             print(f"#   3. py agent_cli.py discord test")
             return 0
         print(f"# discord bridge: CONFIGURED via {out['source']}")

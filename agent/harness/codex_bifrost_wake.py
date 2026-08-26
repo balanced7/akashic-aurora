@@ -69,10 +69,15 @@ class WakePolicy:
     expected_answers: FrozenSet[str] = frozenset()
     direct_kinds: FrozenSet[str] = DIRECT_ACTION_KINDS
     answer_kinds: FrozenSet[str] = ANSWER_KINDS
+    required_source: Optional[str] = None
 
     def accepts(self, message: Message) -> bool:
         if message.to != self.agent or message.frm not in self.allowed_senders:
             return False
+        if self.required_source:
+            actual_source = str((message.meta or {}).get("source") or "").lower()
+            if actual_source != str(self.required_source).lower():
+                return False
         kind = str(message.kind or "").lower()
         if kind in self.direct_kinds:
             return True
@@ -507,6 +512,7 @@ def install_signal_stops(watcher: CodexBifrostWake) -> None:
 
 __all__ = [
     "CodexBifrostWake",
+    "DIRECT_ACTION_KINDS",
     "WakeError",
     "WakePolicy",
     "WakeState",
