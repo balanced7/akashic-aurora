@@ -227,6 +227,42 @@ def test_door_respawn_exhaustion_is_loud_not_silent():
     assert "respawn-exhausted" in src
 
 
+def test_disposed_session_stops_the_recurring_beat():
+    """A declared departure must not be silently reversed by the recurring beat.
+
+    The 15s recurring beat is armed on first presence (firePresence -> startPresenceBeat)
+    and UNREF'd, so it survives the event that armed it. When session/disposed declares the
+    seat offline (go_offline removes the worklive key), the still-running interval would
+    otherwise re-beat 'idle' with the remembered lastSid ~15s later and resurrect the key --
+    a gone seat reading LIVE again, the offline-declaration law inverted (the sibling pin
+    test_presence_offline_declares_departure_not_a_beat makes the same law at the bridge
+    layer; this one pins the JS timer lifecycle that bridge pin cannot see).
+
+    The fix must CLEAR the interval and RESET the remembered id on dispose, so a stale sid
+    can never re-beat once the session is over. Checking the exact strings so the pin fails
+    on the absence of the fix, not merely on unrelated drift.
+    """
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "stopPresenceBeat" in src            # the stop seam must exist
+    assert "clearInterval(beatTimer)" in src    # the interval must be cleared, not just abandoned
+    assert "beatTimer = null" in src            # ...so a later startPresenceBeat can re-arm cleanly
+    assert "lastSid = ''" in src                # a stale id must never re-beat the key alive
+
+
+def test_flush_is_a_checkpoint_and_never_declares_offline():
+    """session/flush is the DURABILITY CHECKPOINT (checkpoint policy's per-request
+    barrier, goal-round-driver idle checkpoints, teardown drains) -- not a departure.
+    The old flush handler fired 'offline' on every checkpoint, killing the worklive
+    key for up to BEAT_MS and flapping a healthy seat offline->idle (Rill's ruling
+    2026-08-26, Heimdall's open call). Departure is session/disposed alone: the
+    source must contain EXACTLY ONE offline declaration, and no flush listener may
+    remain. Source-string pin, same shape as its disposed-beat sibling."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "DURABILITY CHECKPOINT" in src            # the ruling must be recorded in-place
+    assert "ctx.on('session/flush'" not in src       # no flush listener may remain
+    assert src.count("firePresence('offline')") == 1  # disposed is the ONLY departure declaration
+
+
 def test_presence_offline_declares_departure_not_a_beat():
     """The presence door's offline phase must call go_offline -- a declared departure
     that renders OFFLINE in the roster -- never heartbeat the key alive (the old
