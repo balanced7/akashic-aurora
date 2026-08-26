@@ -1,0 +1,6 @@
+[
+  {"type": "anchor", "target": "05fe0639-8b5b-4598-b776-4a554bb279b4:1", "note": "the crash ask -- 'our shader exploration work crashed claude code and made it impossible to start up again requiring a re-install. are all of our session transcripts gone? do you still know what akashic aurora is?'"},
+  {"type": "observation", "target": "d7204ad0-3af9-44c3-bae2-ef8887d59874:529", "note": "the recovery steer -- codex investigates the crash: 'Claude completely forgot about akashic aurora and is now VERY quickly relearning the system'"},
+  {"type": "observation", "target": "3e5f0bdf-2a14-48e2-a7d8-43ba848bf30e:5544", "note": "the un-kneecapping -- 'We need to relaunch Rill and Heimdall, both with exec and write'"},
+  {"type": "decision", "target": "3e5f0bdf-2a14-48e2-a7d8-43ba848bf30e:6128", "note": "the naming verdict -- 'Rill. Decided, not waffling... the youngest captain, whose magic is that what he imagines becomes real' -- the identity that would later fail to activate"}
+]
