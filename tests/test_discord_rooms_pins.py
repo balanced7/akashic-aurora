@@ -135,11 +135,26 @@ def test_p8_persona_wears_the_registry_face(env, monkeypatch):
         "served from the public repo")
 
 
-def test_p9_unplaced_seats_keep_an_honest_bare_face(env, monkeypatch):
-    _fake_registry(monkeypatch)
-    who = _mod().persona("somebot")
-    assert who["username"] == "somebot" and who["avatar_url"] is None, (
-        "no registry placement -> no callsign, no face; ratification mints both")
+def test_p9_ratified_name_does_not_wait_for_placement(env, monkeypatch):
+    from pathlib import Path
+    from core.fleet import residents as _R
+
+    monkeypatch.setattr(
+        _R, "get", lambda a: {"callsign": "Sunshine"} if a == "sol" else None)
+    monkeypatch.setattr(_R, "current_placement", lambda _a: None)
+    monkeypatch.setattr(_mod(), "ICONS_FILE", Path("nonexistent-icons-fixture.json"))
+
+    who = _mod().persona("sol")
+    assert who["username"] == "Sunshine (sol)", (
+        "ratification names the resident on Discord immediately; placement is a "
+        "separate ceremony and must not suppress a ratified name")
+    assert who["avatar_url"] is None, (
+        "the generated avatar encodes family/team placement, so an unplaced resident "
+        "must not be given a guessed face")
+
+    unknown = _mod().persona("somebot")
+    assert unknown["username"] == "somebot" and unknown["avatar_url"] is None, (
+        "an unregistered seat still keeps its honest bare id and no face")
 
 
 def test_p10_a_selected_icon_rides_the_name(env, tmp_path, monkeypatch):
