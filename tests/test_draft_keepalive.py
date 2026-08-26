@@ -127,19 +127,29 @@ def test_the_writer_is_INJECTED_so_this_module_owns_no_second_way_to_build_a_dra
     assert calls == [1]
 
 
-# --------------------------------------------------- wiring is deliberately absent
-def test_the_keepalive_is_NOT_wired_into_the_stop_hook_yet():
-    """Recorded as a DECISION rather than an omission. The Stop hook runs on every turn
-    of every claude session; a defect there wedges the whole fleet at once. Wiring is a
-    separate slice for a seat with room to think — the same discipline the conductor gate
-    used (built 3431118a, wired 5c09bb5a).
-
-    When it IS wired, this pin flips to assert the call site exists."""
+# --------------------------------------------- wiring landed (flipped pin, 2026-08-26)
+def test_the_keepalive_is_WIRED_at_both_turn_boundaries():
+    """FLIPPED 2026-08-26 (was: NOT-wired, recorded as a decision). The wiring slice
+    landed TWO call sites, one per seat shape:
+      (1) the Stop hook -- scripts/hooks/claude_stop.py, the LIVE registered copy
+          (user settings register pyw E:/AI-Setup/scripts/hooks/claude_stop.py), so
+          every claude turn refreshes a stale draft;
+      (2) the DSH turn seam -- bridge.py gains a `draft-keepalive` subcommand (the
+          pinned throttle + the one existing draft builder) and lib/index.js fires it
+          fire-and-forget from tools/post-execute, so a taskkill /F on the DSH host
+          still leaves a draft newer than the kill.
+    The drill receipt that proved a hard-killed seat leaves a draft lives in
+    state/drills/ (keepalive-taskkill receipt). Both wirings delegate to the ONE
+    builder; this module still owns no second way to build a draft."""
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    hook = root / "scripts" / "hooks" / "claude_stop.py"
-    if not hook.is_file():
-        pytest.skip("stop hook not present in this tree")
-    assert "draft_keepalive" not in hook.read_text(encoding="utf-8"), \
-        ("the keepalive is now wired — good; flip this pin to assert the call site and "
-         "record the drill that proved a hard-killed seat leaves a draft")
+    stop = root / "scripts" / "hooks" / "claude_stop.py"
+    assert stop.is_file(), "live stop hook missing from this tree"
+    assert "draft_keepalive" in stop.read_text(encoding="utf-8"), \
+        "the Stop hook must refresh a stale draft at the turn boundary"
+    js = root / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js"
+    bridge = root / "agent" / "harness" / "dsh_plugin" / "bridge.py"
+    assert "'draft-keepalive'" in js.read_text(encoding="utf-8"), \
+        "the DSH turn seam must fire the keepalive from post-execute"
+    assert "draft-keepalive" in bridge.read_text(encoding="utf-8"), \
+        "the bridge must expose the draft-keepalive subcommand"
