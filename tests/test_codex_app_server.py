@@ -186,6 +186,119 @@ def test_wake_prompt_is_subject_labelled_and_forbids_peer_interference():
     assert "Do not consume or advance any Bifrost mailbox cursor" in prompt
 
 
+def test_ratified_wake_identity_comes_from_the_resident_registry(monkeypatch):
+    """A ceremony must change the next admitted turn without editing wake prose."""
+    from agent.harness.codex_bifrost_wake import (
+        resolve_subject_identity,
+        wake_developer_instructions,
+    )
+    from core.fleet import residents
+
+    monkeypatch.setattr(
+        residents,
+        "get",
+        lambda agent: {
+            "agent_id": agent,
+            "callsign": "Sunshine",
+            "state": "ratified",
+            "ratified_by": "daniil",
+        },
+    )
+    message = Bus("sol", client=ExactRedis("x", {}), promote=False)._to_msg(
+        "1-0", _message_fields(answers="1787730404992-0")
+    )
+
+    identity = resolve_subject_identity("sol")
+    prompt = build_wake_prompt("sol", message, identity=identity)
+    instructions = wake_developer_instructions("sol", identity)
+
+    assert identity.callsign == "Sunshine"
+    assert identity.status == "ratified"
+    assert identity.authority == "resident-registry"
+    assert "CALLSIGN: Sunshine" in prompt
+    assert "CALLSIGN STATUS: ratified" in prompt
+    assert "IDENTITY AUTHORITY: resident-registry" in prompt
+    assert "currently unratified" not in prompt
+    assert "historical and unratified" not in instructions
+    assert "Sunshine" in instructions and "ratified" in instructions
+
+
+def test_environment_cannot_self_promote_a_callsign_when_registry_is_absent(monkeypatch):
+    """A stale launcher hint is context, never ratification authority."""
+    from agent.harness.codex_bifrost_wake import resolve_subject_identity
+    from core.fleet import residents
+
+    monkeypatch.setattr(residents, "get", lambda _agent: None)
+    monkeypatch.setenv("AKASHIC_CALLSIGN_HINT", "Sunshine")
+    monkeypatch.setenv("AKASHIC_CALLSIGN_STATUS", "ratified")
+
+    identity = resolve_subject_identity("sol")
+    assert identity.callsign == "Sunshine"
+    assert identity.status == "registry-mismatch"
+    assert identity.authority == "environment-hint;resident-registry-absent"
+
+
+def test_cached_app_server_restarts_when_the_registry_identity_changes(tmp_path):
+    """A long-lived child must not retain the identity snapshot from before a ceremony."""
+    from agent.harness.codex_bifrost_wake import SubjectIdentity
+
+    class IdentityServer:
+        def __init__(self, **kwargs):
+            self.env = kwargs["env"]
+            self.command = ["identity-fixture"]
+            self.process = SimpleNamespace(pid=9000 + len(created))
+            self.closed = False
+
+        def start(self):
+            return self
+
+        def close(self):
+            self.closed = True
+
+    created = []
+
+    def make_server(**kwargs):
+        server = IdentityServer(**kwargs)
+        created.append(server)
+        return server
+
+    redis = IdleRedis()
+    bus = Bus("sol", client=redis, promote=False)
+    state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy("sol", frozenset({"daniil"})),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=tmp_path,
+        server_factory=make_server,
+    )
+    before = SubjectIdentity(
+        agent_id="sol",
+        callsign="Sunshine",
+        status="historical-unratified",
+        authority="environment-hint",
+    )
+    after = SubjectIdentity(
+        agent_id="sol",
+        callsign="Sunshine",
+        status="ratified",
+        authority="resident-registry",
+    )
+
+    first = watcher._app_server(before)
+    assert watcher._app_server(before) is first
+    second = watcher._app_server(after)
+
+    assert len(created) == 2
+    assert first.closed is True
+    assert second is created[1]
+    assert second.env["AKASHIC_CALLSIGN_HINT"] == "Sunshine"
+    assert second.env["AKASHIC_CALLSIGN_STATUS"] == "ratified"
+    events = (tmp_path / "events.jsonl").read_text(encoding="utf-8")
+    assert "app_server_identity_refresh" in events
+
+
 def test_private_watcher_state_baselines_and_deduplicates(tmp_path):
     path = tmp_path / "wake-state.json"
     state = WakeState.open(path, agent="sol", baseline="50-0")
