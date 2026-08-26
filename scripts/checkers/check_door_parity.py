@@ -171,15 +171,15 @@ MANIFEST = {
     # T213: the cross-domain set difference. Same classification and same argument as
     # timeline directly below -- a READ verb whose value is to a debugging agent, and the
     # seat that most needs it is the MCP-attached conductor. Debt, not design.
-    "compare": "gap",
-    "timeline": "gap",
+    "compare": "shared",
+    "timeline": "shared",
     # T278 S0 (2026-08-11): THE EYE's door -- eye ingest|find|get (the subparser names
     # surface as verbs to this census). Same class and same argument as compare/timeline:
     # READ verbs whose deepest value is to an MCP-attached conductor; the MCP twin is a
     # named later slice (rides the door-curation program, T289/G). Debt, not design.
-    "eye": "gap", "find": "gap", "get": "gap", "ingest": "gap", "freq": "gap", "overview": "gap", "zoom": "gap",
-    "trace": "gap",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
-    "route": "gap",   # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
+    "eye": "shared", "find": "shared", "get": "shared", "ingest": "shared", "freq": "shared", "overview": "shared", "zoom": "shared",
+    "trace": "shared",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
+    "route": "shared",   # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
                       # and never classified -- this guard has been failing on it since, which is
                       # the ratchet working: it caught a verb its author forgot to declare.
     # T290 (2026-08-12): the verdict planes' door -- resident subcommands surfacing as verbs
@@ -190,8 +190,8 @@ MANIFEST = {
     "verdict_file": "gap", "adjudicate": "gap", "calibration": "gap",
     # T292: the scout verb -- same argument again (the conductor is the caller who needs
     # it most and is MCP-attached). Debt, not design; rides the same membrane slice.
-    "scout": "gap",
-    "standing": "gap",  # T278 S7 directive watcher -- same eye surface, same MCP debt
+    "scout": "shared",
+    "standing": "shared",  # T278 S7 directive watcher -- same eye surface, same MCP debt
     # T217 (2026-08-07): sift is the nested ask -- evidence packs, a hat fan, curator pairs,
     # dissent-first. Classified as DEBT rather than design, deliberately and with the same
     # argument as `compare`/`timeline` above: it is a READ verb whose whole value is to an
@@ -275,7 +275,7 @@ MANIFEST = {
     # two doors and missing from the third. Gaps are REPORTED, never silenced, and this one
     # is tracked as a followup rather than left to live in a comment.
     "mailbox": "gap",              # T095 M0 shadow mailbox: CLI+MCP, absent from ToolBox
-    "roster": "gap",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
+    "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
     # T258 -- the callsign ceremony's three moves, classified by WHO each one belongs to rather
@@ -369,7 +369,7 @@ MANIFEST = {
     "bifrost_inbox": "mcp_only",      # CLI path: bifrost-sync --consume (same read)
     "bifrost_presence": "mcp_only",   # CLI path: bifrost-sync (refreshes + shows presence)
     # --- gap: KNOWN CLI<->MCP debt to pay down ---
-    "delta": "gap",   # R1 delta door (T052): agent-facing "what moved since I was last here",
+    "delta": "shared",   # R1 delta door (T052): agent-facing "what moved since I was last here",
                       # shipped CLI-only; an MCP twin is the natural next step (same trigger as
                       # knowledge_map's agent-ergonomics intent). Flagged here, not silently
                       # dropped. T067-1: the ToolBox now covers deepseek's need; the CLI<->MCP
@@ -419,6 +419,10 @@ TOOLBOX_ALIASES = {
     "boot": "knowledge_boot",
     "bifrost_sync": "bifrost_inbox",   # same read (peek unread); consume stays runner-owned
     "handoff": "bifrost_send",         # ToolBox hands off via bifrost_send(kind='handoff')
+    "find": "eye_find",                # the eye primitives the ToolBox spells eye_*
+    "freq": "eye_freq",
+    "get": "eye_get",
+    "zoom": "eye_zoom",
 }
 
 # Shared verbs deliberately NOT ToolBox tools (design non-goal (g): the ToolBox is
@@ -442,6 +446,21 @@ TOOLBOX_EXEMPT = {
     "packet_trace": "operator/MCP route explanation; transport continues to use packet_spec directly",
     "packet_stats": "operator/MCP shadow-delivery telemetry; not an in-task mutation tool",
     "task": "governed conductor surface; runner seats receive approved work over Bifrost",
+    # --- T383 membrane tranche 1 (2026-08-26, dsh_agent): the read family flipped gap->shared.
+    #     The four eye primitives the ToolBox already spells (eye_find/eye_freq/eye_get/eye_zoom)
+    #     ride TOOLBOX_ALIASES; the family members below are operator/conductor renders or
+    #     authored-on-CLI surfaces, exempted with rationale until a runner needs them in-task.
+    "eye": "the eye door's dispatcher; ToolBox covers the read primitives via the eye_* aliases",
+    "ingest": "index rebuild is operator/housekeeping, not an in-task tool",
+    "overview": "region map is an operator render; boot carries the seat's orientation",
+    "standing": "directive watcher is operator/curation; runner seats receive directives as bus traffic",
+    "trace": "connectome walk is forensic drill-down, like events",
+    "route": "saved walks are authored/curated on the CLI; runners consume the map, not the authoring door",
+    "delta": "high-water mark vs the boot fold; the boot whisper covers the runner's need",
+    "roster": "lobby listing is operator/coordination; runner presence rides the bus",
+    "scout": "pre-flight checks are dispatcher-side; runners receive dispatched work",
+    "timeline": "cross-domain chronology is an operator/forensic render",
+    "compare": "set-difference analysis is an operator/guard diagnostic",
 }
 
 
