@@ -742,6 +742,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._api_now())
         if path == "/api/channels":             # side-channel visibility (Daniil's standing ask)
             return self._json(self._api_channels())
+        # REMOTE PLANE (claude, 2026-08-25): the model lives in core/comm/bridge_status.py so
+        # the panel is paint over a dict and the logic keeps its pins. ?probe=1 costs a TCP
+        # connect per peer; the default render must not imply a measurement it did not take.
+        if path == "/api/remote":
+            from core.comm import bridge_status as _bs
+            _probe = "probe=1" in (self.path.split("?", 1)[1] if "?" in self.path else "")
+            return self._json({"status": _bs.status(probe=_probe),
+                               "actions": _bs.actions()})
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -1213,6 +1221,14 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             data = {}
+        # REMEDIATION. A POST, never a GET, and `confirm` must be sent explicitly -- so
+        # rendering a page can never restart a listener or put another fleet's words on the
+        # bus. The module refuses on its own too; this is the outer half of that pair.
+        if path == "/api/remote/act":
+            from core.comm import bridge_status as _bs
+            _out = _bs.act(data.get("action"), confirm=bool(data.get("confirm")))
+            return self._json({"ok": bool(_out.ok), "why": _out.why or "",
+                               "ref": _out.ref, "detail": _out.detail})
         if path == "/vfx/sketch":
             return self._json(_vfx_sketch_write(data.get("name"), data.get("src")))
         if path == "/vfx/compositions":

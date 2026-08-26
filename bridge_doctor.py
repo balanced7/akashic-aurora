@@ -54,17 +54,32 @@ def main() -> int:
     fp = lambda b: hashlib.sha256(b).hexdigest()[:12] if b else "(absent)"
 
     # ---- keys ------------------------------------------------------------------
-    send_k = RR._secret(RR.OUTBOUND_KEY_FILE)      # you SIGN with this
-    recv_k = RR._secret(RR.INBOUND_KEY_FILE)       # you VERIFY with this
-    line("key you SIGN with (outbound)", f"{len(send_k)}B  fp={fp(send_k)}", bool(send_k))
-    line("key you VERIFY with (inbound)", f"{len(recv_k)}B  fp={fp(recv_k)}", bool(recv_k))
-    line("keys are distinct", str(send_k != recv_k), send_k != recv_k)
-    for lbl, k in (("outbound", send_k), ("inbound", recv_k)):
-        if k:
-            s = k.decode("utf-8", "replace")
-            bad = [f"U+{ord(c):04X}@{i}" for i, c in enumerate(s) if ord(c) < 32 or ord(c) > 126]
-            line(f"{lbl} key is ASCII-clean", "yes" if not bad else f"NO: {bad}", not bad)
-            line(f"{lbl} bytes==chars", f"{len(k)}=={len(s)}", len(k) == len(s))
+    # PER-PEER, because a machine can host several identities. This read hardcoded
+    # OUTBOUND_KEY_FILE/INBOUND_KEY_FILE, so on a multi-peer host the doctor reported the
+    # DEFAULT peer's fingerprints no matter which identity it was actually acting as --
+    # Chronos caught it self-reporting as serge-dsh while configured as chronos. A diagnostic
+    # that misnames its own subject is worse than no diagnostic: it is confidently wrong at
+    # exactly the moment someone is trying to establish who they are.
+    rows = RR.peers() or [{"name": "(default)"}]
+    for row in rows:
+        pname = str(row.get("name") or "(default)")
+        pas = str(row.get("as") or "")
+        who = f"{pname}" + (f" as {pas}" if pas else "")
+        send_k = RR._secret(str(row.get("outbound_secret_file") or RR.OUTBOUND_KEY_FILE))
+        recv_k = RR._secret(str(row.get("inbound_secret_file") or RR.INBOUND_KEY_FILE))
+        line(f"[{who}] key you SIGN with", f"{len(send_k)}B  fp={fp(send_k)}", bool(send_k))
+        line(f"[{who}] key you VERIFY with", f"{len(recv_k)}B  fp={fp(recv_k)}", bool(recv_k))
+        line(f"[{who}] keys are distinct", str(send_k != recv_k),
+             bool(send_k) and send_k != recv_k)
+        for lbl, k in (("outbound", send_k), ("inbound", recv_k)):
+            if k:
+                t = k.decode("utf-8", "replace")
+                bad = [f"U+{ord(c):04X}@{i}" for i, c in enumerate(t)
+                       if ord(c) < 32 or ord(c) > 126]
+                line(f"[{who}] {lbl} ASCII-clean", "yes" if not bad else f"NO: {bad}", not bad)
+                line(f"[{who}] {lbl} bytes==chars", f"{len(k)}=={len(t)}", len(k) == len(t))
+    send_k = RR._outbound_key_for("")
+    recv_k = RR._secret(RR.INBOUND_KEY_FILE)
 
     # ---- route -----------------------------------------------------------------
     cfg = RR._config()
