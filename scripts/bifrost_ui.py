@@ -1585,6 +1585,13 @@ PAGE = r"""<!doctype html>
     --claude:#e0915c; --deepseek:#7aa2f7; --user:#5fd39b; --system:#7c8296;
     --accent:#7aa2f7; --accent2:#9d7cf7; --amber:#f0b246; --danger:#f0666e;
     --fleet:#f472b6;
+    /* USER-RESIZABLE PANES. Both are DEFAULTS, not ceilings -- a stored user size overrides
+       them and survives reload (see the resize controller near mountHeroAvatar). The old
+       hard-coded 46px/192px are these same numbers; nothing moves until someone drags.
+       Keeping them as custom properties is what makes the drag one assignment instead of a
+       sweep through every rule that mentions a magnitude. */
+    --pills-h:46px;                     /* agents bar height  (was a literal max-height:46px) */
+    --ash-size:192px;                   /* hero avatar edge   (2in at 96dpi -- Daniil's ask) */
     --shadow:0 8px 30px rgba(0,0,0,.35);
     /* aurora glow tints (per-theme tunable) + glass */
     --glow1:rgba(240,145,92,.05); --glow2:rgba(122,162,247,.06); --glow3:rgba(72,230,191,.04); --glow4:rgba(157,124,247,.05);
@@ -1702,8 +1709,83 @@ PAGE = r"""<!doctype html>
        showed me nothing wrong. Same code, different persisted preference, opposite layout.
        nowrap + a height cap makes the strip behave identically under EVERY variant: it scrolls
        sideways, it never grows downward, and no future tile renderer can reopen this. */
-    flex-wrap:nowrap; max-height:46px}
-  .pills > *{flex:none; max-height:40px; overflow:hidden}
+     NOWRAP SURVIVES THE RESIZE HANDLE, and that is the point. Dragging raises the CAP; it never
+     licenses wrapping. So the strip still cannot stack into a column no matter how tall it gets
+     or which tile variant is persisted -- the disease above stays cured -- while the height
+     stops being a number I chose for someone else. The child cap rides the same variable,
+     because a taller bar that still clips its cards at 40px would grow empty space and reveal
+     nothing, which is the version of this that looks broken. */
+    flex-wrap:nowrap; max-height:var(--pills-h)}
+  .pills > *{flex:none; max-height:calc(var(--pills-h) - 6px); overflow:hidden}
+  /* The wrapper exists ONLY to host the grip. .pills itself is NOT made position:relative:
+     it is a scroll container, so an absolutely-positioned child of it would scroll away with
+     the chips, and re-homing its descendants is the .cwrap hazard one comment over. */
+  .pills-wrap{position:relative; flex:1 1 0; min-width:0; display:flex; align-items:flex-start}
+  .pills-wrap > .pills{flex:1 1 0}
+
+  /* --- RESIZE GRIPS -------------------------------------------------------------------
+     Invisible until you go looking, obvious once you do. A permanently-drawn handle on a
+     glass console is furniture; one that fades in under the cursor is an affordance. Both
+     grips share this base so the two panes feel like one mechanism rather than two features.
+     `touch-action:none` is required, not decorative -- without it a touch drag scrolls the
+     page instead of resizing, which is the whole gesture lost on tablets. */
+  .rsz{position:absolute; opacity:0; transition:opacity .15s ease, background .15s ease;
+       z-index:6; touch-action:none; -webkit-tap-highlight-color:transparent}
+  .rsz::after{content:''; position:absolute; inset:0; margin:auto; border-radius:99px;
+       background:var(--muted); opacity:.55}
+  .rsz:hover, .rsz.drag{opacity:1}
+  .rsz:hover::after, .rsz.drag::after{background:var(--accent); opacity:.95}
+  /* Agents bar: a wide, shallow bar along the bottom edge -- the pane resizes vertically, so
+     the target spans the axis you are NOT changing. Sits 3px proud of the strip so it does not
+     eat the last 7px of chip. */
+  .rsz-pills{left:0; right:0; bottom:-4px; height:9px; cursor:ns-resize}
+  .rsz-pills::after{width:44px; height:3px}
+  /* Avatar: a corner, because the box is square and both edges move together. Inside the frame
+     rather than outside it, so it cannot overlap the composer controls next door. */
+  .rsz-ash{right:0; bottom:0; width:22px; height:22px; cursor:nwse-resize; border-radius:0 0 13.5% 0}
+  .rsz-ash::after{width:10px; height:2px; transform:rotate(-45deg); margin:auto}
+  /* While dragging: kill transitions and text selection GLOBALLY. A pane that eases toward the
+     pointer lags it, which reads as a laggy app rather than a smooth one, and a drag that
+     selects the header text mid-gesture looks broken even though nothing is. */
+  body.rsz-active{user-select:none; cursor:inherit}
+  body.rsz-active *{transition:none !important}
+
+  /* --- FLOATING MODULES ---------------------------------------------------------------
+     Daniil 2026-08-26: "make the avatar independently resizable and not be hard locked to
+     the body, perhaps we can make it magnetic and have modules be draggable and resizable."
+
+     WHY THIS IS THE FIX AND NOT A FEATURE ON TOP OF ONE. #ash-frame is a flex child of #ash
+     inside .cwrap inside .composer -- three ancestors negotiating its box. Measured tonight:
+     a literal `width:192px !important` on it does nothing, and so did the ORIGINAL code, so
+     the pane was never resizable in place by anyone. position:fixed is what takes it out of
+     that negotiation; the drag and the magnetism are what make being out of it pleasant.
+
+     DOCKED IS THE DEFAULT AND STAYS THE DEFAULT. Nothing floats until someone pops it out, so
+     the console Daniil and Serge already know is untouched until they ask for something else.
+     The placeholder holds the dock's shape so popping out does not collapse the row it left. */
+  .mod-float{position:fixed !important; z-index:60; margin:0 !important;
+      box-shadow:0 18px 50px -12px rgba(0,0,0,.65), 0 0 0 1px var(--border);
+      transition:box-shadow .15s ease}
+  .mod-float.mod-drag{box-shadow:0 26px 70px -10px rgba(0,0,0,.75), 0 0 0 1px var(--accent);
+      cursor:grabbing}
+  .mod-ph{flex:none; display:none}
+  .mod-ph.on{display:block}
+  /* The pop-out/dock control. Opposite corner from the resize grip so the two gestures never
+     compete for the same pixels, and it shares .rsz's fade so a module has exactly one visual
+     vocabulary rather than two. */
+  .modbtn{position:absolute; left:0; top:0; width:20px; height:20px; opacity:0; z-index:7;
+      cursor:pointer; border-radius:13.5% 0 0 0; display:grid; place-items:center;
+      font-size:11px; line-height:1; color:var(--muted); background:transparent;
+      transition:opacity .15s ease, color .15s ease; -webkit-tap-highlight-color:transparent}
+  #ash-frame:hover .modbtn, .mod-float .modbtn{opacity:.85}
+  .modbtn:hover{color:var(--accent)}
+  /* THE MAGNET, made visible. A snap you cannot see reads as the drag being imprecise rather
+     than as the app being helpful, so the guide flashes exactly where the edge caught. */
+  .snapline{position:fixed; z-index:59; background:var(--accent); opacity:0;
+      pointer-events:none; transition:opacity .12s ease}
+  .snapline.on{opacity:.55}
+  .snapline.v{width:2px; top:0; bottom:0}
+  .snapline.h{height:2px; left:0; right:0}
   .pills::-webkit-scrollbar{height:6px}
   .pills::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
   .pills::-webkit-scrollbar-track{background:transparent}
@@ -1715,7 +1797,11 @@ PAGE = r"""<!doctype html>
      our eyecatching piece be big enough to appreciate." 2in = 192px at the CSS reference 96dpi.
      Cost is unchanged in kind and still trivial: the backing store renders at half scale, so
      192 CSS px is a 96px render target -- about 9k fragments against a full-screen 700k. */
-  #ash-frame.has-av{width:192px; height:192px; border-radius:26px; font-size:0; color:transparent}
+  /* RADIUS IS A RATIO, NOT A NUMBER. 26/192 = 13.5%, held across the whole range: a fixed 26px
+     on a 96px box is a lozenge, and on a 320px box it is a square with the corners filed off.
+     Percentage keeps the silhouette Daniil approved at every size he can drag it to. */
+  #ash-frame.has-av{width:var(--ash-size); height:var(--ash-size); border-radius:13.5%;
+          font-size:0; color:transparent}
   /* THE FLEET'S VOICE. A full-bleed strip between the fidelity ladder and the input row, kept in
      NORMAL FLOW rather than absolutely positioned: .cwrap is not position:relative, and making it
      so to host an overlay would re-home every absolutely-positioned descendant it already has --
@@ -1726,7 +1812,11 @@ PAGE = r"""<!doctype html>
      not compile the box stays two inches -- so the glyph must grow into it rather than sit as a
      14px mark adrift in a large empty square, which reads as breakage rather than as a fallback.
      Hover `data-av-off` on the element to see which of the three bails was taken. */
-  #ash-frame.av-fallback{width:192px; height:192px; border-radius:26px; font-size:58px;
+  /* The degraded path resizes too -- a fallback that ignored the user's size would announce
+     itself as broken the moment they dragged it. Glyph scales with the box for the same reason
+     the original comment gives: a small mark adrift in a large square reads as breakage. */
+  #ash-frame.av-fallback{width:var(--ash-size); height:var(--ash-size); border-radius:13.5%;
+          font-size:calc(var(--ash-size) * 0.3);
           display:flex; align-items:center; justify-content:center; line-height:1;
           color:rgba(122,162,247,.5);
           background:radial-gradient(circle at 50% 45%, rgba(122,162,247,.16), transparent 68%)}
@@ -2443,7 +2533,7 @@ PAGE = r"""<!doctype html>
     <div class="brand"><div class="logo"></div> Bifrost <small>live agent console</small></div>
     <div class="fpulse green" id="fpulse" title="fleet: all clear"></div>
     <div class="spacer"></div>
-    <div class="pills" id="pills"></div>
+    <div class="pills-wrap" id="pillsWrap"><div class="pills" id="pills"></div><div class="rsz rsz-pills" id="pillsGrip" title="drag to resize the agents bar · double-click to reset"></div></div>
     <div id="tiles" class="deck-grid"></div>
     <button class="lctl" id="epiChip" onclick="toggleEpisode()" title="current episode (session bookends)">📖 episode</button>
     <button class="ctl" id="reloadBtn" onclick="reloadUI()" title="reload the UI server (after an agent edits it)">↻</button>
@@ -2564,7 +2654,7 @@ PAGE = r"""<!doctype html>
     <canvas id="voiceline" class="voiceline" title="emission rate"></canvas>
     <div class="cwrap">
       <div id="ash">
-        <div id="ash-frame" onclick="toggleAsh()" title="agent selector — live presence">⏣</div>
+        <div id="ash-frame" onclick="toggleAsh()" title="agent selector — live presence">⏣<div class="modbtn" id="ashPop" title="pop out / dock — a floating module can be moved and truly resized">⇲</div><div class="rsz rsz-ash" id="ashGrip" title="drag to resize the avatar · double-click to reset"></div></div><div class="mod-ph" id="ash-ph"></div>
         <div id="ash-label"><span class="nm">—</span><span class="st">no target</span></div>
         <div id="ash-sep"></div>
       </div>
@@ -3038,15 +3128,270 @@ var _avatarsOff = false;
 // bail paths -- script absent, no WebGL2, compile failure -- silently left a 38px hexagon and
 // looked identical to "the change never shipped". On a host with a documented display-driver
 // TDR history that path is not hypothetical. The box is now set first and kept regardless.
+// ============================================================================================
+// USER-RESIZABLE PANES (agents bar + hero avatar), Daniil 2026-08-25: "make the agents bar and
+// the avatar independently resizeable in a way that looks nice."
+//
+// THE RULE THE WHOLE THING RUNS ON: THE RESPONSIVE VALUE IS A DEFAULT, THE USER VALUE OVERRIDES
+// IT. We store only an EXPLICIT choice, never a computed one, and reset DELETES the key rather
+// than writing a number back. So every viewport rule already in this file keeps working for
+// anyone who never drags -- including the max-height:900px block that exists for Serge's 864px
+// screen -- and nobody silently inherits a magnitude tuned on someone else's monitor.
+//
+// INDEPENDENT means independent: two keys, two grips, two bounds. Resizing the bar never moves
+// the avatar and vice versa.
+var _RSZ_KEYS = {pills: 'bifrost.rsz.pillsH', ash: 'bifrost.rsz.ashSize'};
+
+function rszRead(key){
+  // A stored size is a NUMBER or it is nothing. A corrupt value must read as "never dragged"
+  // and fall back to the responsive default -- never as NaN, which would set an empty CSS var
+  // and collapse the pane to zero with no way to drag it back.
+  try{ var v = parseFloat(localStorage.getItem(key)); return (isFinite(v) && v > 0) ? v : null; }
+  catch(e){ return null; }                      // private mode / storage disabled: stay default
+}
+function rszWrite(key, v){ try{ localStorage.setItem(key, String(Math.round(v))); }catch(e){} }
+function rszClear(key){ try{ localStorage.removeItem(key); }catch(e){} }
+
+// Bounds are computed per-call, not cached: the viewport can change between drags, and a ceiling
+// derived from a stale innerHeight is how a pane ends up unreachable on a resized window.
+function rszBounds(which){
+  if(which === 'pills') return {min: 34, max: Math.max(46, Math.min(340, window.innerHeight * 0.40))};
+  return {min: 96, max: Math.max(112, Math.min(360, window.innerHeight * 0.42))};
+}
+function rszClamp(which, v){ var b = rszBounds(which); return Math.max(b.min, Math.min(b.max, v)); }
+
+function applyPillsH(px){
+  document.documentElement.style.setProperty('--pills-h', Math.round(px) + 'px');
+}
+function applyAshSize(px){
+  px = Math.round(px);
+  document.documentElement.style.setProperty('--ash-size', px + 'px');
+  var f = document.getElementById('ash-frame');
+  // The inline pair stays. sizeHeroFrame's contract is that the box is set FIRST and kept
+  // through every WebGL bail path, so the frame cannot depend on a class landing later.
+  if(f && (f.classList.contains('has-av') || f.classList.contains('av-fallback'))){
+    f.style.width = px + 'px'; f.style.height = px + 'px';
+  }
+  // THE BACKING STORE IS NOT THE BOX. Without this the canvas keeps its old render target and
+  // the avatar goes soft the instant you drag it larger -- _resize re-cuts at min(dpr, 2).
+  try{ if(_heroAv && _heroAv.shader) _heroAv.shader._resize(px); }catch(e){}
+}
+
+// One drag implementation, two panes. `axis` picks which pointer delta drives it: the bar grows
+// downward from a bottom edge, the avatar grows from a bottom-right corner where either axis
+// reads as intent -- so the corner takes whichever moved further, which is what makes a diagonal
+// drag feel like it is doing what you meant.
+function wireResize(grip, which, getCur, apply){
+  if(!grip) return;
+  var start = 0, base = 0, live = false;
+  grip.addEventListener('pointerdown', function(e){
+    e.preventDefault(); e.stopPropagation();   // or the avatar's onclick fires the popover open
+    live = true; base = getCur();
+    start = (which === 'pills') ? e.clientY : Math.max(e.clientX, e.clientY);
+    grip.classList.add('drag'); document.body.classList.add('rsz-active');
+    try{ grip.setPointerCapture(e.pointerId); }catch(err){}   // survives leaving the 9px target
+  });
+  grip.addEventListener('pointermove', function(e){
+    if(!live) return;
+    var now = (which === 'pills') ? e.clientY : Math.max(e.clientX, e.clientY);
+    apply(rszClamp(which, base + (now - start)));
+  });
+  function end(e){
+    if(!live) return;
+    live = false;
+    grip.classList.remove('drag'); document.body.classList.remove('rsz-active');
+    try{ grip.releasePointerCapture(e.pointerId); }catch(err){}
+    rszWrite(_RSZ_KEYS[which], getCur());       // persist only on RELEASE, not per move event
+  }
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+  // Swallow the click that follows a drag AND a plain click on the grip: both would otherwise
+  // reach #ash-frame's onclick.
+  grip.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); });
+  // Double-click resets by DELETING the key, so the pane returns to whatever the responsive
+  // rules say TODAY rather than to whatever they said when the user first dragged it.
+  grip.addEventListener('dblclick', function(e){
+    e.preventDefault(); e.stopPropagation();
+    rszClear(_RSZ_KEYS[which]);
+    if(which === 'pills'){ applyPillsH(46); document.documentElement.style.removeProperty('--pills-h'); }
+    else { var f = document.getElementById('ash-frame');
+           if(f){ f.style.width = ''; f.style.height = ''; }
+           document.documentElement.style.removeProperty('--ash-size');
+           if(f) sizeHeroFrame(f); }
+  });
+}
+
+// ============================================================================================
+// FLOATING MODULES. A module is DOCKED (normal flow, exactly today) or FLOATING (position:fixed,
+// out of the layout chain). Only the second state can honour a width, which is why this exists.
+//
+// STATE SHAPE: {float:bool, x, y}. Size stays in the existing --ash-size key, so the two
+// concerns compose instead of one owning the other -- you can resize docked or floating and it
+// is the same number either way.
+var _MOD_KEY = 'bifrost.mod.ash';
+var _SNAP = 12;                       // px. Below this a drag is "meant for" the edge.
+
+function modRead(){ try{ return JSON.parse(localStorage.getItem(_MOD_KEY) || 'null') || null; }
+                    catch(e){ return null; } }
+function modWrite(s){ try{ localStorage.setItem(_MOD_KEY, JSON.stringify(s)); }catch(e){} }
+function modClear(){ try{ localStorage.removeItem(_MOD_KEY); }catch(e){} }
+
+function snapGuides(){
+  var g = document.getElementById('snapV');
+  if(!g){
+    g = document.createElement('div'); g.id='snapV'; g.className='snapline v'; document.body.appendChild(g);
+    var h = document.createElement('div'); h.id='snapH'; h.className='snapline h'; document.body.appendChild(h);
+  }
+  return {v: document.getElementById('snapV'), h: document.getElementById('snapH')};
+}
+
+// THE MAGNET. Candidate lines are the viewport edges and its centre; the nearest within _SNAP
+// wins per axis, independently, so a corner drag can catch one edge without being yanked to the
+// other. Returns the adjusted position AND which lines caught, because the guide has to render
+// exactly what the magnet did or the feedback is a lie.
+function modSnap(x, y, w, h){
+  var W = innerWidth, H = innerHeight, hit = {x:null, y:null};
+  var xs = [[0,0], [W - w, W], [(W - w)/2, W/2]];
+  var ys = [[0,0], [H - h, H], [(H - h)/2, H/2]];
+  xs.forEach(function(c){ if(Math.abs(x - c[0]) <= _SNAP && hit.x === null){ x = c[0]; hit.x = c[1]; } });
+  ys.forEach(function(c){ if(Math.abs(y - c[0]) <= _SNAP && hit.y === null){ y = c[0]; hit.y = c[1]; } });
+  return {x:x, y:y, hit:hit};
+}
+
+// CLAMP ON EVERY PLACEMENT, NOT JUST ON DRAG. A position stored on a wide monitor and restored
+// on a laptop is the classic way a floating pane becomes unreachable with no way back -- so the
+// restore path runs through the same clamp the drag does. Keeps at least 40px on screen.
+function modClamp(x, y, w, h){
+  return {x: Math.max(8 - w + 40, Math.min(innerWidth - 40, x)),
+          y: Math.max(0,           Math.min(innerHeight - 40, y))};
+}
+
+function modPlace(el, x, y){
+  var r = el.getBoundingClientRect();
+  var c = modClamp(x, y, r.width, r.height);
+  el.style.left = Math.round(c.x) + 'px';
+  el.style.top  = Math.round(c.y) + 'px';
+  el.style.right = 'auto'; el.style.bottom = 'auto';
+  return c;
+}
+
+function modUndock(el, x, y){
+  if(el.classList.contains('mod-float')) return;
+  var r = el.getBoundingClientRect();
+  var ph = document.getElementById('ash-ph');
+  // The placeholder inherits the CURRENT box, so the composer row does not collapse and reflow
+  // the moment the avatar leaves it -- popping out should move one thing, not rearrange the page.
+  if(ph){ ph.style.width = r.width + 'px'; ph.style.height = r.height + 'px'; ph.classList.add('on'); }
+  el.classList.add('mod-float');
+  modPlace(el, (x === undefined ? r.left : x), (y === undefined ? r.top : y));
+  var b = el.querySelector('.modbtn'); if(b) b.textContent = '⇱';
+  // NOW it can be sized: nothing upstream is negotiating its box any more.
+  try{ if(typeof applyAshSize === 'function'){
+        var want = rszRead(_RSZ_KEYS.ash); if(want) applyAshSize(rszClamp('ash', want)); } }catch(e){}
+}
+
+function modDock(el){
+  if(!el.classList.contains('mod-float')) return;
+  el.classList.remove('mod-float');
+  ['left','top','right','bottom'].forEach(function(p){ el.style.removeProperty(p); });
+  var ph = document.getElementById('ash-ph'); if(ph) ph.classList.remove('on');
+  var b = el.querySelector('.modbtn'); if(b) b.textContent = '⇲';
+}
+
+function wireModule(el, btn){
+  if(!el || !btn) return;
+  btn.addEventListener('click', function(e){
+    e.preventDefault(); e.stopPropagation();          // never reach #ash-frame's toggleAsh
+    if(el.classList.contains('mod-float')){ modDock(el); modClear(); }
+    else { modUndock(el); var r = el.getBoundingClientRect();
+           modWrite({float:true, x:r.left, y:r.top}); }
+  });
+  // DRAG TO MOVE, but only while floating -- a docked module must behave exactly as it does
+  // today, including its click. Drag starts on the frame itself, not the grip, so moving and
+  // resizing stay two gestures with two targets.
+  var live=false, ox=0, oy=0, moved=false;
+  el.addEventListener('pointerdown', function(e){
+    if(!el.classList.contains('mod-float')) return;
+    if(e.target.closest('.rsz') || e.target.closest('.modbtn')) return;
+    var r = el.getBoundingClientRect();
+    live=true; moved=false; ox = e.clientX - r.left; oy = e.clientY - r.top;
+    el.classList.add('mod-drag'); document.body.classList.add('rsz-active');
+    try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  el.addEventListener('pointermove', function(e){
+    if(!live) return;
+    moved = true;
+    var r = el.getBoundingClientRect();
+    var s = modSnap(e.clientX - ox, e.clientY - oy, r.width, r.height);
+    modPlace(el, s.x, s.y);
+    var g = snapGuides();
+    if(s.hit.x !== null){ g.v.style.left = s.hit.x + 'px'; g.v.classList.add('on'); } else g.v.classList.remove('on');
+    if(s.hit.y !== null){ g.h.style.top  = s.hit.y + 'px'; g.h.classList.add('on'); } else g.h.classList.remove('on');
+  });
+  function endDrag(e){
+    if(!live) return;
+    live=false; el.classList.remove('mod-drag'); document.body.classList.remove('rsz-active');
+    try{ el.releasePointerCapture(e.pointerId); }catch(err){}
+    var g = snapGuides(); g.v.classList.remove('on'); g.h.classList.remove('on');
+    var r = el.getBoundingClientRect();
+    modWrite({float:true, x:r.left, y:r.top});
+    // A drag that moved must not also fire the element's click (the agent popover).
+    if(moved){ var kill = function(ev){ ev.stopPropagation(); ev.preventDefault(); };
+               el.addEventListener('click', kill, {capture:true, once:true}); }
+  }
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+}
+
+function initResizables(){
+  var p = rszRead(_RSZ_KEYS.pills);
+  if(p !== null) applyPillsH(rszClamp('pills', p));
+  wireResize(document.getElementById('pillsGrip'), 'pills',
+             function(){ var el = document.getElementById('pills');
+                         return el ? el.getBoundingClientRect().height : 46; },
+             applyPillsH);
+  wireResize(document.getElementById('ashGrip'), 'ash',
+             function(){ var f = document.getElementById('ash-frame');
+                         return f ? f.getBoundingClientRect().width : 192; },
+             applyAshSize);
+  // MODULES. Wire first, restore second: a stored float has to land on a wired element or the
+  // pane comes back floating with no way to drag or dock it -- stranded in exactly the state
+  // the clamp exists to prevent.
+  var frame = document.getElementById('ash-frame');
+  wireModule(frame, document.getElementById('ashPop'));
+  var st = modRead();
+  if(st && st.float && frame){
+    modUndock(frame, st.x, st.y);
+    // Re-clamp against TODAY's viewport, not the one it was stored on.
+    var r = frame.getBoundingClientRect(); modPlace(frame, st.x, st.y);
+  }
+  // A viewport that shrinks under a floating module must not strand it offscreen.
+  window.addEventListener('resize', function(){
+    var f = document.getElementById('ash-frame');
+    if(f && f.classList.contains('mod-float')){
+      var r = f.getBoundingClientRect(); modPlace(f, r.left, r.top);
+    }
+  });
+}
+
 function sizeHeroFrame(frame){
   // 192px = 2in at the CSS reference 96dpi (Daniil's ask). Held EXACTLY on any viewport tall
   // enough to afford it; below that it scales, because the composer scales with it (see the
   // max-height:900px block) and a full-size hero beside a shrunken composer breaks the very
   // pairing the .tall class exists to create. The floor keeps it a portrait, not a favicon.
   var SIZE = Math.max(112, Math.min(192, Math.round(window.innerHeight * 0.21)));
+  // A SIZE THE USER CHOSE BEATS THE ONE WE COMPUTED -- but is still clamped to the viewport
+  // bounds, so a size dragged on a tall monitor cannot swallow a short one on the next boot.
+  // Absent (never dragged, or reset) the formula above stands exactly as before.
+  var stored = (typeof rszRead === 'function') ? rszRead(_RSZ_KEYS.ash) : null;
+  if(stored !== null) SIZE = Math.round(rszClamp('ash', stored));
   frame.style.width = SIZE + 'px';
   frame.style.height = SIZE + 'px';
-  frame.style.borderRadius = '26px';
+  // PERCENTAGE, not 26px: an inline pixel radius would beat the stylesheet's 13.5% and hand
+  // back the lozenge-at-small-sizes bug the ratio exists to prevent.
+  frame.style.borderRadius = '13.5%';
+  document.documentElement.style.setProperty('--ash-size', SIZE + 'px');
   var cw = frame.closest('.cwrap'); if(cw) cw.classList.add('tall');
   return SIZE;
 }
@@ -3184,6 +3529,14 @@ function driveVoiceLine(vitals){
 // replacement, and the avatar survives whichever of the two arrives first.
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountHeroAvatar);
 else mountHeroAvatar();
+
+// The grips wire on the same door. AFTER mountHeroAvatar in both branches, so a stored avatar
+// size is applied by sizeHeroFrame first and initResizables only has to read the box back --
+// two writers racing to set the same magnitude is how one of them silently loses.
+// Never fatal: a console that cannot resize is a console; one that throws here is a blank page.
+function _initRszSafe(){ try{ initResizables(); }catch(e){ console.warn('resize grips off:', e); } }
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initRszSafe);
+else _initRszSafe();
 
 // Activity verb -> avatar state. The console already knows what each agent is doing; this is
 // only the mapping, so there is no second source of truth about agent state.
