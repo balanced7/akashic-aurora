@@ -173,8 +173,16 @@ function scheduleDoorRespawn() {
     const ready = await doorHandshake()
     if (ready) {
       respawnAttempts = 0
-      await registerDoorTools(applyCtx)
-      LOG(`door respawned: ${door.tools.size} tools re-registered`)
+      const ok = await registerDoorTools(applyCtx)
+      if (ok) {
+        LOG(`door respawned: ${door.tools.size} tools re-registered`)
+        capture({ at: Date.now(), kind: 'door-respawn-ok', tools: door.tools.size })
+      } else {
+        // The door process is back but the tools could not re-register (e.g. the
+        // session context went inactive). Honest, captured, never a false success.
+        capture({ at: Date.now(), kind: 'door-respawn-no-tools',
+                  reason: 'handshake ok but tool re-registration failed' })
+      }
     }
   }, delay)
 }
@@ -317,7 +325,7 @@ function translateSchema(schema) {
 }
 
 async function registerDoorTools(ctx) {
-  if (!door.ready) return
+  if (!door.ready) return false
   try {
     for (const name of DOOR_TOOLS) {
       const t = door.tools.get(name)
@@ -351,9 +359,11 @@ async function registerDoorTools(ctx) {
       }))
     }
     LOG(`registered ${DOOR_TOOLS.length} akashic_* door tools`)
+    return true
   } catch (e) {
     LOG('tool registration failed:', e && e.message)
     capture({ at: Date.now(), kind: 'door-register-failed', reason: String(e && e.message) })
+    return false
   }
 }
 
