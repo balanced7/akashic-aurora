@@ -200,6 +200,29 @@ def test_plugin_wires_draft_keepalive_on_post_execute_fire_and_forget():
     assert "await_: false" in src
 
 
+# --- door self-heal (persistent MCP child respawn, RED 2026-08-26) ---
+
+def test_door_child_respawns_after_exit_with_backoff():
+    """A long-lived door child of a long-lived host must not make the host's tools
+    die with it (Vandor's reboot receipt: a 21h-old child served yesterday's server
+    code because nothing noticed). On exit the plugin must attempt a respawn with
+    backoff and a hard attempt cap -- a tight respawn loop wedges the host, and no
+    respawn at all wedges the seat's hands."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "'door-exit'" in src                  # the exit observation exists
+    assert "door-respawn" in src                 # the respawn attempt is captured, never silent
+    assert "RESPAWN_MAX" in src                  # a hard cap -- the loop-guard law
+    assert "registerDoorTools" in src            # re-registration after a fresh handshake
+
+
+def test_door_respawn_exhaustion_is_loud_not_silent():
+    """When the cap is reached, the seat must be TOLD (a captured, greppable record)
+    -- a dead door that pretends it might still answer is the exact silence class this
+    whole file exists to retire."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "respawn-exhausted" in src
+
+
 def test_presence_offline_declares_departure_not_a_beat():
     """The presence door's offline phase must call go_offline -- a declared departure
     that renders OFFLINE in the roster -- never heartbeat the key alive (the old
