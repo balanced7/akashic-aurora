@@ -3,7 +3,12 @@ sandbox_mode = "danger-full-access"
 inherit = "core"
 
 [shell_environment_policy.set]
-AKASHIC_AGENT_ID = "claude"
+AKASHIC_AGENT_ID = "sol"
+AKASHIC_HARNESS = "codex-desktop"
+AKASHIC_CALLSIGN_HINT = "Sunshine"
+AKASHIC_CALLSIGN_STATUS = "ratified"
+AKASHIC_IDENTITY_POINTER = "E:/AI-Setup/research/in-flight/sol-sunshine-identity-history-2026-08-26.md"
+AKASHIC_IDENTITY_POINTER_SUBJECT = "sol"
 
 [mcp_servers.akashic-aurora]
 command = "py"
