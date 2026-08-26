@@ -63,7 +63,7 @@ def _icons() -> Dict[str, Any]:
 
 def persona(frm: str) -> Dict[str, Optional[str]]:
     """username + avatar for a seat, from the registry + its own icon pick.
-    Unratified/unplaced seats keep their bare id and no face -- honest absence."""
+    Ratification names the resident; placement separately permits its generated face."""
     agent = str(frm or "").strip()
     base = agent.split("#", 1)[0].lower()          # incarnations wear the agent's face
     try:
@@ -72,12 +72,13 @@ def persona(frm: str) -> Dict[str, Optional[str]]:
         placed = _R.current_placement(base)
     except Exception:                                                   # noqa: BLE001
         rec, placed = None, None
-    if not rec or not placed:
+    if not rec:
         return {"username": agent or "?", "avatar_url": None}
     cs = str(rec.get("callsign") or base)
     icon = str((_icons().get(base) or {}).get("icon") or "").strip()
     name = f"{icon} {cs} ({base})".strip()
-    return {"username": name, "avatar_url": f"{AVATAR_BASE}/{cs.lower()}.png"}
+    avatar_url = f"{AVATAR_BASE}/{cs.lower()}.png" if placed else None
+    return {"username": name, "avatar_url": avatar_url}
 
 
 def forum_url() -> str:
