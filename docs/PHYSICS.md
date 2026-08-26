@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 4fa26a58. A bound you discover by collision is not awareness -- this sheet
+> Derived at 2a3de90d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (251 names)
+## Configuration flags (253 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -45,6 +45,7 @@ Class: reference
 | `AKASHIC_CHAPTERS_FILE` | `` | scripts/corpus_digests.py |
 | `AKASHIC_CLAUDE_CREDENTIALS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py |
+| `AKASHIC_CODEX_BINARY` | `` | agent/harness/codex_app_server.py |
 | `AKASHIC_CONDUCTOR_SUCCESSORS` | `",".join(SUCCESSION_ORDER` | core/comm/conductor_gate.py |
 | `AKASHIC_CONTROL_PORT_BASE` | `"47100"` | core/comm/control_channel.py |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
@@ -231,6 +232,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
+| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
