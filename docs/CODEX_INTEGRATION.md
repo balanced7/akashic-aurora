@@ -177,11 +177,15 @@ model steps; its final step alone was 28,578/21,248, which must not be confused
 with the turn aggregate. Across all four turns the App Server reported 119,066
 total tokens, including 87,032 uncached input tokens and 802 output tokens.
 Those receipts establish a roughly 22k-token single-step context footprint,
-but they do not establish one stable cache or billing floor. Reply gaps of
-318.2s, 178.6s, and 284.2s also do not support a simple monotonic idle-TTL
-explanation: the shortest observed gap missed while a longer one hit. Provider
-cache policy, multi-step behavior, prefix stability, and the dominant context
-contributors remain unresolved.
+and the multi-step turn makes the attribution unusually clear: subtracting its
+final step from the aggregate leaves 22,437 input tokens, within four tokens of
+the 22,441-token single-step turn. Its 21,248 cached tokens belong to the final
+continuation reusing that same turn's prefix; they are not evidence that a later
+Discord message reused an earlier message's context. Turns two and three showed
+zero cached input. Turn one's 9,984 cached tokens have no established source and
+did not recur reliably. The observed operator-message floor is therefore a real
+approximately 22.4k first-step input cost, while provider cache policy, prefix
+composition, and the dominant context contributors remain unresolved.
 
 New wake receipts carry `usage_accounting.accounting_basis=turn_total`, the
 whole-turn aggregate, the final model step, and an explicit `multi_step` flag.
