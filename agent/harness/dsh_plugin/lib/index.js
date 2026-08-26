@@ -11,7 +11,9 @@
 //                             (isError => FAIL half, then retry recall; success
 //                             => resolve; flip => nudge context) + draft keepalive
 //                             (fire-and-forget refresh of last-session-draft.md)
-//   session/flush+disposed -> T6 capture (where-we-are distiller) + presence offline
+//   session/disposed     -> T6 capture (where-we-are distiller) + presence offline
+//                          (session/flush is a durability checkpoint, NOT a
+//                           departure -- does nothing here; Rill's ruling 2026-08-26)
 //
 // Presence (Daniil, reconciliation PRESENCE section): every event fires a
 // roster.heartbeat via bridge `presence`; the rich presence hash snippet is
@@ -50,7 +52,40 @@ let listenerRegistered = false
 let observeOnly = false
 const sessions = new Map() // sid -> { whisperText, whisperInjected, planPending, lastPrompt, probe }
 
-const activeSid = () => process.env.DSH_SESSION_ID || ''
+// S1 LAW -- ENV IS A HINT, NEVER THE KEY. The web host does not always set
+// DSH_SESSION_ID, and when it is absent every presence beat used to be skipped
+// silently, so a live seat went invisible to the routing plane and its mail
+// stalled in the mailbox shadow (Rill, 2026-08-26: alive, serving, and reading
+// as OFFLINE with 79 undrained). The session/created and session/event handlers
+// already KNOW the real id -- remember it and let it outrank the env hint.
+let lastSid = ''
+const rememberSid = (sid) => { if (sid) lastSid = String(sid) }
+const activeSid = () => lastSid || process.env.DSH_SESSION_ID || ''
+
+// WORKLIVE_TTL is 45s (core/comm/liveness.py). An event-driven beat alone cannot
+// hold a seat visible: an idle session beats once at session/created and expires
+// under a minute later. Runner seats keep a ~5s heartbeat thread; this is the web
+// seat's analogue, deliberately well inside the TTL so a live record never flaps.
+const BEAT_MS = 15000
+let beatTimer = null
+let beatWarned = false
+function startPresenceBeat() {
+  if (beatTimer) return
+  beatTimer = setInterval(() => {
+    if (lastSid) firePresence('idle', lastSid)
+  }, BEAT_MS)
+  // never hold the host process open on account of observability
+  if (typeof beatTimer.unref === 'function') beatTimer.unref()
+}
+function stopPresenceBeat() {
+  // A declared departure must not be silently reversed by the recurring beat: when
+  // session/disposed fires 'offline' (go_offline removes the worklive key), the still-
+  // running interval would otherwise re-beat 'idle' with the remembered lastSid ~15s
+  // later and resurrect the key -- a gone seat reading LIVE again (offline-declaration
+  // law inverted; pinned by test_disposed_session_stops_the_recurring_beat).
+  if (beatTimer) { clearInterval(beatTimer); beatTimer = null }
+  lastSid = ''
+}
 const stateFor = (sid) => {
   if (!sid) return null
   if (!sessions.has(sid)) sessions.set(sid, { whisperText: '', whisperInjected: false, planPending: false, lastPrompt: '', probe: null })
@@ -80,9 +115,22 @@ function spawnBridge(args, { await_ = true, timeoutMs = 5000 } = {}) {
   return await_ ? p : null
 }
 
-function firePresence(phase) {
-  const sid = activeSid()
-  if (sid) spawnBridge(['presence', '--phase', phase, '--session-id', sid], { await_: false })
+function firePresence(phase, sid) {
+  const use = sid || activeSid()
+  if (!use) {
+    // REFUSE LOUDLY, NEVER INVENT. A beat stamped with a guessed session id would
+    // make routing hand this seat mail on a fiction -- attribution standing in for
+    // verification, the class this fleet keeps paying for. Say it once and stay
+    // honest: no id means no claim of presence.
+    if (!beatWarned) {
+      beatWarned = true
+      LOG('presence: no session id (event or DSH_SESSION_ID) -- NOT beating; this seat will read OFFLINE until one is known')
+    }
+    return
+  }
+  rememberSid(use)
+  startPresenceBeat()
+  spawnBridge(['presence', '--phase', phase, '--session-id', use], { await_: false })
 }
 
 function extractTarget(args) {
@@ -405,7 +453,8 @@ export async function apply(ctx) {
   }
 
   ctx.on('session/created', (session) => {
-    firePresence('idle')
+    // pass the id the EVENT carries; do not make firePresence re-derive it from env
+    firePresence('idle', session && session.id)
     const st = stateFor(session && session.id || activeSid())
     if (st && !st.whisperText) {
       spawnBridge(['boot-whisper', '--cwd', process.cwd() || '', '--agent-id', SESSION_KEY, '--session-id', session && session.id || activeSid()])
@@ -416,12 +465,13 @@ export async function apply(ctx) {
 
   ctx.on('session/event', (session, event) => {
     const sid = session && session.id || activeSid()
+    rememberSid(sid)              // every event is a chance to learn the real id
     const st = stateFor(sid)
     if (!st) return
     if (event && event.type === 'user/message') {
       st.lastPrompt = extractEventText(event)
       st.planPending = true
-      firePresence('thinking')
+      firePresence('thinking', sid)
     }
     if (st.probe && st.probe.pending) {
       st.probe.seen += 1
@@ -502,15 +552,20 @@ export async function apply(ctx) {
   }, { prepend: true })
 
   ctx.on('session/disposed', (session) => {
+    const sid = session && session.id || activeSid()   // capture BEFORE stop clears lastSid
     firePresence('offline')
-    spawnBridge(['session-end', '--session-id', session && session.id || activeSid()], { await_: false })
-    const sid = session && session.id || activeSid()
+    stopPresenceBeat()                          // a departed seat must not re-beat alive
+    spawnBridge(['session-end', '--session-id', sid], { await_: false })
     if (sid) sessions.delete(sid)
   })
 
-  ctx.on('session/flush', () => {
-    firePresence('offline')
-  })
+  // RULING (Rill, 2026-08-26, Heimdall's open call): session/flush is the
+  // DURABILITY CHECKPOINT -- fired by the checkpoint policy's per-request
+  // barrier, the goal-round-driver's idle checkpoint, and teardown drains
+  // (dsh-tool-cordis: 'the awaited session/flush durability checkpoint').
+  // It is NOT a departure. Declaring offline here made every checkpoint kill
+  // the worklive key for up to BEAT_MS and flap a healthy seat offline->idle.
+  // Departure is session/disposed alone; flush does nothing here.
 
   listenerRegistered = true
   LOG('activated: five listeners registered; observeOnly =', observeOnly)
