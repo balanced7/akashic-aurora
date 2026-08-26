@@ -423,7 +423,20 @@ class FixtureAppServer:
             turn_id="turn-wake",
             status="completed",
             text="A bounded reply from Sol.",
-            token_usage={"last": {"totalTokens": 23}},
+            token_usage={
+                "last": {
+                    "inputTokens": 28,
+                    "cachedInputTokens": 21,
+                    "outputTokens": 3,
+                    "totalTokens": 31,
+                },
+                "total": {
+                    "inputTokens": 51,
+                    "cachedInputTokens": 21,
+                    "outputTokens": 6,
+                    "totalTokens": 57,
+                },
+            },
             raw={},
         )
 
@@ -478,6 +491,18 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     assert sends[0][3]["subject_callsign"] == "Sunshine"
     assert sends[0][3]["callsign_status"] == "ratified"
     assert state.seen(mid) is True
+    accounting = state.records[-1]["usage_accounting"]
+    assert accounting["accounting_basis"] == "turn_total"
+    assert accounting["turn_total"]["totalTokens"] == 57
+    assert accounting["final_model_step"]["totalTokens"] == 31
+    assert accounting["multi_step"] is True
+
+    events = [json.loads(line) for line in
+              (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    replied = next(event for event in events if event.get("event") == "replied")
+    assert replied["usage_accounting"] == accounting, (
+        "the operational JSONL and private watermark must agree about which usage "
+        "scope prices the whole admitted turn")
 
     assert watcher.handle(mid, redis.fields)["outcome"] == "duplicate"
     assert servers[0].turns == 1 and len(sends) == 1
