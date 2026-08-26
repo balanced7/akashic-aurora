@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 83746fc9. A bound you discover by collision is not awareness -- this sheet
+> Derived at 393c4eca. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (250 names)
+## Configuration flags (251 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -177,6 +177,7 @@ Class: reference
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MAX_CMD_TIMEOUT` | `"300"` | core/comm/toolbox.py |
 | `DEEPSEEK_MAX_RETRIES` | `"1"` | scripts/deepseek_chat.py |
+| `DEEPSEEK_MAX_TOOL_RESULT_CHARS` | `"20000"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MAX_TOOL_ROUNDS` | `"0"` | scripts/deepseek_chat.py |
 | `DEEPSEEK_MODEL` | `"deepseek-v4-pro"` | scripts/ask_deepseek.py |
 | `DEEPSEEK_READ_TIMEOUT` | `"120"` | scripts/deepseek_chat.py |

@@ -11,9 +11,10 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 182 modules lack both pin and paper by name)
+## GAP queue (41 of 183 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
+- core/foundation/filelock.py
 - core/foundation/migrate_to_sqlite.py
 - core/foundation/redis_connection.py
 - core/foundation/timeutil.py
@@ -54,11 +55,12 @@ Class: reference
 - core/perspectives/reinforce.py
 - agent/initializer.py
 
-## core/foundation/  (9 modules)
+## core/foundation/  (10 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `durable_reconcile.py` | Per-family authority reconcile: make the durable source COMPLETE before migrating. | GAP | GAP | `AI_SETUP` |
+| `filelock.py` | A cross-process exclusive file lock. | GAP | GAP |  |
 | `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_charter_p0_gap_ledger.py | docs/failure-ledger-2026-07.md |  |
 | `migrate_to_sqlite.py` | JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify. | GAP | GAP | `AI_SETUP` |
 | `redis_connection.py` | Redis Connection: Fail-fast connectivity primitive | GAP | GAP | `AKASHIC_REDIS_HEALTH_CHECK_SEC`, `REDIS_DB`, `REDIS_HOST`, `REDIS_PORT` |

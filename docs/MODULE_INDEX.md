@@ -4,8 +4,9 @@
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
-## core/foundation/  (9 modules)
+## core/foundation/  (10 modules)
 - `durable_reconcile.py` — Per-family authority reconcile: make the durable source COMPLETE before migrating.
+- `filelock.py` — A cross-process exclusive file lock.
 - `ledger.py` — Ledger: Swappable event-record interface (append-and-replay)
 - `migrate_to_sqlite.py` — JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify.
 - `redis_connection.py` — Redis Connection: Fail-fast connectivity primitive

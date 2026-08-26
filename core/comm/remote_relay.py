@@ -41,16 +41,19 @@ guarantee moved to a pin instead.
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac as _hmac
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from core.outcome import BoundaryOutcome
 from core.comm import discord_bridge
+from core.foundation import filelock
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -102,6 +105,13 @@ INBOX_FILE_DEFAULT = _ROOT / "state" / "coord" / "remote_bridge_inbox.jsonl"
 #: and would otherwise re-parse every pass) and honest (_reset_cache simulates a fresh process).
 _FILE_CACHE: Dict[str, Tuple[Tuple[int, int], list]] = {}
 
+# Serialises read-modify-write on the jsonl logs. The threading lock is the cheap
+# in-process guard (the listener is one process with many request threads); the
+# cross-process file lock inside _append_row covers the CLI writers.
+_RMW_LOCK = threading.RLock()
+_TMP_SEQ_LOCK = threading.Lock()
+_TMP_SEQ = 0
+
 
 def _reset_cache() -> None:
     """Drop every parsed-file cache — what a fresh process would see. Used by pins to prove
@@ -150,18 +160,61 @@ def _read_jsonl(path: Path) -> list:
     return rows
 
 
+def _tmp_for(path: Path) -> Path:
+    """A temp path unique to THIS writer.
+
+    The old fixed `<name>.tmp` meant two concurrent writers built their staging file at
+    the same path and then raced os.replace: both "succeeded", one result survived, and
+    the other's rows were gone with no error anywhere. pid+tid+counter makes collision
+    impossible rather than unlikely."""
+    global _TMP_SEQ
+    with _TMP_SEQ_LOCK:
+        _TMP_SEQ += 1
+        seq = _TMP_SEQ
+    return path.with_suffix(f"{path.suffix}.{os.getpid()}.{threading.get_ident()}.{seq}.tmp")
+
+
 def _write_jsonl(path: Path, rows: list) -> None:
     """Rewrite the log atomically-ish (tmp + replace) so a crash mid-write cannot truncate the
-    queue to nothing — losing the outbox is the exact failure the outbox exists to prevent."""
+    queue to nothing — losing the outbox is the exact failure the outbox exists to prevent.
+
+    NOTE: this rewrites the WHOLE file, so it is only safe under the caller's lock when
+    other writers exist. Use _append_row() for read-modify-write; it holds that lock."""
+    tmp = _tmp_for(path)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text("".join(json.dumps(r, sort_keys=True, default=str) + "\n"
                                for r in rows), encoding="utf-8")
         os.replace(tmp, path)
         _FILE_CACHE.pop(str(path), None)
     except OSError:
         _FILE_CACHE.pop(str(path), None)
+        with contextlib.suppress(OSError):
+            tmp.unlink()          # never leave staging litter behind on failure
+
+
+def _append_row(path: Path, row: dict, *, key: str = "id") -> bool:
+    """Append `row` unless its key is already present. Returns True if it was added.
+
+    THE WHOLE READ-MODIFY-WRITE HAPPENS UNDER ONE LOCK. Previously accept() read the
+    inbox, checked for the id, appended and rewrote with nothing serialising any of it,
+    so two concurrent admits both read the pre-state and the second replace erased the
+    first message. That file is the idempotency ledger, which makes a silent drop there
+    especially expensive: the message is gone AND unremembered, so no redrive replays it.
+
+    The lock is cross-process (core.foundation.filelock) because the inbox has CLI
+    writers as well as listener threads -- a threading.Lock would have covered only the
+    ones that happened to share an interpreter.
+    """
+    with _RMW_LOCK, filelock.exclusive(path):
+        _FILE_CACHE.pop(str(path), None)      # never trust a cache we just locked around
+        rows = _read_jsonl(path)
+        want = str(row.get(key))
+        if any(str(r.get(key)) == want for r in rows):
+            return False
+        rows.append(row)
+        _write_jsonl(path, rows)
+        return True
 
 
 def _config() -> Dict[str, Any]:
@@ -710,14 +763,15 @@ def accept(envelope: Dict[str, str], *, secret: Optional[bytes] = None,
         "admitted_at": int(time.time()),
     }
 
-    path = inbox_path()
-    rows = _read_jsonl(path)
-    if any(str(r.get("id")) == parked["id"] for r in rows):
+    # One locked read-modify-write: the duplicate check and the append cannot be split
+    # by a concurrent admit any more. _append_row returns False when the id was already
+    # parked, which is the same "already have it" answer the old inline check produced.
+    added = _append_row(inbox_path(), parked)
+    if not added:
         _LAST_ADMITTED.clear()
         _LAST_ADMITTED.update(parked)
         return BoundaryOutcome.done(ref=parked["id"], chars=0)   # T116: point at the cached
-    rows.append(parked)                                          # outcome, never vanish silently
-    _write_jsonl(path, rows)
+                                                                 # outcome, never vanish silently
     _LAST_ADMITTED.clear()
     _LAST_ADMITTED.update(parked)
     return BoundaryOutcome.done(ref=parked["id"], chars=len(parked["content"]))
