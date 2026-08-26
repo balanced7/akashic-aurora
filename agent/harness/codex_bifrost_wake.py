@@ -106,6 +106,29 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _usage_accounting(usage: Mapping[str, Any]) -> Dict[str, Any]:
+    """Label whole-turn usage separately from the final model step.
+
+    App Server reports both ``total`` and ``last``. They are identical for a
+    one-step turn and diverge when tools or another continuation cause more
+    than one model call. A cost receipt that leaves those scopes implicit makes
+    an expensive multi-step turn look like only its final call.
+    """
+    raw_total = usage.get("total") if isinstance(usage, Mapping) else None
+    raw_last = usage.get("last") if isinstance(usage, Mapping) else None
+    turn_total = dict(raw_total) if isinstance(raw_total, Mapping) else {}
+    final_step = dict(raw_last) if isinstance(raw_last, Mapping) else {}
+    basis = "turn_total" if turn_total else "final_model_step_fallback"
+    if not turn_total:
+        turn_total = dict(final_step)
+    return {
+        "accounting_basis": basis,
+        "turn_total": turn_total,
+        "final_model_step": final_step,
+        "multi_step": bool(raw_total and raw_last and turn_total != final_step),
+    }
+
+
 def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
@@ -492,6 +515,7 @@ class CodexBifrostWake:
         identity: SubjectIdentity,
     ) -> Dict[str, Any]:
         usage = result.token_usage or {}
+        usage_accounting = _usage_accounting(usage)
         if result.status != "completed" or not result.text.strip():
             detail = f"status={result.status!r}; final_text={bool(result.text.strip())}"
             self.state.record(
@@ -501,8 +525,15 @@ class CodexBifrostWake:
                 thread_id=result.thread_id,
                 turn_id=result.turn_id,
                 token_usage=usage,
+                usage_accounting=usage_accounting,
             )
-            self._log("turn_incomplete", mid=message.id, detail=detail, token_usage=usage)
+            self._log(
+                "turn_incomplete",
+                mid=message.id,
+                detail=detail,
+                token_usage=usage,
+                usage_accounting=usage_accounting,
+            )
             return {"mid": message.id, "outcome": "turn_incomplete"}
 
         reply_mid = self.bus.send(
@@ -529,8 +560,15 @@ class CodexBifrostWake:
                 thread_id=result.thread_id,
                 turn_id=result.turn_id,
                 token_usage=usage,
+                usage_accounting=usage_accounting,
             )
-            self._log("reply_failed", mid=message.id, detail=detail, token_usage=usage)
+            self._log(
+                "reply_failed",
+                mid=message.id,
+                detail=detail,
+                token_usage=usage,
+                usage_accounting=usage_accounting,
+            )
             return {"mid": message.id, "outcome": "reply_failed"}
 
         self.state.record(
@@ -541,6 +579,7 @@ class CodexBifrostWake:
             thread_id=result.thread_id,
             turn_id=result.turn_id,
             token_usage=usage,
+            usage_accounting=usage_accounting,
         )
         self._log(
             "replied",
@@ -549,6 +588,7 @@ class CodexBifrostWake:
             thread_id=result.thread_id,
             turn_id=result.turn_id,
             token_usage=usage,
+            usage_accounting=usage_accounting,
         )
         return {"mid": message.id, "outcome": "replied", "reply_mid": str(reply_mid)}
 
