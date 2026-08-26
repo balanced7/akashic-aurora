@@ -142,6 +142,8 @@ const DOOR_TOOLS = [
   // T383 tranche 1 (2026-08-26): the read family -- eye surface + coordination reads
   'eye', 'find', 'freq', 'get', 'ingest', 'overview', 'standing', 'trace',
   'zoom', 'route', 'delta', 'roster', 'scout', 'timeline', 'compare',
+  // T383 tranche 2a (2026-08-26): resident-ceremony READS + repeat (write moves stay CLI)
+  'resident', 'roles', 'show', 'verdict_file', 'calibration', 'repeat',
 ]
 const DOOR_PREFIX = 'akashic_'
 const DOOR_TIMEOUT_MS = 60000
