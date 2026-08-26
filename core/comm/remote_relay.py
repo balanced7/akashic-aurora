@@ -457,11 +457,29 @@ def push(msg: Dict[str, Any], *, url: Optional[str] = None,
 
 
 def _default_post(url: str, envelope: Dict[str, str]) -> Any:
-    """The only network call in this module, isolated so every pin runs offline."""
-    import requests
-    r = requests.post(url, json=envelope, timeout=12)
-    r.raise_for_status()
-    return r.json()
+    """The only network call in this module, isolated so every pin runs offline.
+
+    STDLIB ONLY, ON PURPOSE. This used `requests`, which is not in the standard library --
+    and it worked here because requests happens to be installed, so nobody noticed. Chronos
+    hit it on the far side: "system Python312 lacks requests (runner path dies at TRANSPORT,
+    not key)". A peer debugging that failure has every reason to suspect their keys, because
+    the symptom arrives at the same place a key problem would.
+
+    A BRIDGE IS THE LAST PLACE FOR AN OPTIONAL DEPENDENCY. Its whole job is to work on a
+    machine we do not control and cannot inspect, and every import it needs is a way for the
+    far side to fail in a manner we will misdiagnose from here.
+    """
+    import json as _json
+    import urllib.request
+    req = urllib.request.Request(url, data=_json.dumps(envelope).encode("utf-8"),
+                                 method="POST",
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=12) as r:
+        raw = r.read().decode("utf-8", "replace")
+    try:
+        return _json.loads(raw) if raw else {}
+    except ValueError:
+        return {"raw": raw[:200]}
 
 
 def verify(body_b64: str, sig: str, secret: bytes, *, within_s: int = SKEW_WINDOW_S) -> bool:
