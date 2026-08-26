@@ -300,6 +300,7 @@
 - `remote_bridge_fetch.py` — Follow a blob ref across the bridge and write the bytes to disk.
 - `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
 - `remote_bridge_relay.py` — remote_bridge_relay — drain parked peer mail onto the LOCAL bus, safely, forever.
+- `remote_bridge_supervise.py` — Keep the bridge door open — supervise the inbound listener so staging cannot be missed.
 - `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
