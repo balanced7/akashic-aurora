@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 117,
+  "count": 119,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -121,7 +121,9 @@
     "core/state/session_checkpoint.py::print_recovery_summary",
     "core/state/session_checkpoint.py::save_checkpoint",
     "core/trust/registry.py::role_template",
-    "core/world.py::assert_may_write"
+    "core/world.py::assert_may_write",
+    "core/comm/conductor_gate.py::acting_conduct_grant",
+    "core/comm/conductor_gate.py::acting_conductor_approve"
   ],
   "history": [
     {
@@ -156,6 +158,11 @@
       "date": "2026-08-14",
       "change": "116 -> 117",
       "why": "W156: core/world.py::assert_may_write is DELIBERATELY unwired -- the write-side half of the world guard. Plumbing a refusal into some write doors but not all of them buys the feeling of a guard while leaving the holes that matter (gate_at_module_level_hides_dead_capability_inside_it). It ships when the write plane is fenced as its own slice. The other three W156 functions this run flagged were NOT baselined: assert_owns_port was WIRED into redis_connection's env-override path (the only path that can aim a twin at another world), redis_endpoint was WIRED into scripts/seed_world.py, and may_read was DELETED as decoration -- it returned a constant True and made 'reads allowed, writes refused' read as an enforced pair when only the write half ever was. Baselining is the third exit; used once, on purpose."
+    },
+    {
+      "date": "2026-08-24",
+      "change": "117 -> 119",
+      "why": "t384 conductor-absence succession (deepseek, half_a RULING 4). The DETECTOR is now WIRED: notice_conductor_absence -> evaluate_succession -> decide_and_act is called from the two successor runners' loop top (bifrost_runner_deepseek.py, bifrost_runner_kimi.py), so a machine notices conductor absence instead of Daniil at 4am. The module EXCEPTIONS entry was removed in the same commit. These TWO functions are the mandate MINTING DOORS (acting_conduct_grant / acting_conductor_approve) -- the only code that actually hands out AUTHORITY, and the only surface with NO production caller. That is correct and deliberate: the mandate fires only when the succession ACTIVATES live, and even then decide_and_act merely ANNOUNCES; minting a recovery grant is a separate, human-visible act the acting conductor performs during the live drill. They are baselined (not wired and not deleted) because their real consumer is the live succession drill -- the UNWIRE-WHEN is: the drill invokes acting_conduct_grant / acting_conductor_approve (or a CLI verb is built that does), then remove these two entries. A blanket wire here would be wrong: minting authority on a timer tick with no human in the loop is precisely the failure mode the gate's RED pins exist to prevent."
     }
   ]
 }
