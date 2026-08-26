@@ -29,6 +29,13 @@ SEAMS (from Sol 5.6's assessment + dsh_agent's receipts):
   check — "is this about me?".
 - S6 recovery ergonomics — no single command reassembles identity. Operator directive:
   recovery must be made to be easier.
+- S7 bus-presence heartbeat (found 2026-08-26 during the operator's live Discord loop test):
+  the DSH web seat runs WITHOUT beating the bus worklive key — the gateway log says
+  'UNATTENDED RECIPIENT: dsh_agent has no live seat (no heartbeat on record)' and operator
+  messages stall on the global stream, visible only to the T095 mailbox. The seat is alive in
+  the web host and invisible to the routing plane — Vandor's address law in the presence
+  plane. The fix belongs to the same projector: the session binding must include a liveness
+  beat (lesson dsh_web_seat_has_no_bus_heartbeat_mail_stalls_on_global).
 
 PRIOR ART (never the first time -- five incidents, one class):
 
