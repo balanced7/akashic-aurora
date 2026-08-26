@@ -580,6 +580,13 @@ def cmd_learn(args):
         "success": args.success or "yes",
         "confidence": args.confidence or "medium",
         "anti_pattern": _clip(getattr(args, "anti_pattern", ""), 200),
+        "root_cause": _intake(getattr(args, "root_cause", ""), _MAX, "root_cause", clipped),
+        # Normalised to a LIST here, because base_score iterates it and a bare string would
+        # iterate per-CHARACTER -- silently turning one path into hundreds of one-letter
+        # "paths" that match nothing. Accept comma or whitespace separation; agents write both.
+        "files_affected": [p for p in
+                           _clip(getattr(args, "files_affected", ""), 2000)
+                           .replace(",", " ").split() if p],
     }
     related = []
     try:   # near-duplicate scan BEFORE recording (advisory only -- writes are never blocked)
@@ -640,7 +647,12 @@ def cmd_learn(args):
     if ok and not args.json and str(signal["success"]).lower() in ("no", "false", "partial") \
             and not signal.get("anti_pattern"):
         from core.learning.learning_store import draft_anti_pattern_slug
-        slug = draft_anti_pattern_slug(signal.get("what_tried", ""), "", signal.get("recommendation", ""))
+        # root_cause was a hardcoded "" here until 2026-08-25, so this helper had run on its
+        # FALLBACK input every time it was ever called and never once on its preferred one --
+        # it PREFERS root_cause because that names WHY it failed. Nothing errored; the slugs
+        # were just quietly worse than designed. The field had no door to arrive through.
+        slug = draft_anti_pattern_slug(signal.get("what_tried", ""), signal.get("root_cause", ""),
+                                       signal.get("recommendation", ""))
         if slug:
             print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
             print(f"       py agent_cli.py tag-anti-pattern {args.agent_id} "
@@ -6943,6 +6955,16 @@ def build_parser():
     l.add_argument("--confidence", default=None); l.add_argument("--json", action="store_true")
     l.add_argument("--anti-pattern", dest="anti_pattern", default="",
                    help="name a reusable known-bad this lesson documents (recall's dissent-finder warns on it)")
+    # A READER WITHOUT A WRITER. Both fields below were consumed by the recall layers and
+    # offered by NO door, so both sat at EXACTLY 0.0% across 1120 records -- not culture, a
+    # missing flag (measured 2026-08-25). Exactly-zero is a door signature; laziness produces
+    # low-but-nonzero. Same class as --anti-pattern, which was added alone and left these.
+    l.add_argument("--root-cause", dest="root_cause", default="",
+                   help="WHY it failed, not what happened -- read by the dedup dimensions, "
+                        "infer_domain and the anti-pattern slug drafter (which PREFERS it)")
+    l.add_argument("--files-affected", dest="files_affected", default="",
+                   help="comma/space-separated paths this lesson is about -- base_score tier "
+                        "0.7 matches a task's paths against them")
     l.set_defaults(fn=cmd_learn)
 
     wsh = sub.add_parser("wish", help="file an ergonomics wish to docs/WISHLIST.md "

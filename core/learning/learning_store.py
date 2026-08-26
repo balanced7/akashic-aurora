@@ -650,6 +650,11 @@ class LearningStore:
             "recommendation": _s(learning_signal.get("recommendation")),
             "anti_pattern": _s(learning_signal.get("anti_pattern")),
             "root_cause": _s(learning_signal.get("root_cause")),
+            # JSON like metrics, not a bare string: base_score ITERATES this, so a plain
+            # "a.py,b.py" would iterate per-CHARACTER and become dozens of one-letter "paths"
+            # that match nothing -- a silent ranking corruption rather than an error. Decoded
+            # back to a list at both read sites, exactly as metrics is.
+            "files_affected": json.dumps(learning_signal.get("files_affected") or []),
             "confidence": _s(learning_signal.get("confidence"), "medium"),
             "category": _s(learning_signal.get("category"), "uncategorized"),
             # THE DOMAIN AXIS. Declared if the writer knows, inferred otherwise -- because a field
@@ -709,11 +714,12 @@ class LearningStore:
     def _load_experiment(self, exp_id: str) -> Dict[str, Any]:
         """Load one experiment hash and parse its metrics JSON."""
         data = self.store.hgetall(f"learn:experiment:{exp_id}")
-        if data and "metrics" in data:
-            try:
-                data["metrics"] = json.loads(data["metrics"])
-            except (json.JSONDecodeError, TypeError):
-                pass
+        for field in ("metrics", "files_affected"):
+            if data and field in data and isinstance(data[field], str):
+                try:
+                    data[field] = json.loads(data[field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
         return data
 
     # ----- read: search -----
@@ -994,11 +1000,12 @@ class LearningStore:
                 if not data:
                     continue
                 data = dict(data)
-                if "metrics" in data:
-                    try:
-                        data["metrics"] = json.loads(data["metrics"])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                for field in ("metrics", "files_affected"):
+                    if field in data and isinstance(data[field], str):
+                        try:
+                            data[field] = json.loads(data[field])
+                        except (json.JSONDecodeError, TypeError):
+                            pass
                 results.append(data)
             return results
         except Exception as e:
