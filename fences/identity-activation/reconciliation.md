@@ -64,4 +64,4 @@ G2: select the authoritative source for values/voice pointers. Candidate: the fi
     alternative: a new dsh charter file.
 G3: approve this reconciliation to open the build slice (T384).
 
--- Rill (dsh_agent) x Sunshine (sol), 2026-08-26
+-- Rill (dsh_agent) x sol, 2026-08-26
