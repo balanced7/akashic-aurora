@@ -752,6 +752,156 @@ async def friction(agent: str = "claude", window_h: float = 168.0) -> str:
                           agent_id=agent, window_h=float(window_h))
 
 
+# --- T383 tranche 1 (2026-08-26, dsh_agent): the read-family membrane paydown. The 15
+#     verbs declared shared by the door-parity manifest (check_door_parity.py), now MCP
+#     twins of the CLI. Same _run capture trick as every twin above: the tool returns the
+#     exact text the CLI would print, and the cmd functions' own guards ride along.
+#     The eye family splits into typed per-subcommand tools + one dispatcher `eye` for the
+#     position verbs (look/go/back/since/inherit/stats) that are not yet census verbs.
+
+
+@mcp.tool()
+async def eye(eye_cmd: str, addr: str = "", seat: str = "", from_seat: str = "",
+              agent: str = "", query: str = "", who: str = "", kind: str = "",
+              session: str = "", as_of: str = "", limit: int = 0, patterns: str = "",
+              event_id: str = "", json: bool = False) -> str:
+    """THE EYE's dispatcher for the position verbs: look | go | back | since | inherit | stats
+    (the query verbs have their own typed tools: find/freq/get/zoom/overview/standing/trace/
+    route/ingest). Same grammar as `py agent_cli.py eye <eye_cmd> ...`."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd=eye_cmd, addr=addr or None,
+                          seat=seat or None, from_seat=from_seat or None, agent=agent or None,
+                          query=query or None, who=who or None, kind=kind or None,
+                          session=session or None, as_of=as_of or None, limit=limit,
+                          patterns=patterns.split() if patterns else [],
+                          event_id=event_id or None, json=bool(json))
+
+
+@mcp.tool()
+async def ingest(json: bool = False) -> str:
+    """[eye ingest] Index every session JSONL incrementally and rebuild the connectome edges.
+    The connectome rides ingest: an edge table stale against fresh events would answer trace
+    with yesterday's ancestry and no way to tell."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="ingest", json=bool(json))
+
+
+@mcp.tool()
+async def find(query: str, who: str = "", kind: str = "", session: str = "",
+               as_of: str = "", limit: int = 0, json: bool = False) -> str:
+    """[eye find] The grammar door: facets AND together -- query (text), who (voice),
+    kind (event type), session, as_of (YYYY-MM-DD). Returns full-hit counts with tokens,
+    degraded flags, and drill pointers -- never silent-empty."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="find", query=query or None,
+                          who=who or None, kind=kind or None, session=session or None,
+                          as_of=as_of or None, limit=limit, json=bool(json))
+
+
+@mcp.tool()
+async def freq(patterns: str, json: bool = False) -> str:
+    """[eye freq] THE axis: how often a pattern family appears across sessions -- the
+    thing-said-THREE-times signal (unheard / recurring / standing-directive verdict).
+    patterns = space-separated phrasings OR'd together."""
+    if not patterns.strip():
+        return "usage: freq 'phrase1 phrase2' -- space-separated phrasings OR'd together"
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="freq",
+                          patterns=patterns.split(), json=bool(json))
+
+
+@mcp.tool()
+async def get(event_id: str, json: bool = False) -> str:
+    """[eye get] Resolve an event address (session:line) to the FULL utterance + its
+    same-utterance siblings -- a citation resolves to an utterance, never a row. Ambiguous
+    short prefixes REFUSE with candidates; zero matches stays an honest no-event."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="get",
+                          event_id=event_id, json=bool(json))
+
+
+@mcp.tool()
+async def zoom(addr: str, rebuild: bool = False, json: bool = False) -> str:
+    """[eye zoom] LOD navigation: a session -> its L2 digest -> an exchange. Rebuilds the
+    pyramid on first call; pass rebuild to clear a stale one."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="zoom", addr=addr,
+                          rebuild=bool(rebuild), json=bool(json))
+
+
+@mcp.tool()
+async def overview(json: bool = False) -> str:
+    """[eye overview] The region map: sessions as places -- events, operator counts, spans."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="overview", json=bool(json))
+
+
+@mcp.tool()
+async def standing(limit: int = 0, json: bool = False) -> str:
+    """[eye standing] The directive watcher: recurring operator phrasings that NO durable
+    plane cites. This instrument PROPOSES -- it files nothing; read its false-positive
+    confession in the output."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="standing",
+                          limit=limit, json=bool(json))
+
+
+@mcp.tool()
+async def trace(event_id: str, depth: int = 0, formed_via: str = "",
+                json: bool = False) -> str:
+    """[eye trace] The connectome walk: where an utterance came from (upstream) and what
+    followed (downstream). Needs `ingest` to have built the edges first."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="trace",
+                          event_id=event_id, depth=depth, formed_via=formed_via or None,
+                          json=bool(json))
+
+
+@mcp.tool()
+async def route(route_action: str, name: str = "", steps_file: str = "", by: str = "",
+                resolve: bool = False, drill: bool = False, json: bool = False) -> str:
+    """[eye route] Saved walkable strings through the forest: ls | save (NAME + steps-file)
+    | walk (NAME). Walk history renders with the total so a count never travels alone."""
+    return await _athread(_run, agent_cli.cmd_eye, eye_cmd="route",
+                          route_action=route_action, name=name or None,
+                          steps_file=steps_file or None, by=by or None,
+                          resolve=bool(resolve), drill=bool(drill), json=bool(json))
+
+
+@mcp.tool()
+async def delta(agent: str, ack: bool = False) -> str:
+    """The delta door (T052/R1): what moved since this agent's last boot -- commits,
+    ledger transitions, bus, notes. ack advances the seen mark (boot auto-commits)."""
+    return await _athread(_run, agent_cli.cmd_delta, agent_id=agent, ack=bool(ack))
+
+
+@mcp.tool()
+async def roster(reap: bool = False, by_agent: bool = False, json: bool = False) -> str:
+    """S2 lobby: every seat's PROVEN liveness (beat freshness, never key-existence) plus
+    inventory pointers. reap re-homes stranded mail from provably-dead seats."""
+    return await _athread(_run, agent_cli.cmd_roster, reap=bool(reap),
+                          by_agent=bool(by_agent), json=bool(json))
+
+
+@mcp.tool()
+async def scout(text: str, wearer: str = "", by: str = "", blind: bool = False,
+                shape: str = "", json: bool = False) -> str:
+    """T292: the read-only pre-flight -- 'is a seat mid-flight here / has this been done'.
+    The verdict files itself UNadjudicated and waits for an operator ruling."""
+    return await _athread(_run, agent_cli.cmd_scout, text=[text] if text else None,
+                          wearer=wearer or None, by=by or None, blind=bool(blind),
+                          shape=shape or None, json=bool(json))
+
+
+@mcp.tool()
+async def timeline(hours: float = 0, limit: int = 0, json: bool = False) -> str:
+    """T211: the forensic super-timeline -- events + git + task transitions lined up by
+    time. Coverage prints WITH the rows; a merged view missing a domain says so."""
+    return await _athread(_run, agent_cli.cmd_timeline, hours=float(hours or 0),
+                          limit=limit, json=bool(json))
+
+
+@mcp.tool()
+async def compare(a: str = "", b: str = "", list_domains: bool = False,
+                  limit: int = 0, json: bool = False) -> str:
+    """T213: what does one domain have that another does not -- the set difference four
+    of our guards each hand-rolled. Refuses different key kinds; marks UNRELIABLE when
+    either side was incompletely collected."""
+    return await _athread(_run, agent_cli.cmd_compare, a=a or None, b=b or None,
+                          list=bool(list_domains), limit=limit, json=bool(json))
+
+
 @mcp.tool()
 async def ask_gemini_web(prompt: str, mode: str = "gemini", system: str = "") -> str:
     """Ask Gemini via the FREE Google web surfaces (not API billing).
