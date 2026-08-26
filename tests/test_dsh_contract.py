@@ -207,12 +207,16 @@ def test_door_child_respawns_after_exit_with_backoff():
     die with it (Vandor's reboot receipt: a 21h-old child served yesterday's server
     code because nothing noticed). On exit the plugin must attempt a respawn with
     backoff and a hard attempt cap -- a tight respawn loop wedges the host, and no
-    respawn at all wedges the seat's hands."""
+    respawn at all wedges the seat's hands. DRILL-CORRECTED CONTRACT (2026-08-26,
+    two live drills): tool registrations are a ONE-TIME act at apply(); the harness
+    persists them and REFUSES a duplicate, so the respawn is handshake-only --
+    registerDoorTools exists for the apply path, never the respawn path."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "'door-exit'" in src                  # the exit observation exists
     assert "door-respawn" in src                 # the respawn attempt is captured, never silent
     assert "RESPAWN_MAX" in src                  # a hard cap -- the loop-guard law
-    assert "registerDoorTools" in src            # re-registration after a fresh handshake
+    assert "registerDoorTools" in src            # the one-time registration path exists
+    assert "door-respawn-ok" in src              # a successful respawn is captured, greppable
 
 
 def test_door_respawn_exhaustion_is_loud_not_silent():
