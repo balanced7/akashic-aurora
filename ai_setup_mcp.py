@@ -913,12 +913,13 @@ async def resident(sub: str = "show", nominee: str = "", agent: str = "",
                    family: str = "", team: str = "", role: str = "", side: str = "",
                    exercise: str = "", provenance: str = "", shape: str = "",
                    resident: str = "", json: bool = False) -> str:
-    """[resident] The callsign ceremony's READ door: sub = show | roster | roles | calibration.
-    The write moves (nominate/ratify/place/assign/adjudicate/verdict-file) are refused here --
-    peers nominate, a HUMAN ratifies, the operator adjudicates: use the CLI for those."""
-    if sub in ("nominate", "ratify", "place", "assign", "adjudicate", "verdict-file"):
-        return (f"[resident] the MCP door carries the READ ceremony only (show/roster/roles/"
-                f"calibration). '{sub}' is a write move -- use the CLI: "
+    """[resident] The callsign ceremony's door: sub = show | roster | roles | calibration
+    (the read half) + nominate | assign (Daniil's approved writes, 2026-08-26). Refused
+    here: ratify/place/adjudicate/verdict-file -- a HUMAN ratifies, the operator
+    adjudicates; use the CLI for those."""
+    if sub in ("ratify", "place", "adjudicate", "verdict-file"):
+        return (f"[resident] the MCP door refuses '{sub}' -- a HUMAN ratifies and the "
+                f"operator adjudicates (the ratify ruling). Use the CLI: "
                 f"py agent_cli.py resident {sub} ...")
     return await _athread(_run, agent_cli.cmd_resident, sub=sub, nominee=nominee or None,
                           agent=agent or None, family=family or None, team=team or None,
@@ -974,6 +975,68 @@ async def repeat(source: str = "", what: str = "", recall_outcome: str = "",
     return await _athread(_run, agent_cli.cmd_repeat, source=source or None,
                           what=what or None, recall_outcome=recall_outcome or None,
                           agent=agent or None, report=bool(report), json=bool(json))
+
+
+@mcp.tool()
+async def nominate(nominee: str, callsign: str, by: str, receipts: str = "",
+                   vendor: str = "", family: str = "", team: str = "",
+                   number: str = "", note: str = "") -> str:
+    """[resident nominate] Propose a callsign for a PEER (never yourself -- the registry
+    refuses self-nomination). A HUMAN ratifies (rule 3); until then it is NOT active.
+    Daniil approved this write on the MCP door 2026-08-26."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="nominate", nominee=nominee,
+                          callsign=callsign, by=by,
+                          receipts=[r.strip() for r in receipts.split(",") if r.strip()] or None,
+                          vendor=vendor or None, family=family or None, team=team or None,
+                          number=(int(number) if str(number).strip() else None),
+                          note=note or None)
+
+
+@mcp.tool()
+async def assign(agent: str, role: str, by: str, side: str = "",
+                 exercise: str = "") -> str:
+    """[resident assign] Record that a resident is operating as a role -- an event, never
+    a field; provenance derives from `by`, never forged by a flag. Daniil approved this
+    write on the MCP door 2026-08-26."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="assign", nominee=agent,
+                          role=role, by=by, side=side or None, exercise=exercise or None)
+
+
+@mcp.tool()
+async def adopt(path: str, type: str = "", title: str = "", seats: str = "") -> str:
+    """[doc adopt] Mint an EXISTING loose .md as a typed atom -- NON-DESTRUCTIVE by
+    construction: read, mint, leave the original exactly where it is. Type/title/seats are
+    inferred when absent (override with flags). Daniil approved this write 2026-08-26."""
+    return await _athread(_run, agent_cli.cmd_doc, sub="adopt", path=path,
+                          type=type or None, title=title or None, seats=seats or None)
+
+
+@mcp.tool()
+async def bifrost_fetch(get: str, out: str = "", agent: str = "") -> str:
+    """Fetch a spilled payload by content-addressed ref (blob:<sha>) or a bus message by
+    stream id -- the other half of the spill; without it the pointer is decoration. Writes
+    to --out when given, else prints the bytes."""
+    return await _athread(_run, agent_cli.cmd_blob, get=get, out=out or None,
+                          agent=agent or None)
+
+
+@mcp.tool()
+async def sift(terms: str, hats: str = "", planes: str = "", junction: bool = False,
+               max_occurrences: int = 0, dry_run: bool = True, spend: bool = False,
+               workers: int = 0, out: str = "", json: bool = False) -> str:
+    """T217: the nested ask -- evidence pack -> hat fan -> curator pairs -> DISSENT FIRST.
+    THE MCP TWIN IS SPEND-GATED (fan 1787717507): defaults dry_run=True (evidence pack,
+    nothing spent); a live paid fan requires spend=True as a deliberate opt-in. Carried
+    dissent (branch 2): a flag any seat can set is weaker than an operator-approved budget
+    record -- add the record when a budget organ exists."""
+    if not dry_run and not spend:
+        return ("[sift] REFUSED: the MCP twin is spend-gated -- a live fan costs money. "
+                "Pass dry_run=True (the default) to see the evidence pack, or spend=True "
+                "to authorize the paid fan deliberately.")
+    return await _athread(_run, agent_cli.cmd_sift, terms=terms.split(),
+                          hats=hats or "", planes=planes or "", junction=bool(junction),
+                          max_occurrences=max_occurrences, dry_run=bool(dry_run),
+                          workers=workers, out=out or None, json=bool(json))
 
 
 @mcp.tool()
