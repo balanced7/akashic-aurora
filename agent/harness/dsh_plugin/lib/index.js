@@ -139,6 +139,9 @@ const DOOR_TOOLS = [
   'handoff', 'story', 'events', 'promoted', 'locks', 'lock', 'unlock',
   'bifrost_sync', 'bifrost_send', 'bifrost_inbox', 'bifrost_presence',
   'knowledge_map', 'friction', 'tag_anti_pattern',
+  // T383 tranche 1 (2026-08-26): the read family -- eye surface + coordination reads
+  'eye', 'find', 'freq', 'get', 'ingest', 'overview', 'standing', 'trace',
+  'zoom', 'route', 'delta', 'roster', 'scout', 'timeline', 'compare',
 ]
 const DOOR_PREFIX = 'akashic_'
 const DOOR_TIMEOUT_MS = 60000
