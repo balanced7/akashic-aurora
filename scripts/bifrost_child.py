@@ -132,7 +132,14 @@ class ManagedChild:
                  breaker_window_s: float = 300.0,
                  breaker_max: int = 3):
         self._args = list(args)
-        self._env = dict(env or {})
+        # env=None INHERITS, exactly as subprocess.Popen documents it. The old
+        # `dict(env or {})` turned "no preference" into a genuinely EMPTY environment --
+        # no PATH, no SYSTEMROOT, none of the AKASHIC_* overrides -- which is not a
+        # sane default on any platform and is silent when it bites. Every daemon caller
+        # passes env explicitly; remote_bridge_supervise did not, and it is the file
+        # that exists BECAUSE its listener kept vanishing. An explicit env is still
+        # honoured verbatim, including an intentional empty one ({} is not None).
+        self._env = dict(os.environ) if env is None else dict(env)
         self._cwd = cwd
         self._on_blocker = on_blocker
         self._breaker_window_s = breaker_window_s

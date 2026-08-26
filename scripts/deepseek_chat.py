@@ -113,6 +113,28 @@ from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
 MAX_TOOL_ROUNDS = int(os.getenv("DEEPSEEK_MAX_TOOL_ROUNDS", "0")) or 10**9
 _ROUNDS_CAPPED = MAX_TOOL_ROUNDS < 10**9
 
+# The ceiling on a SINGLE tool result entering history. gemini/kimi/sol have always
+# clipped at 20000; deepseek was the one sibling that did not, and the divergence is
+# expensive twice over: an unclipped result is retained for the life of the process AND
+# re-sent on every remaining hop. Measured 2026-07-25 -- 309 turns / 393M tokens, worst
+# turn 11.4M over 127 hops -- and implicated in the 2026-08-26 memory exhaustion.
+MAX_TOOL_RESULT_CHARS = int(os.getenv("DEEPSEEK_MAX_TOOL_RESULT_CHARS", "20000"))
+
+
+def clip_tool_result(result: str, limit: int = MAX_TOOL_RESULT_CHARS) -> str:
+    """Bound one tool result, and SAY SO in-band when it was cut.
+
+    A silent truncation teaches the agent that the file ended where the clip fell, which
+    is a worse failure than a big payload -- so the notice names the dropped byte count
+    and how to get the rest.
+    """
+    text = result if isinstance(result, str) else str(result)
+    if len(text) <= limit:
+        return text
+    dropped = len(text) - limit
+    return (f"{text[:limit]}\n[clipped {dropped} chars of {len(text)} -- re-read the "
+            f"specific range you need rather than the whole artifact]")
+
 
 # ---- terminal helpers -------------------------------------------------------
 
@@ -405,6 +427,14 @@ class Agent:
                         "Proceed with your best judgment and state your assumption LOUDLY: "
                         "'I'm assuming X; if that's wrong, steer me.']"})
                     print(f"{C.yellow}[clarify timeout {cid} -- proceeding with assumption]{C.reset}")
+                # THE STUCK-ON-AWAITING BUG (fixed): when a clarification RESOLVES or TIMES OUT,
+                # the phase must be reset to idle. Until now the loop set tb._clarify_waiting=None
+                # but never rewrote the activity/worklive phase, so the worklive record kept
+                # phase='awaiting-clarification' and the heartbeat thread refresh() kept it alive
+                # indefinitely -- the UI showed 'stuck on awaiting clarification' until an
+                # unrelated later activity overwrote it. Resetting here makes the phase honest
+                # the moment the dial closes, on BOTH the answer and the timeout path.
+                self._activity("idle")
             # P-S1-5: the turn's phase is now owned by _stream_turn ('calling-model' before the
             # blocking create(), then 'thinking' on the first token) -- so the API wait is legible.
             try:
@@ -449,7 +479,11 @@ class Agent:
                     # agent paces with open eyes instead of hoarding hops on anxiety.
                     self._hops = getattr(self, "_hops", 0) + 1
                     _budget = f"/{MAX_TOOL_ROUNDS}" if _ROUNDS_CAPPED else ""
-                    result = f"{result}\n[hop {self._hops} | tool-round {_round + 1}{_budget}]"
+                    # Clip the BODY, then append the marker: the hop counter is a suffix
+                    # here (the siblings prefix theirs), so clipping the composed string
+                    # would eat the very number the agent paces itself by.
+                    result = (f"{clip_tool_result(result)}\n"
+                              f"[hop {self._hops} | tool-round {_round + 1}{_budget}]")
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
                 continue
             if content:

@@ -66,8 +66,20 @@ def _procs() -> List[str]:
         return []
 
 
-def _cmdlines() -> str:
-    """Full python command lines (tasklist hides args; wmic-era fallback)."""
+def _cmdlines() -> Optional[str]:
+    """Full python command lines (tasklist hides args; wmic-era fallback).
+
+    Returns None when the process table could NOT BE READ -- a timeout, a shell failure,
+    anything. That is not the same fact as "no processes are running", and this function
+    used to spell them identically (both as ""). Downstream, the only consumer of the
+    count is a SPAWNER, so an empty string meant every unreadable probe was heard as
+    "everything is dead, start more" -- and the 25s CIM timeout gets likelier exactly as
+    the machine comes under memory pressure. That is a positive feedback loop: pressure
+    slows the probe, the silence reads as death, the cure adds pressure. It ran every 5
+    minutes and put four concurrent gateways up before the 2026-08-26 exhaustion.
+
+    An empty STRING still means a genuine zero -- the probe answered and found nothing.
+    """
     try:
         r = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
@@ -75,9 +87,11 @@ def _cmdlines() -> str:
              "| Select-Object -ExpandProperty CommandLine"],
             capture_output=True, text=True, timeout=25, encoding="utf-8",
             errors="replace")
+        if r.returncode != 0:
+            return None          # the shell failed: we did not learn anything
         return r.stdout or ""
     except Exception:                                                   # noqa: BLE001
-        return ""
+        return None              # timeout / spawn failure: unreadable, NOT empty
 
 
 def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
@@ -114,6 +128,18 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
         return any(script in ln and f"--agent {pattern_agent}" in ln
                    for ln in cmds.splitlines())
 
+    if cmds is None:
+        # THE REFUSAL. Same discipline the app rung above already applies: a probe that
+        # cannot run reads as NOT healthy AND NOT repairable, so decide() plans nothing
+        # and unreachable_report names it. We cannot prove absence, so we do not "heal"
+        # it -- spawning against an unreadable process table is how duplicates breed.
+        blind = ("process table unreadable (probe timed out or failed) -- cannot prove "
+                 "absence, so this rung REFUSES to spawn; re-run when the host is calmer")
+        for organ in ("daemon", "runners", "gateway"):
+            out[organ] = {"healthy": False, "repairable": False, "detail": blind,
+                          "dead": []}
+        return out
+
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
     dead_runners = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_runner_")]
     gateway_n = cmds.count("bifrost_runner_discord.py")
@@ -123,6 +149,7 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
                    if not dead_daemons else
                    f"DOWN: {', '.join(dead_daemons)} "
                    f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})"),
+        "repairable": True,      # the probe ANSWERED -- a zero here is a real absence
         "dead": dead_daemons}
     out["runners"] = {
         "healthy": not dead_runners,
@@ -130,8 +157,10 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
                    if not dead_runners else
                    f"DOWN: {', '.join(dead_runners)} (daemon's children -- healed by "
                    f"the daemon rung, verified here)"),
+        "repairable": True,
         "dead": dead_runners}
     out["gateway"] = {"healthy": gateway_n > 0,
+                      "repairable": True,
                       "detail": f"{gateway_n} gateway process(es)"}
     return out
 
@@ -155,6 +184,12 @@ def decide(observed: Dict[str, Dict[str, Any]],
             continue
         if any(not (observed.get(d) or {}).get("healthy") for d in _DEPS[organ]):
             continue                       # deferred: dependency is dead
+        if row.get("repairable") is False:
+            # A rung that told us it CANNOT be proven broken is never "healed". This is
+            # the app rung's discipline generalised to every organ: an unknown bad state
+            # is not the state we know how to fix. Absent key == repairable (a rung that
+            # never speaks to the question keeps its old behaviour).
+            continue
         if organ == "app":
             # ONLY a repairable state earns a plan. An app that is down for a reason
             # this rung has no lever for is left ALONE and named in the unreachable
