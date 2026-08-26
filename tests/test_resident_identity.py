@@ -295,3 +295,32 @@ def test_p7_a_stored_author_with_stray_whitespace_does_not_refuse_a_valid_receip
         f"author must normalise to 'kimi' regardless of stored whitespace, got {stored_author!r}"
     out = R.nominate(nominee="kimi", callsign="Whitespace", receipts=[exp], by="claude")
     assert out, "a receipt whose stored author differs only by whitespace must be ACCEPTED"
+
+
+def test_p10_ratification_immediately_invalidates_a_warm_callsign_index(monkeypatch):
+    """The name must become an address in the same ceremony, not after a 120s cache TTL."""
+    from core.fleet import residents as R
+
+    agent = "resident-cache-pin"
+    callsign = "ImmediateSunbeam"
+    receipt = "pin_immediate_callsign_addressability"
+    monkeypatch.setattr(R, "_receipt_author", lambda _experiment: agent)
+    R.nominate(
+        nominee=agent,
+        callsign=callsign,
+        receipts=[receipt],
+        by="claude",
+    )
+
+    # Reproduce a long-lived router that built its cache before the ceremony completed.
+    monkeypatch.setattr(R, "_ALIAS_CACHE", {
+        "at": __import__("time").time(),
+        "alias": {"vandor": "claude"},
+        "ids": {"claude", agent},
+    })
+    R.ratify(nominee=agent, callsign=callsign, by="daniil")
+
+    assert R.resolve_agent(callsign) == agent, (
+        "ratification must invalidate the warm reverse index immediately; a ratified name "
+        "that cannot yet receive mail is an identity/address fracture"
+    )
