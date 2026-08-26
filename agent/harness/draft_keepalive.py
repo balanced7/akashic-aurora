@@ -19,10 +19,13 @@ in a way that could not be told from not running. And the handoff fires only whe
 was well enough to say goodbye.
 
 WHAT THIS MODULE IS. The throttle decision, as a pure function, plus a never-raising wrapper.
-It is NOT WIRED, deliberately: the natural trigger is the Stop hook, which runs on every turn
-of every claude session, so a defect there wedges the whole fleet at once rather than one
-seat. Same discipline the conductor gate used -- built ahead (3431118a), wired later by a
-seat with room to think (5c09bb5a). Wiring is a separate, clear-headed slice.
+WIRED 2026-08-26 (Rill) at TWO turn boundaries: the Stop hook (scripts/hooks/claude_stop.py,
+the live registered copy) for claude seats, and the DSH turn seam (dsh_plugin/bridge.py
+`draft-keepalive` subcommand, fired fire-and-forget from tools/post-execute) for the dsh
+seat. Both seams INJECT the one existing builder as the write closure -- this module owns
+no second way to build a draft. Built ahead like the conductor gate (built 3431118a, wired
+5c09bb5a): the throttle sat unwired for two days while the wiring waited for a seat with
+room to think.
 
 WHY A THROTTLE AT ALL. The draft gather reads the transcript and the ledger. Doing that on
 every turn would put real work in a hot path that must stay nearly free -- the

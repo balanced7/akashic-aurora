@@ -239,6 +239,70 @@ def locate_dsh_session_log(dsh_home: str, session_id: str) -> str:
     return ""
 
 
+def _gather_draft(trigger: str) -> None:
+    """The ONE draft builder, delegated (this module owns no second way to build a
+    draft -- pinned by tests/test_draft_keepalive.py): commits + lessons + notes +
+    flips -> chronicles/last-session-draft.md. Raises on failure; callers wrap it."""
+    import agent_cli
+    from core.learning.agent_memory import get_agent_memory
+    commits = agent_cli._recent_commits(24)
+    lessons = agent_cli._recent_lessons(8)
+    notes = get_agent_memory().get_decisions(days=1)
+    try:
+        from core.recall.at_action import recent_flips, recent_injections
+        flips, injections = recent_flips(24), recent_injections(24)
+    except Exception:
+        flips, injections = [], []
+    agent_cli.write_last_session_draft(
+        agent_cli.last_session_draft_path(), commits, lessons, notes,
+        trigger=trigger, flips=flips, injections=injections)
+
+
+def _keepalive_run() -> dict:
+    """The throttled turn-boundary draft refresh (Vandor's organ, wired 2026-08-26).
+    Never raises; returns {"wrote": bool, "reason": str} -- a skip is a stated
+    decision, and the 600s throttle keeps the common case one getmtime."""
+    try:
+        repo = _repo()
+        sys.path.insert(0, repo)
+        from agent.harness import draft_keepalive
+        import agent_cli
+
+        def _write():
+            old = os.getcwd()
+            os.chdir(repo)
+            try:
+                _gather_draft("DSH draft keepalive")
+            finally:
+                os.chdir(old)
+
+        return draft_keepalive.refresh(agent_cli.last_session_draft_path(), write=_write)
+    except Exception as e:                                              # noqa: BLE001
+        return {"wrote": False,
+                "reason": f"keepalive failed ({type(e).__name__}: {str(e)[:80]})"}
+
+
+def cmd_draft_keepalive(a) -> int:
+    """draft-keepalive -- the DSH analog of the Stop-hook keepalive: fired
+    fire-and-forget at every turn boundary (tools/post-execute), it refreshes
+    chronicles/last-session-draft.md when stale so a taskkill /F on the host still
+    leaves a draft NEWER than the kill. Kill switch: AKASHIC_DRAFT_KEEPALIVE=0."""
+    return _emit(_keepalive_run())
+
+
+def _build_draft_keepalive_parser(sub=None):
+    """Standalone builder so pins can parse the subcommand without main().
+    With sub=None it builds a top-level parser and returns it; with a subparsers
+    action it registers the subcommand there and returns the sub-parser."""
+    if sub is None:
+        ap = argparse.ArgumentParser(prog="bridge.py")
+        _build_draft_keepalive_parser(ap.add_subparsers(dest="cmd", required=True))
+        return ap
+    k = sub.add_parser("draft-keepalive")
+    k.set_defaults(fn=cmd_draft_keepalive)
+    return k
+
+
 def cmd_session_end(a) -> int:
     # T6 auto-handoff, DSH-native. Same shared organs the claude hook drives, but the
     # transcript side is the DSH log (zstd JSONL) instead of Claude JSONL. Best-effort
@@ -252,19 +316,7 @@ def cmd_session_end(a) -> int:
         transcript = a.transcript_path or locate_dsh_session_log(home, sid)
 
         # DRAFT (harness-agnostic): commits + lessons + notes -> last-session-draft.md
-        import agent_cli
-        from core.learning.agent_memory import get_agent_memory
-        commits = agent_cli._recent_commits(24)
-        lessons = agent_cli._recent_lessons(8)
-        notes = get_agent_memory().get_decisions(days=1)
-        try:
-            from core.recall.at_action import recent_flips, recent_injections
-            flips, injections = recent_flips(24), recent_injections(24)
-        except Exception:
-            flips, injections = [], []
-        agent_cli.write_last_session_draft(
-            agent_cli.last_session_draft_path(), commits, lessons, notes,
-            trigger="DSH session end", flips=flips, injections=injections)
+        _gather_draft("DSH session end")
 
         # SIGNALS: DSH calls -> the same fold the claude hook uses (watermark shared).
         # Same kill switch as claude_sessionend: AKASHIC_SESSION_SIGNALS=0.
@@ -359,6 +411,8 @@ def main() -> int:
     se.add_argument("--session-id", default="")
     se.add_argument("--transcript-path", default=None)
     se.set_defaults(fn=cmd_session_end)
+
+    _build_draft_keepalive_parser(sub)
 
     a = ap.parse_args()
     return a.fn(a)

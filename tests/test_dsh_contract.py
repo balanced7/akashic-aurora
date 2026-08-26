@@ -177,7 +177,7 @@ def test_bridge_exposes_draft_keepalive_subcommand():
     keepalive: a turn-boundary call that refreshes a stale
     chronicles/last-session-draft.md so a hard-killed host leaves a fresh draft."""
     a = argparse.Namespace()
-    bridge._build_draft_keepalive_parser().parse_args([], namespace=a)
+    bridge._build_draft_keepalive_parser().parse_args(["draft-keepalive"], namespace=a)
     assert a.cmd == "draft-keepalive"
 
 

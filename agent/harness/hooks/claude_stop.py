@@ -245,6 +245,37 @@ def _beat_idle(session_id: str) -> None:
         pass   # a liveness marker must never break the turn boundary
 
 
+def _draft_keepalive() -> None:
+    """Turn boundary: refresh chronicles/last-session-draft.md when stale (the organ
+    agent/harness/draft_keepalive.py, wired 2026-08-26). Throttled 600s; never raises;
+    kill switch AKASHIC_DRAFT_KEEPALIVE=0. A crash kills the next graceful hook -- this
+    keeps the auto-handoff younger than any death."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+        from agent.harness import draft_keepalive
+        import agent_cli
+
+        def _write():
+            from core.learning.agent_memory import get_agent_memory
+            commits = agent_cli._recent_commits(24)
+            lessons = agent_cli._recent_lessons(8)
+            notes = get_agent_memory().get_decisions(days=1)
+            try:
+                from core.recall.at_action import recent_flips, recent_injections
+                flips, injections = recent_flips(24), recent_injections(24)
+            except Exception:
+                flips, injections = [], []
+            agent_cli.write_last_session_draft(
+                agent_cli.last_session_draft_path(), commits, lessons, notes,
+                trigger="claude Stop-hook keepalive", flips=flips, injections=injections)
+
+        out = draft_keepalive.refresh(agent_cli.last_session_draft_path(), write=_write)
+        print("[stop-hook] draft keepalive: wrote=%s (%s)" % (out["wrote"], out["reason"]),
+              file=sys.stderr)
+    except Exception:
+        pass   # a keepalive must never alter the stop verdict
+
+
 def main():
     try:
         payload = json.loads(sys.stdin.read().lstrip("﻿"))   # BOM-tolerant (PS pipes)
@@ -267,6 +298,7 @@ def main():
         except Exception:
             pass   # fail-open: tombstone probe errors never change stop-hook behavior
     _touch_activity(session_id)          # stamp ALIVE on every firing -- K7 fast path
+    _draft_keepalive()                   # turn boundary: refresh a stale auto-handoff draft
     # THE TURN IS OVER, so stop claiming work. Without this the last verb would linger until its
     # 25s TTL expired, and the avatar would show the seat mid-tool-call for half a minute after
     # it had finished and gone quiet -- an overstatement, which is the one thing the state
