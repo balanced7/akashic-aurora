@@ -902,6 +902,80 @@ async def compare(a: str = "", b: str = "", list_domains: bool = False,
                           list=bool(list_domains), limit=limit, json=bool(json))
 
 
+# --- T383 tranche 2a (2026-08-26, dsh_agent): the resident-ceremony READS + repeat. The
+#     ceremony's write moves stay OFF this door by decision -- peers nominate, a HUMAN
+#     ratifies, the operator adjudicates (same reasoning as the ratify ruling in the
+#     door-parity manifest). The MCP door carries the READ half only.
+
+
+@mcp.tool()
+async def resident(sub: str = "show", nominee: str = "", agent: str = "",
+                   family: str = "", team: str = "", role: str = "", side: str = "",
+                   exercise: str = "", provenance: str = "", shape: str = "",
+                   resident: str = "", json: bool = False) -> str:
+    """[resident] The callsign ceremony's READ door: sub = show | roster | roles | calibration.
+    The write moves (nominate/ratify/place/assign/adjudicate/verdict-file) are refused here --
+    peers nominate, a HUMAN ratifies, the operator adjudicates: use the CLI for those."""
+    if sub in ("nominate", "ratify", "place", "assign", "adjudicate", "verdict-file"):
+        return (f"[resident] the MCP door carries the READ ceremony only (show/roster/roles/"
+                f"calibration). '{sub}' is a write move -- use the CLI: "
+                f"py agent_cli.py resident {sub} ...")
+    return await _athread(_run, agent_cli.cmd_resident, sub=sub, nominee=nominee or None,
+                          agent=agent or None, family=family or None, team=team or None,
+                          role=role or None, side=side or None, exercise=exercise or None,
+                          provenance=provenance or None, shape=shape or None,
+                          resident=resident or None, json=bool(json))
+
+
+@mcp.tool()
+async def show(agent: str) -> str:
+    """[resident show] A resident's designation, the receipts behind it, and its current
+    operating role -- the permanent plane and the situational plane side by side, never merged."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="show", nominee=agent)
+
+
+@mcp.tool()
+async def roles(agent: str = "", role: str = "", side: str = "",
+                exercise: str = "", provenance: str = "") -> str:
+    """[resident roles] Who is operating as what -- query role assignments by agent, role,
+    side, or exercise. Provenance is derived from `by`, never forged by a flag."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="roles", agent=agent or None,
+                          role=role or None, side=side or None, exercise=exercise or None,
+                          provenance=provenance or None)
+
+
+@mcp.tool()
+async def verdict_file(agent: str, ask_id: str, shape: str = "", gist: str = "",
+                       geometry: str = "", role: str = "", cold_twin_of: str = "") -> str:
+    """[resident verdict-file] File a verdict on an ask: who answered, what shape, and
+    whether it is a cold twin. Lands UNadjudicated and waits for an operator ruling."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="verdict-file", agent=agent,
+                          ask_id=ask_id, shape=shape or None, gist=gist or None,
+                          geometry=geometry or None, role=role or None,
+                          cold_twin_of=cold_twin_of or None)
+
+
+@mcp.tool()
+async def calibration(shape: str = "", resident: str = "", json: bool = False) -> str:
+    """[resident calibration] The verdict ledger in COUNTS ONLY -- filed/adjudicated/
+    confirmed/refuted, never rates (rates wait for RC2's n-floors; an unadjudicated
+    verdict is visibly unadjudicated, never a success)."""
+    return await _athread(_run, agent_cli.cmd_resident, sub="calibration",
+                          shape=shape or None, resident=resident or None, json=bool(json))
+
+
+@mcp.tool()
+async def repeat(source: str = "", what: str = "", recall_outcome: str = "",
+                 agent: str = "", report: bool = False, json: bool = False) -> str:
+    """T314: record that an EXISTING lesson was violated anyway -- evidence ABOUT the
+    lesson, not a new one. The number it surfaces is elapsed_s: how long a lesson
+    survived before it broke (a short gap on a prose lesson says prose was the wrong
+    instrument and a gate is the right one). report=True shows the ledger instead."""
+    return await _athread(_run, agent_cli.cmd_repeat, source=source or None,
+                          what=what or None, recall_outcome=recall_outcome or None,
+                          agent=agent or None, report=bool(report), json=bool(json))
+
+
 @mcp.tool()
 async def ask_gemini_web(prompt: str, mode: str = "gemini", system: str = "") -> str:
     """Ask Gemini via the FREE Google web surfaces (not API billing).

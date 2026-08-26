@@ -6,7 +6,7 @@
     "check_doc_freshness": 0,
     "check_comprehensibility": 0,
     "check_wiring": 0,
-    "check_door_parity": 6,
+    "check_door_parity": 0,
     "check_kind_policy": 1
   },
   "_door_parity_1": "2026-08-13 claude: the `captions` verb (W154) is CLI-only BY DECISION, not by drift -- a recreational YouTube-captions door does not warrant MCP surface area (the MCP tool list is context every seat pays for at every boot). Joins the nine tracked CLI-only doors. If captions ever earns fleet-programmatic use, add the MCP wrapper and pay this back to 0.",
