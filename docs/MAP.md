@@ -308,7 +308,7 @@ Class: reference
 | `actions.py` | The shared recall-block orchestration — the rule-of-three extraction (t383). | tests/test_harness_actions.py | docs/library/design/20260805_t196-ask-transaction-spec_b59657.md | `AKASHIC_AGENT_ID`, `AKASHIC_PLAN_RECALL`, `AKASHIC_RECALL_AT_ACTION`, `AKASHIC_RECALL_STATE_DIR` |
 | `capture.py` | Payload-truth capture shared by every harness adapter (Integration Tiers H1). | tests/test_bifrost_console_capture.py | docs/library/chronicle/20260723_last-session-draft-auto-captured-2026-07_1dd6ee.md | `AKASHIC_PAYLOAD_CAPTURE` |
 | `codex_app_server.py` | Owned Codex App Server stdio host. | tests/test_codex_app_server.py | GAP | `AKASHIC_CODEX_BINARY`, `LOCALAPPDATA` |
-| `codex_bifrost_wake.py` | Zero-model Bifrost level watcher with an owned Codex turn starter. | GAP | GAP | `LOCALAPPDATA` |
+| `codex_bifrost_wake.py` | Zero-model Bifrost level watcher with an owned Codex turn starter. | GAP | GAP | `AKASHIC_CALLSIGN_HINT`, `AKASHIC_CALLSIGN_STATUS`, `LOCALAPPDATA` |
 | `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES` |
 | `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_t052_delta_door.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
 | `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |

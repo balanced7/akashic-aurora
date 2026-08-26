@@ -17,6 +17,7 @@ import pytest
 from agent.harness.codex_app_server import CodexAppServer, ThreadHandle, TurnResult
 from agent.harness.codex_bifrost_wake import (
     CodexBifrostWake,
+    SubjectIdentity,
     WakeError,
     WakePolicy,
     WakeState,
@@ -179,7 +180,16 @@ def test_wake_prompt_is_subject_labelled_and_forbids_peer_interference():
     message = Bus("sol", client=ExactRedis("x", {}), promote=False)._to_msg(
         "1-0", _message_fields(answers="1787730404992-0")
     )
-    prompt = build_wake_prompt("sol", message)
+    prompt = build_wake_prompt(
+        "sol",
+        message,
+        identity=SubjectIdentity(
+            agent_id="sol",
+            callsign=None,
+            status="unregistered",
+            authority="test-fixture",
+        ),
+    )
     assert "SUBJECT SEAT: sol" in prompt
     assert "dsh_agent" in prompt and "Rill's answer" in prompt
     assert "Do not manage, stop, relaunch, inspect, or mutate Rill's process" in prompt
@@ -429,11 +439,21 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     servers = []
+    identity_reads = []
 
     def make_server(**kwargs):
         server = FixtureAppServer(**kwargs)
         servers.append(server)
         return server
+
+    def resolve_identity(agent):
+        identity_reads.append(agent)
+        return SubjectIdentity(
+            agent_id=agent,
+            callsign="Sunshine",
+            status="ratified",
+            authority="resident-registry-fixture",
+        )
 
     watcher = CodexBifrostWake(
         bus=bus,
@@ -446,13 +466,17 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
         server_factory=make_server,
+        identity_resolver=resolve_identity,
     )
     result = watcher.handle(mid, redis.fields)
     assert result == {"mid": mid, "outcome": "replied", "reply_mid": "70-0"}
     assert len(servers) == 1 and servers[0].turns == 1
+    assert identity_reads == ["sol"], "one admitted turn gets exactly one identity snapshot"
     assert sends[0][:3] == ("dsh_agent", "reply", "A bounded reply from Sol.")
     assert sends[0][3]["answers"] == mid
     assert sends[0][3]["subject_seat"] == "sol"
+    assert sends[0][3]["subject_callsign"] == "Sunshine"
+    assert sends[0][3]["callsign_status"] == "ratified"
     assert state.seen(mid) is True
 
     assert watcher.handle(mid, redis.fields)["outcome"] == "duplicate"
