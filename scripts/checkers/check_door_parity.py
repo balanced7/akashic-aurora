@@ -142,7 +142,7 @@ MANIFEST = {
     # tool `bifrost_fetch` are the SAME door under two names -- a spill notice is read
     # by runners (ToolBox) and by operators (CLI), and a pointer either one cannot
     # follow is a dead handle, which is precisely how the lookback battery broke.
-    "bifrost_fetch": "gap",
+    "bifrost_fetch": "shared",
     # R8 (T059): knowledge_map walks the lesson/note/doc graph -- an agent-facing read verb
     # (B5's whole point: an agent OR Daniel walks the knowledge), so it ships on both doors.
     "knowledge_map": "shared", "task": "shared",
@@ -203,7 +203,7 @@ MANIFEST = {
     # list plus the refusal string from the identity gate. A naive text twin would ship
     # dissent tables without the reason a flip rate was refused -- omniscience by transport,
     # the exact defect T200's structured-record contract exists to prevent.
-    "sift": "gap",
+    "sift": "shared",
     # T223 (2026-08-07): the outbound Discord bridge. CLI_ONLY BY DESIGN, not debt -- and the
     # reason is the same one that kept `launch` off the MCP door under T200: widening it
     # widens the CALLER SET. This verb posts to the operator's PRIVATE channel, so an
@@ -262,7 +262,7 @@ MANIFEST = {
     # friction INTENTIONAL and close the question; gap records it as debt and leaves it open,
     # which is the honest reading and the reversible one.
     # PAY DOWN BY: exposing doc_adopt on the MCP door. Owner: whoever owns the doc door.
-    "adopt": "gap",
+    "adopt": "shared",
     "flightdeck": "cli_only",      # cockpit one-pager (W25); operator dashboard
     "followup": "cli_only",        # charter question-back (W46)
     "kata": "cli_only",            # grammar-prove a toolbelt alias against the door
@@ -288,7 +288,7 @@ MANIFEST = {
     # above: a verb out of reach of exactly the seats it exists for.
     # PAY DOWN BY: exposing resident_nominate + resident_show on the MCP/ToolBox door.
     "resident": "shared",
-    "nominate": "gap",
+    "nominate": "shared",
     "show": "shared",                 # a resident should be able to read its own designation
     # `ratify` is DELIBERATELY cli_only, and this is the one place the door surface encodes a
     # rule rather than an accident: rule 3 says a HUMAN ratifies. Putting ratify on the agent
@@ -302,7 +302,7 @@ MANIFEST = {
     # derived from `by` (self-declared vs assigned), so agent access does not weaken the T255
     # guard -- the label cannot be forged by a flag. `roles` is the read half: any seat should
     # be able to ask who is operating as what. PAY DOWN with the nominate/show MCP twins.
-    "assign": "gap",
+    "assign": "shared",
     "roles": "shared",
     # T267 -- `place` is DELIBERATELY cli_only, on the same reasoning as `ratify` and not by
     # accident. Posting is an ORG act, and once routing addresses families (T108), a seat that
@@ -469,6 +469,12 @@ TOOLBOX_EXEMPT = {
     "show": "designation read; the resident read half covers it",
     "verdict_file": "filed programmatically by ask-door consumers; adjudication is the operator's",
     "calibration": "operator calibration readout; counts-only, never rates",
+    # --- T383 tranche 3 (2026-08-26, dsh_agent, Daniil's door-shape rulings): the two
+    #     approved ceremony WRITES + the approved reads join the door.
+    "nominate": "ceremony write approved by Daniil 2026-08-26; the registry refuses self-nomination",
+    "assign": "ceremony write approved by Daniil 2026-08-26; provenance derives from by, never forged",
+    "adopt": "doc write approved by Daniil 2026-08-26; adopt is non-destructive by construction",
+    "sift": "nested-ask read approved by Daniil 2026-08-26; tiered dissent, adjudication stops on purpose",
 }
 
 
