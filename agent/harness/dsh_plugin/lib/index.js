@@ -9,7 +9,8 @@
 //   session/event          -> T5 trigger (user/message) + R1 probe confirmation
 //   tools/post-execute     -> T3 one-beat-late (recall contexts) + T4 DIRECT
 //                             (isError => FAIL half, then retry recall; success
-//                             => resolve; flip => nudge context)
+//                             => resolve; flip => nudge context) + draft keepalive
+//                             (fire-and-forget refresh of last-session-draft.md)
 //   session/flush+disposed -> T6 capture (where-we-are distiller) + presence offline
 //
 // Presence (Daniil, reconciliation PRESENCE section): every event fires a
@@ -401,6 +402,11 @@ export async function apply(ctx) {
         isError: !!(result && result.isError),
       })
       if (observeOnly) return decision
+      // DRAFT KEEPALIVE (wired 2026-08-26): a hard-killed host must still leave a
+      // fresh chronicles/last-session-draft.md. Fire-and-forget at every turn
+      // boundary; the 600s throttle lives in the bridge (never blocks the tool
+      // result, never raises into the listener). Kill switch AKASHIC_DRAFT_KEEPALIVE=0.
+      spawnBridge(['draft-keepalive'], { await_: false })
       const { path, command } = extractTarget(exec && exec.arguments)
       if (!path && !command && !(result && result.isError)) return decision
       const sid = activeSid()
