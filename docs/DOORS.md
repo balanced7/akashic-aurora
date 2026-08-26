@@ -59,7 +59,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `kata` | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') | `<agent_id>*` `<name>*` |
 | `kit` | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) | `<agent_id>*` `<kit_name>` `--show` `--json` |
 | `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
-| `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` |
+| `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` |
 | `list` | list ALL lessons in memory | `--json` |
 | `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |

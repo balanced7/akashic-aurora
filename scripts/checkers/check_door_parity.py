@@ -187,7 +187,7 @@ MANIFEST = {
     # `calibration` belong to the OPERATOR and the MCP-attached conductor most of all, and
     # `verdict-file` gets its real caller when RC3 wires the ask door. Debt, not design --
     # pay down with the eye surface in the door-curation program.
-    "verdict_file": "gap", "adjudicate": "gap", "calibration": "gap",
+    "verdict_file": "shared", "adjudicate": "gap", "calibration": "shared",
     # T292: the scout verb -- same argument again (the conductor is the caller who needs
     # it most and is MCP-attached). Debt, not design; rides the same membrane slice.
     "scout": "shared",
@@ -274,7 +274,7 @@ MANIFEST = {
     # checker it was helping to fix. Recorded as a `gap` -- the honest label for a verb on
     # two doors and missing from the third. Gaps are REPORTED, never silenced, and this one
     # is tracked as a followup rather than left to live in a comment.
-    "mailbox": "gap",              # T095 M0 shadow mailbox: CLI+MCP, absent from ToolBox
+    "mailbox": "shared",              # T095 M0 shadow mailbox: CLI+MCP twins both exist
     "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
@@ -287,9 +287,9 @@ MANIFEST = {
     # one seat with a shell. That is debt, not a design choice, and the same shape as `adopt`
     # above: a verb out of reach of exactly the seats it exists for.
     # PAY DOWN BY: exposing resident_nominate + resident_show on the MCP/ToolBox door.
-    "resident": "gap",
+    "resident": "shared",
     "nominate": "gap",
-    "show": "gap",                 # a resident should be able to read its own designation
+    "show": "shared",                 # a resident should be able to read its own designation
     # `ratify` is DELIBERATELY cli_only, and this is the one place the door surface encodes a
     # rule rather than an accident: rule 3 says a HUMAN ratifies. Putting ratify on the agent
     # door would let a seat confirm its own or a peer's callsign, which collapses rule 1 (peers
@@ -303,7 +303,7 @@ MANIFEST = {
     # guard -- the label cannot be forged by a flag. `roles` is the read half: any seat should
     # be able to ask who is operating as what. PAY DOWN with the nominate/show MCP twins.
     "assign": "gap",
-    "roles": "gap",
+    "roles": "shared",
     # T267 -- `place` is DELIBERATELY cli_only, on the same reasoning as `ratify` and not by
     # accident. Posting is an ORG act, and once routing addresses families (T108), a seat that
     # could place ITSELF into Onyx could opt into receiving work addressed to Onyx -- a
@@ -321,7 +321,7 @@ MANIFEST = {
     "run": "cli_only",             # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
     "tally": "cli_only",           # local counter roll-up
-    "repeat": "gap",               # T314: records that an EXISTING lesson was violated anyway.
+    "repeat": "shared",               # T314: records that an EXISTING lesson was violated anyway.
                                    # Classified gap, not cli_only, deliberately: runners break
                                    # lessons too and a repeat only a human can file undercounts
                                    # the very floor it measures. MCP twin owed.
@@ -461,6 +461,14 @@ TOOLBOX_EXEMPT = {
     "scout": "pre-flight checks are dispatcher-side; runners receive dispatched work",
     "timeline": "cross-domain chronology is an operator/forensic render",
     "compare": "set-difference analysis is an operator/guard diagnostic",
+    # --- T383 tranche 2a (2026-08-26, dsh_agent): the resident-ceremony READS + repeat.
+    "mailbox": "shadow-mailbox diagnostic; runner mail rides the lane inbox",
+    "repeat": "wrap/operator loop; the count is a floor over what was NOTICED",
+    "resident": "callsign ceremony is the operator/conductor loop; the read subs live on MCP",
+    "roles": "role-query read; the resident read half covers it",
+    "show": "designation read; the resident read half covers it",
+    "verdict_file": "filed programmatically by ask-door consumers; adjudication is the operator's",
+    "calibration": "operator calibration readout; counts-only, never rates",
 }
 
 
