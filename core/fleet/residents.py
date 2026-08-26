@@ -149,6 +149,10 @@ def _append(agent_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
             st.rpush(_INDEX_KEY, agent_id)
     except Exception:
         pass                              # the index is a convenience; the log is the truth
+    # A nomination introduces a real agent id; a ratification changes the reverse callsign
+    # map. Either must be visible to a router already alive in this process immediately,
+    # not after the 120-second cache TTL.
+    _invalidate_alias_cache()
     return record
 
 
@@ -290,6 +294,12 @@ def get(agent_id: str) -> Optional[Dict[str, Any]]:
 #: (an empty map silently un-routes every callsign -- the exact failure this closes).
 _ALIAS_CACHE: Dict[str, Any] = {"at": 0.0, "alias": {}, "ids": set()}
 _ALIAS_TTL = 120.0
+
+
+def _invalidate_alias_cache() -> None:
+    """Atomically discard the process-local reverse index after a registry append."""
+    global _ALIAS_CACHE
+    _ALIAS_CACHE = {"at": 0.0, "alias": {}, "ids": set()}
 
 
 def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:

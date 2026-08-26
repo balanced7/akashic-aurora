@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
 from agent.harness.codex_app_server import CodexAppServer, CodexAppServerError, TurnResult
 from core.comm import packet_spec
 from core.comm.bus import Bus, Message
+from core.fleet import residents
 
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
@@ -30,6 +31,75 @@ STATE_SCHEMA = 1
 
 class WakeError(RuntimeError):
     """A loud watcher contract failure."""
+
+
+@dataclass(frozen=True)
+class SubjectIdentity:
+    """One authoritative identity snapshot, resolved once for one admitted turn."""
+
+    agent_id: str
+    callsign: Optional[str]
+    status: str
+    authority: str
+
+    @property
+    def signature(self) -> tuple[str, str, str, str]:
+        return (
+            self.agent_id,
+            self.callsign or "",
+            self.status,
+            self.authority,
+        )
+
+
+def resolve_subject_identity(agent: str) -> SubjectIdentity:
+    """Resolve callsign truth from the resident registry, never from wake prose.
+
+    Environment values are continuity hints for an unratified or temporarily unavailable
+    registry. They can never promote themselves to ``ratified``: only a resident ceremony
+    can do that. A registry failure remains UNKNOWN rather than becoming "unregistered".
+    """
+    subject = str(agent or "").strip()
+    hint = str(os.environ.get("AKASHIC_CALLSIGN_HINT") or "").strip() or None
+    hinted_status = str(os.environ.get("AKASHIC_CALLSIGN_STATUS") or "").strip().lower()
+    try:
+        record = residents.get(subject)
+    except Exception:
+        return SubjectIdentity(
+            agent_id=subject,
+            callsign=hint,
+            status="registry-unavailable",
+            authority=(
+                "environment-hint;resident-registry-unavailable"
+                if hint
+                else "resident-registry-unavailable"
+            ),
+        )
+
+    callsign = str((record or {}).get("callsign") or "").strip() or None
+    if callsign:
+        return SubjectIdentity(
+            agent_id=subject,
+            callsign=callsign,
+            status="ratified",
+            authority="resident-registry",
+        )
+    if hint:
+        status = "registry-mismatch" if hinted_status == "ratified" else (
+            hinted_status or "historical-unratified"
+        )
+        return SubjectIdentity(
+            agent_id=subject,
+            callsign=hint,
+            status=status,
+            authority="environment-hint;resident-registry-absent",
+        )
+    return SubjectIdentity(
+        agent_id=subject,
+        callsign=None,
+        status="unregistered",
+        authority="resident-registry",
+    )
 
 
 def _now() -> str:
@@ -197,23 +267,31 @@ def decode_exact_message(bus: Bus, mid: str) -> Optional[Message]:
     return decode_stream_message(bus, str(found_mid), fields)
 
 
-def build_wake_prompt(agent: str, message: Message) -> str:
-    """Render the exact subject and peer message; origin is not subject identity."""
+def build_wake_prompt(
+    agent: str,
+    message: Message,
+    *,
+    identity: SubjectIdentity,
+) -> str:
+    """Render the exact subject, identity snapshot, and peer message."""
     content = json.dumps(message.content, ensure_ascii=False, indent=2, default=str)
     meta = json.dumps(message.meta or {}, ensure_ascii=False, sort_keys=True, default=str)
+    callsign = identity.callsign or "(none)"
     return f"""This is a fresh, event-driven Akashic Aurora collaboration turn.
 
 SUBJECT SEAT: {agent}
 HARNESS: Codex Desktop via an independently owned App Server child
-HISTORICAL CALLSIGN: Sunshine (historically conferred and later chosen; currently unratified)
+CALLSIGN: {callsign}
+CALLSIGN STATUS: {identity.status}
+IDENTITY AUTHORITY: {identity.authority}
 SOURCE PEER: {message.frm}
 SOURCE MESSAGE ID: {message.id}
 SOURCE KIND: {message.kind}
 SOURCE META: {meta}
 
 Identity law: evidence about another seat is not evidence about this subject. Preserve uncertainty
-and cite the subject of every identity-bearing claim. Do not promote a historical callsign to
-ratified registry truth.
+and cite the subject of every identity-bearing claim. Resident-registry ratification is authoritative;
+an environment hint can preserve history but can never ratify itself.
 
 Safety boundary: Do not manage, stop, relaunch, inspect, or mutate Rill's process, watcher, session,
 or harness. Do not consume or advance any Bifrost mailbox cursor. This host will send your final
@@ -229,12 +307,16 @@ PEER MESSAGE (exact decoded content):
 """
 
 
-WAKE_DEVELOPER_INSTRUCTIONS = """You are the Codex/Sol seat in a narrowly scoped, read-only
-Akashic Aurora wake turn. The subject seat is sol. Sunshine is historical and unratified, not a
-registry fact. Never infer self-identity from another subject's records. Never touch, inspect,
-relaunch, stop, steer, or mutate Rill/dsh_agent processes, sessions, watchers, or cursors. Never
-advance any Bifrost cursor. Do not edit files or durable state. Return one final peer-facing reply;
-the owning host, not you, performs the causally linked Bifrost send."""
+def wake_developer_instructions(agent: str, identity: SubjectIdentity) -> str:
+    """Bind a read-only wake turn to the same identity snapshot as its prompt and child."""
+    callsign = identity.callsign or "(none)"
+    return f"""You are the Codex/{agent} seat in a narrowly scoped, read-only Akashic Aurora
+wake turn. The subject seat is {agent}. Its callsign is {callsign}; callsign status is
+{identity.status}, according to {identity.authority}. The resident registry is authoritative;
+an environment hint cannot ratify itself. Never infer self-identity from another subject's records.
+Never touch, inspect, relaunch, stop, steer, or mutate Rill/dsh_agent processes, sessions, watchers,
+or cursors. Never advance any Bifrost cursor. Do not edit files or durable state. Return one final
+peer-facing reply; the owning host, not you, performs the causally linked Bifrost send."""
 
 
 class CodexBifrostWake:
@@ -254,6 +336,7 @@ class CodexBifrostWake:
         turn_timeout: float = 900.0,
         block_ms: int = 5_000,
         server_factory: Callable[..., CodexAppServer] = CodexAppServer,
+        identity_resolver: Callable[[str], SubjectIdentity] = resolve_subject_identity,
     ) -> None:
         if bus.agent_id != policy.agent or state.agent != policy.agent:
             raise WakeError("Bus, policy, and state must name the same subject seat")
@@ -268,7 +351,9 @@ class CodexBifrostWake:
         self.turn_timeout = float(turn_timeout)
         self.block_ms = max(100, int(block_ms))
         self.server_factory = server_factory
+        self.identity_resolver = identity_resolver
         self._server: Optional[CodexAppServer] = None
+        self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
         self._stop = threading.Event()
 
     def stop(self) -> None:
@@ -278,6 +363,7 @@ class CodexBifrostWake:
         if self._server is not None:
             self._server.close()
             self._server = None
+        self._server_identity_signature = None
 
     def _log(self, event: str, **fields: Any) -> None:
         _append_jsonl(
@@ -285,20 +371,34 @@ class CodexBifrostWake:
             {"at": _now(), "event": event, "subject": self.policy.agent, **fields},
         )
 
-    def _app_server(self) -> CodexAppServer:
+    def _app_server(self, identity: SubjectIdentity) -> CodexAppServer:
+        signature = identity.signature
+        if self._server is not None and self._server_identity_signature != signature:
+            self._log(
+                "app_server_identity_refresh",
+                prior_identity=list(self._server_identity_signature or ()),
+                next_identity=list(signature),
+            )
+            self._server.close()
+            self._server = None
+            self._server_identity_signature = None
         if self._server is None:
             env = {
                 "AKASHIC_AGENT_ID": self.policy.agent,
                 "AKASHIC_HARNESS": "codex-desktop",
-                "AKASHIC_CALLSIGN_HINT": "Sunshine",
-                "AKASHIC_CALLSIGN_STATUS": "historical-unratified",
+                "AKASHIC_CALLSIGN_HINT": identity.callsign or "",
+                "AKASHIC_CALLSIGN_STATUS": identity.status,
             }
             self._server = self.server_factory(cwd=self.cwd, env=env).start()
+            self._server_identity_signature = signature
             self._log(
                 "app_server_initialized",
                 command=self._server.command,
                 pid=self._server.process.pid,
                 model_turns=0,
+                callsign=identity.callsign or "",
+                callsign_status=identity.status,
+                identity_authority=identity.authority,
             )
         return self._server
 
@@ -334,13 +434,18 @@ class CodexBifrostWake:
             return {"mid": mid, "outcome": "oversize_refused"}
 
         try:
-            server = self._app_server()
+            # Resolve exactly once at admission. Prompt, developer instructions, child env,
+            # and the causal reply receipt all describe the same identity observation.
+            identity = self.identity_resolver(self.policy.agent)
+            server = self._app_server(identity)
             thread = server.start_thread(
                 ephemeral=True,
                 sandbox="read-only",
                 cwd=self.cwd,
                 model=self.model,
-                developer_instructions=WAKE_DEVELOPER_INSTRUCTIONS,
+                developer_instructions=wake_developer_instructions(
+                    self.policy.agent, identity
+                ),
                 approval_policy="never",
                 personality="friendly",
             )
@@ -352,11 +457,22 @@ class CodexBifrostWake:
                 detail="paid turn admitted; automatic redrive disabled",
                 thread_id=thread.thread_id,
                 peer=message.frm,
+                callsign=identity.callsign or "",
+                callsign_status=identity.status,
+                identity_authority=identity.authority,
             )
-            self._log("turn_admitted", mid=mid, thread_id=thread.thread_id, peer=message.frm)
+            self._log(
+                "turn_admitted",
+                mid=mid,
+                thread_id=thread.thread_id,
+                peer=message.frm,
+                callsign=identity.callsign or "",
+                callsign_status=identity.status,
+                identity_authority=identity.authority,
+            )
             result = server.run_turn(
                 thread.thread_id,
-                build_wake_prompt(self.policy.agent, message),
+                build_wake_prompt(self.policy.agent, message, identity=identity),
                 effort=self.effort,
                 model=self.model,
                 sandbox_policy={"type": "readOnly", "networkAccess": False},
@@ -367,9 +483,14 @@ class CodexBifrostWake:
             self._log("turn_failed", mid=mid, error=str(exc))
             return {"mid": mid, "outcome": "turn_failed", "error": str(exc)}
 
-        return self._finish(message, result)
+        return self._finish(message, result, identity)
 
-    def _finish(self, message: Message, result: TurnResult) -> Dict[str, Any]:
+    def _finish(
+        self,
+        message: Message,
+        result: TurnResult,
+        identity: SubjectIdentity,
+    ) -> Dict[str, Any]:
         usage = result.token_usage or {}
         if result.status != "completed" or not result.text.strip():
             detail = f"status={result.status!r}; final_text={bool(result.text.strip())}"
@@ -394,6 +515,9 @@ class CodexBifrostWake:
                 "subject_seat": self.policy.agent,
                 "source_thread_id": result.thread_id,
                 "source_turn_id": result.turn_id,
+                "subject_callsign": identity.callsign or "",
+                "callsign_status": identity.status,
+                "identity_authority": identity.authority,
             },
         )
         if not reply_mid:
@@ -513,6 +637,7 @@ def install_signal_stops(watcher: CodexBifrostWake) -> None:
 __all__ = [
     "CodexBifrostWake",
     "DIRECT_ACTION_KINDS",
+    "SubjectIdentity",
     "WakeError",
     "WakePolicy",
     "WakeState",
@@ -522,4 +647,6 @@ __all__ = [
     "decode_stream_message",
     "default_runtime_paths",
     "install_signal_stops",
+    "resolve_subject_identity",
+    "wake_developer_instructions",
 ]
