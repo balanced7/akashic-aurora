@@ -41,7 +41,13 @@ DISCORD_MAX = 2000
 #: Same env-first-then-gitignored-file order every other credential here uses.
 #: T365: route through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault
 #: (a module-path constant can't be redirected; that class already leaked a credential once).
-def _url_file() -> Path:
+def url_file() -> Path:
+    """Return the active vault path without exposing or reading its credential.
+
+    Status/setup surfaces need to name the same redirected path that ``webhook_url``
+    reads.  A function keeps that authority live; a module constant freezes the path
+    before ``AKASHIC_SECRETS_DIR`` can redirect it.
+    """
     from core.comm.secret_intake import secrets_dir
     return secrets_dir() / "discord_webhook.url"
 
@@ -95,7 +101,7 @@ def webhook_url() -> str:
     if v and v.strip():
         return v.strip()
     try:
-        return _url_file().read_text(encoding="utf-8").strip()
+        return url_file().read_text(encoding="utf-8").strip()
     except OSError:
         return ""
 

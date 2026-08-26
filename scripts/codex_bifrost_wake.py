@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from agent.harness.codex_bifrost_wake import (  # noqa: E402
     CodexBifrostWake,
+    DIRECT_ACTION_KINDS,
     WakeError,
     WakePolicy,
     WakeState,
@@ -44,6 +45,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         help="message id whose causally linked answer may wake (repeatable)",
+    )
+    parser.add_argument(
+        "--allow-kind",
+        action="append",
+        default=[],
+        help=(
+            "additional direct message kind allowed to wake (repeatable); "
+            "the built-in request/question/handoff/blocker set remains"
+        ),
+    )
+    parser.add_argument(
+        "--require-source",
+        help="require this exact message meta.source value before a turn may be admitted",
     )
     parser.add_argument("--state-path", help="private watcher watermark; not a mailbox cursor")
     parser.add_argument("--log-path", help="append-only watcher event log")
@@ -82,6 +96,11 @@ def main(argv: list[str] | None = None) -> int:
         agent=agent,
         allowed_senders=frozenset(args.allow_from or ["dsh_agent"]),
         expected_answers=frozenset(str(value) for value in args.expected_answer),
+        direct_kinds=frozenset(
+            set(DIRECT_ACTION_KINDS)
+            | {str(value).strip().lower() for value in args.allow_kind if str(value).strip()}
+        ),
+        required_source=(str(args.require_source).strip() if args.require_source else None),
     )
     watcher = CodexBifrostWake(
         bus=bus,
@@ -105,7 +124,9 @@ def main(argv: list[str] | None = None) -> int:
                 "state_path": str(state.path),
                 "log_path": str(log_path),
                 "allowed_senders": sorted(policy.allowed_senders),
+                "direct_kinds": sorted(policy.direct_kinds),
                 "expected_answers": sorted(policy.expected_answers),
+                "required_source": policy.required_source,
                 "cursor_advance": False,
                 "idle_model_turns": 0,
                 "peer_process_interference": False,
