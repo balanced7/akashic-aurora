@@ -150,6 +150,35 @@ const DOOR_TIMEOUT_MS = 60000
 
 const door = { proc: null, nextId: 1, pending: new Map(), tools: new Map(), ready: false }
 
+// DOOR SELF-HEAL (wired 2026-08-26): a long-lived child of a long-lived host must not
+// take the seat's hands down with it. On exit, respawn with backoff up to RESPAWN_MAX
+// attempts; a successful handshake resets the counter; exhaustion is LOUD (captured,
+// greppable) -- a dead door that pretends it might answer is the silence class this
+// file exists to retire.
+let applyCtx = null
+let respawnAttempts = 0
+const RESPAWN_MAX = 3
+const RESPAWN_BASE_MS = 2000
+
+function scheduleDoorRespawn() {
+  if (respawnAttempts >= RESPAWN_MAX) {
+    capture({ at: Date.now(), kind: 'door-respawn-exhausted', attempts: respawnAttempts })
+    return
+  }
+  if (!applyCtx) return
+  respawnAttempts += 1
+  const delay = RESPAWN_BASE_MS * Math.pow(2, respawnAttempts - 1)
+  capture({ at: Date.now(), kind: 'door-respawn', attempt: respawnAttempts, delay })
+  setTimeout(async () => {
+    const ready = await doorHandshake()
+    if (ready) {
+      respawnAttempts = 0
+      await registerDoorTools(applyCtx)
+      LOG(`door respawned: ${door.tools.size} tools re-registered`)
+    }
+  }, delay)
+}
+
 function doorSpawn() {
   const repo = process.env.AKASHIC_REPO
   if (!repo) {
@@ -191,6 +220,7 @@ function doorSpawn() {
       }
       door.pending.clear()
       capture({ at: Date.now(), kind: 'door-exit' })
+      scheduleDoorRespawn()
     })
     door.proc = proc
     return proc
@@ -333,6 +363,7 @@ export const inject = ['tools']   // REQUIRED by this fork: typed door tools. ds
 // so this inject is satisfiable; do NOT mount this plugin in a tools-less profile.
 
 export async function apply(ctx) {
+  applyCtx = ctx   // the self-heal path re-registers door tools after a respawn
   observeOnly = !!process.env.AKASHIC_AGENT_ID && process.env.AKASHIC_AGENT_ID !== SESSION_KEY
   if (observeOnly) {
     LOG(`OBSERVE-ONLY: AKASHIC_AGENT_ID=${process.env.AKASHIC_AGENT_ID} != ${SESSION_KEY}; injecting nothing, mis-attributing nothing`)
