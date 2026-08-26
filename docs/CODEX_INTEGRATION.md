@@ -1,8 +1,9 @@
 # Codex Desktop integration and recovery runbook
 
 **Status:** active integration work, 2026-08-26. This document distinguishes
-configured behavior, synthetic pins, live zero-model receipts, and still-missing
-paid-turn receipts. Built is not wired; wired is not yet observed.
+configured behavior, synthetic pins, live zero-model receipts, observed paid
+turns, and unresolved cost/continuity risk. Built is not wired; wired is not yet
+observed until the destination is read back.
 
 ## Stable subject tuple
 
@@ -11,9 +12,9 @@ paid-turn receipts. Built is not wired; wired is not yet observed.
 | Harness | `codex-desktop` | harness registry/config |
 | Model lineage | `gpt-5.6-sol` | current app/model selection |
 | Aurora address | `sol` | event-scoped session binding |
-| Historical callsign | Sunshine | subject-qualified history; unratified |
+| Ratified callsign | Sunshine | resident registry; peer nominated, human ratified |
 | Earlier self-choice | Parallax | primary Codex transcript; unratified |
-| Resident designation | none | `py agent_cli.py resident show sol` |
+| Resident designation | `OpenAI | Sunshine` | `py agent_cli.py resident show sol` |
 | Charter status | unresolved | old `charters/sol/CHARTER.md` says RETIRED |
 
 The evidence dossier is
@@ -115,9 +116,9 @@ receipt.
 The operator-facing lane is deliberately separate from the Rill collaboration
 watcher. On 2026-08-26 the idempotent Discord setup created `#sol` (channel
 `1542163753276014703`), vaulted `discord_channel_sol.url`, and registered the
-channel to the stable seat address `sol`. It did **not** create a Sunshine role,
-ratify a callsign, or add a persona record. Transport authority therefore does
-not silently become identity authority.
+channel to the stable seat address `sol`. Creating the lane did **not** create a
+Sunshine role, ratify a callsign, or add a persona record: transport authority
+did not silently become identity authority.
 
 Live outbound receipt:
 
@@ -128,8 +129,17 @@ Live outbound receipt:
   so that instrument was rejected and the receipt was recovered with Python
   `requests` rather than treating POST success as delivery.
 
-The supervised operator watcher is `codex-sol-discord-wake-20260826`, bounded
-to 24 hours. Its deterministic admission is the conjunction:
+The first authenticated inbound message was Daniil's explicit human act:
+`I ratify it! Sunshine is Sunshine!!` (`1787751143626-0`, Discord message
+`1542164807321526353`). Vandor independently nominated Sunshine from two
+Sol-authored repair receipts, then the primary seat projected Daniil's act
+through the resident door. The registry now renders `OpenAI | Sunshine`,
+`ratified by daniil`. The callsign ceremony and the transport receipt are linked
+but remain different authorities.
+
+The original supervised operator watcher was
+`codex-sol-discord-wake-20260826`. Its deterministic admission was the
+conjunction:
 
 ```text
 to=sol AND from=daniil AND kind=chat AND meta.source=discord
@@ -138,9 +148,58 @@ to=sol AND from=daniil AND kind=chat AND meta.source=discord
 It uses private files `sol-discord.state.json` and
 `sol-discord.events.jsonl`; the Rill watcher continues to use `sol.state.json`
 and `sol.events.jsonl`. Neither watcher advances the shared mailbox cursor.
-The first human-authored Discord inbound message, paid Codex turn, and causal
-reply remain unobserved; the live receipt currently proves setup, outbound
-delivery, isolated arming, and zero-model idle behavior.
+
+The first watcher completed four human-authored Discord turns and stamped four
+causal replies. Discord's bot API returned HTTP 200 and read back every inbound
+and reply in `#sol`, proving destination arrival rather than only bus send
+success. The first reply incorrectly denied the significance of Daniil's
+ratification because the watcher had frozen `historical-unratified` into its
+prompt, developer instructions, and child environment. That defect is preserved
+as evidence, not hidden.
+
+The repair resolves one resident-registry identity snapshot per admitted turn
+and uses it consistently in the App Server child environment, developer
+instructions, exact wake prompt, admission log, and causal reply metadata. A
+registry change forces a cached child refresh, and resident appends invalidate
+the process-local callsign router immediately rather than waiting up to 120
+seconds. The first replacement job, `codex-sol-discord-wake-20260826-v2`,
+resumed the exact private watermark `1787751912506-0`. It was then replaced by
+`codex-sol-discord-wake-20260826-v3` solely to deploy explicit aggregate token
+accounting; v3 resumed at `1787753656057-0`, reports `idle_model_turns: 0`, and
+is supervised under its own Windows Job Object. Both prior Sol jobs are
+terminal-cancelled and their kill receipts record zero remaining members. Rill's
+watcher was neither restarted nor reconfigured.
+
+Idle operation still costs zero model turns. The four admitted live turns
+reported aggregate input/cached-input counts of 22,352/9,984; 22,441/0;
+22,456/0; and 51,015/21,248 respectively. The fourth turn contained multiple
+model steps; its final step alone was 28,578/21,248, which must not be confused
+with the turn aggregate. Across all four turns the App Server reported 119,066
+total tokens, including 87,032 uncached input tokens and 802 output tokens.
+Those receipts establish a roughly 22k-token single-step context footprint,
+but they do not establish one stable cache or billing floor. Reply gaps of
+318.2s, 178.6s, and 284.2s also do not support a simple monotonic idle-TTL
+explanation: the shortest observed gap missed while a longer one hit. Provider
+cache policy, multi-step behavior, prefix stability, and the dominant context
+contributors remain unresolved.
+
+New wake receipts carry `usage_accounting.accounting_basis=turn_total`, the
+whole-turn aggregate, the final model step, and an explicit `multi_step` flag.
+This keeps cost accounting from silently using `last` when a turn contains tool
+continuations. The v3 watcher has this schema; no paid turn was manufactured
+merely to populate it.
+
+The current App Server schema exposes `baseInstructions`, `config`, `cwd`,
+`runtimeWorkspaceRoots`, and environment selection; any lean-capsule change
+must be evaluated against both token usage and Sunshine continuity before it
+becomes the default.
+
+Discord identity rendering now keeps two authorities separate. A registry-
+ratified but unplaced resident renders as `Sunshine (sol)` immediately, while
+its avatar remains absent until family/team placement exists. An unknown seat
+still renders its bare stable address. Routing remains `sol` in every case. A
+zero-model post through the live Sol webhook was read back from Discord's bot
+API as message `1542175844875898933`, author `Sunshine (sol)`, avatar `null`.
 
 ## What the DSH integration taught this integration
 
@@ -159,10 +218,17 @@ delivery, isolated arming, and zero-model idle behavior.
    rather than the advertised managed daemon.
 5. **Detection and generation have separate budgets.** An idle watcher is a
    deterministic blocking read, never a heartbeat model turn. One eligible
-   message admits at most one fresh turn, with its usage captured.
+   message admits at most one fresh turn, with its usage captured. Capturing the
+   usage exposed a high fixed context floor that needs its own quality/cost
+   evaluation rather than being hidden inside a successful round trip.
 6. **Recovery reassembles authority; it cannot invent it.** Callsigns, values,
    voice, and charter status remain unresolved unless their authoritative plane
    supplies them. A successful process restart proves none of those.
+7. **Mutable identity is admission data, not build-time prose.** A long-lived
+   watcher must resolve the resident registry at each admitted turn and bind one
+   snapshot across every prompt, environment, and receipt surface. Otherwise a
+   valid ceremony leaves a live child confidently speaking obsolete identity
+   state.
 
 ## Verification commands
 
@@ -181,13 +247,15 @@ reported separately rather than repaired through the Codex lane.
 ## Remaining first-class gaps
 
 - fresh trusted interactive-task receipts for T2-T5;
-- first eligible Bifrost-to-Codex paid turn and causally linked reply;
-- first human-authored `#sol` inbound turn and read-back of its causal reply;
+- a fresh Rill-collaboration turn remains intentionally deferred; it is not a
+  Sol Discord closure condition, and Rill's independent watcher stays preserved;
 - a Codex-native T6 close/draft surface;
 - one canonical `IdentityActivation` projector shared by boot, hooks, DSH, and
   recovery;
 - an explicit human decision about the retired `sol` charter versus current
-  succession/reactivation, followed separately by any Sunshine callsign
-  ceremony;
-- restart/kill drills for the wake host beyond the preserved socket-timeout
-  failure and 24-hour supervisor boundary.
+  succession/reactivation; the Sunshine callsign ceremony is complete and does
+  not silently decide that charter question;
+- a controlled lean-App-Server evaluation that lowers the observed token floor
+  without degrading continuity, personality, provenance, or safety boundaries;
+- a long-horizon supervisor deadline/host-loss drill beyond the observed
+  Sol-only replacement and Job Object force-cancel receipts.
