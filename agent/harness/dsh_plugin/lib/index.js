@@ -173,16 +173,12 @@ function scheduleDoorRespawn() {
     const ready = await doorHandshake()
     if (ready) {
       respawnAttempts = 0
-      const ok = await registerDoorTools(applyCtx)
-      if (ok) {
-        LOG(`door respawned: ${door.tools.size} tools re-registered`)
-        capture({ at: Date.now(), kind: 'door-respawn-ok', tools: door.tools.size })
-      } else {
-        // The door process is back but the tools could not re-register (e.g. the
-        // session context went inactive). Honest, captured, never a false success.
-        capture({ at: Date.now(), kind: 'door-respawn-no-tools',
-                  reason: 'handshake ok but tool re-registration failed' })
-      }
+      // Tool registrations are a ONE-TIME act at apply(); the harness persists them
+      // and REFUSES a duplicate (drill receipt 2026-08-26: 'tool akashic_boot is
+      // already registered'). doorCall reroutes to the fresh child automatically, so
+      // the respawn is handshake-only -- nothing to re-register, nothing to lie about.
+      LOG(`door respawned: ${door.tools.size} tools remain registered (child restarted)`)
+      capture({ at: Date.now(), kind: 'door-respawn-ok', tools: door.tools.size })
     }
   }, delay)
 }
