@@ -129,10 +129,67 @@ def exemption_active(ref, today):
     return bool(al and str(al.get("expires", "")) >= today)
 
 
+def _gitignored(refs):
+    """Which of `refs` git DELIBERATELY ignores. ASK THE DOOR, DON'T READ THE DOOR.
+
+    Re-implementing .gitignore semantics here (negations, precedence, nested ignore files)
+    would be a bug farm; `git check-ignore` is the authority that already exists.
+
+    Fails CLOSED: any trouble reaching git returns the empty set, so a ref stays a FAIL
+    rather than being quietly excused. An exemption path that opens itself when the
+    checker is confused is not an exemption path.
+    """
+    if not refs:
+        return set()
+    try:
+        p = subprocess.run(["git", "-C", ROOT, "check-ignore", "--stdin"],
+                           input="\n".join(sorted(refs)), capture_output=True,
+                           text=True, timeout=20)
+    except Exception:                                                   # noqa: BLE001
+        return set()
+    # 0 = at least one ignored, 1 = none ignored (NOT an error), anything else = no answer.
+    if p.returncode not in (0, 1):
+        return set()
+    return {ln.strip().replace("\\", "/") for ln in (p.stdout or "").splitlines() if ln.strip()}
+
+
+def partition_missing(missing, ignored):
+    """PURE: split missing refs into genuine drift (FAIL) and absent-by-design (WARN).
+
+    Kept side-effect-free so the routing rule is unit-testable without git or a filesystem.
+    """
+    drift, instance_local = [], []
+    for rel, ref in missing:
+        (instance_local if ref in ignored else drift).append((rel, ref))
+    return drift, instance_local
+
+
+def _missing_refs():
+    """(rel, ref) for every repo-anchored reference that is not on disk and not exempted."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    out = []
+    sources = [(d, _read(d)) for d in _living_docs()] + _core_docstring_sources()
+    for rel, text in sources:
+        for ref in scan_refs(text):
+            if os.path.exists(os.path.join(ROOT, ref)) or exemption_active(ref, today):
+                continue
+            out.append((rel, ref))
+    return out
+
+
 def _stale_refs():
     """FAIL list: every repo-anchored path reference (in living docs + core docstrings) that no longer
     exists on disk and is not covered by an unexpired REF_ALLOWLIST entry. Also FAILs an EXPIRED
-    allowlist entry (non-evadable). Root-anchored so deployment/example paths don't false-positive."""
+    allowlist entry (non-evadable). Root-anchored so deployment/example paths don't false-positive.
+
+    A path git DELIBERATELY IGNORES is absent by design, not drift, and is routed to a WARN
+    by _instance_local_refs() instead. This guard asks the FILESYSTEM, so before that split it
+    answered green on every workstation (where the file exists) and red on every clone (where
+    it never can) -- 8 straight red CI runs on security/acl.json, which fence
+    t384-acl-instance-split un-tracked ON PURPOSE so grants stop crossing instances. A check
+    that disagrees with itself across machines teaches you to read CI as noise, which costs
+    far more than the drift it catches.
+    """
     fails = []
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -142,14 +199,26 @@ def _stale_refs():
             fails.append(f"stale-ref exemption EXPIRED for '{ref}' (expired {meta.get('expires')}) "
                          f"-> re-verify the reference and remove or renew the allowlist entry")
 
-    sources = [(d, _read(d)) for d in _living_docs()] + _core_docstring_sources()
-    for rel, text in sources:
-        for ref in scan_refs(text):
-            if os.path.exists(os.path.join(ROOT, ref)) or exemption_active(ref, today):
-                continue
-            fails.append(f"{rel} references a repo path that does not exist: '{ref}' "
-                         f"-> fix the reference (renamed/deleted?) or add a dated REF_ALLOWLIST entry")
+    missing = _missing_refs()
+    drift, _ = partition_missing(missing, _gitignored({ref for _, ref in missing}))
+    for rel, ref in drift:
+        fails.append(f"{rel} references a repo path that does not exist: '{ref}' "
+                     f"-> fix the reference (renamed/deleted?) or add a dated REF_ALLOWLIST entry")
     return fails
+
+
+def _instance_local_refs():
+    """WARN list: refs absent from a clone because git deliberately ignores them.
+
+    Excused is not invisible. These are real comprehension gaps for anyone reading from a
+    fresh clone -- the path is true at runtime and unreachable on disk -- so they stay
+    named on every run, they just do not redden the build.
+    """
+    missing = _missing_refs()
+    _, instance_local = partition_missing(missing, _gitignored({ref for _, ref in missing}))
+    return [f"{rel} references '{ref}', which git deliberately ignores -- absent by design in "
+            f"a fresh clone (instance-local), so a reader cannot follow it there"
+            for rel, ref in instance_local]
 
 
 # ---- G: filename case-canonicalization (cross-OS; the lexicon.md vs LEXICON.md class) --------------
@@ -299,7 +368,8 @@ def main():
         (broken.append(crash) if crash else fails.extend(got))
     if not fast:
         for label, fn, *a in [("C docstrings", _docstring_coverage, subs),
-                              ("D doc-age", _doc_age), ("E living-indexed", _living_docs_indexed)]:
+                              ("D doc-age", _doc_age), ("E living-indexed", _living_docs_indexed),
+                              ("F2 instance-local-refs", _instance_local_refs)]:
             got, crash = _run(label, fn, *a)
             (broken.append(crash) if crash else warns.extend(got))
 
