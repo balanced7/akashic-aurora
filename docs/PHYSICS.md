@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 92e7ece5. A bound you discover by collision is not awareness -- this sheet
+> Derived at 83746fc9. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -264,7 +264,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (152 numeric constants)
+## Mechanical bounds (153 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -348,6 +348,7 @@ Class: reference
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
+| `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |

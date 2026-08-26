@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (40 of 181 modules lack both pin and paper by name)
+## GAP queue (40 of 182 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/migrate_to_sqlite.py
@@ -83,7 +83,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (65 modules)
+## core/comm/  (66 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -103,6 +103,7 @@ Class: reference
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
 | `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK` |
 | `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_honesty.py | GAP |  |
+| `discord_guest_reply.py` | discord_guest_reply -- the pure half of the guest reply path (the tier's missing direction). | tests/test_discord_guest_reply.py | GAP |  |
 | `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
 | `discord_ladder.py` | T380 -- the comms-stage reaction ladder, pure half (no discord import). | GAP | GAP |  |
 | `discord_rooms.py` | Outbound room router — each ask/breakout becomes a Discord thread. | tests/test_discord_rooms_pins.py | GAP | `AKASHIC_DISCORD_BOT_TOKEN`, `AKASHIC_DISCORD_FORUM_WEBHOOK`, `AKASHIC_DISCORD_ROOMS_REGISTRY`, `AKASHIC_DISCORD_SEATS_REGISTRY` |

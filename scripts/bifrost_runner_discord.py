@@ -622,6 +622,64 @@ def main() -> int:
                           f"({type(e).__name__}: {e}) -- delivery stands, the "
                           f"emote does not", flush=True)
 
+    # ---- 2026-08-26: the guest reply path (the tier's missing direction, live
+    # defect: Daniil -- "your reply never landed in the discord"). The pure pinned
+    # half (core/comm/discord_guest_reply.py) decides WHAT may post; this loop reads
+    # the operator inbox for seat replies that --answers a tracked GUEST message and
+    # posts them to the guest's own channel, attributed, never steering (control
+    # kinds are refused in the tracker itself). In-process state: a gateway restart
+    # drops in-flight tracking -- the same residual the ladder confesses.
+    async def _guest_reply_loop():
+        from core.comm.discord_guest_reply import GuestReplyTracker
+        from core.comm.bus import Bus as _Bus
+        tracker = GuestReplyTracker()
+        client._guest_tracker = tracker           # on_message tracks through this
+        parser = _Bus("guest-reply-parse", client=bus._client,
+                      namespace=bus.ns, promote=False)
+        cur = "0-0"
+        try:
+            last = bus._client.xrevrange(f"{bus.ns}:inbox:daniil", count=1)
+            if last:
+                cur = last[0][0].decode() if isinstance(last[0][0], bytes) else str(last[0][0])
+        except Exception:                                         # noqa: BLE001
+            pass                                   # tail-init: the archive never replays
+        while True:
+            await asyncio.sleep(2)
+            try:
+                rows = bus._client.xrange(f"{bus.ns}:inbox:daniil",
+                                          min="(" + str(cur), max="+", count=50)
+            except Exception as e:                                # noqa: BLE001
+                print(f"[discord-in] guest-reply read failed ({type(e).__name__}: {e})",
+                      flush=True)
+                continue
+            batch = []
+            for sid, fields in rows:
+                sid = sid.decode() if isinstance(sid, bytes) else str(sid)
+                cur = sid
+                f = {(k.decode() if isinstance(k, bytes) else str(k)):
+                     (v.decode() if isinstance(v, bytes) else str(v))
+                     for k, v in dict(fields).items()}
+                if f.get("kind") == "trace":
+                    continue
+                try:
+                    msg = parser._to_msg(sid, f)   # the ONE seam: Bus shapes the record
+                except Exception:                                 # noqa: BLE001
+                    continue
+                meta = getattr(msg, "meta", None) or {}
+                text = getattr(msg, "content", "") or f.get("content") or ""
+                batch.append({"id": sid, "frm": str(getattr(msg, "frm", "") or f.get("frm", "")),
+                              "kind": str(f.get("kind") or ""), "meta": meta,
+                              "text": str(text)})
+            for op in tracker.poll(batch):
+                try:
+                    await op["channel_key"].channel.send(
+                        f"[reply from {op['frm']}]\n{op['text']}")
+                    print(f"[discord-in] guest reply posted ({op['frm']})", flush=True)
+                except Exception as e:                            # noqa: BLE001
+                    print(f"[discord-in] guest reply UNDELIVERABLE "
+                          f"({type(e).__name__}: {e}) -- it stands in this log only",
+                          flush=True)
+
     @client.event
     async def on_ready():
         print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
@@ -640,6 +698,10 @@ def main() -> int:
         if not getattr(client, "_ladder_started", False):
             client._ladder_started = True
             asyncio.create_task(_ladder_loop())
+        # 2026-08-26: one guest-reply loop per process, same guard discipline.
+        if not getattr(client, "_guest_loop_started", False):
+            client._guest_loop_started = True
+            asyncio.create_task(_guest_reply_loop())
 
     @client.event
     async def on_message(message):
@@ -747,6 +809,13 @@ def main() -> int:
                 print(f"[discord-in] heard a GUEST {message.author} "
                       f"id={message.author.id} (authority: none){room} "
                       f"(bus id {out['id']})", flush=True)
+                # 2026-08-26: hand the guest's bus id to the reply tracker, so a
+                # seat that --answers it reaches the guest's own channel.
+                try:
+                    if getattr(client, "_guest_tracker", None):
+                        client._guest_tracker.track(str(out["id"]), message)
+                except Exception:                                 # noqa: BLE001
+                    pass
             else:
                 who = (out.get("speaker") or "the operator")
                 print(f"[discord-in] heard {who}{room} (bus id {out['id']})",
