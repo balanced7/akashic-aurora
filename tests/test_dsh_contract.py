@@ -170,6 +170,36 @@ def test_dsh_session_log_location_matches_real_layout():
         assert bridge.locate_dsh_session_log(home, sid) == str(log)
 
 
+# --- draft keepalive (Stop-hook + DSH turn-seam wiring, RED 2026-08-26) ---
+
+def test_bridge_exposes_draft_keepalive_subcommand():
+    """The bridge must ACCEPT `draft-keepalive` -- the DSH analog of the Stop-hook
+    keepalive: a turn-boundary call that refreshes a stale
+    chronicles/last-session-draft.md so a hard-killed host leaves a fresh draft."""
+    a = argparse.Namespace()
+    bridge._build_draft_keepalive_parser().parse_args([], namespace=a)
+    assert a.cmd == "draft-keepalive"
+
+
+def test_draft_keepalive_door_answers_the_shape_and_dies_on_the_kill_switch(monkeypatch):
+    """The keepalive door must return the documented shape ({wrote, reason}) and the
+    kill switch must stop it BEFORE any draft is touched (the fleet-wide safety latch
+    that keeps a defect from rewriting drafts on every turn of every seat)."""
+    monkeypatch.setenv("AKASHIC_DRAFT_KEEPALIVE", "0")
+    out = bridge._keepalive_run()
+    assert out.get("wrote") is False
+    assert "disabled" in out.get("reason", "")
+
+
+def test_plugin_wires_draft_keepalive_on_post_execute_fire_and_forget():
+    """The DSH turn seam: tools/post-execute fires draft-keepalive fire-and-forget
+    (await_ false -- a keepalive must never block or alter a settled tool result,
+    same fail-open law as every other bridge call in the listener)."""
+    src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "'draft-keepalive'" in src
+    assert "await_: false" in src
+
+
 def test_presence_offline_declares_departure_not_a_beat():
     """The presence door's offline phase must call go_offline -- a declared departure
     that renders OFFLINE in the roster -- never heartbeat the key alive (the old
