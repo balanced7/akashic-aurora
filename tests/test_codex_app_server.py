@@ -21,6 +21,7 @@ from agent.harness.codex_app_server import (
     TurnResult,
 )
 from agent.harness.codex_bifrost_wake import (
+    AURORA_COMBO_CATALOG_TOOL_NAME,
     AURORA_READ_VERB_TOOL,
     CodexBifrostWake,
     SubjectIdentity,
@@ -251,7 +252,10 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         ),
     )
 
-    assert watcher.dynamic_tools == [AURORA_READ_VERB_TOOL]
+    assert [tool["name"] for tool in watcher.dynamic_tools] == [
+        AURORA_READ_VERB_TOOL["name"],
+        AURORA_COMBO_CATALOG_TOOL_NAME,
+    ]
     assert watcher._toolbox.agent_id == "sol"
     assert watcher._toolbox.allow_exec is True and watcher._toolbox.trust is True
     assert "command" not in AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
@@ -370,6 +374,28 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
     assert combo_tool["inputSchema"]["properties"]["name"]["enum"] == ["pressure"]
     assert "args" not in combo_tool["inputSchema"]["properties"]
 
+    monkeypatch.setattr(
+        watcher._toolbox,
+        "run_command",
+        lambda *_args, **_kwargs: pytest.fail("combo admission catalog must not execute"),
+    )
+    catalog = watcher.handle_dynamic_tool_call({
+        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+        "arguments": {},
+    })
+    catalog_body = catalog["contentItems"][0]["text"]
+    assert catalog["success"] is True
+    assert "pressure" in catalog_body and "ADMITTED" in catalog_body
+    assert "late-mutation" in catalog_body and "OMITTED" in catalog_body
+    assert "learn" in catalog_body and "safe read grammar" in catalog_body
+    assert "late-shell" in catalog_body and "shell metacharacters" in catalog_body
+    peer_probe = watcher.handle_dynamic_tool_call({
+        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+        "arguments": {"agent": "deepseek"},
+    })
+    assert peer_probe["success"] is False
+    assert "accepts no arguments" in peer_probe["contentItems"][0]["text"]
+
     commands = []
     monkeypatch.setattr(
         watcher._toolbox,
@@ -418,6 +444,34 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
     })
     assert refused_shell["success"] is False
     assert commands == []
+
+
+def test_combo_admission_catalog_reports_registry_blindness_instead_of_clean_empty(tmp_path):
+    def broken_belt(_agent):
+        raise OSError("registry unreadable")
+
+    watcher = CodexBifrostWake(
+        bus=Bus("sol", client=IdleRedis(), promote=False),
+        policy=WakePolicy("sol", frozenset({"daniil"})),
+        state=WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0"),
+        log_path=tmp_path / "events.jsonl",
+        cwd=Path(__file__).resolve().parent.parent,
+        allow_exec=True,
+        server_factory=lambda **_kwargs: None,
+        toolbelt_factory=broken_belt,
+    )
+
+    assert [tool["name"] for tool in watcher.dynamic_tools] == [
+        AURORA_READ_VERB_TOOL["name"],
+        AURORA_COMBO_CATALOG_TOOL_NAME,
+    ]
+    result = watcher.handle_dynamic_tool_call({
+        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+        "arguments": {},
+    })
+    assert result["success"] is False
+    assert "UNAVAILABLE" in result["contentItems"][0]["text"]
+    assert "registry unreadable" in result["contentItems"][0]["text"]
 
 
 def test_wake_without_launch_opt_in_advertises_no_exec_tool(tmp_path):
