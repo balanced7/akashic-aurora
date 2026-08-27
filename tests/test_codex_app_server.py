@@ -14,8 +14,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent.harness.codex_app_server import CodexAppServer, ThreadHandle, TurnResult
+from agent.harness.codex_app_server import (
+    CodexAppServer,
+    CodexAppServerError,
+    ThreadHandle,
+    TurnResult,
+)
 from agent.harness.codex_bifrost_wake import (
+    AURORA_READ_VERB_TOOL,
     CodexBifrostWake,
     SubjectIdentity,
     WakeError,
@@ -72,6 +78,44 @@ for line in sys.stdin:
 """
 
 
+FAKE_DYNAMIC_TOOL_SERVER = r"""
+import json
+from pathlib import Path
+import sys
+
+log_path = Path(sys.argv[1])
+thread_id = "thread-dynamic-fixture"
+turn_id = "turn-dynamic-fixture"
+
+def emit(value):
+    print(json.dumps(value, separators=(",", ":")), flush=True)
+
+for line in sys.stdin:
+    message = json.loads(line)
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(message, sort_keys=True) + "\n")
+    method = message.get("method")
+    if method == "initialize":
+        emit({"id": message["id"], "result": {"userAgent": "dynamic-fixture"}})
+    elif method == "thread/start":
+        emit({"id": message["id"], "result": {"thread": {"id": thread_id}}})
+    elif method == "turn/start":
+        emit({"id": message["id"], "result": {"turn": {"id": turn_id}}})
+        emit({"id": "reverse-tool-1", "method": "item/tool/call", "params": {
+            "arguments": {"verb": "discover", "args": []},
+            "callId": "call-fixture", "threadId": thread_id,
+            "tool": "aurora_read_verb", "turnId": turn_id}})
+    elif message.get("id") == "reverse-tool-1" and "result" in message:
+        result = message["result"]
+        text = result["contentItems"][0]["text"]
+        emit({"method": "item/completed", "params": {
+            "threadId": thread_id, "turnId": turn_id, "completedAtMs": 1,
+            "item": {"id": "item-fixture", "type": "agentMessage", "text": text}}})
+        emit({"method": "turn/completed", "params": {"threadId": thread_id,
+            "turn": {"id": turn_id, "status": "completed"}}})
+"""
+
+
 def _command(tmp_path: Path) -> tuple[list[str], Path]:
     log = tmp_path / "fixture-requests.jsonl"
     return [sys.executable, "-u", "-c", FAKE_SERVER, str(log)], log
@@ -116,6 +160,174 @@ def test_turn_result_joins_final_text_status_and_usage(tmp_path):
     assert result.status == "completed"
     assert result.text == "fixture reply"
     assert result.token_usage["last"]["totalTokens"] == 16
+
+
+def test_dynamic_tool_reverse_request_is_answered_without_blocking_stdout_reader(tmp_path):
+    """RED: the host must answer server requests, not misfile them as notifications."""
+    log = tmp_path / "dynamic-fixture-requests.jsonl"
+    command = [sys.executable, "-u", "-c", FAKE_DYNAMIC_TOOL_SERVER, str(log)]
+    seen = []
+
+    def handle_tool(params):
+        seen.append(params)
+        return {
+            "success": True,
+            "contentItems": [{"type": "inputText", "text": "governed verb output"}],
+        }
+
+    spec = {
+        "type": "function",
+        "name": "aurora_read_verb",
+        "description": "fixture",
+        "inputSchema": {"type": "object"},
+    }
+    with CodexAppServer(
+        command=command,
+        cwd=tmp_path,
+        request_handlers={"item/tool/call": handle_tool},
+        experimental_api=True,
+    ) as server:
+        thread = server.start_thread(dynamic_tools=[spec])
+        result = server.run_turn(thread.thread_id, "use the tool", timeout=5)
+
+    assert result.status == "completed"
+    assert result.text == "governed verb output"
+    assert seen and seen[0]["tool"] == "aurora_read_verb"
+    traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    initialize = next(item for item in traffic if item.get("method") == "initialize")
+    assert initialize["params"]["capabilities"] == {"experimentalApi": True}
+    thread_start = next(item for item in traffic if item.get("method") == "thread/start")
+    assert thread_start["params"]["dynamicTools"] == [spec]
+    reverse_reply = next(item for item in traffic if item.get("id") == "reverse-tool-1")
+    assert reverse_reply["result"]["success"] is True
+
+
+def test_dynamic_tools_require_explicit_experimental_api_negotiation(tmp_path):
+    command, log = _command(tmp_path)
+    spec = {
+        "type": "function",
+        "name": "aurora_read_verb",
+        "description": "fixture",
+        "inputSchema": {"type": "object"},
+    }
+    with CodexAppServer(command=command, cwd=tmp_path) as server:
+        with pytest.raises(CodexAppServerError, match="experimental_api=True"):
+            server.start_thread(dynamic_tools=[spec])
+
+    traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    assert not any(item.get("method") == "thread/start" for item in traffic)
+
+
+def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path, monkeypatch):
+    """RED: launch opt-in and the live ACL both matter; raw shell is never exposed."""
+    from core.trust.capabilities import Cap
+    from core.trust import registry
+
+    class Grant:
+        role = "member"
+
+        def __init__(self, exec_allowed):
+            self.exec_allowed = exec_allowed
+
+        def has(self, cap):
+            return self.exec_allowed and cap == Cap.EXEC
+
+    redis = IdleRedis()
+    bus = Bus("sol", client=redis, promote=False)
+    state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy("sol", frozenset({"daniil"})),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=Path(__file__).resolve().parent.parent,
+        allow_exec=True,
+        server_factory=lambda **_kwargs: None,
+    )
+
+    assert watcher.dynamic_tools == [AURORA_READ_VERB_TOOL]
+    assert watcher._toolbox.agent_id == "sol"
+    assert watcher._toolbox.allow_exec is True and watcher._toolbox.trust is True
+    assert "command" not in AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
+    advertised_verbs = set(
+        AURORA_READ_VERB_TOOL["inputSchema"]["properties"]["verb"]["enum"]
+    )
+    assert {"task", "fence", "notes"}.isdisjoint(advertised_verbs)
+
+    monkeypatch.setattr(registry, "resolve", lambda _agent: Grant(False))
+    denied = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_verb",
+        "arguments": {"verb": "discover", "args": []},
+    })
+    assert denied["success"] is False
+    assert "does not hold the exec capability" in denied["contentItems"][0]["text"]
+
+    monkeypatch.setattr(registry, "resolve", lambda _agent: Grant(True))
+    refused_mutation = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_verb",
+        "arguments": {"verb": "learn", "args": ["sol"]},
+    })
+    assert refused_mutation["success"] is False
+    assert "safe read grammar" in refused_mutation["contentItems"][0]["text"].lower()
+
+    # ToolBox's legacy family-level allowlist currently accepts these positional
+    # mutation forms.  The Codex bridge must reject them before that shared wall.
+    for verb, args in (
+        ("task", ["done", "T999"]),
+        ("fence", ["open", "fixture", "--question", "unsafe"]),
+        ("notes", ["--project"]),
+        ("doctor", ["--page"]),
+        ("discover", ["--semantic", "who am I"]),
+    ):
+        refused = watcher.handle_dynamic_tool_call({
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": verb, "args": args},
+        })
+        assert refused["success"] is False
+        assert "safe read grammar" in refused["contentItems"][0]["text"].lower()
+
+    refused_shell = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_verb",
+        "arguments": {"verb": "discover", "args": ["verbs; whoami"]},
+    })
+    assert refused_shell["success"] is False
+    assert "shell metacharacters" in refused_shell["contentItems"][0]["text"].lower()
+
+    commands = []
+    monkeypatch.setattr(
+        watcher._toolbox,
+        "run_command",
+        lambda command, timeout: commands.append((command, timeout)) or "governed output",
+    )
+    allowed = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_verb",
+        "arguments": {"verb": "discover", "args": ["verbs"]},
+    })
+    assert allowed["success"] is True
+    assert allowed["contentItems"][0]["text"] == "governed output"
+    assert commands == [("py agent_cli.py discover verbs", 120)]
+
+
+def test_wake_without_launch_opt_in_advertises_no_exec_tool(tmp_path):
+    redis = IdleRedis()
+    bus = Bus("sol", client=redis, promote=False)
+    state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy("sol", frozenset({"daniil"})),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=tmp_path,
+        allow_exec=False,
+        server_factory=lambda **_kwargs: None,
+    )
+    assert watcher.dynamic_tools == []
+    denied = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_verb",
+        "arguments": {"verb": "discover", "args": []},
+    })
+    assert denied["success"] is False
+    assert "launch opt-in" in denied["contentItems"][0]["text"]
 
 
 class ExactRedis:

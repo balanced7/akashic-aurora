@@ -98,12 +98,18 @@ class CodexAppServer:
         env: Optional[Mapping[str, str]] = None,
         request_timeout: float = 30.0,
         notification_limit: int = 2048,
+        request_handlers: Optional[
+            Mapping[str, Callable[[Dict[str, Any]], Mapping[str, Any]]]
+        ] = None,
+        experimental_api: bool = False,
     ) -> None:
         self.command = list(command) if command is not None else default_command()
         self.cwd = str(Path(cwd).resolve()) if cwd is not None else None
         self.env = dict(env or {})
         self.request_timeout = float(request_timeout)
         self._notification_limit = int(notification_limit)
+        self.request_handlers = dict(request_handlers or {})
+        self.experimental_api = bool(experimental_api)
 
         self._process: Optional[subprocess.Popen[str]] = None
         self._pending: Dict[int, queue.Queue[Any]] = {}
@@ -170,9 +176,14 @@ class CodexAppServer:
         self._started = True
 
         try:
+            initialize_params: Dict[str, Any] = {
+                "clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}
+            }
+            if self.experimental_api:
+                initialize_params["capabilities"] = {"experimentalApi": True}
             self.request(
                 "initialize",
-                {"clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}},
+                initialize_params,
             )
             self.notify("initialized", {})
         except Exception:
@@ -304,6 +315,13 @@ class CodexAppServer:
                     continue
                 method = message.get("method")
                 params = message.get("params")
+                if "id" in message and isinstance(method, str):
+                    self._dispatch_server_request(
+                        message["id"],
+                        method,
+                        params if isinstance(params, dict) else {},
+                    )
+                    continue
                 if isinstance(method, str):
                     self._record_notification(
                         method,
@@ -318,6 +336,54 @@ class CodexAppServer:
             self._fail_pending(CodexAppServerError("Codex App Server stdout closed"))
             with self._notification_condition:
                 self._notification_condition.notify_all()
+
+    def _dispatch_server_request(
+        self,
+        request_id: Any,
+        method: str,
+        params: Dict[str, Any],
+    ) -> None:
+        """Answer a reverse JSON-RPC request without blocking the sole stdout reader."""
+        handler = self.request_handlers.get(method)
+        if handler is None:
+            self._send(
+                {
+                    "id": request_id,
+                    "error": {
+                        "code": -32601,
+                        "message": f"No client handler registered for {method}",
+                    },
+                }
+            )
+            return
+
+        def answer() -> None:
+            try:
+                result = handler(params)
+                if not isinstance(result, Mapping):
+                    raise TypeError("server request handler must return an object")
+                self._send({"id": request_id, "result": dict(result)})
+            except Exception as exc:
+                try:
+                    self._send(
+                        {
+                            "id": request_id,
+                            "error": {
+                                "code": -32603,
+                                "message": f"{type(exc).__name__}: {exc}",
+                            },
+                        }
+                    )
+                except Exception as send_exc:
+                    self.protocol_noise.append(
+                        f"server request {method!r} reply failed: {send_exc!r}"
+                    )
+
+        threading.Thread(
+            target=answer,
+            name=f"codex-app-server-request-{method.replace('/', '-')}",
+            daemon=True,
+        ).start()
 
     def _stderr_reader(self) -> None:
         try:
@@ -409,7 +475,12 @@ class CodexAppServer:
         developer_instructions: Optional[str] = None,
         approval_policy: str = "never",
         personality: Optional[str] = None,
+        dynamic_tools: Optional[Sequence[Mapping[str, Any]]] = None,
     ) -> ThreadHandle:
+        if dynamic_tools and not self.experimental_api:
+            raise CodexAppServerError(
+                "dynamic_tools require experimental_api=True during App Server initialization"
+            )
         params: Dict[str, Any] = {
             "ephemeral": bool(ephemeral),
             "sandbox": sandbox,
@@ -425,6 +496,8 @@ class CodexAppServer:
             params["developerInstructions"] = developer_instructions
         if personality:
             params["personality"] = personality
+        if dynamic_tools is not None:
+            params["dynamicTools"] = [dict(spec) for spec in dynamic_tools]
         result = self.request("thread/start", params)
         thread = result.get("thread")
         thread_id = thread.get("id") if isinstance(thread, dict) else None

@@ -53,4 +53,10 @@ def test_cli_exposes_an_explicit_additive_kind_and_required_source_gate():
     assert args.allow_from == ["daniil"]
     assert args.allow_kind == ["chat"]
     assert args.require_source == "discord"
+    assert args.allow_exec is False
     assert args.state_path != "sol.state.json"
+
+
+def test_cli_exec_requires_an_explicit_launch_flag():
+    args = build_parser().parse_args(["--allow-exec"])
+    assert args.allow_exec is True
