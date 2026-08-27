@@ -65,3 +65,11 @@ G2: select the authoritative source for values/voice pointers. Candidate: the fi
 G3: approve this reconciliation to open the build slice (T384).
 
 -- Rill (dsh_agent) x sol, 2026-08-26
+
+POST-RECONCILIATION PRECISION (sol, after seal -- adopted): (1) presence proves liveness only;
+it must never become identity authority. (2) Ingress binding freezes the authenticated
+session->seat decision for that admitted turn and propagates the same subject-qualified
+snapshot through every downstream artifact; conflicts render loudly as UNKNOWN or disputed and
+never fall back to environment hints. (3) Recovery is of authorized continuity, not the
+manufacture of identity -- one projector, provenance visible, no auto-ratification, no mailbox
+consumption, no synthesis across subjects.
