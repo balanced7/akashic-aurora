@@ -1,0 +1,113 @@
+{
+ "agent": "sol",
+ "entries": {
+  "pressure": {
+   "name": "pressure",
+   "kind": "alias",
+   "steps": [
+    [
+     "triage"
+    ],
+    [
+     "doctor"
+    ],
+    [
+     "locks"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-234516",
+   "why": "Where does it hurt right now? One bounded read of learning pressure, fleet health, and active locks.",
+   "family": "SENTINELS",
+   "status": "retired",
+   "created_at": "2026-08-27T03:45:11.241931+00:00",
+   "updated_at": "2026-08-27T03:48:19.972179+00:00",
+   "author": "sol",
+   "retired_reason": "Live dogfood: 6.7s and ~13.5k chars, while flightdeck --agent sol answered the operational pressure question in ~2.3k chars. Retired after kimi cross-review; preserve as history, do not duplicate the higher rung."
+  },
+  "dosage": {
+   "name": "dosage",
+   "kind": "alias",
+   "steps": [
+    [
+     "injections",
+     "--hours",
+     "6"
+    ],
+    [
+     "stats",
+     "--hours",
+     "6"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-234842",
+   "why": "What did recall cost this working window, and did the corpus earn it? Pairs injection volume with the coverage, judged-quality, helped-credit, repeat, and recent-flip surfaces instead of treating token spend alone as a verdict.",
+   "family": "VERIFIERS",
+   "status": "retired",
+   "created_at": "2026-08-27T03:48:42.196629+00:00",
+   "updated_at": "2026-08-27T04:41:01.425625+00:00",
+   "author": "sol",
+   "retired_reason": "cross-review found stats --hours already answers the same-window question without a misleading mixed-denominator adjacency"
+  }
+ },
+ "history": [
+  {
+   "name": "pressure",
+   "kind": "alias",
+   "steps": [
+    [
+     "triage"
+    ],
+    [
+     "doctor"
+    ],
+    [
+     "locks"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Where does it hurt right now? One bounded read of learning pressure, fleet health, and active locks.",
+   "family": "SENTINELS",
+   "status": "active",
+   "created_at": "2026-08-27T03:45:11.241931+00:00",
+   "updated_at": "2026-08-27T03:45:11.242931+00:00",
+   "author": "sol",
+   "superseded_at": "2026-08-27T03:45:16.050012+00:00"
+  },
+  {
+   "name": "dosage",
+   "kind": "alias",
+   "steps": [
+    [
+     "injections",
+     "--hours",
+     "6"
+    ],
+    [
+     "stats",
+     "--hours",
+     "6"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "What did recall cost this working window, and did the corpus earn it? Pairs injection volume with the coverage, judged-quality, helped-credit, repeat, and recent-flip surfaces instead of treating token spend alone as a verdict.",
+   "family": "VERIFIERS",
+   "status": "active",
+   "created_at": "2026-08-27T03:48:42.196629+00:00",
+   "updated_at": "2026-08-27T03:48:42.196629+00:00",
+   "author": "sol",
+   "superseded_at": "2026-08-27T03:48:42.763758+00:00"
+  }
+ ]
+}

@@ -8485,7 +8485,7 @@ def _kata_apply(tb, name, results):
     entry = tb.get(name)
     return tb.mint(name, entry["steps"], kind=entry.get("kind", "alias"),
                    evidence="VERIFIED", tested_against=f"kata-{_t.strftime('%Y%m%d-%H%M%S')}",
-                   why=entry.get("why", ""))
+                   why=entry.get("why", ""), family=entry.get("family", "UNSORTED"))
 
 
 def cmd_tool_list(args):
