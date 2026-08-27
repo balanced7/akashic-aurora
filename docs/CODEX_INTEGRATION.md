@@ -318,13 +318,16 @@ the consistency guard; the record's reason and `request_ref` state that the
 actual authorization was Daniil's direct Codex message and that `--by` is not
 authentication.
 
-The live supervised job is `codex-sol-discord-wake-20260826-v7`. It resumed the
-private watermark `1787801812565-0` and armed with `allow_exec=true`,
-`dynamic_tools=["aurora_read_verb", "aurora_read_combo"]`, and
-`idle_model_turns=0`. V6 was idle when it was displaced to load the combo door,
-but its blocking read did not quiesce inside the five-second grace window; the
-Windows Job Object force receipt reports `remaining_pids=[]`. No message or
-model turn was admitted during the replacement. The independent
+The live supervised job is `codex-sol-discord-wake-20260826-v8`. It resumed the
+private watermark `1787805814662-0` and armed with `allow_exec=true`,
+`dynamic_tools=["aurora_read_verb", "aurora_combo_catalog"]`, and
+`idle_model_turns=0`. V7 was idle when it was displaced to load the admission
+catalog, but its blocking read did not quiesce inside the five-second grace
+window; the Windows Job Object force receipt reports `remaining_pids=[]`, and
+an independent exact-PID read found every former member gone. V8 is running
+with child PID `4560`, supervisor PID `51476`, watchdog PID `53160`, and verified
+Job Object membership. No message or model turn was admitted during the
+replacement. The independent
 `codex-sol-rill-wake-20260826-v2` job was only status-read and remained running
 with child PID `18984`, supervisor PID `13284`, watchdog PID `25988`, and no
 cancel request.
@@ -332,13 +335,14 @@ cancel request.
 That ARMED line is a launch-time receipt, not a permanent roster claim. The
 host rebuilds `dynamic_tools` when each message is admitted. Because the live
 Sunshine belt now has zero active entries, the next admitted turn will expose
-only `aurora_read_verb`; the combo door reappears automatically when a safe
-zero-argument combo exists.
+`aurora_read_verb` plus the non-executing `aurora_combo_catalog`; the combo door
+reappears automatically when a safe zero-argument combo exists.
 
 No paid model turn was manufactured for this deployment. A hermetic App Server
 fixture proved the reverse request/response join and capability negotiation. A
-live zero-turn `thread/start` then accepted the real 17-verb dynamic-tool schema
-with one stdout reader and no protocol noise. A live `sol` bridge receipt ran
+live zero-turn `thread/start` then accepted the real 17-verb primitive schema
+and the no-argument admission catalog with one stdout reader, no protocol noise,
+and zero model turns. A live `sol` bridge receipt ran
 `discover` and separately refused `learn`, the positional mutation forms
 `task done`, `fence open`, and `notes --project`, the side-effecting
 `doctor --page`, the paid `discover --semantic` form, and `discover; whoami`.
