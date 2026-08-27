@@ -220,10 +220,30 @@ def summary_line(snap: Dict[str, Any]) -> str:
     hrs = float(snap.get("window_hours", 24))
     span = f"{hrs / 24:g}d" if hrs >= 48 else f"{hrs:g}h"
     rate = snap.get("value_rate")
-    return (f"{snap.get('corpus_lessons', 0)} lessons | surfaced {snap.get('surfaced_impressions', 0)}"
-            f" | votes useful={v.get('useful', 0)} noise={v.get('noise', 0)}"
+    # T253, second surface: `stats` has reported the coverage/quality SPLIT since
+    # 2026-08-09, but this line -- the one every seat reads at boot, before it reads
+    # anything else -- still emitted a bare "value X%". The bare figure is dominated by
+    # feedback COVERAGE (its denominator counts every impression; its numerator needs
+    # someone to have voted), so silence sits in the denominator and the metric cannot
+    # tell BAD from UNEVALUATED. Quoted as quality it is a category error, and on
+    # 2026-08-26 it misled a seat that had the honest version one module over. The pair
+    # replaces the ratio here: how much got judged at all, and of that, how much was good.
+    # No quality claim is made when nothing was judged -- that is the exact state the
+    # bare number used to disguise as a verdict.
+    surfaced = int(snap.get("surfaced_impressions", 0) or 0)
+    useful, noise = int(v.get("useful", 0) or 0), int(v.get("noise", 0) or 0)
+    judged = useful + noise
+    if rate is None or not surfaced:
+        judged_seg = ""
+    elif judged:
+        judged_seg = (f" | judged {judged}/{surfaced} ({judged / surfaced * 100:.1f}%)"
+                      f" -> {useful / judged * 100:.0f}% useful")
+    else:
+        judged_seg = f" | judged 0/{surfaced} -- UNLABELLED, no quality claim"
+    return (f"{snap.get('corpus_lessons', 0)} lessons | surfaced {surfaced}"
+            f" | votes useful={useful} noise={noise}"
             f" | helped {snap.get('helped_credits', 0)}"
-            + (f" | value {rate * 100:.1f}%" if rate is not None else "")
+            + judged_seg
             + f" | last {span}: +{w.get('lessons_recorded', 0)} lesson(s), {w.get('flips', 0)} flip(s)")
 
 

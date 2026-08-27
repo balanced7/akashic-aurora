@@ -149,12 +149,37 @@ def test_summary_line_is_one_ascii_line():
     assert line == line.encode("ascii", errors="replace").decode()
 
 
-def test_summary_line_carries_value_rate_when_measurable():
+def test_summary_line_reports_coverage_and_quality_not_a_bare_value_rate():
+    """T253: the boot line reports the PAIR, never the coverage-dominated ratio alone.
+
+    (useful+helped)/surfaced would render 37.5% here. That figure divides by every
+    impression while its numerator needs someone to have voted, so silence sits in the
+    denominator and it cannot tell BAD from UNEVALUATED. `stats` has carried the split
+    since 2026-08-09; this line did not, and on 2026-08-26 it misled a seat that had
+    the honest version one module over. Coverage and quality, or nothing.
+    """
     from core.recall.funnel import snapshot, summary_line
     use = {"recall:use:learn:experiment:a": json.dumps({"surfaced": 8, "helped": 2, "useful": 1})}
     line = summary_line(snapshot(hours=24, store=_FakeStore(use),
                                  learning_store=_FakeLearningStore([]), flips=[], injections=[]))
-    assert "value 37.5%" in line
+    assert "judged 1/8 (12.5%) -> 100% useful" in line
+    assert "value 37.5%" not in line, "the bare coverage-dominated ratio must not return"
+
+
+def test_summary_line_makes_no_quality_claim_when_nothing_was_judged():
+    """The exact state the bare ratio disguised as a verdict.
+
+    Two helped credits and zero votes: the old line printed 'value 25.0%' while not a
+    single impression had ever been judged. A metric must be able to FAIL -- here that
+    means refusing to report quality it does not have.
+    """
+    from core.recall.funnel import snapshot, summary_line
+    use = {"recall:use:learn:experiment:a": json.dumps({"surfaced": 8, "helped": 2})}
+    line = summary_line(snapshot(hours=24, store=_FakeStore(use),
+                                 learning_store=_FakeLearningStore([]), flips=[], injections=[]))
+    assert "judged 0/8 -- UNLABELLED, no quality claim" in line
+    assert "% useful" not in line, "no votes means no quality figure may be rendered"
+    assert "value 25.0%" not in line
 
 
 def test_snapshot_counts_injection_cost():
