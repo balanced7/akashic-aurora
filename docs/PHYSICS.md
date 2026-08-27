@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at e5a7b84b. A bound you discover by collision is not awareness -- this sheet
+> Derived at 888b6520. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -269,12 +269,13 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (153 numeric constants)
+## Mechanical bounds (154 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
 | `ACTIVITY_TTL` | 25 | core/comm/control.py |  |
 | `AGENT_TTL_SECONDS` | 300 | research/in-flight/t342/dead-modules/multi_agent.py |  |
+| `AURORA_COMBO_OUTPUT_CHARS` | 24,000 | agent/harness/codex_bifrost_wake.py |  |
 | `BACKUP_INTERVAL` | 300 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 5 minutes - routine backup |
 | `BENCH_MIN_SURFACED` | 10 | core/recall/curator.py | exposure floor: it had its chances... |
 | `BODY_CHARS` | 12,000 | core/recall/lookback.py | rationale often sits DEEP: a synthesis doc's convergence and |
