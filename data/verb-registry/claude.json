@@ -121,6 +121,123 @@
    "created_at": "2026-07-21T02:04:05",
    "updated_at": "2026-07-21T02:04:56",
    "author": "claude"
+  },
+  "cycle-open": {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000045",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-27T04:00:45.172405+00:00",
+   "author": "claude"
+  },
+  "cycle-tie-up": {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000045",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-27T04:00:45.770009+00:00",
+   "author": "claude"
+  },
+  "cycle-reflect": {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000046",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-27T04:00:46.422180+00:00",
+   "author": "claude"
+  },
+  "cycle-land": {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 5,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000047",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T04:00:47.057029+00:00",
+   "author": "claude"
+  },
+  "calibrate": {
+   "name": "calibrate",
+   "kind": "alias",
+   "steps": [
+    [
+     "forecast",
+     "list"
+    ],
+    [
+     "stats"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "session 25cd3074, 2026-08-26: both steps run clean; forecast list renders 14 registered with 4 scored (3 hit, 1 voided) and stats renders the coverage/quality pair plus REPEATS",
+   "why": "Were we right, and did we check? Puts registered PREDICTIONS beside the corpus's honest coverage/quality pair, so a seat sees what it promised to find out next to what it actually knows. Minted because this seat reported '0 of 14 forecasts scored' from a scan keyed on the wrong field, having earlier quoted a coverage number as a quality verdict -- both are failures of not looking at the calibration surface. The organ existed and nobody ran it.",
+   "family": "VERIFIERS",
+   "status": "active",
+   "created_at": "2026-08-27T03:31:59.345539+00:00",
+   "updated_at": "2026-08-27T03:31:59.345539+00:00",
+   "author": "claude"
   }
  },
  "history": [
@@ -462,6 +579,324 @@
    "updated_at": "2026-07-21T02:04:05",
    "author": "claude",
    "superseded_at": "2026-07-21T02:04:56"
+  },
+  {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "the loop stalls when a cycle opens without a situational read -- 2026-08-20: I armed a poller, reported, and stopped, which ended the run while he slept",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-20T06:26:53.675200+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T03:35:26.234583+00:00"
+  },
+  {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "mode 2 of the rhythm: close an outstanding thread rather than open a new one -- the exponential-inbox guard he named",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-20T06:34:43.702315+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T03:35:39.690208+00:00"
+  },
+  {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "mode 3: measure whether the instruments are earning their keep -- four of mine were the defect on 2026-08-19",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-20T06:34:44.042200+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T03:35:40.019135+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "$SELF$"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "mode 4: land durably so any death is boring -- he sleeps while the loop runs",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-20T06:34:44.406714+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T03:36:11.467979+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Close a work cycle: land the session draft, then regenerate the chronicles digest. Re-minted after kata refused to level v1: the second step failed the door's grammar, which is exactly what kata is for.",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T03:36:11.467979+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T03:36:11.765229+00:00"
+  },
+  {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-233526",
+   "why": "the loop stalls when a cycle opens without a situational read -- 2026-08-20: I armed a poller, reported, and stopped, which ended the run while he slept",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-27T03:35:26.234583+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:44.862985+00:00"
+  },
+  {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 3,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-27T04:00:44.862985+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:45.172405+00:00"
+  },
+  {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-233539",
+   "why": "mode 2 of the rhythm: close an outstanding thread rather than open a new one -- the exponential-inbox guard he named",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-27T03:35:39.690208+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:45.472826+00:00"
+  },
+  {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 3,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-27T04:00:45.472826+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:45.770009+00:00"
+  },
+  {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-233540",
+   "why": "mode 3: measure whether the instruments are earning their keep -- four of mine were the defect on 2026-08-19",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-27T03:35:40.019135+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:46.082987+00:00"
+  },
+  {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 3,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-27T04:00:46.082987+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:46.422180+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 3,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260826-233611",
+   "why": "Close a work cycle: land the session draft, then regenerate the chronicles digest. Re-minted after kata refused to level v1: the second step failed the door's grammar, which is exactly what kata is for.",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T03:36:11.765229+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:46.733767+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T04:00:46.733767+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T04:00:47.057029+00:00"
   }
  ]
 }
