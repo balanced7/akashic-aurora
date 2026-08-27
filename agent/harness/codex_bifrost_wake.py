@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shlex
 import threading
 import time
 import uuid
@@ -21,12 +22,130 @@ from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
 from agent.harness.codex_app_server import CodexAppServer, CodexAppServerError, TurnResult
 from core.comm import packet_spec
 from core.comm.bus import Bus, Message
+from core.comm.toolbox import ToolBox
 from core.fleet import residents
 
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})
 STATE_SCHEMA = 1
+AURORA_SAFE_READ_GRAMMAR = {
+    # This grammar is intentionally bridge-local and narrower than ToolBox's
+    # historical family allowlist.  Values are (minimum positionals, maximum
+    # positionals, boolean switches, flags taking one value).  A missing maximum
+    # means any number of plain positional words is safe for that read verb.
+    "discover": (0, 1, frozenset({"--json"}), frozenset()),
+    "doctor": (
+        0,
+        0,
+        frozenset({"--deploy", "--progress", "--json"}),
+        frozenset({"--agents"}),
+    ),
+    "flightdeck": (0, 0, frozenset({"--json"}), frozenset({"--agent"})),
+    "flow": (0, 1, frozenset({"--json"}), frozenset({"--window", "--limit"})),
+    "harnesses": (0, 0, frozenset({"--json"}), frozenset()),
+    "injections": (0, 0, frozenset({"--json"}), frozenset({"--hours"})),
+    "knowledge-map": (0, None, frozenset({"--json"}), frozenset({"--per-layer"})),
+    "list": (0, 0, frozenset({"--json"}), frozenset()),
+    "locks": (0, 1, frozenset({"--json"}), frozenset()),
+    "lookback": (
+        1,
+        None,
+        frozenset({"--json"}),
+        frozenset({"--per-layer", "--layers"}),
+    ),
+    "promoted": (
+        0,
+        0,
+        frozenset({"--json"}),
+        frozenset({"--limit", "--since", "--until"}),
+    ),
+    "pulse": (0, 1, frozenset({"--json"}), frozenset()),
+    "recall": (
+        0,
+        1,
+        frozenset({"--json"}),
+        frozenset({"--full", "--agent"}),
+    ),
+    "stats": (
+        0,
+        0,
+        frozenset({"--silence", "--json"}),
+        frozenset({"--hours", "--days"}),
+    ),
+    "status": (0, 0, frozenset({"--json"}), frozenset()),
+    "triage": (0, 0, frozenset({"--json"}), frozenset({"--min-surfaced"})),
+    "unwedge": (1, 1, frozenset({"--json"}), frozenset()),
+}
+AURORA_SAFE_READ_VERBS = frozenset(AURORA_SAFE_READ_GRAMMAR)
+AURORA_READ_VERB_TOOL = {
+    "type": "function",
+    "name": "aurora_read_verb",
+    "description": (
+        "Run one read-only Akashic Aurora agent_cli verb through the governed unattended "
+        "exec door. This is not raw shell: the host independently checks the launch flag, "
+        "the live subject-seat ACL, a bridge-specific verb and argument grammar, the shared "
+        "ToolBox wall, and shell metacharacters."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "verb": {
+                "type": "string",
+                "enum": sorted(AURORA_SAFE_READ_VERBS),
+                "description": "One verb from Sunshine's conservative read grammar.",
+            },
+            "args": {
+                "type": "array",
+                "items": {"type": "string"},
+                "default": [],
+                "description": (
+                    "Plain argv items for the selected verb. Unknown flags, shell syntax, "
+                    "and positional action subcommands are refused by the host."
+                ),
+            },
+        },
+        "required": ["verb"],
+        "additionalProperties": False,
+    },
+}
+
+
+def _safe_read_args_refusal(verb: str, args: List[str]) -> Optional[str]:
+    """Return why argv is outside Sunshine's bridge-local read grammar, else None."""
+    grammar = AURORA_SAFE_READ_GRAMMAR.get(verb)
+    if grammar is None:
+        return f"{verb!r} is not in the Codex bridge safe read grammar"
+    min_positionals, max_positionals, switches, value_flags = grammar
+    positionals = 0
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if not token or token == "--":
+            return "empty arguments and the '--' option escape are not allowed"
+        if token.startswith("-"):
+            flag, has_inline, inline_value = token.partition("=")
+            if flag in switches:
+                if has_inline:
+                    return f"switch {flag!r} does not take a value"
+            elif flag in value_flags:
+                if has_inline:
+                    if not inline_value or inline_value.startswith("-"):
+                        return f"flag {flag!r} needs one plain value"
+                else:
+                    index += 1
+                    if index >= len(args) or not args[index] or args[index].startswith("-"):
+                        return f"flag {flag!r} needs one plain value"
+            else:
+                return f"flag {flag!r} is not allowed for read verb {verb!r}"
+        else:
+            positionals += 1
+        index += 1
+    if positionals < min_positionals:
+        return f"read verb {verb!r} needs at least {min_positionals} positional argument(s)"
+    if max_positionals is not None and positionals > max_positionals:
+        return f"read verb {verb!r} accepts at most {max_positionals} positional argument(s)"
+    return None
 
 
 class WakeError(RuntimeError):
@@ -358,6 +477,7 @@ class CodexBifrostWake:
         max_message_chars: int = 16_000,
         turn_timeout: float = 900.0,
         block_ms: int = 5_000,
+        allow_exec: bool = False,
         server_factory: Callable[..., CodexAppServer] = CodexAppServer,
         identity_resolver: Callable[[str], SubjectIdentity] = resolve_subject_identity,
     ) -> None:
@@ -373,11 +493,54 @@ class CodexBifrostWake:
         self.max_message_chars = int(max_message_chars)
         self.turn_timeout = float(turn_timeout)
         self.block_ms = max(100, int(block_ms))
+        self.allow_exec = bool(allow_exec)
         self.server_factory = server_factory
         self.identity_resolver = identity_resolver
         self._server: Optional[CodexAppServer] = None
         self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
         self._stop = threading.Event()
+        self._toolbox = ToolBox(
+            self.cwd,
+            allow_exec=self.allow_exec,
+            trust=True,
+            allow_secrets=False,
+            confirm=lambda _prompt: False,
+            agent_id=self.policy.agent,
+            allow_write=False,
+        )
+
+    @property
+    def dynamic_tools(self) -> List[Dict[str, Any]]:
+        """Tools advertised to the model; launch posture is visible at admission time."""
+        return [AURORA_READ_VERB_TOOL] if self.allow_exec else []
+
+    def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
+        """Execute one structured read verb through the bridge and ToolBox walls."""
+        def response(success: bool, text: str) -> Dict[str, Any]:
+            return {
+                "success": bool(success),
+                "contentItems": [{"type": "inputText", "text": str(text)}],
+            }
+
+        if not self.allow_exec:
+            return response(False, "REFUSED: Codex wake exec lacks its explicit launch opt-in.")
+        if str(params.get("tool") or "") != AURORA_READ_VERB_TOOL["name"]:
+            return response(False, f"REFUSED: unknown dynamic tool {params.get('tool')!r}.")
+        arguments = params.get("arguments")
+        if not isinstance(arguments, Mapping):
+            return response(False, "REFUSED: dynamic tool arguments must be an object.")
+        verb = str(arguments.get("verb") or "").strip()
+        raw_args = arguments.get("args", [])
+        if not isinstance(raw_args, list) or any(not isinstance(arg, str) for arg in raw_args):
+            return response(False, "REFUSED: args must be an array of strings.")
+        grammar_refusal = _safe_read_args_refusal(verb, raw_args)
+        if grammar_refusal:
+            return response(False, f"REFUSED by Codex bridge safe read grammar: {grammar_refusal}.")
+        command = shlex.join(["py", "agent_cli.py", verb, *raw_args])
+        output = self._toolbox.run_command(command, timeout=120)
+        refused = output.startswith(("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED"))
+        failed_exit = "\n[exit " in output
+        return response(not refused and not failed_exit, output)
 
     def stop(self) -> None:
         self._stop.set()
@@ -412,7 +575,12 @@ class CodexBifrostWake:
                 "AKASHIC_CALLSIGN_HINT": identity.callsign or "",
                 "AKASHIC_CALLSIGN_STATUS": identity.status,
             }
-            self._server = self.server_factory(cwd=self.cwd, env=env).start()
+            self._server = self.server_factory(
+                cwd=self.cwd,
+                env=env,
+                request_handlers={"item/tool/call": self.handle_dynamic_tool_call},
+                experimental_api=self.allow_exec,
+            ).start()
             self._server_identity_signature = signature
             self._log(
                 "app_server_initialized",
@@ -471,6 +639,7 @@ class CodexBifrostWake:
                 ),
                 approval_policy="never",
                 personality="friendly",
+                dynamic_tools=self.dynamic_tools or None,
             )
             # Durable admission precedes the paid turn: a crash cannot silently
             # redrive the same message and spend twice.

@@ -198,6 +198,84 @@ The current App Server schema exposes `baseInstructions`, `config`, `cwd`,
 must be evaluated against both token usage and Sunshine continuity before it
 becomes the default.
 
+## Governed Aurora verb execution
+
+Sunshine's Discord incarnation now has a client-owned dynamic tool named
+`aurora_read_verb`. It accepts a structured `{verb, args}` object; there is no
+raw command string, working-directory override, write tool, network tool, or
+approval escape hatch in the model-visible schema. The Codex thread itself
+remains `read-only`, `networkAccess=false`, and `approvalPolicy=never`.
+
+The dynamic tool is a bridge into Aurora's existing guarded door, not a second
+shell. A call succeeds only when all four layers agree:
+
+1. the watcher was explicitly launched with `--allow-exec`;
+2. the live ACL record for the subject seat still contains `exec`;
+3. Sunshine's bridge-local grammar accepts both the verb and its exact argument
+   shape;
+4. `ToolBox` accepts the exact `py agent_cli.py <read-verb> ...` family, rejects
+   mutation flags and rejects every shell metacharacter before using
+   `shell=False`.
+
+The model-visible enum currently contains 17 deliberately read-only verbs:
+`discover`, `doctor`, `flightdeck`, `flow`, `harnesses`, `injections`,
+`knowledge-map`, `list`, `locks`, `lookback`, `promoted`, `pulse`, `recall`,
+`stats`, `status`, `triage`, and `unwedge`. Each has a separate positional and
+flag grammar. In particular, the bridge refuses `task`, `fence`, and `notes`
+even though the older ToolBox family list names them, refuses the mutating
+`doctor --page` form, and refuses the extra paid-model `discover --semantic`
+form. The bridge's authority therefore cannot widen merely because ToolBox's
+shared historical allowlist changes.
+
+The App Server host now distinguishes reverse JSON-RPC requests from ordinary
+notifications and answers `item/tool/call` on a worker thread. This preserves
+the one-stdout-reader invariant while a verb runs. An unknown request receives
+a JSON-RPC method-not-found response instead of hanging the paid turn. Because
+dynamic tools are an experimental App Server surface, the host negotiates
+`capabilities.experimentalApi=true` only for exec-enabled watcher instances;
+it also refuses a local `dynamic_tools` start before that negotiation.
+
+The instance-local `sol` ACL record was reactivated permanently at Daniil's
+direct request with only `read`, `exec`, `bus.send`, `bifrost.inbox`,
+`git.read`, `kb.recall`, and `kb.learn`. It has no write scope, network,
+steering, or grant/approval authority. The canonical grant door records
+`granted_by=claude` because that is the effective super-admin profile used by
+the consistency guard; the record's reason and `request_ref` state that the
+actual authorization was Daniil's direct Codex message and that `--by` is not
+authentication.
+
+The supervised replacement job is
+`codex-sol-discord-wake-20260826-v6`. It resumed the unchanged private
+watermark `1787767791186-0` and armed with `allow_exec=true`,
+`dynamic_tools=["aurora_read_verb"]`, and `idle_model_turns=0`. The v4 and v5
+processes were displaced after the positional-subaction and capability-
+negotiation gaps were found, respectively; neither admitted a message or model
+turn. Both Windows Job Object force receipts report `remaining_pids=[]`.
+Before and after v6 armed, the independent
+`codex-sol-rill-wake-20260826-v2` job was freshly observed still running with
+child PID `18984`, supervisor PID `13284`, watchdog PID `25988`, and no cancel
+request.
+
+No paid model turn was manufactured for this deployment. A hermetic App Server
+fixture proved the reverse request/response join and capability negotiation. A
+live zero-turn `thread/start` then accepted the real 17-verb dynamic-tool schema
+with one stdout reader and no protocol noise. A live `sol` bridge receipt ran
+`discover` and separately refused `learn`, the positional mutation forms
+`task done`, `fence open`, and `notes --project`, the side-effecting
+`doctor --page`, the paid `discover --semantic` form, and `discover; whoami`.
+The first organic Discord tool use remains the end-to-end model receipt.
+
+Two adjacent shared-surface gaps remain explicit. ToolBox's historical family
+allowlist is too coarse to classify positional subactions on its own; Sunshine's
+bridge now contains the narrower grammar, but direct callers of that shared
+family still require a separate global repair. Also, ACL files contain the
+historical token `verb.author`, but `core/trust/capabilities.py` does not
+currently define it and
+the `alias` door does not consult it. Therefore this change does **not** claim
+governed alias authoring. Repairing that global contract would change other
+seats' current behavior, including Rill's, and is deliberately not smuggled
+into Sunshine's exec activation.
+
 Discord identity rendering now keeps two authorities separate. A registry-
 ratified but unplaced resident renders as `Sunshine (sol)` immediately, while
 its avatar remains absent until family/team placement exists. An unknown seat

@@ -68,6 +68,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--turn-timeout", type=float, default=900.0)
     parser.add_argument("--block-ms", type=int, default=5_000)
     parser.add_argument(
+        "--allow-exec",
+        action="store_true",
+        help=(
+            "advertise the structured Aurora read-verb tool; the live agent ACL must also "
+            "hold exec, and the unattended ToolBox door remains families-only"
+        ),
+    )
+    parser.add_argument(
         "--once",
         action="store_true",
         help="handle at most one future row, or exit after one idle block (smoke tests)",
@@ -113,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         max_message_chars=args.max_message_chars,
         turn_timeout=args.turn_timeout,
         block_ms=args.block_ms,
+        allow_exec=args.allow_exec,
     )
     install_signal_stops(watcher)
     print(
@@ -130,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
                 "cursor_advance": False,
                 "idle_model_turns": 0,
                 "peer_process_interference": False,
+                "allow_exec": watcher.allow_exec,
+                "dynamic_tools": [tool["name"] for tool in watcher.dynamic_tools],
             },
             sort_keys=True,
         ),
