@@ -32,6 +32,7 @@ from agent.harness.codex_bifrost_wake import (
 )
 from core.comm import packet_spec
 from core.comm.bus import Bus
+from core.toolbelt.registry import Toolbelt
 
 
 FAKE_SERVER = r"""
@@ -243,6 +244,11 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
         server_factory=lambda **_kwargs: None,
+        toolbelt_factory=lambda agent: Toolbelt(
+            agent,
+            root=str(tmp_path / "empty-belts"),
+            known_verbs=lambda: set(),
+        ),
     )
 
     assert watcher.dynamic_tools == [AURORA_READ_VERB_TOOL]
@@ -306,6 +312,85 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
     assert allowed["success"] is True
     assert allowed["contentItems"][0]["text"] == "governed output"
     assert commands == [("py agent_cli.py discover verbs", 120)]
+
+
+def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step(
+    tmp_path, monkeypatch
+):
+    """RED: native sugar crosses the bridge only after whole-combo read preflight."""
+    from core.trust.capabilities import Cap
+    from core.trust import registry
+
+    class Grant:
+        role = "member"
+
+        def has(self, cap):
+            return cap == Cap.EXEC
+
+    belt_root = tmp_path / "belts"
+    known_verbs = lambda: {"triage", "doctor", "locks", "learn"}
+    belt = Toolbelt("sol", root=str(belt_root), known_verbs=known_verbs)
+    belt.mint(
+        "pressure",
+        [["triage"], ["doctor"], ["locks"]],
+        why="Where does it hurt right now?",
+        family="SENTINELS",
+    )
+    belt.mint(
+        "late-mutation",
+        [["doctor"], ["learn", "sol"]],
+        why="Proves that a later unsafe step prevents every earlier step.",
+        family="WAR-GAMES",
+    )
+
+    redis = IdleRedis()
+    watcher = CodexBifrostWake(
+        bus=Bus("sol", client=redis, promote=False),
+        policy=WakePolicy("sol", frozenset({"daniil"})),
+        state=WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0"),
+        log_path=tmp_path / "events.jsonl",
+        cwd=Path(__file__).resolve().parent.parent,
+        allow_exec=True,
+        server_factory=lambda **_kwargs: None,
+        toolbelt_factory=lambda agent: Toolbelt(
+            agent,
+            root=str(belt_root),
+            known_verbs=known_verbs,
+        ),
+    )
+    monkeypatch.setattr(registry, "resolve", lambda _agent: Grant())
+
+    combo_tool = next(tool for tool in watcher.dynamic_tools if tool["name"] == "aurora_read_combo")
+    assert combo_tool["inputSchema"]["properties"]["name"]["enum"] == ["pressure"]
+    assert "args" not in combo_tool["inputSchema"]["properties"]
+
+    commands = []
+    monkeypatch.setattr(
+        watcher._toolbox,
+        "run_command",
+        lambda command, timeout: commands.append((command, timeout)) or f"output:{command}",
+    )
+    result = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_combo",
+        "arguments": {"name": "pressure"},
+    })
+    assert result["success"] is True
+    assert commands == [
+        ("py agent_cli.py triage", 120),
+        ("py agent_cli.py doctor", 120),
+        ("py agent_cli.py locks", 120),
+    ]
+    assert "[pressure 1/3] triage" in result["contentItems"][0]["text"]
+    assert "[pressure 3/3] locks" in result["contentItems"][0]["text"]
+
+    commands.clear()
+    refused = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_combo",
+        "arguments": {"name": "late-mutation"},
+    })
+    assert refused["success"] is False
+    assert "safe read grammar" in refused["contentItems"][0]["text"].lower()
+    assert commands == []
 
 
 def test_wake_without_launch_opt_in_advertises_no_exec_tool(tmp_path):
