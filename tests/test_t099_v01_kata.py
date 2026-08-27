@@ -28,6 +28,28 @@ def test_kata_levels_up_parseable_alias(tmp_path):
     assert e["version"] == 2, "level-up rides supersession, never edit-in-place"
 
 
+def test_kata_level_up_preserves_authored_family(tmp_path):
+    """RED: verification changes evidence, not the composition's authored identity."""
+    import agent_cli
+    from core.toolbelt.registry import Toolbelt
+
+    tb = Toolbelt("t-kata-family", root=str(tmp_path))
+    tb.mint(
+        "pressure",
+        [["triage"], ["doctor"], ["locks"]],
+        family="SENTINELS",
+        why="Where does it hurt right now?",
+    )
+    ok, results = agent_cli._kata_check(tb.resolve("pressure"))
+    assert ok
+
+    leveled = agent_cli._kata_apply(tb, "pressure", results)
+
+    assert leveled["evidence"] == "VERIFIED"
+    assert leveled["family"] == "SENTINELS"
+    assert leveled["why"] == "Where does it hurt right now?"
+
+
 def test_kata_refuses_bad_grammar_and_names_the_step(tmp_path):
     import agent_cli
     from core.toolbelt.registry import Toolbelt
