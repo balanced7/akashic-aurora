@@ -328,7 +328,7 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
             return cap == Cap.EXEC
 
     belt_root = tmp_path / "belts"
-    known_verbs = lambda: {"triage", "doctor", "locks", "learn"}
+    known_verbs = lambda: {"triage", "doctor", "locks", "lookback", "learn"}
     belt = Toolbelt("sol", root=str(belt_root), known_verbs=known_verbs)
     belt.mint(
         "pressure",
@@ -340,6 +340,12 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         "late-mutation",
         [["doctor"], ["learn", "sol"]],
         why="Proves that a later unsafe step prevents every earlier step.",
+        family="WAR-GAMES",
+    )
+    belt.mint(
+        "late-shell",
+        [["doctor"], ["lookback", "risk; whoami"]],
+        why="Proves shell syntax is rejected during whole-combo preflight.",
         family="WAR-GAMES",
     )
 
@@ -383,6 +389,20 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
     assert "[pressure 1/3] triage" in result["contentItems"][0]["text"]
     assert "[pressure 3/3] locks" in result["contentItems"][0]["text"]
 
+    monkeypatch.setattr(
+        watcher._toolbox,
+        "run_command",
+        lambda _command, timeout: "x" * 10_000,
+    )
+    capped = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_combo",
+        "arguments": {"name": "pressure"},
+    })
+    capped_body = capped["contentItems"][0]["text"]
+    assert capped["success"] is True
+    assert len(capped_body) <= 24_000
+    assert "combo output capped" in capped_body
+
     commands.clear()
     refused = watcher.handle_dynamic_tool_call({
         "tool": "aurora_read_combo",
@@ -390,6 +410,13 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
     })
     assert refused["success"] is False
     assert "safe read grammar" in refused["contentItems"][0]["text"].lower()
+    assert commands == []
+
+    refused_shell = watcher.handle_dynamic_tool_call({
+        "tool": "aurora_read_combo",
+        "arguments": {"name": "late-shell"},
+    })
+    assert refused_shell["success"] is False
     assert commands == []
 
 

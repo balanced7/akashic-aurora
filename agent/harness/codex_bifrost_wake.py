@@ -24,6 +24,7 @@ from core.comm import packet_spec
 from core.comm.bus import Bus, Message
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
+from core.toolbelt.registry import Toolbelt
 
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
@@ -78,6 +79,9 @@ AURORA_SAFE_READ_GRAMMAR = {
     "unwedge": (1, 1, frozenset({"--json"}), frozenset()),
 }
 AURORA_SAFE_READ_VERBS = frozenset(AURORA_SAFE_READ_GRAMMAR)
+AURORA_SHELL_META = frozenset(";|&><`$()\n\r")
+AURORA_READ_COMBO_TOOL_NAME = "aurora_read_combo"
+AURORA_COMBO_OUTPUT_CHARS = 24_000
 AURORA_READ_VERB_TOOL = {
     "type": "function",
     "name": "aurora_read_verb",
@@ -111,11 +115,39 @@ AURORA_READ_VERB_TOOL = {
 }
 
 
+def _aurora_read_combo_tool(names: List[str]) -> Dict[str, Any]:
+    """Build the per-turn schema from the subject seat's currently safe combos."""
+    return {
+        "type": "function",
+        "name": AURORA_READ_COMBO_TOOL_NAME,
+        "description": (
+            "Run one zero-argument, subject-authored Akashic Aurora combo. The host "
+            "expands the combo from the subject seat's live toolbelt, preflights every "
+            "step against Sunshine's conservative read grammar before executing step one, "
+            "and then re-enters the existing ToolBox wall for each primitive."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "enum": list(names),
+                    "description": "One currently safe combo from this subject seat's belt.",
+                },
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    }
+
+
 def _safe_read_args_refusal(verb: str, args: List[str]) -> Optional[str]:
     """Return why argv is outside Sunshine's bridge-local read grammar, else None."""
     grammar = AURORA_SAFE_READ_GRAMMAR.get(verb)
     if grammar is None:
         return f"{verb!r} is not in the Codex bridge safe read grammar"
+    if any(any(ch in token for ch in AURORA_SHELL_META) for token in args):
+        return "shell metacharacters are not allowed by the Codex bridge"
     min_positionals, max_positionals, switches, value_flags = grammar
     positionals = 0
     index = 0
@@ -480,6 +512,7 @@ class CodexBifrostWake:
         allow_exec: bool = False,
         server_factory: Callable[..., CodexAppServer] = CodexAppServer,
         identity_resolver: Callable[[str], SubjectIdentity] = resolve_subject_identity,
+        toolbelt_factory: Callable[[str], Toolbelt] = Toolbelt,
     ) -> None:
         if bus.agent_id != policy.agent or state.agent != policy.agent:
             raise WakeError("Bus, policy, and state must name the same subject seat")
@@ -496,6 +529,7 @@ class CodexBifrostWake:
         self.allow_exec = bool(allow_exec)
         self.server_factory = server_factory
         self.identity_resolver = identity_resolver
+        self.toolbelt_factory = toolbelt_factory
         self._server: Optional[CodexAppServer] = None
         self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
         self._stop = threading.Event()
@@ -512,7 +546,37 @@ class CodexBifrostWake:
     @property
     def dynamic_tools(self) -> List[Dict[str, Any]]:
         """Tools advertised to the model; launch posture is visible at admission time."""
-        return [AURORA_READ_VERB_TOOL] if self.allow_exec else []
+        if not self.allow_exec:
+            return []
+        tools = [AURORA_READ_VERB_TOOL]
+        safe_names = sorted(self._safe_combo_catalog())
+        if safe_names:
+            tools.append(_aurora_read_combo_tool(safe_names))
+        return tools
+
+    def _safe_combo_catalog(self) -> Dict[str, List[List[str]]]:
+        """Resolve safe zero-argument combos; any registry error fails this surface closed."""
+        try:
+            belt = self.toolbelt_factory(self.policy.agent)
+            names = belt.active()
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            return {}
+        safe: Dict[str, List[List[str]]] = {}
+        for name in names:
+            try:
+                entry = belt.get(name)
+                if entry.get("kind", "alias") != "alias" or int(entry.get("params", 0) or 0):
+                    continue
+                steps = belt.resolve(name)
+            except (ValueError, KeyError, TypeError):
+                continue
+            if all(
+                step
+                and _safe_read_args_refusal(str(step[0]), [str(arg) for arg in step[1:]]) is None
+                for step in steps
+            ):
+                safe[str(name)] = [[str(arg) for arg in step] for step in steps]
+        return safe
 
     def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         """Execute one structured read verb through the bridge and ToolBox walls."""
@@ -524,11 +588,41 @@ class CodexBifrostWake:
 
         if not self.allow_exec:
             return response(False, "REFUSED: Codex wake exec lacks its explicit launch opt-in.")
-        if str(params.get("tool") or "") != AURORA_READ_VERB_TOOL["name"]:
+        tool_name = str(params.get("tool") or "")
+        if tool_name not in {AURORA_READ_VERB_TOOL["name"], AURORA_READ_COMBO_TOOL_NAME}:
             return response(False, f"REFUSED: unknown dynamic tool {params.get('tool')!r}.")
         arguments = params.get("arguments")
         if not isinstance(arguments, Mapping):
             return response(False, "REFUSED: dynamic tool arguments must be an object.")
+        if tool_name == AURORA_READ_COMBO_TOOL_NAME:
+            if set(arguments) - {"name"}:
+                return response(False, "REFUSED: read combos accept only the 'name' field.")
+            name = str(arguments.get("name") or "").strip()
+            catalog = self._safe_combo_catalog()
+            steps = catalog.get(name)
+            if steps is None:
+                return response(
+                    False,
+                    f"REFUSED by Codex bridge safe read grammar: combo {name!r} is not a "
+                    "currently safe zero-argument combo for this subject seat.",
+                )
+            rendered: List[str] = []
+            total = len(steps)
+            for index, argv in enumerate(steps, start=1):
+                command = shlex.join(["py", "agent_cli.py", *argv])
+                output = self._toolbox.run_command(command, timeout=120)
+                rendered.append(f"[{name} {index}/{total}] {' '.join(argv)}\n{output}")
+                refused = output.startswith(
+                    ("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED")
+                )
+                failed_exit = "\n[exit " in output
+                if refused or failed_exit:
+                    return response(False, "\n\n".join(rendered)[:AURORA_COMBO_OUTPUT_CHARS])
+            body = "\n\n".join(rendered)
+            if len(body) > AURORA_COMBO_OUTPUT_CHARS:
+                marker = "\n\n[combo output capped; remainder omitted]"
+                body = body[: AURORA_COMBO_OUTPUT_CHARS - len(marker)] + marker
+            return response(True, body)
         verb = str(arguments.get("verb") or "").strip()
         raw_args = arguments.get("args", [])
         if not isinstance(raw_args, list) or any(not isinstance(arg, str) for arg in raw_args):

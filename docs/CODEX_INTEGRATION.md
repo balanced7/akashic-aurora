@@ -1,9 +1,9 @@
 # Codex Desktop integration and recovery runbook
 
-**Status:** active integration work, 2026-08-26. This document distinguishes
-configured behavior, synthetic pins, live zero-model receipts, observed paid
-turns, and unresolved cost/continuity risk. Built is not wired; wired is not yet
-observed until the destination is read back.
+**Status:** current. Active integration work, updated 2026-08-27. This document
+distinguishes configured behavior, synthetic pins, live zero-model receipts,
+observed paid turns, and unresolved cost/continuity risk. Built is not wired;
+wired is not yet observed until the destination is read back.
 
 ## Stable subject tuple
 
@@ -200,10 +200,12 @@ becomes the default.
 
 ## Governed Aurora verb execution
 
-Sunshine's Discord incarnation now has a client-owned dynamic tool named
-`aurora_read_verb`. It accepts a structured `{verb, args}` object; there is no
-raw command string, working-directory override, write tool, network tool, or
-approval escape hatch in the model-visible schema. The Codex thread itself
+Sunshine's Discord incarnation now has two client-owned dynamic tools.
+`aurora_read_verb` accepts a structured `{verb, args}` object for governed
+primitives. `aurora_read_combo` accepts one name from Sunshine's live, safe
+zero-argument combo roster. Neither surface exposes a raw command string,
+working-directory override, write tool, network tool, generic `run`, macro
+arguments, peer-owned belt, or approval escape hatch. The Codex thread itself
 remains `read-only`, `networkAccess=false`, and `approvalPolicy=never`.
 
 The dynamic tool is a bridge into Aurora's existing guarded door, not a second
@@ -227,6 +229,52 @@ even though the older ToolBox family list names them, refuses the mutating
 form. The bridge's authority therefore cannot widen merely because ToolBox's
 shared historical allowlist changes.
 
+The combo tool is rebuilt at every admitted turn from `data/verb-registry/sol.json`.
+The host expands each candidate through the toolbelt organ, admits only authored
+combos with zero parameters, and preflights **every** expanded step against the
+same 17-verb bridge grammar before executing step one. Each admitted primitive
+then re-enters ToolBox independently, so the launch flag and live ACL remain in
+force for every step. A later unsafe verb or shell token therefore refuses the
+whole combo without partial execution. Combined output is capped at 24,000
+characters so composition cannot multiply three individually bounded reads into
+an unbounded model injection.
+
+The first live belt session rejected both of its own opening candidates.
+`pressure = triage -> doctor -> locks` parsed, kata-verified, and ran
+successfully, but cost 6.7 seconds and roughly 13.5k output characters while
+the existing higher-rung `flightdeck --agent sol` answered the
+operational-pressure question in roughly 2.3k. Kimi's fleet cross-review caught
+the duplication; Sunshine retired `pressure` with its history intact.
+
+`dosage = injections --hours 6 -> stats --hours 6` also parsed, verified, and
+ran, but a second three-seat review found that its adjacency invited a false
+return-on-spend reading across mixed denominators. Direct dogfood then supplied
+the cheaper falsifier: `stats --hours 6` already reports same-window injection
+cost, flips, and lessons recorded in about 300 characters, while the additional
+injection ledger contributed roughly 6k characters without answering another
+operational question. Sunshine retired `dosage` too. The belt therefore has
+zero active combos after this round; history retains both candidates, and the
+bridge omits `aurora_read_combo` on the next admitted turn until a new combo
+passes the same admission and cross-review.
+
+That session also found and repaired an older toolbelt honesty defect: `kata`
+upgraded evidence by re-minting without the authored `family`, silently turning
+entries such as Rill's `rillsitrep` from `MONITORS` into `UNSORTED`. Kata now
+preserves family while changing only verification evidence. The repair is
+pre-registered by a RED pin before implementation.
+
+One evidence-lifecycle question remains open rather than being hidden in this
+slice. Kimi found a `VERIFIED` DeepSeek combo whose old `bifrost_dashboard`
+primitive no longer exists in the live parser. The combo bridge safely omits
+that entry because it revalidates the current roster before advertising it,
+but the belt still renders the historical `VERIFIED` label. Fleet review
+rejected both a blind demotion to `GUESS` and an `EXPIRED` value smuggled into
+the confidence axis. The current candidate policy distinguishes referential
+death (retire the alias) from a transient re-kata failure (retain confidence
+but append an orthogonal failing freshness receipt). That failure taxonomy is
+still under adversarial review; this slice does not mutate the peer-owned belt
+or silently settle it.
+
 The App Server host now distinguishes reverse JSON-RPC requests from ordinary
 notifications and answers `item/tool/call` on a worker thread. This preserves
 the one-stdout-reader invariant while a verb runs. An unknown request receives
@@ -244,17 +292,22 @@ the consistency guard; the record's reason and `request_ref` state that the
 actual authorization was Daniil's direct Codex message and that `--by` is not
 authentication.
 
-The supervised replacement job is
-`codex-sol-discord-wake-20260826-v6`. It resumed the unchanged private
-watermark `1787767791186-0` and armed with `allow_exec=true`,
-`dynamic_tools=["aurora_read_verb"]`, and `idle_model_turns=0`. The v4 and v5
-processes were displaced after the positional-subaction and capability-
-negotiation gaps were found, respectively; neither admitted a message or model
-turn. Both Windows Job Object force receipts report `remaining_pids=[]`.
-Before and after v6 armed, the independent
-`codex-sol-rill-wake-20260826-v2` job was freshly observed still running with
-child PID `18984`, supervisor PID `13284`, watchdog PID `25988`, and no cancel
-request.
+The live supervised job is `codex-sol-discord-wake-20260826-v7`. It resumed the
+private watermark `1787801812565-0` and armed with `allow_exec=true`,
+`dynamic_tools=["aurora_read_verb", "aurora_read_combo"]`, and
+`idle_model_turns=0`. V6 was idle when it was displaced to load the combo door,
+but its blocking read did not quiesce inside the five-second grace window; the
+Windows Job Object force receipt reports `remaining_pids=[]`. No message or
+model turn was admitted during the replacement. The independent
+`codex-sol-rill-wake-20260826-v2` job was only status-read and remained running
+with child PID `18984`, supervisor PID `13284`, watchdog PID `25988`, and no
+cancel request.
+
+That ARMED line is a launch-time receipt, not a permanent roster claim. The
+host rebuilds `dynamic_tools` when each message is admitted. Because the live
+Sunshine belt now has zero active entries, the next admitted turn will expose
+only `aurora_read_verb`; the combo door reappears automatically when a safe
+zero-argument combo exists.
 
 No paid model turn was manufactured for this deployment. A hermetic App Server
 fixture proved the reverse request/response join and capability negotiation. A
@@ -315,12 +368,26 @@ API as message `1542175844875898933`, author `Sunshine (sol)`, avatar `null`.
 ## Verification commands
 
 ```powershell
-py -m pytest tests/test_codex_app_server.py tests/test_codex_hook_contract.py -q
+py -m pytest tests/test_codex_app_server.py tests/test_codex_hook_contract.py tests/test_t099_v01_kata.py -q
 py -m pytest tests/test_codex_discord_wake.py tests/test_sol_discord_integration.py -q
+py -m pytest tests/test_t169_budget_exhaustion_still_answers.py -q
 py -m pytest tests/test_bifrost_mesh.py tests/test_seat_identity_resolver.py -q
 py scripts/checkers/check_wiring.py
 py agent_cli.py harnesses
 ```
+
+The first unbounded global gate attempt in this session reproduced the prior
+resource failure: pytest reached roughly 64 GB private memory before manual
+termination. A bounded verbose replay localized the discrete jump to
+`test_t169_budget_exhaustion_still_answers.py::test_f1_exhaustion_still_returns_an_answer`.
+Production had intentionally changed DeepSeek's default tool-round limit to an
+unlimited `10**9` sentinel, while the old test materialized
+`range(DC.MAX_TOOL_ROUNDS)` into a list. The acceptance test now installs its
+own three-round cap and all five T169 pins pass in under one second; production
+remains unlimited. A bounded replay of the remaining 1,547 tail outcomes
+completed with a 2.13 GB peak. The traversed global tree still contains
+unrelated failures, so these receipts are not represented as a globally green
+suite.
 
 The repository is a dirty shared checkout. Focused green tests do not imply a
 green global suite, and the known unrelated Claude-hook parity failure must be
