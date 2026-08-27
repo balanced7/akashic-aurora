@@ -33,11 +33,23 @@ Run: py -m pytest tests/test_t169_budget_exhaustion_still_answers.py -q
 import os
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import deepseek_chat as DC  # noqa: E402
+
+
+TEST_TOOL_ROUNDS = 3
+
+
+@pytest.fixture(autouse=True)
+def _bounded_tool_budget(monkeypatch):
+    """Exercise the exhaustion branch without inheriting the live runner's unlimited default."""
+    monkeypatch.setattr(DC, "MAX_TOOL_ROUNDS", TEST_TOOL_ROUNDS)
+    monkeypatch.setattr(DC, "_ROUNDS_CAPPED", True)
 
 
 class _Box:
