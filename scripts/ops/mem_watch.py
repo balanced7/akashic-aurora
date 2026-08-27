@@ -35,6 +35,14 @@ except ImportError:  # pragma: no cover - environment guard
     raise SystemExit(2)
 
 DEFAULT_LOG = r"E:\AI-Setup\state\mem-watch\mem_watch.jsonl"
+
+# Processes whose RSS is OS memory ACCOUNTING, not consumption. MemCompression's
+# working set IS other processes' compressed pages: it grows when Windows is SAVING
+# memory, so a growth alert on it says the opposite of what it appears to say. Real
+# pressure is still caught -- by the host warn-pct/alert-pct rule, which is the right
+# instrument for it. Observed 2026-08-27: MemCompression at 4.4GB while the host sat
+# at 46.7% used with 32.9GB free and swap at 0.4%.
+SYSTEM_MEM_PROCS = {"memcompression", "system", "system idle process"}
 # Rotate well before the log itself becomes a disk problem.
 MAX_BYTES = 32 * 1024 * 1024
 KEEP_ROTATIONS = 3
@@ -107,6 +115,46 @@ def sample(top_n: int, track_substrings: list[str]) -> dict:
     }
 
 
+
+def process_alert(*, name, pid, rss, first_seen, last_alert, peak,
+                  proc_alert_mb, growth_alert_mb):
+    """The per-process leak decision, pure so it can be pinned. Alert line, or None.
+
+    A process that is merely BIG was probably always big (WSL's VM sits at gigabytes
+    by design). A process that is big AND STILL CLIMBING is the leak. Requiring both
+    keeps the lane quiet enough to trust.
+
+    RE-ARM RATCHET (2026-08-27, found in production the first time this organ ever
+    fired for real). The old rule compared against first_seen on EVERY sample, so a
+    process that climbed once and then went flat re-alerted every interval forever --
+    observed firing six times in three minutes on a process that was actively
+    SHRINKING, while the host sat at 46.7% used with 32.9GB free. A leak detector
+    must report ACCELERATION, not a standing state. After a trip, a process must
+    climb another full growth_alert_mb above the level it last alerted at before it
+    speaks again. Same cry-wolf class as the operator-inbox warning filed the same
+    day ([f63e1186c6]): an alarm that is wrong in the common case trains everyone to
+    ignore it in the uncommon one, which is the only case that ever mattered.
+
+    The morning's drill proved this organ FIRES. It could not prove it ever STOPS --
+    it ran a deliberate 90-second ramp and was watched only while the ramp climbed.
+    """
+    if str(name).lower() in SYSTEM_MEM_PROCS:
+        return None
+    if rss < proc_alert_mb:
+        return None
+    growth = rss - first_seen
+    if last_alert is None:
+        if growth < growth_alert_mb:
+            return None
+        since = "since first seen"
+    elif rss - last_alert < growth_alert_mb:
+        return None
+    else:
+        since = f"since the {last_alert:.0f}MB alert"
+    return (f"ALERT process {name} pid={pid} rss={rss}MB peak={peak:.0f}MB "
+            f"(grew {growth:+.1f}MB {since})")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="host + per-process memory black box")
     ap.add_argument("--interval", type=int, default=30, help="seconds between samples")
@@ -131,6 +179,7 @@ def main() -> int:
     # whose RSS only ever climbs is the leak.
     highwater: dict[int, float] = {}
     first_seen: dict[int, float] = {}
+    alerted_at: dict[int, float] = {}   # RSS at each pid's last ALERT -- the re-arm floor
 
     while True:
         snap = sample(args.top, track)
@@ -153,14 +202,13 @@ def main() -> int:
                 highwater[pid] = rss
             first_seen.setdefault(pid, rss)
             growth = rss - first_seen[pid]
-            # A process that is merely BIG was probably always big (WSL's VM sits
-            # at gigabytes by design). A process that is big AND still climbing is
-            # the leak. Requiring both keeps the alert lane quiet enough to trust.
-            if rss >= args.proc_alert_mb and growth >= args.growth_alert_mb:
-                alerts.append(
-                    f"ALERT process {row['name']} pid={pid} rss={rss}MB "
-                    f"(grew {growth:+.1f}MB since first seen)"
-                )
+            line = process_alert(
+                name=row["name"], pid=pid, rss=rss, first_seen=first_seen[pid],
+                last_alert=alerted_at.get(pid), peak=highwater.get(pid, rss),
+                proc_alert_mb=args.proc_alert_mb, growth_alert_mb=args.growth_alert_mb)
+            if line:
+                alerted_at[pid] = rss
+                alerts.append(line)
 
         snap["alerts"] = alerts
         _rotate(args.log)
@@ -176,6 +224,7 @@ def main() -> int:
         for dead in [p for p in highwater if p not in live]:
             highwater.pop(dead, None)
             first_seen.pop(dead, None)
+            alerted_at.pop(dead, None)
 
         if args.once:
             print(json.dumps(snap["host"]), flush=True)
