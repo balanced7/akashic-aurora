@@ -81,6 +81,7 @@ AURORA_SAFE_READ_GRAMMAR = {
 AURORA_SAFE_READ_VERBS = frozenset(AURORA_SAFE_READ_GRAMMAR)
 AURORA_SHELL_META = frozenset(";|&><`$()\n\r")
 AURORA_READ_COMBO_TOOL_NAME = "aurora_read_combo"
+AURORA_COMBO_CATALOG_TOOL_NAME = "aurora_combo_catalog"
 AURORA_COMBO_OUTPUT_CHARS = 24_000
 AURORA_READ_VERB_TOOL = {
     "type": "function",
@@ -110,6 +111,22 @@ AURORA_READ_VERB_TOOL = {
             },
         },
         "required": ["verb"],
+        "additionalProperties": False,
+    },
+}
+
+AURORA_COMBO_CATALOG_TOOL = {
+    "type": "function",
+    "name": AURORA_COMBO_CATALOG_TOOL_NAME,
+    "description": (
+        "Explain which active combos in this subject seat's toolbelt are admitted or "
+        "omitted by the Codex bridge, including the exact failing step and refusal. "
+        "This diagnostic executes no commands and cannot inspect a peer-owned belt."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": False,
     },
 }
@@ -548,35 +565,107 @@ class CodexBifrostWake:
         """Tools advertised to the model; launch posture is visible at admission time."""
         if not self.allow_exec:
             return []
-        tools = [AURORA_READ_VERB_TOOL]
+        tools = [AURORA_READ_VERB_TOOL, AURORA_COMBO_CATALOG_TOOL]
         safe_names = sorted(self._safe_combo_catalog())
         if safe_names:
             tools.append(_aurora_read_combo_tool(safe_names))
         return tools
 
-    def _safe_combo_catalog(self) -> Dict[str, List[List[str]]]:
-        """Resolve safe zero-argument combos; any registry error fails this surface closed."""
+    def _combo_admission_rows(self) -> tuple[List[Dict[str, Any]], Optional[str]]:
+        """Evaluate subject-owned active combos without executing a primitive."""
         try:
             belt = self.toolbelt_factory(self.policy.agent)
-            names = belt.active()
-        except (OSError, ValueError, KeyError, json.JSONDecodeError):
-            return {}
-        safe: Dict[str, List[List[str]]] = {}
+            names = sorted(str(name) for name in belt.active())
+        except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            return [], f"{type(exc).__name__}: {exc}"
+
+        rows: List[Dict[str, Any]] = []
         for name in names:
+            row: Dict[str, Any] = {
+                "name": name,
+                "evidence": "UNKNOWN",
+                "family": "UNSORTED",
+                "steps": [],
+                "admitted": False,
+                "reason": "entry could not be evaluated",
+            }
             try:
                 entry = belt.get(name)
-                if entry.get("kind", "alias") != "alias" or int(entry.get("params", 0) or 0):
+                row["evidence"] = str(entry.get("evidence", "UNKNOWN"))
+                row["family"] = str(entry.get("family", "UNSORTED"))
+                kind = str(entry.get("kind", "alias"))
+                try:
+                    params = int(entry.get("params", 0) or 0)
+                except (TypeError, ValueError):
+                    row["reason"] = f"invalid parameter count {entry.get('params')!r}"
+                    rows.append(row)
                     continue
-                steps = belt.resolve(name)
-            except (ValueError, KeyError, TypeError):
+                if kind != "alias":
+                    row["reason"] = f"kind {kind!r} is not a zero-argument combo"
+                    rows.append(row)
+                    continue
+                if params:
+                    row["reason"] = f"requires {params} argument(s); bridge combos are zero-argument"
+                    rows.append(row)
+                    continue
+                steps = [[str(arg) for arg in step] for step in belt.resolve(name)]
+                row["steps"] = steps
+            except (ValueError, KeyError, TypeError) as exc:
+                row["reason"] = f"registry resolution failed: {type(exc).__name__}: {exc}"
+                rows.append(row)
                 continue
-            if all(
-                step
-                and _safe_read_args_refusal(str(step[0]), [str(arg) for arg in step[1:]]) is None
-                for step in steps
-            ):
-                safe[str(name)] = [[str(arg) for arg in step] for step in steps]
-        return safe
+
+            for index, step in enumerate(row["steps"], start=1):
+                if not step:
+                    row["reason"] = f"step {index} is empty"
+                    break
+                refusal = _safe_read_args_refusal(step[0], step[1:])
+                if refusal is not None:
+                    row["reason"] = f"step {index} ({' '.join(step)}): {refusal}"
+                    break
+            else:
+                row["admitted"] = True
+                row["reason"] = f"all {len(row['steps'])} step(s) clear the bridge grammar"
+            rows.append(row)
+        return rows, None
+
+    def _combo_admission_text(self) -> tuple[str, bool]:
+        """Render the admission diagnostic within the same whole-result cap as execution."""
+        rows, error = self._combo_admission_rows()
+        if error is not None:
+            return (
+                f"UNAVAILABLE: combo admission catalog for {self.policy.agent}: {error}",
+                False,
+            )
+        admitted = sum(1 for row in rows if row["admitted"])
+        lines = [
+            f"# combo admission: {self.policy.agent} -- active={len(rows)} "
+            f"admitted={admitted} omitted={len(rows) - admitted}",
+        ]
+        if not rows:
+            lines.append("  no active subject-authored combos")
+        for row in rows:
+            verdict = "ADMITTED" if row["admitted"] else "OMITTED"
+            lines.append(
+                f"  [{verdict}] {row['name']} [{row['evidence']}; {row['family']}] -- "
+                f"{row['reason']}"
+            )
+        body = "\n".join(lines)
+        if len(body) > AURORA_COMBO_OUTPUT_CHARS:
+            marker = "\n[combo catalog capped; remainder omitted]"
+            body = body[: AURORA_COMBO_OUTPUT_CHARS - len(marker)] + marker
+        return body, True
+
+    def _safe_combo_catalog(self) -> Dict[str, List[List[str]]]:
+        """Resolve safe zero-argument combos; registry blindness fails this surface closed."""
+        rows, error = self._combo_admission_rows()
+        if error is not None:
+            return {}
+        return {
+            str(row["name"]): [list(step) for step in row["steps"]]
+            for row in rows
+            if row["admitted"]
+        }
 
     def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         """Execute one structured read verb through the bridge and ToolBox walls."""
@@ -589,11 +678,20 @@ class CodexBifrostWake:
         if not self.allow_exec:
             return response(False, "REFUSED: Codex wake exec lacks its explicit launch opt-in.")
         tool_name = str(params.get("tool") or "")
-        if tool_name not in {AURORA_READ_VERB_TOOL["name"], AURORA_READ_COMBO_TOOL_NAME}:
+        if tool_name not in {
+            AURORA_READ_VERB_TOOL["name"],
+            AURORA_READ_COMBO_TOOL_NAME,
+            AURORA_COMBO_CATALOG_TOOL_NAME,
+        }:
             return response(False, f"REFUSED: unknown dynamic tool {params.get('tool')!r}.")
         arguments = params.get("arguments")
         if not isinstance(arguments, Mapping):
             return response(False, "REFUSED: dynamic tool arguments must be an object.")
+        if tool_name == AURORA_COMBO_CATALOG_TOOL_NAME:
+            if arguments:
+                return response(False, "REFUSED: combo admission catalog accepts no arguments.")
+            body, success = self._combo_admission_text()
+            return response(success, body)
         if tool_name == AURORA_READ_COMBO_TOOL_NAME:
             if set(arguments) - {"name"}:
                 return response(False, "REFUSED: read combos accept only the 'name' field.")

@@ -200,13 +200,17 @@ becomes the default.
 
 ## Governed Aurora verb execution
 
-Sunshine's Discord incarnation now has two client-owned dynamic tools.
+Sunshine's Discord incarnation now has two always-visible client-owned read
+tools and one conditional combo executor when launched with governed exec.
 `aurora_read_verb` accepts a structured `{verb, args}` object for governed
-primitives. `aurora_read_combo` accepts one name from Sunshine's live, safe
-zero-argument combo roster. Neither surface exposes a raw command string,
-working-directory override, write tool, network tool, generic `run`, macro
-arguments, peer-owned belt, or approval escape hatch. The Codex thread itself
-remains `read-only`, `networkAccess=false`, and `approvalPolicy=never`.
+primitives. `aurora_combo_catalog` accepts no arguments and explains which
+active subject-owned aliases the bridge would admit or omit, without executing
+anything. `aurora_read_combo` appears only when at least one live, safe,
+zero-argument combo exists and accepts one name from that roster. None exposes
+a raw command string, working-directory override, write tool, network tool,
+generic `run`, macro arguments, peer-owned belt, or approval escape hatch. The
+Codex thread itself remains `read-only`, `networkAccess=false`, and
+`approvalPolicy=never`.
 
 The dynamic tool is a bridge into Aurora's existing guarded door, not a second
 shell. A call succeeds only when all four layers agree:
@@ -239,6 +243,14 @@ whole combo without partial execution. Combined output is capped at 24,000
 characters so composition cannot multiply three individually bounded reads into
 an unbounded model injection.
 
+The admission catalog closes the bridge's former silent-omission seam. It lists
+each active alias as `ADMITTED` or `OMITTED`, carries evidence and family, and
+names the first failing step plus the exact bridge refusal. It accepts no
+`agent` argument, so a subject cannot use it to inspect a peer-owned belt. A
+registry read failure renders `UNAVAILABLE` and a failed tool result rather than
+a falsely clean empty catalog. The result shares the 24,000-character whole-
+output cap and never enters `ToolBox.run_command`.
+
 The first live belt session rejected both of its own opening candidates.
 `pressure = triage -> doctor -> locks` parsed, kata-verified, and ran
 successfully, but cost 6.7 seconds and roughly 13.5k output characters while
@@ -257,6 +269,16 @@ zero active combos after this round; history retains both candidates, and the
 bridge omits `aurora_read_combo` on the next admitted turn until a new combo
 passes the same admission and cross-review.
 
+Round 6 deliberately produced no replacement. Kimi returned the empty set after
+finding every honest candidate already owned by a primitive. DeepSeek's
+`runtime-drift` idea required introspecting bridge admissions and therefore
+became the catalog diagnostic above rather than a pretend composition. Vandor's
+`roster -> doctor -> locks` candidate failed live: `roster` alone rendered about
+10.4k characters, the proposed three reads totaled roughly 18.1k, and
+`flightdeck` already rendered the relevant lane and lock overview in about
+2.6k. More importantly, advisory edit locks do not establish whether a seat can
+receive mail. Keeping the active belt empty is the verified garden outcome.
+
 That session also found and repaired an older toolbelt honesty defect: `kata`
 upgraded evidence by re-minting without the authored `family`, silently turning
 entries such as Rill's `rillsitrep` from `MONITORS` into `UNSORTED`. Kata now
@@ -269,11 +291,15 @@ primitive no longer exists in the live parser. The combo bridge safely omits
 that entry because it revalidates the current roster before advertising it,
 but the belt still renders the historical `VERIFIED` label. Fleet review
 rejected both a blind demotion to `GUESS` and an `EXPIRED` value smuggled into
-the confidence axis. The current candidate policy distinguishes referential
-death (retire the alias) from a transient re-kata failure (retain confidence
-but append an orthogonal failing freshness receipt). That failure taxonomy is
-still under adversarial review; this slice does not mutate the peer-owned belt
-or silently settle it.
+the confidence axis. Round 6 then corrected the proposed taxonomy: `kata` is a
+parse-only instrument and cannot observe a transient execution failure. The
+stable candidate split is now static versus dynamic: an absent primitive is
+referential death and should retire; a present primitive with rejected argv is
+malformed and should demote; a grammar-clean runtime failure belongs to the
+runner's execution receipt, never `last_kata`; an unreadable subject is
+`UNKNOWN`, not missing. That policy remains under adversarial review; this
+slice makes the admission disagreement visible but does not mutate the
+peer-owned belt or silently settle its evidence lifecycle.
 
 The App Server host now distinguishes reverse JSON-RPC requests from ordinary
 notifications and answers `item/tool/call` on a worker thread. This preserves
