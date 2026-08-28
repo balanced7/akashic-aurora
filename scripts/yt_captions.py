@@ -32,6 +32,7 @@ MISSING_YTDLP_HINT = (
 )
 
 _TAG = re.compile(r"<[^>]+>")
+_TERMINAL = set(".!?;:\"'")
 
 
 def clean_vtt_text(vtt_text: str) -> str:
@@ -48,6 +49,29 @@ def clean_vtt_text(vtt_text: str) -> str:
             lines.append(ln)
             prev = ln
     return "\n".join(lines)
+
+
+def punctuate_captions(text: str) -> str:
+    """Tier-one punctuation for cleaned captions (W154-punct, 2026-08-28).
+
+    Each cleaned line is one caption cue, so the deterministic upgrade restores
+    what the cleaner used to throw away: capitalize each cue's opening and end it
+    with a period unless terminal punctuation or a closing quote is already
+    present. No model, no meaning risk, idempotent -- the DERIVED text; the raw
+    VTT stays the receipt behind --keep-vtt."""
+    out: List[str] = []
+    for ln in (text or "").splitlines():
+        s = ln.strip()
+        if not s:
+            continue
+        for i, ch in enumerate(s):          # capitalize first alpha (a leading quote stays)
+            if ch.isalpha():
+                s = s[:i] + ch.upper() + s[i + 1:]
+                break
+        if s[-1] not in _TERMINAL:
+            s += "."
+        out.append(s)
+    return "\n".join(out)
 
 
 def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False) -> List[Path]:
@@ -76,8 +100,8 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False) -
     for vtt in fresh:
         txt = vtt.with_suffix("").with_suffix(".txt") if vtt.suffix == ".vtt" else vtt
         txt = Path(str(vtt)[: -len(".vtt")] + ".txt")
-        txt.write_text(clean_vtt_text(vtt.read_text(encoding="utf-8", errors="replace")) + "\n",
-                       encoding="utf-8")
+        txt.write_text(punctuate_captions(clean_vtt_text(
+            vtt.read_text(encoding="utf-8", errors="replace"))) + "\n", encoding="utf-8")
         txts.append(txt)
         if not keep_vtt:
             try:
