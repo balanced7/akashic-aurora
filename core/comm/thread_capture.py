@@ -363,6 +363,33 @@ def mint_thread_atom(snapshot: Mapping[str, Any], *, title: str,
     }
 
 
+def attach_thread_atom(snapshot: Mapping[str, Any], *, title: str,
+                       cites: Optional[Sequence[str]] = None,
+                       type_: str = "chronicle", arc: Optional[str] = None,
+                       **mint_kwargs: Any) -> Dict[str, Any]:
+    """Attach one mint receipt, or a structured refusal, to a capture result.
+
+    Native MCP and ToolBox callers share this boundary so a missing thread
+    cannot reach the append-only mint door through one surface while another
+    refuses it.  A refusal preserves the read result and has zero effects.
+    """
+    result = dict(snapshot)
+    result["effects"] = list(snapshot.get("effects") or [])
+    if not snapshot.get("found"):
+        result["artifact"] = None
+        result["mint"] = {
+            "state": "refused",
+            "reason": "an absent or truncated-away thread cannot be minted",
+        }
+        return result
+    receipt = mint_thread_atom(snapshot, title=title, cites=cites,
+                               type_=type_, arc=arc, **mint_kwargs)
+    result["artifact"] = receipt
+    result["mint"] = {"state": "minted", "atom_id": receipt["atom_id"]}
+    result["effects"].append(f"minted {receipt['atom_id']}")
+    return result
+
+
 def render_capture(snapshot: Mapping[str, Any]) -> str:
     bounds = snapshot.get("bounds") or {}
     lines = [
@@ -381,5 +408,5 @@ def render_capture(snapshot: Mapping[str, Any]) -> str:
     return "\n".join(lines)
 
 
-__all__ = ["collect_thread", "atom_payload", "mint_thread_atom",
+__all__ = ["collect_thread", "atom_payload", "mint_thread_atom", "attach_thread_atom",
            "render_capture", "render_transcript"]
