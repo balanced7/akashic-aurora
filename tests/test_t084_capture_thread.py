@@ -201,3 +201,39 @@ def test_native_capture_requires_a_bound_subject(tmp_path):
         assert "subject is required" in str(exc)
     else:
         raise AssertionError("unbound ToolBox borrowed another seat")
+
+
+def test_native_as_doc_refuses_missing_thread_without_calling_mint(monkeypatch, tmp_path):
+    import ai_setup_mcp
+    from core.comm import thread_capture
+    from core.comm.toolbox import ToolBox
+    from core.trust import registry
+
+    missing = {
+        "schema": "capture.thread.v1", "subject": "sol", "thread_ref": "missing",
+        "observed_at": "2026-08-28T00:00:00Z", "found": False, "messages": [],
+        "bounds": {"truncated": False}, "blind": ["thread missing not found"],
+        "effects": [],
+    }
+    monkeypatch.setattr(thread_capture, "collect_thread", lambda *a, **k: dict(missing))
+    monkeypatch.setattr(thread_capture, "mint_thread_atom", lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("an absent thread must never reach the mint door")))
+    monkeypatch.setattr(registry, "resolve", lambda _agent: type("Grant", (), {
+        "role": "fixture", "has": lambda self, _cap: True,
+    })())
+
+    mcp_result = json.loads(asyncio.run(ai_setup_mcp.capture(
+        agent="sol", thread="missing", as_doc=True, title="must not mint", cites=[])))
+    assert mcp_result["found"] is False
+    assert mcp_result["artifact"] is None
+    assert mcp_result["mint"]["state"] == "refused"
+    assert mcp_result["effects"] == []
+
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
+                 confirm=lambda *_: False, agent_id="sol")
+    monkeypatch.setattr(tb, "_kb_write_ok", lambda: None)
+    tb_result = json.loads(tb.capture(thread="missing", as_doc=True, title="must not mint"))
+    assert tb_result["found"] is False
+    assert tb_result["artifact"] is None
+    assert tb_result["mint"]["state"] == "refused"
+    assert tb_result["effects"] == []
