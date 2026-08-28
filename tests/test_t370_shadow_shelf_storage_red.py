@@ -112,9 +112,12 @@ def test_p1_same_name_two_tuples_is_a_version_conflict_refused():
     """Pin 1: ONE name with TWO different tuples is a contract-version conflict, not a
     silent overwrite; it is refused so a name cannot silently re-point at new semantics."""
     ss = _resolve("register_contract")
+    # Use a tuple distinct from the alias fixture above.  The contract registry is
+    # intentionally process-lifetime state: reusing that fixture here would demand
+    # both that its second name be refused (the preceding pin) and accepted (this pin).
     a = dict(input_kind="recall.at_action.rank.v1",
              outcome_schema=("emitted", "silent", "abstained", "error"),
-             comparison="same_identity_set", retention="beta-14d",
+             comparison="same_identity_set", retention="conflict-fixture-14d",
              writers=("watcher", "evaluator"), reader="disagreements_first", delivery=None)
     b = dict(a, comparison="score_comparable")          # differs ONLY in comparison semantics
     ss.register_contract("rank", **a)
