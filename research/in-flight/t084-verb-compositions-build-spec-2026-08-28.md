@@ -68,7 +68,7 @@ Kill conditions: advancing a cursor; treating substring/topic similarity as
 thread membership; silently omitting an unreadable body; writing a hand-made
 projection instead of minting through the authoritative library seam.
 
-### S3 — `ground seat:<id> --continuity`
+### S3 — `ground seat:<id> --continuity` (landed in the T084 S3 commit)
 
 Assemble a subject-bound continuity profile from authoritative resident
 designation receipts, authored lessons, durable notes/handoffs, attributed
@@ -78,6 +78,23 @@ currency, and unknowns. It is evidence for recovery, never an identity verdict.
 Kill conditions: foreign evidence accepted as self-authorship; nickname/name
 inferred from prose; unratified designation promoted; continuity read mutating
 the subject's cursor/session/watcher; absence rendered as nonexistence.
+
+The landed region authority order is explicit rather than flattened:
+
+1. ratified resident registry — the only region allowed to state a designation;
+2. exact lesson authorship — self-receipts, never a designation by themselves;
+3. subject-scoped scratch notes — continuity hints whose legacy records do not
+   carry a verified author field;
+4. directional handoffs — inbound and outbound kept distinct;
+5. exact `header.seats` artifact attribution — participation, not authorship;
+6. exact per-agent telemetry — activity, not identity.
+
+The ToolBox seat form is bound-identity only. A live seat may ground itself; it
+cannot borrow another seat id through the `subject` argument. The profile emits
+`identity_verdict.state=not_computed`, per-region bounds and blind spots, and an
+empty effects list. The glance budget is at most five cards per non-designation
+region (four for scratch notes); lesson and movement drills resolve one shown
+source exactly instead of expanding the whole archive.
 
 ### S4 — native citizenship
 

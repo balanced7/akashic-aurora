@@ -5,8 +5,9 @@ changes a cursor, registers presence, or mints a receipt.  The important
 distinction is between a declared address, an authorization decision, a wired
 handler, a lexical test reference, and fresh operational proof.
 
-T084 S1 starts with ``verb:<name>``.  The target grammar is deliberately typed
-so S3 can add ``seat:<id> --continuity`` without overloading a bare word.
+T084 S1 starts with ``verb:<name>``.  S3 adds the deliberately explicit
+``seat:<id> --continuity`` form without overloading a bare word or allowing
+continuity evidence to become an identity verdict.
 """
 from __future__ import annotations
 
@@ -72,14 +73,16 @@ def _parse_target(target: str) -> Tuple[str, str]:
     raw = str(target or "").strip()
     if ":" not in raw:
         raise ValueError("ground target must be typed, e.g. verb:sweep")
-    kind, name = raw.split(":", 1)
-    kind, name = _norm(kind), _norm(name)
+    raw_kind, raw_name = raw.split(":", 1)
+    kind = _norm(raw_kind)
+    # Verb addresses use the door census' underscore normalization.  Seat ids
+    # are identities, not verbs: preserve their spelling and punctuation so two
+    # subjects can never be merged by a convenience normalizer.
+    name = _norm(raw_name) if kind == "verb" else str(raw_name or "").strip()
     if not name:
         raise ValueError("ground target name is required")
-    if kind != "verb":
-        if kind == "seat":
-            raise ValueError("seat continuity grounding has not landed yet; use verb:<name>")
-        raise ValueError(f"unsupported ground target kind {kind!r}; use verb:<name>")
+    if kind not in {"verb", "seat"}:
+        raise ValueError(f"unsupported ground target kind {kind!r}; use verb:<name> or seat:<id>")
     return kind, name
 
 
@@ -321,8 +324,17 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, 
     if not subject:
         raise ValueError("ground subject is required")
     kind, name = _parse_target(target)
+    if kind == "seat":
+        if not continuity:
+            raise ValueError("seat grounding requires the explicit --continuity mode")
+        if subject != name:
+            raise ValueError(
+                f"seat target must match the bound subject: target={name!r}, subject={subject!r}"
+            )
+        from core.coord import continuity as _continuity
+        return _continuity.build_profile(name)
     if continuity:
-        raise ValueError("--continuity is valid only for seat:<id> after T084 S3 lands")
+        raise ValueError("--continuity is valid only for seat:<id>")
 
     observed_at = _utc()
     inv = _surface_inventory()
@@ -449,6 +461,9 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, 
 
 def render(result: Mapping[str, Any]) -> str:
     """Compact human rendering; JSON remains the full-fidelity surface."""
+    if result.get("mode") == "continuity":
+        from core.coord.continuity import render_profile
+        return render_profile(result)
     target = result.get("target") or {}
     lines = [f"# ground {target.get('kind')}:{target.get('name')} for {result.get('subject')}",
              f"  observed {result.get('observed_at')} | effects: none"]

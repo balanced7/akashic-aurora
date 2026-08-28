@@ -6568,7 +6568,7 @@ def cmd_sweep(args):
 
 
 def cmd_ground(args):
-    """Build a typed evidence ladder without executing or mutating the target."""
+    """Build typed verb evidence or a non-authoritative seat continuity profile."""
     subject = str(getattr(args, "agent", "") or
                   os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
     if not subject:
@@ -8049,14 +8049,14 @@ def build_parser():
     swp.add_argument("--json", action="store_true", help="emit observation.snapshot.v1 JSON")
     swp.set_defaults(fn=cmd_sweep)
 
-    grd = sub.add_parser("ground", help="typed evidence ladder for verb:<name> (declaration, "
-                                         "reach, authorization, wiring, exercise, proof)")
-    grd.add_argument("target", help="typed target, currently verb:<name>")
+    grd = sub.add_parser("ground", help="typed evidence for verb:<name>, or bounded recovery "
+                                         "evidence for seat:<id> --continuity")
+    grd.add_argument("target", help="typed target: verb:<name> or seat:<id>")
     grd.add_argument("--agent", default="",
                      help="subject whose effective grant is resolved (default: "
                           "$AKASHIC_AGENT_ID; no identity fallback)")
     grd.add_argument("--continuity", action="store_true",
-                     help="with seat:<id>, assemble the continuity profile (T084 S3)")
+                     help="required with seat:<id>; assemble evidence without inferring identity")
     grd.add_argument("--json", action="store_true", help="emit ground.result.v1 JSON")
     grd.set_defaults(fn=cmd_ground)
 

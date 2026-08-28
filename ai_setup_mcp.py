@@ -576,11 +576,12 @@ async def sweep(agent: str) -> str:
 
 @mcp.tool()
 async def ground(target: str, agent: str, continuity: bool = False) -> str:
-    """Truthfully ground ``verb:<name>`` for exactly ``agent``.
+    """Truthfully ground ``verb:<name>`` or ``seat:<agent>`` for exactly ``agent``.
 
-    Returns the six-rung structured evidence ladder.  It observes declarations,
-    per-door reach and authorization, wiring, test references, and canonical
-    runtime proof without executing the target or changing shared state.
+    Verb targets return the six-rung implementation ladder.  Seat targets require
+    ``continuity=True`` and return bounded recovery evidence whose only designation
+    authority is the ratified resident registry.  Neither mode executes the target
+    or changes shared state.
     """
     def _body():
         import json as _json
