@@ -86,7 +86,14 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         # `!spawn sunshine` fell through to the task path and would have launched a claude
         # session whose job was the word "sunshine" -- the 2026-08-24 defect this module
         # exists to kill, reproduced under a different name.
-        "drilled": "",   # filled ONLY by an executed drill, never in advance
+        #
+        # EXECUTED 2026-08-28, COLD -- the strongest form, and the one neither heimdall nor
+        # navi has. Pre-state verified first: no sol entry in the roster at all, no process,
+        # last activity 19h prior. Ran this exact lever detached with the env overlay; pid
+        # 7244 came up and sol reached bus presence as sol#7244-sol phase=running within the
+        # 75s window. This field was written AFTER the run, not before -- the ordering the
+        # rill entry above records getting wrong.
+        "drilled": "2026-08-28: raised from COLD by this lever, sol#7244-sol on the bus",
     },
 }
 
