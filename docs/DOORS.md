@@ -30,7 +30,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
 | `boop` | the smallest verb in the house: zero arguments, always answered | `--surface` |
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
-| `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {gaps,model,line,none}` |
+| `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {hybrid,gaps,model,line,none}` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--json` |
 | `clobber-scan` | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt | `<path>*` `--json` |
 | `compare` | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled | `<a>` `<b>` `--list` `--limit` `--json` |

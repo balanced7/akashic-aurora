@@ -98,6 +98,38 @@ def punctuate_gaps(vtt_text: str, gap_s: float = 0.7) -> str:
 _RP = None
 
 
+def _capitalize_sentences(text: str) -> str:
+    """Deterministic capitalization over punctuated text: capitalize the opening and the
+    first word after every sentence terminal that is followed by whitespace. Known limit,
+    inherited from the model: abbreviation terminals ('e.g. something') also capitalize
+    the following word -- the tier is honest about it, the raw VTT stays the receipt."""
+    res: List[str] = []
+    cap_next = True
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch.isalpha() and cap_next:
+            res.append(ch.upper())
+            cap_next = False
+        else:
+            res.append(ch)
+            if ch in ".!?":
+                j = i + 1
+                while j < n and text[j] == " ":
+                    j += 1
+                if j > i + 1 or j >= n:      # a real sentence break, not an abbreviation dot
+                    cap_next = True
+        i += 1
+    return "".join(res)
+
+
+def punctuate_hybrid(text: str) -> str:
+    """The run-off tier: model boundaries and commas, then deterministic capitalization.
+    Composed from the challenger and the deterministic layer -- neither part re-implements
+    the other."""
+    return _capitalize_sentences(punctuate_model(text))
+
+
 def punctuate_model(text: str) -> str:
     """Tier-two challenger (lazy, optional): the fullstop multilingual punctuator
     (deepmultilingualpunctuation). The core verb never hard-depends on it -- a
@@ -153,12 +185,13 @@ def punctuate_captions(text: str) -> str:
 
 
 def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
-          punctuate: str = "gaps") -> List[Path]:
+          punctuate: str = "hybrid") -> List[Path]:
     """Pull caption files for `url` into out_dir, convert each to .txt, return txt paths.
 
-    `punctuate` picks the derived-text pass: gaps (deterministic champion, the VTT's
-    own timing), model (rpunct challenger, lazy), line (legacy per-cue tier), none
-    (raw clean). The raw VTT stays the receipt behind keep_vtt.
+    `punctuate` picks the derived-text pass: hybrid (model boundaries + deterministic
+    capitalization -- the default after the Test 3 run-off), gaps (deterministic
+    champion, the VTT's own timing), model (fullstop challenger raw), line (legacy
+    per-cue tier), none (raw clean). The raw VTT stays the receipt behind keep_vtt.
 
     Never downloads video. On missing yt-dlp, raises RuntimeError carrying the
     teaching hint (the door prints it and exits nonzero -- errors that teach)."""
@@ -184,7 +217,9 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
         txt = vtt.with_suffix("").with_suffix(".txt") if vtt.suffix == ".vtt" else vtt
         txt = Path(str(vtt)[: -len(".vtt")] + ".txt")
         raw = vtt.read_text(encoding="utf-8", errors="replace")
-        if punctuate == "gaps":
+        if punctuate == "hybrid":
+            text = punctuate_hybrid(clean_vtt_text(raw))
+        elif punctuate == "gaps":
             text = punctuate_gaps(raw)
         elif punctuate == "model":
             text = punctuate_model(clean_vtt_text(raw))
