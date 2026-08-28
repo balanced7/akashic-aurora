@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (92 verbs)
+## CLI door -- `py agent_cli.py <verb>` (93 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -28,7 +28,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
 | `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
-| `boop` | the smallest verb in the house: zero arguments, always answered |  |
+| `boop` | the smallest verb in the house: zero arguments, always answered | `--surface` |
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
 | `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {gaps,model,line,none}` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--json` |
@@ -94,6 +94,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `status` | honest system status | `--json` |
 | `story` | print narrative story views | `--chronicle` `--mark` `--session-end` `--track` `--theme` `--themes` `--at` `--chapter` `--beat` `--raw` `--json` |
 | `suite-baseline` | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) | `<agent_id>*` `--from-file` `--sha` `--check` `--show` `--whose` |
+| `sweep` | the awareness snapshot: bus, bench, health, moved -- one bounded read-only block |  |
 | `tag-anti-pattern` | tag an EXISTING lesson as a reusable known-bad | `<agent_id>*` `--experiment*` `--name*` `--reason` `--json` |
 | `tally` | W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance | `<opening>*` `--research-dir` `--json` |
 | `task` | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) | `<rest>*` |
