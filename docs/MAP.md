@@ -285,7 +285,7 @@ Class: reference
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
 | `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md |  |
 | `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
-| `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launchers.py | GAP | `DSH_HOME` |
+| `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launcher_sunshine_red.py | GAP | `DSH_HOME` |
 | `verdicts.py` | Verdict file-back -- what a fan branch SAID, and what a non-author later ESTABLISHED. | GAP | docs/library/design/20260723_deepseek-a1-fence-verdicts_5f2e15.md | `AKASHIC_ADJUDICATORS` |
 
 ## core/state/  (2 modules)
