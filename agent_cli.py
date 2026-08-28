@@ -8196,6 +8196,19 @@ def build_parser():
     cap.add_argument("--persist", default="", metavar="PATH",
                      help="write a verbatim capture file (Status header + body) to PATH")
     cap.add_argument("--title", default="", help="capture doc title (with --persist)")
+    cap.add_argument("--thread", default="", help="capture the explicit-link closure around a "
+                     "thread/stream id from your subject-bound archive view")
+    cap.add_argument("--agent", default="", help="subject for --thread (default "
+                     "$AKASHIC_AGENT_ID; no identity fallback)")
+    cap.add_argument("--per-stream", type=int, default=1000, dest="per_stream",
+                     help="--thread archive cap per stream (1..5000; default 1000)")
+    cap.add_argument("--as-doc", action="store_true", dest="as_doc",
+                     help="mint the captured thread as a draft conversation atom")
+    cap.add_argument("--cite", "--cites", action="append", default=None, dest="cites",
+                     help="atom id the captured conversation discusses (repeatable)")
+    cap.add_argument("--type", default="chronicle", dest="atom_type",
+                     help="atom type with --as-doc (default chronicle)")
+    cap.add_argument("--arc", default="", help="atom arc (default subject's claimed task)")
     cap.add_argument("--json", action="store_true")
     cap.set_defaults(fn=cmd_capture)
 
@@ -8409,6 +8422,57 @@ def cmd_capture(args):
     The event mirror truncates large payloads (_truncated/_repr husks) -- the STREAMS hold
     the whole message; this verb reads them directly (T099; born of 5 hand-written extractors)."""
     import json as _json
+
+    thread_ref = str(getattr(args, "thread", "") or "").strip()
+    if thread_ref:
+        if getattr(args, "ref", "") or getattr(args, "from_agent", ""):
+            print("[capture] REFUSED: --thread cannot be combined with a stream ref or --from-agent")
+            return 2
+        subject = str(getattr(args, "agent", "") or
+                      os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
+        if not subject:
+            print("[capture] REFUSED: subject is required for --thread; pass --agent <id> "
+                  "or set AKASHIC_AGENT_ID")
+            return 2
+        from core.comm import thread_capture as _tc
+        try:
+            result = _tc.collect_thread(
+                subject, thread_ref,
+                per_stream=int(getattr(args, "per_stream", 1000) or 1000))
+        except ValueError as exc:
+            print(f"[capture] REFUSED: {exc}")
+            return 2
+        if getattr(args, "as_doc", False):
+            if not result.get("found"):
+                print(_tc.render_capture(result))
+                print("[capture] REFUSED: an absent or truncated-away thread cannot be minted")
+                return 1
+            try:
+                receipt = _tc.mint_thread_atom(
+                    result,
+                    title=str(getattr(args, "title", "") or ""),
+                    cites=list(getattr(args, "cites", None) or []),
+                    type_=str(getattr(args, "atom_type", "") or "chronicle"),
+                    arc=(str(getattr(args, "arc", "") or "").strip()
+                         or _ledger_claim_arc(subject)),
+                )
+            except Exception as exc:
+                print(f"[capture] MINT/PROJECTION INCOMPLETE: {type(exc).__name__}: {exc}. "
+                      "Inspect the atom store before retrying; the append may have landed.")
+                return 2
+            result = dict(result)
+            result["artifact"] = receipt
+            result["effects"] = [f"minted {receipt['atom_id']}"]
+        if getattr(args, "json", False):
+            print(_json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        else:
+            print(_tc.render_capture(result))
+            if result.get("artifact"):
+                artifact = result["artifact"]
+                print(f"[capture] atom {artifact['atom_id']} minted from thread {thread_ref} "
+                      f"-> {artifact['projection']}")
+        return 0 if result.get("found") else 1
+
     from core.comm.bus import Bus
     me = os.environ.get("AKASHIC_AGENT_ID", "claude")   # whose inbox streams to read
     c = Bus(me)._client
