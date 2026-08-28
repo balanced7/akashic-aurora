@@ -218,20 +218,32 @@ def test_region_drills_never_invent_cli_grammar():
     import agent_cli
     from core.coord.continuity import build_profile
 
-    result = build_profile("sol", sources=_empty_sources())
+    result = build_profile(
+        "sol",
+        sources=_empty_sources(
+            lessons=lambda _s: _batch([
+                {"id": "own", "agent_id": "sol", "experiment": "own",
+                 "result": "worked", "timestamp": "2026-08-28T01:00:00Z"},
+            ], "learning fixture")
+        ),
+    )
     regions = _regions(result)
     parser = agent_cli.build_parser()
 
     # These are executable escape hatches, so the live parser must accept them.
     parser.parse_args(["resident", "show", "sol"])
-    parser.parse_args(["recall", "--agent", "sol", "--json"])
+    parser.parse_args(["recall", "--full", "learn:experiment:own", "--json"])
     parser.parse_args(["handoff", "sol", "--list", "--to", "sol", "--json"])
     parser.parse_args(["events", "--agent", "sol", "--limit", "25", "--json"])
 
     assert regions["designation"]["drill"] == "py agent_cli.py resident show sol"
-    assert regions["lessons"]["drill"] == "py agent_cli.py recall --agent sol --json"
+    assert regions["lessons"]["drill"] == (
+        "py agent_cli.py recall --full learn:experiment:own --json"
+    )
     assert "no dedicated exact atom read door" in regions["artifacts"]["drill"]
     assert "docs" not in regions["artifacts"]["drill"]
+    for name in ("lessons", "notes", "handoffs", "artifacts", "movement"):
+        assert result["bounds"]["limits"][name] <= 5
 
 
 def test_ground_requires_continuity_mode_and_exact_subject_binding(monkeypatch):
