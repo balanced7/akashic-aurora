@@ -6520,6 +6520,66 @@ def cmd_captions(args):
     return 0
 
 
+def _sweep_line(title: str, fn) -> str:
+    """One sweep section: data or an honest UNAVAILABLE. Never a traceback (fail-open)."""
+    try:
+        return f"  {title}: {fn()}"
+    except Exception as e:  # noqa: BLE001 -- observability must never wedge the path it observes
+        return f"  {title}: UNAVAILABLE ({type(e).__name__}: {str(e)[:80]})"
+
+
+def build_sweep(agent_id: str) -> str:
+    """The awareness snapshot: bus, bench, health, moved -- one bounded read-only block.
+
+    Composite of the SAME functions the individual verbs use (collect_boot_bifrost,
+    triage_park.render, worklive_beat_age, delta.render_full) so the composite cannot
+    drift from its parts. Every section fails open to UNAVAILABLE with its reason."""
+    import re
+    lines = ["# sweep -- the awareness snapshot"]
+
+    def _bus():
+        from agent.bifrost_pull import collect_boot_bifrost
+        block = collect_boot_bifrost(agent_id, limit=10)
+        online = ", ".join(str(s) for s in block.get("agents_online") or []) or "(none)"
+        msgs = block.get("messages") or []
+        asks = [m for m in msgs if str(m.get("kind", "")) in
+                ("request", "handoff", "question", "ask")]
+        return f"online {online} -- {len(msgs)} unread, {len(asks)} asks for you"
+
+    def _bench():
+        from core.comm import triage_park
+        rendered = triage_park.render(agent_id)
+        parked = len(re.findall(r"^\s+[0-9a-f]{12}\s", rendered, re.M))
+        return (f"{parked} parked (list: py agent_cli.py bench {agent_id})"
+                if parked else "empty")
+
+    def _health():
+        from core.comm.liveness import worklive_beat_age
+        age = worklive_beat_age(agent_id)
+        if age is None:
+            return "worklive beat ABSENT -- the seat is invisible to routing (C1)"
+        return f"worklive beat {age:.0f}s"
+
+    def _moved():
+        from agent.harness.delta import render_full
+        head = [ln.strip() for ln in render_full(agent_id).splitlines() if ln.strip()][:3]
+        return " | ".join(head)[:140] if head else "(no delta)"
+
+    lines.append(_sweep_line("bus   ", _bus))
+    lines.append(_sweep_line("bench ", _bench))
+    lines.append(_sweep_line("health", _health))
+    lines.append(_sweep_line("moved ", _moved))
+    return "\n".join(lines)
+
+
+def cmd_sweep(args):
+    """`sweep`: the awareness snapshot -- bus, bench, health, moved in one bounded block.
+    Read-only, fail-open, deterministic. The composite the operator's boop-check used to
+    cost four to six tool calls. CLI-only BY DECISION (see guardrail_baseline _door_parity_7)."""
+    print(build_sweep(getattr(args, "agent_id", "") or os.environ.get("AKASHIC_AGENT_ID", "claude")))
+    return 0
+
+
 def cmd_boop(args):
     """The smallest verb in the house: boop. Zero arguments, always answered.
 
@@ -6529,6 +6589,8 @@ def cmd_boop(args):
     recreational (a boop does not warrant MCP surface area). The subject law
     applies: the boop answers the booper."""
     print("boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)")
+    if getattr(args, "surface", False):
+        print(build_sweep(getattr(args, "agent_id", "") or os.environ.get("AKASHIC_AGENT_ID", "claude")))
     return 0
 
 
@@ -7961,7 +8023,12 @@ def build_parser():
     cap.set_defaults(fn=cmd_captions)
 
     bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")
+    bop.add_argument("--surface", action="store_true",
+                     help="boop with eyes: print the awareness snapshot (sweep) after the boop")
     bop.set_defaults(fn=cmd_boop)
+
+    swp = sub.add_parser("sweep", help="the awareness snapshot: bus, bench, health, moved -- one bounded read-only block")
+    swp.set_defaults(fn=cmd_sweep)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
     # The formation vocabulary is READ from the module that owns it -- a copy here would
