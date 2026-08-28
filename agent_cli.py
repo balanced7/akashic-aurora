@@ -6520,6 +6520,18 @@ def cmd_captions(args):
     return 0
 
 
+def cmd_boop(args):
+    """The smallest verb in the house: boop. Zero arguments, always answered.
+
+    Minted 2026-08-28 from the operator's running joke that boop IS a verb --
+    the play category made executable. Deterministic, pinned by the advertised-
+    verb checker, CLI-only by the same decision that keeps `captions`
+    recreational (a boop does not warrant MCP surface area). The subject law
+    applies: the boop answers the booper."""
+    print("boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)")
+    return 0
+
+
 def cmd_blob(args):
     """T113: fetch a spilled payload by its content-addressed ref.
 
@@ -7947,6 +7959,9 @@ def build_parser():
                      help="derived-text pass: gaps (deterministic champion, VTT timing), "
                           "model (rpunct challenger, lazy), line (legacy per-cue), none (raw clean)")
     cap.set_defaults(fn=cmd_captions)
+
+    bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")
+    bop.set_defaults(fn=cmd_boop)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
     # The formation vocabulary is READ from the module that owns it -- a copy here would

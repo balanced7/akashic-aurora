@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (91 verbs)
+## CLI door -- `py agent_cli.py <verb>` (92 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -28,6 +28,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
 | `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
+| `boop` | the smallest verb in the house: zero arguments, always answered |  |
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
 | `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {gaps,model,line,none}` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--json` |
