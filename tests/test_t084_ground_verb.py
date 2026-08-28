@@ -63,10 +63,17 @@ def test_effective_grant_can_refuse_without_erasing_door_presence():
     rungs = _rungs(result)
 
     assert rungs["reachable"]["details"]["doors"]["cli"]["present"] is True
-    assert rungs["authorized"]["state"] == "refused"
+    assert rungs["authorized"]["state"] == "partial"
     assert rungs["authorized"]["details"]["required_caps"] == ["bus.send"]
     assert rungs["authorized"]["details"]["role"] == "quarantined"
     assert rungs["authorized"]["details"]["missing_caps"] == ["bus.send"]
+    auth_doors = rungs["authorized"]["details"]["doors"]
+    assert auth_doors["toolbox"]["state"] == "refused"
+    assert auth_doors["toolbox"]["required_caps"] == ["bus.send"]
+    # The current CLI/MCP implementations do not mechanically gate this named
+    # subject. Ground must confess that mismatch, not project ToolBox's guard.
+    assert auth_doors["cli"]["state"] == "unknown"
+    assert auth_doors["mcp"]["state"] == "unknown"
 
 
 def test_unknown_verb_and_missing_receipt_never_become_false_proof():
