@@ -25,7 +25,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (67 modules)
+## core/comm/  (68 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -87,6 +87,7 @@
 - `session_state.py` — Session State — snapshot the live Bifrost session so it can be resumed later.
 - `shift_turn.py` — The runner turn boundary: one shared decision per loop top, for every runner.
 - `storm_detect.py` — storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery).
+- `thread_capture.py` — Subject-bound, non-consuming Bifrost thread capture (T084 S2).
 - `timescale.py` — Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking.
 - `toolbox.py` — core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam.
 - `triage_park.py` — Triage park (S0-alpha) -- the scry-to-bottom bench.
@@ -94,16 +95,18 @@
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (26 modules)
+## core/coord/  (28 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
 - `conductor.py` — Conductor — the impure orchestration shell over the pure task ledger (Slice D).
+- `continuity.py` — Bounded, non-authoritative continuity evidence for exactly one seat.
 - `dawe_census.py` — dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad.
 - `defer_queue.py` — defer_queue — the capability-gated standing queue (W33, seat-zero wave B3).
 - `experiment.py` — Coordination experiment harness -- the Stage-3 evidence engine.
 - `fence_workspace.py` — Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention.
 - `forecast_registry.py` — T375 -- the engineering forecast registry (append-only, fold-not-table).
+- `ground.py` — Truthful evidence ladders for Aurora subjects.
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
 - `lens_ledger.py` — lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied.
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.

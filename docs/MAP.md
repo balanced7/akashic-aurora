@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (43 of 188 modules lack both pin and paper by name)
+## GAP queue (44 of 191 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -36,6 +36,7 @@ Class: reference
 - core/comm/session_exit.py
 - core/comm/session_state.py
 - core/comm/storm_detect.py
+- core/comm/thread_capture.py
 - core/comm/timescale.py
 - core/coord/capability_search.py
 - core/coord/observations.py
@@ -87,7 +88,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (67 modules)
+## core/comm/  (68 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -152,6 +153,7 @@ Class: reference
 | `session_state.py` | Session State — snapshot the live Bifrost session so it can be resumed later. | GAP | GAP |  |
 | `shift_turn.py` | The runner turn boundary: one shared decision per loop top, for every runner. | tests/test_shift_turn_boundary.py | GAP | `AKASHIC_SHIFT_LOOP` |
 | `storm_detect.py` | storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery). | GAP | GAP | `STORM_DEPTH_THRESHOLD`, `STORM_DEPTH_WINDOW`, `STORM_REPEAT_THRESHOLD` |
+| `thread_capture.py` | Subject-bound, non-consuming Bifrost thread capture (T084 S2). | GAP | GAP |  |
 | `timescale.py` | Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking. | GAP | GAP | `AKASHIC_TIMEOUT_MULTIPLIER` |
 | `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
 | `triage_park.py` | Triage park (S0-alpha) -- the scry-to-bottom bench. | tests/test_s0_triage_park.py | GAP | `BIFROST_NAMESPACE` |
@@ -159,7 +161,7 @@ Class: reference
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (26 modules)
+## core/coord/  (28 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -167,11 +169,13 @@ Class: reference
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
 | `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_t213_compare.py | GAP |  |
 | `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/drill_conductor_gate.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
+| `continuity.py` | Bounded, non-authoritative continuity evidence for exactly one seat. | tests/test_continuity_drift.py | docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md |  |
 | `dawe_census.py` | dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad. | tests/test_w164_dawe_census.py | GAP |  |
 | `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP |  |
 | `experiment.py` | Coordination experiment harness -- the Stage-3 evidence engine. | tests/test_coord_experiment.py | docs/library/report/20260731_pair-sync-steer-experiment_64f62b.md |  |
 | `fence_workspace.py` | Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention. | tests/test_fence_workspace.py | GAP | `AKASHIC_FENCE_ROOT` |
 | `forecast_registry.py` | T375 -- the engineering forecast registry (append-only, fold-not-table). | tests/test_t375_forecast_registry.py | GAP |  |
+| `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
 | `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
