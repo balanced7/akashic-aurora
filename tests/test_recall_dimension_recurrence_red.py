@@ -21,6 +21,15 @@ SCOPE, and it is deliberately small: this module OBSERVES and COUNTS. It does no
 not surface, does not write anywhere, and has no opinion about what should be recalled. It
 produces evidence a shelf candidate can be built on. Any pin that would require it to decide
 what a seat sees is out of scope and should be refused.
+
+DECLARED SCOPE WIDENING, 2026-08-27, flagged by Heimdall at veto review rather than absorbed
+silently: P12 requires this module to compute FREQUENCY as well as recurrence, which is more
+than "observes and counts recurrence." It is forced rather than chosen -- Sunshine's condition
+was episode/reset semantics DISTINGUISHING recurrence from frequency, and a distinction cannot
+be proven without emitting both sides of it. The widening stops there: frequency is emitted as
+an advisory retirement signal (`frequency_is_advisory`), never as a firing signal, per Navi's
+finding that it routes to no moment. If a later slice wants frequency to fire anything, that is
+a new dimension with its own gate, not an extension of this one.
 """
 
 import importlib
