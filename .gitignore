@@ -205,3 +205,7 @@ security/acl.json.bak*
 state/coord/remote_bridge.json
 state/coord/remote_bridge_inbox.jsonl
 state/coord/remote_bridge_outbox.jsonl
+
+# outside correspondence -- material authored by people outside the fleet.
+# Tracked copies need recorded consent first; see private/correspondence/.
+research/reviewed/*hudgins*
