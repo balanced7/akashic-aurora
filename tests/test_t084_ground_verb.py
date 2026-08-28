@@ -110,7 +110,10 @@ def test_cli_refuses_to_borrow_a_foreign_subject(monkeypatch, capsys):
 
 def test_mcp_and_toolbox_use_the_native_grounding_seam(monkeypatch, tmp_path):
     import ai_setup_mcp
-    from core.comm.toolbox import ToolBox
+    from core.comm.toolbox import TOOLS, ToolBox
+
+    advertised = {row["function"]["name"] for row in TOOLS}
+    assert {"sweep", "ground"} <= advertised
 
     raw = asyncio.run(ai_setup_mcp.ground(target="verb:sweep", agent="sol",
                                           continuity=False))
