@@ -176,41 +176,63 @@ def test_p6_threshold_is_not_hardcoded_to_the_example_value():
 # Pin 7 -- MARGINAL contribution is expressible, per the TAGE usefulness rule.
 # ---------------------------------------------------------------------------
 
-def test_p7_reports_whether_the_fine_site_added_anything_over_the_coarse():
-    """Marginal REACH -- and it is NOT marginal usefulness. The distinction is load-bearing.
+def test_p7_refuses_to_adjudicate_marginal_value_and_reports_containment_instead():
+    """THIS PIN IS AN INVERSION, and the history matters more than the assertion.
 
-    If a coarse site definition already crossed the threshold, the fine one firing on the same
-    stream reached nothing new. The dimension must be able to SAY that, or a shelf built on it
-    accumulates site definitions that duplicate coarser ones.
+    It was originally written to assert that the dimension could report whether a FINER site
+    definition "added anything" over a coarser one -- borrowing TAGE's usefulness rule, which
+    credits an entry only when it was right AND the alternative would have been wrong.
 
-    WHAT THIS PIN DOES NOT CLAIM, per Heimdall 2026-08-27 and
-    `replay_is_not_counterfactual_when_retrieval_changes_trace` (sol): it does NOT measure
-    whether the finer lesson was USEFUL, and it must never be read that way. TAGE's usefulness
-    counter can ask "was the finer context necessary" because a branch predictor observes an
-    EXOGENOUS stream -- predicting does not change what executes next. RECALL IS AN INTERVENTION
-    ON ITS OWN STREAM: surfacing a lesson changes the next tool call, so a trail recorded after a
-    fire cannot contain the counterfactual "what would have happened had only the coarse site
-    fired." Marginal REACH is a pure function of the observed stream and is obtainable. Marginal
-    USEFULNESS is a counterfactual and is not. Do not let a later slice quietly promote one to
-    the other.
+    Sunshine refuted it at the RED gate, before any implementation existed, and the refutation
+    is arithmetic: under nested site definitions the counts are MONOTONE BY CONSTRUCTION. A fine
+    site is a subset partition of its coarse parent, so its count can never exceed the parent's
+    and it can never cross a threshold the parent did not already cross. The original pin's
+    positive scenario was therefore IMPOSSIBLE, and because its assertions only required a key
+    and a non-empty reason, a constant `fine_added=False` stub would have greened it. A vacuous
+    pin wrapped around an unreachable narrative.
+
+    So the finding, which is what the pin now encodes:
+
+      A FINER SITE DEFINITION DOES NOT ADD REACH. IT ADDS DISCRIMINATION. Its value is firing
+      only where appropriate where the coarse site fires everywhere -- which is a statement about
+      OUTCOMES, not counts. And outcomes bring back the counterfactual: recall is an intervention
+      on its own stream, so a trail cannot contain "what would have happened had only the coarse
+      site fired" (Heimdall, and `replay_is_not_counterfactual_when_retrieval_changes_trace`).
+
+    Counts cannot adjudicate marginal usefulness, and between NESTED sites they cannot adjudicate
+    marginal reach either. The honest module therefore reports the containment relationship it can
+    observe and REFUSES to emit a value verdict it cannot ground.
     """
-    marginal = _resolve("marginal_over")
+    contains = _resolve("containment")
     site_tool = _resolve("SITE_TOOL")
     site_tool_flags = _resolve("SITE_TOOL_FLAGS")
 
-    # both definitions cross: the fine one added nothing
-    same = [_ev("x", i, tool="commit", flags=("--no-verify",)) for i in range(1, 4)]
-    verdict = marginal(same, fine=site_tool_flags, coarse=site_tool, window=100, now=4, threshold=3)
-    assert verdict["fine_added"] is False, (
-        f"when the coarse site already crossed, the fine site earns nothing: {verdict}")
-
-    # only the fine definition isolates a crossing the coarse one buries
     mixed = ([_ev("x", i, tool="commit", flags=("--no-verify",)) for i in range(1, 4)]
              + [_ev("x", i, tool="commit", flags=()) for i in range(4, 30)])
-    verdict2 = marginal(mixed, fine=site_tool_flags, coarse=site_tool,
-                        window=100, now=30, threshold=3)
-    assert "fine_added" in verdict2 and "reason" in verdict2, verdict2
-    assert verdict2["reason"], "a marginal verdict must state its ground"
+    rel = contains(mixed, fine=site_tool_flags, coarse=site_tool, window=100, now=30)
+
+    # the observable, monotone fact -- and a stub returning constants fails both halves
+    assert rel["coarse_count"] == 29, rel
+    assert sorted(rel["fine_counts"]) == [3, 26], rel
+    assert rel["monotone"] is True, "fine counts must never exceed the coarse count"
+    assert sum(rel["fine_counts"]) == rel["coarse_count"], (
+        "a partition must account for every observed event")
+
+    # the refusal, stated as a value rather than an omission
+    assert rel["marginal_value"] == "UNOBTAINABLE_FROM_COUNTS", (
+        f"the module must REFUSE the verdict it cannot ground, loudly and by name: {rel}")
+    assert rel["reason"], "the refusal must state its ground"
+
+
+def test_p7b_module_exposes_no_usefulness_or_promotion_surface():
+    """The prohibition, structural rather than behavioural: there must be no function here that
+    a later slice can quietly call to get the verdict pin 7 just refused."""
+    mod = _mod()
+    forbidden = {"marginal_over", "fine_added", "usefulness", "usefulness_factor",
+                 "promote", "promotion", "is_useful", "value_of"}
+    present = sorted(n for n in dir(mod) if n in forbidden)
+    assert not present, (
+        f"these names offer a verdict this dimension cannot ground from counts: {present}")
 
 
 # ---------------------------------------------------------------------------
