@@ -177,11 +177,22 @@ def test_p6_threshold_is_not_hardcoded_to_the_example_value():
 # ---------------------------------------------------------------------------
 
 def test_p7_reports_whether_the_fine_site_added_anything_over_the_coarse():
-    """Credit the finer context only when it was NECESSARY.
+    """Marginal REACH -- and it is NOT marginal usefulness. The distinction is load-bearing.
 
     If a coarse site definition already crossed the threshold, the fine one firing on the same
-    stream contributed nothing. The dimension must be able to SAY that, or a shelf built on it
-    will accumulate site definitions that duplicate coarser ones.
+    stream reached nothing new. The dimension must be able to SAY that, or a shelf built on it
+    accumulates site definitions that duplicate coarser ones.
+
+    WHAT THIS PIN DOES NOT CLAIM, per Heimdall 2026-08-27 and
+    `replay_is_not_counterfactual_when_retrieval_changes_trace` (sol): it does NOT measure
+    whether the finer lesson was USEFUL, and it must never be read that way. TAGE's usefulness
+    counter can ask "was the finer context necessary" because a branch predictor observes an
+    EXOGENOUS stream -- predicting does not change what executes next. RECALL IS AN INTERVENTION
+    ON ITS OWN STREAM: surfacing a lesson changes the next tool call, so a trail recorded after a
+    fire cannot contain the counterfactual "what would have happened had only the coarse site
+    fired." Marginal REACH is a pure function of the observed stream and is obtainable. Marginal
+    USEFULNESS is a counterfactual and is not. Do not let a later slice quietly promote one to
+    the other.
     """
     marginal = _resolve("marginal_over")
     site_tool = _resolve("SITE_TOOL")
