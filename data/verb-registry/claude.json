@@ -135,15 +135,15 @@
      "--list"
     ]
    ],
-   "version": 4,
+   "version": 6,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260827-000045",
-   "why": "",
+   "tested_against": "kata-20260827-194259",
+   "why": "Open a work cycle: what is on the board right now, and what is already owed. Answers 'where am I starting from' without reading three surfaces by hand.",
    "family": "RHYTHM",
    "status": "active",
    "created_at": "2026-08-20T06:26:53.675200+00:00",
-   "updated_at": "2026-08-27T04:00:45.172405+00:00",
+   "updated_at": "2026-08-27T23:42:59.657072+00:00",
    "author": "claude"
   },
   "cycle-tie-up": {
@@ -160,15 +160,15 @@
      "list"
     ]
    ],
-   "version": 4,
+   "version": 6,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260827-000045",
-   "why": "",
+   "tested_against": "kata-20260827-194300",
+   "why": "Close a stretch: what did I file, and what is still open. Answers 'what did I leave behind' before the context is gone.",
    "family": "RHYTHM",
    "status": "active",
    "created_at": "2026-08-20T06:34:43.702315+00:00",
-   "updated_at": "2026-08-27T04:00:45.770009+00:00",
+   "updated_at": "2026-08-27T23:43:00.276388+00:00",
    "author": "claude"
   },
   "cycle-reflect": {
@@ -182,15 +182,15 @@
      "triage"
     ]
    ],
-   "version": 4,
+   "version": 6,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260827-000046",
-   "why": "",
+   "tested_against": "kata-20260827-194300",
+   "why": "Is the corpus earning its keep? Counters beside triage, so cost-without-return is visible next to what has a track record.",
    "family": "RHYTHM",
    "status": "active",
    "created_at": "2026-08-20T06:34:44.042200+00:00",
-   "updated_at": "2026-08-27T04:00:46.422180+00:00",
+   "updated_at": "2026-08-27T23:43:00.865995+00:00",
    "author": "claude"
   },
   "cycle-land": {
@@ -205,15 +205,15 @@
      "--project"
     ]
    ],
-   "version": 5,
+   "version": 7,
    "params": 0,
    "evidence": "VERIFIED",
-   "tested_against": "kata-20260827-000047",
-   "why": "",
+   "tested_against": "kata-20260827-194301",
+   "why": "Land the cycle: promote the session draft, then regenerate the chronicles digest so the next boot reads current state.",
    "family": "RHYTHM",
    "status": "active",
    "created_at": "2026-08-20T06:34:44.406714+00:00",
-   "updated_at": "2026-08-27T04:00:47.057029+00:00",
+   "updated_at": "2026-08-27T23:43:01.481936+00:00",
    "author": "claude"
   },
   "calibrate": {
@@ -897,6 +897,202 @@
    "updated_at": "2026-08-27T04:00:46.733767+00:00",
    "author": "claude",
    "superseded_at": "2026-08-27T04:00:47.057029+00:00"
+  },
+  {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000045",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-27T04:00:45.172405+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:42:59.359909+00:00"
+  },
+  {
+   "name": "cycle-open",
+   "kind": "alias",
+   "steps": [
+    [
+     "flightdeck"
+    ],
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ]
+   ],
+   "version": 5,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Open a work cycle: what is on the board right now, and what is already owed. Answers 'where am I starting from' without reading three surfaces by hand.",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:26:53.675200+00:00",
+   "updated_at": "2026-08-27T23:42:59.359909+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:42:59.657072+00:00"
+  },
+  {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000045",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-27T04:00:45.770009+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:42:59.960778+00:00"
+  },
+  {
+   "name": "cycle-tie-up",
+   "kind": "alias",
+   "steps": [
+    [
+     "defer",
+     "$SELF$",
+     "--list"
+    ],
+    [
+     "task",
+     "list"
+    ]
+   ],
+   "version": 5,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Close a stretch: what did I file, and what is still open. Answers 'what did I leave behind' before the context is gone.",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:43.702315+00:00",
+   "updated_at": "2026-08-27T23:42:59.960778+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:43:00.276388+00:00"
+  },
+  {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 4,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000046",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-27T04:00:46.422180+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:43:00.564694+00:00"
+  },
+  {
+   "name": "cycle-reflect",
+   "kind": "alias",
+   "steps": [
+    [
+     "recall-counters"
+    ],
+    [
+     "triage"
+    ]
+   ],
+   "version": 5,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Is the corpus earning its keep? Counters beside triage, so cost-without-return is visible next to what has a track record.",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.042200+00:00",
+   "updated_at": "2026-08-27T23:43:00.564694+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:43:00.865995+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 5,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260827-000047",
+   "why": "",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T04:00:47.057029+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:43:01.177078+00:00"
+  },
+  {
+   "name": "cycle-land",
+   "kind": "alias",
+   "steps": [
+    [
+     "wrap"
+    ],
+    [
+     "notes",
+     "--project"
+    ]
+   ],
+   "version": 6,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "Land the cycle: promote the session draft, then regenerate the chronicles digest so the next boot reads current state.",
+   "family": "RHYTHM",
+   "status": "active",
+   "created_at": "2026-08-20T06:34:44.406714+00:00",
+   "updated_at": "2026-08-27T23:43:01.177078+00:00",
+   "author": "claude",
+   "superseded_at": "2026-08-27T23:43:01.480935+00:00"
   }
  ]
 }
