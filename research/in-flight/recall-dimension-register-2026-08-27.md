@@ -154,7 +154,29 @@ adds or retires itself; the adjudication register is reader-scoped.
 
 ---
 
-## THE DIMENSION NOBODY HAS NAMED, and tonight is its evidence
+## ~~THE DIMENSION NOBODY HAS NAMED~~ — PROPOSED AND KILLED, same evening
+
+> **VERDICT: NOT A DIMENSION.** Killed by Navi, 2026-08-27, hours after I proposed it. Her argument,
+> and it is decisive: every real dimension can name a firing moment **in the world** — a tool firing,
+> a loop completing, a temperature crossing. #17's firing moment is *"the seat is about to fail to
+> notice it is holding an isomorphism,"* which is not observable from outside the seat.
+>
+> **"Shape is the PRODUCT, not the INPUT."** Connecting two isomorphic ideas is the *outcome* the
+> system should produce; you cannot also make it an axis you reach *by*, or you have a feedback loop
+> with no observable gate — you would know it fired correctly only by noticing you did not fail,
+> which is the invisible-state failure this house keeps paying for.
+>
+> Her counteroffer, accepted: the only shape that is mechanizable is a shape of **actions**, and that
+> already lives in **#3 SEQUENCE**, reachable by signature containment. KEEP #17 AS A TEST of whether
+> the shelf is working. DROP IT AS A DIMENSION.
+>
+> Kept visible rather than deleted. The argument below is preserved because the *evidence* it cites
+> is real — two isomorphic ideas did sit unconnected — even though the conclusion I drew from it was
+> wrong. And the way it was wrong is on the record elsewhere: I wrote earlier the same evening that
+> the capability-gap family has "an ABSENCE OF KNOWLEDGE as its trigger, so nothing can fire on it
+> directly," then proposed a dimension with exactly that defect.
+
+### The original proposal, superseded, retained for its evidence
 
 Every dimension above is a property of the **situation**. None of them would have connected Daniil's
 "multifaceted lens" idea to his "recall on many dimensions" idea — those two share no vocabulary, no
