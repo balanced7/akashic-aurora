@@ -575,6 +575,23 @@ async def sweep(agent: str) -> str:
 
 
 @mcp.tool()
+async def ground(target: str, agent: str, continuity: bool = False) -> str:
+    """Truthfully ground ``verb:<name>`` for exactly ``agent``.
+
+    Returns the six-rung structured evidence ladder.  It observes declarations,
+    per-door reach and authorization, wiring, test references, and canonical
+    runtime proof without executing the target or changing shared state.
+    """
+    def _body():
+        import json as _json
+        from core.coord.ground import ground as _ground
+        return _json.dumps(_ground(target, subject=agent, continuity=continuity),
+                           ensure_ascii=False, indent=2, default=str)
+
+    return await _athread(_body)
+
+
+@mcp.tool()
 async def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> str:
     """Bifrost pull floor: refresh presence + peek unread inbox (same data boot() shows).
 
