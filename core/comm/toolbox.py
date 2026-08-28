@@ -114,10 +114,10 @@ TOOLS = [
         {"agent": {"type": "string", "description": "agent id (default: you)"}}),
     _fn("sweep", "Pure structured awareness for exactly one subject: bus depth/window, bench, routing attendance, and durable movement. Reads concurrently; advances no cursor and registers no presence.",
         {"agent": {"type": "string", "description": "subject (default: your bound identity)"}}),
-    _fn("ground", "Typed evidence ladder for verb:<name>: declaration, door reach, per-door authorization, callable wiring, bounded test references, and fresh proof. It does not execute the target.",
-        {"target": {"type": "string", "description": "typed target, e.g. verb:sweep"},
+    _fn("ground", "Typed, read-only grounding. verb:<name> returns the six-rung implementation ladder; seat:<your-id> with continuity=true returns bounded recovery evidence without inferring identity.",
+        {"target": {"type": "string", "description": "typed target, e.g. verb:sweep or seat:sol"},
          "subject": {"type": "string", "description": "grant subject (default: your bound identity)"},
-         "continuity": {"type": "boolean", "description": "reserved for seat:<id> continuity (T084 S3)"}},
+         "continuity": {"type": "boolean", "description": "required for seat:<id>; never nominates, ratifies, or infers a name"}},
         ["target"]),
     _fn("capture", "Capture an explicit-link Bifrost thread from YOUR subject-bound archive view. Pure by default; as_doc mints a draft conversation atom and requires kb.learn.",
         {"thread": {"type": "string", "description": "thread id or stream id"},
@@ -700,6 +700,15 @@ class ToolBox:
         who = str(subject or self.agent_id or "").strip()
         if not who:
             raise ValueError("ground subject is required")
+        kind = str(target or "").partition(":")[0].strip().lower()
+        if kind == "seat":
+            bound = str(self.agent_id or "").strip()
+            if not bound:
+                raise ValueError("seat continuity requires a bound identity")
+            if bound != who:
+                raise ValueError(
+                    f"seat continuity cannot borrow a foreign subject; ToolBox bound identity is {bound!r}"
+                )
         return json.dumps(_ground(str(target), subject=who,
                                   continuity=bool(continuity)),
                           ensure_ascii=False, indent=2, default=str)
