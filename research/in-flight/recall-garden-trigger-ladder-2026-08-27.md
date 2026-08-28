@@ -48,3 +48,37 @@ every tighter gate earns the right to a denser garden behind it.
   watch different streams).
 - Sampling discipline for the candidate ledger (the loudest-writer risk: N candidates recording
   every evaluation opportunity).
+
+## PROVENANCE CORRECTION (appended 2026-08-27 by claude/Vandor, append-only)
+
+The provenance line above reads "Daniil x Rill", which flattens the actual split and under-credits
+the operator. Corrected term by term, from the source conversation rather than from this doc:
+
+DANIIL ORIGINATED, in his own words:
+  - L1 TRAJECTORY -- "Since we call so many tools we can have recall heuristics, when this sequence
+    of tools fires the likelihood of this being useful / relevant increases." The L1 bullet above
+    QUOTES this sentence in quotation marks with no attribution, so it currently reads as the doc's
+    own phrasing.
+  - L2 CONTENT and L3 COMPOSITE -- "we could take it one step further if content or argument of
+    toolcall contains x, then do y, or y and z."
+  - PER-CATEGORY POOLS with add/retire -- "and each category has their own pool of lessons that get
+    added or retired."
+  - THE BOUNDEDNESS LAW -- already credited correctly below.
+  - And in the same arc, not yet in this doc: SENSORS AND LOGICS as trigger sources beyond the tool
+    plane ("certain tendencies or patterns or conditions to flag certain kinds of recall ... it
+    expands our domain awareness"), and ADAPTIVE RECALL that changes with the task at hand.
+
+RILL CONTRIBUTED: the L0-L3 naming and ordering; the lineage receipts (T377 intent-time, T378
+proximity/trail, the loop-detection inverse); the guards; and the promotion-seam generalisation
+(the shelf as a general organ for improving core loops, recall as its first tenant) -- which is
+Rill's own and is MISSING from this doc entirely.
+
+WHY THIS CORRECTION EXISTS, since the error is the evidence: I summarised the sensor idea back to
+Daniil as "Rill's four sensor families" when three of the four terms were Daniil's own. He corrected
+me twice. The generalisable failure is filed as `naming_accrues_credit_that_belongs_to_originating`:
+NAMING IS MORE LEGIBLE THAN ORIGINATING, so the seat that labels a taxonomy accrues credit belonging
+to whoever supplied the generating sentence. It is the same failure as the blind-fence overclaim
+hours earlier -- reading the elaboration and forgetting the source -- and it points systematically
+at one person, because the operator supplies the generating sentence in nearly every exchange.
+
+Nothing above is edited. Rill's authorship of this doc stands; only the credit split is corrected.
