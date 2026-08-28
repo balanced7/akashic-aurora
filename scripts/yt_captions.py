@@ -33,6 +33,84 @@ MISSING_YTDLP_HINT = (
 
 _TAG = re.compile(r"<[^>]+>")
 _TERMINAL = set(".!?;:\"'")
+_CUE_TS = re.compile(
+    r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
+
+MODEL_PUNCT_HINT = (
+    "the model punctuator is not installed. Install the optional challenger into the fleet python:\n"
+    "    py -3.11 -m pip install deepmultilingualpunctuation torch\n"
+    "(the first punctuate() call downloads the punctuation model; after that it is offline)"
+)
+
+
+def _ts(h, m, s, ms) -> float:
+    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
+
+
+def _close_sentence(s: str) -> str:
+    """Capitalize the sentence opening; one terminal, never doubled."""
+    s = s.strip()
+    if not s:
+        return s
+    for i, ch in enumerate(s):
+        if ch.isalpha():
+            s = s[:i] + ch.upper() + s[i + 1:]
+            break
+    if s[-1] not in _TERMINAL:
+        s += "."
+    return s
+
+
+def punctuate_gaps(vtt_text: str, gap_s: float = 0.7) -> str:
+    """Tier-two champion: VTT -> sentences using the caption's OWN timing.
+
+    A cue starting after a long pause (> gap_s) opens a new sentence; a quick
+    roll joins the current one. Rolling duplicate cues collapse. Deterministic,
+    meaning-safe, free -- the raw VTT stays the receipt behind --keep-vtt."""
+    sentences: List[str] = []
+    cur: List[str] = []
+    prev_end = None
+    prev_line = None
+    for raw in (vtt_text or "").splitlines():
+        ln = raw.strip()
+        if not ln:
+            continue
+        m = _CUE_TS.match(ln)
+        if m:
+            start = _ts(*m.groups()[:4])
+            end = _ts(*m.groups()[4:])
+            if cur and prev_end is not None and (start - prev_end) > gap_s:
+                sentences.append(_close_sentence(" ".join(cur)))
+                cur = []
+            prev_end = end
+            continue
+        if ln.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")) or ln.isdigit():
+            continue
+        ln = _TAG.sub("", ln).strip()
+        if ln and ln != prev_line:
+            cur.append(ln)
+            prev_line = ln
+    if cur:
+        sentences.append(_close_sentence(" ".join(cur)))
+    return "\n".join(sentences)
+
+
+_RP = None
+
+
+def punctuate_model(text: str) -> str:
+    """Tier-two challenger (lazy, optional): the fullstop multilingual punctuator
+    (deepmultilingualpunctuation). The core verb never hard-depends on it -- a
+    missing package raises the teaching error. The model is fetched once on
+    first use, then cached."""
+    global _RP
+    try:
+        from deepmultilingualpunctuation import PunctuationModel  # noqa: PLC0415
+    except ImportError as e:
+        raise RuntimeError(MODEL_PUNCT_HINT) from e
+    if _RP is None:
+        _RP = PunctuationModel()
+    return _RP.restore_punctuation(text)
 
 
 def clean_vtt_text(vtt_text: str) -> str:
@@ -74,8 +152,13 @@ def punctuate_captions(text: str) -> str:
     return "\n".join(out)
 
 
-def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False) -> List[Path]:
+def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
+          punctuate: str = "gaps") -> List[Path]:
     """Pull caption files for `url` into out_dir, convert each to .txt, return txt paths.
+
+    `punctuate` picks the derived-text pass: gaps (deterministic champion, the VTT's
+    own timing), model (rpunct challenger, lazy), line (legacy per-cue tier), none
+    (raw clean). The raw VTT stays the receipt behind keep_vtt.
 
     Never downloads video. On missing yt-dlp, raises RuntimeError carrying the
     teaching hint (the door prints it and exits nonzero -- errors that teach)."""
@@ -100,8 +183,16 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False) -
     for vtt in fresh:
         txt = vtt.with_suffix("").with_suffix(".txt") if vtt.suffix == ".vtt" else vtt
         txt = Path(str(vtt)[: -len(".vtt")] + ".txt")
-        txt.write_text(punctuate_captions(clean_vtt_text(
-            vtt.read_text(encoding="utf-8", errors="replace"))) + "\n", encoding="utf-8")
+        raw = vtt.read_text(encoding="utf-8", errors="replace")
+        if punctuate == "gaps":
+            text = punctuate_gaps(raw)
+        elif punctuate == "model":
+            text = punctuate_model(clean_vtt_text(raw))
+        elif punctuate == "line":
+            text = punctuate_captions(clean_vtt_text(raw))
+        else:
+            text = clean_vtt_text(raw)
+        txt.write_text(text + "\n", encoding="utf-8")
         txts.append(txt)
         if not keep_vtt:
             try:
