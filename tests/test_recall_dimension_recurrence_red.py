@@ -303,3 +303,151 @@ def test_p10_empty_stream_is_unevaluated_not_a_clean_report():
     live = observe([_ev("A", 1)], window=100, now=2, threshold=3)
     assert live["state"] == "OK", live
     assert live["state"] != report["state"], "the two states must actually differ"
+
+
+# ===========================================================================
+# PINS 11-14 -- required by Sunshine before implementation is approved.
+# Added 2026-08-27 after his conditional veto. His four conditions, verbatim:
+#   "subject isolation, episode/reset/progress semantics distinguishing
+#    recurrence from frequency, the arm/site contract hash riding every result,
+#    and bounded max_rows/refusal before I approve implementation."
+# ===========================================================================
+
+
+def _ev2(sig, at, *, subject="claude", episode="ep-1", tool="run", flags=()):
+    return dict(signature=sig, at=at, subject=subject, episode=episode,
+                tool=tool, args=(), flags=tuple(flags), ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Pin 11 -- SUBJECT ISOLATION. Rill paid for this one with his fracture:
+# attribution is not verification, and a record about seat Y must never be
+# readable as a fact about seat X.
+# ---------------------------------------------------------------------------
+
+def test_p11_counts_do_not_cross_subjects():
+    observe = _resolve("observe")
+    stream = [_ev2("A", 1, subject="claude"), _ev2("A", 2, subject="claude"),
+              _ev2("A", 3, subject="kimi")]
+
+    mine = observe(stream, window=100, now=4, threshold=3, subject="claude")
+    assert mine["rows"][0]["count"] == 2, (
+        f"three occurrences across two seats must NOT sum into one seat count: {mine}")
+    assert mine["rows"][0]["crossed"] is False, (
+        "borrowing another seat occurrences to cross a threshold is the exact failure the "
+        "subject law exists to prevent")
+
+    for row in mine["rows"]:
+        assert row["subject"] == "claude", f"every row must name its subject: {row}"
+
+    # the negative: a subject-blind implementation sums to 3 and crosses
+    blind = observe(stream, window=100, now=4, threshold=3, subject=None)
+    assert blind["rows"][0]["count"] == 3, blind
+    assert blind["state"] == "SUBJECT_UNSCOPED", (
+        "an unscoped read is legal for diagnostics but must SAY SO by name, so a cross-subject "
+        "number can never be mistaken for the seat own count")
+
+
+# ---------------------------------------------------------------------------
+# Pin 12 -- RECURRENCE IS NOT FREQUENCY, and one fixture proves it.
+# This pin exists because two seats disagreed about whether they are one
+# dimension: Navi called frequency a maintenance signal that should retire
+# lessons rather than fire recall; Heimdall filed it as mechanically
+# observable alongside loop-count. The module must be able to TELL THEM APART,
+# which makes the disagreement decidable instead of rhetorical.
+# ---------------------------------------------------------------------------
+
+def test_p12_recurrence_resets_at_episode_boundary_frequency_does_not():
+    observe = _resolve("observe")
+
+    # THE SAME three occurrences, arranged two ways
+    one_episode = [_ev2("A", i, episode="ep-1") for i in (1, 2, 3)]
+    three_episodes = [_ev2("A", 1, episode="ep-1"),
+                      _ev2("A", 2, episode="ep-2"),
+                      _ev2("A", 3, episode="ep-3")]
+
+    a = observe(one_episode, window=100, now=4, threshold=3)
+    b = observe(three_episodes, window=100, now=4, threshold=3)
+    ra, rb = a["rows"][0], b["rows"][0]
+
+    # RECURRENCE is a position within one run progress -- it RESETS
+    assert ra["count"] == 3 and ra["crossed"] is True, ra
+    assert rb["count"] == 1, (
+        f"recurrence must reset at the episode boundary -- the third loop of this toolcall is a "
+        f"position in THIS run, not a lifetime tally: {rb}")
+    assert rb["crossed"] is False, rb
+
+    # FREQUENCY is a rate ACROSS runs -- it does not reset
+    assert ra["frequency"] == 3 and rb["frequency"] == 3, (
+        f"frequency must be identical for both arrangements -- it counts occurrences, not "
+        f"positions: {ra} vs {rb}")
+
+    # the discriminating assertion: a stub computing one number for both fails
+    assert rb["count"] != rb["frequency"], (
+        "recurrence and frequency must be SEPARATELY COMPUTED, not aliases -- if they cannot "
+        "disagree on this fixture they are one dimension wearing two names")
+
+    # and frequency must declare that it is not a firing signal
+    assert b["frequency_is_advisory"] is True, (
+        "frequency answers whether something is chronically recurring, which is a RETIREMENT "
+        "question, not a fire-now question; the module must say so rather than let a caller "
+        "assume symmetry with recurrence")
+
+
+# ---------------------------------------------------------------------------
+# Pin 13 -- the ARM/SITE CONTRACT HASH rides every result.
+# Sunshine verified in source that evaluation_id does not hash arm identity or
+# configuration, so two experiments differing ONLY in site definition collide
+# and the second returns the first envelope. Nothing here may be identified by
+# the words champion/challenger alone.
+# ---------------------------------------------------------------------------
+
+def test_p13_every_result_carries_its_arm_contract_hash():
+    observe = _resolve("observe")
+    arm_hash = _resolve("arm_contract_hash")
+    site_tool = _resolve("SITE_TOOL")
+    site_tool_flags = _resolve("SITE_TOOL_FLAGS")
+
+    stream = [_ev2("x", i, tool="commit") for i in (1, 2, 3)]
+    coarse = observe(stream, window=100, now=4, threshold=3, site=site_tool)
+    fine = observe(stream, window=100, now=4, threshold=3, site=site_tool_flags)
+
+    assert coarse["arm_hash"] and fine["arm_hash"], "every result must carry an arm hash"
+    assert coarse["arm_hash"] != fine["arm_hash"], (
+        "two runs differing ONLY in site definition MUST NOT share an arm hash -- this is the "
+        "collision Sunshine found in the shelf evaluation_id, reproduced one layer down")
+
+    # configuration is part of identity, not decoration
+    w5 = observe(stream, window=5, now=4, threshold=3, site=site_tool)
+    t2 = observe(stream, window=100, now=4, threshold=2, site=site_tool)
+    assert w5["arm_hash"] != coarse["arm_hash"], "the window is part of the arm identity"
+    assert t2["arm_hash"] != coarse["arm_hash"], "the threshold is part of the arm identity"
+
+    # and the hash must be a pure function of the declared contract, not the data
+    assert arm_hash(site=site_tool, window=100, threshold=3) == coarse["arm_hash"], (
+        "the arm hash must be derivable from the contract ALONE, so a judgment can target a "
+        "persisted arm identity without replaying the stream")
+
+
+# ---------------------------------------------------------------------------
+# Pin 14 -- BOUNDED OUTPUT, with refusal by name rather than silent truncation.
+# Daniil scale invariant as Sunshine reads it: capability may grow
+# combinatorially, activation cost and attention must stay bounded. A dimension
+# returning an unbounded row set spends every other dimension budget.
+# ---------------------------------------------------------------------------
+
+def test_p14_row_output_is_bounded_and_truncation_is_declared():
+    observe = _resolve("observe")
+    stream = [_ev2(f"sig-{i}", i) for i in range(1, 51)]     # 50 distinct signatures
+
+    got = observe(stream, window=100, now=51, threshold=1, max_rows=10)
+    assert len(got["rows"]) == 10, f"max_rows must actually bound the output: {len(got)}"
+    assert got["truncated"] is True, got
+    assert got["signatures_observed"] == 50, (
+        "the DENOMINATOR must survive truncation -- reporting 10 rows without saying 10 of 50 is "
+        "how a bounded view gets read as a complete one")
+    assert got["rows_omitted"] == 40, got
+
+    small = observe(stream[:5], window=100, now=6, threshold=1, max_rows=10)
+    assert small["truncated"] is False, small
+    assert small["rows_omitted"] == 0, small
