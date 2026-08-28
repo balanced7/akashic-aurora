@@ -1,0 +1,62 @@
+{
+ "agent": "dsh_agent",
+ "entries": {
+  "rillsitrep": {
+   "name": "rillsitrep",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-sync",
+     "dsh_agent"
+    ],
+    [
+     "bench",
+     "dsh_agent"
+    ],
+    [
+     "doctor"
+    ]
+   ],
+   "version": 2,
+   "params": 0,
+   "evidence": "VERIFIED",
+   "tested_against": "kata-20260825-203133",
+   "why": "the resume ritual: what mail is waiting, what did I park, is anyone wedged -- I ran this trio by hand all morning",
+   "family": "UNSORTED",
+   "status": "active",
+   "created_at": "2026-08-26T00:31:32.799290+00:00",
+   "updated_at": "2026-08-26T00:31:33.185010+00:00",
+   "author": "dsh_agent"
+  }
+ },
+ "history": [
+  {
+   "name": "rillsitrep",
+   "kind": "alias",
+   "steps": [
+    [
+     "bifrost-sync",
+     "dsh_agent"
+    ],
+    [
+     "bench",
+     "dsh_agent"
+    ],
+    [
+     "doctor"
+    ]
+   ],
+   "version": 1,
+   "params": 0,
+   "evidence": "GUESS",
+   "tested_against": null,
+   "why": "the resume ritual: what mail is waiting, what did I park, is anyone wedged -- I ran this trio by hand all morning",
+   "family": "MONITORS",
+   "status": "active",
+   "created_at": "2026-08-26T00:31:32.799290+00:00",
+   "updated_at": "2026-08-26T00:31:32.799290+00:00",
+   "author": "dsh_agent",
+   "superseded_at": "2026-08-26T00:31:33.185010+00:00"
+  }
+ ]
+}
