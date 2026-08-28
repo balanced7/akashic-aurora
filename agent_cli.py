@@ -6508,7 +6508,7 @@ def cmd_captions(args):
     from scripts.yt_captions import fetch
     out = args.out or str(_P.home() / "Desktop" / "captions")
     try:
-        txts = fetch(args.url, out, args.langs, args.keep_vtt)
+        txts = fetch(args.url, out, args.langs, args.keep_vtt, args.punctuate)
     except RuntimeError as e:
         print(str(e))
         return 2
@@ -7942,6 +7942,10 @@ def build_parser():
     cap.add_argument("--out", default="", help="output dir (default ~/Desktop/captions)")
     cap.add_argument("--langs", default="en.*", help="yt-dlp sub-langs spec (default en.*)")
     cap.add_argument("--keep-vtt", action="store_true", help="keep the raw .vtt beside the .txt")
+    cap.add_argument("--punctuate", default="gaps",
+                     choices=["gaps", "model", "line", "none"],
+                     help="derived-text pass: gaps (deterministic champion, VTT timing), "
+                          "model (rpunct challenger, lazy), line (legacy per-cue), none (raw clean)")
     cap.set_defaults(fn=cmd_captions)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
