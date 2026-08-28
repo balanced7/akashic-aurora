@@ -156,6 +156,17 @@ EXCEPTIONS = {
         "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
         "because a rule stated by pointing at the census sample would be a fit rather than a "
         "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
+    "core/recall/shadow_shelf.py": {
+        "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
+            "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "
+            "explicitly forbids a production caller, live hook, resident watcher, model call, or "
+            "canonical writer until replay, resource, kill/restart, and independent-review gates "
+            "clear. Wiring it merely to satisfy this checker would violate the safety boundary. "
+            "UNWIRE-WHEN: the separately reviewed T370 live adapter asks the real detector seam and "
+            "hands terminal slots to this module; remove this entry then, or delete the module if "
+            "the pilot is rejected. Owner: Sunshine; independent reconciler: Vandor.",
+        "expires": "2026-09-30",
+    },
     "core/recall/precision_audit.py": "built-ahead (52db9b5): the retrieval-accuracy instrument "
         "kimi named as the hole every 2026-07-27 architecture position argued around without a "
         "single accuracy number. Exercised by 3 test files, no production caller yet. "
