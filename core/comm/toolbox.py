@@ -112,6 +112,13 @@ TOOLS = [
          "per_layer": {"type": "integer", "description": "max nodes per graph layer (default 6)"}}, ["topic"]),
     _fn("delta", "What moved since your last boot mark: commits, task-ledger transitions, and bus flow -- the full 'what changed' report your truncated boot block points at. Read-only (never advances the mark).",
         {"agent": {"type": "string", "description": "agent id (default: you)"}}),
+    _fn("sweep", "Pure structured awareness for exactly one subject: bus depth/window, bench, routing attendance, and durable movement. Reads concurrently; advances no cursor and registers no presence.",
+        {"agent": {"type": "string", "description": "subject (default: your bound identity)"}}),
+    _fn("ground", "Typed evidence ladder for verb:<name>: declaration, door reach, per-door authorization, callable wiring, bounded test references, and fresh proof. It does not execute the target.",
+        {"target": {"type": "string", "description": "typed target, e.g. verb:sweep"},
+         "subject": {"type": "string", "description": "grant subject (default: your bound identity)"},
+         "continuity": {"type": "boolean", "description": "reserved for seat:<id> continuity (T084 S3)"}},
+        ["target"]),
     _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
         {"experiment": {"type": "string", "description": "short snake/kebab name, e.g. 'bifrost_hint_render'"},
          "tried": {"type": "string", "description": "what you did / the situation"},
@@ -674,6 +681,18 @@ class ToolBox:
         if not target:
             raise ValueError("sweep subject is required")
         return json.dumps(build_snapshot(target).as_dict(), indent=2, default=str)
+
+    def ground(self, target, subject=None, continuity=False):
+        """Native typed grounding for this ToolBox's bound identity."""
+        import json
+        from core.coord.ground import ground as _ground
+
+        who = str(subject or self.agent_id or "").strip()
+        if not who:
+            raise ValueError("ground subject is required")
+        return json.dumps(_ground(str(target), subject=who,
+                                  continuity=bool(continuity)),
+                          ensure_ascii=False, indent=2, default=str)
 
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
     def _bus_send_ok(self, *, kind=None, need_cap=None):

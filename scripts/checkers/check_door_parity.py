@@ -136,6 +136,7 @@ MANIFEST = {
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
     "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
+    "ground": "shared",  # T084 S1: typed evidence ladder, native on all three agent doors
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
     "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
     "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
