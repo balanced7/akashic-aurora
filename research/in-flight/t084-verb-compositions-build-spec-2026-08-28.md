@@ -36,8 +36,10 @@ One typed evidence ladder, in this order:
 1. `declared` — classification and source-of-truth declaration.
 2. `reachable` — which CLI, MCP, and ToolBox addresses exist, including aliases
    and declared omissions.
-3. `authorized` — the named capability requirement compared with THIS subject's
-   effective grant. If no requirement is mechanically known, UNKNOWN.
+3. `authorized` — per door, the named capability requirement compared with THIS
+   subject's effective grant. If a door has no mechanically observed gate, that
+   door is UNKNOWN even when another door enforces the capability. The aggregate
+   must preserve mixed states; it may not let one guarded door bless its twins.
 4. `wired` — declared endpoints resolve to real parser handlers/functions.
 5. `exercised` — bounded test references; a reference never means the test ran.
 6. `proven` — a fresh canonical runtime receipt, or UNKNOWN when no resolver
@@ -49,9 +51,10 @@ The result carries subject, bounds, blind regions, and `effects: []`.
 `reach` is absorbed by rungs 2–3. It earns a separate verb only if later use
 shows an independent question that cannot be answered by this ladder.
 
-Kill conditions: presence on a surface rendered as authorization; a test-file
-mention rendered as passing; missing receipt rendered as proof; missing subject
-silently borrowed from another callsign.
+Kill conditions: presence on a surface rendered as authorization; one door's
+gate projected onto an unguarded twin; a test-file mention rendered as passing;
+missing receipt rendered as proof; missing subject silently borrowed from
+another callsign.
 
 ### S2 — `capture --thread`
 
@@ -87,4 +90,3 @@ The door-parity ratchet classifies each new surface in the same slice.
 Rill is out of scope while he works. No slice invokes `dsh_agent`, touches
 Rill's watcher, cursor, session, belt, process, or tests under his identity.
 Shared corpus and bus archive reads remain bounded and non-mutating.
-
