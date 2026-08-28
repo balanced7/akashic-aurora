@@ -8016,10 +8016,11 @@ def build_parser():
     cap.add_argument("--out", default="", help="output dir (default ~/Desktop/captions)")
     cap.add_argument("--langs", default="en.*", help="yt-dlp sub-langs spec (default en.*)")
     cap.add_argument("--keep-vtt", action="store_true", help="keep the raw .vtt beside the .txt")
-    cap.add_argument("--punctuate", default="gaps",
-                     choices=["gaps", "model", "line", "none"],
-                     help="derived-text pass: gaps (deterministic champion, VTT timing), "
-                          "model (rpunct challenger, lazy), line (legacy per-cue), none (raw clean)")
+    cap.add_argument("--punctuate", default="hybrid",
+                     choices=["hybrid", "gaps", "model", "line", "none"],
+                     help="derived-text pass: hybrid (default -- model boundaries + deterministic "
+                          "capitalization), gaps (VTT timing), model (fullstop raw), line (legacy "
+                          "per-cue), none (raw clean)")
     cap.set_defaults(fn=cmd_captions)
 
     bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")

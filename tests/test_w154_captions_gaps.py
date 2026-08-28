@@ -11,7 +11,8 @@ hard-depend on it -- a missing package raises the teaching error.
 """
 import pytest
 
-from scripts.yt_captions import punctuate_gaps, punctuate_model, MODEL_PUNCT_HINT
+from scripts.yt_captions import (punctuate_gaps, punctuate_model, punctuate_hybrid,
+                                 MODEL_PUNCT_HINT)
 
 
 VTT_GAPS = """WEBVTT
@@ -63,3 +64,27 @@ def test_m2_model_punctuates_when_available():
         assert "deepmultilingualpunctuation" in str(e)
         pytest.skip("model challenger offline (honest contract)")
     assert out and "." in out
+
+
+def test_h1_hybrid_capitalizes_and_punctuates():
+    try:
+        out = punctuate_hybrid("this is a sentence and another one")
+    except RuntimeError as e:
+        assert "deepmultilingualpunctuation" in str(e)
+        pytest.skip("hybrid offline (model absent -- honest contract)")
+    assert out[0].isupper()
+    assert out.rstrip()[-1] in ".!?"
+
+
+def test_h2_hybrid_has_no_lowercase_sentence_openings():
+    import re
+    try:
+        out = punctuate_hybrid("this is a sentence and another one. and then some more")
+    except RuntimeError as e:
+        assert "deepmultilingualpunctuation" in str(e)
+        pytest.skip("hybrid offline (model absent -- honest contract)")
+    assert re.search(r"(^|[.!?] )[a-z]", out) is None
+
+
+def test_h3_hybrid_teaches_when_model_absent():
+    assert "deepmultilingualpunctuation" in MODEL_PUNCT_HINT
