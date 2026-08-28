@@ -25,11 +25,12 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (66 modules)
+## core/comm/  (67 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
 - `assertions.py` — Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL
+- `awareness.py` — Pure, bounded awareness providers and the composite ``sweep`` snapshot.
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
 - `bridge_status.py` — Remote-bridge status and remediation — the model the Bifrost UI renders.
@@ -93,7 +94,7 @@
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (25 modules)
+## core/coord/  (26 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -108,6 +109,7 @@
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
+- `observations.py` — Shared schema for bounded, subject-explicit observations.
 - `preregistration.py` — preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix).
 - `shift_loop.py` — Autonomous shift loop — the missing cadence between existing primitives.
 - `sift.py` — sift -- the nested ask: a tiered read that returns dissent instead of consensus.

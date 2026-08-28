@@ -135,6 +135,7 @@ MANIFEST = {
     "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
+    "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
     "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
     "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
@@ -325,6 +326,7 @@ MANIFEST = {
                                    # Classified gap, not cli_only, deliberately: runners break
                                    # lessons too and a repeat only a human can file undercounts
                                    # the very floor it measures. MCP twin owed.
+    "boop": "cli_only",            # play acknowledgement; one-way and intentionally local
     "captions": "cli_only",        # W154: youtube captions -> text on the operator's Desktop.
                                    # Pre-existing unclassified drift, paid down here rather than
                                    # left to block the next seat. Writes to a human's disk and

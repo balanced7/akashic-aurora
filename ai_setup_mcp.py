@@ -196,6 +196,7 @@ _ARG_DEFAULTS = dict(
     enforced_by=None, undo=False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
     title=None, context="", supersedes=None, session="", project=False, path=None, ttl=None,
+    body_file=None, outcome=None, receipt=None,
     name="", reason="",
     # T083 C7-1 (sol day-one receipt): cmd_notes reads args.all, cmd_note reads args.retire --
     # both were missing here, so the MCP twins raised AttributeError while CLI worked.
@@ -555,6 +556,22 @@ async def promoted(limit: int = 20, since: str = "", until: str = "") -> str:
     """
     return await _athread(_run, agent_cli.cmd_promoted, limit=limit,
                           since=since or None, until=until or None)
+
+
+@mcp.tool()
+async def sweep(agent: str) -> str:
+    """Pure awareness snapshot for exactly ``agent`` as structured JSON.
+
+    Reads bus depth/window, bench count, routing attendance, and durable movement
+    concurrently.  It does not register presence, beat worklive, advance a cursor,
+    sweep expectations, or stamp a delta mark.
+    """
+    def _body():
+        import json as _json
+        from core.comm.awareness import build_snapshot
+        return _json.dumps(build_snapshot(agent).as_dict(), indent=2, default=str)
+
+    return await _athread(_body)
 
 
 @mcp.tool()
