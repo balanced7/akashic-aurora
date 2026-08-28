@@ -197,6 +197,43 @@ def test_prose_mentions_never_mint_a_name_and_bounds_remain_loud():
     assert not any("callsign" in row for row in region["items"])
 
 
+def test_source_failure_is_unknown_not_evidence_of_absence():
+    from core.coord.continuity import build_profile
+
+    def unavailable(_subject):
+        raise RuntimeError("fixture archive offline")
+
+    result = build_profile(
+        "sol",
+        sources=_empty_sources(lessons=unavailable),
+    )
+    lessons = _regions(result)["lessons"]
+    assert lessons["state"] == "unknown"
+    assert lessons["items"] == []
+    assert "unavailable" in " ".join(lessons["blind"]).lower()
+    assert result["bounds"]["sources_failed"] == 1
+
+
+def test_region_drills_never_invent_cli_grammar():
+    import agent_cli
+    from core.coord.continuity import build_profile
+
+    result = build_profile("sol", sources=_empty_sources())
+    regions = _regions(result)
+    parser = agent_cli.build_parser()
+
+    # These are executable escape hatches, so the live parser must accept them.
+    parser.parse_args(["resident", "show", "sol"])
+    parser.parse_args(["recall", "--agent", "sol", "--json"])
+    parser.parse_args(["handoff", "sol", "--list", "--to", "sol", "--json"])
+    parser.parse_args(["events", "--agent", "sol", "--limit", "25", "--json"])
+
+    assert regions["designation"]["drill"] == "py agent_cli.py resident show sol"
+    assert regions["lessons"]["drill"] == "py agent_cli.py recall --agent sol --json"
+    assert "no dedicated exact atom read door" in regions["artifacts"]["drill"]
+    assert "docs" not in regions["artifacts"]["drill"]
+
+
 def test_ground_requires_continuity_mode_and_exact_subject_binding(monkeypatch):
     from core.coord import continuity
     from core.coord.ground import ground
@@ -214,6 +251,8 @@ def test_ground_requires_continuity_mode_and_exact_subject_binding(monkeypatch):
         ground("seat:sol", subject="sol", continuity=False)
     with pytest.raises(ValueError, match="match"):
         ground("seat:other", subject="sol", continuity=True)
+    with pytest.raises(ValueError, match="match"):
+        ground("seat:Sol", subject="sol", continuity=True)
     with pytest.raises(ValueError, match="only for seat"):
         ground("verb:sweep", subject="sol", continuity=True)
 
