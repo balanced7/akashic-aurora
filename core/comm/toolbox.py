@@ -119,6 +119,16 @@ TOOLS = [
          "subject": {"type": "string", "description": "grant subject (default: your bound identity)"},
          "continuity": {"type": "boolean", "description": "reserved for seat:<id> continuity (T084 S3)"}},
         ["target"]),
+    _fn("capture", "Capture an explicit-link Bifrost thread from YOUR subject-bound archive view. Pure by default; as_doc mints a draft conversation atom and requires kb.learn.",
+        {"thread": {"type": "string", "description": "thread id or stream id"},
+         "as_doc": {"type": "boolean", "description": "mint a draft atom (default false)"},
+         "title": {"type": "string", "description": "required with as_doc"},
+         "cites": {"type": "array", "items": {"type": "string"},
+                   "description": "atom ids this conversation discusses"},
+         "type": {"type": "string", "description": "atom type (default chronicle)"},
+         "arc": {"type": "string", "description": "optional atom arc"},
+         "per_stream": {"type": "integer", "description": "archive cap per stream (default 1000)"}},
+        ["thread"]),
     _fn("knowledge_learn", "CONTRIBUTE a lesson to the knowledge base -- a durable 'use when X, do Y' article future agents recall. Requires the kb.learn capability. Write one whenever you discover something reusable (a fix, a gotcha, a pattern) so it outlives this chat.",
         {"experiment": {"type": "string", "description": "short snake/kebab name, e.g. 'bifrost_hint_render'"},
          "tried": {"type": "string", "description": "what you did / the situation"},
@@ -693,6 +703,29 @@ class ToolBox:
         return json.dumps(_ground(str(target), subject=who,
                                   continuity=bool(continuity)),
                           ensure_ascii=False, indent=2, default=str)
+
+    def capture(self, thread, as_doc=False, title="", cites=None, type="chronicle",
+                arc="", per_stream=1000):
+        """Native, subject-bound thread capture; never shells through the CLI."""
+        import json
+        from core.comm import thread_capture as _tc
+
+        who = str(self.agent_id or "").strip()
+        if not who:
+            raise ValueError("capture subject is required")
+        if as_doc:
+            err = self._kb_write_ok()
+            if err:
+                return json.dumps({"ok": False, "error": err})
+        result = _tc.collect_thread(who, str(thread), per_stream=int(per_stream or 1000))
+        if as_doc:
+            receipt = _tc.mint_thread_atom(result, title=str(title or ""),
+                                           cites=list(cites or []), type_=str(type or "chronicle"),
+                                           arc=(str(arc).strip() or None))
+            result = dict(result)
+            result["artifact"] = receipt
+            result["effects"] = [f"minted {receipt['atom_id']}"]
+        return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
     def _bus_send_ok(self, *, kind=None, need_cap=None):

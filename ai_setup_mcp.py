@@ -592,6 +592,40 @@ async def ground(target: str, agent: str, continuity: bool = False) -> str:
 
 
 @mcp.tool()
+async def capture(agent: str, thread: str, as_doc: bool = False, title: str = "",
+                  cites: str = "", type: str = "chronicle", arc: str = "",
+                  per_stream: int = 1000) -> str:
+    """Capture one explicit-link Bifrost thread from ``agent``'s archive view.
+
+    Collection is non-consuming and subject-bound. ``as_doc=true`` mints a
+    draft conversation atom and requires the subject's ``kb.learn`` capability.
+    ``cites`` is a comma-separated list of atom ids.
+    """
+    def _body():
+        import json as _json
+        from core.comm import thread_capture as _tc
+        if as_doc:
+            from core.trust import registry
+            from core.trust.capabilities import Cap
+            grant = registry.resolve(agent)
+            if not grant.has(Cap.KB_LEARN):
+                return _json.dumps({"ok": False, "error":
+                    f"REFUSED: '{agent}' lacks {Cap.KB_LEARN.value} (role={grant.role})"})
+        result = _tc.collect_thread(agent, thread, per_stream=per_stream)
+        if as_doc:
+            cite_rows = (list(cites) if isinstance(cites, (list, tuple)) else
+                         [c.strip() for c in str(cites or "").split(",") if c.strip()])
+            receipt = _tc.mint_thread_atom(result, title=title, cites=cite_rows,
+                                           type_=type, arc=(arc or None))
+            result = dict(result)
+            result["artifact"] = receipt
+            result["effects"] = [f"minted {receipt['atom_id']}"]
+        return _json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+    return await _athread(_body, lock=bool(as_doc))
+
+
+@mcp.tool()
 async def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> str:
     """Bifrost pull floor: refresh presence + peek unread inbox (same data boot() shows).
 

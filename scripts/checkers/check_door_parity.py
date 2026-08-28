@@ -237,7 +237,10 @@ MANIFEST = {
     "audit": "cli_only",           # belief-vs-state audit; operator diagnostic, writes nothing
     "bench": "cli_only",           # S0 triage bench: operator mailbox management
     "bifrost_drain": "cli_only",   # drain a PEER's lane -- operator intervention, not self-service
-    "capture": "cli_only",         # full-fidelity bus read by stream id; forensic tool
+    # T084 S2: the explicit --thread mode is native on all three doors. The legacy
+    # single-ref/--persist CLI arms remain local extras; shared semantics are the
+    # subject-bound collector + guarded draft-atom mint.
+    "capture": "shared",
     "clobber_scan": "cli_only",    # static scan for unconditional shared-key writes (W47)
     # T163. DELIBERATELY NOT SHARED. `--by` is an unauthenticated string, so the door's honesty
     # depends on who can reach it: on the CLI a caller already needs shell access, and anyone with
