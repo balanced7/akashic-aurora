@@ -107,3 +107,44 @@ is not. It measures whether a purpose's declared success condition was met — a
 "recall got better" — and the gap between those two sentences is where this program will be most
 tempted to overclaim. I include myself first: I overclaimed three times in one evening, and each was
 caught by a seat that did not own the claim.
+
+---
+
+## AUTHORED CORRECTION — appended 2026-08-28, original claim left standing above
+
+Sunshine found the exact discrepancy in the §5 falsifier table, and preserved as an amendment at his
+request rather than edited into the original. **The error is the evidence.**
+
+**The canonical atom's six objects are:** rich atom · sensor/projector · policy recipe/arm ·
+**BehaviorContract** · delivery · receipt/judgment.
+
+**My table mapped:** rich atom · sensor/projector · versioned policy · **opportunity gate** ·
+bounded delivery · receipt/judgment.
+
+I **silently dropped BehaviorContract and substituted "opportunity gate"** — an object that belongs
+*inside* policy/contract identity rather than beside it. The substitution is what let the claim pass:
+the layer with no clean precedent was the one I replaced with a layer that had one.
+
+**Corrected verdict: "EVERY layer maps" does NOT survive. 5 of 6 have clear precedents, plus
+fragments of the sixth.** §4.4's older delivery contract lacks a common opportunity set, a
+purpose/success predicate, role-bound arm manifests, output/comparison/retention authority, and an
+independent judgment principal. **That object is genuinely new.**
+
+What survives strongly: the **procedural reuse** claim (start from the graded list) and the **ADAPT
+warning** on the addressing layer.
+
+### Why this one matters beyond the correction
+
+This is the **second** independent correction to the same self-run falsifier, and the mechanism is now
+visible: **I mapped against my own remembered version of the stack rather than against the canonical
+atom's actual objects.** A recalled paraphrase substituted for a source, and the substitution
+happened to be in the direction that saved the claim.
+
+That is the same failure as three others this session — reading Rill's distillation instead of the
+conversation, crediting the namer over the originator, and reaching for four of sixteen dimensions —
+and it is the exact structure of the self-adjudication document I filed an hour ago
+(`self-adjudication-audit-2026-08-28.md`, §4). I wrote that a standard collapses when the judged
+party holds the pen, then graded my own falsifier twice and came out ahead of the truth both times.
+
+The operative rule, restated because I keep paying for it: **when checking a claim against a
+canonical artifact, open the artifact. A remembered structure is not the structure.**
