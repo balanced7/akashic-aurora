@@ -147,3 +147,17 @@ Stop before live wiring if the fixture cannot preserve complete denominators, ca
 write adjudication, a failed read appears empty/healthy, write amplification is superlinear, the
 seeded wrong agreement is hidden, the kill drill produces a partial cohort, or the bounded replay
 exceeds the declared resource ceiling. No amount of tuning can promote past one of those failures.
+
+## Post-Slice 0 accepted invariant — preserve the dependency cone
+
+Vandor's read-only acceptance of implementation commit `eca73526` (Bifrost reply
+`1787882451422-0`) verified a stronger form of pin 12: `core.recall.shadow_shelf` imports only the
+Python standard library. It cannot reach a canonical writer, live detector, model, bus, Discord,
+or EventLog through its dependency cone. Isolation is therefore structural in Slice 0, not merely
+a behavior that happened not to fire during replay.
+
+Preserve that property. The first live adapter must stay outside this module, ask the production
+detector through its real seam, and pass only terminal slots into the substrate. Adding a `core.*`
+import to `core.recall.shadow_shelf` is a boundary change that reopens independent review; it is not
+an ordinary wiring refactor. This invariant does not claim that the future adapter itself is
+isolated — its authority and load require their own pins.
