@@ -5991,7 +5991,14 @@ def cmd_bifrost_sync(args):
         # cheap scan: only-new headlines (cursor-based, no body) -- read the bus without
         # paying to reread the conversation. Drill a headline with `bifrost-sync` (full) or --json.
         msgs = block.get("messages") or []
-        print(f"# bifrost digest for {args.agent_id}: {len(msgs)} unread"
+        real = [m for m in msgs if not m.get("gap")]
+        pending = max((int(m.get("pending_at_least", 0) or 0) for m in msgs),
+                      default=len(real))
+        capped = any(bool(m.get("pending_capped")) for m in msgs)
+        prefix = ">=" if capped else ""
+        window = (f"; {len(real)} shown; truncated=yes" if capped or pending > len(real)
+                  else "")
+        print(f"# bifrost digest for {args.agent_id}: {prefix}{pending} unread{window}"
               + (" (bus OFFLINE)" if not block.get("bus_online") else ""))
         for m in msgs:
             print(format_digest_line(m))
@@ -6520,63 +6527,43 @@ def cmd_captions(args):
     return 0
 
 
-def _sweep_line(title: str, fn) -> str:
-    """One sweep section: data or an honest UNAVAILABLE. Never a traceback (fail-open)."""
-    try:
-        return f"  {title}: {fn()}"
-    except Exception as e:  # noqa: BLE001 -- observability must never wedge the path it observes
-        return f"  {title}: UNAVAILABLE ({type(e).__name__}: {str(e)[:80]})"
+def build_sweep(agent_id: str, *, providers=None) -> str:
+    """Render the pure, subject-explicit awareness snapshot.
+
+    ``providers`` is an internal hermetic-test seam.  The production path uses
+    the four structured providers in ``core.comm.awareness``.
+    """
+    from core.comm.awareness import build_snapshot, render_snapshot
+    return render_snapshot(build_snapshot(agent_id, providers=providers))
 
 
-def build_sweep(agent_id: str) -> str:
-    """The awareness snapshot: bus, bench, health, moved -- one bounded read-only block.
-
-    Composite of the SAME functions the individual verbs use (collect_boot_bifrost,
-    triage_park.render, worklive_beat_age, delta.render_full) so the composite cannot
-    drift from its parts. Every section fails open to UNAVAILABLE with its reason."""
-    import re
-    lines = ["# sweep -- the awareness snapshot"]
-
-    def _bus():
-        from agent.bifrost_pull import collect_boot_bifrost
-        block = collect_boot_bifrost(agent_id, limit=10)
-        online = ", ".join(str(s) for s in block.get("agents_online") or []) or "(none)"
-        msgs = block.get("messages") or []
-        asks = [m for m in msgs if str(m.get("kind", "")) in
-                ("request", "handoff", "question", "ask")]
-        return f"online {online} -- {len(msgs)} unread, {len(asks)} asks for you"
-
-    def _bench():
-        from core.comm import triage_park
-        rendered = triage_park.render(agent_id)
-        parked = len(re.findall(r"^\s+[0-9a-f]{12}\s", rendered, re.M))
-        return (f"{parked} parked (list: py agent_cli.py bench {agent_id})"
-                if parked else "empty")
-
-    def _health():
-        from core.comm.liveness import worklive_beat_age
-        age = worklive_beat_age(agent_id)
-        if age is None:
-            return "worklive beat ABSENT -- the seat is invisible to routing (C1)"
-        return f"worklive beat {age:.0f}s"
-
-    def _moved():
-        from agent.harness.delta import render_full
-        head = [ln.strip() for ln in render_full(agent_id).splitlines() if ln.strip()][:3]
-        return " | ".join(head)[:140] if head else "(no delta)"
-
-    lines.append(_sweep_line("bus   ", _bus))
-    lines.append(_sweep_line("bench ", _bench))
-    lines.append(_sweep_line("health", _health))
-    lines.append(_sweep_line("moved ", _moved))
-    return "\n".join(lines)
+def _awareness_subject(args) -> str:
+    explicit = str(getattr(args, "agent_id", "") or "").strip()
+    inherited = str(os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
+    subject = explicit or inherited
+    if not subject:
+        raise ValueError(
+            "awareness subject is required: pass `sweep <agent_id>` or set "
+            "AKASHIC_AGENT_ID"
+        )
+    return subject
 
 
 def cmd_sweep(args):
     """`sweep`: the awareness snapshot -- bus, bench, health, moved in one bounded block.
-    Read-only, fail-open, deterministic. The composite the operator's boop-check used to
-    cost four to six tool calls. CLI-only BY DECISION (see guardrail_baseline _door_parity_7)."""
-    print(build_sweep(getattr(args, "agent_id", "") or os.environ.get("AKASHIC_AGENT_ID", "claude")))
+    Read-only, fail-open, deterministic, and explicit about the observed subject."""
+    try:
+        subject = _awareness_subject(args)
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        return 2
+    from core.comm.awareness import build_snapshot
+    snapshot = build_snapshot(subject)
+    if getattr(args, "json", False):
+        print(json.dumps(snapshot.as_dict(), indent=2, default=str))
+    else:
+        from core.comm.awareness import render_snapshot
+        print(render_snapshot(snapshot))
     return 0
 
 
@@ -6590,7 +6577,11 @@ def cmd_boop(args):
     applies: the boop answers the booper."""
     print("boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)")
     if getattr(args, "surface", False):
-        print(build_sweep(getattr(args, "agent_id", "") or os.environ.get("AKASHIC_AGENT_ID", "claude")))
+        try:
+            print(build_sweep(_awareness_subject(args)))
+        except ValueError as exc:
+            print(f"ERROR: {exc}")
+            return 2
     return 0
 
 
@@ -8026,9 +8017,14 @@ def build_parser():
     bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")
     bop.add_argument("--surface", action="store_true",
                      help="boop with eyes: print the awareness snapshot (sweep) after the boop")
+    bop.add_argument("--agent", dest="agent_id", default="",
+                     help="subject for --surface (default: $AKASHIC_AGENT_ID; no identity fallback)")
     bop.set_defaults(fn=cmd_boop)
 
     swp = sub.add_parser("sweep", help="the awareness snapshot: bus, bench, health, moved -- one bounded read-only block")
+    swp.add_argument("agent_id", nargs="?", default="",
+                     help="seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback)")
+    swp.add_argument("--json", action="store_true", help="emit observation.snapshot.v1 JSON")
     swp.set_defaults(fn=cmd_sweep)
 
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----

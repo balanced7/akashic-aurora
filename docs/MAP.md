@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (42 of 186 modules lack both pin and paper by name)
+## GAP queue (43 of 188 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -38,6 +38,7 @@ Class: reference
 - core/comm/storm_detect.py
 - core/comm/timescale.py
 - core/coord/capability_search.py
+- core/coord/observations.py
 - core/coord/task_costs.py
 - core/learning/domains.py
 - core/learning/vfx_chunk_lessons.py
@@ -86,7 +87,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (66 modules)
+## core/comm/  (67 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -94,6 +95,7 @@ Class: reference
 | `ask_bg.py` | ask_bg -- a helper call that outlives your turn without becoming a seat (T205). | tests/test_t205_ask_bg.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_ASK_BG_ORPHAN_S` |
 | `ask_state.py` | ask_state -- one durable ask's honest state (T196d). | tests/test_t196d_ask_state.py | GAP |  |
 | `assertions.py` | Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL | GAP | GAP | `BIFROST_PREFLIGHT_ASSERT` |
+| `awareness.py` | Pure, bounded awareness providers and the composite ``sweep`` snapshot. | tests/test_t084_awareness_snapshot.py | GAP | `BIFROST_NAMESPACE` |
 | `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |
 | `blobs.py` | BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads. | GAP | GAP | `AI_SETUP` |
 | `bridge_status.py` | Remote-bridge status and remediation — the model the Bifrost UI renders. | tests/test_bridge_status_pins.py | GAP |  |
@@ -157,7 +159,7 @@ Class: reference
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (25 modules)
+## core/coord/  (26 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -175,6 +177,7 @@ Class: reference
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |
 | `negotiation.py` | Negotiation round — brief window after user input where agents declare plans. | tests/test_negotiation.py | GAP |  |
+| `observations.py` | Shared schema for bounded, subject-explicit observations. | GAP | GAP |  |
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
 | `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_t217_sift.py | GAP |  |

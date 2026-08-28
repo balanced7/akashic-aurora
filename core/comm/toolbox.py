@@ -661,6 +661,20 @@ class ToolBox:
         target = agent or self.agent_id or "deepseek"
         return self._agent_cli(["delta", str(target)])
 
+    def sweep(self, agent=None):
+        """Pure structured awareness for one explicit subject, without a CLI child.
+
+        The runner's own bound identity is the only default.  A ToolBox without an
+        identity must name the subject; it never borrows another resident's callsign.
+        """
+        import json
+        from core.comm.awareness import build_snapshot
+
+        target = str(agent or self.agent_id or "").strip()
+        if not target:
+            raise ValueError("sweep subject is required")
+        return json.dumps(build_snapshot(target).as_dict(), indent=2, default=str)
+
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
     def _bus_send_ok(self, *, kind=None, need_cap=None):
         """Gate a ToolBox bus door on the SENDER's ACL -- the send-side complement to RB-1's

@@ -40,7 +40,7 @@ def test_observation_schema_carries_the_boundary_and_effects():
         order="oldest+newest",
         truncated=True,
         effects=(),
-        details={"asks_shown": 1},
+        details={"attention_shown": 1},
         drill=f"bifrost-sync {SUBJECT}",
     ).as_dict()
 
@@ -79,7 +79,7 @@ def test_bus_observation_uses_authoritative_total_and_excludes_gap_row():
     assert got.total_relation == "at_least"
     assert got.shown == 2                 # the synthetic gap is not unread mail
     assert got.truncated is True
-    assert got.details["asks_shown"] == 1
+    assert got.details["attention_shown"] == 1
     assert got.effects == ()
 
 
@@ -115,7 +115,7 @@ def test_render_is_compact_subject_explicit_and_boundary_honest():
                 name="bus", subject=SUBJECT, status="OK", summary="mail waiting",
                 source=("fixture:peek",), total=70, total_relation="at_least",
                 shown=10, order="oldest+newest", truncated=True,
-                details={"asks_shown": 1},
+                details={"attention_shown": 1},
             ),
             _obs("bench", "0 parked"),
             _obs("route", "UNATTENDED"),
@@ -174,3 +174,30 @@ def test_unread_probe_uses_only_read_operations():
     assert got == []
     assert store.calls
     assert {name for name, _key in store.calls} <= {"hgetall", "xrange", "xrevrange"}
+
+
+def test_pure_probe_confesses_packets_it_cannot_render(monkeypatch):
+    class OnePacketStore:
+        def hgetall(self, _key):
+            return {}
+
+        def xrange(self, key, **_kwargs):
+            return [("1-0", {"packet": "fragment"})] if key.endswith(SUBJECT) else []
+
+        def xrevrange(self, _key, **_kwargs):
+            return []
+
+    monkeypatch.setattr(
+        awareness,
+        "_decode_row",
+        lambda *_args, **_kwargs: (None, "fragment"),
+    )
+    got = awareness.peek_unread(
+        SUBJECT, limit=10, client=OnePacketStore(), namespace="fixture"
+    )
+
+    assert len(got) == 1
+    assert got[0]["gap"] is True
+    assert got[0]["pending_capped"] is True
+    assert got[0]["unrendered_entries"] == 1
+    assert "fragments=1" in got[0]["content"]
