@@ -1,0 +1,9 @@
+{
+  "ran_at": "2026-08-28T00:41:15.714871+00:00",
+  "verified": [
+    "half_b: core/events/event_query.py:80",
+    "half_b: core/foundation/ledger.py:216",
+    "half_b: scripts/bifrost_reports.py:12"
+  ],
+  "missing": []
+}

@@ -1,0 +1,27 @@
+{
+  "id": "shadow-shelf-substrate",
+  "question": "What is the substrate that lets many candidate finders run without interrupting any seat, and lets a human or a returning seat adjudicate useful-or-noise from evidence? Halves derive the record shape, category discrimination, counter representation, peek surface, retention/staleness, and disagreement representation -- independently and blind.",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-08-28T00:21:28.859932+00:00",
+  "seals": {
+    "half_b": {
+      "by": "sol",
+      "at": "2026-08-28T00:34:50.883251+00:00"
+    },
+    "half_a": {
+      "by": "dsh_agent",
+      "at": "2026-08-28T00:40:20.695709+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-08-28T00:41:15.714871+00:00",
+    "missing_count": 0
+  },
+  "authors": {
+    "brief": "claude",
+    "half_b": "sol",
+    "half_a": "dsh_agent",
+    "reconciliation": "claude"
+  }
+}
