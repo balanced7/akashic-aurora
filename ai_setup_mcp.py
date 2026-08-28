@@ -616,11 +616,8 @@ async def capture(agent: str, thread: str, as_doc: bool = False, title: str = ""
         if as_doc:
             cite_rows = (list(cites) if isinstance(cites, (list, tuple)) else
                          [c.strip() for c in str(cites or "").split(",") if c.strip()])
-            receipt = _tc.mint_thread_atom(result, title=title, cites=cite_rows,
-                                           type_=type, arc=(arc or None))
-            result = dict(result)
-            result["artifact"] = receipt
-            result["effects"] = [f"minted {receipt['atom_id']}"]
+            result = _tc.attach_thread_atom(result, title=title, cites=cite_rows,
+                                            type_=type, arc=(arc or None))
         return _json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
     return await _athread(_body, lock=bool(as_doc))

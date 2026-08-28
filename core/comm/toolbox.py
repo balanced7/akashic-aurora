@@ -728,12 +728,9 @@ class ToolBox:
                 return json.dumps({"ok": False, "error": err})
         result = _tc.collect_thread(who, str(thread), per_stream=int(per_stream or 1000))
         if as_doc:
-            receipt = _tc.mint_thread_atom(result, title=str(title or ""),
-                                           cites=list(cites or []), type_=str(type or "chronicle"),
-                                           arc=(str(arc).strip() or None))
-            result = dict(result)
-            result["artifact"] = receipt
-            result["effects"] = [f"minted {receipt['atom_id']}"]
+            result = _tc.attach_thread_atom(
+                result, title=str(title or ""), cites=list(cites or []),
+                type_=str(type or "chronicle"), arc=(str(arc).strip() or None))
         return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
