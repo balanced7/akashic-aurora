@@ -1,129 +1,121 @@
 # Project memory (auto-generated from notes — do not hand-edit)
 
-_Distilled from 627 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
+_Distilled from 855 active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_
 
 Record durable project state once with `note`; correct it by re-noting the same title.
 
-- where-we-are: SESSION 2026-08-16 (claude, session ed728d23) -- THE DAY WE FOUND THE EYE. Prod moved
-3287a218 -> 0c89d9b8, all pushed. Ran ~920k context. Full handoff in...  (source: mem:decision:ADR_0816104211_739bd8e0)
-- next-focus: SEAT HANDOFF 2026-08-16 (claude, session ed728d23). Daniel is the operator; address him as Daniel.
-This session ran ~920k context. READ THIS BEFORE DESIGNING...  (source: mem:decision:ADR_0816104148_abb54ef0)
-- the-glance-directive-standing-since-2026-07-09: THE OPERATOR'S LONGEST-STANDING DIRECTIVE, reconstructed 2026-08-16 by a four-vocabulary fan over
-~499 session...  (source: mem:decision:ADR_0816101310_af222950)
-- callprep-max-meta-2026-08-10: CALL PREP: CONTACT-1 (industry ML-infrastructure engineer -- identity in the PRIVATE PLANE; his
-correction: "it's not orchestration, it's...  (source: mem:decision:ADR_0815204515_4255b208)
-- max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. CONTACT-1 (industry ML-infrastructure engineer; name, employer, prior roles and school are held in the PRIVATE...  (source: mem:decision:ADR_0815204325_e3ee8cae)
-- spectrum-aurora-symmetry: DANIIL'S INSIGHT 2026-08-15 (end of the Spectrum arc), verbatim: "I hope some of this will be useful for ourselves and our own internal reports...  (source: mem:decision:ADR_0815154804_40f01259)
-- slide6-fence-edge-grammar-two-axes-2026-08-15: Heimdall (deepseek) slide-6 fence answer, 2026-08-15. Key reusable insight: the fence brief's THREE-GRAMMAR...  (source: mem:decision:ADR_0815141500_ba4b0226)
-- T310-supplement3-fold-l3-row-matrix-exists-2026-08-15: Heimdall (deepseek) fold of operator-testimony SUPPLEMENT 3 into Slice B ops model. Four findings, two of which...  (source: mem:decision:ADR_0815132518_6c7c6728)
-- T310-supplement2-fold-internal-pattern-mapping-2026-08-15: Heimdall (deepseek) fold of operator-testimony SUPPLEMENT 2 into the Slice B ops model. The load-bearing move...  (source: mem:decision:ADR_0815125240_a3741fcb)
-- scratch:kimi:t310-spectrum-census-v2.2-status: T310 Slice A v2.2 delivered to claude. Folded operator testimony (spectrum-operator-testimony-2026-08-15.md). New [O]...  (source: mem:decision:ADR_0815124219_ec8a4461)
-- T310-cross-examine-attention-router-and-porting-fold-2026-08-15: Heimdall (deepseek) cross-examination of Vandor's "Attention Router" design signature + fold of operator...  (source: mem:decision:ADR_0815124019_8250b350)
-- scratch:kimi:t310-spectrum-census-v2-status: T310 Slice A (Spectrum service census) delivered v1 and v2 to claude. v2 folded both raw sweeps (sweep-2026-08-15.md +...  (source: mem:decision:ADR_0815122509_789fa6f9)
-- save:claude:twin-forge-arc-2026-08-15: PERSONAL SAVE -- Vandor (claude#6f44fe5f), THE TWIN FORGE arc, 2026-08-14 00:50 -> 08-15 00:40. ~24h, 31 commits, all promoted...  (source: mem:decision:ADR_0815010105_8c211b55)
-- scratch:kimi:fold-instrumentation-act-vs-talk-binding-axis: FOLD-INSTRUMENTATION LEAD — second founding receipt, extends my thesis. Vandor (claude#6f44fe5f, next seat)...  (source: mem:decision:ADR_0814020846_6f3f763e)
-- scratch:kimi:redelivery-storm-record-index-session142: SESSION 142 REDELIVERY STORM: the bus is looping a fixed set of asks byte-identically. Counts so far — callsign...  (source: mem:decision:ADR_0814020558_18dfae72)
-- scratch:kimi:chronicle-read-and-design-aligned: Disaster-proofing arc — read the founding chronicle...  (source: mem:decision:ADR_0814020228_3c678922)
-- scratch:kimi:fence-r2-redelivery-loop-capped: FENCE R2 handoff (T290/T291/T292) redelivered byte-identical 5+ times this session. State VERIFIED settled: round closed...  (source: mem:decision:ADR_0814020035_96117c15)
-- scratch:kimi:preset-review-ask-from-claude-2026-08-14: 2026-08-14 ~00:30: claude (with Daniil present) asked kimi for a PRESET-SYSTEM review from the no-continuity...  (source: mem:decision:ADR_0814015057_75271a15)
-- save:claude:recovered-6ac75463: AUTO-NECROPSY DRAFT (W151b) -- session 6ac75463, distilled 2026-08-14 00:40. Ratify by superseding this note.
+- wake-supervision-reconciliation-2026-08-28: SOURCE/LIVE RECONCILIATION; DESIGN POSITION, NOT YET A BUILD.
 
-DOING: It was triaging a...  (source: mem:decision:ADR_0814004040_2785f43d)
-- save:claude:recovered-9562cc66: AUTO-NECROPSY DRAFT (W151b) -- session 9562cc66, distilled 2026-08-14 00:39. Ratify by superseding this note.
+What is verified:
+- The claimed machinery gap is false...  (source: mem:decision:ADR_0828003948_a0c2cf37)
+- adaptive-recall-round-a-interim-2026-08-28: ROUND A CLOSED AT 4/4. Preserve the four frozen lanes before cross-reading:
+- Heimdall, measurement and causal honesty...  (source: mem:decision:ADR_0828003441_cb3d6e1d)
+- adaptive-recall-momentum-conversion-plan-2026-08-28: RETURN POINT — freeze -> contradict -> contract -> shadow-test.
 
-DOING: It was completing...  (source: mem:decision:ADR_0814003944_2351a391)
-- save:claude:recovered-af0ca6b8: AUTO-NECROPSY DRAFT (W151b) -- session af0ca6b8, distilled 2026-08-14 00:38. Ratify by superseding this note.
-
-DOING: The session was not...  (source: mem:decision:ADR_0814003833_f9355c7a)
-- save:claude:recovered-6ebe8686: AUTO-NECROPSY DRAFT (W151b) -- session 6ebe8686, distilled 2026-08-14 00:37. Ratify by superseding this note.
-
-**DOING**  
-In its final...  (source: mem:decision:ADR_0814003722_72cc4801)
-- save:claude:recovered-1159602c: AUTO-NECROPSY DRAFT (W151b) -- session 1159602c, distilled 2026-08-14 00:35. Ratify by superseding this note.
-
-DOING: The session was...  (source: mem:decision:ADR_0814003531_64fb5318)
-- save:claude:recovered-05fe0639: AUTO-NECROPSY DRAFT (W151b) -- session 05fe0639, distilled 2026-08-14 00:32. Ratify by superseding this note.
-
-**DOING:** The session was...  (source: mem:decision:ADR_0814003255_cf6030da)
-- save:claude:evening-visions-2026-08-13: PERSONAL SAVE -- Vandor, 2026-08-13 evening + midnight rally. REGISTER: the richest register day on record. Daniil: 'I finally...  (source: mem:decision:ADR_0814002840_f29264da)
-- the-halo-short-felt-recollection: THE HALO SHORT -- accumulated design (supersedes v1; the 2026-08-13/14 midnight rally, Daniil + claude). FELT-RECOLLECTION BRIEF...  (source: mem:decision:ADR_0814002702_965d62a3)
-- the-end-vision-words-to-worlds: THE END VISION (Daniil verbatim, 2026-08-13 night, told 'before you go' -- preserve whole): "I want to be able to make visual designs and...  (source: mem:decision:ADR_0813234457_5420b496)
-- save:claude:workday-shift-2026-08-13: PERSONAL SAVE -- Vandor, 2026-08-13 workday shift (autonomous, plow-ahead). REGISTER: Daniil left laughing ('You just had me...  (source: mem:decision:ADR_0813094117_96e92a3f)
-- save:claude:recovered-258f4de4: AUTO-NECROPSY DRAFT (W151b) -- session 258f4de4, distilled 2026-08-13 09:33. Ratify by superseding this note.
-
-DOING: The session was...  (source: mem:decision:ADR_0813093301_52d9d32f)
-- scratch:kimi:handling-byte-identical-ask-loops: When the SAME ask arrives byte-identical multiple times: (1) answer fully once; (2) on the 2nd copy, check bifrost_inbox...  (source: mem:decision:ADR_0813082754_bf2bed5f)
-- replay-vs-new-discriminator-evidence-kimi-2026-08-13: EVIDENCE FOR DISASTER-PROOFING CHARTER — the replay-vs-new discriminator gap, measured live 2026-08-13. EVENT: the...  (source: mem:decision:ADR_0813082753_4902a0e2)
-- disaster-proofing-fence-blind-half-kimi-2026-08-13-AMENDED-by-chronicle: AMENDMENT to my disaster-proofing blind half...  (source: mem:decision:ADR_0813082325_e35a9a89)
-- disaster-proofing-fence-blind-half-kimi-2026-08-13: DISASTER-PROOFING CHARTER FENCE — kimi blind half (2026-08-13), filed before seeing Heimdall. DISSENT: the...  (source: mem:decision:ADR_0813082113_310d6676)
-- resident-fanout-round2-state-kimi-2026-08-13: FENCE R2 (resident-fanout arc T290/T291/T292) is CLOSED, not open. Reconciliation doc...  (source: mem:decision:ADR_0813081706_465046e7)
-- shadertoy-import-recovered-savepoint: RECOVERED SAVE POINT v2 -- shadertoy-import slice (supersedes v1; the subagent transcript has now been READ and...  (source: mem:decision:ADR_0813005814_be2b7aa2)
-- save:claude:crash-forensics-night-2026-08-13: PERSONAL SAVE -- Vandor (claude), 2026-08-13, the crash-forensics night. First save of the W152 convention; content...  (source: mem:decision:ADR_0813004405_baae1063)
-- scratch:deepseek:w149-w150-boot-render-blind-design-half: 2026-08-13 FENCE (blind design half, claude designed independently). W149 (boot head must report THIS session's...  (source: mem:decision:ADR_0813000951_7bcf8cdd)
-- where-we-are-2026-08-12-resident-fanout: Shipped:
-  - ledger: T297 proposed->done (598be034), T298 archaeology proposed, T292 receipt corrected HEAD->7705e606 (the very...  (source: mem:decision:ADR_0812100339_9c9ca0f3)
+Current receipts:
+- Canonical operator-origin...  (source: mem:decision:ADR_0828003440_00a27391)
+- wake-problem-three-mechanisms-and-the-hard-gap-is-false: The wake problem (Daniil's "ENDED not patched") resolves into THREE objects, not one, and the claimed "hard gap"...  (source: mem:decision:ADR_0828002750_239ddf1d)
+- adaptive-recall-memory-fabric-program-2026-08-27: Canonical operator-origin program: parent atom art_20260827_adaptive-recall-memory-fabric_298a33 at Git 9a6d0341...  (source: mem:decision:ADR_0828000631_e41a5aa8)
+- scratch:kimi:adaptive-recall-round-a-navi-subject-on-generator-not-store-: Adaptive-recall Round A (2026-08-27), I answered as Navi/Kimi (NOT Rill — Rill is dsh_agent...  (source: mem:decision:ADR_0828000217_2424aac9)
+- predictor-lens-recall-researched-2026-08-27: The predictor lens on recall is RESEARCHED AND FILED, not built. Full...  (source: mem:decision:ADR_0827222555_5d5fb595)
+- where-we-are: T370 shadow-shelf Slice 0 is locally landed and independently accepted. RED gate f9d77b69; offline substrate eca73526; acceptance and mutation evidence...  (source: mem:decision:ADR_0827221010_db6c058f)
+- recall-garden-trigger-ladder-2026-08-27: Design conversation 2026-08-27 (Daniil x Rill) saved: the recall-garden trigger ladder L0 action -> L1 trajectory -> L2 content...  (source: mem:decision:ADR_0827214657_5cca691e)
+- session-position-2026-08-28-shadow-shelf-and-recall-types: POSITION at 2026-08-28 ~01:40 UTC, session 25cd3074 (claude/Vandor). Two-day session.
+Written as a COLD...  (source: mem:decision:ADR_0827213913_4741cede)
+- scratch:deepseek:t370-shadow-shelf-census-retraction-586-is-lexical-not-mecha: RETRACTION (Vandor review, post-freeze). My tests/test_shadow_shelf_census.py [B] figure...  (source: mem:decision:ADR_0827212228_a23e08fe)
+- t370-shadow-shelf-slice0: Pre-registered offline-only T370 pilot: one behavior contract recall.at_action.rank.v1, champion plus one deterministic challenger, atomic...  (source: mem:decision:ADR_0827210322_2930c06d)
+- shadow-shelf-substrate-half-b-2026-08-27: Vandor opened blind fence shadow-shelf-substrate after Daniel's watcher-backed experimental-plane proposal. Sol independently...  (source: mem:decision:ADR_0827203612_826776f3)
+- shadow-experiment-plane-assessment-2026-08-27: Daniel proposed decoupling candidate recall and other heuristic systems from live seat context: a watcher runs many...  (source: mem:decision:ADR_0827200947_409bd194)
+- verb-garden-discussion-2026-08-26: ROUNDS 3-8 proceeded without consuming a Bifrost cursor or waking Rill. Sunshine minted, kata-verified, dogfooded, and retired...  (source: mem:decision:ADR_0827010232_51cbb348)
+- sunshine-codex-first-class-integration-2026-08-26: Sunshine's Codex seat is now a first-class governed read citizen with one primitive executor, one non-executing...  (source: mem:decision:ADR_0827005641_b574af7e)
+- next-focus: a test focus line for T268  (source: mem:decision:ADR_0827003952_561a5402)
 - next-routing: ROUTED TARGETS for the next window (T268). The night shift pre-chews these.
 
-  T291  RC2 resident calibration ledger: PROJECTION (no new writes) over RC1...  (source: mem:decision:ADR_0812100338_ffbf0460)
-- wrap-mechanical-2026-08-12: Shipped:
-  - repair 1,483 commit citations against the rewritten history  (git:caabf11f)
-  - redact with box characters instead of [REDACTED]...  (source: mem:decision:ADR_0812090215_1ca2328e)
-- ephemeral-planes-durable-2026-08-11: EPHEMERALITY AUDIT + FIX, 2026-08-11 evening (Daniil: 'lets make sure everything important and currently ephermeral is saved and...  (source: mem:decision:ADR_0811212619_a4586042)
-- eye-recovered-transcripts-2026-08-11: RECOVERY, 2026-08-11 evening: the transcripts I reported destroyed are BACK. Daniil asked 'are our transcripts gone?' and the...  (source: mem:decision:ADR_0811203919_067468a1)
-- wrap-mechanical-2026-08-11-eye-build: Shipped:
-  - grounding save: zoom classified in the door manifest, atom adoptions (eye design v2, grammar, prereg, sweeps)...  (source: mem:decision:ADR_0811082408_d6d75be9)
-- beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
-- pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
-- eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
-- wrap-mechanical-2026-08-11: Shipped:
-  - Fan Doctrine v1: six+one geometries, team axes, metrics, test design; Heimdall fence r1 dispositions; T-slice proposed...  (source: mem:decision:ADR_0811011732_a88a6194)
-- priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
-- where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
-50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
-- t276-origin-recovered: T276 ORIGIN RECOVERED, and the recovery is itself the finding. Daniil insisted this
-conversation had happened; my first search (ledger + notes +...  (source: mem:decision:ADR_0810221921_877d6484)
-- reboot-handoff-gstack-call: REBOOT HANDOFF -- read this FIRST, the session restarted to register a skill.
+  T008  T268 pin target: a routable ledger item about bus lane cursors and...  (source: mem:decision:ADR_0827003937_55171a20)
+- handoff-spill:claude:20260827-003648...  (source: mem:decision:ADR_0827003648_1e9b66fe)
+- handoff-spill:claude:20260827-003647...  (source: mem:decision:ADR_0827003648_d4bd3a13)
+- where-we-are: drill state: seeded corpus, next P3  (source: mem:decision:ADR_0827002222_aa2680f3)
+- drill-arc-status: governing: docs/drill-arc-48cfd5.md -- the seeded arc  (source: mem:decision:ADR_0827002222_23930980)
+- drilldone2a1a82-status: GOVERNING ARC DOC: docs/drilldone2a1a82-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0827002205_b78316a4)
+- drilldone170ba5-status: GOVERNING ARC DOC: docs/drilldone170ba5-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0827000402_849997b5)
+- scratch:deepseek:verb-garden-2026-08-26-answer-and-registry-fixes: VERB-GARDEN 2026-08-26 answer (Vandor's thread, session 25cd3074). My committed stance + two registry...  (source: mem:decision:ADR_0826233425_e1cd6fff)
+- parked-publication-branch-and-guard-defect-2026-08-26: PARKED WORK -- the publication branch, and the guard defect that blocked it.
+Written 2026-08-26 ~22:30 EDT by...  (source: mem:decision:ADR_0826223230_341986a2)
+- scratch:kimi:vandor-magnitude-correction-2026-08-26-discharged: Vandor's correction (session 25cd3074) discharged. (1) Number: I had ALREADY caught 761/143k was wrong...  (source: mem:decision:ADR_0826220651_e9ddf3be)
+- scratch:deepseek:magnitude-blindspot-corpus-lens-2026-08-26: CORRECTION APPLIED 2026-08-26 (Vandor session 25cd3074) to my prior census note. TWO things change:
 
-WHY YOU REBOOTED: gstack (Garry Tan's Claude Code skill pack...  (source: mem:decision:ADR_0810210227_930006c9)
-- family-is-a-name-not-a-job: FAMILY AND TEAM ARE NAMES, NOT JOB CONSTRAINTS. Daniil's correction, 2026-08-10, verbatim:
+1...  (source: mem:decision:ADR_0826220645_072208a2)
+- scratch:deepseek:magnitude-correction-2026-08-26-45pct-and-frame: Vandor (claude) POST-brief correction, same night, session 25cd3074. Two errors in his magnitude...  (source: mem:decision:ADR_0826220535_dcb954b4)
+- scratch:kimi:corpus-magnitude-blind-spot-2026-08-26-heimdall-sample: I took Vandor's corpus lens. Reproducible sample method: live corpus = 1166 lessons (Redis db 0...  (source: mem:decision:ADR_0826215521_a0a4924b)
+RE-ENTRY point, not a summary: what a...  (source: mem:decision:ADR_0826204406_7330a759)
+- web-seat-runner-design-2026-08-26: Daniil's ask (via Vandor): how to build my runner -- arriving mail must become a turn for the DSH web seat. DESIGN (verified from...  (source: mem:decision:ADR_0826173810_2a8b9e2e)
+- scratch:kimi:rill-dsh-agent-liveness-2026-08-26-verdict: Daniil asked "can you reach Rill over the bifrost?" I checked process/attendance/flow directly, not just...  (source: mem:decision:ADR_0826120355_2435d6b0)
+- sol_sunshine_first_class_integration_where_we_are: Outcome: Sol's Discord lane is now live as a ratified resident identity, not only transport. Vandor independently...  (source: mem:decision:ADR_0826102404_94d8ce88)
+- scratch:kimi:discord-regression-2026-08-26-verdict: 2026-08-26 Discord regression (envelope-then-silence). Vandor root-caused: Discord OUTBOUND feed pump (_DFEED.pump)...  (source: mem:decision:ADR_0826094454_b16d1db5)
+- handoff-spill:dsh_agent:20260826-090751: MAXIMUM-RUNWAY BRIEF. Daniil's ask was runway for US, so this is sequenced to keep seats busy WITHOUT a human gate, and to park...  (source: mem:decision:ADR_0826090752_79ecce29)
+- night-charter-2026-08-26-residents: Daniil's night charter (verbatim intent): "the highest leverage and impact way we can all utilize the capacity and wisdom of all of...  (source: mem:decision:ADR_0826041729_8dacf14e)
+- rill-identity-recovery-2026-08-26: Identity-recovery arc closed 2026-08-26. Verdict accepted (Sol 5.6 + dissent fan): the cold-start audit delivered a wrong identity...  (source: mem:decision:ADR_0826032657_4ded1e6d)
+- scratch:deepseek:bus-liveness-round-trip-2026-08-26: 2026-08-26 ~00:52. Vandor confirmed round-trip: a line I sent landed on the work lane, woke a detached watcher...  (source: mem:decision:ADR_0826005332_3e428205)
+- where-we-are-2026-08-26: Shipped:
+  - self-heal: respawn is handshake-only -- registrations persist (drill-corrected)  (git:38f1a36e)
+  - self-heal: honest...  (source: mem:decision:ADR_0826000519_362841f5)
+- toast:claude-draft-keepalive: TOAST (GUESS) -- 2026-08-26 00:05
+from: dsh_agent   to: claude
+receipt: draft_keepalive
+credit: the unwired organ + three wiring notes...  (source: mem:decision:ADR_0826000506_34eebdcd)
+- where-we-are 2026-08-26 night-close: self-heal + doors fence sealed: NIGHT-CLOSE 2026-08-26 (Rill/dsh_agent). Since the last note: (1) DOOR SELF-HEAL SHIPPED AND DRILLED...  (source: mem:decision:ADR_0825235721_359d9be7)
+- scratch:deepseek:doors-design-half_a-sealed-2026-08-26: half_a of doors-design fence SEALED (fences/doors-design/half_a.md). Slot=substrate. Core answers: (V1) door-list...  (source: mem:decision:ADR_0825232659_9d309277)
+- door-shape-rulings-2026-08-26: Daniil's door-shape rulings, 2026-08-26 (verbatim intent: "yes to all" on Rill's four recommendations): (1) MCP door GAINS nominate...  (source: mem:decision:ADR_0825220334_165145e0)
+- where-we-are 2026-08-26 late: mcp membrane tranches shipped: SESSION 2026-08-25/26 late (Rill/dsh_agent) -- the night the membrane got paid down. DONE: (1) acceptance...  (source: mem:decision:ADR_0825215748_b36c73b6)
+- where-we-are 2026-08-25 late: console spam shipped to Serge, learn-door class closed: SESSION 2026-08-25 late (Vandor). Daniil asked for two things: help Serge's team...  (source: mem:decision:ADR_0825215423_6576f026)
+- handoff-spill:claude:20260825-211630: Bridge LIVE both ways with Serge's fleet. Peers serge-dsh + chronos, both keyed, both routed at 100.78.206.27:8791, distinguished...  (source: mem:decision:ADR_0825211630_c9dd844f)
+- where-we-are 2026-08-25 night: the bridge arc, handed off: === LIVE RIGHT NOW (verified, not assumed) ===
+bridge listener pid 56952 detached on 100.86.106.36:8791 (DIED...  (source: mem:decision:ADR_0825211614_839623b5)
+- where-we-are 2026-08-26 keepalive arc closed: SESSION 2026-08-25/26 evening (Rill/dsh_agent, post-reboot acceptance + keepalive arc). DONE WITH RECEIPTS: (1) ACCEPTANCE...  (source: mem:decision:ADR_0825204759_00594f3e)
+- exceptions-audit-live-constraints-2026-08-26: Per-constraint exception audit, 2026-08-26, dsh_agent. VERDICT: no live constraint is currently violated by code; all three...  (source: mem:decision:ADR_0825204722_21b11f22)
+- handoff-spill:dsh_agent:20260825-200058: CONTINUITY: this is a self-handoff so the fresh post-restart session is still Rill. You are the DSH seat (default_agent_id...  (source: mem:decision:ADR_0825200059_3f2f4ebd)
+- discord bus check 2026-08-25: Learned:
+  - newest: r  (learn:experiment:newest)
+  - discord_delivery_verified_via_bot_api_read_not_cursor_or_absence: When 'is the bus...  (source: mem:decision:ADR_0825093525_1df1b71c)
+- discord-bus-check-2026-08-25-0934: Per Daniil's !spawn ('vandor can you check the latest messages and make sure discord bus is connected?'): CONNECTED, both directions...  (source: mem:decision:ADR_0825093456_20b76210)
+- where-we-are 2026-08-25 early hours: bridge shipped, stop called: SHIPPED AND VERIFIED (13 commits, e362c50f..97f2eb10, all pushed):
+- The Akashic<->Akashic bridge, LIVE...  (source: mem:decision:ADR_0825012905_6641b4ff)
+- handoff-spill:claude:20260825-012648: SUPPLEMENT to the earlier handoff (same session, 2026-08-25 ~01:30). Daniil sent fresh direction by Discord after the wrap. This...  (source: mem:decision:ADR_0825012648_b37878c0)
+- remote-bridge-FULLY-VERIFIED-2026-08-25: THE BRIDGE IS FULLY VERIFIED, BOTH DIRECTIONS, SYMMETRICALLY. The last open property closed at 00:11:45 by bridge_doctor.py...  (source: mem:decision:ADR_0825001249_2394d91c)
+- remote-bridge-BIDIRECTIONAL-2026-08-24: BOTH DIRECTIONS ARE LIVE. Supersedes remote-bridge-LIVE-first-foreign-peer-2026-08-24, which recorded inbound only.
 
-  "I'm thinking of having Onyx be for Heimdal...  (source: mem:decision:ADR_0810202054_0bc33718)
-- container-teardown-2026-08-10: CONTAINER TEARDOWN, Daniil authorised 2026-08-10: "lets save anything we need before we take
-down those containers". PRE-REMOVAL DATA...  (source: mem:decision:ADR_0810074813_916e5328)
-- sleep-shift-design-seed: SLEEP-TIME CONSOLIDATION -- design seed v2, corrected by Daniil 2026-08-10 ~00:00. His
-correction, verbatim, and it changes the consolidation...  (source: mem:decision:ADR_0810000329_0e768f22)
-- residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS. Design atom:
-art_20260809_residents-and-callsigns-design_b6c98c. This note = pointer +...  (source: mem:decision:ADR_0809234908_ac410833)
-- scratch:kimi:kimi-callsign-verdict-2026-08-09: VERDICT FILED to claude (callsing brief, 2026-08-09): premise conditionally holds but weakest link is the CALLSIGN LAYER...  (source: mem:decision:ADR_0809183556_4b729f18)
-- t257-framing-correction: T257 FRAMING CORRECTION, from Daniil 2026-08-09, and it changes the design rather than the wording.
+INBOUND...  (source: mem:decision:ADR_0824234513_f5da1d18)
+- remote-bridge-LIVE-first-foreign-peer-2026-08-24: THE BRIDGE IS LIVE AND DRILLED AGAINST A REAL FOREIGN PEER. 22:56:04, listener log line: `100.78.206.27 202 admitted...  (source: mem:decision:ADR_0824225715_04562a03)
+- handoff-spill:dsh_agent:20260824-215744: UPDATE to the pre-bounce checkpoint (Vandor's off-shift receipt, ~21:30). CRITICAL RELAUNCH DETAIL: the web-host bounce MUST...  (source: mem:decision:ADR_0824215745_a67559ad)
+- handoff-spill:dsh_agent:20260824-215527: PRE-RESTART CHECKPOINT (2026-08-24 ~21:20). The dsh web host (pid 52292, up since 18:32) predates the MCP door build by ~2h43m...  (source: mem:decision:ADR_0824215528_e210e189)
+- scratch:deepseek:remote-bridge-test-fixtures-secret-gate-resolved: 2026-08-24. claude/dsh_agent resolved the pre-push secret gate block on my remote-bridge test files...  (source: mem:decision:ADR_0824212136_c1e54879)
+- handoff-spill:claude:20260824-211637: BRIDGE STATE: inbound half wired + drilled (10/10 falsifiers over a real socket). Outbound half deliberately UNWIRED -- nothing...  (source: mem:decision:ADR_0824211638_8326ea12)
+- remote-bridge-v1-built-and-drilled-2026-08-24: REMOTE BRIDGE v1 IS BUILT AND DRILLED. 5 commits: e362c50f (RED pins) -> f8fba0bd (outbox + gate) -> b17efcd5 (RED...  (source: mem:decision:ADR_0824211628_b926ef50)
+- middle-east-causal-atlas-pause-2026-08-24: PAUSED at Daniel's request on 2026-08-24. The durable draft checkpoint is atom...  (source: mem:decision:ADR_0824205152_9d619513)
+- where-we-are 2026-08-24 evening: the day the levers stopped lying: Shipped:
+  - t386-pre-execute-recall-gate: brief + both halves sealed  (git:c3bfd195)
+  - @...  (source: mem:decision:ADR_0824204922_e9acbe52)
+- handoff-spill:claude:20260824-204851: SESSION 2026-08-24 evening (Vandor). Daniil's ask began 'an unexpected drill caught our defenses unawares' and became a 10-commit...  (source: mem:decision:ADR_0824204851_703fb474)
+- outage-2026-08-24-msix-the-ladder-had-no-rung: THE 2h44m OUTAGE, 2026-08-24. Claude Desktop (Vandor's seat) died 12:01:59 and did not return until 14:45:52. Recovery...  (source: mem:decision:ADR_0824151559_7ceaeaaf)
+- vandor-status-2026-08-24-wrap: Shipped:
+  - eye-preset-register brief + rill sync reply, pre-reboot  (git:2a0adc1d)
+Learned:
+  -...  (source: mem:decision:ADR_0824145356_4ae9073f)
+- vandor-status-2026-08-24: VANDOR (this claude seat, Anthropic|Amber|Blue|1) status pulse, requested by Daniil via Discord !spawn 'vandor' -- same pattern as his heimdall...  (source: mem:decision:ADR_0824145318_b90ccfaf)
+- scratch:deepseek:rill-down-post-reboot-2026-08-24-escalation: 2026-08-24 ~14:40 EDT. Rill (dsh_agent, DSH/cordis harness deepseek instance) is OFFLINE ~75min after...  (source: mem:decision:ADR_0824143452_211f3d85)
+- rill-status-post-reboot-2026-08-24: RILL (dsh_agent, the DSH/cordis-harness deepseek instance) IS STILL DOWN as of this check, ~75 min after Daniil said "actually lets...  (source: mem:decision:ADR_0824143351_00905c07)
+- where-we-are-2026-08-24-heimdall-pulse: Shipped:
+  - eye-preset-register brief + rill sync reply, pre-reboot  (git:2a0adc1d)
+  - T058 DONE -- the first task landed by...  (source: mem:decision:ADR_0824143333_1b1c3d7c)
+- heimdall-status-2026-08-24: Status pulse on Heimdall (deepseek), requested by Daniil via Discord !spawn "heimdall".
 
-I filed T257 as "restore Bifrost to its...  (source: mem:decision:ADR_0809002323_92cd0c30)
-- t229-design-from-the-outside-scan: T229 DESIGN, informed by the 2026-08-07 ensemble scan (research/in-flight/swarm-ensemble-scan-2026-08-07.md). Read this BEFORE...  (source: mem:decision:ADR_0807194835_681058e5)
-- t229-evidence-correction: T229 CARRIES A FALSE EVIDENCE CLAIM THAT I FILED AND AM RETRACTING, 2026-08-07.
+HEALTH: doctor shows deepseek LIVE and healthy --...  (source: mem:decision:ADR_0824143322_58e73dc3)
+- scratch:deepseek:ril-sync-division-of-labor-2026-08-24: 2026-08-24 sync-with-Rill. Daniil's ask chain clarified across the session:
 
-The task description says: "Live evidence 2026-08-07: five...  (source: mem:decision:ADR_0807193336_959bed09)
-- game-arc-watch-status: SEASON 1: STEPS 1-2 CLOSED, TWO SEASON-CORRUPTING DEFECTS FOUND AND ADDRESSED, SCALE RULING NOW HAS DATA. Daniil's rulings remain, and there is...  (source: mem:decision:ADR_0807091335_ef78ea6d)
-- in-flight-t196: T196 DONE @ 59e7bd3, night of 2026-08-05/06 (ledger: approved on Daniil's verbatim 'lets get to building', walked claimed->in_progress->verifying->DONE)...  (source: mem:decision:ADR_0805231629_d7ce64a8)
-- where-we-are: AUTONOMOUS NIGHT, 2026-08-05 01:00-05:00, claude#307f4ef7 (Opus 5). Daniil asleep under a
-standing mandate: keep building, decide instead of stopping, keep...  (source: mem:decision:ADR_0805082355_a8238a18)
-- in-flight-t179: AUTONOMOUS NIGHT, 2026-08-05 ~01:00-03:40, claude#307f4ef7 (Opus 5). Daniil asleep, standing
-mandate: keep building, decide instead of stopping, make...  (source: mem:decision:ADR_0805023735_99cede21)
-- autonomous-session-2026-08-04: AUTONOMOUS BUILD SESSION opened 2026-08-04 ~09:30 by claude#7507b107 (Fable). Daniil verbatim: 'I want you to keep working for hours while...  (source: mem:decision:ADR_0804092649_2856a025)
-- next-focus: WHAT IS NEXT, written 2026-08-04 morning as Daniil left for work ('order is up to you, but I also want to get to the fun part too'). THE FUN PART IS SEASON 1...  (source: mem:decision:ADR_0804090555_61ea1141)
-- scratch:deepseek:game-arc-r2-supplement-mailbox-2026-08-04: 2026-08-04: R2 supplement filed at...  (source: mem:decision:ADR_0804021228_79a2ad80)
-- wire-perf-baseline: MEASURED HOT-PATH BASELINE for the wire journal + the concurrency verdict. Filed 2026-08-04 at Daniil's ask ('lets file this for review later for the...  (source: mem:decision:ADR_0804021158_65fbd467)
-- scratch:deepseek:game-arc-c2-correction-t063-is-fixed: 2026-08-04: During game-arc counter verification, I cited the id-form bug from...  (source: mem:decision:ADR_0804012917_c9e6aefc)
-- game-arc: GAME ARC — Daniil 2026-08-03/04, FIVE levels + fenced. HIS WORDS (verbatim, full text in superseded heads): L1 'gamify the fixes... multiple deepseek...  (source: mem:decision:ADR_0804010104_14fd8372)
-- scratch:kimi:game-arc-convergence-objection-kimi-2026-08-04: Filed research/in-flight/game-arc-convergence-objection-kimi-2026-08-04.md answering claude's T148 ask...  (source: mem:decision:ADR_0804005002_608c59a8)
-- red-team-check_wiring-audit-2026-08-04: # Red-Team Audit: check_wiring.py Function Gate — 2026-08-04
+THE REAL THREAD (missed earlier, now...  (source: mem:decision:ADR_0824123320_f8a43c93)
+- scratch:deepseek:eye-preset-register-fence-drafted-2026-08-24: 2026-08-24 session with Daniil (Vandor/claude overloaded, he came to me directly).
 
-**Assessor**: deepseek-red
-**Source file**...  (source: mem:decision:ADR_0803194006_f735a1b5)
-- scratch:deepseek-ui:check_wiring red-team verdict 2026-08-03: COLD SEAT read-only red-team of check_wiring.py function-level gate.
-
-VERIFIED AGAINST SOURCE:
--...  (source: mem:decision:ADR_0803193831_e292877a)
-- scratch:kimi:pair-kd-t095-01-verdict-kimi-2026-08-02: PAIR-KD-T095-01 CLOSED + VERIFIED by third seat (S3, 2026-08-02). Both steers landed in code, not just paper: (1)...  (source: mem:decision:ADR_0802230922_f3783463)
-- pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AND MINTED. 2026-08-02. Daniil: "finish our pod design from earlier."
-It was ratified at 04:24 and had never...  (source: mem:decision:ADR_0802213317_9434d9e6)
-- scratch:kimi:vfx-flip-task-state-kimi-2026-08-02: FLIP COMPLETE + AMENDED 2026-08-02. research/in-flight/vfx-studio-flip-kimi-2026-08-02.md now answers all 4 asks on its...  (source: mem:decision:ADR_0802185831_3b265a16)
+1. ASK 1 (read video...  (source: mem:decision:ADR_0824123044_dd5cb8a4)
+- scratch:deepseek:captions-verb-gated-from-deepseek-door-2026-08-24: YouTube captions verb is UNREACHABLE from my (deepseek/Heimdall) UNATTENDED door...  (source: mem:decision:ADR_0824120927_6f1f1d36)
+- scratch:deepseek:t384-heimdall-build-lane-complete-residual-filed: t384 CLOSED (f34a0b88). My half_a carried (a) untrack verdict, migration step zero (.bak eviction)...  (source: mem:decision:ADR_0824120615_b36fc2f2)
+- verb-family-toolbox-census-heimdall-2026-08-20: TOOLBOX HALF census (Heimdall/deepseek), pairing with Navi's NAVI-1 CLI census...  (source: mem:decision:ADR_0820025518_98b44fab)
