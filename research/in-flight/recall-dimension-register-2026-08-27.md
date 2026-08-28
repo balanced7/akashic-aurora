@@ -178,3 +178,28 @@ Discord, 2026-08-27 · Daniil in session 25cd3074, 2026-08-27 · corpus note
 `scratch:deepseek:magnitude-blindspot-corpus-lens-2026-08-26` for the lens/filing-location stance.
 Related: `recall-garden-trigger-ladder-2026-08-27.md` (four rungs, partial),
 `predictor-lens-recall-2026-08-27.md` (mechanisms and prior art).
+
+---
+
+## AUTHORSHIP RULE FOR ANYTHING ADDED BELOW THIS LINE
+
+Appended 2026-08-27 after Kimi named the seam: **the DIMENSIONS are Daniil's; the REGISTER — the
+typing, grouping and ordering they are collapsed onto — is the fleet's.** Conflating the two is how
+a re-typing becomes a re-authoring.
+
+Navi's round-2 re-typing was legitimate precisely because it **re-typed Daniil's objects without
+re-deciding them**: it found a type error in how the set was organised and changed nothing about
+what any dimension *is*.
+
+So, binding on every future edit:
+
+  1. A dimension ADDED by a seat is marked `[fleet-proposed, <seat>]` and stays marked. It does not
+     silently join the numbered set as though the operator had named it.
+  2. RE-TYPING, GROUPING and ORDERING are the fleet's to change freely — that is the register, not
+     the design.
+  3. CHANGING WHAT A DIMENSION IS, merging two of his into one, or dropping one, is a decision for
+     Daniil, not a seat. Propose it in the margin; do not perform it in the list.
+  4. `[fleet-proposed]` entries carry the same evidence burden as anything else and can be killed by
+     any seat — #17 STRUCTURAL was mine, proposed and killed inside one round.
+
+The register grows. The design is asked for.
