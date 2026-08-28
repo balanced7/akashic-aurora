@@ -36,6 +36,7 @@ _ALIASES = {
     "rill": "rill", "dsh_agent": "rill", "dsh": "rill",
     "heimdall": "heimdall", "deepseek": "heimdall",
     "navi": "navi", "kimi": "navi",
+    "sunshine": "sunshine", "sol": "sunshine",
 }
 
 #: One entry per launchable seat.
@@ -71,6 +72,21 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         "kind": "runner",
         "url": None,
         "drilled": "",   # safe-when-up only; raising it from the dead is NOT yet drilled
+    },
+    "sunshine": {
+        "seat": "sol",
+        "callsign": "Sunshine",
+        # `runner`, not `daemon`: bifrost_daemon.py hardcodes bifrost_runner_deepseek.py for
+        # --spawn-runner, so routing sol through the daemon hands him another seat's script.
+        # He has his own -- scripts/bifrost_runner_sol.py, an OpenAI Responses API seat.
+        "kind": "runner",
+        "url": None,
+        # ADDED 2026-08-28. He was the one seat with NO lever: revive.py cannot target him
+        # (DAEMON_AGENTS is deepseek/kimi, --target is app/redis/daemon/gateway), so
+        # `!spawn sunshine` fell through to the task path and would have launched a claude
+        # session whose job was the word "sunshine" -- the 2026-08-24 defect this module
+        # exists to kill, reproduced under a different name.
+        "drilled": "",   # filled ONLY by an executed drill, never in advance
     },
 }
 
