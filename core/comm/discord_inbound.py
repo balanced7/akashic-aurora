@@ -400,6 +400,42 @@ def _seat_channels() -> Dict[str, Any]:
         return {"mode": "forum", "channels": {}}
 
 
+#: The one seat a plain chat message auto-wakes (2026-08-31, Daniil verbatim: "fix
+#: whatever is making Vandor not reachable from discord so I dont need to do !spawn
+#: vandor every time"). deepseek/kimi already run persistent daemon-managed runners
+#: (bifrost_daemon.py:22 -- claude launches in M1-alpha, no --spawn-runner) and are
+#: always there to receive a directed send; claude is not, by deliberate cost design
+#: (Token Frugality Directive) -- its whole existence between `!spawn`s was "nothing is
+#: listening". Restricted to claude alone: widening this to every seat would be a much
+#: bigger, unreviewed cost decision this ask never made.
+_AUTO_WAKE_SEATS = {"claude"}
+
+
+def _auto_wake(agent: str, task: str,
+               spawner: Optional[Callable[..., Any]],
+               is_seat_live: Optional[Callable[[str], bool]]) -> Optional[str]:
+    """Best-effort: if `agent` is auto-waked and nothing is currently LIVE for it, fire
+    the SAME lever `!spawn` uses, with the message itself as the task. Never raises —
+    the bus.send this follows already succeeded, so a wake failure must not turn an
+    already-landed, already-receipted message into a reported failure (T149: no lie in
+    either direction). `is_seat_live is None` means the caller wired nothing real (every
+    existing embedder/test) -- old behaviour, no auto-spawn."""
+    if agent not in _AUTO_WAKE_SEATS or spawner is None or is_seat_live is None:
+        return None
+    try:
+        if is_seat_live(agent):
+            return None
+        try:
+            pid = spawner(task, mode="default")
+        except TypeError:
+            # an older/fake spawner that does not take the mode kwarg (the same
+            # fallback !spawn's own call site uses, one function up)
+            pid = spawner(task)
+    except Exception:                                                     # noqa: BLE001
+        return None
+    return str(pid) if pid is not None else None
+
+
 def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
                    bus: Any, react: Callable[[str], Any],
@@ -407,7 +443,8 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    spawner: Optional[Callable[[str], Any]] = None,
                    message_id: Optional[str] = None,
                    reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
-                   attachments: Optional[list] = None) -> Dict[str, Any]:
+                   attachments: Optional[list] = None,
+                   is_seat_live: Optional[Callable[[str], bool]] = None) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -587,7 +624,12 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                 f"the bus accepted nothing for the {lane_agent} lane (send "
                 f"returned None); no receipt for an undelivered word")
         react("📨")
-        return {"acted": True, "id": str(mid), "to": [lane_agent]}
+        out = {"acted": True, "id": str(mid), "to": [lane_agent]}
+        spawned = _auto_wake(lane_agent, body, spawner, is_seat_live)
+        if spawned:
+            react("🌱")
+            out["spawned"] = spawned
+        return out
     ask = _rooms_reverse().get(str(channel_id))
     if ask:
         meta["ask_id"] = ask
@@ -618,7 +660,13 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                        f"deliver — duplicates beat losses on retype)" if sent_ids else ""))
             sent_ids.append(str(mid))
         react("📨")
-        return {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
+        out = {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
+        for agent in targets:
+            spawned = _auto_wake(agent, body, spawner, is_seat_live)
+            if spawned:
+                react("🌱")
+                out["spawned"] = spawned
+        return out
 
     mid = bus.broadcast("chat", body, meta=meta, **({"parts": parts} if parts else {}))
     if mid is None:

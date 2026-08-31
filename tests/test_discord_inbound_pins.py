@@ -367,6 +367,116 @@ def test_p13_spawn_from_a_costume_is_weather(cfg, monkeypatch):
         "id must not even reach the spawner")
 
 
+# ---- P16: an ordinary message to a COLD Vandor auto-wakes him -----------------
+def test_p16_a_seat_channel_message_auto_wakes_a_cold_claude(cfg, tmp_path, monkeypatch):
+    """Daniil 2026-08-31, verbatim: 'fix whatever is making Vandor not reachable
+    from discord so I dont need to do !spawn vandor every time'. Typing in #vandor
+    while nothing is live must fire the SAME lever !spawn does — not just land the
+    message on a lane nobody is draining."""
+    import json as _json
+    seats = tmp_path / "seats.json"
+    seats.write_text(_json.dumps({"mode": "text",
+                                  "channels": {"sc-777": "claude"}}), encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
+    bus, reacts, born = _Bus(), [], []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="sc-777", content="how did the fence round land?",
+        bus=bus, react=lambda e: reacts.append(e),
+        spawner=lambda task, mode="default": born.append((task, mode)) or 91011,
+        is_seat_live=lambda agent: False)
+    assert bus.directed and bus.directed[0]["to"] == "claude", (
+        "the durable send still lands — auto-wake is additive, never a substitute")
+    assert born == [("how did the fence round land?", "default")], (
+        "the message itself rides as the fresh seat's task, exactly like !spawn <text>"
+    )
+    assert out.get("spawned") == "91011", (
+        "the pid rides the return so the runner's existing _watch_spawn wiring "
+        "(keyed on out['spawned']) picks it up for free"
+    )
+    assert "🌱" in reacts and "📨" in reacts
+
+
+def test_p17_a_seat_channel_message_does_not_double_spawn_a_live_vandor(cfg, tmp_path,
+                                                                        monkeypatch):
+    """The other half of P16: a session already on the bus must not get a duplicate
+    paid-for sibling because he typed a second sentence."""
+    import json as _json
+    seats = tmp_path / "seats.json"
+    seats.write_text(_json.dumps({"mode": "text",
+                                  "channels": {"sc-777": "claude"}}), encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
+    bus, reacts, born = _Bus(), [], []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="sc-777", content="one more thing —",
+        bus=bus, react=lambda e: reacts.append(e),
+        spawner=lambda task, mode="default": born.append(task) or 1,
+        is_seat_live=lambda agent: True)
+    assert not born and "spawned" not in out and "🌱" not in reacts, (
+        "a LIVE claude seat must never be spawned a second time under it")
+
+
+def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_path,
+                                                                       monkeypatch):
+    """Backward compatibility: every embedder/test that predates this feature (P11
+    above included) calls handle_message without is_seat_live and must see EXACTLY
+    the old behaviour — a probe-less caller must never accidentally start spawning
+    processes it never asked to start."""
+    import json as _json
+    seats = tmp_path / "seats.json"
+    seats.write_text(_json.dumps({"mode": "text",
+                                  "channels": {"sc-777": "claude"}}), encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
+    bus, born = _Bus(), []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="sc-777", content="ping",
+        bus=bus, react=lambda e: None,
+        spawner=lambda task, mode="default": born.append(task) or 1)
+    assert not born and "spawned" not in out
+
+
+def test_p19_an_auto_wake_failure_never_costs_the_already_landed_receipt(cfg, tmp_path,
+                                                                         monkeypatch):
+    """T149: a spawn that dies must not retroactively turn an already-durable bus.send
+    into a reported failure — the message really did land; only the wake-up attempt
+    failed, and that must stay silent to the sender rather than raise past a success."""
+    import json as _json
+    seats = tmp_path / "seats.json"
+    seats.write_text(_json.dumps({"mode": "text",
+                                  "channels": {"sc-777": "claude"}}), encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
+
+    def _dying_spawner(task, mode="default"):
+        raise RuntimeError("spawn credential expired")
+
+    bus, reacts = _Bus(), []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="sc-777", content="hello?",
+        bus=bus, react=lambda e: reacts.append(e),
+        spawner=_dying_spawner, is_seat_live=lambda agent: False)
+    assert out["acted"] is True and bus.directed, "the send already succeeded"
+    assert "spawned" not in out and reacts == ["📨"], (
+        "a failed wake degrades to the ordinary delivered receipt, never a raise")
+
+
+def test_p20_an_at_mention_of_vandor_also_auto_wakes_when_cold(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus, reacts, born = _Bus(), [], []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@Vandor status?",
+        role_mentions=["Vandor"],
+        bus=bus, react=lambda e: reacts.append(e),
+        spawner=lambda task, mode="default": born.append(task) or 5551,
+        is_seat_live=lambda agent: False)
+    assert bus.directed and bus.directed[0]["to"] == "claude"
+    assert born == ["@Vandor status?"]
+    assert out.get("spawned") == "5551" and "🌱" in reacts
+
+
 # ---- P17-P19 / R1 applied to ATTRIBUTION: the id is the law ------------------
 def _cfg_with(tmp_path, monkeypatch, root_id, people):
     import json as _json

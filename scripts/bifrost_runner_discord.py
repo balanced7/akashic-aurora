@@ -122,6 +122,20 @@ def _credential_horizon() -> Optional[float]:
     return credential_horizon_days(creds, int(time.time() * 1000))
 
 
+def _is_seat_live(agent: str) -> bool:
+    """Real backing for handle_message's auto-wake (2026-08-31): is there a currently-LIVE
+    worklive entry for `agent` right now? Any probe failure (Redis hiccup, import error)
+    reads as LIVE -- never spam a fresh `claude -p` spawn because a read glitched; the
+    cost of a missed wake is one more Discord message he has to notice, the cost of a
+    false 'not live' repeated on every hiccup is a duplicate paid seat per message."""
+    try:
+        from core.comm import roster as _roster, liveness as _liveness
+        rows = _roster.roster(_liveness._ns())
+        return any(r.get("agent") == agent and r.get("state") == "LIVE" for r in rows)
+    except Exception:                                                     # noqa: BLE001
+        return True
+
+
 # pid -> (Popen, log path), handed from the spawner to the watcher. Bounded by how
 # many times he can type !spawn; entries are popped by the watcher that claims them.
 _pending_spawns: dict = {}
@@ -754,7 +768,8 @@ def main() -> int:
                 message_id=str(message.id),
                 reviver=lambda target, observe_only: _revive(
                     target, observe_only, message),
-                attachments=att_paths or None)
+                attachments=att_paths or None,
+                is_seat_live=_is_seat_live)
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
