@@ -80,7 +80,13 @@ def _decode_row(subject: str, stream: str, sid: Any, fields: Mapping[str, Any]):
         meta = {}
     frm = str(fields.get("frm") or "")
     if stream == "bc" and frm == subject:
-        return None
+        # FOUND 2026-08-31: this returned a bare None instead of the (None, why) pair
+        # every other early-return here uses, so `row, why = _decode_row(...)` blew up
+        # with "cannot unpack non-iterable NoneType object" the moment the subject had
+        # a broadcast of its own sitting in the peeked window -- sweep/awareness then
+        # reported the whole bus UNAVAILABLE. Independently reproduced; matches
+        # deepseek's 2026-08-29 bus_redelivery_loop_masquerades_as_reasks report.
+        return None, "own_broadcast"
     if fields.get("sha") and "sha" not in meta:
         meta["sha"] = str(fields.get("sha"))
     return {

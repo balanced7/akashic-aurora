@@ -74,6 +74,33 @@ def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
 
 
 # ---------------------------------------------------------------------------
+# Pin 3b -- FOUND 2026-08-31: the lever raised sol onto the bus (pin 3 above) but never
+# checked what came up. It came up TOOLLESS -- bifrost_runner_sol.py defaults to a
+# toolless one-shot bridge without --agentic, and exec is a further separate flag. This is
+# the hand_spawned_runner_narrows_the_door_below_the_acl class: sol's ACL grant carries
+# `exec` (security/acl.json, 2026-08-27) but the launch line never carried it, so every
+# Sunshine raised through this lever landed capability-gimped regardless of the ACL.
+# `write` is deliberately absent from that grant, so it must stay absent from the launch
+# line too -- this pin fails if a future edit adds it without a fresh authorization.
+# ---------------------------------------------------------------------------
+
+def test_p3b_launches_agentic_with_exec_but_not_write():
+    rec = SL.resolve_seat("sunshine")
+    argv, _, _ = SL.launch_argv(rec, root=ROOT)
+
+    assert "--agentic" in argv, (
+        f"without --agentic sol boots the toolless one-shot bridge -- read/search/git/kb "
+        f"tools never exist for this seat regardless of its ACL grant: {argv}")
+    assert "--allow-exec" in argv, (
+        f"sol's ACL grant (security/acl.json) carries 'exec' since 2026-08-27, but a "
+        f"capability that never reaches the launch line is not a capability: {argv}")
+    assert "--allow-write" not in argv, (
+        f"sol's ACL grant does NOT carry 'write' -- adding --allow-write here would be inert "
+        f"(core/comm/toolbox.py._prewrite still refuses on the ACL check) but claims a "
+        f"posture nobody authorized: {argv}")
+
+
+# ---------------------------------------------------------------------------
 # Pin 4 -- identity is STATED, never inherited. The module's own law.
 # ---------------------------------------------------------------------------
 
