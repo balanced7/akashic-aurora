@@ -201,3 +201,33 @@ def test_pure_probe_confesses_packets_it_cannot_render(monkeypatch):
     assert got[0]["pending_capped"] is True
     assert got[0]["unrendered_entries"] == 1
     assert "fragments=1" in got[0]["content"]
+
+
+def test_own_broadcast_is_skipped_without_crashing_the_whole_peek():
+    """FOUND 2026-08-31: _decode_row's own-broadcast branch returned a bare `None`
+    instead of the `(None, why)` pair every other early-return uses, so
+    `row, why = _decode_row(...)` raised TypeError the moment the subject's own
+    broadcast sat in the peeked window -- observe_bus then reported the whole bus
+    UNAVAILABLE (reproduced live; matches deepseek's 2026-08-29
+    bus_redelivery_loop_masquerades_as_reasks report). Real _decode_row, not
+    monkeypatched -- this exercises the actual bug, not a stand-in for it."""
+    class SelfBroadcastStore:
+        def hgetall(self, _key):
+            return {}
+
+        def xrange(self, key, **_kwargs):
+            if key.endswith(":broadcast"):
+                return [("1-0", {"frm": SUBJECT, "to": "*", "kind": "trace",
+                                 "content": '"hi"', "ts": "1"})]
+            return []
+
+        def xrevrange(self, _key, **_kwargs):
+            return []
+
+    got = awareness.peek_unread(
+        SUBJECT, limit=10, client=SelfBroadcastStore(), namespace="fixture"
+    )  # must not raise
+
+    assert got == [], "the subject's own broadcast must be silently excluded, not crash the peek"
+
+

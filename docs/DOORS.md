@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (95 verbs)
+## CLI door -- `py agent_cli.py <verb>` (97 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -33,6 +33,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `captions` | YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) | `<url>*` `--out` `--langs` `--keep-vtt` `--punctuate {hybrid,gaps,model,line,none}` |
 | `capture` | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) | `<ref>` `--from-agent` `--count` `--persist` `--title` `--thread` `--agent` `--per-stream` `--as-doc` `--cite/--cites` `--type` `--arc` `--json` |
 | `clobber-scan` | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt | `<path>*` `--json` |
+| `college` | source packet -> immutable authored lecture -> independent claim audit -> teach-back -> append-only errata (records the chain; does not browse or call a model) | `<college_action>* {start,source,lecture,audit,teachback,teach-back,erratum,show,status}` |
 | `compare` | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled | `<a>` `<b>` `--list` `--limit` `--json` |
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
@@ -90,6 +91,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` |
+| `shadow` | zero-effect intent shadow: preview one typed ToolBox action before reality changes | `<target>*` `--agent` `--args-json` `--json` |
 | `sift` | the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary | `<terms>*` `--hats` `--planes` `--junction` `--dry-run` `--workers` `--max-occurrences` `--out` `--json` |
 | `stand-down` | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) | `<agent>*` |
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |

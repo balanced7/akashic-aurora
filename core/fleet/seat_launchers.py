@@ -94,6 +94,17 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         # 75s window. This field was written AFTER the run, not before -- the ordering the
         # rill entry above records getting wrong.
         "drilled": "2026-08-28: raised from COLD by this lever, sol#7244-sol on the bus",
+        # FOUND 2026-08-31: the 08-28 drill proved the lever raises sol onto the bus, but never
+        # checked WHAT came up. It came up TOOLLESS -- bifrost_runner_sol.py defaults to its
+        # "one-shot bridge" replier (module line ~342) unless launched with --agentic, and even
+        # --agentic alone gives read-only tools; --allow-exec is separate. This lever passed
+        # neither, so every sol raised through it landed exactly in the
+        # hand_spawned_runner_narrows_the_door_below_the_acl hole: security/acl.json grants sol
+        # `exec` (2026-08-27, Daniil verbatim 'give the stable sol seat governed exec to play
+        # with Aurora verbs'), but the DOOR his process launched behind carried none of it.
+        # `write` is deliberately NOT in that grant, so it is deliberately not added here either
+        # -- widening it needs its own authorization, not a side effect of this fix.
+        "launch_flags": ["--agentic", "--allow-exec"],
     },
 }
 
@@ -149,7 +160,12 @@ def launch_argv(rec: Dict[str, Any], *, root: str,
         script = os.path.join(root, "scripts", f"bifrost_runner_{seat}.py")
         if not os.path.isfile(script):
             raise RuntimeError(f"no runner script for {seat!r} at {script}")
-        return [sys.executable, script, "--agent", seat], env, root
+        # hand_spawned_runner_narrows_the_door_below_the_acl: a capability in acl.json that
+        # never reaches the launch line is not a capability -- the seat cannot tell the
+        # difference between "policy" and "the lever forgot a flag". launch_flags is how a
+        # registry entry states the posture its process must launch behind, opt-in per seat.
+        return ([sys.executable, script, "--agent", seat] + list(rec.get("launch_flags") or []),
+                env, root)
 
     raise RuntimeError(f"unknown launcher kind {kind!r} for seat {seat!r}")
 
