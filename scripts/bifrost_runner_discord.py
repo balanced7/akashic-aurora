@@ -378,10 +378,28 @@ def main() -> int:
         logs = _ROOT / "state" / "spawn-logs"
         logs.mkdir(parents=True, exist_ok=True)
         log = logs / f"spawn-{int(_t.time())}.log"
+        # 2026-08-31 (reachability regression): `wrap` distills the SESSION for the next
+        # seat -- it was never a Discord-facing act, and it sends nothing to him. A spawn
+        # that only "did the task, then wrapped" was proven silent for 9 straight days on
+        # bifrost:inbox:daniil (zero replies, spanning dozens of auto-wakes and explicit
+        # !spawns, some phrased as direct questions) while every wake/spawn mechanism
+        # measured healthy -- the gap was never routing, it was that no one ever told the
+        # spawned seat a bus reply is how words reach his phone. Naming him in the message
+        # only ever "worked" because a direct personal question nudges a model to answer
+        # conversationally on its own initiative; a task-shaped ask ("can you relaunch
+        # sunshine?") got done and wrapped in total silence. The instruction below is the
+        # fix: explicit, not hoped-for.
         prompt = (f"You were spawned by the operator's !spawn from Discord. First run: "
                   f"py agent_cli.py boot claude --task \"{task[:200]}\" -- then do the "
-                  f"task, land every result durably (commits by name, notes, handoff), "
-                  f"and end with a wrap. Task, in his words: {task}")
+                  f"task. IMPORTANT: a `wrap` alone never reaches him -- it distills THIS "
+                  f"session for the next one and sends nothing to Discord. Before you "
+                  f"wrap, reply to him directly on the bus so your words actually land in "
+                  f"his channel: `py agent_cli.py bifrost-send claude \"<your reply>\" "
+                  f"--to daniil --kind chat` (use --text-file for anything long or "
+                  f"flag-bearing). Do this even if the ask read as a task rather than a "
+                  f"question -- a silent completion is indistinguishable from no reply at "
+                  f"all on his end. Then land every result durably (commits by name, "
+                  f"notes, handoff), and end with a wrap. Task, in his words: {task}")
         # A vaulted long-lived token, when present, is what the child authenticates with --
         # that is the whole cure: the seat we build stops inheriting the expiry date of the
         # session that built it. Absent one, the child falls back to the CLI's own login.
@@ -786,6 +804,15 @@ def main() -> int:
             except Exception:                                           # noqa: BLE001
                 print("[discord-in] heard (bus accepted) but the receipt reaction failed "
                       "-- delivery stands, the checkmark does not", flush=True)
+        # !help rides back to the channel directly -- its whole job is to answer the
+        # operator at the keyboard, no bus round-trip, no seat in the middle. Relay
+        # best-effort (Discord 2000-char limit: the table is short, but clip guard anyway).
+        if out.get("help"):
+            try:
+                await message.reply(out["help"][:1900], mention_author=False)
+            except Exception as e:                                      # noqa: BLE001
+                print(f"[discord-in] help UNDELIVERABLE ({type(e).__name__}: {e}) -- "
+                      f"it stands in this log only", flush=True)
         beat(wl, RESTING_PHASE, "idle")
         if out.get("spawned"):
             try:
