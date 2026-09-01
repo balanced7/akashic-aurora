@@ -32,7 +32,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "scripts" / "ops"))
 
+import failsafe_watcher as W  # noqa: E402
 from core.comm import failsafe as F  # noqa: E402
 
 NOW = 1_787_240_000.0
@@ -90,6 +92,34 @@ def test_cooldown_stops_a_repeating_alarm_from_becoming_wallpaper():
     assert F.verdict(stale, now=NOW) is None, "re-alarmed inside its own cooldown"
     aged = {**stale, "last_alarm_at": NOW - 3600}
     assert F.verdict(aged, now=NOW) is not None, "cooldown expired but stayed silent"
+
+
+# ------------------------------------------------------------------ the wire half
+def test_the_post_wears_a_name_cloudflare_will_admit(monkeypatch):
+    """2026-09-01: the scheduled task sat at 0x1 for days -- an alarm was due and every POST
+    bounced. Discord webhooks sit behind Cloudflare, which 403s (error code 1010) the default
+    Python-urllib browser signature outright. A/B receipt on the live URL: no User-Agent -> 403,
+    named User-Agent -> 200. The deadman's one job is to speak; it must not dress as a banned bot."""
+    seen = {}
+
+    class _Resp:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        seen["ua"] = req.get_header("User-agent") or ""
+        return _Resp()
+
+    monkeypatch.setattr(W, "_webhook", lambda: "https://discord.com/api/webhooks/1/x")
+    monkeypatch.setattr(W.urllib.request, "urlopen", fake_urlopen)
+    assert W._post("drill line") is True
+    assert seen["ua"], "no User-Agent set -- urllib's default signature is Cloudflare-banned"
+    assert "python-urllib" not in seen["ua"].lower(), seen["ua"]
 
 
 def test_declaring_and_standing_down_round_trips(tmp_path):
