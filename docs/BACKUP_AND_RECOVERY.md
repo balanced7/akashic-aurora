@@ -33,6 +33,17 @@ git status                                   # see what changed
 git checkout HEAD -- core/foundation/store.py   # restore one file
 git checkout HEAD -- .                        # restore everything (DANGER: drops all uncommitted work)
 ```
+
+**Never mutate the shared tree to inspect an old version.** `git stash push`,
+`git checkout <sha> -- .`, `git reset --hard`, and `git clean` operate on the whole
+TREE, and per-file advisory locks cannot see them -- lock discipline gives zero
+protection. To test against an older version, read the old blob to a temp path
+(`git show <sha>:<path> > "$TMP/old.py"`) and test that copy, or spin a
+`git worktree`. Same answer, zero blast radius. (Filed 2026-08-20 after a
+90-second tree-wide stash reverted two live peers' uncommitted work; only luck
+prevented an editing-against-a-reverted-file collision. Lesson:
+`never_use_tree_wide_git_in_a_shared_tree`.)
+
 Every file from before the refactor is also recoverable from history (`git log`,
 `git show <oldcommit>:<path>`).
 
