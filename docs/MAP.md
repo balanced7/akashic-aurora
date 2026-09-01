@@ -224,7 +224,7 @@ Class: reference
 | `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_forge_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |
 | `staleness.py` | The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false. | tests/test_t116_retroactive_staleness.py | docs/library/brief/20260719_w04-staleness-stamps-design-brief-for-ki_4aad76.md |  |
-| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260902_discord-verb-surface-taxonomy-navi_000000.md | `AKASHIC_AGENT_ID` |
+| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260901_discord-verb-surface-taxonomy-navi-00000_1b1008.md | `AKASHIC_AGENT_ID` |
 
 ## core/primitives/  (8 modules)
 
