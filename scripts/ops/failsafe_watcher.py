@@ -11,6 +11,10 @@ would reproduce control_channel.py's original wound.
 
 Run:  pyw E:\\AI-Setup\\scripts\\ops\\failsafe_watcher.py
       py  scripts/ops/failsafe_watcher.py --dry     (decide + print, never post)
+
+Exit codes (what the scheduler's LastTaskResult means): 0 = silent-and-correct OR alarm
+delivered; 1 = an alarm was DUE and the webhook POST failed -- 0x1 in Task Scheduler is
+always "the deadman tried to speak and could not", never a healthy path.
 """
 from __future__ import annotations
 
@@ -42,8 +46,10 @@ def _post(text: str) -> bool:
         return False
     try:
         body = json.dumps({"content": text[:1900]}).encode("utf-8")
+        # Discord's Cloudflare front 403s (error 1010) the default Python-urllib signature.
         req = urllib.request.Request(url, data=body,
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "application/json",
+                                              "User-Agent": "AkashicFailsafe/1 (deadman watcher)"})
         with urllib.request.urlopen(req, timeout=20) as resp:
             return 200 <= resp.status < 300
     except Exception:                                                   # noqa: BLE001
