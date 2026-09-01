@@ -369,6 +369,18 @@ def main() -> int:
         exe = shutil.which("claude")
         if not exe:
             raise RuntimeError("claude CLI not on PATH -- cannot spawn a fresh seat")
+        # 2026-09-01 STILLBORN ROOT CAUSE (convicted by live repro): `claude` resolves
+        # to an npm .cmd shim, so the child's argv takes a cmd.exe pass -- which treats
+        # prompt METACHARACTERS as shell syntax. The f5073d38 reply-instruction added
+        # the literal string "<your reply>" to the spawn prompt; cmd.exe read `<` as
+        # input-redirect from a file named 'your' and every spawn since died in ~1s
+        # with exit 1 "The system cannot find the file specified." (spawn-1788226894,
+        # -1788245464, et al). The regression rode the reachability fix. Class-kill:
+        # run node.exe + cli.js DIRECTLY -- no shim, no cmd.exe, no metachar plane at
+        # all, for any future prompt. Shim remains the fallback if the pair is absent.
+        from pathlib import Path as _P
+        _native = _P(exe).with_name("node_modules") / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+        _argv0 = [str(_native)] if _native.exists() else [exe]
         # Preflight: a failure knowable at t=0 should not cost 16 seconds of his evening.
         vault_token = _vault(SPAWN_TOKEN_NAME)
         refusal = spawn_credential_refusal(vault_token, _cli_logged_in(exe))
@@ -426,7 +438,7 @@ def main() -> int:
         # including the unknown ones, which degrade to ARMED rather than to read-only.
         permission_flags = _sl.claude_permission_flags(mode)
         with open(log, "w", encoding="utf-8") as fh:
-            p = subprocess.Popen([exe, "-p", prompt, *permission_flags], env=env,
+            p = subprocess.Popen([*_argv0, "-p", prompt, *permission_flags], env=env,
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
                                  creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
