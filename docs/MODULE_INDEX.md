@@ -255,6 +255,9 @@
 - `tally.py` — tally — the blind-counter consensus matrix (W48).
 - `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
 
+## core/web/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `door.py` — web door -- the house fetch/search engine (task W-slice v0, night of 2026-09-01).
+
 ## entry points (repo root)
 - `_scratch_edges_heimdall.py` — (no docstring)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
@@ -330,6 +333,7 @@
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
+- `web_door.py` — web_door -- CLI shim over core.web.door until the agent_cli verb wiring lands.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
 - `world_diff.py` — What differs between two worlds, minus what should differ.

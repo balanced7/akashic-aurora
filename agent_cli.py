@@ -3024,6 +3024,24 @@ def cmd_ask(args):
     return 0
 
 
+def cmd_web(args):
+    """The house web door (W-slice v0, 2026-09-01): fetch with receipts, or search.
+    Engine: core/web/door.py -- raw-next-to-cleaned, range API over silent truncation,
+    etag-revalidating cache, receipts ledger (state/coord/web_fetch_receipts.jsonl),
+    UNTRUSTED fencing on every served byte. Requirements filed by the door's primary
+    consumer: art_20260901_heimdall-web-door-requirements_764ef4."""
+    from core.web import door as _door
+    if args.web_cmd == "fetch":
+        env = _door.fetch(args.url, offset=args.offset, limit=args.limit,
+                          want_raw=args.raw, pdf_full=args.pdf_full,
+                          seat=getattr(args, "agent_id", None))
+    else:
+        env = _door.search(" ".join(args.query), count=args.count,
+                           seat=getattr(args, "agent_id", None))
+    print(json.dumps(env, ensure_ascii=True, indent=1))
+    return 0 if env.get("ok") else 1
+
+
 def cmd_discord(args):
     """discord -- the outbound bridge (T223). Watch the fleet from a phone.
 
@@ -6567,6 +6585,110 @@ def cmd_sweep(args):
     return 0
 
 
+def cmd_orient(args):
+    """Compose awareness and typed focus into one renderer-neutral scene."""
+    subject = str(getattr(args, "agent", "") or
+                  os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
+    if not subject:
+        print("ERROR: orient subject is required: pass --agent <id> or set "
+              "AKASHIC_AGENT_ID")
+        return 2
+    try:
+        from core.coord.orient import build_orientation, render_orientation
+        scene = build_orientation(
+            subject,
+            str(getattr(args, "target", "") or ""),
+            density=str(getattr(args, "density", "compact") or "compact"),
+            depth=str(getattr(args, "depth", "surface") or "surface"),
+            per_stream=int(getattr(args, "per_stream", 1000) or 1000),
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"ERROR: {exc}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(scene, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(render_orientation(scene))
+    return 0
+
+
+def cmd_shadow(args):
+    """Render one deterministic proposed-action ghost without executing it."""
+    subject = str(getattr(args, "agent", "") or
+                  os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
+    if not subject:
+        print("ERROR: intent shadow subject is required: pass --agent <id> or set "
+              "AKASHIC_AGENT_ID")
+        return 2
+    try:
+        arguments = json.loads(str(getattr(args, "args_json", "{}") or "{}"))
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: --args-json must be one JSON object ({exc})")
+        return 2
+    if not isinstance(arguments, dict):
+        print("ERROR: --args-json must decode to one JSON object")
+        return 2
+    try:
+        from core.coord.intent_shadow import build_intent_shadow, render_intent_shadow
+        shadow = build_intent_shadow(subject, str(args.target), arguments)
+    except (ValueError, RuntimeError) as exc:
+        print(f"ERROR: {exc}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(shadow, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(render_intent_shadow(shadow))
+    return 0
+
+
+def cmd_college(args):
+    """Preserve one source -> lecture -> audit -> teach-back -> errata record."""
+    action = str(getattr(args, "college_action", "") or "")
+    actor = str(getattr(args, "actor", "") or
+                os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
+    data = {}
+    if action == "start":
+        data = {
+            "title": args.title, "topic": args.topic,
+            "lecturer": args.lecturer, "auditor": args.auditor,
+        }
+    elif action == "source":
+        data = {
+            "source_id": args.source_id, "title": args.title,
+            "locator": args.locator, "source_kind": args.source_kind,
+            "status": args.status, "receipt": args.receipt,
+            "retrieved_at": args.retrieved_at,
+        }
+    elif action == "lecture":
+        data = {"path": args.lecture_path}
+    elif action == "audit":
+        data = {
+            "claim_id": args.claim_id, "claim": args.claim, "anchor": args.anchor,
+            "species": args.species, "verdict": args.verdict,
+            "receipt": args.receipt, "source_ids": args.source_ids,
+            "coverage_complete": args.coverage_complete,
+            "coverage_receipt": args.coverage_receipt,
+        }
+    elif action == "teachback":
+        data = {"question": args.question, "answer": args.answer}
+    elif action == "erratum":
+        data = {
+            "claim_id": args.claim_id, "correction": args.correction,
+            "reason": args.reason, "source_ids": args.source_ids,
+        }
+    try:
+        from core.library.college import run_college, render_college
+        result = run_college(action, str(args.course), data, actor=actor)
+    except (ValueError, OSError, RuntimeError) as exc:
+        print(f"ERROR: {exc}")
+        return 2
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    else:
+        print(render_college(result))
+    return 0
+
+
 def cmd_ground(args):
     """Build typed verb evidence or a non-authoritative seat continuity profile."""
     subject = str(getattr(args, "agent", "") or
@@ -7063,6 +7185,24 @@ def build_parser():
     wsh.add_argument("--trigger", default="", help="what hurt (one clause)")
     wsh.add_argument("--land", default="", help="suggested landing arc/slice")
     wsh.set_defaults(fn=cmd_wish)
+
+    web_p = sub.add_parser("web", help="the house web door: fetch a URL (cleaned+raw, "
+                                       "etag-cached, receipted, fenced UNTRUSTED) or search")
+    web_sub = web_p.add_subparsers(dest="web_cmd", required=True)
+    wf = web_sub.add_parser("fetch", help="cache-first fetch with revalidation; range API, "
+                                          "never silent truncation; PDFs get a structural pass")
+    wf.add_argument("url")
+    wf.add_argument("--raw", action="store_true", help="also return the raw text plane")
+    wf.add_argument("--pdf-full", dest="pdf_full", action="store_true",
+                    help="full PDF text instead of the cheap structural pass")
+    wf.add_argument("--offset", type=int, default=0)
+    wf.add_argument("--limit", type=int, default=8000)
+    wf.add_argument("--agent", dest="agent_id", default=None, help="seat id for the fetch receipt")
+    ws_p = web_sub.add_parser("search", help="search (Brave when keyed; refuses honestly when walled)")
+    ws_p.add_argument("query", nargs="+")
+    ws_p.add_argument("--count", type=int, default=8)
+    ws_p.add_argument("--agent", dest="agent_id", default=None)
+    web_p.set_defaults(fn=cmd_web)
 
     # T171: ask is NOT a seat -- one synchronous question, no lifecycle, dies in the call.
     ask_p = sub.add_parser("ask", help="ask a helper model ONE question, synchronously "
@@ -8049,8 +8189,136 @@ def build_parser():
     swp.add_argument("--json", action="store_true", help="emit observation.snapshot.v1 JSON")
     swp.set_defaults(fn=cmd_sweep)
 
+    ori = sub.add_parser("orient", help="VR/GPS scene: awareness + typed focus + landmarks + "
+                                          "return tether, read-only and renderer-neutral")
+    ori.add_argument("target", nargs="?", default="",
+                     help="typed destination: verb:<name>, seat:<your-id>, or thread:<ref>")
+    ori.add_argument("--agent", default="",
+                     help="bound subject (default: $AKASHIC_AGENT_ID; no identity fallback)")
+    ori.add_argument("--density", choices=["compact", "standard", "wide"], default="compact",
+                     help="how many landmarks stay nearby; the rest remain contoured")
+    ori.add_argument("--depth", choices=["surface", "evidence"], default="surface",
+                     help="surface leaves a drillable contour; evidence expands the focus")
+    ori.add_argument("--per-stream", type=int, default=1000, dest="per_stream",
+                     help="thread-focus archive cap per stream (1..5000; default 1000)")
+    ori.add_argument("--json", action="store_true", help="emit orient.scene.v1 JSON")
+    ori.set_defaults(fn=cmd_orient)
+
+    shd = sub.add_parser("shadow", help="zero-effect intent shadow: preview one typed "
+                                         "ToolBox action before reality changes")
+    shd.add_argument("target", help="typed action, e.g. toolbox:bifrost_nudge")
+    shd.add_argument("--agent", default="",
+                     help="bound subject (default: $AKASHIC_AGENT_ID; no identity fallback)")
+    shd.add_argument("--args-json", default="{}", dest="args_json",
+                     help="proposed arguments as one JSON object")
+    shd.add_argument("--json", action="store_true", help="emit intent.shadow.v1 JSON")
+    shd.set_defaults(fn=cmd_shadow)
+
+    col = sub.add_parser(
+        "college",
+        help="source packet -> immutable authored lecture -> independent claim audit -> "
+             "teach-back -> append-only errata (records the chain; does not browse or call a model)",
+    )
+    col_sub = col.add_subparsers(dest="college_action", required=True)
+
+    col_start = col_sub.add_parser(
+        "start", help="start one course and designate different lecturer/auditor seats"
+    )
+    col_start.add_argument("course", help="stable lowercase course id")
+    col_start.add_argument("--title", required=True)
+    col_start.add_argument("--topic", required=True)
+    col_start.add_argument("--lecturer", required=True)
+    col_start.add_argument("--auditor", required=True)
+    col_start.add_argument("--actor", default="", help="event author (default: $AKASHIC_AGENT_ID)")
+    col_start.add_argument("--json", action="store_true")
+    col_start.set_defaults(fn=cmd_college)
+
+    col_source = col_sub.add_parser(
+        "source", help="append a source record; a locator stays unverified until an auditor adds a receipt"
+    )
+    col_source.add_argument("course")
+    col_source.add_argument("--id", dest="source_id", required=True, help="stable source id")
+    col_source.add_argument("--title", required=True)
+    col_source.add_argument("--locator", required=True, help="URL, document id, or other resolvable locator")
+    col_source.add_argument("--kind", dest="source_kind",
+                            choices=["primary", "secondary", "measurement", "analysis"],
+                            required=True)
+    col_source.add_argument("--status", choices=["candidate", "retrieved", "verified", "rejected"],
+                            default="candidate")
+    col_source.add_argument("--receipt", default="", help="required when status=verified")
+    col_source.add_argument("--retrieved-at", default="", help="required when status=verified")
+    col_source.add_argument("--actor", default="", help="event author (default: $AKASHIC_AGENT_ID)")
+    col_source.add_argument("--json", action="store_true")
+    col_source.set_defaults(fn=cmd_college)
+
+    col_lecture = col_sub.add_parser(
+        "lecture", help="seal exact UTF-8 authored bytes once; later corrections belong in errata"
+    )
+    col_lecture.add_argument("course")
+    col_lecture.add_argument("--from", dest="lecture_path", required=True, help="authored lecture file")
+    col_lecture.add_argument("--actor", default="", help="must be the designated lecturer")
+    col_lecture.add_argument("--json", action="store_true")
+    col_lecture.set_defaults(fn=cmd_college)
+
+    col_audit = col_sub.add_parser(
+        "audit", help="append one typed claim verdict by the designated auditor; never rewrites the lecture"
+    )
+    col_audit.add_argument("course")
+    col_audit.add_argument("--claim-id", required=True)
+    col_audit.add_argument("--claim", required=True)
+    col_audit.add_argument("--anchor", required=True,
+                           help="exact excerpt from the sealed lecture locating this claim")
+    col_audit.add_argument("--species",
+                           choices=["mechanism", "measurement", "vendor_attribution", "metaphor",
+                                    "design_prescription", "continuity_provenance"], required=True)
+    col_audit.add_argument("--verdict",
+                           choices=["supported", "qualified", "disputed", "unresolved", "metaphor",
+                                    "prescription"], required=True)
+    col_audit.add_argument("--receipt", required=True)
+    col_audit.add_argument("--source", dest="source_ids", action="append", default=[],
+                           help="source id supporting the verdict; repeatable")
+    col_audit.add_argument("--coverage-complete", action="store_true",
+                           help="declare this the closing row of a whole-lecture audit pass")
+    col_audit.add_argument("--coverage-receipt", default="",
+                           help="required with --coverage-complete: how the full pass was checked")
+    col_audit.add_argument("--actor", default="", help="must be the designated auditor")
+    col_audit.add_argument("--json", action="store_true")
+    col_audit.set_defaults(fn=cmd_college)
+
+    col_teach = col_sub.add_parser(
+        "teachback", aliases=["teach-back"],
+        help="append a learner's question and explanation against the sealed lecture"
+    )
+    col_teach.add_argument("course")
+    col_teach.add_argument("--question", required=True)
+    col_teach.add_argument("--answer", required=True)
+    col_teach.add_argument("--actor", default="", help="learner identity (default: $AKASHIC_AGENT_ID)")
+    col_teach.add_argument("--json", action="store_true")
+    col_teach.set_defaults(fn=cmd_college, college_action="teachback")
+
+    col_erratum = col_sub.add_parser(
+        "erratum", help="append a correction targeting an audited claim; authored lecture remains untouched"
+    )
+    col_erratum.add_argument("course")
+    col_erratum.add_argument("--claim-id", required=True)
+    col_erratum.add_argument("--correction", required=True)
+    col_erratum.add_argument("--reason", required=True)
+    col_erratum.add_argument("--source", dest="source_ids", action="append", default=[])
+    col_erratum.add_argument("--actor", default="", help="correction author (default: $AKASHIC_AGENT_ID)")
+    col_erratum.add_argument("--json", action="store_true")
+    col_erratum.set_defaults(fn=cmd_college)
+
+    col_show = col_sub.add_parser(
+        "show", aliases=["status"],
+        help="read the folded course, integrity verdict, explicit gaps, and epistemic blind spots"
+    )
+    col_show.add_argument("course")
+    col_show.add_argument("--actor", default="", help="optional reader identity for provenance")
+    col_show.add_argument("--json", action="store_true")
+    col_show.set_defaults(fn=cmd_college, college_action="show")
+
     grd = sub.add_parser("ground", help="typed evidence for verb:<name>, or bounded recovery "
-                                         "evidence for seat:<id> --continuity")
+                                          "evidence for seat:<id> --continuity")
     grd.add_argument("target", help="typed target: verb:<name> or seat:<id>")
     grd.add_argument("--agent", default="",
                      help="subject whose effective grant is resolved (default: "

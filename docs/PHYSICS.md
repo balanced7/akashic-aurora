@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f5073d38. A bound you discover by collision is not awareness -- this sheet
+> Derived at aa3f58b5. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +29 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +30 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -269,7 +269,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (154 numeric constants)
+## Mechanical bounds (155 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -302,6 +302,7 @@ Class: reference
 | `DEFAULT_BUDGET` | 2,000 | core/comm/mailbox.py |  |
 | `DEFAULT_CAP` | 5,000 | core/comm/mailbox.py |  |
 | `DEFAULT_FRAG_REASSEMBLY_TTL` | 300 | core/comm/packet_spec.py |  |
+| `DEFAULT_LIMIT` | 8,000 | core/web/door.py |  |
 | `DEFAULT_LIMIT` | 40 | scripts/corpus_digests.py |  |
 | `DEFAULT_MAXLEN` | 10,000 | core/comm/bus.py |  |
 | `DEFAULT_MAXLEN` | 100,000 | core/events/event_index.py | match the firehose (event_log.CANONICAL_MAXLEN) |

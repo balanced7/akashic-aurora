@@ -131,7 +131,7 @@ Class: reference
 | `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `AKASHIC_UNATTENDED_S`, `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_locks.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
-| `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | GAP | `BIFROST_NAMESPACE` |
+| `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `BIFROST_NAMESPACE` |
 | `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
 | `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | docs/library/design/remote-bifrost-bridge-serge-onepager.md | `BIFROST_NAMESPACE` |
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
@@ -224,7 +224,7 @@ Class: reference
 | `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_forge_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |
 | `staleness.py` | The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false. | tests/test_t116_retroactive_staleness.py | docs/library/brief/20260719_w04-staleness-stamps-design-brief-for-ki_4aad76.md |  |
-| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/report/20260714_deepseek-t048-design-recall-surface-poli_4e1a94.md | `AKASHIC_AGENT_ID` |
+| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260902_discord-verb-surface-taxonomy-navi_000000.md | `AKASHIC_AGENT_ID` |
 
 ## core/primitives/  (8 modules)
 
@@ -321,7 +321,7 @@ Class: reference
 | `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_t052_delta_door.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
 | `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
-| `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | GAP | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
+| `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
 | `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_recall_agent_scope.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md |  |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |

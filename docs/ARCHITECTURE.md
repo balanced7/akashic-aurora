@@ -161,6 +161,9 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
   `security/acl.json` = the source of truth for who-may-do-what). See [security-schema](../MEMORY-links).
 - **Fleet** — `core/fleet/` (the roster: who exists). **State** — `core/state/`
   (`session_checkpoint.py` = crash-resume checkpoints; `session_recovery.py` = session-history recovery).
+- **Web** — `core/web/` (`door.py` = the house web door: cache-first fetch with etag revalidation,
+  raw-next-to-cleaned text planes, PDF structural pass, range API over silent truncation, a receipts
+  ledger at `state/coord/web_fetch_receipts.jsonl`, and UNTRUSTED fencing on every served byte).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
 - **Season / game mechanics** — `core/season/` (`scoring.py` = Season 1 round scoring as a PURE

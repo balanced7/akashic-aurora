@@ -136,6 +136,9 @@ MANIFEST = {
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
     "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
+    "orient": "shared",  # T084 VR/GPS: one native scene over sweep + typed focus
+    "shadow": "shared",  # T084 intent ghost: proposed effects shown, preview effects stay empty
+    "college": "shared",  # T084: one source/voice/audit/teach-back/errata provider on every door
     "ground": "shared",  # T084 S1: typed evidence ladder, native on all three agent doors
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
     "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
@@ -283,6 +286,11 @@ MANIFEST = {
     "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
+    # ``college`` is the shared capability. These are its ergonomic argparse
+    # subcommands; MCP/ToolBox carry the same operation in college(action=...),
+    # so five duplicate top-level model tools would create surface, not parity.
+    "start": "cli_only", "source": "cli_only", "lecture": "cli_only",
+    "teachback": "cli_only", "erratum": "cli_only",
     # T258 -- the callsign ceremony's three moves, classified by WHO each one belongs to rather
     # than by where it happens to live today.
     # `resident`/`nominate`/`show` are GAP, and the reason is the ceremony's own rule 1: a peer
@@ -344,6 +352,10 @@ MANIFEST = {
                                   # through a shared MCP door -- the session that needs to
                                   # name itself is the one running the command.
     "wish": "cli_only",            # append to WISHLIST.md -- author surface, needs the repo
+    "web": "cli_only",             # the house web door umbrella (W-slice 2026-09-01); cross-door name is web_fetch
+    "fetch": "cli_only",           # subcommand of `web` -- CLI spelling of web_fetch (cleaned+raw, receipts, fenced)
+    "search": "cli_only",          # subcommand of `web` -- Brave when keyed; ToolBox web_search serves seats meanwhile
+    "web_fetch": "mcp_only",       # MCP spelling of the fetch door; ToolBox wiring lands with the Heimdall fence
     "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
