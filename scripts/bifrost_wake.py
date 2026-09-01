@@ -120,23 +120,32 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     meta.to_incarnation naming THIS session wakes it regardless of kind or frm (the
     sender's explicit intent; twin-sync pings ride kind=chat), and naming another
     incarnation never wakes this one. Targets are session-id prefixes (>=8 chars, the
-    twin-sync convention). (2) The kind allowlist (ratchet). (3) Unaddressed same-agent
-    mail stays skipped -- the safe echo default until T072's identity plumbing lets
-    frm_incarnation be trusted for filtering. (4) Broadcast replies are room chatter
-    (deepseek red-team F5)."""
+    twin-sync convention). (2) The operator override, ITSELF carved (see below). (3)
+    The kind allowlist (ratchet). (4) Unaddressed same-agent mail stays skipped -- the
+    safe echo default until T072's identity plumbing lets frm_incarnation be trusted
+    for filtering. (5) Broadcast replies are room chatter (deepseek red-team F5)."""
     meta = getattr(m, "meta", None) or {}
     target = str(meta.get("to_incarnation") or "")
     if target:
         me = str(incarnation or "")
         return len(target) >= 8 and bool(me) and (me == target or me.startswith(target))
+    kind = str(getattr(m, "kind", ""))
     # THE OPERATOR OUTRANKS THE ALLOWLIST (2026-07-15 live incident: Daniel's
     # "I'm back!" broadcast rode frm=user kind=inform -- the ladder's quiet tier --
     # and every idle claude seat slept through the human while the runner answered.
     # A sender DIMENSION, not a kind, so the ratchet's silent-by-default law for
     # new agent kinds stands untouched). Env-dialed; empty disables.
+    #
+    # CARVED 2026-08-31 (Daniil: "a space to talk to everyone without having to worry
+    # about waking everyone at once"): an UNDIRECTED chat broadcast (to="*", kind=chat
+    # -- exactly what an ambient Discord lounge message rides as, discord_inbound.py's
+    # ambient fallback) is the read-only lounge itself, not a summons. Everything else
+    # the operator sends -- a DIRECTED chat (seat channel, @mention, @everyone's
+    # per-seat fan-out all use bus.send, never broadcast) or any non-chat broadcast --
+    # still outranks the allowlist exactly as the 2026-07-15 fix requires.
     if str(getattr(m, "frm", "")) in _operator_ids():
-        return True
-    kind = str(getattr(m, "kind", ""))
+        if not (kind == "chat" and str(getattr(m, "to", "")) == "*"):
+            return True
     if kind not in WAKE_WORTHY_KINDS:
         return False
     if str(getattr(m, "frm", "")) == agent:

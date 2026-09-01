@@ -787,7 +787,13 @@ def main() -> int:
                 reviver=lambda target, observe_only: _revive(
                     target, observe_only, message),
                 attachments=att_paths or None,
-                is_seat_live=_is_seat_live)
+                is_seat_live=_is_seat_live,
+                # discord.py sets this for BOTH @everyone and @here -- it is never a
+                # role, so it never rides message.role_mentions above (2026-08-31,
+                # Daniil: "we can do an @everyone"). Requires the author actually hold
+                # Discord's own "Mention Everyone" permission in the channel; nothing
+                # here re-checks that, R1's operator gate already ran upstream.
+                mentions_everyone=bool(message.mention_everyone))
         except Exception as e:                                          # noqa: BLE001
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
