@@ -436,6 +436,45 @@ def _auto_wake(agent: str, task: str,
     return str(pid) if pid is not None else None
 
 
+def discord_help_text() -> str:
+    """The operator's Discord command reference — ONE source of truth, so the words
+    he sees in the channel can never drift from the levers that actually exist.
+
+    Pure data: no imports, no calls, no shell (it must pass the R3 AST pin in
+    test_p6_the_ear_exposes_no_authority). The text is returned to the caller; the
+    gateway relays it — exactly how !revive's confession rides back.
+
+    Grammar note (kept deliberate): !spawn BARE seat name = launch that seat;
+    !spawn <sentence> = a task for a fresh claude seat. A lever that swallows a
+    sentence because it began with a name would be worse than the lever it replaced
+    (seat_launchers.py module docstring)."""
+    return "\n".join([
+        "**Akashic Aurora — Discord commands**",
+        "",
+        "`!help` — this reference.",
+        "",
+        "`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).",
+        "    e.g. `!spawn vandor` — fresh Vandor seat.",
+        "`!spawn <task>` — spawn a claude seat to DO the task (any sentence).",
+        "    e.g. `!spawn take the handoff, prior seat wedged`",
+        "`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).",
+        "`!spawn <task> --dangerous` — break-glass: skip all permission gates (only when --arm is provably not enough).",
+        "",
+        "`!revive` — run the recovery reconciler (all rungs: redis, daemon, gateway).",
+        "`!revive <target>` — converge ONE rung. Targets: `redis` | `daemon` | `gateway`.",
+        "    e.g. `!revive daemon` — recycle daemon + its deepseek/kimi runners (picks up code changes).",
+        "    e.g. `!revive gateway` — revive the Discord pump (fixes 'Vandor not replying').",
+        "",
+        "`!status-deep` (or `!statusdeep`) — dry run: report health, heal nothing. Read-only; safe anytime.",
+        "",
+        "`@vandor` / `@heimdall` / `@navi` / `@rill` — summon THAT seat (directed, wakes it).",
+        "`@everyone` — summon every known seat at once (same directed wake, one per seat).",
+        "Plain text, no mention — lands as ambient chat everyone can read; nobody is woken for it.",
+        "",
+        "Heads-up: `!revive` is ROOT-only. `!spawn`/`!help`/`!status-deep` work for any operator.",
+    ])
+
+
 def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    channel_id: str, content: str,
                    bus: Any, react: Callable[[str], Any],
@@ -444,7 +483,8 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    message_id: Optional[str] = None,
                    reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
                    attachments: Optional[list] = None,
-                   is_seat_live: Optional[Callable[[str], bool]] = None) -> Dict[str, Any]:
+                   is_seat_live: Optional[Callable[[str], bool]] = None,
+                   mentions_everyone: bool = False) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -527,6 +567,13 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # costume. Branching on the NAME meant renaming the root operator silently changed
     # who rode bare, and a hardcoded name meant a different root wore Daniil's.
     body = text if str(author_id) == str(cfg.get("operator_id") or "")         else f"[{speaker}] {text}"
+
+    # !help — the operator's own command reference (2026-08-31). R1 already gated this
+    # path (only his id reaches here). Like !spawn and !revive, it rides NO bus lane —
+    # it is not a message, it is an answer about the levers. The text is the single
+    # source of truth (discord_help_text above); the gateway relays it to the channel.
+    if text.lower().startswith("!help"):
+        return {"acted": True, "help": discord_help_text(), "id": None}
 
     # !spawn — the operator's fresh-hands word (his ask, on the way to work
     # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
@@ -646,8 +693,20 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         agent = mmap.get(str(r).strip().lower())
         if agent and agent not in targets:
             targets.append(agent)
+    # @everyone (2026-08-31, Daniil: "we can do an @everyone" -- the deliberate
+    # opposite of the ambient lounge below): Discord's real @everyone is a message
+    # FLAG (mention_everyone), never a role, so it never resolves through mmap above
+    # -- the gateway shell hands it in as this bool. Fans to every known agent as the
+    # SAME per-seat directed send the mention loop already does (never a broadcast):
+    # one summons per seat, deduped against any names also @-mentioned by name.
+    if mentions_everyone:
+        for agent in dict.fromkeys(mmap.values()):
+            if agent not in targets:
+                targets.append(agent)
     if targets:
         meta["mentioned"] = True
+        if mentions_everyone:
+            meta["mentioned_everyone"] = True
         sent_ids = []
         for agent in targets:
             mid = bus.send(agent, "chat", body, meta=meta, **({"parts": parts} if parts else {}))

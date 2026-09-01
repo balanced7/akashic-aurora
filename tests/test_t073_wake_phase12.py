@@ -136,3 +136,24 @@ def test_operator_sender_wakes_regardless_of_kind(monkeypatch):
     monkeypatch.setenv("AKASHIC_OPERATOR_IDS", "")
     assert not bw.wake_worthy(m, agent="claude", incarnation="sess0000"), \
         "empty operator set disables the override (drill hatch)"
+
+
+# ------------------------------------------------------ operator carve-out (2026-08-31)
+def test_operator_ambient_chat_broadcast_does_not_wake_everyone():
+    """Daniil: "a space to talk to everyone without having to worry about waking
+    everyone at once". discord_inbound.py's ambient fallback (no seat lane, no
+    @-mention) rides bus.broadcast(kind="chat") -- exactly to="*". That must NOT
+    ride the 2026-07-15 override; a DIRECTED chat (seat channel, @mention, or
+    @everyone's per-seat fan-out -- all bus.send, never broadcast) still must, and
+    every OTHER operator broadcast kind (inform, etc.) is untouched."""
+    import scripts.bifrost_wake as bw
+    from types import SimpleNamespace
+    lounge = SimpleNamespace(kind="chat", frm="daniil", to="*", meta={})
+    assert not bw.wake_worthy(lounge, agent="claude", incarnation="sess0000"), \
+        "ambient lounge chat is read-only -- it must not wake an idle seat"
+    directed = SimpleNamespace(kind="chat", frm="daniil", to="claude", meta={})
+    assert bw.wake_worthy(directed, agent="claude", incarnation="sess0000"), \
+        "a DIRECTED operator chat (seat lane / @mention / @everyone fan-out) still wakes"
+    other_kind = SimpleNamespace(kind="inform", frm="daniil", to="*", meta={})
+    assert bw.wake_worthy(other_kind, agent="claude", incarnation="sess0000"), \
+        "a non-chat operator broadcast (the 2026-07-15 'I'm back!' shape) is untouched"

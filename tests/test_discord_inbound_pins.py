@@ -249,6 +249,39 @@ def test_p10_unknown_roles_are_ambient(cfg, monkeypatch):
         "a broadcast, ambient, exactly as an unmentioned one")
 
 
+# ---- P23: @everyone summons every known seat, still directed one-by-one -------
+# Daniil 2026-08-31, on the heels of the lounge ask: "we can do an @everyone" --
+# deliberately the opposite of the ambient case above. Discord's real @everyone is
+# NEVER a role (message.mention_everyone, a bool the gateway shell hands in), so it
+# can never collide with a role name in the residents registry.
+def test_p23_at_everyone_summons_every_known_seat(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus = _Bus()
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@everyone stand-up in 5",
+        bus=bus, react=lambda e: None, mentions_everyone=True)
+    assert out["acted"] is True
+    assert not bus.sent, "@everyone is a fan-out of directed sends, never a broadcast"
+    assert sorted(d["to"] for d in bus.directed) == sorted(
+        {"claude", "deepseek", "kimi", "codex"}), (
+        "every agent _mention_map() knows gets summoned exactly once")
+    assert all(d["meta"].get("mentioned_everyone") for d in bus.directed)
+
+
+def test_p23b_at_everyone_does_not_double_summon_an_also_named_seat(cfg, monkeypatch):
+    _fake_callsigns(monkeypatch)
+    bus = _Bus()
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="@Vandor @everyone stand-up in 5",
+        bus=bus, react=lambda e: None, role_mentions=["Vandor"],
+        mentions_everyone=True)
+    tos = [d["to"] for d in bus.directed]
+    assert tos.count("claude") == 1, (
+        "naming a seat AND @everyone in one message must not double-summon it")
+
+
 # ---- P7: a dead bus gets no checkmark (Heimdall's load-bearing find) ---------
 def test_p7_a_none_from_the_bus_is_a_failure_not_a_receipt(cfg):
     """bus.broadcast returns None WITHOUT RAISING when Redis is down (bus.py:451)
@@ -365,6 +398,31 @@ def test_p13_spawn_from_a_costume_is_weather(cfg, monkeypatch):
     assert out["acted"] is False and not born, (
         "R1 gates the control words hardest of all — a spawn from anyone but his "
         "id must not even reach the spawner")
+
+
+# ---- P18: !help is the operator's own command reference ----------------------
+def test_p18_help_returns_the_command_reference(cfg):
+    bus, reacts = _Bus(), []
+    out = _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="!help",
+        bus=bus, react=lambda e: reacts.append(e))
+    assert out["acted"] is True and "help" in out, "!help must answer the command reference"
+    txt = out["help"]
+    for marker in ("!spawn", "!revive", "!status-deep", "!help"):
+        assert marker in txt, f"the reference must name {marker} — the text is the truth"
+    assert not bus.sent and not bus.directed, (
+        "!help rides NO bus lane — it is an answer about the levers, not a message")
+
+
+def test_p18b_help_is_operator_only_like_every_control_word(cfg):
+    born, bus = [], _Bus()
+    out = _mod().handle_message(
+        cfg, author_id="999888777666555444", author_name="Daniil",  # costume name!
+        channel_id="c1", content="!help",
+        bus=bus, react=lambda e: None, spawner=lambda task: born.append(task))
+    assert out["acted"] is False and "help" not in out and not born, (
+        "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)")
 
 
 # ---- P16: an ordinary message to a COLD Vandor auto-wakes him -----------------
