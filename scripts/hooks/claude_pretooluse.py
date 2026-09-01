@@ -106,6 +106,33 @@ def _emit_context(text: str) -> None:
     }}))
 
 
+_REPO_MARKERS = ("agent_cli.py", "scripts/", "core/", "docs/", "tests/", "agent/", "config.py")
+_REPO_ANCHORS = ("e:/ai-setup", "e:\\ai-setup", "/e/ai-setup")
+
+
+def _cwd_drift(data) -> str:
+    """A shell call whose command is repo-shaped while its cwd is NOT the repo is the
+    false-clean class (grep over missing dirs hits nothing, git says 'not a repository') --
+    the harness shell resets to E:\\ whenever it rebuilds, and the old silent out-of-scope
+    no-op made that reset invisible. Anchored commands (cd /e/AI-Setup && ..., absolute
+    repo paths) stay quiet; intentional non-repo work never mentions repo markers."""
+    if (data.get("tool_name") or "") not in _SHELL_TOOLS:
+        return ""
+    ti = data.get("tool_input")
+    cmd = (ti.get("command") or "") if isinstance(ti, dict) else ""
+    cwd = (data.get("cwd") or os.getcwd())
+    if cwd.replace("\\", "/").lower().rstrip("/").startswith("e:/ai-setup"):
+        return ""
+    low = cmd.lower()
+    if any(a in low for a in _REPO_ANCHORS):
+        return ""
+    if not any(m in cmd for m in _REPO_MARKERS):
+        return ""
+    return (f"[cwd-guard] shell cwd is {cwd} -- NOT E:\\AI-Setup. Repo-relative paths in this "
+            "command will miss or FALSE-CLEAN (grep of absent dirs reports zero hits). "
+            "Anchor with `cd /e/AI-Setup && ...` -- the shell resets to E:\\ when it rebuilds.")
+
+
 def _recall_context(data) -> str:
     """Recall-at-action: relevant active lessons + lock/peer warning for the path/command about to be
     acted on. Best-effort, capped, FAITH-gated, fail-open. ANTI-REPEAT: lessons already surfaced this
@@ -244,6 +271,9 @@ def main() -> int:
     if _dedup_should_skip(data):
         return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
     if not _in_scope(tool, data):
+        drift = _cwd_drift(data)
+        if drift:
+            _emit_context(drift)   # 2026-09-01: the silent no-op here was the invisibility
         return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
     if tool in _SHELL_TOOLS:
         reason = _check_bash(data)
