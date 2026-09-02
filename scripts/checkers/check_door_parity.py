@@ -339,6 +339,9 @@ MANIFEST = {
                                    # lessons too and a repeat only a human can file undercounts
                                    # the very floor it measures. MCP twin owed.
     "boop": "cli_only",            # play acknowledgement; one-way and intentionally local
+    "shell_home": "cli_only",      # 2026-09-01 drift night: shows/sets where HARNESS shells
+                                   # land (bashrc hook, CLAUDE_CODE_SESSION_ID-gated). A shell
+                                   # cwd verb has no meaning over MCP -- callers have no shell.
     "captions": "cli_only",        # W154: youtube captions -> text on the operator's Desktop.
                                    # Pre-existing unclassified drift, paid down here rather than
                                    # left to block the next seat. Writes to a human's disk and

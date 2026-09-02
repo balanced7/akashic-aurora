@@ -6711,6 +6711,74 @@ def cmd_ground(args):
     return 0
 
 
+_SHELL_HOME_MARK = "# >>> akashic shell-home"
+_SHELL_HOME_HOOK = """
+# >>> akashic shell-home (auto-installed; manage: py agent_cli.py shell-home) >>>
+if [ -n "$CLAUDE_CODE_SESSION_ID" ] && [ -f "$HOME/.claude/shell-home" ]; then
+  _ash_target="$(cat "$HOME/.claude/shell-home" 2>/dev/null)"
+  if [ -n "$_ash_target" ] && [ -d "$_ash_target" ] && [ "$PWD" != "$_ash_target" ]; then
+    cd "$_ash_target" && echo "[shell-home] $PWD (mapped by ~/.claude/shell-home)"
+  fi
+  unset _ash_target
+fi
+# <<< akashic shell-home <<<
+"""
+
+
+def cmd_shell_home(args):
+    """Where is the shell, and where should fresh harness shells land?
+
+    Minted 2026-09-01 (the drift night): the harness rebuilds its shell on session
+    events and every rebuild lands at the session LAUNCH dir, not the repo -- four
+    repo-shaped commands false-cleaned in one evening before the cwd-guard made the
+    drift loud. The guard is the alarm; this verb is the home. The ~/.bashrc hook
+    fires ONLY in harness shells (CLAUDE_CODE_SESSION_ID gate) so the operator's own
+    terminals never move. The profile line runs at snapshot GENERATION, so --set is
+    live from the NEXT session; the current session stays covered by the cwd-guard.
+    Rebuild-ordering vs harness cwd tracking is MEASURED at next boot, not assumed."""
+    home_file = os.path.join(os.path.expanduser("~"), ".claude", "shell-home")
+    bashrc = os.path.join(os.path.expanduser("~"), ".bashrc")
+    if getattr(args, "clear", False):
+        if os.path.exists(home_file):
+            os.remove(home_file)
+            print("[shell-home] cleared -- fresh harness shells land at the session launch dir again")
+        else:
+            print("[shell-home] nothing set")
+        return 0
+    target = getattr(args, "set", None)
+    if target:
+        target = os.path.abspath(target)
+        if not os.path.isdir(target):
+            print(f"ERROR: not a directory: {target}")
+            return 2
+        os.makedirs(os.path.dirname(home_file), exist_ok=True)
+        with open(home_file, "w", encoding="ascii") as f:
+            f.write(target.replace("\\", "/"))
+        hook_state = "already installed"
+        try:
+            body = open(bashrc, encoding="utf-8", errors="replace").read() if os.path.exists(bashrc) else ""
+            if _SHELL_HOME_MARK not in body:
+                with open(bashrc, "a", encoding="utf-8") as f:
+                    f.write(_SHELL_HOME_HOOK)
+                hook_state = "installed into ~/.bashrc"
+        except OSError as exc:
+            hook_state = f"bashrc hook NOT installed ({exc}) -- add the block by hand"
+        print(f"[shell-home] {target.replace(chr(92), '/')}")
+        print(f"  hook: {hook_state}")
+        print("  live from the NEXT session's shell snapshot; this session stays covered by the cwd-guard")
+        return 0
+    cur = ""
+    if os.path.exists(home_file):
+        cur = open(home_file, encoding="ascii", errors="replace").read().strip()
+    hooked = os.path.exists(bashrc) and _SHELL_HOME_MARK in open(
+        bashrc, encoding="utf-8", errors="replace").read()
+    print(f"shell is at : {os.getcwd()}")
+    print(f"home mapping: {cur or '(none -- fresh harness shells land at the session launch dir)'}")
+    print(f"profile hook: {'installed' if hooked else 'absent'}")
+    print(f"harness shell: {'yes' if os.getenv('CLAUDE_CODE_SESSION_ID') else 'no (operator terminal -- hook never fires here)'}")
+    return 0
+
+
 def cmd_boop(args):
     """The smallest verb in the house: boop. Zero arguments, always answered.
 
@@ -8182,6 +8250,13 @@ def build_parser():
     bop.add_argument("--agent", dest="agent_id", default="",
                      help="subject for --surface (default: $AKASHIC_AGENT_ID; no identity fallback)")
     bop.set_defaults(fn=cmd_boop)
+
+    shp = sub.add_parser("shell-home",
+                         help="where the shell is now + where fresh harness shells land (cwd-guard's other half)")
+    shp.add_argument("--set", metavar="PATH",
+                     help="teleport target for fresh HARNESS shells (writes ~/.claude/shell-home + installs the ~/.bashrc hook; operator terminals unaffected)")
+    shp.add_argument("--clear", action="store_true", help="remove the mapping")
+    shp.set_defaults(fn=cmd_shell_home)
 
     swp = sub.add_parser("sweep", help="the awareness snapshot: bus, bench, health, moved -- one bounded read-only block")
     swp.add_argument("agent_id", nargs="?", default="",
