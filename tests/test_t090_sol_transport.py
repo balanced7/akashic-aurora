@@ -91,6 +91,25 @@ def test_extract_pairs_calls_for_stateless_resend():
         output = [Item()]
         output_text = ""
 
-    text, calls, items = SolTransport.extract(Resp())
+    text, calls, reasoning, items = SolTransport.extract(Resp())
     assert calls == [{"call_id": "c1", "name": "calc", "arguments": {"expr": "6*7"}}]
     assert items and items[0].call_id == "c1"        # raw items preserved for history
+    assert reasoning is None                          # no reasoning item -> None, never a phantom
+
+
+def test_extract_surfaces_reasoning_item():
+    class SummaryPart:
+        text = "i should use a tool"
+
+    class ReasoningItem:
+        type = "reasoning"
+        summary = [SummaryPart()]
+        summary_text = None
+
+    class Resp:
+        output = [ReasoningItem()]
+        output_text = "final answer"
+
+    text, calls, reasoning, items = SolTransport.extract(Resp())
+    assert reasoning == "i should use a tool"         # summary surfaced (operator reads sol's mind)
+    assert calls == []                                # reasoning item is not a tool call

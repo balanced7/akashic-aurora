@@ -157,18 +157,31 @@ class SolTransport:
 
     @staticmethod
     def extract(response):
-        """-> (text, tool_calls, raw_output_items). tool_calls: [{call_id, name, arguments(dict)}].
-        raw_output_items go back into history verbatim so call_ids stay paired (stateless resend)."""
+        """-> (text, tool_calls, reasoning, raw_output_items). tool_calls: [{call_id, name,
+        arguments(dict)}]. reasoning: str|None, the hidden chain-of-thought summary the Responses API
+        returns as a `reasoning` output item (surfaced so the operator can read sol's mind like the
+        other seats -- NOT dropped). raw_output_items go back into history verbatim so call_ids stay
+        paired (stateless resend)."""
         calls = []
+        reasoning = None
         items = list(getattr(response, "output", []) or [])
         for it in items:
-            if getattr(it, "type", "") == "function_call":
+            t = getattr(it, "type", "")
+            if t == "function_call":
                 try:
                     args = json.loads(it.arguments or "{}")
                 except Exception:
                     args = {"_raw": it.arguments}
                 calls.append({"call_id": it.call_id, "name": it.name, "arguments": args})
-        return (getattr(response, "output_text", "") or ""), calls, items
+            elif t == "reasoning":
+                # Responses API reasoning items carry a summary + encrypted content; we surface the
+                # summary title + plain summary_text when present (never the encrypted content, which
+                # is opaque by design and NOT the thing the operator wants to read anyway).
+                summary = ""
+                for part in getattr(it, "summary", []) or []:
+                    summary += getattr(part, "text", "") or ""
+                reasoning = getattr(it, "summary_text", None) or summary or None
+        return (getattr(response, "output_text", "") or ""), calls, reasoning, items
 
 
 class SolAgent:
@@ -238,7 +251,10 @@ class SolAgent:
             if u is not None:
                 self.input_tokens += getattr(u, "input_tokens", 0) or 0
                 self.output_tokens += getattr(u, "output_tokens", 0) or 0
-            text, calls, items = SolTransport.extract(resp)
+            text, calls, reasoning, items = SolTransport.extract(resp)
+            if reasoning:                       # surface sol's hidden chain-of-thought, LIKE kimi/gemini
+                for i in range(0, len(reasoning), 700):
+                    self._trace("think", reasoning[i:i + 700])
             self.history.extend(items)   # stateless resend: output items echo back verbatim
             if not calls:
                 return text or "(sol produced no final text)"
@@ -257,17 +273,17 @@ if __name__ == "__main__":
     # Manual smoke (network, costs cents): py scripts/sol_chat.py --smoke
     if "--smoke" in sys.argv:
         t = SolTransport(effort="low", verbosity="low")
-        text, calls, items = SolTransport.extract(
+        text, calls, reasoning, items = SolTransport.extract(
             t.respond("You are sol, smoke-testing your transport.",
                       [{"role": "user", "content": "Reply with exactly: SOL TRANSPORT LIVE"}]))
-        print(f"text={text!r} calls={calls}")
+        print(f"text={text!r} calls={calls} reasoning={bool(reasoning)}")
         hist = [{"role": "user", "content": "What is 6*7? Use the calc tool."}]
         r1 = t.respond("Use tools when asked.", hist,
                        tools=[{"type": "function", "name": "calc", "description": "evaluate arithmetic",
                                "parameters": {"type": "object", "properties": {"expr": {"type": "string"}},
                                               "required": ["expr"]}}])
-        _, calls, items = SolTransport.extract(r1)
-        print(f"tool call: {calls}")
+        _, calls, reasoning, items = SolTransport.extract(r1)
+        print(f"tool call: {calls} reasoning={bool(reasoning)}")
         if calls:
             hist += [it for it in items if getattr(it, "type", "") == "function_call"]
             hist.append({"type": "function_call_output", "call_id": calls[0]["call_id"], "output": "42"})
