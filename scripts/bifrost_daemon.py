@@ -101,6 +101,24 @@ def _exit_code(value: str) -> int:
     return parsed
 
 
+def daemon_self_restart_reason(
+    agent: str,
+    *,
+    in_flight: bool = False,
+    external_supervisor: bool = False,
+):
+    """Rotate only when this daemon owns its own process lifetime.
+
+    ``respawn_self`` deliberately detaches its successor on Windows.  That is the
+    right metabolism for an ad-hoc daemon, but an externally supervised service
+    must keep the supervisor-owned process alive so crashes remain observable and
+    retryable by that supervisor.
+    """
+    if external_supervisor:
+        return None
+    return _SELF_RESTART.maybe_self_restart(agent, in_flight=in_flight)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the daemon CLI; extracted so launch posture is offline-testable."""
     ap = argparse.ArgumentParser(
@@ -150,6 +168,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "exit code when another daemon owns the singleton lease (default 0); "
             "a host supervisor may use a nonzero code to request retry"
+        ),
+    )
+    ap.add_argument(
+        "--external-supervisor",
+        action="store_true",
+        dest="external_supervisor",
+        help=(
+            "keep this daemon process anchored to an external supervisor instead of "
+            "launching a detached stale-code successor"
         ),
     )
     ap.add_argument("--manage-listener", action="store_true", dest="manage_listener",
@@ -474,8 +501,11 @@ def main(argv=None) -> int:
                 try:
                     _in_flight = bool(child is not None and child.alive) or \
                                  any(lch.alive for lch in listeners.values())
-                    _reason = _SELF_RESTART.maybe_self_restart(
-                        agent, in_flight=_in_flight)
+                    _reason = daemon_self_restart_reason(
+                        agent,
+                        in_flight=_in_flight,
+                        external_supervisor=args.external_supervisor,
+                    )
                     if _reason:
                         _say(f"[daemon] self-restart agent={agent}: {_reason} -- "
                              f"successor launched; standing down (respawn-before-exit-0)")

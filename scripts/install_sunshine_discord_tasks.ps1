@@ -8,7 +8,7 @@ param(
     [ValidatePattern('^[0-9a-f-]{36}$')]
     [string]$SourceThreadId,
 
-    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$RepoRoot = '',
     [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord'
@@ -16,6 +16,10 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+}
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
@@ -51,6 +55,7 @@ $fleetArguments = ConvertTo-TaskArguments @(
     '--runner-script', 'bifrost_runner_sol.py',
     '--runner-consume-lane', 'work',
     '--refusal-exit-code', '75',
+    '--external-supervisor',
     '--runner-arg=--ignore-source',
     '--runner-arg=discord'
 )
