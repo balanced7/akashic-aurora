@@ -1,6 +1,6 @@
 # Codex Desktop integration and recovery runbook
 
-**Status:** current. Active integration work, updated 2026-08-27. This document
+**Status:** current. Active integration work, updated 2026-09-02. This document
 distinguishes configured behavior, synthetic pins, live zero-model receipts,
 observed paid turns, and unresolved cost/continuity risk. Built is not wired;
 wired is not yet observed until the destination is read back.
@@ -55,7 +55,8 @@ The supported local seam is therefore one independently owned
 stdout exactly one long-lived reader and demultiplexes responses/notifications.
 It never attaches to or kills the Desktop app's private child.
 
-Starting the host and calling `thread/start` create no model turn. The live
+Starting the host and calling `thread/start`, `thread/fork`, or `thread/resume`
+create no model turn. The live
 2026-08-26 receipt initialized the installed app-managed binary, created an
 ephemeral read-only `gpt-5.6-sol` thread, observed exactly one stdout reader,
 then closed cleanly with `model_turns=0`.
@@ -75,7 +76,13 @@ then closed cleanly with `model_turns=0`.
 - rejects oversized content rather than truncating it;
 - durably admits a paid turn before `turn/start`, preventing silent crash
   redrive and duplicate spend;
-- creates a fresh ephemeral, approval-never, read-only/network-off Codex task;
+- resumes one durably bound, persistent Codex task with
+  approval-never/read-only/network-off policy;
+- creates and binds one persistent task only when no explicit binding exists;
+  it never substitutes a fresh task when a recorded thread cannot be resumed;
+- defers without advancing its private watermark when another host owns the
+  thread writer, preserving serialization without losing or double-spending a
+  Discord message;
 - sends one host-owned `reply` stamped with `meta.answers=<source-mid>`;
 - records token usage and every outcome in an append-only event log.
 
@@ -197,6 +204,92 @@ The current App Server schema exposes `baseInstructions`, `config`, `cwd`,
 `runtimeWorkspaceRoots`, and environment selection; any lean-capsule change
 must be evaluated against both token usage and Sunshine continuity before it
 becomes the default.
+
+### Current persistent Sunshine binding (2026-09-02)
+
+The 2026-08-26 operator watcher was an informative live experiment, not a
+durable service: its supervised job had a 24-hour lifetime, and each Discord
+message created a different ephemeral Codex task. It expired on 2026-08-28.
+The per-message task design guaranteed conversational amnesia and repeatedly
+paid the cold-start context floor documented above.
+
+The replacement uses one persistent history-bearing branch. The source is the
+direct Daniel/Sunshine Desktop conversation, bounded through its last completed
+turn. The branch was created by an independently owned App Server
+`thread/fork`, not by the Desktop fork UI: a Desktop-created child remained
+leased by Desktop and correctly refused an external `thread/resume`. Closing
+the integration-owned forking host released its lease; two separate fresh App
+Server processes then resumed the same branch ID successfully without starting
+a model turn. The exact local lineage is recorded in
+`%LOCALAPPDATA%/AkashicAurora/codex-wake/sol-discord-continuity.state.json`, not
+hard-coded into the public repository.
+
+The private state is schema 2 and bind-once. It records the continuity thread,
+the source thread, `binding_kind=completed-history-fork`, bound time, private
+watermark, and per-message outcomes. A mismatched launch argument is a refusal,
+not a migration. Missing-thread and active-writer errors do not create a
+replacement conversation and do not advance the watermark.
+
+Two persistent Windows tasks now separate responsibilities:
+
+- `AkashicAurora-SunshineFleet` runs `bifrost_daemon.py` with Sunshine's own
+  `bifrost_runner_sol.py` as its managed child. The child is agentic, write- and
+  exec-enabled subject to the existing ACL/ToolBox walls, and carries
+  `--ignore-source discord`. Its environment explicitly pins
+  `BIFROST_CONSUME_LANE=work`; it cannot silently fall back to the legacy
+  cursor merely because a scheduled-task parent lacks the launcher overlay.
+  The daemon, rather than a bare runner, owns the Discord outbound feed pump.
+- `AkashicAurora-SunshineDiscord` owns only authenticated Discord ingress from
+  `daniil` with `kind=chat` and `meta.source=discord`, and resumes the bound
+  history-bearing Codex task. Idle operation performs no App Server or model
+  work.
+
+Both tasks run at logon, start when available, allow battery operation, have no
+execution-time limit, reject twin instances, and restart up to 999 times at
+one-minute intervals. Sunshine's daemon uses refusal exit code 75: if a prior
+TTL-backed singleton lease briefly survives its process, Windows treats the
+refusal as retryable instead of accepting a clean exit and leaving the seat
+dark. The daemon's default remains exit 0 for existing callers. Reinstall or
+update the tasks with the local continuity IDs:
+
+```powershell
+./scripts/install_sunshine_discord_tasks.ps1 `
+  -ThreadId <discord-continuity-thread-id> `
+  -SourceThreadId <direct-history-source-thread-id>
+```
+
+Inspect without consuming any cursor or disturbing the running tasks:
+
+```powershell
+Get-ScheduledTask AkashicAurora-SunshineFleet,AkashicAurora-SunshineDiscord
+Get-Content "$env:LOCALAPPDATA\AkashicAurora\codex-wake\sol-discord-continuity.state.json"
+Get-Content "$env:LOCALAPPDATA\AkashicAurora\codex-wake\sol-discord-continuity.events.jsonl" -Tail 20
+```
+
+The Sol runner now honors `bifrost-drain` at its loop boundary and clears stale
+pre-tenure drain requests before onboarding. The one legacy bare runner that
+predated this code could not honor a graceful drain; it was proven idle with no
+activity and zero backlog, then its exact PID alone was retired. The waiting
+daemon replaced it with the managed full-door command line. This exception is
+an incident receipt, not the new lifecycle procedure.
+
+The first managed transition also exposed why the work-lane pin is not
+decorative. Before the pin, the successor inherited no consume-lane environment
+from Task Scheduler and began processing legacy traffic. Its worklive counter
+reached seven turns during the transition; the daily Sol journal snapshot read
+15 turns and 3.2 million unpriced tokens across all tenures that day. That
+journal is not precise enough to attribute all 3.2 million tokens to this one
+process, but it is conclusive evidence that an implicit legacy lane is not an
+acceptable launch posture. The process was allowed to finish its in-flight
+turns, held at a targeted loop boundary, then replaced with the explicit work
+lane.
+
+Current observed gates are: 50 focused tests green; persistent branch lineage
+read back as `forkedFromId=<direct-history-thread>` and `status=notLoaded`;
+two fresh-process resumes green; both Windows tasks running; daemon parent and
+managed Sol child command lines correct; watcher armed with zero idle turns.
+The final authenticated Discord nonce/reply/readback is still required before
+claiming end-to-end reachability.
 
 ## Governed Aurora verb execution
 

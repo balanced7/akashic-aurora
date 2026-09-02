@@ -94,7 +94,15 @@ def _env_int(name: str, fallback: int) -> int:
         return fallback
 
 
-def main(argv=None) -> int:
+def _exit_code(value: str) -> int:
+    parsed = int(value)
+    if not 0 <= parsed <= 255:
+        raise argparse.ArgumentTypeError("exit code must be between 0 and 255")
+    return parsed
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the daemon CLI; extracted so launch posture is offline-testable."""
     ap = argparse.ArgumentParser(
         description="Continuous-presence daemon (M1-alpha + M1-delta): lock + presence "
                     "+ heartbeat + bus-loss guard + managed-runner child.")
@@ -106,14 +114,111 @@ def main(argv=None) -> int:
     ap.add_argument("--max-runtime", type=float, default=0.0, dest="max_runtime",
                     help="exit cleanly after N RAW seconds (drill hatch; 0 = run forever)")
     ap.add_argument("--spawn-runner", action="store_true", dest="spawn_runner",
-                    help="M1-delta: spawn bifrost_runner_deepseek.py as a managed child "
+                    help="M1-delta: spawn the selected Bifrost runner as a managed child "
                          "(circuit breaker + summary injection)")
+    ap.add_argument(
+        "--runner-script",
+        default="bifrost_runner_deepseek.py",
+        dest="runner_script",
+        help=(
+            "runner basename under scripts/ (default bifrost_runner_deepseek.py); "
+            "use bifrost_runner_sol.py for Sunshine"
+        ),
+    )
+    ap.add_argument(
+        "--runner-arg",
+        action="append",
+        default=[],
+        dest="runner_arg",
+        help=(
+            "extra child argument, repeatable; use --runner-arg=--flag when the value "
+            "begins with a dash"
+        ),
+    )
+    ap.add_argument(
+        "--runner-consume-lane",
+        choices=("legacy", "work"),
+        default=None,
+        dest="runner_consume_lane",
+        help="explicit consume lane inherited by the managed runner child",
+    )
+    ap.add_argument(
+        "--refusal-exit-code",
+        type=_exit_code,
+        default=0,
+        dest="refusal_exit_code",
+        help=(
+            "exit code when another daemon owns the singleton lease (default 0); "
+            "a host supervisor may use a nonzero code to request retry"
+        ),
+    )
     ap.add_argument("--manage-listener", action="store_true", dest="manage_listener",
                     help="Autopilot A1: answer .rearm triggers by spawning wake listeners "
                          "as managed children + sweep stale markers")
     ap.add_argument("--summary-file", default=None, dest="summary_file",
                     help="path to runner's exit summary (default: state/runner_<agent>_last.json)")
-    args = ap.parse_args(argv)
+    return ap
+
+
+def managed_runner_argv(
+    agent: str,
+    summary_file: str,
+    *,
+    runner_script: str = "bifrost_runner_deepseek.py",
+    runner_args=None,
+    inject_summary: bool = False,
+):
+    """Construct one full-door managed child command without changing legacy defaults."""
+    name = str(runner_script or "").strip()
+    if (
+        not name
+        or name != os.path.basename(name)
+        or not name.startswith("bifrost_runner_")
+        or not name.endswith(".py")
+    ):
+        raise ValueError(f"invalid managed runner basename: {runner_script!r}")
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+    if not os.path.isfile(script):
+        raise ValueError(f"managed runner does not exist: {script}")
+    extra = [str(value) for value in (runner_args or [])]
+    if any(not value or "\x00" in value for value in extra):
+        raise ValueError("managed runner arguments must be non-empty strings without NUL")
+    command = [
+        sys.executable,
+        script,
+        "--agent",
+        str(agent),
+        "--agentic",
+        "--allow-write",
+        "--allow-exec",
+        *extra,
+        "--summary-file",
+        str(summary_file),
+    ]
+    if inject_summary:
+        command.extend(["--inject-summary", str(summary_file)])
+    return command
+
+
+def managed_runner_env(
+    agent: str,
+    *,
+    consume_lane=None,
+    base=None,
+):
+    """Build the managed child's environment with an optional attested lane."""
+    lane = str(consume_lane or "").strip().lower() or None
+    if lane not in (None, "legacy", "work"):
+        raise ValueError(f"invalid managed runner consume lane: {consume_lane!r}")
+    environment = dict(os.environ if base is None else base)
+    environment.update(_GIT_ID(agent))
+    if lane is not None:
+        environment["BIFROST_CONSUME_LANE"] = lane
+    return environment
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
 
     from typing import Optional as _Opt
     from core.comm import runner_lock
@@ -194,15 +299,17 @@ def main(argv=None) -> int:
             try:
                 rec = json.loads(existing)
                 if rec.get("token") != dlock.token:
+                    refusal_code = int(args.refusal_exit_code)
                     _say(f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
-                         f"holds the daemon lock -- exiting 0")
-                    return 0
+                          f"holds the daemon lock -- exiting {refusal_code}")
+                    return refusal_code
             except Exception:
                 pass
         if not dlock.acquire():
+            refusal_code = int(args.refusal_exit_code)
             _say(f"[daemon] refused agent={agent}: daemon lock held by another process "
-                 f"-- exiting 0")
-            return 0
+                  f"-- exiting {refusal_code}")
+            return refusal_code
         # Coexistence: spawn-runner inspects the runner lock BEFORE spawning.
         # manage-listener-only NEVER touches runner_lock -- it coexists with a
         # consuming session (session:<sid> token, RB-21) and with a bare runner.
@@ -252,28 +359,22 @@ def main(argv=None) -> int:
 
         # ---- runner child (spawn-runner only) --------------------------------------
         if spawn_runner and not idle_mode:
-            runner_args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                        "bifrost_runner_deepseek.py"),
-                           "--agent", agent, "--agentic",
-                           # I6 (api-resilience wave 1, Daniel-sanctioned 2026-07-19: "spin up a
-                           # write enabled deepseek module"): the managed spawn omitted the write
-                           # door by oversight -- the guarded write_file/edit_file surface + acl
-                           # still govern every actual write. Applies at next natural respawn.
-                           "--allow-write",
-                           # I6 twin (Rill, 2026-08-24, Daniil-sanctioned while Vandor dark):
-                           # the managed spawn passed write but NEVER exec -- every daemon-managed
-                           # runner boots exec-gated by construction. The exec door is still
-                           # cap + families gated inside the runner (T067), so this only opens
-                           # the door, not the vault. Applies at next natural respawn.
-                           "--allow-exec",
-                           "--summary-file", summary_file]
             prev = read_summary(summary_file)
+            runner_args = managed_runner_argv(
+                agent,
+                summary_file,
+                runner_script=args.runner_script,
+                runner_args=args.runner_arg,
+                inject_summary=bool(prev),
+            )
             if prev:
                 last_summary_text = format_summary_for_prompt(prev)
-                runner_args.extend(["--inject-summary", summary_file])
             child = ManagedChild(
                 runner_args,
-                env={**os.environ, **_GIT_ID(agent)},   # t384: git author = the seat
+                env=managed_runner_env(
+                    agent,
+                    consume_lane=args.runner_consume_lane,
+                ),
                 cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 on_blocker=_send_blocker,
                 breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),
@@ -408,24 +509,26 @@ def main(argv=None) -> int:
                              f"a daemon token -- spawning runner child (W102)")
                         idle_mode = False
                     if not idle_mode:
-                        # Re-run the spawn block inline (same args as boot path).
-                        # The _send_blocker closure already captures 'child' from
-                        # this scope; we re-create the runner_args and ManagedChild.
-                        runner_args = [sys.executable, os.path.join(
-                            os.path.dirname(os.path.abspath(__file__)),
-                            "bifrost_runner_deepseek.py"),
-                            "--agent", agent, "--agentic", "--allow-write", "--allow-exec",
-                            "--summary-file", summary_file]
+                        # Re-run the spawn block with the same explicit runner contract.
                         prev = read_summary(summary_file)
+                        runner_args = managed_runner_argv(
+                            agent,
+                            summary_file,
+                            runner_script=args.runner_script,
+                            runner_args=args.runner_arg,
+                            inject_summary=bool(prev),
+                        )
                         if prev:
                             # last_summary_text is main()'s own local -- plain
                             # assignment binds it; `nonlocal` here is a SyntaxError
                             # (only legal in a NESTED function; fence red 2026-07-29).
                             last_summary_text = format_summary_for_prompt(prev)
-                            runner_args.extend(["--inject-summary", summary_file])
                         child = ManagedChild(
                             runner_args,
-                            env={**os.environ, **_GIT_ID(agent)},   # t384: git author = the seat
+                            env=managed_runner_env(
+                                agent,
+                                consume_lane=args.runner_consume_lane,
+                            ),
                             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             on_blocker=_send_blocker,
                             breaker_window_s=float(os.environ.get("AKASHIC_CB_WINDOW_S", "300")),

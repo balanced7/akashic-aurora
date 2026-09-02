@@ -61,7 +61,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--state-path", help="private watcher watermark; not a mailbox cursor")
     parser.add_argument("--log-path", help="append-only watcher event log")
-    parser.add_argument("--cwd", default=str(ROOT), help="fresh Codex task working directory")
+    parser.add_argument(
+        "--thread-id",
+        help="durable Codex continuity task to resume; never replaced implicitly",
+    )
+    parser.add_argument(
+        "--source-thread-id",
+        help="completed direct-history task from which --thread-id was derived",
+    )
+    parser.add_argument(
+        "--binding-kind",
+        help="auditable lineage label such as completed-history-fork",
+    )
+    parser.add_argument("--cwd", default=str(ROOT), help="Codex task working directory")
     parser.add_argument("--model", default="gpt-5.6-sol")
     parser.add_argument("--effort", default="low")
     parser.add_argument("--max-message-chars", type=int, default=16_000)
@@ -99,7 +111,14 @@ def main(argv: list[str] | None = None) -> int:
     if bus._client is None:
         raise WakeError("Bifrost is offline; watcher was not armed")
     baseline = current_inbox_tail(bus)
-    state = WakeState.open(state_path, agent=agent, baseline=baseline)
+    state = WakeState.open(
+        state_path,
+        agent=agent,
+        baseline=baseline,
+        thread_id=args.thread_id,
+        source_thread_id=args.source_thread_id,
+        binding_kind=args.binding_kind,
+    )
     policy = WakePolicy(
         agent=agent,
         allowed_senders=frozenset(args.allow_from or ["dsh_agent"]),
@@ -136,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
                 "direct_kinds": sorted(policy.direct_kinds),
                 "expected_answers": sorted(policy.expected_answers),
                 "required_source": policy.required_source,
+                "continuity_thread_id": state.thread_id,
+                "continuity_source_thread_id": state.source_thread_id,
+                "continuity_binding": state.binding_kind,
                 "cursor_advance": False,
                 "idle_model_turns": 0,
                 "peer_process_interference": False,

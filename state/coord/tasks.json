@@ -14216,22 +14216,37 @@
       "id": "T385",
       "title": "comms-loop repair: Discord<->bus<->seat delivery seams C1-C4 (operator remote-fix directive)",
       "desc": "",
-      "owner": "",
+      "owner": "sol",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-26T13:20:28+00:00",
-      "updated": "2026-08-26T13:20:28+00:00",
+      "updated": "2026-09-02T13:33:34+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "dsh_agent",
           "at": "2026-08-26T13:20:28+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "sol",
+          "at": "2026-09-02T13:33:33+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "sol",
+          "at": "2026-09-02T13:33:33+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "sol",
+          "at": "2026-09-02T13:33:34+00:00"
         }
       ]
     },
