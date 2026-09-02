@@ -507,6 +507,101 @@ class CodexAppServer:
             )
         return ThreadHandle(str(thread_id), result)
 
+    def resume_thread(
+        self,
+        thread_id: str,
+        *,
+        sandbox: str = "read-only",
+        cwd: Optional[os.PathLike[str] | str] = None,
+        model: Optional[str] = None,
+        developer_instructions: Optional[str] = None,
+        approval_policy: str = "never",
+        personality: Optional[str] = None,
+        dynamic_tools: Optional[Sequence[Mapping[str, Any]]] = None,
+    ) -> ThreadHandle:
+        """Load one persisted Codex thread without starting a model turn.
+
+        The caller owns the thread id and must treat an active-writer refusal as
+        serialization, not as permission to create a replacement conversation.
+        """
+        requested_id = str(thread_id or "").strip()
+        if not requested_id:
+            raise CodexAppServerError("thread/resume requires a non-empty thread id")
+        if dynamic_tools and not self.experimental_api:
+            raise CodexAppServerError(
+                "dynamic_tools require experimental_api=True during App Server initialization"
+            )
+        params: Dict[str, Any] = {
+            "threadId": requested_id,
+            "sandbox": sandbox,
+            "approvalPolicy": approval_policy,
+        }
+        if cwd is not None:
+            params["cwd"] = str(Path(cwd).resolve())
+        elif self.cwd is not None:
+            params["cwd"] = self.cwd
+        if model:
+            params["model"] = model
+        if developer_instructions:
+            params["developerInstructions"] = developer_instructions
+        if personality:
+            params["personality"] = personality
+        if dynamic_tools is not None:
+            params["dynamicTools"] = [dict(spec) for spec in dynamic_tools]
+        result = self.request("thread/resume", params)
+        thread = result.get("thread")
+        resumed_id = thread.get("id") if isinstance(thread, dict) else None
+        if not resumed_id:
+            raise CodexAppServerError(
+                f"thread/resume response has no thread id: {json.dumps(result, ensure_ascii=False)}"
+            )
+        if str(resumed_id) != requested_id:
+            raise CodexAppServerError(
+                f"thread/resume returned {resumed_id!r} for requested thread {requested_id!r}"
+            )
+        return ThreadHandle(requested_id, result)
+
+    def fork_thread(
+        self,
+        thread_id: str,
+        *,
+        last_turn_id: Optional[str] = None,
+        ephemeral: bool = False,
+    ) -> ThreadHandle:
+        """Copy stored history into a new thread owned by this App Server host.
+
+        Forking does not resume the source and does not start a model turn.  A
+        persistent fork can therefore move continuity away from a different
+        client's active writer without racing that writer.
+        """
+        source_id = str(thread_id or "").strip()
+        if not source_id:
+            raise CodexAppServerError("thread/fork requires a non-empty source thread id")
+        params: Dict[str, Any] = {
+            "threadId": source_id,
+            "ephemeral": bool(ephemeral),
+        }
+        if last_turn_id is not None:
+            bounded_turn = str(last_turn_id).strip()
+            if not bounded_turn:
+                raise CodexAppServerError(
+                    "thread/fork last_turn_id must be non-empty when supplied"
+                )
+            params["lastTurnId"] = bounded_turn
+        result = self.request("thread/fork", params)
+        thread = result.get("thread")
+        forked_id = thread.get("id") if isinstance(thread, dict) else None
+        if not forked_id:
+            raise CodexAppServerError(
+                f"thread/fork response has no thread id: {json.dumps(result, ensure_ascii=False)}"
+            )
+        forked_from = thread.get("forkedFromId") if isinstance(thread, dict) else None
+        if forked_from is not None and str(forked_from) != source_id:
+            raise CodexAppServerError(
+                f"thread/fork returned source {forked_from!r} for requested {source_id!r}"
+            )
+        return ThreadHandle(str(forked_id), result)
+
     def run_turn(
         self,
         thread_id: str,

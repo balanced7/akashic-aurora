@@ -95,6 +95,25 @@ DEFAULT_SYSTEM = ("You are Sol (gpt-5.6-sol), operating as an agentic technical 
                   "You are reached over a shared message bus; each reply posts back to the sender, "
                   "so make it self-contained.")
 
+
+def source_is_ignored(meta, args) -> bool:
+    """Return whether a dedicated bridge owns this message's ingress source."""
+    source = str((meta or {}).get("source") or "").strip().lower()
+    ignored = {
+        str(value).strip().lower()
+        for value in getattr(args, "ignore_source", [])
+        if str(value).strip()
+    }
+    return bool(source and source in ignored)
+
+
+def take_drain_request(agent: str):
+    """Consume one tenure-scoped graceful-drain request at a loop boundary."""
+    request = control.drain_requested(agent)
+    if request:
+        control.clear_drain(agent)
+    return request
+
 # RB-27a: tenure fencing generation (one-slot mutable so closures see main()'s value).
 PULSE_GEN = [0]
 
@@ -394,16 +413,25 @@ def _process_one(m, bus, args, responder, rate) -> None:
         print(f"[sol-runner] ledger fold: {str(m.content)[:80]}")
         return
 
-    # [4] ANSWERABLE gate
+    # [4] dedicated ingress ownership -- cursor commit still occurs in the main
+    # loop, but only the continuity bridge may answer this source.
+    if source_is_ignored(m.meta, args):
+        print(
+            f"[sol-runner] source {str((m.meta or {}).get('source'))!r} is owned by "
+            "a dedicated continuity bridge; not answering"
+        )
+        return
+
+    # [5] ANSWERABLE gate
     if not should_answer(m.kind, m.frm, args.agent):
         return
 
-    # [5] RB-26 dedup sentinel check
+    # [6] RB-26 dedup sentinel check
     if _reply_already_sent(bus, m.id):
         print(f"[sol-runner] skip {m.id} from {m.frm} -- reply already sent (redelivery)")
         return
 
-    # [6] hop-count loop guard
+    # [7] hop-count loop guard
     hops = control.next_hops(m.meta)
     if control.hops_exceeded(m.meta):
         bus.send(m.frm, "note",
@@ -412,7 +440,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         print(f"[sol-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
         return
 
-    # [7] rate-limit backstop
+    # [8] rate-limit backstop
     if not rate.allow():
         control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent, ttl=3600)
         bus.send(m.frm, "note",
@@ -421,7 +449,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         print("[sol-runner] rate limit -> auto-paused (ttl 1h)")
         return
 
-    # [8] nudge / halt handling
+    # [9] nudge / halt handling
     if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
         nudge.clear(args.agent)
         bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
@@ -431,14 +459,14 @@ def _process_one(m, bus, args, responder, rate) -> None:
     if control.is_halted(args.agent) and str(m.kind) != "nudge":
         cog.record_human_interjection(args.agent)
 
-    # [9] activity set + L1 worklive flip
+    # [10] activity set + L1 worklive flip
     control.set_activity(args.agent, "thinking")
     liveness.worklive(args.agent).set("handling", detail=f"{m.frm}:{m.kind}", new_turn=True)
 
-    # [10] kill window 2
+    # [11] kill window 2
     _killpoint("post-phase-flip-pre-send")
 
-    # [11] RESPOND -- the model turn, wall-clock-guarded in a daemon thread
+    # [12] RESPOND -- the model turn, wall-clock-guarded in a daemon thread
     prompt = m.content if isinstance(m.content, str) else str(m.content)
     turn_t0 = time.time()
     _tm.take_pulse_count(args.agent)
@@ -472,7 +500,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         else:
             out = str(result)
 
-    # [12] SEND REPLY -- RB-29: nonanswer -> kind="note", NO answers linkage (expectation stays
+    # [13] SEND REPLY -- RB-29: nonanswer -> kind="note", NO answers linkage (expectation stays
     # armed for the redrive); success -> kind="reply" + meta.answers (T066 lane-first send_reply)
     reply_kind = "note" if nonanswer else "reply"
     reply_meta = {"via": f"{args.agent}-runner", "model": args.model, "hops": hops}
@@ -488,13 +516,13 @@ def _process_one(m, bus, args, responder, rate) -> None:
             bus.send(m.frm, reply_kind, out, meta=reply_meta)
         dest = m.frm
 
-    # [13] kill window 3
+    # [14] kill window 3
     _killpoint("post-send-pre-sentinel")
 
-    # [14] RB-26 dedup sentinel SET (after send, before cursor commit)
+    # [15] RB-26 dedup sentinel SET (after send, before cursor commit)
     _mark_reply_sent(bus, m.id)
 
-    # [15] P6 handoff auto-ack -- RB-29: timeout/error answers never ack
+    # [16] P6 handoff auto-ack -- RB-29: timeout/error answers never ack
     answered_ok = (finished and result_holder and not isinstance(result_holder[0], Exception)
                    and not out.startswith("(sol"))
     if str(m.kind) == "handoff" and answered_ok:
@@ -505,7 +533,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         except Exception:
             pass
 
-    # [16] turn metrics
+    # [17] turn metrics
     try:
         cog.record_turn_complete(args.agent)
         outcome = ("timeout" if not finished
@@ -525,7 +553,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
     except Exception:
         pass
 
-    # [17] activity clear
+    # [18] activity clear
     control.clear_activity(args.agent)
     liveness.worklive(args.agent).set("idle")
     print(f"[sol-runner] -> {dest}: {out[:80]}")
@@ -608,6 +636,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="guarded write_file/edit_file doors (path-scoped, secret-blocked)")
     ap.add_argument("--allow-exec", action="store_true",
                     help="run_command door (families-only under trust; see security/acl.json)")
+    ap.add_argument(
+        "--ignore-source",
+        action="append",
+        default=[],
+        help=(
+            "ingress source owned by a dedicated bridge and therefore never answered by "
+            "this runner (repeatable; e.g. discord)"
+        ),
+    )
     ap.add_argument("--once", action="store_true", help="process one wake then exit (smoke)")
     ap.add_argument("--summary-file", default=None, dest="summary_file",
                     help="exit-summary json (default: state/runner/<agent>-exit-summary.json)")
@@ -666,6 +703,9 @@ def main() -> int:
             print(f"bifrost_runner_sol: another '{args.agent}' runner is live (pid {h.get('pid')}).")
         return 3
     PULSE_GEN[0] = runner_lock.generation_of(lock_token)
+    # A drain addresses the tenure that was live when it was requested. A
+    # successor must never inherit an unconsumed request from its predecessor.
+    control.clear_drain(args.agent)
     liveness.worklive(args.agent).set("starting", detail="onboarding")
     liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
 
@@ -783,6 +823,14 @@ def main() -> int:
                 continue
             if not runner_lock.heartbeat(args.agent, lock_token):
                 print("[sol-runner] lost the singleton lock -- another runner is live. Standing down.")
+                break
+            drain_request = take_drain_request(args.agent)
+            if drain_request:
+                print(
+                    f"[sol-runner] DRAIN honored (by {drain_request.get('by', '?')}: "
+                    f"{drain_request.get('reason') or 'no reason given'}) -- exiting clean; "
+                    "the supervisor may replace this tenure."
+                )
                 break
             # A1: stale-code self-restart -- loop-top only, nothing claimed. The fresh
             # copy takes the lock at a higher generation; this process stands down

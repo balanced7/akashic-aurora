@@ -19,7 +19,12 @@ import time
 import uuid
 from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
 
-from agent.harness.codex_app_server import CodexAppServer, CodexAppServerError, TurnResult
+from agent.harness.codex_app_server import (
+    CodexAppServer,
+    CodexAppServerError,
+    ThreadHandle,
+    TurnResult,
+)
 from core.comm import packet_spec
 from core.comm.bus import Bus, Message
 from core.comm.toolbox import ToolBox
@@ -29,7 +34,7 @@ from core.toolbelt.registry import Toolbelt
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})
-STATE_SCHEMA = 1
+STATE_SCHEMA = 2
 AURORA_SAFE_READ_GRAMMAR = {
     # This grammar is intentionally bridge-local and narrower than ToolBox's
     # historical family allowlist.  Values are (minimum positionals, maximum
@@ -355,6 +360,10 @@ class WakeState:
     path: Path
     agent: str
     last_seen: str
+    thread_id: Optional[str] = None
+    source_thread_id: Optional[str] = None
+    binding_kind: str = "unbound"
+    bound_at: Optional[str] = None
     records: List[Dict[str, Any]] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
 
@@ -365,6 +374,9 @@ class WakeState:
         *,
         agent: str,
         baseline: str,
+        thread_id: Optional[str] = None,
+        source_thread_id: Optional[str] = None,
+        binding_kind: Optional[str] = None,
     ) -> "WakeState":
         target = Path(path).expanduser().resolve()
         if target.exists():
@@ -382,15 +394,72 @@ class WakeState:
                 raise WakeError(
                     f"Wake state belongs to {stored_agent!r}, not requested agent {agent!r}: {target}"
                 )
+            stored_thread_id = str(raw.get("thread_id") or "").strip() or None
+            requested_thread_id = str(thread_id or "").strip() or None
+            if stored_thread_id and requested_thread_id and stored_thread_id != requested_thread_id:
+                raise WakeError(
+                    "Wake state already binds continuity thread "
+                    f"{stored_thread_id!r}; refusing to replace it with {requested_thread_id!r}: "
+                    f"{target}"
+                )
+            stored_source_id = str(raw.get("source_thread_id") or "").strip() or None
+            requested_source_id = str(source_thread_id or "").strip() or None
+            if stored_source_id and requested_source_id and stored_source_id != requested_source_id:
+                raise WakeError(
+                    "Wake state already records source thread "
+                    f"{stored_source_id!r}; refusing to replace it with {requested_source_id!r}: "
+                    f"{target}"
+                )
+            stored_binding = str(raw.get("binding_kind") or "").strip() or "unbound"
+            requested_binding = str(binding_kind or "").strip() or None
+            if (
+                stored_binding != "unbound"
+                and requested_binding
+                and stored_binding != requested_binding
+            ):
+                raise WakeError(
+                    "Wake state already records continuity binding "
+                    f"{stored_binding!r}; refusing to replace it with {requested_binding!r}: "
+                    f"{target}"
+                )
+            resolved_thread_id = stored_thread_id or requested_thread_id
+            resolved_source_id = stored_source_id or requested_source_id
+            resolved_binding = (
+                stored_binding
+                if stored_binding != "unbound"
+                else (requested_binding or ("explicit" if resolved_thread_id else "unbound"))
+            )
             state = cls(
                 path=target,
                 agent=stored_agent,
                 last_seen=str(raw.get("last_seen") or baseline or "0-0"),
+                thread_id=resolved_thread_id,
+                source_thread_id=resolved_source_id,
+                binding_kind=resolved_binding,
+                bound_at=(str(raw.get("bound_at") or "").strip() or None),
                 records=list(raw.get("records") or [])[-256:],
                 created_at=str(raw.get("created_at") or _now()),
             )
+            if resolved_thread_id and not stored_thread_id:
+                state.bound_at = _now()
+                state._persist()
             return state
-        state = cls(path=target, agent=str(agent), last_seen=str(baseline or "0-0"))
+        requested_thread_id = str(thread_id or "").strip() or None
+        requested_source_id = str(source_thread_id or "").strip() or None
+        if requested_source_id and not requested_thread_id:
+            raise WakeError("source_thread_id requires an explicit continuity thread_id")
+        state = cls(
+            path=target,
+            agent=str(agent),
+            last_seen=str(baseline or "0-0"),
+            thread_id=requested_thread_id,
+            source_thread_id=requested_source_id,
+            binding_kind=(
+                str(binding_kind or "").strip()
+                or ("explicit" if requested_thread_id else "unbound")
+            ),
+            bound_at=(_now() if requested_thread_id else None),
+        )
         state._persist()
         return state
 
@@ -411,6 +480,34 @@ class WakeState:
         self.last_seen = str(mid)
         self._persist()
 
+    def bind_thread(
+        self,
+        thread_id: str,
+        *,
+        source_thread_id: Optional[str] = None,
+        binding_kind: str = "watcher-created-persistent",
+    ) -> None:
+        """Bind once. Replacing a conversation is an explicit migration, never recovery."""
+        requested = str(thread_id or "").strip()
+        if not requested:
+            raise WakeError("Cannot bind an empty continuity thread id")
+        if self.thread_id and self.thread_id != requested:
+            raise WakeError(
+                f"Wake state already binds {self.thread_id!r}; refusing to replace it with "
+                f"{requested!r}"
+            )
+        requested_source = str(source_thread_id or "").strip() or None
+        if self.source_thread_id and requested_source and self.source_thread_id != requested_source:
+            raise WakeError(
+                f"Wake state already records source {self.source_thread_id!r}; refusing to "
+                f"replace it with {requested_source!r}"
+            )
+        self.thread_id = requested
+        self.source_thread_id = self.source_thread_id or requested_source
+        self.binding_kind = str(binding_kind or "watcher-created-persistent")
+        self.bound_at = self.bound_at or _now()
+        self._persist()
+
     def _persist(self) -> None:
         _atomic_json(
             self.path,
@@ -420,6 +517,10 @@ class WakeState:
                 "created_at": self.created_at,
                 "updated_at": _now(),
                 "last_seen": self.last_seen,
+                "thread_id": self.thread_id,
+                "source_thread_id": self.source_thread_id,
+                "binding_kind": self.binding_kind,
+                "bound_at": self.bound_at,
                 "records": self.records,
                 "cursor_contract": "private-level-watermark; shared Bifrost cursor untouched",
             },
@@ -463,18 +564,24 @@ def build_wake_prompt(
     message: Message,
     *,
     identity: SubjectIdentity,
+    continuity_thread_id: Optional[str] = None,
+    continuity_source_thread_id: Optional[str] = None,
+    continuity_binding: str = "unbound",
 ) -> str:
     """Render the exact subject, identity snapshot, and peer message."""
     content = json.dumps(message.content, ensure_ascii=False, indent=2, default=str)
     meta = json.dumps(message.meta or {}, ensure_ascii=False, sort_keys=True, default=str)
     callsign = identity.callsign or "(none)"
-    return f"""This is a fresh, event-driven Akashic Aurora collaboration turn.
+    return f"""This is an event-driven turn in a persistent Akashic Aurora conversation.
 
 SUBJECT SEAT: {agent}
 HARNESS: Codex Desktop via an independently owned App Server child
 CALLSIGN: {callsign}
 CALLSIGN STATUS: {identity.status}
 IDENTITY AUTHORITY: {identity.authority}
+CONTINUITY THREAD: {continuity_thread_id or "(unbound)"}
+CONTINUITY SOURCE THREAD: {continuity_source_thread_id or "(none)"}
+CONTINUITY BINDING: {continuity_binding}
 SOURCE PEER: {message.frm}
 SOURCE MESSAGE ID: {message.id}
 SOURCE KIND: {message.kind}
@@ -490,8 +597,13 @@ answer back to the source peer and stamp the causal answer link; do not send a s
 Work read-only. You may inspect repository evidence when needed, but make no file, registry, ledger,
 identity, process, task, or configuration mutations in this turn.
 
+This is not a fresh identity bootstrap. Completed direct history already present in the continuity
+thread is valid inherited evidence for this conversation. Be honest that inherited transcript
+evidence is not phenomenological memory across processes, but do not discard or second-guess it
+merely because this particular host process is new.
+
 Respond directly to the peer as the {agent} subject. Be candid about what is verified, inferred,
-remembered, or unresolved. Keep the reply bounded and self-contained.
+inherited, remembered within this thread, or unresolved. Keep the reply bounded and self-contained.
 
 PEER MESSAGE (exact decoded content):
 {content}
@@ -502,9 +614,11 @@ def wake_developer_instructions(agent: str, identity: SubjectIdentity) -> str:
     """Bind a read-only wake turn to the same identity snapshot as its prompt and child."""
     callsign = identity.callsign or "(none)"
     return f"""You are the Codex/{agent} seat in a narrowly scoped, read-only Akashic Aurora
-wake turn. The subject seat is {agent}. Its callsign is {callsign}; callsign status is
+wake turn inside one durably bound conversation. The subject seat is {agent}. Its callsign is {callsign}; callsign status is
 {identity.status}, according to {identity.authority}. The resident registry is authoritative;
 an environment hint cannot ratify itself. Never infer self-identity from another subject's records.
+This is not a fresh identity bootstrap: preserve the completed direct history already carried by
+the bound thread, while distinguishing inherited transcript evidence from phenomenological memory.
 Never touch, inspect, relaunch, stop, steer, or mutate Rill/dsh_agent processes, sessions, watchers,
 or cursors. Never advance any Bifrost cursor. Do not edit files or durable state. Return one final
 peer-facing reply; the owning host, not you, performs the causally linked Bifrost send."""
@@ -549,6 +663,7 @@ class CodexBifrostWake:
         self.toolbelt_factory = toolbelt_factory
         self._server: Optional[CodexAppServer] = None
         self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
+        self._loaded_thread_id: Optional[str] = None
         self._stop = threading.Event()
         self._toolbox = ToolBox(
             self.cwd,
@@ -742,6 +857,7 @@ class CodexBifrostWake:
             self._server.close()
             self._server = None
         self._server_identity_signature = None
+        self._loaded_thread_id = None
 
     def _log(self, event: str, **fields: Any) -> None:
         _append_jsonl(
@@ -760,6 +876,7 @@ class CodexBifrostWake:
             self._server.close()
             self._server = None
             self._server_identity_signature = None
+            self._loaded_thread_id = None
         if self._server is None:
             env = {
                 "AKASHIC_AGENT_ID": self.policy.agent,
@@ -784,6 +901,59 @@ class CodexBifrostWake:
                 identity_authority=identity.authority,
             )
         return self._server
+
+    def _continuity_thread(
+        self,
+        server: CodexAppServer,
+        identity: SubjectIdentity,
+    ) -> ThreadHandle:
+        """Load the one bound conversation, or durably create and bind it exactly once."""
+        if self._loaded_thread_id:
+            if self.state.thread_id != self._loaded_thread_id:
+                raise WakeError(
+                    "Loaded App Server thread no longer matches the durable watcher binding"
+                )
+            return ThreadHandle(
+                self._loaded_thread_id,
+                {"thread": {"id": self._loaded_thread_id}, "source": "already-loaded"},
+            )
+
+        options = {
+            "sandbox": "read-only",
+            "cwd": self.cwd,
+            "model": self.model,
+            "developer_instructions": wake_developer_instructions(
+                self.policy.agent, identity
+            ),
+            "approval_policy": "never",
+            "personality": "friendly",
+            "dynamic_tools": self.dynamic_tools or None,
+        }
+        if self.state.thread_id:
+            thread = server.resume_thread(self.state.thread_id, **options)
+            self._loaded_thread_id = thread.thread_id
+            self._log(
+                "continuity_thread_resumed",
+                thread_id=thread.thread_id,
+                source_thread_id=self.state.source_thread_id or "",
+                binding_kind=self.state.binding_kind,
+                model_turns=0,
+            )
+            return thread
+
+        thread = server.start_thread(ephemeral=False, **options)
+        # Persist the task identity before a paid turn. If this host exits after
+        # creation, its successor resumes this exact task instead of minting a stranger.
+        self.state.bind_thread(thread.thread_id)
+        self._loaded_thread_id = thread.thread_id
+        self._log(
+            "continuity_thread_created",
+            thread_id=thread.thread_id,
+            source_thread_id="",
+            binding_kind=self.state.binding_kind,
+            model_turns=0,
+        )
+        return thread
 
     def handle(self, mid: str, fields: Mapping[str, Any]) -> Dict[str, Any]:
         mid = str(mid)
@@ -816,23 +986,45 @@ class CodexBifrostWake:
             self._log("message_refused", mid=mid, reason=detail)
             return {"mid": mid, "outcome": "oversize_refused"}
 
+        # Resolve exactly once at admission. Prompt, developer instructions, child env,
+        # and the causal reply receipt all describe the same identity observation.
         try:
-            # Resolve exactly once at admission. Prompt, developer instructions, child env,
-            # and the causal reply receipt all describe the same identity observation.
             identity = self.identity_resolver(self.policy.agent)
             server = self._app_server(identity)
-            thread = server.start_thread(
-                ephemeral=True,
-                sandbox="read-only",
-                cwd=self.cwd,
-                model=self.model,
-                developer_instructions=wake_developer_instructions(
-                    self.policy.agent, identity
-                ),
-                approval_policy="never",
-                personality="friendly",
-                dynamic_tools=self.dynamic_tools or None,
+            thread = self._continuity_thread(server, identity)
+        except (CodexAppServerError, WakeError, OSError, ValueError) as exc:
+            detail = str(exc)
+            if "already has an active writer" in detail.lower():
+                self._log(
+                    "turn_deferred_active_writer",
+                    mid=mid,
+                    thread_id=self.state.thread_id or "",
+                    error=detail,
+                    watermark_advanced=False,
+                )
+                return {"mid": mid, "outcome": "deferred_active_writer"}
+            if self.state.thread_id:
+                self._log(
+                    "continuity_refused",
+                    mid=mid,
+                    thread_id=self.state.thread_id,
+                    error=detail,
+                    watermark_advanced=False,
+                )
+                return {
+                    "mid": mid,
+                    "outcome": "continuity_refused",
+                    "error": detail,
+                }
+            self._log(
+                "continuity_creation_failed",
+                mid=mid,
+                error=detail,
+                watermark_advanced=False,
             )
+            return {"mid": mid, "outcome": "turn_failed", "error": detail}
+
+        try:
             # Durable admission precedes the paid turn: a crash cannot silently
             # redrive the same message and spend twice.
             self.state.record(
@@ -856,7 +1048,14 @@ class CodexBifrostWake:
             )
             result = server.run_turn(
                 thread.thread_id,
-                build_wake_prompt(self.policy.agent, message, identity=identity),
+                build_wake_prompt(
+                    self.policy.agent,
+                    message,
+                    identity=identity,
+                    continuity_thread_id=self.state.thread_id,
+                    continuity_source_thread_id=self.state.source_thread_id,
+                    continuity_binding=self.state.binding_kind,
+                ),
                 effort=self.effort,
                 model=self.model,
                 sandbox_policy={"type": "readOnly", "networkAccess": False},
@@ -907,6 +1106,9 @@ class CodexBifrostWake:
                 "subject_seat": self.policy.agent,
                 "source_thread_id": result.thread_id,
                 "source_turn_id": result.turn_id,
+                "continuity_thread_id": self.state.thread_id or result.thread_id,
+                "continuity_source_thread_id": self.state.source_thread_id or "",
+                "continuity_binding": self.state.binding_kind,
                 "subject_callsign": identity.callsign or "",
                 "callsign_status": identity.status,
                 "identity_authority": identity.authority,
@@ -971,6 +1173,9 @@ class CodexBifrostWake:
             allowed_senders=sorted(self.policy.allowed_senders),
             expected_answers=sorted(self.policy.expected_answers),
             idle_model_turns=0,
+            continuity_thread_id=self.state.thread_id or "",
+            continuity_source_thread_id=self.state.source_thread_id or "",
+            continuity_binding=self.state.binding_kind,
         )
         try:
             while not self._stop.is_set():
@@ -1000,12 +1205,25 @@ class CodexBifrostWake:
                     if once:
                         break
                     continue
+                retry_delay: Optional[float] = None
                 for _stream, messages in rows:
                     for mid, fields in messages:
-                        self.handle(str(mid), fields)
+                        result = self.handle(str(mid), fields)
                         handled += 1
                         if once:
                             return handled
+                        if result.get("outcome") == "deferred_active_writer":
+                            retry_delay = 5.0
+                            break
+                        if result.get("outcome") == "continuity_refused":
+                            retry_delay = 30.0
+                            break
+                    if retry_delay is not None:
+                        break
+                if retry_delay is not None:
+                    # The private watermark deliberately still points before this row.
+                    # Do not process later rows and leapfrog the blocked conversation.
+                    self._stop.wait(retry_delay)
         finally:
             try:
                 blocking_client.close()
