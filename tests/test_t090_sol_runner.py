@@ -29,15 +29,18 @@ def test_build_parser_defaults_offline():
     assert args.effort == R.DEFAULT_EFFORT
     assert not args.agentic and not args.once
     assert not args.allow_write and not args.allow_exec
+    assert args.ignore_source == []
     # continuity flags default None -- main() resolves them to the conventional path
     assert args.summary_file is None and args.inject_summary is None
 
 
 def test_build_parser_full_seat_flags():
     args = R.build_parser().parse_args(["--agentic", "--allow-write", "--allow-exec",
+                                        "--ignore-source", "discord",
                                         "--effort", "high", "--once"])
     assert args.agentic and args.allow_write and args.allow_exec and args.once
     assert args.effort == "high"
+    assert args.ignore_source == ["discord"]
 
 
 # ---- hardening slice 1: continuity ------------------------------------------------------------
@@ -143,3 +146,11 @@ def test_should_answer_matrix():
     assert not R.should_answer("chat", "sol", "sol")        # own echo
     assert not R.should_answer("steer", "claude", "sol")    # folds via inject, never answered
     assert not R.should_answer("trace", "deepseek", "sol")  # narration is not a question
+
+
+def test_dedicated_discord_owner_can_be_excluded_without_muting_peer_mail():
+    args = R.build_parser().parse_args(["--ignore-source", "discord"])
+    assert R.source_is_ignored({"source": "discord", "operator": True}, args) is True
+    assert R.source_is_ignored({"source": "DISCORD"}, args) is True
+    assert R.source_is_ignored({"source": "bifrost"}, args) is False
+    assert R.source_is_ignored({}, args) is False

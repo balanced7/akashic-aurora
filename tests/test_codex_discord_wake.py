@@ -48,6 +48,9 @@ def test_cli_exposes_an_explicit_additive_kind_and_required_source_gate():
         "--require-source", "discord",
         "--state-path", "sol-discord.state.json",
         "--log-path", "sol-discord.events.jsonl",
+        "--thread-id", "thread-discord",
+        "--source-thread-id", "thread-desktop",
+        "--binding-kind", "completed-history-fork",
     ])
 
     assert args.allow_from == ["daniil"]
@@ -55,6 +58,9 @@ def test_cli_exposes_an_explicit_additive_kind_and_required_source_gate():
     assert args.require_source == "discord"
     assert args.allow_exec is False
     assert args.state_path != "sol.state.json"
+    assert args.thread_id == "thread-discord"
+    assert args.source_thread_id == "thread-desktop"
+    assert args.binding_kind == "completed-history-fork"
 
 
 def test_cli_exec_requires_an_explicit_launch_flag():
