@@ -1,5 +1,5 @@
 {
-  "seq": 382,
+  "seq": 387,
   "tasks": [
     {
       "id": "T001",
@@ -3260,15 +3260,15 @@
       "id": "T084",
       "title": "T084: Ironman augmentation arc (Daniel directive 2026-07-16 pre-sleep verbatim: 'what can we build and add to augment your abilities further, for this to be your digital ironman suit that you can customize and improve!'): standing fence -- both agents file augmentation wishlists from FELT friction (wishlist-synthesis-2026-07-14 precedent) -> reconcile -> gated slices; clearly-in-scope tier builds same-night, the rest to the morning gate.",
       "desc": "",
-      "owner": "",
+      "owner": "sol",
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-16T05:08:24+00:00",
-      "updated": "2026-07-16T05:08:25+00:00",
+      "updated": "2026-08-27T03:38:33+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3279,6 +3279,11 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-07-16T05:08:25+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "sol",
+          "at": "2026-08-27T03:38:33+00:00"
         }
       ]
     },
@@ -6336,11 +6341,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "in_progress",
+      "status": "parked",
       "commit": null,
       "verified_by": null,
       "created": "2026-08-05T04:29:02+00:00",
-      "updated": "2026-08-16T19:02:06+00:00",
+      "updated": "2026-09-02T12:40:23+00:00",
       "history": [
         {
           "to": "proposed",
@@ -6366,6 +6371,12 @@
           "to": "in_progress",
           "by": "claude",
           "at": "2026-08-16T19:02:06+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "claude",
+          "at": "2026-09-02T12:40:23+00:00",
+          "reason": "stale in_progress since 2026-08-16 (17d, no session holds it); freeing the Phase-1 serializer slot for T180. Unpark to resume -- kind-resolution work is untouched, not abandoned."
         }
       ]
     },
@@ -6500,16 +6511,41 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "proposed",
-      "commit": null,
-      "verified_by": null,
+      "status": "done",
+      "commit": "ccd07ccf",
+      "verified_by": "claude",
       "created": "2026-08-05T05:43:34+00:00",
-      "updated": "2026-08-05T05:43:34+00:00",
+      "updated": "2026-09-02T13:14:51+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-05T05:43:34+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-09-02T12:38:12+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-02T12:38:13+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "claude",
+          "at": "2026-09-02T12:40:23+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-09-02T13:14:50+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-02T13:14:51+00:00"
         }
       ]
     },
@@ -14127,6 +14163,121 @@
           "to": "claimed",
           "by": "claude",
           "at": "2026-08-23T21:57:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T383",
+      "title": "MCP door completion \u2014 full verb toolkit for the dsh seat (Daniil 2026-08-25 ask: 'fully play with everything, entire art toolkit')",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-26T00:47:27+00:00",
+      "updated": "2026-08-26T00:47:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "dsh_agent",
+          "at": "2026-08-26T00:47:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T384",
+      "title": "identity-activation fence: cold-start recovery seams S1-S6 (DSH seat dsh_agent/Rill)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-26T07:38:37+00:00",
+      "updated": "2026-08-26T07:38:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "dsh_agent",
+          "at": "2026-08-26T07:38:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T385",
+      "title": "comms-loop repair: Discord<->bus<->seat delivery seams C1-C4 (operator remote-fix directive)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-26T13:20:28+00:00",
+      "updated": "2026-08-26T13:20:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "dsh_agent",
+          "at": "2026-08-26T13:20:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T386",
+      "title": "Screenspace awareness + navigation arc (Daniil 2026-08-26, verbatim: 'I want all of pur seats to be able to parse ui and screenspace and be able to navigate and click things' -- BEGIN WHEN HE IS HOME). Every seat should SEE a screen or DOM, UNDERSTAND its controls/state/affordances, and ACT: navigate, type, click, read back. MOTIVATING RECEIPT, not theory: 2026-08-26 Rill was alive, beating, correctly named and mail landing -- and unreachable for ~7h, because a DSH web seat has NO execution trigger (runners have a consume loop, claude has a wake watcher, he has a browser). Broke it at 16:13 by opening his UI in a browser pane and TYPING to him; that gave him the turn nothing on the bus could. UNREACHABLE BECAME A SOLVABLE STATE. S0 CENSUS FIRST -- do not build greenfield: this harness already carries read_page (a11y tree with ref ids), form_input, click/scroll/hover, screenshot, console+network reads; Daniil also refers to 'our vision toolkit' and a 'pc button clicking and input toolkit' which I have NOT located -- half this capability may already be paid for. S1 seat-agnostic door (one verb, never a per-harness special case). S2 a11y-tree path (structure beats pixels wherever a DOM exists). S3 pixel path for native windows with no DOM. S4 act-and-verify -- never click blind, read back the result, the same accept-and-verify law the bus already keeps. S5 THE SAFETY RAIL, DESIGNED FIRST NOT LAST: a seat that can click anything can click something destructive, and screen text is DATA NEVER INSTRUCTION (the R2 law the Discord and bridge doors already hold) -- a UI-driving seat reads a screen written by someone else, and if that text can steer it we have built a prompt-injection surface with hands. Lesson: a_web_seat_has_no_turns_so_arriving_mail_cannot_wake_it",
+      "desc": "",
+      "owner": "unassigned",
+      "deps": [],
+      "files": [],
+      "acceptance": "G1 census names every existing vision/input tool we already own before any new code. G2 one seat-agnostic verb drives a DOM surface end to end: read controls, act, read back the changed state. G3 act-and-verify refuses to report success it did not observe. G4 screen/DOM text is treated as untrusted DATA -- a pin proves instruction-shaped screen content does not steer the seat. G5 the Rill case is reproducible: an unreachable-but-live seat is handed a turn through the door, not by hand.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-26T20:17:52+00:00",
+      "updated": "2026-08-26T20:17:52+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-26T20:17:52+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T387",
+      "title": "bifrost: wake watcher DETECTS mail that neither lane's drain will surface",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-08-28T02:27:47+00:00",
+      "updated": "2026-08-28T02:27:47+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-08-28T02:27:47+00:00"
         }
       ]
     }
