@@ -1,0 +1,14 @@
+{
+ "v": 1,
+ "kind": "fresh_clone_gate",
+ "sha": "4d0ebba5",
+ "seat": "claude",
+ "at": "2026-09-02T12:35:18Z",
+ "collected": 5101,
+ "files": 632,
+ "errors": 0,
+ "returncode": 0,
+ "floor": 4900,
+ "ok": true,
+ "reasons": []
+}
