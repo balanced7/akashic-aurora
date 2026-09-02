@@ -257,8 +257,11 @@ an immediate singleton refusal even though the task XML contained
 observation window. Externally supervised daemons therefore wait for a prior
 TTL lease inside the same scheduler-owned process; they do not exit during the
 handoff. The existing detached self-restart and fail-fast lock refusal remain
-the defaults for other callers. Reinstall or update the tasks with the local
-continuity IDs:
+the defaults for other callers. An isolated live two-daemon drill then proved
+the supervised contract rather than only its unit seam: the successor remained
+alive while PID 10532 held the lease, acquired it in the same process after the
+first daemon exited, and both processes returned 0. Reinstall or update the
+tasks with the local continuity IDs:
 
 ```powershell
 ./scripts/install_sunshine_discord_tasks.ps1 `
@@ -292,15 +295,20 @@ acceptable launch posture. The process was allowed to finish its in-flight
 turns, held at a targeted loop boundary, then replaced with the explicit work
 lane.
 
-Current observed gates are: 51 focused tests green; persistent branch lineage
+Current observed gates are: 55 focused tests green; persistent branch lineage
 read back as `forkedFromId=<direct-history-thread>` and `status=notLoaded`;
 two fresh-process resumes green; both Windows tasks running; daemon parent and
 managed Sol child command lines correct; watcher armed with zero idle turns.
 The managed outbound feed is also destination-proven: Bifrost message
 `1788359047651-0` (`FEED617A`) appeared in `#sol` as Discord message
 `1544714561893179444`, and its exact body was read back through Discord's bot
-API. The final human-authored inbound nonce, bound-task reply, and destination
-readback are still required before claiming end-to-end reachability.
+API. After the scheduler-anchor repair, Bifrost message `1788360912798-0`
+(`ANCHOR-FFF05B52`) traversed the new daemon and was read back exactly as
+Discord message `1544722382768308234`; Task Scheduler still owned daemon PID
+64012 and managed runner PID 66768 remained its child after the first
+stale-code-check interval. The final human-authored inbound nonce, bound-task
+reply, and destination readback are still required before claiming end-to-end
+reachability.
 
 ## Governed Aurora verb execution
 
