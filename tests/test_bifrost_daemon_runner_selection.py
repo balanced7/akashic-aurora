@@ -18,6 +18,8 @@ def test_daemon_parser_accepts_explicit_runner_and_repeatable_child_args():
             "bifrost_runner_sol.py",
             "--runner-consume-lane",
             "work",
+            "--refusal-exit-code",
+            "75",
             "--runner-arg=--ignore-source",
             "--runner-arg=discord",
         ]
@@ -25,6 +27,7 @@ def test_daemon_parser_accepts_explicit_runner_and_repeatable_child_args():
 
     assert args.runner_script == "bifrost_runner_sol.py"
     assert args.runner_consume_lane == "work"
+    assert args.refusal_exit_code == 75
     assert args.runner_arg == ["--ignore-source", "discord"]
 
 
