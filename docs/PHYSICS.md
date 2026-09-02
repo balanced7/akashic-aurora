@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at fc197ac3. A bound you discover by collision is not awareness -- this sheet
+> Derived at e3a7474e. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -269,7 +269,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (156 numeric constants)
+## Mechanical bounds (158 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -416,6 +416,7 @@ Class: reference
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
 | `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
+| `_MAX_LECTURE_BYTES` | 2,000,000 | core/library/college.py |  |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
 | `_MAX_SUMMARY` | 500 | core/events/event_log.py |  |
 | `_MIN_MARKER` | 6 | core/trust/private_plane.py |  |
@@ -428,4 +429,5 @@ Class: reference
 | `_STALE_DAYS` | 7 | agent/harness/context.py | W5: note-derived lines gain [STALE] at this age |
 | `_SWITCH_MIN_BEATS` | 2 | core/narrative/episode_suggester.py | ...and needs >=2 of them, unanimous, on a non-episode track |
 | `_SWITCH_WINDOW` | 3 | core/narrative/episode_suggester.py | switch looks at the last N routed beats... |
+| `_TEXT_PREVIEW_CHARS` | 240 | core/coord/intent_shadow.py |  |
 | `_THEMES_MAX_DAYS` | 30 | agent/harness/context.py | R2: themes older than this stay off the whisper |
