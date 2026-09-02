@@ -57,6 +57,10 @@ for line in sys.stdin:
     elif method == "thread/start":
         emit({"method": "thread/started", "params": {"thread": {"id": "thread-fixture"}}})
         emit({"id": message["id"], "result": {"thread": {"id": "thread-fixture"}}})
+    elif method == "thread/resume":
+        thread_id = message["params"]["threadId"]
+        emit({"method": "thread/started", "params": {"thread": {"id": thread_id}}})
+        emit({"id": message["id"], "result": {"thread": {"id": thread_id}}})
     elif method == "turn/start":
         emit({"id": message["id"], "result": {"turn": {"id": "turn-fixture"}}})
         emit({"method": "item/completed", "params": {
@@ -133,6 +137,28 @@ def test_owned_stdio_host_initializes_and_thread_start_spends_no_turn(tmp_path):
     methods = [json.loads(line).get("method") for line in log.read_text(encoding="utf-8").splitlines()]
     assert methods[:3] == ["initialize", "initialized", "thread/start"]
     assert "turn/start" not in methods
+
+
+def test_owned_stdio_host_resumes_recorded_thread_without_starting_or_spending_a_turn(tmp_path):
+    command, log = _command(tmp_path)
+    with CodexAppServer(command=command, cwd=tmp_path) as server:
+        thread = server.resume_thread(
+            "thread-persisted",
+            sandbox="read-only",
+            approval_policy="never",
+            personality="friendly",
+        )
+        assert thread.thread_id == "thread-persisted"
+
+    traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    methods = [item.get("method") for item in traffic]
+    assert methods[:3] == ["initialize", "initialized", "thread/resume"]
+    assert "thread/start" not in methods
+    assert "turn/start" not in methods
+    resume = next(item for item in traffic if item.get("method") == "thread/resume")
+    assert resume["params"]["threadId"] == "thread-persisted"
+    assert resume["params"]["sandbox"] == "read-only"
+    assert resume["params"]["approvalPolicy"] == "never"
 
 
 def test_one_stdout_reader_demultiplexes_out_of_order_responses(tmp_path):
@@ -700,6 +726,34 @@ def test_private_watcher_state_baselines_and_deduplicates(tmp_path):
     assert restored.records[-1]["outcome"] == "ignored"
 
 
+def test_private_watcher_state_persists_one_explicit_thread_binding_and_lineage(tmp_path):
+    path = tmp_path / "wake-state.json"
+    state = WakeState.open(
+        path,
+        agent="sol",
+        baseline="50-0",
+        thread_id="thread-discord",
+        source_thread_id="thread-desktop",
+        binding_kind="completed-history-fork",
+    )
+    assert state.thread_id == "thread-discord"
+    assert state.source_thread_id == "thread-desktop"
+    assert state.binding_kind == "completed-history-fork"
+
+    restored = WakeState.open(path, agent="sol", baseline="999-0")
+    assert restored.thread_id == "thread-discord"
+    assert restored.source_thread_id == "thread-desktop"
+    assert restored.binding_kind == "completed-history-fork"
+
+    with pytest.raises(WakeError, match="refusing to replace"):
+        WakeState.open(
+            path,
+            agent="sol",
+            baseline="999-0",
+            thread_id="thread-stranger",
+        )
+
+
 def test_corrupt_private_state_refuses_instead_of_skipping_to_a_new_tail(tmp_path):
     path = tmp_path / "wake-state.json"
     path.write_text("{broken", encoding="utf-8")
@@ -781,15 +835,25 @@ class FixtureAppServer:
         self.command = ["fixture-app-server"]
         self.process = SimpleNamespace(pid=4321)
         self.turns = 0
+        self.starts = 0
+        self.resumes = 0
 
     def start(self):
         return self
 
     def start_thread(self, **kwargs):
-        assert kwargs["ephemeral"] is True
+        self.starts += 1
+        assert kwargs["ephemeral"] is False
         assert kwargs["sandbox"] == "read-only"
         assert kwargs["approval_policy"] == "never"
         return ThreadHandle("thread-wake", {"thread": {"id": "thread-wake"}})
+
+    def resume_thread(self, thread_id, **kwargs):
+        self.resumes += 1
+        assert thread_id == "thread-wake"
+        assert kwargs["sandbox"] == "read-only"
+        assert kwargs["approval_policy"] == "never"
+        return ThreadHandle(thread_id, {"thread": {"id": thread_id}})
 
     def run_turn(self, thread_id, prompt, **kwargs):
         self.turns += 1
@@ -862,6 +926,8 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     result = watcher.handle(mid, redis.fields)
     assert result == {"mid": mid, "outcome": "replied", "reply_mid": "70-0"}
     assert len(servers) == 1 and servers[0].turns == 1
+    assert servers[0].starts == 1 and servers[0].resumes == 0
+    assert state.thread_id == "thread-wake", "the first durable thread is bound before reuse"
     assert identity_reads == ["sol"], "one admitted turn gets exactly one identity snapshot"
     assert sends[0][:3] == ("dsh_agent", "reply", "A bounded reply from Sol.")
     assert sends[0][3]["answers"] == mid
@@ -884,3 +950,145 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
 
     assert watcher.handle(mid, redis.fields)["outcome"] == "duplicate"
     assert servers[0].turns == 1 and len(sends) == 1
+
+
+def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
+    mid = "60-0"
+    redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
+    bus = Bus("sol", client=redis, promote=False)
+    sends = []
+    bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
+    state = WakeState.open(
+        tmp_path / "state.json",
+        agent="sol",
+        baseline="50-0",
+        thread_id="thread-wake",
+        source_thread_id="thread-desktop",
+        binding_kind="completed-history-fork",
+    )
+    servers = []
+
+    def make_server(**kwargs):
+        server = FixtureAppServer(**kwargs)
+        servers.append(server)
+        return server
+
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy(
+            "sol",
+            frozenset({"dsh_agent"}),
+            expected_answers=frozenset({"1787730404992-0"}),
+        ),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=tmp_path,
+        server_factory=make_server,
+        identity_resolver=lambda agent: SubjectIdentity(
+            agent_id=agent,
+            callsign="Sunshine",
+            status="ratified",
+            authority="resident-registry-fixture",
+        ),
+    )
+
+    result = watcher.handle(mid, redis.fields)
+    assert result["outcome"] == "replied"
+    assert servers[0].starts == 0 and servers[0].resumes == 1
+    assert servers[0].turns == 1
+    assert sends[0][3]["continuity_thread_id"] == "thread-wake"
+    assert sends[0][3]["continuity_source_thread_id"] == "thread-desktop"
+    assert sends[0][3]["continuity_binding"] == "completed-history-fork"
+
+
+class ActiveWriterAppServer(FixtureAppServer):
+    def resume_thread(self, thread_id, **kwargs):
+        self.resumes += 1
+        raise CodexAppServerError(
+            f"App Server 'thread/resume' failed: thread {thread_id} already has an active writer"
+        )
+
+
+def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp_path):
+    mid = "60-0"
+    redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
+    bus = Bus("sol", client=redis, promote=False)
+    sends = []
+    bus.send = lambda *args, **kwargs: sends.append((args, kwargs)) or "70-0"
+    state = WakeState.open(
+        tmp_path / "state.json",
+        agent="sol",
+        baseline="50-0",
+        thread_id="thread-wake",
+    )
+    server = ActiveWriterAppServer()
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy(
+            "sol",
+            frozenset({"dsh_agent"}),
+            expected_answers=frozenset({"1787730404992-0"}),
+        ),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=tmp_path,
+        server_factory=lambda **_kwargs: server,
+        identity_resolver=lambda agent: SubjectIdentity(
+            agent_id=agent,
+            callsign="Sunshine",
+            status="ratified",
+            authority="resident-registry-fixture",
+        ),
+    )
+
+    result = watcher.handle(mid, redis.fields)
+    assert result == {"mid": mid, "outcome": "deferred_active_writer"}
+    assert state.last_seen == "50-0"
+    assert state.seen(mid) is False
+    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
+    assert sends == []
+
+
+class MissingThreadAppServer(FixtureAppServer):
+    def resume_thread(self, thread_id, **kwargs):
+        self.resumes += 1
+        raise CodexAppServerError(
+            f"App Server 'thread/resume' failed: thread {thread_id} not found"
+        )
+
+
+def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tmp_path):
+    mid = "60-0"
+    redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
+    bus = Bus("sol", client=redis, promote=False)
+    state = WakeState.open(
+        tmp_path / "state.json",
+        agent="sol",
+        baseline="50-0",
+        thread_id="thread-wake",
+    )
+    server = MissingThreadAppServer()
+    watcher = CodexBifrostWake(
+        bus=bus,
+        policy=WakePolicy(
+            "sol",
+            frozenset({"dsh_agent"}),
+            expected_answers=frozenset({"1787730404992-0"}),
+        ),
+        state=state,
+        log_path=tmp_path / "events.jsonl",
+        cwd=tmp_path,
+        server_factory=lambda **_kwargs: server,
+        identity_resolver=lambda agent: SubjectIdentity(
+            agent_id=agent,
+            callsign="Sunshine",
+            status="ratified",
+            authority="resident-registry-fixture",
+        ),
+    )
+
+    result = watcher.handle(mid, redis.fields)
+    assert result["outcome"] == "continuity_refused"
+    assert state.last_seen == "50-0"
+    assert state.seen(mid) is False
+    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
