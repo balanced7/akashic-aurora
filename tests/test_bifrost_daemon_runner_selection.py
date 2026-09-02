@@ -31,6 +31,40 @@ def test_daemon_parser_accepts_explicit_runner_and_repeatable_child_args():
     assert args.runner_arg == ["--ignore-source", "discord"]
 
 
+def test_external_supervisor_keeps_daemon_anchored_instead_of_detached_respawn(monkeypatch):
+    calls = []
+
+    def _would_detach(agent, *, in_flight=False):
+        calls.append((agent, in_flight))
+        return "stale-code successor launched"
+
+    monkeypatch.setattr(daemon._SELF_RESTART, "maybe_self_restart", _would_detach)
+    args = daemon.build_parser().parse_args(
+        ["--agent", "sol", "--external-supervisor"]
+    )
+
+    assert args.external_supervisor is True
+    assert daemon.daemon_self_restart_reason(
+        "sol", in_flight=False, external_supervisor=args.external_supervisor
+    ) is None
+    assert calls == []
+
+    assert daemon.daemon_self_restart_reason(
+        "sol", in_flight=True, external_supervisor=False
+    ) == "stale-code successor launched"
+    assert calls == [("sol", True)]
+
+
+def test_sunshine_scheduled_task_declares_external_supervisor_anchor():
+    installer = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "install_sunshine_discord_tasks.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "'--external-supervisor'" in installer
+
+
 def test_managed_runner_environment_can_pin_the_work_lane_without_dropping_base_values():
     env = daemon.managed_runner_env(
         "sol",
