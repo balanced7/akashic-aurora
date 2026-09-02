@@ -302,6 +302,7 @@
 - `deepseek_chat.py` — deepseek_chat -- an interactive, TOOL-USING conversation with DeepSeek, in its own window.
 - `discord_setup.py` — One-shot Discord server setup — runs under the admin grant Daniil flipped on his way
 - `enrich_corpus.py` — A3 migration pipeline: the ~900-file corpus -> enriched atoms, verified, gated.
+- `g_recall_at_seed.py` — (no docstring)
 - `gemini_chat.py` — gemini_chat -- the gemini seat's model transport: gemini-1.5-pro as a first-class Akashic citizen.
 - `gemini_web.py` — gemini_web -- ask Gemini through the FREE web surfaces (not API quota).
 - `harmonize_knowledge.py` — harmonize_knowledge.py — one-time knowledge-store harmonization (2026-06-20)
@@ -338,6 +339,8 @@
 - `trader_archivist.py` — P0b — the archivist: forward-accruing, self-stamped capture of niche semi sources.
 - `ui_shot.py` — Headless screenshots of the live console -- the EYES half of the design loop.
 - `vfx_ingest.py` — Turn a pasted Shadertoy shader into one the bench can compile, and SAY WHAT IT CHANGED.
+- `vfx_probe_chroma.py` — Probe: chroma-aware structured metrics over real bench PNGs.
+- `vfx_probe_metrics.py` — Probe: do structured metrics surface anything a PNG does not?
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
 - `web_door.py` — web_door -- CLI shim over core.web.door until the agent_cli verb wiring lands.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
