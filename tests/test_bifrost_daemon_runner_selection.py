@@ -16,13 +16,30 @@ def test_daemon_parser_accepts_explicit_runner_and_repeatable_child_args():
             "--spawn-runner",
             "--runner-script",
             "bifrost_runner_sol.py",
+            "--runner-consume-lane",
+            "work",
             "--runner-arg=--ignore-source",
             "--runner-arg=discord",
         ]
     )
 
     assert args.runner_script == "bifrost_runner_sol.py"
+    assert args.runner_consume_lane == "work"
     assert args.runner_arg == ["--ignore-source", "discord"]
+
+
+def test_managed_runner_environment_can_pin_the_work_lane_without_dropping_base_values():
+    env = daemon.managed_runner_env(
+        "sol",
+        consume_lane="work",
+        base={"KEEP_ME": "yes"},
+    )
+
+    assert env["KEEP_ME"] == "yes"
+    assert env["BIFROST_CONSUME_LANE"] == "work"
+
+    with pytest.raises(ValueError):
+        daemon.managed_runner_env("sol", consume_lane="mystery", base={})
 
 
 def test_managed_runner_defaults_remain_deepseek_and_full_door(tmp_path):
