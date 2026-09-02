@@ -245,17 +245,19 @@ Two persistent Windows tasks now separate responsibilities:
   work.
 
 Both tasks run at logon, start when available, allow battery operation, have no
-execution-time limit, reject twin instances, and restart up to 999 times at
-one-minute intervals. Sunshine's daemon uses refusal exit code 75: if a prior
-TTL-backed singleton lease briefly survives its process, Windows treats the
-refusal as retryable instead of accepting a clean exit and leaving the seat
-dark. The fleet task also passes `--external-supervisor`. Without that flag,
+execution-time limit, reject twin instances, and carry a restart policy for
+later process failures. The fleet task passes `--external-supervisor`. Without
+that flag,
 the daemon's normal stale-code metabolism launched a detached successor and
 exited 0; Task Scheduler then reported `Ready` while the orphaned successor
 continued running, so a later crash would not have triggered its restart
-policy. Externally supervised daemons now stay attached; the existing detached
-self-restart remains the default for other callers. The daemon's refusal
-default likewise remains exit 0. Reinstall or update the tasks with the local
+policy. A second live drill showed that this host did not automatically retry
+an immediate singleton refusal even though the task XML contained
+`RestartOnFailure`: it remained `Ready` with result 75 for the full 110-second
+observation window. Externally supervised daemons therefore wait for a prior
+TTL lease inside the same scheduler-owned process; they do not exit during the
+handoff. The existing detached self-restart and fail-fast lock refusal remain
+the defaults for other callers. Reinstall or update the tasks with the local
 continuity IDs:
 
 ```powershell
