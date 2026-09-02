@@ -57,6 +57,11 @@ for line in sys.stdin:
     elif method == "thread/start":
         emit({"method": "thread/started", "params": {"thread": {"id": "thread-fixture"}}})
         emit({"id": message["id"], "result": {"thread": {"id": "thread-fixture"}}})
+    elif method == "thread/fork":
+        source_id = message["params"]["threadId"]
+        thread = {"id": "thread-forked", "forkedFromId": source_id}
+        emit({"method": "thread/started", "params": {"thread": thread}})
+        emit({"id": message["id"], "result": {"thread": thread}})
     elif method == "thread/resume":
         thread_id = message["params"]["threadId"]
         emit({"method": "thread/started", "params": {"thread": {"id": thread_id}}})
@@ -159,6 +164,22 @@ def test_owned_stdio_host_resumes_recorded_thread_without_starting_or_spending_a
     assert resume["params"]["threadId"] == "thread-persisted"
     assert resume["params"]["sandbox"] == "read-only"
     assert resume["params"]["approvalPolicy"] == "never"
+
+
+def test_owned_stdio_host_forks_stored_history_without_resuming_or_spending_a_turn(tmp_path):
+    command, log = _command(tmp_path)
+    with CodexAppServer(command=command, cwd=tmp_path) as server:
+        thread = server.fork_thread("thread-source", ephemeral=False)
+        assert thread.thread_id == "thread-forked"
+        assert thread.raw["thread"]["forkedFromId"] == "thread-source"
+
+    traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    methods = [item.get("method") for item in traffic]
+    assert methods[:3] == ["initialize", "initialized", "thread/fork"]
+    assert "thread/resume" not in methods
+    assert "turn/start" not in methods
+    fork = next(item for item in traffic if item.get("method") == "thread/fork")
+    assert fork["params"] == {"threadId": "thread-source", "ephemeral": False}
 
 
 def test_one_stdout_reader_demultiplexes_out_of_order_responses(tmp_path):
