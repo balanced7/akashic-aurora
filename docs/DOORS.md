@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (98 verbs)
+## CLI door -- `py agent_cli.py <verb>` (99 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -92,6 +92,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` |
 | `shadow` | zero-effect intent shadow: preview one typed ToolBox action before reality changes | `<target>*` `--agent` `--args-json` `--json` |
+| `shell-home` | where the shell is now + where fresh harness shells land (cwd-guard's other half) | `--set` `--clear` |
 | `sift` | the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary | `<terms>*` `--hats` `--planes` `--junction` `--dry-run` `--workers` `--max-occurrences` `--out` `--json` |
 | `stand-down` | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) | `<agent>*` |
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |
