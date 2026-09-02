@@ -249,8 +249,14 @@ execution-time limit, reject twin instances, and restart up to 999 times at
 one-minute intervals. Sunshine's daemon uses refusal exit code 75: if a prior
 TTL-backed singleton lease briefly survives its process, Windows treats the
 refusal as retryable instead of accepting a clean exit and leaving the seat
-dark. The daemon's default remains exit 0 for existing callers. Reinstall or
-update the tasks with the local continuity IDs:
+dark. The fleet task also passes `--external-supervisor`. Without that flag,
+the daemon's normal stale-code metabolism launched a detached successor and
+exited 0; Task Scheduler then reported `Ready` while the orphaned successor
+continued running, so a later crash would not have triggered its restart
+policy. Externally supervised daemons now stay attached; the existing detached
+self-restart remains the default for other callers. The daemon's refusal
+default likewise remains exit 0. Reinstall or update the tasks with the local
+continuity IDs:
 
 ```powershell
 ./scripts/install_sunshine_discord_tasks.ps1 `
