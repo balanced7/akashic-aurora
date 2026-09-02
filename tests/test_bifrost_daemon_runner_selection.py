@@ -1,7 +1,10 @@
 """T385 RED: a managed daemon may supervise Sunshine's own runner explicitly."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -63,6 +66,38 @@ def test_sunshine_scheduled_task_declares_external_supervisor_anchor():
     ).read_text(encoding="utf-8")
 
     assert "'--external-supervisor'" in installer
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell Task Scheduler installer is Windows-only")
+def test_sunshine_installer_resolves_its_default_repo_root_in_script_context():
+    installer = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "install_sunshine_discord_tasks.ps1"
+    )
+    result = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(installer),
+            "-ThreadId",
+            "00000000-0000-0000-0000-000000000001",
+            "-SourceThreadId",
+            "00000000-0000-0000-0000-000000000002",
+            "-PythonExe",
+            sys.executable,
+            "-WhatIf",
+        ],
+        cwd=str(installer.parents[1]),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_managed_runner_environment_can_pin_the_work_lane_without_dropping_base_values():
