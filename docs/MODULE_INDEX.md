@@ -236,11 +236,12 @@
 ## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
-## core/library/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/library/  (6 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `atoms.py` — The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
 - `college.py` — Unofficial College record -- source, voice, audit, teach-back, errata.
 - `legacy_map.py` — The legacy_path -> art_id map (T109): the migration's missing handle, finally wired.
 - `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.
+- `reports.py` — Report shelf -- one read surface over every report the fleet has produced.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
 ## core/season/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
