@@ -95,7 +95,7 @@
 - `wake_seat.py` — wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix).
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (28 modules)
+## core/coord/  (30 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -108,11 +108,13 @@
 - `forecast_registry.py` — T375 -- the engineering forecast registry (append-only, fold-not-table).
 - `ground.py` — Truthful evidence ladders for Aurora subjects.
 - `intent.py` — Intent declaration -- Policy 0 of the coordination layer.
+- `intent_shadow.py` — Deterministic, renderer-neutral previews of proposed Aurora actions.
 - `lens_ledger.py` — lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied.
 - `method_drift.py` — method_drift -- the one method number that reaches a channel people actually read.
 - `metrics.py` — Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog.
 - `negotiation.py` — Negotiation round — brief window after user input where agents declare plans.
 - `observations.py` — Shared schema for bounded, subject-explicit observations.
+- `orient.py` — Renderer-neutral orientation scene over Aurora's native read verbs.
 - `preregistration.py` — preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix).
 - `shift_loop.py` — Autonomous shift loop — the missing cadence between existing primitives.
 - `sift.py` — sift -- the nested ask: a tiered read that returns dissent instead of consensus.
@@ -183,7 +185,8 @@
 - `theme_discovery.py` — ThemeDiscoverer (Spine v2, slice V6) -- embedding theme inference that augments the
 - `track_router.py` — TrackRouter (Slice 2, Tier 0 heuristic) -- infer which domain Track a Beat belongs to,
 
-## core/trust/  (4 modules)
+## core/trust/  (5 modules)
+- `action_authority.py` — One read-only authority detector shared by ToolBox execution and intent shadows.
 - `capabilities.py` — Capability tokens + role templates -- the atomic vocabulary of the security schema.
 - `grant_writer.py` — core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema).
 - `private_plane.py` — The private-plane leak guard: ingress, at the one place everything must pass.
@@ -233,8 +236,9 @@
 ## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
-## core/library/  (4 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/library/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `atoms.py` — The artifact-atom family (A1 core) -- atoms as truth, JSONL as the durable record.
+- `college.py` — Unofficial College record -- source, voice, audit, teach-back, errata.
 - `legacy_map.py` — The legacy_path -> art_id map (T109): the migration's missing handle, finally wired.
 - `projection.py` — Projection renderer (A1) -- one atom -> one read-only markdown file.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
@@ -280,6 +284,7 @@
 - `bifrost_child.py` — bifrost_child -- managed subprocess + daemon singleton lock (T075 M1-delta).
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
 - `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
+- `bifrost_reports.py` — Report shelf -- the Bifrost page and its JSON doors.
 - `bifrost_runner.py` — bifrost_runner -- make a stateless model (Gemini) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_deepseek.py` — bifrost_runner_deepseek -- make DeepSeek (a stateless API model) a FIRST-CLASS Bifrost citizen.
 - `bifrost_runner_discord.py` — Discord inbound gateway shell — a thin discord.py loop around core/comm/discord_inbound.py.

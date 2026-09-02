@@ -29,11 +29,11 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 - `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->68), reviewed 2026-07-26
-- `core/coord` -- DRIFT (11->28), reviewed 2026-07-26
+- `core/coord` -- DRIFT (11->30), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->17), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
-- `core/trust` -- DRIFT (2->4), reviewed 2026-07-26
+- `core/trust` -- DRIFT (2->5), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->7), reviewed 2026-07-26
 - `agent/harness` -- DRIFT (9->13), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
@@ -134,7 +134,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/coord` -- 28 modules  ·  DRIFT (11->28)
+## `core/coord` -- 30 modules  ·  DRIFT (11->30)
 
 **What it does.** Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.
 
@@ -269,7 +269,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
-## `core/trust` -- 4 modules  ·  DRIFT (2->4)
+## `core/trust` -- 5 modules  ·  DRIFT (2->5)
 
 **What it does.** Capability-based access control: capabilities.py issues Capability(action, resource, constraints) tokens and verifies them; registry.py maps agent_id to allowed capabilities and answers can(agent, action, resource).
 

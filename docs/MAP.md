@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (44 of 191 modules lack both pin and paper by name)
+## GAP queue (45 of 194 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -49,6 +49,7 @@ Class: reference
 - core/recall/pack_replay.py
 - core/narrative/chapter_lifecycle.py
 - core/narrative/theme_assigner.py
+- core/trust/action_authority.py
 - core/trust/capabilities.py
 - core/trust/grant_writer.py
 - core/fleet/model_roster.py
@@ -161,7 +162,7 @@ Class: reference
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (28 modules)
+## core/coord/  (30 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -177,11 +178,13 @@ Class: reference
 | `forecast_registry.py` | T375 -- the engineering forecast registry (append-only, fold-not-table). | tests/test_t375_forecast_registry.py | GAP |  |
 | `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
+| `intent_shadow.py` | Deterministic, renderer-neutral previews of proposed Aurora actions. | tests/test_t084_intent_shadow.py | GAP |  |
 | `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |
 | `negotiation.py` | Negotiation round — brief window after user input where agents declare plans. | tests/test_negotiation.py | GAP |  |
 | `observations.py` | Shared schema for bounded, subject-explicit observations. | GAP | GAP |  |
+| `orient.py` | Renderer-neutral orientation scene over Aurora's native read verbs. | tests/test_boot_orientation.py | docs/bifrost-new-seat-orientation.md |  |
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
 | `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_t217_sift.py | GAP |  |
@@ -267,10 +270,11 @@ Class: reference
 | `theme_discovery.py` | ThemeDiscoverer (Spine v2, slice V6) -- embedding theme inference that augments the | tests/test_theme_discovery.py | GAP | `AKASHIC_EMBED_THEMES` |
 | `track_router.py` | TrackRouter (Slice 2, Tier 0 heuristic) -- infer which domain Track a Beat belongs to, | tests/test_track_router.py | GAP |  |
 
-## core/trust/  (4 modules)
+## core/trust/  (5 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
+| `action_authority.py` | One read-only authority detector shared by ToolBox execution and intent shadows. | GAP | GAP |  |
 | `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | GAP |  |
 | `grant_writer.py` | core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema). | GAP | GAP |  |
 | `private_plane.py` | The private-plane leak guard: ingress, at the one place everything must pass. | tests/test_private_plane_guard.py | GAP |  |
