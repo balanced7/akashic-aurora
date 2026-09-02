@@ -284,12 +284,15 @@ acceptable launch posture. The process was allowed to finish its in-flight
 turns, held at a targeted loop boundary, then replaced with the explicit work
 lane.
 
-Current observed gates are: 50 focused tests green; persistent branch lineage
+Current observed gates are: 51 focused tests green; persistent branch lineage
 read back as `forkedFromId=<direct-history-thread>` and `status=notLoaded`;
 two fresh-process resumes green; both Windows tasks running; daemon parent and
 managed Sol child command lines correct; watcher armed with zero idle turns.
-The final authenticated Discord nonce/reply/readback is still required before
-claiming end-to-end reachability.
+The managed outbound feed is also destination-proven: Bifrost message
+`1788359047651-0` (`FEED617A`) appeared in `#sol` as Discord message
+`1544714561893179444`, and its exact body was read back through Discord's bot
+API. The final human-authored inbound nonce, bound-task reply, and destination
+readback are still required before claiming end-to-end reachability.
 
 ## Governed Aurora verb execution
 
