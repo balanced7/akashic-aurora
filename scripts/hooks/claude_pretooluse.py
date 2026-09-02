@@ -270,10 +270,13 @@ def main() -> int:
         return 0
     if _dedup_should_skip(data):
         return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
+    # 2026-09-01: drift is ORTHOGONAL to scope -- a repo-shaped command can be IN scope by its
+    # text while its cwd is drifted (py agent_cli.py from E:\ -> file-not-found), or OUT of
+    # scope entirely (grep of absent dirs -> false-clean). Both were silent; both now speak.
+    drift = _cwd_drift(data)
     if not _in_scope(tool, data):
-        drift = _cwd_drift(data)
         if drift:
-            _emit_context(drift)   # 2026-09-01: the silent no-op here was the invisibility
+            _emit_context(drift)
         return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
     if tool in _SHELL_TOOLS:
         reason = _check_bash(data)
@@ -286,6 +289,8 @@ def main() -> int:
     # exclude_sources) now prevents the same lesson repeating, so Bash recall front-loads relevant
     # knowledge then goes quiet instead of spamming. The git-guard above remains Bash's job.
     ctx = _recall_context(data)
+    if drift:
+        ctx = (drift + "\n" + ctx) if ctx else drift
     # T236: a FACT about the id being minted into this path, at the application site. Composed
     # with recall rather than replacing it, and placed FIRST because it is about the action in
     # hand while recall is about the topic. Fires approximately never (terminal id + new path
