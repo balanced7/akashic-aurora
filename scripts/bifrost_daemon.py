@@ -119,6 +119,30 @@ def daemon_self_restart_reason(
     return _SELF_RESTART.maybe_self_restart(agent, in_flight=in_flight)
 
 
+def acquire_daemon_lock(
+    dlock,
+    *,
+    external_supervisor: bool = False,
+    retry_s: float = 1.0,
+    sleep_fn=time.sleep,
+) -> bool:
+    """Acquire once by default; supervised services wait in the same process.
+
+    A scheduler cannot reliably own a service that exits during the lease handoff.
+    Waiting here keeps the original scheduled action alive while the prior TTL
+    expires.  The unsupervised contract remains fail-fast.
+    """
+    delay = float(retry_s)
+    if delay <= 0:
+        raise ValueError("daemon lock retry interval must be positive")
+    while True:
+        if dlock.acquire():
+            return True
+        if not external_supervisor:
+            return False
+        sleep_fn(delay)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the daemon CLI; extracted so launch posture is offline-testable."""
     ap = argparse.ArgumentParser(
@@ -322,21 +346,34 @@ def main(argv=None) -> int:
         dlock = DaemonLock(c, bus.ns, agent, ttl=ttl)
         # R-a1 twin-refusal adapted for the daemon lock
         existing = c.get(f"{bus.ns}:daemon:{agent}")
+        waited_for_lock = False
         if existing:
             try:
                 rec = json.loads(existing)
                 if rec.get("token") != dlock.token:
-                    refusal_code = int(args.refusal_exit_code)
-                    _say(f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
-                          f"holds the daemon lock -- exiting {refusal_code}")
-                    return refusal_code
+                    if not args.external_supervisor:
+                        refusal_code = int(args.refusal_exit_code)
+                        _say(f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
+                              f"holds the daemon lock -- exiting {refusal_code}")
+                        return refusal_code
+                    waited_for_lock = True
+                    _say(f"[daemon] waiting agent={agent}: prior daemon pid={rec.get('pid')} "
+                          "holds the lease; external supervisor keeps this process "
+                          "anchored until the TTL handoff")
             except Exception:
                 pass
-        if not dlock.acquire():
+        if not acquire_daemon_lock(
+            dlock,
+            external_supervisor=args.external_supervisor,
+            retry_s=min(max(float(hb), 1.0), 5.0),
+        ):
             refusal_code = int(args.refusal_exit_code)
             _say(f"[daemon] refused agent={agent}: daemon lock held by another process "
                   f"-- exiting {refusal_code}")
             return refusal_code
+        if waited_for_lock:
+            _say(f"[daemon] acquired agent={agent}: prior daemon lease released; "
+                 "scheduler-owned process retained")
         # Coexistence: spawn-runner inspects the runner lock BEFORE spawning.
         # manage-listener-only NEVER touches runner_lock -- it coexists with a
         # consuming session (session:<sid> token, RB-21) and with a bare runner.
