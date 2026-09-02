@@ -58,6 +58,37 @@ def test_external_supervisor_keeps_daemon_anchored_instead_of_detached_respawn(m
     assert calls == [("sol", True)]
 
 
+def test_external_supervisor_waits_inside_same_process_for_singleton_lease():
+    class _Lock:
+        def __init__(self, outcomes):
+            self.outcomes = iter(outcomes)
+            self.calls = 0
+
+        def acquire(self):
+            self.calls += 1
+            return next(self.outcomes)
+
+    supervised = _Lock([False, False, True])
+    sleeps = []
+    assert daemon.acquire_daemon_lock(
+        supervised,
+        external_supervisor=True,
+        retry_s=0.25,
+        sleep_fn=sleeps.append,
+    ) is True
+    assert supervised.calls == 3
+    assert sleeps == [0.25, 0.25]
+
+    default = _Lock([False])
+    assert daemon.acquire_daemon_lock(
+        default,
+        external_supervisor=False,
+        retry_s=0.25,
+        sleep_fn=lambda _: pytest.fail("unsupervised refusal must not wait"),
+    ) is False
+    assert default.calls == 1
+
+
 def test_sunshine_scheduled_task_declares_external_supervisor_anchor():
     installer = (
         Path(__file__).resolve().parents[1]
