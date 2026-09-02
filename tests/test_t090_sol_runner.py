@@ -154,3 +154,20 @@ def test_dedicated_discord_owner_can_be_excluded_without_muting_peer_mail():
     assert R.source_is_ignored({"source": "DISCORD"}, args) is True
     assert R.source_is_ignored({"source": "bifrost"}, args) is False
     assert R.source_is_ignored({}, args) is False
+
+
+def test_sol_runner_consumes_and_attributes_a_graceful_drain_request(monkeypatch):
+    cleared = []
+    monkeypatch.setattr(
+        R.control,
+        "drain_requested",
+        lambda agent: {"by": "sol", "reason": "managed takeover"}
+        if agent == "sol"
+        else None,
+    )
+    monkeypatch.setattr(R.control, "clear_drain", lambda agent: cleared.append(agent))
+
+    request = R.take_drain_request("sol")
+
+    assert request == {"by": "sol", "reason": "managed takeover"}
+    assert cleared == ["sol"]
