@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -37,6 +38,52 @@ from core.outcome import BoundaryOutcome
 
 #: Discord's hard cap on a message body. Exceeding it is a rejected post, not a clipped one.
 DISCORD_MAX = 2000
+
+#: 2026-09-03 (reachability incident): four independent daemons (claude, deepseek, kimi,
+#: sol) each pump the SAME global webhook every ~10s with no cross-process coordination --
+#: under fleet chatter that blows straight through Discord's per-webhook rate bucket. Every
+#: `_default_post` in this house called `raise_for_status()` on the first 429 and the caller
+#: (discord_feed.pump) treats a failed post as SKIP, NEVER RETRY -- cursor still advances, so
+#: a rate-limited reply was gone forever, confessed only to a log line nobody reads live. This
+#: is why "I messaged multiple agents and none responded" reproduces with a healthy gateway,
+#: a healthy daemon, and a bus reply that really was sent. Bounded retry against Discord's own
+#: reported wait absorbs exactly the transient multi-writer collision without turning a
+#: sustained outage into a blocked daemon loop.
+_RATE_LIMIT_MAX_RETRIES = 3
+
+
+def _retry_after_seconds(resp: Any) -> float:
+    """Discord's 429 body carries `retry_after` as fractional seconds -- more precise
+    than the `Retry-After` header, which is rounded to whole seconds. Small pad against
+    clock skew; a missing/unparseable signal falls back to a conservative 1s."""
+    try:
+        body = resp.json()
+        ra = body.get("retry_after")
+        if ra is not None:
+            return max(0.0, float(ra)) + 0.05
+    except ValueError:
+        pass
+    hdr = resp.headers.get("Retry-After") if hasattr(resp, "headers") else None
+    try:
+        return max(0.0, float(hdr)) + 0.05 if hdr else 1.0
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def post_with_rate_limit_retry(post_fn: Callable[[], Any], *,
+                               sleep: Callable[[float], None] = time.sleep) -> Any:
+    """Call `post_fn()` (a `requests.post(...)` invocation), retrying ONLY on HTTP 429,
+    up to `_RATE_LIMIT_MAX_RETRIES` times, waiting exactly what Discord reports it wants.
+    Any other status (or exhausted retries) raises via the caller's own `raise_for_status`,
+    unchanged -- this only reclaims the specific failure class that is a coordination
+    collision, not a real outage."""
+    resp = post_fn()
+    attempt = 0
+    while resp.status_code == 429 and attempt < _RATE_LIMIT_MAX_RETRIES:
+        sleep(_retry_after_seconds(resp))
+        attempt += 1
+        resp = post_fn()
+    return resp
 
 #: Same env-first-then-gitignored-file order every other credential here uses.
 #: T365: route through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault
@@ -131,7 +178,8 @@ def redact(text: str) -> str:
 def _default_post(url: str, content: str) -> bool:
     """The only network call in this module, isolated so every pin runs offline."""
     import requests
-    r = requests.post(url, json={"content": content}, timeout=10)
+    r = post_with_rate_limit_retry(
+        lambda: requests.post(url, json={"content": content}, timeout=10))
     r.raise_for_status()
     return True
 

@@ -186,6 +186,7 @@ def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
     Returns the thread id Discord minted (wait=true => the created forum post's
     channel_id IS the thread id), or None when the response carries none."""
     import requests
+    from core.comm.discord_bridge import post_with_rate_limit_retry
     params: Dict[str, str] = {"wait": "true"}
     if thread_id:
         params["thread_id"] = str(thread_id)
@@ -196,7 +197,8 @@ def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
         payload["avatar_url"] = avatar_url
     if thread_name:
         payload["thread_name"] = thread_name
-    r = requests.post(url, params=params, json=payload, timeout=10)
+    r = post_with_rate_limit_retry(
+        lambda: requests.post(url, params=params, json=payload, timeout=10))
     r.raise_for_status()
     try:
         data = r.json() if r.text else {}
