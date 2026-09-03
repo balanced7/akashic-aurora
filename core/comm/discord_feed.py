@@ -134,17 +134,22 @@ def _post_failure_loud(path: str, msg: Dict[str, Any], mid: str, exc: Exception)
         pass
 
 
-def _forward_global(msg: Dict[str, Any]) -> None:
+def _forward_global(msg: Dict[str, Any]) -> bool:
     """The default global path: the seat speaks AS ITSELF (rung 2 of person-hood,
     Daniil 2026-08-18: 'show up as your own person in the chat'). Reuses the rooms
     transport, which already carries a username; the manual `discord test/send`
     verbs keep the bridge's who-in-body render untouched. Same laws as everywhere:
-    allowlist inherited, redaction + clip via the rooms render, never raises."""
+    allowlist inherited, redaction + clip via the rooms render, never raises.
+
+    Returns False iff a post ATTEMPT failed (S2, 2026-09-02): the caller's own
+    receipt must agree with the confession -- _post_failure_loud was already loud
+    here, but pump() counted the corpse as forwarded because this swallowed the
+    verdict along with the exception. Skipped-by-design still returns True."""
     if not DB.should_forward(msg):
-        return
+        return True
     url = DB.webhook_url()
     if not url:
-        return
+        return True
     try:
         who = ROOMS.persona(str(msg.get("frm") or ""))
         for part in ROOMS.render_room_parts(msg):
@@ -154,6 +159,8 @@ def _forward_global(msg: Dict[str, Any]) -> None:
         # same incident class as the seat-lane swallow: the beat survives, but
         # the failure is loud and journaled instead of impersonating success
         _post_failure_loud("global", msg, str(msg.get("id") or "?"), exc)
+        return False
+    return True
 
 
 def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
@@ -188,7 +195,21 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
             entries = client.xrange(key, min="(" + cursors[key], count=MAX_PER_PUMP)
             for mid, fields in entries:
                 mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
-                msg = _decode(fields)
+                try:
+                    msg = _decode(fields)
+                except Exception as exc:                                # noqa: BLE001
+                    # Defense-in-depth for the S1 class (2026-09-02). NOTE: the
+                    # audit's proposed vehicle (list-typed content) does NOT raise
+                    # in current _decode -- its isinstance guard passes non-strings
+                    # through by law. But any future decode explosion must be loud
+                    # EXACTLY once -- confessed, counted, skipped -- never the
+                    # silent retry-forever the outer except used to produce. (This
+                    # is the display plane; the durable mailbox keeps the record.)
+                    failed += 1
+                    _post_failure_loud(
+                        "decode", {"frm": fields.get("frm"), "to": key}, mid_s, exc)
+                    client.hset(CURSOR_KEY, key, mid_s)
+                    continue
                 msg.setdefault("id", mid_s)
                 # ECHO-GUARD, and it must outrank the operator-always-forwards rule:
                 # a message that CAME FROM Discord (the ear's stamp) must not be
@@ -229,12 +250,27 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                         if ok:
                             forwarded += 1
                         continue
-                (post or _forward_global)(msg)
+                gok = (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
                 client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt
-                forwarded += 1
-        except Exception:                                               # noqa: BLE001
-            continue          # one bad stream must not starve the rest of the beat
+                if gok is False:
+                    # S2: the global post died and said so; the receipt agrees
+                    # with the confession instead of claiming a delivery.
+                    failed += 1
+                else:
+                    forwarded += 1
+        except Exception as exc:                                        # noqa: BLE001
+            # one bad stream must not starve the rest of the beat -- but a caught
+            # exception is a FINDING, never a shrug (S1, 2026-09-02): confess to
+            # stderr so 'zero errors anywhere' can only mean zero errors.
+            try:
+                import sys as _sys
+                print(f"[discord-feed] STREAM BEAT FAILED (confessed, contained) "
+                      f"{key}: {type(exc).__name__}: {str(exc)[:160]}",
+                      file=_sys.stderr, flush=True)
+            except Exception:                                           # noqa: BLE001
+                pass
+            continue
     return BoundaryOutcome.done(ref=f"forwarded={forwarded} failed={failed}",
                                 forwarded=forwarded, initialized=initialized,
                                 failed=failed)
