@@ -108,7 +108,7 @@ Class: reference
 | `control_channel.py` | Out-of-band control: a loopback listener that survives a dead bus. | tests/test_control_channel.py | GAP | `AKASHIC_CONTROL_PORT_BASE` |
 | `cursor_admin.py` | cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors. | GAP | GAP |  |
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
-| `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK` |
+| `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK`, `AKASHIC_DISCORD_WEBHOOKS` |
 | `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_honesty.py | GAP |  |
 | `discord_guest_reply.py` | discord_guest_reply -- the pure half of the guest reply path (the tier's missing direction). | tests/test_discord_guest_reply.py | GAP |  |
 | `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY` |

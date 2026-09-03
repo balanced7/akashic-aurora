@@ -147,14 +147,16 @@ def _forward_global(msg: Dict[str, Any]) -> bool:
     verdict along with the exception. Skipped-by-design still returns True."""
     if not DB.should_forward(msg):
         return True
-    url = DB.webhook_url()
-    if not url:
+    urls = DB.webhook_urls()
+    if not urls:
         return True
     try:
         who = ROOMS.persona(str(msg.get("frm") or ""))
         for part in ROOMS.render_room_parts(msg):
-            ROOMS._default_post(url, part,
-                                username=who["username"], avatar_url=who["avatar_url"])
+            DB.post_via_pool(
+                urls, part,
+                lambda u, c, w=who: ROOMS._default_post(
+                    u, c, username=w["username"], avatar_url=w["avatar_url"]))
     except Exception as exc:                                            # noqa: BLE001
         # same incident class as the seat-lane swallow: the beat survives, but
         # the failure is loud and journaled instead of impersonating success
@@ -274,6 +276,43 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
     return BoundaryOutcome.done(ref=f"forwarded={forwarded} failed={failed}",
                                 forwarded=forwarded, initialized=initialized,
                                 failed=failed)
+
+
+#: shared across every seat's daemon -- ONE key, not one per agent, because the resource
+#: being guarded (the cursor hash + the global webhook pool) is shared too.
+_PUMP_LOCK_KEY = "discord-pump"
+#: shorter than every known daemon's beat interval (bifrost_daemon.py ticks this at 10s) so
+#: a crash mid-pump releases the election before the next beat, live or not, rather than
+#: blocking a healthy daemon behind a dead one's TTL.
+_PUMP_LOCK_TTL = 8
+
+
+def pump_if_owner(bus: Any, *, post: Optional[Callable[..., Any]] = None,
+                  room_post: Optional[Callable[..., Any]] = None) -> BoundaryOutcome:
+    """`pump()`, but only for whichever daemon wins a short-lived election this beat.
+
+    THE COORDINATION GAP THIS CLOSES (2026-09-03 reachability incident). Every seat's
+    daemon calls this on its own 10s tick, independently, against the SAME shared cursor
+    hash and the SAME shared webhook -- with no mutual exclusion, four daemons racing that
+    cursor can each observe the same new message as "unseen" and post it, four times, which
+    is what actually exhausted Discord's per-webhook rate bucket (bounded retry, shipped
+    70aa9314, absorbs the resulting 429s -- it does not stop them from happening). Reusing
+    the exact runner-singleton primitive (`core.comm.runner_lock`, TTL SET-NX) that already
+    keeps two runners off one agent's cursor makes the four daemons behave as ONE logical
+    pump: whoever wins the beat does the real work; every loser's `pump()` call is simply
+    never made, and its next tick finds the cursor already caught up and does nothing. The
+    daemons call this exactly as they called `pump()` before -- the election is invisible
+    to them, and to every agent, which never touched Discord at all.
+    """
+    from core.comm import runner_lock
+    token = runner_lock.instance_token(_PUMP_LOCK_KEY)
+    if not runner_lock.acquire(_PUMP_LOCK_KEY, token, ttl=_PUMP_LOCK_TTL):
+        return BoundaryOutcome.done(ref="not-owner-this-beat",
+                                    forwarded=0, initialized=0, failed=0)
+    try:
+        return pump(bus, post=post, room_post=room_post)
+    finally:
+        runner_lock.release(_PUMP_LOCK_KEY, token)
 
 
 def send_target(agent: str, *, seat_url: Optional[str] = None,

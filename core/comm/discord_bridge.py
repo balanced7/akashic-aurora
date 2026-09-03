@@ -153,6 +153,75 @@ def webhook_url() -> str:
         return ""
 
 
+#: additional pool slots for the SAME global channel -- Discord meters a webhook by its
+#: URL, not by the channel it posts into, so N webhooks on one channel are N independent
+#: rate-limit buckets. Named like `url_file()`'s single slot so the paste-window UX
+#: (secret_intake) that already exists for one credential just... works for four.
+_POOL_SLOT_NAMES = ("discord_webhook.url", "discord_webhook_2.url",
+                    "discord_webhook_3.url", "discord_webhook_4.url")
+
+
+def webhook_urls() -> list:
+    """Every configured pipe for the global channel, most-preferred first.
+
+    2026-09-03 (the coordination-gap note this closes): the fleet's daemons were never
+    individually over budget -- FOUR of them pumping the SAME single webhook is what blew
+    through its bucket. Multiple webhooks pointed at the same channel are how Discord's own
+    rate limit is shaped to be scaled: pool N of them and the sustained ceiling is N times
+    one, while every caller (`forward()`, the automatic feed) still makes exactly one
+    logical post -- the pool is invisible from outside this module.
+
+    AKASHIC_DISCORD_WEBHOOKS overrides the vault entirely with a comma/newline separated
+    list (an ops deploy that would rather not paste through the window); AKASHIC_DISCORD_
+    WEBHOOK (singular, pre-existing) still works as a one-pipe override. Absent either,
+    falls back to whichever vault slots hold a value -- one pipe is the common case and
+    stays exactly as before.
+    """
+    env = os.getenv("AKASHIC_DISCORD_WEBHOOKS") or os.getenv("AKASHIC_DISCORD_WEBHOOK")
+    if env and env.strip():
+        urls = [u.strip() for u in re.split(r"[,\n]", env) if u.strip()]
+        if urls:
+            return urls
+    out = []
+    for name in _POOL_SLOT_NAMES:
+        try:
+            v = (url_file().parent / name).read_text(encoding="utf-8").strip()
+        except OSError:
+            v = ""
+        if v:
+            out.append(v)
+    return out
+
+
+def post_via_pool(urls: list, content: str, post_fn: Callable[[str, str], Any]) -> Any:
+    """Post `content` through the first pipe in `urls` with capacity.
+
+    `post_fn(url, content)` already retries against ITS OWN bucket (every `_default_post`
+    in this house wraps `post_with_rate_limit_retry`); a pipe that is STILL 429 after that
+    budget hands off to the NEXT pipe instead of sleeping through the same bucket's
+    cooldown -- this is the difference between N webhooks being worth N times the WAIT of
+    one versus N times the THROUGHPUT. Any other failure (non-429, or the pool exhausted)
+    propagates exactly as a single-pipe call would, so callers built for one pipe need no
+    changes.
+    """
+    import requests
+    last_exc: Optional[Exception] = None
+    for u in urls:
+        if not u:
+            continue
+        try:
+            return post_fn(u, content)
+        except requests.HTTPError as e:
+            resp = getattr(e, "response", None)
+            if resp is not None and getattr(resp, "status_code", None) == 429:
+                last_exc = e
+                continue
+            raise
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("discord post_via_pool: no pipe configured")
+
+
 def should_forward(msg: Dict[str, Any]) -> bool:
     """Is this worth a phone buzz? Allowlist by kind, plus any human sender."""
     frm = str(msg.get("frm") or "").lower()
@@ -339,8 +408,8 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
             f"kind {str(msg.get('kind') or '?')!r} is not on the forward allowlist -- not an "
             f"error, a filter. Unknown kinds default to NOT forwarded so a kind added next "
             f"week cannot silently start paging a phone.")
-    target = webhook_url() if url is None else url
-    if not target:
+    targets = ([url] if url else []) if url is not None else webhook_urls()
+    if not targets:
         return BoundaryOutcome.failed(
             "discord bridge not configured -- set AKASHIC_DISCORD_WEBHOOK or write "
             ".secrets/discord_webhook.url. This is a configuration state, not a delivery "
@@ -362,9 +431,10 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
             "a failed send. If your message came off the bus, its body is in 'text' and "
             "this renderer reads 'content'; that mismatch is the usual cause.")
     parts = render_parts(msg)
+    poster = post or _default_post
     try:
         for content in parts:
-            (post or _default_post)(target, content)
+            post_via_pool(targets, content, poster)
     except Exception as e:                                              # noqa: BLE001
         return BoundaryOutcome.failed(
             f"discord post failed ({type(e).__name__}: {e}) -- the bus is unaffected; this "

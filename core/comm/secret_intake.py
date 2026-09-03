@@ -34,7 +34,11 @@ class IntakeError(RuntimeError):
 TARGETS: Dict[str, str] = {
     "discord_bot.token":         "Discord bot token (Developer Portal -> Bot -> Reset Token)",
     "discord_operator_id":       "Daniil's numeric Discord user id — the R1 allowlist",
-    "discord_webhook.url":       "the #aurora global-feed webhook",
+    "discord_webhook.url":       "the #aurora global-feed webhook (pipe 1 of the pool)",
+    "discord_webhook_2.url":     "an ADDITIONAL webhook on the SAME #aurora channel -- "
+                                 "a second independent rate-limit bucket, pooled with pipe 1",
+    "discord_webhook_3.url":     "pool pipe 3 -- same channel, its own bucket",
+    "discord_webhook_4.url":     "pool pipe 4 -- same channel, its own bucket",
     "discord_forum_webhook.url": "the #aurora-rooms forum webhook",
     "discord_channel_vandor.url":   "the #vandor seat-channel webhook (his lane with claude)",
     "discord_channel_heimdall.url": "the #heimdall seat-channel webhook (his lane with deepseek)",
