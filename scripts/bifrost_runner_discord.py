@@ -301,7 +301,7 @@ def main() -> int:
           default    -- read-only posture, no permission flags (the historical shape;
                         a spawned seat needs a live approver for any mutation/exec).
           arm        -- scoped resuscitation: --permission-mode acceptEdits +
-                        --allowedTools Bash,Read,Write,Edit,Glob,Grep so the seat can
+                        --allowedTools Bash,PowerShell,Read,Write,Edit,Glob,Grep so the seat can
                         arm its own wake watcher, drain, and build. Guards still on.
           dangerous  -- break-glass: --dangerously-skip-permissions. Bypasses every
                         approval. The blunt hammer, for when arm is provably not enough.
@@ -431,8 +431,11 @@ def main() -> int:
         #
         #   default    -- read-only (the historical shape; needs a live approver).
         #   arm        -- DEFAULT since 2026-08-23: acceptEdits (file writes auto-approve)
-        #                 + the Bash/Read/Write/Edit/Glob/Grep tools available. File edits
-        #                 carry a guard rail; Bash command AUTO-APPROVE is scoped by the
+        #                 + the Bash/PowerShell/Read/Write/Edit/Glob/Grep tools available
+        #                 (PowerShell joined 2026-09-03 -- it was missing entirely, so any
+        #                 Windows-native read (WMI, services, registry) was un-clearable on
+        #                 a headless spawn regardless of risk). File edits carry a guard
+        #                 rail; Bash/PowerShell command AUTO-APPROVE is scoped by the
         #                 `permissions.allow` rules in .claude/settings.json (self-arm +
         #                 drain verbs are there) rather than broad open.
         #   dangerous  -- --dangerously-skip-permissions: bypass every approval. Full hammer.
