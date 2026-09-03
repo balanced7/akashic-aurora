@@ -69,7 +69,16 @@ _SKIP_SUFFIXES = (".tmp", ".part", ".lock", ".pyc")
 
 
 def _safe_name(stream: str) -> str:
-    return stream.replace(":", "_").replace("/", "_")
+    """Map a stream name to a filename that Windows will actually accept.
+
+    2026-09-02: a literal stream `bifrost:inbox:*` (minted by a `to:"*"` send)
+    crashed the WHOLE bus export for 5 days -- OSError EINVAL on `*` -- because
+    this only stripped `:` and `/`. Harden the MEANING (any char invalid in a
+    Windows filename), not the two characters we had met so far.
+    """
+    for ch in ':/\\*?"<>|':
+        stream = stream.replace(ch, "_")
+    return stream
 
 
 def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dict[str, Any]:
@@ -88,6 +97,7 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
         cursors = {}
 
     streams, written = 0, 0
+    failed_streams: list = []
     for key in sorted(client.scan_iter(match="*", count=3000)):
         try:
             if client.type(key) != "stream":
@@ -95,23 +105,38 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
         except Exception:
             continue
         streams += 1
-        last = cursors.get(key)
-        rows = client.xrange(key, min=(f"({last}" if last else "-"))
-        if not rows:
-            continue
-        path = out_dir / f"{_safe_name(key)}.jsonl"
-        with open(path, "a", encoding="utf-8") as fh:
-            for mid, fields in rows:
-                fh.write(json.dumps({
-                    "stream": key, "id": mid,
-                    "exported_at": datetime.now(timezone.utc).isoformat(),
-                    "fields": dict(fields),
-                }, ensure_ascii=False) + "\n")
-                written += 1
-                cursors[key] = mid
+        # ONE stream's failure must never zero the whole plane. The 2026-09-02
+        # incident: an unexportable stream name raised past this loop, aborting
+        # every remaining stream AND the cursor save -- 5 days of bus history
+        # silently unarchived while file archiving kept reporting green. A bad
+        # stream is now a loud line in the report, and the loop continues.
+        try:
+            last = cursors.get(key)
+            rows = client.xrange(key, min=(f"({last}" if last else "-"))
+            if not rows:
+                continue
+            path = out_dir / f"{_safe_name(key)}.jsonl"
+            with open(path, "a", encoding="utf-8") as fh:
+                for mid, fields in rows:
+                    fh.write(json.dumps({
+                        "stream": key, "id": mid,
+                        "exported_at": datetime.now(timezone.utc).isoformat(),
+                        "fields": dict(fields),
+                    }, ensure_ascii=False) + "\n")
+                    written += 1
+                    cursors[key] = mid
+        except Exception as exc:  # noqa: BLE001 -- contained + confessed, never silent
+            failed_streams.append({"stream": key, "error": f"{type(exc).__name__}: {exc}"})
     cur_path.parent.mkdir(parents=True, exist_ok=True)
     cur_path.write_text(json.dumps(cursors, indent=1), encoding="utf-8")
-    return {"streams": streams, "entries_written": written, "out_dir": str(out_dir)}
+    report: Dict[str, Any] = {
+        "streams": streams, "entries_written": written, "out_dir": str(out_dir),
+    }
+    if failed_streams:
+        # surfacing in the receipt keeps the deadman honest: a partial export is
+        # a FINDING, not a success and not an abort.
+        report["failed_streams"] = failed_streams
+    return report
 
 
 def _sender(fields: Dict[str, Any]) -> str:
