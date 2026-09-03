@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 770c32fa. A bound you discover by collision is not awareness -- this sheet
+> Derived at 70aa9314. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (255 names)
+## Configuration flags (256 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -62,6 +62,7 @@ Class: reference
 | `AKASHIC_DISCORD_ROOTS_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_SEATS_REGISTRY` | `` | core/comm/discord_inbound.py, core/comm/discord_rooms.py |
 | `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
+| `AKASHIC_DISCORD_WEBHOOKS` | `` | core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
@@ -269,7 +270,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (159 numeric constants)
+## Mechanical bounds (160 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -423,6 +424,7 @@ Class: reference
 | `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |
 | `_NOTE_WINDOW_DAYS` | 60 | agent/harness/context.py | one store pull feeds every note-derived section |
 | `_OUTCOME_MAX_BYTES` | 4,000,000 | core/recall/at_action.py | ~4MB ring; oldest half dropped on overflow |
+| `_PUMP_LOCK_TTL` | 8 | core/comm/discord_feed.py |  |
 | `_RATE_LIMIT_MAX_RETRIES` | 3 | core/comm/discord_bridge.py |  |
 | `_REASK_WINDOW_S` | 1,800 | core/comm/bus.py | 30 min; BIFROST_REASK_WINDOW_S overrides |
 | `_RECYCLE_SLACK_MS` | 1,000 | core/comm/wake_seat.py | parent may not be YOUNGER than child by more |

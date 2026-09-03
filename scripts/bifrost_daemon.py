@@ -520,7 +520,10 @@ def main(argv=None) -> int:
                 next_discord_feed = now + 10.0
                 try:
                     if _DFEED.configured():
-                        _DFEED.pump(bus)
+                        # pump_if_owner (not pump): four seats' daemons all reach this
+                        # tick independently -- the election makes them ONE logical
+                        # pump instead of four racing the same cursor + webhook.
+                        _DFEED.pump_if_owner(bus)
                 except Exception:                                       # noqa: BLE001
                     pass
 
