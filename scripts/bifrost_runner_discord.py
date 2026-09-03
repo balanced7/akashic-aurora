@@ -253,6 +253,13 @@ def main() -> int:
     # Durable log before anything can refuse: a REFUSED line nobody can read is the same blind
     # spot as a crash nobody can read.
     sys.stdout = Tee(sys.stdout, gateway_log_path())
+    # 2026-09-02 verification audit: stderr was NEVER tee'd, so the flagship
+    # UNATTENDED-RECIPIENT warnings (bus.py stderr), Python tracebacks, and every
+    # crash reason survived only when a launcher happened to redirect stderr --
+    # ~21 process deaths in the log window were unattributable. Same file, same
+    # law: a warning nobody can read is the same blind spot as a crash nobody
+    # can read.
+    sys.stderr = Tee(sys.stderr, gateway_log_path())
     from core.comm import liveness as _liveness
     wl = _liveness.worklive(GATEWAY_AGENT_ID)
     beat(wl, RESTING_PHASE, "gateway starting")
@@ -886,7 +893,18 @@ def main() -> int:
             print(f"[discord-in] REFUSED {message.author} id={message.author.id}: "
                   f"{out['reason']}", flush=True)
 
-    client.run(token, log_handler=None)
+    # 2026-09-02 verification audit: log_handler=None muted the ENTIRE connection
+    # layer by construction -- websocket drops, RESUMEs, heartbeat-blocked
+    # warnings, 429s, session invalidation all invisible; silent reconnects were
+    # detectable only as a bare re-fired ready banner. INFO on discord's logger
+    # is a few lines per day in a healthy gateway and it rides the (now tee'd)
+    # stderr into the same durable log, so connection incidents finally leave
+    # receipts.
+    import logging as _logging
+    _handler = _logging.StreamHandler(sys.stderr)
+    _handler.setFormatter(_logging.Formatter(
+        "[discord-lib] %(asctime)s %(levelname)s %(name)s: %(message)s"))
+    client.run(token, log_handler=_handler, log_level=_logging.INFO)
     return 0
 
 
