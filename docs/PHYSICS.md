@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at fb0e3ced. A bound you discover by collision is not awareness -- this sheet
+> Derived at 770c32fa. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -269,7 +269,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (158 numeric constants)
+## Mechanical bounds (159 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -423,6 +423,7 @@ Class: reference
 | `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |
 | `_NOTE_WINDOW_DAYS` | 60 | agent/harness/context.py | one store pull feeds every note-derived section |
 | `_OUTCOME_MAX_BYTES` | 4,000,000 | core/recall/at_action.py | ~4MB ring; oldest half dropped on overflow |
+| `_RATE_LIMIT_MAX_RETRIES` | 3 | core/comm/discord_bridge.py |  |
 | `_REASK_WINDOW_S` | 1,800 | core/comm/bus.py | 30 min; BIFROST_REASK_WINDOW_S overrides |
 | `_RECYCLE_SLACK_MS` | 1,000 | core/comm/wake_seat.py | parent may not be YOUNGER than child by more |
 | `_SHA_LEN` | 24 | core/comm/blobs.py | 96 bits of sha256 -- ample for a single-user blob store |
