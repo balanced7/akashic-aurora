@@ -240,11 +240,17 @@ def decide(observed: Dict[str, Dict[str, Any]],
                 # S1: the mode map, not a hardcoded flag -- claude's daemon is a
                 # listener-manager, and --spawn-runner for it would be F13 again.
                 mode = DAEMON_MODE.get(agent, "--spawn-runner")
-                plan.append({"organ": "daemon",
-                             "cmd": [sys.executable,
-                                     os.path.join(ROOT, "scripts",
-                                                  "bifrost_daemon.py"),
-                                     "--agent", agent, mode],
+                cmd = [sys.executable,
+                       os.path.join(ROOT, "scripts", "bifrost_daemon.py"),
+                       "--agent", agent, mode]
+                if mode == "--spawn-runner":
+                    # relaunch_must_carry_the_lane_env (page-proven): the daemon's
+                    # lane default is None, so a resurrected daemon without this
+                    # flag spawns runners whose cursors diverge from the drilled
+                    # work-lane config -- the insta-fire wake-loop class returns.
+                    # The SunshineFleet task carries it; the necromancer must too.
+                    cmd += ["--runner-consume-lane", "work"]
+                plan.append({"organ": "daemon", "cmd": cmd,
                              "kind": "detached-spawn", "agent": agent})
         elif organ == "gateway":
             plan.append({"organ": "gateway",
