@@ -81,28 +81,6 @@
         ]
       }
     ],
-    "PreCompact": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py agent/harness/hooks/claude_sessionend.py"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py agent/harness/hooks/claude_sessionend.py"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "*",

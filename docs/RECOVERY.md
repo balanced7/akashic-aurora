@@ -147,8 +147,14 @@ the 2026-08-23 gateway signature, not a wedge. Decision rule in code:
   runners → phone `!revive`; D2 kill the ear → OS resurrection; D3 sprout
   proves hands in 60s; D4 break a webhook → doctor pages in one round; D5
   double-`!revive` on a healthy house → both boring.
-  STATUS: none executed — every path above is PRESUMED BROKEN until its
-  drill receipt exists (house law).
+  STATUS (corrected 2026-09-02; this line previously said "none executed" while
+  the drill ledger held five dated PASSes — the runbook contradicted its own
+  receipts): per `state/drills/2026-08-23-revive-drills.md` — D2 PASS 08-23
+  18:12:12 · D4 PASS 08-23 (seat-lane path ONLY; global lane never exercised) ·
+  D5 PASS 08-23 ×2 · D1 HALF (script-level PASS; phone-level `!revive` never
+  run) · D3 PASS by incident evidence (retroactive). Still owed: phone-level D1,
+  D4's global lane, and re-runs on the CURRENT daemon-armed wake topology, which
+  has zero receipts of its own and is presumed broken until drilled (house law).
 
 ## Standing gaps v1.1 is honest about
 
