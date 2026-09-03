@@ -575,15 +575,24 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     if text.lower().startswith("!help"):
         return {"acted": True, "help": discord_help_text(), "id": None}
 
-    # !spawn — the operator's fresh-hands word (his ask, on the way to work
-    # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
-    # get wedged or need to start a fresh handoff"). R1 has already gated this
-    # path (only his id reaches here); R3 holds because his keyboard could always
-    # launch a session. A control word rides NO bus lane — it is not a message,
-    # it is a hand on a lever. Receipt 🌱 fires on process START, and that is the
-    # whole promise: the sprout is not the harvest.
-    if text.lower().startswith("!revive") or text.lower() in ("!status-deep",
-                                                              "!statusdeep"):
+    # !status-deep -- the READ-ONLY dry lever (observe_only=True), available to
+    # ANY operator (help line 474: "!status-deep work[s] for any operator... safe
+    # anytime"). It heals NOTHING and spawns NOTHING -- converge(observe_only=True)
+    # returns before _take_lock() and before any _heal_step -- so there is no
+    # authority to gate here; the dry lever is tier-neutral by design (Sol's audit
+    # R1: help promised it to every operator, code roots-gated it -- drift fixed).
+    # It rides NO bus lane and needs no reviver credential beyond the dry run.
+    if text.lower() in ("!status-deep", "!statusdeep"):
+        if reviver is None:
+            raise RuntimeError("!status-deep received but no reviver is wired -- "
+                               "the runner must provide one; refusing beats "
+                               "pretending")
+        reviver(None, True)
+        react("🚑")
+        return {"acted": True, "id": None,
+                "revive": {"target": None, "observe_only": True}}
+
+    if text.lower().startswith("!revive"):
         # R3 AMENDMENT (gate-2026-08-23-revive-ladder-ratified, Daniil verbatim
         # "Lets run the drills"): named recovery levers, ROOTS ONLY. Each word
         # maps to ONE fixed script; message content NEVER reaches the command
@@ -602,21 +611,25 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
             raise RuntimeError("!revive received but no reviver is wired -- "
                                "the runner must provide one; refusing beats "
                                "pretending")
-        if text.lower().startswith("!revive"):
-            raw = text[len("!revive"):].strip().lower()
-            if raw and raw not in ("redis", "daemon", "gateway"):
-                react("❓")
-                return {"acted": False,
-                        "reason": f"unknown revive target {raw!r} -- "
-                                  f"redis|daemon|gateway, or bare !revive"}
-            target, observe_only = (raw or None), False
-        else:
-            target, observe_only = None, True
+        raw = text[len("!revive"):].strip().lower()
+        if raw and raw not in ("redis", "daemon", "gateway"):
+            react("❓")
+            return {"acted": False,
+                    "reason": f"unknown revive target {raw!r} -- "
+                              f"redis|daemon|gateway, or bare !revive"}
+        target, observe_only = (raw or None), False
         reviver(target, observe_only)
         react("🚑")
         return {"acted": True, "id": None,
                 "revive": {"target": target, "observe_only": observe_only}}
 
+    # !spawn — the operator's fresh-hands word (his ask, on the way to work
+    # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
+    # get wedged or need to start a fresh handoff"). R1 has already gated this
+    # path (only his id reaches here); R3 holds because his keyboard could always
+    # launch a session. A control word rides NO bus lane — it is not a message,
+    # it is a hand on a lever. Receipt 🌱 fires on process START, and that is the
+    # whole promise: the sprout is not the harvest.
     if text.lower().startswith("!spawn"):
         if spawner is None:
             raise RuntimeError("!spawn received but no spawner is wired — the "

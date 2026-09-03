@@ -159,9 +159,20 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
                    f"the daemon rung, verified here)"),
         "repairable": True,
         "dead": dead_runners}
-    out["gateway"] = {"healthy": gateway_n > 0,
+    # EXACT-ONE, not any (Sol audit R3 / T376): a gateway is a SINGLETON. `> 0`
+    # certified 2+ simultaneous gateways healthy and never reconciled the
+    # duplicate/OOM class that ran four concurrent gateways before the 2026-08-26
+    # exhaustion. `== 1` is the only healthy count; zero is dead (healed by the
+    # gateway rung), and > 1 is a DUPLICATE defect that must be NAMED so a root
+    # reading a phone sees which fault, not "healthy".
+    gw_detail = (f"1 gateway process" if gateway_n == 1 else
+                 f"{gateway_n} gateway process(es)"
+                 + (" -- DUPLICATE: more than one gateway is running; a singleton "
+                    "must be restored (T376 layered defense)" if gateway_n > 1
+                    else ""))
+    out["gateway"] = {"healthy": gateway_n == 1,
                       "repairable": True,
-                      "detail": f"{gateway_n} gateway process(es)"}
+                      "detail": gw_detail}
     return out
 
 
@@ -203,7 +214,18 @@ def decide(observed: Dict[str, Dict[str, Any]],
                          "cmd": ["docker", "start", REDIS_CONTAINER],
                          "kind": "docker-start"})
         elif organ == "daemon":
-            for agent in DAEMON_AGENTS:
+            # HEAL-ONLY-THE-DEAD (Sol audit R2): observed carries `dead` per agent
+            # (observe() populates it from _live()). Looping over every DAEMON_AGENTS
+            # member planned BOTH launches when ONE was dead -- a missing kimi
+            # spawned a DUPLICATE deepseek daemon, relying on a downstream lock
+            # refusal instead of the module's own promise. Plan exactly the dead
+            # agents. Absent `dead` (legacy observation shape) falls back to all
+            # agents, preserving the old behaviour for callers that never speak to
+            # the per-agent question.
+            dead_agents = row.get("dead") or list(DAEMON_AGENTS)
+            for agent in dead_agents:
+                if agent not in DAEMON_AGENTS:
+                    continue          # never plan an agent this rung doesn't own
                 plan.append({"organ": "daemon",
                              "cmd": [sys.executable,
                                      os.path.join(ROOT, "scripts",
@@ -332,21 +354,46 @@ def _verify(organ: str, deadline_s: float = 25.0) -> bool:
 
 # ------------------------------------------------------------------ converge
 def _take_lock() -> None:
-    try:
-        if os.path.exists(LOCK_PATH):
-            age = time.time() - os.path.getmtime(LOCK_PATH)
-            if age < LOCK_TTL_S:
-                holder = open(LOCK_PATH, encoding="utf-8").read().strip()
-                raise ReviveLocked(
-                    f"revive already in progress (holder pid {holder}, "
-                    f"{age:.0f}s old) -- follow its confession; the lock "
-                    f"expires in {LOCK_TTL_S - age:.0f}s")
-    except ReviveLocked:
-        raise
-    except Exception:                                                   # noqa: BLE001
-        pass
+    # ATOMIC single-flight (Sol audit R4): the old shape was
+    # `if os.path.exists(LOCK_PATH): <check age>` then a separate `open(LOCK_PATH,
+    # "w")` -- a check-then-write TOCTOU race. Two simultaneous phone/watchdog
+    # converges could BOTH pass the exists() check (neither file present yet) and
+    # both "acquire". The only way to make the race impossible is an atomic create:
+    # O_CREAT|O_EXCL fails for exactly one of two contenders no matter how they
+    # interleave, because the OS makes existence-and-creation ONE step.
+    #
+    # We keep the TTL discipline: a stale lock (older than LOCK_TTL_S) is removed
+    # and re-taken, so a crashed converger never wedges the lever forever. The
+    # exists()->getmtime probe here is ONLY for detecting expiry, never for
+    # acquiring -- acquisition is the O_EXCL open below.
     os.makedirs(os.path.dirname(LOCK_PATH), exist_ok=True)
-    with open(LOCK_PATH, "w", encoding="utf-8") as f:
+    try:
+        # Atomic create-and-write: succeeds iff the file did NOT already exist.
+        fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+    except FileExistsError:
+        age = time.time() - os.path.getmtime(LOCK_PATH)
+        if age < LOCK_TTL_S:
+            try:
+                holder = open(LOCK_PATH, encoding="utf-8").read().strip()
+            except OSError:
+                holder = "?"
+            raise ReviveLocked(
+                f"revive already in progress (holder pid {holder}, "
+                f"{age:.0f}s old) -- follow its confession; the lock "
+                f"expires in {LOCK_TTL_S - age:.0f}s")
+        # Stale lock: a prior converger crashed before dropping. Reclaim it
+        # (remove + retry the atomic create once).
+        try:
+            os.remove(LOCK_PATH)
+        except OSError:
+            pass
+        try:
+            fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            raise ReviveLocked(
+                "revive already in progress (a concurrent converger re-took the "
+                "lock before this one could reclaim the stale holder)")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(str(os.getpid()))
 
 
