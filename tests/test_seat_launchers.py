@@ -145,6 +145,20 @@ def test_dangerous_is_the_only_mode_that_skips_permissions():
         assert "--dangerously-skip-permissions" not in sl.claude_permission_flags(m)
 
 
+@pytest.mark.parametrize("mode", ["default", "arm", "", None, "nonsense"])
+def test_a_spawned_claude_seat_can_ALSO_use_powershell(mode):
+    """2026-09-03: a headless Discord spawn tried a read-only PowerShell WMI query
+    (Get-CimInstance Win32_VideoController, driver-version recon) and was blocked twice by
+    'requires approval' with nobody at a terminal to grant it -- not because the command was
+    risky, but because PowerShell was never in --allowedTools to begin with. Bash rode the
+    launch line (the pin above); PowerShell -- this harness's PRIMARY shell tool on Windows
+    per claude_pretooluse.py's own docstring -- did not. An unattended seat that cannot open
+    PowerShell cannot answer any Windows-native diagnostic (drivers, services, WMI, registry)
+    without a human standing by to click a prompt that headless mode can never show."""
+    flags = " ".join(sl.claude_permission_flags(mode))
+    assert "PowerShell" in flags, f"mode {mode!r} spawned a seat with no PowerShell: {flags}"
+
+
 # ------------------------------------------------------------------ flag parsing
 def test_flags_parse_off_so_a_flagged_seat_still_resolves():
     rec, flags = sl.parse_spawn_target("vandor --repair")

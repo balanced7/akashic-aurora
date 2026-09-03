@@ -103,8 +103,14 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         # `exec` (2026-08-27, Daniil verbatim 'give the stable sol seat governed exec to play
         # with Aurora verbs'), but the DOOR his process launched behind carried none of it.
         # `write` is deliberately NOT in that grant, so it is deliberately not added here either
+        # `write` is deliberately NOT in that grant, so it is deliberately not added here either
         # -- widening it needs its own authorization, not a side effect of this fix.
-        "launch_flags": ["--agentic", "--allow-exec"],
+        # WRITE GRANTED 2026-08-31 (Daniil verbatim 'Lets grant Sunshine write, I authorize it'):
+        # --allow-write is now carried. The guarded write door (path-scoped, secret-blocked,
+        # security/+.claude/ excluded) stays active; the ACL record (security/acl.json, sol caps
+        # gains 'write') is the other half -- edited by a super-admin, since an agent cannot touch
+        # its own ACL/launch surface. This launch line only works if that record is also written.
+        "launch_flags": ["--agentic", "--allow-exec", "--allow-write"],
     },
 }
 
@@ -222,12 +228,19 @@ def claude_permission_flags(mode: str = "default") -> List[str]:
     spawn_grant_flags_must_ride_the_launch_line;
     hand_spawned_runner_narrows_the_door_below_the_acl). It is a decidable rule, so it
     lives in core WITH ITS PINS instead of inline in the gateway, and an unknown mode
-    degrades to `arm` rather than silently to read-only."""
+    degrades to `arm` rather than silently to read-only.
+
+    2026-09-03: PowerShell joined the grant for the same reason Bash is here -- a headless
+    spawn tried a read-only WMI query (driver-version recon) and hit an un-clearable
+    'requires approval' wall, not because the command was risky but because PowerShell was
+    never an allowed tool at all. It is this harness's PRIMARY shell tool on Windows
+    (claude_pretooluse.py); leaving it out means every Windows-native diagnostic (drivers,
+    services, registry) is unreachable to an unattended seat regardless of risk."""
     m = str(mode or "default").strip().lower()
     if m == "dangerous":
         return ["--dangerously-skip-permissions"]
     return ["--permission-mode", "acceptEdits",
-            "--allowedTools", "Bash,Read,Write,Edit,Glob,Grep"]
+            "--allowedTools", "Bash,PowerShell,Read,Write,Edit,Glob,Grep"]
 
 
 def claude_seat_plan(*, app_healthy: bool, app_repairable: bool, app_detail: str,
