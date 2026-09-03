@@ -128,6 +128,13 @@ research/shift-console-*.log.err
 # state/* (not state/) excludes the CONTENTS so these re-includes can take effect.
 !state/coord/
 !state/coord/**
+# EXCEPTION (2026-09-03): drill receipts are EVIDENCE, not scratch. House law says a
+# recovery path without an executed-drill receipt is presumed broken -- and a receipt
+# on an ignored path is invisible to every clone, so no clone can verify any drill
+# (the drill_receipts_live_on_a_gitignored_path lesson, recurred tonight when a
+# commit claimed a receipt that git had silently skipped).
+!state/drills/
+!state/drills/**
 
 # EXCEPTION to the exception (t384): instance-bound, NOT durable source. This maps ONE
 # Discord server's channel ids to seats; on a peer instance those ids address channels
