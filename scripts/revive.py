@@ -41,8 +41,19 @@ if ROOT not in sys.path:
 LOCK_PATH = os.path.join(ROOT, "state", "revive.lock")
 LOCK_TTL_S = 300.0
 REDIS_CONTAINER = "akashic-redis"
-DAEMON_AGENTS = ("deepseek", "kimi")      # one daemon per runner agent; the
-                                          # DaemonLock absorbs duplicates
+DAEMON_AGENTS = ("deepseek", "kimi", "claude")   # the DaemonLock absorbs duplicates
+# S1 (wake doctrine, 2026-09-03): each agent's daemon has a MODE. deepseek/kimi
+# daemons spawn+supervise a runner; claude's daemon supervises WAKE LISTENERS
+# (--manage-listener) -- there is no bifrost_runner_claude by design (Token
+# Frugality), so planning --spawn-runner for claude would be the F13 wrong-script
+# class, and expecting a claude runner would page a phantom death forever. The
+# mode map keeps one rung with per-agent truth instead of a second roster.
+DAEMON_MODE = {"deepseek": "--spawn-runner", "kimi": "--spawn-runner",
+               "claude": "--manage-listener"}
+# runner children exist only for spawn-runner daemons; observe()'s runner rung
+# and count lines derive from THIS, never from DAEMON_AGENTS directly.
+RUNNER_AGENTS = tuple(a for a in DAEMON_AGENTS
+                      if DAEMON_MODE.get(a) == "--spawn-runner")
 # `app` is FIRST because it is the deepest layer and the one this ladder was blind to
 # until 2026-08-24: the MSIX package that HOSTS the conductor seat. On that day the
 # ladder began at redis, so a dead Claude Desktop was not merely unhealed -- it was
@@ -141,7 +152,7 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
         return out
 
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
-    dead_runners = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_runner_")]
+    dead_runners = [a for a in RUNNER_AGENTS if not _live(a, "bifrost_runner_")]
     gateway_n = cmds.count("bifrost_runner_discord.py")
     out["daemon"] = {
         "healthy": not dead_daemons,
@@ -153,7 +164,7 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
         "dead": dead_daemons}
     out["runners"] = {
         "healthy": not dead_runners,
-        "detail": (f"all {len(DAEMON_AGENTS)} runner(s) alive: {', '.join(DAEMON_AGENTS)}"
+        "detail": (f"all {len(RUNNER_AGENTS)} runner(s) alive: {', '.join(RUNNER_AGENTS)}"
                    if not dead_runners else
                    f"DOWN: {', '.join(dead_runners)} (daemon's children -- healed by "
                    f"the daemon rung, verified here)"),
@@ -226,11 +237,14 @@ def decide(observed: Dict[str, Dict[str, Any]],
             for agent in dead_agents:
                 if agent not in DAEMON_AGENTS:
                     continue          # never plan an agent this rung doesn't own
+                # S1: the mode map, not a hardcoded flag -- claude's daemon is a
+                # listener-manager, and --spawn-runner for it would be F13 again.
+                mode = DAEMON_MODE.get(agent, "--spawn-runner")
                 plan.append({"organ": "daemon",
                              "cmd": [sys.executable,
                                      os.path.join(ROOT, "scripts",
                                                   "bifrost_daemon.py"),
-                                     "--agent", agent, "--spawn-runner"],
+                                     "--agent", agent, mode],
                              "kind": "detached-spawn", "agent": agent})
         elif organ == "gateway":
             plan.append({"organ": "gateway",
