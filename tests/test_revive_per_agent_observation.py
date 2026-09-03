@@ -58,7 +58,11 @@ def test_dead_agent_is_named_in_the_detail():
 
 
 def test_all_daemons_present_is_healthy():
+    # roster grew 2026-09-03 (S1): claude's manage-listener daemon is now a rung,
+    # so "all present" includes it -- fixture premise updated, assertion unchanged.
     out = _observe([DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"),
+                    "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py "
+                    "--agent claude --manage-listener",
                     RUNNER.format(a="deepseek"), RUNNER.format(a="kimi"), GATEWAY])
     assert out["daemon"]["healthy"], out["daemon"]["detail"]
     assert out["runners"]["healthy"], out["runners"]["detail"]
