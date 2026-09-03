@@ -95,6 +95,26 @@ def test_runners_rung_does_not_expect_a_claude_runner(monkeypatch):
     assert obs["runners"]["healthy"] is True
 
 
+def test_resurrected_spawn_runner_daemons_carry_the_work_lane(monkeypatch):
+    """relaunch_must_carry_the_lane_env (page-proven class): the daemon's lane
+    default is None, so a revive-resurrected daemon without the explicit flag
+    spawns runners with divergent cursors -- the insta-fire wake loop returns.
+    Spawn-runner launches carry it; claude's listener-manager takes no runner flags."""
+    obs = _observe(monkeypatch, _table(
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py"))
+    plan = revive.decide(obs, target="daemon")
+    for step in plan:
+        if step.get("organ") != "daemon":
+            continue
+        cmd = step["cmd"]
+        if "--spawn-runner" in cmd:
+            assert "--runner-consume-lane" in cmd and "work" in cmd, (
+                f"{step['agent']}: resurrection without the lane flag diverges cursors")
+        else:
+            assert "--runner-consume-lane" not in cmd, (
+                "claude's manage-listener daemon takes no runner flags")
+
+
 def test_deepseek_and_kimi_rungs_are_unchanged(monkeypatch):
     """The new rung must not disturb R2's exact-dead planning for the others."""
     table = _table(
