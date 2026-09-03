@@ -1,15 +1,26 @@
 # GPU Setup & Issues
 
-Status: current  (2026-07-09, P4: Living ops; hardware status)
+Status: current (2026-09-03, research refresh — see Update below; hardware status)
 
-## Current Status (2026-04-13)
+## Update (2026-09-03): ROCm 10.0.0 changes the picture
+
+Per AMD's official release notes (rocm.docs.amd.com, ROCm 10.0.0, dated 2026-08-26):
+- RX 9070 XT (gfx1201/RDNA4 — the card below) is now officially listed supported hardware.
+- ROCm 10.0.0 is native on **Windows**, not WSL2-only — the docs say "Applies to Linux and Windows." The old separate "HIP SDK for Windows" track (which lagged the mainline Linux releases and is what the April config below was working around) is now legacy; Windows is folded into the same release train as Linux.
+- Driver stack: Windows 11 25H2 + AMD Adrenalin 26.8.1 + a "Windows CDE CPR" component (26.10.32) — not a hand-rolled WSL2 passthrough.
+- PyTorch 2.13.0 is the officially supported version in this release.
+- Known caveat straight from AMD's own release notes: "PyTorch training and fine-tuning workloads might experience GPU resets or crashes on some Radeon GPUs." Inference is not on that known-issues list.
+
+**Not yet verified on this box** — the WSL2/CPU-fallback config below was the working answer as of April; native ROCm 10.0.0 on Windows has not been installed/tested here yet. Treat the section below as historical until someone runs the new path and updates this file.
+
+## Status as of 2026-04-13 (superseded by the update above, kept for reference)
 
 ### GPU: AMD RX 9070 XT (16GB VRAM)
 - **Architecture**: RDNA4 (gfx1201)
 - **ROCm Version**: 7.2.1
 - **Status**: WORKING (CPU fallback mode)
 
-## The Issue
+## The Issue (as of April, ROCm 7.2.1)
 
 Ollama container shows:
 ```
@@ -82,12 +93,12 @@ curl http://127.0.0.1:11434/api/tags
 wsl -d Ubuntu-24.04 -e rocminfo
 ```
 
-## Future Solutions
+## Future Solutions (as of April; see 2026-09-03 update above for what actually landed)
 
-1. Wait for ROCm 7.3+ with RDNA4 support
+1. ~~Wait for ROCm 7.3+ with RDNA4 support~~ — done: ROCm 10.0.0 (2026-08-26) supports gfx1201 natively on Windows. Not yet installed/tested on this box.
 2. Try AMD ROCm staging builds
 3. Use CPU mode (current - works fine for small models)
 
 ---
 
-## Updated: 2026-04-13
+## Updated: 2026-09-03 (research refresh; original entry 2026-04-13 preserved above)
