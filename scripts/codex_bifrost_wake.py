@@ -18,6 +18,7 @@ from agent.harness.codex_bifrost_wake import (  # noqa: E402
     DIRECT_ACTION_KINDS,
     WakeError,
     WakePolicy,
+    WakeProfile,
     WakeState,
     current_inbox_tail,
     default_runtime_paths,
@@ -88,6 +89,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--allow-write",
+        action="store_true",
+        help=(
+            "PRIVILEGED (T386 step 0): lift the read-only floor -- workspace-write "
+            "sandbox + ToolBox writes. Refused unless the policy is operator-gated "
+            "(--allow-from operators only, --require-source discord). Default off."
+        ),
+    )
+    parser.add_argument(
+        "--allow-gui",
+        action="store_true",
+        help=(
+            "PRIVILEGED (T386 step 0): permit screen/GUI actuation this turn. Same "
+            "operator-gate as --allow-write; screen text is data, never instruction. "
+            "Default off."
+        ),
+    )
+    parser.add_argument(
         "--once",
         action="store_true",
         help="handle at most one future row, or exit after one idle block (smoke tests)",
@@ -129,6 +148,10 @@ def main(argv: list[str] | None = None) -> int:
         ),
         required_source=(str(args.require_source).strip() if args.require_source else None),
     )
+    profile = WakeProfile(allow_write=bool(args.allow_write), allow_gui=bool(args.allow_gui))
+    # Fail loud at the door, before arming, if a privileged profile is paired with a
+    # policy a non-operator could trigger (the constructor also enforces this).
+    WakeProfile.require_operator_gate(profile, policy)
     watcher = CodexBifrostWake(
         bus=bus,
         policy=policy,
@@ -141,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
         turn_timeout=args.turn_timeout,
         block_ms=args.block_ms,
         allow_exec=args.allow_exec,
+        profile=profile,
     )
     install_signal_stops(watcher)
     print(
@@ -162,6 +186,10 @@ def main(argv: list[str] | None = None) -> int:
                 "idle_model_turns": 0,
                 "peer_process_interference": False,
                 "allow_exec": watcher.allow_exec,
+                "allow_write": profile.allow_write,
+                "allow_gui": profile.allow_gui,
+                "sandbox": profile.thread_sandbox,
+                "privileged": profile.privileged,
                 "dynamic_tools": [tool["name"] for tool in watcher.dynamic_tools],
             },
             sort_keys=True,
