@@ -1,6 +1,6 @@
 # GPU Setup & Issues
 
-Status: current (2026-09-03, research refresh — see Update below; hardware status)
+Status: current (2026-09-04, ROCm 10.0.0 + PyTorch 2.13 VERIFIED LIVE on this box — see below)
 
 ## Update (2026-09-03): ROCm 10.0.0 changes the picture
 
@@ -11,7 +11,36 @@ Per AMD's official release notes (rocm.docs.amd.com, ROCm 10.0.0, dated 2026-08-
 - PyTorch 2.13.0 is the officially supported version in this release.
 - Known caveat straight from AMD's own release notes: "PyTorch training and fine-tuning workloads might experience GPU resets or crashes on some Radeon GPUs." Inference is not on that known-issues list.
 
-**Not yet verified on this box** — the WSL2/CPU-fallback config below was the working answer as of April; native ROCm 10.0.0 on Windows has not been installed/tested here yet. Treat the section below as historical until someone runs the new path and updates this file.
+## VERIFIED LIVE on this box (2026-09-04 night, Daniil present)
+
+No driver change was needed: the installed 32.0.31041.1004 (2026-08-17) IS Adrenalin 26.8.1's
+driver core — exactly the version the ROCm 10.0.0 matrix validates. (26.9.1 released 2026-09-03
+but is undocumented against ROCm 10; deliberately skipped to stay on the validated combo.)
+
+- **Venv**: `E:\venvs\rocm10` (Python 3.11). System Python untouched. The legacy HIP SDK 7.1
+  (8 MSIs) was uninstalled first — a documented ROCm 10 prerequisite; restore point 94 taken,
+  rollback product codes in note `preflight-2026-09-04-rocm10-climb`.
+- **Installed**: `rocm[libraries,device-gfx1201]==10.0.0` + `torch==2.13.0+rocm10.0.0` /
+  `torchvision==0.28.0+rocm10.0.0` / `torchaudio==2.11.0.2+rocm10.0.0` from
+  `https://stable.repo.amd.com/rocm/whl-next/`.
+- **Receipts**: hipinfo enumerates the 9070 XT (32 CU, 15.92 GB); `torch.cuda.is_available()`
+  True on HIP 7.15.26333; **fp16 4096³ matmul 1.48 ms = 92.7 TFLOPS** (≈ card spec). The fp32
+  first-call figure is kernel-compile-polluted — warm up before benchmarking anything.
+
+Install gotchas, all hit live tonight:
+1. AMD's documented single-index pip command fails under pip ≥ 26: the build dep (`wheel`)
+   can't resolve from AMD's index → add `--extra-index-url https://pypi.org/simple`.
+2. The `rocm` meta-package is a legacy sdist: against a venv's bundled setuptools 65 it dies
+   with `invalid command 'bdist_wheel'` → `pip install -U setuptools` (84.x works), then
+   install with `--no-build-isolation`. The real payloads are binary wheels; only this
+   29 KB shim needs building.
+3. MIOpen first-run auto-tuning makes the first conv SECONDS slow (12.2 s observed on a
+   batch-64 conv2d); steady state is milliseconds. Not a regression — an empty kernel cache.
+4. `torch.cuda.device_count()` is 2 — the iGPU is enumerated too. Pin device 0 or set
+   `HIP_VISIBLE_DEVICES=0` so workloads never land on the integrated GPU.
+5. `xnack 'Off'` warnings on RDNA4 are cosmetic.
+6. AMD still flags training/fine-tuning flaky on gfx1201 (workaround
+   `TORCH_BLAS_PREFER_HIPBLASLT=0`, perf cost); inference has no documented known issue.
 
 ## Status as of 2026-04-13 (superseded by the update above, kept for reference)
 
