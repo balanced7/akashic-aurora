@@ -411,29 +411,51 @@ def _seat_channels() -> Dict[str, Any]:
 _AUTO_WAKE_SEATS = {"claude"}
 
 
+#: What a cold seat's channel says instead of silently spawning one. Daniil 2026-09-04,
+#: verbatim: "I dont want to spawn a new seat when I talk to you, I want to be able to
+#: reach you specifically with the option to spin up a new claude code harness vandor if
+#: i want as distinct from a headless one."
+COLD_SEAT_NOTICE = (
+    "📭 Nothing is live on the Vandor seat right now, so nobody read this yet — but the "
+    "message is DURABLE on his lane and the next seat to boot reads it first.\n"
+    "To bring one up now, your choice of harness:\n"
+    "  `!spawn vandor --harness` — a real interactive Claude Code session (a window you "
+    "can watch and type into; it persists)\n"
+    "  `!spawn vandor --headless` — a one-shot `claude -p` worker (cheap, does the task, "
+    "exits)")
+
+
 def _auto_wake(agent: str, task: str,
                spawner: Optional[Callable[..., Any]],
                is_seat_live: Optional[Callable[[str], bool]]) -> Optional[str]:
-    """Best-effort: if `agent` is auto-waked and nothing is currently LIVE for it, fire
-    the SAME lever `!spawn` uses, with the message itself as the task. Never raises —
-    the bus.send this follows already succeeded, so a wake failure must not turn an
-    already-landed, already-receipted message into a reported failure (T149: no lie in
-    either direction). `is_seat_live is None` means the caller wired nothing real (every
-    existing embedder/test) -- old behaviour, no auto-spawn."""
-    if agent not in _AUTO_WAKE_SEATS or spawner is None or is_seat_live is None:
+    """Reach the seat that EXISTS; never conjure one behind his back.
+
+    HISTORY, because this function's meaning was inverted by ruling and the old shape is
+    the thing to not drift back into. 2026-08-31 it auto-SPAWNED a headless `claude -p`
+    whenever the roster showed nothing live, to fix "Vandor is unreachable without
+    !spawn". That fixed reachability by manufacturing a stranger: every ordinary sentence
+    could mint a brand-new seat with none of the session's context.
+
+    2026-09-04 ruling (Daniil, verbatim above): a plain message NEVER spawns. When a seat
+    IS live the durable send is the whole mechanism -- its armed wake listener fires and
+    the harness re-invokes THAT session, which is what "reach you specifically" means.
+    When nothing is live he gets COLD_SEAT_NOTICE and picks the harness himself, because
+    `--harness` (an interactive session) and `--headless` (a one-shot) are different
+    animals and only he knows which one he wants.
+
+    Returns None (nothing spawned, ever) or the notice string when the seat is cold.
+    Never raises: the bus.send this follows already succeeded, and a wake-path failure
+    must not turn an already-landed, already-receipted message into a reported failure
+    (T149: no lie in either direction). `is_seat_live is None` means the caller wired no
+    probe -- stay silent rather than cry cold about a seat we cannot see."""
+    if agent not in _AUTO_WAKE_SEATS or is_seat_live is None:
         return None
     try:
         if is_seat_live(agent):
-            return None
-        try:
-            pid = spawner(task, mode="default")
-        except TypeError:
-            # an older/fake spawner that does not take the mode kwarg (the same
-            # fallback !spawn's own call site uses, one function up)
-            pid = spawner(task)
+            return None                   # live: the lane + its listener ARE the wake
     except Exception:                                                     # noqa: BLE001
-        return None
-    return str(pid) if pid is not None else None
+        return None                       # cannot tell -> never claim he is unreachable
+    return COLD_SEAT_NOTICE
 
 
 def discord_help_text() -> str:
@@ -455,6 +477,15 @@ def discord_help_text() -> str:
         "",
         "`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).",
         "    e.g. `!spawn vandor` — fresh Vandor seat.",
+        "`!spawn vandor --harness` — INTERACTIVE Claude Code session in its own window: "
+        "one you can watch and type into, and it persists.",
+        "`!spawn vandor --headless` — the one-shot `claude -p` worker: cheap, does the "
+        "task, exits. (What a bare spawn gives you.)",
+        "`!model` — which model new seats request + what each live session reports "
+        "running. `!model opus` pins; `!model default` unpins.",
+        "Talking to a live seat needs NO command: type in its channel (or @-mention it) "
+        "and the message wakes THAT session. Nothing is ever spawned behind your back — "
+        "if the seat is cold you get 📭 and choose the harness yourself.",
         "`!spawn <task>` — spawn a claude seat to DO the task (any sentence).",
         "    e.g. `!spawn take the handoff, prior seat wedged`",
         "`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).",
@@ -575,6 +606,25 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     if text.lower().startswith("!help"):
         return {"acted": True, "help": discord_help_text(), "id": None}
 
+    # !model — pick the model new seats request, and SEE what is running (Daniil
+    # 2026-09-04: "options to change the model... display which model is running in
+    # discord so I can detect model changes while operating through discord"). Rides NO
+    # bus lane: it is an answer about the levers, like !help. Read-only when bare.
+    if text.lower().startswith("!model"):
+        from core.fleet import seat_model as _sm
+        arg = text[len("!model"):].strip()
+        if not arg:
+            return {"acted": True, "help": _sm.render(with_choices=True), "id": None}
+        try:
+            st = (_sm.unpin(by=speaker) if arg.lower() in ("default", "unpin", "none")
+                  else _sm.pin(arg, by=speaker))
+        except ValueError as e:
+            react("❓")
+            return {"acted": False, "reason": str(e), "help": str(e), "id": None}
+        react("🎛")
+        return {"acted": True, "id": None, "model": st.get("model"),
+                "help": _sm.render(with_choices=False)}
+
     # !status-deep -- the READ-ONLY dry lever (observe_only=True), available to
     # ANY operator (help line 474: "!status-deep work[s] for any operator... safe
     # anytime"). It heals NOTHING and spawns NOTHING -- converge(observe_only=True)
@@ -685,10 +735,10 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                 f"returned None); no receipt for an undelivered word")
         react("📨")
         out = {"acted": True, "id": str(mid), "to": [lane_agent]}
-        spawned = _auto_wake(lane_agent, body, spawner, is_seat_live)
-        if spawned:
-            react("🌱")
-            out["spawned"] = spawned
+        cold = _auto_wake(lane_agent, body, spawner, is_seat_live)
+        if cold:
+            react("📭")                   # landed, nobody home -- NOT a failure
+            out["cold_seat"] = cold
         return out
     ask = _rooms_reverse().get(str(channel_id))
     if ask:
@@ -734,10 +784,10 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         react("📨")
         out = {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
         for agent in targets:
-            spawned = _auto_wake(agent, body, spawner, is_seat_live)
-            if spawned:
-                react("🌱")
-                out["spawned"] = spawned
+            cold = _auto_wake(agent, body, spawner, is_seat_live)
+            if cold:
+                react("📭")
+                out["cold_seat"] = cold
         return out
 
     mid = bus.broadcast("chat", body, meta=meta, **({"parts": parts} if parts else {}))
