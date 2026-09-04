@@ -25,7 +25,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (69 modules)
+## core/comm/  (70 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -66,6 +66,7 @@
 - `locks.py` — Advisory path-locks (Concurrency design C2).
 - `mailbox.py` — mailbox -- T095 M0: shadow mailbox state index over the append-only lanes.
 - `nudge.py` — Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE).
+- `operator_reply.py` — Answering the operator, in one argument, with an honest delivery verdict.
 - `packet_spec.py` — Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043).
 - `pager.py` — pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer).
 - `peer_ready.py` — peer_ready -- make the peer EXIST before asking it something (T197c).

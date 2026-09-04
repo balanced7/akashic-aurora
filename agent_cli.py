@@ -6139,6 +6139,35 @@ def cmd_forecast(args):
         return 1
 
 
+def cmd_reply(args):
+    """`reply "..."` -- answer the operator. ONE argument, honest verdict.
+
+    Daniil 2026-09-04: "How do we make it easy for you to reply, should it be a verb?" The
+    ceremony this replaces was --to + --kind + --text-file + sender + body, and its three
+    orderings cost him an hour of silence in one afternoon. Here the body is the only
+    positional, so a message CANNOT land in a sender slot; and the verdict distinguishes
+    'nothing confessed a failure' from 'delivered', because conflating those is what made
+    the silence invisible. Logic + pins: core/comm/operator_reply.py."""
+    from core.comm import operator_reply as _or
+    if getattr(args, "text_file", None):
+        try:
+            with open(args.text_file, encoding="utf-8") as fh:
+                body = fh.read().strip()
+        except OSError as e:
+            print(f"[reply] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
+            return 2
+    else:
+        body = " ".join(args.text or [])
+    out = _or.reply(body, sender=getattr(args, "as_seat", None), to=getattr(args, "to", None))
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=1))
+    else:
+        print(_or.render(out))
+    # A recorded post FAILURE is a non-zero exit even though the bus accepted it: the seat
+    # must be able to tell, from the exit code alone, that the operator did not get it.
+    return 0 if (out.get("ok") and out.get("delivery") != "FAILED") else 1
+
+
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
@@ -8253,6 +8282,17 @@ def build_parser():
                           "capitalization), gaps (VTT timing), model (fullstop raw), line (legacy "
                           "per-cue), none (raw clean)")
     cap.set_defaults(fn=cmd_captions)
+
+    rep = sub.add_parser("reply", help="answer the operator in ONE argument, with an honest "
+                                       "delivery verdict (the ordering trap made unrepresentable)")
+    rep.add_argument("text", nargs="*", help="the reply body -- the only argument")
+    rep.add_argument("--text-file", dest="text_file", default=None,
+                     help="read the body from PATH (long or flag-bearing prose)")
+    rep.add_argument("--to", default=None, help="override the recipient (default: the operator)")
+    rep.add_argument("--as", dest="as_seat", default=None,
+                     help="override the sender (default: this seat's id -- never a positional)")
+    rep.add_argument("--json", action="store_true")
+    rep.set_defaults(fn=cmd_reply)
 
     bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")
     bop.add_argument("--surface", action="store_true",
