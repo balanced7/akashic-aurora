@@ -356,6 +356,18 @@ class Bus:
         send because it cannot check liveness is strictly worse than one that sends blind."""
         if str(to) in ("*", BROADCAST_TO):
             return None                                   # broadcast has no single recipient
+        # [f63e1186c6] The operator (daniil/daniel/user) has no heartbeat BY DESIGN -- he is a
+        # human read through the Discord feed pump, not a seat. This fired "no live seat" on
+        # three sends in a row that all delivered (2026-08-26); a warning wrong in the common
+        # case trains readers to ignore it in the rare true one. Report the delivery surface
+        # instead of a seat verdict that was never the right question for a human.
+        try:
+            from core.comm import discord_feed as DF
+            operator_inboxes = DF._OPERATOR_INBOXES
+        except Exception:
+            operator_inboxes = ()
+        if str(to) in operator_inboxes:
+            return self._warn_if_operator_unreachable(str(to), DF)
         try:
             live, age = self._recipient_liveness(to)
         except Exception:
@@ -366,6 +378,26 @@ class Bus:
         msg = (f"[bus] UNATTENDED RECIPIENT: '{to}' has no live seat ({where}). The message is "
                f"durably queued and will deliver on its next boot -- but nothing is reading it "
                f"now. If you expected action, relaunch the seat or route to a live one.")
+        try:
+            sys.stderr.write(msg + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+        return msg
+
+    def _warn_if_operator_unreachable(self, to: str, discord_feed_module) -> Optional[str]:
+        """The operator-inbox half of `_warn_if_unattended`: warn only when the feed pump
+        itself has nowhere to forward the message, never on the human's absence of a beat."""
+        try:
+            configured = discord_feed_module.configured()
+        except Exception:
+            return None                                   # probe crash -> silent, send proceeds
+        if configured:
+            return None                                   # the pump will carry it to Discord
+        msg = (f"[bus] OPERATOR INBOX HAS NO DELIVERY SURFACE: '{to}' is durably queued, but "
+               f"no Discord webhook/forum is configured for the feed pump to forward it through. "
+               f"This is not a dead seat -- he has no heartbeat by design -- it is an unconfigured "
+               f"transport.")
         try:
             sys.stderr.write(msg + "\n")
             sys.stderr.flush()
