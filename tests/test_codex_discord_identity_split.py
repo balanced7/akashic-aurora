@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import scripts.codex_bifrost_wake as WAKE_SCRIPT
@@ -199,3 +202,47 @@ def test_sunshine_installer_arms_write_without_overriding_model_or_effort():
     assert "AkashicAurora-GptNewDiscord" in installer
     assert "'--agent', 'gpt-new'" in installer
     assert "'--effort'" not in installer
+
+
+def test_installer_declares_the_three_host_local_runtime_mounts():
+    installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "RuntimeConfigRoot" in installer
+    assert ".aurora-world" in installer
+    assert "ItemType Junction" in installer
+    assert "ItemType SymbolicLink" in installer
+    assert "security\\acl.json" in installer
+
+
+def test_installer_whatif_accepts_an_explicit_runtime_config_root():
+    if os.name != "nt":
+        return
+    installer = ROOT / "scripts" / "install_sunshine_discord_tasks.ps1"
+    run = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(installer),
+            "-ThreadId",
+            "00000000-0000-0000-0000-000000000001",
+            "-SourceThreadId",
+            "00000000-0000-0000-0000-000000000002",
+            "-RepoRoot",
+            str(ROOT),
+            "-RuntimeConfigRoot",
+            "E:/AI-Setup",
+            "-PythonExe",
+            sys.executable,
+            "-WhatIf",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert run.returncode == 0, run.stdout + run.stderr
