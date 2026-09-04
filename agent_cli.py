@@ -6158,7 +6158,8 @@ def cmd_reply(args):
             return 2
     else:
         body = " ".join(args.text or [])
-    out = _or.reply(body, sender=getattr(args, "as_seat", None), to=getattr(args, "to", None))
+    out = _or.reply(body, sender=getattr(args, "as_seat", None), to=getattr(args, "to", None),
+                    model=getattr(args, "model", None))
     if getattr(args, "json", False):
         print(json.dumps(out, indent=1))
     else:
@@ -8291,6 +8292,9 @@ def build_parser():
     rep.add_argument("--to", default=None, help="override the recipient (default: the operator)")
     rep.add_argument("--as", dest="as_seat", default=None,
                      help="override the sender (default: this seat's id -- never a positional)")
+    rep.add_argument("--model", default=None,
+                     help="stamp the model answering (alias like 'sonnet' or a full id) to "
+                          "the self-report `!model` reads -- best-effort, never blocks the reply")
     rep.add_argument("--json", action="store_true")
     rep.set_defaults(fn=cmd_reply)
 
