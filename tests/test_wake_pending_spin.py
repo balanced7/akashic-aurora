@@ -110,9 +110,18 @@ def test_seeding_over_undrainable_mail_is_ANNOUNCED(caplog, monkeypatch):
     with caplog.at_level(logging.WARNING, logger="bifrost"):
         api._wake_block_lane(timeout_ms=1)
 
-    assert any("undrainable" in r.getMessage() for r in caplog.records), (
+    # UPDATED 2026-09-04 (flagged by chronos, Serge's fleet, over the bridge): this asserted
+    # the literal word "undrainable" while the live warning had been rewritten to say
+    # "already-seen wake-worthy" plus the lane-divergence instruction. The INTENT -- that
+    # seeding over non-empty pending announces itself rather than passing in silence -- was
+    # always met; only the wording drifted. So the pin now asserts the intent (a warning
+    # naming the seeded pending) instead of one spelling of it, which is what it meant to
+    # protect and what cannot drift out from under it again.
+    warned = " ".join(r.getMessage() for r in caplog.records)
+    assert "wake-worthy" in warned or "undrainable" in warned, (
         "seeding over non-empty pending was SILENT -- the condition persists with no signal"
     )
+    assert "Seeded" in warned or "seed" in warned.lower()
     assert api._pending_at_seed == 1
 
 
