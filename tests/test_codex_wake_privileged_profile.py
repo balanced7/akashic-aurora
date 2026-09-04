@@ -51,7 +51,10 @@ def _operator_policy(**over) -> WakePolicy:
 
 def _identity() -> SubjectIdentity:
     return SubjectIdentity(
-        callsign="Sunshine", status="historical-unratified", authority="registry"
+        agent_id="sol",
+        callsign="Sunshine",
+        status="historical-unratified",
+        authority="registry",
     )
 
 
