@@ -83,6 +83,35 @@ def test_unlock_failure_is_not_swallowed(monkeypatch):
     assert "bifrost_ui.py" in problems[0], "the report names no path, so nobody can act on it"
 
 
+def test_operator_inbox_with_pump_configured_is_silent(monkeypatch):
+    """[f63e1186c6] The operator (daniil/daniel/user) has no heartbeat BY DESIGN -- he is a
+    human read through the Discord feed pump, not a seat. Live receipt 2026-08-26: the
+    generic seat-liveness probe called him UNATTENDED and said 'nothing is reading it now'
+    on three sends in a row that all delivered, because a human never beats. Cry-wolf risk:
+    a warning wrong in the common case trains every reader to ignore it in the rare true one.
+    """
+    from core.comm import bus as B
+    b = B.Bus.__new__(B.Bus)
+    monkeypatch.setattr("core.comm.discord_feed.configured", lambda: True, raising=False)
+
+    probed = []
+    monkeypatch.setattr(b, "_recipient_liveness", lambda to: probed.append(to), raising=False)
+
+    assert b._warn_if_unattended("daniil") is None, "pump configured -- must not cry wolf"
+    assert not probed, "operator inboxes are not seats -- must not hit seat liveness at all"
+
+
+def test_operator_inbox_with_pump_unconfigured_warns_about_the_pump_not_a_dead_seat(monkeypatch):
+    """When the feed genuinely cannot reach him, say THAT -- not the false 'no live seat'."""
+    from core.comm import bus as B
+    b = B.Bus.__new__(B.Bus)
+    monkeypatch.setattr("core.comm.discord_feed.configured", lambda: False, raising=False)
+    warned = b._warn_if_unattended("daniil")
+    assert warned, "an unconfigured delivery surface produced no warning at all"
+    assert "no live seat" not in warned.lower(), warned
+    assert "daniil" in warned
+
+
 def test_the_real_probe_is_wired_not_just_the_monkeypatched_one():
     """THE PIN THAT WOULD HAVE CAUGHT MY OWN NO-OP.
 
