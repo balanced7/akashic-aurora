@@ -11,6 +11,8 @@ param(
     [string]$RepoRoot = '',
     [string]$RuntimeConfigRoot = 'E:\AI-Setup',
     [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
+    [string]$GatewayTaskName = 'AkashicAurora-DiscordGateway',
+    [string]$LegacyGatewayWatchdogTaskName = 'AkashicAurora-EarWatchdog',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord',
     [string]$GptNewThreadId = '',
@@ -29,8 +31,9 @@ $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $resolvedRuntimeConfigRoot = (Resolve-Path -LiteralPath $RuntimeConfigRoot).Path
 $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
 $daemonScript = Join-Path $resolvedRoot 'scripts\bifrost_daemon.py'
+$gatewayScript = Join-Path $resolvedRoot 'scripts\bifrost_runner_discord.py'
 $wakeScript = Join-Path $resolvedRoot 'scripts\codex_bifrost_wake.py'
-foreach ($requiredPath in @($daemonScript, $wakeScript)) {
+foreach ($requiredPath in @($daemonScript, $gatewayScript, $wakeScript)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Sunshine integration file is missing: $requiredPath"
     }
@@ -134,6 +137,7 @@ $fleetArguments = ConvertTo-TaskArguments @(
     '--runner-arg=--ignore-source',
     '--runner-arg=discord'
 )
+$gatewayArguments = ConvertTo-TaskArguments @($gatewayScript)
 $discordArguments = ConvertTo-TaskArguments @(
     $wakeScript,
     '--agent', 'sol',
@@ -163,7 +167,6 @@ if ($GptNewThreadId) {
         '--thread-id', $GptNewThreadId,
         '--source-thread-id', $GptNewSourceThreadId,
         '--binding-kind', 'completed-history-fork',
-        '--allow-exec',
         '--block-ms', '5000'
     )
 }
@@ -184,6 +187,11 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
 $tasks = @(
+    @{
+        Name = $GatewayTaskName
+        Description = 'Single restartable Discord inbound gateway pinned to the same deployed worktree as the continuity watchers.'
+        Arguments = $gatewayArguments
+    },
     @{
         Name = $FleetTaskName
         Description = 'Sunshine managed fleet runner plus Discord outbound feed; Discord ingress is owned by the continuity watcher.'
@@ -220,7 +228,27 @@ foreach ($task in $tasks) {
     }
 }
 
+# The older five-minute revive job launches whichever gateway happens to live in
+# E:\AI-Setup and can race a direct at-logon gateway after reboot.  Preserve its
+# definition for recovery, but disable its trigger once the restartable singleton
+# above is registered.  This is reversible and only touches the gateway watchdog.
+if ($LegacyGatewayWatchdogTaskName -and
+    $LegacyGatewayWatchdogTaskName -ne $GatewayTaskName) {
+    $legacyGatewayWatchdog = Get-ScheduledTask `
+        -TaskName $LegacyGatewayWatchdogTaskName `
+        -ErrorAction SilentlyContinue
+    if ($legacyGatewayWatchdog -and
+        $PSCmdlet.ShouldProcess(
+            $LegacyGatewayWatchdogTaskName,
+            "Disable legacy gateway watchdog superseded by $GatewayTaskName"
+        )) {
+        Disable-ScheduledTask -TaskName $LegacyGatewayWatchdogTaskName | Out-Null
+    }
+}
+
 [pscustomobject]@{
+    GatewayTask = $GatewayTaskName
+    LegacyGatewayWatchdog = $LegacyGatewayWatchdogTaskName
     FleetTask = $FleetTaskName
     DiscordTask = $DiscordTaskName
     ContinuityThreadId = $ThreadId

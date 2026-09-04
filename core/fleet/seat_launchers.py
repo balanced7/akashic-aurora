@@ -27,7 +27,9 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
+from pathlib import Path as _P
 from typing import Any, Dict, List, Optional, Tuple
 
 #: callsign / agent-id -> the seat it names. Both spellings resolve, because he says
@@ -204,7 +206,12 @@ _ALIASES.update({"vandor": "vandor", "claude": "vandor"})
 #: Flags a spawn target may carry. Parsed off before the bare-name check, so
 #: `!spawn vandor --repair` still resolves to a seat rather than falling through to
 #: the task path.
-SPAWN_FLAGS = ("--repair", "--seat", "--status")
+#: --harness / --headless (2026-09-04 ruling): the operator picks WHICH KIND of Vandor.
+#: `--harness` is an interactive Claude Code session in its own window -- one he can watch
+#: and type into, which persists. `--headless` is the historical one-shot `claude -p`
+#: worker. They were never distinguishable before, so every path produced the headless one
+#: and an ordinary sentence could mint it behind his back.
+SPAWN_FLAGS = ("--repair", "--seat", "--status", "--harness", "--headless")
 
 
 def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
@@ -241,6 +248,33 @@ def claude_permission_flags(mode: str = "default") -> List[str]:
         return ["--dangerously-skip-permissions"]
     return ["--permission-mode", "acceptEdits",
             "--allowedTools", "Bash,PowerShell,Read,Write,Edit,Glob,Grep"]
+
+
+def harness_argv(*, root: str, task: str, model_flag: Optional[List[str]] = None,
+                 which=shutil.which) -> Tuple[List[str], Dict[str, Any]]:
+    """argv + Popen kwargs for an INTERACTIVE Claude Code Vandor (ruling 2026-09-04).
+
+    The difference from the headless spawn is the whole point, so it is stated here rather
+    than left to a flag name: no `-p`, so the session stays open and conversational; a
+    VISIBLE console (CREATE_NEW_CONSOLE, never CREATE_NO_WINDOW) so the operator can watch
+    and type into it; and the task arrives as the opening prompt rather than as a one-shot
+    argument. A headless worker answers once and dies; this is a seat he can keep."""
+    exe = which("claude")
+    if not exe:
+        raise RuntimeError(
+            "the `claude` CLI is not on PATH -- cannot open an interactive Vandor "
+            "(the headless lever has the same dependency; this is not a harness-only fault)")
+    # The npm .cmd shim mangles rich argv on Windows, so prefer the native binary when it
+    # exists -- the same trick the headless path learned the hard way.
+    native = _P(exe).with_name("node_modules") / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+    argv0 = str(native) if native.exists() else exe
+    argv = [argv0, *(model_flag or []), *claude_permission_flags("arm"), task]
+    kwargs: Dict[str, Any] = {
+        "cwd": str(root),
+        "creationflags": (getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+                          | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)),
+    }
+    return argv, kwargs
 
 
 def claude_seat_plan(*, app_healthy: bool, app_repairable: bool, app_detail: str,

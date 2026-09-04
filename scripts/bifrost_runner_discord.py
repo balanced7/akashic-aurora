@@ -355,6 +355,20 @@ def main() -> int:
             # fall through to the CLI spawn, with a task worth booting on
             task = ("fresh Vandor seat, launched by the operator from Discord: boot, "
                     "read the latest handoff, drain the work lane, and take the watch")
+            # `!spawn vandor --harness` opens an INTERACTIVE session in its own window
+            # instead of a headless one-shot (ruling 2026-09-04). Distinct animals: the
+            # headless worker answers once and dies; this one he can keep talking to.
+            if "--harness" in _flags:
+                from core.fleet import seat_model as _smod
+                argv, kw = _sl.harness_argv(root=str(_ROOT), task=task,
+                                            model_flag=_smod.model_flag())
+                p = subprocess.Popen(argv, **kw)
+                _st = _smod.resolve()
+                _launch_notes[p.pid] = (
+                    f"🖥 interactive Claude Code Vandor opened (pid {p.pid}) on "
+                    f"{_st['label']} — a window you can watch and type into. It is NOT a "
+                    f"headless one-shot; close the window to end it.")
+                return p.pid
             _seat = None
         if _seat:
             argv, env_overlay, cwd = _sl.launch_argv(_seat, root=str(_ROOT))
@@ -447,8 +461,13 @@ def main() -> int:
         # governed by test_a_spawned_claude_seat_can_ALWAYS_exec across every mode,
         # including the unknown ones, which degrade to ARMED rather than to read-only.
         permission_flags = _sl.claude_permission_flags(mode)
+        # The operator's model pin rides EVERY launch line (2026-09-04). Empty when
+        # unpinned, so the CLI default is preserved byte-for-byte -- a pin he never set
+        # must not silently become a model choice we made for him.
+        from core.fleet import seat_model as _smod
+        _model_flag = _smod.model_flag()
         with open(log, "w", encoding="utf-8") as fh:
-            p = subprocess.Popen([*_argv0, "-p", prompt, *permission_flags], env=env,
+            p = subprocess.Popen([*_argv0, *_model_flag, "-p", prompt, *permission_flags], env=env,
                                  cwd=str(_ROOT), stdout=fh, stderr=fh,
                                  creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
