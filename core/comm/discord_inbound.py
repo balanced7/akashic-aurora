@@ -697,13 +697,29 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         # --dangerous  break-glass: bypass every permission (skip-permissions). For
         #          "I am locked out and need you to do literally anything". Full hammer;
         #          use only when --arm is provably not enough.
+        # 2026-09-04 (found live: `!spawn vandor --dangerous` reached a fresh seat with
+        # the literal TASK "vandor --dangerous" instead of a dangerous-mode Vandor). The
+        # help text documents the flag trailing the task (`!spawn <task> --dangerous`),
+        # but this only ever checked a LEADING token -- so the trailing form the docs
+        # advertise silently fell through into the task string, mode always "default".
+        # Word-bounded on BOTH ends: the leading form some callers may already use keeps
+        # working, and a bare seat name plus a trailing flag (e.g. "vandor --dangerous")
+        # now reduces to a bare seat name again, so seat_launchers.resolve_seat can
+        # still see it.
         rest = text[len("!spawn"):].strip()
         spawn_mode = "default"
+        words = rest.split()
         for token, mode in (("--dangerous", "dangerous"), ("--arm", "arm")):
-            if rest.lower().startswith(token):
+            tl = token.lower()
+            if words and words[0].lower() == tl:
                 spawn_mode = mode
-                rest = rest[len(token):].strip()
+                words = words[1:]
                 break
+            if words and words[-1].lower() == tl:
+                spawn_mode = mode
+                words = words[:-1]
+                break
+        rest = " ".join(words)
         task = rest or \
             "fresh seat: operator-invoked spawn from Discord (no task given -- " \
             "boot, read the latest handoff, take the watch)"
