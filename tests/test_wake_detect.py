@@ -23,6 +23,24 @@ from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
 
 
+@pytest.fixture(autouse=True)
+def _legacy_wake_plane(monkeypatch):
+    """These pins exercise the LEGACY wake path, so they must state that, not inherit it.
+
+    Added 2026-09-04 with T198 (the wake lane now FOLLOWS the consume lane when
+    BIFROST_WAKE_LANE is unset). That change was correct and immediately exposed a real
+    latent defect: some earlier test in a full run leaves BIFROST_CONSUME_LANE=work in the
+    process env, so these three cases silently began exercising the LANE watcher while
+    asserting legacy-path behaviour -- and passed or failed by test ORDER. Declaring the
+    plane here makes the pins mean what their names say regardless of who ran first.
+
+    NOT a hygiene patch over the leak: the leak is filed separately as a real defect, and
+    it stays reproducible (run this file after the polluter with this fixture removed).
+    A pin that asserts the legacy path should pin the legacy path."""
+    monkeypatch.delenv("BIFROST_WAKE_LANE", raising=False)
+    monkeypatch.delenv("BIFROST_CONSUME_LANE", raising=False)
+
+
 def _client():
     from core.foundation.redis_connection import (
         connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
