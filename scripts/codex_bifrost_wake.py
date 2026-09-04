@@ -75,8 +75,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="auditable lineage label such as completed-history-fork",
     )
     parser.add_argument("--cwd", default=str(ROOT), help="Codex task working directory")
-    parser.add_argument("--model", default="gpt-5.6-sol")
-    parser.add_argument("--effort", default="low")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="explicit per-thread/per-turn model override; omitted inherits the bound thread",
+    )
+    parser.add_argument(
+        "--effort",
+        default=None,
+        help="explicit per-turn effort override; omitted inherits the bound thread",
+    )
     parser.add_argument("--max-message-chars", type=int, default=16_000)
     parser.add_argument("--turn-timeout", type=float, default=900.0)
     parser.add_argument("--block-ms", type=int, default=5_000)
@@ -123,8 +131,10 @@ def main(argv: list[str] | None = None) -> int:
 
     os.environ["AKASHIC_AGENT_ID"] = agent
     os.environ["AKASHIC_HARNESS"] = "codex-desktop"
-    os.environ.setdefault("AKASHIC_CALLSIGN_HINT", "Sunshine")
-    os.environ.setdefault("AKASHIC_CALLSIGN_STATUS", "historical-unratified")
+    # A long-lived scheduler process may inherit stale hints from another seat.
+    # The resident registry is the authority; absence remains honest uncertainty.
+    os.environ.pop("AKASHIC_CALLSIGN_HINT", None)
+    os.environ.pop("AKASHIC_CALLSIGN_STATUS", None)
 
     bus = Bus(agent)
     if bus._client is None:

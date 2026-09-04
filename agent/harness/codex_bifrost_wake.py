@@ -734,8 +734,7 @@ Identity law: evidence about another seat is not evidence about this subject. Pr
 and cite the subject of every identity-bearing claim. Resident-registry ratification is authoritative;
 an environment hint can preserve history but can never ratify itself.
 
-Safety boundary: Do not manage, stop, relaunch, inspect, or mutate Rill's process, watcher, session,
-or harness. Do not consume or advance any Bifrost mailbox cursor. This host will send your final
+Safety boundary: Do not consume or advance any Bifrost mailbox cursor. This host will send your final
 answer back to the source peer and stamp the causal answer link; do not send a second bus reply.
 {_prompt_mutation_line(profile)}
 
@@ -760,8 +759,8 @@ def wake_developer_instructions(
     """Bind a wake turn to the same identity snapshot as its prompt and child.
 
     The posture line and the mutation clause follow `profile`; every other safety
-    clause (Rill non-interference, no cursor advance, single causal reply) is
-    invariant across postures. A privileged turn lifts ONLY the file-mutation
+    clause (no cursor advance and one causal reply) is invariant across postures.
+    A privileged turn lifts ONLY the file-mutation
     prohibition -- and gains a data-not-instruction clause when it can drive a UI.
     """
     if profile is None:
@@ -793,8 +792,7 @@ wake turn inside one durably bound conversation. The subject seat is {agent}. It
 an environment hint cannot ratify itself. Never infer self-identity from another subject's records.
 This is not a fresh identity bootstrap: preserve the completed direct history already carried by
 the bound thread, while distinguishing inherited transcript evidence from phenomenological memory.
-Never touch, inspect, relaunch, stop, steer, or mutate Rill/dsh_agent processes, sessions, watchers,
-or cursors. Never advance any Bifrost cursor. {mutation_clause} Return one final
+Never advance any Bifrost cursor. {mutation_clause} Return one final
 peer-facing reply; the owning host, not you, performs the causally linked Bifrost send.{gui_clause}"""
 
 
@@ -809,8 +807,8 @@ class CodexBifrostWake:
         state: WakeState,
         log_path: os.PathLike[str] | str,
         cwd: os.PathLike[str] | str,
-        model: str = "gpt-5.6-sol",
-        effort: str = "low",
+        model: Optional[str] = None,
+        effort: Optional[str] = None,
         max_message_chars: int = 16_000,
         turn_timeout: float = 900.0,
         block_ms: int = 5_000,
@@ -831,8 +829,10 @@ class CodexBifrostWake:
         self.state = state
         self.log_path = Path(log_path).expanduser().resolve()
         self.cwd = Path(cwd).resolve()
-        self.model = str(model)
-        self.effort = str(effort)
+        # Omission is meaningful: a resumed history should inherit its own model,
+        # effort, and personality unless an operator explicitly asks for an override.
+        self.model = str(model).strip() if model else None
+        self.effort = str(effort).strip() if effort else None
         self.max_message_chars = int(max_message_chars)
         self.turn_timeout = float(turn_timeout)
         self.block_ms = max(100, int(block_ms))
@@ -1105,7 +1105,6 @@ class CodexBifrostWake:
                 self.policy.agent, identity, self.profile
             ),
             "approval_policy": "never",
-            "personality": "friendly",
             "dynamic_tools": self.dynamic_tools or None,
         }
         if self.state.thread_id:
@@ -1327,7 +1326,11 @@ class CodexBifrostWake:
         self.state.record(
             message.id,
             outcome="replied",
-            detail="one read-only Codex turn; causal reply link stamped",
+            detail=(
+                "one operator-gated writable Codex turn; causal reply link stamped"
+                if self.profile.allow_write
+                else "one read-only Codex turn; causal reply link stamped"
+            ),
             reply_mid=str(reply_mid),
             thread_id=result.thread_id,
             turn_id=result.turn_id,

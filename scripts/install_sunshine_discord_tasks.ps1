@@ -11,7 +11,10 @@ param(
     [string]$RepoRoot = '',
     [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
-    [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord'
+    [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord',
+    [string]$GptNewThreadId = '',
+    [string]$GptNewSourceThreadId = '',
+    [string]$GptNewDiscordTaskName = 'AkashicAurora-GptNewDiscord'
 )
 
 Set-StrictMode -Version Latest
@@ -31,9 +34,22 @@ foreach ($requiredPath in @($daemonScript, $wakeScript)) {
     }
 }
 
+$threadPattern = '^[0-9a-f-]{36}$'
+if (($GptNewThreadId -and -not $GptNewSourceThreadId) -or
+    ($GptNewSourceThreadId -and -not $GptNewThreadId)) {
+    throw 'GptNewThreadId and GptNewSourceThreadId must be supplied together.'
+}
+foreach ($candidate in @($GptNewThreadId, $GptNewSourceThreadId)) {
+    if ($candidate -and $candidate -notmatch $threadPattern) {
+        throw "Invalid gpt-new Codex thread id: $candidate"
+    }
+}
+
 $runtimeRoot = Join-Path $env:LOCALAPPDATA 'AkashicAurora\codex-wake'
-$statePath = Join-Path $runtimeRoot 'sol-discord-continuity.state.json'
-$eventPath = Join-Path $runtimeRoot 'sol-discord-continuity.events.jsonl'
+$statePath = Join-Path $runtimeRoot 'sunshine-discord-continuity.state.json'
+$eventPath = Join-Path $runtimeRoot 'sunshine-discord-continuity.events.jsonl'
+$gptNewStatePath = Join-Path $runtimeRoot 'gpt-new-discord-continuity.state.json'
+$gptNewEventPath = Join-Path $runtimeRoot 'gpt-new-discord-continuity.events.jsonl'
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 
 function ConvertTo-TaskArguments {
@@ -71,9 +87,27 @@ $discordArguments = ConvertTo-TaskArguments @(
     '--source-thread-id', $SourceThreadId,
     '--binding-kind', 'completed-history-fork',
     '--allow-exec',
-    '--effort', 'medium',
+    '--allow-write',
     '--block-ms', '5000'
 )
+
+$gptNewDiscordArguments = $null
+if ($GptNewThreadId) {
+    $gptNewDiscordArguments = ConvertTo-TaskArguments @(
+        $wakeScript,
+        '--agent', 'gpt-new',
+        '--allow-from', 'daniil',
+        '--allow-kind', 'chat',
+        '--require-source', 'discord',
+        '--state-path', $gptNewStatePath,
+        '--log-path', $gptNewEventPath,
+        '--thread-id', $GptNewThreadId,
+        '--source-thread-id', $GptNewSourceThreadId,
+        '--binding-kind', 'completed-history-fork',
+        '--allow-exec',
+        '--block-ms', '5000'
+    )
+}
 
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
 $principal = New-ScheduledTaskPrincipal `
@@ -102,6 +136,13 @@ $tasks = @(
         Arguments = $discordArguments
     }
 )
+if ($gptNewDiscordArguments) {
+    $tasks += @{
+        Name = $GptNewDiscordTaskName
+        Description = 'gpt-new Discord ingress bound fail-closed to the preserved former Discord Codex fork.'
+        Arguments = $gptNewDiscordArguments
+    }
+}
 
 foreach ($task in $tasks) {
     if ($PSCmdlet.ShouldProcess($task.Name, 'Register restartable at-logon scheduled task')) {
@@ -127,4 +168,8 @@ foreach ($task in $tasks) {
     SourceThreadId = $SourceThreadId
     StatePath = $statePath
     EventPath = $eventPath
+    GptNewDiscordTask = $(if ($gptNewDiscordArguments) { $GptNewDiscordTaskName } else { $null })
+    GptNewThreadId = $(if ($gptNewDiscordArguments) { $GptNewThreadId } else { $null })
+    GptNewStatePath = $(if ($gptNewDiscordArguments) { $gptNewStatePath } else { $null })
+    GptNewEventPath = $(if ($gptNewDiscordArguments) { $gptNewEventPath } else { $null })
 }

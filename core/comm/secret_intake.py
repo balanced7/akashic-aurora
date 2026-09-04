@@ -44,7 +44,8 @@ TARGETS: Dict[str, str] = {
     "discord_channel_heimdall.url": "the #heimdall seat-channel webhook (his lane with deepseek)",
     "discord_channel_navi.url":     "the #navi seat-channel webhook (his lane with kimi)",
     "discord_channel_rill.url":     "the #rill seat-channel webhook (his lane with dsh_agent)",
-    "discord_channel_sol.url":      "the #sol seat-channel webhook (Daniil's lane with sol)",
+    "discord_channel_sol.url":      "the #sunshine seat-channel webhook (Daniil's lane with sol/Sunshine)",
+    "discord_channel_gpt-new.url":  "the #gpt-new seat-channel webhook (the preserved former Discord Codex fork)",
     "remote_bridge_outbound.key":   "HMAC secret we use to push INTO a remote peer's relay "
                                     "(outbound direction; remote-bridge v0)",
     "chronos_inbound.key":          "HMAC secret CHRONOS uses to push into our relay -- its "

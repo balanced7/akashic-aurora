@@ -17,7 +17,7 @@ operator, the source is the operator channel, and the sender set is non-empty.
 A privileged profile paired with a policy that would admit anyone else, or a
 non-operator source, MUST refuse at construction -- never arm a writable seat
 that a non-operator can trigger. Everything Sunshine listed as preserved
-(Rill non-interference, no cursor advance, single causal reply) survives in
+(no cursor advance and one causal reply) survives in
 BOTH postures; only the file-mutation prohibition is lifted when writable.
 
 SUNSHINE'S BLOCKER (2026-09-02, bus review of faf124c2->10eabcda) -- the second
@@ -150,8 +150,7 @@ def test_writable_instructions_lift_only_the_mutation_clause():
     low = text.lower()
     # the blanket read-only prohibition is gone...
     assert "do not edit files or durable state" not in low
-    # ...but every other safety clause SURVIVES
-    assert "rill" in low                      # non-interference preserved
+    # ...but every standing safety clause SURVIVES
     assert "cursor" in low                     # never advance a bus cursor
     assert "one final" in low or "single" in low or "one peer-facing" in low  # single reply
 
@@ -290,7 +289,7 @@ def test_the_per_turn_prompt_also_follows_the_posture():
     assert "make no file" not in rw
     assert "workspace-write" in rw
     # the rest of the safety boundary is untouched by posture
-    for clause in ("Rill", "cursor", "second bus reply"):
+    for clause in ("cursor", "second bus reply"):
         assert clause in rw and clause in ro
 
 
