@@ -41,12 +41,16 @@ def test_park_frees_the_serialize_slot(led):
     assert led.tasks[b]["status"] == TL.IN_PROGRESS
 
 
-def test_in_progress_still_serialized_against_in_progress(led):
+def test_in_progress_capped_at_two_watches(led):
+    # UPDATED 2026-09-04: asserted Phase 1's one-at-a-time serialize until operator ruling
+    # art_20260903_width-ruling-2026-09-03_369243 set the cap at TWO watches (ORG Part 3).
+    # Full gauge pins: tests/test_width_gauge.py.
     _to_in_progress(led, "wave A")
-    t = led.propose("wave B", by="claude", at="2026-07-16T01:02:00")
+    _to_in_progress(led, "wave B")                    # second watch is lawful now
+    t = led.propose("wave C", by="claude", at="2026-07-16T01:02:00")
     led.transition(t["id"], TL.APPROVED, at="2026-07-16T01:02:01")
     led.transition(t["id"], TL.CLAIMED, owner="x", at="2026-07-16T01:02:02")
-    with pytest.raises(TL.LedgerError, match="serialize"):
+    with pytest.raises(TL.LedgerError, match="two-watch"):
         led.transition(t["id"], TL.IN_PROGRESS, at="2026-07-16T01:02:03")
 
 
@@ -60,13 +64,17 @@ def test_parked_keeps_file_claims(led):
 
 
 def test_unpark_reenters_through_the_gate(led):
+    # UPDATED 2026-09-04 for ruling 369243: unpark re-enters through the TWO-watch gate --
+    # resuming as a third watch refuses the same way a fresh third start does.
     a = _to_in_progress(led, "wave A")
     TL.park(led, a, "shelved", at="2026-07-16T01:01:00")
     b = _to_in_progress(led, "wave B")
-    with pytest.raises(TL.LedgerError, match="serialize"):
-        TL.unpark(led, a, at="2026-07-16T01:03:00")   # B holds the slot
+    c = _to_in_progress(led, "wave C")                # two watches open
+    with pytest.raises(TL.LedgerError, match="two-watch"):
+        TL.unpark(led, a, at="2026-07-16T01:03:00")   # B + C hold both watches
     TL.park(led, b, "swap", at="2026-07-16T01:04:00")
     assert TL.unpark(led, a, at="2026-07-16T01:05:00")["status"] == TL.IN_PROGRESS
+    assert c  # C untouched throughout -- the swap only ever moved one watch
 
 
 def test_parked_to_abandoned_is_legal(led):
@@ -76,12 +84,33 @@ def test_parked_to_abandoned_is_legal(led):
         == TL.ABANDONED
 
 
-def test_park_from_claimed_is_illegal(led):
+def test_park_from_claimed_is_legal_but_needs_a_reason(led):
+    """UPDATED 2026-08-01: this test asserted the OPPOSITE and had gone stale.
+
+    CLAIMED->PARKED was deliberately legalised at da7962f ("a claim can now be released WITH
+    its reason"), and task_ledger.py:80 records the intent: PARKED became reachable from
+    CLAIMED and VERIFYING so a seat can hand back work it has claimed while SAYING WHY --
+    where releasing to APPROVED drops it silently.
+
+    The rule that survived is the one worth pinning: parking still REQUIRES a reason
+    (task_ledger.py:214). Silent shelving is the thing the state exists to prevent, and that
+    is what this now guards.
+
+    Left as a stale red for a day because CI died at an earlier guardrail and the suite behind
+    it never ran -- the same "gate rots unseen" loop this session was opened to close.
+    """
     t = led.propose("w", by="claude", at="2026-07-16T01:00:00")
     led.transition(t["id"], TL.APPROVED, at="2026-07-16T01:00:01")
     led.transition(t["id"], TL.CLAIMED, owner="claude", at="2026-07-16T01:00:02")
-    with pytest.raises(TL.LedgerError, match="illegal transition"):
-        TL.park(led, t["id"], "nope", at="2026-07-16T01:00:03")
+
+    TL.park(led, t["id"], "handing it back: blocked on the T047 fence", at="2026-07-16T01:00:03")
+    assert led.get(t["id"])["status"] == TL.PARKED
+
+    t2 = led.propose("w2", by="claude", at="2026-07-16T02:00:00")
+    led.transition(t2["id"], TL.APPROVED, at="2026-07-16T02:00:01")
+    led.transition(t2["id"], TL.CLAIMED, owner="claude", at="2026-07-16T02:00:02")
+    with pytest.raises(TL.LedgerError):
+        TL.park(led, t2["id"], "", at="2026-07-16T02:00:03")
 
 
 def test_state_view_and_bar_render_parked(led):
