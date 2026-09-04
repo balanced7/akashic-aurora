@@ -136,6 +136,7 @@ MANIFEST = {
     "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
     "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
     "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
+    "glance": "shared",  # T079/T060: bounded WorldSnapshot; CLI, MCP, ToolBox
     "orient": "shared",  # T084 VR/GPS: one native scene over sweep + typed focus
     "shadow": "shared",  # T084 intent ghost: proposed effects shown, preview effects stay empty
     "college": "shared",  # T084: one source/voice/audit/teach-back/errata provider on every door
@@ -291,6 +292,7 @@ MANIFEST = {
     # so five duplicate top-level model tools would create surface, not parity.
     "start": "cli_only", "source": "cli_only", "lecture": "cli_only",
     "teachback": "cli_only", "erratum": "cli_only",
+    "program": "cli_only",  # argparse subcommand of shared `glance`; MCP/ToolBox use an argument
     # T258 -- the callsign ceremony's three moves, classified by WHO each one belongs to rather
     # than by where it happens to live today.
     # `resident`/`nominate`/`show` are GAP, and the reason is the ceremony's own rule 1: a peer
@@ -338,6 +340,10 @@ MANIFEST = {
                                    # Classified gap, not cli_only, deliberately: runners break
                                    # lessons too and a repeat only a human can file undercounts
                                    # the very floor it measures. MCP twin owed.
+    # 2026-09-04: the operator-facing reply door. CLI-only ON PURPOSE -- an MCP seat
+    # already answers him by returning text to its own caller; this verb exists for the
+    # CLI shape where a body could land in a sender slot (core/comm/operator_reply.py).
+    "reply": "cli_only",
     "boop": "cli_only",            # play acknowledgement; one-way and intentionally local
     "shell_home": "cli_only",      # 2026-09-01 drift night: shows/sets where HARNESS shells
                                    # land (bashrc hook, CLAUDE_CODE_SESSION_ID-gated). A shell
