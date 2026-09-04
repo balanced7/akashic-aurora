@@ -289,6 +289,23 @@ def main() -> int:
     set_seat_agent("discord")
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
 
+    # dc6200d491: the gateway was the only supervised organ with no singleton guard --
+    # its sole idempotence used to be revive counting a process-table string, which is
+    # how 4 concurrent gateways existed at 00:20 on 2026-08-26 (each opening its own
+    # websocket, each handling every inbound message). A twin refuses here, before it
+    # ever opens a socket. TTL-bounded like every other lock in this house (F5
+    # precedent): a crash that skips release self-heals once the TTL lapses, never a
+    # permanent wedge.
+    from scripts.bifrost_child import DaemonLock
+    import atexit
+    _dlock = DaemonLock(bus._client, bus.ns, GATEWAY_AGENT_ID,
+                         ttl=max(30, int(HEARTBEAT_S) * 6))
+    if not _dlock.acquire():
+        print(f"[discord-in] REFUSED: another {GATEWAY_AGENT_ID} gateway already holds "
+              f"the daemon lock -- exiting 2 (singleton guard, dc6200d491)", flush=True)
+        return 2
+    atexit.register(_dlock.release)
+
     def _spawn(task: str, mode: str = "default"):
         """!spawn's lever: a fresh claude session, detached, logging to its own file.
 
@@ -611,6 +628,13 @@ def main() -> int:
         while True:
             time.sleep(HEARTBEAT_S)
             beat(wl)
+            # dc6200d491: refresh the singleton lock on the same tick as the worklive
+            # beat -- a twin that raced in and lost acquire() must keep losing for as
+            # long as this process is actually alive.
+            try:
+                _dlock.heartbeat()
+            except Exception:
+                pass                    # the beat must never kill the beater
             # T147: the roster reads a PER-INCARNATION key; the worklive beat above
             # writes the bare one. Without this line a live gateway renders DEAD to
             # the reaper's only sensor (same defect, same fix as the kimi runner).
