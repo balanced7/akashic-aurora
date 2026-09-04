@@ -9,6 +9,7 @@ param(
     [string]$SourceThreadId,
 
     [string]$RepoRoot = '',
+    [string]$RuntimeConfigRoot = 'E:\AI-Setup',
     [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord',
@@ -25,6 +26,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+$resolvedRuntimeConfigRoot = (Resolve-Path -LiteralPath $RuntimeConfigRoot).Path
 $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
 $daemonScript = Join-Path $resolvedRoot 'scripts\bifrost_daemon.py'
 $wakeScript = Join-Path $resolvedRoot 'scripts\codex_bifrost_wake.py'
@@ -32,6 +34,63 @@ foreach ($requiredPath in @($daemonScript, $wakeScript)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Sunshine integration file is missing: $requiredPath"
     }
+}
+
+# A persistent code worktree intentionally excludes host-local authority and
+# credentials. Mount only the three explicit runtime surfaces it needs; never copy
+# secrets or ACLs into a divergent tree where rotations and grants would drift.
+if ($resolvedRoot -ne $resolvedRuntimeConfigRoot) {
+    $worldMarker = Join-Path $resolvedRoot '.aurora-world'
+    $vaultTarget = Join-Path $resolvedRuntimeConfigRoot '.secrets'
+    $vaultLink = Join-Path $resolvedRoot '.secrets'
+    $aclTarget = Join-Path $resolvedRuntimeConfigRoot 'security\acl.json'
+    $aclLink = Join-Path $resolvedRoot 'security\acl.json'
+
+    foreach ($requiredRuntimePath in @($vaultTarget, $aclTarget)) {
+        if (-not (Test-Path -LiteralPath $requiredRuntimePath)) {
+            throw "Required host-local runtime surface is missing: $requiredRuntimePath"
+        }
+    }
+
+    if (Test-Path -LiteralPath $worldMarker) {
+        $declaredWorld = (Get-Content -LiteralPath $worldMarker -Raw).Trim()
+        if ($declaredWorld -ne 'alpha') {
+            throw "Worktree world marker must declare alpha, found '$declaredWorld': $worldMarker"
+        }
+    }
+    elseif ($PSCmdlet.ShouldProcess($worldMarker, 'Write alpha world marker')) {
+        [IO.File]::WriteAllText($worldMarker, "alpha`n", [Text.UTF8Encoding]::new($false))
+    }
+
+    function Assert-OrCreateRuntimeLink {
+        param(
+            [Parameter(Mandatory = $true)][string]$Link,
+            [Parameter(Mandatory = $true)][string]$Target,
+            [Parameter(Mandatory = $true)][ValidateSet('Junction', 'SymbolicLink')][string]$Kind
+        )
+        $expected = [IO.Path]::GetFullPath($Target).TrimEnd('\')
+        if (Test-Path -LiteralPath $Link) {
+            $item = Get-Item -LiteralPath $Link -Force
+            $actualTargets = @($item.Target) | ForEach-Object {
+                [IO.Path]::GetFullPath([string]$_).TrimEnd('\')
+            }
+            if ($item.LinkType -ne $Kind -or $expected -notin $actualTargets) {
+                throw "Runtime mount exists with the wrong target/type: $Link"
+            }
+            return
+        }
+        if ($PSCmdlet.ShouldProcess($Link, "Create $Kind to $expected")) {
+            if ($Kind -eq 'Junction') {
+                New-Item -ItemType Junction -Path $Link -Target $expected | Out-Null
+            }
+            else {
+                New-Item -ItemType SymbolicLink -Path $Link -Target $expected | Out-Null
+            }
+        }
+    }
+
+    Assert-OrCreateRuntimeLink -Link $vaultLink -Target $vaultTarget -Kind Junction
+    Assert-OrCreateRuntimeLink -Link $aclLink -Target $aclTarget -Kind SymbolicLink
 }
 
 $threadPattern = '^[0-9a-f-]{36}$'
@@ -172,4 +231,5 @@ foreach ($task in $tasks) {
     GptNewThreadId = $(if ($gptNewDiscordArguments) { $GptNewThreadId } else { $null })
     GptNewStatePath = $(if ($gptNewDiscordArguments) { $gptNewStatePath } else { $null })
     GptNewEventPath = $(if ($gptNewDiscordArguments) { $gptNewEventPath } else { $null })
+    RuntimeConfigRoot = $resolvedRuntimeConfigRoot
 }
