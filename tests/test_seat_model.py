@@ -60,6 +60,15 @@ def test_unknown_alias_refuses_and_teaches(store):
         assert alias in msg, "a refusal must name the choices, not just say no"
 
 
+def test_resolve_model_id_is_the_same_resolver_pin_uses():
+    # Extracted for the reply verb's model stamp (2026-09-04) -- must name a model the
+    # same way `pin` does, or the two planes could disagree on what "sonnet" means.
+    assert SM.resolve_model_id("sonnet") == "claude-sonnet-5"
+    assert SM.resolve_model_id("claude-opus-5") == "claude-opus-5"
+    with pytest.raises(ValueError):
+        SM.resolve_model_id("gpt-4")
+
+
 def test_unpin_returns_to_the_cli_default(store):
     SM.pin("opus", by="daniil")
     SM.unpin(by="daniil")

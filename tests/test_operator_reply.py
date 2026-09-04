@@ -113,3 +113,70 @@ def test_a_none_message_id_is_a_failure_not_a_success():
             return None
     out = OR.reply("vanished", sender="claude", bus=NoneBus(), failures=lambda: [])
     assert out["ok"] is False, "bus.send returning None is the silent-drop path (T149)"
+
+
+def test_a_model_stamp_rides_a_successful_reply(monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "aa2093d4-a6e4-4a36-b4a0-1c3517e1b8f6")
+    calls = []
+
+    def stamp(agent, session, model_id, **kw):
+        calls.append((agent, session, model_id, kw.get("harness")))
+        return True
+
+    bus = FakeBus()
+    out = OR.reply("here you go", sender="claude", bus=bus, failures=lambda: [],
+                   model="sonnet", stamp=stamp)
+    assert out["model_stamped"] is True
+    assert calls == [("claude", "aa2093d4", "claude-sonnet-5", "claude-code")], (
+        "the alias resolves the same way `pin` resolves it, and the session id is "
+        "truncated to match the roster's 8-char key")
+
+
+def test_no_model_argument_means_no_stamp_attempt():
+    bus = FakeBus()
+
+    def stamp(*a, **kw):
+        raise AssertionError("must not be called when model= is omitted")
+
+    out = OR.reply("no stamp please", sender="claude", bus=bus, failures=lambda: [],
+                   stamp=stamp)
+    assert out["model_stamped"] is False
+
+
+def test_an_unresolvable_model_alias_degrades_without_failing_the_reply(monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "aa2093d4")
+
+    def stamp(*a, **kw):
+        raise AssertionError("resolve_model_id must fail before the stamper is called")
+
+    bus = FakeBus()
+    out = OR.reply("still lands", sender="claude", bus=bus, failures=lambda: [],
+                   model="not-a-real-model", stamp=stamp)
+    assert out["ok"] is True, "an unstampable model must never sink the delivery itself"
+    assert out["model_stamped"] is False
+
+
+def test_a_missing_session_id_degrades_the_stamp_not_the_reply(monkeypatch):
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+
+    def stamp(*a, **kw):
+        raise AssertionError("no session id -- must not even try to report")
+
+    bus = FakeBus()
+    out = OR.reply("no session here", sender="claude", bus=bus, failures=lambda: [],
+                   model="sonnet", stamp=stamp)
+    assert out["ok"] is True
+    assert out["model_stamped"] is False
+
+
+def test_a_stamper_exception_degrades_quietly(monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "aa2093d4")
+
+    def boom(*a, **kw):
+        raise RuntimeError("redis down")
+
+    bus = FakeBus()
+    out = OR.reply("resilient", sender="claude", bus=bus, failures=lambda: [],
+                   model="sonnet", stamp=boom)
+    assert out["ok"] is True
+    assert out["model_stamped"] is False

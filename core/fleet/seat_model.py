@@ -74,17 +74,22 @@ def model_flag() -> List[str]:
     return ["--model", st["model"]] if st["pinned"] else []
 
 
-def pin(alias_or_id: str, *, by: str) -> Dict[str, Any]:
-    """Pin the model future spawns request. Accepts a roster alias or a full model id."""
+def resolve_model_id(alias_or_id: str) -> str:
+    """Roster alias or full vendor id -> full id. Shared by `pin` and the reply verb's
+    model stamp, so both name a model the same way. Raises ValueError on nonsense."""
     want = str(alias_or_id or "").strip().lower()
     if want in MODELS:
-        model = MODELS[want]["id"]
-    elif want.startswith("claude-"):
-        model = want                      # unaliased vendor id: the operator outranks our roster
-    else:
-        raise ValueError(
-            f"unknown model {alias_or_id!r} -- pick one of: {', '.join(sorted(MODELS))} "
-            f"(or pass a full model id like claude-opus-5)")
+        return MODELS[want]["id"]
+    if want.startswith("claude-"):
+        return want                       # unaliased vendor id: the operator outranks our roster
+    raise ValueError(
+        f"unknown model {alias_or_id!r} -- pick one of: {', '.join(sorted(MODELS))} "
+        f"(or pass a full model id like claude-opus-5)")
+
+
+def pin(alias_or_id: str, *, by: str) -> Dict[str, Any]:
+    """Pin the model future spawns request. Accepts a roster alias or a full model id."""
+    model = resolve_model_id(alias_or_id)
     STORE.parent.mkdir(parents=True, exist_ok=True)
     rec = {"model": model, "by": str(by or "unknown"),
            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

@@ -27,6 +27,15 @@ WHAT THIS DOOR DOES DIFFERENTLY, and both halves are load-bearing:
                                 gets its own name so nobody can round it up to proof.
     UNKNOWN                     the verifier itself could not be read. Never claim either way.
     (refusal)                   ok=False -- offline bus, empty body, or a None message id.
+
+  MODEL STAMP (2026-09-04, Daniil: "Lets incorporate the model stamp into the verb"). The
+  self-report plane in core/fleet/seat_model.py existed but nothing ever called `report()` --
+  `!model` always said "nobody stamped one" because no live session used the door. The reply
+  verb is the one thing every session already invokes to talk to him, so it is the natural
+  place to refresh the receipt: pass `model=` (an alias like "sonnet" or a full id) and, on a
+  successful send, this stamps CLAUDE_CODE_SESSION_ID's model into the same self-report `!model`
+  reads. An unresolvable alias or a stamp failure never blocks the reply itself -- the body
+  reaching him outranks the receipt about who sent it.
 """
 from __future__ import annotations
 
@@ -49,6 +58,13 @@ def operator_id() -> str:
 
 def _seat() -> str:
     return (os.environ.get("AKASHIC_AGENT_ID") or "claude").strip()
+
+
+def _session_id() -> str:
+    """The running Claude Code session's id, short-formed to match seat_model's key shape
+    (roster already truncates to 8 chars, e.g. claude#aa2093d4). Empty when absent (a
+    non-Claude-Code caller, or a test) -- report() itself refuses a blank session."""
+    return (os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()[:8]
 
 
 def _recent_failures() -> List[Dict[str, Any]]:
@@ -75,8 +91,12 @@ def _recent_failures() -> List[Dict[str, Any]]:
 
 def reply(text: Optional[str], *, sender: Optional[str] = None, to: Optional[str] = None,
           bus: Any = None, failures: Optional[Callable[[], List[Dict[str, Any]]]] = None,
-          kind: str = "chat") -> Dict[str, Any]:
-    """Answer the operator. `text` is the ONLY positional -- see the module docstring."""
+          kind: str = "chat", model: Optional[str] = None,
+          stamp: Optional[Callable[..., bool]] = None) -> Dict[str, Any]:
+    """Answer the operator. `text` is the ONLY positional -- see the module docstring.
+
+    `model`, if given, is stamped to the self-report plane (`!model` reads it) on a
+    successful send -- best-effort, and never turns a delivered reply into a failure."""
     body = "" if text is None else str(text).strip()
     if not body:
         return {"ok": False, "why": "refusing an EMPTY reply -- a header with nothing under "
@@ -106,11 +126,13 @@ def reply(text: Optional[str], *, sender: Optional[str] = None, to: Optional[str
                                     "receipt for an undelivered word",
                 "delivery": "FAILED", "id": None}
 
+    stamped = _stamp_model(model, agent=who, stamper=stamp)
+
     reader = failures or _recent_failures
     try:
         rows = reader() or []
     except Exception as e:                                                # noqa: BLE001
-        return {"ok": True, "id": str(mid), "delivery": "UNKNOWN",
+        return {"ok": True, "id": str(mid), "delivery": "UNKNOWN", "model_stamped": stamped,
                 "why": f"sent, but the failure log could not be read ({type(e).__name__}) "
                        f"-- claiming neither delivery nor loss"}
 
@@ -119,12 +141,33 @@ def reply(text: Optional[str], *, sender: Optional[str] = None, to: Optional[str
         blob = f"{r.get('text') or ''} {r.get('detail') or ''}"
         if probe and probe[:40] in blob:
             err = str((r.get("detail") or {}).get("error") or "post failed")
-            return {"ok": True, "id": str(mid), "delivery": "FAILED",
+            return {"ok": True, "id": str(mid), "delivery": "FAILED", "model_stamped": stamped,
                     "why": f"the bus took it but the Discord post FAILED: {err}"}
 
     return {"ok": True, "id": str(mid), "delivery": "SENT_NO_FAILURE_RECORDED",
+            "model_stamped": stamped,
             "why": "on the bus, nothing has confessed a failure -- which is not the same "
                    "fact as the operator having read it"}
+
+
+def _stamp_model(model: Optional[str], *, agent: str,
+                  stamper: Optional[Callable[..., bool]] = None) -> bool:
+    """Best-effort self-report so `!model` reflects who is actually answering. An
+    unresolvable alias, a missing session id, or a Redis hiccup all degrade to False --
+    none of them may turn a delivered reply into a failure (see module docstring)."""
+    text = str(model or "").strip()
+    if not text:
+        return False
+    session = _session_id()
+    if not session:
+        return False
+    try:
+        from core.fleet import seat_model as _sm
+        model_id = _sm.resolve_model_id(text)
+        do_report = stamper or _sm.report
+        return bool(do_report(agent, session, model_id, harness="claude-code"))
+    except Exception:                                                     # noqa: BLE001
+        return False
 
 
 def render(out: Dict[str, Any]) -> str:
@@ -133,4 +176,5 @@ def render(out: Dict[str, Any]) -> str:
         return f"[reply] {out.get('why')}"
     tag = {"FAILED": "FAILED", "UNKNOWN": "sent (unverified)",
            "SENT_NO_FAILURE_RECORDED": "sent"}.get(str(out.get("delivery")), "sent")
-    return f"[reply] {tag} -> {out.get('id')} :: {out.get('why')}"
+    stamp_note = " · model stamped" if out.get("model_stamped") else ""
+    return f"[reply] {tag} -> {out.get('id')} :: {out.get('why')}{stamp_note}"
