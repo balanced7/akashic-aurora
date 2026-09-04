@@ -6143,6 +6143,16 @@ def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
     from core.comm.bus import Bus
+    # THE SENDER-SHAPE GATE (2026-09-04). Before anything else: is the first positional a
+    # seat id, or is it the operator's answer wearing the sender slot? Three replies to him
+    # died HTTP 400 as thousand-character webhook usernames because argv ordering put the
+    # body here, and TWO existing lessons that recall surfaced at the moment did not stop
+    # it. A gate refuses; prose only hopes. See core/comm/sender_guard.py.
+    from core.comm.sender_guard import check_sender
+    _refusal = check_sender(getattr(args, "agent_id", None))
+    if _refusal:
+        print(f"[bifrost-send] {_refusal}")
+        return 2
     bus = Bus(args.agent_id)
     if not bus.online:
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
@@ -8664,6 +8674,24 @@ def build_parser():
                      help="skip the incremental eye ingest before rendering")
     ree.set_defaults(fn=cmd_reentry)
 
+    gla = sub.add_parser(
+        "glance",
+        help="T079/T060: bounded read-only WorldSnapshot projections over named authorities",
+    )
+    gla_sub = gla.add_subparsers(dest="glance_projection", required=True)
+    gla_program = gla_sub.add_parser(
+        "program",
+        help="task-ledger SUBJECT / ATTENTION projection; unwired organs refuse loudly",
+    )
+    gla_program.add_argument("--max-items", type=int, default=64,
+                             help="maximum task rows in the snapshot (default: 64)")
+    gla_program.add_argument("--brief", action="store_true",
+                             help="emit the compact operational-orientation packet")
+    gla_program.add_argument("--compact", action="store_true",
+                             help="emit compact JSON instead of indented JSON")
+    gla_program.add_argument("--ledger-path", default=None, help=argparse.SUPPRESS)
+    gla_program.set_defaults(fn=cmd_glance)
+
     sec = sub.add_parser("secret", help="the vault door: capture a credential via a popup "
                                         "window -- paste lands in .secrets/<target>, never "
                                         "in any transcript. Bare `secret` lists targets. "
@@ -9159,6 +9187,43 @@ def cmd_reentry(args):
     from core.reentry import build_reentry, render_reentry
     built = build_reentry(show_open_loops=args.show_open_loops, since=args.since)
     print(render_reentry(built))
+    return 0
+
+
+def cmd_glance(args):
+    """T079/T060: one bounded, read-only projection over named authorities.
+
+    Slice one exposes only the program projection. Adding an arbitrary subject
+    label before a subject-specific reader exists would make scope look wider
+    than the evidence, so future projections extend the parser deliberately.
+    """
+    from core.context.world_snapshot import (
+        build_program_world_snapshot,
+        project_operational_brief,
+    )
+
+    projection = str(getattr(args, "glance_projection", "") or "program")
+    if projection != "program":
+        print(f"[glance] unsupported projection: {projection}", file=sys.stderr)
+        return 2
+    snapshot = build_program_world_snapshot(
+        ledger_path=getattr(args, "ledger_path", None),
+        max_items=getattr(args, "max_items", 64),
+    )
+    payload = (
+        project_operational_brief(snapshot)
+        if bool(getattr(args, "brief", False))
+        else snapshot
+    )
+    compact = bool(getattr(args, "compact", False))
+    print(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+        )
+    )
     return 0
 
 
