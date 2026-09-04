@@ -59,16 +59,22 @@ def test_done_requires_commit_and_verification(tmp_path):
     assert L.get(t["id"])["commit"] == "abc12345"
 
 
-def test_one_in_progress_gate_serializes(tmp_path):
+def test_two_watch_gate_caps_the_third(tmp_path):
+    # Was test_one_in_progress_gate_serializes (Phase 1, one at a time) until operator ruling
+    # art_20260903_width-ruling-2026-09-03_369243 set the cap at TWO watches (ORG Part 3).
+    # The full gauge pins live in tests/test_width_gauge.py; this row keeps the gate's
+    # presence pinned HERE, beside the other ledger gates.
     L = fresh(tmp_path)
     a = L.propose("a", files=["a.py"], at="t0")
-    b = L.propose("b", files=["b.py"], at="t0")   # disjoint files, so only the serialize gate applies
-    for t in (a, b):
+    b = L.propose("b", files=["b.py"], at="t0")   # disjoint files, so only the width gate applies
+    c = L.propose("c", files=["c.py"], at="t0")
+    for t in (a, b, c):
         TL.approve(L, t["id"], at="t1")
         TL.claim(L, t["id"], "claude", at="t2")
     TL.start(L, a["id"], at="t3")
-    with pytest.raises(TL.LedgerError, match="serialize"):
-        TL.start(L, b["id"], at="t3")
+    TL.start(L, b["id"], at="t3")                 # two watches are lawful (the ruling's point)
+    with pytest.raises(TL.LedgerError, match="two-watch"):
+        TL.start(L, c["id"], at="t3")
 
 
 def test_file_clash_blocks_claim(tmp_path):

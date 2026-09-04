@@ -5,6 +5,12 @@ written — no amendments requested. Still **unfenced**: it was filed as an open
 rather than a round (see *Why this did not open a round*, below), and by its own terms its
 fence is now the first watch under it.
 
+**Currency re-stamp 2026-09-04 (width ruling `369243`):** the Wave-1-vs-cap tension is
+RESOLVED — Daniil, verbatim *"Approve"*: the two-watch cap stands; the Estate Program's Wave 1
+is recut to a priority pool the watches draw from; and Part 3's mechanical form now EXISTS —
+the task ledger's two-watch gate refuses a third ACTIVE round without `pauses:` naming what
+stops or the operator's recorded word (pins: `tests/test_width_gauge.py`). O6 has teeth.
+
 **What ratification decides, and what it does not.** It ADOPTS: the cap, the posts and their
 handoffs (Part 4), the B1/B2/B3 invariants, Part 5's overhead mechanisms, Part 6's feedback
 loops, and Part 8's standing pause rule — which was ruled provisionally by the conductor under

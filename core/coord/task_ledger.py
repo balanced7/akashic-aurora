@@ -320,7 +320,7 @@ class TaskLedger:
     def transition(self, tid: str, to: str, *, by: str = "", at: str = "", commit: str = "",
                    verified_by: str = "", owner: str = "", reason: str = "",
                    reviewed_by: str = "", self_verified: str = "",
-                   operator_ruling: str = "") -> Dict[str, Any]:
+                   operator_ruling: str = "", pauses: str = "") -> Dict[str, Any]:
         """The one guarded mutation. Validates the move against every gate, then applies + persists.
         Raises LedgerError (naming the gate) on any violation — nothing partial is written."""
         t = self.tasks.get(tid)
@@ -355,12 +355,21 @@ class TaskLedger:
             raise LedgerError("park blocked: needs a --reason (why is this wave shelved, and "
                               "what unparks it)")
 
-        # --- one-in-progress gate (Phase 1: sequential-correct) ---
+        # --- two-watch gate (Phase 2: ORG Part 3 given teeth by operator ruling 369243) ---
+        # Phase 1 serialized to ONE in flight. The width ruling (2026-09-03 night, Daniil
+        # verbatim "Approve") sets the cap at TWO watches -- one build, one design/research --
+        # and a third ACTIVE round opens only by naming what stops (pauses=) or by the
+        # operator's RECORDED word (operator_ruling=; a recorded word, never a sender name --
+        # gateway attribution is not speaker identity). The cap refuses only silence about
+        # the cost: never the work, and never the operator.
         if to == IN_PROGRESS:
             others = [o["id"] for o in self.in_progress() if o["id"] != tid and o["status"] == IN_PROGRESS]
-            if others:
-                raise LedgerError(f"serialize: another task is IN_PROGRESS {others} "
-                                  f"(Phase 1 runs one at a time)")
+            if len(others) >= 2 and not (pauses.strip() or operator_ruling.strip()):
+                raise LedgerError(
+                    f"two-watch cap: already IN_PROGRESS {others} (ORG Part 3, ruling 369243). "
+                    f"A third watch opens only with pauses=<what stops> or the operator's "
+                    f"recorded word (operator_ruling=). Silence about the cost is the only "
+                    f"thing refused here.")
 
         # --- done gate ---
         if to == DONE:
@@ -438,6 +447,9 @@ class TaskLedger:
             entry["reason"] = reason
         if operator_ruling:
             entry["operator_ruling"] = operator_ruling   # T352: the authority that opened DONE
+        if pauses:
+            t["pauses"] = pauses                         # ruling 369243: the named cost of width
+            entry["pauses"] = pauses                     # announcements are receipts (ORG P8.4)
         t["history"].append(entry)
         self.save()
         return t
@@ -453,7 +465,7 @@ def done(ledger, tid, commit, verified_by, **kw): return _t(ledger, tid, DONE, c
 def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=reason, **kw)
 def abandon(ledger, tid, reason, **kw): return _t(ledger, tid, ABANDONED, reason=reason, **kw)   # P5: terminal, reasoned
 def park(ledger, tid, reason, **kw): return _t(ledger, tid, PARKED, reason=reason, **kw)         # C5-1: shelved, reasoned, slot freed
-def unpark(ledger, tid, **kw): return _t(ledger, tid, IN_PROGRESS, **kw)                         # C5-1: resumes through the one-in-progress gate
+def unpark(ledger, tid, **kw): return _t(ledger, tid, IN_PROGRESS, **kw)                         # C5-1: resumes through the two-watch gate
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------

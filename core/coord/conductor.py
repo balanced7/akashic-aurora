@@ -103,8 +103,12 @@ def claim(tid, by, *, client="auto", path=None):
     return t
 
 
-def start(tid, *, by="", client="auto", path=None):
-    t = TL.start(_ledger(client, path), tid, by=by, at=_now())
+def start(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""):
+    # Ruling 369243: a THIRD watch opens only with pauses=<what stops> or the operator's
+    # recorded word. Threaded through rather than defaulted here -- agent_cli surfaces THIS
+    # parser (same law as done()'s reviewed_by threading).
+    t = TL.start(_ledger(client, path), tid, by=by, at=_now(), pauses=pauses,
+                 operator_ruling=operator_ruling)
     _emit_ledger_update(t, "in_progress", by)
     return t
 
@@ -151,9 +155,10 @@ def park(tid, reason, *, by="", client="auto", path=None):
     return t
 
 
-def unpark(tid, *, by="", client="auto", path=None):
-    """T083-C5-1: resume a parked wave -- re-enters through the same one-in-progress gate."""
-    t = TL.unpark(_ledger(client, path), tid, by=by, at=_now())
+def unpark(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""):
+    """T083-C5-1: resume a parked wave -- re-enters through the same two-watch gate."""
+    t = TL.unpark(_ledger(client, path), tid, by=by, at=_now(), pauses=pauses,
+                  operator_ruling=operator_ruling)
     _emit_ledger_update(t, "in_progress", by)
     return t
 
@@ -180,8 +185,13 @@ def main(argv=None) -> int:
     p = sub.add_parser("propose"); p.add_argument("title"); p.add_argument("--owner", default="")
     p.add_argument("--deps", default=""); p.add_argument("--files", default=""); p.add_argument("--acc", default="")
     p.add_argument("--by", default="claude")
-    for name in ("approve", "start", "verify"):
+    for name in ("approve", "verify"):
         q = sub.add_parser(name); q.add_argument("tid"); q.add_argument("--by", default="")
+    q = sub.add_parser("start"); q.add_argument("tid"); q.add_argument("--by", default="")
+    q.add_argument("--pauses", default="",
+                   help="ruling 369243: a THIRD open watch requires naming what stops")
+    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
+                   help="the operator's recorded word -- the cap never refuses him")
     q = sub.add_parser("claim"); q.add_argument("tid"); q.add_argument("--by", required=True)
     q = sub.add_parser("done"); q.add_argument("tid"); q.add_argument("--commit", required=True)
     q.add_argument("--verified-by", required=True, dest="verified_by"); q.add_argument("--by", default="")
@@ -198,6 +208,10 @@ def main(argv=None) -> int:
                    help="T352: required to abandon a DONE row -- the operator's words, recorded in history")
     q = sub.add_parser("park"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
     q = sub.add_parser("unpark"); q.add_argument("tid"); q.add_argument("--by", default="")
+    q.add_argument("--pauses", default="",
+                   help="ruling 369243: resuming as a THIRD watch requires naming what stops")
+    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
+                   help="the operator's recorded word -- the cap never refuses him")
     sub.add_parser("list"); sub.add_parser("next")
     a = ap.parse_args(argv)
 
@@ -211,7 +225,9 @@ def main(argv=None) -> int:
         elif a.cmd == "claim":
             print(f"claimed {claim(a.tid, a.by)['id']} by {a.by}")
         elif a.cmd == "start":
-            print(f"started {start(a.tid, by=a.by)['id']} (now IN_PROGRESS)")
+            t = start(a.tid, by=a.by, pauses=a.pauses, operator_ruling=a.operator_ruling)
+            tail = f" -- pauses {a.pauses}" if a.pauses else ""
+            print(f"started {t['id']} (now IN_PROGRESS){tail}")
         elif a.cmd == "verify":
             print(f"verifying {verify(a.tid, by=a.by)['id']}")
         elif a.cmd == "done":
@@ -225,7 +241,8 @@ def main(argv=None) -> int:
         elif a.cmd == "park":
             print(f"PARKED {park(a.tid, a.reason, by=a.by)['id']} (slot freed; unpark to resume): {a.reason}")
         elif a.cmd == "unpark":
-            print(f"UNPARKED {unpark(a.tid, by=a.by)['id']} (now IN_PROGRESS)")
+            t = unpark(a.tid, by=a.by, pauses=a.pauses, operator_ruling=a.operator_ruling)
+            print(f"UNPARKED {t['id']} (now IN_PROGRESS)")
         elif a.cmd == "list":
             import time
             print(TL.format_state(now=time.time()))
