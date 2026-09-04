@@ -217,3 +217,8 @@ state/coord/remote_bridge_outbox.jsonl
 # Cite external work by reference; keep durable copies in private/correspondence/.
 research/reviewed/*correspondence*
 research/reviewed/outside-review-*
+
+# Operator inner files off-tree by ruling (Daniil 2026-09-04, tier split / t384 pattern).
+# The practice and its why ship publicly: charters/OPERATOR_GUIDE.md + the README stub.
+charters/daniel/*
+!charters/daniel/README.md
