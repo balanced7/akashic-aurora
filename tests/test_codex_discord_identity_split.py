@@ -10,6 +10,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -204,6 +205,20 @@ def test_sunshine_installer_arms_write_without_overriding_model_or_effort():
     assert "'--effort'" not in installer
 
 
+def test_gpt_new_does_not_inherit_sunshines_exec_or_write_authority():
+    installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
+    block = re.search(
+        r"\$gptNewDiscordArguments = ConvertTo-TaskArguments @\((.*?)\n    \)",
+        installer,
+        re.DOTALL,
+    )
+    assert block is not None
+    assert "'--allow-exec'" not in block.group(1)
+    assert "'--allow-write'" not in block.group(1)
+
+
 def test_installer_declares_the_three_host_local_runtime_mounts():
     installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
         encoding="utf-8"
@@ -214,6 +229,17 @@ def test_installer_declares_the_three_host_local_runtime_mounts():
     assert "ItemType Junction" in installer
     assert "ItemType SymbolicLink" in installer
     assert "security\\acl.json" in installer
+
+
+def test_installer_owns_one_restartable_gateway_and_retires_legacy_watchdog():
+    installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "AkashicAurora-DiscordGateway" in installer
+    assert "bifrost_runner_discord.py" in installer
+    assert "AkashicAurora-EarWatchdog" in installer
+    assert "Disable-ScheduledTask" in installer
 
 
 def test_installer_whatif_accepts_an_explicit_runtime_config_root():

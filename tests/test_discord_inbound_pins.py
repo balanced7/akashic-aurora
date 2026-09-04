@@ -425,12 +425,17 @@ def test_p18b_help_is_operator_only_like_every_control_word(cfg):
         "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)")
 
 
-# ---- P16: an ordinary message to a COLD Vandor auto-wakes him -----------------
-def test_p16_a_seat_channel_message_auto_wakes_a_cold_claude(cfg, tmp_path, monkeypatch):
-    """Daniil 2026-08-31, verbatim: 'fix whatever is making Vandor not reachable
-    from discord so I dont need to do !spawn vandor every time'. Typing in #vandor
-    while nothing is live must fire the SAME lever !spawn does — not just land the
-    message on a lane nobody is draining."""
+# ---- P16: an ordinary message to a COLD Vandor OFFERS, never spawns -----------
+def test_p16_a_cold_seat_channel_message_offers_harness_choice_and_spawns_nothing(
+        cfg, tmp_path, monkeypatch):
+    """SUPERSEDED BY RULING 2026-09-04. This pin asserted the OPPOSITE until today: the
+    2026-08-31 fix ('so I dont need to do !spawn vandor every time') auto-spawned a
+    headless `claude -p` whenever nothing was live. Daniil's correction, verbatim:
+    'I dont want to spawn a new seat when I talk to you, I want to be able to reach you
+    specifically with the option to spin up a new claude code harness vandor if i want as
+    distinct from a headless one.' So a cold seat now DELIVERS + OFFERS, and the operator
+    picks --harness or --headless himself. Rewritten in place, not deleted: the old
+    behaviour is the thing not to drift back into."""
     import json as _json
     seats = tmp_path / "seats.json"
     seats.write_text(_json.dumps({"mode": "text",
@@ -444,21 +449,22 @@ def test_p16_a_seat_channel_message_auto_wakes_a_cold_claude(cfg, tmp_path, monk
         spawner=lambda task, mode="default": born.append((task, mode)) or 91011,
         is_seat_live=lambda agent: False)
     assert bus.directed and bus.directed[0]["to"] == "claude", (
-        "the durable send still lands — auto-wake is additive, never a substitute")
-    assert born == [("how did the fence round land?", "default")], (
-        "the message itself rides as the fresh seat's task, exactly like !spawn <text>"
-    )
-    assert out.get("spawned") == "91011", (
-        "the pid rides the return so the runner's existing _watch_spawn wiring "
-        "(keyed on out['spawned']) picks it up for free"
-    )
-    assert "🌱" in reacts and "📨" in reacts
+        "the durable send is the WHOLE mechanism now: the message waits on his lane")
+    assert born == [], "a plain sentence must never mint a seat behind his back"
+    assert "spawned" not in out
+    notice = out.get("cold_seat") or ""
+    assert "--harness" in notice and "--headless" in notice, (
+        "the notice must name BOTH levers -- they are different animals and only he "
+        "knows which one he wants")
+    assert "📭" in reacts and "📨" in reacts, "landed, nobody home -- not a failure"
 
 
-def test_p17_a_seat_channel_message_does_not_double_spawn_a_live_vandor(cfg, tmp_path,
-                                                                        monkeypatch):
-    """The other half of P16: a session already on the bus must not get a duplicate
-    paid-for sibling because he typed a second sentence."""
+def test_p17_a_live_vandor_is_reached_silently_with_no_spawn_and_no_notice(cfg, tmp_path,
+                                                                           monkeypatch):
+    """The other half of P16, and the heart of "reach you specifically": when the seat IS
+    live, the durable send plus that session's own armed wake listener ARE the wake. No
+    spawn, and no cold notice either -- a 📭 under a live seat would be a lie about
+    reachability."""
     import json as _json
     seats = tmp_path / "seats.json"
     seats.write_text(_json.dumps({"mode": "text",
@@ -473,6 +479,8 @@ def test_p17_a_seat_channel_message_does_not_double_spawn_a_live_vandor(cfg, tmp
         is_seat_live=lambda agent: True)
     assert not born and "spawned" not in out and "🌱" not in reacts, (
         "a LIVE claude seat must never be spawned a second time under it")
+    assert "cold_seat" not in out and "📭" not in reacts, (
+        "the live path stays silent: his message reached the session he meant")
 
 
 def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_path,
@@ -495,32 +503,38 @@ def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_
     assert not born and "spawned" not in out
 
 
-def test_p19_an_auto_wake_failure_never_costs_the_already_landed_receipt(cfg, tmp_path,
-                                                                         monkeypatch):
-    """T149: a spawn that dies must not retroactively turn an already-durable bus.send
-    into a reported failure — the message really did land; only the wake-up attempt
-    failed, and that must stay silent to the sender rather than raise past a success."""
+def test_p19_a_broken_liveness_probe_never_claims_he_is_unreachable(cfg, tmp_path,
+                                                                    monkeypatch):
+    """T149 in its 2026-09-04 form. The old shape pinned that a DYING SPAWNER could not
+    cost the already-landed receipt; nothing spawns now, so the surviving hazard is the
+    PROBE. A Redis hiccup must not print 'nothing is live on the Vandor seat' about a seat
+    that is fine -- claiming he is unreachable is exactly as much of a lie as claiming
+    delivery. Cannot tell -> say nothing; the send already succeeded."""
     import json as _json
     seats = tmp_path / "seats.json"
     seats.write_text(_json.dumps({"mode": "text",
                                   "channels": {"sc-777": "claude"}}), encoding="utf-8")
     monkeypatch.setenv("AKASHIC_DISCORD_SEATS_REGISTRY", str(seats))
 
-    def _dying_spawner(task, mode="default"):
-        raise RuntimeError("spawn credential expired")
+    def _broken_probe(agent):
+        raise RuntimeError("redis hiccup")
 
     bus, reacts = _Bus(), []
     out = _mod().handle_message(
         cfg, author_id="111222333444555666", author_name="d",
         channel_id="sc-777", content="hello?",
         bus=bus, react=lambda e: reacts.append(e),
-        spawner=_dying_spawner, is_seat_live=lambda agent: False)
+        spawner=lambda task, mode="default": 1, is_seat_live=_broken_probe)
     assert out["acted"] is True and bus.directed, "the send already succeeded"
-    assert "spawned" not in out and reacts == ["📨"], (
-        "a failed wake degrades to the ordinary delivered receipt, never a raise")
+    assert "cold_seat" not in out and reacts == ["📨"], (
+        "an unreadable probe degrades to the ordinary delivered receipt, never a raise "
+        "and never a false claim of absence")
 
 
-def test_p20_an_at_mention_of_vandor_also_auto_wakes_when_cold(cfg, monkeypatch):
+def test_p20_an_at_mention_of_a_cold_vandor_also_offers_instead_of_spawning(cfg,
+                                                                            monkeypatch):
+    # Same ruling as P16, on the @-mention path: both entrances must agree, or the
+    # policy is only as strong as which door he happened to use.
     _fake_callsigns(monkeypatch)
     bus, reacts, born = _Bus(), [], []
     out = _mod().handle_message(
@@ -531,8 +545,8 @@ def test_p20_an_at_mention_of_vandor_also_auto_wakes_when_cold(cfg, monkeypatch)
         spawner=lambda task, mode="default": born.append(task) or 5551,
         is_seat_live=lambda agent: False)
     assert bus.directed and bus.directed[0]["to"] == "claude"
-    assert born == ["@Vandor status?"]
-    assert out.get("spawned") == "5551" and "🌱" in reacts
+    assert born == [], "an @-mention must not mint a seat either"
+    assert "--harness" in (out.get("cold_seat") or "") and "📭" in reacts
 
 
 # ---- P17-P19 / R1 applied to ATTRIBUTION: the id is the law ------------------
