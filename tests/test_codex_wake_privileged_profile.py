@@ -272,6 +272,36 @@ def test_gui_only_instructions_do_not_contradict_themselves():
     assert "narrowly scoped, read-only" not in low
 
 
+def test_the_per_turn_prompt_also_follows_the_posture():
+    """THE FIFTH HARDCODE. Sunshine's list named four knobs; build_wake_prompt was a
+    fifth, and a writable turn told 'make no mutations in this turn' is handed a flat
+    contradiction -- the GUI-posture bug in a second location."""
+    from agent.harness.codex_bifrost_wake import build_wake_prompt
+
+    msg = _root_operator_message()
+    ro = build_wake_prompt("sol", msg, identity=_identity(), profile=WakeProfile())
+    assert "Work read-only" in ro
+    assert "make no file" in ro
+
+    rw = build_wake_prompt(
+        "sol", msg, identity=_identity(), profile=WakeProfile(allow_write=True)
+    )
+    assert "Work read-only" not in rw
+    assert "make no file" not in rw
+    assert "workspace-write" in rw
+    # the rest of the safety boundary is untouched by posture
+    for clause in ("Rill", "cursor", "second bus reply"):
+        assert clause in rw and clause in ro
+
+
+def test_prompt_default_posture_is_read_only():
+    """An un-passed profile must never silently grant write."""
+    from agent.harness.codex_bifrost_wake import build_wake_prompt
+
+    text = build_wake_prompt("sol", _root_operator_message(), identity=_identity())
+    assert "Work read-only" in text
+
+
 def test_gateway_stamps_authenticated_provenance_on_operator_messages():
     """The gateway half: an operator relay must carry WHO, not just 'operator: true'."""
     import inspect
