@@ -400,6 +400,43 @@ def test_p13_spawn_from_a_costume_is_weather(cfg, monkeypatch):
         "id must not even reach the spawner")
 
 
+def test_p21_dangerous_and_arm_are_recognized_trailing_a_seat_name(cfg, monkeypatch):
+    """Found live 2026-09-04: `!spawn vandor --dangerous` reached a fresh headless
+    seat whose TASK was the literal string "vandor --dangerous" -- the mode stayed
+    "default" because the extractor only ever checked a LEADING token, while the
+    help text (and every operator example) documents the flag trailing the task.
+    A bare seat name plus a trailing mode flag must reduce to the bare name, mode
+    set, so seat_launchers.resolve_seat can still see it."""
+    born = []
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="!spawn vandor --dangerous",
+        bus=_Bus(), react=lambda e: None,
+        spawner=lambda task, mode="default": born.append((task, mode)) or 1)
+    assert born == [("vandor", "dangerous")]
+
+    born.clear()
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="!spawn vandor --arm",
+        bus=_Bus(), react=lambda e: None,
+        spawner=lambda task, mode="default": born.append((task, mode)) or 1)
+    assert born == [("vandor", "arm")]
+
+
+def test_p22_dangerous_still_works_trailing_an_ordinary_task_sentence(cfg, monkeypatch):
+    """The documented syntax (`!spawn <task> --dangerous`) must set the mode and
+    strip the flag from the task text even when there is no seat name at all --
+    the P21 fix must not regress to leading-only detection for real sentences."""
+    born = []
+    _mod().handle_message(
+        cfg, author_id="111222333444555666", author_name="d",
+        channel_id="c1", content="!spawn fix the bug --dangerous",
+        bus=_Bus(), react=lambda e: None,
+        spawner=lambda task, mode="default": born.append((task, mode)) or 1)
+    assert born == [("fix the bug", "dangerous")]
+
+
 # ---- P18: !help is the operator's own command reference ----------------------
 def test_p18_help_returns_the_command_reference(cfg):
     bus, reacts = _Bus(), []
