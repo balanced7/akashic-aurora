@@ -39,7 +39,13 @@ SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 ROLES = [("Vandor", 0xE8A13C), ("Heimdall", 0x2B2B33), ("Navi", 0x27A17A),
          ("Rill", 0x7AA2F7)]   # Rill = DeepSeek-family seat (dsh_agent); deepseek hue #7aa2f7
 SEAT_CHANNELS = [("vandor", "claude"), ("heimdall", "deepseek"), ("navi", "kimi"),
-                 ("rill", "dsh_agent"), ("sol", "sol")]
+                 ("rill", "dsh_agent"), ("sunshine", "sol"),
+                 ("gpt-new", "gpt-new")]
+
+# The old channel's messages belong to the divergent Discord fork. Rename the
+# room in place instead of minting an empty replacement and leaving its history
+# under Sunshine's address.
+CHANNEL_RENAMES = {"sol": "gpt-new"}
 
 
 def _token() -> str:
@@ -60,6 +66,10 @@ class D:
 
     def post(self, path, payload):
         r = self.s.post(API + path, json=payload, timeout=15)
+        r.raise_for_status(); return r.json()
+
+    def patch(self, path, payload):
+        r = self.s.patch(API + path, json=payload, timeout=15)
         r.raise_for_status(); return r.json()
 
 
@@ -107,6 +117,28 @@ def main() -> int:
         print(f"[setup] #{name}: created (type {ctype})")
         return c
 
+    def rename_channel(old: str, new: str):
+        """Preserve one historical room while changing the address it represents."""
+        if new in by_name:
+            print(f"[setup] #{new}: already stands; #{old} left untouched")
+            return by_name[new]
+        source = by_name.get(old)
+        if not source:
+            return None
+        if dry:
+            renamed = dict(source)
+            renamed["name"] = new
+            print(f"[setup] #{old}: WOULD rename in place to #{new}")
+        else:
+            renamed = d.patch(f"/channels/{source['id']}", {"name": new})
+            print(f"[setup] #{old}: renamed in place to #{new} (history preserved)")
+        by_name.pop(old, None)
+        by_name[new] = renamed
+        return renamed
+
+    for old_name, new_name in CHANNEL_RENAMES.items():
+        rename_channel(old_name, new_name)
+
     cat = ensure_channel("akashic-aurora", 4)
     cat_id = cat["id"] if cat else None
 
@@ -148,7 +180,13 @@ def main() -> int:
     for chan_name, agent in SEAT_CHANNELS:
         c = by_name.get(chan_name)
         if c:
-            ensure_webhook(c, f"discord_channel_{chan_name}.url")
+            # Prefer the stable machine address when the vault declares it. This
+            # prevents the renamed historical webhook from continuing to resolve
+            # as sol merely because the former room was named #sol.
+            address_target = f"discord_channel_{agent}.url"
+            target = (address_target if address_target in VAULT.TARGETS
+                      else f"discord_channel_{chan_name}.url")
+            ensure_webhook(c, target)
 
     if not dry:
         SEATS_FILE.parent.mkdir(parents=True, exist_ok=True)

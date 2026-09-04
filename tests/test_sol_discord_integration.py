@@ -29,6 +29,7 @@ def test_discord_status_uses_the_redirected_vault_after_url_file_constant_remova
     env["AKASHIC_SECRETS_DIR"] = str(vault)
     env.pop("AKASHIC_DISCORD_WEBHOOK", None)
     env["PYTHONUTF8"] = "1"
+    env["AKASHIC_WORLD"] = "alpha"
 
     run = subprocess.run(
         [sys.executable, "agent_cli.py", "discord", "status", "--json"],
@@ -118,6 +119,8 @@ def test_sol_lane_uses_the_stable_seat_address_without_callsign_ratification(
 
 
 def test_setup_declares_sol_as_an_address_not_a_callsign():
-    assert ("sol", "sol") in SETUP.SEAT_CHANNELS
+    assert ("sunshine", "sol") in SETUP.SEAT_CHANNELS
+    assert ("gpt-new", "gpt-new") in SETUP.SEAT_CHANNELS
+    assert ("sol", "sol") not in SETUP.SEAT_CHANNELS
     assert all(name.lower() != "sunshine" for name, _color in SETUP.ROLES)
     assert "discord_channel_sol.url" in VAULT.TARGETS

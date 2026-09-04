@@ -617,8 +617,8 @@ def test_wake_prompt_is_subject_labelled_and_forbids_peer_interference():
     )
     assert "SUBJECT SEAT: sol" in prompt
     assert "dsh_agent" in prompt and "Rill's answer" in prompt
-    assert "Do not manage, stop, relaunch, inspect, or mutate Rill's process" in prompt
     assert "Do not consume or advance any Bifrost mailbox cursor" in prompt
+    assert "do not send a second bus reply" in prompt
 
 
 def test_ratified_wake_identity_comes_from_the_resident_registry(monkeypatch):

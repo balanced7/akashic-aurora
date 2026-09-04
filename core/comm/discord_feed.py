@@ -100,6 +100,47 @@ def seat_channel_url(agent: str) -> str:
     return ""
 
 
+def wake_identity_refusal(msg: Dict[str, Any]) -> Optional[str]:
+    """Refuse a Codex wake reply whose claimed subject and bus speaker diverge.
+
+    A Discord webhook username is presentation.  The Bifrost ``frm`` address and
+    the wake adapter's independently stamped ``subject_seat`` are two structural
+    observations; a wake-origin message reaches Discord only when they agree and
+    the continuity task is named.  Ordinary fleet messages are unchanged.
+    """
+    meta = msg.get("meta")
+    if not isinstance(meta, dict) or meta.get("wake_origin") != (
+        "codex-bifrost-owned-app-server"
+    ):
+        return None
+    speaker = str(msg.get("frm") or "").split("#", 1)[0].strip().lower()
+    subject = str(meta.get("subject_seat") or "").split("#", 1)[0].strip().lower()
+    if not subject:
+        return "Codex wake reply omitted subject_seat"
+    if not speaker or speaker != subject:
+        return f"Codex wake identity mismatch: frm={speaker!r}, subject_seat={subject!r}"
+    if not str(meta.get("continuity_thread_id") or "").strip():
+        return "Codex wake reply omitted continuity_thread_id"
+    return None
+
+
+def stamp_wake_identity(msg: Dict[str, Any]) -> Dict[str, Any]:
+    """Add a compact, visible address + task stamp without mutating the bus row."""
+    out = dict(msg)
+    meta = msg.get("meta")
+    if not isinstance(meta, dict) or meta.get("wake_origin") != (
+        "codex-bifrost-owned-app-server"
+    ):
+        return out
+    seat = str(meta.get("subject_seat") or "").strip()
+    thread_id = str(meta.get("continuity_thread_id") or "").strip()
+    if not seat or not thread_id:
+        return out
+    body = str(msg.get("content") or "").rstrip()
+    out["content"] = f"{body}\n\n`{seat} · task {thread_id[:8]}`"
+    return out
+
+
 def _streams(bus: Any) -> List[str]:
     keys = [f"{bus.ns}:broadcast"]
     try:
@@ -152,7 +193,8 @@ def _forward_global(msg: Dict[str, Any]) -> bool:
         return True
     try:
         who = ROOMS.persona(str(msg.get("frm") or ""))
-        for part in ROOMS.render_room_parts(msg):
+        rendered = stamp_wake_identity(msg)
+        for part in ROOMS.render_room_parts(rendered):
             DB.post_via_pool(
                 urls, part,
                 lambda u, c, w=who: ROOMS._default_post(
@@ -213,6 +255,16 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                     client.hset(CURSOR_KEY, key, mid_s)
                     continue
                 msg.setdefault("id", mid_s)
+                identity_refusal = wake_identity_refusal(msg)
+                if identity_refusal:
+                    failed += 1
+                    _post_failure_loud(
+                        "identity-contract", msg, mid_s, RuntimeError(identity_refusal)
+                    )
+                    # A forged or malformed display-plane row is handled by refusal,
+                    # not retried forever. The durable Bifrost record remains intact.
+                    client.hset(CURSOR_KEY, key, mid_s)
+                    continue
                 # ECHO-GUARD, and it must outrank the operator-always-forwards rule:
                 # a message that CAME FROM Discord (the ear's stamp) must not be
                 # pumped back TO Discord, or every phone line returns to its sender
@@ -232,7 +284,8 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                         ok = True
                         try:
                             who = ROOMS.persona(str(msg.get("frm") or ""))
-                            for part in ROOMS.render_room_parts(msg):
+                            rendered = stamp_wake_identity(msg)
+                            for part in ROOMS.render_room_parts(rendered):
                                 ROOMS._default_post(lane, part,
                                                     username=who["username"],
                                                     avatar_url=who["avatar_url"])
