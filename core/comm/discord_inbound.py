@@ -666,8 +666,20 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         return {"acted": True, "spawned": str(pid), "id": None,
                 "mode": spawn_mode}
 
+    # T386 step0 (sol/Sunshine's blocker): the relay speaks AS "daniil" on the wire
+    # by design (R3), so `frm` is ATTRIBUTION, never proof of speaker -- and a
+    # consumer deciding whether to spend a PRIVILEGED turn needs the authenticated
+    # who. Carry the Discord id and root status: additive meta, no existing
+    # consumer changes, and "the id is the law, the name is costume" finally
+    # travels past the gateway instead of dying at it.
+    _roots = {str(r) for r in (cfg.get("roots") or {})}
+    _primary = str(cfg.get("operator_id") or "").strip()
+    if _primary:
+        _roots.add(_primary)
     meta: Dict[str, Any] = {"source": "discord", "operator": True,
-                            "speaker": speaker}
+                            "speaker": speaker,
+                            "operator_id": str(author_id),
+                            "root": str(author_id) in _roots}
     if message_id:
         # T376 S3a: same law as the guest path -- the relay self-identifies by
         # its Discord message id so double-relay dies at the bus door.

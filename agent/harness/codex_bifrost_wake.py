@@ -391,6 +391,49 @@ class WakeProfile:
         return {"type": kind, "networkAccess": False}
 
     @staticmethod
+    def admits_message(profile: "WakeProfile", message: Message) -> Optional[str]:
+        """Per-MESSAGE provenance check for a privileged turn. None = admitted.
+
+        Found by sol/Sunshine reviewing 10eabcda: require_operator_gate() proves
+        only the static policy, and the wire defeats it. The Discord gateway is
+        Bus("daniil") -- "inbound speaks AS the operator, or not at all" -- so a
+        GUEST relayed into a seat lane arrives frm='daniil', source='discord'
+        (satisfying the privileged policy exactly) while carrying operator=False,
+        guest=True, authority='none'. `frm` is GATEWAY ATTRIBUTION, never proof of
+        speaker.
+
+        So a privileged turn demands positive proof on the message itself, and
+        FAILS CLOSED without it: an unstamped message is refused, never assumed
+        root. Read-only turns are untouched -- guests must keep reaching seats
+        (R3: reach, never authority).
+        """
+        if not profile.privileged:
+            return None
+        meta = message.meta or {}
+        if meta.get("guest") is True:
+            return (
+                f"guest relay may not spend a privileged turn "
+                f"(guest_id={meta.get('guest_id')!r}, authority="
+                f"{meta.get('authority')!r}); frm={message.frm!r} is gateway "
+                f"attribution, not the speaker"
+            )
+        if meta.get("operator") is not True:
+            return f"message is not operator-stamped (operator={meta.get('operator')!r})"
+        authority = str(meta.get("authority") or "").strip().lower()
+        if authority == "none":
+            return f"message carries authority={authority!r}"
+        if meta.get("root") is not True:
+            # Covers BOTH the operator-tier-but-not-root case (Serge) and the
+            # unstamped legacy shape -- absence of proof is refusal.
+            return (
+                f"a privileged turn requires an authenticated ROOT operator; "
+                f"message has root={meta.get('root')!r} "
+                f"operator_id={meta.get('operator_id')!r} "
+                f"speaker={meta.get('speaker')!r}"
+            )
+        return None
+
+    @staticmethod
     def require_operator_gate(
         profile: "WakeProfile",
         policy: WakePolicy,
@@ -694,7 +737,11 @@ def wake_developer_instructions(
     if profile is None:
         profile = WakeProfile()
     callsign = identity.callsign or "(none)"
-    posture = "operator-gated writable" if profile.allow_write else "read-only"
+    # Two axes, rendered separately (sol/Sunshine): a GUI-capable turn whose disk
+    # is read-only used to be announced as "read-only" and then told it could drive
+    # a screen -- a contradiction handed straight to the model.
+    disk = "operator-gated writable" if profile.allow_write else "filesystem read-only"
+    posture = f"{disk}; operator-gated GUI" if profile.allow_gui else disk
     if profile.allow_write:
         mutation_clause = (
             "You may make repository edits within this turn's workspace-write "
@@ -1075,6 +1122,16 @@ class CodexBifrostWake:
                 detail=f"policy sender={message.frm!r} kind={message.kind!r}",
             )
             return {"mid": mid, "outcome": "ignored"}
+
+        # A privileged turn must prove operator provenance on THIS message, not
+        # merely on the policy shape (sol/Sunshine's blocker; see admits_message).
+        provenance_refusal = WakeProfile.admits_message(self.profile, message)
+        if provenance_refusal:
+            self.state.record(
+                mid, outcome="privilege_refused", detail=provenance_refusal
+            )
+            self._log("privilege_refused", mid=mid, reason=provenance_refusal)
+            return {"mid": mid, "outcome": "privilege_refused"}
 
         exact_size = len(
             json.dumps(message.content, ensure_ascii=False, default=str)
