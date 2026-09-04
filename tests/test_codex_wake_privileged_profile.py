@@ -19,6 +19,19 @@ non-operator source, MUST refuse at construction -- never arm a writable seat
 that a non-operator can trigger. Everything Sunshine listed as preserved
 (Rill non-interference, no cursor advance, single causal reply) survives in
 BOTH postures; only the file-mutation prohibition is lifted when writable.
+
+SUNSHINE'S BLOCKER (2026-09-02, bus review of faf124c2->10eabcda) -- the second
+half of this file. The static gate above proves only the POLICY shape. The wire
+defeats it: core/comm/discord_inbound.py relays a Discord GUEST into a seat lane
+through `Bus("daniil")` ("inbound speaks AS the operator, or not at all"), so the
+message arrives frm='daniil' + meta.source='discord' -- satisfying the installed
+privileged policy exactly -- while carrying operator=False, guest=True,
+authority='none'. A guest in Sunshine's channel could spend a writable/GUI turn.
+Serge is the non-theoretical second case: a real operator-tier id that is not root.
+
+THE LAW THIS ADDS: `frm` is GATEWAY ATTRIBUTION, never proof of speaker. A
+privileged turn must prove operator provenance PER MESSAGE, and must FAIL CLOSED
+when the proof is absent (an unstamped message is refused, never assumed root).
 """
 from __future__ import annotations
 
@@ -160,3 +173,109 @@ def test_cli_allow_write_and_gui_parse_independently():
     assert a.allow_write is True and a.allow_gui is False
     b = build_parser().parse_args(["--allow-gui"])
     assert b.allow_gui is True and b.allow_write is False
+
+
+# ===================================================================== the blocker
+# Exact wire shapes, copied from core/comm/discord_inbound.py. `frm` is "daniil"
+# for BOTH because the gateway is Bus("daniil") -- that is the whole point.
+from core.comm import packet_spec  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402
+
+
+class _NoClient:
+    pass
+
+
+def _wire(meta: dict, *, frm: str = "daniil", kind: str = "chat"):
+    fields = {
+        "frm": frm,
+        "to": "sol",
+        "kind": kind,
+        "content": json.dumps("do the thing"),
+        "parts": "[]",
+        "meta": json.dumps(meta),
+        "ts": "2026-09-02T21:00:00+00:00",
+    }
+    packet_spec.stamp(fields)
+    return Bus("sol", client=_NoClient(), promote=False)._to_msg("90-0", fields)
+
+
+def _guest_message():
+    """discord_inbound.py:533 -- the guest relay, verbatim shape."""
+    return _wire({
+        "source": "discord", "operator": False, "guest": True,
+        "authority": "none", "guest_name": "somebody", "guest_id": "999",
+        "lane": "seat-channel",
+    })
+
+
+def _root_operator_message():
+    """The operator relay once the gateway stamps authenticated provenance."""
+    return _wire({
+        "source": "discord", "operator": True, "speaker": "daniil",
+        "operator_id": "111", "root": True, "lane": "seat-channel",
+    })
+
+
+def _non_root_operator_message():
+    """Serge: a real operator-tier id that is NOT root (R1 v2)."""
+    return _wire({
+        "source": "discord", "operator": True, "speaker": "simon",
+        "operator_id": "222", "root": False, "lane": "seat-channel",
+    })
+
+
+def test_the_static_policy_alone_cannot_tell_a_guest_from_the_operator():
+    """The bypass itself, pinned: policy.accepts() says YES to the guest wire."""
+    policy = _operator_policy()
+    assert policy.accepts(_guest_message()) is True   # <-- why the gate was not enough
+    assert policy.accepts(_root_operator_message()) is True
+
+
+def test_privileged_turn_refuses_the_exact_guest_wire_shape():
+    prof = WakeProfile(allow_write=True)
+    assert WakeProfile.admits_message(prof, _guest_message()) is not None
+
+
+def test_privileged_turn_admits_the_authenticated_root_operator():
+    for prof in (WakeProfile(allow_write=True), WakeProfile(allow_gui=True)):
+        assert WakeProfile.admits_message(prof, _root_operator_message()) is None
+
+
+def test_privileged_turn_refuses_an_operator_who_is_not_root():
+    prof = WakeProfile(allow_gui=True)
+    assert WakeProfile.admits_message(prof, _non_root_operator_message()) is not None
+
+
+def test_privileged_admission_fails_closed_on_an_unstamped_message():
+    """Absence of proof is refusal -- never 'assume root because frm says daniil'."""
+    prof = WakeProfile(allow_write=True)
+    legacy = _wire({"source": "discord", "operator": True, "speaker": "daniil"})
+    assert WakeProfile.admits_message(prof, legacy) is not None
+
+
+def test_read_only_turns_are_unaffected_by_the_provenance_gate():
+    """The ordinary read-only wake must keep answering guests and everyone else."""
+    prof = WakeProfile()
+    assert WakeProfile.admits_message(prof, _guest_message()) is None
+    assert WakeProfile.admits_message(prof, _non_root_operator_message()) is None
+
+
+# --------------------------------------------- secondary findings (Sunshine's list)
+def test_gui_only_instructions_do_not_contradict_themselves():
+    """Was: posture said 'read-only' then announced GUI actuation. Split the axes."""
+    text = wake_developer_instructions("sol", _identity(), WakeProfile(allow_gui=True))
+    low = text.lower()
+    assert "filesystem read-only" in low
+    assert "gui" in low
+    # the bare contradiction must be gone
+    assert "narrowly scoped, read-only" not in low
+
+
+def test_gateway_stamps_authenticated_provenance_on_operator_messages():
+    """The gateway half: an operator relay must carry WHO, not just 'operator: true'."""
+    import inspect
+    from core.comm import discord_inbound
+
+    src = inspect.getsource(discord_inbound.handle_message)
+    assert '"operator_id"' in src and '"root"' in src
