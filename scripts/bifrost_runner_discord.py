@@ -61,6 +61,7 @@ from typing import Optional
 from core.comm.discord_inbound import (EarConfigError, build_config,
                                       credential_horizon_days,
                                       credential_warning, handle_message,
+                                      spawn_already_up_reason,
                                       spawn_closing_report,
                                       spawn_credential_refusal,
                                       spawn_stillborn_reason)
@@ -480,6 +481,13 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             code = None                     # still breathing -- keep watching it
         if code is not None:
+            already = spawn_already_up_reason(_spawn_said(log))
+            if already is not None:
+                where = f" at {already}" if already else ""
+                print(f"[discord-in] SPAWN ALREADY UP ({log.name}): "
+                      f"{already or '(no address in log)'}", flush=True)
+                raise RuntimeError(f"already up{where} -- the port refused a second "
+                                   f"copy, this is not a death (log: {log.name})")
             reason = spawn_stillborn_reason(code, _spawn_said(log))
             if reason:
                 print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
@@ -531,6 +539,27 @@ def main() -> int:
                 code = proc.wait(timeout=_SPAWN_PROOF_SECONDS)
             except subprocess.TimeoutExpired:
                 code = None
+            # ALREADY UP first (defer 7347ae30c9): a bind refusal is the right outcome
+            # (a de facto singleton turned away a second copy) wearing the wrong verb.
+            # spawn_stillborn_reason alone would fall through to whatever the crashing
+            # child said LAST -- for a Node EADDRINUSE that is the interpreter banner
+            # ("Node.js v24.14.1"), which is exactly what Daniil read from his phone
+            # instead of the one fact that would have reassured him.
+            already = spawn_already_up_reason(_spawn_said(log))
+            if already is not None:
+                where = f" at {already}" if already else ""
+                print(f"[discord-in] SPAWN ALREADY UP ({log.name}): "
+                      f"{already or '(no address in log)'}", flush=True)
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        _confess(f"✅ `{log.name}` is ALREADY UP{where} — the seat "
+                                 f"never died, the port refused a second copy "
+                                 f"(log: {log.name})", warn=False),
+                        loop)
+                except Exception as e:                                     # noqa: BLE001
+                    print(f"[discord-in] could not relay the already-up notice: {e}",
+                          flush=True)
+                return
             reason = spawn_stillborn_reason(code, _spawn_said(log))
             if not reason:
                 print(f"[discord-in] spawn {pid} still breathing after "

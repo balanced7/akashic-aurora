@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
@@ -205,6 +206,39 @@ SPAWN_FATAL_MARKERS = (
     "is not recognized as",          # Windows: the exe went missing under us
     "command not found",
 )
+
+
+#: A refused port is not a corpse -- it is the RIGHT outcome (a de facto singleton
+#: turned away a second instance) reported with the wrong verb. Defer item
+#: 7347ae30c9, 2026-08-26: Daniil ran `!spawn Rill` from his phone and got "that
+#: spawn never lived -- exit 1: Node.js v24.14.1"; Rill was alive the whole time
+#: on 127.0.0.1:3080, and the one fact that would have reassured him was buried
+#: in a log file he cannot read from a phone. Matched case-insensitively, same
+#: discipline as SPAWN_FATAL_MARKERS -- checked FIRST by the caller, since a bind
+#: refusal is never also the interpreter-banner fallback.
+SPAWN_ALREADY_UP_MARKERS = (
+    "eaddrinuse",
+    "address already in use",
+)
+
+_SPAWN_ADDR_RE = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}:\d{2,5}")
+
+
+def spawn_already_up_reason(log_text: str) -> Optional[str]:
+    """Did the spawn refuse because the seat is ALREADY alive on its port?
+
+    None means no already-up marker was found -- the caller falls through to
+    `spawn_stillborn_reason`. A string means it fired: the bound address when the
+    log names one, or "" when the marker matched but no address could be read.
+    Callers MUST branch on `is not None`, never on truthiness, or the addressless
+    case is mistaken for no match at all."""
+    lines = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip()]
+    hit = next((ln for ln in lines
+               if any(m in ln.lower() for m in SPAWN_ALREADY_UP_MARKERS)), None)
+    if hit is None:
+        return None
+    m = _SPAWN_ADDR_RE.search(hit)
+    return m.group(0) if m else ""
 
 
 #: Below this many days left, the credential behind !spawn is worth saying out loud.
