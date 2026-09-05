@@ -62,6 +62,44 @@ def test_p1_audit_returns_numbers_not_a_printed_line(tmp_path):
     assert set(r) >= {"total", "clean", "violations", "pct"}
 
 
+def test_p1b_checker_uses_the_canonical_core_measurement():
+    """The ship gate and boot reader must not carry forked metric implementations."""
+    from core.coord import preregistration as canonical
+    from scripts.checkers import check_preregistration as checker
+
+    assert checker.audit_stats is canonical.audit_stats
+
+
+def test_p1c_audit_reads_one_git_snapshot(monkeypatch):
+    """Boot cost must not grow by spawning one ``git show`` for every candidate commit."""
+    from core.coord import preregistration as prereg
+
+    calls = []
+
+    class Result:
+        stdout = ""
+
+    def fake_run(args, **kwargs):
+        calls.append(args)
+        result = Result()
+        if "--name-status" in args:
+            result.stdout = ("\x01abc123\tpins and impl\n\n"
+                             "A\ttests/test_thing.py\nM\tcore/thing.py\n")
+        elif args[:2] == ["git", "log"]:
+            result.stdout = "\x01abc123 pins and impl\n\ntests/test_thing.py\n"
+        else:
+            result.stdout = "tests/test_thing.py\ncore/thing.py\n"
+        return result
+
+    monkeypatch.setattr(prereg.subprocess, "run", fake_run)
+    measured = prereg.audit_stats(30, root="unused")
+
+    assert measured["total"] == 1 and measured["violations"] == 1
+    assert len(calls) == 1, "audit_stats spawned an N+1 git show loop"
+    assert "--name-status" in calls[0]
+    assert "--diff-filter=A*" in calls[0]
+
+
 def test_p2_a_clean_history_reads_100(tmp_path):
     from scripts.checkers import check_preregistration as cp
     d = _repo(tmp_path, [
