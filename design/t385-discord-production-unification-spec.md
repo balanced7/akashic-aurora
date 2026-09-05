@@ -86,6 +86,10 @@ task; it may not launch a gateway process itself.
 - **P9 — visible cold state:** when the pure inbound policy returns a `cold_seat`
   explanation, the gateway replies in the originating Discord channel. A diagnostic
   retained only in the gateway process is not an operator-visible warning.
+- **P10 — readiness, not presence:** gateway health requires one fresh, process-owned
+  Discord event-loop generation whose PID, world, and live process agree. A command-line
+  match alone is never readiness. A wedged event loop exits itself only after twice the
+  existing readiness TTL; the external task nudge then restores scheduler ownership.
 
 ## Failure drills
 
