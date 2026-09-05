@@ -90,6 +90,12 @@ task; it may not launch a gateway process itself.
   Discord event-loop generation whose PID, world, and live process agree. A command-line
   match alone is never readiness. A wedged event loop exits itself only after twice the
   existing readiness TTL; the external task nudge then restores scheduler ownership.
+- **P11 — one verb surface:** the already-declared shared verbs `glance`, `orient`,
+  `shadow`, and `college` are callable through CLI, MCP, and the runner ToolBox. `glance`
+  reads only the named durable ledger authority, carries source-derived identities and
+  explicit `UNCHECKABLE` organs, and its compact brief has no identity authority. Door
+  tests exercise each real membrane; importing an MCP server into a captured CLI test
+  process is not accepted as transport evidence.
 
 ## Failure drills
 
