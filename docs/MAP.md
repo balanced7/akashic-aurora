@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 198 modules lack both pin and paper by name)
+## GAP queue (45 of 198 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -39,7 +39,6 @@ Class: reference
 - core/comm/thread_capture.py
 - core/comm/timescale.py
 - core/coord/capability_search.py
-- core/coord/intent_shadow.py
 - core/coord/observations.py
 - core/coord/task_costs.py
 - core/learning/domains.py
@@ -182,7 +181,7 @@ Class: reference
 | `forecast_registry.py` | T375 -- the engineering forecast registry (append-only, fold-not-table). | tests/test_t375_forecast_registry.py | GAP |  |
 | `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
-| `intent_shadow.py` | Deterministic, renderer-neutral previews of proposed Aurora actions. | GAP | GAP |  |
+| `intent_shadow.py` | Deterministic, renderer-neutral previews of proposed Aurora actions. | tests/test_t084_intent_shadow.py | GAP |  |
 | `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
 | `method_drift.py` | method_drift -- the one method number that reaches a channel people actually read. | tests/test_boot_surfaces_method_drift.py | GAP |  |
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |

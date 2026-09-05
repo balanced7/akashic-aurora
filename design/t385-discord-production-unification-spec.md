@@ -96,6 +96,11 @@ task; it may not launch a gateway process itself.
   explicit `UNCHECKABLE` organs, and its compact brief has no identity authority. Door
   tests exercise each real membrane; importing an MCP server into a captured CLI test
   process is not accepted as transport evidence.
+- **P12 — clean-clone Codex contract:** the current Codex runbook may reference only
+  committed hook adapters, wrappers, fixtures, and tests. Codex and Claude payloads remain
+  separate adapters; duplicate user/repository hook delivery is suppressed atomically;
+  event-scoped subject labels precede inherited hints. Synthetic contract pins do not
+  upgrade the registry's deliberately pending live T2-T5 observations.
 
 ## Failure drills
 

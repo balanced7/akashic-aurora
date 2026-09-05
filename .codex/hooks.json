@@ -1,62 +1,56 @@
 {
+  "description": "Akashic Aurora Codex-native lifecycle hooks. User and repo copies may both load; adapters deduplicate atomically by event payload.",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py E:/AI-Setup/scripts/hooks/codex_sessionstart.py",
+            "timeout": 30,
+            "statusMessage": "Binding Sol and loading Aurora context",
+            "additionalContextLimit": 9000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py E:/AI-Setup/scripts/hooks/codex_userpromptsubmit.py",
+            "timeout": 30,
+            "statusMessage": "Checking subject-bound Aurora recall",
+            "additionalContextLimit": 5000
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|Task|WebFetch|WebSearch",
+        "matcher": "Bash|apply_patch",
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_trace.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py scripts/hooks/claude_pretooluse.py"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py scripts/hooks/claude_pretooluse.py"
+            "command": "py E:/AI-Setup/scripts/hooks/codex_pretooluse.py",
+            "timeout": 30,
+            "statusMessage": "Checking Aurora action context",
+            "additionalContextLimit": 5000
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "matcher": "Bash|apply_patch",
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_posttooluse.py"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py scripts/hooks/claude_sessionend.py"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "py scripts/hooks/claude_stop.py"
+            "command": "py E:/AI-Setup/scripts/hooks/codex_posttooluse.py",
+            "timeout": 30,
+            "statusMessage": "Recording Aurora action outcome"
           }
         ]
       }

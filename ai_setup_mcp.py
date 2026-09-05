@@ -227,6 +227,12 @@ _ARG_DEFAULTS = dict(
     # (T256 lens work) and cmd_learn grew repeat_of (the twin's morning `repeat` verb,
     # e2b722f1) -- both CLI-only args the MCP twins would AttributeError on.
     lens_file=None, repeat_of="",
+    # cmd_web's search branch reads args.count. Keep every delegated cmd_* field in
+    # this Namespace membrane so the MCP twin cannot drift behind the CLI parser.
+    count=None,
+    # T079/T060 WorldSnapshot read twin.
+    glance_projection="program", max_items=64, brief=False, compact=False,
+    ledger_path=None,
 )
 
 
@@ -392,6 +398,25 @@ async def task(args: str) -> str:
     beats old bus messages -- read it before acting on backlog mail."""
     import shlex
     return await _athread(_run, agent_cli.cmd_task, lock=True, rest=shlex.split(args or "list"))
+
+
+@mcp.tool()
+async def glance(projection: str = "program", max_items: int = 64,
+                 brief: bool = True, compact: bool = True) -> str:
+    """Return the bounded, read-only WorldSnapshot program projection.
+
+    Unwired organs remain explicit ``UNCHECKABLE`` capabilities. The optional
+    compact operational brief carries no identity authority.
+    """
+    return await _athread(
+        _run,
+        agent_cli.cmd_glance,
+        glance_projection=projection or "program",
+        max_items=max(0, int(max_items)),
+        brief=bool(brief),
+        compact=bool(compact),
+        ledger_path=None,
+    )
 
 
 @mcp.tool()

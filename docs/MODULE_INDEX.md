@@ -217,7 +217,7 @@
 - `reinforce.py` — ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use
 - `schema.py` — Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior.
 
-## core/context/  (10 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/context/  (11 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `aggregator.py` — Aggregator: assemble the agent's starting context within a token budget.
 - `arch_loader.py` — Arch-slice loader (Context pillar): boot-time ORIENTATION to the code region of the current task.
 - `blocker_loader.py` — Blocker loader: surface the active blockers preventing progress, ranked.
@@ -228,6 +228,7 @@
 - `narrative_loader.py` — Narrative loader (Slice 7) — recent Atlas + active chapters for agent boot context.
 - `project_context.py` — Project Context Manager: Store-backed multi-agent context
 - `relevance_budget.py` — T071-R1 relevance budget v1 -- boot's lesson section becomes MOST-RELEVANT under a
+- `world_snapshot.py` — Read-only WorldSnapshot and SUBJECT / ATTENTION projection.
 
 ## core/eye/  (6 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `connectome.py` — THE EYE S4 -- the connectome: edges that remember their own formation.
