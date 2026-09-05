@@ -88,12 +88,13 @@ def test_two_deepseek_runners_do_not_satisfy_a_missing_kimi():
 def test_gateway_requires_its_own_ready_generation(monkeypatch):
     """A command line is necessary, but it is no longer sufficient health proof."""
     from core.comm import gateway_readiness
+    from core.world import current
 
     record = {
         "pid": 4242,
         "generation": "4242-test",
         "ready": True,
-        "world": "prod",
+        "world": current().name,
         "beat_ts": time.time(),
         "code_sha": "test",
         "detail": "discord on_ready",

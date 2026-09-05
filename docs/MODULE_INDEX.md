@@ -25,7 +25,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (70 modules)
+## core/comm/  (71 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -57,6 +57,7 @@
 - `fence_phase.py` — fence_phase -- the method board's state source (T079-E2).
 - `flow_trace.py` — flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal
 - `friction.py` — friction -- read the collaboration tax from evidence that already exists (T196a).
+- `gateway_readiness.py` — Process-owned readiness generation for the Discord gateway.
 - `incarnation.py` — incarnation -- who else is HERE right now, per agent id (T074 W3/R4).
 - `interject.py` — Adaptive interjection router -- when a human types into a live agent session, decide whether the
 - `kinds.py` — T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision.
@@ -328,6 +329,7 @@
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
 - `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
+- `run_aurora_service.py` — Launch one long-lived Aurora service in an explicit runtime world.
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
 - `season_dryrun.py` — season_dryrun -- run the Season 1 bounty loop end to end against a shadow tree (W6).

@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 197 modules lack both pin and paper by name)
+## GAP queue (46 of 198 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -90,7 +90,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (70 modules)
+## core/comm/  (71 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -125,6 +125,7 @@ Class: reference
 | `fence_phase.py` | fence_phase -- the method board's state source (T079-E2). | GAP | GAP |  |
 | `flow_trace.py` | flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal | tests/test_flow_trace.py | GAP | `AKASHIC_FLOW_NO_COUNT`, `BIFROST_NAMESPACE` |
 | `friction.py` | friction -- read the collaboration tax from evidence that already exists (T196a). | tests/test_t196a_friction.py | docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md |  |
+| `gateway_readiness.py` | Process-owned readiness generation for the Discord gateway. | tests/test_t385_gateway_readiness.py | GAP | `BIFROST_NAMESPACE` |
 | `incarnation.py` | incarnation -- who else is HERE right now, per agent id (T074 W3/R4). | tests/test_liveness_bare_id_finds_its_incarnation.py | GAP | `AKASHIC_INCARNATION_TTL_MIN`, `BIFROST_NAMESPACE` |
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `kinds.py` | T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision. | tests/test_t175_skip_kinds_names_what_it_skips.py | GAP |  |

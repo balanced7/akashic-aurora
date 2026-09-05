@@ -8,9 +8,9 @@ when everything is already up. So this is a RECONCILER, never a launcher:
     in dependency order (redis -> daemon -> gateway), stopping at any rung
     whose heal fails verification. Bare converge can kill NOTHING: the only
     levers on the default path are `docker start` (a documented no-op on a
-    running container) and detached spawns that the house's own singleton
-    locks absorb if they race (DaemonLock twin-refusal, runner lock
-    contest, S3a relay dedupe). An all-skip run is a successful, boring run.
+    running container), exact scheduled-task starts, and detached daemon
+    spawns that the house's own singleton locks absorb if they race. An
+    all-skip run is a successful, boring run.
 
 Single-flight: a lock file refuses concurrent converges. Every run prints
 its confession -- what it SAW, what it SKIPPED, what it TOUCHED, what it
@@ -18,9 +18,9 @@ PROVED -- in lines the Discord gateway can relay in-channel verbatim.
 
 Doors: `py scripts/revive.py --observe` (the dry run, = !status-deep),
 `py scripts/revive.py` (converge), `--target <organ>` (one rung only).
-The same script IS the OS watchdog: a scheduled task running
-`--target gateway` every few minutes is L1's supervisor -- one mechanism,
-two duties.
+The OS watchdog now nudges the owned gateway Scheduled Task directly. This
+script remains the richer read/repair lever used by `!status-deep` and
+`!revive`, and uses that same owned task when the gateway is proven absent.
 
 decide() is PURE (observation in, plan out) and pinned in
 tests/test_t382_revive.py; the I/O lives in observe()/_heal_step()/_verify().
@@ -29,6 +29,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -41,6 +43,9 @@ if ROOT not in sys.path:
 LOCK_PATH = os.path.join(ROOT, "state", "revive.lock")
 LOCK_TTL_S = 300.0
 REDIS_CONTAINER = "akashic-redis"
+GATEWAY_TASK_NAME = os.environ.get(
+    "AKASHIC_DISCORD_GATEWAY_TASK", "AkashicAurora-DiscordGateway"
+)
 DAEMON_AGENTS = ("deepseek", "kimi", "claude")   # the DaemonLock absorbs duplicates
 # S1 (wake doctrine, 2026-09-03): each agent's daemon has a MODE. deepseek/kimi
 # daemons spawn+supervise a runner; claude's daemon supervises WAKE LISTENERS
@@ -95,7 +100,7 @@ def _cmdlines() -> Optional[str]:
         r = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
-             "| Select-Object -ExpandProperty CommandLine"],
+             "| ForEach-Object { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"],
             capture_output=True, text=True, timeout=25, encoding="utf-8",
             errors="replace")
         if r.returncode != 0:
@@ -103,6 +108,61 @@ def _cmdlines() -> Optional[str]:
         return r.stdout or ""
     except Exception:                                                   # noqa: BLE001
         return None              # timeout / spawn failure: unreadable, NOT empty
+
+
+def _gateway_health(
+    cmdlines: str,
+    readiness_record: Optional[Dict[str, Any]],
+    *,
+    expected_world: str,
+    now: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Join exact process cardinality to the process-owned readiness generation."""
+    lines = [line for line in str(cmdlines or "").splitlines()
+             if "bifrost_runner_discord.py" in line]
+    count = len(lines)
+    if count == 0:
+        return {
+            "healthy": False,
+            "repairable": True,
+            "readiness": False,
+            "detail": "0 gateway process(es) -- proven absent",
+        }
+    if count > 1:
+        return {
+            "healthy": False,
+            "repairable": False,
+            "readiness": False,
+            "detail": (
+                f"{count} gateway process(es) -- DUPLICATE: default recovery refuses "
+                "to add or kill a process"
+            ),
+        }
+
+    match = re.match(r"^\s*(\d+)\s+", lines[0])
+    if not match:
+        return {
+            "healthy": False,
+            "repairable": False,
+            "readiness": False,
+            "detail": "1 gateway process, but its PID could not be attributed",
+        }
+    pid = int(match.group(1))
+    from core.comm import gateway_readiness
+
+    verdict = gateway_readiness.assess(
+        readiness_record,
+        live_pids={pid},
+        expected_world=expected_world,
+        now=now,
+        ttl=gateway_readiness.READINESS_TTL,
+    )
+    return {
+        **verdict,
+        "repairable": bool(verdict.get("healthy")),
+        "readiness": bool(verdict.get("healthy")),
+        "pid": pid,
+    }
 
 
 def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
@@ -119,9 +179,11 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
             out["app"] = {"healthy": False, "repairable": False, "pkg": None,
                           "detail": f"app probe failed ({type(e).__name__}: "
                                     f"{str(e)[:60]}) -- cannot prove healthy"}
+    redis_client = None
     try:
         from core.comm.bus import Bus
-        ok = bool(Bus("revive-probe", promote=False)._client.ping())
+        redis_client = Bus("revive-probe", promote=False)._client
+        ok = bool(redis_client.ping())
         out["redis"] = {"healthy": ok, "detail": "ping ok" if ok else "no ping"}
     except Exception as e:                                              # noqa: BLE001
         out["redis"] = {"healthy": False,
@@ -153,7 +215,6 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
 
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
     dead_runners = [a for a in RUNNER_AGENTS if not _live(a, "bifrost_runner_")]
-    gateway_n = cmds.count("bifrost_runner_discord.py")
     out["daemon"] = {
         "healthy": not dead_daemons,
         "detail": (f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
@@ -170,20 +231,24 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
                    f"the daemon rung, verified here)"),
         "repairable": True,
         "dead": dead_runners}
-    # EXACT-ONE, not any (Sol audit R3 / T376): a gateway is a SINGLETON. `> 0`
-    # certified 2+ simultaneous gateways healthy and never reconciled the
-    # duplicate/OOM class that ran four concurrent gateways before the 2026-08-26
-    # exhaustion. `== 1` is the only healthy count; zero is dead (healed by the
-    # gateway rung), and > 1 is a DUPLICATE defect that must be NAMED so a root
-    # reading a phone sees which fault, not "healthy".
-    gw_detail = (f"1 gateway process" if gateway_n == 1 else
-                 f"{gateway_n} gateway process(es)"
-                 + (" -- DUPLICATE: more than one gateway is running; a singleton "
-                    "must be restored (T376 layered defense)" if gateway_n > 1
-                    else ""))
-    out["gateway"] = {"healthy": gateway_n == 1,
-                      "repairable": True,
-                      "detail": gw_detail}
+    # Presence is necessary, never sufficient. The readiness generation is stamped
+    # by Discord's own asyncio loop and names its PID + world, so a live-but-stale
+    # socket or an old generation cannot borrow health from a command-line match.
+    try:
+        from core.comm import gateway_readiness
+        readiness_record = gateway_readiness.read(client=redis_client)
+    except Exception:                                                   # noqa: BLE001
+        readiness_record = None
+    try:
+        from core.world import current as current_world
+        expected_world = current_world().name
+    except Exception:                                                   # noqa: BLE001
+        expected_world = str(os.environ.get("AKASHIC_WORLD") or "prod")
+    out["gateway"] = _gateway_health(
+        cmds,
+        readiness_record,
+        expected_world=expected_world,
+    )
     return out
 
 
@@ -253,11 +318,19 @@ def decide(observed: Dict[str, Dict[str, Any]],
                 plan.append({"organ": "daemon", "cmd": cmd,
                              "kind": "detached-spawn", "agent": agent})
         elif organ == "gateway":
-            plan.append({"organ": "gateway",
-                         "cmd": [sys.executable,
-                                 os.path.join(ROOT, "scripts",
-                                              "bifrost_runner_discord.py")],
-                         "kind": "detached-spawn"})
+            if os.name == "nt":
+                plan.append({
+                    "organ": "gateway",
+                    "cmd": [shutil.which("schtasks.exe") or "schtasks.exe",
+                            "/Run", "/TN", GATEWAY_TASK_NAME],
+                    "kind": "scheduled-task-start",
+                })
+            else:
+                plan.append({"organ": "gateway",
+                             "cmd": [sys.executable,
+                                     os.path.join(ROOT, "scripts",
+                                                  "bifrost_runner_discord.py")],
+                             "kind": "detached-spawn"})
     return plan
 
 
@@ -346,6 +419,14 @@ def _heal_step(step: Dict[str, Any]) -> bool:
             r = subprocess.run(step["cmd"], capture_output=True, text=True,
                                timeout=60)
             return r.returncode == 0
+        if kind == "scheduled-task-start":
+            r = subprocess.run(step["cmd"], capture_output=True, text=True,
+                               timeout=20)
+            step["receipt"] = [
+                line for line in ((r.stdout or "") + "\n" + (r.stderr or "")).splitlines()
+                if line.strip()
+            ][:8]
+            return r.returncode == 0
         if kind == "detached-spawn":
             os.makedirs(os.path.join(ROOT, "state", "logs"), exist_ok=True)
             log = open(os.path.join(
@@ -366,7 +447,10 @@ def _heal_step(step: Dict[str, Any]) -> bool:
 def _verify(organ: str, deadline_s: float = 25.0) -> bool:
     end = time.time() + deadline_s
     while time.time() < end:
-        if (observe().get(organ) or {}).get("healthy"):
+        row = observe().get(organ) or {}
+        if row.get("healthy") and (
+            organ != "gateway" or row.get("readiness") is True
+        ):
             return True
         time.sleep(2.0)
     return False
