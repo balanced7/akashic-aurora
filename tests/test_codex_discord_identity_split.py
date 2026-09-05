@@ -231,7 +231,7 @@ def test_installer_declares_the_three_host_local_runtime_mounts():
     assert "security\\acl.json" in installer
 
 
-def test_installer_owns_one_restartable_gateway_and_retires_legacy_watchdog():
+def test_installer_owns_one_gateway_and_repurposes_watchdog_as_task_nudge():
     installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
         encoding="utf-8"
     )
@@ -239,7 +239,8 @@ def test_installer_owns_one_restartable_gateway_and_retires_legacy_watchdog():
     assert "AkashicAurora-DiscordGateway" in installer
     assert "bifrost_runner_discord.py" in installer
     assert "AkashicAurora-EarWatchdog" in installer
-    assert "Disable-ScheduledTask" in installer
+    assert "schtasks.exe" in installer
+    assert "Disable-ScheduledTask" not in installer
 
 
 def test_installer_whatif_accepts_an_explicit_runtime_config_root():

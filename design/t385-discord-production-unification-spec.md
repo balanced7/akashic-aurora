@@ -36,6 +36,8 @@ The three seat-facing Scheduled Tasks move as one unit:
 
 `AkashicAurora-DiscordGateway` is not a seat, but it is part of the same causal route and
 must carry the identical production pin. A mixed gateway/seat migration is forbidden.
+`AkashicAurora-EarWatchdog` is retained only as a periodic nudge of that owned gateway
+task; it may not launch a gateway process itself.
 
 ## Invariants
 
@@ -47,7 +49,10 @@ must carry the identical production pin. A mixed gateway/seat migration is forbi
    (`bifrost_runner_discord.py`, `bifrost_daemon.py`, and `codex_bifrost_wake.py`) under
    the same repository root. It never invokes a shell.
 4. Task Scheduler owns exactly one instance of each persistent service. A live orphan is
-   not an acceptable substitute for a `Running` task with correct ancestry.
+   not an acceptable substitute for a `Running` task with correct ancestry. Because a
+   live kill drill proved this host does not honor `RestartOnFailure`, the existing
+   EarWatchdog invokes `schtasks /Run` for the owned gateway task every minute;
+   `IgnoreNew` makes the same nudge inert while the gateway is healthy.
 5. The existing Sunshine and gpt-new state paths, continuity thread IDs, source thread
    IDs, and `completed-history-fork` bindings remain byte-for-byte unchanged.
 6. This migration grants no new authority. Sunshine retains its already-authorized
@@ -68,7 +73,8 @@ must carry the identical production pin. A mixed gateway/seat migration is forbi
   across reinstall and restart.
 - **P5 — live topology:** Task Scheduler reports all four tasks `Running`; each owned
   process (and Sunshine's managed child) has scheduler ancestry and an established Redis
-  connection only to 16379. None of these processes remains connected to 16381.
+  connection only to 16379. None of these processes remains connected to 16381. The
+  EarWatchdog is enabled with a one-minute repetition and targets only the gateway task.
 - **P6 — code generation:** running services load the deployment branch commit containing
   the master fixes plus this slice; no old orphaned gateway remains.
 - **P7 — causal delivery:** a fresh ordinary Discord message in each bound seat channel
@@ -82,8 +88,9 @@ must carry the identical production pin. A mixed gateway/seat migration is forbi
 
 1. Start a second gateway against production: the singleton must refuse it without
    disturbing the owned gateway.
-2. Terminate the exact owned gateway process (not a name-wide kill): Task Scheduler must
-   restart it and restore a production connection within the declared observation window.
+2. Terminate the exact owned gateway process (not a name-wide kill): the periodic
+   EarWatchdog must start the gateway task and restore its scheduler-owned production
+   connection within 90 seconds. `RestartOnFailure` XML alone does not satisfy this gate.
 3. Restart each continuity task: its identity-bearing thread tuple and admitted-turn
    count must remain stable, and it must reconnect to production without admitting a
    model turn. The private stream watermark may advance while ignored production rows
