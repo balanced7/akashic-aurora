@@ -171,7 +171,7 @@ def _usd(model: str, prompt_tokens: int, completion_tokens: int) -> Optional[flo
     try:
         # DIRECTION SEAM, filed rather than normalized: the canonical price table lives in
         # scripts/, so this is a core -> scripts import, which is backwards. It resolves
-        # through every real door (agent_cli.py and the pins both put the repo root on
+        # through every real door (the CLI and the pins both put the repo root on
         # sys.path), and the except below makes an unresolvable import behave exactly like
         # an unpriced model -- None, never a borrowed rate. The table belongs in core; moving
         # it touches agent_cli and runner_token_journal, so it is a follow-up task and NOT a

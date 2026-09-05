@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py E:/AI-Setup/scripts/hooks/codex_sessionstart.py",
+            "command": "py scripts/hooks/codex_sessionstart.py",
             "timeout": 30,
             "statusMessage": "Binding Sol and loading Aurora context",
             "additionalContextLimit": 9000
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py E:/AI-Setup/scripts/hooks/codex_userpromptsubmit.py",
+            "command": "py scripts/hooks/codex_userpromptsubmit.py",
             "timeout": 30,
             "statusMessage": "Checking subject-bound Aurora recall",
             "additionalContextLimit": 5000
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py E:/AI-Setup/scripts/hooks/codex_pretooluse.py",
+            "command": "py scripts/hooks/codex_pretooluse.py",
             "timeout": 30,
             "statusMessage": "Checking Aurora action context",
             "additionalContextLimit": 5000
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py E:/AI-Setup/scripts/hooks/codex_posttooluse.py",
+            "command": "py scripts/hooks/codex_posttooluse.py",
             "timeout": 30,
             "statusMessage": "Recording Aurora action outcome"
           }

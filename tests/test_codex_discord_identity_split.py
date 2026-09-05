@@ -262,7 +262,7 @@ def test_installer_whatif_accepts_an_explicit_runtime_config_root():
             "-RepoRoot",
             str(ROOT),
             "-RuntimeConfigRoot",
-            "E:/AI-Setup",
+            str(ROOT),
             "-PythonExe",
             sys.executable,
             "-WhatIf",

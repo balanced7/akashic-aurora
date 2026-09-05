@@ -84,6 +84,9 @@ PLANES = {
     # rides a pin (test_bridge_allowlist_contains_no_control_kind) instead of a shared name.
     # K-D caught this set the moment it landed -- the third time the bedside test has worked.
     "BRIDGE_KINDS": "bus",
+    # Intent shadow normalizes the kind accepted by bifrost_send. It is a bus policy
+    # set, not merely a parser vocabulary, so it belongs in this census.
+    "_SEND_KINDS": "bus",
     # The relay's list: which admitted peer kinds may be SPOKEN TO LOCAL SEATS. Bus plane,
     # and a THIRD set beside FORWARD_KINDS and BRIDGE_KINDS because it answers a third
     # question. FORWARD_KINDS: worth buzzing the operator's phone. BRIDGE_KINDS: safe to

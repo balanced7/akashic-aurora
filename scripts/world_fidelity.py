@@ -21,12 +21,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.coord import world_fidelity as F                        # noqa: E402
-from core.paths import repo_root                                  # noqa: E402
+from core.paths import repo_root, world_checkout_root             # noqa: E402
 from core.world import current                                    # noqa: E402
 
 ROOT = repo_root()
-#: Where each world's checkout lives, so the CODE plane can compare against its source.
-SOURCES = {"beta": "E:/AI-Setup", "alpha": "E:/AI-Setup"}
 
 
 def _count(path: Path):
@@ -54,21 +52,31 @@ def _git(repo, *args):
         return None
 
 
+def _source_dirty(world_name: str, source: Path | None):
+    """Tracked edits unavailable to this checkout, or ``None`` when unmeasurable."""
+    if world_name == "prod":
+        return 0  # prod IS the source; it cannot lag itself
+    if source and source.exists():
+        status = _git(source, "status", "--porcelain")
+        if status is not None:
+            return len([
+                line for line in status.splitlines()
+                if line and not line.lstrip().startswith("??")
+            ])
+    return None
+
+
 def main() -> int:
     w = current()
-    source = SOURCES.get(w.name)
+    source = None if w.name == "prod" else world_checkout_root(
+        "prod", root=ROOT, current_world=w.name
+    )
 
     head = _git(ROOT, "rev-parse", "--short", "HEAD")
-    dirty = None
-    if source and Path(source).exists():
-        # The SOURCE's uncommitted count, not this checkout's: a twin cannot contain what
-        # the source never committed, so the source's dirt is a property of THIS twin's
-        # fidelity. Measuring the wrong tree here would invert the finding.
-        st = _git(source, "status", "--porcelain")
-        if st is not None:
-            dirty = len([l for l in st.splitlines() if l and not l.lstrip().startswith("??")])
-    elif w.name == "prod":
-        dirty = 0                                    # prod IS the source; nothing lags it
+    # The SOURCE's uncommitted count, not this checkout's: a twin cannot contain what
+    # the source never committed, so the source's dirt is a property of THIS twin's
+    # fidelity. Measuring the wrong tree here would invert the finding.
+    dirty = _source_dirty(w.name, source)
 
     seeded_from = None
     try:

@@ -11,8 +11,9 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
-sys.path.insert(0, r"E:\AI-Setup")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 os.environ["AKASHIC_WIRE_DIR"] = tempfile.mkdtemp(prefix="wirebench-")
 
 from scripts.wire_journal import WireJournal  # noqa: E402

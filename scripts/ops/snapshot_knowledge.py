@@ -34,7 +34,7 @@ try:
     from core.paths import repo_root as _rr
     BASE = _rr()
 except Exception:
-    BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    BASE = Path(__file__).resolve().parents[2]
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 STORE_DB = BASE / "session_logs" / "store_state.db"
@@ -142,7 +142,7 @@ def _assert_restore_is_consented(target_world: str):
         "  If prod is genuinely what you mean:\n"
         "      AKASHIC_RESTORE_PROD=yes-flush-production py scripts/ops/snapshot_knowledge.py restore <name>\n"
         "  To rehearse it safely, restore into a twin instead -- that is what they are for:\n"
-        "      cd E:/AI-Setup-Alpha && py scripts/ops/snapshot_knowledge.py restore <name>")
+        "      cd <alpha checkout> && py scripts/ops/snapshot_knowledge.py restore <name>")
 
 
 def _assert_planes_agree():

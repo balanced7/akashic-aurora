@@ -32,9 +32,10 @@ def test_docs_apply_patch_uses_command_and_extracts_every_path():
     payload = _load("pretooluse_apply_patch_docs.json")
     assert payload["tool_name"] == "apply_patch"
     paths = common.action_paths(payload)
+    fixture_root = Path(payload["cwd"])
     assert paths == [
-        os.path.normpath("E:/AI-Setup/agent/harness/registry.py"),
-        os.path.normpath("E:/AI-Setup/tests/fixtures/codex_payloads/new.txt"),
+        os.path.normpath(str(fixture_root / "agent/harness/registry.py")),
+        os.path.normpath(str(fixture_root / "tests/fixtures/codex_payloads/new.txt")),
     ]
 
 
@@ -43,9 +44,10 @@ def test_patch_move_destination_is_a_guarded_target():
     payload["tool_input"]["command"] = (
         "*** Begin Patch\n*** Update File: old.txt\n*** Move to: moved/new.txt\n*** End Patch"
     )
+    fixture_root = Path(payload["cwd"])
     assert common.action_paths(payload) == [
-        os.path.normpath("E:/AI-Setup/old.txt"),
-        os.path.normpath("E:/AI-Setup/moved/new.txt"),
+        os.path.normpath(str(fixture_root / "old.txt")),
+        os.path.normpath(str(fixture_root / "moved/new.txt")),
     ]
 
 
@@ -54,7 +56,7 @@ def test_subject_header_names_address_session_and_unratified_hint(monkeypatch):
     monkeypatch.setenv("AKASHIC_CALLSIGN_STATUS", "historical-unratified")
     monkeypatch.setenv(
         "AKASHIC_IDENTITY_POINTER",
-        "E:/AI-Setup/research/in-flight/sol-sunshine-identity-history-2026-08-26.md",
+        str(ROOT / "research/in-flight/sol-sunshine-identity-history-2026-08-26.md"),
     )
     monkeypatch.setenv("AKASHIC_IDENTITY_POINTER_SUBJECT", "sol")
     out = common.subject_context("sol", "session-123")
@@ -145,6 +147,9 @@ def test_repo_hooks_are_codex_native_and_single_handler_per_event():
         commands = [h["command"] for group in hooks[event] for h in group["hooks"]]
         assert commands and all("codex_" in command for command in commands)
         assert all("claude_" not in command for command in commands)
+        assert all(command.startswith("py scripts/hooks/codex_") for command in commands), (
+            "repository hooks must be clone-relative; user-level hooks may carry an absolute root"
+        )
     assert len(hooks["PreToolUse"]) == 1
     assert len(hooks["PostToolUse"]) == 1
 

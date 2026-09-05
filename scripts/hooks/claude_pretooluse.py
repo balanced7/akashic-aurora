@@ -29,6 +29,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -107,7 +108,21 @@ def _emit_context(text: str) -> None:
 
 
 _REPO_MARKERS = ("agent_cli.py", "scripts/", "core/", "docs/", "tests/", "agent/", "config.py")
-_REPO_ANCHORS = ("e:/ai-setup", "e:\\ai-setup", "/e/ai-setup")
+_ABSOLUTE_AURORA = re.compile(
+    r"(?:[a-z]:[\\/]|/[a-z]/)[^\"'\r\n]*(?:ai-setup|akashic-aurora)", re.IGNORECASE
+)
+
+
+def _inside_an_aurora_checkout(cwd: str) -> bool:
+    """Recognize any clone/worktree by markers, not one machine's path prefix."""
+    try:
+        here = Path(cwd).resolve()
+        for candidate in (here, *here.parents):
+            if (candidate / "agent_cli.py").is_file() and (candidate / "core").is_dir():
+                return True
+    except OSError:
+        pass
+    return False
 
 
 def _cwd_drift(data) -> str:
@@ -121,16 +136,16 @@ def _cwd_drift(data) -> str:
     ti = data.get("tool_input")
     cmd = (ti.get("command") or "") if isinstance(ti, dict) else ""
     cwd = (data.get("cwd") or os.getcwd())
-    if cwd.replace("\\", "/").lower().rstrip("/").startswith("e:/ai-setup"):
+    if _inside_an_aurora_checkout(cwd):
         return ""
     low = cmd.lower()
-    if any(a in low for a in _REPO_ANCHORS):
+    if _ABSOLUTE_AURORA.search(low):
         return ""
     if not any(m in cmd for m in _REPO_MARKERS):
         return ""
-    return (f"[cwd-guard] shell cwd is {cwd} -- NOT E:\\AI-Setup. Repo-relative paths in this "
+    return (f"[cwd-guard] shell cwd is {cwd} -- not an Aurora checkout. Repo-relative paths in this "
             "command will miss or FALSE-CLEAN (grep of absent dirs reports zero hits). "
-            "Anchor with `cd /e/AI-Setup && ...` -- the shell resets to E:\\ when it rebuilds.")
+            "Anchor with `cd <that Aurora checkout> && ...` after the shell rebuilds.")
 
 
 def _recall_context(data) -> str:
@@ -271,7 +286,7 @@ def main() -> int:
     if _dedup_should_skip(data):
         return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
     # 2026-09-01: drift is ORTHOGONAL to scope -- a repo-shaped command can be IN scope by its
-    # text while its cwd is drifted (py agent_cli.py from E:\ -> file-not-found), or OUT of
+    # text while its cwd is drifted (invoking the CLI from a reset drive -> file-not-found), or OUT of
     # scope entirely (grep of absent dirs -> false-clean). Both were silent; both now speak.
     drift = _cwd_drift(data)
     if not _in_scope(tool, data):

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 2275e15f. A bound you discover by collision is not awareness -- this sheet
+> Derived at 868ae68e. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -14,7 +14,7 @@ Class: reference
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +13 |
+| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +11 |
 | `AI_SETUP_ROOT` | `` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
 | `AI_STACK_CHAT_URL` | `"http://127.0.0.1:3000"` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
 | `AI_STACK_GUI_URL` | `"http://127.0.0.1:8090"` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |

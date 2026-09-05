@@ -13,7 +13,8 @@ the drill asserts the revocation landed. A drill that leaves authority behind is
 not a receipt.
 """
 import sys, time, json, io
-sys.path.insert(0, r"E:\AI-Setup")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import core.comm.conductor_gate as cg
 from core.trust import registry

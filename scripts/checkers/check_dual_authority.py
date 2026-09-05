@@ -39,6 +39,9 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
 

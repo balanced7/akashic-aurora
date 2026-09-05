@@ -30,11 +30,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import redis                                                        # noqa: E402
 
 from core.coord import world_diff as WD                             # noqa: E402
+from core.paths import repo_root, world_checkout_root               # noqa: E402
 from core.world import WORLDS, current                              # noqa: E402
 from core.world_seed import read_manifest                           # noqa: E402
 
-#: Where each world's checkout lives, so the CODE plane can be read without guessing.
-CHECKOUTS = {"prod": "E:/AI-Setup", "beta": "E:/AI-Setup-Beta", "alpha": "E:/AI-Setup-Alpha"}
+ROOT = repo_root()
 
 
 def _client(world: str):
@@ -67,9 +67,9 @@ def _prefixes(manifest, src, dst) -> list:
 
 
 def _git(world: str) -> dict:
-    root = CHECKOUTS.get(world)
-    if not root or not Path(root).exists():
-        return {"ok": False, "why": f"no checkout registered for {world}"}
+    root = world_checkout_root(world, root=ROOT, current_world=current().name)
+    if root is None:
+        return {"ok": False, "why": f"no checkout discovered for {world}"}
 
     def g(*args):
         return subprocess.run(["git", "-C", root, *args],
