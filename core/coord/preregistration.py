@@ -42,28 +42,41 @@ def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
     {total, clean, violations, pct, offenders}; callers render, this computes.
     """
     cwd = root or ROOT
+    # ``A*`` is Git's all-or-none diff filter: keep commits containing an added
+    # path, but emit every touched path in those commits. That gives us both the
+    # candidate set and its source co-travelers in one stable snapshot. The old
+    # implementation followed this log with one ``git show`` per candidate;
+    # boot calls this audit, so its latency grew with the audit window.
     log = subprocess.run(
-        ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
+        ["git", "log", f"-n{n}", "--diff-filter=A*", "--name-status",
+         "--format=%x01%h%x09%s"],
         capture_output=True, cwd=cwd, encoding="utf-8", errors="replace",
         stdin=subprocess.DEVNULL, close_fds=True).stdout or ""
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
-        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
+        lines = [line.rstrip() for line in block.strip().splitlines() if line.strip()]
         if not lines:
             continue
-        header, files = lines[0], [_norm(l) for l in lines[1:]]
-        added_tests = [f for f in files if f.startswith("tests/test_") and f.endswith(".py")]
+        header = lines[0].replace("\t", " ", 1)
+        touched = []
+        added_tests = []
+        for row in lines[1:]:
+            columns = row.split("\t")
+            status = columns[0]
+            paths = [_norm(path) for path in columns[1:] if path]
+            touched.extend(paths)
+            added_tests.extend(
+                path for path in paths
+                if status.startswith("A")
+                and path.startswith("tests/test_")
+                and path.endswith(".py")
+            )
         if not added_tests:
             continue
         total += 1
-        # The same commit's FULL touch set (adds + modifications):
-        sha = header.split()[0]
-        touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
-                                  capture_output=True, cwd=cwd, encoding="utf-8",
-                                  errors="replace", stdin=subprocess.DEVNULL,
-                                  close_fds=True).stdout or "").split()
-        src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
+        src = [path for path in touched
+               if path and not path.startswith(NONSOURCE_PREFIXES)]
         if src:
             viol += 1
             offenders.append((header, added_tests, src[:3]))

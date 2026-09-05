@@ -99,21 +99,27 @@ def _probe_env(probe_home: str) -> dict:
     "did it pollute?" assertion would fail on a probe that is perfectly clean in
     production. So the guarantee is pinned where it is actually made: here.
 
-    Both keys are load-bearing and neither is sufficient alone:
+    All three controls are load-bearing:
       AI_SETUP              -- redirects the FILE plane only.
       _AISETUP_TEST_ISOLATED -- the Redis isolation primitive (T069/T070). Without it
         the probe's boot registers presence in canonical Redis and `door-probe` appears
         in the real fleet roster -- exactly the pollution deepseek warned about in D1.
-        This module shipped without it for an hour; the B1 pin caught it. Note that
-        REDIS_DB is NOT the mechanism: config.REDIS_DB is a module constant, so the env
-        var does nothing on its own. It is set only to match P6's env shape.
+      BIFROST_NAMESPACE     -- isolates bus keys *within* persistent DB 15. Reusing
+        its default ``bifrost`` namespace made old test seats accumulate, so boot's
+        fleet doctor scanned a larger ghost fleet on every later probe. The gate then
+        measured 6-10 seconds and mislabeled healthy boot work as a transport hang.
     P6 has always run with this flag and still caught the real hang, which is the
     evidence that isolation does not mask the defect the probe exists to find.
     """
+    leaf = "".join(
+        ch if ch.isalnum() or ch in "-_" else "-"
+        for ch in Path(probe_home).name
+    )[:80] or str(os.getpid())
     return {**os.environ,
             "AI_SETUP": probe_home,
             "_AISETUP_TEST_ISOLATED": "1",
             "REDIS_DB": "15",
+            "BIFROST_NAMESPACE": f"door-probe-{leaf}",
             "AKASHIC_RECALL_STATE_DIR": str(Path(probe_home) / "recall")}
 
 
