@@ -111,7 +111,12 @@ def test_p6_the_respawn_carries_argv_and_the_lane_env(monkeypatch):
         return _P()
 
     monkeypatch.setattr(SR.subprocess, "Popen", _fake_popen)
-    os.environ["BIFROST_CONSUME_LANE"] = "work"
+    # monkeypatch.setenv, NOT os.environ[...] (fixed 2026-09-04). A raw assignment here
+    # LEAKED for the rest of the pytest process, and the moment T198 made the wake watcher
+    # follow BIFROST_CONSUME_LANE, three test_wake_detect cases started failing whenever
+    # this file ran first -- a pollution bug that was invisible while nothing read the var.
+    # The fixture-scoped set restores on teardown, so test order stops being load-bearing.
+    monkeypatch.setenv("BIFROST_CONSUME_LANE", "work")
     ok = SR.respawn_self(argv=["scripts/bifrost_runner_deepseek.py",
                                "--agent", "deepseek", "--session", "abc123"])
     assert ok, "respawn must report success when the spawn succeeded"

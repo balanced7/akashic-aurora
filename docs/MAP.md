@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (45 of 195 modules lack both pin and paper by name)
+## GAP queue (45 of 197 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -89,7 +89,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (68 modules)
+## core/comm/  (70 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -133,6 +133,7 @@ Class: reference
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_locks.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
 | `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `BIFROST_NAMESPACE` |
+| `operator_reply.py` | Answering the operator, in one argument, with an honest delivery verdict. | tests/test_operator_reply.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_OPERATOR_ID`, `CLAUDE_CODE_SESSION_ID` |
 | `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
 | `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | docs/library/design/remote-bifrost-bridge-serge-onepager.md | `BIFROST_NAMESPACE` |
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
@@ -150,6 +151,7 @@ Class: reference
 | `seat_identity.py` | seat_identity -- WHO AM I, resolved per SESSION instead of per PROCESS. | tests/test_seat_identity_resolver.py | GAP | `AKASHIC_AGENT_ID` |
 | `secret_intake.py` | Secret intake — credentials travel window -> file, never through a transcript. | tests/test_secret_intake_pins.py | GAP | `AKASHIC_SECRETS_DIR` |
 | `self_restart.py` | self_restart (A1) -- a runner that knows it is stale restarts itself. | tests/test_a1_stale_self_restart.py | GAP | `AKASHIC_SELF_RESTART_MIN_BEHIND`, `AKASHIC_SELF_RESTART_MIN_UPTIME_S` |
+| `sender_guard.py` | Is this string a seat id, or is it somebody's message wearing the sender slot? | tests/test_bifrost_send_sender_guard.py | GAP |  |
 | `session_exit.py` | session_exit -- the clean-death trio (T075 M1-beta, reconciliation ruling 3). | GAP | GAP | `AKASHIC_CLEAN_DEATH` |
 | `session_state.py` | Session State — snapshot the live Bifrost session so it can be resumed later. | GAP | GAP |  |
 | `shift_turn.py` | The runner turn boundary: one shared decision per loop top, for every runner. | tests/test_shift_turn_boundary.py | GAP | `AKASHIC_SHIFT_LOOP` |

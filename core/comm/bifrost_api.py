@@ -92,6 +92,26 @@ def render_straggler_summary(counts: Dict[str, int]) -> str:
     return "; ".join(parts)
 
 
+def wake_lane() -> str:
+    """Which lane the WAKE watcher should watch. T198, fixed 2026-09-04.
+
+    Found by chronos (Serge's fleet) reading our PUBLIC repo from the outside -- the exact
+    value of a peer house: they cannot see our working tree, which is why they catch what
+    our own probes step over. The defect: this asked only for BIFROST_WAKE_LANE, which is
+    set NOWHERE in the house, while every consumer defaults to BIFROST_CONSUME_LANE=work.
+    So detection watched one lane and draining moved the other -- two cursors and two
+    meanings of "drained". Live cost, measured on this seat 2026-09-04: eight hand re-arms
+    in one day, each preceded by draining BOTH lanes, and a standing instruction in the
+    watcher's own banner telling the operator to drain the lane it was not armed on.
+
+    The rule: an explicit BIFROST_WAKE_LANE still wins (a seat may deliberately split the
+    planes); absent that, the wake lane FOLLOWS the consume lane, so the thing that wakes
+    you and the thing you drain are the same thing by default."""
+    return (os.environ.get("BIFROST_WAKE_LANE")
+            or os.environ.get("BIFROST_CONSUME_LANE")
+            or "").strip()
+
+
 def _id_key(sid: str):
     """Sort key for Redis stream ids. "$" (tail) sorts above everything; "0" (virgin cursor)
     and malformed ids sort BELOW every real id -- "0" must lose to "0-0" (seat-2 review
@@ -199,7 +219,7 @@ class BifrostAPI:
         - FAST-FORWARD: every call lifts the local cursor to at least the shared cursor, so mail a
           concurrent live session already consumed never wakes the watcher; a trimmed-away local
           position degrades to bounded paging from the stream head, not an error loop."""
-        if os.environ.get("BIFROST_WAKE_LANE") == "work":
+        if wake_lane() == "work":
             return self._wake_block_lane(timeout_ms)   # T045 stage 1: watch the WORK LANE only
         if self._wake_since is None:
             seed = dict(self.bus.cursor())

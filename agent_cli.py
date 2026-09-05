@@ -6139,10 +6139,50 @@ def cmd_forecast(args):
         return 1
 
 
+def cmd_reply(args):
+    """`reply "..."` -- answer the operator. ONE argument, honest verdict.
+
+    Daniil 2026-09-04: "How do we make it easy for you to reply, should it be a verb?" The
+    ceremony this replaces was --to + --kind + --text-file + sender + body, and its three
+    orderings cost him an hour of silence in one afternoon. Here the body is the only
+    positional, so a message CANNOT land in a sender slot; and the verdict distinguishes
+    'nothing confessed a failure' from 'delivered', because conflating those is what made
+    the silence invisible. Logic + pins: core/comm/operator_reply.py."""
+    from core.comm import operator_reply as _or
+    if getattr(args, "text_file", None):
+        try:
+            with open(args.text_file, encoding="utf-8") as fh:
+                body = fh.read().strip()
+        except OSError as e:
+            print(f"[reply] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
+            return 2
+    else:
+        body = " ".join(args.text or [])
+    out = _or.reply(body, sender=getattr(args, "as_seat", None), to=getattr(args, "to", None),
+                    model=getattr(args, "model", None))
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=1))
+    else:
+        print(_or.render(out))
+    # A recorded post FAILURE is a non-zero exit even though the bus accepted it: the seat
+    # must be able to tell, from the exit code alone, that the operator did not get it.
+    return 0 if (out.get("ok") and out.get("delivery") != "FAILED") else 1
+
+
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
     from core.comm.bus import Bus
+    # THE SENDER-SHAPE GATE (2026-09-04). Before anything else: is the first positional a
+    # seat id, or is it the operator's answer wearing the sender slot? Three replies to him
+    # died HTTP 400 as thousand-character webhook usernames because argv ordering put the
+    # body here, and TWO existing lessons that recall surfaced at the moment did not stop
+    # it. A gate refuses; prose only hopes. See core/comm/sender_guard.py.
+    from core.comm.sender_guard import check_sender
+    _refusal = check_sender(getattr(args, "agent_id", None))
+    if _refusal:
+        print(f"[bifrost-send] {_refusal}")
+        return 2
     bus = Bus(args.agent_id)
     if not bus.online:
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent."); return 1
@@ -8244,6 +8284,20 @@ def build_parser():
                           "per-cue), none (raw clean)")
     cap.set_defaults(fn=cmd_captions)
 
+    rep = sub.add_parser("reply", help="answer the operator in ONE argument, with an honest "
+                                       "delivery verdict (the ordering trap made unrepresentable)")
+    rep.add_argument("text", nargs="*", help="the reply body -- the only argument")
+    rep.add_argument("--text-file", dest="text_file", default=None,
+                     help="read the body from PATH (long or flag-bearing prose)")
+    rep.add_argument("--to", default=None, help="override the recipient (default: the operator)")
+    rep.add_argument("--as", dest="as_seat", default=None,
+                     help="override the sender (default: this seat's id -- never a positional)")
+    rep.add_argument("--model", default=None,
+                     help="stamp the model answering (alias like 'sonnet' or a full id) to "
+                          "the self-report `!model` reads -- best-effort, never blocks the reply")
+    rep.add_argument("--json", action="store_true")
+    rep.set_defaults(fn=cmd_reply)
+
     bop = sub.add_parser("boop", help="the smallest verb in the house: zero arguments, always answered")
     bop.add_argument("--surface", action="store_true",
                      help="boop with eyes: print the awareness snapshot (sweep) after the boop")
@@ -8663,6 +8717,24 @@ def build_parser():
     ree.add_argument("--stale-ok", action="store_true",
                      help="skip the incremental eye ingest before rendering")
     ree.set_defaults(fn=cmd_reentry)
+
+    gla = sub.add_parser(
+        "glance",
+        help="T079/T060: bounded read-only WorldSnapshot projections over named authorities",
+    )
+    gla_sub = gla.add_subparsers(dest="glance_projection", required=True)
+    gla_program = gla_sub.add_parser(
+        "program",
+        help="task-ledger SUBJECT / ATTENTION projection; unwired organs refuse loudly",
+    )
+    gla_program.add_argument("--max-items", type=int, default=64,
+                             help="maximum task rows in the snapshot (default: 64)")
+    gla_program.add_argument("--brief", action="store_true",
+                             help="emit the compact operational-orientation packet")
+    gla_program.add_argument("--compact", action="store_true",
+                             help="emit compact JSON instead of indented JSON")
+    gla_program.add_argument("--ledger-path", default=None, help=argparse.SUPPRESS)
+    gla_program.set_defaults(fn=cmd_glance)
 
     sec = sub.add_parser("secret", help="the vault door: capture a credential via a popup "
                                         "window -- paste lands in .secrets/<target>, never "
@@ -9159,6 +9231,43 @@ def cmd_reentry(args):
     from core.reentry import build_reentry, render_reentry
     built = build_reentry(show_open_loops=args.show_open_loops, since=args.since)
     print(render_reentry(built))
+    return 0
+
+
+def cmd_glance(args):
+    """T079/T060: one bounded, read-only projection over named authorities.
+
+    Slice one exposes only the program projection. Adding an arbitrary subject
+    label before a subject-specific reader exists would make scope look wider
+    than the evidence, so future projections extend the parser deliberately.
+    """
+    from core.context.world_snapshot import (
+        build_program_world_snapshot,
+        project_operational_brief,
+    )
+
+    projection = str(getattr(args, "glance_projection", "") or "program")
+    if projection != "program":
+        print(f"[glance] unsupported projection: {projection}", file=sys.stderr)
+        return 2
+    snapshot = build_program_world_snapshot(
+        ledger_path=getattr(args, "ledger_path", None),
+        max_items=getattr(args, "max_items", 64),
+    )
+    payload = (
+        project_operational_brief(snapshot)
+        if bool(getattr(args, "brief", False))
+        else snapshot
+    )
+    compact = bool(getattr(args, "compact", False))
+    print(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=None if compact else 2,
+            separators=(",", ":") if compact else None,
+        )
+    )
     return 0
 
 

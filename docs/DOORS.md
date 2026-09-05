@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (100 verbs)
+## CLI door -- `py agent_cli.py <verb>` (101 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -84,6 +84,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` `--domain` |
 | `reentry` | T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only | `--show-open-loops` `--since` `--stale-ok` |
 | `repeat` | record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken | `<source>` `--what` `--recall-outcome` `--agent` `--report` `--json` |
+| `reply` | answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable) | `<text>*` `--text-file` `--to` `--as` `--model` `--json` |
 | `report` | scaffold a visual report with the design kit inlined (T275) | `--title` `--eyebrow` `--out` `--crib` |
 | `resident` | callsign ceremony: nominate / ratify / show a resident's designation | `<sub> {nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration}` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` `--by-agent` |
