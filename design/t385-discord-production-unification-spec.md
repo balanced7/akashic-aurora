@@ -84,8 +84,10 @@ must carry the identical production pin. A mixed gateway/seat migration is forbi
    disturbing the owned gateway.
 2. Terminate the exact owned gateway process (not a name-wide kill): Task Scheduler must
    restart it and restore a production connection within the declared observation window.
-3. Restart each continuity task: its state-file hash and thread tuple must remain stable,
-   and it must reconnect to production without admitting a model turn.
+3. Restart each continuity task: its identity-bearing thread tuple and admitted-turn
+   count must remain stable, and it must reconnect to production without admitting a
+   model turn. The private stream watermark may advance while ignored production rows
+   are consumed; a whole-file hash is therefore not an identity invariant.
 4. Present an out-of-tree target to the launcher: it must refuse without executing it.
 
 ## Bounds and rollback
@@ -98,4 +100,3 @@ render as such.
 Before task replacement, export the four Scheduled Task definitions and capture process,
 thread-binding, and endpoint baselines. Rollback restores those definitions and the prior
 deployment commit. The continuity state files are never deleted, rewritten, or rebound.
-
