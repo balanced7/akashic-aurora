@@ -3133,7 +3133,7 @@ def cmd_gateway(args):
     if args.action == "status":
         snap = _WS.process_snapshot()
         live = [pid for pid, r in (snap or {}).items()
-                if marker in (r.get("cmdline") or "")]
+                if marker in (r.get("cmdline") or "") and pid != os.getpid()]
         if args.json:
             print(json.dumps({"live": live, "count": len(live)})); return 0
         if not live:
