@@ -12,7 +12,8 @@ param(
     [string]$RuntimeConfigRoot = 'E:\AI-Setup',
     [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
     [string]$GatewayTaskName = 'AkashicAurora-DiscordGateway',
-    [string]$LegacyGatewayWatchdogTaskName = 'AkashicAurora-EarWatchdog',
+    [Alias('LegacyGatewayWatchdogTaskName')]
+    [string]$GatewayWatchdogTaskName = 'AkashicAurora-EarWatchdog',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord',
     [string]$GptNewThreadId = '',
@@ -30,6 +31,7 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $resolvedRuntimeConfigRoot = (Resolve-Path -LiteralPath $RuntimeConfigRoot).Path
 $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
+$resolvedSchtasks = (Get-Command 'schtasks.exe' -CommandType Application -ErrorAction Stop).Source
 $daemonScript = Join-Path $resolvedRoot 'scripts\bifrost_daemon.py'
 $gatewayScript = Join-Path $resolvedRoot 'scripts\bifrost_runner_discord.py'
 $wakeScript = Join-Path $resolvedRoot 'scripts\codex_bifrost_wake.py'
@@ -145,6 +147,9 @@ $gatewayArguments = ConvertTo-TaskArguments @(
     '--world', 'prod', '--',
     $gatewayScript
 )
+$gatewayWatchdogArguments = ConvertTo-TaskArguments @(
+    '/Run', '/TN', $GatewayTaskName
+)
 $discordArguments = ConvertTo-TaskArguments @(
     $serviceLauncher,
     '--world', 'prod', '--',
@@ -183,6 +188,10 @@ if ($GptNewThreadId) {
 }
 
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
+$gatewayWatchdogTrigger = New-ScheduledTaskTrigger `
+    -Once `
+    -At (Get-Date).AddMinutes(1) `
+    -RepetitionInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal `
     -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) `
     -LogonType Interactive `
@@ -239,27 +248,41 @@ foreach ($task in $tasks) {
     }
 }
 
-# The older five-minute revive job launches whichever gateway happens to live in
-# E:\AI-Setup and can race a direct at-logon gateway after reboot.  Preserve its
-# definition for recovery, but disable its trigger once the restartable singleton
-# above is registered.  This is reversible and only touches the gateway watchdog.
-if ($LegacyGatewayWatchdogTaskName -and
-    $LegacyGatewayWatchdogTaskName -ne $GatewayTaskName) {
-    $legacyGatewayWatchdog = Get-ScheduledTask `
-        -TaskName $LegacyGatewayWatchdogTaskName `
-        -ErrorAction SilentlyContinue
-    if ($legacyGatewayWatchdog -and
-        $PSCmdlet.ShouldProcess(
-            $LegacyGatewayWatchdogTaskName,
-            "Disable legacy gateway watchdog superseded by $GatewayTaskName"
-        )) {
-        Disable-ScheduledTask -TaskName $LegacyGatewayWatchdogTaskName | Out-Null
+# This host did not honor RestartOnFailure in a live exact-process kill drill.
+# Retain one independent clock, but make it a task nudge rather than a second
+# launcher: /Run starts the owned gateway task when dead and IgnoreNew absorbs
+# the same request when healthy. No process-table guess and no detached orphan.
+if ($GatewayWatchdogTaskName -and $GatewayWatchdogTaskName -ne $GatewayTaskName) {
+    if ($PSCmdlet.ShouldProcess(
+        $GatewayWatchdogTaskName,
+        "Register one-minute nudge for $GatewayTaskName"
+    )) {
+        $gatewayWatchdogAction = New-ScheduledTaskAction `
+            -Execute $resolvedSchtasks `
+            -Argument $gatewayWatchdogArguments `
+            -WorkingDirectory $resolvedRoot
+        $gatewayWatchdogSettings = New-ScheduledTaskSettingsSet `
+            -StartWhenAvailable `
+            -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries `
+            -ExecutionTimeLimit (New-TimeSpan -Minutes 1) `
+            -MultipleInstances IgnoreNew
+        Register-ScheduledTask `
+            -TaskName $GatewayWatchdogTaskName `
+            -Action $gatewayWatchdogAction `
+            -Trigger $gatewayWatchdogTrigger `
+            -Settings $gatewayWatchdogSettings `
+            -Principal $principal `
+            -Description "Periodic idempotent nudge of $GatewayTaskName; never launches a gateway directly." `
+            -Force | Out-Null
+        Enable-ScheduledTask -TaskName $GatewayWatchdogTaskName | Out-Null
     }
 }
 
 [pscustomobject]@{
     GatewayTask = $GatewayTaskName
-    LegacyGatewayWatchdog = $LegacyGatewayWatchdogTaskName
+    GatewayWatchdog = $GatewayWatchdogTaskName
+    GatewayWatchdogIntervalMinutes = 1
     FleetTask = $FleetTaskName
     DiscordTask = $DiscordTaskName
     ContinuityThreadId = $ThreadId
