@@ -3110,6 +3110,36 @@ def cmd_discord(args):
     return 0
 
 
+_GATEWAY_PYTHON_NAMES = {
+    "python", "python.exe", "python3", "python3.exe", "pythonw", "pythonw.exe",
+}
+_GATEWAY_RUNNER_TOKEN = re.compile(
+    r'(?:^|\s)(?:"[^"]*[\\/]bifrost_runner_discord\.py"|'
+    r'[^\s"]*[\\/]?bifrost_runner_discord\.py)(?=\s|$)',
+    re.IGNORECASE,
+)
+
+
+def _gateway_process_pids(snapshot):
+    """Return interpreter processes whose argv names the gateway runner script.
+
+    A substring census sees its own probe, parent shells, editors, and test commands
+    whenever they mention the filename.  Process *kind* plus an argv-token boundary is
+    the minimum safe identity for both status and the destructive restart path.
+    ``py.exe`` is deliberately excluded: its child ``python.exe`` owns the runtime, and
+    counting both would turn one ``py script.py`` launch into two gateways.
+    """
+    live = []
+    for pid, row in (snapshot or {}).items():
+        if pid == os.getpid():
+            continue
+        name = Path(str(row.get("name") or "")).name.lower()
+        cmdline = str(row.get("cmdline") or "")
+        if name in _GATEWAY_PYTHON_NAMES and _GATEWAY_RUNNER_TOKEN.search(cmdline):
+            live.append(pid)
+    return live
+
+
 def cmd_gateway(args):
     """gateway -- the INBOUND Discord ear (bifrost_runner_discord.py), NOT the outbound
     `discord` bridge. `gateway restart` is the managed resuscitation lever: find the live
@@ -3128,12 +3158,10 @@ def cmd_gateway(args):
 
     _ROOT = Path(__file__).resolve().parent
     runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
-    marker = "bifrost_runner_discord"
 
     if args.action == "status":
         snap = _WS.process_snapshot()
-        live = [pid for pid, r in (snap or {}).items()
-                if marker in (r.get("cmdline") or "") and pid != os.getpid()]
+        live = _gateway_process_pids(snap)
         if args.json:
             print(json.dumps({"live": live, "count": len(live)})); return 0
         if not live:
@@ -3150,8 +3178,7 @@ def cmd_gateway(args):
 
     # restart: find -> kill -> relaunch, atomically, all under the mutation gate.
     snap = _WS.process_snapshot()
-    live = [pid for pid, r in (snap or {}).items()
-            if marker in (r.get("cmdline") or "") and pid != os.getpid()]
+    live = _gateway_process_pids(snap)
     killed = []
     for pid in live:
         if _WS.taskkill(pid):
