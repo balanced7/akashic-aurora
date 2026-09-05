@@ -14,6 +14,7 @@ this whole day has been about, and here it is one environment variable wide.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -23,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _which_ok(name):
-    return {"dsh": r"C:\Users\L5\AppData\Roaming\npm\dsh"}.get(name)
+    return {"dsh": str(Path(ROOT) / ".test-bin" / "dsh")}.get(name)
 
 
 # ------------------------------------------------------------------ resolution

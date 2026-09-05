@@ -30,7 +30,6 @@ WHAT THIS DOOR DELIBERATELY CANNOT DO:
 
 Run:
   py scripts/remote_bridge_listener.py                    # 127.0.0.1:8791, the safe default
-  py scripts/remote_bridge_listener.py --port 9000
   py scripts/remote_bridge_listener.py --host 0.0.0.0 --allow-public   # deliberate, logged
 """
 from __future__ import annotations

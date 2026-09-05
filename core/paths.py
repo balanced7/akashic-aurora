@@ -27,8 +27,9 @@ assuming how it got here.
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 # Files/dirs that together identify the repo root and nothing else.
 _MARKERS = ("agent_cli.py", "core")
@@ -91,6 +92,89 @@ def repo_root(start: Optional[str] = None, *, use_env: bool = True) -> Path:
     # Nothing identifiable. Return the two-levels-up guess rather than raising, and let the
     # caller's own existence checks fail with a message about the thing they wanted.
     return Path(__file__).resolve().parents[1]
+
+
+def _git_primary_root(root: Path) -> Optional[Path]:
+    """Return the primary checkout behind a linked worktree, if Git can name it."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+            timeout=5,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        common = Path(result.stdout.strip())
+        if not common.is_absolute():
+            common = root / common
+        common = common.resolve()
+        return common.parent if common.name.lower() == ".git" else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _family_base(root: Path) -> Path:
+    """Strip a conventional world suffix while preserving the caller's actual family name."""
+    low = root.name.lower().replace("_", "-")
+    for suffix in ("-alpha", "-beta", "-sandbox"):
+        if low.endswith(suffix):
+            return root.with_name(root.name[:-len(suffix)])
+    return root
+
+
+def world_checkout_root(
+    world: str,
+    *,
+    root: Optional[Path] = None,
+    current_world: Optional[str] = None,
+    env: Optional[Mapping[str, str]] = None,
+) -> Optional[Path]:
+    """Discover a world's code checkout without encoding this host's drive layout.
+
+    Order is explicit ``AKASHIC_<WORLD>_ROOT`` override, the current checkout when it
+    represents the requested world, then the Git primary checkout / conventional sibling
+    family. Invalid explicit overrides fail visibly as ``None`` instead of silently falling
+    back to a different body.
+    """
+    aliases = {"sandbox": "beta"}
+    world = aliases.get(str(world).strip().lower(), str(world).strip().lower())
+    if world not in {"prod", "beta", "alpha"}:
+        return None
+
+    env = os.environ if env is None else env
+    override = (env.get(f"AKASHIC_{world.upper()}_ROOT") or "").strip()
+    if override:
+        candidate = Path(override).resolve()
+        return candidate if _looks_like_root(candidate) else None
+
+    root = Path(root or repo_root()).resolve()
+    current_world = aliases.get(str(current_world or "").strip().lower(),
+                                str(current_world or "").strip().lower())
+    if current_world == world and _looks_like_root(root):
+        return root
+
+    bases = []
+    primary = _git_primary_root(root)
+    if primary is not None:
+        bases.append(_family_base(primary))
+    bases.append(_family_base(root))
+
+    suffix = {"prod": "", "beta": "-Beta", "alpha": "-Alpha"}[world]
+    seen = set()
+    for base in bases:
+        candidate = base if not suffix else base.with_name(base.name + suffix)
+        key = os.path.normcase(str(candidate))
+        if key in seen:
+            continue
+        seen.add(key)
+        if _looks_like_root(candidate):
+            return candidate.resolve()
+    return None
 
 
 def root_str() -> str:

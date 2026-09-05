@@ -11,7 +11,7 @@ It reports VERIFIABILITY, never quality, and it is a CENSUS rather than a gate -
 predictor has no business failing a commit until a human has hand-checked its false-positive
 rate. On the day it earns a threshold it can become a ratchet.
 
-Run against agent_cli.py on 2026-08-14 it came back clean, which disproved the prediction that
+Run against the CLI on 2026-08-14 it came back clean, which disproved the prediction that
 motivated building it -- see tests/test_w164_dawe_census.py::test_d8.
 """
 from __future__ import annotations

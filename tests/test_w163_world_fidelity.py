@@ -31,6 +31,7 @@ would be trusted. Each plane reports PRESENT, ABSENT or UNKNOWN, and UNKNOWN is 
 import pytest
 
 from core.coord import world_fidelity as F
+from scripts import world_fidelity as CLI
 
 
 def test_p1_every_declared_plane_is_reported_even_when_healthy():
@@ -169,3 +170,15 @@ def test_p15_an_unchecked_tracked_set_is_unknown_not_a_count_guess():
     row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99,
                                         head_sha="abc", source_dirty=0)}["file"]
     assert row.status == "unknown"
+
+
+def test_p16_the_production_checkout_is_the_source_not_its_own_lag(monkeypatch, tmp_path):
+    """Dirty production code is work in progress, never evidence that prod lags prod."""
+    calls = []
+    monkeypatch.setattr(
+        CLI,
+        "_git",
+        lambda repo, *args: calls.append((repo, args)) or " M changed.py",
+    )
+    assert CLI._source_dirty("prod", tmp_path) == 0
+    assert calls == [], "production source-drift must not inspect and compare the source to itself"

@@ -24,7 +24,7 @@ from core.primitives.epistemic import derive_epistemic_view
 SCHEMA = "orient.scene.v1"
 _DENSITY_NEARBY = {"compact": 1, "standard": 3, "wide": 4}
 _DEPTHS = {"surface", "evidence"}
-_TARGET_KINDS = {"verb", "seat", "thread"}
+_TARGET_TYPES = {"verb", "seat", "thread"}
 
 
 def _default_providers() -> Dict[str, Callable[..., Any]]:
@@ -46,7 +46,7 @@ def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
     kind, name = raw.split(":", 1)
     kind = kind.strip().lower().replace("-", "_")
     name = name.strip()
-    if kind not in _TARGET_KINDS:
+    if kind not in _TARGET_TYPES:
         raise ValueError(
             f"unsupported orient destination kind {kind!r}; use verb, seat, or thread"
         )

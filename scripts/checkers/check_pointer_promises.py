@@ -53,13 +53,10 @@ from pathlib import Path
 # itself and a green result named the wrong world. Found when a class rename verified clean in
 # alpha and the checker kept reporting the old name -- because it was reading prod. Third
 # instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
-try:
-    import sys as _sys
-    _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from core.paths import repo_root as _rr
-    ROOT = _rr()
-except Exception:
-    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from core.paths import repo_root as _rr
+ROOT = _rr()
 
 # Prose nouns that promise a CLASS of artifact, mapped to the filename/extension signature
 # that class actually has on disk. Keep this small: every entry is a maintenance liability,

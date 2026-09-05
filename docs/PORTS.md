@@ -30,6 +30,7 @@ this repo would ever have found it.
 
 | Port | World | Bound by | What | Owner |
 |------|-------|----------|------|-------|
+| **3080** | prod | external | Rill DSH web UI on loopback | `dsh web / core/fleet/seat_launchers.py` |
 | **8787** | prod | app | Bifrost live agent console | `scripts/bifrost_ui.py` |
 | **8788** | prod | app | RESERVED prod-aux -- NOT the console; do not bind | `(reserved)` |
 | **8888** | prod | container | the fleet's ONLY web-search door (loopback only) | `akashic-searxng / scripts/local/websearch.py` |
@@ -40,8 +41,8 @@ this repo would ever have found it.
 | **3000** | external | container | human chat front-end over the same ollama; no live repo refs | `ai-open-webui` |
 | **5000** | external | container | voice service; no live repo refs | `ai-voice` |
 | **5001** | external | container | voice service (second port) | `ai-voice` |
-| **8790** | beta | app | beta console (was: sandbox) | `E:/AI-Setup-Beta scripts/bifrost_ui.py` |
-| **8800** | alpha | app | alpha console | `E:/AI-Setup-Alpha scripts/bifrost_ui.py` |
+| **8790** | beta | app | beta console (was: sandbox) | `beta:scripts/bifrost_ui.py` |
+| **8800** | alpha | app | alpha console | `alpha:scripts/bifrost_ui.py` |
 | **16380** | beta | container | beta Redis, isolated from prod and alpha | `akashic-redis-beta` |
 | **16381** | alpha | container | alpha Redis, isolated from prod and beta | `akashic-redis-alpha` |
 

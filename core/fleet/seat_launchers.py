@@ -32,6 +32,8 @@ import sys
 from pathlib import Path as _P
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import PORT_DSH_WEB
+
 #: callsign / agent-id -> the seat it names. Both spellings resolve, because he says
 #: "rill" and the ledger says "dsh_agent" and neither is wrong.
 _ALIASES = {
@@ -53,7 +55,7 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         "seat": "dsh_agent",
         "callsign": "Rill",
         "kind": "dsh",
-        "url": "http://127.0.0.1:3080",
+        "url": f"http://127.0.0.1:{PORT_DSH_WEB}",
         # EXECUTED 2026-08-24: killed pid 49696, confirmed no dsh/cordis process remained,
         # ran this lever, pid 52292 came up with observeOnly=false and dsh_agent returned
         # to bus presence at 22:32:19Z. (I wrote this field BEFORE running the drill, which

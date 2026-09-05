@@ -59,6 +59,7 @@ REDIS_DOCKER_PORT = 16379
 PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py). CANONICAL.
 PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
 PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
+PORT_DSH_WEB = 3080         # Rill's DSH web UI (external CLI, launched by the fleet lever).
 
 # --- BETA (879x) -- E:\AI-Setup-Beta, longer-form integration; prod's waiting room ---
 # Renamed from SANDBOX 2026-08-14 (W156). Same band, same ports, new name: the world
@@ -106,18 +107,21 @@ PORT_REGISTRY = {
     PORT_MCP_HTTP:      {"world": "prod",     "bound_by": "app",
                          "what": "MCP HTTP mode (stdio is the default, so usually silent)",
                          "owner": "ai_setup_mcp.py"},
+    PORT_DSH_WEB:       {"world": "prod",     "bound_by": "external",
+                         "what": "Rill DSH web UI on loopback",
+                         "owner": "dsh web / core/fleet/seat_launchers.py"},
     REDIS_PORT:         {"world": "prod",     "bound_by": "container",
                          "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
                          "owner": "akashic-redis"},
     PORT_UI_BETA:       {"world": "beta",     "bound_by": "app",
                          "what": "beta console (was: sandbox)",
-                         "owner": "E:/AI-Setup-Beta scripts/bifrost_ui.py"},
+                         "owner": "beta:scripts/bifrost_ui.py"},
     REDIS_PORT_BETA:    {"world": "beta",     "bound_by": "container",
                          "what": "beta Redis, isolated from prod and alpha",
                          "owner": "akashic-redis-beta"},
     PORT_UI_ALPHA:      {"world": "alpha",    "bound_by": "app",
                          "what": "alpha console",
-                         "owner": "E:/AI-Setup-Alpha scripts/bifrost_ui.py"},
+                         "owner": "alpha:scripts/bifrost_ui.py"},
     REDIS_PORT_ALPHA:   {"world": "alpha",    "bound_by": "container",
                          "what": "alpha Redis, isolated from prod and beta",
                          "owner": "akashic-redis-alpha"},

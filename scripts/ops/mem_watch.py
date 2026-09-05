@@ -27,6 +27,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 try:
     import psutil
@@ -34,7 +35,7 @@ except ImportError:  # pragma: no cover - environment guard
     print("mem_watch: psutil is required (py -m pip install psutil)", file=sys.stderr)
     raise SystemExit(2)
 
-DEFAULT_LOG = r"E:\AI-Setup\state\mem-watch\mem_watch.jsonl"
+DEFAULT_LOG = str(Path(__file__).resolve().parents[2] / "state" / "mem-watch" / "mem_watch.jsonl")
 
 # Processes whose RSS is OS memory ACCOUNTING, not consumption. MemCompression's
 # working set IS other processes' compressed pages: it grows when Windows is SAVING

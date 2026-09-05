@@ -35,7 +35,7 @@ EVENT_SCHEMA = "college.event.v1"
 ROOT_ENV = "AURORA_COLLEGE_ROOT"
 ZERO_HASH = "0" * 64
 
-SOURCE_KINDS = ("primary", "secondary", "measurement", "analysis")
+SOURCE_TYPES = ("primary", "secondary", "measurement", "analysis")
 SOURCE_STATUSES = ("candidate", "retrieved", "verified", "rejected")
 CLAIM_SPECIES = (
     "mechanism",
@@ -500,8 +500,8 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
                 source_id = _ident(data, "source_id")
                 source_kind = _text(data, "source_kind", limit=40)
                 status = _text(data, "status", limit=40)
-                if source_kind not in SOURCE_KINDS:
-                    raise CollegeError(f"source_kind must be one of {SOURCE_KINDS}")
+                if source_kind not in SOURCE_TYPES:
+                    raise CollegeError(f"source_kind must be one of {SOURCE_TYPES}")
                 if status not in SOURCE_STATUSES:
                     raise CollegeError(f"status must be one of {SOURCE_STATUSES}")
                 receipt = _text(data, "receipt", limit=20_000, required=False)

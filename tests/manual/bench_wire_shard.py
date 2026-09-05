@@ -18,8 +18,9 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
-sys.path.insert(0, r"E:\AI-Setup")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts.wire_journal import WireJournal  # noqa: E402
 
 THREADS = 20

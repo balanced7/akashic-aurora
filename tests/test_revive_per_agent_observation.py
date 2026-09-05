@@ -22,12 +22,20 @@ Run: py -m pytest tests/test_revive_per_agent_observation.py -q
 import os
 import sys
 import time
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
-DAEMON = "python E:/AI-Setup/scripts/bifrost_daemon.py --agent {a} --spawn-runner"
-RUNNER = "python E:/AI-Setup/scripts/bifrost_runner_deepseek.py --agent {a} --agentic --allow-write --allow-exec"
-GATEWAY = "python E:/AI-Setup/scripts/bifrost_runner_discord.py"
+DAEMON = (
+    f"{sys.executable} {(ROOT / 'scripts' / 'bifrost_daemon.py').as_posix()} "
+    "--agent {a} --spawn-runner"
+)
+RUNNER = (
+    f"{sys.executable} {(ROOT / 'scripts' / 'bifrost_runner_deepseek.py').as_posix()} "
+    "--agent {a} --agentic --allow-write --allow-exec"
+)
+GATEWAY = f"{sys.executable} {(ROOT / 'scripts' / 'bifrost_runner_discord.py').as_posix()}"
 
 
 def _observe(cmdlines):
@@ -62,8 +70,7 @@ def test_all_daemons_present_is_healthy():
     # roster grew 2026-09-03 (S1): claude's manage-listener daemon is now a rung,
     # so "all present" includes it -- fixture premise updated, assertion unchanged.
     out = _observe([DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"),
-                    "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py "
-                    "--agent claude --manage-listener",
+                    DAEMON.format(a="claude").replace("--spawn-runner", "--manage-listener"),
                     RUNNER.format(a="deepseek"), RUNNER.format(a="kimi"), GATEWAY])
     assert out["daemon"]["healthy"], out["daemon"]["detail"]
     assert out["runners"]["healthy"], out["runners"]["detail"]

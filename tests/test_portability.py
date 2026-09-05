@@ -29,7 +29,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.paths import env_override_is_wrong, repo_root  # noqa: E402
+from core.paths import env_override_is_wrong, repo_root, world_checkout_root  # noqa: E402
 
 ROOT = repo_root()
 
@@ -102,6 +102,38 @@ def test_p2_a_wrong_env_override_is_reported_not_silently_ignored(monkeypatch):
     monkeypatch.setenv("AI_SETUP", "Z:/definitely/not/here")
     assert env_override_is_wrong(), "a bogus AI_SETUP produced no diagnosis"
     assert (repo_root() / "agent_cli.py").exists(), "bogus AI_SETUP broke root derivation"
+
+
+def _mark_repo(path):
+    path.mkdir(parents=True)
+    (path / "agent_cli.py").write_text("# marker\n", encoding="utf-8")
+    (path / "core").mkdir()
+
+
+def test_p2b_world_checkout_paths_derive_from_the_clone_family(tmp_path):
+    """A twin can find its source without knowing this host's drive or username."""
+    prod = tmp_path / "Aurora"
+    alpha = tmp_path / "Aurora-Alpha"
+    beta = tmp_path / "Aurora-Beta"
+    for candidate in (prod, alpha, beta):
+        _mark_repo(candidate)
+
+    assert world_checkout_root("prod", root=alpha, current_world="alpha", env={}) == prod
+    assert world_checkout_root("beta", root=alpha, current_world="alpha", env={}) == beta
+    assert world_checkout_root("alpha", root=alpha, current_world="alpha", env={}) == alpha
+
+
+def test_p2c_world_checkout_override_is_explicit_and_must_be_a_repo(tmp_path):
+    current = tmp_path / "unconventional-worktree"
+    explicit = tmp_path / "production-body"
+    _mark_repo(current)
+    _mark_repo(explicit)
+
+    env = {"AKASHIC_PROD_ROOT": str(explicit)}
+    assert world_checkout_root("prod", root=current, current_world="alpha", env=env) == explicit
+    assert world_checkout_root(
+        "prod", root=current, current_world="alpha", env={"AKASHIC_PROD_ROOT": str(tmp_path / 'missing')}
+    ) is None
 
 
 # Files whose absolute paths are INERT FIXTURE DATA -- command strings and arguments fed to a

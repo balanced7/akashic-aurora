@@ -9,8 +9,8 @@ param(
     [string]$SourceThreadId,
 
     [string]$RepoRoot = '',
-    [string]$RuntimeConfigRoot = 'E:\AI-Setup',
-    [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
+    [string]$RuntimeConfigRoot = '',
+    [string]$PythonExe = '',
     [string]$GatewayTaskName = 'AkashicAurora-DiscordGateway',
     [Alias('LegacyGatewayWatchdogTaskName')]
     [string]$GatewayWatchdogTaskName = 'AkashicAurora-EarWatchdog',
@@ -29,6 +29,23 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+
+# A normal clone is self-contained. A persistent deployment worktree may opt in
+# to a separate host-owned credentials/ACL root, but that relationship must be
+# explicit at install time rather than encoded as this machine's drive layout.
+if ([string]::IsNullOrWhiteSpace($RuntimeConfigRoot)) {
+    $RuntimeConfigRoot = $resolvedRoot
+}
+if ([string]::IsNullOrWhiteSpace($PythonExe)) {
+    $pythonCommand = Get-Command 'py.exe' -CommandType Application -ErrorAction SilentlyContinue
+    if (-not $pythonCommand) {
+        $pythonCommand = Get-Command 'python.exe' -CommandType Application -ErrorAction SilentlyContinue
+    }
+    if (-not $pythonCommand) {
+        throw 'No Python launcher found. Pass -PythonExe with an explicit interpreter path.'
+    }
+    $PythonExe = $pythonCommand.Source
+}
 $resolvedRuntimeConfigRoot = (Resolve-Path -LiteralPath $RuntimeConfigRoot).Path
 $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
 $resolvedSchtasks = (Get-Command 'schtasks.exe' -CommandType Application -ErrorAction Stop).Source

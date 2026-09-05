@@ -179,7 +179,7 @@ def evidence_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
     want = set(planes)
     # Gather EVERYTHING first, grouped by file, then sample. Capping during the walk keeps
     # whatever sorts first, which is truncation rather than sampling -- measured: 'open' at
-    # cap 120 reached the fan as 26 of 163 files with agent_cli.py supplying 47 of them, so
+    # cap 120 reached the fan as 26 of 163 files, with the CLI supplying 47 of them, so
     # the honest answer to that sample was "it means opening a file".
     per_file: Dict[str, List[Dict[str, Any]]] = {}
     for path, text in files:
