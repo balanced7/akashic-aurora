@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 3e6beede. A bound you discover by collision is not awareness -- this sheet
+> Derived at 4c88a2f3. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (256 names)
+## Configuration flags (257 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +31 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +32 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -84,6 +84,7 @@ Class: reference
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py |
 | `AKASHIC_MAILBOX` | `"1"` | core/comm/mailbox.py |
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py |
+| `AKASHIC_OPERATOR_ID` | `` | core/comm/operator_reply.py |
 | `AKASHIC_OPERATOR_IDS` | `OPERATOR_IDS_DEFAULT` | core/comm/conductor_gate.py, scripts/bifrost_wake.py |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py |
 | `AKASHIC_PLAN_RECALL` | `"1"` | agent/harness/actions.py, scripts/hooks/claude_userpromptsubmit.py |
@@ -174,7 +175,7 @@ Class: reference
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +4 |
+| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +5 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |
 | `DEEPSEEK_API_KEY` | `` | core/comm/ask.py, scripts/ask_deepseek.py, scripts/deepseek_chat.py |
@@ -270,7 +271,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (161 numeric constants)
+## Mechanical bounds (162 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -414,6 +415,7 @@ Class: reference
 | `_CTX_FLOOR` | 32,000 | core/fleet/caller.py |  |
 | `_DEFAULT_BUDGET_LINES` | 12 | agent/harness/context.py | W6; AKASHIC_WHISPER_LINES overrides (R6) |
 | `_DONE_CAP` | 8,192 | core/comm/packet_spec.py |  |
+| `_FAILURE_WINDOW_S` | 120 | core/comm/operator_reply.py |  |
 | `_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION` | 9 | scripts/run_job.py |  |
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
 | `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |
