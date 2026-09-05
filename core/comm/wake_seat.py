@@ -23,6 +23,7 @@ import json
 import os
 import re
 import subprocess
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import tempfile
 import time
 from typing import Callable, Dict, List, Optional, Tuple
@@ -92,7 +93,7 @@ def _pid_alive_tristate(pid: int) -> Optional[bool]:
     try:
         out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                              capture_output=True, text=True, timeout=6,
-                             stdin=subprocess.DEVNULL)
+                             stdin=subprocess.DEVNULL, creationflags=_NO_WINDOW)
         if out.returncode != 0:
             return None                    # the probe failed: cannot tell
         return str(pid) in (out.stdout or "")
@@ -277,7 +278,8 @@ def process_snapshot(timeout_s: int = 10) -> Optional[Dict[int, Dict]]:
             ["powershell", "-NoProfile", "-NonInteractive", "-Command",
              "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,"
              "Name,CommandLine,CreationDate | ConvertTo-Json -Compress"],
-            capture_output=True, text=True, timeout=timeout_s).stdout
+            capture_output=True, text=True, timeout=timeout_s,
+            creationflags=_NO_WINDOW).stdout
         rows = json.loads(out)
         if isinstance(rows, dict):
             rows = [rows]
@@ -351,7 +353,7 @@ def taskkill(pid: int) -> bool:
     False so the next pass retries with evidence intact."""
     try:
         r = subprocess.run(["taskkill", "/PID", str(pid), "/F"],
-                           capture_output=True, timeout=5)
+                           capture_output=True, timeout=5, creationflags=_NO_WINDOW)
         return r.returncode == 0
     except Exception:
         return False

@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -71,7 +72,7 @@ def _procs() -> List[str]:
     try:
         r = subprocess.run(["tasklist", "/FO", "CSV", "/V"], capture_output=True,
                            text=True, timeout=20, encoding="utf-8",
-                           errors="replace")
+                           errors="replace", creationflags=_NO_WINDOW)
         return (r.stdout or "").splitlines()
     except Exception:                                                   # noqa: BLE001
         return []
@@ -97,7 +98,7 @@ def _cmdlines() -> Optional[str]:
              "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
              "| Select-Object -ExpandProperty CommandLine"],
             capture_output=True, text=True, timeout=25, encoding="utf-8",
-            errors="replace")
+            errors="replace", creationflags=_NO_WINDOW)
         if r.returncode != 0:
             return None          # the shell failed: we did not learn anything
         return r.stdout or ""
@@ -344,7 +345,7 @@ def _heal_step(step: Dict[str, Any]) -> bool:
             return _heal_app(step)
         if kind == "docker-start":
             r = subprocess.run(step["cmd"], capture_output=True, text=True,
-                               timeout=60)
+                               timeout=60, creationflags=_NO_WINDOW)
             return r.returncode == 0
         if kind == "detached-spawn":
             os.makedirs(os.path.join(ROOT, "state", "logs"), exist_ok=True)

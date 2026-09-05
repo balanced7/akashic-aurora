@@ -21,6 +21,22 @@ Two modes:
 
 Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.py). OpenAI-compatible.
 """
+
+# --- windowless (2026-09-05 fleet cmd-spam fix): load the tree's console-suppression
+# in-process so every subprocess (git presence/heartbeat, etc.) this process or its
+# children spawn is CREATE_NO_WINDOW. Does NOT depend on PYTHONPATH being wired into the
+# launch env -- that missing wiring was the original gap. Idempotent; honors
+# AKASHIC_SHOW_CONSOLES (the sitecustomize's own escape hatch). ---
+import os as _os, sys as _sys
+_qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
+if _os.path.isdir(_qd):
+    if _qd not in _sys.path:
+        _sys.path.insert(0, _qd)
+    try:
+        import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
+    except Exception:
+        pass
+
 import argparse
 import json
 import os
