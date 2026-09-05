@@ -45,6 +45,7 @@ _DOOR_CAP_REQUIREMENTS: Dict[str, Dict[str, Tuple[str, ...]]] = {
 # unknown requirement: it was checked, and no subject capability gate exists.
 _OPEN_READ_DOORS: Dict[str, Tuple[str, ...]] = {
     "sweep": ("cli", "mcp", "toolbox"),
+    "glance": ("cli", "mcp", "toolbox"),
     "orient": ("cli", "mcp", "toolbox"),
     "shadow": ("cli", "mcp", "toolbox"),
     "ground": ("cli", "mcp", "toolbox"),
@@ -175,6 +176,20 @@ def _expected_doors(classification: Optional[str]) -> Tuple[str, ...]:
     }.get(str(classification or ""), ())
 
 
+def _cli_handlers(parser: argparse.ArgumentParser) -> Tuple[Any, ...]:
+    """All callable dispatch leaves beneath one CLI parser, preserving order."""
+    handlers: List[Any] = []
+    direct = parser.get_default("fn")
+    if callable(direct):
+        handlers.append(direct)
+    for action in parser._actions:
+        if not isinstance(action, argparse._SubParsersAction):
+            continue
+        for child in action.choices.values():
+            handlers.extend(_cli_handlers(child))
+    return tuple(dict.fromkeys(handlers))
+
+
 def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, str]]:
     errors: Dict[str, str] = {}
     out: Dict[str, Any] = {}
@@ -189,9 +204,11 @@ def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any],
             subs = next(a for a in parser._actions
                         if isinstance(a, argparse._SubParsersAction))
             choice = next((p for raw, p in subs.choices.items() if _norm(raw) == cli_row["address"]), None)
-            fn = choice.get_default("fn") if choice is not None else None
-            cli_row["wired"] = callable(fn)
-            cli_row["handler"] = getattr(fn, "__name__", "") if callable(fn) else ""
+            handlers = _cli_handlers(choice) if choice is not None else ()
+            cli_row["wired"] = bool(handlers)
+            cli_row["handler"] = ",".join(
+                getattr(handler, "__name__", "") for handler in handlers
+            )
         except Exception as exc:
             errors["cli"] = f"{type(exc).__name__}: {exc}"
     out["cli"] = cli_row

@@ -56,6 +56,23 @@ def test_sweep_grounding_keeps_the_six_evidence_rungs_distinct():
     assert rungs["proven"]["state"] == "unknown"
 
 
+def test_nested_read_only_cli_group_is_wired_and_open():
+    """``glance program`` has its handler on a leaf parser, not the group parser."""
+    from core.coord.ground import ground
+
+    rungs = _rungs(ground("verb:glance", subject="sol"))
+    cli = rungs["wired"]["details"]["doors"]["cli"]
+
+    assert rungs["wired"]["state"] == "observed"
+    assert cli["wired"] is True
+    assert "cmd_glance" in cli["handler"]
+    assert rungs["authorized"]["state"] == "observed"
+    assert all(
+        row["state"] == "observed"
+        for row in rungs["authorized"]["details"]["doors"].values()
+    )
+
+
 def test_effective_grant_can_refuse_without_erasing_door_presence():
     from core.coord.ground import ground
 
