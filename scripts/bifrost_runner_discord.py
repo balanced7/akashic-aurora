@@ -179,6 +179,11 @@ def _heartbeat_seconds() -> float:
 HEARTBEAT_S = _heartbeat_seconds()
 
 
+def _event_loop_is_stale(*, last_beat: float, now: float, ttl: float) -> bool:
+    """True only after two existing readiness TTLs without an asyncio beat."""
+    return max(0.0, float(now) - float(last_beat)) > (2.0 * float(ttl))
+
+
 def gateway_log_path():
     """Where the gateway's own words go, so they outlive whatever launched it. 2026-08-19: a
     harness wrapper exited 127 while the detached service kept serving, and its stdout went
@@ -327,6 +332,27 @@ def main() -> int:
               f"the daemon lock -- exiting 2 (singleton guard, dc6200d491)", flush=True)
         return 2
     atexit.register(_dlock.release)
+
+    from core.comm import gateway_readiness as _gateway_readiness
+    from core.world import current as _current_world
+
+    _gateway_pid = os.getpid()
+    _gateway_generation = f"{_gateway_pid}-{time.time_ns()}"
+    _gateway_world = _current_world().name
+    _last_event_loop_beat = [time.monotonic()]
+
+    def _publish_readiness(ready: bool, detail: str) -> None:
+        _gateway_readiness.publish(
+            bus._client,
+            bus.ns,
+            pid=_gateway_pid,
+            generation=_gateway_generation,
+            ready=ready,
+            world=_gateway_world,
+            detail=detail,
+        )
+
+    _publish_readiness(False, "gateway starting; Discord on_ready not observed")
 
     def _spawn(task: str, mode: str = "default"):
         """!spawn's lever: a fresh claude session, detached, logging to its own file.
@@ -649,6 +675,22 @@ def main() -> int:
                 or f"{os.getpid()}-discord")
         while True:
             time.sleep(HEARTBEAT_S)
+            if _event_loop_is_stale(
+                last_beat=_last_event_loop_beat[0],
+                now=time.monotonic(),
+                ttl=_gateway_readiness.READINESS_TTL,
+            ):
+                # The beat thread is intentionally independent of asyncio: if the
+                # event loop wedges, this remains able to confess and relinquish the
+                # process. The one-minute task nudge owns replacement; this process
+                # never detaches a successor or guesses at another PID.
+                _publish_readiness(False, "Discord event loop stopped progressing")
+                print(
+                    "[discord-in] SELF-EXIT: Discord event loop missed two readiness "
+                    "TTLs; the scheduler watchdog owns recovery",
+                    flush=True,
+                )
+                os._exit(75)
             beat(wl)
             # dc6200d491: refresh the singleton lock on the same tick as the worklive
             # beat -- a twin that raced in and lost acquire() must keep losing for as
@@ -673,6 +715,17 @@ def main() -> int:
     intents.guild_messages = True
     intents.message_content = True
     client = discord.Client(intents=intents)
+
+    async def _readiness_loop():
+        """Beat from the socket's event loop, never from the process heartbeat."""
+        while not client.is_closed():
+            _last_event_loop_beat[0] = time.monotonic()
+            ready = bool(client.is_ready())
+            _publish_readiness(
+                ready,
+                "Discord event loop ready" if ready else "Discord reconnecting",
+            )
+            await asyncio.sleep(HEARTBEAT_S)
 
     def _revive(target, observe_only, message):
         """The R3-amendment lever (T382): run the reconciler and speak its
@@ -830,6 +883,8 @@ def main() -> int:
 
     @client.event
     async def on_ready():
+        _last_event_loop_beat[0] = time.monotonic()
+        _publish_readiness(True, f"Discord on_ready as {client.user}")
         print(f"[discord-in] listening as {client.user} -- R1 allowlist is one id; "
               f"everyone else is weather", flush=True)
         beat(wl, RESTING_PHASE, f"listening as {client.user}")
@@ -850,12 +905,26 @@ def main() -> int:
         if not getattr(client, "_guest_loop_started", False):
             client._guest_loop_started = True
             asyncio.create_task(_guest_reply_loop())
+        if not getattr(client, "_readiness_loop_started", False):
+            client._readiness_loop_started = True
+            asyncio.create_task(_readiness_loop())
+
+    @client.event
+    async def on_disconnect():
+        _last_event_loop_beat[0] = time.monotonic()
+        _publish_readiness(False, "Discord disconnected; client reconnecting")
+
+    @client.event
+    async def on_resumed():
+        _last_event_loop_beat[0] = time.monotonic()
+        _publish_readiness(True, "Discord session resumed")
 
     @client.event
     async def on_message(message):
         # gateway-side echo-guard: the feed's own webhook posts land here too.
         if message.author.bot or message.webhook_id:
             return
+        _last_event_loop_beat[0] = time.monotonic()
         # raw content carries mention TOKENS (<@&roleid>); translate them to the
         # readable @Name before the words ride the bus — verbatim in spirit, not
         # in snowflakes.
@@ -995,7 +1064,10 @@ def main() -> int:
     _handler = _logging.StreamHandler(sys.stderr)
     _handler.setFormatter(_logging.Formatter(
         "[discord-lib] %(asctime)s %(levelname)s %(name)s: %(message)s"))
-    client.run(token, log_handler=_handler, log_level=_logging.INFO)
+    try:
+        client.run(token, log_handler=_handler, log_level=_logging.INFO)
+    finally:
+        _publish_readiness(False, "Discord client stopped")
     return 0
 
 
