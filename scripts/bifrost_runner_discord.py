@@ -243,6 +243,28 @@ class Tee:
             return False
 
 
+async def _relay_direct_notices(message, out) -> None:
+    """Deliver policy replies that do not need a seat or bus round-trip.
+
+    The pure inbound layer returns both help text and the load-bearing cold-seat
+    explanation. Keeping either value only in ``out`` is silent from Discord's
+    point of view, so this socket-owned helper gives both the same bounded,
+    fail-soft delivery path.
+    """
+    for key, label in (("help", "help"), ("cold_seat", "cold-seat notice")):
+        notice = out.get(key)
+        if not notice:
+            continue
+        try:
+            await message.reply(str(notice)[:1900], mention_author=False)
+        except Exception as exc:                                       # noqa: BLE001
+            print(
+                f"[discord-in] {label} UNDELIVERABLE "
+                f"({type(exc).__name__}: {exc}) -- it stands in this log only",
+                flush=True,
+            )
+
+
 def _token() -> str:
     v = os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
     if v and v.strip():
@@ -904,15 +926,9 @@ def main() -> int:
             except Exception:                                           # noqa: BLE001
                 print("[discord-in] heard (bus accepted) but the receipt reaction failed "
                       "-- delivery stands, the checkmark does not", flush=True)
-        # !help rides back to the channel directly -- its whole job is to answer the
-        # operator at the keyboard, no bus round-trip, no seat in the middle. Relay
-        # best-effort (Discord 2000-char limit: the table is short, but clip guard anyway).
-        if out.get("help"):
-            try:
-                await message.reply(out["help"][:1900], mention_author=False)
-            except Exception as e:                                      # noqa: BLE001
-                print(f"[discord-in] help UNDELIVERABLE ({type(e).__name__}: {e}) -- "
-                      f"it stands in this log only", flush=True)
+        # Socket-local answers need no seat or bus round-trip. This includes !help and
+        # the more important "landed, but nobody is home" explanation.
+        await _relay_direct_notices(message, out)
         beat(wl, RESTING_PHASE, "idle")
         if out.get("spawned"):
             try:
