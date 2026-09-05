@@ -46,11 +46,15 @@ the whole point (an old design note read as current truth is how a project stops
 - [ROADMAP.md](ROADMAP.md) — the layered plan + sequenced next steps.
 - [VOICE.md](VOICE.md) — the rules for anything the project says publicly.
 - [FSQ.md](FSQ.md) — frequently anticipated skeptical questions (honest answers).
+- [THE-STRING-THROUGH-THE-FOREST.md](THE-STRING-THROUGH-THE-FOREST.md) — draft,
+  evidence-bounded narrative of the system's human and technical origin.
 
 **Operations (how to run/fix it)**
 - [DEPLOY.md](DEPLOY.md) · [SERVICES.md](SERVICES.md) · [GPU.md](GPU.md) ·
   [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [BACKUP_AND_RECOVERY.md](BACKUP_AND_RECOVERY.md) ·
-  [DSH_INTEGRATION.md](DSH_INTEGRATION.md) — DeepSeek Harness catch-up runbook for any Aurora instance (portability doctrine + installer + receipts).
+  [DSH_INTEGRATION.md](DSH_INTEGRATION.md) — DeepSeek Harness catch-up runbook for any Aurora instance (portability doctrine + installer + receipts) ·
+  [CODEX_INTEGRATION.md](CODEX_INTEGRATION.md) — Codex Desktop, Discord continuity,
+  permissions, wake lifecycle, and live-versus-synthetic acceptance receipts.
 
 **Living ledgers & constraints (maintained, current)**
 - [LIVE_CONSTRAINTS.md](LIVE_CONSTRAINTS.md) — the break-you rules, rendered into every boot ·

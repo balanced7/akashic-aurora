@@ -66,6 +66,31 @@ HARNESSES = {
                   "session close",
         },
     },
+    "codex-desktop": {
+        "default_agent_id": "sol",
+        "adapters": "agent/harness/hooks/codex_*.py via scripts/hooks/codex_*.py; "
+                    "Codex user + repo hook definitions are atomically deduplicated; "
+                    "agent/harness/codex_app_server.py owns one Windows stdio child/reader; "
+                    "scripts/codex_bifrost_wake.py is the bounded Bifrost turn starter",
+        "wake": "armed -- private future-only direct-stream watermark, dsh_agent allowlist, "
+                "zero-model idle + supervised Windows process observed 2026-08-26; the first "
+                "eligible paid turn and causally linked reply remain unobserved",
+        "tiers": {
+            "T0": "yes -- shell/unified exec + user-scoped akashic-aurora MCP door",
+            "T1": "yes -- event session binding first, AKASHIC_AGENT_ID=sol fallback; "
+                  "subject label is emitted on every injected context",
+            "T2": "pending -- Codex-native SessionStart identity+boot fold is configured and "
+                  "synthetically pinned; fresh trusted-session live receipt still required",
+            "T3": "pending -- canonical apply_patch/Bash PreToolUse translation is configured "
+                  "and synthetically pinned; live payload + injection receipt still required",
+            "T4": "pending -- Codex-native PostToolUse uses the direct event (including nonzero "
+                  "Bash) without Claude transcript synthesis; first live flip remains unobserved",
+            "T5": "pending -- subject-labelled UserPromptSubmit plan recall is configured and "
+                  "synthetically pinned; fresh trusted-session injection remains unobserved",
+            "T6": "pending -- no Codex-native SessionEnd draft exists; Claude transcript parsing "
+                  "is deliberately not reused against Codex rollout JSONL",
+        },
+    },
     "cursor": {
         "default_agent_id": "composer",
         "adapters": "agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)",

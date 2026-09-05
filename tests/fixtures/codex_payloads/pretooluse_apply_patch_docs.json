@@ -1,0 +1,13 @@
+{
+  "session_id": "codex-docs-session",
+  "transcript_path": "C:/Temp/codex-rollout.jsonl",
+  "cwd": "E:/AI-Setup",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.6-sol",
+  "turn_id": "turn-1",
+  "tool_name": "apply_patch",
+  "tool_use_id": "call-patch-1",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Update File: agent/harness/registry.py\n@@\n-old\n+new\n*** Add File: tests/fixtures/codex_payloads/new.txt\n+new\n*** End Patch"
+  }
+}

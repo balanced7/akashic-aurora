@@ -114,6 +114,29 @@ TOOLS = [
         {"agent": {"type": "string", "description": "agent id (default: you)"}}),
     _fn("sweep", "Pure structured awareness for exactly one subject: bus depth/window, bench, routing attendance, and durable movement. Reads concurrently; advances no cursor and registers no presence.",
         {"agent": {"type": "string", "description": "subject (default: your bound identity)"}}),
+    _fn("glance", "Bounded WorldSnapshot program projection over the git-durable task ledger. Returns source-derived identities, per-row epistemic provenance, loud UNCHECKABLE organs, and optionally a compact operational brief with no identity authority.",
+        {"max_items": {"type": "integer", "minimum": 0,
+                       "description": "maximum task rows in the source snapshot (default 64)"},
+         "brief": {"type": "boolean",
+                   "description": "return the compact operational-orientation packet (default true)"}}),
+    _fn("orient", "Renderer-neutral VR/GPS scene over native read verbs: awareness, a typed focus, nearby landmarks, honest peripheral contours, and a return tether. Never guesses a destination or performs effects.",
+        {"target": {"type": "string", "description": "optional typed target: verb:<name>, seat:<your-id>, or thread:<ref>"},
+         "density": {"type": "string", "enum": ["compact", "standard", "wide"],
+                     "description": "nearby landmark density (default compact)"},
+         "depth": {"type": "string", "enum": ["surface", "evidence"],
+                   "description": "focus expansion (default surface)"},
+         "per_stream": {"type": "integer", "description": "thread archive cap per stream (default 1000)"}}),
+    _fn("shadow", "Deterministic zero-effect preview of one typed proposed ToolBox action. Shows target, fidelity, scope, proposed effects, cost, reversibility, authority, risk, commit requirement, and blindness; never executes the proposal.",
+        {"target": {"type": "string", "description": "typed action, e.g. toolbox:bifrost_nudge"},
+         "arguments": {"type": "object", "description": "the proposed action arguments"}},
+        ["target"]),
+    _fn("college", "Governed Unofficial College record: explicit source status, one immutable authored lecture, a different seat's typed claim audit, learner teach-back, and append-only errata. Performs no browsing or model calls. show is read-only; writes require kb.learn.",
+        {"action": {"type": "string",
+                    "enum": ["start", "source", "lecture", "audit", "teachback", "erratum", "show"],
+                    "description": "one record action"},
+         "course": {"type": "string", "description": "stable lowercase course id"},
+         "data": {"type": "object", "description": "action-specific fields; use {} for show"}},
+        ["action", "course"]),
     _fn("ground", "Typed, read-only grounding. verb:<name> returns the six-rung implementation ladder; seat:<your-id> with continuity=true returns bounded recovery evidence without inferring identity.",
         {"target": {"type": "string", "description": "typed target, e.g. verb:sweep or seat:sol"},
          "subject": {"type": "string", "description": "grant subject (default: your bound identity)"},
@@ -692,6 +715,73 @@ class ToolBox:
             raise ValueError("sweep subject is required")
         return json.dumps(build_snapshot(target).as_dict(), indent=2, default=str)
 
+    def glance(self, max_items=64, brief=True):
+        """Read the program projection for this ToolBox's bound workspace."""
+        import json
+        from core.context.world_snapshot import (
+            build_program_world_snapshot,
+            project_operational_brief,
+        )
+
+        snapshot = build_program_world_snapshot(
+            ledger_path=str(self.root / "state" / "coord" / "tasks.json"),
+            max_items=int(max_items),
+        )
+        payload = project_operational_brief(snapshot) if bool(brief) else snapshot
+        return json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":"), default=str
+        )
+
+    def orient(self, target="", density="compact", depth="surface", per_stream=1000):
+        """Compose native structured reads for this ToolBox's bound identity."""
+        import json
+        from core.coord.orient import build_orientation
+
+        who = str(self.agent_id or "").strip()
+        if not who:
+            raise ValueError("orient subject is required")
+        scene = build_orientation(
+            who, str(target or ""), density=str(density or "compact"),
+            depth=str(depth or "surface"), per_stream=int(per_stream or 1000),
+        )
+        return json.dumps(scene, ensure_ascii=False, separators=(",", ":"), default=str)
+
+    def shadow(self, target, arguments=None):
+        """Preview one proposed ToolBox action for this bound identity; never act."""
+        import json
+        from core.coord.intent_shadow import build_intent_shadow
+
+        who = str(self.agent_id or "").strip()
+        if not who:
+            raise ValueError("intent shadow subject is required")
+        result = build_intent_shadow(who, str(target or ""), dict(arguments or {}))
+        return json.dumps(result, ensure_ascii=False, separators=(",", ":"), default=str)
+
+    def college(self, action, course, data=None):
+        """Use the native College provider under this ToolBox's bound identity."""
+        import json
+        from core.library.college import run_college
+
+        who = str(self.agent_id or "").strip()
+        if not who:
+            raise ValueError("college actor is required")
+        normalized = str(action or "").strip().lower().replace("-", "_")
+        if normalized not in {"show", "status"}:
+            err = self._kb_write_ok()
+            if err:
+                return err
+        payload = data
+        if normalized in {"lecture", "seal_lecture"} and isinstance(data, dict) \
+                and data.get("path") is not None:
+            safe_path = self._resolve(str(data.get("path")), allow_dir=False)
+            if self._is_secret(safe_path):
+                raise ValueError("refusing to publish a secret/credential path as a lecture")
+            payload = dict(data)
+            payload["path"] = str(safe_path)
+        result = run_college(str(action or ""), str(course or ""), payload,
+                             actor=who)
+        return json.dumps(result, ensure_ascii=False, separators=(",", ":"), default=str)
+
     def ground(self, target, subject=None, continuity=False):
         """Native typed grounding for this ToolBox's bound identity."""
         import json
@@ -734,7 +824,7 @@ class ToolBox:
         return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
     # -- Bifrost bus doors (live only when this ToolBox has an agent identity, i.e. inside a runner) --
-    def _bus_send_ok(self, *, kind=None, need_cap=None):
+    def _bus_send_ok(self, *, action="bifrost_send", kind=None, need_cap=None):
         """Gate a ToolBox bus door on the SENDER's ACL -- the send-side complement to RB-1's
         receive-side fold gate (context_hints). The runner binds agent_id at construction, so
         this id is unforgeable per-call; deny-by-default is enforced at the door a real runner
@@ -743,21 +833,19 @@ class ToolBox:
         Checked BEFORE _bus() so a refusal never depends on Redis being up. Fail-open ONLY on a
         registry error -- never silently escalate a denied send into an allow (matches
         _kb_write_ok). Returns an ERROR string to short-circuit the door, or None to proceed."""
+        # Keep private-call compatibility while routing both previews and real
+        # actions through the same authority detector.
+        if need_cap and action == "bifrost_send":
+            action = {"BUS_NUDGE": "bifrost_nudge",
+                      "BUS_STEER": "bifrost_steer"}.get(need_cap, action)
         try:
-            from core.trust import registry
-            from core.trust.capabilities import Cap
-            g = registry.resolve(self.agent_id or "deepseek")
-            if need_cap is not None:
-                c = getattr(Cap, need_cap, None)
-                if c is not None and not g.has(c):
-                    return (f"ERROR: '{self.agent_id}' lacks the {c.value} capability (role={g.role}) -- "
-                            "this bus action is refused (deny-by-default). Ask a super-admin to grant it.")
-            if kind is not None and not g.can_send_kind(kind):
-                return (f"ERROR: '{self.agent_id}' (role={g.role}) may not send bus kind={kind!r} -- "
-                        "deny-by-default. Ask a super-admin to widen bus_send_kinds.")
+            from core.trust.action_authority import evaluate_toolbox_bus_action
+            decision = evaluate_toolbox_bus_action(
+                self.agent_id or "deepseek", str(action), {"kind": kind}
+            )
         except Exception:
-            pass   # registry glitch -> fall through to prior behavior; never block the live fleet
-        return None
+            return None
+        return decision.get("execution_error") or None
 
     def _bus(self):
         """This agent's Bus handle, or None when we have no bus identity / Redis is offline. Lazy so the
@@ -777,7 +865,7 @@ class ToolBox:
         """Send a message to a peer (e.g. 'claude') or broadcast ('*'/'all'). This is how I *initiate*
         contact on the bus, not just reply."""
         kind = kind if kind in ("chat", "note", "request", "handoff", "nudge", "hint") else "chat"
-        err = self._bus_send_ok(kind=kind)
+        err = self._bus_send_ok(action="bifrost_send", kind=kind)
         if err:
             return err
         b = self._bus()
@@ -914,7 +1002,7 @@ class ToolBox:
     def bifrost_nudge(self, to, text):
         """Nudge a specific peer: set its per-agent barge-in flag AND send a kind=nudge message, so it
         interrupts its current work at the next round boundary and looks at this now."""
-        err = self._bus_send_ok(kind="nudge", need_cap="BUS_NUDGE")
+        err = self._bus_send_ok(action="bifrost_nudge", kind="nudge")
         if err:
             return err
         b = self._bus()
@@ -944,7 +1032,7 @@ class ToolBox:
     def bifrost_steer(self, to, text):
         """Steer a specific peer WITHOUT interrupting it: queue a fact its runner folds into its CURRENT
         task between tool rounds. Use when a peer is working and should adjust course, not stop."""
-        err = self._bus_send_ok(kind="steer", need_cap="BUS_STEER")
+        err = self._bus_send_ok(action="bifrost_steer", kind="steer")
         if err:
             return err
         b = self._bus()
@@ -973,7 +1061,7 @@ class ToolBox:
 
     def bifrost_hint(self, to, key, value):
         """Send a compact context hint to a peer -- a key:value pair they fold into their next turn."""
-        err = self._bus_send_ok(kind="hint")
+        err = self._bus_send_ok(action="bifrost_hint", kind="hint")
         if err:
             return err
         b = self._bus()

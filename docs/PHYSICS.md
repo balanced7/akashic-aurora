@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 958f67e9. A bound you discover by collision is not awareness -- this sheet
+> Derived at 2275e15f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (258 names)
+## Configuration flags (260 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +32 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +33 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -40,8 +40,8 @@ Class: reference
 | `AKASHIC_BENCH_PROBE_MAX` | `"3"` | core/recall/at_action.py |
 | `AKASHIC_BIRTH_GUARD` | `""` | research/in-flight/t342/dead-modules/scripts__hooks__birth_guard.py, scripts/githooks/birth_guard.py |
 | `AKASHIC_BOOT_FULL` | `"0"` | agent_cli.py |
-| `AKASHIC_CALLSIGN_HINT` | `` | agent/harness/codex_bifrost_wake.py |
-| `AKASHIC_CALLSIGN_STATUS` | `` | agent/harness/codex_bifrost_wake.py |
+| `AKASHIC_CALLSIGN_HINT` | `` | agent/harness/codex_bifrost_wake.py, agent/harness/hooks/codex_common.py |
+| `AKASHIC_CALLSIGN_STATUS` | `` | agent/harness/codex_bifrost_wake.py, agent/harness/hooks/codex_common.py |
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CHAPTERS_FILE` | `` | scripts/corpus_digests.py |
@@ -70,6 +70,8 @@ Class: reference
 | `AKASHIC_FLOW_NO_COUNT` | `` | core/comm/flow_trace.py |
 | `AKASHIC_GATE_NO_CEILING` | `` | scripts/checkers/check_reconciliation_gate.py |
 | `AKASHIC_HEAL_VERBOSE` | `` | agent_cli.py |
+| `AKASHIC_IDENTITY_POINTER` | `` | agent/harness/hooks/codex_common.py |
+| `AKASHIC_IDENTITY_POINTER_SUBJECT` | `` | agent/harness/hooks/codex_common.py |
 | `AKASHIC_INCARNATION_TTL_MIN` | `"30"` | core/comm/incarnation.py |
 | `AKASHIC_JOB_ENFORCEMENT` | `` | scripts/run_job.py |
 | `AKASHIC_JOB_OBJECT_NAME` | `` | scripts/run_job.py |
@@ -93,11 +95,11 @@ Class: reference
 | `AKASHIC_PLAY_TIMEOUT_S` | `"30"` | core/toolbelt/play_sandbox.py |
 | `AKASHIC_PORTS_NO_DOCKER` | `` | scripts/checkers/check_ports.py |
 | `AKASHIC_PROPOSED_STALE_DAYS` | `stale_days` | core/coord/task_ledger.py |
-| `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/cursor_posttooluse.py +3 |
+| `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/codex_pretooluse.py +4 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +14 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +15 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_REDIS_HOST` | `"localhost"` | scripts/checkers/check_field_parity.py |

@@ -1,0 +1,17 @@
+{
+  "session_id": "codex-docs-session",
+  "transcript_path": "C:/Temp/codex-rollout.jsonl",
+  "cwd": "E:/AI-Setup",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-5.6-sol",
+  "turn_id": "turn-1",
+  "tool_name": "Bash",
+  "tool_use_id": "call-bash-1",
+  "tool_input": {
+    "command": "py -m pytest tests/test_missing.py -q"
+  },
+  "tool_response": {
+    "exit_code": 1,
+    "output": "ERROR: file or directory not found"
+  }
+}
