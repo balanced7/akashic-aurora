@@ -52,7 +52,7 @@ def test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace():
 
 
 # ------------------------------------------------------------------------ B1b
-def test_b1b_probe_isolation_contract_is_intact():
+def test_b1b_probe_isolation_contract_is_intact(monkeypatch):
     """The probe must write its boot into a throwaway store, never the fleet's.
 
     Pinned on the ENV rather than by observing the roster: under pytest, conftest
@@ -61,12 +61,17 @@ def test_b1b_probe_isolation_contract_is_intact():
     fails on a probe that is perfectly clean in production. Verified separately in a
     non-isolated shell: known_agents() before and after a probe is unchanged.
     """
+    monkeypatch.setenv("BIFROST_NAMESPACE", "bifrost")
     env = dp._probe_env("/tmp/door-probe-xyz")
     assert env["_AISETUP_TEST_ISOLATED"] == "1", (
         "B1b: the Redis isolation primitive is gone -- the probe's boot will register "
         "presence in canonical Redis and door-probe will appear in the fleet roster")
     assert env["AI_SETUP"] == "/tmp/door-probe-xyz", "B1b: file plane not redirected"
     assert env["AI_SETUP"] != str(dp.ROOT), "B1b: the probe is writing into the real repo"
+    assert env["BIFROST_NAMESPACE"] == "door-probe-door-probe-xyz", (
+        "B1b: the probe reused the persistent sandbox's shared namespace; old probe "
+        "seats will accumulate and make the latency gate scale with test history")
+    assert env["BIFROST_NAMESPACE"] != os.environ["BIFROST_NAMESPACE"]
 
 
 # ------------------------------------------------------------------------- B2
