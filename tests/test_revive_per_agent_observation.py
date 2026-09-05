@@ -21,6 +21,7 @@ Run: py -m pytest tests/test_revive_per_agent_observation.py -q
 """
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -84,10 +85,25 @@ def test_two_deepseek_runners_do_not_satisfy_a_missing_kimi():
     assert not out["runners"]["healthy"], out["runners"]["detail"]
 
 
-def test_gateway_unaffected():
-    """The gateway is a singleton with no --agent; its counting stays as it was."""
-    out = _observe([GATEWAY])
+def test_gateway_requires_its_own_ready_generation(monkeypatch):
+    """A command line is necessary, but it is no longer sufficient health proof."""
+    from core.comm import gateway_readiness
+
+    record = {
+        "pid": 4242,
+        "generation": "4242-test",
+        "ready": True,
+        "world": "prod",
+        "beat_ts": time.time(),
+        "code_sha": "test",
+        "detail": "discord on_ready",
+    }
+    monkeypatch.setattr(gateway_readiness, "read", lambda *a, **k: record)
+    out = _observe(["4242\t" + GATEWAY])
     assert out["gateway"]["healthy"]
+    monkeypatch.setattr(gateway_readiness, "read", lambda *a, **k: None)
+    out = _observe(["4242\t" + GATEWAY])
+    assert not out["gateway"]["healthy"]
     out2 = _observe([DAEMON.format(a="kimi")])
     assert not out2["gateway"]["healthy"]
 
