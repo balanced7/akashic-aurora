@@ -33,7 +33,8 @@ $resolvedPython = (Resolve-Path -LiteralPath $PythonExe).Path
 $daemonScript = Join-Path $resolvedRoot 'scripts\bifrost_daemon.py'
 $gatewayScript = Join-Path $resolvedRoot 'scripts\bifrost_runner_discord.py'
 $wakeScript = Join-Path $resolvedRoot 'scripts\codex_bifrost_wake.py'
-foreach ($requiredPath in @($daemonScript, $gatewayScript, $wakeScript)) {
+$serviceLauncher = Join-Path $resolvedRoot 'scripts\run_aurora_service.py'
+foreach ($requiredPath in @($daemonScript, $gatewayScript, $wakeScript, $serviceLauncher)) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Required Sunshine integration file is missing: $requiredPath"
     }
@@ -127,6 +128,8 @@ function ConvertTo-TaskArguments {
 }
 
 $fleetArguments = ConvertTo-TaskArguments @(
+    $serviceLauncher,
+    '--world', 'prod', '--',
     $daemonScript,
     '--agent', 'sol',
     '--spawn-runner',
@@ -137,8 +140,14 @@ $fleetArguments = ConvertTo-TaskArguments @(
     '--runner-arg=--ignore-source',
     '--runner-arg=discord'
 )
-$gatewayArguments = ConvertTo-TaskArguments @($gatewayScript)
+$gatewayArguments = ConvertTo-TaskArguments @(
+    $serviceLauncher,
+    '--world', 'prod', '--',
+    $gatewayScript
+)
 $discordArguments = ConvertTo-TaskArguments @(
+    $serviceLauncher,
+    '--world', 'prod', '--',
     $wakeScript,
     '--agent', 'sol',
     '--allow-from', 'daniil',
@@ -157,6 +166,8 @@ $discordArguments = ConvertTo-TaskArguments @(
 $gptNewDiscordArguments = $null
 if ($GptNewThreadId) {
     $gptNewDiscordArguments = ConvertTo-TaskArguments @(
+        $serviceLauncher,
+        '--world', 'prod', '--',
         $wakeScript,
         '--agent', 'gpt-new',
         '--allow-from', 'daniil',
@@ -260,4 +271,6 @@ if ($LegacyGatewayWatchdogTaskName -and
     GptNewStatePath = $(if ($gptNewDiscordArguments) { $gptNewStatePath } else { $null })
     GptNewEventPath = $(if ($gptNewDiscordArguments) { $gptNewEventPath } else { $null })
     RuntimeConfigRoot = $resolvedRuntimeConfigRoot
+    RuntimeWorld = 'prod'
+    ServiceLauncher = $serviceLauncher
 }

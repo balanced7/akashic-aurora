@@ -7,8 +7,11 @@ contract makes the service world explicit, visible, and earlier than every Auror
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -86,11 +89,32 @@ def test_p3_launcher_allows_only_named_service_scripts_under_its_repo(tmp_path):
 
 
 def test_p4_launcher_contract_names_the_resolved_world_and_endpoint():
-    launcher = _load_launcher()
-    observed = launcher.verify_world("prod")
-    assert observed["world"] == "prod"
-    assert observed["world_source"] == "override"
-    assert observed["redis_host"] == "localhost"
-    assert observed["redis_port"] == 16379
-    assert observed["redis_db"] == 0
-
+    env = dict(os.environ)
+    env.update(
+        {
+            "AKASHIC_WORLD": "alpha",
+            "REDIS_HOST": "foreign.example",
+            "REDIS_PORT": "16381",
+            "REDIS_DB": "15",
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(LAUNCHER),
+            "--world",
+            "prod",
+            "--",
+            str(ROOT / "scripts" / "codex_bifrost_wake.py"),
+            "--help",
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "world=prod source=override" in result.stdout
+    assert "redis=localhost:16379/0" in result.stdout
