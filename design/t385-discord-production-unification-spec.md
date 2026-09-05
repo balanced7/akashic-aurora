@@ -1,0 +1,101 @@
+# T385 Discord production unification — reconciled build specification
+
+Date: 2026-09-05  
+Owner: Sunshine (`sol`)  
+Operator ruling: "lets move the three seats from alpha to production, this should fix many of the bugs and reduce complexity. then lets fold in and unify the general improvements and finally get this thing rock solid, elegant and dependable"
+
+## Problem taxonomy
+
+This is a deployment-consistency and lifecycle-ownership failure, not primarily a
+Discord permission failure. On 2026-09-04 every named process could be alive while
+the route remained impossible: the Discord gateway and Sunshine watcher were connected
+to production Redis on port 16379, while the gpt-new watcher and Sunshine fleet
+daemon/runner were connected to alpha Redis on port 16381. The worktree's
+`.aurora-world` marker was created after one service had already started, so process
+restart order silently selected which services could hear each other.
+
+The governing distinction is:
+
+- **checkout world** protects ordinary work performed from a code worktree;
+- **service world** is an explicit deployment decision carried by every persistent
+  service launch and visible in its command line.
+
+Conflating those authorities caused the fracture. Changing the ignored worktree marker
+from alpha to prod would repair today's processes but make development commands from the
+worktree silently production-authoritative. The production tasks instead receive an
+explicit pre-import world pin through one launcher. The alpha marker remains a guard for
+ordinary worktree use.
+
+## Migration unit
+
+The three seat-facing Scheduled Tasks move as one unit:
+
+1. `AkashicAurora-SunshineDiscord` — Sunshine's bound Codex Discord ingress;
+2. `AkashicAurora-GptNewDiscord` — the distinct gpt-new bound Codex ingress;
+3. `AkashicAurora-SunshineFleet` — Sunshine's managed runner and outbound feed.
+
+`AkashicAurora-DiscordGateway` is not a seat, but it is part of the same causal route and
+must carry the identical production pin. A mixed gateway/seat migration is forbidden.
+
+## Invariants
+
+1. Every task above launches through `scripts/run_aurora_service.py --world prod -- ...`.
+2. The launcher sets `AKASHIC_WORLD` before importing any Aurora module, discards ambient
+   `REDIS_HOST`, `REDIS_PORT`, and `REDIS_DB`, and verifies that the resolved world and
+   foundation endpoint agree before executing the target in-process.
+3. The launcher accepts only the three service entry points used here
+   (`bifrost_runner_discord.py`, `bifrost_daemon.py`, and `codex_bifrost_wake.py`) under
+   the same repository root. It never invokes a shell.
+4. Task Scheduler owns exactly one instance of each persistent service. A live orphan is
+   not an acceptable substitute for a `Running` task with correct ancestry.
+5. The existing Sunshine and gpt-new state paths, continuity thread IDs, source thread
+   IDs, and `completed-history-fork` bindings remain byte-for-byte unchanged.
+6. This migration grants no new authority. Sunshine retains its already-authorized
+   guarded write/exec launch flags. gpt-new remains unregistered and read-only until a
+   separate operator-ratified identity and capability decision.
+7. The deployment branch incorporates the current master improvements before activation;
+   committed code and running code are reported as separate receipts.
+
+## Pre-registered acceptance
+
+- **P1 — launch structure:** a pin fails unless all four tasks use the world launcher and
+  carry `--world prod` before their target script.
+- **P2 — pre-import endpoint:** with ambient alpha and foreign Redis variables present,
+  the launcher resolves production and the foundation reports Redis 16379.
+- **P3 — target containment:** a target outside the repository or outside the explicit
+  service allowlist refuses before execution.
+- **P4 — continuity preservation:** the two state files retain their prior thread tuple
+  across reinstall and restart.
+- **P5 — live topology:** Task Scheduler reports all four tasks `Running`; each owned
+  process (and Sunshine's managed child) has scheduler ancestry and an established Redis
+  connection only to 16379. None of these processes remains connected to 16381.
+- **P6 — code generation:** running services load the deployment branch commit containing
+  the master fixes plus this slice; no old orphaned gateway remains.
+- **P7 — causal delivery:** a fresh ordinary Discord message in each bound seat channel
+  produces the exact chain Discord message ID -> production destination stream -> watcher
+  admission -> causal reply -> Discord API readback. Synthetic outbound posts are useful
+  probes but cannot satisfy this human-authored gate.
+- **P8 — authority:** gpt-new still lacks write/exec tools; Sunshine's authenticated
+  operator turn exposes only the already-governed capability surface.
+
+## Failure drills
+
+1. Start a second gateway against production: the singleton must refuse it without
+   disturbing the owned gateway.
+2. Terminate the exact owned gateway process (not a name-wide kill): Task Scheduler must
+   restart it and restore a production connection within the declared observation window.
+3. Restart each continuity task: its state-file hash and thread tuple must remain stable,
+   and it must reconnect to production without admitting a model turn.
+4. Present an out-of-tree target to the launcher: it must refuse without executing it.
+
+## Bounds and rollback
+
+The live human-authored P7 receipt requires Daniel to send the ordinary messages; until
+then the deployment may be described as production-aligned and synthetically exercised,
+not end-to-end accepted. Discord and Redis outages remain external failure modes and must
+render as such.
+
+Before task replacement, export the four Scheduled Task definitions and capture process,
+thread-binding, and endpoint baselines. Rollback restores those definitions and the prior
+deployment commit. The continuity state files are never deleted, rewritten, or rebound.
+
