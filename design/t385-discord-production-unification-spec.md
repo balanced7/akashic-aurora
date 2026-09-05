@@ -83,6 +83,9 @@ task; it may not launch a gateway process itself.
   probes but cannot satisfy this human-authored gate.
 - **P8 — authority:** gpt-new still lacks write/exec tools; Sunshine's authenticated
   operator turn exposes only the already-governed capability surface.
+- **P9 — visible cold state:** when the pure inbound policy returns a `cold_seat`
+  explanation, the gateway replies in the originating Discord channel. A diagnostic
+  retained only in the gateway process is not an operator-visible warning.
 
 ## Failure drills
 
