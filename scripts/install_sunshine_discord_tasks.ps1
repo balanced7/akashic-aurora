@@ -208,7 +208,7 @@ if ($GptNewThreadId) {
     if ($EnableGptNewWrite) {
         $gptNewCapabilityArguments += '--allow-write'
     }
-    $gptNewDiscordArguments = ConvertTo-TaskArguments @(
+    $gptNewArgumentValues = @(
         $serviceLauncher,
         '--world', 'prod', '--',
         $wakeScript,
@@ -220,10 +220,11 @@ if ($GptNewThreadId) {
         '--log-path', $gptNewEventPath,
         '--thread-id', $GptNewThreadId,
         '--source-thread-id', $GptNewSourceThreadId,
-        '--binding-kind', 'completed-history-fork',
-        $gptNewCapabilityArguments,
-        '--block-ms', '5000'
+        '--binding-kind', 'completed-history-fork'
     )
+    $gptNewArgumentValues += $gptNewCapabilityArguments
+    $gptNewArgumentValues += @('--block-ms', '5000')
+    $gptNewDiscordArguments = ConvertTo-TaskArguments $gptNewArgumentValues
 }
 
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User ([Security.Principal.WindowsIdentity]::GetCurrent().Name)

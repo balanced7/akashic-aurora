@@ -6,6 +6,7 @@ Address, room, thread, launch posture, and outbound identity must agree.
 """
 from __future__ import annotations
 
+import ctypes
 import inspect
 import json
 import os
@@ -210,13 +211,14 @@ def test_gpt_new_does_not_inherit_sunshines_exec_or_write_authority():
         encoding="utf-8"
     )
     block = re.search(
-        r"\$gptNewDiscordArguments = ConvertTo-TaskArguments @\((.*?)\n    \)",
+        r"\$gptNewArgumentValues = @\((.*?)\n    \)",
         installer,
         re.DOTALL,
     )
     assert block is not None
     assert "'--allow-exec'" not in block.group(1)
     assert "'--allow-write'" not in block.group(1)
+    assert "$gptNewArgumentValues += $gptNewCapabilityArguments" in installer
 
 
 def test_gpt_new_exec_and_write_require_separate_explicit_installer_opt_ins():
@@ -241,6 +243,62 @@ def test_gpt_new_exec_and_write_require_separate_explicit_installer_opt_ins():
         r"-not \$GptNewThreadId\)",
         installer,
     )
+
+
+def test_gpt_new_exec_and_write_render_as_distinct_windows_arguments():
+    if os.name != "nt":
+        return
+
+    installer = ROOT / "scripts" / "install_sunshine_discord_tasks.ps1"
+    command = f"""
+$ErrorActionPreference = 'Stop'
+. '{installer}' `
+  -ThreadId '00000000-0000-0000-0000-000000000001' `
+  -SourceThreadId '00000000-0000-0000-0000-000000000002' `
+  -GptNewThreadId '00000000-0000-0000-0000-000000000003' `
+  -GptNewSourceThreadId '00000000-0000-0000-0000-000000000002' `
+  -RepoRoot '{ROOT}' `
+  -RuntimeConfigRoot '{ROOT}' `
+  -PythonExe '{sys.executable}' `
+  -EnableGptNewExec -EnableGptNewWrite -OnlyGptNew -WhatIf
+Write-Output ('TASK_ARGS=' + $gptNewDiscordArguments)
+"""
+    run = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            command,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert run.returncode == 0, run.stdout + run.stderr
+    marker = next(
+        line for line in run.stdout.splitlines() if line.startswith("TASK_ARGS=")
+    )
+    task_arguments = marker.removeprefix("TASK_ARGS=")
+
+    argc = ctypes.c_int()
+    parse = ctypes.windll.shell32.CommandLineToArgvW
+    parse.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_int)]
+    parse.restype = ctypes.POINTER(ctypes.c_wchar_p)
+    argv = parse(task_arguments, ctypes.byref(argc))
+    assert argv
+    try:
+        rendered = [argv[index] for index in range(argc.value)]
+    finally:
+        ctypes.windll.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
+
+    assert rendered.count("--allow-exec") == 1
+    assert rendered.count("--allow-write") == 1
+    assert "--allow-exec --allow-write" not in rendered
+    assert rendered.index("--allow-exec") < rendered.index("--allow-write")
+    assert rendered.index("--allow-write") < rendered.index("--block-ms")
 
 
 def test_installer_can_update_only_neo_without_reregistering_shared_tasks():
