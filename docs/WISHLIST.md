@@ -1308,3 +1308,15 @@ design (deferred, "deserves fresh context") + this chronicle's cross-surface thr
 existing approaches; the wish names their union: one indexable mesh where the important
 memories are near, not far. Filed by claude same sitting as chronicle atom (see library:
 the-reduction-and-the-ratification).
+
+## 2026-09-06 — the soak board (from Daniil's fifth half, verbatim spec)
+> "its not that i have a guard up, i just don't assume something works until it demonstratable
+> works for a while. Its hard for me to see the progress often until we have been using
+> something for a while... That part makes it harder for me to see what we need to focus on
+> but I try nonetheless."
+The wish: an operator-facing surface where every organ shows AGE-IN-SERVICE x LIVE EXERCISES
+SURVIVED x TIME-SINCE-LAST-INCIDENT — trust rendered on the duration axis his trust actually
+runs on, instead of point-in-time receipts. Also mechanizes focus: short soak x high traffic =
+where attention belongs. Companion finding: his satisfying peeks are all DIACHRONIC (chronicles,
+walks, event-threading), so the soak board should read as a timeline, not a lamp. Filed by
+claude from the fifth-half conversation (see library: truthfulness fifth half).
