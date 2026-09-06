@@ -60,6 +60,11 @@ task; it may not launch a gateway process itself.
    separate operator-ratified identity and capability decision.
 7. The deployment branch incorporates the current master improvements before activation;
    committed code and running code are reported as separate receipts.
+8. Discord outbound delivery has one process-lifetime deployment owner: the production
+   gateway holds the existing pump lease across beats and refreshes it independently of
+   webhook latency. Legacy seat daemons remain bounded fallbacks only while that owner is
+   absent. A message addressed to the operator with no registered private seat lane fails
+   loudly and never widens into the global Discord channel.
 
 ## Pre-registered acceptance
 
@@ -101,6 +106,10 @@ task; it may not launch a gateway process itself.
   separate adapters; duplicate user/repository hook delivery is suppressed atomically;
   event-scoped subject labels precede inherited hints. Synthetic contract pins do not
   upgrade the registry's deliberately pending live T2-T5 observations.
+- **P13 — one outbound authority:** while the production gateway is ready, its stable
+  process token holds the Discord pump lease across multiple beats and a competing daemon
+  cannot pump. A directed operator reply with no registered seat webhook is journaled as a
+  route failure, advances the display cursor once, and never appears in global Discord.
 
 ## Failure drills
 

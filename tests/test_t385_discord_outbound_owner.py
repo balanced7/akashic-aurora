@@ -145,4 +145,5 @@ def test_gateway_wires_and_releases_the_persistent_outbound_owner():
 
     assert "OutboundFeedOwner(bus" in source
     assert "asyncio.create_task(_outbound_feed_loop())" in source
+    assert "_outbound_owner.keepalive()" in source
     assert "_outbound_owner.close()" in source
