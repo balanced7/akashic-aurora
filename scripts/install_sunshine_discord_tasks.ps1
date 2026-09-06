@@ -18,6 +18,8 @@ param(
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord',
     [string]$GptNewThreadId = '',
     [string]$GptNewSourceThreadId = '',
+    [switch]$EnableGptNewExec,
+    [switch]$EnableGptNewWrite,
     [string]$GptNewDiscordTaskName = 'AkashicAurora-GptNewDiscord'
 )
 
@@ -121,6 +123,10 @@ if (($GptNewThreadId -and -not $GptNewSourceThreadId) -or
     ($GptNewSourceThreadId -and -not $GptNewThreadId)) {
     throw 'GptNewThreadId and GptNewSourceThreadId must be supplied together.'
 }
+if (($EnableGptNewExec -or $EnableGptNewWrite) -and
+    -not $GptNewThreadId) {
+    throw 'Neo capability opt-ins require GptNewThreadId and GptNewSourceThreadId.'
+}
 foreach ($candidate in @($GptNewThreadId, $GptNewSourceThreadId)) {
     if ($candidate -and $candidate -notmatch $threadPattern) {
         throw "Invalid gpt-new Codex thread id: $candidate"
@@ -187,6 +193,17 @@ $discordArguments = ConvertTo-TaskArguments @(
 
 $gptNewDiscordArguments = $null
 if ($GptNewThreadId) {
+    # These are explicit Neo-only launcher gates. They remain off by default so
+    # this preserved history fork can never acquire Sunshine's authority merely
+    # by being installed beside Sunshine. The independent gpt-new ACL is the
+    # second, runtime-enforced gate.
+    $gptNewCapabilityArguments = @()
+    if ($EnableGptNewExec) {
+        $gptNewCapabilityArguments += '--allow-exec'
+    }
+    if ($EnableGptNewWrite) {
+        $gptNewCapabilityArguments += '--allow-write'
+    }
     $gptNewDiscordArguments = ConvertTo-TaskArguments @(
         $serviceLauncher,
         '--world', 'prod', '--',
@@ -200,6 +217,7 @@ if ($GptNewThreadId) {
         '--thread-id', $GptNewThreadId,
         '--source-thread-id', $GptNewSourceThreadId,
         '--binding-kind', 'completed-history-fork',
+        $gptNewCapabilityArguments,
         '--block-ms', '5000'
     )
 }
@@ -308,6 +326,8 @@ if ($GatewayWatchdogTaskName -and $GatewayWatchdogTaskName -ne $GatewayTaskName)
     EventPath = $eventPath
     GptNewDiscordTask = $(if ($gptNewDiscordArguments) { $GptNewDiscordTaskName } else { $null })
     GptNewThreadId = $(if ($gptNewDiscordArguments) { $GptNewThreadId } else { $null })
+    GptNewAllowExec = [bool]$EnableGptNewExec
+    GptNewAllowWrite = [bool]$EnableGptNewWrite
     GptNewStatePath = $(if ($gptNewDiscordArguments) { $gptNewStatePath } else { $null })
     GptNewEventPath = $(if ($gptNewDiscordArguments) { $gptNewEventPath } else { $null })
     RuntimeConfigRoot = $resolvedRuntimeConfigRoot
