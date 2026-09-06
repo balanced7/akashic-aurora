@@ -149,6 +149,72 @@ def sweep_stale_markers(agent: str, tmp: Optional[str] = None,
     return removed
 
 
+def rearm_trigger_path(agent: str, session_id: str = "", tmp: Optional[str] = None) -> str:
+    """Mirror of bifrost_wake.rearm_trigger_path -- one shape, two readers (T380: never
+    compute one shared derived key twice from different inputs)."""
+    base = tmp or tempfile.gettempdir()
+    name = (f"bifrost_wake_{agent}_{session_id}.rearm" if session_id
+            else f"bifrost_wake_{agent}.rearm")
+    return os.path.join(base, name)
+
+
+# ------------------------------------------------- restart re-arm (2026-09-06 incident)
+def rearm_orphaned_sessions(agent: str, tmp: Optional[str] = None) -> int:
+    """At daemon STARTUP, re-arm the listeners this daemon's own restart orphaned.
+
+    THE INCIDENT (live, unattended, 2026-09-06 ~03:52). The claude autopilot daemon
+    self-restarted to pick up a commit. It owns its wake listener as a MANAGED CHILD, so the
+    restart killed the listener. `write_rearm_trigger` is by contract "written ONLY on a
+    deadline self-cycle -- never on mail exits and never on stand-downs" (R18), so a KILLED
+    listener leaves NO trigger behind. `consume_rearms` then had no input, stayed idle and
+    CORRECT, and reported nothing wrong while the seat sat deaf and the operator slept.
+
+    THE RULE. A supervisor that owns a worker must re-arm it after the SUPERVISOR'S OWN
+    restart: a restart is not a deadline cycle, so the worker's exit path cannot be relied on
+    to leave a recovery note.
+
+    WHY `.alive` IS A SOUND INPUT HERE. This failure class exists whenever the recovery
+    mechanism's input is produced by the component that died. `.alive` is not: it is touched at
+    SessionStart by the SESSION'S own lifecycle (core/comm/incarnation.py) -- a different
+    component, with a lifetime that outlives the watcher. That is precisely what breaks the
+    in-band loop for this instance.
+
+    SCOPE, stated so it is not oversold: this closes the most common INSTANCE, not the class.
+    A session whose daemon never starts at all still produces no input, and that remains the
+    job of an out-of-band durable expected-up roster (Wake Doctrine T1/S1, operator-gated).
+    """
+    from core.comm import wake_seat
+    base = tmp or tempfile.gettempdir()
+    prefix = f"bifrost_wake_{agent}_"
+    armed = 0
+    try:
+        names = os.listdir(base)
+    except Exception:
+        return 0
+    for name in sorted(names):
+        if not (name.startswith(prefix) and name.endswith(".alive")):
+            continue
+        sid = name[len(prefix):-len(".alive")]
+        if not sid:
+            continue
+        try:
+            if os.path.exists(wake_seat.seat_path(agent, sid, base)):
+                continue                    # still seated -> live watcher; never double-arm
+            trig = rearm_trigger_path(agent, sid, base)
+            if os.path.exists(trig):
+                continue                    # already requested; idempotent on re-run
+            stamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            note = (f"[{stamp}] daemon startup: re-arming a session orphaned by the daemon's "
+                    f"own restart (no deadline cycle occurred, so the listener left no "
+                    f"trigger of its own)")
+            with open(trig, "w", encoding="utf-8") as fh:
+                fh.write(note + "\n")
+            armed += 1
+        except Exception:
+            continue                        # best-effort: never block daemon startup
+    return armed
+
+
 # ---------------------------------------------------------------- stop-hook verdict
 def _nag_latch_path(agent: str, session_id: str, tmp: Optional[str] = None) -> str:
     base = tmp or tempfile.gettempdir()

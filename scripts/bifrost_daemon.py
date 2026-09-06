@@ -471,6 +471,20 @@ def main(argv=None) -> int:
              + (" mode=runner-manager" if (spawn_runner and not idle_mode) else "")
              + (" mode=listener-manager" if manage_listener else "")
              + (" mode=idle-watcher" if idle_mode else ""))
+        # 2026-09-06 incident: this daemon owns its wake listener as a MANAGED CHILD, so its
+        # own restart KILLS that listener -- and a killed listener writes no .rearm trigger
+        # (R18 writes one only on a deadline self-cycle). consume_rearms then has no input and
+        # sits idle and correct while the seat is deaf. A supervisor must therefore re-arm
+        # after ITS OWN restart, from a signal the dead worker did not produce.
+        if manage_listener:
+            try:
+                _armed = _ds.rearm_orphaned_sessions(agent, tmp=tempfile.gettempdir())
+                if _armed:
+                    _say(f"[daemon] startup re-arm agent={agent} sessions={_armed} "
+                         f"(orphaned by this daemon's restart; no deadline cycle occurred)")
+            except Exception as _e:
+                _say(f"[daemon] startup re-arm FAILED agent={agent}: "
+                     f"{type(_e).__name__}: {_e} -- listeners may need a manual arm")
     else:
         # ---- alpha path: daemon holds the runner lock directly ---------------------
         h = runner_lock.holder(agent)
