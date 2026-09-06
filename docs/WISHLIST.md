@@ -1028,6 +1028,9 @@ Filed to your lane deliberately: the plugin is yours and this is a design call, 
 - [ ] W199 (09-01, claude) — press verify <url|file>: the stranger-gate battery as one verb with printed receipts -- HTTP+TLS, scrollWidth at 375/768/1280, body paints its own themed ground, noindex-vs-listed intent, figures present; mechanizes the audit that is currently a seats afternoon. Trigger: ran the stranger-gate audit by hand in the browser pane to verify the estate page. Land: A4 gate tooling; serves walks and press pages alike.
 - [ ] W200 (09-01, claude) — the fold-back law + the living rungs-board: (a) every press page that invents a primitive extracts it into the shape library at wrap, like learn does for lessons -- ever-expanding is a RULE, the operators directive verbatim: "an ever expanding set of tools for making presentations come out beautiful from rough draft, then the extra polish effort can take it to the next level"; (b) the weekly census feeds a standing rungs-board projection so the estate page becomes an organ that re-renders itself, debt count falling in public. Trigger: operator directive tonight; the estate page is A7 play line rendered by hand. Land: A7 crown piece + press family convergence.
 - [ ] W201 (09-02, claude) — task show <id>: one task, full body, through the door. task list truncates titles at ~90 chars and no verb returns a single task, so mid-pickup I read state/coord/tasks.json raw with an inline py -c json load -- the ledger's OWN door made the raw file the easier path, the exact anti-pattern the door exists to prevent. Trigger: T180 pickup needed the full task record. Land: agent_cli.py task show <id> (+ --json), sharing the renderer with task list.
+- [ ] W202 (09-02, claude) — Discord !nudge lever: give the operator the 6-second path from the phone. bifrost-nudge with mode interrupt reached a working seat in 6.3s tonight (receipt 1788394446062-0), but phone messages ride inbound->bus->spawn/queue -- the operator has no way to fire the realtime rung he already owns. Trigger: Daniil asked whether direct realtime nudges exist; the drill proved the verb works seat-to-seat but has no phone-side lever. Land: discord_inbound verb surface (!nudge <seat> <text>, default mode interrupt); rides A2/C9; pairs with the discord-verb-surface-taxonomy atom.
+- [ ] W203 (09-02, claude) — Ledger serializer should implement the ratified width law, not a global singleton: task start blocked T386 (design/recon watch, claude) because T079 (build watch, sol) is in_progress -- but ORG.md ratified cap is TWO watches, one build + one design/research, never two builds. The serializer is cruder than the law it approximates; a live sibling doing lawful concurrent work blocks a second lawful watch. Trigger: T386 start blocked at 2026-09-02 evening while sol legitimately builds T079; reconciliation move 3 (width law runnable) predicted this collision hours earlier. Land: reconciliation move 3: pauses: field + watch-type on start (build|design) + serializer enforces the two-watch shape.
+- [ ] W204 (09-03, claude) — mirror.py must refuse placeholder commit messages: Heimdall (unattended, no git family in allowlist) passed check as the message and mirror committed+pushed it to shared master without a prompt -- the audited door minted permanent garbage history where the CLI would have been caught at review. Guard: refuse messages under ~12 chars or matching a placeholder list (check/test/wip/x) unless --allow-trivial-message, and echo the message back in the receipt. Trigger: R1-R4 landed as commit message check on origin/master 2026-09-03. Land: scripts/mirror.py message validation; pairs with existing mirror lessons (named-path scoping, --help honesty).
 
 ## Folded (exemplars — the loop works)
 
@@ -1294,3 +1297,14 @@ the numbered entries above, 2026-07-21; all content folded, nothing dropped.)*
 ## Declined
 
 *(none yet — when one lands here, it keeps its reason.)*
+
+## 2026-09-06 — the mesh highway (Daniil, verbatim, during the Rill-story sitting)
+> "This is where the eventual mesh vision with links between various things indexable in one
+> system would be very helpful. it would serve as a natural and organic highway to our most
+> important thoughts and memories. that way our memories are not so far away and inaccessible"
+Context: he asked for the Rill/Sunshine/Neo story to be saved reachably and did not know the
+right category — the friction IS the wish. The connectome (T278 S4) + journalled idea-edges
+design (deferred, "deserves fresh context") + this chronicle's cross-surface threading are the
+existing approaches; the wish names their union: one indexable mesh where the important
+memories are near, not far. Filed by claude same sitting as chronicle atom (see library:
+the-reduction-and-the-ratification).
