@@ -280,7 +280,27 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 # read neither surface carefully).
                 if str(msg.get("to") or "") in _OPERATOR_INBOXES:
                     lane = seat_channel_url(str(msg.get("frm") or ""))
-                    if lane and DB.should_forward(msg):
+                    if not DB.should_forward(msg):
+                        client.hset(CURSOR_KEY, key, mid_s)
+                        continue
+                    if not lane:
+                        failed += 1
+                        _post_failure_loud(
+                            "seat-route",
+                            msg,
+                            mid_s,
+                            RuntimeError(
+                                "directed operator reply has no registered seat lane; "
+                                "global fallback refused"
+                            ),
+                        )
+                        # Missing private routing is a visible delivery failure,
+                        # never permission to widen the audience. The display
+                        # cursor still advances once so refusal cannot retry-storm;
+                        # Bifrost retains the durable reply for recovery.
+                        client.hset(CURSOR_KEY, key, mid_s)
+                        continue
+                    if lane:
                         ok = True
                         try:
                             who = ROOMS.persona(str(msg.get("frm") or ""))
@@ -338,6 +358,75 @@ _PUMP_LOCK_KEY = "discord-pump"
 #: a crash mid-pump releases the election before the next beat, live or not, rather than
 #: blocking a healthy daemon behind a dead one's TTL.
 _PUMP_LOCK_TTL = 8
+
+
+class OutboundFeedOwner:
+    """Hold the existing Discord pump lease across process-local beats.
+
+    ``pump_if_owner`` remains the compatibility path for ordinary seat daemons:
+    it borrows the lease for one beat. The production Discord gateway instead
+    keeps one stable token for its process lifetime, making one logical pump one
+    code/config authority rather than a rotation among heterogeneous checkouts.
+
+    ``keepalive`` is safe to call from the gateway's independent pulse thread
+    while a webhook request is blocking in a worker. A long post therefore does
+    not let the lease expire halfway through delivery.
+    """
+
+    def __init__(self, bus: Any, *, ttl: int = 30):
+        from core.comm import runner_lock
+
+        self.bus = bus
+        self.ttl = max(2, int(ttl))
+        self.token = runner_lock.instance_token(_PUMP_LOCK_KEY)
+        self._held = False
+
+    @property
+    def held(self) -> bool:
+        return self._held
+
+    def keepalive(self) -> bool:
+        """Refresh an acquired lease; no ownership yet is a harmless no-op."""
+        if not self._held:
+            return True
+        from core.comm import runner_lock
+
+        if runner_lock.heartbeat(_PUMP_LOCK_KEY, self.token, ttl=self.ttl):
+            return True
+        self._held = False
+        return False
+
+    def beat(self) -> BoundaryOutcome:
+        """Acquire once, retain ownership, and pump one bounded batch."""
+        from core.comm import runner_lock
+
+        if self._held:
+            if not self.keepalive():
+                return BoundaryOutcome.done(
+                    ref="outbound-owner-lost-this-beat",
+                    forwarded=0,
+                    initialized=0,
+                    failed=0,
+                )
+        elif runner_lock.acquire(_PUMP_LOCK_KEY, self.token, ttl=self.ttl):
+            self._held = True
+        else:
+            return BoundaryOutcome.done(
+                ref="not-owner-this-beat",
+                forwarded=0,
+                initialized=0,
+                failed=0,
+            )
+        return pump(self.bus)
+
+    def close(self) -> None:
+        """Release only this process's token; never disturb a successor."""
+        if not self._held:
+            return
+        from core.comm import runner_lock
+
+        runner_lock.release(_PUMP_LOCK_KEY, self.token)
+        self._held = False
 
 
 def pump_if_owner(bus: Any, *, post: Optional[Callable[..., Any]] = None,

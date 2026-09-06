@@ -315,6 +315,9 @@ def main() -> int:
     from core.comm.runner_lib import set_seat_agent
     set_seat_agent("discord")
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
+    from core.comm.discord_feed import OutboundFeedOwner
+
+    _outbound_owner = OutboundFeedOwner(bus, ttl=max(30, int(HEARTBEAT_S) * 6))
 
     # dc6200d491: the gateway was the only supervised organ with no singleton guard --
     # its sole idempotence used to be revive counting a process-table string, which is
@@ -699,6 +702,13 @@ def main() -> int:
                 _dlock.heartbeat()
             except Exception:
                 pass                    # the beat must never kill the beater
+            # The gateway is the stable code/config authority for outbound
+            # Discord too. Refresh its lease from this independent thread so a
+            # slow webhook cannot hand ownership to a heterogeneous daemon.
+            try:
+                _outbound_owner.keepalive()
+            except Exception:
+                pass                    # the delivery loop confesses its own failures
             # T147: the roster reads a PER-INCARNATION key; the worklive beat above
             # writes the bare one. Without this line a live gateway renders DEAD to
             # the reaper's only sensor (same defect, same fix as the kimi runner).
@@ -726,6 +736,26 @@ def main() -> int:
                 "Discord event loop ready" if ready else "Discord reconnecting",
             )
             await asyncio.sleep(HEARTBEAT_S)
+
+    async def _outbound_feed_loop():
+        """Pump Bifrost to Discord under one process-lifetime owner."""
+        while not client.is_closed():
+            try:
+                out = await asyncio.to_thread(_outbound_owner.beat)
+                if not out.ok:
+                    print(
+                        f"[discord-feed] owner beat failed: {out.why}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            except Exception as e:                                      # noqa: BLE001
+                print(
+                    f"[discord-feed] owner beat crashed "
+                    f"({type(e).__name__}: {e})",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            await asyncio.sleep(2)
 
     def _revive(target, observe_only, message):
         """The R3-amendment lever (T382): run the reconciler and speak its
@@ -908,6 +938,9 @@ def main() -> int:
         if not getattr(client, "_readiness_loop_started", False):
             client._readiness_loop_started = True
             asyncio.create_task(_readiness_loop())
+        if not getattr(client, "_outbound_feed_started", False):
+            client._outbound_feed_started = True
+            asyncio.create_task(_outbound_feed_loop())
 
     @client.event
     async def on_disconnect():
@@ -1067,6 +1100,7 @@ def main() -> int:
     try:
         client.run(token, log_handler=_handler, log_level=_logging.INFO)
     finally:
+        _outbound_owner.close()
         _publish_readiness(False, "Discord client stopped")
     return 0
 
