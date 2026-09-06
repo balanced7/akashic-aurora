@@ -20,6 +20,7 @@ param(
     [string]$GptNewSourceThreadId = '',
     [switch]$EnableGptNewExec,
     [switch]$EnableGptNewWrite,
+    [switch]$OnlyGptNew,
     [string]$GptNewDiscordTaskName = 'AkashicAurora-GptNewDiscord'
 )
 
@@ -126,6 +127,9 @@ if (($GptNewThreadId -and -not $GptNewSourceThreadId) -or
 if (($EnableGptNewExec -or $EnableGptNewWrite) -and
     -not $GptNewThreadId) {
     throw 'Neo capability opt-ins require GptNewThreadId and GptNewSourceThreadId.'
+}
+if ($OnlyGptNew -and -not $GptNewThreadId) {
+    throw 'OnlyGptNew requires GptNewThreadId and GptNewSourceThreadId.'
 }
 foreach ($candidate in @($GptNewThreadId, $GptNewSourceThreadId)) {
     if ($candidate -and $candidate -notmatch $threadPattern) {
@@ -241,23 +245,26 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 999 `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
-$tasks = @(
-    @{
-        Name = $GatewayTaskName
-        Description = 'Single restartable Discord inbound gateway pinned to the same deployed worktree as the continuity watchers.'
-        Arguments = $gatewayArguments
-    },
-    @{
-        Name = $FleetTaskName
-        Description = 'Sunshine managed fleet runner plus Discord outbound feed; Discord ingress is owned by the continuity watcher.'
-        Arguments = $fleetArguments
-    },
-    @{
-        Name = $DiscordTaskName
-        Description = 'Sunshine Discord ingress bound fail-closed to one persistent Codex continuity thread.'
-        Arguments = $discordArguments
-    }
-)
+$tasks = @()
+if (-not $OnlyGptNew) {
+    $tasks += @(
+        @{
+            Name = $GatewayTaskName
+            Description = 'Single restartable Discord inbound gateway pinned to the same deployed worktree as the continuity watchers.'
+            Arguments = $gatewayArguments
+        },
+        @{
+            Name = $FleetTaskName
+            Description = 'Sunshine managed fleet runner plus Discord outbound feed; Discord ingress is owned by the continuity watcher.'
+            Arguments = $fleetArguments
+        },
+        @{
+            Name = $DiscordTaskName
+            Description = 'Sunshine Discord ingress bound fail-closed to one persistent Codex continuity thread.'
+            Arguments = $discordArguments
+        }
+    )
+}
 if ($gptNewDiscordArguments) {
     $tasks += @{
         Name = $GptNewDiscordTaskName
@@ -287,7 +294,8 @@ foreach ($task in $tasks) {
 # Retain one independent clock, but make it a task nudge rather than a second
 # launcher: /Run starts the owned gateway task when dead and IgnoreNew absorbs
 # the same request when healthy. No process-table guess and no detached orphan.
-if ($GatewayWatchdogTaskName -and $GatewayWatchdogTaskName -ne $GatewayTaskName) {
+if (-not $OnlyGptNew -and
+    $GatewayWatchdogTaskName -and $GatewayWatchdogTaskName -ne $GatewayTaskName) {
     if ($PSCmdlet.ShouldProcess(
         $GatewayWatchdogTaskName,
         "Register one-minute nudge for $GatewayTaskName"
@@ -315,6 +323,7 @@ if ($GatewayWatchdogTaskName -and $GatewayWatchdogTaskName -ne $GatewayTaskName)
 }
 
 [pscustomobject]@{
+    InstallScope = $(if ($OnlyGptNew) { 'gpt-new-only' } else { 'all' })
     GatewayTask = $GatewayTaskName
     GatewayWatchdog = $GatewayWatchdogTaskName
     GatewayWatchdogIntervalMinutes = 1
