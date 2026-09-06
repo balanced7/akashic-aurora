@@ -50,6 +50,57 @@ class _Notification:
     params: Dict[str, Any]
 
 
+def summarize_turn_usage(samples: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Preserve thread usage while deriving the cost of this turn.
+
+    App Server's ``ThreadTokenUsage.total`` is cumulative across a thread;
+    ``last`` describes the most recent model step.  A tool-bearing turn emits
+    one update per model step, so the turn-local total is the sum of those
+    ``last`` breakdowns.  Repeated notifications with the same cumulative
+    total are deduplicated defensively.
+    """
+    normalized = [dict(sample) for sample in samples if isinstance(sample, Mapping)]
+    if not normalized:
+        return {}
+
+    latest = dict(normalized[-1])
+    steps: List[Dict[str, Any]] = []
+    seen_cumulative: set[tuple[tuple[str, int | float], ...]] = set()
+    for sample in normalized:
+        last = sample.get("last")
+        if not isinstance(last, Mapping):
+            continue
+        cumulative = sample.get("total")
+        signature: tuple[tuple[str, int | float], ...] = ()
+        if isinstance(cumulative, Mapping):
+            signature = tuple(sorted(
+                (str(key), value)
+                for key, value in cumulative.items()
+                if isinstance(value, (int, float)) and not isinstance(value, bool)
+            ))
+        if signature and signature in seen_cumulative:
+            continue
+        if signature:
+            seen_cumulative.add(signature)
+        steps.append(dict(last))
+
+    if not steps:
+        return latest
+
+    fields = sorted({str(key) for step in steps for key, value in step.items()
+                     if isinstance(value, (int, float)) and not isinstance(value, bool)})
+    latest["turnTotal"] = {
+        field: sum(
+            value for step in steps
+            if isinstance((value := step.get(field)), (int, float))
+            and not isinstance(value, bool)
+        )
+        for field in fields
+    }
+    latest["modelSteps"] = len(steps)
+    return latest
+
+
 def resolve_codex_binary(explicit: Optional[os.PathLike[str] | str] = None) -> Path:
     """Resolve the app-managed Codex executable without pinning its version hash."""
     if explicit:
@@ -660,7 +711,10 @@ class CodexAppServer:
         usage_events = self.notifications(
             "thread/tokenUsage/updated", after=cursor, predicate=same_turn
         )
-        usage = usage_events[-1].get("tokenUsage", {}) if usage_events else {}
+        usage = summarize_turn_usage([
+            event.get("tokenUsage", {}) for event in usage_events
+            if isinstance(event.get("tokenUsage"), Mapping)
+        ])
         completed_turn = completed.get("turn")
         status = completed_turn.get("status") if isinstance(completed_turn, dict) else None
         return TurnResult(
@@ -680,4 +734,5 @@ __all__ = [
     "TurnResult",
     "default_command",
     "resolve_codex_binary",
+    "summarize_turn_usage",
 ]

@@ -205,11 +205,23 @@ did not recur reliably. The observed operator-message floor is therefore a real
 approximately 22.4k first-step input cost, while provider cache policy, prefix
 composition, and the dominant context contributors remain unresolved.
 
-New wake receipts carry `usage_accounting.accounting_basis=turn_total`, the
-whole-turn aggregate, the final model step, and an explicit `multi_step` flag.
-This keeps cost accounting from silently using `last` when a turn contains tool
-continuations. The v3 watcher has this schema; no paid turn was manufactured
-merely to populate it.
+That first accounting interpretation was valid only while each measured thread
+was fresh: App Server's `tokenUsage.total` is cumulative across the **thread**,
+not scoped to the current turn. Persistent-thread evidence made the distinction
+observable. On 2026-09-06 one Sunshine wake ended with a thread cumulative total
+of 633,667,134 tokens, while the eight `last` model-step samples emitted during
+that turn summed to 1,624,125 tokens. The old adapter mislabeled the former as
+the latter.
+
+Current wake receipts derive `turn_total` by summing the `last` breakdown from
+each model step observed under the current turn id. They retain the protocol's
+raw `total` as `thread_cumulative_total`, and record `final_model_step`,
+`model_steps`, and `multi_step` separately. The accounting basis is
+`summed_model_steps`; a legacy or incomplete sample falls back to the final
+model step and says `final_model_step_fallback`, never pricing the thread's
+lifetime as one wake. This corrects the meter only. It does not make the real
+1.62-million-token, eight-step turn cheap, compact either identity-bearing
+thread, or weaken continuity to improve a number.
 
 The current App Server schema exposes `baseInstructions`, `config`, `cwd`,
 `runtimeWorkspaceRoots`, and environment selection; any lean-capsule change

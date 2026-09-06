@@ -286,25 +286,36 @@ def _now() -> str:
 
 
 def _usage_accounting(usage: Mapping[str, Any]) -> Dict[str, Any]:
-    """Label whole-turn usage separately from the final model step.
+    """Label turn-local usage separately from thread lifetime and final step.
 
-    App Server reports both ``total`` and ``last``. They are identical for a
-    one-step turn and diverge when tools or another continuation cause more
-    than one model call. A cost receipt that leaves those scopes implicit makes
-    an expensive multi-step turn look like only its final call.
+    App Server reports ``total`` cumulatively across the resumed thread and
+    ``last`` for one model step. Our host adds ``turnTotal`` by summing the
+    ``last`` sample from every step observed in this turn. A legacy host that
+    lacks that derivation falls back to the final step: an undercount labeled
+    as such is safer than pricing years of thread history as one Discord wake.
     """
-    raw_total = usage.get("total") if isinstance(usage, Mapping) else None
+    raw_thread_total = usage.get("total") if isinstance(usage, Mapping) else None
+    raw_turn_total = usage.get("turnTotal") if isinstance(usage, Mapping) else None
     raw_last = usage.get("last") if isinstance(usage, Mapping) else None
-    turn_total = dict(raw_total) if isinstance(raw_total, Mapping) else {}
+    thread_total = dict(raw_thread_total) if isinstance(raw_thread_total, Mapping) else {}
+    turn_total = dict(raw_turn_total) if isinstance(raw_turn_total, Mapping) else {}
     final_step = dict(raw_last) if isinstance(raw_last, Mapping) else {}
-    basis = "turn_total" if turn_total else "final_model_step_fallback"
+    basis = "summed_model_steps" if turn_total else "final_model_step_fallback"
     if not turn_total:
         turn_total = dict(final_step)
+    try:
+        model_steps = max(0, int(usage.get("modelSteps") or 0))
+    except (TypeError, ValueError):
+        model_steps = 0
+    if not model_steps and final_step:
+        model_steps = 1
     return {
         "accounting_basis": basis,
         "turn_total": turn_total,
+        "thread_cumulative_total": thread_total,
         "final_model_step": final_step,
-        "multi_step": bool(raw_total and raw_last and turn_total != final_step),
+        "model_steps": model_steps,
+        "multi_step": model_steps > 1,
     }
 
 
