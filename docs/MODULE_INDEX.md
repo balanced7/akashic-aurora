@@ -136,7 +136,7 @@
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
 - `vfx_chunk_lessons.py` — Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration.
 
-## core/recall/  (17 modules)
+## core/recall/  (18 modules)
 - `actions.py` — The importable recall-at-action contract for EXTERNAL consumers (deepseek harness posttool /
 - `anchors.py` — Lesson anchor resolver -- does a lesson's premise still hold?
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
@@ -150,6 +150,7 @@
 - `lookback.py` — Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable.
 - `pack_replay.py` — pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline.
 - `precision_audit.py` — precision_audit -- the missing instrument: is recall ACCURATE?
+- `prevention.py` — prevention -- the missing consumer of the outcome stage log (S2, recall's AAR).
 - `replay.py` — Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated-
 - `shadow_shelf.py` — Offline shadow-shelf substrate for T370 Slice 0.
 - `staleness.py` — The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false.

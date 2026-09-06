@@ -382,6 +382,12 @@ MANIFEST = {
                                 # MCP agents start handling salient asks themselves.
     "lookback": "cli_only",     # P7 (T027): rationale-corpus query. MCP twin deferred until an MCP
                                 # agent needs WHY-lookback programmatically (same trigger as bifrost_ack).
+    "recall_prevention": "cli_only",  # S2 (2026-09-05): the outcome stage log's contrastive
+                                     # record -- what recall PREVENTED, not just what it rescued.
+                                     # OPERATOR-READ ONLY on purpose: the stage log's own rule is
+                                     # "no automatic steer may ride this signal", and fence r2 H-C1
+                                     # reserves adjudication to operator identities. An MCP twin
+                                     # would put a steerable number in an in-task agent's hands.
     "recall_curate": "cli_only",  # corpus curation (bench/unbench/ghost-prune) -- operator action at
                                   # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
                                   # prints the exact command. MCP twin if an agent ever self-curates.
