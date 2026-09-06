@@ -110,6 +110,10 @@ task; it may not launch a gateway process itself.
   process token holds the Discord pump lease across multiple beats and a competing daemon
   cannot pump. A directed operator reply with no registered seat webhook is journaled as a
   route failure, advances the display cursor once, and never appears in global Discord.
+- **P14 — honest wake cost:** App Server thread-lifetime cumulative usage remains visible
+  but is never labeled or priced as one Discord wake turn. The host derives the current
+  turn total from each model step's `last` sample, records the number of model steps, and
+  falls back to the final step—not the thread lifetime—when step samples are unavailable.
 
 ## Failure drills
 
