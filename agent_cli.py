@@ -51,7 +51,8 @@ from core.foundation.timeutil import render_iso
 # W169 slice 1: the three recall verbs that owe agent_cli nothing live in core/recall/surface.py.
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
-from core.recall.surface import cmd_recall_at, cmd_recall_feedback, cmd_recall_curate
+from core.recall.surface import (cmd_recall_at, cmd_recall_feedback, cmd_recall_curate,
+                                 cmd_recall_prevention)
 
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
@@ -7728,6 +7729,12 @@ def build_parser():
                          "Never a rate -- it counts only what someone noticed")
     rp.add_argument("--json", action="store_true")
     rp.set_defaults(fn=cmd_repeat)
+
+    rp = sub.add_parser("recall-prevention",
+                        help="S2: what recall PREVENTED (stage-log contrastive record) -- "
+                             "observation only, never a grade")
+    rp.add_argument("--json", action="store_true")
+    rp.set_defaults(fn=cmd_recall_prevention)
 
     rc = sub.add_parser("recall-curate",
                         help="bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)")

@@ -227,3 +227,42 @@ def cmd_recall_curate(args):
     print(f"[recall-curate] APPLIED: benched {len(out['benched'])}, unbenched {len(out['unbenched'])}, "
           f"ghost counters pruned {out['ghosts_pruned']}")
     return 0
+
+
+# ------------------------------------------------------------------ recall-prevention
+def cmd_recall_prevention(args):
+    """S2: what recall PREVENTED, read from the outcome stage log.
+
+    The credited-flip counter only ever counted RESCUE (a FAIL->SUCCESS flip). Prevention --
+    the failure that never happened -- was invisible to it by construction. This reads the
+    stage log's contrastive record instead. OBSERVATION ONLY: it never writes credit, never
+    benches, never retires; adjudication is operator-only (fence r2 H-C1).
+    """
+    import json as _json
+    from core.recall import prevention
+    rep = prevention.report()
+    if getattr(args, "json", False):
+        print(_json.dumps(rep, default=str, indent=2)); return 0
+    v = rep["verdicts"]
+    print("# recall-prevention -- observation only, never a grade")
+    print(f"  stage rows {rep['stage_rows']} -> {rep['observations']} observation(s) "
+          f"over {len(rep['per_lesson'])} lesson(s)")
+    print(f"  PREVENTION candidates {rep['prevention_candidates']}  |  CONTROL arm "
+          f"{rep['control_arm']}  |  rescue flips {rep['rescue_flips']}")
+    print(f"  verdicts: VIOLATED {v['VIOLATED']} · UNKNOWABLE {v['UNKNOWABLE']} "
+          f"· COMPLIED {v['COMPLIED']} (unmintable without the Eye)")
+    print(f"  settled {rep['settled']} -> coverage {rep['coverage']:.4f}  "
+          f"(unattributed repeats: {len(rep.get('unattributed_repeats') or [])})")
+    c = rep["contrast"]
+    if c["success_rate_when_surfaced"] is not None and c["success_rate_when_not_surfaced"] is not None:
+        d = c["success_rate_when_surfaced"] - c["success_rate_when_not_surfaced"]
+        print(f"  success surfaced {c['success_rate_when_surfaced']:.4f} vs control "
+              f"{c['success_rate_when_not_surfaced']:.4f}  (raw delta {d:+.4f} -- NOT an effect size)")
+    viol = {k: x for k, x in rep["per_lesson"].items() if x["VIOLATED"]}
+    if viol:
+        print("  fired-then-violated (1:1 with a filed repeat):")
+        for k, x in sorted(viol.items(), key=lambda i: -i[1]["VIOLATED"]):
+            print(f"    {x['VIOLATED']}x {k.replace('learn:experiment:', '')}")
+    for line in rep["confounds"]:
+        print(f"  ! {line}")
+    return 0

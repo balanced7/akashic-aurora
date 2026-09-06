@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import json
 import os
+import time
+
 import pytest
 
 pytestmark = pytest.mark.usefixtures("_isolated_stage")
@@ -88,8 +90,13 @@ def test_p3_violated_needs_positive_evidence_and_carries_its_citation():
     from core.recall import prevention
     _write_stage_via_producer("s-p3", "py scripts/mirror.py msg", ok=True,
                               sources=["learn:experiment:beta"])
+    # The repeat must post-date the surfacing: real order is surface -> violate -> file.
+    # (The first version of this pin dated the repeat BEFORE the surfacing, and the temporal
+    # attribution rule correctly refused it -- the fixture was unrealistic, not the code.)
+    import datetime as _dt
+    later = _dt.datetime.fromtimestamp(time.time() + 60).isoformat()
     repeats = {"learn:experiment:beta": [{"id": "beta:20260905T000000:abcd1234",
-                                          "recall_outcome": "fired", "at": "2026-09-05T00:00:00"}]}
+                                          "recall_outcome": "fired", "at": later}]}
     rows = prevention.observe(repeats=repeats)
     viol = [r for r in rows if r["verdict"] == "VIOLATED"]
     assert viol, "a filed repeat against a surfaced lesson must yield VIOLATED"
@@ -161,3 +168,34 @@ def test_p8_confounds_are_named_in_the_output_itself():
     conf = " ".join(rep.get("confounds", [])).lower()
     assert "exposure" in conf, "exposure bias must be named beside the rate"
     assert rep.get("steers") is False, "this observation may never feed ranking"
+
+
+# --------------------------------------------------------------------------- P9
+def test_p9_a_suspicious_empty_join_refuses_loudly():
+    """REGRESSION, found by the instrument's own first run against live data.
+
+    The first draft of load_repeats() guessed the ledger's list key ("repeats"/"rows"),
+    matched NEITHER (the real key is "entries"), and silently returned {} -- so the report
+    said ZERO violations while the ledger held 24 repeats, 8 with recall_outcome=fired.
+    A silent empty join is exactly the confident-zero disease this module exists to expose.
+    An empty extraction against a non-empty ledger must REFUSE, never return zero.
+    """
+    from core.recall import prevention
+
+    class _ShapeChanged:
+        def repeat_report(self):
+            return {"count": 24, "some_new_key": [{"of": "x"}]}      # 'entries' gone
+
+    with pytest.raises(RuntimeError, match="confident zero|REFUSING"):
+        prevention.load_repeats(store=_ShapeChanged())
+
+
+def test_p9b_an_honestly_empty_ledger_is_not_an_error():
+    """count=0 with no entries is a true zero, and must NOT raise."""
+    from core.recall import prevention
+
+    class _Empty:
+        def repeat_report(self):
+            return {"count": 0, "entries": []}
+
+    assert prevention.load_repeats(store=_Empty()) == {}
