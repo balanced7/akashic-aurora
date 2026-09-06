@@ -245,11 +245,13 @@ def test_gpt_new_exec_and_write_require_separate_explicit_installer_opt_ins():
     )
 
 
-def test_gpt_new_exec_and_write_render_as_distinct_windows_arguments():
+def test_gpt_new_exec_and_write_render_as_distinct_windows_arguments(tmp_path):
     if os.name != "nt":
         return
 
     installer = ROOT / "scripts" / "install_sunshine_discord_tasks.ps1"
+    env = dict(os.environ)
+    env["LOCALAPPDATA"] = str(tmp_path)
     command = f"""
 $ErrorActionPreference = 'Stop'
 . '{installer}' `
@@ -273,6 +275,7 @@ Write-Output ('TASK_ARGS=' + $gptNewDiscordArguments)
             command,
         ],
         cwd=ROOT,
+        env=env,
         capture_output=True,
         text=True,
         timeout=30,
@@ -299,6 +302,66 @@ Write-Output ('TASK_ARGS=' + $gptNewDiscordArguments)
     assert "--allow-exec --allow-write" not in rendered
     assert rendered.index("--allow-exec") < rendered.index("--allow-write")
     assert rendered.index("--allow-write") < rendered.index("--block-ms")
+
+
+def test_installer_refuses_to_replace_existing_neo_continuity_binding(tmp_path):
+    if os.name != "nt":
+        return
+
+    runtime_root = tmp_path / "AkashicAurora" / "codex-wake"
+    runtime_root.mkdir(parents=True)
+    (runtime_root / "gpt-new-discord-continuity.state.json").write_text(
+        json.dumps(
+            {
+                "agent": "gpt-new",
+                "thread_id": "00000000-0000-0000-0000-000000000003",
+                "source_thread_id": "00000000-0000-0000-0000-000000000002",
+                "binding_kind": "completed-history-fork",
+            }
+        ),
+        encoding="utf-8",
+    )
+    installer = ROOT / "scripts" / "install_sunshine_discord_tasks.ps1"
+    env = dict(os.environ)
+    env["LOCALAPPDATA"] = str(tmp_path)
+    run = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(installer),
+            "-ThreadId",
+            "00000000-0000-0000-0000-000000000001",
+            "-SourceThreadId",
+            "00000000-0000-0000-0000-000000000002",
+            "-GptNewThreadId",
+            "00000000-0000-0000-0000-000000000003",
+            "-GptNewSourceThreadId",
+            "00000000-0000-0000-0000-000000000004",
+            "-RepoRoot",
+            str(ROOT),
+            "-RuntimeConfigRoot",
+            str(ROOT),
+            "-PythonExe",
+            sys.executable,
+            "-OnlyGptNew",
+            "-WhatIf",
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert run.returncode != 0
+    output = run.stdout + run.stderr
+    assert "refusing to replace" in output
+    assert "source_thread_id" in output
+    assert "00000000-0000-0000-0000-000000000002" in output
+    assert "00000000-0000-0000-0000-000000000004" in output
 
 
 def test_installer_can_update_only_neo_without_reregistering_shared_tasks():

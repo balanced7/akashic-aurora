@@ -144,6 +144,42 @@ $gptNewStatePath = Join-Path $runtimeRoot 'gpt-new-discord-continuity.state.json
 $gptNewEventPath = Join-Path $runtimeRoot 'gpt-new-discord-continuity.events.jsonl'
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 
+function Assert-ContinuityBinding {
+    param(
+        [Parameter(Mandatory = $true)][string]$StatePath,
+        [Parameter(Mandatory = $true)][Collections.IDictionary]$Expected
+    )
+    if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) {
+        return
+    }
+    try {
+        $existing = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
+    }
+    catch {
+        throw "Existing continuity state is unreadable; refusing task replacement: $StatePath ($($_.Exception.Message))"
+    }
+    foreach ($field in $Expected.Keys) {
+        $property = $existing.PSObject.Properties[$field]
+        if (-not $property) {
+            throw "Existing continuity state lacks '$field'; refusing task replacement: $StatePath"
+        }
+        $observed = [string]$property.Value
+        $wanted = [string]$Expected[$field]
+        if ($observed -ne $wanted) {
+            throw "Existing continuity state records $field '$observed'; refusing to replace it with '$wanted': $StatePath"
+        }
+    }
+}
+
+if ($GptNewThreadId) {
+    Assert-ContinuityBinding -StatePath $gptNewStatePath -Expected ([ordered]@{
+        agent = 'gpt-new'
+        thread_id = $GptNewThreadId
+        source_thread_id = $GptNewSourceThreadId
+        binding_kind = 'completed-history-fork'
+    })
+}
+
 function ConvertTo-TaskArguments {
     param([Parameter(Mandatory = $true)][string[]]$Values)
     return (($Values | ForEach-Object {
