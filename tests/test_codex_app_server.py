@@ -209,6 +209,8 @@ def test_turn_result_joins_final_text_status_and_usage(tmp_path):
     assert result.status == "completed"
     assert result.text == "fixture reply"
     assert result.token_usage["last"]["totalTokens"] == 16
+    assert result.token_usage["turnTotal"]["totalTokens"] == 16
+    assert result.token_usage["modelSteps"] == 1
 
 
 def test_dynamic_tool_reverse_request_is_answered_without_blocking_stdout_reader(tmp_path):
@@ -899,6 +901,13 @@ class FixtureAppServer:
                     "outputTokens": 6,
                     "totalTokens": 57,
                 },
+                "turnTotal": {
+                    "inputTokens": 51,
+                    "cachedInputTokens": 21,
+                    "outputTokens": 6,
+                    "totalTokens": 57,
+                },
+                "modelSteps": 2,
             },
             raw={},
         )
@@ -957,9 +966,11 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     assert sends[0][3]["callsign_status"] == "ratified"
     assert state.seen(mid) is True
     accounting = state.records[-1]["usage_accounting"]
-    assert accounting["accounting_basis"] == "turn_total"
+    assert accounting["accounting_basis"] == "summed_model_steps"
     assert accounting["turn_total"]["totalTokens"] == 57
+    assert accounting["thread_cumulative_total"]["totalTokens"] == 57
     assert accounting["final_model_step"]["totalTokens"] == 31
+    assert accounting["model_steps"] == 2
     assert accounting["multi_step"] is True
 
     events = [json.loads(line) for line in
