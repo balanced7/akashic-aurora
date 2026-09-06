@@ -219,6 +219,30 @@ def test_gpt_new_does_not_inherit_sunshines_exec_or_write_authority():
     assert "'--allow-write'" not in block.group(1)
 
 
+def test_gpt_new_exec_and_write_require_separate_explicit_installer_opt_ins():
+    installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "[switch]$EnableGptNewExec" in installer
+    assert "[switch]$EnableGptNewWrite" in installer
+    assert re.search(
+        r"if \(\$EnableGptNewExec\) \{.*?'--allow-exec'.*?\}",
+        installer,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"if \(\$EnableGptNewWrite\) \{.*?'--allow-write'.*?\}",
+        installer,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"if \(\(\$EnableGptNewExec -or \$EnableGptNewWrite\) -and\s+"
+        r"-not \$GptNewThreadId\)",
+        installer,
+    )
+
+
 def test_installer_declares_the_three_host_local_runtime_mounts():
     installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
         encoding="utf-8"
