@@ -243,6 +243,26 @@ def test_gpt_new_exec_and_write_require_separate_explicit_installer_opt_ins():
     )
 
 
+def test_installer_can_update_only_neo_without_reregistering_shared_tasks():
+    installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "[switch]$OnlyGptNew" in installer
+    assert re.search(
+        r"if \(\$OnlyGptNew -and -not \$GptNewThreadId\)",
+        installer,
+    )
+    assert re.search(
+        r"\$tasks = @\(\)\s+if \(-not \$OnlyGptNew\) \{\s+\$tasks \+= @\(",
+        installer,
+    )
+    assert re.search(
+        r"if \(-not \$OnlyGptNew -and\s+\$GatewayWatchdogTaskName",
+        installer,
+    )
+
+
 def test_installer_declares_the_three_host_local_runtime_mounts():
     installer = (ROOT / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
         encoding="utf-8"
