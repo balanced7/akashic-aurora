@@ -21,10 +21,11 @@ Cites: T076 task text + docs/library/report/20260716_t086-seat-wake-hook-lifecyc
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 
-def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
+def skip_to_now(agent: str, by: str, reason: str, *,
+                override_unsettled: Optional[List[str]] = None) -> Dict[str, Any]:
     """Advance every consume cursor for `agent` to its stream tail. Returns a report dict:
     {"ok": bool, "refused": str, "before": {...}, "after": {...}}. Never raises."""
     out: Dict[str, Any] = {"ok": False, "agent": str(agent), "by": str(by),
@@ -50,16 +51,70 @@ def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
             return out
         c = b._client
         out["before"] = {"shared": b.cursor(), "lane": b.read_lane_cursor()}
-        tails = b.tail()                              # legacy inbox/bc concrete tails
-        lane_fields: Dict[str, str] = {}
-        for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
-            keys = b._lane_keys(lane)
-            for logical, field in (("inbox", fi), ("bc", fb)):
-                try:
-                    last = c.xrevrange(keys[logical], count=1)
-                    lane_fields[field] = str(last[0][0]) if last else "0"
-                except Exception:
-                    lane_fields[field] = "0"
+
+        # T329: timing rails (pause + fencing) cannot establish that the CARGO is
+        # disposable.  Inspect the exact cursor-forward range before computing or
+        # writing a tail.  Unknown/incomplete inspection refuses in the same
+        # fail-closed direction as an unreadable pause state.
+        from core.comm import mailbox
+        inspection = mailbox.unsettled_answerable(
+            b.ns, str(agent), client=c, scan_limit=None)
+        out["inspection"] = {
+            key: inspection.get(key)
+            for key in ("available", "complete", "count", "oldest_age_s", "inspected",
+                        "tails", "truncated", "truncated_sources", "unresolved")
+            if key in inspection
+        }
+        unsettled = list(inspection.get("messages") or [])
+        out["unsettled"] = unsettled
+        overrides = {str(ref) for ref in (override_unsettled or []) if str(ref)}
+        out["override_unsettled"] = sorted(overrides)
+        if not inspection.get("available") or not inspection.get("complete"):
+            why = str(inspection.get("reason") or "range inspection incomplete")
+            out["refused"] = (
+                "mail range could not be proven safe -- refusing before any cursor write "
+                f"({why})")
+            return out
+
+        def _refs(row: Dict[str, Any]) -> set[str]:
+            refs = {str(row.get("sha") or "")}
+            refs.update(str(value) for value in (row.get("ids") or {}).values())
+            refs.discard("")
+            return refs
+
+        uncovered = [row for row in unsettled if not (_refs(row) & overrides)]
+        if uncovered:
+            kinds = ", ".join(sorted({str(row.get("kind") or "?") for row in uncovered}))
+            refs = ", ".join(str(row.get("sha") or "?") for row in uncovered[:8])
+            more = f" (+{len(uncovered) - 8} more)" if len(uncovered) > 8 else ""
+            out["refused"] = (
+                f"would skip {len(uncovered)} unsettled answerable item(s) [{kinds}]: "
+                f"{refs}{more}. Inspect them, reroute/settle them, or repeat with one exact "
+                "--override-unsettled REF for every item")
+            return out
+
+        # Advance ONLY to the frozen upper edge that was actually inspected.
+        # Asking for stream tails again here reopens a check-then-act race where
+        # newly arrived work can be skipped without ever entering the predicate.
+        frozen = dict(inspection.get("tails") or {})
+        required = {
+            "work_inbox", "sig_inbox", "legacy_inbox",
+            "work_bc", "sig_bc", "legacy_bc",
+        }
+        missing = sorted(required - set(frozen))
+        if missing:
+            out["refused"] = (
+                "mail inspection supplied no frozen tail for " + ", ".join(missing)
+                + " -- refusing before any cursor write")
+            return out
+        tails = {"inbox": str(frozen["legacy_inbox"]),
+                 "bc": str(frozen["legacy_bc"])}
+        lane_fields: Dict[str, str] = {
+            "inbox": str(frozen["work_inbox"]),
+            "bc": str(frozen["work_bc"]),
+            "sig_inbox": str(frozen["sig_inbox"]),
+            "sig_bc": str(frozen["sig_bc"]),
+        }
         # The legacy SHADOW positions continue the straggler-peek story from NOW.
         lane_fields["shadow_inbox"] = tails.get("inbox", "0")
         lane_fields["shadow_bc"] = tails.get("bc", "0")
@@ -88,7 +143,9 @@ def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
                           f"consume cursors for '{agent}' skipped to stream tails by {by}: {reason}",
                           agent_id=str(agent),
                           detail={"by": str(by), "reason": str(reason),
-                                  "before": out["before"], "after": out["after"]})
+                                  "before": out["before"], "after": out["after"],
+                                  "override_unsettled": sorted(overrides),
+                                  "unsettled_overridden": unsettled})
         except Exception:
             pass
         return out

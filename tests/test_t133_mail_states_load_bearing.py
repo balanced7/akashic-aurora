@@ -365,12 +365,14 @@ def test_the_sweep_runs_on_a_cadence_not_a_ritual():
     standing rule here is that a reproducible defect is a trigger to fix, never to normalise."""
     mbx = _mailbox()
     client = _fake()
-    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="a corpse's ask"))
+    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", kind="nudge",
+                            content="a corpse's obsolete signal"))
 
     first = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
     assert first["due"] is True and first["retired"] == 1
 
-    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="another corpse's ask"))
+    _aged(mbx, client, _Msg(frm="codex_root_019fab2d", kind="nudge",
+                            content="another corpse's obsolete signal"))
     again = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
     assert again["due"] is False and again["retired"] == 0, \
         "boot is on the hot path for every session; an O(entries) scan must not run every time"
@@ -417,7 +419,7 @@ def test_a_dry_run_changes_nothing():
     """It writes to mail state, so the operator sees the list before anything moves."""
     mbx = _mailbox()
     client = _fake()
-    sha = _aged(mbx, client, _Msg(frm="ghost_seat"))
+    sha = _aged(mbx, client, _Msg(frm="ghost_seat", kind="nudge"))
     r = mbx.retire_ghost_mail(NS, "claude", client=client, is_live=lambda s: False,
                               incarnation="sweep")
     assert r["would_retire"] == 1 and r.get("retired", 0) == 0

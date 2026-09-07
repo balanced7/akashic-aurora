@@ -85,6 +85,47 @@ def test_absent_seat_with_unsettled_handoff_is_unmanned_not_retired(isolated_bus
     assert "ghost" not in rendered and "skip-to-now" not in rendered
 
 
+def test_fleet_broadcast_is_not_misclassified_as_work_owned_by_absent_seat(isolated_bus):
+    _namespace, agent, _bus = isolated_bus
+    sent = Bus("t329-sender").send(
+        "*", "blocker", "A fleet-level signal is visible here, but not assigned to this seat.")
+    assert sent
+
+    findings = doctor.examine(agent, probes=_quiet_probes(time.time()))
+    assert not [row for row in findings if row["state"] == "unmanned_seat"], findings
+    neutral = [row for row in findings if row["state"] == "unmanned_backlog"]
+    assert len(neutral) == 1, findings
+    assert "lifecycle is unknown" in neutral[0]["line"].lower()
+
+    assert control.pause(reason="T329 broadcast ownership acceptance", by="sol", ttl=60)
+    allowed = cursor_admin.skip_to_now(
+        agent, by="sol", reason="fleet broadcast is not seat-owned work")
+    assert allowed["ok"] is True, allowed
+
+
+def test_skip_refuses_when_mail_inspection_is_incomplete(isolated_bus, monkeypatch):
+    _namespace, agent, bus = isolated_bus
+    assert Bus("t329-sender").send(agent, "handoff", "Do not infer safety from a blind read.")
+    before = bus.cursor()
+    assert control.pause(reason="T329 fail-closed acceptance", by="sol", ttl=60)
+    monkeypatch.setattr(
+        mailbox,
+        "unsettled_answerable",
+        lambda *_args, **_kwargs: {
+            "available": True,
+            "complete": False,
+            "messages": [],
+            "count": 0,
+            "reason": "synthetic truncated inspection",
+        },
+    )
+
+    refused = cursor_admin.skip_to_now(agent, by="sol", reason="T329 blind-read drill")
+    assert refused["ok"] is False, refused
+    assert "could not be proven safe" in refused["refused"].lower()
+    assert bus.cursor() == before
+
+
 def test_skip_refuses_unsettled_handoff_until_override_names_it(isolated_bus):
     _namespace, agent, bus = isolated_bus
     sent = Bus("t329-sender").send(agent, "handoff", "This work must survive an admin skip.")
@@ -108,6 +149,54 @@ def test_skip_refuses_unsettled_handoff_until_override_names_it(isolated_bus):
     assert allowed["ok"] is True, allowed
     assert allowed.get("override_unsettled") == [protected[0]["sha"]]
     assert bus.cursor().get("inbox", "0") == bus.tail().get("inbox", "0")
+
+
+def test_skip_override_must_name_every_directed_item(isolated_bus):
+    _namespace, agent, bus = isolated_bus
+    assert Bus("t329-sender").send(agent, "request", "First assigned ask.")
+    assert Bus("t329-sender").send(agent, "question", "Second assigned ask?")
+    before = bus.cursor()
+    assert control.pause(reason="T329 exact-override acceptance", by="sol", ttl=60)
+
+    inspected = mailbox.unsettled_answerable(
+        bus.ns, agent, client=bus._client, scan_limit=None)
+    assert inspected["complete"] is True and inspected["count"] == 2, inspected
+    partial = cursor_admin.skip_to_now(
+        agent,
+        by="sol",
+        reason="T329 incomplete override drill",
+        override_unsettled=[inspected["messages"][0]["sha"]],
+    )
+    assert partial["ok"] is False, partial
+    assert "1 unsettled" in partial["refused"].lower()
+    assert bus.cursor() == before
+
+
+def test_message_arriving_after_inspection_snapshot_is_not_skipped(
+        isolated_bus, monkeypatch):
+    _namespace, agent, bus = isolated_bus
+    assert Bus("t329-sender").send(agent, "nudge", "Safe pre-snapshot signal.")
+    assert control.pause(reason="T329 snapshot-race acceptance", by="sol", ttl=60)
+    inspect_real = mailbox.unsettled_answerable
+    late = {"id": ""}
+
+    def inspect_then_arrive(*args, **kwargs):
+        receipt = inspect_real(*args, **kwargs)
+        late["id"] = str(Bus("t329-sender").send(
+            agent, "handoff", "I landed after the frozen inspection range."))
+        assert late["id"]
+        return receipt
+
+    monkeypatch.setattr(mailbox, "unsettled_answerable", inspect_then_arrive)
+    advanced = cursor_admin.skip_to_now(
+        agent, by="sol", reason="T329 frozen-range race drill")
+    assert advanced["ok"] is True, advanced
+
+    monkeypatch.setattr(mailbox, "unsettled_answerable", inspect_real)
+    remaining = inspect_real(bus.ns, agent, client=bus._client, scan_limit=None)
+    assert remaining["complete"] is True, remaining
+    assert remaining["count"] == 1, remaining
+    assert late["id"] in remaining["messages"][0]["ids"].values()
 
 
 def test_ghost_sweep_protects_unsettled_handoff_without_named_override():
@@ -151,3 +240,33 @@ def test_ghost_sweep_protects_unsettled_handoff_without_named_override():
     )
     assert overridden["retired"] == 1, overridden
 
+
+def test_ghost_sweep_does_not_make_fleet_broadcast_seat_owned_work():
+    from test_t095_m0_mailbox_shadow import _FakeRedis
+
+    namespace = "t329-mailbox-broadcast"
+    agent = "t329-target"
+    client = _FakeRedis()
+    fields = {
+        "frm": "codex_root_deadbeef",
+        "to": "*",
+        "kind": "blocker",
+        "content": "A fleet notice is not a directed obligation for every absent seat.",
+        "ts": str(time.time() - 48 * 3600),
+    }
+    sha = mailbox._ingest_one(client, namespace, agent, "work_bc", "100-0", fields)
+    assert sha
+    client.hset(
+        mailbox._keys(namespace, agent)["msg"] + sha,
+        mapping={"ts_s": str(time.time() - 48 * 3600)},
+    )
+
+    swept = mailbox.retire_ghost_mail(
+        namespace,
+        agent,
+        client=client,
+        dry_run=False,
+        is_live=lambda _sender: False,
+    )
+    assert swept["protected_unsettled"] == 0, swept
+    assert swept["retired"] == 1, swept
