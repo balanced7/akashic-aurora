@@ -482,9 +482,13 @@ def _is_unsettled_answerable(entry: Dict[str, Any]) -> bool:
     # every absent seat over one fleet notice and recreates the same
     # channel-vs-owner category error T329 is removing.  Missing ``to`` stays
     # protected: old/degraded envelopes do not earn destructive permission.
-    return (str(entry.get("kind") or "") in LONG_KINDS
-            and str(entry.get("tier") or "") == "unhandled"
-            and str(entry.get("to") or "") != "*")
+    if (str(entry.get("kind") or "") not in LONG_KINDS
+            or str(entry.get("tier") or "") != "unhandled"):
+        return False
+    destination = str(entry.get("to") or "")
+    if destination == "*":
+        return False                    # explicit broadcast: visible, not seat-owned
+    return True                         # directed OR unknown: protect/fail closed
 
 
 def unsettled_answerable(ns: str, agent: str, *, client=None,
