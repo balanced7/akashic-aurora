@@ -12271,13 +12271,13 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "claimed",
-      "commit": null,
-      "verified_by": null,
-      "reviewed_by": null,
+      "status": "done",
+      "commit": "94daba0a",
+      "verified_by": "pytest: 67 Doctor + 108 mailbox/cursor; live gpt-new projection; Bifrost review 1788746975971-0 ADOPT",
+      "reviewed_by": "heimdall",
       "self_verified": null,
       "created": "2026-08-16T18:22:34+00:00",
-      "updated": "2026-09-07T01:26:55+00:00",
+      "updated": "2026-09-07T02:10:20+00:00",
       "history": [
         {
           "to": "proposed",
@@ -12293,6 +12293,16 @@
           "to": "claimed",
           "by": "sol",
           "at": "2026-09-07T01:26:55+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "heimdall",
+          "at": "2026-09-07T02:10:12+00:00"
+        },
+        {
+          "to": "done",
+          "by": "sol",
+          "at": "2026-09-07T02:10:20+00:00"
         }
       ]
     },
