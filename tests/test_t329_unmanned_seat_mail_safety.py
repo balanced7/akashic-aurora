@@ -126,6 +126,36 @@ def test_skip_refuses_when_mail_inspection_is_incomplete(isolated_bus, monkeypat
     assert bus.cursor() == before
 
 
+def test_missing_destination_is_protected_and_exactly_overrideable(isolated_bus):
+    namespace, agent, bus = isolated_bus
+    stream = f"{namespace}:work:inbox:{agent}"
+    malformed_id = str(bus._client.xadd(stream, {
+        "frm": "t329-legacy-sender",
+        "kind": "handoff",
+        "content": "Legacy work whose destination field is missing.",
+        "ts": str(time.time()),
+        # Deliberately no `to`: unknown ownership must never become permission.
+    }))
+    before = bus.cursor()
+    assert control.pause(reason="T329 missing-destination acceptance", by="sol", ttl=60)
+
+    refused = cursor_admin.skip_to_now(
+        agent, by="sol", reason="T329 malformed-envelope drill")
+    assert refused["ok"] is False, refused
+    protected = refused.get("unsettled") or []
+    assert len(protected) == 1, refused
+    assert protected[0]["ids"].get("work_inbox") == malformed_id
+    assert bus.cursor() == before
+
+    allowed = cursor_admin.skip_to_now(
+        agent,
+        by="sol",
+        reason="T329 explicit malformed-envelope override",
+        override_unsettled=[protected[0]["sha"]],
+    )
+    assert allowed["ok"] is True, allowed
+
+
 def test_skip_refuses_unsettled_handoff_until_override_names_it(isolated_bus):
     _namespace, agent, bus = isolated_bus
     sent = Bus("t329-sender").send(agent, "handoff", "This work must survive an admin skip.")
@@ -207,9 +237,8 @@ def test_ghost_sweep_protects_unsettled_handoff_without_named_override():
     client = _FakeRedis()
     fields = {
         "frm": "codex_root_deadbeef",
-        "to": agent,
         "kind": "handoff",
-        "content": "The sender ended; the requested work did not.",
+        "content": "The sender ended; this legacy envelope lost its destination field.",
         "ts": str(time.time() - 48 * 3600),
     }
     sha = mailbox._ingest_one(client, namespace, agent, "work_inbox", "100-0", fields)
