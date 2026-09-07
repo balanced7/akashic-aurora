@@ -5,10 +5,10 @@ with leftover backlog and no live process. flightdeck rendered it "absent" in
 the pulse column; doctor should tri-state:
 
   LIVE + idle + backlog past hysteresis = stalled_consumer PAGE  (unchanged)
-  ABSENT (no worklive) + backlog         = offline_backlog DASHBOARD (never a page)
+  ABSENT (no worklive) + non-action backlog = unmanned_backlog DASHBOARD (never a page)
   LIVE + idle + backlog pre-hysteresis   = stalled_consumer DASHBOARD (unchanged)
 
-  P1  absent agent with backlog -> offline_backlog dashboard, NOT page
+  P1  absent agent with non-action backlog -> unmanned_backlog dashboard, NOT page
   P2  present+idle agent with backlog past hysteresis -> stalled_consumer page
   P3  present+idle agent with backlog pre-hysteresis -> stalled_consumer dashboard
   P4  absent agent with NO backlog -> no finding
@@ -33,6 +33,8 @@ def _probes(**over):
                             "since_ts": _now - 5, "beat_ts": _now - 1},
         progress=lambda a: None,
         backlog=lambda a: 0,
+        unsettled_answerable=lambda a: {
+            "available": True, "complete": True, "count": 0, "messages": []},
         stalled_since=lambda a, present: None,
         halted=lambda a: None,
         lane_health=lambda a: None,
@@ -42,19 +44,20 @@ def _probes(**over):
     return base
 
 
-def test_p1_absent_agent_backlog_is_offline_dashboard():
+def test_p1_absent_agent_backlog_is_unmanned_dashboard():
     """An agent with NO worklive record (presence TTL'd out) but leftover backlog
-    gets a dashboard offline_backlog — never a page."""
+    gets an honest unmanned dashboard — absence is not retirement."""
     f = examine("census", probes=_probes(
         worklive=lambda a: None,       # absent — worklive TTL'd
         backlog=lambda a: 7,           # ghost mail
     ))
     pages = [x for x in f if x["grade"] == "page"]
-    offline = [x for x in f if x["state"] == "offline_backlog"]
+    unmanned = [x for x in f if x["state"] == "unmanned_backlog"]
     assert len(pages) == 0, f"absent agent must never page; got: {pages}"
-    assert len(offline) == 1
-    assert offline[0]["grade"] == "dashboard"
-    assert "GONE" in offline[0]["line"] or "OFFLINE" in offline[0]["line"]
+    assert len(unmanned) == 1
+    assert unmanned[0]["grade"] == "dashboard"
+    assert "UNKNOWN" in unmanned[0]["line"]
+    assert "GONE" not in unmanned[0]["line"] and "ghost" not in unmanned[0]["line"]
 
 
 def test_p2_present_idle_past_hysteresis_still_pages():
@@ -94,13 +97,13 @@ def test_p4_absent_no_backlog_no_finding():
     assert len(offline) == 0
 
 
-def test_p5_live_census_offline_not_stalled():
-    """The exact census shape: absent worklive + 7 backlog = offline, not stalled."""
+def test_p5_live_census_unmanned_not_stalled_or_retired():
+    """The old census shape is unmanned, never stalled and never inferred retired."""
     f = examine("census", probes=_probes(
         worklive=lambda a: None,
         backlog=lambda a: 7,
     ))
     stalled = [x for x in f if x["state"] == "stalled_consumer"]
-    offline = [x for x in f if x["state"] == "offline_backlog"]
+    unmanned = [x for x in f if x["state"] == "unmanned_backlog"]
     assert len(stalled) == 0
-    assert len(offline) == 1
+    assert len(unmanned) == 1

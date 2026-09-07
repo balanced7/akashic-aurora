@@ -135,6 +135,24 @@ def _probe_backlog(agent: str) -> int:
         return 0
 
 
+def _probe_unsettled_answerable(agent: str) -> Dict[str, Any]:
+    """T329 cargo witness for an absent seat; never advances a delivery cursor."""
+    try:
+        from core.comm.bus import Bus
+        from core.comm import mailbox
+        b = Bus(agent)
+        if not b.online:
+            return {"available": False, "complete": False, "count": 0,
+                    "messages": [], "reason": "bus offline"}
+        # Doctor is a hot read, so this observation is bounded and confesses
+        # truncation.  The destructive cursor door performs the exhaustive form.
+        return mailbox.unsettled_answerable(
+            b.ns, agent, client=b._client, scan_limit=500)
+    except Exception as exc:
+        return {"available": False, "complete": False, "count": 0,
+                "messages": [], "reason": f"{type(exc).__name__}: {exc}"}
+
+
 def _probe_stalled_since(agent: str, present: bool) -> Optional[float]:
     """Cross-invocation hysteresis: first-seen timestamp of the CURRENT stall, kept in
     a small key; cleared the moment the stall clears. Returns the first-seen epoch
@@ -309,6 +327,7 @@ def _default_probes() -> Dict[str, Any]:
         "worklive": liveness.read,
         "progress": liveness.progress_read,
         "backlog": _probe_backlog,
+        "unsettled_answerable": _probe_unsettled_answerable,
         "stalled_since": _probe_stalled_since,
         "halted": _probe_halted,
         "lane_health": _probe_lane_health,
@@ -450,23 +469,48 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                                   f"lock-held), no runner phase; consumes on next turn/wake",
                                   f"py agent_cli.py bifrost-sync {agent}"))
                 else:
-                    # ABSENT: no worklive, no runner, no wake seat. Ghost mail from a
-                    # retired/dead seat -- dashboard-visible (graveyard-is-a-resource) but
-                    # NEVER a page. Live receipt: census (a retired one-off task-agent).
-                    out.append(_f(agent, "offline_backlog", "dashboard",
-                                  f"{agent}: OFFLINE — {backlog} unread but the agent is "
-                                  f"GONE (no worklive, no runner, no wake seat). The backlog "
-                                  f"is ghost mail from a retired seat — retire the inbox or "
-                                  f"ignore.",
-                                  # T115: this used to advertise a `retire` verb that
-                                  # has never existed -- an operator following
-                                  # the doctor's own advice got an argparse error and no way
-                                  # to act on a finding the doctor deliberately raised.
-                                  # skip-to-now IS "retire the inbox": it advances the
-                                  # cursors past ghost mail, with an audited reason.
-                                  f"py agent_cli.py bifrost-skip-to-now {agent} --by <you> "
-                                  f"--reason 'ghost mail from a retired seat'  | or ignore: "
-                                  f"the mail TTLs with the stream"))
+                    # T329: ABSENT is a transient liveness observation, not a durable
+                    # retirement fact, and it grants no authority over the mail.  Inspect
+                    # the cargo before grading it.  Unsettled answerable work at a seat with
+                    # no drainer is the urgent condition; it is never "ghost mail" and its
+                    # remedy is to restore a route or reroute the asks, never move a cursor
+                    # past them.  This extends W40's exact lesson one branch further.
+                    cargo = p["unsettled_answerable"](agent) or {}
+                    messages = list(cargo.get("messages") or [])
+                    count = int(cargo.get("count") or len(messages))
+                    inspect = f"py agent_cli.py mailbox {agent} --min-evidence unhandled"
+                    if count:
+                        by_kind: Dict[str, int] = {}
+                        for row in messages:
+                            kind = str(row.get("kind") or "unknown")
+                            by_kind[kind] = by_kind.get(kind, 0) + 1
+                        kinds = ", ".join(f"{kind}={n}" for kind, n in sorted(by_kind.items()))
+                        oldest = cargo.get("oldest_age_s")
+                        age = _fmt_age(float(oldest)) if oldest is not None else "age unknown"
+                        bound = ("" if cargo.get("complete") else
+                                 "; bounded inspection incomplete — count is a floor")
+                        out.append(_f(
+                            agent, "unmanned_seat", "page",
+                            f"{agent}: UNMANNED SEAT — no worklive, runner, or wake-seat "
+                            f"witness; backlog holds {count} unsettled answerable item(s) "
+                            f"({kinds}), oldest {age}{bound}. Absence is not retirement.",
+                            f"{inspect}  | then START the registered seat or REROUTE each ask "
+                            "to a live seat"))
+                    elif not cargo.get("available") or not cargo.get("complete"):
+                        reason = str(cargo.get("reason") or "bounded inspection incomplete")
+                        out.append(_f(
+                            agent, "unmanned_seat", "banner",
+                            f"{agent}: UNMANNED SEAT — {backlog} unread and no presence "
+                            f"witness; mail contents are UNKNOWN ({reason}). Absence is not "
+                            "retirement, so no destructive remedy is offered.",
+                            inspect))
+                    else:
+                        out.append(_f(
+                            agent, "unmanned_backlog", "dashboard",
+                            f"{agent}: UNMANNED — {backlog} unread and no presence witness; "
+                            "mailbox found no unsettled answerable work. Seat lifecycle is "
+                            "UNKNOWN, not retired.",
+                            inspect))
                 p["stalled_since"](agent, False)
             else:
                 first = p["stalled_since"](agent, True)

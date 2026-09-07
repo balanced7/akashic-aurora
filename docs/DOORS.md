@@ -25,7 +25,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-pause` | freeze bus auto-responders (human barge-in); --soft to let seats finish first | `--reason` `--by` `--ttl` `--soft` `--json` |
 | `bifrost-resume` | un-freeze bus auto-responders |  |
 | `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--answers` `--expect-reply-within` `--to-incarnation` `--json` |
-| `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
+| `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--override-unsettled` `--json` |
 | `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
 | `boop` | the smallest verb in the house: zero arguments, always answered | `--surface` `--agent` |
@@ -69,7 +69,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
 | `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
 | `lookback` | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) | `<question>*` `--per-layer` `--layers` `--json` |
-| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--limit-scan` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
+| `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--limit-scan` `--override-unsettled` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
 | `note` | record a durable project note (write-once; re-note same title to update) | `<agent_id>*` `--title` `--note` `--context` `--category` `--supersedes` `--retire` `--get` `--session` `--json` |
 | `notes` | list active project notes (--project regenerates chronicles/memory.md) | `--limit` `--days` `--project` `--all` `--json` |
 | `orient` | VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral | `<target>` `--agent` `--density {compact,standard,wide}` `--depth {surface,evidence}` `--per-stream` `--json` |

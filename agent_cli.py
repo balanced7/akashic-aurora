@@ -6475,12 +6475,21 @@ def cmd_bifrost_skip_to_now(args):
     event w/ before/after); requires the fleet PAUSED and a --reason. Replaces the
     super-admin hand surgery of note cursor-skip-2026-07-15."""
     from core.comm.cursor_admin import skip_to_now
-    res = skip_to_now(args.agent_id, by=args.by, reason=args.reason)
+    res = skip_to_now(
+        args.agent_id,
+        by=args.by,
+        reason=args.reason,
+        override_unsettled=list(getattr(args, "override_unsettled", []) or []),
+    )
     if args.json:
         print(json.dumps(res, default=str))
         return 0 if res.get("ok") else 2
     if res.get("refused"):
         print(f"[skip-to-now] REFUSED: {res['refused']}")
+        for row in (res.get("unsettled") or [])[:20]:
+            ids = ",".join(str(value) for value in (row.get("ids") or {}).values())
+            print(f"  protected {row.get('sha')}  {row.get('kind')} from {row.get('frm')}"
+                  + (f"  ids={ids}" if ids else ""))
         return 2
     adv = (res.get("after") or {}).get("advance") or {}
     print(f"[skip-to-now] {args.agent_id}: shared={adv.get('shared')} lane={adv.get('lane')} "
@@ -7035,7 +7044,9 @@ def cmd_mailbox(args):
                                         dry_run=not apply,
                                         min_age_h=float(getattr(args, "min_age_h", 24.0)),
                                         limit=int(getattr(args, "limit_scan", 5000)),
-                                        incarnation=f"ghost-sweep:{inc}")
+                                        incarnation=f"ghost-sweep:{inc}",
+                                        override_unsettled=list(
+                                            getattr(args, "override_unsettled", []) or []))
         if args.json:
             print(json.dumps(out, indent=2, default=str)); return 0
         if not out.get("ok"):
@@ -7051,6 +7062,14 @@ def cmd_mailbox(args):
             print(f"  {c['sha'][:10]}  {c['kind']:<10} from {c['frm']:<26} {c['age_h']}h old")
         if len(cands) > 40:
             print(f"  ... and {len(cands) - 40} more")
+        protected = out.get("protected") or []
+        if protected:
+            print(f"  PROTECTED: {len(protected)} unsettled answerable item(s) were not "
+                  "declined. Inspect/settle them, or name each exact ref with "
+                  "--override-unsettled REF.")
+            for row in protected[:40]:
+                print(f"    {row['sha']}  {row['kind']:<10} from {row['frm']:<26} "
+                      f"{row['age_h']}h old")
         if apply:
             print(f"[mailbox] declined {out['retired']} ghost message(s) -- they stay readable, "
                   f"stop competing with live work, and no longer wake a seat")
@@ -8091,6 +8110,9 @@ def build_parser():
                      help="with --retire-ghosts: how old mail must be to be sweepable (default 24)")
     mbx.add_argument("--limit-scan", type=int, default=5000, dest="limit_scan",
                      help="with --retire-ghosts: max entries to examine (default 5000, the index cap)")
+    mbx.add_argument("--override-unsettled", action="append", default=[], metavar="REF",
+                     help="with --retire-ghosts: explicitly name one protected unsettled item; "
+                          "repeat for every item the operator intends to decline")
     mbx.add_argument("--min-evidence", choices=["unhandled", "consumed", "replied", "acked"],
                      default=None, help="show only entries at or below this evidence tier")
     # M1: the mailbox stops being read-only. These three are the product receipt's verbs.
@@ -8255,6 +8277,9 @@ def build_parser():
     skp.add_argument("agent_id", help="whose cursors to skip")
     skp.add_argument("--by", required=True, help="who authorizes (rides the audit event)")
     skp.add_argument("--reason", required=True, help="why (refuse-loud without one)")
+    skp.add_argument("--override-unsettled", action="append", default=[], metavar="REF",
+                     help="explicitly name one unsettled message sha or stream id to discard; "
+                          "repeat for every protected item (audited, never implied by --reason)")
     skp.add_argument("--json", action="store_true")
     skp.set_defaults(fn=cmd_bifrost_skip_to_now)
 

@@ -463,6 +463,199 @@ def query(ns: str, agent: str, *, client=None,
         return _unavailable(f"index unavailable ({exc})")      # silent to transport
 
 
+def _is_unsettled_answerable(entry: Dict[str, Any]) -> bool:
+    """The T329 protection predicate, shared by every destructive mail broom.
+
+    ``LONG_KINDS`` is the existing bus-policy name for directed work that asks a
+    seat to do or answer something.  ``unhandled`` is the mailbox's strongest
+    honest statement that no ack, answer, or consume receipt settles it.  Keeping
+    the predicate here prevents Doctor, cursor administration, and ghost retirement
+    from growing three subtly different definitions of live work.
+
+    The kind is the sender's existing contract.  Protection cannot require a new
+    positive metadata bit: every legacy ask lacks it, and treating absence as false
+    would silently turn old live work into skippable mail.  A future explicit
+    negative signal may safely narrow the set; unknown continues to fail closed.
+    """
+    # A broadcast may be important, but it is not work OWNED by every seat that
+    # can see the shared stream.  Treating ``to='*'`` as a directed ask pages
+    # every absent seat over one fleet notice and recreates the same
+    # channel-vs-owner category error T329 is removing.  Missing ``to`` stays
+    # protected: old/degraded envelopes do not earn destructive permission.
+    return (str(entry.get("kind") or "") in LONG_KINDS
+            and str(entry.get("tier") or "") == "unhandled"
+            and str(entry.get("to") or "") != "*")
+
+
+def unsettled_answerable(ns: str, agent: str, *, client=None,
+                         scan_limit: Optional[int] = DEFAULT_BUDGET,
+                         acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None
+                         ) -> Dict[str, Any]:
+    """Inspect the exact cursor-forward range for unsettled answerable work.
+
+    This is the read-before-destroy seam added by T329.  It reads every stream a
+    skip-to-now operation advances, reuses the mailbox resolver for settlement,
+    and deduplicates dual-write copies by message identity.  A finite
+    ``scan_limit`` is honest about truncation; ``None`` performs the exhaustive
+    admin check.  Any unreadable or unresolved row makes ``complete`` false so a
+    destructive caller can refuse rather than interpret ignorance as safety.
+
+    Like the rest of this module it may update only the reconstructable mailbox
+    index.  It never advances a delivery cursor, declares intent, or sends mail.
+    """
+    if not enabled():
+        return {**_unavailable("mailbox disabled (AKASHIC_MAILBOX=0)"),
+                "complete": False, "messages": [], "count": 0}
+    try:
+        client = client if client is not None else _connect()
+        if client is None:
+            return {**_unavailable("mailbox store unavailable"),
+                    "complete": False, "messages": [], "count": 0}
+
+        lane_cursor = merged_lane_cursor(ns, agent, client=client)
+        legacy_cursor = client.hgetall(f"{ns}:cursor:{agent}") or {}
+        cursors = {"lane": lane_cursor, "legacy": legacy_cursor}
+        raw: Dict[str, Dict[str, Any]] = {}
+        unresolved: List[Dict[str, str]] = []
+        truncated_sources: List[str] = []
+        inspected = 0
+        tails: Dict[str, str] = {}
+
+        limit = None if scan_limit is None else max(1, int(scan_limit))
+        # Freeze the UPPER edge before reading any bodies.  A destructive caller
+        # must advance to exactly this receipt, not ask the stream for a newer
+        # "now" after inspection: otherwise an ask arriving in that gap is skipped
+        # unseen.  Capturing each stream independently is sufficient because IDs
+        # are monotonic; a dual-write caught on neither side is newer than both
+        # receipts and therefore remains cursor-forward.
+        for source, tmpl, _cursor_kind, _cursor_field in _SOURCES:
+            stream = tmpl.format(ns=ns, agent=agent)
+            last = client.xrevrange(stream, count=1) or []
+            tails[source] = str(last[0][0]) if last else "0"
+
+        def _ingest_rows(source: str, rows: List[Any]) -> None:
+            nonlocal inspected
+            inspected += len(rows)
+            for sid, original_fields in rows:
+                fields = dict(original_fields)
+                kind = str(fields.get("kind") or "_unknown")
+                try:
+                    meta = json.loads(fields.get("meta") or "{}")
+                except (TypeError, ValueError):
+                    meta = {}
+                # A non-long reply can carry ``meta.answers`` that settles a
+                # long-kind ask.  Feed those envelopes to the answer map, but do
+                # not rewrite the mailbox index for every irrelevant chat/nudge
+                # in a bounded Doctor probe.
+                answers = meta.get("answers") if isinstance(meta, dict) else None
+                if kind not in LONG_KINDS and not answers:
+                    continue
+                sha = _ingest_one(client, ns, agent, source, str(sid), fields)
+                if kind not in LONG_KINDS:
+                    continue
+                if not _is_mailbox_kind(kind, meta):
+                    continue
+                if not sha:
+                    unresolved.append({"source": source, "id": str(sid), "kind": kind})
+                    continue
+                rec = raw.setdefault(str(sha), {
+                    "sha": str(sha),
+                    "kind": kind,
+                    "frm": str(fields.get("frm") or "?"),
+                    "to": str(fields.get("to") or ""),
+                    "ts": str(fields.get("ts") or ""),
+                    "ts_s": _entry_ts_s(fields, str(sid)),
+                    "ids": {},
+                })
+                rec["ids"][source] = str(sid)
+                ts_s = _entry_ts_s(fields, str(sid))
+                if ts_s and (not rec.get("ts_s") or ts_s < float(rec["ts_s"])):
+                    rec["ts_s"] = ts_s
+
+        for source, tmpl, cursor_kind, cursor_field in _SOURCES:
+            stream = tmpl.format(ns=ns, agent=agent)
+            floor = str(cursors[cursor_kind].get(cursor_field, "0") or "0")
+            ceiling = tails[source]
+            if ceiling == "0" or _sid_lte(ceiling, floor):
+                continue
+            if limit is not None:
+                rows = client.xrange(
+                    stream, "(" + floor, ceiling, count=limit + 1) or []
+                if len(rows) > limit:
+                    truncated_sources.append(source)
+                    rows = rows[:limit]
+                elif not rows or str(rows[-1][0]) != ceiling:
+                    unresolved.append({"source": source, "id": ceiling,
+                                       "kind": "frozen-tail-not-readable"})
+                _ingest_rows(source, rows)
+                continue
+
+            # The admin path is exhaustive but bounded in MEMORY.  Loading an
+            # arbitrarily large unread stream with one XRANGE was one more route
+            # to the RAM failure this safety work is meant to prevent.
+            read_floor = floor
+            while not _sid_lte(ceiling, read_floor):
+                rows = client.xrange(
+                    stream, "(" + read_floor, ceiling, count=512) or []
+                if not rows:
+                    unresolved.append({"source": source, "id": ceiling,
+                                       "kind": "frozen-tail-not-readable"})
+                    break
+                _ingest_rows(source, rows)
+                next_floor = str(rows[-1][0])
+                if _sid_lte(next_floor, read_floor):
+                    unresolved.append({"source": source, "id": next_floor,
+                                       "kind": "non-advancing-range"})
+                    break
+                read_floor = next_floor
+
+        resolved = {str(entry.get("sha")): entry
+                    for entry in _resolve(client, ns, agent, acks_lookup)}
+        messages: List[Dict[str, Any]] = []
+        for sha, rec in raw.items():
+            entry = resolved.get(sha)
+            if entry is None:
+                unresolved.append({"source": "mailbox-index", "id": sha,
+                                   "kind": str(rec.get("kind") or "")})
+                continue
+            state = dict(entry)
+            state["to"] = str(rec.get("to") or "")
+            if not _is_unsettled_answerable(state):
+                continue
+            ts_s = float(rec.get("ts_s") or 0.0)
+            messages.append({
+                "sha": sha,
+                "kind": str(entry.get("kind") or rec.get("kind") or ""),
+                "frm": str(entry.get("frm") or rec.get("frm") or "?"),
+                "ts": str(entry.get("ts") or rec.get("ts") or ""),
+                "age_s": max(0.0, time.time() - ts_s) if ts_s > 0 else None,
+                "ids": dict(entry.get("ids") or rec.get("ids") or {}),
+                "tier": "unhandled",
+            })
+        messages.sort(key=lambda row: (
+            float("inf") if row.get("age_s") is None else -float(row["age_s"]),
+            row["sha"],
+        ))
+        ages = [float(row["age_s"]) for row in messages if row.get("age_s") is not None]
+        complete = not truncated_sources and not unresolved
+        return {
+            "available": True,
+            "agent": str(agent),
+            "complete": complete,
+            "messages": messages,
+            "count": len(messages),
+            "oldest_age_s": max(ages) if ages else None,
+            "inspected": inspected,
+            "tails": tails,
+            "truncated": bool(truncated_sources),
+            "truncated_sources": truncated_sources,
+            "unresolved": unresolved,
+        }
+    except Exception as exc:
+        return {**_unavailable(f"unsettled-work inspection unavailable ({exc})"),
+                "complete": False, "messages": [], "count": 0}
+
+
 def rebuild(ns: str, agent: str, *, client=None,
             acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Drop the agent's index and rebuild from the log; report divergence vs the
@@ -905,7 +1098,8 @@ def _sender_can_return(sender: str) -> bool:
 
 def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: bool = True,
                       client=None, is_live=None, incarnation: str = "ghost-sweep",
-                      limit: int = DEFAULT_CAP) -> Dict[str, Any]:
+                      limit: int = DEFAULT_CAP,
+                      override_unsettled: Optional[List[str]] = None) -> Dict[str, Any]:
     """Declare `decline` on old, unadjudicated mail from seats that no longer exist.
 
     THE FAILURE THIS TREATS, from 2026-08-02: kimi spent three turns answering
@@ -953,7 +1147,20 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
     truncated = total > len(shas)
 
     declared = client.hgetall(k["intent"]) or {}
+    overrides = {str(ref) for ref in (override_unsettled or []) if str(ref)}
+    try:
+        resolved = {str(entry.get("sha")): entry
+                    for entry in _resolve(client, ns, agent, None)}
+    except Exception as exc:
+        # This operation changes message judgement.  If settlement cannot be read,
+        # ignorance must never become permission to decline live work.
+        return {"ok": False, "reason": f"could not resolve mail state ({exc})",
+                "scanned": len(shas), "total": total, "truncated": truncated,
+                "unscanned": max(0, total - len(shas)), "candidates": [],
+                "protected": [], "protected_unsettled": 0, "would_retire": 0,
+                "retired": 0, "dry_run": bool(dry_run)}
     candidates: List[Dict[str, Any]] = []
+    protected: List[Dict[str, Any]] = []
     for sha in shas:
         e = client.hgetall(k["msg"] + str(sha)) or {}
         frm = str(e.get("frm") or "")
@@ -974,8 +1181,26 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
             continue
         if _live(frm):
             continue
-        candidates.append({"sha": str(sha), "frm": frm, "kind": str(e.get("kind") or ""),
-                           "age_h": round(age_h, 1)})
+        state = resolved.get(str(sha))
+        refs = {str(sha)}
+        if state is not None:
+            refs.update(str(value) for value in (state.get("ids") or {}).values())
+        state_with_destination = dict(state or {})
+        state_with_destination["to"] = str(e.get("to") or "")
+        is_protected = (state is None and str(e.get("kind") or "") in LONG_KINDS
+                        and str(e.get("to") or "") != "*") \
+            or (state is not None and _is_unsettled_answerable(state_with_destination))
+        if is_protected and not (refs & overrides):
+            protected.append({"sha": str(sha), "frm": frm,
+                              "kind": str(e.get("kind") or ""),
+                              "age_h": round(age_h, 1),
+                              "reason": ("mail state unresolved" if state is None
+                                         else "unsettled answerable work")})
+            continue
+        candidates.append({"sha": str(sha), "frm": frm,
+                           "kind": str(e.get("kind") or ""),
+                           "age_h": round(age_h, 1),
+                           "unsettled_override": bool(is_protected)})
 
     retired = 0
     if not dry_run:
@@ -983,13 +1208,17 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
             r = declare_intent(
                 ns, agent, c["sha"], "decline", incarnation=incarnation, client=client,
                 note=(f"ghost sweep: sender {c['frm']} has no live seat and this is {c['age_h']}h "
-                      f"old -- declined so it stops competing with live work"))
+                      f"old -- declined so it stops competing with live work"
+                      + ("; operator explicitly named this unsettled item for override"
+                         if c.get("unsettled_override") else "")))
             if r.get("ok"):
                 retired += 1
 
     return {"ok": True, "scanned": len(shas), "total": total, "truncated": truncated,
             "unscanned": max(0, total - len(shas)), "candidates": candidates,
-            "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run)}
+            "protected": protected, "protected_unsettled": len(protected),
+            "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run),
+            "override_unsettled": sorted(overrides)}
 
 
 def maybe_retire_ghosts(ns: str, agent: str, *, every_h: float = 12.0, client=None,
