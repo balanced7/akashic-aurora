@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 65d98263. A bound you discover by collision is not awareness -- this sheet
+> Derived at 780f0c50. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -93,7 +93,7 @@ Class: reference
 | `AKASHIC_PLAY_TIMEOUT_S` | `"30"` | core/toolbelt/play_sandbox.py |
 | `AKASHIC_PORTS_NO_DOCKER` | `` | scripts/checkers/check_ports.py |
 | `AKASHIC_PROPOSED_STALE_DAYS` | `stale_days` | core/coord/task_ledger.py |
-| `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/cursor_posttooluse.py +3 |
+| `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/cursor_posttooluse.py +2 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
