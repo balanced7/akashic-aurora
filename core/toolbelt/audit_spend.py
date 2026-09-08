@@ -39,9 +39,18 @@ import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from core.toolbelt.audit import Row
+if TYPE_CHECKING:  # annotations only; the RUNTIME import lives in SpendDomain.run
+    from core.toolbelt.audit import Row
+
+# IMPORT-CYCLE LAW (sibling of lexicon_bindings, 0a36aa0e): audit.py builds
+# `DOMAINS = _default_domains()` in its MODULE BODY, and that imports SpendDomain
+# from here. A module-level `from core.toolbelt.audit import Row` therefore
+# re-enters audit.py half-built whenever THIS module is imported first, and
+# audit.py asks a partially initialised audit_spend for SpendDomain -> ImportError.
+# A green that depends on which module pytest happened to collect first is the
+# ambient-state trap. Row is resolved lazily at run() time, when audit is whole.
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_METER = os.path.join(_ROOT, "state", "kimi_spend.json")
@@ -124,6 +133,7 @@ class SpendDomain:
 
     # -- domain entry -------------------------------------------------------
     def run(self) -> List[Row]:
+        from core.toolbelt.audit import Row  # lazy: see IMPORT-CYCLE LAW above
         rows: List[Row] = []
         now = self._now if self._now is not None else time.time()
         cfg = self._config()
