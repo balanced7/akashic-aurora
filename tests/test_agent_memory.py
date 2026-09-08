@@ -104,12 +104,19 @@ def test_hybrid_redis_down():
     """Construct exactly as production would (HybridStore) with Redis down."""
     with tempfile.TemporaryDirectory() as d:
         store = HybridStore.create(port=63999, file_path=os.path.join(d, "h.json"))
-        assert store.redis_available is False
-        mem = AgentMemory(store=store)
-        assert mem.redis_available is False
-        mem.decide(title="hybrid decision", decision="x")
-        assert mem.get_decisions()[0].title == "hybrid decision"
-        print("\n--- hybrid (Redis down) ---\n  full path works on File fallback OK")
+        # The durable tier follows AKASHIC_STORE_BACKEND: under sqlite it is a
+        # SqliteStore holding ONE persistent connection by design, and on Windows
+        # an open handle turns TemporaryDirectory teardown into WinError 32. Close
+        # in finally, not as a trailing call, so a failed assertion cannot leak it.
+        try:
+            assert store.redis_available is False
+            mem = AgentMemory(store=store)
+            assert mem.redis_available is False
+            mem.decide(title="hybrid decision", decision="x")
+            assert mem.get_decisions()[0].title == "hybrid decision"
+            print("\n--- hybrid (Redis down) ---\n  full path works on File fallback OK")
+        finally:
+            store.close()
 
 
 if __name__ == "__main__":

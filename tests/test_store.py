@@ -128,9 +128,16 @@ def test_hybridstore_redis_down():
     with tempfile.TemporaryDirectory() as d:
         # Force Redis off by pointing at an unused port; HybridStore must still work.
         store = HybridStore.create(port=63999, file_path=os.path.join(d, "hy.json"))
-        assert store.redis_available is False, "expected Redis unavailable on bogus port"
-        _exercise_all_structures(store, "HybridStore (Redis down -> File)")
-        print("  hybrid: graceful File fallback OK")
+        # The durable tier may be SqliteStore (AKASHIC_STORE_BACKEND=sqlite): one
+        # persistent connection by design, which on Windows blocks the directory
+        # teardown (WinError 32). Release it in finally so a failed assertion
+        # cannot leak the handle either.
+        try:
+            assert store.redis_available is False, "expected Redis unavailable on bogus port"
+            _exercise_all_structures(store, "HybridStore (Redis down -> File)")
+            print("  hybrid: graceful File fallback OK")
+        finally:
+            store.close()
 
 
 def test_filestore_ttl_eviction():
@@ -152,13 +159,38 @@ def test_filestore_ttl_eviction():
         print("\n--- FileStore TTL eviction ---\n  lazy eviction + set-clears-ttl OK")
 
 
+def _durable_tier_cls():
+    """The class the ONE backend selector (core.foundation.store._file_tier) picks
+    for the durable tier, mirrored here so the factory pin tracks the environment
+    instead of freezing the pre-cutover answer: AKASHIC_STORE_BACKEND=sqlite selects
+    SqliteStore, anything else FileStore. A mis-route in either direction still fails."""
+    if (os.getenv("AKASHIC_STORE_BACKEND") or "").strip().lower() == "sqlite":
+        from core.foundation.sqlite_store import SqliteStore
+        return SqliteStore
+    return FileStore
+
+
 def test_factory():
+    expected = _durable_tier_cls()
     with tempfile.TemporaryDirectory() as d:
-        file_only = create_store(prefer_redis=False, file_path=os.path.join(d, "f.json"))
-        assert isinstance(file_only, FileStore)
-        hybrid = create_store(prefer_redis=True, port=63999, file_path=os.path.join(d, "h.json"))
-        assert isinstance(hybrid, HybridStore)
-        print("\n--- factory ---\n  create_store routing OK")
+        file_only = hybrid = None
+        try:
+            file_only = create_store(prefer_redis=False, file_path=os.path.join(d, "f.json"))
+            assert isinstance(file_only, expected), (
+                f"prefer_redis=False must hand back the env-selected durable tier "
+                f"{expected.__name__}, got {type(file_only).__name__}")
+            hybrid = create_store(prefer_redis=True, port=63999, file_path=os.path.join(d, "h.json"))
+            assert isinstance(hybrid, HybridStore)
+            assert isinstance(hybrid._file, expected), (
+                f"HybridStore durable tier must be the env-selected {expected.__name__}, "
+                f"got {type(hybrid._file).__name__}")
+            print("\n--- factory ---\n  create_store routing OK")
+        finally:
+            # Both stores may hold a SqliteStore connection; close them even when
+            # an assertion above failed, or TemporaryDirectory teardown hits WinError 32.
+            for s in (file_only, hybrid):
+                if s is not None:
+                    s.close()
 
 
 def test_redisstore_if_available():
