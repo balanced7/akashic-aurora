@@ -225,8 +225,20 @@ def review(lesson: Dict[str, Any], *, root: Path = ROOT,
     missing = [v for v in verdicts if v.status == "MISSING"]
     if missing:
         strong = [v for v in missing if not v.weak]
+        strong_checkable = [v for v in checkable if not v.weak]
         weak_only = not strong
-        lead = "premise may have moved" if weak_only else "premise MISSING"
+        if weak_only:
+            lead = "premise may have moved"
+        elif len(strong) < len(strong_checkable):
+            # JTMS (deepseek, 2026-07-27): a belief stands while at least one justification
+            # stands. One strong anchor gone among others that still resolve is a PARTIAL
+            # signal, and the headline says exactly that -- with the count -- instead of
+            # "MISSING", which claimed more than the verdict list supports (defer 00b3d351fb).
+            # Label only: the verdicts, and what counts as a valid lesson, are unchanged.
+            lead = (f"premise PARTIALLY unresolved ({len(strong)} of {len(strong_checkable)} "
+                    f"strong anchors MISSING)")
+        else:
+            lead = "premise MISSING"          # every strong justification failed
         detail = ", ".join(f"{v.anchor} ({v.kind})" for v in missing[:3])
         tail = " -- weak path anchors only; a moved file is not a wrong lesson" if weak_only else ""
         return Review(verdicts, False, f"[{lead}: MISSING {detail}{tail}]")
