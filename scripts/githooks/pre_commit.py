@@ -7,6 +7,10 @@ per-agent hook, produced it. Keyed on AKASHIC_AGENT_ID; if unset (e.g. a human c
 fails OPEN. A non-zero exit aborts the commit (standard git-hook contract -- here exit 1
 is correct; the exit-2 rule was specific to Claude Code PreToolUse, not git hooks).
 
+This stage sees the STAGED FILES. It does not see the commit MESSAGE: git writes the message
+file after pre-commit runs, so the private-plane message guard lives in the commit-msg stage
+(scripts/githooks/commit_msg.py, defer dd0c36b406).
+
 Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 """
 import os
@@ -381,22 +385,20 @@ def main():
     # because the live incident was caught by hand at push, which is the egress position his
     # ingress directive rejects. It fires on the STAGED set only, so it costs nothing on an
     # ordinary commit, and files inside the plane are exempt by design.
+    #
+    # The COMMIT MESSAGE is guarded too -- a derived description of the work does not inherit
+    # its sources' visibility; four messages published artifact names and ids on 2026-08-16
+    # while every staged file was clean -- but NOT from here. git writes the message file
+    # AFTER this stage runs, so a scan from pre-commit read the PREVIOUS commit's message: a
+    # marker-naming message passed its own commit, the clean commit after it was refused, and
+    # in a linked worktree (`.git` is a file) the read failed and the scan silently never ran.
+    # The commit-msg stage is handed the live message: scripts/githooks/commit_msg.py
+    # (defer dd0c36b406).
     try:
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))
         from core.trust.private_plane import report as _pp_report
-        from core.trust.private_plane import scan_text as _pp_text
         _pp = _pp_report(_staged_files())
-        # The COMMIT MESSAGE is scanned too, and it is not optional: the message is a derived
-        # description of the work, and a derived record does not inherit its sources'
-        # visibility. Four messages published artifact names and ids on 2026-08-16 while every
-        # staged file was clean.
-        _msg_path = os.path.join(".git", "COMMIT_EDITMSG")
-        try:
-            with open(_msg_path, encoding="utf-8", errors="replace") as _mf:
-                _pp["findings"].extend(_pp_text(_mf.read(), label="commit message"))
-        except Exception:
-            pass
         if _pp["findings"]:
             sys.stderr.write(
                 "pre-commit BLOCKED: staged file(s) carry PRIVATE-PLANE identifiers.\n")

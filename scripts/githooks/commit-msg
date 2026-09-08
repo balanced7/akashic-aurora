@@ -1,0 +1,8 @@
+#!/bin/sh
+# commit-msg stage -- the PRIVATE-PLANE guard for the commit MESSAGE (defer dd0c36b406).
+# git hands this stage the LIVE message file as $1. pre-commit runs BEFORE git writes that
+# file, so a message scan there read the previous commit's message; this stage is the one
+# place where the message being committed is the message that gets scanned. Tracked, shared
+# across worktrees via core.hooksPath (py scripts/githooks/install_git_hooks.py).
+# Bypass: git commit --no-verify (skips pre-commit too) -- say so out loud if you use it.
+exec py scripts/githooks/commit_msg.py "$1"
