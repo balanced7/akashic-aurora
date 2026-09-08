@@ -1340,6 +1340,52 @@ def known_agents() -> List[str]:
     return sorted(i for i in ids if not i.startswith(("t-", "drill-")))
 
 
+def _open_watches() -> Dict[str, Any]:
+    """Ruling 369243, observability half (defer 2955dae7eb): the open-watch count against the
+    cap, through the ledger's own git-only door. The gate half (task_ledger's two-watch gate,
+    2026-09-04) made the cap bind by REFUSAL -- and until this read the count was visible only
+    at the moment of refusing: two watches sat at cap and neither boot nor `doctor` said so.
+    Fail-open at both layers: the door reports an unreadable ledger; failing to even reach
+    the door reports itself the same way. Never a raise -- this rides every boot."""
+    try:
+        from core.coord.task_ledger import open_watches
+        return open_watches()
+    except Exception as e:
+        return {"open": None, "cap": None, "ids": [], "over": False, "silent": [],
+                "error": str(e) or type(e).__name__}
+
+
+def _watch_segment(w: Dict[str, Any]) -> str:
+    """The summary's one segment: 'watches 2/2 [T079, T385]', or 'watches ?/2 (ledger error: ...)'.
+    The error rides whole on one line, never clipped: a diagnostic that points away from its
+    evidence is the failure class this module exists to end."""
+    cap = "?" if w.get("cap") is None else str(w["cap"])
+    if w.get("open") is None:
+        why = " ".join(str(w.get("error") or "unknown").split())
+        return f"watches ?/{cap} (ledger error: {why})"
+    ids = [str(i) for i in (w.get("ids") or [])]
+    seg = f"watches {w['open']}/{cap}"
+    return f"{seg} [{', '.join(ids)}]" if ids else seg
+
+
+def _watch_finding(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Dashboard-grade when MORE rows than the cap are open in SILENCE (no pauses=, no
+    operator_ruling= recorded). The gate refuses exactly that, so the state exists only when the
+    ledger was widened around it -- a hand edit, an older writer -- and it must not render as
+    normal. Licensed width (a third watch that named its cost) is the ruling working: no finding."""
+    silent = w.get("silent") or []
+    cap = w.get("cap")
+    if w.get("open") is None or cap is None or len(silent) <= cap:
+        return None
+    return {"agent": "fleet", "state": "watch_cap_silent", "grade": "dashboard",
+            "line": (f"fleet: {w['open']} watches open against a cap of {cap}, and "
+                     f"{len(silent)} of them {silent} recorded no cost -- neither pauses= nor "
+                     f"operator_ruling= (ORG Part 3, ruling 369243). The gate refuses this, so "
+                     f"the ledger was widened around it"),
+            "drill": ("py agent_cli.py task list  # then name what stops: py agent_cli.py task "
+                      "park <id> --reason <why> -- width is licensed only by a recorded cost")}
+
+
 def examine_fleet(agents: Optional[List[str]] = None, *,
                   probes: Optional[Dict[str, Any]] = None,
                   page_notes: bool = False) -> Dict[str, Any]:
@@ -1349,11 +1395,19 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
     deduped per (agent, state) per PAGE_DEDUP_TTL. That is not opt-in and must not
     become opt-in: escalation behind a flag is how a computed red goes unread for
     45 hours. page_notes=True additionally broadcasts a fleet bus note -- louder,
-    fleet-wide, and still the caller's choice."""
+    fleet-wide, and still the caller's choice.
+
+    The summary line also carries the open-watch count against the cap (ruling 369243:
+    'watches 2/2 [T079, T385]'), so the cap is visible on every boot BEFORE it refuses;
+    the dict behind it rides the report as rep["watches"] (--json gets it whole)."""
     agents = agents if agents is not None else known_agents()
     findings: List[Dict[str, Any]] = []
     for a in agents:
         findings.extend(examine(a, probes=probes))
+    watches = _open_watches()               # ruling 369243: the cap, visible before it refuses
+    silent = _watch_finding(watches)
+    if silent:
+        findings.append(silent)
     pages = [f for f in findings if f["grade"] == "page"]
     if not findings:
         summary = f"doctor: fleet healthy ({len(agents)} agent(s), 0 findings)"
@@ -1362,6 +1416,7 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
                    f"{sum(1 for f in findings if f['grade'] == 'banner')} banner, "
                    f"{sum(1 for f in findings if f['grade'] == 'dashboard')} dashboard "
                    f"across {len(agents)} agent(s)")
+    summary = f"{summary} | {_watch_segment(watches)}"   # rides the line boot + doctor both print
     try:
         from core.comm.control import format_pause_line, pause_status
         pause_line = format_pause_line(pause_status())
@@ -1372,7 +1427,8 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
     if pages:
         _emit_pages(pages, notes=bool(page_notes))
     _reconcile_pages(pages, agents)      # retract what resolved, even when nothing pages now
-    return {"agents": agents, "findings": findings, "pages": pages, "summary": summary}
+    return {"agents": agents, "findings": findings, "pages": pages, "summary": summary,
+            "watches": watches}
 
 
 def _page_key(f: Dict[str, Any]) -> str:

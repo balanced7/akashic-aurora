@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 6516870d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 1bde4025. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -271,7 +271,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (162 numeric constants)
+## Mechanical bounds (163 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -407,6 +407,7 @@ Class: reference
 | `TIMEOUT` | 15 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
+| `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |
 | `WINDOW` | 30 | core/coord/method_drift.py |  |
 | `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
