@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 119,
+  "count": 125,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -123,7 +123,13 @@
     "core/trust/registry.py::role_template",
     "core/world.py::assert_may_write",
     "core/comm/conductor_gate.py::acting_conduct_grant",
-    "core/comm/conductor_gate.py::acting_conductor_approve"
+    "core/comm/conductor_gate.py::acting_conductor_approve",
+    "core/comm/remote_relay.py::admitted_count",
+    "core/comm/remote_relay.py::enqueue",
+    "core/comm/remote_relay.py::file_announcement",
+    "core/comm/remote_relay.py::last_admitted",
+    "core/comm/remote_relay.py::render_file_announcement",
+    "core/coord/shift_loop.py::shift_state_is_complete"
   ],
   "history": [
     {
@@ -163,6 +169,19 @@
       "date": "2026-08-24",
       "change": "117 -> 119",
       "why": "t384 conductor-absence succession (deepseek, half_a RULING 4). The DETECTOR is now WIRED: notice_conductor_absence -> evaluate_succession -> decide_and_act is called from the two successor runners' loop top (bifrost_runner_deepseek.py, bifrost_runner_kimi.py), so a machine notices conductor absence instead of Daniil at 4am. The module EXCEPTIONS entry was removed in the same commit. These TWO functions are the mandate MINTING DOORS (acting_conduct_grant / acting_conductor_approve) -- the only code that actually hands out AUTHORITY, and the only surface with NO production caller. That is correct and deliberate: the mandate fires only when the succession ACTIVATES live, and even then decide_and_act merely ANNOUNCES; minting a recovery grant is a separate, human-visible act the acting conductor performs during the live drill. They are baselined (not wired and not deleted) because their real consumer is the live succession drill -- the UNWIRE-WHEN is: the drill invokes acting_conduct_grant / acting_conductor_approve (or a CLI verb is built that does), then remove these two entries. A blanket wire here would be wrong: minting authority on a timer tick with no human in the loop is precisely the failure mode the gate's RED pins exist to prevent."
+    },
+    {
+      "date": "2026-09-07",
+      "change": "119 -> 125",
+      "why": "suite:test_t159_oracle_field_of_view K14 -- check_wiring stale EXCEPTIONS blind spot. Two module-level EXCEPTIONS entries went stale when their own UNWIRE-WHENs fired: core/coord/shift_loop.py (beaf1f21, 2026-08-24: core/comm/shift_turn.py:65 calls next_beat() at the runner turn boundary, reached from scripts/bifrost_runner_sol.py:51; e8434e08 added scripts/shift_daemon.py:44) and core/comm/remote_relay.py (96a38e9c, 2026-08-25: core/comm/bridge_status.py:35 imports it under scripts/bifrost_ui.py; the inbound half is called at scripts/remote_bridge_listener.py:200). A module that is REACHABLE but still EXCEPTED is examined by NEITHER surface -- candidate_modules() drops it from the function gate and analyze() never names it unwired -- so the gate's own 'stale entry' WARN was the only trace of a real blind spot for two weeks. Both entries are removed and GRANDFATHERED_UNDATED follows the set down (20 -> 18). These SIX are what the function gate now sees inside the two modules, each verified by hand to have zero production references (test files only). They are the function-granular residue of what the module entries were really guarding, and a function is the right granularity for it. enqueue is the OUTBOUND door the v1 design leaves unwired ON PURPOSE -- which of our bus traffic crosses a fleet boundary is Daniil's call, not a default (docs/library/design/remote-bifrost-bridge-design.md); file_announcement / render_file_announcement are the outbound file-transport announce pair (dd5b49db), same policy. UNWIRE-WHEN for those three: a production caller invokes enqueue() on a chosen slice of bus traffic. last_admitted / admitted_count are the inbound gate's measurement probes ('idempotency is only real if it is countable'), exercised by four pin files and the loopback drill but read by no production surface. UNWIRE-WHEN: the drain verb's 'what just arrived' line or bridge_status reads them. shift_state_is_complete is the READ half of the shift-state note; the module entry's UNWIRE-WHEN was 'calls next_beat() + reads the shift-state note' and only the first half fired. UNWIRE-WHEN: shift_turn or shift_daemon reads the note back through it. Not an amnesty: each names what clears it, and stale_function_baseline() reports the day it does.",
+      "added": [
+        "core/comm/remote_relay.py::admitted_count",
+        "core/comm/remote_relay.py::enqueue",
+        "core/comm/remote_relay.py::file_announcement",
+        "core/comm/remote_relay.py::last_admitted",
+        "core/comm/remote_relay.py::render_file_announcement",
+        "core/coord/shift_loop.py::shift_state_is_complete"
+      ]
     }
   ]
 }
