@@ -114,24 +114,22 @@ EXCEPTIONS = {
         "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
-    "core/coord/shift_loop.py": "KEEP built-ahead (2026-08-24, deepseek): the autonomous shift "
-        "loop decision core (fence shift-loop, docs/library/design/autonomous-shift-loop-design.md). "
-        "12 hermetic pins green in tests/test_shift_loop.py. Its production consumer is the runner "
-        "turn boundary (wiring CLAIM/HANDOFF beside the existing maybe_self_restart call) — FENCED for "
-        "operator+Vandor review, deliberately not built tonight (live self-modification). UNWIRE-WHEN: "
-        "the runner turn boundary calls next_beat() + reads the shift-state note; then remove this entry.",
-    "core/comm/remote_relay.py": "KEEP built-ahead, HALF-DISCHARGED (v0.1 outbound 2026-08-24 "
-        "deepseek; v1 outbox+inbound gate 2026-08-24 claude/Vandor). Fence remote-bridge, "
-        "docs/library/design/remote-bifrost-bridge-design.md. 25 pins green across "
-        "tests/test_remote_relay_pins.py + tests/test_remote_bridge_v1_pins.py, all offline. "
-        "THE INBOUND HALF IS NOW WIRED: scripts/remote_bridge_listener.py calls accept() on "
-        "POST /xfer (14 further pins). THE OUTBOUND HALF IS STILL UNWIRED BY DESIGN: nothing "
-        "in production calls enqueue()/tick() yet, because deciding WHICH of our bus traffic "
-        "crosses a fleet boundary is Daniil's call, not a default -- and the v0.1 reasoning "
-        "still holds, that auto-pushing every forwardable message is a policy nobody chose. "
-        "Deliberately inert-until-keyed + unrouted-refuses, so the module is safe at rest. "
-        "UNWIRE-WHEN: a production caller invokes enqueue() on a chosen slice of bus traffic; "
-        "then remove this entry.",
+    # core/coord/shift_loop.py -- ENTRY REMOVED 2026-09-07 (suite:test_t159_oracle_field_of_view
+    # K14). Its own UNWIRE-WHEN was "the runner turn boundary calls next_beat()", and that fired
+    # the same day the entry was written: beaf1f21 created core/comm/shift_turn.py, whose :65-66
+    # `from core.coord import shift_loop; shift_loop.next_beat(...)` is reached from
+    # scripts/bifrost_runner_sol.py:51 (e8434e08 added scripts/shift_daemon.py:44 beside it).
+    # A REACHABLE module left on this list is examined by NEITHER surface: candidate_modules()
+    # drops it from the function gate and analyze() never names it unwired, so for two weeks the
+    # stale WARN in main() was the only trace of a real blind spot. The half of the UNWIRE-WHEN
+    # that has NOT fired ("reads the shift-state note") is function-granular -- it is
+    # shift_state_is_complete -- and now sits on the function backlog, a function's right home.
+    # core/comm/remote_relay.py -- ENTRY REMOVED 2026-09-07 (same defect). Reachable since
+    # 96a38e9c: core/comm/bridge_status.py:35 imports it under scripts/bifrost_ui.py, and the
+    # inbound half is called at scripts/remote_bridge_listener.py:200 (RR.accept). The
+    # outbound-by-design residue (enqueue, file_announcement, render_file_announcement) and the
+    # admission probes (last_admitted, admitted_count) moved to the function backlog carrying
+    # the entry's UNWIRE-WHEN verbatim; see wiring_function_baseline.json history 2026-09-07.
     "core/learning/consolidation.py": "built-ahead: memory->chronicle consolidation",
     "core/narrative/drift.py": "built-ahead: narrative drift detector (prototype)",
     "core/narrative/tag_audit.py": "built-ahead: tag mis-tag detector",
@@ -195,7 +193,11 @@ EXCEPTIONS = {
 # with re-verify-or-remove. And GRANDFATHERED_UNDATED freezes today's undated count, so the
 # NEXT author must date theirs -- which is what makes the comment true for someone other
 # than the person who wrote it.
-GRANDFATHERED_UNDATED = 20
+# 2026-09-07: 20 -> 18. Two undated entries were retired as STALE (shift_loop, remote_relay,
+# tombstoned above) and the frozen count follows the set DOWN. Left at 20 it would have handed
+# the next author two undated slots -- amnesty re-opened by the act of draining the backlog.
+# tests/test_wiring_exceptions_expire.py pins the equality, so the number can only track the set.
+GRANDFATHERED_UNDATED = 18
 
 
 def exception_reason(entry):

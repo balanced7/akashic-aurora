@@ -79,6 +79,22 @@ def test_every_NEW_entry_must_carry_an_expiry():
         "Give it an expiry: {'reason': ..., 'expires': 'YYYY-MM-DD'}")
 
 
+def test_retiring_an_undated_entry_tightens_the_ratchet():
+    """GRANDFATHERED_UNDATED is the SIZE of the grandfathered set, not a ceiling with slack.
+
+    2026-09-07: two undated entries (shift_loop, remote_relay) were retired as STALE -- their
+    modules had been wired for two weeks and sat in neither gate's field of view. Had the
+    constant stayed at 20, the cleanup would have handed the next author two undated slots:
+    the amnesty re-opened by the act of draining the backlog. The count follows the set down.
+    """
+    cw = _mod()
+    undated = [k for k, v in cw.EXCEPTIONS.items() if isinstance(v, str)]
+    assert len(undated) == cw.GRANDFATHERED_UNDATED, (
+        f"{len(undated)} undated entries but GRANDFATHERED_UNDATED = {cw.GRANDFATHERED_UNDATED}: "
+        "an entry was retired without lowering the constant (or added without a date). "
+        "Set the constant to the live count; it only ever moves down.")
+
+
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
