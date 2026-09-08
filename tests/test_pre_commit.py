@@ -6,12 +6,14 @@ human commits (no AKASHIC_AGENT_ID). Hermetic: monkeypatch the lock check.
 Run: py -m pytest tests/test_pre_commit.py -q
 """
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.githooks import pre_commit
 import core.comm.locks as L
+import core.trust.private_plane as PP   # the leak guard main() imports at call time
 
 
 def _patch_locks(monkeypatch, locked_by):
@@ -91,10 +93,74 @@ def test_missing_checker_is_loud_and_distinguishable_from_clean(monkeypatch):
     assert "MISSING" in out, "the operator gets no signal that the gate is dead"
 
 
-def test_dead_gate_warns_but_does_not_block(monkeypatch, capsys):
-    """Fail-open on a non-working guard is standing policy; silence is not."""
+# --- main() is a CHAIN of gates; a test of ONE gate must hold every OTHER gate open ------------
+# test_dead_gate_warns_but_does_not_block drove main() end-to-end while stubbing only the two
+# gates that existed when it was written (2026-08-01). Every gate added to main() since -- the
+# private-plane leak guard (2026-08-16) and the t384 attribution guard (2026-08-24) -- ran LIVE
+# inside the test, so its verdict came from the runner's environment (is a seat id set? is the
+# git author stamped? is the last commit message clean? do the generators and guardrails pass?)
+# rather than from the gate under test. It went red the day the attribution guard correctly
+# refused this runner's author. The gate it measures was fine; the fixture had quietly widened
+# into an integration test of whatever main() happened to contain that week.
+
+def _hold_every_gate_open(monkeypatch):
+    """Stub EVERY gate main() calls to its PASS shape, in main()'s own order.
+
+    Hermetic on purpose: no git, no generator run, no baseline write, no private-plane disk
+    scan. A test then overrides the ONE gate it measures. When a gate is added to main() it is
+    added here too -- and the tripwire at the bottom is what makes forgetting that loud instead
+    of environment-dependent: it returns the argv of every shell-out main() attempted, which the
+    caller asserts stays empty (a raise would be swallowed by the gates' own fail-open excepts).
+    """
     monkeypatch.setattr(pre_commit, "_staged_files", lambda: [])
     monkeypatch.setattr(pre_commit, "check_staged", lambda *a, **k: (True, ""))
+    monkeypatch.setattr(pre_commit, "_git_author_ident", lambda: "")
+    monkeypatch.setattr(pre_commit, "check_author_matches_seat", lambda *a, **k: (True, ""))
+    # The private-plane guard is inline in main() and imports these two at call time, so the
+    # module attributes are the seam -- the same way _patch_locks reaches core.comm.locks.
+    monkeypatch.setattr(PP, "report", lambda *a, **k: {"findings": []})
+    monkeypatch.setattr(PP, "scan_text", lambda *a, **k: [])
+    monkeypatch.setattr(pre_commit, "regenerate_derived", lambda *a, **k: (True, ""))
+    monkeypatch.setattr(pre_commit, "ensure_baseline", lambda *a, **k: (False, ""))
+    monkeypatch.setattr(pre_commit, "ratchet_ok", lambda *a, **k: (True, ""))
+    monkeypatch.setattr(pre_commit, "_comprehensibility_fast", lambda: (0, ""))
+
+    shelled = []
+
+    def _record(argv, *a, **k):
+        shelled.append(list(argv))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    class _NoShell:                                  # the real module, except run() is recorded
+        run = staticmethod(_record)
+
+        def __getattr__(self, name):
+            return getattr(subprocess, name)
+
+    monkeypatch.setattr(pre_commit, "subprocess", _NoShell())
+    return shelled
+
+
+_LEAK = ("pre_commit.main() shelled out under full gate isolation -- a gate was added to main() "
+         "that _hold_every_gate_open does not stub. Add it there. argv: %r")
+
+
+def test_fully_isolated_main_is_green_and_silent(monkeypatch, capsys):
+    """The fixture's own contract: every gate held open -> main() passes, says nothing, and
+    never reaches the environment. If this fails, fix the fixture before trusting any
+    single-gate test built on it."""
+    shelled = _hold_every_gate_open(monkeypatch)
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_dead_gate_warns_but_does_not_block(monkeypatch, capsys):
+    """Fail-open on a non-working guard is standing policy; silence is not."""
+    shelled = _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_comprehensibility_fast", lambda: (2, "checker MISSING at X"))
-    assert pre_commit.main() == 0, "a dead gate must not brick every commit in the repo"
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 0, "a dead gate must not brick every commit in the repo"
     assert "WARNING" in capsys.readouterr().err, "a dead gate must be LOUD about being dead"
