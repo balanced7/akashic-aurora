@@ -129,6 +129,14 @@ TRANSITIONS: Dict[str, set] = {
 ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # occupies the sequential slot / working set
 FILE_HOLDING = ACTIVE | {PARKED}             # parked work still owns its files (no mid-park grabs)
 
+#: Ruling 369243 (2026-09-03, Daniil verbatim "Approve"): the fleet's width of attention is TWO
+#: watches -- one build, one design/research. ONE named constant with TWO readers, so the number
+#: the gate refuses at and the number the doctor renders against cannot drift apart: the
+#: two-watch gate in transition() refuses the (cap+1)th IN_PROGRESS that names no cost, and
+#: open_watches() below counts the open rows against it for the doctor -- the cap is visible
+#: BEFORE it refuses (defer 2955dae7eb: two watches sat at cap and no render said so).
+WATCH_CAP = 2
+
 #: T248 -- WHERE AN INDEPENDENT REVIEWER IS REQUIRED BEFORE A TASK MAY CLOSE.
 #:
 #: A prefix match against the task's `files`. Deliberately ONE named constant rather than a
@@ -447,7 +455,7 @@ class TaskLedger:
         # the cost: never the work, and never the operator.
         if to == IN_PROGRESS:
             others = [o["id"] for o in self.in_progress() if o["id"] != tid and o["status"] == IN_PROGRESS]
-            if len(others) >= 2 and not (pauses.strip() or operator_ruling.strip()):
+            if len(others) >= WATCH_CAP and not (pauses.strip() or operator_ruling.strip()):
                 raise LedgerError(
                     f"two-watch cap: already IN_PROGRESS {others} (ORG Part 3, ruling 369243). "
                     f"A third watch opens only with pauses=<what stops> or the operator's "
@@ -549,6 +557,38 @@ def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=rea
 def abandon(ledger, tid, reason, **kw): return _t(ledger, tid, ABANDONED, reason=reason, **kw)   # P5: terminal, reasoned
 def park(ledger, tid, reason, **kw): return _t(ledger, tid, PARKED, reason=reason, **kw)         # C5-1: shelved, reasoned, slot freed
 def unpark(ledger, tid, **kw): return _t(ledger, tid, IN_PROGRESS, **kw)                         # C5-1: resumes through the two-watch gate
+
+
+# --- the width gauge's READ half (ruling 369243, observability; defer 2955dae7eb) --------------
+def _authority_recorded(t: Dict[str, Any]) -> bool:
+    """True when the row carries a RECORDED cost or authority for its width: pauses= on the row or
+    in its history, or operator_ruling= in its history -- the two doors the two-watch gate accepts."""
+    if str(t.get("pauses") or "").strip():
+        return True
+    return any(str(h.get("pauses") or h.get("operator_ruling") or "").strip()
+               for h in (t.get("history") or []))
+
+
+def open_watches(path: Optional[str] = None) -> Dict[str, Any]:
+    """Read-only door for the doctor: the open-watch count against WATCH_CAP, with ids.
+
+    Git-only (client=None: no Redis mirror, nothing written), resolved through the same
+    AKASHIC_TASKS_PATH door as every verb (T352). Counts status == IN_PROGRESS exactly as the
+    gate does -- CLAIMED/VERIFYING occupy the working set, not a watch. FAIL-OPEN, because the
+    doctor must never wedge a boot on the ledger: an absent file is 0/cap (a fresh clone is not
+    an error); an unreadable one returns open=None + error=<why>. `silent` lists the open rows
+    with NO recorded cost (no pauses=, no operator_ruling=); more of those than the cap is the
+    state the gate refuses, so if it exists the ledger was widened AROUND the gate.
+    """
+    try:
+        L = TaskLedger(path, client=None)
+        rows = [t for t in L.tasks.values() if t.get("status") == IN_PROGRESS]
+        ids = [t["id"] for t in rows]
+        return {"open": len(ids), "cap": WATCH_CAP, "ids": ids, "over": len(ids) > WATCH_CAP,
+                "silent": [t["id"] for t in rows if not _authority_recorded(t)], "error": None}
+    except Exception as e:                    # LedgerError (unreadable), PermissionError, ...
+        return {"open": None, "cap": WATCH_CAP, "ids": [], "over": False, "silent": [],
+                "error": str(e) or type(e).__name__}
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
