@@ -154,12 +154,28 @@ def test_supported_reflects_the_pinned_limitations():
 
 
 def test_deepseek_harness_row_is_honest_not_flattering():
-    """The dsh row says what is TRUE today (T0 exec-proven, T1 blocked by inherited env,
-    T2-T6 awaiting inventory) -- the scoreboard must never read 'pending' as automated."""
+    """Pins the dsh row's DURABLE contract, not a dated snapshot. The 2026-08-24 snapshot
+    (T1 unsupported, T2-T6 pending) froze as hard asserts the same night afd5b4aa landed the
+    dsh adapter and made T1 true; the row has since moved on every tier. What holds on any
+    day: the adapter's floor is door + identity (T0, T1 -- attribution and peer-lock
+    ownership need the stamped id); every tier states a verdict AND its mechanism or
+    limitation (no bare 'yes' without evidence); and a 'pending' verdict can never be read
+    as automated by the scoreboard -- that last line is what the snapshot was guarding."""
+    row = registry.HARNESSES["deepseek-harness"]
+    assert row["default_agent_id"] == "dsh_agent"
     assert registry.supported("deepseek-harness", "T0"), "exec proven: drives the house CLI"
-    assert not registry.supported("deepseek-harness", "T1"), \
-        "AKASHIC_AGENT_ID inherited from Claude Code; no dsh-side id yet"
-    for t in ("T2", "T3", "T4", "T5", "T6"):
-        assert not registry.supported("deepseek-harness", t), \
-            f"{t} is pending, not automated -- must not count toward the tier scoreboard"
-    assert "dsh_agent" == registry.HARNESSES["deepseek-harness"]["default_agent_id"]
+    assert registry.supported("deepseek-harness", "T1"), \
+        "identity is the adapter's floor: dsh-launch-environment stamps AKASHIC_AGENT_ID (afd5b4aa)"
+    assert row["default_agent_id"] in registry.capability("deepseek-harness", "T1"), \
+        "T1's evidence must name the id it stamps; the stamp and the default id cannot drift"
+    for t in registry.TIERS:
+        how = registry.capability("deepseek-harness", t)
+        verdict, sep, evidence = how.partition(" -- ")
+        assert sep and evidence.strip(), \
+            f"{t}: {how!r} -- every tier states a verdict AND the mechanism or the limitation"
+        if verdict.lower().startswith("pending"):
+            assert not registry.supported("deepseek-harness", t), \
+                f"{t} is pending, not automated -- must not count toward the tier scoreboard"
+        elif verdict.lower().startswith("yes"):
+            assert registry.supported("deepseek-harness", t), \
+                f"{t} says yes but supported() says no -- verdict word and scoreboard drifted"
