@@ -144,3 +144,68 @@ def test_review_never_retires_anything():
     report = anchors.review(lesson, root=ROOT)
     assert not hasattr(report, "retire"), "the resolver must not carry a retirement verdict"
     assert report.banner.startswith("["), "output is an advisory banner, not a decision"
+
+
+# --------------------------------------------------------------------------
+# The headline claims exactly what the verdict list supports -- never more.
+# defer 00b3d351fb: `if missing:` raised "premise MISSING" when ANY strong anchor was gone, so
+# a lesson with two RESOLVED strong anchors and one moved read as if its premise had vanished.
+# JTMS (deepseek, 2026-07-27, build_system_and_tms_invalidation): a belief stands while at
+# least one justification stands. Label-only -- verdicts and lesson-validity semantics are
+# untouched; a gap is still named, it is just counted honestly.
+# --------------------------------------------------------------------------
+def _receipt_anchors(states):
+    """Strong, hermetic anchors: pin receipts need neither git nor the filesystem, so these
+    pins cannot go blind for a reason unrelated to the banner they test."""
+    names = [f"tests/test_hypothetical_guard.py::test_{i}" for i in range(len(states))]
+    return names, dict(zip(names, states))
+
+
+def test_one_missing_among_resolved_strong_anchors_is_labelled_partial():
+    """The defer's own example: three strong anchors, two RESOLVED, one gone -> '1 of 3'."""
+    cites, receipts = _receipt_anchors(["passed", "passed", "failed"])
+    report = anchors.review({"experiment_name": "x", "cites": cites},
+                            root=ROOT, receipts=receipts)
+    statuses = sorted(v.status for v in report.verdicts)
+    assert statuses == ["MISSING", "RESOLVED", "RESOLVED"], statuses   # the pin's own premise
+    assert all(not v.weak for v in report.verdicts)
+    assert report.starved is False
+    assert not report.banner.startswith("[premise MISSING"), (
+        "two of three strong anchors still resolve; the headline may not claim the premise "
+        f"is MISSING: {report.banner!r}"
+    )
+    assert "1 of 3" in report.banner, report.banner
+    assert "MISSING" in report.banner, "the gap itself must still be named"
+
+
+def test_a_moved_commit_beside_a_live_one_is_partial_not_missing():
+    """Same rule through the real resolver: a live sha and a bogus one -> '1 of 2'."""
+    sha = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+                         capture_output=True, text=True).stdout.strip()
+    if not sha:
+        return  # git unavailable: nothing to assert, and we do not fake it
+    report = anchors.review({"experiment_name": "x", "cites": [sha, "deadbee"]}, root=ROOT)
+    assert not report.banner.startswith("[premise MISSING"), report.banner
+    assert "1 of 2" in report.banner, report.banner
+    assert "deadbee" in report.banner, "the missing anchor is still named"
+
+
+def test_all_strong_anchors_missing_still_reads_missing():
+    """Guard against over-softening: every strong anchor gone is MISSING, and a WEAK path
+    that happens to resolve does not rescue the premise -- weak is never authoritative."""
+    cites, receipts = _receipt_anchors(["failed", "failed"])
+    report = anchors.review({"experiment_name": "x", "cites": cites + ["docs/ARCHITECTURE.md"]},
+                            root=ROOT, receipts=receipts)
+    assert any(v.weak and v.status == "RESOLVED" for v in report.verdicts)
+    assert report.banner.startswith("[premise MISSING"), report.banner
+    assert "PARTIALLY" not in report.banner
+
+
+def test_weak_missing_beside_a_live_strong_anchor_still_reads_may_have_moved():
+    """Boundary: a gone PATH next to a live strong anchor is the weak-only branch, untouched."""
+    cites, receipts = _receipt_anchors(["passed"])
+    report = anchors.review({"experiment_name": "x",
+                             "cites": cites + ["docs/intelligence-roadmap.md"]},
+                            root=ROOT, receipts=receipts)
+    assert report.banner.startswith("[premise may have moved"), report.banner
+    assert "PARTIALLY" not in report.banner
