@@ -110,12 +110,26 @@ def test_there_is_a_mount_door_that_does_not_go_through_the_status_poll(ui):
 
 def test_a_dead_gpu_still_leaves_a_two_inch_frame(ui):
     """Both terminal bails must mark the frame so the degraded path is styled deliberately --
-    a 14px glyph adrift in a 192px square reads as breakage, not as a fallback."""
+    a 14px glyph adrift in a 192px square reads as breakage, not as a fallback.
+
+    The box is sized by the ``--ash-size`` custom property, not a literal: 83746fc9 made the
+    avatar user-resizable, and a fallback that ignored the dragged size would announce itself as
+    broken the moment the user touched the grip. So the CONTRACT has two halves -- the rule must
+    take both edges from the variable, and the variable's default must still be the two inches
+    Daniil asked for. Pinning ``width: 192px`` on the rule itself was pinning the implementation
+    of one commit, and it went red the day the implementation improved."""
     body = _mount_body(ui)
     assert body.count("av-fallback") >= 2, (
         f"expected both terminal bails to add .av-fallback, found {body.count('av-fallback')}")
-    assert re.search(r"#ash-frame\.av-fallback\{[^}]*width:\s*192px", ui), (
-        "the .av-fallback rule no longer holds the two-inch box")
+    rule = re.search(r"#ash-frame\.av-fallback\{[^}]*\}", ui)
+    assert rule, "the #ash-frame.av-fallback rule is gone; the degraded path is unstyled"
+    for edge in ("width", "height"):
+        assert re.search(rf"{edge}:\s*var\(--ash-size\)", rule.group(0)), (
+            f"the .av-fallback rule no longer takes its {edge} from --ash-size -- the degraded "
+            f"path stops following the user's size (or the two-inch default). Rule: {rule.group(0)!r}")
+    assert re.search(r":root\s*\{[^}]*--ash-size\s*:\s*192px", ui), (
+        "--ash-size no longer defaults to 192px in :root -- the fallback box is no longer two "
+        "inches for anyone who never dragged it")
 
 
 def test_the_bail_reason_is_left_on_the_element(ui):
