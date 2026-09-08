@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # Tracked content only -- a derived doc describes the repo, not this box.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _tracked import tracked_py, is_tracked_dir  # noqa: E402
+from _tracked import tracked_py, is_tracked_dir, _tracked_paths  # noqa: E402
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)
 
@@ -37,24 +37,36 @@ def _modules(rel):
 
 
 def _name_index(dirpath, exts):
-    """Lowercased filenames (stem-searchable) under dirpath, non-recursive is enough for
-    docs/; research/reviewed adds one more flat corpus."""
+    """Lowercased filenames (stem-searchable) directly under each of dirpath -- TRACKED files
+    only (the index, via _tracked); non-recursive is enough for docs/, research/reviewed adds
+    one more flat corpus.
+
+    These strings are RENDERED into the committed map, so they must describe the repository,
+    not the box: os.listdir once put an untracked test (tests/test_t084_intent_shadow.py) into
+    the pin column, and the comprehensibility guard -- rightly, once it asked the index --
+    called the committed map a broken reference on every clone. The module column had already
+    moved to the index (tests/test_derived_docs_ignore_untracked.py); this closes the other two.
+    """
+    tracked = _tracked_paths()
     out = []
     for base in dirpath:
-        d = os.path.join(ROOT, base)
-        if not os.path.isdir(d):
-            continue
-        for f in os.listdir(d):
+        # Normalise the separator: callers pass os.path.join(...) bases, which are
+        # backslash-joined on Windows, and these strings are RENDERED into the
+        # committed map. Mixed separators made the sheet platform-specific.
+        prefix = base.replace(os.sep, "/").strip("/") + "/"
+        for p in tracked:
+            if not p.startswith(prefix):
+                continue
+            f = p[len(prefix):]
+            if "/" in f:                         # deeper than this directory
+                continue
             if any(f.endswith(e) for e in exts):
-                # Normalise the separator: callers pass os.path.join(...) bases, which are
-                # backslash-joined on Windows, and these strings are RENDERED into the
-                # committed map. Mixed separators made the sheet platform-specific.
-                out.append((base.replace(os.sep, "/") + "/" + f, f.lower()))
+                out.append((p, f.lower()))
     # SORTED, because consumers take the FIRST match (`next(p for p, low in tests ...)`).
-    # os.listdir returns filesystem order -- roughly alphabetical on NTFS, inode order on
+    # os.listdir returned filesystem order -- roughly alphabetical on NTFS, inode order on
     # ext4 -- so an unsorted index picked a DIFFERENT match on Linux than on Windows and
     # the committed map could never be current on both. CI called MAP.md stale for exactly
-    # this reason while it verified clean on the author's machine.
+    # this reason while it verified clean on the author's machine. The index is a set: same law.
     return sorted(out)
 
 
