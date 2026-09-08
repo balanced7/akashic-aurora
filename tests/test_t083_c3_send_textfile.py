@@ -4,6 +4,7 @@ Live receipt 2026-07-16: a message body containing '--sources-json' aborted the 
 quote-mangling (argparse ate the prose as flags). Prior art: git commit -F. Pins exercise the
 real CLI parser + send path with a stubbed bus (no Redis needed).
 """
+import io
 import os
 import sys
 
@@ -76,6 +77,13 @@ def test_empty_text_file_refuses(tmp_path, monkeypatch):
 
 
 def test_no_text_at_all_refuses(monkeypatch):
+    # W06 (3b8a571e, 2026-07-19): empty argv falls through to PIPED stdin, so "no text at all"
+    # now means no positional, no --text-file, AND no pipe. Model the interactive TTY the way
+    # tests/test_w06_stdin_send.py does; pytest's capture stdin reports isatty() False and
+    # raises on read(), which is a harness artifact, not the contract under test.
+    tty_in = io.StringIO("")
+    tty_in.isatty = lambda: True
+    monkeypatch.setattr(sys, "stdin", tty_in)
     rc = _run(["bifrost-send", "claude", "--to", "deepseek"], monkeypatch)
     assert rc == 2
     assert _FakeBus.sent is None
