@@ -22,6 +22,8 @@ does work because a page was loaded.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -150,9 +152,159 @@ def test_drain_parked_carries_the_guest_tier_posture():
     assert "[remote" in str(posted[0].get("content")), "not attributed in the body"
 
 
-def test_act_never_raises():
+def test_act_never_raises(monkeypatch):
+    """NEVER RAISES holds for every action id -- and the restart path runs through the seams.
+    This test used to reach the real discovery + taskkill, which is how it became the weapon
+    in [5d2f0963e1]. A real subprocess from act() under test is a regression, not a detail."""
+    spawned = []
+
+    def recorder(argv, *_a, **_kw):
+        spawned.append([str(x) for x in argv])
+
+        class R:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        return R()
+    monkeypatch.setattr(subprocess, "run", recorder)
     for aid in ("tick_outbox", "drain_parked", "restart_listener", "", None, 123):
         try:
-            BS.act(aid, confirm=True, bus_send=lambda **kw: None)
+            BS.act(aid, confirm=True, bus_send=lambda **kw: None,
+                   process_table=lambda: [], kill=lambda pid: True)
         except Exception as e:                                    # noqa: BLE001
             pytest.fail(f"act({aid!r}) raised {type(e).__name__}: {e}")
+    assert spawned == [], f"act() reached the host from a test: {spawned}"
+
+
+# ------------------------------------------------------------------ RESTART: a weapon must know its own face
+# [5d2f0963e1] `py -m pytest tests/test_bridge_status_pins.py tests/test_remote_bridge_listener_pins.py`
+# killed the ENTIRE shell with zero output. Not a signal path: _restart_listener discovered the
+# listener with `CommandLine -like '*remote_bridge_listener*'` and taskkill /F-ed every match --
+# and once the pytest command line names the listener's TEST file, the matches are pytest's own
+# python.exe, the py launcher and the host shell carrying that command string. Alone, this file's
+# command line lacks the substring, so nothing self-selected; the listener pins never call act().
+# Together, test_act_never_raises was a weapon aimed at its own host. Three guarantees follow:
+#   (a) discovery selects the listener PROCESS -- an interpreter whose PROGRAM is the listener
+#       script -- never a command line that merely mentions the name (a test path, a shell, an
+#       editor, a grep);
+#   (b) self-protection is independent of the predicate: the caller's own pid, its ancestor chain
+#       and anything running pytest are refused even when they LOOK like the listener, and the
+#       refusal is reported by pid, not swallowed;
+#   (c) discovery and kill are injectable seams (`process_table=`, `kill=`) exactly like
+#       act(..., bus_send=), so no test in this house has to touch the host to pin the action.
+def _rows(*specs):
+    """(pid, ppid, exe name, command line) tuples -> the process-table rows the seam takes."""
+    return [{"pid": pid, "ppid": ppid, "name": name, "cmdline": cmd}
+            for pid, ppid, name, cmd in specs]
+
+
+def _fake_run_speaking_both_dialects(rows, calls):
+    """A stand-in for subprocess.run that answers the discovery query with `rows` and records
+    every argv, so a pin can assert on the WEAPON (what taskkill was aimed at) rather than on a
+    parser. It speaks both dialects on purpose -- the whitespace pid list the original query
+    produced and the ConvertTo-Json table the fixed query asks for -- so the pin is red by
+    mechanism at the defect and stays a mechanism pin after it. Nothing here reaches the host."""
+    def fake_run(argv, *_a, **_kw):
+        argv = [str(x) for x in argv]
+        calls.append(argv)
+
+        class R:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+        if argv and "powershell" in argv[0].lower():
+            if "ConvertTo-Json" in " ".join(argv):
+                R.stdout = json.dumps([{"ProcessId": r["pid"], "ParentProcessId": r["ppid"],
+                                        "Name": r["name"], "CommandLine": r["cmdline"]}
+                                       for r in rows])
+            else:
+                R.stdout = "\n".join(str(r["pid"]) for r in rows) + "\n"
+        return R()
+    return fake_run
+
+
+def test_restart_listener_never_targets_its_own_process_tree(monkeypatch):
+    """(b) at the weapon. The discovery answer contains the caller's own pid and its parent --
+    exactly what the host returned when the pytest command line named the listener's test file.
+    No taskkill may be aimed at either, whatever the query said, and the refusal is reported."""
+    me, parent = os.getpid(), os.getppid()
+    shape = r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py --port 8791"
+    rows = _rows((me, parent, "python.exe", shape), (parent, 1, "py.exe", shape))
+    calls = []
+    monkeypatch.setattr(subprocess, "run", _fake_run_speaking_both_dialects(rows, calls))
+    out = BS._restart_listener()
+    aimed = [c[2] for c in calls if len(c) > 2 and c[0].lower().startswith("taskkill")]
+    assert str(me) not in aimed and str(parent) not in aimed, (
+        f"taskkill was aimed at the caller's own process tree: {aimed} "
+        f"(me={me}, parent={parent}); outcome={out}")
+    assert out.ok, f"a refusal is a report, not an exception: {out.why}"
+    assert "refused" in (out.why or "").lower(), f"self-refusal was swallowed: {out.why!r}"
+
+
+def test_restart_listener_selects_the_listener_process_not_any_mention_of_its_name():
+    """(a) the predicate, against a table shaped like the host that died. Only an interpreter
+    whose PROGRAM is the listener script is the door. The pytest run naming the listener's test
+    file, the shell carrying that command, the query's own powershell, an editor with the file
+    open and a grep all MENTION the name; none of them may be stopped."""
+    table = _rows(
+        (101, 1, "py.exe", "py -m pytest tests/test_bridge_status_pins.py "
+                           "tests/test_remote_bridge_listener_pins.py"),
+        (102, 101, "python.exe", r"C:\Python311\python.exe -m pytest tests/test_bridge_status_pins.py "
+                                 r"tests/test_remote_bridge_listener_pins.py"),
+        (103, 1, "bash.exe", 'bash.exe -c "py -m pytest '
+                             'tests/test_remote_bridge_listener_pins.py"'),
+        (104, 102, "powershell.exe", "powershell -NoProfile -Command Get-CimInstance Win32_Process | "
+                                     "Where-Object { $_.CommandLine -like '*remote_bridge_listener*' }"),
+        (105, 1, "Code.exe", r'"C:\Users\x\AppData\Local\Programs\Microsoft VS Code\Code.exe" '
+                             r"E:\AI-Setup\scripts\remote_bridge_listener.py"),
+        (106, 103, "grep.exe", "grep -rn remote_bridge_listener scripts tests"),
+        (107, 1, "python.exe", r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+                               r"--host 127.0.0.1 --port 8791 --peer serge"),
+        (108, 1, "py.exe", "py scripts/remote_bridge_listener.py --port 9000"),
+        (109, 1, "python.exe", r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+                               r"--port 0 --peer pytest-probe"),
+    )
+    killed = []
+    out = BS._restart_listener(process_table=lambda: table,
+                               kill=lambda pid: killed.append(pid) or True)
+    assert sorted(killed) == [107, 108], (
+        f"stopped {sorted(killed)}; only 107 (the supervisor's launch form) and 108 (the "
+        f"documented `py scripts/...` form) are the door")
+    assert out.ok, out.why
+    why = out.why or ""
+    assert "109" in why and "pytest" in why.lower(), (
+        f"a listener-shaped process running under pytest must be refused BY PID in the report: "
+        f"{why!r}")
+
+
+def test_restart_listener_refuses_its_ancestors_even_when_they_look_like_the_listener():
+    """(b) at the table. The caller, its parent and its grandparent all wear the listener's
+    shape -- a door that asks the panel to bounce 'the listener' must not be handed its own
+    head. They are refused by lineage, the unrelated listener is stopped, and every refused
+    pid is in the report."""
+    me, parent, grand = os.getpid(), os.getppid(), 424242
+    shape = r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py --port 8791"
+    table = _rows((me, parent, "python.exe", shape), (parent, grand, "py.exe", shape),
+                  (grand, 1, "python.exe", shape), (207, 1, "python.exe", shape + " --peer other"))
+    killed = []
+    out = BS._restart_listener(process_table=lambda: table,
+                               kill=lambda pid: killed.append(pid) or True)
+    assert killed == [207], (
+        f"stopped {killed}; expected only the unrelated listener 207 "
+        f"(me={me}, parent={parent}, grand={grand})")
+    assert out.ok, out.why
+    for pid in (me, parent, grand):
+        assert str(pid) in (out.why or ""), f"refused pid {pid} missing from the report: {out.why!r}"
+
+
+def test_restart_listener_reports_a_kill_that_failed_as_not_stopped():
+    """Actions report what they ACTUALLY did. A taskkill that came back non-zero is not a stop,
+    and 'stopped 2' over one dead and one living process is the green receipt this module's
+    docstring exists to forbid."""
+    shape = r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py"
+    table = _rows((301, 1, "python.exe", shape + " --port 8791"),
+                  (302, 1, "python.exe", shape + " --port 8792"))
+    out = BS._restart_listener(process_table=lambda: table, kill=lambda pid: pid == 301)
+    assert out.ok, out.why
+    why = out.why or ""
+    assert "stopped [301]" in why and "failed to stop [302]" in why, why
