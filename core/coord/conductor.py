@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from datetime import datetime, timezone
 
 from core.coord import task_ledger as TL   # import as a module (py -m core.coord.conductor) -- no sys.path hack
@@ -41,6 +42,30 @@ def _ledger(client="auto", path=None) -> TL.TaskLedger:
     # (the test-isolation redirect) -> LEDGER_PATH. Forcing the constant here re-imposed the
     # production path over isolated drills and was the last leak in the 32-phantom-row class.
     return TL.TaskLedger(path, client=client)
+
+
+#: 77e485bb23: how many times a verb loads the ledger fresh and re-applies after save() refuses
+#: because a PEER wrote between our load and our save (TL.LedgerConflict). Every attempt re-runs
+#: every gate against the file as it now stands, so a retry can only land a move that is legal
+#: on the truth -- or turn into a gate refusal, which is an answer and is never retried.
+#: Bounded on purpose: a ledger too hot to land on surfaces as the last refusal, not a spin.
+LOST_UPDATE_ATTEMPTS = 4
+
+
+def _apply(op, client="auto", path=None):
+    """Run `op(ledger)` against a FRESHLY loaded ledger; on a lost-update refusal, re-read and
+    re-apply. This is the door's half of the ledger's CAS (task_ledger.save refuses to clobber
+    a peer's write and re-reads the truth; the door re-decides on top of it). Split on purpose:
+    the ledger stays pure (no sleeping, no policy) and the policy every `task` verb shares
+    lives once, here -- T271's 'detected and retried', at the one door the verbs enter by."""
+    last = None
+    for attempt in range(LOST_UPDATE_ATTEMPTS):
+        try:
+            return op(_ledger(client, path))
+        except TL.LedgerConflict as e:
+            last = e
+            time.sleep(0.02 * (attempt + 1))   # let the peer's mirror/announce land first
+    raise last
 
 
 def _broadcast(kind: str, text: str, meta: dict) -> None:
@@ -85,20 +110,20 @@ def _emit_ledger_update(task: dict, to_status: str, by: str = "") -> None:
 # --- the propose/approve/claim/... verbs (each stamps time; done emits the marker) -------------
 # path/client default to production (the real git ledger + live Redis); tests pass a tmp path + None.
 def propose(title, *, owner="", deps=None, files=None, acceptance="", by="claude", client="auto", path=None):
-    t = _ledger(client, path).propose(title, owner=owner, deps=deps, files=files,
-                                      acceptance=acceptance, by=by, at=_now())
+    t = _apply(lambda led: led.propose(title, owner=owner, deps=deps, files=files,
+                                       acceptance=acceptance, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "proposed", by)
     return t
 
 
 def approve(tid, *, by="user", client="auto", path=None):
-    t = TL.approve(_ledger(client, path), tid, by=by, at=_now())
+    t = _apply(lambda led: TL.approve(led, tid, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "approved", by)
     return t
 
 
 def claim(tid, by, *, client="auto", path=None):
-    t = TL.claim(_ledger(client, path), tid, by, by=by, at=_now())
+    t = _apply(lambda led: TL.claim(led, tid, by, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "claimed", by)
     return t
 
@@ -107,14 +132,14 @@ def start(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""
     # Ruling 369243: a THIRD watch opens only with pauses=<what stops> or the operator's
     # recorded word. Threaded through rather than defaulted here -- agent_cli surfaces THIS
     # parser (same law as done()'s reviewed_by threading).
-    t = TL.start(_ledger(client, path), tid, by=by, at=_now(), pauses=pauses,
-                 operator_ruling=operator_ruling)
+    t = _apply(lambda led: TL.start(led, tid, by=by, at=_now(), pauses=pauses,
+                                    operator_ruling=operator_ruling), client, path)
     _emit_ledger_update(t, "in_progress", by)
     return t
 
 
 def verify(tid, *, by="", client="auto", path=None):
-    t = TL.verifying(_ledger(client, path), tid, by=by, at=_now())
+    t = _apply(lambda led: TL.verifying(led, tid, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "verifying", by)
     return t
 
@@ -124,15 +149,16 @@ def done(tid, commit, verified_by, *, by="", client="auto", path=None,
     # T248: reviewed_by is WHO, verified_by is the EVIDENCE, self_verified is a recorded
     # override. Threaded through rather than defaulted here -- agent_cli surfaces THIS parser,
     # so a default set at one door would be the only door that had it.
-    t = TL.done(_ledger(client, path), tid, commit=commit, verified_by=verified_by, by=by,
-                at=_now(), reviewed_by=reviewed_by, self_verified=self_verified)
+    t = _apply(lambda led: TL.done(led, tid, commit=commit, verified_by=verified_by, by=by,
+                                   at=_now(), reviewed_by=reviewed_by,
+                                   self_verified=self_verified), client, path)
     _emit_resolved(tid, t["title"], commit)
     _emit_ledger_update(t, "done", by)
     return t
 
 
 def block(tid, reason, *, by="", client="auto", path=None):
-    t = TL.block(_ledger(client, path), tid, reason, by=by, at=_now())
+    t = _apply(lambda led: TL.block(led, tid, reason, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "blocked", by)
     return t
 
@@ -141,8 +167,8 @@ def abandon(tid, reason, *, by="", client="auto", path=None, operator_ruling="")
     """P5 (T025): the explicit verdict for parked intent -- terminal, with a recorded reason
     (a proposal that decays without one is exactly the ambiguity the decay flag exists to end).
     T352: abandoning a DONE row additionally requires operator_ruling (recorded in history)."""
-    t = TL.abandon(_ledger(client, path), tid, reason, by=by, at=_now(),
-                   operator_ruling=operator_ruling)
+    t = _apply(lambda led: TL.abandon(led, tid, reason, by=by, at=_now(),
+                                      operator_ruling=operator_ruling), client, path)
     _emit_ledger_update(t, "abandoned", by)
     return t
 
@@ -150,15 +176,15 @@ def abandon(tid, reason, *, by="", client="auto", path=None, operator_ruling="")
 def park(tid, reason, *, by="", client="auto", path=None):
     """T083-C5-1: shelve an IN_PROGRESS wave deliberately -- keeps owner + file claims, FREES the
     Phase-1 sequential slot (a parked wave must not block unrelated work from finishing)."""
-    t = TL.park(_ledger(client, path), tid, reason, by=by, at=_now())
+    t = _apply(lambda led: TL.park(led, tid, reason, by=by, at=_now()), client, path)
     _emit_ledger_update(t, "parked", by)
     return t
 
 
 def unpark(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""):
     """T083-C5-1: resume a parked wave -- re-enters through the same two-watch gate."""
-    t = TL.unpark(_ledger(client, path), tid, by=by, at=_now(), pauses=pauses,
-                  operator_ruling=operator_ruling)
+    t = _apply(lambda led: TL.unpark(led, tid, by=by, at=_now(), pauses=pauses,
+                                     operator_ruling=operator_ruling), client, path)
     _emit_ledger_update(t, "in_progress", by)
     return t
 

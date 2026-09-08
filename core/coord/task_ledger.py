@@ -25,6 +25,8 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.foundation import filelock   # the OS-arbitrated sidecar lock save() serializes under
+
 # repo root is two dirs up from core/coord/
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 LEDGER_PATH = os.path.join(_ROOT, "state", "coord", "tasks.json")
@@ -38,6 +40,13 @@ LEDGER_PATH = os.path.join(_ROOT, "state", "coord", "tasks.json")
 # (see tests/test_coordination_namespace_isolation.py).
 REDIS_LEDGER_KEY = "bifrost:coord:ledger"
 REDIS_VER_KEY = "bifrost:coord:ledger:v"
+
+#: 77e485bb23: how long save() waits for the ledger's sidecar lock (`<path>.lock`, the house
+#: core.foundation.filelock) before REFUSING. A save holds it for milliseconds -- one read,
+#: one write, one replace, one best-effort Redis SET (3s socket timeout) -- so a wait this
+#: long means a wedged holder, and the honest answer is a refusal the caller can retry,
+#: never a write that carries on unprotected.
+LOCK_TIMEOUT_S = 5.0
 
 
 def _bus_client():
@@ -185,6 +194,27 @@ class LedgerError(Exception):
     """A rejected transition. The message names the gate that blocked it (teaches the fix)."""
 
 
+class LedgerConflict(LedgerError):
+    """A save REFUSED by the concurrency guard, not by a lifecycle gate (77e485bb23): a peer
+    process wrote the ledger since this instance last read it (lost-update), or is holding the
+    ledger lock past the wait. By the time this reaches a caller the instance has re-read the
+    on-disk truth, so the remedy is APPLY AGAINST THE TRUTH -- conductor does exactly that,
+    bounded -- never 'write anyway'. A gate refusal is an answer and is not retried; this is
+    the one refusal that is."""
+
+
+def _rev_of(data: Dict[str, Any]) -> int:
+    """The write-REVISION a ledger payload carries: advanced by every save, of any kind.
+
+    Files written before the rev anchor (77e485bb23) carry only `seq`. Read that AS the
+    revision, so the one-time migration is a CAS like any other: every instance that loaded
+    the old file agrees on the number, the first save under the new anchor writes
+    rev = seq + 1, and every peer still holding the old number is refused."""
+    if "rev" in data:
+        return int(data["rev"])
+    return int(data.get("seq", 0))
+
+
 class TaskLedger:
     def __init__(self, path: Optional[str] = None, client: Any = "auto"):
         # T352: AKASHIC_TASKS_PATH is the isolation door for drills that walk the
@@ -198,10 +228,14 @@ class TaskLedger:
         self._client = client
         self.tasks: Dict[str, Dict[str, Any]] = {}
         self._seq = 0
-        # T270 CAS: the on-disk seq this instance last successfully wrote (or loaded). save()
-        # refuses to clobber a peer's newer write by comparing the file's CURRENT seq against
-        # this watermark -- a lost update is PREVENTED (raise) rather than silently applied.
-        self._base_seq = 0
+        # T270 / 77e485bb23 CAS: `_base_rev` is the on-disk write-REVISION this instance last
+        # loaded or wrote. save() refuses to clobber a peer's newer write by comparing the
+        # file's CURRENT rev against this watermark -- a lost update is PREVENTED (raise)
+        # rather than silently applied. It is a per-SAVE counter, deliberately NOT `seq`:
+        # seq is the task-id allocator and only propose() moves it, so a seq-anchored CAS
+        # (T270's first cut) was blind to every transition -- verified at HEAD: A's committed
+        # approval reverted to 'proposed' by B's stale save, with no error anywhere.
+        self._base_rev = 0
         self.load()
 
     def _mirror_client(self):
@@ -209,64 +243,113 @@ class TaskLedger:
             self._client = _bus_client()   # resolve once
         return self._client
 
-    def _mirror(self) -> None:
+    def _payload(self) -> Dict[str, Any]:
+        """The on-disk shape: the id allocator, the write-revision, the rows."""
+        return {"seq": self._seq, "rev": self._base_rev, "tasks": list(self.tasks.values())}
+
+    def _mirror(self, payload: Optional[Dict[str, Any]] = None) -> None:
         """Write-through the whole ledger to Redis (fast reads). Best-effort; git file is the truth."""
         c = self._mirror_client()
         if c is None:
             return
         try:
-            c.set(REDIS_LEDGER_KEY, json.dumps({"seq": self._seq, "tasks": list(self.tasks.values())}))
+            c.set(REDIS_LEDGER_KEY, json.dumps(payload if payload is not None else self._payload()))
             c.set(REDIS_VER_KEY, str(self._seq))
         except Exception:
             pass   # fail-open
 
     # --- persistence (git-durable source of truth) ---------------------------------------------
     def load(self) -> None:
+        """Become what the disk says. An absent file says EMPTY -- so a re-load after a
+        refused save never keeps a phantom row from the mutation that was never written."""
         if not os.path.exists(self.path):
-            self._base_seq = 0
+            self.tasks, self._seq, self._base_rev = {}, 0, 0
             return
         try:
             with open(self.path, encoding="utf-8") as fh:
                 data = json.load(fh)
             self.tasks = {t["id"]: t for t in data.get("tasks", [])}
             self._seq = int(data.get("seq", len(self.tasks)))
-            self._base_seq = self._seq      # T270: the watermark save() CASes against
+            self._base_rev = _rev_of(data)  # T270/77e485bb23: the watermark save() CASes against
         except Exception as e:
             raise LedgerError(f"ledger unreadable at {self.path}: {e}")
 
-    def _on_disk_seq(self) -> int:
-        """The ledger's CURRENT on-disk seq, or self._base_seq when the file is absent
-        (nothing committed yet). Read fresh every call -- the CAS anchor, never cached."""
+    _UNREADABLE = -1   # an anchor nobody can hold: never equal to a real rev, so never matched
+
+    def _on_disk_rev(self) -> int:
+        """The ledger's CURRENT on-disk rev: `_base_rev` when the file is absent (nothing
+        committed yet -- whoever writes first creates it), _UNREADABLE when it exists but
+        cannot be parsed. Read fresh every call, under the lock -- the CAS anchor, never
+        cached. Unreadable is fail-CLOSED on purpose: T270 read it as 'unchanged' and paved
+        over it, and under the lock an unreadable file is never a peer mid-write -- it is
+        damage a human restores from git, not a race this code may resolve by overwriting."""
         if not os.path.exists(self.path):
-            return self._base_seq
+            return self._base_rev
         try:
             with open(self.path, encoding="utf-8") as fh:
-                return int(json.load(fh).get("seq", 0))
+                return _rev_of(json.load(fh))
         except Exception:
-            return self._base_seq
+            return self._UNREADABLE
 
     def save(self) -> None:
-        # T270 CAS — a lost update is PREVENTED, not silently applied. Two processes each
-        # hold a TaskLedger loaded from the same on-disk seq; both propose; both save. Without
-        # this, the second os.replace clobbers the first's whole-file write and BOTH believe
-        # they succeeded (the FileStore coherence class, on the governed allocator — the live
-        # seq=367/T368 race, deferred 77e485bb23). The guard: if the file's seq has moved past
-        # the watermark we last wrote/loaded, another process landed a write since — refuse so
-        # the caller re-reads and re-decides, rather than silently destroying a committed task.
-        disk = self._on_disk_seq()
-        if disk != self._base_seq:
-            raise LedgerError(
-                f"save refused (lost-update): the ledger advanced from {self._base_seq} to "
-                f"{disk} on disk since this instance last saw it — another process wrote. "
-                f"Re-read the ledger and re-apply; never clobber a peer's commit.")
+        # T270 + 77e485bb23 CAS — a lost update is PREVENTED, not silently applied. Two
+        # processes each hold a TaskLedger loaded from the same on-disk revision; both
+        # mutate; both save. Without this, the second os.replace clobbers the first's
+        # whole-file write and BOTH believe they succeeded (the FileStore coherence class,
+        # on the governed ledger — the live seq=367/T368 race, deferred 77e485bb23). The
+        # guard, in _commit(): under the ledger's sidecar lock (so compare-then-replace is
+        # ONE step across processes, not a check-then-replace TOCTOU), if the file's rev is
+        # not the one this instance last loaded/wrote, a peer landed a write since — refuse.
+        # On refusal the instance RE-READS the truth before raising, so the caller's retry
+        # (conductor._apply; the shift daemon's next beat) re-decides against what is
+        # actually there, gates included, instead of replaying a stale snapshot.
+        try:
+            self._commit()
+        except LedgerConflict:
+            self._resync()
+            raise
+
+    def _commit(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        payload = {"seq": self._seq, "tasks": list(self.tasks.values())}
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, indent=2)
-        os.replace(tmp, self.path)   # atomic write — never a half-written ledger
-        self._base_seq = self._seq   # T270: advance the watermark to what we just committed
-        self._mirror()               # write-through to the Redis read cache (best-effort)
+        try:
+            with filelock.exclusive(self.path, timeout=LOCK_TIMEOUT_S):
+                disk = self._on_disk_rev()
+                if disk == self._UNREADABLE:
+                    raise LedgerError(
+                        f"save refused: the ledger at {self.path} exists but cannot be read, "
+                        f"so nothing can be compared against it. Not overwriting damage — "
+                        f"restore the file from git and re-apply.")
+                if disk != self._base_rev:
+                    raise LedgerConflict(
+                        f"save refused (lost-update): the ledger on disk is at rev {disk}, not "
+                        f"rev {self._base_rev} which this instance last saw — another process "
+                        f"wrote since. Re-read the ledger and re-apply; never clobber a peer's "
+                        f"commit.")
+                payload = {"seq": self._seq, "rev": self._base_rev + 1,
+                           "tasks": list(self.tasks.values())}
+                tmp = self.path + ".tmp"   # shared name: the lock is what keeps two savers apart
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    json.dump(payload, fh, indent=2)
+                os.replace(tmp, self.path)   # atomic write — never a half-written ledger
+                self._base_rev += 1          # advance the watermark to what we just committed
+                self._mirror(payload)        # write-through to the Redis read cache (best-effort);
+                                             # inside the lock so mirror order == file order
+        except filelock.LockTimeout as e:
+            raise LedgerConflict(
+                f"save refused (lock timeout): {e}. A peer is mid-save or wedged; the ledger "
+                f"was NOT written. Re-read and re-apply.") from e
+
+    def _resync(self) -> None:
+        """After a refused save: the mutation this instance attempted was NEVER written, so
+        drop it and adopt the on-disk truth. Without this the losing instance keeps a phantom
+        task and an over-advanced seq in memory, and the one long-lived writer in the house
+        (scripts/shift_daemon.py, which reuses its instance beat after beat) is refused
+        forever. Best-effort: if the file cannot be read right now the instance stays as it
+        was and the next save is refused again."""
+        try:
+            self.load()
+        except Exception:
+            pass
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------
     def get(self, tid: str) -> Optional[Dict[str, Any]]:
