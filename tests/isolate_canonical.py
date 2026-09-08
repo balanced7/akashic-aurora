@@ -64,6 +64,13 @@ if not _already_redirected():
     _tmp = tempfile.mkdtemp(prefix="aisetup_test_")
     os.makedirs(os.path.join(_tmp, "session_logs"), exist_ok=True)
     os.environ["AI_SETUP"] = _tmp
+    # This dir is a DATA root, not a repo: it carries no agent_cli.py / core/ on purpose, so
+    # the code-relative readers of repo_root() keep resolving docs/, scripts/ and store/docs
+    # in the real tree. Every instance-state default therefore resolves through
+    # core.paths.data_root(), which honours a bare AI_SETUP; repo_root() rejects one and falls
+    # through to the live tree. Between e30a8517 (2026-08-24) and defer 951a9944f6 the
+    # defaults went through repo_root(), and the file half of this isolation was a no-op:
+    # "empty" test stores came back holding the live legacy corpus.
     try:
         from config import REDIS_TEST_DB
         os.environ["REDIS_DB"] = str(REDIS_TEST_DB)

@@ -19,7 +19,7 @@ Key rules (docs/library/design/20260620_research-context-handling-compaction-and
 """
 
 import os
-from core.paths import repo_root
+from core.paths import data_root
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
@@ -79,7 +79,7 @@ def consolidate_into_chronicle(
     Distiller (and thus the FAITH critic seam, once wired). READ-only on the stores."""
     consolidator = Consolidator(ranker=ranker, distiller=distiller, token_budget=token_budget)
     base = Path(chronicle_dir) if chronicle_dir else \
-        repo_root() / "chronicles"
+        data_root() / "chronicles"
     base.mkdir(parents=True, exist_ok=True)
 
     items = []

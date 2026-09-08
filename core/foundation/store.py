@@ -33,7 +33,7 @@ with what callers already expect.
 """
 
 import os
-from core.paths import repo_root
+from core.paths import data_root
 import json
 import time
 import shutil
@@ -47,16 +47,15 @@ from typing import Any, Dict, List, Optional, Iterable, Tuple
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
 
 def _repo_root_str() -> str:
-    """AI_SETUP override, else the root DERIVED from this file (core/paths).
+    """Instance-state root as a string: core.paths.data_root().
 
-    Was os.getenv("AI_SETUP", <hardcoded absolute path>). The default was a
-    specific machine's path, and AI_SETUP was never actually set anywhere -- so
-    every call here silently used that literal and the repo only ran from one
-    directory on one disk.
+    Was os.getenv("AI_SETUP", <hardcoded absolute path>), then a raw AI_SETUP-or-root_str()
+    restatement of the same rule. The rule lives in ONE place now (defer 951a9944f6):
+    repo_root() rejects a bare data dir on purpose, data_root() is the resolver that honours
+    it, and this name survives only for the call sites below.
     """
-    from core.paths import root_str
-    import os as _os
-    return (_os.getenv("AI_SETUP") or "").strip() or root_str()
+    from core.paths import data_root_str
+    return data_root_str()
 
 
 logger = logging.getLogger("store")
@@ -367,7 +366,7 @@ class FileStore(Store):
     DATA_BUCKETS = ("kv", "hash", "list", "set", "zset")
 
     def __init__(self, path: Optional[str] = None):
-        base = repo_root() / "session_logs"
+        base = data_root() / "session_logs"
         base.mkdir(parents=True, exist_ok=True)
         self._path = Path(path) if path else base / "store_state.json"
         self._lock = threading.RLock()

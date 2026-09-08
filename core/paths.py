@@ -23,6 +23,16 @@ to have and a terrible thing to depend on.
 WHY TWO MARKERS AND NOT `.git`: a deployment can arrive as a zip, an export, or a worktree
 whose .git is a FILE rather than a directory. agent_cli.py + core/ identify this repo without
 assuming how it got here.
+
+TWO QUESTIONS, TWO RESOLVERS (2026-09-07, defer 951a9944f6). "Where is the CODE" and "where
+does INSTANCE STATE live" are different questions with different validation. repo_root() is
+marker-validated because a wrong code root means a wrong docs/, scripts/ and store/docs, so
+it must never follow AI_SETUP into a directory that is not this repo. data_root() is the
+override the paragraph above promised -- a relocated data dir, a fixture tree -- and a data
+dir is not a repo, so it carries NO marker check. Merging the two (e30a8517) made every
+instance-state default silently ignore the bare temp dir tests/isolate_canonical.py sets:
+the FILE half of test isolation was a no-op for two weeks, and live lessons bled into
+"empty" test stores while every reader believed the store was isolated.
 """
 from __future__ import annotations
 
@@ -55,7 +65,9 @@ def _looks_like_root(p: Path) -> bool:
 
 
 def repo_root(start: Optional[str] = None, *, use_env: bool = True) -> Path:
-    """The repo root. Order: AI_SETUP override -> derived from this file -> cwd walk.
+    """The CODE root. Order: AI_SETUP override (only if it IS a repo) -> derived from this
+    file -> cwd walk. For session_logs/, coordinator_logs/ and every other piece of instance
+    state use data_root(): a bare data dir is REJECTED here by design.
 
     Never raises: a path helper that throws during import takes down every door that imports
     it, and the failure then looks like something else entirely.
@@ -98,12 +110,36 @@ def root_str() -> str:
     return str(repo_root())
 
 
+def data_root() -> Path:
+    """Where INSTANCE STATE lives: session_logs/, coordinator_logs/, chronicle output, the
+    default FileStore/FileLedger files, the legacy learnings.jsonl.
+
+    A set AI_SETUP ALWAYS wins here, whether or not it looks like a repo -- that is the whole
+    point of the override (a relocated data dir, a test harness's throwaway tree), and a data
+    dir has no agent_cli.py or core/ to validate against. Unset, instance state lives beside
+    the code, exactly as before. Read per call and never cached: the lookup is cheap, and a
+    cached override is the T069 singleton leak all over again.
+    """
+    env = (os.getenv("AI_SETUP") or "").strip()
+    if env:
+        return Path(env)
+    return repo_root()
+
+
+def data_root_str() -> str:
+    """String form of data_root(), for os.path.join call sites."""
+    return str(data_root())
+
+
 def env_override_is_wrong() -> Optional[str]:
     """AI_SETUP set but not pointing at a repo -> the reason, else None.
 
     Split out so `doctor` can REPORT it. A silently ignored misconfiguration is how a broken
     deploy looks healthy: the code quietly derives the right root, the operator believes their
     env var is in effect, and the next thing that reads AI_SETUP directly disagrees.
+
+    This diagnoses the CODE root only. Instance state (data_root) follows AI_SETUP regardless
+    of markers, so a bare data dir here is a partial override, not an ignored one.
     """
     env = (os.getenv("AI_SETUP") or "").strip()
     if not env:

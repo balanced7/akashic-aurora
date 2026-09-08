@@ -37,9 +37,9 @@ from typing import Dict, Any, Optional, List
 from pathlib import Path
 from datetime import datetime
 import os
-from core.paths import repo_root
+from core.paths import data_root
 
-log_dir = repo_root() / "session_logs"
+log_dir = data_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(

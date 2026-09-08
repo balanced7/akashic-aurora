@@ -25,7 +25,7 @@ Read-only on beat raw data. Best-effort: failures never raise into caller.
 import hashlib
 import json
 import os
-from core.paths import repo_root
+from core.paths import data_root
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -147,7 +147,7 @@ class Chronicler:
         base = (
             Path(chronicle_dir)
             if chronicle_dir
-            else repo_root() / "chronicles"
+            else data_root() / "chronicles"
         )
         self.chronicle_dir = base
 
