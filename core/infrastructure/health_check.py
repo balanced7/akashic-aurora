@@ -16,10 +16,10 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
 import os
-from core.paths import repo_root
+from core.paths import data_root
 import json
 
-log_dir = repo_root() / "session_logs"
+log_dir = data_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
