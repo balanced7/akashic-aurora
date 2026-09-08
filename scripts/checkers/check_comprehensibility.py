@@ -13,7 +13,7 @@ Run before shipping (wired into ship.py, CI, and the pre-commit hook). Exit 1 on
   A. Every core/ subpackage is named in docs/ARCHITECTURE.md          FAIL
   B. docs/MODULE_INDEX.md is current (run gen_arch_index.py)          FAIL
   B2. PHYSICS.md + MAP.md + DOORS.md current (their generators)       FAIL  (a derived map that rots is worse than none)
-  F. No living doc / core docstring cites a repo path that's GONE     FAIL  (stale reference -- rename/delete rot)
+  F. No living doc / core docstring cites a path the git INDEX lacks  FAIL  (rename/delete/never-committed rot; asks git, not the disk)
   G. Every tracked file's on-disk case matches git (cross-OS safe)    FAIL  (the lexicon.md vs LEXICON.md class)
   C. Every module has a line-1 docstring                              WARN
   D. ARCHITECTURE.md / LEXICON.md far older than core/                WARN
@@ -44,6 +44,13 @@ _REF_RE = re.compile(
     re.IGNORECASE,
 )
 
+# The guard asks the INDEX (git ls-files: tracked + staged), never the working tree. A reference is
+# a claim about the REPOSITORY, and "exists on this box" is not that claim: an untracked or
+# gitignored target reads as present here and as broken for anyone who clones -- main tree PASS,
+# pristine worktree of the SAME commit 13 drift FAILs (a3d09c4e5d). Same law as
+# scripts/generators/_tracked.py. The hand-maintained root docs join the sources the same way.
+_ROOT_DOCS = ("AGENTS.md", "CLAUDE.md", "README.md", "bootstrap.md")
+
 # NON-EVADABLE exemptions: a stale ref is excused ONLY by a dated entry here. `expires` is a hard date;
 # past it the entry itself becomes a FAIL ("re-verify or remove") so the allowlist can't rot into a
 # silent dumping ground. Keep this SMALL -- root-anchoring already excludes most false positives.
@@ -57,6 +64,14 @@ REF_ALLOWLIST = {
                   "amendment-scoped-admin-g_17c9ca.md. Root fix = retitle the arc label at "
                   "the atom (deferred: no doc-verb retitle surface exists yet; see defer).",
     },
+    "tests/test_codex_hook_contract.py": {
+        "expires": "2026-09-21",
+        "reason": "2026-09-07: cited by docs/CODEX_INTEGRATION.md (verification commands) but "
+                  "present-but-UNTRACKED on the workstation since 08-26 -- git ls-files empty, "
+                  "not gitignored -- so every clone and CI saw a broken path the workstation "
+                  "could not (a3d09c4e5d). TEMPORARY by shape: the codex seat commits the pin "
+                  "or the doc drops the ref, then this entry goes.",
+    },
 }
 
 
@@ -67,15 +82,34 @@ def _read(rel):
         return ""
 
 
-def _living_docs():
-    """UPPERCASE docs/*.md (the living-doc convention) + the hand-maintained root docs."""
+def _tracked_paths():
+    """frozenset of every INDEX path (tracked + staged) under a ref root or a root doc: repo-
+    relative, forward slashes, EXACT case. ASK THE DOOR, as BYTES: `git ls-files -z` -- text mode
+    would put the platform newline translation and the console codepage between us and git (the
+    CRLF class in _gitignored). RAISES on any trouble so _run() turns it into a broken-check FAIL:
+    a guard that cannot see the index must fail LOUD, never excuse everything with an empty set."""
+    p = subprocess.run(["git", "-C", ROOT, "ls-files", "-z", "--", *_REF_ROOTS, *_ROOT_DOCS],
+                       capture_output=True, timeout=60)
+    if p.returncode != 0:
+        raise RuntimeError(f"`git ls-files` failed (rc {p.returncode}) in {ROOT}: "
+                           f"{p.stderr.decode('utf-8', 'replace').strip()[:300]}")
+    return frozenset(x.decode("utf-8", "replace").replace("\\", "/")
+                     for x in p.stdout.split(b"\0") if x)
+
+
+def _living_docs(tracked=None):
+    """UPPERCASE docs/*.md (the living-doc convention) + the hand-maintained root docs, taken from
+    the INDEX so the guard reads the same sources on every machine: an untracked draft on one box
+    is not yet the repository's claim (it joins the moment it is staged), and one seat's draft
+    must not gate every other seat's commit."""
+    tracked = _tracked_paths() if tracked is None else tracked
     out = []
-    for f in sorted(os.listdir(os.path.join(ROOT, "docs"))):
-        if f.endswith(".md") and f == f.upper().replace(".MD", ".md") and f[0].isupper():
-            out.append(f"docs/{f}")
-    for f in ("AGENTS.md", "CLAUDE.md", "README.md", "bootstrap.md"):
-        if os.path.exists(os.path.join(ROOT, f)):
-            out.append(f)
+    for p in sorted(tracked):
+        d, _, f = p.rpartition("/")
+        if d == "docs" and f.endswith(".md") and f == f.upper().replace(".MD", ".md") \
+                and f[0].isupper():
+            out.append(p)
+    out.extend(f for f in _ROOT_DOCS if f in tracked)
     return out
 
 
@@ -141,16 +175,21 @@ def _gitignored(refs):
     """
     if not refs:
         return set()
+    # BYTES + NUL (-z), never a text-mode pipe: with text=True CPython rewrites every '\n' on
+    # stdin as os.linesep, which is '\r\n' on Windows, so every ref but the LAST reached git as
+    # 'path\r' and matched nothing. The excuse path thus failed closed whenever two or more refs
+    # were missing -- every clean checkout on the workstation (11 false FAILs, af5759c5a2) --
+    # while a single-ref probe stayed green. NUL separation also survives non-ASCII paths.
     try:
-        p = subprocess.run(["git", "-C", ROOT, "check-ignore", "--stdin"],
-                           input="\n".join(sorted(refs)), capture_output=True,
-                           text=True, timeout=20)
+        p = subprocess.run(["git", "-C", ROOT, "check-ignore", "--stdin", "-z"],
+                           input=b"".join(r.encode("utf-8") + b"\0" for r in sorted(refs)),
+                           capture_output=True, timeout=20)
     except Exception:                                                   # noqa: BLE001
         return set()
     # 0 = at least one ignored, 1 = none ignored (NOT an error), anything else = no answer.
     if p.returncode not in (0, 1):
         return set()
-    return {ln.strip().replace("\\", "/") for ln in (p.stdout or "").splitlines() if ln.strip()}
+    return {x.decode("utf-8", "replace").replace("\\", "/") for x in p.stdout.split(b"\0") if x}
 
 
 def partition_missing(missing, ignored):
@@ -165,30 +204,41 @@ def partition_missing(missing, ignored):
 
 
 def _missing_refs():
-    """(rel, ref) for every repo-anchored reference that is not on disk and not exempted."""
+    """(rel, ref) for every repo-anchored reference that is not in the INDEX and not exempted.
+
+    The index, not the disk: os.path.exists answered "present" for a target that was merely on
+    this box (untracked, or gitignored), so the workstation said PASS and every clone said FAIL
+    -- and the guard could not see that about itself. EXACT case: the index is case-exact and so
+    is every clone on a case-sensitive filesystem; matching loosely here would keep the Windows
+    verdict different from the Linux one, which is the disagreement this guard exists to end
+    (G covers the on-disk side of case drift). One ls-files call per run; it is milliseconds.
+    """
     today = datetime.now().strftime("%Y-%m-%d")
+    tracked = _tracked_paths()
     out = []
-    sources = [(d, _read(d)) for d in _living_docs()] + _core_docstring_sources()
+    sources = [(d, _read(d)) for d in _living_docs(tracked)] + _core_docstring_sources()
     for rel, text in sources:
         for ref in scan_refs(text):
-            if os.path.exists(os.path.join(ROOT, ref)) or exemption_active(ref, today):
+            if ref in tracked or exemption_active(ref, today):
                 continue
             out.append((rel, ref))
     return out
 
 
 def _stale_refs():
-    """FAIL list: every repo-anchored path reference (in living docs + core docstrings) that no longer
-    exists on disk and is not covered by an unexpired REF_ALLOWLIST entry. Also FAILs an EXPIRED
+    """FAIL list: every repo-anchored path reference (in living docs + core docstrings) that the
+    git INDEX does not contain and no unexpired REF_ALLOWLIST entry covers. Also FAILs an EXPIRED
     allowlist entry (non-evadable). Root-anchored so deployment/example paths don't false-positive.
 
     A path git DELIBERATELY IGNORES is absent by design, not drift, and is routed to a WARN
-    by _instance_local_refs() instead. This guard asks the FILESYSTEM, so before that split it
-    answered green on every workstation (where the file exists) and red on every clone (where
-    it never can) -- 8 straight red CI runs on security/acl.json, which fence
-    t384-acl-instance-split un-tracked ON PURPOSE so grants stop crossing instances. A check
-    that disagrees with itself across machines teaches you to read CI as noise, which costs
-    far more than the drift it catches.
+    by _instance_local_refs() instead. History of this seam: the guard once asked the
+    FILESYSTEM, so it answered green on every workstation (where the file exists) and red on
+    every clone (where it never can) -- 8 straight red CI runs on security/acl.json, which fence
+    t384-acl-instance-split un-tracked ON PURPOSE so grants stop crossing instances. The split
+    fixed CI but not the workstation: there the file was never "missing", so the WARN route never
+    ran, and a present-but-untracked target still passed. Asking the index (_missing_refs) ends
+    both: one verdict on every machine. A check that disagrees with itself across machines
+    teaches you to read CI as noise, which costs far more than the drift it catches.
     """
     fails = []
     today = datetime.now().strftime("%Y-%m-%d")
@@ -202,8 +252,9 @@ def _stale_refs():
     missing = _missing_refs()
     drift, _ = partition_missing(missing, _gitignored({ref for _, ref in missing}))
     for rel, ref in drift:
-        fails.append(f"{rel} references a repo path that does not exist: '{ref}' "
-                     f"-> fix the reference (renamed/deleted?) or add a dated REF_ALLOWLIST entry")
+        fails.append(f"{rel} references a repo path that is not in the git index: '{ref}' "
+                     f"(renamed, deleted, or never committed -- it may well exist on this box) "
+                     f"-> fix the reference, `git add` the target, or add a dated REF_ALLOWLIST entry")
     return fails
 
 
@@ -243,9 +294,7 @@ def _filename_case():
     on-disk directory entry. Case-insensitive filesystems (Windows/macOS) hide this locally; it ships
     and breaks case-sensitive CI (Linux) or half-commits (git pathspecs are case-sensitive)."""
     try:
-        tracked = subprocess.run(["git", "-C", ROOT, "ls-files", "-z", *_REF_ROOTS],
-                                 capture_output=True, text=True)
-        paths = [p for p in tracked.stdout.split("\0") if p]
+        paths = sorted(_tracked_paths())           # one door for "what does git track"
     except Exception as e:
         return [f"could not list git-tracked files for the case check: {type(e).__name__}: {e}"]
 
