@@ -23,10 +23,18 @@ import shutil
 import subprocess
 import sys
 import uuid
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+
+# The time-boxed grant is anchored to NOW, never to a calendar date: resolve() lapses an
+# expired grant to quarantined by contract (T151), so a hardcoded expires_at is a time
+# bomb that turns P6 red the day the date passes and blames the door. Stamped in the exact
+# form grant_writer writes ("%Y-%m-%dT%H:%M:%SZ") so the fixture stays byte-shaped like a
+# real acl.json. P0 pins the invariant.
+_EXPIRES_AT = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 SAMPLE = {
     "_comment": "test acl",
@@ -36,7 +44,7 @@ SAMPLE = {
          "granted_by": "root", "granted_at": "2026-08-24T00:00:00Z", "reason": "t"},
         {"agent_id": "dsh_agent", "role": "admin", "caps": [], "path_scope": ["*"],
          "granted_by": "daniil", "granted_at": "2026-08-24T07:30:00Z",
-         "expires_at": "2026-08-31T07:30:00Z", "reason": "t"},
+         "expires_at": _EXPIRES_AT, "reason": "t"},
     ],
 }
 
@@ -51,6 +59,23 @@ def acl_file(tmp_path, monkeypatch):
 
 def _grants_from(path):
     return json.loads(path.read_text(encoding="utf-8")).get("grants", [])
+
+
+def test_p0_fixture_time_box_is_live():
+    """P0 FIXTURE-LIVE: the time-boxed grant in SAMPLE must still be INSIDE its box at test
+    time, judged by the SAME clock resolve() uses. resolve() lapses an expired grant to
+    quarantined by contract (T151: observed, a time-box is a deadline), so a fixture
+    anchored to a wall-clock date is a time bomb -- P6 turns red the day the date passes
+    and the failure reads as the door quarantining a seat it should serve. The door is
+    right; the fixture lapsed. Pin the fixture, not the door."""
+    import core.trust.registry as registry
+    boxed = [g for g in SAMPLE["grants"] if g.get("expires_at")]
+    assert boxed, "P0: the fixture must carry a time-boxed grant (P6 drills the served side)"
+    for g in boxed:
+        assert not registry._expired(g["expires_at"]), (
+            f"P0: fixture time-box LAPSED -- {g['agent_id']} expires_at={g['expires_at']} is "
+            f"already past by resolve()'s clock, so P6 will see it QUARANTINED by contract; "
+            f"anchor the fixture's expires_at to now, never to a calendar date")
 
 
 def test_p1_bootstrap_preserves_grants_and_stamps_marker(acl_file):
