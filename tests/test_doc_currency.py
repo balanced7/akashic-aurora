@@ -8,12 +8,7 @@ superseded-by. Guard behavior pins run against a temp docs tree.
 
 Run: py -m pytest tests/test_doc_currency.py -q
 """
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
-
-import check_doc_currency as g
+from scripts.checkers import check_doc_currency as g  # T104-M1 home; conftest puts repo root on sys.path
 
 
 def _classify(tmp_path, head):
