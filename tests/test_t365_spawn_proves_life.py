@@ -75,13 +75,26 @@ def test_empty_log_still_names_the_exit_code():
 
 
 # ------------------------------------------------------- no receipt for a corpse
-def test_handle_message_does_not_sprout_when_the_spawner_raises():
+def test_handle_message_does_not_sprout_when_the_spawner_raises(tmp_path, monkeypatch):
     """The shell raises on stillbirth; handle_message must NOT swallow it into a 🌱.
     on_message's existing except-> ⚠️ path is the surfacing organ (T149 honesty)."""
     reactions = []
 
     def dead_spawner(task):
         raise RuntimeError(f"spawn died before it lived: {OAUTH}")
+
+    # HERMETIC root identity (the test_discord_inbound_pins.cfg idiom). The suite
+    # redirects the secrets vault to an empty per-run dir (isolate_canonical.py), so
+    # a bare build_config() finds no root anywhere and refuses (EarConfigError)
+    # before the assertion under test is ever reached. Seed one snowflake through
+    # the call-time overrides and point both registries at files that do not exist:
+    # this pin is about a corpse and a sprout, never about who holds root on the
+    # machine that runs it.
+    idf = tmp_path / "operator_id"
+    idf.write_text("111222333444555666", encoding="utf-8")
+    monkeypatch.setenv("AKASHIC_DISCORD_OPERATOR_ID_FILE", str(idf))
+    monkeypatch.setenv("AKASHIC_DISCORD_PEOPLE_FILE", str(tmp_path / "no_people.json"))
+    monkeypatch.setenv("AKASHIC_DISCORD_ROOTS_FILE", str(tmp_path / "no_roots.json"))
 
     cfg = DI.build_config()
     with pytest.raises(RuntimeError, match="died"):
