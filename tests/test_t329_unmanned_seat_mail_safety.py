@@ -137,14 +137,27 @@ def test_missing_destination_is_protected_and_exactly_overrideable(isolated_bus)
         # Deliberately no `to`: unknown ownership must never become permission.
     }))
     before = bus.cursor()
-    assert control.pause(reason="T329 missing-destination acceptance", by="sol", ttl=60)
 
+    # The same fail-closed item must not become phantom debt for the seat whose
+    # stream happens to contain it.  UNKNOWN OWNER is a distinct Doctor state,
+    # with the exact refs an operator needs to inspect/name the protected item.
+    findings = doctor.examine(agent, probes=_quiet_probes(time.time()))
+    assert not [row for row in findings if row["state"] == "unmanned_seat"], findings
+    unknown = [row for row in findings if row["state"] == "unknown_owner"]
+    assert len(unknown) == 1, findings
+    rendered = f"{unknown[0]['line']} {unknown[0]['drill']}"
+    assert "UNKNOWN OWNER" in rendered
+    assert f"NOT attributed to {agent}" in rendered
+    assert malformed_id in rendered
+
+    assert control.pause(reason="T329 missing-destination acceptance", by="sol", ttl=60)
     refused = cursor_admin.skip_to_now(
         agent, by="sol", reason="T329 malformed-envelope drill")
     assert refused["ok"] is False, refused
     protected = refused.get("unsettled") or []
     assert len(protected) == 1, refused
     assert protected[0]["ids"].get("work_inbox") == malformed_id
+    assert protected[0]["sha"] in rendered
     assert bus.cursor() == before
 
     allowed = cursor_admin.skip_to_now(
