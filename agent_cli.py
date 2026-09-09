@@ -3180,6 +3180,15 @@ def _gateway_process_inventory(snapshot):
     return {"scheduled_prod": scheduled_prod, "foreign": foreign}
 
 
+def _gateway_prod_client():
+    """Open a read-only probe to the declared production Redis endpoint."""
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+    from core.world import WORLDS
+
+    host, port, db = WORLDS["prod"].redis_endpoint()
+    return connect_to_redis_with_fail_fast(host=host, port=port, db=db)
+
+
 def cmd_gateway(args):
     """gateway -- the INBOUND Discord ear (bifrost_runner_discord.py), NOT the outbound
     `discord` bridge. `gateway restart` is the managed resuscitation lever: find the live
@@ -3241,6 +3250,14 @@ def cmd_gateway(args):
         print(f"[gateway] REFUSED: Scheduled Task {_GATEWAY_TASK_NAME!r} unavailable: {why}")
         return 1
 
+    prod_client = _gateway_prod_client()
+    if prod_client is None:
+        print(
+            "[gateway] REFUSED: production Redis is unreachable; cannot observe the "
+            "gateway singleton lease, so a safe stop/start cannot be proven"
+        )
+        return 1
+
     import time as _t
     if inventory["scheduled_prod"]:
         ended = _task("/End")
@@ -3248,15 +3265,58 @@ def cmd_gateway(args):
             why = (ended.stderr or ended.stdout or "task stop failed").strip()
             print(f"[gateway] Scheduled Task stop FAILED: {why}")
             return 1
-        _t.sleep(1.0)
+        # /End is forceful: Python's atexit release does not run, so the old lock
+        # remains until its TTL. Observe the real prod key rather than guessing from
+        # elapsed time; starting while it exists makes the replacement exit 2.
+        lock_key = f"{os.getenv('BIFROST_NAMESPACE') or 'bifrost'}:daemon:discord"
+        for _ in range(46):
+            try:
+                held = bool(prod_client.exists(lock_key))
+            except Exception as exc:                                   # noqa: BLE001
+                print(
+                    "[gateway] singleton lease became UNOBSERVABLE after task stop "
+                    f"({type(exc).__name__}: {exc}); refusing to guess that it expired"
+                )
+                return 1
+            if not held:
+                break
+            _t.sleep(1.0)
+        else:
+            print(
+                "[gateway] singleton lease still held after 45s; refusing to start a "
+                "replacement that would immediately exit 2"
+            )
+            return 1
     started = _task("/Run")
     if started.returncode != 0:
         why = (started.stderr or started.stdout or "task start failed").strip()
         print(f"[gateway] Scheduled Task start FAILED: {why}")
         return 1
+
+    previous = set(inventory["scheduled_prod"])
+    replacement = []
+    for _ in range(20):
+        fresh = _gateway_process_inventory(_WS.process_snapshot())
+        if fresh["foreign"]:
+            print(
+                "[gateway] Scheduled Task start produced or exposed foreign gateway "
+                f"pid(s) {fresh['foreign']}; refusing a success receipt"
+            )
+            return 1
+        replacement = [pid for pid in fresh["scheduled_prod"] if pid not in previous]
+        if replacement:
+            break
+        _t.sleep(1.0)
+    if not replacement:
+        print(
+            "[gateway] Scheduled Task accepted /Run, but no scheduler-owned production "
+            "runtime appeared within 20s; restart is NOT confirmed"
+        )
+        return 1
     print(
         f"[gateway] restart delegated to Scheduled Task {_GATEWAY_TASK_NAME} "
-        f"(previous prod pid(s): {inventory['scheduled_prod'] or 'none'})"
+        f"(previous prod pid(s): {inventory['scheduled_prod'] or 'none'}; "
+        f"replacement pid(s): {replacement})"
     )
     return 0
 
