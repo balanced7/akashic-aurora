@@ -5178,6 +5178,11 @@ def cmd_doctor(args):
                 else f" ({v['ask_kind']}, n<3: elapsed only)"
             print(f"{a}: {eta_txt}  {str(pct) + '%' if pct is not None else '--%'}  "
                   f"pts={v['points_seen']}{conf}")
+    try:   # cf6fe59a4d: is security/acl.json in force, or is the bootstrap floor answering for it?
+        from core.trust.registry import acl_status   # read-only, never raises; rendered below + in --json
+        rep["acl"] = acl_status()
+    except Exception as _e:
+        rep["acl"] = {"floor_in_force": None, "error": f"acl_status unavailable: {type(_e).__name__}"}
     if args.json:
         print(json.dumps(rep, indent=2, default=str)); return 0
     print(rep["summary"])
@@ -5213,6 +5218,24 @@ def cmd_doctor(args):
                       f"{', '.join(sorted(_colls)[:6])}")
                 print("              drill: py -c \"from core.comm.kinds import "
                       "plane_collisions; print(plane_collisions())\"")
+    except Exception:
+        pass
+    try:   # cf6fe59a4d: security/acl.json MISSING/CORRUPT -> resolve() answers from BOOTSTRAP_ROLES
+        _acl = rep.get("acl") or {}                   # (claude=super_admin, deepseek=admin, everyone
+        if _acl.get("floor_in_force"):                # else quarantined) -- a permissive fallback nobody
+            _kind = str(_acl.get("fault_kind") or "unreadable").upper()   # can see IS a permissive default
+            _roles = " ".join(f"{a}={r}" for a, r in (_acl.get("floor_roles") or {}).items())
+            print(f"## ACL {_kind} -- BOOTSTRAP FLOOR IN FORCE (security/acl.json unreadable at "
+                  f"{_acl.get('path')})")
+            print(f"  [  page   ] {_roles}, every other id QUARANTINED"
+                  + (f" -- {_acl['detail']}" if _acl.get("detail") else ""))
+            print("              drill: restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- "
+                  "git show <last-commit>:security/acl.json > security/acl.json; on a fresh "
+                  "instance copy security/acl.example.json AND add your own root/super_admin "
+                  "record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and "
+                  "deepseek included -- narrower than this floor); then py agent_cli.py grant --bootstrap")
+        elif _acl.get("floor_in_force") is None and _acl.get("error"):
+            print(f"## ACL STATUS UNKNOWN ({_acl['error']})")
     except Exception:
         pass
     try:   # T151: a time-box must be a DEADLINE, not a trapdoor. resolve() drops an expired grant
