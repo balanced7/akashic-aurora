@@ -3118,6 +3118,15 @@ _GATEWAY_RUNNER_TOKEN = re.compile(
     r'[^\s"]*[\\/]?bifrost_runner_discord\.py)(?=\s|$)',
     re.IGNORECASE,
 )
+_GATEWAY_SERVICE_TOKEN = re.compile(
+    r'(?:^|\s)(?:"[^"]*[\\/]run_aurora_service\.py"|'
+    r'[^\s"]*[\\/]?run_aurora_service\.py)(?=\s|$)',
+    re.IGNORECASE,
+)
+_GATEWAY_PROD_WORLD_TOKEN = re.compile(
+    r'(?:^|\s)--world\s+prod(?=\s|$)', re.IGNORECASE
+)
+_GATEWAY_TASK_NAME = "AkashicAurora-DiscordGateway"
 
 
 def _gateway_process_pids(snapshot):
@@ -3140,12 +3149,44 @@ def _gateway_process_pids(snapshot):
     return live
 
 
+def _gateway_process_inventory(snapshot):
+    """Classify scheduler-owned prod runtime separately from unsupported sockets.
+
+    ``run_aurora_service.py`` executes the runner with ``runpy`` in the SAME PID.
+    Therefore that wrapper PID is the real gateway runtime.  Command shape alone is
+    not enough to grant restart authority: on this host the owned Scheduled Task is a
+    direct child of the Task Scheduler service (``svchost ... -s Schedule``).
+    Anything else is reported as foreign and never name-wide-killed.
+    """
+    scheduled_prod, foreign = [], []
+    for pid in _gateway_process_pids(snapshot):
+        row = (snapshot or {}).get(pid, {}) or {}
+        cmdline = str(row.get("cmdline") or "")
+        parent = (snapshot or {}).get(int(row.get("ppid") or 0), {}) or {}
+        parent_name = Path(str(parent.get("name") or "")).name.lower()
+        parent_cmdline = str(parent.get("cmdline") or "")
+        scheduler_parent = (
+            parent_name == "svchost.exe"
+            and re.search(r'(?:^|\s)-s\s+Schedule(?=\s|$)', parent_cmdline, re.I)
+        )
+        if (
+            _GATEWAY_SERVICE_TOKEN.search(cmdline)
+            and _GATEWAY_PROD_WORLD_TOKEN.search(cmdline)
+            and scheduler_parent
+        ):
+            scheduled_prod.append(pid)
+        else:
+            foreign.append(pid)
+    return {"scheduled_prod": scheduled_prod, "foreign": foreign}
+
+
 def cmd_gateway(args):
     """gateway -- the INBOUND Discord ear (bifrost_runner_discord.py), NOT the outbound
     `discord` bridge. `gateway restart` is the managed resuscitation lever: find the live
-    gateway python process, kill it, and relaunch it detached with stdio redirected to its
-    log (no redirection = no process and no log to diagnose from -- the
-    runner_relaunch_without_lane_env lesson). One atomic lever, so it can never become a
+    gateway runtime, and delegate its stop/start to the owned Scheduled Task. The task's
+    action pins ``run_aurora_service.py --world prod`` and preserves scheduler ancestry;
+    reproducing that argv under this CLI's parent is not the same deployment authority.
+    One atomic lever, so it can never become a
     shutdown-with-no-relaunch that strands the operator mid-Discord.
 
     Restart is DELIBERATELY a mutating verb gated behind the same door as every other
@@ -3153,11 +3194,7 @@ def cmd_gateway(args):
     arbitrary process kill+relaunch should need an approver, not ride a read verb.
     """
     import subprocess
-    from pathlib import Path
     from core.comm import wake_seat as _WS
-
-    _ROOT = Path(__file__).resolve().parent
-    runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
 
     if args.action == "status":
         snap = _WS.process_snapshot()
@@ -3176,35 +3213,51 @@ def cmd_gateway(args):
         print(f"gateway: unknown action {args.action!r} (status|restart)")
         return 2
 
-    # restart: find -> kill -> relaunch, atomically, all under the mutation gate.
+    # Restart belongs to the deployment authority. A direct runner in this alpha-marked
+    # worktree and the scheduler-owned prod wrapper acquire different-world locks; killing
+    # by name and relaunching directly created two real Discord sockets on 2026-09-09.
+    # Foreign/direct runtimes require explicit PID+world+ancestry evidence, never a sweep.
     snap = _WS.process_snapshot()
-    live = _gateway_process_pids(snap)
-    killed = []
-    for pid in live:
-        if _WS.taskkill(pid):
-            killed.append(pid)
-        else:
-            print(f"[gateway] could not kill pid {pid} -- aborting restart rather than "
-                  f"double-spawning (a half-restart strands the operator)")
-            return 1
-    # Relaunch detached, stdio -> the gateway's own log (AKASHIC_DISCORD_GATEWAY_LOG or the
-    # default). CREATE_NO_WINDOW: no console box. CREATE_NEW_PROCESS_GROUP so our own teardown
-    # cannot signal it.
+    inventory = _gateway_process_inventory(snap)
+    if inventory["foreign"]:
+        print(
+            "[gateway] REFUSED: direct or foreign-world gateway pid(s) "
+            f"{inventory['foreign']} are outside Scheduled Task authority. Verify each "
+            "PID, world, readiness generation, and ancestry before stopping it."
+        )
+        return 1
+
+    def _task(action):
+        return subprocess.run(
+            ["schtasks.exe", action, "/TN", _GATEWAY_TASK_NAME],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+
+    query = _task("/Query")
+    if query.returncode != 0:
+        why = (query.stderr or query.stdout or "task query failed").strip()
+        print(f"[gateway] REFUSED: Scheduled Task {_GATEWAY_TASK_NAME!r} unavailable: {why}")
+        return 1
+
     import time as _t
-    if killed:
-        _t.sleep(1.0)             # let the socket release before the child reclaims it
-    log = Path(os.getenv("AKASHIC_DISCORD_GATEWAY_LOG")
-               or (_ROOT / "state" / "logs" / "discord-gateway.log"))
-    log.parent.mkdir(parents=True, exist_ok=True)
-    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) \
-        | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-    with open(log, "a", encoding="utf-8") as fh:
-        fh.write(f"\n[gateway-restart {_t.time():.0f}] relaunching (killed: {killed})\n")
-        subprocess.Popen([sys.executable, str(runner)],
-                         cwd=str(_ROOT), stdout=fh, stderr=fh,
-                         creationflags=flags)
-    print(f"[gateway] restarted (killed {', '.join(map(str, killed)) or 'none'}; "
-          f"relaunched detached -> {log})")
+    if inventory["scheduled_prod"]:
+        ended = _task("/End")
+        if ended.returncode != 0:
+            why = (ended.stderr or ended.stdout or "task stop failed").strip()
+            print(f"[gateway] Scheduled Task stop FAILED: {why}")
+            return 1
+        _t.sleep(1.0)
+    started = _task("/Run")
+    if started.returncode != 0:
+        why = (started.stderr or started.stdout or "task start failed").strip()
+        print(f"[gateway] Scheduled Task start FAILED: {why}")
+        return 1
+    print(
+        f"[gateway] restart delegated to Scheduled Task {_GATEWAY_TASK_NAME} "
+        f"(previous prod pid(s): {inventory['scheduled_prod'] or 'none'})"
+    )
     return 0
 
 
