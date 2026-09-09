@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,20 +89,73 @@ def role_template(role: str) -> Grant:
 
 _CACHE: dict = {"mtime": None, "grants": {}}
 
+# cf6fe59a4d: the bootstrap floor was SILENT. _load() swallowed the OSError / parse error, resolve()
+# answered from BOOTSTRAP_ROLES, and nothing anywhere said the ACL was gone -- no line, no doctor row,
+# no event. t384 made security/acl.json instance-local (gitignored), so a CLEAN CLONE has no file and
+# takes the permissive branch by default, and an operator whose file was deleted runs two seats at
+# elevated role with nothing saying so. Same trapdoor shape T151 fixed for grant expiry.
+# The POLICY stays (the floor is the availability guarantee); only the silence goes: the fault is
+# recorded here, resolve() says so ONCE per process on stderr, and acl_status() feeds doctor.
+_ACL_FAULT: Optional[dict] = None     # {"kind": "missing"|"unreadable"|"corrupt", "path", "detail"}
+_FLOOR_WARNED = False                 # once per process; re-armed when a later _load() succeeds
+
+
+def _acl_readable() -> None:
+    """A successful read clears the recorded fault AND re-arms the notice, so a second loss
+    after a recovery warns again instead of riding the first warning's flag."""
+    global _ACL_FAULT, _FLOOR_WARNED
+    _ACL_FAULT, _FLOOR_WARNED = None, False
+
+
+def _acl_fault(kind: str, path, exc: BaseException) -> None:
+    """Record why _load() is about to return None (the reason was previously thrown away).
+    'missing' carries no detail -- the path says it all; corrupt/unreadable keep the parser's
+    or the OS's own words (position info, permission), which is what the operator drills on."""
+    global _ACL_FAULT
+    _ACL_FAULT = {"kind": kind, "path": str(path),
+                  "detail": "" if kind == "missing" else f"{type(exc).__name__}: {exc}"[:160]}
+
+
+def _floor_notice(agent_id: str) -> None:
+    """ONE stderr line per process when resolve() answers from the bootstrap floor -- the same
+    channel as the A2-1 line in may_run_runner. Never raises: observability must not gate trust.
+    Hooks are short-lived processes, so on a floor-in-force host this is once per hook run; that
+    is the intended loudness. If it ever proves noisy, throttle it -- never drop it."""
+    global _FLOOR_WARNED
+    if _FLOOR_WARNED:
+        return
+    _FLOOR_WARNED = True
+    try:
+        fault = _ACL_FAULT or {"kind": "unreadable", "path": str(acl_path()), "detail": ""}
+        roles = " ".join(f"{a}={r}" for a, r in BOOTSTRAP_ROLES.items())
+        detail = f" [{fault['detail']}]" if fault.get("detail") else ""
+        print(f"[trust] ACL {fault['kind']} at {fault['path']} -- BOOTSTRAP FLOOR in force: {roles}, "
+              f"every other id QUARANTINED (first asked: '{agent_id}'){detail}; restore per "
+              f"security/ACL-MOVED-READ-ME.md: restore your LAST acl.json (git show <last-commit>:"
+              f"security/acl.json > security/acl.json); on a fresh instance copy "
+              f"security/acl.example.json AND add your own root/super_admin record by hand -- "
+              f"an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included, "
+              f"and is narrower than this floor; then py agent_cli.py grant --bootstrap", file=sys.stderr)
+    except Exception:
+        pass
+
 
 def _load():
     """Parse security/acl.json into {agent_id: Grant}. Returns None when the file is MISSING or CORRUPT
     (a total failure -> callers fall back to BOOTSTRAP_ROLES for core agents, quarantine for the rest).
-    Returns a dict (possibly empty) when the file was read successfully. In-process mtime cache."""
+    Returns a dict (possibly empty) when the file was read successfully. In-process mtime cache.
+    cf6fe59a4d: every None carries its reason in _ACL_FAULT; every success clears it."""
     path = acl_path()
     try:
         mtime = os.path.getmtime(path)
-    except OSError:
+    except OSError as e:
+        _acl_fault("missing" if isinstance(e, FileNotFoundError) else "unreadable", path, e)
         return None                                   # file missing -> signal total failure
     # T163: the cache key includes the PATH. Keyed on mtime alone, pointing the process at a
     # different ACL could serve the previous file's grants whenever the two mtimes matched --
     # a stale-authority answer, which is the one kind this module must never give.
     if _CACHE["mtime"] == (str(path), mtime):
+        _acl_readable()
         return _CACHE["grants"]
     out: dict = {}
     try:
@@ -119,9 +173,11 @@ def _load():
                 granted_by=rec.get("granted_by", "root"), granted_at=rec.get("granted_at", ""),
                 expires_at=rec.get("expires_at"), reason=rec.get("reason", ""),
                 request_ref=rec.get("request_ref"))
-    except Exception:
+    except Exception as e:
+        _acl_fault("corrupt", path, e)
         return None                                   # malformed file -> signal total failure
     _CACHE["mtime"], _CACHE["grants"] = (str(path), mtime), out
+    _acl_readable()
     return out
 
 
@@ -194,6 +250,32 @@ def expiring_grants(within_h: float = 48.0, grants=None) -> list:
     return sorted(out, key=lambda r: (not r["expired"], r["agent_id"]))
 
 
+def acl_status() -> dict:
+    """{ok, fault_kind, path, floor_in_force, floor_roles, detail, grants} -- is the ACL file in
+    force, or is the bootstrap floor answering for it? (cf6fe59a4d)
+
+    The doctor's read. Read-only and never raises, on expiring_grants()'s contract: observability
+    must not be able to gate trust. It probes the file itself (via _load) rather than waiting for
+    someone to call resolve(), so an inspection on a host where nothing has resolved yet still
+    reports the floor. It prints nothing -- the stderr notice belongs to first USE (resolve);
+    the doctor row belongs to inspection, and the two must not double up."""
+    try:
+        loaded = _load()
+        floor = loaded is None
+        fault = (_ACL_FAULT or {}) if floor else {}
+        return {"ok": not floor,
+                "fault_kind": (fault.get("kind") or "unreadable") if floor else None,
+                "path": str(acl_path()),
+                "floor_in_force": floor,
+                "floor_roles": dict(BOOTSTRAP_ROLES),
+                "detail": fault.get("detail") if floor else None,
+                "grants": 0 if floor else len(loaded)}
+    except Exception as e:                            # a broken probe is itself a floor condition
+        return {"ok": False, "fault_kind": "error", "path": "?", "floor_in_force": True,
+                "floor_roles": dict(BOOTSTRAP_ROLES),
+                "detail": f"{type(e).__name__}: {e}"[:160], "grants": 0}
+
+
 def _expired(expires_at: Optional[str]) -> bool:
     if not expires_at:
         return False
@@ -255,6 +337,7 @@ def resolve(agent_id: str, *, verified: bool = True) -> Grant:
         return _template_grant(agent_id or "<unknown>", DEFAULT_ROLE)
     loaded = _load()
     if loaded is None:                                # file unreadable -> code-level bootstrap floor
+        _floor_notice(agent_id)                       # cf6fe59a4d: a floor wider than the file is LOUD
         return _bootstrap_or_quarantine(agent_id)
     g = loaded.get(agent_id)
     if g is None or _expired(g.expires_at):

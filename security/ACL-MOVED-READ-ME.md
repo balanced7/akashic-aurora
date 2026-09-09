@@ -52,5 +52,8 @@ authorized" — inconvenient, never permissive.
 
 ## Starting fresh
 
-`security/acl.example.json` is the tracked template. Copy it to `security/acl.json` and
-mint grants with `py agent_cli.py grant`.
+`security/acl.example.json` is the tracked template. It ships with ZERO grants on purpose, and
+the registry honours an EMPTY valid file: copying it alone moves the host from the bootstrap
+floor (claude=super_admin, deepseek=admin) to a state where EVERY seat, claude and deepseek
+included, resolves quarantined and `grant` refuses both core seats. So: copy it AND add your own
+root/super_admin record by hand in the same edit, then mint the rest with `py agent_cli.py grant`.
