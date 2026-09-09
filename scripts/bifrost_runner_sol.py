@@ -823,6 +823,7 @@ def main() -> int:
                 continue
             if not runner_lock.heartbeat(args.agent, lock_token):
                 print("[sol-runner] lost the singleton lock -- another runner is live. Standing down.")
+                exit_code = 7
                 break
             drain_request = take_drain_request(args.agent)
             if drain_request:
@@ -831,6 +832,7 @@ def main() -> int:
                     f"{drain_request.get('reason') or 'no reason given'}) -- exiting clean; "
                     "the supervisor may replace this tenure."
                 )
+                exit_code = 7
                 break
             # A1: stale-code self-restart -- loop-top only, nothing claimed. The fresh
             # copy takes the lock at a higher generation; this process stands down
@@ -847,6 +849,7 @@ def main() -> int:
             _sr = self_restart.maybe_self_restart(args.agent)
             if _sr:
                 print(f"[sol-runner] {_sr} -- exiting clean; the successor takes the lock.")
+                exit_code = 7
                 break
             if control.is_halted(args.agent):
                 bus.register(card=CARD)
