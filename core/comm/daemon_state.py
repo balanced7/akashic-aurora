@@ -3,7 +3,7 @@
 Spec: docs/library/report/20260715_presence-autopilot-reconciliation-claude_b5cb93.md.
 Daniel directive verbatim: note `presence-autopilot-directive`.
 
-Three consumers, one tiny module:
+Four consumers, one tiny module:
 - the STOP HOOK asks stop_hook_wake_verdict(): a LIVE daemon means the hook never
   blocks a turn-end again (the ~15-arms/6-blocks day this retires is 2026-07-15);
   it leaves a `.rearm` trigger when the session's listener seat is absent, and
@@ -16,6 +16,13 @@ Three consumers, one tiny module:
   (K7 immunity; the same-day 46m-idle live session is the pinned evidence).
 - the CARD renders build_runtimes(): live / down / blocked per managed child --
   runner-down becomes a <=8s heartbeat fact instead of a 6h silence.
+- a BARE RUNNER asks standalone_warning() right after it takes bifrost:runner:<agent>:
+  no <ns>:daemon:<agent> key means nobody supervises this seat (no respawn, no circuit
+  breaker, no runner-down card) and THIS seat hosts no discord outbound pump beat --
+  the absence that read as normal on 2026-08-26 (defer 9e1bc7ce78: Heimdall's Discord
+  went silent while every liveness signal stayed green). One LOUD stderr line at
+  startup, never a refusal: the runner holds its own lock, not the daemon's, so there
+  is nothing to refuse -- only something to say.
 
 Fail-open everywhere: this module makes ergonomics, never wedges. Kill switch
 for the hook path: AKASHIC_DAEMON_WAKE=0 (checked by the caller, ruling 4).
@@ -56,6 +63,84 @@ def daemon_is_live(agent: str, c=None, ns: Optional[str] = None) -> bool:
         return bool(cli.exists(f"{_ns(ns)}:daemon:{agent}"))
     except Exception:
         return False
+
+
+# ------------------------------------------------- standalone runner (9e1bc7ce78)
+#: what a --spawn-runner daemon provides over a runner seat; a bare runner has none of it.
+RUNNER_DAEMON_SERVICES = (
+    "discord outbound pump beat (fleet-wide election: any live daemon carries every seat's outbound)",
+    "runner supervision (respawn + circuit breaker)",
+    "presence-card runner-down visibility",
+)
+
+
+def _any_daemon_live(cli, ns: str) -> Optional[bool]:
+    """Is ANY <ns>:daemon:* key live? The discord pump election is ONE fleet-wide key
+    (discord_feed._PUMP_LOCK_KEY), so one live daemon anywhere hosts every seat's outbound.
+    None = cannot tell -- rendered as UNKNOWN, never as a confident claim either way."""
+    pattern = f"{ns}:daemon:*"
+    try:
+        scan = getattr(cli, "scan_iter", None)
+        if callable(scan):
+            for _ in scan(match=pattern, count=200):
+                return True
+            return False
+        keys = getattr(cli, "keys", None)
+        if callable(keys):
+            return bool(keys(pattern))
+    except Exception:
+        pass
+    return None
+
+
+def relaunch_hint(agent: str, runner_script: Optional[str] = None) -> str:
+    """The supervised relaunch for a RUNNER seat. The flag IS the brain: a flagless launch is
+    alpha mode, which takes runner_lock ITSELF and therefore REFUSES under a live bare runner
+    (M1-P11 no-steal) -- the refusal the 2026-08-26 finder hit. The daemon's --runner-script
+    default is the deepseek script (RECOVERY.md landmine
+    daemon_spawn_runner_hardcodes_deepseek_script), so any other runner names its own; the
+    lane flag rides along because a resurrected daemon without it spawns runners whose cursors
+    diverge from the drilled work-lane config (revive.py, page-proven)."""
+    cmd = f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"
+    script = str(runner_script or "").strip()
+    if script and script != "bifrost_runner_deepseek.py":
+        cmd += f" --runner-script {script}"
+    return cmd + " --runner-consume-lane work"
+
+
+def standalone_warning(agent: str, c=None, ns: Optional[str] = None,
+                       runner_script: Optional[str] = None) -> Optional[str]:
+    """One LOUD line for a runner that just took bifrost:runner:<agent> with no daemon over
+    it; None when <ns>:daemon:<agent> is live (a managed child, or a W102 idle-watcher that
+    holds its own lock, keeps the pump beat and reclaims when this runner's lock frees).
+    Call it AFTER lock acquisition: a refused runner is not standalone. Pure and fail-open:
+    doubt renders as doubt ([STANDALONE?]), never as a confident claim in either direction."""
+    nsp = _ns(ns)
+    key = f"{nsp}:daemon:{agent}"
+    cli = _client(c)
+    try:
+        present = bool(cli.exists(key)) if cli is not None else None
+    except Exception:
+        present = None
+    if present:
+        return None
+    hint = relaunch_hint(agent, runner_script)
+    services = "; ".join(RUNNER_DAEMON_SERVICES)
+    tail = f"Supervised relaunch: {hint}  (flagless = alpha mode, which REFUSES under this runner)"
+    if present is None:
+        return (f"[STANDALONE?] cannot tell whether a daemon holds {key} (bus unanswerable) -- "
+                f"if none does, '{agent}' runs WITHOUT its daemon's services: {services}. {tail}")
+    fleet = _any_daemon_live(cli, nsp)
+    if fleet is True:
+        pump = "another seat's daemon is live, so the discord outbound pump still has a host"
+    elif fleet is False:
+        pump = (f"NO {nsp}:daemon:* key is live anywhere -- the discord outbound pump has NO HOST "
+                f"(Discord goes silent while every liveness signal stays green)")
+    else:
+        pump = (f"could not enumerate {nsp}:daemon:* -- whether the discord outbound pump "
+                f"has a host is UNKNOWN")
+    return (f"[STANDALONE] no daemon holds {key} -- '{agent}' runs WITHOUT its daemon's "
+            f"services: {services}. Fleet: {pump}. {tail}")
 
 
 # ---------------------------------------------------------------- rearm triggers
@@ -247,8 +332,13 @@ def stop_hook_wake_verdict(agent: str, session_id: str, c=None,
         except Exception:
             nag = False
     return {"pass": False, "nag": nag,
+            # 9e1bc7ce78: the nag names the MODE. consume_rearms runs ONLY under
+            # --manage-listener (bifrost_daemon.py gates it on manage_listener); a flagless
+            # launch is alpha mode, which answers no .rearm trigger and retires nothing.
             "line": ("[stop-hook] daemon not running -- start it once: "
-                     f"py scripts/bifrost_daemon.py --agent {agent} (retires the arm chore)")
+                     f"py scripts/bifrost_daemon.py --agent {agent} --manage-listener "
+                     "(retires the arm chore; ONLY the listener-manager mode answers .rearm "
+                     "triggers -- a flagless launch is alpha mode and retires nothing)")
             if nag else ""}
 
 

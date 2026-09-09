@@ -75,6 +75,7 @@ except Exception:
 
 from core.comm import nudge
 from core.comm import runner_lock
+from core.comm import daemon_state      # 9e1bc7ce78: a bare runner says so at startup
 from core.comm import self_restart
 from core.comm.conductor_gate import notice_conductor_absence
 from core.comm import context_hints
@@ -1263,6 +1264,20 @@ def main() -> int:
             print(f"bifrost_runner_deepseek: another '{args.agent}' runner is already live (pid {h.get('pid')}). "
                   f"Refusing to start -- one runner per agent avoids cursor races.")
         return 3
+    # 9e1bc7ce78: a BARE runner (no daemon over this seat) says so LOUDLY, once, at startup.
+    # It holds bifrost:runner:<agent> only -- the daemon's lock is a different key -- so there
+    # is nothing to refuse; the residue was that its absence read as normal (2026-08-26:
+    # Heimdall's Discord went silent, every liveness signal green). AFTER acquisition, because
+    # a refused runner is not standalone. Fail-open WITH a confession: a broken check must not
+    # keep a runner from starting, and a silent one re-creates the exact class this closes.
+    try:
+        _standalone = daemon_state.standalone_warning(
+            args.agent, runner_script=os.path.basename(__file__))
+        if _standalone:
+            print(_standalone, file=sys.stderr, flush=True)
+    except Exception as e:                                             # noqa: BLE001
+        print(f"[deepseek-runner] standalone check skipped ({type(e).__name__}) -- cannot tell "
+              f"whether a daemon supervises '{args.agent}'", file=sys.stderr, flush=True)
     # RB-27a: 'starting' phase spans onboarding/responder construction -- a boot-time
     # wedge (hung onboarding subprocess, dead API) is distinguishable from a mid-run one.
     PULSE_GEN[0] = runner_lock.generation_of(lock_token)

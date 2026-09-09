@@ -11,16 +11,20 @@ TWO LOCK TIERS (delta split, no conflict):
   bifrost:runner:<agent>  -- the runner child's lock (existing runner_lock).
                              Guards the consume path; byte-identical to today.
 The daemon checks runner_lock.holder() before spawning -- a bare runner already
-live = refuse (coexistence, M1-P11).
+live = W102 idle-watch (hold the daemon lock, keep presence + the discord pump beat,
+reclaim and spawn when the runner's lock frees). Only the FLAGLESS alpha launch, which
+takes runner_lock ITSELF, refuses under a bare runner (coexistence, M1-P11 no-steal) --
+so every real-seat usage below carries its mode flag (defer 9e1bc7ce78).
 
 - NO consume-path moves (ruling 1: the cursor stays where it is; daemon-as-consumer
   is PARKED behind T047 + its own fence).
 - Managed children via bifrost_child.ManagedChild: backoff restart, circuit breaker
   (3 crashes/5min -> blocker).
 
-  py scripts/bifrost_daemon.py --agent deepseek --spawn-runner
-  py scripts/bifrost_daemon.py --agent claude                        # M1-alpha mode
-  py scripts/bifrost_daemon.py --agent t075drill --max-runtime 5     # drill hatch
+  py scripts/bifrost_daemon.py --agent deepseek --spawn-runner --runner-consume-lane work
+  py scripts/bifrost_daemon.py --agent kimi --spawn-runner --runner-script bifrost_runner_kimi.py --runner-consume-lane work
+  py scripts/bifrost_daemon.py --agent claude --manage-listener      # wake-listener supervisor (revive DAEMON_MODE)
+  py scripts/bifrost_daemon.py --agent t075drill --max-runtime 5     # drill hatch (flagless = alpha: holds runner_lock itself)
 """
 from __future__ import annotations
 
