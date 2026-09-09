@@ -1,23 +1,87 @@
 {
  "v": 1,
- "sha": "42da7090",
+ "sha": "5ba81ba6",
  "seat": "claude",
- "at": "2026-08-23T02:38:26.599957+00:00",
+ "at": "2026-09-09T00:25:48.495169+00:00",
  "failures": [
   {
    "node": "tests/test_agent_interface.py::test_redis_down_file_fallback",
    "lane": ""
   },
   {
-   "node": "tests/test_agent_memory.py::test_hybrid_redis_down",
+   "node": "tests/test_alias_composition_is_honest.py::test_defer_refuses_an_unknown_seat_instead_of_reporting_empty",
    "lane": ""
   },
   {
-   "node": "tests/test_alias_composition_is_honest.py::test_run_surfaces_what_its_steps_actually_printed",
+   "node": "tests/test_atoms_v11.py::test_lineage_resolve_current_and_lineage_backlinks",
    "lane": ""
   },
   {
    "node": "tests/test_boot_orientation.py::test_cold_start_drill_answers_the_four_questions",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p1_webfetch_on_a_watch_url_fires_and_teaches",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p2_video_url_shapes_fire[https://youtu.be/MhMPsO2e8bw]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p2_video_url_shapes_fire[https://www.youtube.com/shorts/abc123DEF45]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p2_video_url_shapes_fire[https://YOUTUBE.COM/watch?v=gT01zWMnylE]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p2_video_url_shapes_fire[http://m.youtube.com/watch?v=x]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p3_non_video_url_is_reasoned_silence_not_absence",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p4_scope_silence_is_distinguishable_from_content_silence",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p5_same_input_same_verdict_and_no_clock_or_randomness",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p5b_module_imports_cannot_reach_a_writer",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p6_malformed_args_are_reasoned_silence_never_an_exception[args0]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p6_malformed_args_are_reasoned_silence_never_an_exception[args1]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p6_malformed_args_are_reasoned_silence_never_an_exception[args2]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p6_malformed_args_are_reasoned_silence_never_an_exception[args3]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p6_malformed_args_are_reasoned_silence_never_an_exception[args4]",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p7_fire_message_is_bounded",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_captions_gate_red.py::test_p8_no_blocking_or_scoring_surface_exists",
    "lane": ""
   },
   {
@@ -29,7 +93,55 @@
    "lane": ""
   },
   {
-   "node": "tests/test_door_probe.py::test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace",
+   "node": "tests/test_discord_recovery_robustness_red.py::test_gateway_holding_a_dead_connection_reads_unhealthy",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_discord_recovery_robustness_red.py::test_verify_proves_readiness_not_process_presence",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_runner_bridge_prereg.py::test_wake_decision_is_spawned_not_reimplemented_in_js",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_runner_bridge_prereg.py::test_arriving_mail_becomes_a_turn_via_the_next_turn_inbox",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_runner_bridge_prereg.py::test_the_appended_prompt_is_harness_authored_and_peer_content_is_data",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_runner_bridge_prereg.py::test_one_watcher_per_seat",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_runner_bridge_prereg.py::test_external_ui_driver_is_defibrillator_only",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_web_worklive_beater_red.py::test_web_seat_beater_entrypoint_exists",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_web_worklive_beater_red.py::test_idle_beater_keeps_worklive_fresh",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_dsh_web_worklive_beater_red.py::test_beater_loop_is_fail_open",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_eye_seat_capture.py::test_corpus_definition_names_a_seat_root",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_eye_seat_capture.py::test_seat_transcripts_exist_but_are_unreachable",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_eye_seat_capture.py::test_a_seat_record_reads_as_the_seat_not_the_operator",
    "lane": ""
   },
   {
@@ -73,8 +185,72 @@
    "lane": ""
   },
   {
-   "node": "tests/test_resident_placement.py::test_p3_placement_never_touches_the_callsign_or_mints_a_formerly",
-   "lane": "T267"
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p1_distinct_recurrence_counts_are_distinguishable",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p2_window_bounds_the_count_and_is_reported",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p3_every_emission_carries_its_denominator",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p4_below_threshold_signatures_are_explicit_rows_not_absence",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p5_site_definition_is_variable_not_hardcoded",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p6_threshold_is_not_hardcoded_to_the_example_value",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p7_refuses_to_adjudicate_marginal_value_and_reports_containment_instead",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p7b_module_exposes_no_usefulness_or_promotion_surface",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p8_no_wallclock_or_randomness_in_module_source",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p8b_same_stream_scores_identically_twice",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p9_module_imports_cannot_reach_a_canonical_writer",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p10_empty_stream_is_unevaluated_not_a_clean_report",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p11_counts_do_not_cross_subjects",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p12_recurrence_resets_at_episode_boundary_frequency_does_not",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p13_every_result_carries_its_arm_contract_hash",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_recall_dimension_recurrence_red.py::test_p14_row_output_is_bounded_and_truncation_is_declared",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_report_kit.py::test_p3_the_kit_lives_in_exactly_one_file",
+   "lane": "T275"
   },
   {
    "node": "tests/test_robustness.py::test_cross_backend_equivalence",
@@ -117,31 +293,7 @@
    "lane": ""
   },
   {
-   "node": "tests/test_store.py::test_hybridstore_redis_down",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_store.py::test_factory",
-   "lane": ""
-  },
-  {
    "node": "tests/test_sync_reconciler.py::test_reconcile_redis_down",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t060_n0_shadow_router.py::test_cli_and_mcp_route_json_are_identical",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t067_1_toolbox_parity.py::test_d1_toolbox_enumerated_and_reality_passes",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t067_1_toolbox_parity.py::test_d4_report_includes_toolbox",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t078_w3_mcp_door.py::test_p6_boot_returns_without_a_second_inbound_frame",
    "lane": ""
   },
   {
@@ -165,43 +317,35 @@
    "lane": "T093"
   },
   {
-   "node": "tests/test_t116_retroactive_staleness.py::test_p1_an_old_process_reports_the_commits_it_cannot_contain",
+   "node": "tests/test_t116_idempotency_key.py::test_p1a_empty_key_refused",
    "lane": ""
   },
   {
-   "node": "tests/test_t147_runner_seats_are_visible.py::test_r3_every_runner_publishes_the_seat_beat",
+   "node": "tests/test_t116_idempotency_key.py::test_p2a_key_mutation_invalidates_integrity",
    "lane": ""
   },
   {
-   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o1_every_runner_is_line_buffered",
+   "node": "tests/test_t117_answer_linkage_off_by_one.py::test_p7_the_bus_records_the_dual_id_alias_at_emit",
    "lane": ""
   },
   {
-   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o2_every_runner_pins_utf8_with_replace",
+   "node": "tests/test_t125_cold_acceptance_pins.py::test_p7_broken_path_named_by_pre_commit",
    "lane": ""
   },
   {
-   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o3_stderr_is_reconfigured_too",
+   "node": "tests/test_t125_cold_acceptance_pins.py::test_one_hop_field_present[7-scripts/githooks/pre_commit.py-broken_path_refs]",
    "lane": ""
   },
   {
-   "node": "tests/test_t150_runner_streams_are_watchable.py::test_o4_the_reconfigure_is_guarded",
+   "node": "tests/test_t125_cold_acceptance_pins.py::test_red_p2_dual_worklive_key_shapes_on_sheet",
    "lane": ""
   },
   {
-   "node": "tests/test_t152_generic_runner_is_watchable_too.py::test_w4_the_enumeration_covers_every_runner_including_the_bare_prefix",
+   "node": "tests/test_t125_cold_acceptance_pins.py::test_red_lookup_recipe_index_exists",
    "lane": ""
   },
   {
-   "node": "tests/test_t160_wire_seat_attribution.py::test_a3_every_runner_stamps_its_seat_identity",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t200_ask_friction_mcp_twins.py::test_door_parity_guard_passes",
-   "lane": ""
-  },
-  {
-   "node": "tests/test_t211_timeline.py::test_git_rows_carry_readable_timestamps",
+   "node": "tests/test_t151_grant_expiry_is_visible.py::test_x4_the_reporter_is_read_only_and_never_raises",
    "lane": ""
   },
   {
@@ -217,7 +361,47 @@
    "lane": ""
   },
   {
-   "node": "tests/test_wake_pending_spin.py::test_seeding_over_undrainable_mail_is_ANNOUNCED",
+   "node": "tests/test_web_door_contract_red.py::test_fetch_returns_the_full_contract_envelope",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_search_returns_the_search_envelope",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_raw_next_to_cleaned_is_the_default_not_an_opt_in",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_raw_sha256_covers_the_fetched_bytes",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_raw_and_clean_are_different_representations",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_budget_truncation_is_never_silent",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_truncated_flag_is_honest",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_raw_is_lossless_or_absent_never_reencoded",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_pdf_structural_pass_is_a_low_cost_alternative_to_full_text",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_every_terminal_fetch_logs_a_receipt",
+   "lane": ""
+  },
+  {
+   "node": "tests/test_web_door_contract_red.py::test_error_is_data_not_a_bare_failed",
    "lane": ""
   }
  ],
@@ -257,6 +441,7 @@
   "T054": "done",
   "T055": "done",
   "T056": "done",
+  "T058": "done",
   "T059": "done",
   "T061": "done",
   "T062": "done",
@@ -305,6 +490,7 @@
   "T177": "done",
   "T178": "done",
   "T179": "done",
+  "T180": "done",
   "T181": "done",
   "T182": "done",
   "T183": "done",
@@ -385,7 +571,9 @@
   "T347": "done",
   "T352": "done",
   "T375": "done",
-  "T058": "verifying",
+  "T380": "done",
+  "T079": "in_progress",
+  "T084": "claimed",
   "T108": "claimed",
   "T118": "claimed",
   "T125": "claimed",
@@ -393,7 +581,6 @@
   "T141": "claimed",
   "T148": "claimed",
   "T158": "claimed",
-  "T176": "in_progress",
   "T272": "verifying",
   "T278": "verifying",
   "T280": "verifying",
@@ -405,7 +592,12 @@
   "T332": "claimed",
   "T361": "verifying",
   "T363": "verifying",
-  "T380": "claimed",
+  "T374": "claimed",
+  "T376": "claimed",
+  "T381": "claimed",
+  "T382": "claimed",
+  "T385": "in_progress",
+  "T386": "claimed",
   "T003": "approved",
   "T007": "approved",
   "T030": "approved",
@@ -419,9 +611,7 @@
   "T065": "approved",
   "T070": "approved",
   "T077": "approved",
-  "T079": "approved",
   "T080": "approved",
-  "T084": "approved",
   "T093": "approved",
   "T094": "approved",
   "T097": "approved",
@@ -444,8 +634,6 @@
   "T371": "approved",
   "T372": "approved",
   "T373": "approved",
-  "T374": "approved",
-  "T376": "approved",
   "T377": "approved",
   "T378": "approved",
   "T020": "proposed",
@@ -484,7 +672,6 @@
   "T168": "proposed",
   "T172": "proposed",
   "T173": "proposed",
-  "T180": "proposed",
   "T185": "proposed",
   "T188": "proposed",
   "T189": "proposed",
@@ -533,6 +720,14 @@
   "T367": "proposed",
   "T368": "proposed",
   "T379": "proposed",
+  "T383": "proposed",
+  "T384": "proposed",
+  "T387": "proposed",
+  "T388": "proposed",
+  "T389": "proposed",
+  "T390": "proposed",
+  "T391": "proposed",
+  "T392": "proposed",
   "T031": "parked",
   "T067": "parked",
   "T068": "parked",
@@ -549,6 +744,7 @@
   "T105": "parked",
   "T106": "parked",
   "T116": "parked",
-  "T124": "parked"
+  "T124": "parked",
+  "T176": "parked"
  }
 }
