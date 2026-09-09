@@ -21,8 +21,11 @@
 // this host has a documented AMD display-driver TDR history (kernel WATCHDOG dumps correlated
 // to the minute with Electron "GPU process gone" crashes, diagnosed 2026-08-02). A 100-step
 // full-screen raymarcher is exactly the workload that trips it. So:
-//   * AVATARS ARE SMALL. Cost scales with pixel COUNT: ~64px at half-res is ~1k fragments
-//     against a full-screen ~700k — roughly 0.15% of the work per frame.
+//   * AVATARS ARE SMALL. Cost scales with pixel COUNT: a ~64px canvas at native device pixels
+//     (see _resize: one backing pixel per device pixel, dpr capped at 2, AKASHIC_AVATAR_SCALE)
+//     is a few thousand fragments against a full-screen ~700k — well under 1% of the work per
+//     frame. This bullet said "half-res, ~1k fragments" for weeks after the 0.5 path was
+//     removed; the shader-craft skill copied the stale claim and Heimdall's refuter caught it.
 //   * TRACE STEPS ARE CAPPED at 48 (the original used 100) — at this size and distance the
 //     surface converges well before that.
 //   * powerPreference:'low-power' so we never wake the discrete GPU for a 64px canvas.
@@ -61,6 +64,11 @@
 'uniform float u_thick;    // shell thickness: 0 = thin plates, 1 = solid wedge',
 'uniform float u_cube;     // body: 0 = sphere, 1 = superquadric cube (the tiling is unchanged)',
 'uniform float u_hole;     // revolution term: opens the body into a hex-tiled torus',
+'uniform float u_layers;   // 0 = one body, 1 = an independent counter-rotating outer shell',
+'uniform float u_bob;      // vertical travel: layers ride counter-phased up/down motion',
+'uniform float u_pillar;   // orbiting pillars: 0 = none, 1 = a full ring of columns',
+'uniform float u_orbit;    // Kepler coupling: how strongly distance sets rotation rate',
+'uniform float u_morph;    // shape wander depth: the body itself slowly becomes other bodies',
 '',
 '#define PI 3.14159265359',
 '',
@@ -468,6 +476,11 @@
     system:   [[0.478, 0.522, 0.612], [0.376, 0.412, 0.502]]    // neutral slate: the unnamed
   };
 
+  // Rill is the DeepSeek Harness seat (agent id dsh_agent) -- it IS DeepSeek, so it wears the
+  // deepseek identity gradient rather than a separate palette. Aliased here so the hero avatar
+  // answers "it's DeepSeek" when Rill is the subject, not "some unnamed slate".
+  IDENT.dsh_agent = IDENT.deepseek;
+
   function identFor(agent) {
     if (IDENT[agent]) return IDENT[agent];
     // Prefix match so incarnations and variants inherit their parent's identity rather than
@@ -774,25 +787,45 @@
     this._draw();
 
     // FPS WATCHDOG. This machine has a display-driver TDR history; a struggling avatar is a
-    // warning, not something to push through. Miss the budget and we stop FOREVER, leaving the
-    // last frame painted -- a still geodesic is a perfectly good avatar.
-    this._frames++;
+    // warning, not something to push through. Miss the budget and we stop, leaving the last
+    // frame painted -- a still geodesic is a perfectly good avatar.
+    //
+    // THE FREEZE BUG (fixed): this watchdog used to sample fps over a WALL-CLOCK window and
+    // DISABLE FOREVER when it read low. But requestAnimationFrame is THROTTLED when the tab is
+    // backgrounded or the compositor stalls -- rAF stops firing while performance.now() keeps
+    // advancing -- so a hidden tab, or even a long tab-switch GC, produced a near-zero fps over
+    // a window that mostly contained "no frames were scheduled". That reads a throttle as a
+    // struggling GPU and freezes the avatar permanently ("disabled" was never re-enabled).
+    //
+    // The honest measure of "the GPU cannot keep up" is CONSECUTIVE SLOW FRAMES while rAF is
+    // actually firing, not a frame count divided by wall time. So: count slow frames, and only
+    // disable when they arrive back-to-back. A throttle gap is invisible to that counter --
+    // when rAF resumes, dt is clamped and the streak resets with the next on-time frame.
     var now = (global.performance ? performance.now() : Date.now());
-    if (!this._fpsAt) this._fpsAt = now;
-    if (now - this._fpsAt > 3000) {
-      var fps = this._frames * 1000 / (now - this._fpsAt);
-      this._frames = 0; this._fpsAt = now;
-      if (fps < 18) {
+    if (this._lastTick != null) {
+      var sinceTick = now - this._lastTick;
+      // > ~55ms gap between two live frames = ~18fps. The avatar's dt term already clamps at
+      // 0.1s, so a stall cannot corrupt the easing; this only measures whether frames keep up.
+      if (sinceTick > 55) this._slowStreak = (this._slowStreak || 0) + 1;
+      else this._slowStreak = 0;
+      if ((this._slowStreak || 0) >= 45) {   // ~2.5s of consecutive slow frames, rAF firing
         this.disabled = true; this.animating = false; live = Math.max(0, live - 1);
-        if (global.console) console.warn('[agent-avatar] ' + fps.toFixed(1) + 'fps — animation disabled, holding a static frame');
+        if (global.console) console.warn('[agent-avatar] slow frames for ' +
+          Math.round(sinceTick) + 'ms — animation disabled, holding a static frame');
+        return;
       }
     }
+    this._lastTick = now;
   };
 
   AgentAvatar.prototype.start = function () {
     if (this.animating || this.disabled) return;
     if (live >= MAX_LIVE) { this._draw(); return; }   // over the cap: one static frame, no loop
     live++; this.animating = true; this._fpsAt = 0; this._frames = 0;
+    // A fresh (re)start begins a fresh watchdog window: the slow-frame streak and its clock must
+    // not carry a stale "the GPU was mid-stall" verdict across a tab-hide/show round-trip. This
+    // is what a returning tab's start() needs the old clock could never give.
+    this._lastTick = null; this._slowStreak = 0;
     this._tick();
   };
   AgentAvatar.prototype.stop = function () {
