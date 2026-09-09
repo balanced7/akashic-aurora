@@ -61,6 +61,13 @@ class _Bus:
     def tail(self):
         return {}
 
+    def read_lane_cursor(self):
+        # VIRGIN lane hash: this seat has never consumed in lane mode, so the legacy family
+        # is the authority and the peek above is the `since is None` branch (defer
+        # 224ac54766 made the family choice explicit; these pins model the legacy family).
+        return {f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc",
+                                 "shadow_inbox", "shadow_bc")}
+
 
 def _api(bus):
     api = BifrostAPI.__new__(BifrostAPI)
@@ -276,6 +283,10 @@ class _PhaseBus:
 
     def tail(self):
         return {}
+
+    def read_lane_cursor(self):
+        return {f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc",
+                                 "shadow_inbox", "shadow_bc")}     # virgin: legacy family
 
 
 def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypatch):

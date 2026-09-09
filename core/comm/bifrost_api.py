@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.comm.bus import Bus
 from core.comm import control, nudge
@@ -262,21 +262,90 @@ class BifrostAPI:
                 out[logical] = "$"
         return out
 
+    def _pending_peek(self) -> Tuple[List[Any], str]:
+        """The arm-time pending check's READ, family-aware (defer 224ac54766, 2026-09-07).
+
+        Returns (pending, family): up to ten unconsumed messages and the name of the cursor
+        family that defined "unconsumed" -- 'work' or 'legacy', the BIFROST_CONSUME_LANE
+        vocabulary, so the caller's drain instruction can name the cursor that is behind.
+
+        Measured on the live bus the day this landed: the legacy cursor (bifrost:cursor:
+        claude) had been frozen since 2026-08-29 with 204 wake-worthy chat/reply entries
+        behind it, while the lane cursor (bifrost:cursor:lane:claude) -- the family every
+        consumer in the house advances -- sat at tail. This peek used to read the legacy
+        cursor unconditionally, so every fresh arm found ten stale messages and fired on
+        mail the seat had drained a week earlier; five band-aids in one session (the
+        S0-gamma sidecar among them) all patched that one unnamed co-tenant.
+
+        THE RULE: a seat WITH a lane cursor (non-virgin lane hash) is judged against the
+        LANE cursor on the LANE streams -- the position its consumer commits after
+        processing (RB-26), so the watcher's "unread" and the consumer's "unread" are the
+        same set. A VIRGIN lane hash means no lane consumer has ever run for this seat: the
+        legacy family stays the authority there (T017 arm-onto-pending, t045 L4, and a
+        migrant's unconsumed legacy backlog all keep waking). READ-ONLY on both hashes --
+        detection never runs the flip ritual, because seeding a migrant's lane hash at
+        tails from here would silence exactly the backlog the legacy family still holds.
+
+        1ms peek, NOT 0 -- in xread semantics block=0 means WAIT FOREVER (caught live: the
+        L2/L5 pins hung the suite on exactly this in the first run). An unreadable lane
+        hash reads as virgin (read_lane_cursor's '0' defaults) and degrades to the legacy
+        peek: one possible false wake, never a missed one."""
+        cur = self.bus.read_lane_cursor()
+        if any(str(v) != "0" for v in cur.values()):
+            return (self._peek_wake_worthy({"inbox": cur["inbox"], "bc": cur["bc"]},
+                                           self._lane_streams()), "work")
+        return self._peek_wake_worthy(None, None), "legacy"      # shared-cursor peek, no advance
+
+    _PEEK_PAGE = 50      # entries read per page behind the cursor
+    _PEEK_PAGES = 10     # bound per arm: 500 entries, then the peek confesses nothing found
+
+    def _peek_wake_worthy(self, since: Optional[Dict[str, str]],
+                          streams: Optional[Dict[str, str]]) -> List[Any]:
+        """Page behind `since` on `streams` (None, None = the legacy family from the shared
+        cursor) and return the first WAKE-WORTHY messages found.
+
+        PENDING_SKIP_KINDS are filtered BEFORE the decision, page by page. The first
+        lane-aware peek (2026-09-07) took the ten oldest ids and filtered afterwards, so a
+        backlog whose ten oldest entries were notes read as "nothing pending" while a
+        directed chat sat behind them -- the watcher seeded its lane position past the chat
+        and slept (v5 refutation, 2026-09-08; live shape: dsh_agent's peek returned ten notes
+        with 178 wake-worthy directed entries behind its lane cursor). On the wake path a
+        wrong "not pending" is a seat sleeping through mail; a false wake is cheap.
+
+        Bounded and read-only: at most _PEEK_PAGES pages of _PEEK_PAGE, stopping at the
+        first page with a wake-worthy message, a short page (the backlog is exhausted), an
+        empty next-position, or a position that stopped moving. Nothing here advances a
+        cursor; `since_out` is a local scratch position."""
+        pos = dict(since) if since is not None else None
+        for _ in range(self._PEEK_PAGES):
+            nxt: Dict[str, str] = {}
+            kw: Dict[str, Any] = {"timeout_ms": 1, "limit": self._PEEK_PAGE, "since_out": nxt}
+            if pos is not None:
+                kw["since"] = pos
+            if streams is not None:
+                kw["streams"] = streams
+            page = self.bus.wait(**kw)
+            live = [m for m in page if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
+            if live or len(page) < self._PEEK_PAGE or not nxt or nxt == pos:
+                return live
+            pos = dict(nxt)
+        return []
+
     def _wake_block_lane(self, timeout_ms: int) -> List[Any]:
         """T045 stage 1 (T039b, wake-listener-first): watch the WORK LANE only. Trace/sig
         floods and stranded broadcasts are STRUCTURALLY invisible -- the 2026-07-14 infinite
         wake loop (1280 legacy traces hiding one handoff) cannot be represented here.
 
-        Legacy remains the CONSUME substrate during dual-write, so two rules keep the T017
-        missed-wake hole closed:
-        (1) ARM-TIME PENDING CHECK -- unconsumed legacy mail wakes immediately (a fresh
-            watcher must never sleep past mail that arrived before it armed);
+        Two rules keep the T017 missed-wake hole closed:
+        (1) ARM-TIME PENDING CHECK -- unconsumed mail wakes immediately (a fresh watcher
+            must never sleep past mail that arrived before it armed). "Unconsumed" is
+            judged against the cursor FAMILY this seat's consumer actually advances --
+            see _pending_peek (defer 224ac54766: the legacy cursor nobody advances any
+            more made every fresh arm fire on week-old mail);
         (2) the lane cursor is caller-owned and seeded at the lane TAILS (A4 tail-at-flip).
-        Detect-only, same as the legacy path: nothing here consumes."""
+        Detect-only, same as the legacy path: nothing here consumes or writes a cursor."""
         if self._lane_since is None:
-            # 1ms peek, NOT 0 -- in xread semantics block=0 means WAIT FOREVER (caught live:
-            # the L2/L5 pins hung the suite on exactly this in the first run).
-            pending = self.bus.wait(timeout_ms=1, limit=10)   # shared-cursor peek, no advance
+            pending, family = self._pending_peek()        # family-aware 1ms peek, no advance
             # Only WAKE-WORTHY pending mail counts (caught live, first lane soak 2026-07-14):
             # nothing consumes legacy broadcast junk, so skip-kind traces pending there would
             # otherwise trap this check forever -- lane_since never seeds and the watcher
@@ -320,7 +389,7 @@ class BifrostAPI:
                     # now block correctly") was true for a future that never arrives, and that is
                     # the recurrence engine: the reader believes it and re-arms instead of
                     # draining. 5 identical arms 2026-07-31, 6 on 2026-07-25.
-                    # Name the lane we PEEK -- it is not the lane the operator armed.
+                    # Name the FAMILY we peeked -- it may not be the lane the operator armed.
                     # W167: SAY WHAT IS WORKING, not only what will not help. The warning
                     # below is true and it was still read as "this seat is broken" by three
                     # seats in one day (and by 5 arms on 2026-07-31, 6 on 2026-07-25 -- the
@@ -338,11 +407,12 @@ class BifrostAPI:
                         "wake-worthy message(s) (kinds: %s) -- this arm is live and will fire on "
                         "new mail. The seed is per-process and does NOT carry to the next arm, so "
                         "if you see this line again the pending set is not clearing and RE-ARMING "
-                        "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKS the "
-                        "legacy lane, not the lane you armed, so drain that one: "
-                        "BIFROST_CONSUME_LANE=legacy py agent_cli.py bifrost-sync %s --consume",
+                        "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKED the "
+                        "%s cursor family (the one this seat's consumer advances), so drain THAT "
+                        "one: BIFROST_CONSUME_LANE=%s py agent_cli.py bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
+                        family, family,
                         getattr(self, "agent", "<agent>"),
                     )
                 except Exception:
