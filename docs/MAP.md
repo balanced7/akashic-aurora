@@ -144,7 +144,7 @@ Class: reference
 | `remote_relay.py` | Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1). | tests/test_remote_relay_pins.py | GAP | `AKASHIC_REMOTE_BRIDGE_PEER_URL` |
 | `role_queue.py` | role_queue -- T108 S1: load-balanced role-addressed work with claim semantics. | tests/test_t108_role_queue.py | GAP |  |
 | `room_feed.py` | Namespace-aware feed-stream discovery -- the backend half of readable side rooms. | tests/test_room_feed_namespace.py | GAP |  |
-| `roster.py` | roster -- S2: the lobby. Per-seat liveness the whole fleet can read. | tests/test_s2_roster.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md | `AKASHIC_RESUME_GAP_S`, `AKASHIC_ROSTER_CHURN_AT`, `AKASHIC_ROSTER_CHURN_WINDOW_S`, `AKASHIC_WORKLIVE_FRESH_S`, `AKASHIC_WORKLIVE_TTL_S` |
+| `roster.py` | roster -- S2: the lobby. Per-seat liveness the whole fleet can read. | tests/test_roster_sid8_discriminates_prefixed_sids.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md | `AKASHIC_RESUME_GAP_S`, `AKASHIC_ROSTER_CHURN_AT`, `AKASHIC_ROSTER_CHURN_WINDOW_S`, `AKASHIC_WORKLIVE_FRESH_S`, `AKASHIC_WORKLIVE_TTL_S` |
 | `router.py` | T060 N0: pure route explanation and bounded shadow-delivery counters. | tests/test_router_confusables.py | docs/library/report/20260717_t060-n0-shadow-router-deepseek-review-pe_bf6b68.md |  |
 | `runner_lib.py` | core.comm.runner_lib -- shared hardening for OpenAI-compatible seat transports (K0, 2026-07-18). | GAP | GAP |  |
 | `runner_lock.py` | Bifrost runner singleton-lock -- at most ONE live runner per agent id. | GAP | GAP | `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_SESSION_ID` |
