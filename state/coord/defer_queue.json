@@ -63,9 +63,9 @@
    "needs": "exec",
    "why": "root cause of tonight's seq=367-with-T368 race: concurrent proposes from separate processes, last save wins. Healed once at 562ac27d; the class is open. T271 is the same class on the wishlist allocator.",
    "filed_at": "2026-08-20T06:35:09.559505+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:13:59.289228+00:00",
+   "receipt": "LANDED 6516870d+4f01b9ab: per-save rev CAS under core.foundation.filelock, LedgerConflict + resync, conductor re-applies 4x; verified by adversarial agent (3x20 storms 60/60, lost update reproduced then refused); pushed"
   },
   {
    "id": "343efeb1b6",
@@ -85,9 +85,9 @@
    "needs": "exec",
    "why": "reproduced 5 ways, rc 0, zero bytes when a Python parent inherits stdout. RULED OUT: cp1252, MSYS pty, parent buffering. Pin test_alias_composition_is_honest::test_run_surfaces_what_its_steps_actually_printed stays red until explained.",
    "filed_at": "2026-08-20T06:35:10.313476+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:04.135683+00:00",
+   "receipt": "ALREADY FIXED: the pin test_alias_composition_is_honest::test_run_surfaces_what_its_steps_actually_printed is green at c72e50fe in both a dirty and a clean tree (triage 2026-09-07); the baseline entry was stale"
   },
   {
    "id": "c7f905eddc",
@@ -151,9 +151,9 @@
    "needs": "exec",
    "why": "Two pins fail on PRISTINE HEAD (proven 2026-08-25 by copy-aside/restore-HEAD, not mine): test_learning_loader::test_top_k_and_empty gets real canonical lessons back from an 'empty' store, and test_recall_acceptance::test_a2 counts 156 where it seeded 150. Same root cause both times -- the canonical corpus bleeds into an isolated test store, so the isolation is partial rather than absent (my own subprocess-writing pin did NOT leak, checked). Neither is in the suite baseline, which is 70.7h/~45 commits stale and should be re-run alongside. Class relative: pytest_destroys_the_live_learning_index, which memory records as SUPERSEDED by isolation -- these two say that supersession is incomplete.",
    "filed_at": "2026-08-26T01:53:06.183471+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:00.066372+00:00",
+   "receipt": "LANDED 319bad56+8a3b8ec0: core.paths.data_root() split from repo_root(); nine instance-state defaults rewired; the two pristine-HEAD reds pass with a planted legacy learnings.jsonl; verified; pushed"
   },
   {
    "id": "9bfea82ae7",
@@ -173,9 +173,9 @@
    "needs": "exec",
    "why": "the gateway is the ONLY supervised organ with no singleton -- its sole idempotence is revive counting a process-table string, which is how 4 concurrent gateways existed at 00:20 on 2026-08-26. The spawn TRIGGER is now closed (revive refuses on a blind probe) but any other double-start still duplicates. Needs a live kill/restart drill, not a bolt-on: the runner is 46KB async and serves Daniil's phone.",
    "filed_at": "2026-08-26T06:39:34.508703+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-04T17:32:10.273242+00:00",
+   "receipt": "Shipped: DaemonLock wired into scripts/bifrost_runner_discord.py (agent id 'discord', separate from revive.DAEMON_AGENTS) -- acquires before opening the websocket, refuses+exits 2 if another gateway holds it, heartbeats on the existing 5s pulse tick, releases via atexit on clean exit (TTL-bounded so a hard kill self-heals). tests/test_dc6200d491_gateway_singleton.py: 6 pins, offline -- 4 source-wiring pins + the drill itself (start a second copy against the real DaemonLock class + a fake redis client, prove it refuses) + a no-collision pin vs revive.DAEMON_AGENTS. Compile clean, check_wiring green. Committed master a6074d9e, cherry-picked codex/sunshine-discord-split bff1958d, both pushed. LIVE VERIFIED: restarted the actual gateway (killed pid 49568, relaunched 77496 -- confirmed via direct process enumeration, exactly one bifrost_runner_discord.py running), reconnected to Discord cleanly (no crash loop), and read the live redis key bifrost:daemon:discord back -- held by pid 77496, heartbeat refreshed 50s after start. Did NOT live-drill a real second copy against the production Discord token (unnecessary risk once the offline mechanism pin + live acquire/heartbeat are both proven)."
   },
   {
    "id": "5d2f0963e1",
@@ -184,9 +184,9 @@
    "needs": "exec",
    "why": "Found during the 2026-08-26 post-OOM regression sweep. VERIFIED PRE-EXISTING: reproduced on pristine files (reverted my 4 edits, still crashed, restored). Not a pytest failure -- no banner, no traceback, the PowerShell host itself dies, so CI would read this as an infra blip rather than a red test. Suspect a process-group/signal path: tests/test_t086_s5_daemon_supervisor.py:43 carries a guard reading 'refusing to broadcast CTRL_BREAK_EVENT from the shared pytest process group', so this class has bitten here before. Silent host death is the worst possible failure shape -- it looks identical to success.",
    "filed_at": "2026-08-26T06:39:42.937935+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:00.437218+00:00",
+   "receipt": "LANDED 6a3ddf38+9cac6e64: not a signal path -- restart_listener taskkill-ed every process whose command line MENTIONED the listener (pytest itself); now a pure selector + lineage refusal + seams; the pair runs green in its own process group; pushed"
   },
   {
    "id": "8c881ab628",
@@ -217,9 +217,9 @@
    "needs": "write",
    "why": "Found 2026-08-26 04:16 while filing my own drill receipt. .gitignore:122 ignores state/*, so state/drills/ is machine-local and git ls-files state/drills/ is EMPTY -- no drill receipt has ever been committed. The house doctrine is 'a recovery path ships with an executed drill + dated receipt or is presumed broken', and lessons cite those receipts BY PATH, so from a fresh clone every cited receipt is a dead link and every drilled claim becomes unfalsifiable. This is the same failure that made tonight's RAM post-mortem impossible (forensic logs on the X: ramdisk, gone with the reboot) and the same class as backup_door_never_ran. Receipts are small, dated and append-only -- exactly what belongs in history. Existing local ones worth committing: state/drills/keepalive-taskkill-2026-08-26.md, state/drills/mem-watch-growth-2026-08-26.md.",
    "filed_at": "2026-08-26T08:16:59.129690+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:04.505441+00:00",
+   "receipt": "ALREADY FIXED per triage 2026-09-07 (drill receipts durable landed before c72e50fe); no code change needed"
   },
   {
    "id": "9e1bc7ce78",
@@ -228,9 +228,9 @@
    "needs": "write",
    "why": "Root-caused 2026-08-26 09:38: Heimdall's Discord went silent because bifrost_daemon.py:358 hosts discord_feed.pump on a 10s tick, and a standalone runner takes the bifrost:daemon:<agent> lock without running it -- then a real daemon REFUSES to start because the lock is held ('no steal'). Outbound had no host and could not get one, while every liveness signal stayed green: process up, doctor shows a runner, pulse normal, discord_feed.configured() True. A capability vanished with no alarm anywhere. Fix options: (a) the runner refuses the daemon lock entirely and lets a daemon hold it, (b) the runner warns loudly at startup that it is squatting a slot whose services it does not provide, naming the pump, or (c) the runner hosts the pump too. Same class as the rest of 2026-08-26: an absence that reads as normal. NOTE ALSO: revive's DAEMON_AGENTS=('deepseek','kimi') means a squatted lock makes revive spawn-and-refuse a daemon every 5 minutes forever -- harmless (exits 0) but permanently noisy.",
    "filed_at": "2026-08-26T13:40:29.802969+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:02.634585+00:00",
+   "receipt": "LANDED ef687f85+5d961004: a bare runner confesses STANDALONE after acquire_waiting (daemon_state.standalone_warning); doctor drill / daemon usage / stop-hook nag now carry --spawn-runner or --manage-listener; 8 pins; pushed"
   },
   {
    "id": "e935125f0e",
@@ -239,9 +239,9 @@
    "needs": "write",
    "why": "Hit live 2026-08-26 12:05: the bridge listener died 3x in 50s, breaker tripped correctly, door stayed down. I could NOT root-cause it and the reason is structural. (1) The child's stdout/stderr goes into ManagedChild's in-memory deque(maxlen=200) and the supervisor NEVER prints it -- not on child exit, not on breaker trip -- so the only record of why it died dies with the supervisor. (2) The breaker message says 'Read state/logs/remote-bridge-listener.log', but the child writes its banner and errors to STDOUT, and that file had no entry from today at all -- the operator is sent to an empty file. (3) door_open() is logging-only and does NOT drive the respawn (child.poll does), which is easy to misread -- I misread it myself -- so the loud DOOR SHUT lines look causal and are not. FIX: on child exit and on breaker trip, print the ManagedChild output tail; and either point the breaker message at the real sink or give the child a file. RULED OUT while chasing this, so nobody repeats it: the listener runs fine standalone (verified); the listener pins never bind a port (bind_allowed is pure); LockTimeout from the new _append_row file lock cannot escape (handle_request wraps accept in except Exception). SAME CLASS as last night's daemon 200-char clip that destroyed the TIMEOUT receipts: the diagnostic points away from the evidence, and the evidence is thrown away. Door is currently UP unsupervised (pid 36196) with stdout captured to state/logs/bridge-listener-stdout.log so the NEXT failure is diagnosable.",
    "filed_at": "2026-08-26T16:10:34.687999+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:03.004454+00:00",
+   "receipt": "LANDED 7236de95+775c5233: remote_bridge_supervise wires ManagedChild.on_exit -- the child's ring tail is printed and appended to state/logs/remote-bridge-listener.log on every exit and re-printed beside the breaker verdict; 5 port-free pins; pushed"
   },
   {
    "id": "7347ae30c9",
@@ -250,9 +250,9 @@
    "needs": "write",
    "why": "Live 2026-08-26 12:14: Daniil ran !spawn Rill from his phone and got a red warning -- 'that spawn never lived -- exit 1: Node.js v24.14.1'. The real cause, buried in state/spawn-logs/launch-rill-1787760845.log, was EADDRINUSE on 127.0.0.1:3080 because Rill was ALREADY ALIVE (node pid 44588, up since 02:43). The port acted as a de facto singleton and correctly refused a second instance -- the RIGHT outcome, reported as a failure. What the operator saw from a phone was a scary triangle suggesting his agent was broken; the one fact that would have reassured him (already running, here is the URL) was in a log file he cannot read from a phone, and what he DID get was the messenger's Node version, not the cause. FIX: catch EADDRINUSE (and already-running generally) in the spawn path and answer 'X is ALREADY UP at <url>' with the sprout, not the warning. NOTE THE GOOD NEWS THIS SITS ON TOP OF: the honest-failure fix works -- an earlier incident had !spawn reporting a healthy sprout over a corpse; this time it refused to claim an unverified success. It simply has no vocabulary for 'already running'. Same class as the day's other findings: the diagnostic reports the messenger's state instead of naming the condition. NOT DONE unasked because it touches the spawn lever, which is the operator's primary phone control surface.",
    "filed_at": "2026-08-26T16:20:53.633481+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-04T16:15:13.105337+00:00",
+   "receipt": "Shipped spawn_already_up_reason() in core/comm/discord_inbound.py: checks EADDRINUSE/address-already-in-use BEFORE spawn_stillborn_reason falls through to the log's last line. Wired at both call sites in scripts/bifrost_runner_discord.py (instant-death check + the watched slow-death path that actually delivers text to Discord). RED-first: tests/test_spawn_already_up.py (6 pins) using the exact incident log launch-rill-1787760845.log. Green on master (3e6beede), cherry-picked clean onto codex/sunshine-discord-split (d7ea5aca), both pushed. Gateway task Stop/Start'd -- fresh pid 49568 at 12:14:30, reconnected to Discord gateway cleanly, no crash-loop."
   },
   {
    "id": "b19e6adadc",
@@ -283,9 +283,9 @@
    "needs": "write",
    "why": "Concurrent web seats become indistinguishable in the roster and one seat's presence masks another's death -- the same absence-renders-as-normal class we paid for repeatedly on 2026-08-26.",
    "filed_at": "2026-08-26T21:48:16.048319+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T03:38:02.704049+00:00",
+   "receipt": "LANDED 4dbc844a+1c6e96f5 (live demo 2026-09-08): ONE sid8() derivation in core.comm.seat_identity (bus re-exports it), routed through 9 files incl. seat_model key, incarnation print, bifrost_wake mailbox incarnation, agent_cli dest/sync/seat-identity; a scheme is stripped only before a UUID-shaped tail; 12 pins; Heimdall three-round fan-out (db2abef2, 3c9f91da, b87851bb) with every must_fix closed and pinned; read-only live census: 36 tails, all fixed points, 0 of the changing shape; deploy rule: restart any DSH seat, old '#session-' keys age out by TTL"
   },
   {
    "id": "f63e1186c6",
@@ -294,9 +294,9 @@
    "needs": "write",
    "why": "A warning that is wrong in the common case trains every seat to ignore it in the uncommon case, where it is the only signal that a message died.",
    "filed_at": "2026-08-26T21:52:25.050545+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-04T16:01:52.257859+00:00",
+   "receipt": "fixed bus._warn_if_unattended to special-case operator inboxes (skip seat-liveness, check discord_feed.configured()); RED-first pins in test_t108_s0_loud_delivery.py; shipped on master (e9d617e7) AND cherry-picked+pushed to the live gateway's worktree branch (b54d0f04), gateway restarted and confirmed healthy 2026-09-04 12:00"
   },
   {
    "id": "00b3d351fb",
@@ -305,9 +305,9 @@
    "needs": "write",
    "why": "This is a false-positive staleness signal inside the exact machinery any premise/retirement system would be built on -- and it is the same failure class as 'value 3.7 percent': a label claiming more than its measurement supports.",
    "filed_at": "2026-08-27T01:23:15.186438+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:03.383557+00:00",
+   "receipt": "LANDED 1b4dc4cc+b043d00c: anchors.review() headline counts strong anchors -- 'premise PARTIALLY unresolved (k of n)' unless every strong anchor is gone (JTMS); label-only; 16 pins; pushed"
   },
   {
    "id": "224ac54766",
@@ -327,9 +327,9 @@
    "needs": "write",
    "why": "The repo is PUBLIC. Everything this guard is blind to is precisely what a first-time visitor sees and we do not.",
    "filed_at": "2026-08-27T02:26:45.574829+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:00.822312+00:00",
+   "receipt": "LANDED 1a0e26f8+9435fa71: check_comprehensibility resolves refs against the git index (ls-files -z bytes), check-ignore fed NUL bytes (the Windows CRLF defect), gen_master_map columns from the index; clean checkout --fast 13 FAILs -> PASS; pushed"
   },
   {
    "id": "9734de4f17",
@@ -338,9 +338,9 @@
    "needs": "write",
    "why": "The public repo currently shows twelve broken references to any first-time cloner, and the branch that would fix the presentation problem is parked one guard-fix away from finishing.",
    "filed_at": "2026-08-27T02:33:15.180838+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:04.882229+00:00",
+   "receipt": "STALE: the publication problem was resolved on master at 8242b728; the blocker a3d09c4e5d landed today (9435fa71); the parked publish/2026-08-26 branch is superseded, nothing to finish"
   },
   {
    "id": "cf6fe59a4d",
@@ -349,9 +349,9 @@
    "needs": "write",
    "why": "A permissive fallback nobody can see is indistinguishable from a permissive default -- and the repo is public, so a clean clone silently takes the permissive branch.",
    "filed_at": "2026-08-27T02:36:56.199384+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:13:59.680131+00:00",
+   "receipt": "LANDED b4831e58+053cd88d: bootstrap floor is loud (stderr once/process, acl_status(), doctor row); restore drill reworded after the v2 refutation (empty example copy quarantines every seat); pin 8/8; pushed"
   },
   {
    "id": "adea6faf73",
@@ -371,9 +371,9 @@
    "needs": "exec",
    "why": "guard shipped live with stdin drill receipts but no committed pin; M3 wants the acceptance durable in the suite",
    "filed_at": "2026-09-01T23:57:14.338318+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:03.756578+00:00",
+   "receipt": "LANDED 65d98263: the 3-case cwd-drift stdin drill is durable as tests/test_cwd_guard_pins.py (19 cases) loading the LIVE scripts/hooks copy by path; green at HEAD, red against b095caa5~1; pushed"
   },
   {
    "id": "dd0c36b406",
@@ -382,9 +382,9 @@
    "needs": "exec",
    "why": "guard currently scans the previous commit's message: false-positives on sanctioned-bypass confessions and misses the actual live message entirely",
    "filed_at": "2026-09-02T00:00:47.348290+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:01.692913+00:00",
+   "receipt": "LANDED 8c47c45c+1d3721b9: private-plane message scan moved to a commit-msg stage hook (live message path as argv1); pre-commit keeps the staged-file report; stage order proven with real git incl. linked worktree; 13 pins; pushed"
   },
   {
    "id": "86bcb9f586",
@@ -404,6 +404,116 @@
    "needs": "write",
    "why": "discharge = installer arc seed step unblocked and T180's third receipt closes honestly instead of forced-green",
    "filed_at": "2026-09-02T12:40:25.682147+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "af5759c5a2",
+   "by": "claude",
+   "cmd": "sync state/ci/guardrail_baseline.json to committed-HEAD reality: baseline records check_comprehensibility=0/check_door_parity=0 but a CLEAN checkout of HEAD measures 14/3 (proven in worktree screenspace-step0 via guardrail_counts on stash). The baseline is measured against a working tree with freshly-regenerated docs; the committed generated docs (MAP/PHYSICS/DOORS) are stale, so every fresh clone/worktree hits a false ratchet block. This is the T178/T193 class -- the write-edge ratchet is a no-op-or-worse on any clone. Fix: either commit regenerated docs so committed reality matches, or record the true ambient counts with a note. Two seats (Vandor screenspace, sol T079) hit doc-currency walls today.",
+   "needs": "write",
+   "why": "discharge = the guardrail ratchet stops misattributing master stale-doc debt to every new commit; unblocks worktree commits without --no-verify",
+   "filed_at": "2026-09-03T01:33:29.868145+00:00",
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:01.225086+00:00",
+   "receipt": "LANDED with a3d09c4e5d (9435fa71): baseline counts UNCHANGED by decision; the 14-vs-0 and 5-vs-0 clean-checkout measurements recorded as ledger notes _check_comprehensibility_1 / _door_parity_9 with the paydown owner; pushed"
+  },
+  {
+   "id": "bbb15a64fd",
+   "by": "claude",
+   "cmd": "controlled experiment: why does the (now single) SessionEnd hook still report 'Hook cancelled' on claude -p sprouts -- teardown timing vs hook timeout? Spawn a disposable -p seat, watch hook execution; also unify the diverged hook-file twins (scripts/hooks/ vs agent/harness/hooks/, T238 class, sessionend copies differ only by sys.path depth) into one canonical tree",
+   "needs": "exec",
+   "why": "wrap-at-death machinery is silently dead for every sprout until the cancellation root is convicted",
+   "filed_at": "2026-09-03T03:58:16.150058+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "2955dae7eb",
+   "by": "claude",
+   "cmd": "add one open-watch line to doctor output: count IN_PROGRESS vs cap 2 + ids, fail-open on ledger errors (ruling 369243 observability half; gate itself SHIPPED)",
+   "needs": "exec",
+   "why": "",
+   "filed_at": "2026-09-04T05:24:46.451518+00:00",
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:14:02.089921+00:00",
+   "receipt": "LANDED 1bde4025+a07ad771: doctor renders 'watches N/cap [ids]' from task_ledger.open_watches() (git-only, fail-open); WATCH_CAP is one constant for gate and render; silent width is a dashboard finding; pushed"
+  },
+  {
+   "id": "5fe1752aab",
+   "by": "claude",
+   "cmd": "atom-plane redaction pass: supersede/regenerate the ~8 tracked docs carrying operator-interiority quote fragments or charters/daniel pointers (the-plan 2d7bb1+a84b0d, cold-question-battery 55f371, corpus-sweep-map 62f28c, draft-directive-arc-map a82c7e, WISHLIST, ONBOARDING-BRIDGE, directive-registers 08f179+422010, charter-framework c636f8, handoff chronicle 2026-07-30) -- quotes become pointers to the private plane; projections regenerate from superseded atoms, never sed",
+   "needs": "exec",
+   "why": "",
+   "filed_at": "2026-09-04T12:42:03.733831+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "9a85e7cfa2",
+   "by": "claude",
+   "cmd": "auto-stamp the model self-report: call core.fleet.seat_model.report(agent, session, model, harness) from the SessionStart/Stop hook path (scripts/hooks/claude_sessionstart.py) so every seat's model appears in !model without a manual stamp -- today only a hand-run report() populates it, so the display is honest-but-empty for seats nobody stamped",
+   "needs": "exec",
+   "why": "",
+   "filed_at": "2026-09-04T13:21:35.327459+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "44f88b3da6",
+   "by": "claude",
+   "cmd": "fix conductor_gate false ACTIVATION: sweep stale pid-61024 orphan marker + make runner activation consult live roster beat (evaluate_succession already returns activate=False while runners activate anyway; seen 3x at markers 93s/272s/666s; same in-band-input class as the wake work; drill by replaying the stale-marker state)",
+   "needs": "write",
+   "why": "stops deepseek/kimi false acting-conductor takeovers while claude is live -- each one is 8h of misassigned authority and a wolf-cry eroding trust in the real signal",
+   "filed_at": "2026-09-06T17:39:46.184517+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "995178bdf7",
+   "by": "claude",
+   "cmd": "renew or retire the REF_ALLOWLIST entry docs/security-amendment-deepseek-scoped-admin-2026-07-22.md in scripts/checkers/check_comprehensibility.py BEFORE 2026-09-15 -- it expires that day and an EXPIRED entry is a drift FAIL, so the pre-commit --fast gate refuses every commit from 2026-09-16 (verifier v7 measured it by faking the clock); the root fix is d14d0f4209 (retitle the SA-1 arc label at the atom), the stopgap is a renewed expiry with a reason",
+   "needs": "write",
+   "why": "keeps every seat able to commit after 09-15; the codex entry (tests/test_codex_hook_contract.py) expires 09-21 with the same effect",
+   "filed_at": "2026-09-09T00:17:50.605018+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "a1738d32f1",
+   "by": "claude",
+   "cmd": "root-cause tests/test_t078_w3_mcp_door.py::test_p6_boot_returns_without_a_second_inbound_frame -- boot over the MCP door answers (cold+warm) but the events tool then reports '# 0 event(s) matching' for the probe agent; red at c72e50fe, at 053cd88d and with the wake fix, and listed in suite_baseline.json since 2026-08-23. It BLOCKS EVERY PUSH: the pre-push door-gate runs the door pins whenever door-relevant code moved on local master (bifrost_api.py moved in 5ba81ba6), so two verified wake-path commits (af155a30 pin, 5ba81ba6 fix) sit local-only until P6 is green or the gate learns to distinguish inherited red from new red. Start at core/events/event_query.py::search + get_event_log() (time index vs ledger fallback) under the child's REDIS_DB=15 + bare AI_SETUP; the boot event file IS written (session_logs/ledger/events_mcp-boot-regression-*_raw.jsonl), so the reader is looking elsewhere or filtering kind=boot wrongly",
+   "needs": "exec",
+   "why": "unblocks pushing any door change; the fleet's mirror is stale from the first door commit onward",
+   "filed_at": "2026-09-09T00:21:54.828401+00:00",
+   "done_by": "claude",
+   "done_at": "2026-09-09T00:26:48.199816+00:00",
+   "receipt": "CORRECTED: P6 is LOAD-FLAKY, not a hard block -- it failed under the door gate while a serial suite ran and in every fresh worktree, then PASSED in the full serial run on the main tree and in the door gate on a quiet machine (push 053cd88d..889c95d0 went through, gate green). Re-filed precisely"
+  },
+  {
+   "id": "ec0a21cab0",
+   "by": "claude",
+   "cmd": "root-cause the load/timing flake in tests/test_t078_w3_mcp_door.py::test_p6: the events tool answers '# 0 event(s) matching' for the probe agent when the machine is loaded or the tree is a fresh worktree, and '2' on a quiet main tree -- start at core/events/event_query.py::search + get_event_log() (time index vs ledger fallback) under the child's REDIS_DB=15 + bare AI_SETUP; it was in the 08-23 baseline as red and is absent from the 09-08 baseline because it passed serially",
+   "needs": "exec",
+   "why": "the pre-push door gate re-runs this pin whenever door code moved; a flake there blocks pushes at exactly the moments the machine is busy landing",
+   "filed_at": "2026-09-09T00:26:48.546392+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
+  },
+  {
+   "id": "ea0b68c752",
+   "by": "claude",
+   "cmd": "fix agent_cli.py ask --get: render result['warnings'] (EVIDENCE CLIPPED / EVIDENCE SKIPPED / LENS LEDGER lines) exactly as the foreground fan path prints them as '!! ' lines; RED pin first: a --bg fan whose --with pack overruns AKASHIC_ASK_CONTEXT_CHARS (40000) must show 'EVIDENCE CLIPPED' in the --get output. Receipt 2026-09-09: state/asks/484040e7.json carries the warnings (aurora-shader.js clipped 21389 of 35451 chars, six files SKIPPED) and --get printed none; both Heimdall branches answered from partial evidence with a scope note the caller only saw by reading the answers.",
+   "needs": "write",
+   "why": "T218's own law -- a clip is only safe if the party who draws the conclusion is told -- is broken for every --bg reader; a background fan is exactly where the caller is not watching stderr",
+   "filed_at": "2026-09-09T04:17:09.946017+00:00",
    "done_by": "",
    "done_at": "",
    "receipt": ""
