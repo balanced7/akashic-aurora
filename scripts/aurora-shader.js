@@ -90,6 +90,17 @@
   uniform float u_state_intensity;  // 0..1 lerp on state change
   uniform float u_speed;            // motion multiplier (Shader Park: live-tunable param)
   uniform float u_intensity;        // brightness multiplier (live-tunable param)
+  uniform float u_motion;           // motion-blur blend 0..1 (0 = crisp/no trail)
+
+  // MOTION BLUR — temporal accumulation. The previous frame is fed back in here and blended with
+  // this frame's colour. A small blend (u_motion ~0.2) makes a fast-moving swarm leave a soft
+  // luminous smear behind it instead of a hard edge -- the aesthetic Daniil asked for, achieved
+  // with ONE extra texture read + mix per pixel rather than a velocity buffer pass. Because it
+  // feeds back the colour the way light does through a long exposure, it reads as glow-turned-motion
+  // rather than as a screen-space blur.
+  // u_history is bound to the history texture on the FIRST frame of each new resolution only; it is
+  // invalid (black) before the first real frame, and the mix weight is gated off for that frame.
+  uniform sampler2D u_history;
 
   // --- gradient (Perlin-style) value-of-gradients noise: smoother than hash value-noise,
   //     textureless, GPU-stable. This is claude's swap-in candidate vs DeepSeek's hash noise. ---
@@ -307,6 +318,16 @@
     // does so without animating. The background is black where nothing lights it, which is the
     // brief -- so there is deliberately no ambient, no base wash and no floor colour here.
     outColor = vec4(col, 1.0);
+
+    // ---- MOTION BLUR (temporal accumulation) ----
+    // Blend the previous frame's history back in. mix(history, current, u_motion): when u_motion
+    // is 0 this is EXACTLY the old crisp path (mix returns current), so the feature is zero-cost
+    // when disabled and the shader is byte-for-byte identical to before. As u_motion rises toward
+    // 1 the image becomes a long-exposure smear. The weight rides u_motion alone; a fixed value
+    // here stays stable under state transitions so the tint wash doesn't double-expose.
+    if (u_motion > 0.001) {
+      outColor.rgb = mix(texture(u_history, uv).rgb, outColor.rgb, u_motion);
+    }
   }`
   // GLSL array sizes must be compile-time literals, so the counts are injected rather than
   // duplicated. Duplicating them invites silent corruption: raise a count in JS, forget the
@@ -320,6 +341,26 @@
   .replace(/MARCH_DT/g, MARCH_DT.toFixed(3))
   .replace(/SIGMA/g,    SIGMA.toFixed(2))
   .replace(/CAMZ/g,     CAMZ.toFixed(2));
+
+  // --- Passthrough blit shader (for the motion-blur composite) --------------------------------
+  // The motion block above makes the AURORA feed its own history back in, but a shader cannot
+  // read and write the same texture it is currently rendering into -- so the frame renders into a
+  // HISTORY framebuffer, and this tiny program blits that history to the canvas (the screen).
+  // Fullscreen triangle, one texture fetch, done. It lives in the same program-build family so it
+  // compiles and links under the same driver rather than being hand-rolled in the driver code.
+  const BLIT_VERT = `#version 300 es
+  void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const BLIT_FRAG = `#version 300 es
+  precision highp float;
+  out vec4 outColor;
+  uniform sampler2D u_src;
+  void main() {
+    outColor = texture(u_src, gl_FragCoord.xy / vec2(textureSize(u_src, 0)));
+  }`;
 
   // --- Driver ---------------------------------------------------------------------------------
   function isSupported() {
@@ -347,6 +388,14 @@
       this.stateLerp = 1.0;                // 1 = fully at target
       this.speed = 1.0;                    // live-tunable params (Shader Park ethos); UI sliders call the setters
       this.intensity = 0.7;                // dark-first: aurora present in the top bands, not an overpowering wash
+      this.motion = 0.22;                  // motion-blur blend 0..1; ~0.22 = soft luminous smear, crisp below 0.08
+      this._historyFbo = null;             // persistent history framebuffer (built on first frame)
+      this._historyTexA = null;            // ping-pong history textures (A and B) for feedback
+      this._historyTexB = null;
+      this._historyWrite = null;           // which texture this frame renders into
+      this._historyRead  = null;           // which texture the shader samples
+      this._blitProg = null;               // passthrough program for the history->screen copy
+      this._firstFrame = true;             // gate the history read on the very first frame (texture is black)
       this.startTime = (global.performance ? performance.now() : 0) / 1000;
       this.animating = false;
       this._frames = 0;                    // for the fps watchdog
@@ -364,6 +413,10 @@
     // Live-tunable params (Shader Park inspiration) — the future settings-panel sliders call these.
     setSpeed(v) { this.speed = Math.max(0, +v || 0); }
     setIntensity(v) { this.intensity = Math.max(0, +v || 0); }
+    // Motion-blur strength. 0 = crisp (the pre-feature look, byte-for-byte); ~0.22 = the soft
+    // long-exposure smear; 1 = near-total trails. Honours prefers-reduced-motion by staying at 0
+    // when the OS asks for reduced motion (that gate lives in isSupported / initAurora).
+    setMotionBlur(v) { this.motion = Math.max(0, Math.min(1, +v || 0)); }
 
     _compile() {
       const gl = this.gl;
@@ -391,6 +444,8 @@
       this.u_state_intensity = gl.getUniformLocation(prog, 'u_state_intensity');
       this.u_speed = gl.getUniformLocation(prog, 'u_speed');
       this.u_intensity = gl.getUniformLocation(prog, 'u_intensity');
+      this.u_motion = gl.getUniformLocation(prog, 'u_motion');
+      this.u_history = gl.getUniformLocation(prog, 'u_history');
       this.u_pt  = gl.getUniformLocation(prog, 'u_pt');
       this.u_ptc = gl.getUniformLocation(prog, 'u_ptc');
       this.u_tr  = gl.getUniformLocation(prog, 'u_tr');
@@ -472,11 +527,76 @@
     }
 
     _bind() {
-      this._onResize = () => this._resize();
+      this._onResize = () => { this._resize(); this._historyNeedsRebuild = true; };
       global.addEventListener('resize', this._onResize);
       // Zero GPU work while the tab is hidden (perf gate).
       this._onVis = () => { document.hidden ? this.stop() : this.start(); };
       document.addEventListener('visibilitychange', this._onVis);
+    }
+
+    // The history targets are a PING-PONG pair (an offscreen FBO + two textures). Ping-pong is
+    // load-bearing, not an optimisation: the shader samples the previous frame WHILE rendering
+    // the current one, and sampling a texture that is simultaneously the framebuffer's colour
+    // attachment is an undefined feedback loop on WebGL. Two textures, one read and one written
+    // per frame, swapped after each frame, is the standard fix. They must match the canvas
+    // backing store exactly or the blit smears/resamples, so they are rebuilt lazily on the
+    // first frame and any time a resize changed the backing store; a resize also invalidates the
+    // history (the old textures are at the old resolution), so _firstFrame is reset to gate the
+    // history read once more.
+    _makeHistoryTexture(w, h) {
+      const gl = this.gl;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      return tex;
+    }
+    _ensureHistory() {
+      const gl = this.gl;
+      const w = this.canvas.width, h = this.canvas.height;
+      if (this._historyTexA && this._historyTexA._w === w && this._historyTexA._h === h) return;
+      if (this._historyFbo) gl.deleteFramebuffer(this._historyFbo);
+      if (this._historyTexA) gl.deleteTexture(this._historyTexA);
+      if (this._historyTexB) gl.deleteTexture(this._historyTexB);
+      this._historyTexA = this._makeHistoryTexture(w, h);
+      this._historyTexB = this._makeHistoryTexture(w, h);
+      this._historyTexA._w = this._historyTexB._w = w;
+      this._historyTexA._h = this._historyTexB._h = h;
+      const fbo = gl.createFramebuffer();
+      this._historyFbo = fbo;
+      // _historyWrite is the texture we render into this frame; _historyRead is the one we sample.
+      this._historyWrite = this._historyTexA;
+      this._historyRead  = this._historyTexB;
+      this._historyNeedsRebuild = false;
+      this._firstFrame = true;
+    }
+
+    // The passthrough program is shared and trivial; build it once, lazily. Reuses VERT's
+    // fullscreen triangle so there is no second vertex buffer in flight.
+    _ensureBlit() {
+      if (this._blitProg) return;
+      const gl = this.gl;
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          throw new Error('aurora blit compile: ' + gl.getShaderInfoLog(s));
+        }
+        return s;
+      };
+      const prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, BLIT_VERT));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, BLIT_FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        throw new Error('aurora blit link: ' + gl.getProgramInfoLog(prog));
+      }
+      this._blitProg = prog;
+      this._u_blitSrc = gl.getUniformLocation(prog, 'u_src');
     }
 
     _tick() {
@@ -485,12 +605,33 @@
       const gl = this.gl;
       const time = (performance.now() / 1000) - this.startTime;
       this.stateLerp = Math.min(1.0, this.stateLerp + 0.016 / 1.5);   // ~1.5s transition
+
+      // MOTION BLUR: render into the offscreen history FBO, with the PREVIOUS frame's texture
+      // bound as u_history for self-feedback (ping-pong: read B while writing A, then swap).
+      // When motion is ~0 we skip the whole FBO round trip and draw straight to the canvas as
+      // before -- zero-cost disabled path.
+      const mb = this.motion > 0.001;
+      if (mb) {
+        this._ensureHistory();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this._historyFbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this._historyWrite, 0);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+
+      gl.useProgram(this.prog);
       gl.uniform2f(this.u_resolution, this.canvas.width, this.canvas.height);
       gl.uniform1f(this.u_time, time);
       gl.uniform1i(this.u_state, this.state);
       gl.uniform1f(this.u_state_intensity, this.stateLerp);
       gl.uniform1f(this.u_speed, this.speed);
       gl.uniform1f(this.u_intensity, this.intensity);
+      gl.uniform1f(this.u_motion, this._firstFrame ? 1.0 : this.motion);   // first frame: no history to read
+      gl.uniform1i(this.u_history, 0);
+      if (mb) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this._historyRead);
+      }
       // Flock time rides u_speed like everything else, so the speed slider still governs the
       // whole field rather than desynchronising the trails from the lattice behind them.
       this._updateSwarms(time * this.speed);
@@ -499,6 +640,22 @@
       gl.uniform4fv(this.u_tr, this._trBuf);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this._frames++;
+      this._firstFrame = false;
+
+      // Blit the just-rendered frame (now in _historyWrite) to the canvas for display, then swap
+      // so next frame reads it and writes into the other texture.
+      if (mb) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        this._ensureBlit();
+        gl.useProgram(this._blitProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this._historyWrite);
+        gl.uniform1i(this._u_blitSrc, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        const tmp = this._historyRead;
+        this._historyRead = this._historyWrite;
+        this._historyWrite = tmp;
+      }
     }
 
     start() { if (!this.animating) { this.animating = true; this._tick(); } }
@@ -507,6 +664,13 @@
       this.stop();
       global.removeEventListener('resize', this._onResize);
       document.removeEventListener('visibilitychange', this._onVis);
+      const gl = this.gl;
+      if (this._historyFbo) gl.deleteFramebuffer(this._historyFbo);
+      if (this._historyTexA) gl.deleteTexture(this._historyTexA);
+      if (this._historyTexB) gl.deleteTexture(this._historyTexB);
+      if (this._blitProg) gl.deleteProgram(this._blitProg);
+      this._historyFbo = this._historyTexA = this._historyTexB = null;
+      this._historyWrite = this._historyRead = null; this._blitProg = null;
     }
   }
 
