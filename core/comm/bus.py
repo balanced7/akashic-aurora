@@ -23,6 +23,7 @@ catches up on exactly what it missed and never re-reads (offset semantics withou
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -67,6 +68,16 @@ def _loads(s: Any) -> Any:
         return json.loads(s)
     except (ValueError, TypeError):
         return s
+
+
+# ------------------------------------------------------------------ incarnation discriminator
+# A leading scheme word (`session-`, `dsh-`, ...) counts as a prefix ONLY when a hex id of at
+# least 8 chars follows it: 'seat-0001' (4 hex) and '<pid>-<agent>' (digits first) are left
+# alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
+# the derivation must never discard entropy, so the negative lookahead keeps it.
+from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
+# lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
+# every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).
 
 
 def _connect():
@@ -154,7 +165,7 @@ class Bus:
         # it is, its lane cursor is per-incarnation instead of per-agent. Optional by
         # design -- every existing caller omits it and keeps the byte-identical legacy
         # key, so the fleet's lane progress does not move when this lands.
-        self._incarnation = str(incarnation or "")[:8]
+        self._incarnation = sid8(incarnation)
         # T112 P11 (deepseek's fence residual): the collapse notice goes to stderr, which
         # a runner's MODEL never reads -- it reaches the ManagedChild ring, not the turn.
         # Record it here so the calling door can say so in the string the model DOES read.
@@ -267,7 +278,7 @@ class Bus:
     @staticmethod
     def _my_sid8() -> str:
         sid = os.environ.get("BIFROST_INCARNATION") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
-        return str(sid)[:8]
+        return sid8(sid)
 
     # ------------------------------------------------------------------ send
     def _resolve_recipient(self, to: Any, meta: Optional[Dict[str, Any]]):
@@ -304,7 +315,7 @@ class Bus:
         to, meta = self._resolve_recipient(to, meta)
         # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
         self._warn_if_unattended(str(to))     # T108-S0: delivery is not receipt
-        inc = str((meta or {}).get("to_incarnation") or "")[:8]
+        inc = sid8((meta or {}).get("to_incarnation"))
         mirror = self._seat_inbox_key(str(to), inc) if inc else None
         return self._emit(self._inbox_key(str(to)), to=str(to), kind=kind, content=content,
                           parts=parts, meta=meta, allow_frag=allow_frag, mirror_stream=mirror)
@@ -876,13 +887,13 @@ class Bus:
         # T108 slice 1: an incarnated seat ALSO reads its own seat stream from its OWN cursor
         # (no contention by construction -- no RB-21 fence needed). Only on the plain consume
         # path: `since` (watcher-owned positions) and `streams` (lane retarget) opt out.
-        sid8 = self._my_sid8()
+        my_sid8 = self._my_sid8()      # named so it can never shadow the module-level sid8()
         seat_key: Optional[str] = None
         seat_cur = "0"
-        if sid8 and since is None and streams is None:
-            seat_key = self._seat_inbox_key(self.agent_id, sid8)
+        if my_sid8 and since is None and streams is None:
+            seat_key = self._seat_inbox_key(self.agent_id, my_sid8)
             try:
-                seat_cur = str(self._client.hget(self._seat_cursor_key(sid8), "seat") or "0")
+                seat_cur = str(self._client.hget(self._seat_cursor_key(my_sid8), "seat") or "0")
             except Exception:
                 seat_cur = "0"
         client, temp = self._client, None
@@ -955,9 +966,9 @@ class Bus:
                 # straggler copy): first sight delivers and MARKS by packet sha, the twin copy
                 # is dropped (T044 doctrine: dedupe by sha, never by stream id). Reassembled
                 # frags are exempt -- no seat mirror for fragments until slice 2 (documented).
-                inc = str((m.meta or {}).get("to_incarnation") or "")[:8]
-                if inc and sid8 and not was_frag:
-                    if inc != sid8:
+                inc = sid8((m.meta or {}).get("to_incarnation"))
+                if inc and my_sid8 and not was_frag:
+                    if inc != my_sid8:
                         if not is_seat:
                             continue               # another seat's directed mail: filtered
                     else:
@@ -1012,7 +1023,7 @@ class Bus:
         # no fence, no generation. That absence-of-machinery is the point of the design.
         if seat_key is not None and advance and next_seat != seat_cur:
             try:
-                self._client.hset(self._seat_cursor_key(sid8), "seat", next_seat)
+                self._client.hset(self._seat_cursor_key(my_sid8), "seat", next_seat)
             except Exception:
                 pass
         return returned

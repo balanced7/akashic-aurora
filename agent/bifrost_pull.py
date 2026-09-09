@@ -97,6 +97,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         tail_msgs = []
         try:
             from core.comm import packet_spec as _ps
+            from core.comm.bus import sid8 as _sid8
             cur = b._read_cursor()
             sid8 = b._my_sid8()
             streams = [(b._inbox_key(str(agent_id)), cur.get("inbox", "0"), False)]
@@ -124,7 +125,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
                     m = b._to_msg(str(sid), dict(fields))
                     if is_bc and m.frm == str(agent_id):
                         continue
-                    inc = str((m.meta or {}).get("to_incarnation") or "")[:8]
+                    inc = _sid8((m.meta or {}).get("to_incarnation"))
                     if inc and sid8 and inc != sid8:
                         continue
                     tail_msgs.append(m)

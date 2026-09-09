@@ -51,14 +51,42 @@ def _path(session_id: str, binding_dir: Optional[str]) -> str:
     return os.path.join(_dir(binding_dir), f"{_PREFIX}{session_id}{_SUFFIX}")
 
 
+# A scheme is one or more alphabetic words joined by '-' at the head of the id ('session-',
+# 'dsh-session-'), stripped only when (a) none of the words is itself pure hex (so
+# 'ab-cdef1234' keeps its old head: 'ab' is entropy, not a scheme) and (b) a UUID-shaped tail
+# follows: 8 hex characters THEN a hyphen. A scheme followed by a bare 8-hex token
+# ('session-aaaa1111') is NOT stripped, because its head would collide with the 8-char pin
+# 'aaaa1111' (Heimdall lens 0, fan-out 3c9f91da); it keeps the plain head slice, as does
+# anything with too little entropy after the scheme -- documented non-fleet shapes.
+_SCHEME_PREFIX_RE = re.compile(r"^(?:(?![0-9A-Fa-f]+-)[A-Za-z]+-)+(?=[0-9A-Fa-f]{8}-)")
+
+
 def sid8(session_id: str) -> str:
-    """The 8-char session discriminator every seat row is keyed by."""
-    return (str(session_id or "").strip() or "unknown")[:8]
+    """THE incarnation discriminator -- the 8 characters every per-seat key hangs off
+    (`{ns}:worklive|seatseen:<agent>#<sid8>`, `{ns}:inbox:<agent>#<sid8>`,
+    `{ns}:cursor:seat:<agent>#<sid8>`, the eye's `<agent>#<sid8>` standpoint, the mailbox
+    incarnation, the model-report key) and the dialect every operator surface speaks
+    (boot's 'session ed728d23', bifrost-send --to-incarnation <sid8>, eye find).
+
+    A head slice is only a discriminator while the id's entropy sits in its head. DSH
+    session ids are 'session-<uuid>' (a nested scheme is possible: 'dsh-session-<uuid>'),
+    so every web seat keyed bifrost:worklive:dsh_agent#session-, two concurrent seats
+    shared one presence row, and go_offline for one deleted the other's key (defer
+    7e2670d54e, 2026-08-26).
+
+    Derivation: strip the leading scheme words when none is pure hex and a UUID-shaped
+    tail follows (8 hex characters then a hyphen); then take 8 characters. Byte-identical to str(sid)[:8] for every
+    shape the fleet already keys (bare uuid, '<pid>-<agent>', 8-char pins, 'seat-0001',
+    'deadbeef-...'), idempotent (sid8(sid8(x)) == sid8(x)), and the ONE place this rule
+    lives -- core.comm.bus re-exports it; nothing else may slice a session id. An empty id
+    yields '' (no seat, no key); the loud 'unknown' fallback belongs to unknown_id()."""
+    s = str(session_id or "").strip()
+    return _SCHEME_PREFIX_RE.sub("", s, count=1)[:8] if s else ""
 
 
 def unknown_id(session_id: str) -> str:
     """The loud fallback. Reads as unresolved to a human and stays unique per session."""
-    return f"unknown-{sid8(session_id)}"
+    return f"unknown-{sid8(session_id) or 'unknown'}"
 
 
 def valid(agent_id: str) -> bool:

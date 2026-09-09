@@ -13,6 +13,9 @@ honesty about who is actually reachable (Sol rendered "sleeping" for exactly thi
 Keys (T5: no payload):
     {ns}:worklive:{agent}#{sid8}   JSON {full_sid, phase, beat_ts, since_ts, seq},
                                     TTL WORKLIVE_TTL_S.
+    sid8 = core.comm.bus.sid8(full_sid): ONE derivation fleet-wide, never a local [:8]
+    slice -- a scheme-prefixed id (DSH's 'session-<uuid>') keys by its hex head, so two
+    concurrent seats can never share a row (defer 7e2670d54e).
 
 STATE LADDER (kimi P1 + fence findings F1/F3 -- key-exists is NOT alive, and absence is
 not silence):
@@ -34,6 +37,10 @@ import json
 import os
 import time
 from typing import Any, Dict, List, Optional
+
+# The incarnation discriminator is derived by the bus (the organ that owns the key formats,
+# kimi F2) -- imported, never re-sliced here. bus imports nothing from this module.
+from core.comm.bus import sid8 as _sid8
 
 WORKLIVE_TTL_S = int(os.environ.get("AKASHIC_WORKLIVE_TTL_S", "180") or 180)
 RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)   # S3: away-time that counts as a RESUME
@@ -109,7 +116,7 @@ def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
     try:
         client = client or _connect()
         full_sid = str(session_id or "")
-        sid8 = full_sid[:8]
+        sid8 = _sid8(full_sid)
         k = _key(ns, agent, sid8)
         now = float(_beat_ts if _beat_ts is not None else time.time())
         prev: Dict[str, Any] = {}
@@ -165,7 +172,7 @@ def go_offline(ns: str, agent: str, session_id: str, *, client=None,
     try:
         client = client or _connect()
         full_sid = str(session_id or "")
-        sid8 = full_sid[:8]
+        sid8 = _sid8(full_sid)
         now = float(_beat_ts if _beat_ts is not None else time.time())
         client.delete(_key(ns, agent, sid8))
         doc = {"full_sid": full_sid, "beat_ts": now, "phase": "offline",
@@ -190,7 +197,7 @@ def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
         except Exception:
             pass
         try:
-            seat_cursor_key = b._seat_cursor_key(str(sid8)[:8])
+            seat_cursor_key = b._seat_cursor_key(_sid8(sid8))
             have["seat_inbox"] = str(client.hget(seat_cursor_key, "seat") or "0")
             have["reaper"] = str(client.hget(seat_cursor_key, "reaper") or "0")
         except Exception:

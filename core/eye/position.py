@@ -44,7 +44,10 @@ def whoami(agent: str = "claude") -> str:
     gets '#local' -- named, so it can never be mistaken for a real incarnation."""
     sid = (os.environ.get("BIFROST_INCARNATION")
            or os.environ.get("CLAUDE_CODE_SESSION_ID") or "")
-    return f"{agent}#{str(sid)[:8]}" if sid else f"{agent}#local"
+    if not sid:
+        return f"{agent}#local"
+    from core.comm.bus import sid8   # the ONE derivation (defer 7e2670d54e): a DSH
+    return f"{agent}#{sid8(sid)}"    # 'session-<uuid>' keys by its hex head, never 'session-'
 
 
 def _ensure_schema(con) -> None:

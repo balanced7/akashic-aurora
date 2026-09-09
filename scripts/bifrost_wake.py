@@ -308,7 +308,8 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
     n = 0
     try:
         from core.comm import mailbox as _mbx
-        inc = str(session_id or "")[:8] or "wake"
+        from core.comm.seat_identity import sid8 as _sid8
+        inc = (_sid8(session_id) if session_id else "") or "wake"
         for m in delivered:
             try:
                 if _mbx.open_for_message(agent, m, incarnation=inc).get("ok"):

@@ -248,7 +248,8 @@ def live_incarnations(agent: str, my_session: Optional[str] = None,
 
 
 def _fmt_one(agent: str, s: Dict) -> str:
-    sid8 = str(s.get("session_id", ""))[:8]
+    from core.comm.seat_identity import sid8 as _sid8
+    sid8 = _sid8(s.get("session_id", ""))
     age = s.get("age_min")
     idle = f"{age:.0f}m idle" if isinstance(age, (int, float)) else "age unknown"
     seat = "" if s.get("has_seat") else ", unseated"
