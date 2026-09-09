@@ -477,40 +477,69 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                     # past them.  This extends W40's exact lesson one branch further.
                     cargo = p["unsettled_answerable"](agent) or {}
                     messages = list(cargo.get("messages") or [])
-                    count = int(cargo.get("count") or len(messages))
+                    # Fail-closed protection is not an ownership oracle.  A degraded
+                    # envelope with no destination survives every destructive broom,
+                    # but Doctor must not turn its stream placement into this seat's
+                    # work debt.  Keep UNKNOWN OWNER as a third, explicit state.
+                    directed = [row for row in messages
+                                if str(row.get("owner_state") or "") == "directed"]
+                    unknown_owner = [row for row in messages
+                                     if str(row.get("owner_state") or "") != "directed"]
                     inspect = f"py agent_cli.py mailbox {agent} --min-evidence unhandled"
-                    if count:
+                    if directed:
                         by_kind: Dict[str, int] = {}
-                        for row in messages:
+                        for row in directed:
                             kind = str(row.get("kind") or "unknown")
                             by_kind[kind] = by_kind.get(kind, 0) + 1
                         kinds = ", ".join(f"{kind}={n}" for kind, n in sorted(by_kind.items()))
-                        oldest = cargo.get("oldest_age_s")
-                        age = _fmt_age(float(oldest)) if oldest is not None else "age unknown"
+                        directed_ages = [float(row["age_s"]) for row in directed
+                                         if row.get("age_s") is not None]
+                        age = (_fmt_age(max(directed_ages)) if directed_ages
+                               else "age unknown")
                         bound = ("" if cargo.get("complete") else
                                  "; bounded inspection incomplete — count is a floor")
                         out.append(_f(
                             agent, "unmanned_seat", "page",
                             f"{agent}: UNMANNED SEAT — no worklive, runner, or wake-seat "
-                            f"witness; backlog holds {count} unsettled answerable item(s) "
-                            f"({kinds}), oldest {age}{bound}. Absence is not retirement.",
+                            f"witness; backlog holds {len(directed)} unsettled answerable "
+                            f"item(s) assigned to this seat ({kinds}), oldest {age}{bound}. "
+                            "Absence is not retirement.",
                             f"{inspect}  | then START the registered seat or REROUTE each ask "
                             "to a live seat"))
-                    elif not cargo.get("available") or not cargo.get("complete"):
-                        reason = str(cargo.get("reason") or "bounded inspection incomplete")
+                    if unknown_owner:
+                        def _unknown_ref(row: Dict[str, Any]) -> str:
+                            ids = dict(row.get("ids") or {})
+                            stream_refs = ",".join(
+                                f"{source}:{sid}" for source, sid in sorted(ids.items()))
+                            return f"sha:{row.get('sha') or '?'} stream:{stream_refs or '?'}"
+
+                        refs = "; ".join(_unknown_ref(row) for row in unknown_owner[:3])
+                        more = (f"; +{len(unknown_owner) - 3} more"
+                                if len(unknown_owner) > 3 else "")
                         out.append(_f(
-                            agent, "unmanned_seat", "banner",
-                            f"{agent}: UNMANNED SEAT — {backlog} unread and no presence "
-                            f"witness; mail contents are UNKNOWN ({reason}). Absence is not "
-                            "retirement, so no destructive remedy is offered.",
+                            agent, "unknown_owner", "banner",
+                            f"UNKNOWN OWNER — {len(unknown_owner)} protected unsettled "
+                            f"item(s) observed in {agent}'s cursor-forward mail range have "
+                            f"no destination and are NOT attributed to {agent}. "
+                            f"Refs: {refs}{more}. Absence is not retirement; no destructive "
+                            "remedy is inferred.",
                             inspect))
-                    else:
-                        out.append(_f(
-                            agent, "unmanned_backlog", "dashboard",
-                            f"{agent}: UNMANNED — {backlog} unread and no presence witness; "
-                            "mailbox found no unsettled answerable work. Seat lifecycle is "
-                            "UNKNOWN, not retired.",
-                            inspect))
+                    if not directed and not unknown_owner:
+                        if not cargo.get("available") or not cargo.get("complete"):
+                            reason = str(cargo.get("reason") or "bounded inspection incomplete")
+                            out.append(_f(
+                                agent, "unmanned_seat", "banner",
+                                f"{agent}: UNMANNED SEAT — {backlog} unread and no presence "
+                                f"witness; mail contents are UNKNOWN ({reason}). Absence is not "
+                                "retirement, so no destructive remedy is offered.",
+                                inspect))
+                        else:
+                            out.append(_f(
+                                agent, "unmanned_backlog", "dashboard",
+                                f"{agent}: UNMANNED — {backlog} unread and no presence witness; "
+                                "mailbox found no unsettled answerable work. Seat lifecycle is "
+                                "UNKNOWN, not retired.",
+                                inspect))
                 p["stalled_since"](agent, False)
             else:
                 first = p["stalled_since"](agent, True)

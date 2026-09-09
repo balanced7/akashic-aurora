@@ -627,10 +627,16 @@ def unsettled_answerable(ns: str, agent: str, *, client=None,
             if not _is_unsettled_answerable(state):
                 continue
             ts_s = float(rec.get("ts_s") or 0.0)
+            destination = str(rec.get("to") or "")
             messages.append({
                 "sha": sha,
                 "kind": str(entry.get("kind") or rec.get("kind") or ""),
                 "frm": str(entry.get("frm") or rec.get("frm") or "?"),
+                "to": destination,
+                # Protection and ownership are deliberately separate.  A missing
+                # destination fails closed for destructive operations, but it is
+                # not evidence that this seat owns the work (T329 review round 4).
+                "owner_state": "directed" if destination else "unknown",
                 "ts": str(entry.get("ts") or rec.get("ts") or ""),
                 "age_s": max(0.0, time.time() - ts_s) if ts_s > 0 else None,
                 "ids": dict(entry.get("ids") or rec.get("ids") or {}),
