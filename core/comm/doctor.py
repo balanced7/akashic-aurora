@@ -1299,10 +1299,19 @@ def examine_services() -> List[Dict[str, Any]]:
                     live.append(a)
             except Exception:
                 pass
+        # 9e1bc7ce78: the drill carries the MODE flag. A flagless launch is alpha mode, which
+        # takes runner_lock ITSELF and REFUSES under a live bare runner (M1-P11 no-steal) --
+        # the refusal the 2026-08-26 finder hit after following exactly this hint. And with no
+        # daemon live anywhere, the discord outbound pump (a daemon-tick beat) has no host.
         out.append(_svc_finding("daemon", bool(live),
                                 ", ".join(sorted(live)) if live
-                                else "no live daemon -- seats self-manage wake/consume",
-                                "py scripts/bifrost_daemon.py --agent <a>  (autopilot: owns wake+consume)"))
+                                else "no live daemon -- seats self-manage wake/consume; "
+                                     "the discord outbound pump (daemon-hosted) has NO host",
+                                "py scripts/bifrost_daemon.py --agent <a> --spawn-runner "
+                                "--runner-consume-lane work [--runner-script bifrost_runner_<a>.py]"
+                                "  (runner seats)  |  py scripts/bifrost_daemon.py --agent claude "
+                                "--manage-listener  (wake listeners; revive DAEMON_MODE) -- the flag "
+                                "IS the brain: flagless = alpha, REFUSES under a bare runner"))
     except Exception:
         pass
     return out
