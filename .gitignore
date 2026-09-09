@@ -128,6 +128,10 @@ research/shift-console-*.log.err
 # state/* (not state/) excludes the CONTENTS so these re-includes can take effect.
 !state/coord/
 !state/coord/**
+# cross-process sidecars the ledger (77e485bb23) and the bridge inbox take under
+# core.foundation.filelock -- machine-local by nature; never a mirror.py --all passenger
+state/coord/*.lock
+state/coord/*.tmp
 # EXCEPTION (2026-09-03): drill receipts are EVIDENCE, not scratch. House law says a
 # recovery path without an executed-drill receipt is presumed broken -- and a receipt
 # on an ignored path is invisible to every clone, so no clone can verify any drill
