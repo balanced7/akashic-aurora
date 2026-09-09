@@ -147,6 +147,7 @@ class ManagedChild:
         self._proc: Optional[subprocess.Popen] = None
         self._crashes: Deque[float] = collections.deque()
         self._tripped = False
+        self._tripped_at: float = 0.0
         self._backoff_idx = 0
         self._backoffs = (1.0, 2.0, 5.0, 10.0, 30.0, 60.0)
         # F2: non-blocking backoff -- spawn only when now >= this timestamp
@@ -167,6 +168,13 @@ class ManagedChild:
 
     @property
     def tripped(self) -> bool:
+        # Self-reset: a triple trip must not be a one-way latch that only a manual
+        # daemon restart clears -- that is what stranded sol (its breaker tripped,
+        # and every later spawn() returned None forever). After a cooldown of
+        # breaker_window_s, the breaker re-arms so a recovered seat can self-heal.
+        if self._tripped and time.time() - self._tripped_at >= self._breaker_window_s:
+            self._tripped = False
+            self._backoff_idx = 0
         return self._tripped
 
     @property
@@ -176,7 +184,7 @@ class ManagedChild:
     def spawn(self) -> Optional[subprocess.Popen]:
         """Launch the child. Returns the Popen handle, or None if the circuit breaker
         is tripped, the previous child is still alive, or backoff hasn't elapsed yet."""
-        if self._tripped:
+        if self.tripped:
             return None
         if self.alive:
             return self._proc
@@ -216,7 +224,7 @@ class ManagedChild:
         (spawn() gates on _next_spawn_at internally)."""
         if self._proc is None:
             # backoff may have elapsed while no child was running -> try spawn
-            if not self._tripped and time.time() >= self._next_spawn_at:
+            if not self.tripped and time.time() >= self._next_spawn_at:
                 self.spawn()
             return None
         code = self._proc.poll()
@@ -251,6 +259,14 @@ class ManagedChild:
 
     # -- internal -----------------------------------------------------------
 
+    # T077/handover-fix: a runner that stood down for its SUPERVISOR to replace the
+    # tenure (drain honored, self-restart hand-off, lost-lock) exits with this code.
+    # It is NOT a crash and NOT a deliberate permanent exit: the daemon must respawn
+    # at once, with no backoff and no breaker debt. live receipt: sol's runner emitted
+    # 0 on these paths (its own comment said "the supervisor may replace this tenure")
+    # while ManagedChild read exit-0 as "stay down forever" -- a two-way deadlock.
+    HANDOVER_EXIT = 7
+
     def _handle_exit(self, code: int) -> None:
         self._proc = None
         if code == 0:
@@ -260,6 +276,15 @@ class ManagedChild:
             self._crashes.clear()
             self._next_spawn_at = float("inf")   # never auto-respawn
             return
+        if code == self.HANDOVER_EXIT:
+            # Supervisor-directed tenure replacement: respawn immediately, clear
+            # crash debt and backoff. The runner is ASKING to be replaced, so a
+            # delay here would strand the seat exactly when the runner signalled
+            # readiness to hand off (the sol stuck-runner root cause).
+            self._backoff_idx = 0
+            self._crashes.clear()
+            self._next_spawn_at = 0.0   # spawn on the next poll tick
+            return
         # crash
         now = time.time()
         self._crashes.append(now)
@@ -267,6 +292,7 @@ class ManagedChild:
             self._crashes.popleft()
         if len(self._crashes) >= self._breaker_max:
             self._tripped = True
+            self._tripped_at = now
             if self._on_blocker:
                 try:
                     self._on_blocker()

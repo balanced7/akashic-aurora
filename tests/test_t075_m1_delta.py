@@ -250,12 +250,46 @@ def test_child_circuit_breaker_trips():
 
 
 def test_child_tripped_breaker_does_not_spawn():
+    # A freshly-tripped breaker (tripped_at = now) refuses spawn.
     mc = ManagedChild(
         [sys.executable, "-c", "pass"],
         breaker_max=1,
     )
     mc._tripped = True
+    mc._tripped_at = time.time()
     assert mc.spawn() is None
+
+
+def test_child_tripped_breaker_self_resets_after_cooldown():
+    """T077/handover-fix: a tripped breaker is NOT a one-way latch. After
+    breaker_window_s elapses, it re-arms so a recovered seat self-heals instead of
+    requiring a manual daemon restart (the sol stuck-runner root cause)."""
+    mc = ManagedChild(
+        [sys.executable, "-c", "pass"],
+        breaker_window_s=300,
+        breaker_max=1,
+    )
+    mc._tripped = True
+    mc._tripped_at = time.time() - 301   # cooldown already elapsed
+    assert not mc.tripped, "breaker must self-clear after the cooldown window"
+
+
+def test_child_handover_exit_respawns_immediately():
+    """T077/handover-fix: exit code 7 = tenure hand-off to the supervisor. It must
+    reset backoff + clear crash debt and set _next_spawn_at=0 (respawn next tick),
+    NOT the N1 infinite backoff that exit 0 gets and NOT the breaker debit of a crash."""
+    mc = ManagedChild(
+        [sys.executable, "-c", "pass"],
+        breaker_max=3,
+    )
+    mc._crashes.append(time.time())
+    mc._crashes.append(time.time())
+    mc._backoff_idx = 3
+    mc._handle_exit(ManagedChild.HANDOVER_EXIT)
+    assert mc._backoff_idx == 0
+    assert len(mc._crashes) == 0
+    assert mc._next_spawn_at == 0.0, "handover must respawn immediately, not wait or stop"
+    assert not mc.tripped
 
 
 # ---------------------------------------------------------------- summary
