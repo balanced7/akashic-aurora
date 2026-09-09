@@ -18,6 +18,11 @@ THE CUT (build refinements, T073 precedent):
       (security/acl.json) is the authority; the flag alone is not enough in runner
       mode. (The write path has always had --allow-write + scope; exec now has
       --allow-exec + cap + families.)
+  G6  RECOVERY family (2026-09-09, Daniil's standing exec-fix ask): `tasklist` (pure
+      read) and `taskkill /PID <digits> /F` (exactly one numeric pid, no /IM, no
+      wildcards) so Cap.EXEC seats can self-drive a kill+respawn without a
+      super-admin doing it by hand every time. The runner_lock TTL means a
+      force-killed seat's lock self-expires even without a graceful exit.
 """
 import os
 import sys
@@ -97,6 +102,59 @@ def test_g4_mutating_agent_cli_verbs_refused():
                 "py agent_cli.py lock deepseek somefile"):
         out = _tb().run_command(cmd)
         assert "REFUSED" in out and "read" in out.lower(), f"mutator survived: {cmd!r}"
+
+
+# ------------------------------------------------------- G4b recovery verbs reachable
+def test_g4b_recovery_read_verbs_are_reachable():
+    # operator-authorized 2026-08-31 (door_read_allowlist_gap): a live admin seat must be
+    # able to inspect the fleet and drive recovery from inside a session. These are pure
+    # reads that were ungated-absent, silently blocking the exact levers recovery needs.
+    for verb in ("roster", "bench", "mailbox", "verbs", "help"):
+        out = _tb().run_command(f"py agent_cli.py {verb}", timeout=120)
+        assert "REFUSED" not in out, f"read verb {verb!r} still refused: {out[:200]}"
+
+
+def test_g4b_recovery_verbs_do_not_open_mutations():
+    # widening the READ allowlist must not reach a mutating verb riding the same word shape.
+    out = _tb().run_command("py agent_cli.py bench --consume")
+    assert "REFUSED" in out, f"mutating flag on a read verb survived: {out[:200]}"
+
+
+# ------------------------------------------------- G6 recovery family (taskkill/tasklist)
+# Daniil 2026-09-09 verbatim on the bus: "Please fix the exec for all the parties
+# permanently so that everything doesn't fall to you every time something breaks."
+# Runner seats holding Cap.EXEC (deepseek/navi/sol/kimi) can now self-drive a narrow
+# process-recovery primitive without a super-admin doing every kill+respawn by hand.
+def test_g6_recovery_tasklist_runs():
+    out = _tb().run_command("tasklist", timeout=30)
+    assert "REFUSED" not in out, out[:200]
+
+
+def test_g6_recovery_tasklist_with_flags_refused():
+    out = _tb().run_command("tasklist /FI \"foo\"")
+    assert "REFUSED" in out
+
+
+def test_g6_recovery_taskkill_narrow_shape_runs():
+    # a PID that (almost certainly) does not exist -- exercises the ALLOW path without
+    # touching a real process; taskkill returns its own "not found" text, never REFUSED.
+    out = _tb().run_command("taskkill /PID 999999 /F", timeout=30)
+    assert "REFUSED" not in out, out[:200]
+
+
+def test_g6_recovery_taskkill_by_name_refused():
+    out = _tb().run_command("taskkill /IM notepad.exe /F")
+    assert "REFUSED" in out and "/IM" in out
+
+
+def test_g6_recovery_taskkill_without_force_refused():
+    out = _tb().run_command("taskkill /PID 999999")
+    assert "REFUSED" in out
+
+
+def test_g6_recovery_taskkill_multiple_pids_refused():
+    out = _tb().run_command("taskkill /PID 111 /PID 222 /F")
+    assert "REFUSED" in out
 
 
 # ---------------------------------------------------------------- G5 the ACL layer

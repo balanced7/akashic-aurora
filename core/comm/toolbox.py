@@ -1193,14 +1193,20 @@ class ToolBox:
         "boot", "delta", "discover", "recall", "recall-at", "list", "notes", "status",
         "stats", "injections", "harnesses", "triage", "recall-counters", "task",
         "story", "events", "doctor", "promoted", "lookback", "knowledge-map", "fence",
-        "flow", "bifrost-sync", "locks", "unwedge", "pulse", "flightdeck"})
+        "flow", "bifrost-sync", "locks", "unwedge", "pulse", "flightdeck",
+        # recovery/observation reads (operator-authorized 2026-08-31, door_read_allowlist_gap):
+        # a live admin seat must be able to SEE the fleet and DRIVE recovery from inside a
+        # session -- roster (who's up, code state), mailbox (who's emailing, undrained lane),
+        # bench (own triage), verbs (the registry itself), help. All pure reads; none mutate.
+        "roster", "bench", "mailbox", "verbs", "help"})
     _AGENT_CLI_MUTATING_FLAGS = frozenset({
         "--commit", "--consume", "--apply", "--fold", "--capture", "--promote"})
     _SHELL_META = frozenset(";|&><`$()\n\r")
 
     def _exec_family(self, command: str):
         """(argv, env_extra, why_refused): the T067-2 allowlist. argv=None => refuse.
-        Families: pytest runs (isolated env forced, G3) + agent_cli READ verbs (G4).
+        Families: pytest runs (isolated env forced, G3) + agent_cli READ verbs (G4) +
+        play-sandbox + IR-4 audited mirror commits + narrow taskkill/tasklist recovery.
         Metacharacters refuse outright (G2) -- allowlisted commands run shell=False."""
         import shlex
         cmd = str(command or "").strip()
@@ -1277,9 +1283,26 @@ class ToolBox:
                 return None, None, (f"path(s) {banned} are outside your mirror scope -- "
                                     "security/ and .claude/ stay super-admin-gated (IR-4)")
             return argv, {}, None
+        # family: RECOVERY -- narrow process-recovery primitives (Daniil 2026-09-09 verbatim
+        # on the bus: "Please fix the exec for all the parties permanently so that everything
+        # doesn't fall to you every time something breaks"). `tasklist` is a pure read;
+        # `taskkill /PID <n> /F` force-kills exactly ONE numeric pid -- no /IM (kill-by-name),
+        # no wildcards. The runner_lock TTL (core/comm/runner_lock.py LOCK_TTL) means a
+        # force-killed seat's lock self-expires within seconds even without a graceful exit,
+        # so the daemon/scheduler respawns cleanly. Still gated on the caller already holding
+        # Cap.EXEC (checked in run_command before this method is ever reached).
+        if len(argv) == 1 and argv[0].lower() == "tasklist":
+            return argv, {}, None
+        if argv[0].lower() == "taskkill":
+            rest = argv[1:]
+            if len(rest) == 3 and rest[0].upper() == "/PID" and rest[1].isdigit() and rest[2].upper() == "/F":
+                return [argv[0], "/PID", rest[1], "/F"], {}, None
+            return None, None, ("taskkill is refused outside the exact shape `taskkill /PID "
+                                "<digits> /F` -- no /IM, no wildcards, exactly one numeric pid")
         return None, None, ("only these families run unattended: `pytest ...` / `py -m "
                             "pytest ...` (isolated), `py agent_cli.py <read-verb> ...`, "
-                            'and `py scripts/mirror.py "msg" <paths>` (IR-4 audited commits)')
+                            '`py scripts/mirror.py "msg" <paths>` (IR-4 audited commits), and '
+                            "`tasklist` / `taskkill /PID <digits> /F` (recovery)")
 
     def run_command(self, command, working_dir=None, timeout=60):
         if not self.allow_exec:
