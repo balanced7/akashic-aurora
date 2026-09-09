@@ -229,6 +229,15 @@
     '#rjump .n{color:var(--user-a,#48e6bf);font-variant-numeric:tabular-nums}',
     '@media (max-width:1080px){#rjump{right:18px}}',
 
+    /* JUMP MOTION-BLUR — the same zero-cost smear the entry animation uses (msgIn, bifrost_ui.py).
+       During a jump-to-latest the feed translates FAST, so the rows get a transient blur that
+       reads as motion. It is a single composited filter transition on the SCROLL CONTAINER (not
+       per-row), so it costs one layer, not N. The blur lives on #log so it inherits the feed's
+       overflow clip; .jl-blur is toggled only for the ~500ms the jump runs, then removed. */
+    '#log.jl-blur{filter:blur(7px);transition:filter .16s ease}',
+    '#log.jl-blur *{animation:none !important}',
+    '@media (prefers-reduced-motion:reduce){#log.jl-blur{filter:none !important;transition:none !important}}',
+
     /* CHAPTERS — "no clickable chapters on the left to quickly orient yourself".
        Derived from the feed itself (speaker changes + time gaps), never hand-maintained. */
     '.rchap{display:flex;gap:8px;align-items:baseline;padding:5px 0;cursor:pointer;',
@@ -361,42 +370,96 @@
     log.addEventListener('scroll', sync, { passive: true });
     btn.onclick = function () {
       // ONE CLICK MUST ARRIVE. Daniil: "it takes multiple clicks to get to the bottom."
-      // A smooth scroll toward scrollHeight is a moving target here -- the feed re-renders on a
-      // 5s poll, images/markdown settle after layout, and content-visibility:auto means
-      // off-screen rows have an ESTIMATED height that is replaced by the real one as they come
-      // into view. Each of those changes scrollHeight mid-animation, so the smooth scroll lands
-      // where the bottom USED to be. Jump instantly, then re-assert on the next few frames until
-      // the target stops moving. Instant is also the honest interaction: the button says take me
-      // to the bottom, not take me toward it.
       //
-      // WHY ONE CLICK MUST ARRIVE, AND WHY THE OLD LOOP COULD NOT.
-      //   #log's .msg rows carry `content-visibility:auto` + `contain-intrinsic-size:auto 64px`
-      //   (bifrost_ui.py:1771). That means an off-screen row reports an ESTIMATED 64px height
-      //   until the browser actually lays it out. A scrollTo({top: scrollHeight}) therefore aims
-      //   at a scrollHeight built from guesses -- and the moment a guessed row enters the
-      //   viewport it resolves to its REAL height (code blocks, markdown: often 200-600px),
-      //   which pushes the true bottom FURTHER down. Every click advanced ~one viewport of
-      //   estimation error, hence "many clicks".
-      //   The fix is to stop targeting a scrollHeight (a number) and instead target the ACTUAL
-      //   last message ELEMENT: scrollIntoView measures the real geometry of the thing we want
-      //   to reach rather than a projected total. No row can be "estimated" once it is the
-      //   explicit scroll target -- the browser must lay it out to scroll to it.
+      // RESOLVE INSTANTLY, THEN ANIMATE — Daniil's "restore the smooth animation" without
+      // resurrecting the many-clicks bug. The W179 defect was a scrollHeight built from
+      // content-visibility ESTIMATES (contain-intrinsic-size:auto 64px) that resolve to their
+      // real height only once they enter the viewport -- so a smooth scroll toward that number
+      // chased a moving target, one viewport per click. The cure for the BUG was instant jumps;
+      // the cure for the LOST MOTION is to SPLIT the two:
       //
-      //   Scroll into the LAST message node (skip the composer's own sentinel), then clamp to the
-      //   absolute bottom so even a feed with no message elements (e.g. only bookkeeping) lands.
-      var nodes = log.querySelectorAll('.msg');
-      var target = nodes.length ? nodes[nodes.length - 1] : null;
-      if (target) {
-        // behavior:'instant' here too: #log carries scroll-behavior:smooth, and scrollIntoView
-        // with the default 'auto' would INHERIT that smooth and animate toward the target.
-        target.scrollIntoView({ block: 'end', behavior: 'instant' });
+      //   PHASE 1 (resolve, invisible): force every off-screen row to lay out by temporarily
+      //     switching the feed off content-visibility:auto, then read the TRUE scrollHeight.
+      //     This is a synchronous layout pass -- zero visual change, the user sees nothing.
+      //   PHASE 2 (animate, visible): a short rAF-driven eased scroll from scrollTop to the
+      //     now-CORRECT target, written as direct scrollTop = values (never scroll-behavior:
+      //     smooth -- autoscroll() would cancel that mid-flight). Because the target was
+      //     resolved BEFORE the animation started, it cannot drift; one click, one arrival.
+      //
+      //   MOTION BLUR (polish): #log gets a .jl-blur filter for the animation's duration (see
+      //     the CSS block above). Single composited layer, no per-row cost, honors reduced-motion.
+      //
+      // RESOLVE THE CHILDREN, not the container: content-visibility:auto lives on .msg (the
+      // children), so force those laid out, then read the true scrollHeight. The estimate is
+      // KEPT DISABLED through the whole animation and only restored on landing, because the
+      // moment content-visibility re-engages, off-screen rows snap back to their 64px guess and
+      // scrollHeight SHRINKS -- which would make the measured target overshoot. Stable geometry
+      // during transit, re-estimate only after we are at the (now visible) bottom.
+      var msgs = log.querySelectorAll('.msg');
+      var saved = [];
+      [].forEach.call(msgs, function (m) {
+        saved.push([m, m.style.contentVisibility, m.style.containIntrinsicSize]);
+        m.style.contentVisibility = 'visible';
+        m.style.containIntrinsicSize = 'none';     // drop the 64px estimate so real height rules
+      });
+      void log.offsetHeight;                        // synchronous layout flush
+      var targetTop = log.scrollHeight - log.clientHeight;
+
+      var reduced = false;
+      try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+      var start = log.scrollTop;
+      var delta = targetTop - start;
+
+      function restoreEstimates() {
+        [].forEach.call(saved, function (r) {       // restore the perf settings we borrowed
+          r[0].style.contentVisibility = r[1];
+          r[0].style.containIntrinsicSize = r[2];
+        });
+        saved = [];
       }
-      // One instant jump to the true bottom as the final word. behavior:'instant' is mandatory:
-      // a bare `scrollTop =` on a scroll-behavior:smooth #log starts a SMOOTH scroll that
-      // autoscroll() cancels mid-flight each time a new message arrives. Over-scrolling is
-      // harmless (scrollTop clamps), so aiming past the real bottom just pins us to it.
-      log.scrollTo({ top: log.scrollHeight, behavior: 'instant' });
-      sync();
+
+      // Tiny deltas don't warrant an animation; a real "jump down the feed" does.
+      if (reduced || Math.abs(delta) < 4) {
+        log.scrollTop = targetTop;
+        restoreEstimates();
+        sync();
+        return;
+      }
+
+      // Motion blur: blur the feed during the transit. Bound the duration so it never lingers
+      // on a stalled animation (a new message can arrive mid-flight and re-render the feed).
+      log.classList.add('jl-blur');
+
+      var DUR = Math.min(520, 320 + Math.abs(delta) * 0.04);   // ~0.32s short, ~0.52s long
+      var t0 = performance.now();
+      var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };   // cubic out
+
+      var interrupted = false;
+      var selfScrolling = false;               // suppress our OWN scrollTop writes from counting as user scroll
+      function onUserScroll() {
+        if (!selfScrolling) interrupted = true;   // only a REAL user wheel/touch interrupts
+      }
+
+      function step(now) {
+        var p = Math.min(1, (now - t0) / DUR);
+        selfScrolling = true;
+        log.scrollTop = start + delta * easeOut(p);
+        selfScrolling = false;
+        if (p < 1 && !interrupted) {
+          requestAnimationFrame(step);
+          return;
+        }
+        // Final: pin to the resolved bottom, restore the perf estimate, settle the blur.
+        log.scrollTop = targetTop;
+        restoreEstimates();
+        log.classList.remove('jl-blur');
+        log.removeEventListener('scroll', onUserScroll);
+        sync();
+      }
+
+      log.addEventListener('scroll', onUserScroll, { passive: true });
+      requestAnimationFrame(step);
     };
     setInterval(sync, 1500);   // catches new messages arriving while scrolled away
     sync();
