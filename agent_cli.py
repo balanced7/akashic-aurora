@@ -1370,7 +1370,7 @@ def _boot_siblings_line(agent_id: str) -> str:
             return ""
         bits = []
         for s in sibs[:3]:
-            sid8 = str(s.get("session_id", ""))[:8]
+            sid8 = _sid8_of(s.get("session_id", ""))
             age = s.get("age_min")
             idle = f"idle {age:.0f}m" if isinstance(age, (int, float)) else "age unknown"
             claims = ",".join(s.get("claims") or []) or "no claims"
@@ -4952,6 +4952,14 @@ def _print_events(evs, args, header):
     print(f"  py agent_cli.py events --get {evs[0].get('_ref')}")
 
 
+def _sid8_of(session_id) -> str:
+    """The one incarnation discriminator (core.comm.seat_identity.sid8), imported lazily so
+    this file's import cost stays flat; every session id this CLI prints or keys goes
+    through it (7e2670d54e: the head slice of 'session-<uuid>' is the scheme word)."""
+    from core.comm.seat_identity import sid8
+    return sid8(session_id or "") if session_id else ""
+
+
 def cmd_events(args):
     """Search / drill / capture the raw event firehose (the auto-logger's read door).
 
@@ -6010,8 +6018,8 @@ def cmd_bifrost_sync(args):
         # The honest product is `read_but_undeclared`, which is exactly the state this surfaces.
         try:
             from core.comm import mailbox as _mbx
-            _inc = (os.environ.get("AKASHIC_SESSION8")
-                    or os.environ.get("CLAUDE_CODE_SESSION_ID", "")[:8] or "harness")
+            _inc = (_sid8_of(os.environ.get("AKASHIC_SESSION8"))
+                    or _sid8_of(os.environ.get("CLAUDE_CODE_SESSION_ID", "")) or "harness")
             _n = sum(1 for _m in msgs
                      if _mbx.open_for_message(args.agent_id, _m, incarnation=_inc).get("ok"))
             if _n:
@@ -6292,7 +6300,7 @@ def cmd_bifrost_send(args):
             # "answered" downstream (ladder checkmark, expectation settle).
             meta["answers"] = str(args.answers)
         mid = bus.send(args.to, args.kind, text, meta=meta or None)
-        dest = args.to + (f"#{args.to_incarnation[:8]}" if getattr(args, "to_incarnation", None) else "")
+        dest = args.to + (f"#{_sid8_of(args.to_incarnation)}" if getattr(args, "to_incarnation", None) else "")
         auto = expect_arg < 0 and args.kind in AUTO_REDRIVE_KINDS
         expect = ASK_EXPECT_DEFAULT_S if auto else max(0, expect_arg)
         if mid and expect > 0:
@@ -6543,8 +6551,8 @@ def cmd_seat_identity(args) -> int:
               "(CLAUDE_CODE_SESSION_ID is unset in this process)")
         return 1
     if args.clear:
-        print(f"[seat-identity] binding cleared for {sid[:8]}" if si.clear(sid)
-              else f"[seat-identity] no binding to clear for {sid[:8]}")
+        print(f"[seat-identity] binding cleared for {_sid8_of(sid)}" if si.clear(sid)
+              else f"[seat-identity] no binding to clear for {_sid8_of(sid)}")
         return 0
     if args.agent_id:
         if not si.valid(args.agent_id):
@@ -6553,11 +6561,11 @@ def cmd_seat_identity(args) -> int:
         if not si.declare(args.agent_id, sid):
             print("[seat-identity] REFUSED: could not write the binding")
             return 1
-        print(f"[seat-identity] {sid[:8]} is now {args.agent_id}")
+        print(f"[seat-identity] {_sid8_of(sid)} is now {args.agent_id}")
     got, src = si.resolve(sid), si.resolved_from(sid)
-    print(f"  seat: {got}#{sid[:8]}   (resolved from: {src})")
+    print(f"  seat: {got}#{_sid8_of(sid)}   (resolved from: {src})")
     if src == "unknown":
-        print("  NOTE: unresolved. Hook-authored records will read unknown-" + sid[:8]
+        print("  NOTE: unresolved. Hook-authored records will read unknown-" + _sid8_of(sid)
               + " rather than borrowing a peer's name -- honest, but not yours until declared.")
     elif src == "env":
         print("  NOTE: from the shared process env, not a per-session binding. If another seat "

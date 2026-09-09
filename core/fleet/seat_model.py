@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from core.comm.seat_identity import sid8 as _sid8
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -131,7 +132,7 @@ def report(agent: str, session: str, model: str, *, harness: str = "", c=None) -
     if cli is None or not (agent and session and model):
         return False
     try:
-        cli.set(_REPORT_KEY.format(agent=agent, session=str(session)[:8]),
+        cli.set(_REPORT_KEY.format(agent=agent, session=_sid8(session)),
                 json.dumps({"model": str(model), "label": _label_for(str(model)),
                             "harness": str(harness or ""), "at": int(time.time())}),
                 ex=REPORT_TTL_SEC)
