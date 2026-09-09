@@ -15,6 +15,7 @@ Run:  py scripts/bifrost_runner_discord.py            (refuses loudly if unconfi
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -250,7 +251,45 @@ def _token() -> str:
     return _vault(BOT_TOKEN_NAME)
 
 
-def main() -> int:
+def _parse_args(argv=None):
+    """Parse the runner's deliberately empty public option surface.
+
+    Parsing still matters when there are no runtime flags: before this gate,
+    ``--help`` and misspelled options were silently ignored and opened a real
+    Discord websocket.  The production service wrapper passes no child args,
+    so rejecting everything except argparse's built-in help is the honest
+    contract.
+    """
+    parser = argparse.ArgumentParser(
+        description="Run the Akashic Aurora inbound Discord gateway"
+    )
+    return parser.parse_args(argv)
+
+
+def _bus_startup_problem(bus) -> Optional[str]:
+    """Return why this process's own Bifrost connection is not usable.
+
+    A fresh outside health probe answers whether Redis is reachable *now*; it
+    cannot repair a long-lived ``Bus`` that failed soft to ``_client=None`` at
+    construction.  A gateway without its bus is not partially healthy: its
+    ownership lock becomes a no-op and both relay loops fail forever.
+    """
+    client = getattr(bus, "_client", None)
+    if client is None:
+        return "Bifrost has no process-owned Redis client"
+    try:
+        if not client.ping():
+            return "the process-owned Bifrost Redis ping returned false"
+    except Exception as exc:                                           # noqa: BLE001
+        return (
+            "the process-owned Bifrost Redis ping failed "
+            f"({type(exc).__name__}: {exc})"
+        )
+    return None
+
+
+def main(argv=None) -> int:
+    _parse_args(argv)
     # Durable log before anything can refuse: a REFUSED line nobody can read is the same blind
     # spot as a crash nobody can read.
     sys.stdout = Tee(sys.stdout, gateway_log_path())
@@ -288,6 +327,14 @@ def main() -> int:
     from core.comm.runner_lib import set_seat_agent
     set_seat_agent("discord")
     bus = Bus("daniil")          # inbound speaks AS the operator, or not at all (R3)
+    bus_problem = _bus_startup_problem(bus)
+    if bus_problem:
+        print(
+            f"[discord-in] RETRYABLE STARTUP REFUSAL: {bus_problem}; refusing to "
+            "open Discord without its relay/ownership substrate (exit 75)",
+            flush=True,
+        )
+        return 75
 
     # dc6200d491: the gateway was the only supervised organ with no singleton guard --
     # its sole idempotence used to be revive counting a process-table string, which is
