@@ -18,11 +18,13 @@ Run:  py -m pytest tests/test_dc6200d491_gateway_singleton.py -v
 """
 from __future__ import annotations
 
+import importlib.util
 import inspect
 import json
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -61,6 +63,17 @@ def _gateway_source() -> str:
     return (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8")
 
 
+def _gateway_module():
+    spec = importlib.util.spec_from_file_location(
+        "_discord_gateway_startup_contract",
+        REPO / "scripts" / "bifrost_runner_discord.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 # ------------------------------------------------------------------ (1) source pins
 def test_main_imports_and_keys_the_lock_by_the_gateways_own_agent_id():
     src = _gateway_source()
@@ -96,6 +109,53 @@ def test_pulse_heartbeats_the_lock_not_just_worklive():
 def test_lock_release_is_registered_for_normal_exit():
     src = _gateway_source()
     assert "atexit.register(_dlock.release)" in src
+
+
+def test_cli_help_and_unknown_arguments_cannot_open_discord():
+    """Argument handling must finish before main performs any runtime work.
+
+    A bare ``--help`` invocation opened a second live Discord websocket on
+    2026-09-09 because the runner ignored every argument.  Exercise the parser
+    directly so this pin can never touch a token, Redis, or Discord.
+    """
+    gateway = _gateway_module()
+
+    with pytest.raises(SystemExit) as help_exit:
+        gateway._parse_args(["--help"])
+    assert help_exit.value.code == 0
+
+    with pytest.raises(SystemExit) as bad_exit:
+        gateway._parse_args(["--definitely-not-a-gateway-option"])
+    assert bad_exit.value.code == 2
+
+
+def test_gateway_refuses_a_missing_or_unreachable_process_owned_bus():
+    """A fresh outside probe cannot certify the connection owned by this process."""
+    gateway = _gateway_module()
+
+    assert gateway._bus_startup_problem(SimpleNamespace(_client=None))
+
+    class BrokenClient:
+        def ping(self):
+            raise ConnectionError("process-owned Redis connection is unavailable")
+
+    assert gateway._bus_startup_problem(SimpleNamespace(_client=BrokenClient()))
+
+    class LiveClient:
+        def ping(self):
+            return True
+
+    assert gateway._bus_startup_problem(SimpleNamespace(_client=LiveClient())) is None
+
+
+def test_bus_startup_gate_runs_before_singleton_and_socket():
+    """No bus means no no-op lock, no ownership loops, and no Discord websocket."""
+    src = _gateway_source()
+    bus_at = src.index('bus = Bus("daniil")')
+    guard_at = src.index("_bus_startup_problem(bus)", bus_at)
+    lock_at = src.index("DaemonLock(bus._client", guard_at)
+    socket_at = src.index("client.run(", lock_at)
+    assert bus_at < guard_at < lock_at < socket_at
 
 
 # ------------------------------------------------------------------ (2) the drill itself
