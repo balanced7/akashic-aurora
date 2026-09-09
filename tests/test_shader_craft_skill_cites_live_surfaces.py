@@ -39,6 +39,11 @@ QUOTED = [
     ("scripts/agent-avatar.js",
      "if (sinceTick > 55) this._slowStreak = (this._slowStreak || 0) + 1;"),
     ("scripts/agent-avatar.js", "if ((this._slowStreak || 0) >= 45) {"),
+    # Heimdall's refuter (ask 1db70283, 2026-09-09): the avatar renders at native device pixels
+    # and antialiases its silhouette by cone tracking; the skill had copied a stale header.
+    ("scripts/agent-avatar.js", "var dpr = Math.min(global.devicePixelRatio || 1, 2);"),
+    ("scripts/agent-avatar.js", "if(t>.001) cone=min(cone,m.d/t);"),
+    ("scripts/aurora-shader.js", "const mb = this.motion > 0.001;"),
 ]
 
 # The seam the skill promises on every module: (file, [required tokens]).
@@ -51,7 +56,7 @@ SEAM = {
 # The verbs and flags the skill's loop names.
 VERBS = {
     "scripts/vfx_render.py": ['add_parser("thumb"', 'add_parser("sheet"', 'add_parser("grid"',
-                              'add_parser("state"', '"--t"', "--say", '"--frames"', '"--from"',
+                              'add_parser("state"', 'add_parser("ingest"', '"--file"', '"--t"', "--say", '"--frames"', '"--from"',
                               '"--to"'],
     "scripts/ui_shot.py": ["--label", "--fps", "--viewport"],
     "scripts/bifrost_ui.py": ['"/aurora-shader.js"', "aurora-fallback-hide", "isSupported()"],
@@ -84,7 +89,8 @@ def test_p1_every_repo_path_the_skill_names_exists():
                 if not (d.is_dir() and any(d.glob(Path(p).name))):
                     missing.append(f"{doc.name}: {p}")
                 continue
-            if not (REPO / p).exists():
+            # a skill cites its references/ relative to itself, the way Claude Code skills do
+            if not ((REPO / p).exists() or (SKILL_DIR / p).exists()):
                 missing.append(f"{doc.name}: {p}")
     assert not missing, "paths named by the skill that do not exist: " + ", ".join(missing)
 
@@ -131,6 +137,27 @@ def test_p5_the_verbs_and_flags_the_loop_names_still_exist():
             if t not in src:
                 gone.append(f"{rel} lacks {t}")
     assert not gone, "; ".join(gone)
+
+
+def test_p7_every_quoted_line_is_in_head_not_only_in_the_working_tree():
+    """The day this pin first went green, four of the quoted lines existed only in the working
+    tree: the aurora's motion blur and the avatar's freeze fix had sat uncommitted since late
+    August. A skill that describes uncommitted code lies to every fresh clone, so the quote
+    must be in HEAD's copy of the file too, not only on this disk."""
+    import subprocess
+    try:
+        subprocess.run(["git", "--version"], capture_output=True, check=True)
+    except Exception as e:  # pragma: no cover - a repo without git cannot make this claim
+        raise AssertionError(f"git is needed to check HEAD: {e}")
+    stale, cache = [], {}
+    for rel, line in QUOTED:
+        if rel not in cache:
+            r = subprocess.run(["git", "show", f"HEAD:{rel}"], cwd=str(REPO), capture_output=True,
+                               text=True, encoding="utf-8", errors="replace")
+            cache[rel] = r.stdout if r.returncode == 0 else ""
+        if line not in cache[rel]:
+            stale.append(f"HEAD:{rel} lacks: {line[:60]} (uncommitted work on disk?)")
+    assert not stale, "; ".join(stale)
 
 
 def test_p6_the_skill_names_the_lessons_it_is_the_fold_back_of():
