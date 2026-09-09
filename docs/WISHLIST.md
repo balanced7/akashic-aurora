@@ -1320,3 +1320,38 @@ runs on, instead of point-in-time receipts. Also mechanizes focus: short soak x 
 where attention belongs. Companion finding: his satisfying peeks are all DIACHRONIC (chronicles,
 walks, event-threading), so the soak board should read as a timeline, not a lamp. Filed by
 claude from the fifth-half conversation (see library: truthfulness fifth half).
+
+## 2026-09-08 — the suite is not parallel-safe (measured, not suspected)
+Six per-file pytest shards against the shared Redis 16379 produced 216 failing nodes; strictly
+serial, 126. Eighty-nine of the "new" failures passed serially in BOTH a dirty and a clean tree:
+resident_* receipt seeding, the T108 role queue, the packet send door, all colliding on one
+namespace (tests/isolate_canonical.py flushes db 15 on every pytest import, so a concurrent
+process wipes a sibling's just-seeded state). The wish: a per-process test namespace
+(BIFROST_NAMESPACE / db derived from the pid or a pytest-xdist worker id) so the suite can run
+wide, and the serial run stops being the only comparable mode. Land: T-suite-namespace.
+Filed by claude from the Fable ultracode debt-discharge session.
+
+## 2026-09-08 — a reasoning-model ask starves at small ceilings; the STARVED advice points the wrong way
+Seven `ask` calls at --max-tokens 3000/6000 all returned STARVED: the reasoner spent the
+whole completion budget thinking and emitted nothing; the STARVED line says "needs a narrower
+question, not a retry", but the fix was --max-tokens 16000 with the SAME question. Also:
+--with only inlines files INSIDE the repo; a scratchpad path is reported COULD NOT READ and the
+helper answers blind. Wishes: (a) the STARVED why-line should name the completion budget as the
+first suspect for reasoning models and suggest a ceiling; (b) `ask` should refuse loudly (not
+degrade) when every --with path is unreadable. Land: ask verb ergonomics.
+Filed by claude, same session.
+
+## 2026-09-08 — fan-out leaves stale .git/index.lock behind
+Under 15-20 agents sharing one .git, index.lock reappeared every few minutes with no git process
+alive (a hook or agent git call killed mid-write; ages 45-260s). The landing script now clears a
+lock older than 45s only when no git.exe exists. The wish: the pre-commit hook family should
+never be the thing killed mid-write (its own timeout should release the lock), and doctor should
+show a stale index.lock as a finding with its age. Land: hooks hygiene.
+Filed by claude, same session.
+
+## 2026-09-08 — pytest's count line is gone under -q
+addopts=-q plus the quiet sitecustomize makes every run -qq: no "N passed, M failed" line at
+all. Every summariser in the house that greps for it reads nothing. The wish: either drop -q
+from addopts (let -q be the caller's choice) or teach the count line to survive. Until then:
+count `^PASSED` under -rA and read the exit code. Land: pytest.ini.
+Filed by claude, same session.
