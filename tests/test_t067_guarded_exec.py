@@ -157,6 +157,50 @@ def test_g6_recovery_taskkill_multiple_pids_refused():
     assert "REFUSED" in out
 
 
+# ---------------------------------------------- G7 read-only git family (2026-09-09)
+# Daniil 2026-09-09 verbatim: "I trust you guys, can you make that for yourself, heimdall,
+# sunshine and rill?" -- widen the EXEC family gate (not the ACL) with READ-ONLY git verbs
+# so Cap.EXEC seats can inspect/diff/log/status without a super-admin. git.read is already
+# in every admin's caps; the family gate refused `git` outright, which is the whack-a-mole.
+# SHAPE-CONSTRAINED exactly like the G6 recovery family: no metachars (G2 already refuses),
+# a closed read-only verb whitelist, and every mutating git verb (commit/add/push/checkout/
+# reset/mv/rm/...) stays refused. GETURI-0: scope, not --git-dir arbitrariness.
+G7_READ_VERBS = ("status", "diff", "log", "show")
+
+def test_g7_readonly_git_verbs_run():
+    for v in G7_READ_VERBS:
+        out = _tb().run_command(f"git {v}", timeout=30)
+        assert "REFUSED" not in out, f"read-only git verb {v!r} refused: {out[:200]}"
+
+
+def test_g7_diff_and_log_flags_accepted():
+    # --no-pager keeps these non-interactive; plain-passthrough flags are fine (they are
+    # still read-only), the MUTATION surface is what this family closes, not flag shapes.
+    for cmd in ("git diff --stat", "git --no-pager log --oneline -5", "git status --short"):
+        out = _tb().run_command(cmd, timeout=30)
+        assert "REFUSED" not in out, f"{cmd!r} refused: {out[:200]}"
+
+
+def test_g7_mutating_git_verbs_refused():
+    for v in ("add", "commit", "push", "pull", "fetch", "checkout", "reset", "merge",
+              "rebase", "cherry-pick", "stash", "mv", "rm", "branch", "tag", "clone",
+              "switch", "restore"):
+        out = _tb().run_command(f"git {v}", timeout=30)
+        assert "REFUSED" in out, f"mutating git verb {v!r} survived the gate: {out[:200]}"
+
+
+def test_g7_git_dir_flag_refused():
+    # --git-dir / -C would let a caller point git at an ARBITRARY repository (or a bare
+    # tree) to read outside the repo -- refused, not allowed, keeping this family scoped.
+    out = _tb().run_command("git -C /tmp status")
+    assert "REFUSED" in out, "git -C must be refused (scope escape)"
+
+
+def test_g7_git_force_flag_refused():
+    # -f/--force on an otherwise-read verb is still a mutation surface; refuse it.
+    out = _tb().run_command("git diff -f")
+    assert "REFUSED" in out, "git -f must be refused (force/mutate)"
+
 # ---------------------------------------------------------------- G5 the ACL layer
 def test_g5_exec_cap_checked_when_agent_identity_present(monkeypatch):
     from core.trust import registry
