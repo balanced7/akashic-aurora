@@ -1952,6 +1952,7 @@ PAGE = r"""<!doctype html>
   .epi-mark{font-size:9.5px; font-weight:700; letter-spacing:.3px; padding:0 4px;
     border:1px dashed var(--border); border-radius:4px; opacity:.85}
   .hop{color:var(--faint); font-size:10.5px; border:1px solid var(--border); border-radius:5px; padding:0 5px}
+  .via{color:var(--muted); font-size:10.5px; border:1px solid var(--border); border-radius:5px; padding:0 5px}
   .ib{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; padding:1px 6px; border-radius:5px; border:1px solid var(--border)}
   .ib-halt{color:var(--amber); border-color:rgba(240,178,70,.45); background:rgba(240,178,70,.12)}
   .ib-steer{color:var(--deepseek); border-color:rgba(122,162,247,.4); background:rgba(122,162,247,.1)}
@@ -2921,6 +2922,8 @@ function renderMsg(m){                        // build a message's DOM node (no 
   const wrap=document.createElement('div'); wrap.className='msg'+(me?' me':'');
   if(m.ts) wrap.setAttribute('data-ts', m.ts.replace(' ','T'));
   const hop = (m.meta && m.meta.hops)? '<span class="hop">hop '+m.meta.hops+'</span>':'';
+  // one timeline, visible door (Daniel 2026-09-11): a line relayed from Discord says so
+  const via = (m.meta && m.meta.source==='discord')? '<span class="via" title="relayed from Discord">via Discord</span>':'';
   const intent = (m.meta && m.meta.intent)? '<span class="ib ib-'+m.meta.intent+'" title="'+esc(m.meta.why||'')+'">'+m.meta.intent+'</span>':'';
   const epi = epiGlyph(m);
   const epimark = epi.marker? '<span class="epi epi-mark epi-'+epi.tier+'">'+epi.marker+'</span>' : '';
@@ -2928,7 +2931,7 @@ function renderMsg(m){                        // build a message's DOM node (no 
   wrap.innerHTML =
     '<div class="av '+c+'">'+initials(name(from))+'</div>'+
     '<div class="bubble"><div class="row"><span class="who '+c+'" style="cursor:pointer" title="click to talk 1:1 with '+esc(name(from))+'" onclick="if(from!==\'user\'&&from!==\'system\')setThread(from===\'_threadPeer\'?\'\':from)">'+esc(name(from))+'</span>'+
-    '<span class="time">'+now(m.ts)+'</span>'+epig+epimark+intent+hop+'</div>'+
+    '<span class="time">'+now(m.ts)+'</span>'+epig+epimark+intent+hop+via+'</div>'+
     '<div class="content">'+_msgRenderer(m)+'</div></div>';
   return wrap;
 }
