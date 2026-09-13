@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>Play — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/play.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Play</span>
+      <span class="brand-sub">arsenal &middot; Play Night &middot; preset bank</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="status-text" id="audio-status">audio: clip (no clip)</span>
+      <span class="status-text" id="midi-status">MIDI: not connected</span>
+      <button type="button" class="btn" id="btn-midi">Connect MIDI</button>
+      <button type="button" class="btn" id="btn-perform" aria-pressed="false" title="Performance mode (H)">Perform</button>
+      <button type="button" class="btn" id="btn-rack" aria-pressed="true" aria-controls="rack">Rack</button>
+    </div>
+  </header>
+
+  <div class="layout" id="layout">
+
+    <section class="stage" id="stage" aria-label="Stage">
+      <canvas id="gl" tabindex="0" aria-label="Play render surface"></canvas>
+      <video id="video" playsinline preload="metadata"></video>
+
+      <div class="hint" id="hint">
+        <p class="hint-title">Visualizer mode</p>
+        <p class="hint-body">No clip. Pick an audio input in the Audio panel, or drag a clip onto the stage or pick one from the Library.</p>
+      </div>
+
+      <div class="stage-tags" id="stage-tags">
+        <span class="tag tag-preset" id="tag-preset">Passthrough</span>
+        <span class="tag tag-fade" id="tag-fade" hidden="hidden">fade</span>
+        <span class="tag tag-blackout" id="tag-blackout" hidden="hidden">blackout</span>
+      </div>
+
+      <div class="banner" id="banner" role="status" hidden="hidden">
+        <span id="banner-text"></span>
+      </div>
+
+      <div class="perf-toast" id="perf-toast" aria-live="polite">
+        <span class="perf-toast-name" id="perf-toast-name"></span>
+        <span class="perf-toast-author" id="perf-toast-author"></span>
+      </div>
+      <div class="perf-hint" id="perf-hint">H show the UI &middot; &larr;/&rarr; presets &middot; 1&ndash;9 slots &middot; R random &middot; X crossfade/cut &middot; B blackout &middot; F fullscreen &middot; Space play</div>
+
+      <div class="transport" id="transport">
+        <button type="button" class="btn btn-icon" id="btn-play" aria-pressed="false">Play</button>
+        <button type="button" class="btn btn-icon" id="btn-loop" aria-pressed="false">Loop</button>
+        <input type="range" id="seek" class="seek" min="0" max="1000" step="1" value="0" aria-label="Seek" />
+        <span class="time" id="time"><span id="time-cur">0:00</span><span class="time-sep">/</span><span id="time-dur">0:00</span></span>
+        <button type="button" class="btn btn-icon" id="btn-eject" title="Unload the clip (visualizer mode)">Eject</button>
+        <button type="button" class="btn btn-icon" id="btn-fullscreen" title="Fullscreen (F)">Fullscreen</button>
+      </div>
+    </section>
+
+    <aside class="rack" id="rack">
+
+      <section class="panel" data-panel="presets" aria-label="Presets">
+        <h2 class="panel-title">Presets <span class="panel-count" id="preset-count"></span></h2>
+        <ol class="preset-list" id="preset-list"></ol>
+        <p class="panel-note" id="preset-note"></p>
+        <div class="button-row">
+          <button type="button" class="btn" id="btn-prev" title="Previous preset (Left)">Prev</button>
+          <button type="button" class="btn" id="btn-random" title="Random preset (R)">Random</button>
+          <button type="button" class="btn" id="btn-next" title="Next preset (Right)">Next</button>
+          <button type="button" class="btn" id="btn-xfade" aria-pressed="true" title="Crossfade 600 ms or cut (X)">XFade 600ms</button>
+          <button type="button" class="btn" id="btn-blackout" aria-pressed="false" title="Blackout (B)">Blackout</button>
+          <button type="button" class="btn" id="btn-rescan" title="Reload the preset list and recompile changed files">Rescan</button>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="hud" aria-label="HUD">
+        <h2 class="panel-title">HUD</h2>
+        <div class="meters" id="meters">
+          <div class="meter" data-meter="level"><span class="meter-label">level</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter" data-meter="bass"><span class="meter-label">bass</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter" data-meter="mid"><span class="meter-label">mid</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter" data-meter="high"><span class="meter-label">high</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter" data-meter="flux"><span class="meter-label">flux</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter meter-beat" data-meter="beat"><span class="meter-label">beat</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+          <div class="meter" data-meter="pulse"><span class="meter-label">pulse</span><span class="meter-track"><span class="meter-fill"></span></span><span class="meter-val">0.00</span></div>
+        </div>
+        <dl class="hud-grid" id="hud">
+          <div class="hud-row"><dt>FPS</dt><dd id="hud-fps">&mdash;</dd></div>
+          <div class="hud-row"><dt>Preset</dt><dd id="hud-preset">&mdash;</dd></div>
+          <div class="hud-row"><dt>Compile</dt><dd id="hud-compile">&mdash;</dd></div>
+          <div class="hud-row"><dt>Feedback / scale</dt><dd><span id="hud-feedback">&mdash;</span> <button type="button" class="btn btn-mini" id="btn-scale" title="Restore the backing scale to 1.00">reset</button></dd></div>
+          <div class="hud-row"><dt>Audio source</dt><dd id="hud-audio">&mdash;</dd></div>
+          <div class="hud-row"><dt>MIDI / last</dt><dd id="hud-midi">&mdash;</dd></div>
+          <div class="hud-row"><dt>Latency p50/p95</dt><dd id="hud-latency">&mdash;</dd></div>
+          <div class="hud-row"><dt>Frames drop/total</dt><dd id="hud-frames">&mdash;</dd></div>
+          <div class="hud-row"><dt>Clock / epoch</dt><dd id="hud-clock">&mdash;</dd></div>
+          <div class="hud-row"><dt>Take / events</dt><dd id="hud-take">&mdash;</dd></div>
+        </dl>
+        <pre class="shader-log" id="shader-log" hidden="hidden"></pre>
+      </section>
+
+      <section class="panel" data-panel="audio" aria-label="Audio">
+        <h2 class="panel-title">Audio</h2>
+        <div class="field-row">
+          <label class="field-label" for="audio-source">Source</label>
+          <select id="audio-source" class="select">
+            <option value="clip">Clip (the playing video)</option>
+            <option value="input">Input device (analysed only)</option>
+            <option value="analysis">Analysis (server features)</option>
+          </select>
+          <button type="button" class="btn" id="btn-pin" aria-pressed="false" title="Keep this source when a clip loads">Pin</button>
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="audio-device">Device</label>
+          <select id="audio-device" class="select">
+            <option value="">(enable inputs to list devices)</option>
+          </select>
+          <button type="button" class="btn" id="btn-inputs">Enable inputs</button>
+        </div>
+        <p class="panel-note" id="audio-note">A live input is analysed only. It is never routed to the speakers.</p>
+      </section>
+
+      <section class="panel" data-panel="macros" aria-label="Macros">
+        <h2 class="panel-title">Macros</h2>
+        <div class="macro-list" id="macro-list"></div>
+      </section>
+
+      <section class="panel" data-panel="map" aria-label="MIDI map">
+        <h2 class="panel-title">Map</h2>
+        <p class="panel-note">Click a target, then move or press a control. Knobs and faders learn a CC; triggers learn a note.</p>
+        <div class="trigger-grid" id="trigger-grid"></div>
+        <ul class="map-list" id="map-list"></ul>
+        <div class="map-controls">
+          <button type="button" class="btn" id="btn-clear-map">Clear map</button>
+          <span class="map-status" id="map-status"></span>
+        </div>
+      </section>
+
+      <section class="panel panel-last" data-panel="library" aria-label="Library">
+        <h2 class="panel-title">Library</h2>
+        <input type="search" id="lib-search" class="lib-search" placeholder="Filter clips&hellip;" aria-label="Filter clip library" />
+        <ul class="lib-list" id="lib-list"></ul>
+      </section>
+
+    </aside>
+  </div>
+</div>
+<script src="/web/play.js" defer></script>
+</body>
+</html>
