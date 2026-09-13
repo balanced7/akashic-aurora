@@ -47,6 +47,8 @@ const step = (name, data) => {
 const chrome = spawn(opt.chrome, [
   `--remote-debugging-port=${opt.port}`, `--user-data-dir=${profile}`,
   "--no-first-run", "--no-default-browser-check", "--mute-audio",
+  // A covered or background window throttles rAF and timers, which would make every fps and drop number meaningless.
+  "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling",
   "--autoplay-policy=no-user-gesture-required", "--window-size=1600,1000", "about:blank",
 ], { stdio: "ignore" });
 
