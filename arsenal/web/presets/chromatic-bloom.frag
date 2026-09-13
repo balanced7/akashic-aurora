@@ -87,9 +87,36 @@ void main() {
     float blob1 = smoothstep(0.55, 0.0, abs(r - (0.34 + 0.12 * sin(t * 0.25))));
     float blob2 = smoothstep(0.5, 0.0, abs(r - (0.55 + 0.14 * sin(t * 0.19 + 2.1 + a))));
     float idle = 0.045 + 0.020 * sin(t * 0.3 + a * 3.0);
+
+    // STRUCTURE without video: thin chromatic rings + a few slowly drifting bokeh
+    // highlights, so the field reads as more than an out-of-focus blur. All analytic
+    // (no extra texture reads): rings are thin radial annuli that drift; the bokeh are
+    // soft travelling discs that sit at a visible floor even in silence.
+    vec3 rings = vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float rr = 0.30 + 0.16 * fi + 0.03 * sin(t * 0.16 + fi * 3.1);
+      float w = 0.012 + 0.004 * fi;
+      float ring_i = smoothstep(w, 0.0, abs(r - rr));
+      rings += vec3(0.30, 0.55, 0.95) * ring_i * mix(0.35, 1.0, u_k4) * (idle + s1);
+      rings += vec3(0.95, 0.30, 0.55) * ring_i * 0.5 * (idle + s2);
+    }
+    vec3 bokeh = vec3(0.0);
+    for (int i = 0; i < 4; i++) {
+      float fi = float(i);
+      float a0 = 0.6 + fi * 1.8;
+      vec2 c = 0.42 * vec2(cos(a0 * 2.3), sin(a0 * 1.7));
+      float drift = 0.05 * sin(t * 0.13 + fi * 2.2);
+      c.x += drift; c.y -= 0.7 * drift;
+      float d = length(p - c);
+      float spot = smoothstep(0.09, 0.0, d);
+      bokeh += vec3(0.12, 0.32, 0.52) * spot * mix(0.16, 0.4, u_k1) * (idle + s0);
+      bokeh += vec3(0.62, 0.26, 0.30) * spot * 0.4 * (idle + s1);
+    }
     base = vec3(0.035, 0.030, 0.050)                                   // soft lavender-black floor
         + vec3(0.45, 0.18, 0.34) * (blob1 + 0.5 * blob2) * (idle + s0)    // rose-magenta core
-        + vec3(0.10, 0.30, 0.48) * (blob2 + 0.5 * blob1) * (idle + s1 + s2); // cool blue halo
+        + vec3(0.10, 0.30, 0.48) * (blob2 + 0.5 * blob1) * (idle + s1 + s2) // cool blue halo
+        + rings + bokeh;                                                  // structure layer
   }
 
   // bloom (k1): cheap multi-tap radial blur APPROXIMATED with just two u_prev taps (the core

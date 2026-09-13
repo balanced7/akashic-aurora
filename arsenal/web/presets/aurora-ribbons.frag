@@ -55,7 +55,9 @@ void main() {
   // Spectrum: sample the log-spaced spectrum row (y=0.25) across x.
   // A smooth flowing band is a sum of travelling sines whose phase/amp tracks the
   // spectrum at a few fixed frequencies. Silent -> gentle, slow, low amplitude.
-  float flow = 0.1 + 0.6 * u_k1;                       // time speed
+  // flow (k1) is an AMOUNT, not a rate: time advances at a fixed pace (so the picture
+  // never jumps when the knob moves); flow scales the ribbons' displacement/waviness.
+  float flow = 0.12 + 0.85 * u_k1;                     // displacement amount (not time speed)
   float nBands = 2.0 + 5.0 * u_k2;                     // band count (fixed, not a loop)
   float spread = 0.25 + 1.0 * u_k3;
 
@@ -67,7 +69,9 @@ void main() {
   // drifting field, three sine families (analytic, no noise crawl).
   // Each band's drive is an IDLE floor + a spectrum term: silent visualizer mode still
   // breathes a slow, gentle aurora instead of collapsing to near-black.
-  float t = u_time * flow;
+  // time runs at a fixed cadence; flow only scales the displacement so the knob reads as
+  // "more/less movement", never a phase jump.
+  float t = u_time;
   float y = p.y * 3.0;
   float idle0 = 0.12 + 0.06 * sin(t * 0.7 + p.x * 2.0);
   float idle1 = 0.12 + 0.06 * sin(t * 0.5 - p.x * 1.5);
@@ -75,9 +79,11 @@ void main() {
   float d0 = idle0 + 2.0 * s0;
   float d1 = idle1 + 2.0 * s1;
   float d2 = idle2 + 2.0 * s2;
-  float w0 = sin(p.x * (3.0 + 0.5 * d0) + t * 1.3 + d0 * 3.0);
-  float w1 = sin(p.x * (5.0 + 0.6 * d1) - t * 0.9 + p.y * 2.0);
-  float w2 = sin(p.x * (7.0 + 0.7 * d2) + t * 0.6 + d2 * 2.0);
+  // flow scales the spatial frequency (waviness) so more flow = busier ribbons at the
+  // same fixed time cadence (no phase discontinuity when the knob is swept).
+  float w0 = sin(p.x * (3.0 + 0.5 * d0) * flow + t * 1.3 + d0 * 3.0);
+  float w1 = sin(p.x * (5.0 + 0.6 * d1) * flow - t * 0.9 + p.y * 2.0);
+  float w2 = sin(p.x * (7.0 + 0.7 * d2) * flow + t * 0.6 + d2 * 2.0);
 
   // band = a soft vertical ribbon; spread bends them with the spectrum
   float band = 0.0;
