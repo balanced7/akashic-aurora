@@ -243,6 +243,14 @@ The piano is built in parallel by the piano agent: `web/piano.html`, `piano.js` 
 3. Run the same sweep once in visualizer mode, without a clip.
 4. The receipt passes if every non-broken preset compiles, there are no page exceptions, and dropped frames stay at or below 0.5% of the sweep.
 
+## Later (v2 ideas, not tonight)
+
+- **Speed knobs:** add per-knob phase accumulators (for example `u_phase1`..`u_phase4`), with the page integrating `rate * dt`. A knob can then set a speed without the picture jumping. Today a knob may only set an amount, because `u_time * knob` jumps when the knob moves.
+- **Piano render mode:** export MIDI + WAV from FL Studio and render a frame-perfect 1080x1920 60 fps video offline, instead of recording live.
+- **Scrolling sheet music** from a MIDI file, beyond tonight's held-chord staff.
+- **Vendored libraries:** keep pinned copies of three.js and the notation library under `arsenal/web/vendor/` so the pages work offline. This needs Daniel's OK to download them.
+- **Preset hot reload:** recompile a preset when its file changes on disk.
+
 ## Acceptance tonight (Daniel playing)
 
 1. FL Studio audio through the Loopback input visibly drives the visuals.
