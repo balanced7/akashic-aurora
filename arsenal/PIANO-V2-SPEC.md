@@ -201,3 +201,75 @@ export function createPerformanceLog({ endpoint = "/api/performance", flushMs = 
 ## 5. Integration (phase B, after the ideas round)
 
 Phase B builds the chosen scheme(s) into `piano/schemes/`, then wires the recorder (a 60/30 fps choice in the top bar), the log (on by default, with a visible "Logging" state and a toggle), and the schemes into piano-next.js. It then writes `arsenal/lanes/piano_verify.mjs` and runs the full receipt. Vandor swaps piano-next into piano after the receipt and review pass.
+
+## 6. Phase B additions, from the design round
+
+Sources, in `research/in-flight/piano-ideas-2026-09-13/`: `panel-synthesis.md` (six designers, three judges), plus the seats' ideas in `heimdall-deepseek.md`, `navi-kimi.md` and `sunshine-sol-handoff.md`.
+
+### 6.1 harmonySet (THEORY, node-tested)
+
+`Theory.harmonySet(sounding, t)` returns the notes that name the harmony:
+- every finger-held note
+- pedal-held notes struck within the last 1.5 s
+- the lowest pedal-held note, when it is also the lowest sounding note, so a pedal point keeps its bass
+
+`currentInfo()` detects over this set instead of every sounding key.
+
+Tests:
+- Riding the pedal from F major into G major names G, not a cluster.
+- A pedalled low C held under a later right-hand chord still reads as the bass of a slash chord.
+- Pedal up with nothing held returns an empty set.
+
+### 6.2 Rules for every new scheme
+
+- Solid means finger-held; hollow means pedal-held.
+- Never sum light. Use normal blending in strict lanes, or merge each lane by maximum. No additive halos.
+  - Neon Trails keeps its additive look behind the density guard, because Daniel loves it.
+- Only attacks and finger-held cores may cross the bloom threshold. Pedal tails decay to a floor.
+- A pedal lift is one visible clearing, and the pedal is drawn once, as its own object.
+- The chord name and staff sit in a protected band that bright geometry fades out of before reaching.
+- Everything is driven by the clock, never by frame counts.
+
+### 6.3 Upright Roll: `piano/schemes/upright-roll.js`
+
+This follows the panel's "Build first" plan.
+- Instanced bars in two pools, black keys drawn over white, with normal blending and no halo or foot glow.
+- The finger-held body is solid and stays under the bloom threshold.
+- An onset cap's thickness shows velocity.
+- Pedal tails are hollow, with alpha `0.7·exp(-age/1.5)` and a floor of 0.28.
+- Sparks fire only above velocity 0.7.
+- A 12 px amber pedal lane is pinned inside the left edge.
+- In 9:16 the roll fades out before the top band (y 230–630) that holds the chord name and staff, and the key fronts sit at or above y 1520.
+- Skip the odometer scroll and the camera elevation for now.
+
+### 6.4 Harmonic Wave: `piano/schemes/harmonic-wave.js` (Navi's idea)
+
+- Above the keys, one bloomed line shows the literal summed waveform of the harmony set's frequencies. The cycle is normalised, so the lowest note shows about three periods.
+- Line thickness follows velocity.
+- Pedal-held notes add in at half amplitude as a second, fainter strand, so the pedal stays visible.
+- A chord change morphs over 150 ms.
+
+### 6.5 Log additions (log.js and performance.py, compatible with section 4)
+
+- **New event kinds:**
+  - `sound_end`, with `by` set to `"release"`, `"pedal"`, `"repeat"` or `"all-off"`. This makes finger-held versus pedal-held a recorded fact.
+  - `rec`, with `state` and `file`.
+  - `mark`, a tick from a KeyLab pad learned once. It shows in the HUD only.
+- **Chord events** also carry `bass`, `rolled_ms`, `pedal_across` (true when the pedal was held through the change) and `harmony_notes`.
+- **The analyzer adds:**
+  - pedal habits: chord changes re-pedalled after the new chord, changes ridden across, and the median lift offset
+  - the share of rolled chords and the median roll time
+  - key-relative numerals, with borrowed chords flagged
+  - one question per session anchored to a timestamp, drawn from those facts
+- **`summary.md`** follows the panel's card format: one line per fact, and every claim tied to a time Daniel can replay.
+
+### 6.6 The receipt: `arsenal/lanes/piano_verify.mjs`
+
+- **The pedal storm:** four octaves of pedalled arpeggios, 30+ notes under one pedal, run for every scheme.
+  - Mean luma in the chord-name and staff band stays within 5% of the same band in silence.
+  - For Upright Roll, no pixel crosses the bloom threshold outside the onset caps.
+  - In 9:16 the key fronts sit at or above y 1520.
+- A 5 s recording at 60 fps, checked with PyAV.
+- A practice-log round trip.
+- Scheme switching with no exceptions.
+- A harmonySet check driven through `__piano.midiMessage`.
