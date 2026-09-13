@@ -23,6 +23,8 @@ const { values: opt } = parseArgs({
     app: { type: "string", default: "http://127.0.0.1:8793" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     port: { type: "string", default: "9334" },
+    // No window at all, so a run can't steal focus from whatever Daniel is doing (a full-screen game, say).
+    headless: { type: "boolean", default: false },
   },
 });
 const dwellMs = Number(opt.dwell);
@@ -34,7 +36,7 @@ mkdirSync(shotDir, { recursive: true });
 
 const report = {
   api: "arsenal.receipt/v0", lane: "A", title: "Play Night preset sweep in Chrome",
-  started_at: new Date().toISOString(), app: opt.app, clip: opt.clip, dwell_ms: dwellMs,
+  started_at: new Date().toISOString(), app: opt.app, clip: opt.clip, dwell_ms: dwellMs, headless: opt.headless,
   chrome: null, webgl: null, presets: [], sweeps: {}, clip_frames: null,
   console: [], exceptions: [], page_errors: [], media: {}, media_errors: [],
   not_measured: [
@@ -50,7 +52,8 @@ const chrome = spawn(opt.chrome, [
   // A covered or background window throttles rAF and timers, which would make every fps and drop number meaningless.
   "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling",
   "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",
-  "--autoplay-policy=no-user-gesture-required", "--window-size=1600,1000", "about:blank",
+  "--autoplay-policy=no-user-gesture-required", "--window-size=1600,1000",
+  ...(opt.headless ? ["--headless=new"] : []), "about:blank",
 ], { stdio: "ignore" });
 
 async function getJSON(url) {
