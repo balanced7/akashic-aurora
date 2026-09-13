@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 38a9880d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 9700e908. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (167 numeric constants)
+## Mechanical bounds (168 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -403,6 +403,7 @@ Class: reference
 | `SKEW_WINDOW_S` | 300 | core/comm/remote_relay.py |  |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py |  |
 | `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py |  |
+| `STALE_LOCK_S` | 300 | arsenal/tools/qm.py |  |
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |
 | `STEER_TTL` | 900 | core/comm/nudge.py | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py |  |
