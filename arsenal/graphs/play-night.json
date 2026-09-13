@@ -1,0 +1,33 @@
+{
+  "api": "arsenal.graph/v0",
+  "name": "play-night",
+  "mode": "live_audio",
+  "assets": {"clip": {"uri": ""}},
+  "nodes": {
+    "clip": {"use": "file.clip"},
+    "decode": {"use": "browser.decode"},
+    "audio": {"use": "webaudio.analyser"},
+    "bank": {"use": "vfx.preset-bank"},
+    "midi": {"use": "webmidi.input", "with": {"prefer": "KeyLab"}},
+    "screen": {"use": "browser.present"}
+  },
+  "edges": [
+    ["clip.media", "decode.media"],
+    ["decode.video", "bank.video"],
+    ["bank.video", "screen.video"]
+  ],
+  "bindings": [
+    {"from": "audio.features.bass", "to": "bank.pulse", "range": [0, 1], "mix": {"bass": 0.65, "flux": 0.35}, "smooth": {"attack_ms": 12, "release_ms": 180}},
+    {"from": "midi.cc", "to": "bank.hue", "range": [0, 360], "learn": true},
+    {"from": "midi.cc", "to": "bank.intensity", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.xfade", "range": [0, 5000], "learn": true},
+    {"from": "midi.cc", "to": "bank.k1", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k2", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k3", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k4", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k5", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k6", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k7", "range": [0, 1], "learn": true},
+    {"from": "midi.cc", "to": "bank.k8", "range": [0, 1], "learn": true}
+  ]
+}

@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from . import __version__
 from .graph import GraphError, load_graph
 from .plan import make_plan, render_plan
+from .presets import list_presets
 from .registry import load_registry
 from .take import TakeLedger
 from .timebase import StaleEpoch
@@ -39,6 +40,9 @@ STATIC_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 MAX_CLIPS = 500
 MAX_BODY = 16 * 1024 * 1024
 CHUNK = 1024 * 1024
+RECORDINGS_DIR = "arsenal-renders"
+RECORDING_TYPES = {"video/webm": ".webm", "video/mp4": ".mp4", "video/x-matroska": ".mkv"}
+MAX_RECORDING = 4 * 1024 ** 3
 _ID = r"[0-9a-f]{16}"
 _TAKE = r"\d{8}-\d{6}-[0-9a-f]{8}"
 
@@ -137,7 +141,8 @@ class Jobs:
 
 
 class App:
-    def __init__(self, roots: List[str], takes_root=None):
+    def __init__(self, roots: List[str], takes_root=None, presets_dir=None):
+        self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
         self.ledger = TakeLedger(takes_root)
@@ -205,6 +210,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(204, b"", "image/x-icon")
                 if path == "/first-light":
                     return self._static(WEB / "first-light.html")
+                if path == "/play":
+                    return self._static(WEB / "play.html")
+                if path == "/piano":
+                    return self._static(WEB / "piano.html")
                 if path.startswith("/web/"):
                     return self._static_under(unquote(path[len("/web/"):]))
                 if path == "/api/health":
@@ -216,6 +225,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._resolve(query)
                 if path == "/api/takes":
                     return self._json(200, {"takes": self.app.ledger.list()})
+                if path == "/api/presets":
+                    return self._json(200, {"presets": list_presets(self.app.presets_dir)})
                 for pattern, handler in ((rf"/api/media/({_ID})", self._media),
                                          (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
                                          (rf"/api/analysis/({_ID})", self._analysis),
@@ -227,6 +238,8 @@ class Handler(BaseHTTPRequestHandler):
             elif method == "POST":
                 if path == "/api/plan":
                     return self._plan()
+                if path == "/api/recordings":
+                    return self._recording(query)
                 if path == "/api/take/open":
                     return self._take_open()
                 m = re.fullmatch(rf"/api/take/({_TAKE})/(events|close)", path)
@@ -244,8 +257,8 @@ class Handler(BaseHTTPRequestHandler):
     # --------------------------------------------------------------------- static
     def _static(self, file: Path) -> None:
         if not file.is_file():
-            if file.name == "first-light.html":
-                return self._json(503, {"error": "the First Light page is not built yet"})
+            if file.parent == WEB and file.suffix == ".html":
+                return self._json(503, {"error": f"the {file.stem} page is not built yet"})
             return self._json(404, {"error": "not found"})
         body = file.read_bytes()
         self.send_response(200)
@@ -409,6 +422,42 @@ class Handler(BaseHTTPRequestHandler):
         except KeyError:
             return self._json(404, {"error": f"no take {take_id}"})
 
+    # ----------------------------------------------------------------- recordings
+    def _recording(self, query) -> None:
+        """Save an uploaded recording under the first library root, so it shows up in the library."""
+        kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        ext = RECORDING_TYPES.get(kind)
+        if not ext:
+            return self._json(415, {"error": f"a recording must be video/webm, video/mp4 or video/x-matroska, "
+                                             f"not {kind or 'untyped'}"})
+        length = int(self.headers.get("Content-Length") or 0)
+        if not 0 < length <= MAX_RECORDING:
+            return self._json(413 if length else 411, {"error": "a recording needs a Content-Length of at most 4 GB"})
+        if not self.app.library.roots:
+            return self._json(503, {"error": "there is no library root to save into"})
+        label = re.sub(r"[^A-Za-z0-9_-]+", "-", (query.get("name") or ["recording"])[0]).strip("-")[:40] or "recording"
+        folder = self.app.library.roots[0] / RECORDINGS_DIR
+        folder.mkdir(parents=True, exist_ok=True)
+        stem = f"{time.strftime('%Y-%m-%d %H-%M-%S')} {label}"
+        target, n = folder / f"{stem}{ext}", 1
+        while target.exists():
+            n += 1
+            target = folder / f"{stem} ({n}){ext}"
+        partial = folder / f"{target.name}.part"
+        remaining = length
+        with open(partial, "wb") as fh:
+            while remaining > 0:
+                chunk = self.rfile.read(min(CHUNK, remaining))
+                if not chunk:
+                    break
+                fh.write(chunk)
+                remaining -= len(chunk)
+        if remaining:
+            partial.unlink(missing_ok=True)
+            return self._json(400, {"error": "the upload ended before Content-Length bytes arrived"})
+        partial.replace(target)
+        return self._json(200, {"path": str(target), "clip_id": clip_id_for(target), "bytes": length})
+
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True
@@ -423,8 +472,8 @@ def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None) 
     app = App(roots or DEFAULT_ROOTS, takes_root)
     server = Server(port, app)
     roots_text = ", ".join(str(r) for r in app.library.roots)
-    print(f"[arsenal] First Light at http://{HOST}:{server.server_address[1]}/first-light  (library: {roots_text})",
-          flush=True)
+    base = f"http://{HOST}:{server.server_address[1]}"
+    print(f"[arsenal] First Light at {base}/first-light, Play at {base}/play  (library: {roots_text})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
