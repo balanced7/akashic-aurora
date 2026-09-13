@@ -983,7 +983,7 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
                                "report (each pass's final <1 s is not included)",
         "total_frames_expected": expected,
         "drops": {
-            "gated_source": "qos_bus_messages from decoder and sink, synced passes",
+            "gated_source": "qos_bus_messages from decoder and sink, synced passes only",
             "total_dropped": gated,
             "drop_rate": (gated / denominator) if denominator else None,
             "drop_rate_denominator": "total_frames + total_dropped",
