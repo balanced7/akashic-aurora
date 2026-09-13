@@ -138,7 +138,7 @@ Class: reference
 | `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
 | `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | docs/library/design/remote-bifrost-bridge-serge-onepager.md | `BIFROST_NAMESPACE` |
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
-| `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_t256_fan_presets.py | GAP |  |
+| `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_arsenal_presets.py | GAP |  |
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |
 | `reaper.py` | reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded. | tests/test_t108_s4_reaper_hardening.py | research/reviewed/fence-lite-s4-reaper-kimi-2026-07-28.md |  |
 | `remote_relay.py` | Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1). | tests/test_remote_relay_pins.py | GAP | `AKASHIC_REMOTE_BRIDGE_PEER_URL` |

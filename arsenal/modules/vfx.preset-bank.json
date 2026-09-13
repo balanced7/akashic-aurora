@@ -1,0 +1,28 @@
+{
+  "id": "vfx.preset-bank",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+  "outputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+  "params": [
+    {"name": "pulse", "unit": "ratio", "range": [0, 1]},
+    {"name": "hue", "unit": "deg", "range": [0, 360]},
+    {"name": "intensity", "unit": "ratio", "range": [0, 1]},
+    {"name": "xfade", "unit": "ms", "range": [0, 5000]},
+    {"name": "k1", "unit": "ratio", "range": [0, 1]},
+    {"name": "k2", "unit": "ratio", "range": [0, 1]},
+    {"name": "k3", "unit": "ratio", "range": [0, 1]},
+    {"name": "k4", "unit": "ratio", "range": [0, 1]},
+    {"name": "k5", "unit": "ratio", "range": [0, 1]},
+    {"name": "k6", "unit": "ratio", "range": [0, 1]},
+    {"name": "k7", "unit": "ratio", "range": [0, 1]},
+    {"name": "k8", "unit": "ratio", "range": [0, 1]}
+  ],
+  "isolation": "browser-tab",
+  "licence": "Apache-2.0",
+  "latency_ms": {"base": 3},
+  "degradation": {"on_failure": "bypass"},
+  "receipts": [],
+  "notes": "Shader presets from arsenal/web/presets with per-preset feedback and crossfades; see PLAY-NIGHT-SPEC.md. Without a clip it runs as a visualizer, and the video edge is idle."
+}

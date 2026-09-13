@@ -1,0 +1,15 @@
+{
+  "id": "webaudio.analyser",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [],
+  "outputs": [{"port": "features", "type": "analysis.features"}],
+  "params": [],
+  "isolation": "browser-tab",
+  "licence": "NOASSERTION",
+  "latency_ms": {"base": 21},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [],
+  "notes": "Web Audio AnalyserNode (fftSize 2048 at 48 kHz, so half a window is about 21 ms) over the playing clip or a live input device such as the Focusrite Loopback. Live analysis is not replayable; the take records which source was used."
+}

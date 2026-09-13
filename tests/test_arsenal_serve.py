@@ -97,3 +97,23 @@ def test_plan_and_take_lifecycle(server):
     loaded = json.loads(_get(f"{base}/api/take/{take_id}")[2])
     assert loaded["take"]["meta"]["clip_name"] == "tiny.mp4"
     assert [e["kind"] for e in loaded["events"]] == ["play", "epoch"]
+
+
+def test_recordings_are_saved_into_the_library(server):
+    base, clip = server
+    body = b"\x1aE\xdf\xa3" + bytes(2048)
+    upload = urllib.request.Request(base + "/api/recordings?name=piano%20take%21", data=body, method="POST",
+                                    headers={"Content-Type": "video/webm;codecs=vp9"})
+    with urllib.request.urlopen(upload, timeout=10) as response:
+        saved = json.loads(response.read())
+    path = Path(saved["path"])
+    assert path.parent == (clip.parent / "arsenal-renders").resolve()
+    assert path.name.endswith(" piano-take.webm") and path.read_bytes() == body and saved["bytes"] == len(body)
+    assert saved["clip_id"] == clip_id_for(path)
+    refused = urllib.request.Request(base + "/api/recordings", data=b"x", method="POST",
+                                     headers={"Content-Type": "text/plain"})
+    try:
+        urllib.request.urlopen(refused, timeout=10)
+        raise AssertionError("a text/plain upload should be refused")
+    except urllib.error.HTTPError as error:
+        assert error.code == 415
