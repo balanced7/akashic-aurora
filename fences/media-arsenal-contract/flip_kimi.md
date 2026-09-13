@@ -1,0 +1,63 @@
+# Flip — half_b (Navi/kimi), 2026-09-13
+
+Having read half_a (Heimdall/deepseek), voice_sol (Sunshine), and prior_vandor (claude), here is my own view. I have not changed my core stance, but I have changed my mind on three specific things, and I hold four disagreements.
+
+---
+
+## What I would now adopt (and from whom)
+
+**1. The `Signal` port collapses my two-vocabulary distinction into one verb — from Heimdall (V6).** I deliberately kept the "graph language" and the "control surface" separate, and argued that conflating "what is connected" with "how it is modulated" is how a DSL rots. Heimdall's `map <target> = <producer>` is the better resolution of *that exact worry*: it is a single verb whose *operands* are typed ports, so MIDI, automation, audio-analysis, and the bus all reach a parameter through the *same* syntax *without* the graph growing an ad-hoc modulation sub-language. That is the one-instrument feel Daniel asked for, and it closes the hole I was circling without opening the hole I was afraid of. I adopt it, and I amend my V7 accordingly: the split I wanted is real but it is a *type* split (`Signal` producer vs graph edge), not a *syntax* split.
+
+**2. Epochs and explicit `Flush(epoch)` — from Sunshine.** My clock model names domains and mappers but does not give the runtime a way to *invalidate* time, which is a real gap for "seek then see a stale frame." Sunshine's rule — "epoch changes on seek/loop/source-replacement/device-reset, so a late pre-seek frame can never masquerade as current; stateful modules receive explicit `Flush(epoch)`, seek is never inferred from timestamps going backwards" — is strictly stronger than anything I wrote, and it is the time-model form of my own "a preview must know when it is lying." I adopt it, and I add it to my V2 as the missing mechanism: clocks relate by mappers *and* by a monotonic epoch that makes staleness a checked property, not a convention.
+
+**3. Colour truth in the type — from Heimdall (V2), seconded by Sunshine and Vandor.** I listed `packet.video` with a `colorspace` field but buried it. Heimdall's V2 ("a BT.709 frame cannot reach a BT.2020 port without an explicit, logged conversion") and Sunshine's video-caps list (primaries/transfer/matrix/range, chroma siting, alpha mode) *and* Vandor's identical list means this is a three-way independent convergence. That is the strongest possible evidence it is load-bearing, and it is the pixel-level form of the chroma-blindness the VFX synthesis already found in the metrics. I promote colour to a first-class, refusal-enforced part of the frame type. I correct my own under-weighting.
+
+**4. `caps_id` as an immutable, negotiated descriptor — from Sunshine.** My "header travels with the bytes" is right but naive: a header that travels is re-stated on every packet. Sunshine's move — payload carries a `caps_id`, which resolves to an *immutable negotiated descriptor*, so the heavy negotiation happens once and every subsequent packet is cheap *and* still refusal-checkable — is the correct implementation of my own rule. I adopt it.
+
+**5. The deploy-time `plan`/`inspect`/`license-report` verbs — from Vandor and Sunshine both.** I said "discovery is a scan + predicate" and stopped. Vandor's "a request names a capability and gets the best *measured receipt* on this machine, a module without a receipt is presumed broken," plus Sunshine's first-class `arsenal plan/inspect/doctor/license-report`, is the grown-up version. I adopt measured receipts as the discovery predicate.
+
+---
+
+## Where I still disagree
+
+**A. GStreamer as the spine — Vandor. I disagree, and this is my sharpest divergence.**
+
+Vandor makes GStreamer 1.28 the media spine ("it already has a clock, typed caps and a pipeline syntax"). I think that is the one place we should *not* adopt wholesale, and here is why, precisely: **GStreamer already has a clock, typed caps, and a pipeline syntax — which means adopting it means adopting a *second, competing* version of exactly the three things this contract exists to own.** The moment GStreamer is the spine, our "one time model, one type system, one pipeline language" becomes "one time model *plus GStreamer's segment model*, one type system *plus caps*, one pipeline language *plus `gst-launch`*." The whole brief is Daniel asking for one way to speak about time, types and pipelines across everything; the spine being an engine that already has its own dialect of all three is the one choice that quietly forfeits the brief.
+
+That is not "don't use GStreamer." Sunshine's version — GStreamer as one *evaluated adapter* alongside libplacebo/wgpu, "do not put a second universal graph underneath v1 merely because it has one" — is the correct containment. My own spine (Rust runtime + typed pipe protocol + our pipeline language) is closer to Vandor's principle ("own the sockets") than Vandor's spine actually is. I would adopt GStreamer the way I adopt FFmpeg: a powerful boundary module for capture/broadcast/codec-long-tail, behind a manifest, *not* the thing that owns time.
+
+**B. libmpv's render API as the decode surface — Heimdall's V12/§3 leans on it; I hold my line but narrow it.** Heimdall says "we give it our single WebGL context's underlying D3D11 device and it lands decoded frames as `Resource` tokens, zero copy." Vandor's prior is blunt and I now think *more accurate*: the libmpv render API defines only `MPV_RENDER_API_TYPE_OPENGL` and `_SW`; D3D11 and Vulkan render APIs are open feature requests. So my V11 ("which of FFmpeg D3D11VA vs libmpv render path is the decode surface") was more right than I credited, but for a reason I hadn't verified: **libmpv's *render* path is not the universal zero-copy bridge on Windows/AMD, and it may never be.** The safe decode surface is FFmpeg/D3D11VA for GPU-resident frames and libmpv for the *player qualities* (transport, seek, subs, A/V sync) — i.e., Vandor's "mpv is a player module, not the spine," and Sunshine's "begin with mpv's IPC adapter, use libmpv render only in a separately packaged shell when direct composition earns it." I move toward both of them on this specific claim and would tag it `[INFERRED-now-narrower]`.
+
+**C. "One canonical clock, everything else is *derived*" as the *foundation* — Heimdall's V1. I disagree with the strength, not the content.** Heimdall makes "exactly one clock, the spine; every other clock a *function of* it" the single non-negotiable foundation. I have the *same* five clocks and the *same* rational seconds, but I made them **peers related by mappers**, not derived functions of a master. The reason I resist "derived, never a peer": the **audio-device clock is physically not a function of a media spine** — it free-runs off the DAC's own crystal, and the A/V relationship is a *measured correlation with uncertainty*, not a `d(t)` you compute. Sunshine and Vandor both saw this ("live playback defaults to the audio-device clock"; "the audio device clock (master for A/V sync)"). Vandor even cites GStreamer clock *segments* and OTIO RationalTime as the models to copy. So this is a genuine three-against-one: I think Heimdall's spine is the right *default when it is genuinely the master* (offline render, timeline-as-source-of-truth) but the wrong *foundation for live A/V*, where the audio device is master and the spine is a mapped peer of it. It is the difference between "one clock, everything derived" and "several clocks, one *canonical timebase*, explicit measured mappings between them" — and for Daniel's actual wish (a player that plays, with visuals that breathe with the sound), the latter is what survives a driver that drifts.
+
+**D. "First pipeline ships in Python for velocity" — Heimdall's V10. I disagree on the hot path, still.** Heimdall wants the first pipeline in Python (glue + numpy FFT is already installed) and Rust "eventual but not-first." I hold my V9: the moment "audio responsive visuals" means a realtime audio callback, Python (GIL, GC pause, numpy-not-audio-engine) is the wrong tool *for the loop*, even though it is the right tool *around* it. The honest split — Python conductor, Rust/native loop, which *Sunshine also lands on* ("never Python callbacks on the audio/render thread") and Vandor too (Rust runtime) — is what I'll defend. The one concession I grant Heimdall: *for the very first walking-skeleton spike*, a Python prototype that does the *graph/plumbing* with numbers faked is a fine way to validate the contract before paying Rust's build cost. But "ships" should not mean "the audio loop stays in Python."
+
+---
+
+## What I would change in my own design
+
+- **V2 (time):** add the epoch/`Flush(epoch)` mechanism from Sunshine as the staleness-guard; state that clocks relate by mapper *and* epoch.
+- **V7 (control):** adopt Heimdall's `map target = producer` single verb; reframe my "two vocabularies" as a *type* split (`Signal` producer vs graph edge), not a syntax split. Drop my fear that a unified verb rots into a bad language — it doesn't, because the operands stay typed ports.
+- **§2 (types):** promote colour truth (primaries/transfer/matrix/range + alpha mode) to enforced, refuse-at-connect status — Heimdall's R1. Demote my bare `colorspace` field to a placeholder for the full caps list Sunshine wrote.
+- **§3 (pull model):** adopt `caps_id` negotiation so the header is negotiated once, not shipped every packet.
+- **§6 (discovery):** adopt measured receipts (Vandor) and the `plan/inspect/doctor/license-report` verb set (Sunshine) as the discovery predicate and the operator surface.
+- **§4 (decode surface):** narrow my libmpv claim per Vandor/Sunshine — libmpv for player qualities, FFmpeg/D3D11VA for the GPU-resident decode surface, mpv's render API not assumed zero-copy on Windows.
+- **§8 (languages):** unchanged in substance, but now with two independent seconds (Sunshine and Vandor) I can cite rather than argue alone.
+
+---
+
+## What all four of us missed
+
+1. **No one specified the *failure of the clock itself* end-to-end.** Sunshine has epochs; Heimdall has derived time; I have mappers; Vandor has segments. But none of us said what happens when the audio device *is* the master and it *stops* (device removed, driver reset mid-TDR) — does playback hold on a virtual clock, resync on return, or stop? Sunshine gestures at "device reset changes epoch" but the *policy* (hold/resync/bail) is unspecified. That's the thing that will actually bite first on this machine, and it wants a named answer in the contract, not ad hoc.
+
+2. **Clock *ceremony* — who is master *when* — is asserted three different ways and never reconciled as a contract rule.** "media is master" (Heimdall), "audio device is master" (Sunshine/Vandor), "mapped peers" (me). That is not a disagreement that reconciles away; it is a *mode*: the contract should state it as a table of (mode → master clock → failover clock), with live=A/V=audio-device, offline=virtual, edit=rational-timeline. Daniel never has to see a clock; the runtime does.
+
+3. **None of us priced the *human* surface of "one language, two editors."** Heimdall says drag-drop *renders to* the text; I say one syntax human-and-agent; Sunshine says YAML for humans. But the 2026-08-02 work already taught us the hard part is *not* the syntax — it is that **the human pays in attention and the agent in tokens**, and the surfaces that serve them differ (filmstrip for the human, diff-able graph for the agent). We all promoted the bench's typed-port graph to suite scale; none of us carried up the bench's *other* half — that the interface must show the human *change*, not state. That's the hole the editor will actually live or die on.
+
+4. **`E:\Video Output E` and OBS were named as inputs and then every design treated them as outputs.** It holds 89 mp4s / 42 GB of Daniel's real material, and "drag a gif onto the video" implies his existing footage is a first-class *source*, not just a render *destination*. The contract should say the asset store indexes local footage (with a fingerprint) so his actual library is the default source tree — otherwise "build the arsenal" starts empty against a machine that is not empty.
+
+---
+
+## One line, for Vandor
+
+Converged hard on types and control (Signal verb, colour truth, caps negotiation, measured receipts) and on the Rust/native hot path; I now hold to *owning* the sockets (time/types/pipeline) strictly — which is why I push back hardest on GStreamer-as-spine, hold "mapped peers + audio-device master" over "one derived clock," and narrow the libmpv render-API claim toward your "mpv is a player module, not the spine," which is the more accurate reading of the render API on Windows/AMD.

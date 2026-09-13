@@ -1,0 +1,15 @@
+{
+  "id": "browser.present",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+  "outputs": [],
+  "params": [],
+  "isolation": "browser-tab",
+  "licence": "NOASSERTION",
+  "latency_ms": {"base": 17},
+  "degradation": {"on_failure": "black"},
+  "receipts": [],
+  "notes": "The page's canvas, presented at the display's vsync. The base latency is one 60 Hz frame, declared rather than measured."
+}
