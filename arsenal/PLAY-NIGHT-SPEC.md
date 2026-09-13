@@ -112,6 +112,13 @@ For feedback trails:
 - Fade with a small subtraction as well as a multiplier, for example `max(prev * 0.96 - 1.0/255.0, 0.0)`. The feedback buffer may be 8-bit, and a multiplier alone leaves residue that never clears.
 - `outColor.rgb` is clamped to 0..1 when presented, and alpha is ignored.
 
+These notes come from the first preset checks on 2026-09-13:
+- The page gives `u_video`, `u_prev` and `u_audio` CLAMP_TO_EDGE wrapping and LINEAR filtering.
+- Apply `u_hue` to freshly drawn colour and to the video, never inside the `u_prev` loop. A rotation inside feedback compounds every frame and strobes.
+- A knob should set an amount or an angle, never a speed multiplied by `u_time`. Moving such a knob makes the whole picture jump.
+- Smooth fast signals before driving geometry with them, for example `0.6*u_pulse + 0.4*u_bass`. Raw bands jitter a zoom.
+- Visualizer mode in silence is a real case: FL Studio between takes. It should still show something alive and legible, not a near-black frame.
+
 ## Page: `web/play.html`, served at `/play`
 
 ### Preset engine
