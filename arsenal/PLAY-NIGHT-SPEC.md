@@ -147,14 +147,13 @@ Rules:
 - Resume the AudioContext on the first user gesture.
 - Use one `AnalyserNode` with `fftSize` 2048 and `smoothingTimeConstant` 0. Read frequency and time-domain data once per rendered frame.
 - **Bands** by bin frequency: bass 20-150 Hz, mid 150-2000 Hz, high 2000-16000 Hz. Band power is the mean linear power over its bins; `dB = 10*log10(power + 1e-12)`.
-- **Auto-gain** per signal:
-  - `ceiling = max(dB, ceiling - 6*dt)`
-  - `floor = min(dB, floor + 3*dt)`
-  - keep `ceiling - floor >= 12`
-  - `value = clamp((dB - floor)/(ceiling - floor), 0, 1)`, and 0 when `dB < -80`
-- **flux** is the positive spectral flux of linear magnitude over 20 Hz to 16 kHz, auto-gained the same way.
-- **level** is the RMS of the time-domain frame in dB, auto-gained.
-- **Beat** fires when the bass value exceeds 1.35 times its 1 s moving average and is above 0.3, with a 180 ms refractory period.
+- **Relative normalization** per signal, as MilkDrop does it. This was revised on 2026-09-13 after the first receipt: the earlier peak-tracking auto-gain pinned sustained music at 1.0, so the beat never fired.
+  - `avg += (power - avg) * (1 - exp(-dt / 1.5))` keeps a 1.5 s average of linear power.
+  - `ratio = power / avg`, then `value = clamp(ratio / (1 + ratio), 0, 1)`. Steady sound reads 0.5, a 3x transient 0.75, and a 9x transient 0.9.
+  - A frame below -80 dB gives 0 and leaves `avg` untouched, so silence never drags the average down and music comes back at full range.
+- **flux** is the positive spectral flux of linear magnitude over 20 Hz to 16 kHz, normalized the same way.
+- **level** is the mean square of the time-domain frame, normalized the same way.
+- **Beat** fires when the bass ratio (`power / avg`, before squashing) exceeds 1.6 and bass power rose since the previous analysed frame, with a 180 ms refractory period.
 - **`u_audio` row 0** holds 512 log-spaced columns interpolated from the dB spectrum, mapped from -90..-20 dB to 0..1. **Row 1** holds 512 samples of the time-domain frame mapped from -1..1 to 0..1.
 
 ### MIDI performance layout
