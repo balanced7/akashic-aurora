@@ -1,0 +1,356 @@
+[
+  {
+    "scores": [
+      {
+        "scheme": "Prism",
+        "wow": 8,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 6,
+        "note": "Max-per-pitch-class lanes really do fix the pedal wall, and the barcode maths holds up. But notes no longer rise over their own keys. Rotating the lanes to follow the key guess plus rays sweeping with the follow camera is a crawl risk. 220px chord tags won't fit a 96px gutter. 640px at 200px/s is 3.2s, not 3.7."
+      },
+      {
+        "scheme": "Fifths Clock",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 8,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 5,
+        "note": "The shape facts are correct: mirror triads, square dim7, contiguous sus. 'Guess it' is a real content format. But a 5-deep ghost tunnel, wedge, pulse, comets, numeral and label all in one 9:16 frame gets busy on fast changes. Realistically 620+ lines with the scaffolding, and it drops his 'column up the screen'."
+      },
+      {
+        "scheme": "Voice Columns",
+        "wow": 6,
+        "theory": 10,
+        "sustain_clarity": 6,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 8,
+        "note": "The best answer to 'stuff I do that I don't understand': roles, 7th-to-3rd threads, numerals. Flaws: it keeps additive blending on held bars, and its frosted zones (label plus staff, y 170-1040, nearly full width) leave only ~300px of bright column. Splitting on chord changes will churn on rolled chords, and 380 lines is optimistic."
+      },
+      {
+        "scheme": "Fifths Compass",
+        "wow": 8,
+        "theory": 9,
+        "sustain_clarity": 8,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 5,
+        "note": "I checked the tension pins and they add up (G7 0.34, Cdim7 0.56, Dm9 0.07), and the cadence captions are great hooks. But ring, wedge, polygon, lasers, 4 root arcs, gauge, glow, comets, flame bed, shockwave and caption together are the most cluttered 9:16 frame here. It also depends on Voice Columns' helpers, so expect 800+ lines, not 480."
+      },
+      {
+        "scheme": "Resonance Plumes",
+        "wow": 8,
+        "theory": 5,
+        "sustain_clarity": 5,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 7,
+        "note": "Gorgeous, and very MilkDrop-suite. But a 1024x1536 half-float sim every step is a real risk on this AMD/TDR box. Smoke gradients band and block under TikTok H.264. Partial wisps put columns over keys nobody pressed, which confuses a piano video. Held-vs-pedalled reads as blur on blur."
+      },
+      {
+        "scheme": "Fifths Maelstrom",
+        "wow": 7,
+        "theory": 6,
+        "sustain_clarity": 5,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 5,
+        "note": "A constantly spinning, rotating-to-key wheel undoes the idea that geometry teaches, because you can't read angles that keep moving. Rotate-plus-zoom feedback goes soft. Changing the lens shift from 0.25 to 0.29 pushes the keys further into the bottom 20% (the fronts are already at ~y1560 in r4). Large, and it depends on Plumes being built first."
+      },
+      {
+        "scheme": "Nocturne Roll",
+        "wow": 6,
+        "theory": 8,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 7,
+        "note": "Its harmonySet finding is the most important bug catch in the set: detect() runs over every sounding key, pedal-held ones included (piano.js:1131). But it swaps out the 3D lacquer keys Daniel said look awesome for a flat strip. Old bars rescale when the camera zooms, which will read as wobble. Premium, but low scroll-stop. It's 550 lines, not medium."
+      },
+      {
+        "scheme": "Orbit",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 6,
+        "note": "The cleanest of the four circle schemes: one ghost, draw-on edges, a bass spoke for inversions, an amber ring for borrowed notes, and at most 12 discs so it can't wash out. The flat key strip is a needless loss; fire the filaments from the projected 3D keys instead. About 500 lines unless the Nocturne helpers land first."
+      },
+      {
+        "scheme": "Rehearsal Roll",
+        "wow": 7,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 9,
+        "note": "This is exactly his words plus FL's piano roll. It keeps the 3D keys and pitch hues, and the onset-cap thickness makes velocity readable in a still. Solid = finger, hollow = pedal is the right single rule. Cut MIDI clock for tonight. Half-pedal only matters if his pedal is continuous (a switch sends 0/127). Left-edge bass pills can clip off-frame."
+      },
+      {
+        "scheme": "Ring-Out",
+        "wow": 5,
+        "theory": 6,
+        "sustain_clarity": 8,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 5,
+        "note": "The decay model undercuts its own pitch, 'see what is actually still ringing': tau is 1.75s at A4, while a real piano (and most Kontakt pads) rings far longer, so meters fall while he still hears the note. It reads as a generic EQ. The melody-balance readout and the low-interval mud tint are worth stealing."
+      },
+      {
+        "scheme": "Upright Roll",
+        "wow": 7,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 5,
+        "fit_with_daniel": 9,
+        "note": "A near-duplicate of Rehearsal Roll: merge them. Take its pedal-storm luminance receipt and label auto-fit. The mud tint should test settled-chord membership, not whether a note was freshly struck, or a pedal-held chord tone goes grey wrongly. Odometer scrolling, the camera-up billboard and the 16° elevation add risk and flatten the keyboard drama."
+      },
+      {
+        "scheme": "Progression Runway",
+        "wow": 9,
+        "theory": 7,
+        "sustain_clarity": 7,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 6,
+        "note": "The best money shot here (synthwave highway plus road signs), but notes recede into depth rather than climbing, and perspective crushes voicing detail within a few seconds. Transparent draw order, deck moire and sign overlap are all live risks. Honestly 600+ lines, and it's a separate-evening project."
+      }
+    ],
+    "top_three": [
+      "Rehearsal Roll",
+      "Orbit",
+      "Voice Columns"
+    ],
+    "why": "1) Rehearsal Roll: build tonight, merged with Upright Roll. It takes Daniel's words literally (a piano with notes rising in columns) and speaks FL piano-roll, the language he already reads. It keeps the 3D keys and fifths hues he called awesome. It kills the wall at the cause I checked in piano.js: additive blending, a halo pad of 1.2x bar width, and core gain pushing held bars past bloom 0.9 at line 371. It needs no new render pass or feedback sim. Add Upright Roll's pedal-storm luminance receipt and Nocturne Roll's harmonySet(), which fixes detect() running over pedal-held notes (line 1131). That drift is why his pedalled chord names go vague. Drop MIDI clock for tonight.\n\n2) Orbit is the circle-of-fifths entry, because it is the least cluttered of four near-duplicates (Fifths Clock, Fifths Compass, Orbit, Fifths Maelstrom). It has one ghost, not five, and no gauge or laser pile. The bass spoke explains the inversions and slash chords he plays by feel, and the borrowed ring gives shape-based TikTok hooks with the sound off. Keep the 3D keyboard, not the flat strip, and borrow Fifths Clock's 'guess it' toggle.\n\n3) Voice Columns is the theory layer, because roles plus 7th-to-3rd threads are the direct answer to 'stuff I do that I don't understand'. Ship it as a colour mode and thread layer on top of Rehearsal Roll's normal-blend columns and top band, not as its own additive scheme with frosted zones that dim most of the columns.\n\nCross-cutting checks:\n- Framerate is already done. The loop runs on requestAnimationFrame at native refresh (line 1641) and REC is paced to 60 fps (line 1615). Every scheme just has to stay time-based.\n- The r4 receipt confirms the key fronts at about y 1560, inside the bottom 20%. Lens shift should go 0.25 -> ~0.21; Maelstrom's 0.29 goes the wrong way.\n- Half-pedal features assume a continuous pedal. Verify his pedal sends more than 0/127 before building them.\n- Biggest gap: none of the 12 schemes logs notes, even though Daniel explicitly asked for that so we can banter about theory. A ~40-line JSONL logger (note on/off with velocity, CC64 raw value, settled chord plus key guess and time) should land tonight, whatever scheme wins.\n\nSkip tonight: Resonance Plumes, Fifths Maelstrom and Progression Runway (GPU/TDR risk, H.264 banding, 600+ lines)."
+  },
+  {
+    "scores": [
+      {
+        "scheme": "Prism",
+        "wow": 8,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 5,
+        "fit_with_daniel": 6,
+        "note": "Octaves merged with max over a fixed 13x512 texture really does stop the wall, but the ray band is only 150 px tall. Rays from edge keys run almost flat for 400+ px and cross each other in two-hand playing, so that band gets cluttered. RAY_MAX 64 needs a clamp because the pedal can hold more than 64 notes. When the key changes, the lanes rotate and break the 'same barcode in any key' idea. 450 lines is tight for one night."
+      },
+      {
+        "scheme": "Fifths Clock",
+        "wow": 8,
+        "theory": 9,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 4,
+        "note": "The shape facts check out on the fifths ring (dim7 is a square, aug a triangle, whole-tone a hexagon), and the budget is capped at 12 nodes. But it's 140 lines of SDF GLSL, plus a polygon morph with nearest-angle matching, 5 ghost clones and 672 comet instances. The numeral in the middle repeats the label above it. It drops the 'column up the screen' he asked for."
+      },
+      {
+        "scheme": "Voice Columns",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 6,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 8,
+        "note": "Best idea for 'stuff I do I don't understand' (roles, 7th to 3rd threads). But held bars stay additive with the 1.2x halo pad, so dense held two-hand chords still stack. Role colours replace the pitch rainbow he liked. voiceMatch, instance splits, recolours and captions on rolled or pedalled input will churn, and it's realistically 600+ lines, not 380."
+      },
+      {
+        "scheme": "Fifths Compass",
+        "wow": 8,
+        "theory": 8,
+        "sustain_clarity": 7,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 4,
+        "note": "The most cluttered frame of the twelve: label, wedge, polygon, lasers, root arcs, shockwave, centre numeral, cadence caption, tension gauge, Ped glyph, comets and a trail flame bed all in the middle 1000 px. The tension weights are an untuned heuristic, so the gauge will say things that are wrong. Large effort. It's also the third circle-of-fifths variant, so don't build more than one of those."
+      },
+      {
+        "scheme": "Resonance Plumes",
+        "wow": 8,
+        "theory": 5,
+        "sustain_clarity": 6,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 6,
+        "note": "Gorgeous if it's tuned, but tuning a fluid is a night on its own. It's a 1.5M-texel half-float pass up to 4 times a frame on a host with a TDR history. The sine sway moves the whole time notes sound, and diffusion turns it to mush. The partial-ghost wisps put light on notes he never played, which will confuse the chord reading, and a Kontakt patch doesn't resonate sympathetically anyway."
+      },
+      {
+        "scheme": "Fifths Maelstrom",
+        "wow": 9,
+        "theory": 5,
+        "sustain_clarity": 5,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 4,
+        "note": "The best TikTok thumbnail, but rotate-plus-zoom feedback smears the shapes that carry the theory and softens a little every step. It moves the label into the eye and the staff to the top, breaking the layout he called awesome. Long chord names have to shrink to fit the eye. Large effort. MilkDrop spin is the opposite of 'legible at rest while playing'."
+      },
+      {
+        "scheme": "Nocturne Roll",
+        "wow": 6,
+        "theory": 8,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 6,
+        "note": "The lead-sheet roll, hollow pedal outlines and pedal lane are right. But it throws away the 3D lacquer keys and the glow he loves for a flat 2D strip, and turns bloom almost off. That's 550 lines, with a non-uniform ortho frustum and colour-ease splits. The 1.5 px scrolling hairlines will twinkle after TikTok's H.264 re-encode."
+      },
+      {
+        "scheme": "Orbit",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 5,
+        "note": "The cleanest and calmest of the four circle schemes: one bloom source per node and a single ghost, and the right theory payload for the banter goal. It depends on Nocturne's flat key strip and helpers landing first (500 lines on its own). It doesn't give him columns rising from the keys. It's the circle scheme to build on a second night, not tonight."
+      },
+      {
+        "scheme": "Rehearsal Roll",
+        "wow": 6,
+        "theory": 6,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 7,
+        "fit_with_daniel": 9,
+        "note": "Mostly a rewrite of the trail shader plus a layout change. Normal blending, no halo, a velocity-scaled onset cap and hollow tails are the exact fix. The chord pills and MIDI-clock grid can wait (the grid needs loopMIDI from FL). Risks: the staff at s13 is small on a phone, and pills anchored to the bass can drift off-screen when zoomed. The KeyLab's switch pedal probably sends only 0 or 127, so the half-pedal alpha will do nothing."
+      },
+      {
+        "scheme": "Ring-Out",
+        "wow": 5,
+        "theory": 6,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 5,
+        "note": "The most honest 'what is still ringing' view, with no history to wash out. But the tau string model is wrong for most Kontakt patches, and it reads as a generic graphic EQ. It doesn't log or scroll the notes he asked to see rise. The damper-rail lift depends on a continuous pedal, and his is likely a switch. Better as an overlay element than a whole scheme."
+      },
+      {
+        "scheme": "Upright Roll",
+        "wow": 7,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 10,
+        "note": "His words taken literally: an FL piano roll rising out of the real 3D keys. It kills the wall at the root with lanes, gutters, normal blending, hollow glass tails and bloom only on held cores. The top-band label and staff can't be washed out, and the pedal-storm receipt is the right test. The odometer rebase, 16 degree elevation, label auto-fit and tags push it past one night. Ship the core (shader, layout, hollow tails, pedal lane) tonight and add tags and mud tint next."
+      },
+      {
+        "scheme": "Progression Runway",
+        "wow": 9,
+        "theory": 7,
+        "sustain_clarity": 7,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 6,
+        "note": "Stunning synthwave highway, but 520-620 lines: new camera, deck, mirror, ribbons, fog in every shader, sign sprites and transparent sort order. Perspective squashes time, so gate spacing no longer shows harmonic rhythm, which is the very theory claim it makes. A 38 degree elevation also changes the piano he liked. Save it for a weekend."
+      }
+    ],
+    "top_three": [
+      "Upright Roll",
+      "Rehearsal Roll",
+      "Prism"
+    ],
+    "why": "I checked the diagnosis against piano.js. Lines 474-521 confirm it: the trails use AdditiveBlending, a halo pad of aW*1.2 on each side, a core boost up to about 1.9x, and a foot glow, all feeding UnrealBloom (threshold 0.9) behind the staff. CC64 is already wired at lines 1101 and 1209. rAF already renders at native rate, and REC is paced to 60 at line 1615. So tonight's job is a rendering fix plus a preset, not new plumbing.\n\n1. Upright Roll is the one to ship. It's what Daniel literally asked for: a piano with notes going up a column, like his FL piano roll. It keeps the 3D keys and bloom he loves, and it removes the wall by construction: strict lanes with gutters, normal blending, hollow glass pedal tails, and bloom only on held cores. The label and staff move to a band the roll never passes behind. Tonight's cut is the trail-shader rewrite, the top-band LAYOUT, the lens shift, hollow tails, the pedal lane and the pedal-storm luminance receipt. Chord tags, mud tint and the odometer rebase come the next night.\n\n2. Rehearsal Roll is nearly the same build, so treat it as a parts bin for #1. Fold in its velocity-scaled onset cap (dynamics readable in a still frame), sparks only on accents, and separate white and black pools for a deterministic draw order. The MIDI-clock grid is a good follow-up once loopMIDI from FL is set up.\n\n3. Prism is the best next-night wow preset. It keeps the columns and the 3D keys. Merging octaves with max makes brightness mathematically bounded, the scrolling chord tags work as subtitles with the sound off, and the shared scaffolding (scheme registry, schemeScene before bloom, REC loop seam) pays for later presets. Fix the flat, crossing rays first: capture aX0 at note-on, make the ray band taller, and clamp RAY_MAX.\n\nCritical flags across the set:\n- Four schemes are circle-of-fifths variants (Clock, Compass, Maelstrom, Orbit). Build at most one. Orbit is the calmest and Compass the most cluttered.\n- Maelstrom and Plumes add constant feedback motion and softening that break 'legible at rest while playing'. Plumes also draws partials he didn't play.\n- Voice Columns keeps additive held bars and replaces his rainbow.\n- The Nocturne and Runway line counts are optimistic, and each gives up the composition he praised.\n- Every half-pedal feature (Ring-Out's damper lift, the alpha scaling by depth) assumes a continuous CC64. A KeyLab with a switch pedal sends only 0 or 127, so check the raw values before building on it.\n- None of the schemes delivers his note-logging ask, the thing that would let us banter about theory with him. A small JSONL log of note-on/off, pedal and settled chord (name, key guess, onset time), written through serve.py, is cheap and independent of the scheme. Ship it tonight alongside whichever preset lands."
+  },
+  {
+    "scores": [
+      {
+        "scheme": "Prism",
+        "wow": 8,
+        "theory": 7,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 6,
+        "note": "Merging each pitch class by max instead of sum is the best anti-washout rule of the twelve, and the barcode facts are right (major +1/+3, minor +3/+1). But the lanes throw away register, so the spread of his 9th voicings disappears, and it reads as a graphic EQ before it reads as music. The DataTexture ring shader, rays, rotation, hook and loop seam add up to far more than one night."
+      },
+      {
+        "scheme": "Fifths Clock",
+        "wow": 8,
+        "theory": 8,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 5,
+        "note": "The shape claims check out: sus chords are 3 neighbouring notches, dim7 is a square, aug is a triangle, whole-tone is a hexagon. But the 5 shrinking ghosts reach about 0.47 scale, which puts them on top of the centre numeral, the most important text. Merging octaves hides voicing, and romanOf does not exist yet."
+      },
+      {
+        "scheme": "Voice Columns",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 6,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 8,
+        "note": "The best single lesson here: watching a 7th fall to a 3rd, or a held C turn from root into 5th. But held bars keep their additive halos and bloom, and the two stacked clear zones cover y 170-1040, so the columns only glow in a narrow band. Role colours come from detect() over every sounding note, pedal carry-over included, so they go wrong the moment the pedal rides a chord change. The 9-colour palette replaces his fifths rainbow, and split, recolour, voiceMatch and threads come to well over 380 lines."
+      },
+      {
+        "scheme": "Fifths Compass",
+        "wow": 8,
+        "theory": 8,
+        "sustain_clarity": 8,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 4,
+        "note": "The most crowded ring in 9:16: wedge, polygon, lasers, 4 arcs, gauge, glow, numeral, caption, comets and a flame bed. The tension weights and the 'resolution' shockwave are invented heuristics that will fire on non-cadences, and a wrong cadence caption teaches the wrong thing. A tritone laser also lights on maj7#11, which is colour, not tension. It hides the staff and is a large build."
+      },
+      {
+        "scheme": "Resonance Plumes",
+        "wow": 9,
+        "theory": 5,
+        "sustain_clarity": 7,
+        "feasibility_tonight": 3,
+        "fit_with_daniel": 6,
+        "note": "Beautiful, and the saturating OKLab accumulator really does stop the white-out. But the overtone wisps rise over keys he never played, which misleads a student who reads each column as a key. The smoke is always swaying, even behind the staff at 38%. Roughness is something you feel here, never something named. A 1024x1536 half-float sim on a machine with a history of AMD driver crashes (TDR) is a real risk tonight."
+      },
+      {
+        "scheme": "Fifths Maelstrom",
+        "wow": 9,
+        "theory": 5,
+        "sustain_clarity": 6,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 5,
+        "note": "Suits the MilkDrop spirit of the suite. But the spin and zoom feedback smear the very chord shapes it claims to teach, and because the wheel rotates to centre each key, C is never in a fixed place, so no shape stays learnable. The label shrinks to 116px in the eye and the staff to s17. Resampling the rotation and zoom at half resolution goes soft. Hardest of the twelve to build and to verify."
+      },
+      {
+        "scheme": "Nocturne Roll",
+        "wow": 6,
+        "theory": 9,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 5,
+        "note": "The only scheme that fixes the harmonic cause: harmonySet() stops detect() naming pedal carry-over as a cluster. Its 5-colour function palette (root, guide tones, 5th, extensions, outside) is the right lesson for why his 9th chords sound lush. But it swaps the 3D keys, bloom and sparks he loved for a flat strip, the chord pills at x=44 will sit over left-hand bass bars, and 550 lines is not tonight's work."
+      },
+      {
+        "scheme": "Orbit",
+        "wow": 7,
+        "theory": 9,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 4,
+        "fit_with_daniel": 5,
+        "note": "The calmest and most legible ring. It has one ghost, a bass spoke that explains inversions and slash chords, a key window with 'BORROWED' named on screen, a progression line kept left of the button rail, and harmonySet. It still loses voicing and his columns, and replaces the 3D keys with a flat strip. Cheaper once Nocturne's helpers exist."
+      },
+      {
+        "scheme": "Rehearsal Roll",
+        "wow": 6,
+        "theory": 6,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 9,
+        "note": "His own idea in FL's language. It keeps the 3D keys and pitch hues, and velocity as cap thickness plus solid-versus-hollow pedal notes read at a glance. The half-pedal band uses the raw CC64 value. It teaches technique more than harmony: no numerals, no roles. Chord markers still name from detect() over pedal-held notes. The MIDI clock grid needs onMidiMessage's d.length<2 early return reworked (clock messages are 1 byte), so it is not for tonight."
+      },
+      {
+        "scheme": "Ring-Out",
+        "wow": 5,
+        "theory": 6,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 7,
+        "fit_with_daniel": 4,
+        "note": "Real piano teaching: melody balance, decay by register, a correct low-interval-limit mud tint, and a damper rail that rises with half-pedal. Cheapest to build. But it only shows the present, so it drops the rising columns he asked for, reads as a graphic EQ, and its string-decay model is wrong for Kontakt pads."
+      },
+      {
+        "scheme": "Upright Roll",
+        "wow": 7,
+        "theory": 6,
+        "sustain_clarity": 9,
+        "feasibility_tonight": 6,
+        "fit_with_daniel": 9,
+        "note": "Closest to his words, with the best proof plan: a pedal-storm demo plus a luminance assertion on the label band. The top band keeps the label and staff out of the roll. The attack-cap staircase shows rolled chords, and grey pedal leftovers show harmonic blur. The s15 staff beside the label is cramped, the left chord tags crowd the bass lanes, and the claim that bars already in flight don't rescale under zoom is doubtful, since they are still in world units."
+      },
+      {
+        "scheme": "Progression Runway",
+        "wow": 9,
+        "theory": 7,
+        "sustain_clarity": 8,
+        "feasibility_tonight": 2,
+        "fit_with_daniel": 6,
+        "note": "The most cinematic, and road signs with amber diatonic and pink borrowed numerals teach function well. But perspective squashes history, so voicings can't be read past the first few units. Receding lane lines and shrinking sprite text risk moire and H.264 shimmer. The clearcoat deck, mirror pass and transparency ordering make a large 520-620 line build, and it trades his upward columns for depth."
+      }
+    ],
+    "top_three": [
+      "Upright Roll",
+      "Orbit",
+      "Nocturne Roll"
+    ],
+    "why": "A teacher wants the student to see two things about their own playing: what the hands did (voicing, rolls, pedalling) and what it meant (chord function, why it sounds lush). No single scheme does both well, so I'd pick a chassis, a second lens and a theory layer.\n\n1. Upright Roll is the chassis for tonight. It is literally what Daniel asked for (piano at the bottom, notes climbing in columns, FL's roll turned upright). It keeps the 3D keys he loved and uses normal blending in gutter lanes, so the wall cannot form. Held notes are solid and pedalled notes hollow, and a pedal lift cuts every tail on one line, which makes CC64 legible. Its pedal-storm receipt proves the label band survives. I would add Rehearsal Roll's velocity-scaled onset cap and its 'rolled 84 ms' caption.\n\n2. Orbit is the harmony lens: 'same take, two lenses'. Of the three ring designs it is the one that stays calm and correct. It keeps one ghost instead of a tunnel, has a bass spoke for inversions, and names borrowed notes outside the key window. Fifths Clock stacks ghosts on its numeral, Compass is crowded and draws a heuristic tension gauge, and Maelstrom spins the shapes away.\n\n3. Nocturne Roll supplies the theory layer more than the look. Build its function colour as a COLOUR mode on the Upright chassis, so pitch hue stays the default, along with degreeOf. Its harmonySet() (held notes plus pedalled notes struck in the last 1.5 s) fixes a bug the other schemes miss. I checked piano.js: currentInfo() runs Theory.detect over every sounding note, pedal-held ones included. So when Daniel rides the pedal across a change, the label, the roles, the numerals and the ring polygons all drift toward 'cluster' or a wrong name. The demo lifts its pedal, so the receipts never show this. harmonySet should go into THEORY with node tests before any scheme names harmony.\n\nOther flags:\n- Voice Columns has the best single lesson (the 7th falling to the 3rd), but it keeps additive held bars and would be wrong under the pedal until harmonySet lands. Save its voice-leading threads for later.\n- Prism's max-per-pitch-class rule is worth stealing.\n- Plumes, Maelstrom, Runway and Compass all take much longer than they claim, and Plumes' overtone wisps would light keys he never played.\n- For the note log he wants for banter: store release time and sound-end time separately (the trails already hold aT1 and aT2), plus the raw CC64 value. Then 'you rode the pedal through the Fmaj9 to G9 change' is a fact you can talk about, not a guess."
+  }
+]
