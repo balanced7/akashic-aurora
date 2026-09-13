@@ -166,7 +166,19 @@ try {
   step("clip-clicked", { clicked });
   if (!clicked) throw new Error(`clip ${opt.clip} is not in #lib-list`);
 
-  await waitFor(() => evaluate(`document.getElementById("video").readyState >= 2`), 20000, "video data");
+  try {
+    await waitFor(() => evaluate(`document.getElementById("video").readyState >= 2`), 20000, "video data");
+  } catch (err) {
+    // Say what the element was doing, so a timeout reads as a cause rather than a shrug.
+    step("video-diagnostics", {
+      video: await evaluate(`(() => { const v = document.getElementById("video");
+        return { src: v.currentSrc, networkState: v.networkState, readyState: v.readyState,
+                 error: v.error && v.error.message, paused: v.paused,
+                 banner: (document.getElementById("banner-text") || {}).textContent || null }; })()`),
+      hud: await hud(),
+    });
+    throw err;
+  }
   if ((await videoState()).paused) step("play-clicked", { box: await clickElement(`document.getElementById("btn-play")`) });
   await waitFor(() => evaluate(`!document.getElementById("video").paused && document.getElementById("video").currentTime > 0.5`),
                 15000, "playback");
@@ -196,11 +208,13 @@ try {
   step("midi", { status: await evaluate(`document.getElementById("midi-status").textContent.trim()`) });
   step("plan", { head: await evaluate(`document.getElementById("plan-text").textContent.split("\\n")[0]`) });
 
-  const openTake = (await getJSON(`${opt.app}/api/takes`)).takes[0];
+  // Take the id from this page's own HUD: other clients may be opening takes at the same moment,
+  // so "the newest take on the server" can belong to someone else.
+  const takeId = /^\d{8}-\d{6}-[0-9a-f]{8}/.exec((await hud())["hud-take"] || "")?.[0];
   await page.send("Page.navigate", { url: "about:blank" });  // pagehide closes the take
   await delay(2500);
-  if (openTake) {
-    const take = await getJSON(`${opt.app}/api/take/${openTake.take_id}`);
+  if (takeId) {
+    const take = await getJSON(`${opt.app}/api/take/${takeId}`);
     const kinds = {};
     let monotonic = true;
     let lastEpoch = 0;
@@ -209,7 +223,7 @@ try {
       if (e.t.epoch < lastEpoch) monotonic = false;
       lastEpoch = Math.max(lastEpoch, e.t.epoch);
     }
-    step("take-after-pagehide", { take_id: openTake.take_id, closed: take.take.closed, latest_epoch: take.take.latest_epoch,
+    step("take-after-pagehide", { take_id: takeId, closed: take.take.closed, latest_epoch: take.take.latest_epoch,
                                   event_kinds: kinds, epochs_monotonic: monotonic, summary: take.take.summary });
   }
 } catch (err) {
