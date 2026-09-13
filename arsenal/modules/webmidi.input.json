@@ -1,0 +1,15 @@
+{
+  "id": "webmidi.input",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [],
+  "outputs": [{"port": "cc", "type": "control.event"}],
+  "params": [],
+  "isolation": "browser-tab",
+  "licence": "NOASSERTION",
+  "latency_ms": {"base": 1},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [],
+  "notes": "Web MIDI in Chrome. Prefers the Arturia KeyLab 88 mk3; Windows MIDI Services lets several apps share the port."
+}

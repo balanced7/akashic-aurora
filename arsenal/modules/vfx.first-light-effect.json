@@ -1,0 +1,19 @@
+{
+  "id": "vfx.first-light-effect",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+  "outputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+  "params": [
+    {"name": "pulse", "unit": "ratio", "range": [0, 1]},
+    {"name": "hue", "unit": "deg", "range": [0, 360]},
+    {"name": "intensity", "unit": "ratio", "range": [0, 1]}
+  ],
+  "isolation": "browser-tab",
+  "licence": "Apache-2.0",
+  "latency_ms": {"base": 2},
+  "degradation": {"on_failure": "bypass"},
+  "receipts": [],
+  "notes": "WebGL2 effect built from VFX bench chunks (arsenal/web/shaders/first-light.frag). The page carries a built-in fallback effect."
+}

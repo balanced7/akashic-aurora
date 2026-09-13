@@ -1,0 +1,15 @@
+{
+  "id": "ffmpeg.audio-features",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [{"port": "media", "type": "asset.reference"}],
+  "outputs": [{"port": "features", "type": "analysis.features"}],
+  "params": [],
+  "isolation": "in-process",
+  "licence": "BSD-3-Clause AND LicenseRef-bundled-FFmpeg-unverified",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [],
+  "notes": "Offline, timestamped audio features from FFmpeg via PyAV (arsenal/analysis.py). The FFmpeg bundled with PyAV has an unverified build configuration, so its licence is not asserted."
+}

@@ -1,0 +1,609 @@
+/* First Light — arsenal/web/first-light.css
+   Patch-bay instrument, not a document. Dark by default; light under
+   prefers-color-scheme: light. Tokens are verbatim from FIRST-LIGHT-SPEC.md
+   ("Page (arsenal/web) > Look"). No gradient heroes, no emoji, not every
+   surface a rounded card. */
+
+:root {
+  /* dark tokens (default) */
+  --ground: #0F1114;
+  --panel:  #171A1F;
+  --ink:    #E6E8EB;
+  --ink-2:  #A3ACB7;
+  --ink-3:  #7F8994;
+  --rule:   #2C323A;
+  --accent: #F0A443; /* amber: video / effect path */
+  --audio:  #4CC2BA; /* teal: audio path */
+  --control:#E47FA7; /* rose: control path */
+
+  --font-display: "Archivo", "Arial Narrow", "Segoe UI Semibold", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground: #EDEFF2;
+    --panel:  #F8F9FB;
+    --ink:    #15171B;
+    --ink-2:  #4B5360;
+    --ink-3:  #6B7380;
+    --rule:   #CBD1D8;
+    --accent: #A35600;
+    --audio:  #0D716E;
+    --control:#962C58;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100, "wght" 400;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+button, input {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* -------------------------------------------------------------- focus -- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------- app -- */
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 90, "wght" 700;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+}
+
+.brand-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.midi-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ layout -- */
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 384px;
+}
+
+.layout.rack-collapsed {
+  grid-template-columns: 1fr 0px;
+}
+
+/* -------------------------------------------------------------- stage -- */
+
+.stage {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.stage.drag-over::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed var(--accent);
+  pointer-events: none;
+}
+
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#video {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hint {
+  position: relative;
+  z-index: 1;
+  max-width: 360px;
+  text-align: center;
+  color: var(--ink-2);
+  padding: 20px;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
+}
+
+.stage.has-clip .hint {
+  display: none;
+}
+
+/* webglcontextlost bypass: show the <video> directly, full-frame, and hide
+   the (now-dead) canvas underneath it. */
+.stage.gl-bypass #video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.stage.gl-bypass #gl {
+  opacity: 0;
+}
+
+.hint-title {
+  margin: 0 0 6px;
+  font-variation-settings: "wdth" 85, "wght" 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.hint-body {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.banner {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 2;
+  max-width: 80%;
+  padding: 7px 12px;
+  background: var(--panel);
+  border: 1px solid var(--control);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.banner[hidden] { display: none; }
+
+.transport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72) 40%);
+}
+
+.seek {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+
+/* The transport bar sits on its own always-dark video scrim (see .transport
+   below), independent of the page theme -- both .time and .time-sep are
+   intentionally fixed light colours, not theme tokens, so they stay legible
+   in light mode too. */
+.time {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #E6E8EB;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.time-sep {
+  margin: 0 3px;
+  color: rgba(230, 232, 235, 0.6);
+}
+
+/* ------------------------------------------------------------- rack --- */
+
+.rack {
+  border-left: 1px solid var(--rule);
+  background: var(--panel);
+  overflow: hidden auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout.rack-collapsed .rack {
+  border-left: none;
+}
+
+.panel {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.panel-title {
+  margin: 0 0 9px;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 72, "wght" 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------- controls -- */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 85, "wght" 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--ink-3);
+}
+
+.btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-icon {
+  min-width: 58px;
+}
+
+/* --------------------------------------------------------- library ---- */
+
+.lib-search {
+  width: 100%;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
+.lib-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.lib-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 7px;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+
+.lib-item:hover {
+  border-color: var(--rule);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.lib-item.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.lib-item .name {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lib-item .meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.lib-empty {
+  color: var(--ink-3);
+  font-size: 12px;
+  padding: 6px 2px;
+}
+
+/* ----------------------------------------------------------- patch ---- */
+
+.patch-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.patch-svg .node rect {
+  fill: var(--ground);
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.patch-svg .node text {
+  fill: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.patch-svg .wire {
+  fill: none;
+  stroke-width: 1.4;
+}
+
+.patch-svg .sig-bind {
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.patch-svg .sig-video { stroke: var(--accent); }
+.patch-svg .sig-audio { stroke: var(--audio); }
+.patch-svg .sig-control { stroke: var(--control); }
+
+.patch-svg .light {
+  fill: var(--ink-3);
+  transition: fill 60ms linear;
+}
+
+.patch-svg .node[data-node="clip"] .light,
+.patch-svg .node[data-node="decode"] .light,
+.patch-svg .node[data-node="fx"] .light,
+.patch-svg .node[data-node="screen"] .light {
+  --lit: var(--accent);
+}
+
+.patch-svg .node[data-node="features"] .light {
+  --lit: var(--audio);
+}
+
+.patch-svg .node[data-node="midi"] .light {
+  --lit: var(--control);
+}
+
+.patch-svg .light.on {
+  fill: var(--lit);
+  filter: drop-shadow(0 0 2px var(--lit));
+}
+
+.legend {
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.swatch {
+  width: 9px;
+  height: 9px;
+  display: inline-block;
+  border-radius: 1px;
+}
+
+.swatch.sig-video { background: var(--accent); }
+.swatch.sig-audio { background: var(--audio); }
+.swatch.sig-control { background: var(--control); }
+
+/* ------------------------------------------------------------- map ---- */
+
+.map-list {
+  list-style: none;
+  margin: 0 0 9px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.map-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  word-break: break-all;
+}
+
+.map-empty {
+  color: var(--ink-3);
+  font-style: normal;
+}
+
+.map-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--audio);
+}
+
+/* ------------------------------------------------------------- hud ---- */
+
+.hud-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.hud-row dt {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.hud-row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-align: right;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.shader-log {
+  margin: 9px 0 0;
+  padding: 7px 8px;
+  background: var(--ground);
+  border: 1px solid var(--control);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.shader-log[hidden] { display: none; }
+
+/* ------------------------------------------------------------ plan ---- */
+
+.panel-plan {
+  border-bottom: none;
+}
+
+.plan-text {
+  margin: 0;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  padding: 9px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* -------------------------------------------------------- responsive -- */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56vh 1fr;
+  }
+  .layout.rack-collapsed {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56vh 0px;
+  }
+  .rack {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+  }
+}

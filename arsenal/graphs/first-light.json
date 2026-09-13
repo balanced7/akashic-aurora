@@ -1,0 +1,26 @@
+{
+  "api": "arsenal.graph/v0",
+  "name": "first-light",
+  "mode": "live_audio",
+  "assets": {"clip": {"uri": null}},
+  "nodes": {
+    "clip": {"use": "file.clip", "with": {"asset": "clip"}},
+    "decode": {"use": "browser.decode"},
+    "features": {"use": "ffmpeg.audio-features"},
+    "fx": {"use": "vfx.first-light-effect"},
+    "midi": {"use": "webmidi.input", "with": {"prefer": "KeyLab"}},
+    "screen": {"use": "browser.present"}
+  },
+  "edges": [
+    ["clip.media", "decode.media"],
+    ["clip.media", "features.media"],
+    ["decode.video", "fx.video"],
+    ["fx.video", "screen.video"]
+  ],
+  "bindings": [
+    {"from": "features.features.bass", "to": "fx.pulse", "range": [0, 1],
+     "mix": {"bass": 0.65, "flux": 0.35}, "smooth": {"attack_ms": 12, "release_ms": 180}, "precedence": 0},
+    {"from": "midi.cc", "to": "fx.hue", "range": [0, 360], "learn": true, "precedence": 0},
+    {"from": "midi.cc", "to": "fx.intensity", "range": [0, 1], "learn": true, "precedence": 0}
+  ]
+}

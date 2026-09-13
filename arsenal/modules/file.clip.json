@@ -1,0 +1,15 @@
+{
+  "id": "file.clip",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [],
+  "outputs": [{"port": "media", "type": "asset.reference"}],
+  "params": [],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "stall"},
+  "receipts": [],
+  "notes": "A file from Daniel's library, referenced by path. Its bytes never enter the graph."
+}

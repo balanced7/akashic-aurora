@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 25cc1090. A bound you discover by collision is not awareness -- this sheet
+> Derived at f1b9ac26. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -236,7 +236,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py |
+| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, scripts/trader_archivist.py |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
@@ -271,7 +271,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (163 numeric constants)
+## Mechanical bounds (165 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -352,6 +352,7 @@ Class: reference
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
 | `MAX_CHARS_PER_ENTRY` | 170 | core/narrative/chronicler.py |  |
+| `MAX_CLIPS` | 500 | arsenal/serve.py |  |
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
@@ -410,6 +411,7 @@ Class: reference
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |
 | `WINDOW` | 30 | core/coord/method_drift.py |  |
 | `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py |  |
+| `WINDOW_TICKS` | 2,048 | arsenal/analysis.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
 | `_CAP_MAX` | 200 | agent/harness/capture.py |  |
 | `_CAP_STR` | 400 | agent/harness/capture.py |  |

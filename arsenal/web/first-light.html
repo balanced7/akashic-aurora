@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>First Light — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/first-light.css" />
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">First Light</span>
+      <span class="brand-sub">arsenal &middot; T399 &middot; Lane A</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="midi-status" id="midi-status">MIDI: not connected</span>
+      <button type="button" class="btn" id="btn-midi">Connect MIDI</button>
+      <button type="button" class="btn" id="btn-rack" aria-pressed="true" aria-controls="rack">Rack</button>
+    </div>
+  </header>
+
+  <div class="layout" id="layout">
+
+    <section class="stage" id="stage" aria-label="Stage">
+      <canvas id="gl" tabindex="0" aria-label="First Light render surface"></canvas>
+      <video id="video" playsinline preload="metadata"></video>
+
+      <div class="hint" id="hint">
+        <p class="hint-title">No clip loaded</p>
+        <p class="hint-body">Drag a video onto the stage, or pick one from the Library panel.</p>
+      </div>
+
+      <div class="banner" id="banner" role="status" hidden="hidden">
+        <span id="banner-text"></span>
+      </div>
+
+      <div class="transport">
+        <button type="button" class="btn btn-icon" id="btn-play" aria-pressed="false">Play</button>
+        <button type="button" class="btn btn-icon" id="btn-loop" aria-pressed="false">Loop</button>
+        <input type="range" id="seek" class="seek" min="0" max="1000" step="1" value="0" aria-label="Seek" />
+        <span class="time" id="time"><span id="time-cur">0:00</span><span class="time-sep">/</span><span id="time-dur">0:00</span></span>
+        <button type="button" class="btn btn-icon" id="btn-fullscreen">Fullscreen</button>
+      </div>
+    </section>
+
+    <aside class="rack" id="rack">
+
+      <section class="panel" data-panel="library" aria-label="Library">
+        <h2 class="panel-title">Library</h2>
+        <input type="search" id="lib-search" class="lib-search" placeholder="Filter clips&hellip;" aria-label="Filter clip library" />
+        <ul class="lib-list" id="lib-list"></ul>
+      </section>
+
+      <section class="panel" data-panel="patch" aria-label="Patch">
+        <h2 class="panel-title">Patch</h2>
+        <svg id="patch-svg" class="patch-svg" viewBox="0 0 320 150" role="img" aria-label="Signal chain">
+          <line class="wire sig-video" x1="66" y1="21" x2="86" y2="21"></line>
+          <line class="wire sig-video" x1="146" y1="21" x2="166" y2="21"></line>
+          <line class="wire sig-video" x1="226" y1="21" x2="246" y2="21"></line>
+          <line class="wire sig-audio" x1="36" y1="34" x2="36" y2="98"></line>
+          <path class="wire sig-audio sig-bind" d="M66,108 C120,130 130,60 166,26"></path>
+          <line class="wire sig-control sig-bind" x1="196" y1="98" x2="196" y2="34"></line>
+
+          <g class="node" data-node="clip">
+            <rect x="6" y="8" width="60" height="26"></rect>
+            <text x="36" y="25">CLIP</text>
+            <circle class="light" id="light-clip" cx="60" cy="12" r="3.4"></circle>
+          </g>
+          <g class="node" data-node="decode">
+            <rect x="86" y="8" width="60" height="26"></rect>
+            <text x="116" y="25">DECODE</text>
+            <circle class="light" id="light-decode" cx="140" cy="12" r="3.4"></circle>
+          </g>
+          <g class="node" data-node="fx">
+            <rect x="166" y="8" width="60" height="26"></rect>
+            <text x="196" y="25">FX</text>
+            <circle class="light" id="light-fx" cx="220" cy="12" r="3.4"></circle>
+          </g>
+          <g class="node" data-node="screen">
+            <rect x="246" y="8" width="68" height="26"></rect>
+            <text x="280" y="25">SCREEN</text>
+            <circle class="light" id="light-screen" cx="308" cy="12" r="3.4"></circle>
+          </g>
+          <g class="node" data-node="features">
+            <rect x="6" y="98" width="60" height="26"></rect>
+            <text x="36" y="115">FEAT</text>
+            <circle class="light" id="light-features" cx="60" cy="102" r="3.4"></circle>
+          </g>
+          <g class="node" data-node="midi">
+            <rect x="166" y="98" width="60" height="26"></rect>
+            <text x="196" y="115">MIDI</text>
+            <circle class="light" id="light-midi" cx="220" cy="102" r="3.4"></circle>
+          </g>
+        </svg>
+        <ul class="legend">
+          <li class="legend-item"><span class="swatch sig-video"></span>video / effect</li>
+          <li class="legend-item"><span class="swatch sig-audio"></span>audio</li>
+          <li class="legend-item"><span class="swatch sig-control"></span>control</li>
+        </ul>
+      </section>
+
+      <section class="panel" data-panel="map" aria-label="Map">
+        <h2 class="panel-title">Map</h2>
+        <ul class="map-list" id="map-list">
+          <li class="map-empty" id="map-empty">no mappings learned</li>
+        </ul>
+        <div class="map-controls">
+          <button type="button" class="btn" id="btn-learn">Learn</button>
+          <span class="map-status" id="map-status"></span>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="hud" aria-label="HUD">
+        <h2 class="panel-title">HUD</h2>
+        <dl class="hud-grid" id="hud">
+          <div class="hud-row"><dt>Epoch</dt><dd id="hud-epoch">&mdash;</dd></div>
+          <div class="hud-row"><dt>Media time</dt><dd id="hud-time">&mdash;</dd></div>
+          <div class="hud-row"><dt>Decoder</dt><dd id="hud-decoder">&mdash;</dd></div>
+          <div class="hud-row"><dt>Frames drop/total</dt><dd id="hud-frames">&mdash;</dd></div>
+          <div class="hud-row"><dt>MIDI / last CC</dt><dd id="hud-midi">&mdash;</dd></div>
+          <div class="hud-row"><dt>Latency p50/p95</dt><dd id="hud-latency">&mdash;</dd></div>
+          <div class="hud-row"><dt>Take / events</dt><dd id="hud-take">&mdash;</dd></div>
+          <div class="hud-row"><dt>Shader</dt><dd id="hud-shader">&mdash;</dd></div>
+          <div class="hud-row"><dt>Analysis</dt><dd id="hud-analysis">&mdash;</dd></div>
+          <div class="hud-row"><dt>Backing scale</dt><dd id="hud-scale">1.00</dd></div>
+        </dl>
+        <pre class="shader-log" id="shader-log" hidden="hidden"></pre>
+      </section>
+
+      <section class="panel panel-plan" data-panel="plan" aria-label="Plan">
+        <h2 class="panel-title">Plan</h2>
+        <pre class="plan-text" id="plan-text">no plan yet &mdash; load a clip</pre>
+      </section>
+
+    </aside>
+  </div>
+</div>
+<script src="/web/first-light.js" defer></script>
+</body>
+</html>

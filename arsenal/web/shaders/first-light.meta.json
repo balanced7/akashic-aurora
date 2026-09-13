@@ -1,0 +1,71 @@
+{
+  "shader": "first-light.frag",
+  "author": "Navi (kimi)",
+  "date": "2026-09-13",
+  "glsl": "GLSL ES 3.00",
+  "kind": "effect",
+  "chunks_reused": [
+    {
+      "chunk": "zoom-pulse",
+      "file": "design/vfx-chunks/zoom-pulse.glsl",
+      "used_for": "beat-driven breathing scale about the centre (the domain warp under everything).",
+      "changed": "Inlined. Centre-origin (`uv - 0.5`, scale, re-add 0.5) instead of the chunk's direct `uv *= ...`, so the zoom stays centred in the contained video rect rather than the canvas corner. Amplitude 0.16 (from 0.35, since it now rides on a real video that must stay recognisable)."
+    },
+    {
+      "chunk": "tanh-tonemap",
+      "file": "design/vfx-chunks/tanh-tonemap.glsl",
+      "used_for": "the filmic shoulder that keeps the pulse glow + superlinear bloom from flat-topping into white.",
+      "changed": "Unchanged in intent. I wrote it per-component as vec3(tanh(r),tanh(g),tanh(b)); that is valid but NOT required — GLSL ES 3.00 defines tanh(genType), so tanh(col) works on a vec3 directly. Per Vandor's correction 2026-09-13."
+    },
+    {
+      "chunk": "superlinear-highlight",
+      "file": "design/vfx-chunks/superlinear-highlight.glsl",
+      "used_for": "the pre-shoulder crest bloom (`0.85` coefficient) that makes the light pulse *brighter and darker at once*.",
+      "changed": "Unchanged, placed BEFORE the tanh shoulder per the chunk's own note."
+    },
+    {
+      "chunk": "vignette-cubic",
+      "file": "design/vfx-chunks/vignette-cubic.glsl",
+      "used_for": "the aspect-corrected, corner-normalised cubic vase around the stage.",
+      "changed": "Unchanged in math. Depth modulated by `0.45 * u_intensity` so the effect scales with the knob rather than always full-on."
+    },
+    {
+      "chunk": "hash31",
+      "file": "design/vfx-chunks/hash31.glsl",
+      "used_for": "time-invariant dust, keyed on `floor(gl_FragCoord.xy)` only.",
+      "changed": "Unchanged helper. Deliberately NOT keyed on `u_time`, so the dust is static per pixel (satisfies the no-crawl floor; flux modulates its amplitude, not its position)."
+    }
+  ],
+  "chunks_deliberately_not_reused": [
+    {
+      "chunk": "channel-rotate",
+      "file": "design/vfx-chunks/channel-rotate.glsl",
+      "reason": "Its own note warns it SHIFTS HUE and destroys hue-bearing signal. The spec asks for a *perceptual* hue rotation, so I used a correct RGB->HSV->rotate->RGB (Iq rgb2hsv/hsv2rgb) instead of the swizzle."
+    }
+  ],
+  "built_new": [
+    "Letterbox-to-contain (shader does its own black bars from u_res vs u_video_res), early-returning outside the contained rect.",
+    "Perceptual hue rotation (rgb2hsv -> fract(hue + deg/360) -> hsv2rgb), gated so 0 deg is a branch-free no-op.",
+    "Beat-driven chromatic aberration: R/B fringe scaled by `(1 +/- 0.004*u_pulse)`, one extra texture-fetch pair, constant (no crawl).",
+    "Band texture: `u_mid`/`u_high` as gentle baseline lifts, `u_flux` as faint static-dust amplitude."
+  ],
+  "uniforms_contract": {
+    "u_video": "sampler2D (spec)",
+    "u_res": "vec2 (spec)",
+    "u_video_res": "vec2 (spec)",
+    "u_time": "float, media seconds (spec)",
+    "u_pulse": "float 0..1 (spec)",
+    "u_hue": "float degrees 0..360 (spec)",
+    "u_intensity": "float 0..1 (spec)",
+    "u_bass": "declared per the contract; consumed indirectly via page-computed u_pulse",
+    "u_mid": "used (baseline lift)",
+    "u_high": "used (subtle air)",
+    "u_flux": "used (static dust amplitude)"
+  },
+  "notes": [
+    "u_bass is declared but unused in the body: it is part of the mandated uniform contract and is folded into u_pulse by the page, so the declaration must stay (an unused uniform is legal and optimized out).",
+    "CORRECTION 2026-09-13 (Vandor, from the live run): a standalone GLSL ES .frag must put #version on the absolute first line — ANGLE on D3D11 rejects it after any leading byte. I originally shipped the //! header on line 1; the .frag is now fixed (#version line 1, //! header as a comment on line 2), so it compiles under ANY loader, not just the page's patched one.",
+    "Live result (Chrome 152 / RX 9070 XT / ANGLE-D3D11, HEVC hardware decode): compiled clean, empty info log, 0 dropped frames.",
+    "Compile-safe against GLSL ES 3.00: highp, no loops, no ?: on structs, no derivatives of discontinuous values. tanh is fine on a vec3 directly (genType overload exists); the per-component form is valid but unnecessary."
+  ]
+}

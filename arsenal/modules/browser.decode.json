@@ -1,0 +1,15 @@
+{
+  "id": "browser.decode",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "inputs": [{"port": "media", "type": "asset.reference"}],
+  "outputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+  "params": [],
+  "isolation": "browser-tab",
+  "licence": "NOASSERTION",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [],
+  "notes": "Chrome's built-in hardware video decoder. Frames stay inside the browser engine, where any copy is not observable from the graph."
+}
