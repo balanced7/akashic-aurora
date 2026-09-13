@@ -85,6 +85,14 @@ void main(){
   outColor = vec4(col, 1.0);
 }
 ```
+`#version 300 es` is the FIRST line of a `.frag`, deliberately: a `.frag` is compiled standalone,
+and ANGLE (WebGL2 on D3D11) rejects any source whose `#version` is not on line 1 ("#version
+directive must occur on the first line of the shader"). The `//!` JSON header convention is for
+`design/vfx-chunks/*.glsl` only — those are concatenated into effects and never compiled
+standalone, so a leading comment is fine there. Never put a `//!` header above `#version` in a
+standalone `.frag` (First Light, 2026-09-13). Tanh is fine directly on a `vec3` — GLSL ES 3.00
+defines `tanh(genType)`.
+
 The bench (`scripts/vfx.html`) adds the avatar's tunables when a sketch wants them: `u_sub`
 `u_gap` `u_spin` `u_pulse` `u_sat` `u_tint` `u_dim` `u_wire` `u_id0` `u_id1` `u_round` `u_star`
 `u_see` `u_thick`. Declare only what you use: `gl.uniform1f(null, x)` is a legal no-op, so one
