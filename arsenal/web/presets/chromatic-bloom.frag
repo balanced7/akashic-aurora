@@ -59,7 +59,7 @@ void main() {
   vec2 du = (uv - 0.5) * aber;
 
   // base color: video, or a generative luminous field in visualizer mode
-  vec3 col;
+  vec3 base;
   if (hasVideo) {
     vec2 g = video_uv(uv);
     vec2 gr = video_uv(clamp(uv + du, 0.0, 1.0));
@@ -71,7 +71,7 @@ void main() {
     vec3 grn = ig ? texture(u_video, g).rgb : vec3(0.0);
     vec3 b = ig ? texture(u_video, gb).rgb : vec3(0.0);
     // channel recombine with the shifted samples = chromatic fringe
-    col = vec3(r.r, grn.g, b.b);
+    base = vec3(r.r, grn.g, b.b);
   } else {
     // generative glow: a slow drifting plasma field. Drive is an idle floor + spectrum,
     // so silence gives a soft luminous wash instead of a flat grey-pink void.
@@ -87,7 +87,7 @@ void main() {
     float blob1 = smoothstep(0.55, 0.0, abs(r - (0.34 + 0.12 * sin(t * 0.25))));
     float blob2 = smoothstep(0.5, 0.0, abs(r - (0.55 + 0.14 * sin(t * 0.19 + 2.1 + a))));
     float idle = 0.045 + 0.020 * sin(t * 0.3 + a * 3.0);
-    col = vec3(0.035, 0.030, 0.050)                                      // soft lavender-black floor
+    base = vec3(0.035, 0.030, 0.050)                                   // soft lavender-black floor
         + vec3(0.45, 0.18, 0.34) * (blob1 + 0.5 * blob2) * (idle + s0)    // rose-magenta core
         + vec3(0.10, 0.30, 0.48) * (blob2 + 0.5 * blob1) * (idle + s1 + s2); // cool blue halo
   }
@@ -95,7 +95,7 @@ void main() {
   // bloom (k1): cheap multi-tap radial blur APPROXIMATED with just two u_prev taps (the core
   // weight is the fresh colour itself), so the total texture reads stay at 8.
   float bloomAmt = 0.05 + 0.30 * u_k1 * (0.4 + u_pulse);
-  vec3 bloom = col * 0.5;
+  vec3 bloom = base * 0.5;
   bloom += texture(u_prev, clamp(uv + vec2(0.013, 0.0) * bloomAmt, 0.0, 1.0)).rgb * 0.28;
   bloom += texture(u_prev, clamp(uv - vec2(0.013, 0.0) * bloomAmt, 0.0, 1.0)).rgb * 0.22;
 
@@ -105,17 +105,19 @@ void main() {
   leak += smoothstep(0.5, 0.0, abs(uv.x - (0.5 + 0.3 * cos(u_time * 0.3)))) * 0.15 * (0.15 + u_mid);
   vec3 leakCol = vec3(0.9, 0.35, 0.10) * leak * u_k3 * 0.32;
 
+  // hue rotates ONLY the fresh frame base + leaks, never the u_prev bloom echo, so a rotated
+  // hue does not compound every frame.
+  base = hueRot(base, u_hue);
+  leakCol = hueRot(leakCol, u_hue);
+
   // combine: base + bloom halo + leaks; then saturation (k4) and bleed (k5) toward warm
-  col = col + bloom * bloomAmt + leakCol;
+  vec3 col = base + bloom * bloomAmt + leakCol;
   // saturation boost: mix toward a saturated version
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(lum), col, mix(0.9, 1.4, u_k4));
   // bleed: add a little spectrum-tinted warmth that trails the beat
   col += vec3(0.06, 0.02, 0.0) * u_k5 * (0.15 + u_bass + u_beat);
 
-  // hue rotates ONLY the fresh frame colour — never the u_prev bloom — so a rotated hue
-  // does not compound every frame.
-  col = hueRot(col, u_hue);
   col *= mix(0.35, 1.0, u_intensity);
 
   vec3 over = max(col - 0.8, 0.0);
