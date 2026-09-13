@@ -21,6 +21,8 @@ const { values: opt } = parseArgs({
     app: { type: "string", default: "http://127.0.0.1:8793" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     port: { type: "string", default: "9333" },
+    // No window at all, so a run can't steal focus from whatever Daniel is doing (a full-screen game, say).
+    headless: { type: "boolean", default: false },
   },
 });
 const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
@@ -31,7 +33,7 @@ mkdirSync(opt.out, { recursive: true });
 
 const report = {
   api: "arsenal.receipt/v0", lane: "A", title: "First Light end to end in Chrome",
-  started_at: new Date().toISOString(), clip: opt.clip, app: opt.app,
+  started_at: new Date().toISOString(), clip: opt.clip, app: opt.app, headless: opt.headless,
   steps: [], samples: [], console: [], exceptions: [], media: {}, media_errors: [],
   not_measured: [
     "knob-to-screen latency p50/p95 (needs a person turning a knob)",
@@ -49,7 +51,8 @@ const chrome = spawn(opt.chrome, [
   "--no-first-run", "--no-default-browser-check", "--mute-audio",
   // A covered or background window throttles rAF and timers, which would make every fps and drop number meaningless.
   "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling",
-  "--autoplay-policy=no-user-gesture-required", "--window-size=1600,1000", "about:blank",
+  "--autoplay-policy=no-user-gesture-required", "--window-size=1600,1000",
+  ...(opt.headless ? ["--headless=new"] : []), "about:blank",
 ], { stdio: "ignore" });
 
 async function getJSON(url) {
