@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ebaf59f0. A bound you discover by collision is not awareness -- this sheet
+> Derived at 290812e5. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (257 names)
+## Configuration flags (258 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -177,6 +177,7 @@ Class: reference
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
 | `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +5 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
+| `COMPUTERNAME` | `` | arsenal/lanes/gst_d3d12_soak.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |
 | `DEEPSEEK_API_KEY` | `` | core/comm/ask.py, scripts/ask_deepseek.py, scripts/deepseek_chat.py |
 | `DEEPSEEK_CONNECT_TIMEOUT` | `"15"` | scripts/deepseek_chat.py |
@@ -271,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (165 numeric constants)
+## Mechanical bounds (167 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -329,6 +330,7 @@ Class: reference
 | `FLOOR` | 4,900 | scripts/check_fresh_clone.py |  |
 | `FLOOR_CHARS` | 15 | scripts/bifrost_runner_deepseek.py |  |
 | `FORGE_WATCH_MIN_IMPRESSIONS` | 8 | core/recall/curator.py | ...or this many fresh impressions, whichever first |
+| `FPS_UPDATE_INTERVAL_MS` | 1,000 | arsenal/lanes/gst_d3d12_soak.py |  |
 | `FRESH_MIN_DEFAULT` | 30 | core/comm/wake_seat.py | AKASHIC_WAKE_MARKER_FRESH_MIN overrides |
 | `GEMINI` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py | Gemini strategic review |
 | `GIT_CAP` | 10 | agent/harness/delta.py | commits listed before the pull pointer takes over |
@@ -364,6 +366,7 @@ Class: reference
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
+| `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MESSAGE_TTL` | 3,600 | research/in-flight/t342/dead-modules/fast_agent_comm.py | 1 hour |
 | `MESSAGE_TTL_DAYS` | 7 | research/in-flight/t342/dead-modules/multi_agent.py |  |
