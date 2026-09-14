@@ -609,3 +609,10 @@ node judge/cross.mjs; node judge/labels.mjs   # defect scans (no-3rd, slash dupl
 node spec/merge_lab.mjs           # this spec: was/close ALSO, loss coverage, tighter cluster, name lengths
 NG=./nashville-ng.mjs node tracker-compare.mjs && node nashville_ng.test.mjs   # backdoor patch, 2,872 checks
 ```
+
+## Daniel's decisions (2026-09-14, answered on Discord)
+
+On Discord Daniel answered the questions below, sent with recommended defaults, with: "Yes to all of them! Really good ideas!". Recorded as:
+- **Q1 (chord label):** the big label shows the new name (Gbmaj13#11). The old name stays small after the chips as "ALSO Bbm11/Gb".
+- **Q2 (captions):** the Next-gen view's captions go in recordings. Classic (today's look with corrected names) is one select away.
+- **Q3 (label timing):** one steady name per chord. On the first night we switch between steady and every-note for a few minutes so he can confirm.
