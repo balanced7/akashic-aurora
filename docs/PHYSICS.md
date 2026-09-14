@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 5cff2c61. A bound you discover by collision is not awareness -- this sheet
+> Derived at de1334bf. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (245 numeric constants)
+## Mechanical bounds (251 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -390,6 +390,7 @@ Class: reference
 | `MAX_BACKOFF` | 30 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
 | `MAX_BACKUP_AGE_ALERT` | 900 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 15 minutes - alert threshold |
 | `MAX_BACKUP_AGE_CRITICAL` | 1,800 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 30 minutes - critical threshold |
+| `MAX_BARS` | 64 | arsenal/band.py |  |
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
 | `MAX_CHARS_PER_ENTRY` | 170 | core/narrative/chronicler.py |  |
@@ -400,6 +401,8 @@ Class: reference
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
 | `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
+| `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
+| `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
@@ -422,6 +425,7 @@ Class: reference
 | `MIN_WINDOW_MS` | 400 | arsenal/practice.py | shorter windows are transients |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
 | `MONITOR_INTERVAL` | 100 | research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py | ms - fast polling |
+| `MUD_FLOOR` | 55 | arsenal/band.py | G3: no minor second is stacked with its lower note under this |
 | `NEIGHBOUR_STEP_MS` | 1,200 | arsenal/practice.py | ...or a step away from one note and back to it, each at most this far apart in time |
 | `NUDGE_TTL` | 120 | core/comm/nudge.py | a nudge auto-expires so a missed pick-up never sticks |
 | `ONSET_GROUP_MS` | 50 | arsenal/practice.py | note-ons within 50 ms of a group's first onset are one attack (a window can start there) |
@@ -487,6 +491,8 @@ Class: reference
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |
+| `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
+| `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |
 | `WINDOW` | 30 | core/coord/method_drift.py |  |
