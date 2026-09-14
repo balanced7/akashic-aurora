@@ -1,0 +1,28 @@
+| case | bars | expected events per bar | design tracker: events / scorings per bar | spec tracker, fixed 0.4 s settle | spec tracker, adaptive settle |
+|---|---|---|---|---|---|
+| pedalled arpeggio bars, 0.33 s a note (bar ~2.3 s) | 160 | 1 | 1.25 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+| pedalled arpeggio bars, 0.50 s a note (bar ~3.4 s) | 160 | 1 | 3.23 / 4.50 | 1.00 / 3.00 | 1.00 / 2.00 |
+| pedalled arpeggio bars, 0.65 s a note (bar ~4.3 s) | 160 | 1 | 3.75 / 3.00 | 1.00 / 2.50 | 1.00 / 1.75 |
+| rolled chords (150 ms roll), re-pedalled each bar | 160 | 1 | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+| block chords, re-pedalled each bar | 160 | 1 | 1.00 / 1.00 | 1.00 / 1.00 | 1.00 / 1.00 |
+| pedal point: F/C -> Gm/C -> C7 over a held low C, no lift | 40 | 3 | 3.00 / 3.00 | 3.00 / 3.00 | 3.00 / 3.00 |
+
+What each tracker scored:
+pedalled arpeggio bars, 0.33 s a note (bar ~2.3 s)
+  design scored (first 8): Fmaj9 · Dm9 · C13/Bb · C9sus4 · Fmaj9 · Dm9 · C13/Bb · C9sus4
+  spec, adaptive settle, scored (first 8): Fmaj9 · Dm9 · C13/Bb · C9sus4 · Fmaj9 · Dm9 · C13/Bb · C9sus4
+pedalled arpeggio bars, 0.50 s a note (bar ~3.4 s)
+  design scored (first 8): F · Fmaj7 · Fmaj9 · C/F · Fsus2 · Dm · Dm7 · Dm9
+  spec, adaptive settle, scored (first 8): F · Fmaj9 · Dm · Dm9 · Bb · Bbmaj9 · Gm/C · Dm7/C
+pedalled arpeggio bars, 0.65 s a note (bar ~4.3 s)
+  design scored (first 8): F · Fmaj7 · Fmaj9 · Fsus2 · Dm · Dm7 · Dsus2 · Bb
+  spec, adaptive settle, scored (first 8): F · Fmaj9 · Dm · Cadd9/D · Bb · Bbmaj9 · Bbadd9/C · F
+rolled chords (150 ms roll), re-pedalled each bar
+  design scored (first 8): Fmaj9 · Dm9 · Dm9/Bb · C9sus4 · Fmaj9 · Dm9 · Dm9/Bb · C9sus4
+  spec, adaptive settle, scored (first 8): Fmaj9 · Dm9 · Dm9/Bb · C9sus4 · Fmaj9 · Dm9 · Dm9/Bb · C9sus4
+block chords, re-pedalled each bar
+  design scored (first 8): F · C · Dm · Bbmaj7 · F · C · Dm · Bbmaj7
+  spec, adaptive settle, scored (first 8): F · C · Dm · Bbmaj7 · F · C · Dm · Bbmaj7
+pedal point: F/C -> Gm/C -> C7 over a held low C, no lift
+  design scored (first 8): F/C · Gm/C · C7 · F/C · Gm/C · C7 · F/C · Gm/C
+  spec, adaptive settle, scored (first 8): F/C · Gm/C · C7 · F/C · Gm/C · C7 · F/C · Gm/C

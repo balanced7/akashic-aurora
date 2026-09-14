@@ -1,0 +1,526 @@
+{
+  "at": "2026-09-14T03:24:35.648Z",
+  "window": [
+    1280,
+    900
+  ],
+  "dpr": 1,
+  "framing": "9:16",
+  "label": "A-1280x900",
+  "configs": [
+    {
+      "id": "none",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "none",
+      "mae": 0.00305,
+      "edgeMae": 0.02531,
+      "psnr": 34.15,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00228,
+      "edgeShimmer": 0.01944,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.5,
+        "mean": 0.94
+      }
+    },
+    {
+      "id": "msaa4",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 4,
+      "aa": "none",
+      "mae": 0.00266,
+      "edgeMae": 0.0175,
+      "psnr": 38.83,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00146,
+      "edgeShimmer": 0.01081,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.4,
+        "mean": 1.01
+      }
+    },
+    {
+      "id": "msaa8",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 8,
+      "aa": "none",
+      "mae": 0.00275,
+      "edgeMae": 0.01819,
+      "psnr": 38.6,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00146,
+      "edgeShimmer": 0.01084,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 1,
+        "p95": 1.2,
+        "mean": 0.96
+      }
+    },
+    {
+      "id": "fxaa",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "fxaa",
+      "mae": 0.00321,
+      "edgeMae": 0.02718,
+      "psnr": 34.73,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00209,
+      "edgeShimmer": 0.01752,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.4,
+        "mean": 0.9
+      }
+    },
+    {
+      "id": "smaa",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "smaa",
+      "mae": 0.00276,
+      "edgeMae": 0.02219,
+      "psnr": 35.84,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00192,
+      "edgeShimmer": 0.0156,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.8,
+        "p95": 1.3,
+        "mean": 0.85
+      }
+    },
+    {
+      "id": "smaa+msaa4",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 4,
+      "aa": "smaa",
+      "mae": 0.003,
+      "edgeMae": 0.02131,
+      "psnr": 36.76,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00191,
+      "edgeShimmer": 0.01555,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.4,
+        "mean": 0.98
+      }
+    },
+    {
+      "id": "taa-x4",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "taa",
+      "mae": 0.00283,
+      "edgeMae": 0.01666,
+      "psnr": 38.92,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00118,
+      "edgeShimmer": 0.00916,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 1.4,
+        "p95": 1.8,
+        "mean": 1.41
+      }
+    },
+    {
+      "id": "taa-x8",
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "taa",
+      "mae": 0.00309,
+      "edgeMae": 0.01789,
+      "psnr": 38.48,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00113,
+      "edgeShimmer": 0.00854,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 2.3,
+        "p95": 2.9,
+        "mean": 2.31
+      }
+    },
+    {
+      "id": "ss1.5-box",
+      "internal": {
+        "w": 567,
+        "h": 1008
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "none",
+      "mae": 0.00192,
+      "edgeMae": 0.01578,
+      "psnr": 38.29,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00152,
+      "edgeShimmer": 0.01243,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.2,
+        "mean": 0.88
+      }
+    },
+    {
+      "id": "ss1.5-tent",
+      "internal": {
+        "w": 567,
+        "h": 1008
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "none",
+      "mae": 0.00221,
+      "edgeMae": 0.01889,
+      "psnr": 37.73,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00155,
+      "edgeShimmer": 0.0127,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.3,
+        "mean": 0.88
+      }
+    },
+    {
+      "id": "ss1.5-box+msaa4",
+      "internal": {
+        "w": 567,
+        "h": 1008
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 4,
+      "aa": "none",
+      "mae": 0.00182,
+      "edgeMae": 0.01412,
+      "psnr": 39.73,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00125,
+      "edgeShimmer": 0.00961,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 1,
+        "p95": 1.3,
+        "mean": 1.08
+      }
+    },
+    {
+      "id": "ss2-box",
+      "internal": {
+        "w": 756,
+        "h": 1344
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "none",
+      "mae": 0.0013,
+      "edgeMae": 0.01045,
+      "psnr": 40.55,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00102,
+      "edgeShimmer": 0.00859,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.1,
+        "mean": 0.89
+      }
+    },
+    {
+      "id": "ss2-tent",
+      "internal": {
+        "w": 756,
+        "h": 1344
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 0,
+      "aa": "none",
+      "mae": 0.00191,
+      "edgeMae": 0.01614,
+      "psnr": 38.9,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00131,
+      "edgeShimmer": 0.01087,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 0.9,
+        "p95": 1.2,
+        "mean": 0.9
+      }
+    },
+    {
+      "id": "ss2-box+msaa4",
+      "internal": {
+        "w": 756,
+        "h": 1344
+      },
+      "output": {
+        "w": 378,
+        "h": 672
+      },
+      "msaa": 4,
+      "aa": "none",
+      "mae": 0.00119,
+      "edgeMae": 0.00872,
+      "psnr": 43.37,
+      "edgeShare": 0.09066,
+      "shimmer": 0.00079,
+      "edgeShimmer": 0.00612,
+      "refMotion": 0.00269,
+      "cost": {
+        "median": 1.3,
+        "p95": 1.9,
+        "mean": 1.39
+      }
+    }
+  ],
+  "display": [
+    {
+      "id": "HEAD-fixed-1080x1920-msaa4",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1080,
+        "h": 1920
+      },
+      "mae": 0.0051,
+      "edgeMae": 0.02843,
+      "psnr": 30.26,
+      "shimmer": 0.00146,
+      "edgeShimmer": 0.00712
+    },
+    {
+      "id": "adaptive-msaa4",
+      "buffer": [
+        378,
+        672
+      ],
+      "internal": {
+        "w": 378,
+        "h": 672
+      },
+      "mae": 0.00263,
+      "edgeMae": 0.00978,
+      "psnr": 38.84,
+      "shimmer": 0.00143,
+      "edgeShimmer": 0.00618
+    },
+    {
+      "id": "adaptive-ss2-box",
+      "buffer": [
+        378,
+        672
+      ],
+      "internal": {
+        "w": 756,
+        "h": 1344
+      },
+      "mae": 0.0013,
+      "edgeMae": 0.00582,
+      "psnr": 40.55,
+      "shimmer": 0.00101,
+      "edgeShimmer": 0.00487
+    },
+    {
+      "id": "adaptive-ss1.5-box+msaa4",
+      "buffer": [
+        378,
+        672
+      ],
+      "internal": {
+        "w": 567,
+        "h": 1008
+      },
+      "mae": 0.0018,
+      "edgeMae": 0.00788,
+      "psnr": 39.74,
+      "shimmer": 0.00123,
+      "edgeShimmer": 0.00551
+    }
+  ],
+  "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon RX 9070 XT (0x00007550) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "three": "186"
+  },
+  "sim": {
+    "t": 1006.65,
+    "sounding": 8,
+    "trails": 30,
+    "chord": "F"
+  },
+  "native": {
+    "display": {
+      "w": 378,
+      "h": 672
+    },
+    "output": {
+      "w": 378,
+      "h": 672
+    },
+    "internal": {
+      "w": 378,
+      "h": 672
+    },
+    "scale": 1,
+    "recScale": 1,
+    "msaa": 4,
+    "filter": 0,
+    "fixed": false,
+    "record": false,
+    "dpr": 1,
+    "aa": "none",
+    "taaLevel": 2,
+    "downsample": false,
+    "buffer": [
+      378,
+      672
+    ],
+    "maxSamples": 8,
+    "pointSize": [
+      1,
+      1024
+    ],
+    "maxTexture": 16384,
+    "css": [
+      "378px",
+      "672px"
+    ],
+    "rect": {
+      "x": 440,
+      "y": 109.09375,
+      "width": 378,
+      "height": 672,
+      "top": 109.09375,
+      "right": 818,
+      "bottom": 781.09375,
+      "left": 440
+    },
+    "composerSamples": 4,
+    "cam": {
+      "x": -2.6912055059068174,
+      "span": 25.87198231919926
+    },
+    "framing": "9:16"
+  },
+  "pan": {
+    "frames": 12,
+    "pxPerFrame": 0.37,
+    "worldPerFrame": 0.02532
+  },
+  "reference": {
+    "internal": {
+      "w": 1512,
+      "h": 2688
+    },
+    "output": {
+      "w": 378,
+      "h": 672
+    }
+  },
+  "displayAlign": {
+    "rect": {
+      "x": 440,
+      "y": 109.09375,
+      "w": 378,
+      "h": 672,
+      "dpr": 1
+    },
+    "offset": {
+      "dx": 0,
+      "dy": 0,
+      "mae": 0
+    },
+    "note": "MAE between the page screenshot and the drawing buffer read back directly; 0 means the browser shows the buffer 1:1"
+  },
+  "errors": [
+    "THREE.WebGLProgram: Program Info Log: (198,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(198,12-86): warning X3595: gradient instruction used in a loop with varying iteration; partial derivatives may have undefined value\n(419,1): warning X4000: use of potentially uninitialized variable (f_ApplyFXAA)\n\n\n\u0000"
+  ]
+}

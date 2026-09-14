@@ -1,0 +1,114 @@
+
+## A. Daniel style, first session, no history: 297 scored events
+scored:  Common 250 (84.2%) · Uncommon 21 (7.1%) · Rare 23 (7.7%) · Epic 3 (1.0%) · Legendary 0 (0.0%) · Mythic 0 (0.0%)
+banners: Rare 14 · Epic 2 · Legendary 0 · Mythic 0
+     8s RARE · C#dim7 · #5°7  (F 4.00, h 1.00, phi 4.00; outside the key, seventh colour)
+    24s RARE · Dm9/Bb · 6m9/4  (F 4.90, h 1.00, phi 4.90; rich extension, foreign bass)
+    71s RARE · Bbmaj7#11 · 4maj7#11  (F 4.15, h 1.00, phi 4.15; sharp or flat colour)
+   102s RARE · Gbmaj7 · b2maj7  (F 4.40, h 1.00, phi 5.15; first this session, far outside the key)
+   168s RARE · Bbmaj7#11 · 4maj7#11  (F 4.15, h 1.00, phi 4.15; sharp or flat colour)
+   227s RARE · Fmaj13 · 1maj13  (F 4.65, h 1.00, phi 4.65; rich extension, wide voicing)
+   243s RARE · Fmaj9 · 1maj9  (F 4.00, h 0.99, phi 4.70; first this session, rich extension)
+   257s EPIC · Emaj7/G# · 7maj7/#2  (F 6.15, h 1.00, phi 6.90; first this session, far outside the key)
+   275s RARE · Dbmaj7 · b6maj7  (F 4.40, h 1.00, phi 5.15; first this session, far outside the key)
+   300s RARE · Dm9/Bb · 6m9/4  (F 5.15, h 1.00, phi 5.15; rich extension, foreign bass)
+   393s RARE · Bbmaj7#11 · 4maj7#11  (F 4.90, h 1.00, phi 4.90; sharp or flat colour, wide voicing)
+   487s RARE · Dm9/Bb · 6m9/4  (F 5.15, h 1.00, phi 5.15; rich extension, foreign bass)
+   496s EPIC · Gm11 · 2m11  (F 4.15, h 1.00, phi 5.40; first time tonight, rich extension)
+   515s RARE · Bbmaj9 · 4maj9  (F 3.65, h 0.98, phi 4.84; first time tonight, rich extension)
+   537s RARE · C13 · 5^13  (F 3.90, h 1.00, phi 4.30; back again, rich extension)
+   598s RARE · Fmaj13 · 1maj13  (F 4.15, h 1.00, phi 4.55; back again, rich extension)
+
+(history after 9 sessions: 2727 chords, 37 distinct chords-without-bass)
+
+## B. Daniel style, 10th session: 305 scored events
+scored:  Common 247 (81.0%) · Uncommon 30 (9.8%) · Rare 21 (6.9%) · Epic 6 (2.0%) · Legendary 1 (0.3%) · Mythic 0 (0.0%)
+banners: Rare 10 · Epic 4 · Legendary 1 · Mythic 0
+     3s RARE · C#dim7 · #5°7  (F 4.00, h 1.00, phi 4.00; outside the key, seventh colour)
+    91s RARE · Fmaj9 · 1maj9  (F 4.00, h 0.94, phi 4.52; first this session, rich extension)
+   111s RARE · C13 · 5^13  (F 3.65, h 1.00, phi 4.40; first this session, rich extension)
+   151s RARE · Fmaj13 · 1maj13  (F 4.15, h 1.00, phi 4.90; first this session, rich extension)
+   164s RARE · Bbmaj7#11 · 4maj7#11  (F 4.15, h 1.00, phi 4.15; sharp or flat colour)
+   187s RARE · C#dim7 · #5°7  (F 4.25, h 1.00, phi 4.25; outside the key, seventh colour)
+   271s EPIC · C7b9 · 5^7b9  (F 5.40, h 1.00, phi 6.15; first this session, borrowed note)
+   284s RARE · Bbmaj7#11 · 4maj7#11  (F 4.15, h 1.00, phi 4.15; sharp or flat colour)
+   303s EPIC · Dbmaj7 · b6maj7  (F 4.65, h 1.00, phi 5.40; first this session, far outside the key)
+   358s EPIC · Dm9/Bb · 6m9/4  (F 5.50, h 1.00, phi 5.50; rich extension, foreign bass)
+   373s LEGENDARY · B7#11 · #4^7#11  (F 7.15, h 1.00, phi 8.40; rare for you, far outside the key)
+   451s RARE · Fmaj13 · 1maj13  (F 4.65, h 1.00, phi 4.65; rich extension, wide voicing)
+   463s RARE · C13 · 5^13  (F 4.40, h 1.00, phi 4.39; rich extension, wide voicing)
+   523s RARE · Bbmaj7#11 · 4maj7#11  (F 4.15, h 1.00, phi 4.15; sharp or flat colour)
+   561s EPIC · Abmaj7 · b3maj7  (F 4.65, h 1.00, phi 5.40; first this session, far outside the key)
+
+## C. Plain triad loop (F C Dm Bb), with that history: 300 scored events
+scored:  Common 300 (100.0%) · Uncommon 0 (0.0%) · Rare 0 (0.0%) · Epic 0 (0.0%) · Legendary 0 (0.0%) · Mythic 0 (0.0%)
+banners: Rare 0 · Epic 0 · Legendary 0 · Mythic 0
+
+## D. Explorer session, with that history: 301 scored events
+scored:  Common 146 (48.5%) · Uncommon 104 (34.6%) · Rare 34 (11.3%) · Epic 13 (4.3%) · Legendary 4 (1.3%) · Mythic 0 (0.0%)
+banners: Rare 17 · Epic 4 · Legendary 1 · Mythic 0
+     2s LEGENDARY · C7#5 · 5^7#5  (F 5.50, h 1.00, phi 6.75; rare for you, outside the key)
+    15s RARE · Gm7b5 · 2ø7  (F 3.90, h 1.00, phi 5.15; rare for you, outside the key)
+    33s RARE · Dm9/Bb · 6m9/4  (F 4.90, h 1.00, phi 4.90; rich extension, foreign bass)
+    55s RARE · Abmaj7 · b3maj7  (F 4.65, h 1.00, phi 4.65; far outside the key, seventh colour)
+    92s RARE · C#dim7 · #5°7  (F 4.00, h 1.00, phi 4.75; first this session, outside the key)
+   108s RARE · Gm7b5 · 2ø7  (F 4.15, h 0.99, phi 4.12; outside the key, seventh colour)
+   146s RARE · Fmaj13 · 1maj13  (F 4.15, h 1.00, phi 4.15; rich extension)
+   162s RARE · C7#5 · 5^7#5  (F 5.50, h 0.99, phi 5.46; outside the key, sharp or flat colour)
+   183s RARE · C#dim7 · #5°7  (F 4.30, h 1.00, phi 4.30; outside the key, seventh colour)
+   205s RARE · Dm9/Bb · 6m9/4  (F 4.90, h 0.97, phi 4.73; rich extension, foreign bass)
+   244s RARE · Fmaj13 · 1maj13  (F 4.65, h 1.00, phi 4.64; rich extension, wide voicing)
+   269s EPIC · C7#5 · 5^7#5  (F 6.15, h 1.00, phi 6.15; outside the key, sharp or flat colour)
+   311s EPIC · Emaj7/G# · 7maj7/#2  (F 6.15, h 1.00, phi 6.15; far outside the key, seventh colour)
+   346s RARE · Dbmaj7 · b6maj7  (F 4.40, h 1.00, phi 5.15; first this session, far outside the key)
+   379s RARE · Dm(maj7) · 6m(maj7)  (F 4.00, h 1.00, phi 5.24; rare for you, borrowed note)
+   415s EPIC · Emaj7/G# · 7maj7/#2  (F 6.15, h 1.00, phi 6.15; far outside the key, seventh colour)
+   450s RARE · Gbmaj7 · b2maj7  (F 4.40, h 1.00, phi 4.40; far outside the key, seventh colour)
+   468s RARE · Abmaj7 · b3maj7  (F 4.65, h 1.00, phi 4.65; far outside the key, seventh colour)
+   482s RARE · Dm9/Bb · 6m9/4  (F 4.90, h 1.00, phi 4.90; rich extension, foreign bass)
+   499s RARE · Bbmaj7#11 · 4maj7#11  (F 4.65, h 0.99, phi 4.61; sharp or flat colour)
+   556s EPIC · E7#9 · 7^7#9  (F 6.40, h 1.00, phi 6.40; outside the key, altered dominant)
+   587s RARE · Abmaj7 · b3maj7  (F 4.65, h 1.00, phi 4.65; far outside the key, seventh colour)
+
+## E. Explorer session, no history: 302 scored events
+scored:  Common 142 (47.0%) · Uncommon 123 (40.7%) · Rare 21 (7.0%) · Epic 15 (5.0%) · Legendary 1 (0.3%) · Mythic 0 (0.0%)
+banners: Rare 10 · Epic 9 · Legendary 1 · Mythic 0
+     6s RARE · Abmaj7 · b3maj7  (F 4.40, h 1.00, phi 4.40; far outside the key, seventh colour)
+    18s EPIC · C7b9 · 5^7b9  (F 5.90, h 1.00, phi 5.90; borrowed note, altered dominant)
+    34s LEGENDARY · B7#11 · #4^7#11  (F 7.65, h 1.00, phi 7.65; far outside the key, sharp or flat colour)
+    54s RARE · C#dim7 · #5°7  (F 4.90, h 0.83, phi 4.09; outside the key, seventh colour)
+    71s EPIC · E7#9 · 7^7#9  (F 6.40, h 1.00, phi 6.40; outside the key, altered dominant)
+   124s EPIC · Dm9/Bb · 6m9/4  (F 5.50, h 0.99, phi 5.43; rich extension, foreign bass)
+   167s RARE · Dm(maj7) · 6m(maj7)  (F 4.00, h 0.83, phi 4.06; first this session, borrowed note)
+   175s EPIC · C7#5 · 5^7#5  (F 5.50, h 1.00, phi 6.25; first this session, outside the key)
+   207s RARE · Abmaj7 · b3maj7  (F 5.15, h 0.87, phi 4.47; far outside the key, seventh colour)
+   241s RARE · Dm9/Bb · 6m9/4  (F 4.90, h 0.98, phi 4.81; rich extension, foreign bass)
+   248s EPIC · A7b9 · 3^7b9  (F 6.40, h 1.00, phi 7.15; first this session, outside the key)
+   291s RARE · Gbmaj7 · b2maj7  (F 4.40, h 0.89, phi 4.66; first this session, far outside the key)
+   303s EPIC · Emaj7/G# · 7maj7/#2  (F 6.65, h 1.00, phi 6.65; far outside the key, seventh colour)
+   361s EPIC · E7#9 · 7^7#9  (F 6.40, h 1.00, phi 6.40; outside the key, altered dominant)
+   388s RARE · Gm7b5 · 2ø7  (F 4.65, h 0.76, phi 4.77; first time tonight, outside the key)
+   414s EPIC · Emaj7/G# · 7maj7/#2  (F 6.65, h 1.00, phi 6.65; far outside the key, seventh colour)
+   442s RARE · Dm9/Bb · 6m9/4  (F 5.15, h 0.98, phi 5.05; rich extension, foreign bass)
+   507s RARE · Gbmaj7 · b2maj7  (F 4.65, h 0.92, phi 4.29; far outside the key, seventh colour)
+   558s RARE · Dbmaj7 · b6maj7  (F 4.65, h 0.93, phi 4.73; back again, far outside the key)
+   571s EPIC · E7#9 · 7^7#9  (F 6.40, h 1.00, phi 6.40; outside the key, altered dominant)
+
+## F1. Pedalled arpeggio blooms, NO bloom merge, with history: 1112 scored events (1112 committed name changes)
+first four bars, names committed: F5 → F → Fmaj7 → Fmaj9 → D5 → Dm → Dm7 → Dm9 → Bb5 → Bb → Bbmaj7 → Bbmaj9 → Dm9/Bb → C5 → Gm/C → C9sus4
+scored:  Common 993 (89.3%) · Uncommon 117 (10.5%) · Rare 2 (0.2%) · Epic 0 (0.0%) · Legendary 0 (0.0%) · Mythic 0 (0.0%)
+banners: Rare 1 · Epic 0 · Legendary 0 · Mythic 0
+     6s RARE · Dm9/Bb · 6m9/4  (F 5.15, h 1.00, phi 5.15; rich extension, foreign bass)
+
+## F2. Pedalled arpeggio blooms, WITH bloom merge, with history: 278 scored events (1112 committed name changes)
+first four bars, names committed: F5 → F → Fmaj7 → Fmaj9 → D5 → Dm → Dm7 → Dm9 → Bb5 → Bb → Bbmaj7 → Bbmaj9 → Dm9/Bb → C5 → Gm/C → C9sus4
+scored:  Common 194 (69.8%) · Uncommon 78 (28.1%) · Rare 6 (2.2%) · Epic 0 (0.0%) · Legendary 0 (0.0%) · Mythic 0 (0.0%)
+banners: Rare 1 · Epic 0 · Legendary 0 · Mythic 0
+     7s RARE · Dm9/Bb · 6m9/4  (F 5.15, h 1.00, phi 5.15; rich extension, foreign bass)
+
+## G. 20 seeds, Daniel style 10th session, banners per 10 min
+  Rare: mean 10.8 (min 7, max 15)
+  Epic: mean 2.9 (min 1, max 4)
+  Legendary: mean 1.6 (min 0, max 3)
+  Mythic: mean 0.0 (min 0, max 0)
+  scoredRarePlus: mean 25.4 (min 14, max 32)

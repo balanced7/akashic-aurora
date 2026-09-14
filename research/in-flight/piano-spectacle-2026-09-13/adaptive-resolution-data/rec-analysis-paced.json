@@ -1,0 +1,99 @@
+[
+  {
+    "file": "rec-0-scale2-msaa4.mp4",
+    "bytes": 2655481,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 86,
+    "spanSec": 3.962,
+    "fps": 21.45,
+    "gapMedianMs": 16.67,
+    "gapMaxMs": 2562.87,
+    "gapsOver25ms": 3,
+    "bigGapsAt": [
+      [
+        0.001,
+        32.7
+      ],
+      [
+        0.034,
+        32.8
+      ],
+      [
+        0.166,
+        2562.9
+      ]
+    ]
+  },
+  {
+    "file": "rec-1-scale1-msaa4.mp4",
+    "bytes": 6860468,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 235,
+    "spanSec": 3.992,
+    "fps": 58.62,
+    "gapMedianMs": 16.67,
+    "gapMaxMs": 116.57,
+    "gapsOver25ms": 2,
+    "bigGapsAt": [
+      [
+        0.002,
+        25.8
+      ],
+      [
+        0.158,
+        116.6
+      ]
+    ]
+  },
+  {
+    "file": "rec-2-scale2-msaa4.mp4",
+    "bytes": 3518279,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 233,
+    "spanSec": 3.972,
+    "fps": 58.41,
+    "gapMedianMs": 16.63,
+    "gapMaxMs": 123.53,
+    "gapsOver25ms": 2,
+    "bigGapsAt": [
+      [
+        0.001,
+        123.5
+      ],
+      [
+        0.239,
+        49.7
+      ]
+    ]
+  }
+]

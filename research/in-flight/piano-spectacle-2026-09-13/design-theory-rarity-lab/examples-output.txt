@@ -1,0 +1,44 @@
+voicing | detect | nashville | cost | C | B | V | K | F | start | home | occasional | rareForYou | firstEver | reasons
+F/A | F/A | 1/3 | 0.6 | 0 | 0.75 | 0.40 | 0.00 | 1.15 | Common | Common | Common | Uncommon | Uncommon | 
+C/G | C/G | 5/2 | 0.6 | 0 | 0.5 | 0.40 | 0.00 | 0.90 | Common | Common | Common | Uncommon | Uncommon | 
+Dm | Dm | 6m | 0.1 | 0 | 0 | 0.15 | 0.00 | 0.15 | Common | Common | Common | Common | Uncommon | 
+Bbmaj7 | Bbmaj7 | 4maj7 | 1.0 | 2 | 0 | 0.15 | 0.00 | 2.15 | Uncommon | Common | Uncommon | Uncommon | Rare | seventh colour
+F | F | 1 | 0.0 | 0 | 0 | 0.40 | 0.00 | 0.40 | Common | Common | Common | Common | Uncommon | 
+Fmaj7 | Fmaj7 | 1maj7 | 1.0 | 2 | 0 | 0.15 | 0.00 | 2.15 | Uncommon | Common | Uncommon | Uncommon | Rare | seventh colour
+C/E | C/E | 5/7 | 0.6 | 0 | 0.75 | 0.40 | 0.00 | 1.15 | Common | Common | Common | Uncommon | Uncommon | 
+Am7 | Am7 | 3m7 | 1.0 | 1.25 | 0 | 0.15 | 0.00 | 1.40 | Common | Common | Uncommon | Uncommon | Uncommon | 
+Gm7 | Gm7 | 2m7 | 1.0 | 1.25 | 0 | 0.15 | 0.00 | 1.40 | Common | Common | Uncommon | Uncommon | Uncommon | 
+C7 | C7 | 5^7 | 1.0 | 1.25 | 0 | 0.15 | 0.00 | 1.40 | Common | Common | Uncommon | Uncommon | Uncommon | 
+Fadd9 | Fadd9 | 1add9 | 1.4 | 1.25 | 0 | 0.00 | 0.00 | 1.25 | Common | Common | Uncommon | Uncommon | Uncommon | 
+Bb/C | Bb/C | 4/5 | 1.7 | 0 | 1.75 | 0.15 | 0.00 | 1.90 | Common | Common | Uncommon | Uncommon | Uncommon | foreign bass
+Dm9 | Dm9 | 6m9 | 2.0 | 2.75 | 0 | 0.15 | 0.00 | 2.90 | Uncommon | Common | Uncommon | Rare | Rare | rich extension
+Bbmaj9 | Bbmaj9 | 4maj9 | 2.0 | 3 | 0 | 0.15 | 0.00 | 3.15 | Uncommon | Common | Uncommon | Rare | Rare | rich extension
+Gm9 | Gm9 | 2m9 | 2.0 | 2.75 | 0 | 0.15 | 0.00 | 2.90 | Uncommon | Common | Uncommon | Rare | Rare | rich extension
+Gm11 | Gm11 | 2m11 | 2.5 | 3.25 | 0 | 0.65 | 0.00 | 3.90 | Uncommon | Uncommon | Rare | Rare | Epic | rich extension
+C13 | C13 | 5^13 | 2.7 | 3.5 | 0 | 0.15 | 0.00 | 3.65 | Uncommon | Uncommon | Rare | Rare | Epic | rich extension
+C6/9 | C6/9 | 5^6/9 | 2.0 | 2.25 | 0 | 0.00 | 0.00 | 2.25 | Uncommon | Common | Uncommon | Uncommon | Rare | seventh colour
+Fmaj7/E | Fmaj7/E | 1maj7/7 | 1.6 | 2 | 1.25 | 0.15 | 0.00 | 3.40 | Uncommon | Common | Rare | Rare | Epic | seventh colour, 7th in the bass
+Bbmaj7#11 | Bbmaj7#11 | 4maj7#11 | 2.4 | 4 | 0 | 0.15 | 0.00 | 4.15 | Rare | Uncommon | Rare | Epic | Epic | sharp or flat colour
+Bbmaj9#11 | Dm9/Bb | 6m9/4 | 3.7 | 2.75 | 1.75 | 0.40 | 0.00 | 4.90 | Rare | Uncommon | Epic | Epic | Epic | rich extension, foreign bass
+Fmaj13 | Fmaj13 | 1maj13 | 3.2 | 3.75 | 0 | 0.40 | 0.00 | 4.15 | Rare | Uncommon | Rare | Epic | Epic | rich extension
+Fmaj9 wide | Fmaj9 | 1maj9 | 2.0 | 3 | 0 | 1.00 | 0.00 | 4.00 | Rare | Uncommon | Rare | Epic | Epic | rich extension, wide voicing
+A7 | A7 | 3^7 (outside) | 1.0 | 1.25 | 0 | 0.15 | 1.50 | 2.90 | Uncommon | Common | Uncommon | Rare | Rare | outside the key
+D7 | D7 | 6^7 (outside) | 1.0 | 1.25 | 0 | 0.15 | 1.50 | 2.90 | Uncommon | Common | Uncommon | Rare | Rare | outside the key
+G7 | G7 | 2^7 (outside) | 1.0 | 1.25 | 0 | 0.15 | 1.50 | 2.90 | Uncommon | Common | Uncommon | Rare | Rare | outside the key
+Bbm6 | Bbm6 | 4m6 (outside) | 1.5 | 1.5 | 0 | 0.15 | 1.50 | 3.15 | Uncommon | Common | Uncommon | Rare | Rare | outside the key
+Bbm | Bbm | 4m (outside) | 0.1 | 0 | 0 | 0.15 | 1.50 | 1.65 | Common | Common | Uncommon | Uncommon | Uncommon | outside the key
+Eb | Eb | b7 (outside) | 0.0 | 0 | 0 | 0.00 | 1.50 | 1.50 | Common | Common | Uncommon | Uncommon | Uncommon | outside the key
+Dbmaj7 | Dbmaj7 | b6maj7 (outside) | 1.0 | 2 | 0 | 0.15 | 2.25 | 4.40 | Rare | Uncommon | Rare | Epic | Epic | far outside the key, seventh colour
+Abmaj7 | Abmaj7 | b3maj7 (outside) | 1.0 | 2 | 0 | 0.15 | 2.25 | 4.40 | Rare | Uncommon | Rare | Epic | Epic | far outside the key, seventh colour
+Gm7b5 | Gm7b5 | 2ø7 (outside) | 1.4 | 2.25 | 0 | 0.15 | 1.50 | 3.90 | Uncommon | Uncommon | Rare | Rare | Epic | outside the key, seventh colour
+C#dim7 | C#dim7 | #5°7 (outside) | 1.5 | 2.5 | 0 | 0.00 | 1.50 | 4.00 | Rare | Uncommon | Rare | Epic | Epic | outside the key, seventh colour
+A7b9 | A7b9 | 3^7b9 (outside) | 2.4 | 4.5 | 0 | 0.40 | 1.50 | 6.40 | Epic | Uncommon | Epic | Legendary | Mythic | outside the key, altered dominant
+C7b9 | C7b9 | 5^7b9 | 2.4 | 4.5 | 0 | 0.15 | 0.75 | 5.40 | Epic | Uncommon | Epic | Epic | Legendary | borrowed note, altered dominant
+E7#9 | E7#9 | 7^7#9 (outside) | 2.8 | 4.5 | 0 | 0.40 | 1.50 | 6.40 | Epic | Uncommon | Epic | Legendary | Mythic | outside the key, altered dominant
+Gbmaj7 | Gbmaj7 | b2maj7 (outside) | 1.0 | 2 | 0 | 0.15 | 2.25 | 4.40 | Rare | Uncommon | Rare | Epic | Epic | far outside the key, seventh colour
+B7#11 | B7#11 | #4^7#11 (outside) | 2.6 | 4 | 0 | 0.15 | 3.00 | 7.15 | Legendary | Uncommon | Legendary | Legendary | Mythic | far outside the key, sharp or flat colour
+Dm(maj7) | Dm(maj7) | 6m(maj7) | 1.8 | 3.25 | 0 | 0.00 | 0.75 | 4.00 | Rare | Uncommon | Rare | Epic | Epic | borrowed note, rich extension
+C7#5 | C7#5 | 5^7#5 (outside) | 2.0 | 4 | 0 | 0.00 | 1.50 | 5.50 | Epic | Uncommon | Epic | Legendary | Legendary | outside the key, sharp or flat colour
+Emaj7/G# | Emaj7/G# | 7maj7/#2 (outside) | 1.6 | 2 | 0.75 | 0.40 | 3.00 | 6.15 | Epic | Uncommon | Epic | Legendary | Mythic | far outside the key, seventh colour
+C | C | 5 | 0.0 | 0 | 0 | 0.15 | 0.00 | 0.15 | Common | Common | Common | Common | Uncommon | 
+Bb | Bb | 4 | 0.0 | 0 | 0 | 0.15 | 0.00 | 0.15 | Common | Common | Common | Common | Uncommon | 

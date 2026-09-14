@@ -1,0 +1,27 @@
+{
+  "url": "http://127.0.0.1:8793/web/piano-lab-judge-head.html",
+  "takes": [
+    {
+      "k": 0,
+      "recording": "true",
+      "fps": 238,
+      "mime": "video/mp4;codecs=avc1.640028",
+      "file": "head-rec\\rec-0-head.mp4"
+    },
+    {
+      "k": 1,
+      "recording": "true",
+      "fps": 240,
+      "mime": "video/mp4;codecs=avc1.640028",
+      "file": "head-rec\\rec-1-head.mp4"
+    },
+    {
+      "k": 2,
+      "recording": "true",
+      "fps": 240,
+      "mime": "video/mp4;codecs=avc1.640028",
+      "file": "head-rec\\rec-2-head.mp4"
+    }
+  ],
+  "errors": []
+}
