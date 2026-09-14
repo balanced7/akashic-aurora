@@ -1,0 +1,220 @@
+{
+  "framing": "9:16",
+  "costs": [],
+  "recordings": [
+    {
+      "recScale": 2,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-0-scale2-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 2655481,
+      "seconds": 4.030800000011921,
+      "frames": 241,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "TBZaNhS5yrOMyqFSbzZ+1Odpdc5Zu4hBHZM264le8QdNU83+jzxRKLesMtuN99ZIh/E/KyD51dDnJiOTYaBMXA==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 2160,
+          "h": 3840
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 60,
+        "p95": 20.8
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    },
+    {
+      "recScale": 1,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-1-scale1-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 6860468,
+      "seconds": 4.019300000011921,
+      "frames": 240,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "U+dejuei5D4P+fKCj2OV6tah8ZRtPdeO+1ddzLjKtWSfV1xrJ4VmG5w+U09+ltadrel7rOEXE1NBxFAGDXoMwg==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 1080,
+          "h": 1920
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 60,
+        "p95": 20.8
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    },
+    {
+      "recScale": 2,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-2-scale2-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 3518279,
+      "seconds": 4.025200000017882,
+      "frames": 235,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "JfdRuertVErkn4xVhAFTiM1y3TSatGX2UNmbAqALwfrg9radimPvk36apUeEf/mhyfPpiIT61kVPfJBlEV8gGA==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 2160,
+          "h": 3840
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 60,
+        "p95": 16.8
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    }
+  ],
+  "liveBefore": {
+    "display": {
+      "w": 459,
+      "h": 816
+    },
+    "output": {
+      "w": 459,
+      "h": 816
+    },
+    "internal": {
+      "w": 918,
+      "h": 1632
+    },
+    "scale": 2,
+    "recScale": 2,
+    "msaa": 4,
+    "filter": 0,
+    "fixed": false,
+    "record": false,
+    "dpr": 1,
+    "aa": "none",
+    "taaLevel": 2,
+    "downsample": true,
+    "buffer": [
+      459,
+      816
+    ],
+    "maxSamples": 8,
+    "pointSize": [
+      1,
+      1024
+    ],
+    "maxTexture": 16384,
+    "css": [
+      "459px",
+      "816px"
+    ],
+    "rect": {
+      "x": 559.5,
+      "y": 66.5,
+      "width": 459,
+      "height": 816,
+      "top": 66.5,
+      "right": 1018.5,
+      "bottom": 882.5,
+      "left": 559.5
+    },
+    "composerSamples": 4,
+    "cam": {
+      "x": 0,
+      "span": 16
+    },
+    "framing": "9:16"
+  },
+  "errors": []
+}

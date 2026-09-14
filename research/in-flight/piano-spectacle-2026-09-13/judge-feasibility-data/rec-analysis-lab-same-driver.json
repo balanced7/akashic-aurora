@@ -1,0 +1,99 @@
+[
+  {
+    "file": "rec-0-head.mp4",
+    "bytes": 2664291,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 86,
+    "spanSec": 3.99,
+    "fps": 21.31,
+    "gapMedianMs": 16.6,
+    "gapMaxMs": 2588.07,
+    "gapsOver25ms": 2,
+    "bigGapsAt": [
+      [
+        0.027,
+        60.8
+      ],
+      [
+        0.169,
+        2588.1
+      ]
+    ]
+  },
+  {
+    "file": "rec-1-head.mp4",
+    "bytes": 6051448,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 224,
+    "spanSec": 3.988,
+    "fps": 55.91,
+    "gapMedianMs": 16.67,
+    "gapMaxMs": 283.43,
+    "gapsOver25ms": 2,
+    "bigGapsAt": [
+      [
+        0.002,
+        55.0
+      ],
+      [
+        0.171,
+        283.4
+      ]
+    ]
+  },
+  {
+    "file": "rec-2-head.mp4",
+    "bytes": 3390103,
+    "codec": "h264",
+    "stream": [
+      1080,
+      1920
+    ],
+    "decodedSizes": [
+      [
+        1080,
+        1920
+      ]
+    ],
+    "frames": 228,
+    "spanSec": 3.991,
+    "fps": 56.88,
+    "gapMedianMs": 16.67,
+    "gapMaxMs": 183.47,
+    "gapsOver25ms": 3,
+    "bigGapsAt": [
+      [
+        0.003,
+        51.7
+      ],
+      [
+        0.153,
+        183.5
+      ],
+      [
+        0.52,
+        88.1
+      ]
+    ]
+  }
+]

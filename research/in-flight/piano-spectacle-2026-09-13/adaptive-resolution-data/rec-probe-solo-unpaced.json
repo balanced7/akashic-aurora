@@ -1,0 +1,469 @@
+{
+  "framing": "9:16",
+  "costs": [
+    {
+      "id": "HEAD 1x MSAA4",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1080,
+        "h": 1920
+      },
+      "msaa": 4,
+      "medianMs": 1.3,
+      "worstP95Ms": 2.2,
+      "runs": [
+        {
+          "median": 1.3,
+          "p95": 2,
+          "mean": 1.42
+        },
+        {
+          "median": 1.3,
+          "p95": 2.2,
+          "mean": 1.4
+        },
+        {
+          "median": 1.3,
+          "p95": 2,
+          "mean": 1.42
+        }
+      ]
+    },
+    {
+      "id": "1x MSAA8",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1080,
+        "h": 1920
+      },
+      "msaa": 8,
+      "medianMs": 1.6,
+      "worstP95Ms": 2.7,
+      "runs": [
+        {
+          "median": 1.8,
+          "p95": 2.7,
+          "mean": 1.87
+        },
+        {
+          "median": 1.6,
+          "p95": 2.4,
+          "mean": 1.76
+        },
+        {
+          "median": 1.6,
+          "p95": 2.4,
+          "mean": 1.7
+        }
+      ]
+    },
+    {
+      "id": "1.5x box",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1620,
+        "h": 2880
+      },
+      "msaa": 0,
+      "medianMs": 1.3,
+      "worstP95Ms": 2.2,
+      "runs": [
+        {
+          "median": 1.3,
+          "p95": 2.2,
+          "mean": 1.44
+        },
+        {
+          "median": 1.3,
+          "p95": 1.8,
+          "mean": 1.41
+        },
+        {
+          "median": 1.3,
+          "p95": 1.8,
+          "mean": 1.39
+        }
+      ]
+    },
+    {
+      "id": "1.5x box + MSAA4",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1620,
+        "h": 2880
+      },
+      "msaa": 4,
+      "medianMs": 3.3,
+      "worstP95Ms": 4.1,
+      "runs": [
+        {
+          "median": 3.3,
+          "p95": 3.9,
+          "mean": 3.3
+        },
+        {
+          "median": 3.3,
+          "p95": 4.1,
+          "mean": 3.29
+        },
+        {
+          "median": 3.2,
+          "p95": 3.9,
+          "mean": 3.23
+        }
+      ]
+    },
+    {
+      "id": "2x box",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 2160,
+        "h": 3840
+      },
+      "msaa": 0,
+      "medianMs": 1.8,
+      "worstP95Ms": 2.7,
+      "runs": [
+        {
+          "median": 2,
+          "p95": 2.7,
+          "mean": 2.04
+        },
+        {
+          "median": 1.8,
+          "p95": 2.4,
+          "mean": 1.86
+        },
+        {
+          "median": 1.8,
+          "p95": 2.5,
+          "mean": 1.92
+        }
+      ]
+    },
+    {
+      "id": "2x box + MSAA4",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 2160,
+        "h": 3840
+      },
+      "msaa": 4,
+      "medianMs": 5.9,
+      "worstP95Ms": 7,
+      "runs": [
+        {
+          "median": 5.9,
+          "p95": 6.8,
+          "mean": 5.98
+        },
+        {
+          "median": 5.8,
+          "p95": 6.6,
+          "mean": 5.89
+        },
+        {
+          "median": 6.1,
+          "p95": 7,
+          "mean": 6.06
+        }
+      ]
+    },
+    {
+      "id": "TAA x4 (1x)",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1080,
+        "h": 1920
+      },
+      "msaa": 0,
+      "medianMs": 2.1,
+      "worstP95Ms": 3,
+      "runs": [
+        {
+          "median": 2.1,
+          "p95": 3,
+          "mean": 2.13
+        },
+        {
+          "median": 2.1,
+          "p95": 2.7,
+          "mean": 2.17
+        },
+        {
+          "median": 2.1,
+          "p95": 2.7,
+          "mean": 2.13
+        }
+      ]
+    },
+    {
+      "id": "SMAA (1x)",
+      "buffer": [
+        1080,
+        1920
+      ],
+      "internal": {
+        "w": 1080,
+        "h": 1920
+      },
+      "msaa": 0,
+      "medianMs": 1.2,
+      "worstP95Ms": 1.8,
+      "runs": [
+        {
+          "median": 1.2,
+          "p95": 1.8,
+          "mean": 1.31
+        },
+        {
+          "median": 1.3,
+          "p95": 1.8,
+          "mean": 1.36
+        },
+        {
+          "median": 1.1,
+          "p95": 1.6,
+          "mean": 1.21
+        }
+      ]
+    }
+  ],
+  "recordings": [
+    {
+      "recScale": 1,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-scale1-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 1527930,
+      "seconds": 4.018300000011921,
+      "frames": 240,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "oknUQTWJpXXYJTT79pp+d3f8JGfn3OM+Jx9BIKzsloec66Fy786rC//wfrOx8CHvwACshv57uuZS/WxobFqorw==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 1080,
+          "h": 1920
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 240,
+        "p95": 4.3
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    },
+    {
+      "recScale": 1.5,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-scale1.5-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 6902447,
+      "seconds": 4.02809999999404,
+      "frames": 242,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "GDcETiCqrUq/o8rEa6SoYnvr+jH5Cz9lutk13+Z7yK5xPYxpjz1zEzj7pYQU3wDRfF2PlMKe8U9uecxmtluR1A==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 1620,
+          "h": 2880
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 238,
+        "p95": 4.4
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    },
+    {
+      "recScale": 2,
+      "msaa": 4,
+      "file": "C:\\Users\\L5\\AppData\\Local\\Temp\\claude\\E--\\bee0f118-f0f5-4b8a-a0d8-66aee48f3df1\\scratchpad\\res-lab\\runs\\rec-9x16\\rec-scale2-msaa4.mp4",
+      "mime": "video/mp4;codecs=avc1.640028",
+      "bytes": 6243806,
+      "seconds": 4.03640000000596,
+      "frames": 238,
+      "settings": {
+        "aspectRatio": 0.5625,
+        "deviceId": "Z7Zn1oI+SstOZ/VZqE8R9moRNRyEJrFc3YQDdjq+xbWRd4tBjEA1HTstNpDr5YFqSE8t0bAmiBMYvT1mUIVJgQ==",
+        "frameRate": 0,
+        "height": 1920,
+        "resizeMode": "none",
+        "width": 1080
+      },
+      "during": {
+        "output": {
+          "w": 1080,
+          "h": 1920
+        },
+        "internal": {
+          "w": 2160,
+          "h": 3840
+        },
+        "buffer": [
+          1080,
+          1920
+        ],
+        "fps": 151.3,
+        "p95": 15.1
+      },
+      "after": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      },
+      "liveAfter": {
+        "output": {
+          "w": 459,
+          "h": 816
+        },
+        "internal": {
+          "w": 918,
+          "h": 1632
+        }
+      }
+    }
+  ],
+  "liveBefore": {
+    "display": {
+      "w": 459,
+      "h": 816
+    },
+    "output": {
+      "w": 459,
+      "h": 816
+    },
+    "internal": {
+      "w": 918,
+      "h": 1632
+    },
+    "scale": 2,
+    "recScale": 2,
+    "msaa": 4,
+    "filter": 0,
+    "fixed": false,
+    "record": false,
+    "dpr": 1,
+    "aa": "none",
+    "taaLevel": 2,
+    "downsample": true,
+    "buffer": [
+      459,
+      816
+    ],
+    "maxSamples": 8,
+    "pointSize": [
+      1,
+      1024
+    ],
+    "maxTexture": 16384,
+    "css": [
+      "459px",
+      "816px"
+    ],
+    "rect": {
+      "x": 559.5,
+      "y": 66.5,
+      "width": 459,
+      "height": 816,
+      "top": 66.5,
+      "right": 1018.5,
+      "bottom": 882.5,
+      "left": 559.5
+    },
+    "composerSamples": 4,
+    "cam": {
+      "x": 0,
+      "span": 16
+    },
+    "framing": "9:16"
+  },
+  "errors": []
+}

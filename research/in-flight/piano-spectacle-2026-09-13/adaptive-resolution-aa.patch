@@ -1,0 +1,624 @@
+diff --git a/arsenal/web/piano.js b/arsenal/web/piano.js
+index de585129..32ca02ca 100644
+--- a/arsenal/web/piano.js
++++ b/arsenal/web/piano.js
+@@ -14,6 +14,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
++import { Pass, FullScreenQuad } from "three/addons/postprocessing/Pass.js";
+ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+ 
+ // ===== THEORY BEGIN (pure: no DOM, no three.js; the node tests extract this block) =====
+@@ -424,13 +425,200 @@ const envMap = (() => {
+ 
+ const camera = new THREE.PerspectiveCamera(framing.fov, framing.w / framing.h, 0.5, 900);
+ 
++// ------------------------------------------------------------- resolution --
++// The drawing buffer follows the canvas's displayed size in device pixels, so the browser never resamples the
++// picture (a fixed 1080x1920 buffer shown at, say, 754x1340 is scaled by the compositor with a plain bilinear
++// filter, which shimmers on key gaps, the rail line, staff lines and text). The 3D scene renders at that size times
++// RES.scale; above 1 it is supersampled and filtered down after tone mapping, in linear light. MSAA rides on top.
++// Bloom always runs at the framing size (1080x1920 or 1920x1080), so the glow keeps one shape at every window size.
++// While REC runs, the buffer is exactly the framing size (the browser scales it for the live view, as it always did).
++const QS = new URLSearchParams(location.search);
++const numParam = (name, stored, def) => { const v = parseFloat(QS.get(name) ?? stored ?? ""); return Number.isFinite(v) ? v : def; };
++const RES = {
++  // 2x supersampling with MSAA 4 was closest to a 16-sample reference at every window size tried (edge error about half
++  // of MSAA 4 alone, least shimmer) and costs 5.3 ms a frame at 1080x1920 on the RX 9070 XT (research/in-flight/
++  // piano-spectacle-2026-09-13/adaptive-resolution-aa.md).
++  scale: clamp(numParam("scale", safeGet("arsenal.piano.renderScale"), 2), 0.5, 4),  // live supersampling per axis
++  recScale: clamp(numParam("recscale", safeGet("arsenal.piano.recScale"), 2), 0.5, 4),  // for REC and snapshot()
++  msaa: clamp(Math.round(numParam("msaa", null, 4)), 0, 16),
++  filter: QS.get("filter") === "tent" ? 1 : 0,  // downsample kernel: 0 box (area), 1 tent (1 output px radius)
++  maxOutput: 3840 * 2160,       // drawing-buffer cap; past it the browser upsamples
++  // Scene-pixel caps; the render scale gives way first. Live: 5 MP (2x of an 810x1440 canvas, 3.3 ms a frame with
++  // MSAA 4, inside a 240 Hz budget). REC: 8.3 MP (2x of 1080x1920, 5.9 ms), since REC draws only 60 frames a second.
++  maxInternal: 5.0e6,
++  maxInternalRec: 3840 * 2160,
++  display: { w: 0, h: 0 },      // the canvas's device-pixel box, from the ResizeObserver
++  output: { w: framing.w, h: framing.h },
++  internal: { w: framing.w, h: framing.h },
++  record: false,                // REC: output is the framing size
++  forceFraming: false,          // snapshot(): output is the framing size for one frame
++  fixed: QS.get("fixed") === "1",  // lab: HEAD behaviour, a framing-size buffer scaled by the browser
++};
++// the lab hooks (window.__piano.lab) steer these; the app never sets them
++const LAB = { paused: false, simOnly: false, pan: 0, hideOverlay: false, aa: "none", aaPass: null, taaLevel: 2 };
++
++const FS_VERT = "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }";
++// Area average of an HDR buffer into a smaller target (exact footprint weights), or bilinear when it isn't smaller.
++const boxDownMaterial = new THREE.ShaderMaterial({
++  uniforms: { tSrc: { value: null }, uRatio: { value: new THREE.Vector2(1, 1) }, uSrcMax: { value: new THREE.Vector2(0, 0) } },
++  depthTest: false, depthWrite: false, vertexShader: FS_VERT,
++  fragmentShader: `
++    uniform sampler2D tSrc; uniform vec2 uRatio, uSrcMax; varying vec2 vUv;
++    float cover(float a, float lo, float hi) { return max(0.0, min(a + 1.0, hi) - max(a, lo)); }
++    void main() {
++      if (uRatio.x <= 1.0 && uRatio.y <= 1.0) { gl_FragColor = texture2D(tSrc, vUv); return; }
++      vec2 lo = floor(gl_FragCoord.xy) * uRatio, hi = lo + uRatio;
++      vec4 sum = vec4(0.0); float wsum = 0.0;
++      for (int y = 0; y < 12; y++) {
++        float fy = floor(lo.y) + float(y); if (fy >= hi.y) break;
++        float wy = cover(fy, lo.y, hi.y);
++        for (int x = 0; x < 12; x++) {
++          float fx = floor(lo.x) + float(x); if (fx >= hi.x) break;
++          float w = wy * cover(fx, lo.x, hi.x);
++          sum += w * texelFetch(tSrc, clamp(ivec2(fx, fy), ivec2(0), ivec2(uSrcMax)), 0); wsum += w;
++        }
++      }
++      gl_FragColor = sum / max(wsum, 1e-6);
++    }`,
++});
++// Bloom at the framing size whatever the scene resolution: the scene is area-averaged into the bloom's half-size
++// input (at 1080x1920 that is exactly the 2x2 average UnrealBloomPass took itself), the stock pass blurs and
++// composites, and its result is added over the full-resolution scene with the stock blend material.
++class FramingBloomPass extends Pass {
++  constructor(bloom) {
++    super();
++    this.bloom = bloom;
++    this.needsSwap = false;
++    this.small = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
++    this.quad = new FullScreenQuad(boxDownMaterial);
++  }
++  setSize() {
++    this.bloom.setSize(framing.w, framing.h);
++    this.small.setSize(Math.round(framing.w / 2), Math.round(framing.h / 2));
++  }
++  render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
++    boxDownMaterial.uniforms.tSrc.value = readBuffer.texture;
++    boxDownMaterial.uniforms.uRatio.value.set(readBuffer.width / this.small.width, readBuffer.height / this.small.height);
++    boxDownMaterial.uniforms.uSrcMax.value.set(readBuffer.width - 1, readBuffer.height - 1);
++    this.quad.material = boxDownMaterial;
++    renderer.setRenderTarget(this.small);
++    this.quad.render(renderer);
++    this.bloom.render(renderer, writeBuffer, this.small, deltaTime, maskActive);  // its own final blend lands on `small`
++    const autoClear = renderer.autoClear;
++    renderer.autoClear = false;
++    this.bloom.copyUniforms.tDiffuse.value = this.bloom.renderTargetsHorizontal[0].texture;
++    this.quad.material = this.bloom.blendMaterial;
++    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
++    this.quad.render(renderer);
++    renderer.autoClear = autoClear;
++  }
++}
++// Supersampled scene down to the drawing buffer: separable, exact footprint weights, in linear light (the input is
++// the OutputPass result, tone mapped and sRGB encoded, so it is decoded first and encoded again at the end).
++const downMaterial = new THREE.ShaderMaterial({
++  uniforms: { tSrc: { value: null }, uRatio: { value: 1 }, uAxis: { value: 0 }, uKernel: { value: 0 },
++              uDecode: { value: 1 }, uEncode: { value: 0 }, uSrcMax: { value: new THREE.Vector2(0, 0) } },
++  depthTest: false, depthWrite: false, vertexShader: FS_VERT,
++  fragmentShader: `
++    uniform sampler2D tSrc; uniform float uRatio, uAxis, uKernel, uDecode, uEncode; uniform vec2 uSrcMax; varying vec2 vUv;
++    float cdf(float x, float R) {
++      if (uKernel < 0.5) return clamp(x / (2.0 * R) + 0.5, 0.0, 1.0);
++      if (x <= -R) return 0.0;
++      if (x >= R) return 1.0;
++      float u = x / R;
++      return u < 0.0 ? 0.5 * (1.0 + u) * (1.0 + u) : 1.0 - 0.5 * (1.0 - u) * (1.0 - u);
++    }
++    vec3 toLinear(vec3 c) { return mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, vec3(lessThanEqual(c, vec3(0.04045)))); }
++    vec3 toSrgb(vec3 c) { return mix(1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c * 12.92, vec3(lessThanEqual(c, vec3(0.0031308)))); }
++    void main() {
++      ivec2 p = ivec2(gl_FragCoord.xy);
++      vec3 o;
++      if (uRatio <= 1.0) {
++        vec3 s = texture2D(tSrc, vUv).rgb;
++        o = uDecode > 0.5 ? toLinear(max(s, 0.0)) : s;
++      } else {
++        float c = (float(uAxis < 0.5 ? p.x : p.y) + 0.5) * uRatio;  // this pixel's centre, in source texels
++        float R = uKernel < 0.5 ? 0.5 * uRatio : uRatio;
++        float j0 = floor(c - R);
++        vec3 sum = vec3(0.0); float wsum = 0.0;
++        for (int k = 0; k < 24; k++) {
++          float a = j0 + float(k);
++          if (a >= c + R) break;
++          float w = cdf(a + 1.0 - c, R) - cdf(a - c, R);
++          ivec2 q = uAxis < 0.5 ? ivec2(int(a), p.y) : ivec2(p.x, int(a));
++          vec3 s = texelFetch(tSrc, clamp(q, ivec2(0), ivec2(uSrcMax)), 0).rgb;
++          sum += w * (uDecode > 0.5 ? toLinear(max(s, 0.0)) : s);
++          wsum += w;
++        }
++        o = sum / max(wsum, 1e-6);
++      }
++      gl_FragColor = vec4(uEncode > 0.5 ? toSrgb(clamp(o, 0.0, 1.0)) : o, 1.0);
++    }`,
++});
++class DownsamplePass extends Pass {
++  constructor() {
++    super();
++    this.mid = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
++    this.quad = new FullScreenQuad(downMaterial);
++  }
++  render(renderer, writeBuffer, readBuffer) {
++    const u = downMaterial.uniforms, dw = RES.output.w, dh = RES.output.h;
++    this.mid.setSize(dw, readBuffer.height);
++    u.tSrc.value = readBuffer.texture; u.uRatio.value = readBuffer.width / dw; u.uAxis.value = 0; u.uKernel.value = RES.filter;
++    u.uDecode.value = 1; u.uEncode.value = 0; u.uSrcMax.value.set(readBuffer.width - 1, readBuffer.height - 1);
++    renderer.setRenderTarget(this.mid);
++    this.quad.render(renderer);
++    u.tSrc.value = this.mid.texture; u.uRatio.value = readBuffer.height / dh; u.uAxis.value = 1;
++    u.uDecode.value = 0; u.uEncode.value = 1; u.uSrcMax.value.set(dw - 1, readBuffer.height - 1);
++    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
++    this.quad.render(renderer);
++  }
++}
++
+ const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(framing.w, framing.h,
+-  { type: THREE.HalfFloatType, samples: 4 }));
+-composer.addPass(new RenderPass(scene, camera));
++  { type: THREE.HalfFloatType, samples: RES.msaa }));
++const renderPass = new RenderPass(scene, camera);
++composer.addPass(renderPass);
+ // radius 0 keeps the widest bloom mips light: dense chords glow without fogging the whole frame
+ const bloom = new UnrealBloomPass(new THREE.Vector2(framing.w, framing.h), 0.45, 0.0, 0.9);
+-composer.addPass(bloom);
++composer.addPass(new FramingBloomPass(bloom));
+ composer.addPass(new OutputPass());
++const downsamplePass = new DownsamplePass();
++composer.addPass(downsamplePass);
++
++// Sizes everything from RES.display (or the framing size while recording), then redraws the overlay layers.
++function applyResolution() {
++  let ow, oh;
++  const framed = RES.record || RES.forceFraming || RES.fixed || !RES.display.w;
++  if (framed) { ow = framing.w; oh = framing.h; }
++  else {
++    ow = RES.display.w; oh = RES.display.h;
++    const over = Math.sqrt((ow * oh) / RES.maxOutput);
++    if (over > 1) { ow = Math.floor(ow / over); oh = Math.floor(oh / over); }
++  }
++  const want = framed ? RES.recScale : RES.scale;
++  // Supersampling pays at a whole factor: at 1.5x the box footprint straddles texels and gains little over MSAA alone
++  // (edge error .0145 vs .0148 at 711x1264), so a factor over the pixel cap drops to the largest whole factor that
++  // fits, and below 1x only when even 1x is over the cap.
++  const cap = framed ? RES.maxInternalRec : RES.maxInternal;
++  let s = want;
++  if (ow * oh * s * s > cap) {
++    const fit = Math.sqrt(cap / (ow * oh));
++    s = fit >= 1 ? Math.floor(fit) : fit;
++  }
++  const iw = Math.max(1, Math.round(ow * s)), ih = Math.max(1, Math.round(oh * s));
++  const outChanged = ow !== RES.output.w || oh !== RES.output.h;
++  RES.output = { w: ow, h: oh };
++  RES.internal = { w: iw, h: ih };
++  renderer.setSize(ow, oh, false);
++  if (composer.renderTarget1.samples !== RES.msaa) {
++    for (const rt of [composer.renderTarget1, composer.renderTarget2]) { rt.samples = RES.msaa; rt.dispose(); }
++  }
++  composer.setSize(iw, ih);
++  downsamplePass.enabled = iw !== ow || ih !== oh;
++  if (outChanged || !overlay.label) overlay.build();
++  updateCamera(0, clock());
++}
+ 
+ // Sky and far floor share one colour through the fog, so the stage has no horizon line. It takes
+ // a faint tint of whatever is sounding (see renderFrame).
+@@ -510,7 +698,8 @@ for (let m = KEY.first; m <= KEY.last; m++) {
+ // per frame on the CPU. Each height is a moment in the note's life, so a column draws its loudness over
+ // time: a bright strike, a slow sag while it sounds, and a quick let-go when the sound stops.
+ const T0 = nowSec();
+-const clock = () => nowSec() - T0;
++let clockOverride = null;  // lab hooks only: a frozen or scripted clock
++const clock = () => (clockOverride !== null ? clockOverride : nowSec() - T0);
+ const FAR = 1e6;
+ const TRAIL_MAX = 640;          // the cap: slots are recycled, so a long session never grows
+ const TRAIL_SPEED = 6.5;        // world units per second
+@@ -854,16 +1043,18 @@ function updateCamera(dt, t, snap = false) {
+   const dist = cam.span / 2 / tanH + 7;
+   const elev = THREE.MathUtils.degToRad(framing.follow ? 22 : 17) + Math.sin(t * 0.13) * 0.012;
+   const yaw = Math.sin(t * 0.071) * (framing.follow ? 0.06 : 0.035);
+-  lookTarget.set(cam.x, 0.4, -0.5);
++  lookTarget.set(cam.x + LAB.pan, 0.4, -0.5);
+   camera.position.set(lookTarget.x + dist * Math.sin(yaw) * Math.cos(elev),
+                       lookTarget.y + dist * Math.sin(elev),
+                       lookTarget.z + dist * Math.cos(yaw) * Math.cos(elev));
+   camera.lookAt(lookTarget);
+   // Lens shift instead of tilting: the keyboard sits low in the frame and the trails get the sky.
+   const shift = framing.follow ? 0.25 : 0.29;
+-  camera.setViewOffset(framing.w, framing.h, 0, -shift * framing.h, framing.w, framing.h);
++  // in scene pixels, so a jittering pass (TAA/SSAA) that adds to this offset moves by real sub-pixels
++  const W = RES.internal.w, H = RES.internal.h;
++  camera.setViewOffset(W, H, 0, -shift * H, W, H);
+   trailUniforms.uTop.value = RAIL_Y + dist * Math.tan(vfov / 2) * (1 + 2 * shift) * 0.98;
+-  sparkUniforms.uPx.value = framing.h / (2 * Math.tan(vfov / 2));
++  sparkUniforms.uPx.value = H / (2 * Math.tan(vfov / 2));  // point sprites are sized in pixels of the scene target
+ }
+ 
+ // ---------------------------------------------------------------- overlay --
+@@ -903,19 +1094,25 @@ const LAYOUT = {
+ const overlayScene = new THREE.Scene();
+ const overlayCam = new THREE.OrthographicCamera(0, framing.w, framing.h, 0, -10, 10);
+ 
++// A layer is laid out in framing units (1080x1920) but its canvas has one texel per output pixel, and its quad is
++// snapped to whole output pixels, so text and staff lines land 1:1 on the drawing buffer at any window size.
++let shadowScale = 1;  // canvas shadowBlur ignores the transform, so the draw code scales it by hand
+ function makeLayer(spec) {
++  const kx = RES.output.w / framing.w, ky = RES.output.h / framing.h;
++  const pw = Math.max(1, Math.round(spec.w * kx)), ph = Math.max(1, Math.round(spec.h * ky));
++  const px = Math.round((spec.cx - spec.w / 2) * kx), py = Math.round((spec.cy - spec.h / 2) * ky);
+   const c = document.createElement("canvas");
+-  c.width = spec.w;
+-  c.height = spec.h;
++  c.width = pw;
++  c.height = ph;
+   const tex = new THREE.CanvasTexture(c);
+   tex.colorSpace = THREE.SRGBColorSpace;
+   tex.minFilter = THREE.LinearFilter;
+   tex.generateMipmaps = false;
+   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false });
+-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(spec.w, spec.h), mat);
+-  mesh.position.set(spec.cx, framing.h - spec.cy, 0);
++  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(pw / kx, ph / ky), mat);
++  mesh.position.set((px + pw / 2) / kx, framing.h - (py + ph / 2) / ky, 0);
+   overlayScene.add(mesh);
+-  return { canvas: c, ctx: c.getContext("2d"), tex, mat, mesh, spec };
++  return { canvas: c, ctx: c.getContext("2d"), tex, mat, mesh, spec, sx: pw / spec.w, sy: ph / spec.h };
+ }
+ function disposeLayer(layer) {
+   if (!layer) return;
+@@ -957,7 +1154,7 @@ function drawRuns(ctx, runs, x, baseline, glow) {
+       ctx.font = r.font;
+       ctx.fillStyle = r.color;
+       ctx.shadowColor = pass === 0 ? glow : "transparent";
+-      ctx.shadowBlur = pass === 0 ? 38 : 0;
++      ctx.shadowBlur = pass === 0 ? 38 * shadowScale : 0;
+       ctx.fillText(r.text, r.x, baseline + (r.dy || 0));
+     }
+   }
+@@ -972,6 +1169,8 @@ function measureRuns(ctx, runs) {
+ 
+ function drawLabel(layer, info) {
+   const { ctx, spec } = layer;
++  ctx.setTransform(layer.sx, 0, 0, layer.sy, 0, 0);
++  shadowScale = layer.sy;
+   ctx.clearRect(0, 0, spec.w, spec.h);
+   if (!info) return;
+   ctx.fontStretch = "semi-condensed";
+@@ -1024,6 +1223,8 @@ function drawLabel(layer, info) {
+ function drawStaff(layer, info) {
+   const { ctx, spec } = layer;
+   const { w, h, s } = spec;
++  ctx.setTransform(layer.sx, 0, 0, layer.sy, 0, 0);
++  shadowScale = layer.sy;
+   ctx.clearRect(0, 0, w, h);
+   // an elliptical scrim that reaches zero inside the layer, so no rectangle edge can show
+   ctx.save();
+@@ -1120,7 +1321,7 @@ function drawStaff(layer, info) {
+       ctx.fillStyle = color;
+       for (const pass of [0, 1]) {
+         ctx.shadowColor = pass === 0 ? noteCss(n.midi, 110, 0.9) : "transparent";
+-        ctx.shadowBlur = pass === 0 ? s * 0.9 : 0;
++        ctx.shadowBlur = pass === 0 ? s * 0.9 * shadowScale : 0;
+         if (fontState.smufl) {
+           ctx.font = `${4 * s}px Bravura`;
+           ctx.fillText(SMUFL.whole, x, y);
+@@ -1544,10 +1745,14 @@ async function startRecording() {
+   if (rec.state !== "idle") return;
+   if (typeof MediaRecorder === "undefined") { toast("MediaRecorder is unavailable in this browser", true); return; }
+   rec.error = "";
++  // The recording is exactly the framing size: the buffer switches before the stream exists, so the track
++  // never sees the live window-sized buffer. The live view shows the same frames, scaled by the browser.
++  setRecordResolution(true);
+   // Frames are requested by the render loop at a paced 60 fps: captureStream(60) on a 144/240 Hz
+   // display gave uneven, roughly 30 fps files.
+   const stream = canvas.captureStream(0);
+   rec.videoTrack = stream.getVideoTracks()[0];
++  rec.settings = rec.videoTrack.getSettings();
+   rec.frameAcc = 1 / 60;
+   rec.frames = 0;
+   const track = audioIn.stream && audioIn.stream.getAudioTracks()[0];
+@@ -1559,6 +1764,7 @@ async function startRecording() {
+                                                ...(rec.withAudio ? { audioBitsPerSecond: 256_000 } : {}) });
+   } catch (e) {
+     for (const t of stream.getTracks()) t.stop();
++    setRecordResolution(false);
+     toast("Recorder failed to start: " + errText(e), true);
+     return;
+   }
+@@ -1578,12 +1784,27 @@ function stopRecording() {
+   syncRecButton();
+   rec.recorder.stop();
+ }
++function setRecordResolution(on) {
++  if (RES.record === on) return;
++  RES.record = on;
++  applyResolution();
++  if (!LAB.paused) renderFrame();  // the resize cleared the buffer
++}
+ async function finishRecording(stream) {
+   for (const t of stream.getTracks()) t.stop();
++  setRecordResolution(false);
+   const seconds = (performance.now() - rec.startedAt) / 1000;
+   const type = rec.recorder.mimeType || rec.mime || "video/webm";
+   const blob = new Blob(rec.chunks, { type });
+   rec.chunks = [];
++  if (rec.probe) {  // lab hook: hand the file back instead of uploading it
++    const done = rec.probe;
++    rec.probe = null;
++    rec.state = "idle";
++    syncRecButton();
++    done({ blob, seconds, frames: rec.frames, mime: blob.type, settings: rec.settings });
++    return;
++  }
+   rec.state = "uploading";
+   syncRecButton();
+   try {
+@@ -1634,26 +1855,48 @@ function toast(message, isError = false, link = null) {
+   clearTimeout(toastTimer);
+   toastTimer = setTimeout(() => { el.hidden = true; }, link ? 120000 : 8000);
+ }
++// The canvas's CSS box is sized to whole device pixels in the framing's exact aspect (9n x 16n for 9:16), and the
++// ResizeObserver below reads the device-pixel box the browser actually laid out and sizes the buffer to it.
++const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+ function fitCanvas() {
+   const r = $("stage").getBoundingClientRect();
+   const pad = document.fullscreenElement ? 0 : 14;
+-  const scale = Math.max(0.05, Math.min((r.width - 2 * pad) / framing.w, (r.height - 2 * pad) / framing.h));
+-  canvas.style.width = `${Math.floor(framing.w * scale)}px`;
+-  canvas.style.height = `${Math.floor(framing.h * scale)}px`;
++  const dpr = window.devicePixelRatio || 1;
++  const g = gcd(framing.w, framing.h), aw = framing.w / g, ah = framing.h / g;
++  const n = Math.max(1, Math.floor(Math.min((r.width - 2 * pad) * dpr / aw, (r.height - 2 * pad) * dpr / ah)));
++  canvas.style.width = `${(n * aw) / dpr}px`;
++  canvas.style.height = `${(n * ah) / dpr}px`;
++}
++function onCanvasBox(entries) {
++  const e = entries[entries.length - 1];
++  const dpr = window.devicePixelRatio || 1;
++  const box = e.devicePixelContentBoxSize && e.devicePixelContentBoxSize[0];
++  const cssW = Math.round(e.contentRect.width * dpr), cssH = Math.round(e.contentRect.height * dpr);
++  let w = box ? box.inlineSize : cssW, h = box ? box.blockSize : cssH;
++  // devicePixelContentBoxSize is exact under a real device scale factor (it carries the browser's pixel snapping), but
++  // under DevTools device emulation it reported CSS pixels (762x1355 for a 1143x2032 box): past rounding, trust CSS x DPR
++  if (Math.abs(w - cssW) > 2 || Math.abs(h - cssH) > 2) { w = cssW; h = cssH; }
++  if (!w || !h || (w === RES.display.w && h === RES.display.h)) return;
++  RES.display = { w, h };
++  applyResolution();
++  if (window.__piano && window.__piano.ready && !LAB.paused) renderFrame();  // resizing cleared the buffer: refill it before this paint
++}
++function watchDpr() {  // a DPR change (another monitor, browser zoom) re-snaps the CSS box; the observer then resizes the buffer
++  matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`).addEventListener("change", () => { fitCanvas(); watchDpr(); }, { once: true });
+ }
+ function applyFraming(id, persist = true) {
+   if (rec.state !== "idle" && FRAMINGS[id] !== framing) { toast("Stop recording before changing the framing", true); return; }
+   framing = FRAMINGS[id] || FRAMINGS["9:16"];
+   if (persist) safeSet("arsenal.piano.framing", framing.id);
+-  renderer.setSize(framing.w, framing.h, false);
+-  composer.setSize(framing.w, framing.h);
+   camera.fov = framing.fov;
+   camera.aspect = framing.w / framing.h;
++  RES.display = { w: 0, h: 0 };  // framing size until the observer measures the new box (before this frame paints)
++  fitCanvas();
++  applyResolution();
+   overlay.build();
+   $("btn-916").setAttribute("aria-pressed", String(framing.id === "9:16"));
+   $("btn-169").setAttribute("aria-pressed", String(framing.id === "16:9"));
+   updateCamera(0, clock(), true);
+-  fitCanvas();
+ }
+ function toggleHud() { $("hud").hidden = !$("hud").hidden; }
+ function toggleFullscreen() {
+@@ -1665,7 +1908,8 @@ function updateHud(t) {
+   if ($("hud").hidden) return;
+   const info = lastInfo;
+   $("hud-fps").textContent = `${fpsValue.toFixed(0)} fps · ${frameMsP95.toFixed(1)} ms p95`;
+-  $("hud-render").textContent = `${framing.w}x${framing.h} (${framing.id}) · three r${THREE.REVISION}`;
++  $("hud-render").textContent = `${RES.output.w}x${RES.output.h} (${framing.id}${RES.record ? ", REC" : ""}) · scene ${RES.internal.w}x${RES.internal.h}` +
++    `${RES.msaa ? ` MSAA ${RES.msaa}` : ""} · three r${THREE.REVISION}`;
+   $("hud-midi").textContent = midi.status + (midi.last ? ` · ${midi.last}` : "");
+   $("hud-notes").textContent = fmtNotes(info);
+   $("hud-chord").textContent = (info ? info.name : "none") + (keyGuess ? ` · key ${keyGuess.name}` : "");
+@@ -1707,6 +1951,9 @@ function wireUi() {
+   $("btn-full").addEventListener("click", toggleFullscreen);
+   document.addEventListener("fullscreenchange", fitCanvas);
+   new ResizeObserver(fitCanvas).observe($("stage"));
++  const canvasObserver = new ResizeObserver(onCanvasBox);
++  try { canvasObserver.observe(canvas, { box: "device-pixel-content-box" }); } catch { canvasObserver.observe(canvas); }
++  watchDpr();
+ 
+   const resumeAudio = () => { if (audioIn.ctx && audioIn.ctx.state === "suspended") audioIn.ctx.resume().catch(() => {}); };
+   window.addEventListener("pointerdown", resumeAudio);
+@@ -1795,10 +2042,14 @@ function renderFrame() {
+   scene.fog.color.copy(stageTint);
+ 
+   overlay.update(info, t, dt);
+-  composer.render(dt);
+-  renderer.autoClear = false;
+-  renderer.render(overlayScene, overlayCam);
+-  renderer.autoClear = true;
++  if (!LAB.simOnly) {
++    composer.render(dt);
++    if (!LAB.hideOverlay) {
++      renderer.autoClear = false;
++      renderer.render(overlayScene, overlayCam);  // at output resolution, after the downsample: text stays 1:1
++      renderer.autoClear = true;
++    }
++  }
+   if (rec.state === "recording" && rec.videoTrack) {
+     rec.frameAcc += dt;
+     if (rec.frameAcc >= 1 / 60 - 0.004) {  // at most one frame per render; averages 60 fps at any refresh rate
+@@ -1825,9 +2076,50 @@ function renderFrame() {
+   tickMeter(dt);
+   if (t - hudAt > 0.2) { hudAt = t; updateHud(t); }
+ }
++// Lab only: swap in three/addons anti-aliasing passes for comparison. "taa" is TAARenderPass with accumulate off,
++// which is SSAARenderPass (2^level jittered renders a frame); accumulation only works on a still scene.
++async function setLabAA(aa, level) {
++  LAB.taaLevel = level;
++  if (LAB.aaPass) {
++    const i = composer.passes.indexOf(LAB.aaPass);
++    if (i === 0) composer.passes[0] = renderPass;
++    else if (i > 0) composer.passes.splice(i, 1);
++    LAB.aaPass.dispose();
++    LAB.aaPass = null;
++  }
++  LAB.aa = aa;
++  if (aa === "taa") {
++    const { TAARenderPass } = await import("three/addons/postprocessing/TAARenderPass.js");
++    const p = new TAARenderPass(scene, camera);
++    p.accumulate = false;
++    p.sampleLevel = level;
++    composer.passes[0] = p;
++    LAB.aaPass = p;
++  } else if (aa === "smaa" || aa === "fxaa") {
++    const mod = aa === "smaa" ? await import("three/addons/postprocessing/SMAAPass.js") : await import("three/addons/postprocessing/FXAAPass.js");
++    const p = aa === "smaa" ? new mod.SMAAPass() : new mod.FXAAPass();
++    composer.insertPass(p, composer.passes.indexOf(downsamplePass));  // after OutputPass: both want display-encoded input
++    LAB.aaPass = p;
++    if (aa === "smaa") await new Promise((r) => setTimeout(r, 500));  // its lookup textures decode from data URIs
++  }
++}
+ let loopError = null;
++const loopPace = { at: 0, acc: 1 / 60 };
+ function loop() {
+   requestAnimationFrame(loop);
++  if (LAB.paused) return;
++  // While REC runs, only the frames the file keeps are drawn (60 a second). At 2x supersampling a 1080x1920 frame costs
++  // about 6 ms; drawing every tick of a 240 Hz display as well starved the encoder (151 fps, 15 ms p95 in the probe).
++  const nowS = performance.now() / 1000;
++  if (rec.state === "recording") {
++    loopPace.acc = Math.min(loopPace.acc + (nowS - loopPace.at), 2 / 60);
++    loopPace.at = nowS;
++    if (loopPace.acc < 1 / 60 - 0.004) return;
++    loopPace.acc -= 1 / 60;
++  } else {
++    loopPace.at = nowS;
++    loopPace.acc = 1 / 60;
++  }
+   try {
+     renderFrame();
+   } catch (e) {
+@@ -1839,7 +2131,111 @@ function loop() {
+ // window.__piano is for the CDP receipt and for poking at the page from DevTools.
+ window.__piano = {
+   ready: false,
+-  snapshot() { renderFrame(); return canvas.toDataURL("image/jpeg", 0.9); },
++  // What a recording would contain: the framing size (1080x1920 or 1920x1080) at the REC render scale, for one frame.
++  // { native: true } takes the live window-sized buffer instead.
++  snapshot(opts = {}) {
++    const framed = !opts.native && !RES.record;
++    if (framed) { RES.forceFraming = true; applyResolution(); }
++    renderFrame();
++    const url = canvas.toDataURL(opts.png ? "image/png" : "image/jpeg", 0.9);
++    if (framed) { RES.forceFraming = false; applyResolution(); if (!LAB.paused) renderFrame(); }
++    return url;
++  },
++  lab: {
++    res() {
++      const gl = renderer.getContext();
++      return { display: RES.display, output: RES.output, internal: RES.internal, scale: RES.scale, recScale: RES.recScale,
++               msaa: RES.msaa, filter: RES.filter, fixed: RES.fixed, record: RES.record, dpr: window.devicePixelRatio,
++               aa: LAB.aa, taaLevel: LAB.taaLevel, downsample: downsamplePass.enabled, buffer: [gl.drawingBufferWidth, gl.drawingBufferHeight],
++               maxSamples: gl.getParameter(gl.MAX_SAMPLES), pointSize: [...gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)],
++               maxTexture: gl.getParameter(gl.MAX_TEXTURE_SIZE), css: [canvas.style.width, canvas.style.height],
++               rect: canvas.getBoundingClientRect().toJSON(), composerSamples: composer.renderTarget1.samples,
++               cam: { x: cam.x, span: cam.span }, framing: framing.id };
++    },
++    async set(o = {}) {
++      if (o.scale !== undefined) RES.scale = o.scale;
++      if (o.recScale !== undefined) RES.recScale = o.recScale;
++      if (o.msaa !== undefined) RES.msaa = o.msaa;
++      if (o.filter !== undefined) RES.filter = o.filter === "tent" ? 1 : 0;
++      if (o.maxInternal !== undefined) RES.maxInternal = RES.maxInternalRec = o.maxInternal;
++      if (o.fixed !== undefined) RES.fixed = o.fixed;
++      if (o.hideOverlay !== undefined) LAB.hideOverlay = o.hideOverlay;
++      if (o.paused !== undefined) LAB.paused = o.paused;
++      if (o.pan !== undefined) LAB.pan = o.pan;
++      if (o.aa !== undefined || o.taaLevel !== undefined) await setLabAA(o.aa ?? LAB.aa, o.taaLevel ?? LAB.taaLevel);
++      applyResolution();
++      return this.res();
++    },
++    freeze(t) { clockOverride = t; lastT = t; },
++    unfreeze() { clockOverride = null; lastT = clock(); },
++    seed(n) {
++      let a = n >>> 0;
++      Math.random = () => {
++        a = (a + 0x6d2b79f5) | 0;
++        let x = Math.imul(a ^ (a >>> 15), 1 | a);
++        x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
++        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
++      };
++    },
++    // Plays MIDI events { t, b } on a scripted 60 fps clock starting at `base`, without drawing, then freezes there.
++    sim(events, tEnd, base = 1000, fps = 60) {
++      const evs = [...events].sort((a, b) => a.t - b.t);
++      let i = 0;
++      LAB.simOnly = true;
++      try {
++        for (let f = 0; f <= Math.round(tEnd * fps); f++) {
++          const t = base + f / fps;
++          clockOverride = t;
++          while (i < evs.length && base + evs[i].t <= t + 1e-9) onMidiMessage({ data: Uint8Array.from(evs[i++].b) });
++          renderFrame();
++        }
++      } finally { LAB.simOnly = false; }
++      clockOverride = base + tEnd;
++      lastT = clockOverride;
++      return { t: clockOverride, sounding: sounding.size, trails: trails.liveCount(clock()), chord: overlay.shown ? overlay.shown.name : null };
++    },
++    grab() {  // render one frame and read the drawing buffer back, top row first
++      renderFrame();
++      const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
++      const raw = new Uint8Array(w * h * 4), out = new Uint8Array(w * h * 4);
++      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
++      for (let y = 0; y < h; y++) out.set(raw.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
++      return { w, h, data: out };
++    },
++    bench(n = 60) {  // frame cost with the GPU synchronised by a 1-pixel readback
++      const gl = renderer.getContext(), px = new Uint8Array(4), ms = [];
++      for (let i = 0; i < n; i++) {
++        const t0 = performance.now();
++        renderFrame();
++        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
++        ms.push(performance.now() - t0);
++      }
++      ms.sort((a, b) => a - b);
++      const f = (x) => +x.toFixed(2);
++      return { median: f(ms[n >> 1]), p95: f(ms[Math.floor(n * 0.95)]), mean: f(ms.reduce((a, b) => a + b, 0) / n) };
++    },
++    // Records through the real REC path for `seconds`, without uploading; returns the file as base64.
++    record(seconds = 3) {
++      return new Promise((resolve, reject) => {
++        let during = null;
++        rec.probe = async (r) => {
++          const buf = new Uint8Array(await r.blob.arrayBuffer());
++          let bin = "";
++          for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
++          resolve({ mime: r.mime, bytes: buf.length, seconds: r.seconds, frames: r.frames, settings: r.settings, during,
++                    after: { output: { ...RES.output }, internal: { ...RES.internal } }, b64: btoa(bin) });
++        };
++        startRecording().then(() => {
++          if (rec.state !== "recording") { rec.probe = null; reject(new Error(`REC did not start (state ${rec.state}): ${$("toast").textContent}`)); return; }
++          setTimeout(() => {
++            during = { output: { ...RES.output }, internal: { ...RES.internal }, buffer: [canvas.width, canvas.height],
++                       fps: +fpsValue.toFixed(1), p95: +frameMsP95.toFixed(2) };
++            stopRecording();
++          }, seconds * 1000);
++        }, (e) => { rec.probe = null; reject(e); });
++      });
++    },
++  },
+   stats() {
+     const info = currentInfo();
+     return { fps: Math.round(fpsValue), framing: framing.id, sounding: [...sounding.keys()].sort((a, b) => a - b),
