@@ -87,6 +87,12 @@ The keys, camera, stage and overlay (chord name, staff) stay in the core and are
 
 ## 2. Sustain (core)
 
+- **Brightness, Daniel's rule (2026-09-13):** "notes dont stay lit if I have sustain pressed, when I hold sustain and other notes it should be brighest when I am pressing sustain and note at same time, velocity should be a factor as well".
+  - Finger-held with the pedal down is the brightest state, 1.25.
+  - Finger-held alone is 1.0.
+  - Pedal-held notes stay clearly lit: 0.75, easing to 0.5 as they ring (time constant 4 s).
+  - Every level is scaled by velocity: `0.35 + 0.65·v^0.8`.
+  - Keys and trails share these levels. The live `/piano` already implements them (`glowLevel` and the trail shader in piano.js), and piano-next and every scheme must match.
 - **Hysteresis:** after polarity, the pedal is down at CC64 ≥ 64 and up below 40. Values from 40 to 63 keep the last state, so half-pedal chatter never flips it.
 - **Polarity:**
   - The setting is `normal` or `inverted`, stored in localStorage `arsenal.piano.pedalPolarity`, with a top-bar toggle.
@@ -222,7 +228,7 @@ Tests:
 
 ### 6.2 Rules for every new scheme
 
-- Solid means finger-held; hollow means pedal-held.
+- Solid means finger-held; hollow means pedal-held. Hollow never means dim: pedal-held notes stay clearly lit, per Daniel's brightness rule in section 2.
 - Never sum light. Use normal blending in strict lanes, or merge each lane by maximum. No additive halos.
   - Neon Trails keeps its additive look behind the density guard, because Daniel loves it.
 - Only attacks and finger-held cores may cross the bloom threshold. Pedal tails decay to a floor.
