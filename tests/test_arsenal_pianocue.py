@@ -8,6 +8,7 @@ import http.server
 import io
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -1312,6 +1313,24 @@ def test_details_carry_the_typed_number_and_what_explicit_notes_read_as(server, 
         assert listener.cue()["cue"]["label"] == "Bbm7"
     finally:
         listener.close()
+
+
+def test_split_progression_splits_chords_inside_a_bar_and_keeps_notes_grouped():
+    sp = pianocue.split_progression
+    assert sp("Abmaj9#11 Bb7sus4/Eb | Ebmaj9") == ["Abmaj9#11", "Bb7sus4/Eb", "Ebmaj9"]
+    assert sp("Abmaj9#11 | Bb7sus4/Eb | Ebmaj9") == ["Abmaj9#11", "Bb7sus4/Eb", "Ebmaj9"]
+    assert sp("4maj9#11:2 5^7sus4/1:2 | 1") == ["4maj9#11:2", "5^7sus4/1:2", "1"]
+    assert sp("1 4 | 5 1") == ["1", "4", "5", "1"] and sp("1 4 5 1") == ["1", "4", "5", "1"]
+    assert sp("Ab2 Eb3 G3 | Bb2 F3 Ab3") == ["Ab2 Eb3 G3", "Bb2 F3 Ab3"]  # notes with octaves: one chord each
+    assert sp("57 60 64 | 1") == ["57 60 64", "1"] and sp("Ab2 Eb3 G3:2 | C") == ["Ab2 Eb3 G3:2", "C"]
+    assert sp("Ab7 Db7 | Gb") == ["Ab7 Db7", "Gb"]  # "Ab7" could be a note: the segment stays whole, as before
+    # the help's own examples read as the chords they name
+    ap = pianocue.build_parser()
+    pg = ap._subparsers._group_actions[0].choices["progression"]
+    text = " ".join((ap.format_help() + pg.format_help()).split())
+    examples = re.findall(r'"([^"]*\|[^"]*)"', text)
+    assert {ex: len(sp(ex)) for ex in examples} == {"Abmaj9#11 | Bb7sus4/Eb | Ebmaj9": 3, "4maj9#11 | 5^7sus4/1:2 | 1": 3,
+                                                     "1 4 | 5 1": 4, "Ab2 Eb3 G3 | Bb2 F3 Ab3": 2}, examples
 
 
 @needs_node

@@ -424,12 +424,29 @@ def voice(items: List[str], key: Optional[str] = None, voicing: str = "close", o
     return reply["results"]
 
 
+# A token only notes can be: a note with its octave ("Ab2", "C#4") or a number no Nashville degree is (8 and up, so MIDI
+# notes like 57). "Ab7" is also a chord; a segment holding one stays whole, as before.
+_NOTE_TOKEN = re.compile(r"[A-Ga-g](?:#{1,2}|b{1,2})?-?\d{1,2}|\d{2,3}|[089]")
+
+
 def split_progression(text: str) -> List[str]:
-    """Chords or numbers separated by "|" or spaces. With a "|", each segment is one item (so explicit notes can be
-    grouped: "Ab2 Eb3 G3 | Bb2 F3 Ab3"); without one, every whitespace-separated token is an item."""
-    if "|" in text:
-        return [seg.strip() for seg in text.split("|") if seg.strip()]
-    return text.split()
+    """Chords or numbers separated by "|" or spaces. Without a "|", every whitespace-separated token is an item. With
+    one, a segment that could be notes is one item, so explicit notes can be grouped ("Ab2 Eb3 G3 | Bb2 F3 Ab3"); a
+    segment of chord names or numbers with spaces in it gives each its own item ("Abmaj9#11 Bb7sus4/Eb | Ebmaj9" is three
+    chords, "1 4 | 5" three numbers). A segment is notes when any token is a note with an octave or a number above 7,
+    beats (":2") aside."""
+    if "|" not in text:
+        return text.split()
+    items: List[str] = []
+    for seg in text.split("|"):
+        toks = seg.split()
+        if not toks:
+            continue
+        if len(toks) > 1 and not any(_NOTE_TOKEN.fullmatch(re.sub(r":\d+(?:\.\d+)?$", "", t)) for t in toks):
+            items.extend(toks)
+        else:
+            items.append(" ".join(toks))
+    return items
 
 
 # ====================================================================================================== client
@@ -690,7 +707,11 @@ def build_parser() -> argparse.ArgumentParser:
             p.add_argument("--silent", action="store_true", help="show the keys pressed, without sound")
         port(p)
 
-    pg = sub.add_parser("progression", help='a timed sequence: "Abmaj9#11 Bb7sus4/Eb | Ebmaj9" (item:beats allowed)')
+    pg = sub.add_parser("progression", help='a timed sequence: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9" (item:beats allowed)',
+                        description='A timed sequence of chords, one per --beats: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9", or '
+                                    'with --key "4maj9#11 | 5^7sus4/1:2 | 1" (item:beats sets one chord\'s length). '
+                                    'Chords may also be separated by spaces, inside a bar too ("1 4 | 5 1"). Notes '
+                                    'grouped between bars are one chord each ("Ab2 Eb3 G3 | Bb2 F3 Ab3").')
     pg.add_argument("chords")
     chord_opts(pg)
     pg.add_argument("--bpm", type=float, default=72.0)

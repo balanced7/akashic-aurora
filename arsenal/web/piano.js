@@ -501,6 +501,14 @@ const GHOST_TINT = new THREE.Color(0x8fa3c4);
 // so white keys get a wider, deeper slate rim at a higher opacity and a stronger cool fill.
 const GHOST_ON_IVORY = new THREE.Color(0x3e5277);
 const GHOST_RIM = { white: 0.85, black: 0.7, whiteFill: 0.42 };
+// Claude's key while it is lit. Moonlight as light alone barely lifts ivory: under the 0.75 cap a white key's emissive is
+// a few levels, no hue, and darker than ivory at velocity 40 (verifier receipt 2026-09-14, round 2). So the white key's
+// surface turns a pale moonlight blue while Claude holds it (color, in by the first touch: fade), keeping its full ivory
+// clearcoat sheen so it reads pale and lit rather than coloured like Daniel's, and the capped moonlight glows on top.
+// Measured on the front of C3 E3 G3 against unlit ivory: +22 / +25 / +28 luma at velocity 40 / 80 / 120, hue 218,
+// saturation 0.19 (Daniel's lit keys: saturation 0.6). Black keys take a softer share of the moonlight (black), with its
+// brightest channel held under the bloom threshold (blackPeak), so they read lit without a halo.
+const MOON_KEY = { color: new THREE.Color(0xd8ecff), fade: 8, black: 0.75, blackPeak: 0.55 };
 // Claude's moonlight at a velocity. The 0.75 cap (CUE_LOOK.glow) is on the glow level, but the light a key gives off is
 // that level times its colour, and moonlight is brighter than most pitch colours (up to 1.9x Daniel's light at the same
 // velocity: the round-1 glow probe). So the moon is scaled to the dimmest pitch colour at that velocity, by luminance and by
@@ -897,12 +905,20 @@ function updateKeys(dt, t) {
         const rt = Math.min(1, cue * 2.5) * cueShare;
         k.material.color.lerp(k.cueColor, rt * 0.95);
         coat = Math.max(coat, rt);
+      } else if (cue > 0.004) {  // Claude's own key: a pale moonlight surface under the capped moonlight (MOON_KEY)
+        k.material.color.lerp(MOON_KEY.color, Math.min(1, cue * MOON_KEY.fade) * cueShare);  // its clearcoat stays ivory's
       }
       if (ghost > 0.004) k.material.color.lerp(GHOST_TINT, GHOST_RIM.whiteFill * ghost * breath * (1 - Math.min(1, (k.glow + cue) * 2.5)));
       k.material.clearcoat = 0.5 - 0.35 * coat;  // never 0, so the material never recompiles
     }
     k.material.emissive.copy(k.color).multiplyScalar(keyLift(k.black, k.glow));
-    if (cue > 0.004) addScaled(k.material.emissive, k.cueColor, keyLift(k.black, cue) * cueShare);
+    if (cue > 0.004) {
+      let lift = keyLift(k.black, cue) * cueShare;
+      if (k.black && !k.cueReplay) {  // softer on lacquer, and never past the bloom threshold (MOON_KEY.blackPeak)
+        lift = Math.min(lift * MOON_KEY.black, MOON_KEY.blackPeak / Math.max(k.cueColor.r, k.cueColor.g, k.cueColor.b, 1e-3));
+      }
+      addScaled(k.material.emissive, k.cueColor, lift);
+    }
     if (ghost > 0.004 && k.black) addScaled(k.material.emissive, GHOST, 0.1 * ghost * breath);
     // the frame: a ghost's rim, or the thin moonlight rim of a key both hands hold
     const ghostRim = ghost * (k.black ? GHOST_RIM.black : GHOST_RIM.white);
@@ -936,15 +952,44 @@ function hintCamera(m, t, cue = false) {  // cue: Claude's, dropped when REC tak
   cam.recent.push({ x: keyX(m), t, cue });
   if (cam.recent.length > 96) cam.recent.shift();
 }
+// The follow camera (9:16). Daniel's notes of the last CAM.window s frame the view. Claude's notes frame it too: every key
+// Claude holds or hovers now (a play, a hover, a progression's step, a replay), however long ago it began, plus the last
+// CAM.cueLinger s of Claude's strikes, so a short cue is not lost between frames. Daniel's hands are never yanked out of the
+// picture: while he plays (a finger down, or a strike in the last CAM.playing s) Claude's notes share the frame only if
+// both fit in CAM.union white keys, else the view stays on his; once he has been quiet that long, the view goes to Claude's.
+// Off the canvas (glass, or auto while REC runs) Claude never steers (cueStage.on).
+const CAM = { window: 6, playing: 2.5, cueLinger: 1.5, union: 36 };
 function updateCamera(dt, t, snap = false) {
-  // Daniel's notes of the last 6 s frame the view. Claude's count only when Daniel has played none, so a cue far from his
-  // hands (A0, C8) never pulls the camera off them while he plays, and a cue while he listens is still in the picture.
-  let lo = Infinity, hi = -Infinity, cueLo = Infinity, cueHi = -Infinity;
+  let lo = Infinity, hi = -Infinity, cueLo = Infinity, cueHi = -Infinity, danLast = -Infinity;
   for (const n of cam.recent) {
-    if (t - n.t >= 6) continue;
-    if (n.cue) { cueLo = Math.min(cueLo, n.x); cueHi = Math.max(cueHi, n.x); } else { lo = Math.min(lo, n.x); hi = Math.max(hi, n.x); }
+    const age = t - n.t;
+    if (age >= CAM.window) continue;
+    if (!n.cue) { lo = Math.min(lo, n.x); hi = Math.max(hi, n.x); danLast = Math.max(danLast, n.t); }
+    else if (age < CAM.cueLinger && cueStage.on) { cueLo = Math.min(cueLo, n.x); cueHi = Math.max(cueHi, n.x); }
   }
-  if (lo > hi) { lo = cueLo; hi = cueHi; }
+  if (cueStage.on && framing.follow) {
+    for (const st of cueSounding.values()) {
+      if (st.m < KEY.first || st.m > KEY.last) continue;
+      const x = keyX(st.m);
+      cueLo = Math.min(cueLo, x); cueHi = Math.max(cueHi, x);
+    }
+    for (const m of cueView.ghost) {
+      if (m < KEY.first || m > KEY.last) continue;
+      const x = keyX(m);
+      cueLo = Math.min(cueLo, x); cueHi = Math.max(cueHi, x);
+    }
+  }
+  if (cueLo <= cueHi) {
+    let held = false;
+    for (const [m, st] of sounding) {  // a key Daniel is still holding keeps his hands in the frame, however old the strike
+      if (!st.held || m < KEY.first || m > KEY.last) continue;
+      held = true;
+      const x = keyX(m);
+      lo = Math.min(lo, x); hi = Math.max(hi, x);
+    }
+    if (!held && t - danLast >= CAM.playing) { lo = cueLo; hi = cueHi; }  // Daniel is listening: Claude's notes
+    else if (Math.max(hi, cueHi) - Math.min(lo, cueLo) + 6 <= CAM.union) { lo = Math.min(lo, cueLo); hi = Math.max(hi, cueHi); }
+  }
   let targetX = 0, targetSpan = 57;
   if (framing.follow) {
     targetSpan = lo <= hi ? clamp(hi - lo + 6, framing.minSpan, 57) : Math.max(cam.span, framing.minSpan);
@@ -1339,7 +1384,7 @@ function drawStaff(layer, info) {
 // under its caption. The boxes (LAYOUT.cue) keep clear of the label, note chips, Nashville row and staff: in 9:16 the
 // top band, whose ink the label only reaches near y 215; in 16:9 under the numbers, left of the staff. The hairline
 // says what it is: moonlight for a play (the colour of Claude's keys), dashed silver for a hover, amber for a replay.
-const CHIP = { scrim: "rgba(6, 8, 12, 0.8)", lead: "rgba(200, 220, 255, 0.92)", leadYou: "rgba(242, 181, 74, 0.92)",
+const CHIP = { scrim: "rgba(6, 8, 12, 0.58)", lead: "rgba(200, 220, 255, 0.92)", leadYou: "rgba(242, 181, 74, 0.92)",
                detail: "rgba(244, 241, 234, 0.74)", under: "rgba(242, 181, 74, 0.95)", play: "rgba(200, 220, 255, 0.72)",
                hover: "rgba(211, 219, 232, 0.6)", replay: "rgba(242, 181, 74, 0.7)" };
 const CUE_NOTE = /^([A-G])(##|#|bb|b|♯|♭)?(-?\d{1,2})?$/;
@@ -1380,6 +1425,45 @@ function fitRun(ctx, run, maxW) {  // one run trimmed with an ellipsis to maxW (
   while (text.length > 1 && measureRuns(ctx, [{ ...run, text: `${text}…` }]) > maxW) text = text.slice(0, -1);
   return { ...run, text: `${text.trimEnd()}…` };
 }
+// The chip's small lines are Claude's own text ("5^7sus4/1 in Eb major", "Cm9/Ab · 4maj9#11 in Eb major"). The numbers,
+// chord names and note names in it are set as the label and the Nashville row set them: real flats and sharps, and a
+// number's suffix raised with no "^" joiner (5^7sus4/1 reads 5 with 7sus4 raised, then /1). The rest is set as typed. A
+// word counts as a chord only if its suffix is chord vocabulary, so "Claude" or "Bass" stay words.
+const CUE_DEGREE = /^((?:bb?|##?)?[1-7])(\^\d[^\s/]*|[A-Za-z#°ø+(-][^\s/]*)?(?:\/((?:bb?|##?)?[1-7]))?$/;
+const CUE_SUFFIX = /^(?:maj|min|dim|aug|sus|add|alt|no|m|M|°|ø|\+|-|\d|b|#|\(|\))*$/;
+function cueTextRuns(text, size, weight, color) {
+  const plain = (t) => ({ text: t, font: `${weight} ${size}px ${FONT.display}`, color });
+  const raised = (suffix) => suffixRuns(suffix, Math.round(size * 1.3), color);  // the row's superscript, at this line's size
+  const slash = () => ({ text: "/", font: `300 ${size}px ${FONT.display}`, color, kern: size * 0.02 });
+  const runs = [];
+  for (const part of String(text || "").split(/(\s+)/)) {
+    if (!part) continue;
+    const [, lead, core, trail] = /^(\(*)(.*?)([,;:.)]*)$/.exec(part);
+    let set = null;
+    const n = CUE_DEGREE.exec(core);
+    if (n && (!n[2] || CUE_SUFFIX.test(n[2].replace(/^\^/, "")))) {
+      set = degreeRuns(n[1], size, weight, color);
+      if (n[2]) set.push(...raised(n[2].replace(/^\^/, "")));
+      if (n[3]) set.push(slash(), ...degreeRuns(n[3], size, weight, color));
+    } else if (/^[A-G]/.test(core)) {
+      const c = parseChord(core);
+      if (c && c.kind === "chord" && c.root.letter >= 0 && CUE_SUFFIX.test(c.suffix) && (c.bass || !core.includes("/"))) {
+        set = nameRuns(Theory.LETTERS[c.root.letter], c.root.acc, size, weight, color);
+        if (c.suffix) set.push(...raised(c.suffix));
+        if (c.bass) set.push(slash(), ...nameRuns(Theory.LETTERS[c.bass.letter], c.bass.acc, size, weight, color));
+      }
+    }
+    if (!set) { runs.push(plain(part)); continue; }
+    if (lead) runs.push(plain(lead));
+    runs.push(...set);
+    if (trail) runs.push(plain(trail));
+  }
+  return runs;
+}
+function fitTextRuns(ctx, text, size, weight, color, maxW) {  // set as above, or (too wide) plain text with an ellipsis
+  const runs = cueTextRuns(text, size, weight, color);
+  return measureRuns(ctx, runs) <= maxW ? runs : [fitRun(ctx, { text, font: `${weight} ${size}px ${FONT.display}`, color }, maxW)];
+}
 function drawCueChip(layer, info) {
   const { ctx, spec } = layer;
   ctx.clearRect(0, 0, spec.w, spec.h);
@@ -1395,24 +1479,24 @@ function drawCueChip(layer, info) {
   const maxText = spec.w - 4 - pad * 2;
   const lead = [{ text: `${replay ? "YOU" : "CLAUDE"}  ·  `, font: `700 ${Math.round(S * 0.42)}px ${FONT.display}`,
                   color: replay ? CHIP.leadYou : CHIP.lead, spacing: `${Math.round(S * 0.06)}px`, dy: -S * 0.1 }];
-  let main = info.label ? cueLabelRuns(info.label, S)
-                        : [{ text: info.detail || "", font: `600 ${Math.round(S * 0.62)}px ${FONT.display}`, color: INK }];
-  const detail = info.label && info.detail
-    ? fitRun(ctx, { text: info.detail, font: `500 ${small}px ${FONT.display}`, color: CHIP.detail }, maxText) : null;
-  const under = underText ? fitRun(ctx, { text: underText, font: `600 ${small}px ${FONT.display}`, color: CHIP.under }, maxText) : null;
+  const leadW = measureRuns(ctx, lead), room = maxText - leadW;
+  let main = info.label ? cueLabelRuns(info.label, S) : fitTextRuns(ctx, info.detail || "", Math.round(S * 0.62), 600, INK, room);
+  const detail = info.label && info.detail ? fitTextRuns(ctx, info.detail, small, 500, CHIP.detail, maxText) : null;
+  const under = underText ? fitTextRuns(ctx, underText, small, 600, CHIP.under, maxText) : null;
   // A main line wider than the chip: a chord or a list of note names is set smaller (not below 60%), and anything still
   // too wide becomes plain text ending in an ellipsis, never cut mid-letter at the layer's edge.
-  const leadW = measureRuns(ctx, lead), room = maxText - leadW;
   const mainW = measureRuns(ctx, main);
-  if (mainW > room && main.length > 1) {
+  if (info.label && mainW > room && main.length > 1) {
     const smaller = Math.floor(S * Math.max(0.6, room / mainW));
     main = cueLabelRuns(info.label, smaller);
     if (measureRuns(ctx, main) > room) main = [{ text: info.label, font: `700 ${smaller}px ${FONT.display}`, color: INK }];
   }
   if (main.length === 1 && measureRuns(ctx, main) > room) main = [fitRun(ctx, main[0], room)];
   const top = leadW + measureRuns(ctx, main);
-  const w = Math.min(spec.w - 4, Math.max(top, detail ? measureRuns(ctx, [detail]) : 0, under ? measureRuns(ctx, [under]) : 0) + pad * 2);
-  const h = spec.h - 4, x = spec.align === "center" ? (spec.w - w) / 2 : 2;
+  const w = Math.min(spec.w - 4, Math.max(top, detail ? measureRuns(ctx, detail) : 0, under ? measureRuns(ctx, under) : 0) + pad * 2);
+  // the scrim covers only what the lines need (a label alone gets a shorter chip), so less of Daniel's trails is hidden
+  const lineCount = (detail ? 1 : 0) + (under ? 1 : 0);
+  const h = Math.round((spec.h - 4) * (lineCount ? 1 : 0.74)), x = spec.align === "center" ? (spec.w - w) / 2 : 2;
   ctx.beginPath();
   ctx.roundRect(x, 2, w, h, spec.size * 0.3);
   ctx.fillStyle = CHIP.scrim;
@@ -1422,12 +1506,12 @@ function drawCueChip(layer, info) {
   ctx.strokeStyle = replay ? CHIP.replay : info.kind === "hover" ? CHIP.hover : CHIP.play;
   ctx.stroke();
   ctx.setLineDash([]);
-  const lines = (detail ? 1 : 0) + (under ? 1 : 0);
-  const base = 2 + h * (lines === 2 ? 0.42 : lines === 1 ? 0.54 : 0.66);
+  const lines = lineCount;
+  const base = 2 + h * (lines === 2 ? 0.42 : lines === 1 ? 0.54 : 0.7);
   const x0 = x + pad;
   drawRuns(ctx, main, x0 + drawRuns(ctx, lead, x0, base, null), base, null);
-  if (detail) drawRuns(ctx, [detail], x0, 2 + h * (lines === 2 ? 0.69 : 0.86), null);
-  if (under) drawRuns(ctx, [under], x0, 2 + h * (lines === 2 ? 0.92 : 0.86), null);
+  if (detail) drawRuns(ctx, detail, x0, 2 + h * (lines === 2 ? 0.69 : 0.86), null);
+  if (under) drawRuns(ctx, under, x0, 2 + h * (lines === 2 ? 0.92 : 0.86), null);
 }
 
 const overlay = {
@@ -1829,14 +1913,23 @@ function currentInfo(t = clock()) {
 // shows his pitch colours at 55% saturation and 70% glow, trails at half gain, no sparks. A hover draws ghost rims with a
 // faint breathing fill. The chip (drawCueChip) names what Claude meant.
 //
-// Jam view (arsenal.piano.cueView): "auto" (default) keeps Claude on the stage while Daniel practises, and the moment REC
+// Jam view (arsenal.piano.jam.view): "auto" (default) keeps Claude on the stage while Daniel practises, and the moment REC
 // starts takes Claude's keys, ghosts, chip and replay trails off the recorded canvas onto the glass (an unrecorded 2D
 // layer over it); "stage" keeps them on the canvas, in recordings too; "glass" keeps them off it always. Claude's voice
 // is never connected to the recorder in any view: it plays through its own AudioContext, and the recording takes only
 // the canvas and the chosen audio input (if that input is a Loopback of the speakers, the speakers are in it).
 const CUE_PREF = { listen: "arsenal.piano.cueListen", voice: "arsenal.piano.cueVoice", volume: "arsenal.piano.cueVolume",
                    midiOut: "arsenal.piano.cueMidiOut", synth: "arsenal.piano.cueSynth", lowLift: "arsenal.piano.cueLowLift",
-                   bassDouble: "arsenal.piano.cueBassDouble", view: "arsenal.piano.cueView" };
+                   bassDouble: "arsenal.piano.cueBassDouble", view: "arsenal.piano.jam.view" };
+// The jam view's pref has the name jam spec 8.8 gives it (arsenal.piano.jam.view). Pages before that stored it as
+// arsenal.piano.cueView: a stored choice moves over once, unless the new name already holds one.
+{
+  const old = safeGet("arsenal.piano.cueView");
+  if (old !== null) {
+    if (safeGet(CUE_PREF.view) === null) safeSet(CUE_PREF.view, old);
+    try { localStorage.removeItem("arsenal.piano.cueView"); } catch { /* storage blocked */ }
+  }
+}
 const CUE_VIEWS = ["auto", "stage", "glass"];
 const CUE_LOOK = { depth: 0.6, glow: 0.75, replayGlow: 0.7, replaySat: 0.55, replayTrail: 0.5 };
 const cueSounding = new Map();  // midi -> { m, vel, t0, source, trail } (m again, so frame loops need no [key, value] pairs)
@@ -2013,6 +2106,8 @@ const cuePlayer = createCuePlayer({
   onError: (e) => console.warn("[piano] cue player:", errText(e)),
 });
 let cueClient = null, cueClickToastAt = -1e9;
+// shown while the voice waits for a click; syncCueUi takes it down the moment the voice is unlocked or turned off
+const CUE_CLICK_TOAST = "Claude is playing: click the page once (or Enable voice) to hear it";
 async function startCues() {
   if (safeGet(CUE_PREF.listen) === "off") { cueView.status = "off"; cueUiDirty = true; return; }
   // Like the practice log, ask first: a server from before the cue routes answers 404 and gets no retry loop.
@@ -2028,7 +2123,7 @@ async function startCues() {
         cueView.want = true;
         if (clock() - cueClickToastAt > 20) {
           cueClickToastAt = clock();
-          toast("Claude is playing: click the page once (or Enable voice) to hear it");  // KeyLab MIDI is not a gesture
+          toast(CUE_CLICK_TOAST);  // KeyLab MIDI is not a gesture
         }
       }
       cueUiDirty = true;
@@ -2474,6 +2569,12 @@ function toast(message, isError = false, link = null) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, link ? 120000 : 8000);
 }
+function hideToast(message) {  // only while that message is the one showing
+  const el = $("toast");
+  if (el.hidden || el.textContent !== message) return;
+  clearTimeout(toastTimer);
+  el.hidden = true;
+}
 function fitCanvas() {
   const r = $("stage").getBoundingClientRect();
   const pad = document.fullscreenElement ? 0 : 14;
@@ -2575,7 +2676,7 @@ function syncLogReadout() {
 const CUE_STATUS_TITLE = {
   off: "Not listening for Claude (arsenal.piano.cueListen is off).",
   connecting: "Opening the cue stream.",
-  listening: "Listening for Claude's cues (py -m arsenal.pianocue play | hover | progression | replay | clear). Esc hushes Claude.",
+  listening: "Listening for Claude's cues (py -m arsenal.pianocue play | hover | progression | replay | clear). Esc or Backspace hushes Claude.",
   reconnecting: "The server went away; reconnecting (cues from the last 10 s are replayed once).",
   paused: "Paused while the page is hidden in the back/forward cache or frozen.",
   closed: "The cue stream is closed.",
@@ -2587,6 +2688,7 @@ function syncCueUi() {
   if (!b) return;
   const s = cueVoice.status();
   if (s !== "needs a click") cueView.want = false;
+  if (s !== "needs a click" || !cueVoice.enabled) hideToast(CUE_CLICK_TOAST);  // unlocked, or turned off: nothing to click for
   const text = s === "needs a click" && cueVoice.enabled ? "Enable voice" : !cueVoice.enabled ? "Voice off"
              : s === "another tab" ? "Other tab" : "Voice on";
   if (b.textContent !== text) b.textContent = text;
@@ -2822,6 +2924,12 @@ function wireUi() {
     resumeAudio();
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const tag = e.target && e.target.tagName;
+    // "hush, Claude" works from a focused top-bar menu or slider too: neither has a use for Esc or Backspace, and the key
+    // is not taken from it (no preventDefault), so Esc still closes what it closes and leaves fullscreen
+    if ((e.code === "Escape" || e.code === "Backspace") && (tag === "SELECT" || (tag === "INPUT" && e.target.type === "range"))) {
+      if (!e.repeat) hushClaude();
+      return;
+    }
     if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") return;
     if (e.code === "KeyH") { e.preventDefault(); if (!e.repeat) toggleHud(); return; }
     if (e.code === "KeyF") { e.preventDefault(); if (!e.repeat) toggleFullscreen(); return; }
@@ -2993,7 +3101,25 @@ window.__piano = {
   camHints() {  // the camera's recent note hints: Daniel's and Claude's
     let cue = 0, daniel = 0;
     for (const n of cam.recent) { if (n.cue) cue++; else daniel++; }
-    return { cue, daniel, x: +cam.x.toFixed(3) };
+    return { cue, daniel, x: +cam.x.toFixed(3), span: +cam.span.toFixed(3) };
+  },
+  // Where a key's top face lands on the canvas (framing pixels), at its current tilt through this frame's camera: the
+  // whole face, or (front) the middle of the part a finger sees, in front of the black keys. For framing and colour receipts.
+  keyQuad(m, front = false) {
+    const k = keys.get(m);
+    if (!k) return null;
+    camera.updateMatrixWorld();
+    k.pivot.updateMatrixWorld();
+    const hw = (k.black ? KEY.blackW : KEY.whiteW) / 2, top = k.black ? KEY.blackTop : 0;
+    const len = k.black ? KEY.blackL : KEY.whiteL, pivotZ = KEY.back - KEY.pivotBack;
+    const x1 = front ? hw * 0.55 : hw;
+    const z0 = KEY.back - pivotZ + (front ? (k.black ? len * 0.35 : KEY.blackL + 0.5) : 0);
+    const z1 = KEY.back - pivotZ + (front ? len * 0.9 : len);
+    const v = new THREE.Vector3();
+    return [[-x1, z0], [x1, z0], [x1, z1], [-x1, z1]].map(([x, z]) => {
+      v.set(x, top, z).applyMatrix4(k.pivot.matrixWorld).project(camera);
+      return [+((v.x + 1) * 0.5 * framing.w).toFixed(1), +((1 - v.y) * 0.5 * framing.h).toFixed(1)];
+    });
   },
   gpu() {
     const gl = renderer.getContext();
