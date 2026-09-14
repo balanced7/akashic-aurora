@@ -424,17 +424,52 @@ def voice(items: List[str], key: Optional[str] = None, voicing: str = "close", o
     return reply["results"]
 
 
-# A token only notes can be: a note with its octave ("Ab2", "C#4") or a number no Nashville degree is (8 and up, so MIDI
-# notes like 57). "Ab7" is also a chord; a segment holding one stays whole, as before.
-_NOTE_TOKEN = re.compile(r"[A-Ga-g](?:#{1,2}|b{1,2})?-?\d{1,2}|\d{2,3}|[089]")
+# How a token reads, as nashville.js parseChord and the voicing bridge read it: a root letter with an octave digit is a
+# note ("Ab2", "E4"), unless the digit names a chord family ("G5", "C6", "Ab7", "D9": chords); a number 8 and up is a
+# MIDI note ("57"); 1-7, optionally after b/bb/#/## ("5", "b3", "#4m7", "5^7sus4/1"), is a Nashville number; a root with
+# a chord suffix is a chord ("Dm7", "Bbmaj7#11", "Bb-7", "C/E"). Beats (":2") aside.
+_BEATS = re.compile(r":\d+(?:\.\d+)?$")
+_ROOT = re.compile(r"[A-Ga-g](?:#{1,2}|b{1,2})?")
+_CHORD_DIGITS = {"5", "6", "7", "9", "11", "13"}
+_NUMBER = re.compile(r"(?:#{1,2}|b{1,2})?[1-7](?!\d)\S*")
+_SUFFIX = re.compile(r"(?:maj|min|m|M|dim|aug|sus|add|alt|[-+#b()^/°øo\d])*")
+
+
+def _token_readings(token: str) -> Tuple[bool, bool]:
+    """(can be a note, can be a chord or number) for one token."""
+    t = _BEATS.sub("", token).replace("♭", "b").replace("♯", "#").replace("Δ", "maj")
+    if re.fullmatch(r"\d{2,3}|[089]", t):
+        return True, False
+    if _NUMBER.fullmatch(t):
+        return False, True
+    root = _ROOT.match(t)
+    if not root:
+        return False, False
+    rest = t[root.end():]
+    suffix = re.sub(r"/[A-Ga-g](?:#{1,2}|b{1,2})?$", "", rest)
+    chord = suffix in _CHORD_DIGITS if re.fullmatch(r"\d+", suffix) else bool(_SUFFIX.fullmatch(suffix))
+    return bool(re.fullmatch(r"\d", rest)), chord
+
+
+def _reads_as_chords(tokens: List[str]) -> bool:
+    """Whether several tokens are several chords rather than one group of notes. Chords, when every token reads as a
+    chord or number and none is a note that is not also a chord: "Dm7 G7", "C7 F7", "E7 A7", "G7 C" are chords, "Ab2 Eb3
+    G3" and "57 60 64" are notes. One exception keeps a voicing written in octave 5 or 6 whole: when every token is a
+    note in octave 5 or 6 ("C5 E5 G5", "C6 E6 G6"), it is notes, not power chords or sixth chords."""
+    readings = [_token_readings(t) for t in tokens]
+    if not all(chord for _, chord in readings):
+        return False
+    if all(note for note, _ in readings) and all(_BEATS.sub("", t)[-1] in "56" for t in tokens):
+        return False
+    return True
 
 
 def split_progression(text: str) -> List[str]:
     """Chords or numbers separated by "|" or spaces. Without a "|", every whitespace-separated token is an item. With
-    one, a segment that could be notes is one item, so explicit notes can be grouped ("Ab2 Eb3 G3 | Bb2 F3 Ab3"); a
-    segment of chord names or numbers with spaces in it gives each its own item ("Abmaj9#11 Bb7sus4/Eb | Ebmaj9" is three
-    chords, "1 4 | 5" three numbers). A segment is notes when any token is a note with an octave or a number above 7,
-    beats (":2") aside."""
+    one, a segment of several chord names or numbers gives each its own item ("Abmaj9#11 Bb7sus4/Eb | Ebmaj9" is three
+    chords, "Dm7 G7 | Cmaj7" three, "1 4 | 5" three numbers), and a segment of notes is one item, so explicit notes can
+    be grouped ("Ab2 Eb3 G3 | Bb2 F3 Ab3"). The chord reading wins when every token reads as a chord (see
+    _reads_as_chords): "C7 F7 | Bb7" is three chords, though C7 and F7 are also notes."""
     if "|" not in text:
         return text.split()
     items: List[str] = []
@@ -442,7 +477,7 @@ def split_progression(text: str) -> List[str]:
         toks = seg.split()
         if not toks:
             continue
-        if len(toks) > 1 and not any(_NOTE_TOKEN.fullmatch(re.sub(r":\d+(?:\.\d+)?$", "", t)) for t in toks):
+        if len(toks) > 1 and _reads_as_chords(toks):
             items.extend(toks)
         else:
             items.append(" ".join(toks))
@@ -552,6 +587,9 @@ def _voiced(args, items: List[str], voice_lead: bool = False) -> Optional[List[d
 
 def _cmd_play(args, hover: bool, out) -> int:
     text = " ".join(args.chord)
+    tokens = text.split()
+    if len(tokens) > 1 and _reads_as_chords(tokens):  # "F#m7b5 Bbmaj7#11": several chords, one after another
+        return _cmd_play_several(args, tokens, hover, out)
     results = _voiced(args, [text])
     if results is None:
         return 2
@@ -574,6 +612,45 @@ def _cmd_play(args, hover: bool, out) -> int:
           f"{', detail ' + repr(cue['detail']) if cue['detail'] else ''}", file=out)
     for line in _format_result(r, args.key):
         print(line, file=out)
+    return _finish(sent, args.port, out)
+
+
+def _cmd_play_several(args, items: List[str], hover: bool, out) -> int:
+    """play or hover with several chords ("hover F#m7b5 Bbmaj7#11"): one after another as a sequence, each for --hold
+    seconds (default 2.5; a hover holds until the next begins, a play leaves a 40 ms breath). --hold 0 gives no chord a
+    length, so it is refused with the progression to send instead."""
+    verb = "hover" if hover else "play"
+    if args.hold is not None and args.hold <= 0:
+        print(f"{verb} got {len(items)} chords ({', '.join(items)}): each needs a length, so give --hold in seconds "
+              f"(not 0), or send them as a progression: py -m arsenal.pianocue progression \"{' | '.join(items)}\""
+              f"{' --hover' if hover else ''}", file=sys.stderr)
+        return 2
+    results = _voiced(args, items)
+    if results is None:
+        return 2
+    each = int(round(args.hold * 1000)) if args.hold is not None else DEFAULTS["hold_ms"]
+    steps = []
+    for i, r in enumerate(results):
+        step = {"at_ms": i * each, "type": verb, "notes": r["notes"], "hold_ms": each if hover else max(1, each - 40),
+                "label": r["name"], "detail": _chord_detail(r, args.key)}
+        if args.vel is not None:
+            step["velocity"] = args.vel
+        if args.arp is not None:
+            step["arpeggio_ms"] = args.arp
+        steps.append(step)
+    cue = {"type": "sequence", "steps": steps, "source": "claude",
+           "label": args.label if args.label is not None else " | ".join(r["name"] for r in results),
+           "detail": args.detail if args.detail is not None else (f"in {args.key}" if args.key else None)}
+    if not hover:
+        cue["sound"] = not args.silent
+    cue = validate_cue(cue)
+    sent = send_cue(args.port, cue)
+    print(f"{verb}{' (silent)' if not hover and args.silent else ''}: {len(steps)} chords one after another, "
+          f"{each / 1000:g} s each: label {cue['label']!r}", file=out)
+    for step, r in zip(cue["steps"], results):
+        print(f"  @{step['at_ms']:>6} ms  hold {step['hold_ms']:>5}", file=out)
+        for line in _format_result(r, args.key):
+            print("  " + line, file=out)
     return _finish(sent, args.port, out)
 
 
@@ -695,7 +772,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     for verb, hover in (("play", False), ("hover", True)):
         p = sub.add_parser(verb, help=("sound and show" if not hover else "show without sound") +
-                           ' a chord name, a Nashville number with --key, or notes ("Ab3 Eb4 G4" or MIDI numbers)')
+                           ' a chord name, a Nashville number with --key, or notes ("Ab3 Eb4 G4" or MIDI numbers); '
+                           'several chords ("F#m7b5 Bbmaj7#11") go one after another, --hold s each')
         p.add_argument("chord", nargs="+")
         chord_opts(p)
         p.add_argument("--arp", type=int, help="stagger bottom-up, ms between notes")
@@ -710,8 +788,10 @@ def build_parser() -> argparse.ArgumentParser:
     pg = sub.add_parser("progression", help='a timed sequence: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9" (item:beats allowed)',
                         description='A timed sequence of chords, one per --beats: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9", or '
                                     'with --key "4maj9#11 | 5^7sus4/1:2 | 1" (item:beats sets one chord\'s length). '
-                                    'Chords may also be separated by spaces, inside a bar too ("1 4 | 5 1"). Notes '
-                                    'grouped between bars are one chord each ("Ab2 Eb3 G3 | Bb2 F3 Ab3").')
+                                    'Chords may also be separated by spaces, inside a bar too ("1 4 | 5 1", '
+                                    '"Dm7 G7 | Cmaj7"). Notes grouped between bars are one chord each ("Ab2 Eb3 G3 | '
+                                    'Bb2 F3 Ab3"). A bar whose every token reads as a chord is chords, though C7 or G5 '
+                                    'is also a note; a bar all in octave 5 or 6 ("C5 E5 G5") stays notes.')
     pg.add_argument("chords")
     chord_opts(pg)
     pg.add_argument("--bpm", type=float, default=72.0)
