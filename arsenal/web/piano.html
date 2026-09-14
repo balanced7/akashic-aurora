@@ -85,11 +85,35 @@
         <button type="button" class="btn" id="btn-log" aria-pressed="true">On</button>
         <span class="log-status" id="log-status" data-state="idle" role="status">idle</span>
       </div>
+      <div class="group" id="cue-group">
+        <span class="field-label sig-control">Claude</span>
+        <button type="button" class="btn" id="btn-cue-voice" aria-pressed="false" data-want="false">Voice</button>
+        <label class="field" for="cue-volume" title="Claude's volume. If Chrome plays through the interface whose Loopback you record, Claude's sound is in that input.">
+          <span class="field-label sig-audio">Vol</span>
+          <input type="range" class="range" id="cue-volume" min="0" max="1" step="0.01" aria-label="Claude's volume" />
+        </label>
+        <button type="button" class="btn" id="btn-cue-lift" aria-pressed="true" title="More harmonics on Claude's low notes, so a slash bass is heard on laptop and phone speakers">Bass lift</button>
+        <label class="field" for="cue-midi-select">
+          <span class="field-label sig-control">Out</span>
+          <select id="cue-midi-select" aria-label="Claude's MIDI output"><option value="">none</option></select>
+        </label>
+        <label class="field" for="cue-view-select" title="Where Claude is drawn. auto: on the canvas while you practise, off it (on the glass) while REC runs. stage: on the canvas, in recordings too. glass: off the canvas always.">
+          <span class="field-label sig-video">View</span>
+          <select id="cue-view-select" aria-label="Where Claude is drawn (jam view): auto, stage or glass">
+            <option value="auto">auto</option>
+            <option value="stage">stage</option>
+            <option value="glass">glass</option>
+          </select>
+        </label>
+        <span class="log-status" id="cue-status" data-state="off" role="status">off</span>
+      </div>
     </div>
   </header>
 
   <main class="stage" id="stage">
     <canvas id="piano-canvas" aria-label="3D piano render (this canvas is what REC records)"></canvas>
+    <!-- The glass: Claude's keys, ghosts and chip while the jam view keeps Claude off the recorded canvas. Never recorded. -->
+    <canvas id="cue-glass" class="cue-glass" aria-hidden="true"></canvas>
 
     <dl class="hud" id="hud" hidden="hidden">
       <div class="hud-row"><dt>fps</dt><dd id="hud-fps">&mdash;</dd></div>
@@ -103,11 +127,12 @@
       <div class="hud-row"><dt>trails</dt><dd id="hud-trails">&mdash;</dd></div>
       <div class="hud-row"><dt>keys</dt><dd id="hud-octave">&mdash;</dd></div>
       <div class="hud-row"><dt>rec</dt><dd id="hud-rec">idle</dd></div>
+      <div class="hud-row"><dt>claude</dt><dd id="hud-cue">&mdash;</dd></div>
     </dl>
 
     <div class="idle-hint" id="idle-hint">
       <p class="hint-title">Play the KeyLab, press Demo, or use the keyboard</p>
-      <p class="hint-body"><kbd>Z</kbd>&ndash;<kbd>/</kbd> with <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>J</kbd> <kbd>L</kbd> <kbd>;</kbd> play C3&ndash;E4 &middot; <kbd>Q</kbd>&ndash;<kbd>P</kbd> with the number row play C4&ndash;E5 &middot; <kbd>Space</kbd> sustain &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> octave &middot; <kbd>H</kbd> HUD &middot; <kbd>F</kbd> fullscreen</p>
+      <p class="hint-body"><kbd>Z</kbd>&ndash;<kbd>/</kbd> with <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>J</kbd> <kbd>L</kbd> <kbd>;</kbd> play C3&ndash;E4 &middot; <kbd>Q</kbd>&ndash;<kbd>P</kbd> with the number row play C4&ndash;E5 &middot; <kbd>Space</kbd> sustain &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> octave &middot; <kbd>H</kbd> HUD &middot; <kbd>F</kbd> fullscreen &middot; <kbd>Esc</kbd> hush Claude</p>
     </div>
 
     <div class="toast" id="toast" role="status" hidden="hidden"></div>
