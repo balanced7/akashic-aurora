@@ -59,6 +59,32 @@
         <button type="button" class="btn btn-rec" id="btn-rec" aria-pressed="false"><span class="rec-dot"></span><span id="rec-label">REC</span></button>
         <button type="button" class="btn" id="btn-full">Fullscreen</button>
       </div>
+      <div class="group">
+        <label class="field" for="nns-select">
+          <span class="field-label sig-video">Numbers</span>
+          <select id="nns-select" aria-label="Nashville numbers">
+            <option value="chord">with chord</option>
+            <option value="numbers">numbers only</option>
+            <option value="off">off</option>
+          </select>
+        </label>
+        <label class="field" for="minor-select">
+          <span class="field-label sig-video">Minor</span>
+          <select id="minor-select" aria-label="How minor keys are numbered">
+            <option value="tonic">1m &middot; from the minor tonic</option>
+            <option value="relative">6m &middot; from the relative major</option>
+          </select>
+        </label>
+        <label class="field" for="key-select">
+          <span class="field-label sig-video">Key</span>
+          <select id="key-select" aria-label="Key the numbers count from"><option value="auto">auto</option></select>
+        </label>
+      </div>
+      <div class="group">
+        <span class="field-label sig-control">Practice log</span>
+        <button type="button" class="btn" id="btn-log" aria-pressed="true">On</button>
+        <span class="log-status" id="log-status" data-state="idle" role="status">idle</span>
+      </div>
     </div>
   </header>
 
@@ -71,6 +97,8 @@
       <div class="hud-row"><dt>midi</dt><dd id="hud-midi">&mdash;</dd></div>
       <div class="hud-row"><dt>sounding</dt><dd id="hud-notes">&mdash;</dd></div>
       <div class="hud-row"><dt>chord</dt><dd id="hud-chord">&mdash;</dd></div>
+      <div class="hud-row"><dt>key</dt><dd id="hud-key">&mdash;</dd></div>
+      <div class="hud-row"><dt>log</dt><dd id="hud-log">&mdash;</dd></div>
       <div class="hud-row"><dt>pedal</dt><dd id="hud-pedal">up</dd></div>
       <div class="hud-row"><dt>trails</dt><dd id="hud-trails">&mdash;</dd></div>
       <div class="hud-row"><dt>keys</dt><dd id="hud-octave">&mdash;</dd></div>

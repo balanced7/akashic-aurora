@@ -211,6 +211,23 @@ select:hover { border-color: var(--ink-3); }
 
 @keyframes rec-pulse { 50% { opacity: 0.35; } }
 
+/* The practice log's state beside its toggle: teal while recording, amber while
+   notes wait in the browser for a server that can take them. */
+.log-status {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
+
+.log-status[data-state="live"] { color: var(--audio); }
+.log-status[data-state="buffering"] { color: var(--accent); }
+.log-status[data-state="uploading"] { color: var(--ink-2); }
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .meter {
   width: 46px;
   height: 6px;

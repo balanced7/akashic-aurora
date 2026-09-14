@@ -6,8 +6,8 @@
 // around it (topbar, HUD, hints, toasts) is never recorded.
 //
 // Sections: THEORY (pure; node-tested) · colour · scene · trails · sparks · camera ·
-//           overlay (chord label + staff) · notes engine · MIDI · computer keys · demo ·
-//           recording · UI · loop.
+//           overlay (chord label, Nashville number, staff) · key and numbers · practice log · notes engine ·
+//           MIDI · computer keys · demo · recording · UI · loop.
 
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -15,6 +15,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { createPerformanceLog } from "./piano/log.js";
+import { createKeyTracker, nashville, spellInKey } from "./piano/nashville.js";
 
 // ===== THEORY BEGIN (pure: no DOM, no three.js; the node tests extract this block) =====
 const Theory = (() => {
@@ -254,7 +256,7 @@ const Theory = (() => {
     if (best.r < 0.5) return null;
     const relMajor = best.mode === "major" ? best.tonic : mod(best.tonic + 3, 12);
     const fifths = mod(relMajor * 7, 12);
-    const bias = fifths === 0 ? 0 : fifths <= 6 ? 1 : -1;
+    const bias = fifths === 0 ? 0 : fifths < 6 ? 1 : fifths > 6 ? -1 : best.mode === "major" ? 1 : -1;  // F# major, Eb minor
     const name = (best.mode === "major" ? MAJOR_KEY_NAMES : MINOR_KEY_NAMES)[best.tonic] + (best.mode === "major" ? " major" : " minor");
     return { ...best, bias, name };
   }
@@ -893,10 +895,13 @@ async function loadFonts() {
   overlay.invalidate();
 }
 
+// nns: the Nashville number line, under the note chips and above the staff's clefs.
 const LAYOUT = {
   "9:16": { label: { cx: 540, cy: 318, w: 1060, h: 340, align: "center", size: 170 },
+            nns: { cx: 540, cy: 536, w: 1060, h: 130, align: "center", size: 76 },
             staff: { cx: 540, cy: 800, w: 860, h: 600, s: 24 } },
   "16:9": { label: { cx: 500, cy: 196, w: 900, h: 310, align: "left", size: 140 },
+            nns: { cx: 500, cy: 392, w: 900, h: 120, align: "left", size: 64 },
             staff: { cx: 1560, cy: 272, w: 640, h: 520, s: 20 } },
 };
 
@@ -943,10 +948,13 @@ function suffixRuns(suffix, size, color) {
   }
   return runs;
 }
+// A run may carry its own letter spacing (r.spacing); the others keep the caller's.
 function drawRuns(ctx, runs, x, baseline, glow) {
+  const spacing = ctx.letterSpacing;
   let cursor = x;
   for (const r of runs) {
     ctx.font = r.font;
+    ctx.letterSpacing = r.spacing || spacing;
     r.x = cursor;
     r.w = ctx.measureText(r.text).width;
     cursor += r.w + (r.kern || 0);
@@ -955,6 +963,7 @@ function drawRuns(ctx, runs, x, baseline, glow) {
   for (const pass of glow ? [0, 1] : [1]) {
     for (const r of runs) {
       ctx.font = r.font;
+      ctx.letterSpacing = r.spacing || spacing;
       ctx.fillStyle = r.color;
       ctx.shadowColor = pass === 0 ? glow : "transparent";
       ctx.shadowBlur = pass === 0 ? 38 : 0;
@@ -962,12 +971,54 @@ function drawRuns(ctx, runs, x, baseline, glow) {
     }
   }
   ctx.shadowBlur = 0;
+  ctx.letterSpacing = spacing;
   return width;
 }
 function measureRuns(ctx, runs) {
+  const spacing = ctx.letterSpacing;
   let w = 0;
-  for (const r of runs) { ctx.font = r.font; w += ctx.measureText(r.text).width + (r.kern || 0); }
+  for (const r of runs) {
+    ctx.font = r.font;
+    ctx.letterSpacing = r.spacing || spacing;
+    w += ctx.measureText(r.text).width + (r.kern || 0);
+  }
+  ctx.letterSpacing = spacing;
   return w;
+}
+
+// A Nashville degree ("b3", "#4", "5"): the accidental before the numeral, raised, as charts write it.
+function degreeRuns(text, size, weight, color) {
+  const m = /^(b{1,2}|#{1,2})?(\d+)$/.exec(text || "");
+  if (!m) return [{ text: String(text), font: `${weight} ${size}px ${FONT.display}`, color }];
+  const runs = [];
+  if (m[1]) {
+    const acc = m[1][0] === "#" ? m[1].length : -m[1].length;
+    runs.push({ text: accGlyph(acc), font: `${Math.round(size * 0.6)}px ${FONT.music}`, color, dy: -size * 0.32, kern: size * 0.02 });
+  }
+  runs.push({ text: m[2], font: `${weight} ${size}px ${FONT.display}`, color });
+  return runs;
+}
+// A nashville() result drawn like a chord name: numeral, superscript suffix ("maj7", "°7", "m"), then "/" and the bass degree.
+function numberRuns(n, size, color) {
+  const slash = (s) => ({ text: s, font: `300 ${Math.round(size * 0.78)}px ${FONT.display}`, color, dy: 0, kern: size * 0.02 });
+  if (n.kind === "interval") {
+    return [...degreeRuns(n.root, size, 800, color), { text: " – ", font: `300 ${size}px ${FONT.display}`, color },
+            ...(n.upper ? degreeRuns(n.upper.text, size, 800, color) : [])];
+  }
+  const runs = degreeRuns(n.root, size, 800, color);
+  if (n.suffix) runs.push(...suffixRuns(n.suffix, size, color));
+  if (n.bass) runs.push(slash("/"), ...degreeRuns(n.bass.text, Math.round(size * 0.78), 700, color));
+  return runs;
+}
+// "Bb major" as small capitals with a real flat: B♭ MAJOR.
+function keyCaptionRuns(prefix, keyName, size, color) {
+  const m = /^([A-G])(bb?|##?)?\s+(major|minor)$/.exec(keyName || "");
+  const font = `600 ${size}px ${FONT.display}`, spacing = `${Math.round(size * 0.12)}px`;
+  if (!m) return [{ text: `${prefix}${keyName || ""}`.toUpperCase(), font, color, spacing }];
+  const runs = [{ text: `${prefix}${m[1]}`.toUpperCase(), font, color, spacing }];
+  if (m[2]) runs.push({ text: accGlyph(m[2][0] === "#" ? m[2].length : -m[2].length), font: `${Math.round(size * 1.05)}px ${FONT.music}`, color, dy: -size * 0.2 });
+  runs.push({ text: ` ${m[3]}`.toUpperCase(), font, color, spacing });
+  return runs;
 }
 
 function drawLabel(layer, info) {
@@ -979,8 +1030,12 @@ function drawLabel(layer, info) {
   const S = spec.size;
   const first = info.notes[0];
   const glow = noteCss(first.midi, 100, 0.55);
+  // "Numbers only": the Nashville number takes the name's place (a cluster, or no key yet, keeps the name)
+  const number = theoryUi.nns === "numbers" ? numberFor(info) : null;
   let runs;
-  if (info.kind === "chord") {
+  if (number) {
+    runs = numberRuns(number, S, keyView.dim ? INK_UNSURE : INK);
+  } else if (info.kind === "chord") {
     runs = [...nameRuns(Theory.LETTERS[info.root.letter], info.root.acc, S, 800, INK), ...suffixRuns(info.suffix, S, INK)];
     if (info.bass) {
       runs.push({ text: "/", font: `300 ${Math.round(S * 0.78)}px ${FONT.display}`, color: "rgba(244,241,234,0.62)", dy: 0, kern: S * 0.02 });
@@ -1019,6 +1074,32 @@ function drawLabel(layer, info) {
   const lineW = measureRuns(ctx, line);
   drawRuns(ctx, line, spec.align === "center" ? (spec.w - lineW) / 2 : 30, baseline + S * 0.52, "rgba(0, 0, 0, 0.75)");
   ctx.letterSpacing = "0px";
+}
+
+// The Nashville line under the chips: "With chord" draws the number and "in F major"; "Numbers only" draws just the
+// caption (the number is the label). A chord outside the key reads "outside F major": a fact, not a verdict.
+// While the tracker is unsure of the key the whole line reads dimmer.
+const INK_UNSURE = "rgba(244, 241, 234, 0.5)";
+function drawNumbers(layer, info) {
+  const { ctx, spec } = layer;
+  ctx.clearRect(0, 0, spec.w, spec.h);
+  if (!info || theoryUi.nns === "off") return;
+  ctx.fontStretch = "semi-condensed";
+  ctx.textBaseline = "alphabetic";
+  ctx.letterSpacing = "0px";
+  const S = spec.size;
+  if (!keyView.key) {  // the tracker hears a few bars before it names a key; say so, faintly, where the number will be
+    const wait = keyCaptionRuns("listening for the key", "", Math.round(S * 0.34), "rgba(244, 241, 234, 0.34)");
+    drawRuns(ctx, wait, spec.align === "center" ? (spec.w - measureRuns(ctx, wait)) / 2 : 30, spec.h * 0.62, "rgba(0, 0, 0, 0.8)");
+    return;
+  }
+  const number = numberFor(info);
+  const ink = keyView.dim ? INK_UNSURE : "rgba(244, 241, 234, 0.94)";
+  const runs = theoryUi.nns === "chord" && number ? numberRuns(number, S, ink) : [];
+  const words = (runs.length ? "   " : "") + (number && !number.diatonic ? "outside " : "in ");
+  runs.push(...keyCaptionRuns(words, keyView.key.name, Math.round(S * 0.34), keyView.dim ? "rgba(244, 241, 234, 0.34)" : "rgba(244, 241, 234, 0.58)"));
+  const width = measureRuns(ctx, runs);
+  drawRuns(ctx, runs, spec.align === "center" ? (spec.w - width) / 2 : 30, spec.h * 0.62, "rgba(0, 0, 0, 0.8)");
 }
 
 function drawStaff(layer, info) {
@@ -1145,21 +1226,23 @@ function drawStaff(layer, info) {
 }
 
 const overlay = {
-  label: null, staff: null,
-  shown: null, pending: null, pendingSince: 0, staffKey: "", labelKey: "",
+  label: null, staff: null, nns: null,
+  shown: null, pending: null, pendingSince: 0, staffKey: "", labelKey: "", nnsKey: "",
   labelAlpha: 0, staffAlpha: 0, pop: 0, silentSince: 0, needsRedraw: true,
   build() {
     disposeLayer(this.label);
     disposeLayer(this.staff);
+    disposeLayer(this.nns);
     const L = LAYOUT[framing.id];
     this.label = makeLayer(L.label);
     this.staff = makeLayer(L.staff);
+    this.nns = makeLayer(L.nns);  // added last, so it draws over the staff's scrim
     overlayCam.right = framing.w;
     overlayCam.top = framing.h;
     overlayCam.updateProjectionMatrix();
     this.invalidate();
   },
-  invalidate() { this.labelKey = ""; this.staffKey = ""; this.needsRedraw = true; },
+  invalidate() { this.labelKey = ""; this.staffKey = ""; this.nnsKey = ""; this.needsRedraw = true; },
   // info: the detection for what is sounding right now, or null for silence
   update(info, t, dt) {
     const sounding = !!info;
@@ -1191,11 +1274,20 @@ const overlay = {
       this.shown = this.pending;
       this.pop = 1;
     }
-    const labelKey = this.shown ? this.shown.name + "|" + this.shown.notes.map((n) => n.name).join(",") + COLOUR.mode + fontState.text : "";
+    // the number depends on the key, the minor numbering and how sure the tracker is; "Numbers only" puts it in the label
+    const theory = `${theoryUi.nns}|${theoryUi.minor}|${keyView.name}|${keyView.dim}`;
+    const labelKey = this.shown ? this.shown.name + "|" + this.shown.notes.map((n) => n.name).join(",") + COLOUR.mode + fontState.text
+                                  + (theoryUi.nns === "numbers" ? theory : "") : "";
     if (labelKey !== this.labelKey || this.needsRedraw) {
       drawLabel(this.label, this.shown);
       this.label.tex.needsUpdate = true;
       this.labelKey = labelKey;
+    }
+    const nnsKey = this.shown ? this.shown.name + "|" + theory + fontState.text : "";
+    if (nnsKey !== this.nnsKey || this.needsRedraw) {
+      drawNumbers(this.nns, this.shown);
+      this.nns.tex.needsUpdate = true;
+      this.nnsKey = nnsKey;
     }
     this.needsRedraw = false;
 
@@ -1206,10 +1298,172 @@ const overlay = {
     this.pop = damp(this.pop, 0, 0.09, dt);
     this.label.mat.opacity = this.labelAlpha * (1 - 0.35 * this.pop);
     this.label.mesh.scale.setScalar(1 + 0.045 * this.pop);
+    this.nns.mat.opacity = this.label.mat.opacity;
+    this.nns.mesh.scale.setScalar(1 + 0.045 * this.pop);
     this.staff.mat.opacity = this.staffAlpha;
     if (!sounding && quiet > 4.5 && this.shown) { this.shown = null; this.pending = null; }
   },
 };
+
+// -------------------------------------------------------- key and numbers --
+// Daniel, 2026-09-13: "see the nashville numbers based on what key the algo thinks you are playing in".
+// The key shown (HUD, overlay, numbers, spelling) is the tracker's from piano/nashville.js: the same
+// Krumhansl-Kessler reading as Theory.estimateKey over pcHistory, but a new key must lead for a few seconds
+// before it replaces the old one, so one borrowed bar doesn't flip it. It ticks at 10 Hz, the cadence its tests
+// run. Theory.estimateKey's raw reading stays as keyRaw: the HUD shows it, and it spells notes until the tracker
+// has named a key. The Key menu can lock one of the 24 keys instead.
+const NNS_MODES = ["chord", "numbers", "off"];
+const KEY_NAMES = [
+  ...["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"].map((k) => `${k} major`),
+  ...["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"].map((k) => `${k} minor`),
+];
+const theoryUi = {
+  nns: NNS_MODES.includes(safeGet("arsenal.piano.nns")) ? safeGet("arsenal.piano.nns") : "chord",
+  minor: safeGet("arsenal.piano.minor") === "relative" ? "relative" : "tonic",  // A minor's Am: 1m, or 6m
+  key: KEY_NAMES.includes(safeGet("arsenal.piano.key")) ? safeGet("arsenal.piano.key") : "auto",
+};
+const KEY_TICK = 0.1;
+const DIM_HOLD = 0.8;  // "unsure" must hold this long before the numbers dim, and "fair" as long before they brighten
+const keyTracker = createKeyTracker();
+const keyView = { key: null, name: "", confidence: "unsure", locked: false, candidate: null, dim: false, dimSince: 0, at: -Infinity };
+let keyRaw = null;
+const keyText = (name) => String(name).replace(/^([A-G])b/, "$1♭").replace(/^([A-G])#/, "$1♯");
+function tickKey(t, force = false) {
+  if (!force && t - keyView.at < KEY_TICK) return;
+  keyView.at = t;
+  const s = keyTracker.update(pcHistory, t, lastInfo);  // copies the histogram; the sounding chord gives the V7 -> I cue
+  keyView.key = s.key;
+  keyView.confidence = s.confidence;
+  keyView.locked = s.locked;
+  keyView.candidate = s.candidate;
+  const name = s.key ? s.key.name : "";
+  if (name !== keyView.name) {
+    keyView.name = name;
+    detectDirty = true;  // respell and renumber what is sounding
+    syncKeySelect();
+  }
+  const unsure = !s.locked && s.confidence === "unsure";
+  if (unsure === keyView.dim) keyView.dimSince = t;
+  else if (t - keyView.dimSince >= DIM_HOLD) { keyView.dim = unsure; keyView.dimSince = t; }
+}
+function setKeyChoice(choice, persist = true) {
+  theoryUi.key = KEY_NAMES.includes(choice) ? choice : "auto";
+  if (persist) safeSet("arsenal.piano.key", theoryUi.key);
+  keyTracker.lock(theoryUi.key === "auto" ? null : theoryUi.key);  // unlocking resumes tracking from the pinned key
+  keyView.dim = false;
+  tickKey(clock(), true);
+  syncKeySelect();
+}
+const numberFor = (info) => (info && keyView.key ? nashville(info, keyView.key, { minor: theoryUi.minor }) : null);
+// The chord name and note chips sit beside the number, so they are spelled in the shown key too: G#7 beside 5^7 in
+// C# minor, where Theory.detect alone writes Ab7. The root is spelled as nashville.js reads it (a chromatic root
+// keeps detect's spelling unless the key's is as plain: E stays E in Db major, not Fb); every other chord tone moves
+// by the same letter distance, so the chord's intervals keep their spelling. A cluster is spelled note by note.
+const ODD_NAMES = new Set(["E#", "B#", "Cb", "Fb"]);
+function spellForKey(info, key) {
+  if (!info || !key) return info;
+  const inKey = (sp, suffix = null) => {
+    const s = spellInKey(sp, key, { minor: theoryUi.minor, suffix });
+    return s && (s.inScale || (Math.abs(s.acc) <= 1 && !ODD_NAMES.has(Theory.nameOf(s)))) ? { letter: s.letter, acc: s.acc } : sp;
+  };
+  const moved = (sp, by) => {
+    const letter = Theory.mod(sp.letter + by, 7);
+    return { letter, acc: Theory.mod(Theory.pcOf(sp) - Theory.LETTER_PC[letter] + 6, 12) - 6 };
+  };
+  const pcOfMidi = (m) => Theory.mod(m, 12);
+  const map = new Map();  // pitch class -> spelling
+  if (info.kind === "cluster") {
+    for (const n of info.notes) if (!map.has(pcOfMidi(n.midi))) map.set(pcOfMidi(n.midi), inKey(n));
+  } else {
+    const root = inKey(info.root, info.kind === "chord" ? info.suffix : null);
+    const by = root.letter - info.root.letter;
+    for (const n of info.notes) if (!map.has(pcOfMidi(n.midi))) map.set(pcOfMidi(n.midi), moved(n, by));
+    // A slash chord's bass and an interval's top note keep plain letters where the move would need a double accidental:
+    // D#/G, not D#/F##; F#-A in Bb major reads Gb-A, not Gb-Bbb (nashville.js numbers both from the root either way).
+    for (const x of [info.bass, info.upper]) if (x && Math.abs(map.get(Theory.pcOf(x)).acc) > 1) map.set(Theory.pcOf(x), inKey(x));
+  }
+  if ([...map.values()].some((s) => Math.abs(s.acc) > 2)) return info;
+  const at = (sp) => map.get(Theory.pcOf(sp));
+  const notes = info.notes.map((n) => {
+    const s = map.get(pcOfMidi(n.midi));
+    return { ...n, letter: s.letter, acc: s.acc, name: Theory.nameOf(s), octave: Theory.octaveOf(n.midi, s), diatonic: Theory.diatonicOf(n.midi, s) };
+  });
+  const pcNames = [...new Set(notes.map((n) => pcOfMidi(n.midi)))].map((pc) => Theory.nameOf(map.get(pc)));
+  const out = { ...info, notes, pcNames };
+  if (info.kind === "cluster") { out.name = pcNames.join(" "); return out; }
+  out.root = at(info.root);
+  if (info.upper) out.upper = at(info.upper);
+  if (info.bass) out.bass = at(info.bass);
+  if (info.kind === "note") {
+    if (notes.length === 1) out.octave = notes[0].octave;
+    out.name = Theory.nameOf(out.root) + (notes.length === 1 ? notes[0].octave : "");
+  } else if (info.kind === "interval") {
+    out.name = `${Theory.nameOf(out.root)}-${Theory.nameOf(out.upper)}`;
+  } else {
+    out.name = Theory.nameOf(out.root) + info.suffix + (out.bass ? "/" + Theory.nameOf(out.bass) : "");
+  }
+  return out;
+}
+
+// ----------------------------------------------------------- practice log --
+// Daniel, 2026-09-13: "keep a temp log of the notes so you can see how I play music theory wise". piano/log.js
+// records every note, pedal change, sound ending and chord change with its key and number, and the server
+// summarises each session for the agents (arsenal/PIANO-V2-SPEC.md sections 4 and 6.5). Nothing is sent per note:
+// log.js batches into IndexedDB and uploads in the background, and keeps buffering while the server has no
+// practice-log routes. Log calls sit behind logged(), so nothing in the log can reach the note path. The demo is
+// not Daniel's playing, so it is not logged.
+//
+// A GET (no body) asks first whether this server has the routes. A server started before the practice log existed,
+// or run with --no-performance-log, answers log.js's POSTs 404 without reading their bodies, and on its keep-alive
+// connection the unread body corrupts the next request (seen 2026-09-13: the next POST came back 501). A REC upload
+// could be that next request. So without the routes log.js is pointed at port 9, which the browser refuses to
+// connect to: it buffers exactly as when the server is down, and nothing reaches the server. The GET repeats each
+// minute only to tell Daniel when a reload would upload what is kept.
+const LOG_PREF = "arsenal.piano.log";
+const LOG_ENDPOINT = "/api/performance";
+const LOG_NOWHERE = "http://127.0.0.1:9/api/performance";
+let perfLog = null;
+let logRoutes = null;  // null: still asking; true: this server takes the log; false: buffering here; "reload": it does now
+const hasLogRoutes = () => fetch(LOG_ENDPOINT, { cache: "no-store" }).then((r) => r.ok, () => false);
+async function startLog() {
+  const ok = await hasLogRoutes();
+  try {
+    perfLog = createPerformanceLog({ endpoint: ok ? LOG_ENDPOINT : LOG_NOWHERE, meta: { page: "piano" },
+                                     enabled: safeGet(LOG_PREF) !== "off" });
+  } catch (e) {
+    console.warn("[piano] practice log unavailable:", errText(e));
+  }
+  logRoutes = ok;
+  syncLogButton();
+  syncLogReadout();
+  if (ok) return;
+  const timer = setInterval(async () => {
+    if (await hasLogRoutes()) { logRoutes = "reload"; clearInterval(timer); syncLogReadout(); }
+  }, 60000);
+}
+let logMuted = false;  // set around the demo's own note calls
+let logFailed = false;
+function logged(fn) {
+  if (!perfLog || logMuted || demo.running) return;
+  try {
+    fn(perfLog);
+  } catch (e) {
+    if (!logFailed) { logFailed = true; console.warn("[piano] practice log call failed (ignored):", errText(e)); }
+  }
+}
+const pageSec = (t) => T0 + t;  // log.js takes page-clock seconds (performance.now() / 1000)
+// One chord event per change of the detected name, key, number or lock; log.js drops exact repeats as well.
+let loggedChord = "";
+function logChord(t) {
+  const info = lastInfo, key = keyView.key;
+  const sig = info ? `${info.name}|${keyView.name}|${lastNns ? lastNns.text : ""}|${keyView.locked}` : "";
+  if (sig === loggedChord) return;
+  loggedChord = sig;
+  logged((log) => log.chord(info && {
+    name: info.name, kind: info.kind, notes: info.notes, bass: info.bass, key: key && key.name,
+    nns: lastNns ? lastNns.text : null, nns_key: key && key.name, key_conf: key ? keyView.confidence : null, locked: keyView.locked,
+  }, pageSec(t)));
+}
 
 // ----------------------------------------------------------- notes engine --
 // A note sounds while its key is held, or after release while the pedal (CC64) is down.
@@ -1217,9 +1471,9 @@ const sounding = new Map();  // midi -> { held, vel, t0, trail }
 let sustain = false;
 let detectDirty = true;
 let lastInfo = null;
-const pcHistory = new Array(12).fill(0);  // decaying pitch-class weights: the key guess spells lone notes
+let lastNns = null;  // nashville() of lastInfo in the shown key
+const pcHistory = new Array(12).fill(0);  // decaying pitch-class weights: the key tracker and estimateKey read it
 let pcHistoryAt = 0;
-let keyGuess = null;
 const stats = { noteOns: 0 };
 
 // How lit a sounding key is: the shared light model (LIGHT, also the trail shader's), taken at this moment.
@@ -1232,8 +1486,13 @@ function glowLevel(st, t) {
 function noteOn(m, vel) {
   if (vel <= 0) { noteOff(m); return; }
   const t = clock();
+  beforeChange(t);
   const prev = sounding.get(m);
-  if (prev) trails.end(prev.trail, t);  // a repeated note closes its previous trail
+  if (prev) {
+    trails.end(prev.trail, t);  // a repeated note closes its previous trail
+    logged((log) => log.soundEnd(m, "repeat", pageSec(t)));
+  }
+  logged((log) => log.noteOn(m, vel, pageSec(t)));
   const inRange = m >= KEY.first && m <= KEY.last;
   sounding.set(m, { held: true, vel, t0: t, tRelease: 0, trail: inRange ? trails.start(m, vel, t) : null });
   if (inRange) {
@@ -1251,54 +1510,126 @@ function noteOn(m, vel) {
   pcHistory[Theory.mod(m, 12)] += 0.5 + vel / 127;
   stats.noteOns++;
   detectDirty = true;
+  afterChange(t);
   hideIdleHint();
 }
 function noteOff(m) {
   const st = sounding.get(m);
   if (!st || !st.held) return;
   const t = clock();
+  beforeChange(t);
   st.held = false;
   st.tRelease = t;
   trails.release(st.trail, t);
   const k = keys.get(m);
   if (k) { k.target = 0; k.glowTarget = sustain ? glowLevel(st, t) : 0; }
+  logged((log) => { log.noteOff(m, pageSec(t)); if (!sustain) log.soundEnd(m, "release", pageSec(t)); });
   if (!sustain) { trails.end(st.trail, t); sounding.delete(m); }
   detectDirty = true;
+  afterChange(t);
 }
-function setSustain(on) {
+// value: the raw CC64 value, for the log (a half-pedalling controller sends many; only the crossing is logged)
+function setSustain(on, value = on ? 127 : 0) {
   if (sustain === on) return;
+  const t = clock();
+  beforeChange(t);
   sustain = on;
+  logged((log) => log.pedal(on, value, pageSec(t)));
   if (!on) {
-    const t = clock();
     for (const [m, st] of sounding) {
       if (st.held) continue;
       trails.end(st.trail, t);
+      logged((log) => log.soundEnd(m, "pedal", pageSec(t)));
       sounding.delete(m);
       const k = keys.get(m);
       if (k) k.glowTarget = 0;
     }
   }
   detectDirty = true;
+  afterChange(t);
 }
 function allNotesOff() {  // CC120 (all sound off), CC123 (all notes off), input switches, Demo stop
   const t = clock();
+  beforeChange(t);
   for (const [m, st] of sounding) {
     trails.end(st.trail, t);
+    logged((log) => log.soundEnd(m, "all-off", pageSec(t)));
     const k = keys.get(m);
     if (k) { k.target = 0; k.glowTarget = 0; }
   }
   sounding.clear();
+  if (sustain) logged((log) => log.pedal(false, 0, pageSec(t)));
   sustain = false;
   detectDirty = true;
+  afterChange(t);
 }
-function currentInfo() {
+// t: the moment it is read at (a frame's clock, or a catch-up's; see "theory without frames")
+function currentInfo(t = clock()) {
   if (!detectDirty) return lastInfo;
   detectDirty = false;
-  keyGuess = Theory.estimateKey(pcHistory);
-  lastInfo = sounding.size ? Theory.detect([...sounding.keys()], keyGuess ? keyGuess.bias : 0) : null;
+  keyRaw = Theory.estimateKey(pcHistory);
+  const bias = keyView.key ? keyView.key.bias : keyRaw ? keyRaw.bias : 0;
+  lastInfo = sounding.size ? spellForKey(Theory.detect([...sounding.keys()], bias), keyView.key) : null;
   if (lastInfo) lastInfo.onCount = stats.noteOns;  // lets the label tell a new note from a release
+  lastNns = numberFor(lastInfo);
+  logChord(t);
   return lastInfo;
 }
+
+// ---------------------------------------------------- theory without frames --
+// The key tracker and the chord log used to run only inside renderFrame. A hidden, minimized or covered tab gets no
+// requestAnimationFrame at all, while Web MIDI still delivers every note, so whatever Daniel played with the page out
+// of sight reached the practice log as notes, pedal and sound endings with no chord events, and the key tracker never
+// heard it (seen 2026-09-14: whole stretches of a real session, before and after long pauses, with no chord events;
+// replayed headless on a virtual clock the same notes log chords throughout with frames and leave exactly that gap
+// without them). So while no frame is being drawn, each change to what sounds first brings the theory up to its own
+// moment, as frames would have: the changes within one frame's span (FRAME_SEC) are read together at the time that
+// frame would have come, and the time since the last read is ticked through the key tracker every KEY_TICK. A short
+// timer reads the last change of a phrase; in a background tab it may wake late, but every read carries its own time.
+// The first frame after such a stretch catches up the same way before it draws.
+const FRAME_SEC = 1 / 60;
+const FRAMES_STALL = 0.25;     // no frame drawn for this long (or the tab is hidden): the page is not drawing
+const CATCH_UP_TICKS = 3000;   // key ticks one catch-up runs at most (5 min); the tracker counts only ACTIVE_SEC past a note
+let frameAt = -Infinity;       // clock() of the last drawn frame
+let pendingAt = null;          // clock() of the first change nothing has read yet, while no frame is drawn
+let settleTimer = 0;
+const drawing = (t) => document.visibilityState === "visible" && t - frameAt < FRAMES_STALL;
+function catchUp(until) {
+  if (pendingAt !== null) {
+    const at = Math.min(until, pendingAt + FRAME_SEC);
+    pendingAt = null;
+    tickKey(at);
+    currentInfo(at);
+  }
+  if (!Number.isFinite(keyView.at)) return;  // nothing has been heard yet
+  for (let s = Math.max(keyView.at, until - CATCH_UP_TICKS * KEY_TICK) + KEY_TICK; s < until; s += KEY_TICK) {
+    tickKey(s, true);
+    currentInfo(s);  // a key change respells and renumbers what sounds, as the next frame would
+  }
+}
+// Every change to what sounds calls beforeChange(t) before it changes anything and afterChange(t) once it has.
+function beforeChange(t) {
+  if (drawing(t) || (pendingAt !== null && t < pendingAt + FRAME_SEC)) return;
+  catchUp(t);
+}
+function afterChange(t) {
+  if (drawing(t)) return;
+  if (pendingAt === null) pendingAt = t;
+  if (!settleTimer) settleTimer = setTimeout(settle, 50);
+}
+function settle() {
+  settleTimer = 0;
+  const t = clock();
+  if (pendingAt !== null && !drawing(t)) catchUp(t);
+}
+// A change made while frames were still drawing waits for the next frame. If the tab hides before that frame comes
+// (a last chord, then straight to another window), nothing would read it until the next MIDI event, perhaps after
+// log.js's idle close, so hiding hands it to the settle timer.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" || !detectDirty) return;
+  if (pendingAt === null) pendingAt = clock();
+  if (!settleTimer) settleTimer = setTimeout(settle, 50);
+});
 
 // ------------------------------------------------------------------- MIDI --
 const ALL_INPUTS = "__all__";
@@ -1373,7 +1704,7 @@ function onMidiMessage(ev) {
   } else if (type === 0x80 && d.length >= 3) {
     noteOff(d[1]);
   } else if (type === 0xb0 && d.length >= 3) {
-    if (d[1] === 64) setSustain(d[2] >= 64);
+    if (d[1] === 64) setSustain(d[2] >= 64, d[2]);
     else if (d[1] === 120 || d[1] === 123) allNotesOff();
   } else {
     return;  // clock, aftertouch, pitch bend: not drawn
@@ -1443,7 +1774,8 @@ function startDemo() {
 }
 function stopDemo() {
   demo.running = false;
-  allNotesOff();
+  logMuted = true;  // the notes it ends were the demo's
+  try { allNotesOff(); } finally { logMuted = false; }
   syncDemoButton();
 }
 function tickDemo(t) {
@@ -1661,6 +1993,72 @@ function toggleFullscreen() {
   else $("stage").requestFullscreen().catch((e) => toast("Fullscreen refused: " + errText(e), true));
 }
 const fmtNotes = (info) => (info ? info.notes.map((n) => n.name + n.octave).join(" ") : "none");
+const fmtCount = (n) => Number(n || 0).toLocaleString("en-US");
+function keySummary() {
+  const raw = keyRaw && keyRaw.name !== keyView.name ? ` · raw ${keyRaw.name}` : "";
+  const next = keyView.candidate ? ` · next ${keyView.candidate.name} ${keyView.candidate.heldSec.toFixed(1)} s` : "";
+  if (!keyView.key) return `listening${raw}`;
+  return `${keyView.key.name} · ${keyView.confidence} · ${keyView.locked ? "locked" : "auto"}${next}${raw}`;
+}
+// The top bar's log readout: short text, with the full story in its tooltip.
+function logReadout() {
+  if (!perfLog) {
+    return logRoutes === null ? { state: "idle", text: "starting", title: "Asking the server for the practice-log routes." }
+                              : { state: "off", text: "unavailable", title: "The practice log did not start (see the console)." };
+  }
+  const s = perfLog.status();
+  const sent = s.sent ? ` · ${fmtCount(s.sent)} sent` : "";
+  const why = s.lastError ? ` Last answer: ${s.lastError}.` : "";
+  const kept = "so notes are kept in this browser and nothing is sent to it. Restart `py -m arsenal serve`, then reload " +
+               "this page at the same address, and they upload.";
+  const noRoutes = logRoutes === "reload"
+    ? "The server has the practice-log routes now: reload this page (same address) to upload the notes kept in this browser."
+    : `This server was started before the practice log existed (or with --no-performance-log), ${kept}`;
+  switch (s.state) {
+    case "live":
+      return { state: s.state, text: `live${sent}`, title: `Recording to session ${s.session || "(opening)"}.` };
+    case "buffering":
+      if (logRoutes !== true) {
+        return { state: s.state, text: `buffering ${fmtCount(s.buffered)} · ${logRoutes === "reload" ? "reload to upload" : "until the server restarts"}`,
+                 title: noRoutes };
+      }
+      return { state: s.state, text: `buffering ${fmtCount(s.buffered)} · server unreachable, retrying`,
+               title: "The server didn't take the last upload, so notes are kept in this browser and sent when it answers." + why };
+    case "uploading":
+      return { state: s.state, text: `uploading ${fmtCount(s.buffered)}${sent}`, title: "Sending notes kept in this browser." + why };
+    case "off":
+      return { state: s.state, text: s.buffered ? `off · ${fmtCount(s.buffered)} to upload` : "off",
+               title: "Not recording. Notes already kept still upload." + why };
+    default:
+      if (logRoutes !== true) return { state: s.state, text: "idle · buffers until the server restarts", title: noRoutes };
+      return { state: s.state, text: `idle${sent}`, title: "A session starts with the next note." + why };
+  }
+}
+function syncLogButton() {
+  const b = $("btn-log");
+  const onNow = safeGet(LOG_PREF) !== "off";
+  b.setAttribute("aria-pressed", String(onNow && !!perfLog));
+  b.textContent = onNow ? "On" : "Off";
+  b.disabled = !perfLog;
+}
+let logReadoutText = "";
+function syncLogReadout() {
+  const r = logReadout();
+  if (r.text + r.title === logReadoutText) return;
+  logReadoutText = r.text + r.title;
+  const el = $("log-status");
+  el.textContent = r.text;
+  el.title = r.title;
+  el.dataset.state = r.state;
+}
+function syncKeySelect() {
+  const select = $("key-select");
+  if (!select) return;
+  const auto = select.querySelector('option[value="auto"]');
+  const text = !keyView.locked && keyView.key ? `auto · ${keyText(keyView.key.name)}` : "auto";
+  if (auto && auto.textContent !== text) auto.textContent = text;
+  if (select.value !== theoryUi.key) select.value = theoryUi.key;
+}
 function updateHud(t) {
   if ($("hud").hidden) return;
   const info = lastInfo;
@@ -1668,7 +2066,16 @@ function updateHud(t) {
   $("hud-render").textContent = `${framing.w}x${framing.h} (${framing.id}) · three r${THREE.REVISION}`;
   $("hud-midi").textContent = midi.status + (midi.last ? ` · ${midi.last}` : "");
   $("hud-notes").textContent = fmtNotes(info);
-  $("hud-chord").textContent = (info ? info.name : "none") + (keyGuess ? ` · key ${keyGuess.name}` : "");
+  $("hud-chord").textContent = (info ? info.name : "none") + (lastNns ? ` · ${lastNns.text}` : "");
+  $("hud-key").textContent = keySummary();
+  const routes = logRoutes === true ? "" : logRoutes === null ? " · asking" : logRoutes === "reload" ? " · routes now: reload" : " · no routes";
+  if (perfLog) {
+    const s = perfLog.status();
+    $("hud-log").textContent = `${s.state}${routes} · ${s.session || "no session"} · sent ${fmtCount(s.sent)} · buffered ${fmtCount(s.buffered)}` +
+                               (s.lastError && logRoutes === true ? ` · ${s.lastError}` : "");
+  } else {
+    $("hud-log").textContent = `unavailable${routes}`;
+  }
   $("hud-pedal").textContent = sustain ? "down (CC64)" : "up";
   $("hud-trails").textContent = `${trails.liveCount(t)} live / cap ${TRAIL_MAX}`;
   $("hud-octave").textContent = `computer keys C${3 + kbOctave}-E${5 + kbOctave}`;
@@ -1703,6 +2110,44 @@ function wireUi() {
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
     navigator.mediaDevices.addEventListener("devicechange", () => { listAudioInputs(); });
   }
+  // Nashville numbers, minor numbering, key lock and the practice log; each choice is remembered
+  const nnsSelect = $("nns-select"), minorSelect = $("minor-select"), keySelect = $("key-select");
+  nnsSelect.value = theoryUi.nns;
+  nnsSelect.addEventListener("change", () => {
+    theoryUi.nns = NNS_MODES.includes(nnsSelect.value) ? nnsSelect.value : "chord";
+    safeSet("arsenal.piano.nns", theoryUi.nns);
+    nnsSelect.blur();  // hand the keyboard back to the computer-key piano
+  });
+  minorSelect.value = theoryUi.minor;
+  minorSelect.addEventListener("change", () => {
+    theoryUi.minor = minorSelect.value === "relative" ? "relative" : "tonic";
+    safeSet("arsenal.piano.minor", theoryUi.minor);
+    detectDirty = true;
+    minorSelect.blur();
+  });
+  for (const mode of ["major", "minor"]) {
+    const group = document.createElement("optgroup");
+    group.label = mode;
+    for (const name of KEY_NAMES.filter((k) => k.endsWith(mode))) {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = `${keyText(name)} (lock)`;
+      group.append(opt);
+    }
+    keySelect.append(group);
+  }
+  keySelect.addEventListener("change", () => { setKeyChoice(keySelect.value); keySelect.blur(); });
+  setKeyChoice(theoryUi.key, false);
+  $("btn-log").addEventListener("click", () => {
+    const onNow = safeGet(LOG_PREF) === "off";
+    safeSet(LOG_PREF, onNow ? "on" : "off");
+    if (perfLog) perfLog.setEnabled(onNow);
+    syncLogButton();
+    syncLogReadout();
+  });
+  syncLogButton();
+  syncLogReadout();
+
   $("btn-rec").addEventListener("click", () => (rec.state === "recording" ? stopRecording() : startRecording()));
   $("btn-full").addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", fitCanvas);
@@ -1745,7 +2190,7 @@ function wireUi() {
 
 // ------------------------------------------------------------------- loop --
 let lastT = clock();
-let fpsValue = 0, fpsFrames = 0, fpsAt = clock(), hudAt = 0, frameMsP95 = 0;
+let fpsValue = 0, fpsFrames = 0, fpsAt = clock(), hudAt = 0, frameMsP95 = 0, logUiAt = 0;
 const frameTimes = [];
 const glowMix = new THREE.Color();
 const tmpColor = new THREE.Color();
@@ -1753,8 +2198,11 @@ function renderFrame() {
   const t = clock();
   const dt = clamp(t - lastT, 0, 0.1);
   lastT = t;
+  if (pendingAt !== null || t - keyView.at > FRAMES_STALL) catchUp(t);  // the first frame after a stretch without frames
+  frameAt = t;
   tickDemo(t);
-  const info = currentInfo();
+  tickKey(t);
+  const info = currentInfo(t);
   updateKeys(dt);
   updateCamera(dt, t);
   trailUniforms.uNow.value = t;
@@ -1824,6 +2272,7 @@ function renderFrame() {
   }
   tickMeter(dt);
   if (t - hudAt > 0.2) { hudAt = t; updateHud(t); }
+  if (t - logUiAt > 0.5) { logUiAt = t; syncLogReadout(); }
 }
 let loopError = null;
 function loop() {
@@ -1845,10 +2294,15 @@ window.__piano = {
     return { fps: Math.round(fpsValue), framing: framing.id, sounding: [...sounding.keys()].sort((a, b) => a - b),
              chord: info ? info.name : null, label: overlay.shown ? overlay.shown.name : null,
              notes: info ? info.notes.map((n) => n.name + n.octave) : [], trailsLive: trails.liveCount(clock()),
-             trailCap: TRAIL_MAX, pedal: sustain, key: keyGuess ? keyGuess.name : null, rec: rec.state,
+             trailCap: TRAIL_MAX, pedal: sustain, rec: rec.state,
+             nns: lastNns ? lastNns.text : null,
+             key: { name: keyView.key ? keyView.key.name : null, confidence: keyView.confidence, locked: keyView.locked, dim: keyView.dim },
+             keyRaw: keyRaw ? keyRaw.name : null, nnsMode: theoryUi.nns, minor: theoryUi.minor,
+             log: perfLog ? perfLog.status() : null, logRoutes,
              fonts: { ...fontState }, demo: demo.running, noteOns: stats.noteOns,
              glow: Object.fromEntries([...sounding.keys()].map((m) => [m, +(keys.get(m)?.glow ?? 0).toFixed(3)])) };
   },
+  get log() { return perfLog; },  // the practice log itself, for receipts: flush(), stop(), stats()
   midiInputs() { return midi.inputs.map((i) => ({ name: i.name, state: i.state, bound: midi.bound.includes(i) })); },
   midiMessage(bytes) { onMidiMessage({ data: Uint8Array.from(bytes), timeStamp: performance.now() }); },
   gpu() {
@@ -1866,6 +2320,7 @@ function boot() {
   syncDemoButton();
   syncRecButton();
   loadFonts();
+  startLog();
   (async () => {
     let state = "prompt";
     try { state = (await navigator.permissions.query({ name: "midi" })).state; } catch { /* not queryable */ }

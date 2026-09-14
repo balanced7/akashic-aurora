@@ -8,7 +8,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import queue
 import re
+import select
+import socket
 import sys
 import threading
 import time
@@ -19,6 +22,8 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import __version__
 from .graph import GraphError, load_graph
+from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
+from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
 from .presets import list_presets
 from .registry import load_registry
@@ -141,13 +146,17 @@ class Jobs:
 
 
 class App:
-    def __init__(self, roots: List[str], takes_root=None, presets_dir=None):
+    def __init__(self, roots: List[str], takes_root=None, presets_dir=None, performance_root=None,
+                 performance_log: bool = True):
         self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
         self.ledger = TakeLedger(takes_root)
+        # None switches the practice-log routes off: they answer 404 "no route", like a server from before them.
+        self.performance = PerformanceStore(performance_root) if performance_log else None
         self.jobs = Jobs()
         self.probes: Dict[str, dict] = {}
+        self.cues = CueHub()  # Claude's hand on the piano page (arsenal/pianocue.py)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -161,6 +170,8 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         if "/api/media/" in self.path or "/api/analysis/" in self.path:
             return  # seeks and polls are chatty
+        if self.path.startswith("/api/performance/") and self.path.endswith("/events") and args[1:2] == ("200",):
+            return  # the practice log flushes every second while Daniel plays
         sys.stderr.write(f"[arsenal] {fmt % args}\n")
 
     # ----------------------------------------------------------------- responses
@@ -227,11 +238,21 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(200, {"takes": self.app.ledger.list()})
                 if path == "/api/presets":
                     return self._json(200, {"presets": list_presets(self.app.presets_dir)})
-                for pattern, handler in ((rf"/api/media/({_ID})", self._media),
-                                         (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
-                                         (rf"/api/analysis/({_ID})", self._analysis),
-                                         (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
-                                         (rf"/api/take/({_TAKE})", self._take_get)):
+                if path == "/api/piano/cues":
+                    return self._cue_stream(query)
+                if path == "/api/piano/cues/status":
+                    return self._json(200, self.app.cues.status())
+                logging = self.app.performance is not None
+                if path == "/api/performance" and logging:
+                    return self._json(200, {"sessions": self.app.performance.list()})
+                routes = [(rf"/api/media/({_ID})", self._media),
+                          (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
+                          (rf"/api/analysis/({_ID})", self._analysis),
+                          (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
+                          (rf"/api/take/({_TAKE})", self._take_get)]
+                if logging:
+                    routes.append((rf"/api/performance/({SESSION_PATTERN})", self._performance_get))
+                for pattern, handler in routes:
                     m = re.fullmatch(pattern, path)
                     if m:
                         return handler(m.group(1))
@@ -242,9 +263,17 @@ class Handler(BaseHTTPRequestHandler):
                     return self._recording(query)
                 if path == "/api/take/open":
                     return self._take_open()
+                if path == "/api/piano/cue":
+                    return self._cue_post()
                 m = re.fullmatch(rf"/api/take/({_TAKE})/(events|close)", path)
                 if m:
                     return self._take_post(m.group(1), m.group(2))
+                if self.app.performance is not None:
+                    if path == "/api/performance/open":
+                        return self._performance_post(None, "open")
+                    m = re.fullmatch(rf"/api/performance/({SESSION_PATTERN})/(events|close)", path)
+                    if m:
+                        return self._performance_post(m.group(1), m.group(2))
             return self._json(404, {"error": f"no route for {method} {path}"})
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             return  # the browser cancelled, usually a seek
@@ -422,6 +451,126 @@ class Handler(BaseHTTPRequestHandler):
         except KeyError:
             return self._json(404, {"error": f"no take {take_id}"})
 
+    # ------------------------------------------------------------ practice log
+    def _performance_post(self, session: Optional[str], action: str) -> None:
+        """open, events and close (PIANO-V2-SPEC section 4): 400 malformed, 404 unknown, 409 closed.
+
+        Optional for uploads that must not double up (the browser's offline buffer): open takes client_id and
+        answers {session, resumed, closed, last_seq}; events and close take seq, and events answers
+        {accepted, duplicate, last_seq}. A 409 carries last_seq.
+        """
+        try:
+            body = self._read_json()
+        except ValueError as exc:
+            return self._json(400, {"error": f"the body is not JSON: {exc}"})
+        if body is None:
+            body = {}
+        if not isinstance(body, dict):
+            return self._json(400, {"error": "the body must be a JSON object"})
+        store = self.app.performance
+        try:
+            if action == "open":
+                return self._json(200, store.open_session(body.get("meta"), body.get("client_id")))
+            if action == "events":
+                if "events" not in body:
+                    return self._json(400, {"error": "the body needs events, a list"})
+                return self._json(200, store.append_batch(session, body["events"], body.get("seq")))
+            # close may carry the last events: the pagehide beacon sends both in one request
+            return self._json(200, {"summary": store.close(session, body.get("events"), body.get("seq"))})
+        except PerformanceError as exc:
+            return self._json(exc.status, {"error": str(exc), **exc.extra})
+
+    def _performance_get(self, session: str) -> None:
+        try:
+            return self._json(200, self.app.performance.get(session))
+        except PerformanceError as exc:
+            return self._json(exc.status, {"error": str(exc)})
+
+    # --------------------------------------------------------------- piano cues
+    def _cue_post(self) -> None:
+        """POST /api/piano/cue {"cue": CUE}: 200 {id, listeners}, 400 malformed, 403 from another site.
+
+        The body is always read first, so a refused request leaves the keep-alive connection usable.
+        """
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            self.close_connection = True
+            return self._json(400, {"error": "Content-Length is not a number"})
+        if length > MAX_CUE_BODY:
+            self.close_connection = True  # the body stays unread, so this connection cannot be reused
+            return self._json(413, {"error": f"a cue body is at most {MAX_CUE_BODY} bytes"})
+        raw = self.rfile.read(length) if length > 0 else b""
+        origin = self.headers.get("Origin")
+        if origin is not None and urlsplit(origin).hostname not in ("127.0.0.1", "localhost"):
+            return self._json(403, {"error": f"cues are accepted from this machine's pages only, not {origin}"})
+        try:
+            body = json.loads(raw.decode("utf-8") or "null")
+        except ValueError as exc:
+            return self._json(400, {"error": f"the body is not JSON: {exc}"})
+        if not isinstance(body, dict) or "cue" not in body:
+            return self._json(400, {"error": 'the body must be {"cue": {...}}'})
+        try:
+            cue = validate_cue(body["cue"])
+        except CueError as exc:
+            return self._json(400, {"error": str(exc)})
+        return self._json(200, self.app.cues.publish(cue))
+
+    def _cue_stream(self, query: Optional[dict] = None) -> None:
+        """GET /api/piano/cues: an event stream held open on this connection's own thread until the page goes away.
+
+        The Last-Event-ID header wins; ?lastEventId=N is the fallback for a page that had to open a fresh EventSource
+        (which cannot set the header)."""
+        hub = self.app.cues
+        last_event_id = None
+        header = (self.headers.get("Last-Event-ID") or "").strip()
+        if not header and query:
+            header = ((query.get("lastEventId") or [""])[0]).strip()
+        if re.fullmatch(r"\d{1,18}", header):
+            last_event_id = int(header)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        self.close_connection = True  # no Content-Length: the stream ends when the connection does
+        if self.command == "HEAD":
+            return
+        token, inbox, preamble = hub.open_stream(last_event_id)
+        try:
+            self.wfile.write(preamble)  # "retry: 1000", an id: cursor, then any replayed cues
+            last_write = time.monotonic()
+            while True:
+                try:
+                    frame = inbox.get(timeout=0.25)
+                except queue.Empty:
+                    frame = b""
+                if frame is None:
+                    return  # the hub closed
+                if frame:
+                    self.wfile.write(frame)
+                    last_write = time.monotonic()
+                elif time.monotonic() - last_write >= hub.heartbeat_s:
+                    self.wfile.write(b": hb\n\n")
+                    last_write = time.monotonic()
+                if self._peer_gone():
+                    return
+        except (OSError, ValueError):
+            return  # the page went away mid-write
+        finally:
+            hub.unsubscribe(token)
+
+    def _peer_gone(self) -> bool:
+        """An EventSource never sends after its request, so a readable socket means the peer closed (or reset)."""
+        sock = self.connection
+        try:
+            readable, _, _ = select.select([sock], [], [], 0)
+            if not readable:
+                return False
+            return sock.recv(1, socket.MSG_PEEK) == b""
+        except (OSError, ValueError):
+            return True
+
     # ----------------------------------------------------------------- recordings
     def _recording(self, query) -> None:
         """Save an uploaded recording under the first library root, so it shows up in the library."""
@@ -468,15 +617,19 @@ class Server(ThreadingHTTPServer):
         self.app = app
 
 
-def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None) -> None:
-    app = App(roots or DEFAULT_ROOTS, takes_root)
+def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, performance_root=None,
+          performance_log: bool = True) -> None:
+    app = App(roots or DEFAULT_ROOTS, takes_root, performance_root=performance_root, performance_log=performance_log)
     server = Server(port, app)
     roots_text = ", ".join(str(r) for r in app.library.roots)
     base = f"http://{HOST}:{server.server_address[1]}"
     print(f"[arsenal] First Light at {base}/first-light, Play at {base}/play  (library: {roots_text})", flush=True)
+    log_text = f"sessions in {app.performance.root}" if app.performance else "off (the routes answer 404)"
+    print(f"[arsenal] practice log: {log_text}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        app.cues.close()  # ends every open cue stream
         server.server_close()
