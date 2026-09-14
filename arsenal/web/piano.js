@@ -501,14 +501,20 @@ const GHOST_TINT = new THREE.Color(0x8fa3c4);
 // so white keys get a wider, deeper slate rim at a higher opacity and a stronger cool fill.
 const GHOST_ON_IVORY = new THREE.Color(0x3e5277);
 const GHOST_RIM = { white: 0.85, black: 0.7, whiteFill: 0.42 };
-// Claude's key while it is lit. Moonlight as light alone barely lifts ivory: under the 0.75 cap a white key's emissive is
-// a few levels, no hue, and darker than ivory at velocity 40 (verifier receipt 2026-09-14, round 2). So the white key's
-// surface turns a pale moonlight blue while Claude holds it (color, in by the first touch: fade), keeping its full ivory
-// clearcoat sheen so it reads pale and lit rather than coloured like Daniel's, and the capped moonlight glows on top.
-// Measured on the front of C3 E3 G3 against unlit ivory: +22 / +25 / +28 luma at velocity 40 / 80 / 120, hue 218,
-// saturation 0.19 (Daniel's lit keys: saturation 0.6). Black keys take a softer share of the moonlight (black), with its
-// brightest channel held under the bloom threshold (blackPeak), so they read lit without a halo.
-const MOON_KEY = { color: new THREE.Color(0xd8ecff), fade: 8, black: 0.75, blackPeak: 0.55 };
+// Claude's key while it is lit. Its white surface turns moonlight blue while Claude holds it (in by the first touch: fade),
+// darker than Daniel's lit keys at the same velocity and lighter the harder Claude plays (low at velocity 0 to high at
+// 127), with its ivory clearcoat kept and the capped moonlight glowing on top. The verifier (2026-09-14, round 3) found the
+// pale #d8ecff surface lighter than Daniel's lit keys and nearly the same at every velocity. Where a colour mode's keys
+// run dark (velocity: a soft note is deep violet) the surface is held at fit x the mean of Daniel's key surfaces at that
+// velocity (moonSurface). Measured on the front of Claude's C4 E4 G4 beside Daniel's C3 E3 G3, 9:16 (16:9 in brackets),
+// velocity 30 / 60 / 90 / 127, pitch colours: Claude 103 / 114 / 124 / 134 (99 / 110 / 120 / 130) luma, Daniel 129 / 135 /
+// 141 / 153 (126 / 133 / 138 / 151), unlit ivory 160 (155); hue 220, saturation 0.35-0.45 (Daniel's 0.53-0.56). Mono:
+// Claude 114-148, Daniel 155-170. Velocity colours, whose soft keys are deep violet: the cap brought Claude from 93 / 107 /
+// 123 / 136 to 73 / 92 / 120 / 130, still above Daniel's 64 / 84 / 106 / 127 there (a darker surface barely lowers it: it
+// is not the surface that holds it up). Black keys take a softer share of the moonlight (black), with its brightest channel
+// held under the bloom threshold (blackPeak), so they read lit without a halo.
+const MOON_KEY = { low: new THREE.Color(0x5f7aa8), high: new THREE.Color(0x86a0ca), fit: 0.94, fade: 8, black: 0.75,
+                   blackPeak: 0.55 };
 // Claude's moonlight at a velocity. The 0.75 cap (CUE_LOOK.glow) is on the glow level, but the light a key gives off is
 // that level times its colour, and moonlight is brighter than most pitch colours (up to 1.9x Daniel's light at the same
 // velocity: the round-1 glow probe). So the moon is scaled to the dimmest pitch colour at that velocity, by luminance and by
@@ -530,6 +536,27 @@ function moonColor(vel, target) {
     moonScales.set(key, s);
   }
   return target.copy(MOON).multiplyScalar(s);
+}
+// Claude's white-key surface at a velocity: MOON_KEY low to high, held at MOON_KEY.fit x the mean luminance of Daniel's
+// lit key surfaces at that velocity in this colour mode (as updateKeys builds them: his colour, peak-normalised, 0.95 of
+// the way from ivory), so it stays under his keys where his colours run dark. One level for all of Claude's keys.
+const moonSurfaceScales = new Map();  // "mode:velocity" -> scale
+function moonSurface(vel, target) {
+  const v = clamp(vel / 127, 0, 1);
+  target.copy(MOON_KEY.low).lerp(MOON_KEY.high, v);
+  const key = `${COLOUR.mode}:${Math.round(v * 127)}`;
+  let s = moonSurfaceScales.get(key);
+  if (s === undefined) {
+    let sum = 0;
+    for (let pc = 0; pc < 12; pc++) {
+      noteColor(60 + pc, vel, moonProbe);
+      const peak = Math.max(moonProbe.r, moonProbe.g, moonProbe.b, 1);
+      sum += lumaOf(lerp(IVORY.r, moonProbe.r / peak, 0.95), lerp(IVORY.g, moonProbe.g / peak, 0.95), lerp(IVORY.b, moonProbe.b / peak, 0.95));
+    }
+    s = Math.min(1, MOON_KEY.fit * (sum / 12) / Math.max(lumaOf(target.r, target.g, target.b), 1e-4));
+    moonSurfaceScales.set(key, s);
+  }
+  return target.multiplyScalar(s);
 }
 function ghostFrameGeo(w, l, edge) {  // a flat rectangle with a rectangular hole, in the XY plane
   const s = new THREE.Shape();
@@ -568,7 +595,8 @@ for (let m = KEY.first; m <= KEY.last; m++) {
   // can lift or darken a key the other still holds.
   keys.set(m, { m, black, pivot, material, lever: len + KEY.pivotBack, depth: 0, vel: 0, target: 0,
                 glow: 0, glowTarget: 0, color: new THREE.Color(),
-                cueTarget: 0, cueGlow: 0, cueGlowTarget: 0, cueColor: new THREE.Color(), cueCss: "", cueReplay: false,
+                cueTarget: 0, cueGlow: 0, cueGlowTarget: 0, cueColor: new THREE.Color(), cueSurface: new THREE.Color(),
+                cueCss: "", cueReplay: false,
                 frame, ghostLevel: 0, rimLevel: 0, face });
 }
 
@@ -906,7 +934,7 @@ function updateKeys(dt, t) {
         k.material.color.lerp(k.cueColor, rt * 0.95);
         coat = Math.max(coat, rt);
       } else if (cue > 0.004) {  // Claude's own key: a pale moonlight surface under the capped moonlight (MOON_KEY)
-        k.material.color.lerp(MOON_KEY.color, Math.min(1, cue * MOON_KEY.fade) * cueShare);  // its clearcoat stays ivory's
+        k.material.color.lerp(k.cueSurface, Math.min(1, cue * MOON_KEY.fade) * cueShare);  // its clearcoat stays ivory's
       }
       if (ghost > 0.004) k.material.color.lerp(GHOST_TINT, GHOST_RIM.whiteFill * ghost * breath * (1 - Math.min(1, (k.glow + cue) * 2.5)));
       k.material.clearcoat = 0.5 - 0.35 * coat;  // never 0, so the material never recompiles
@@ -946,58 +974,71 @@ function lightNote(m, vel) {
 }
 
 // ----------------------------------------------------------------- camera --
-const cam = { x: 0, span: framing.minSpan, recent: [] };
+const cam = { x: 0, span: framing.minSpan, recent: [], heardAt: -Infinity, hurry: 0 };
 const lookTarget = new THREE.Vector3();
 function hintCamera(m, t, cue = false) {  // cue: Claude's, dropped when REC takes Claude off the canvas
   cam.recent.push({ x: keyX(m), t, cue });
   if (cam.recent.length > 96) cam.recent.shift();
 }
-// The follow camera (9:16). Daniel's notes of the last CAM.window s frame the view. Claude's notes frame it too: every key
-// Claude holds or hovers now (a play, a hover, a progression's step, a replay), however long ago it began, plus the last
-// CAM.cueLinger s of Claude's strikes, so a short cue is not lost between frames. Daniel's hands are never yanked out of the
-// picture: while he plays (a finger down, or a strike in the last CAM.playing s) Claude's notes share the frame only if
-// both fit in CAM.union white keys, else the view stays on his; once he has been quiet that long, the view goes to Claude's.
+// The follow camera (9:16). What frames the view:
+// - Daniel's notes: every key he holds, and the notes he struck in the CAM.window s up to his latest strike while he plays
+//   (so a long pedalled chord keeps its place), else in the last CAM.window s.
+// - Claude's notes: every key Claude holds or hovers now (a play, a hover, a progression's step, a replay), however long
+//   ago it began; the last CAM.cueLinger s of Claude's strikes, so a short cue is not lost between frames; and the steps of
+//   a started sequence that land in the next CAM.lookahead s (cuePlans: the player knows the schedule), so the view is
+//   already moving when a progression jumps register, without leaving the step that sounds now.
+// Daniel plays while any note of his sounds (a finger down, or the pedal holding it) and for CAM.grace s after the last
+// one ends. The grace is his own chord spacing (his sessions in state/arsenal/performance, 2026-09-14: chords of three or
+// more notes struck p90 4.8 s apart, silences between his sound ending and his next strike p99 4.9 s). While he plays,
+// Claude's notes share the frame only if they fit with his in CAM.union white keys (the next steps too, if they also fit),
+// else the view stays on his: it never swings to Claude's between his chords. Once his sound has ended and the grace has
+// passed, the view goes to Claude's notes.
+// The camera eases (1.2 s pan, 1.6 s zoom) and hurries, down to CAM.hurry s, while keys it must frame lie outside the view
+// it has, so a chord struck outside it, or Claude's next step in another register, is reached in time.
 // Off the canvas (glass, or auto while REC runs) Claude never steers (cueStage.on).
-const CAM = { window: 6, playing: 2.5, cueLinger: 1.5, union: 36 };
+const CAM = { window: 6, grace: 4.8, cueLinger: 1.5, union: 36, lookahead: 1.5, hurry: 0.3 };
+const camAdd = (box, x) => { if (x < box.lo) box.lo = x; if (x > box.hi) box.hi = x; };
 function updateCamera(dt, t, snap = false) {
-  let lo = Infinity, hi = -Infinity, cueLo = Infinity, cueHi = -Infinity, danLast = -Infinity;
+  const dan = { lo: Infinity, hi: -Infinity }, cue = { lo: Infinity, hi: -Infinity }, ahead = { lo: Infinity, hi: -Infinity };
+  let sounds = false, danLast = -Infinity;
+  for (const [m, st] of sounding) {  // a key Daniel holds keeps his hands in the frame, however old the strike
+    if (m < KEY.first || m > KEY.last) continue;
+    sounds = true;
+    if (st.held) camAdd(dan, keyX(m));
+  }
+  if (sounds) cam.heardAt = t;
+  const plays = t - cam.heardAt < CAM.grace;
+  for (const n of cam.recent) if (!n.cue && n.t > danLast) danLast = n.t;
+  const danEnd = plays ? Math.min(t, danLast) : t;
   for (const n of cam.recent) {
-    const age = t - n.t;
-    if (age >= CAM.window) continue;
-    if (!n.cue) { lo = Math.min(lo, n.x); hi = Math.max(hi, n.x); danLast = Math.max(danLast, n.t); }
-    else if (age < CAM.cueLinger && cueStage.on) { cueLo = Math.min(cueLo, n.x); cueHi = Math.max(cueHi, n.x); }
+    if (!n.cue) { if (danEnd - n.t < CAM.window && n.t <= t) camAdd(dan, n.x); }
+    else if (t - n.t < CAM.cueLinger && cueStage.on) camAdd(cue, n.x);
   }
   if (cueStage.on && framing.follow) {
-    for (const st of cueSounding.values()) {
-      if (st.m < KEY.first || st.m > KEY.last) continue;
-      const x = keyX(st.m);
-      cueLo = Math.min(cueLo, x); cueHi = Math.max(cueHi, x);
-    }
-    for (const m of cueView.ghost) {
-      if (m < KEY.first || m > KEY.last) continue;
-      const x = keyX(m);
-      cueLo = Math.min(cueLo, x); cueHi = Math.max(cueHi, x);
-    }
+    for (const st of cueSounding.values()) if (st.m >= KEY.first && st.m <= KEY.last) camAdd(cue, keyX(st.m));
+    for (const m of cueView.ghost) if (m >= KEY.first && m <= KEY.last) camAdd(cue, keyX(m));
+    cueAhead(t, ahead);
   }
-  if (cueLo <= cueHi) {
-    let held = false;
-    for (const [m, st] of sounding) {  // a key Daniel is still holding keeps his hands in the frame, however old the strike
-      if (!st.held || m < KEY.first || m > KEY.last) continue;
-      held = true;
-      const x = keyX(m);
-      lo = Math.min(lo, x); hi = Math.max(hi, x);
-    }
-    if (!held && t - danLast >= CAM.playing) { lo = cueLo; hi = cueHi; }  // Daniel is listening: Claude's notes
-    else if (Math.max(hi, cueHi) - Math.min(lo, cueLo) + 6 <= CAM.union) { lo = Math.min(lo, cueLo); hi = Math.max(hi, cueHi); }
+  if (ahead.lo <= ahead.hi && cue.lo > cue.hi) { cue.lo = ahead.lo; cue.hi = ahead.hi; ahead.lo = Infinity; ahead.hi = -Infinity; }
+  let lo = dan.lo, hi = dan.hi;
+  if (cue.lo <= cue.hi) {
+    const fits = (a, b) => Math.max(a.hi, b.hi) - Math.min(a.lo, b.lo) + 6 <= CAM.union;
+    const both = { lo: Math.min(cue.lo, ahead.lo), hi: Math.max(cue.hi, ahead.hi) };
+    if (!plays || dan.lo > dan.hi) { lo = both.lo; hi = both.hi; }  // Daniel has stopped: Claude's notes
+    else if (fits(dan, both)) { lo = Math.min(lo, both.lo); hi = Math.max(hi, both.hi); }
+    else if (fits(dan, cue)) { lo = Math.min(lo, cue.lo); hi = Math.max(hi, cue.hi); }
   }
-  let targetX = 0, targetSpan = 57;
+  let targetX = 0, targetSpan = 57, hurry = 0;
   if (framing.follow) {
     targetSpan = lo <= hi ? clamp(hi - lo + 6, framing.minSpan, 57) : Math.max(cam.span, framing.minSpan);
     targetX = lo <= hi ? (lo + hi) / 2 : cam.x;
     targetX = clamp(targetX, -28.5 + targetSpan / 2, 28.5 - targetSpan / 2);
+    // how far the keys to frame lie outside the view the camera has now (in white keys): hurry 0 inside it, 1 from 2 keys out
+    if (lo <= hi) hurry = clamp(Math.max(cam.x - cam.span / 2 + 1 - lo, hi - cam.x - cam.span / 2 + 1) / 2, 0, 1);
   }
-  cam.x = snap ? targetX : damp(cam.x, targetX, 1.2, dt);
-  cam.span = snap ? targetSpan : damp(cam.span, targetSpan, 1.6, dt);
+  cam.hurry = hurry;
+  cam.x = snap ? targetX : damp(cam.x, targetX, lerp(1.2, CAM.hurry, hurry), dt);
+  cam.span = snap ? targetSpan : damp(cam.span, targetSpan, lerp(1.6, CAM.hurry, hurry), dt);
 
   const vfov = THREE.MathUtils.degToRad(framing.fov);
   const aspect = framing.w / framing.h;
@@ -1957,6 +1998,7 @@ function replayColor(m, vel, target) {  // Daniel's pitch colour at 55% saturati
 
 function cueNoteOn(m, vel, meta) {
   const t = clock();
+  if (meta && Number.isFinite(meta.at)) cueStepStarted(meta, meta.at / 1000 - T0);  // meta.at: the strike's performance.now()
   const replay = !!meta && meta.source === "replay";
   const prev = cueSounding.get(m);
   if (prev && prev.trail) trails.end(prev.trail, t);  // a restrike closes the old column
@@ -1970,13 +2012,15 @@ function cueNoteOn(m, vel, meta) {
   k.cueTarget = cueDepth(vel);
   k.cueReplay = replay;
   // a replay's glass quad takes the key's own faded colour; Claude's key the moonlight capped under Daniel's light (moonColor)
-  if (replay) { replayColor(m, vel, k.cueColor); k.cueCss = k.cueColor.getStyle(); } else moonColor(vel, k.cueColor);
+  if (replay) { replayColor(m, vel, k.cueColor); k.cueCss = k.cueColor.getStyle(); }
+  else { moonColor(vel, k.cueColor); moonSurface(vel, k.cueSurface); }
   k.cueGlowTarget = cueGlowLevel(st, t);
   if (cueOnStage()) hintCamera(m, t, true);  // off the canvas (glass, or auto while REC runs) Claude never moves the view
   hideIdleHint();
   // deliberately absent: burst, lightNote, logged(...), pcHistory, stats.noteOns++, detectDirty, before/afterChange
 }
-function cueNoteOff(m) {
+function cueNoteOff(m, meta) {
+  cueCancelled(meta);
   const st = cueSounding.get(m);
   if (!st) return;
   const t = clock();
@@ -1984,6 +2028,52 @@ function cueNoteOff(m) {
   cueSounding.delete(m);
   const k = keys.get(m);
   if (k) { k.cueTarget = 0; k.cueGlowTarget = 0; }  // Claude's fields only: a key Daniel holds stays down and lit
+}
+
+// The schedule of Claude's sequences, for the camera's look-ahead (updateCamera, cueAhead): cue id -> { base, steps,
+// created }. steps: [{ at, notes }], seconds from the sequence's 0 ms, at the index the player reports (meta.step: a cue's
+// own step order). base: the clock time that 0 ms fell on, known once one of its steps has started (the player may start
+// a cue later than it arrived, behind a backlog); until then the plan looks ahead to nothing. A clear or a page hide drops
+// every plan, a backlog cue the player dropped its own; a plan with no step still to land drops itself, and one that
+// never started goes after CUE_PLAN_STALE s.
+const cuePlans = new Map();
+const CUE_PLAN_STALE = 60;
+function planCue(cue, id, t = clock()) {
+  if (!cue || typeof cue !== "object") return;
+  if (cue.type === "clear") { cuePlans.clear(); return; }
+  if (cue.type !== "sequence" || !Array.isArray(cue.steps)) return;
+  for (const [key, p] of cuePlans) if (p.base === null && t - p.created > CUE_PLAN_STALE) cuePlans.delete(key);
+  const steps = cue.steps.map((s) => ({
+    at: (s && Number.isFinite(s.at_ms) ? s.at_ms : 0) / 1000,
+    notes: (s && Array.isArray(s.notes) ? s.notes : []).filter((m) => Number.isInteger(m) && m >= KEY.first && m <= KEY.last),
+  }));
+  cuePlans.set(id, { base: null, steps, created: t });
+}
+// A step began at clock time `at` (a strike's own time, or now for a hover). An arpeggio's later notes start after the
+// step does, so the earliest report is the step's start.
+function cueStepStarted(meta, at) {
+  const p = meta ? cuePlans.get(meta.cue_id) : null;
+  const s = p && Number.isInteger(meta.step) ? p.steps[meta.step] : null;
+  if (s) p.base = Math.min(p.base ?? Infinity, at - s.at);
+}
+function cueCancelled(meta) {  // the player ended cues early (meta.reason other than "hold")
+  const reason = meta && meta.reason;
+  if (!reason || reason === "hold") return;
+  if (reason === "backlog") cuePlans.delete(meta.cue_id); else cuePlans.clear();
+}
+// The keys of every step of a started sequence that lands after now and within CAM.lookahead s, into box.
+function cueAhead(t, box) {
+  for (const [id, p] of cuePlans) {
+    if (p.base === null) continue;
+    const now = t - p.base;
+    let later = false;
+    for (const s of p.steps) {
+      if (s.at <= now) continue;
+      later = true;
+      if (s.at - now <= CAM.lookahead) for (const m of s.notes) camAdd(box, keyX(m));
+    }
+    if (!later) cuePlans.delete(id);
+  }
 }
 
 // Once per frame, before updateKeys. Leaving the canvas has no fade (the first recorded frame must already be clean):
@@ -2100,8 +2190,8 @@ const cuePlayer = createCuePlayer({
   bassDouble: safeGet(CUE_PREF.bassDouble) === "on",
   noteOn: cueNoteOn,
   noteOff: cueNoteOff,
-  hover: (notes, info) => { cueView.hover = { notes, info }; cueView.ghost = new Set(notes); },
-  clearHover: () => { cueView.hover = null; cueView.ghost = NO_GHOSTS; },
+  hover: (notes, info) => { cueView.hover = { notes, info }; cueView.ghost = new Set(notes); cueStepStarted(info, clock()); },
+  clearHover: (info) => { cueView.hover = null; cueView.ghost = NO_GHOSTS; cueCancelled(info); },
   caption: (info) => { cueView.caption = info; },
   onError: (e) => console.warn("[piano] cue player:", errText(e)),
 });
@@ -2117,6 +2207,7 @@ async function startCues() {
   cueClient = createCueClient({  // the only stream: the client closes it on pagehide and freeze, so no unload handler
     onCue: (cue, info) => {
       noteCue(cue, info.id);
+      planCue(cue, info.id);  // before the player, which may start a step at once
       cuePlayer.handle(cue, info);  // info (sent_at, age_ms) keeps a backlog spaced and the voice in one tab
       const sounds = (cue.type === "play" || cue.type === "sequence") && cue.sound;
       if (sounds && cueVoice.enabled && cueVoice.status() === "needs a click") {
@@ -2131,7 +2222,7 @@ async function startCues() {
     onStatus: (s) => { cueView.status = s; cueUiDirty = true; },
   });
 }
-function hushClaude() { cuePlayer.clear(); }  // Esc / Backspace, and the MIDI panic (CC120/123)
+function hushClaude() { cuePlans.clear(); cuePlayer.clear(); }  // Esc / Backspace, and the MIDI panic (CC120/123)
 // The last cue, for the status readout, the HUD, stats and the REC toast. lastLabel keeps the last cue that had a label, so
 // a clear does not blank it.
 function noteCue(cue, id) {
@@ -3086,7 +3177,7 @@ window.__piano = {
   },
   // Claude's hand, for receipts: play(cue) hands a cue straight to the player, as the stream would (no server)
   cues: { get client() { return cueClient; }, player: cuePlayer, voice: cueVoice, view: cueView, stage: cueStage,
-          play: (cue) => { const id = `local-${++cueLocalSeq}`; noteCue(cue, id); return cuePlayer.handle(cue, { id }); },
+          play: (cue) => { const id = `local-${++cueLocalSeq}`; noteCue(cue, id); planCue(cue, id); return cuePlayer.handle(cue, { id }); },
           clear: () => hushClaude(),
           get chipLabel() { return overlay.cueShown ? overlay.cueShown.label : null; },  // what the chip draws now
           setView: (v) => { cueStage.view = CUE_VIEWS.includes(v) ? v : "auto"; return cueStage.view; } },
@@ -3101,7 +3192,8 @@ window.__piano = {
   camHints() {  // the camera's recent note hints: Daniel's and Claude's
     let cue = 0, daniel = 0;
     for (const n of cam.recent) { if (n.cue) cue++; else daniel++; }
-    return { cue, daniel, x: +cam.x.toFixed(3), span: +cam.span.toFixed(3) };
+    return { cue, daniel, x: +cam.x.toFixed(3), span: +cam.span.toFixed(3), hurry: +cam.hurry.toFixed(3),
+             danielPlays: clock() - cam.heardAt < CAM.grace, plans: cuePlans.size };
   },
   // Where a key's top face lands on the canvas (framing pixels), at its current tilt through this frame's camera: the
   // whole face, or (front) the middle of the part a finger sees, in front of the black keys. For framing and colour receipts.

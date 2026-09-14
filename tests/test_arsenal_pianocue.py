@@ -1323,14 +1323,74 @@ def test_split_progression_splits_chords_inside_a_bar_and_keeps_notes_grouped():
     assert sp("1 4 | 5 1") == ["1", "4", "5", "1"] and sp("1 4 5 1") == ["1", "4", "5", "1"]
     assert sp("Ab2 Eb3 G3 | Bb2 F3 Ab3") == ["Ab2 Eb3 G3", "Bb2 F3 Ab3"]  # notes with octaves: one chord each
     assert sp("57 60 64 | 1") == ["57 60 64", "1"] and sp("Ab2 Eb3 G3:2 | C") == ["Ab2 Eb3 G3:2", "C"]
-    assert sp("Ab7 Db7 | Gb") == ["Ab7 Db7", "Gb"]  # "Ab7" could be a note: the segment stays whole, as before
+    # a chord name that also looks like a note with an octave (C7, G7, E7, A7, Ab7) reads as the chord it names
+    assert sp("Dm7 G7 | Cmaj7") == ["Dm7", "G7", "Cmaj7"] and sp("C7 F7 | Bb7") == ["C7", "F7", "Bb7"]
+    assert sp("E7 A7 | D") == ["E7", "A7", "D"] and sp("Cmaj7 | G7 C") == ["Cmaj7", "G7", "C"]
+    assert sp("Ab7 Db7 | Gb") == ["Ab7", "Db7", "Gb"] and sp("Dm7 G7:2 | C6/9") == ["Dm7", "G7:2", "C6/9"]
+    assert sp("Bb-7 Eb7 | Abmaj7") == ["Bb-7", "Eb7", "Abmaj7"] and sp("C/E G7/D | C") == ["C/E", "G7/D", "C"]
+    assert sp("E13 A13 | D9") == ["E13", "A13", "D9"] and sp("F#m7b5 B7b9 | Em") == ["F#m7b5", "B7b9", "Em"]
+    # a bar with one note that is not also a chord is notes; a voicing all in octave 5 or 6 stays notes
+    assert sp("Ab2 Eb3 G3 | Bb2 F3 Ab3:2") == ["Ab2 Eb3 G3", "Bb2 F3 Ab3:2"] and sp("G7 C4 | C") == ["G7 C4", "C"]
+    assert sp("C5 E5 G5 | D5 F5 A5") == ["C5 E5 G5", "D5 F5 A5"] and sp("C4 E4 G4 | C") == ["C4 E4 G4", "C"]
+    assert sp("C6 E6 G6 | 84 88 91") == ["C6 E6 G6", "84 88 91"] and sp("C5 G7 | F") == ["C5", "G7", "F"]
     # the help's own examples read as the chords they name
     ap = pianocue.build_parser()
     pg = ap._subparsers._group_actions[0].choices["progression"]
     text = " ".join((ap.format_help() + pg.format_help()).split())
     examples = re.findall(r'"([^"]*\|[^"]*)"', text)
     assert {ex: len(sp(ex)) for ex in examples} == {"Abmaj9#11 | Bb7sus4/Eb | Ebmaj9": 3, "4maj9#11 | 5^7sus4/1:2 | 1": 3,
-                                                     "1 4 | 5 1": 4, "Ab2 Eb3 G3 | Bb2 F3 Ab3": 2}, examples
+                                                     "1 4 | 5 1": 4, "Dm7 G7 | Cmaj7": 3,
+                                                     "Ab2 Eb3 G3 | Bb2 F3 Ab3": 2}, examples
+
+
+@needs_node
+def test_progression_bars_of_chords_that_look_like_notes_voice_as_those_chords(server, capsys):
+    listener = SSE(server.port)
+    try:
+        for text, labels in (("Dm7 G7 | Cmaj7", ["Dm7", "G7", "Cmaj7"]), ("C7 F7 | Bb7", ["C7", "F7", "Bb7"]),
+                             ("E7 A7 | D", ["E7", "A7", "D"]), ("Cmaj7 | G7 C", ["Cmaj7", "G7", "C"])):
+            code, out, err = _run(["progression", text, "--bpm", "120", "--beats", "2", "--port", str(server.port)], capsys)
+            assert code == 0 and "cannot" not in err, (text, out, err)
+            assert [s["label"] for s in listener.cue()["cue"]["steps"]] == labels, text
+        code, out, err = _run(["progression", "Ab2 Eb3 G3 | Bb2 F3 Ab3", "--port", str(server.port)], capsys)
+        assert code == 0 and [s["notes"] for s in listener.cue()["cue"]["steps"]] == [[44, 51, 55], [46, 53, 56]], err
+    finally:
+        listener.close()
+
+
+@needs_node
+def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
+    port = str(server.port)
+    listener = SSE(server.port)
+    try:
+        for argv in (["F#m7b5 Bbmaj7#11"], ["F#m7b5", "Bbmaj7#11"]):  # one quoted argument, or two
+            code, out, err = _run(["hover", *argv, "--port", port], capsys)
+            assert code == 0 and "2 chords one after another, 2.5 s each" in out, (out, err)
+            cue = listener.cue()["cue"]
+            assert cue["type"] == "sequence" and cue["label"] == "F#m7b5 | Bbmaj7#11", cue
+            assert [(s["at_ms"], s["hold_ms"], s["type"], s["label"]) for s in cue["steps"]] == [
+                (0, 2500, "hover", "F#m7b5"), (2500, 2500, "hover", "Bbmaj7#11")]  # a hover holds to the next: no blink
+            assert cue["steps"][0]["notes"] == _voice(["F#m7b5"], voicing="spread")[0]["notes"]
+
+        code, out, err = _run(["play", "Dm7", "G7", "Cmaj7", "--hold", "2", "--vel", "50", "--key", "C major", "--port", port],
+                              capsys)
+        assert code == 0, (out, err)
+        cue = listener.cue()["cue"]
+        assert cue["type"] == "sequence" and cue["sound"] is True and cue["detail"] == "in C major"
+        assert [(s["at_ms"], s["hold_ms"], s["type"], s["velocity"], s["detail"]) for s in cue["steps"]] == [
+            (0, 1960, "play", 50, "2m7 in C major"), (2000, 1960, "play", 50, "5^7 in C major"),
+            (4000, 1960, "play", 50, "1maj7 in C major")]
+
+        code, out, err = _run(["hover", "F#m7b5", "Bbmaj7#11", "--hold", "0", "--port", port], capsys)
+        assert code == 2 and "each needs a length" in err and 'progression "F#m7b5 | Bbmaj7#11" --hover' in err, err
+
+        # notes stay one chord: a voicing, MIDI numbers, notes in octave 5
+        for argv, notes in ((["Ab3", "Eb4", "G4"], [56, 63, 67]), (["60 64 67"], [60, 64, 67]), (["C5", "E5", "G5"], [72, 76, 79])):
+            assert _run(["hover", *argv, "--port", port], capsys)[0] == 0
+            cue = listener.cue()["cue"]
+            assert cue["type"] == "hover" and cue["notes"] == notes, (argv, cue)
+    finally:
+        listener.close()
 
 
 @needs_node
