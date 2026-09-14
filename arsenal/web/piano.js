@@ -279,31 +279,91 @@ function safeSet(key, value) { try { localStorage.setItem(key, value); } catch {
 // (C major = teal through blue and violet to pink) and a modulation visibly shifts the palette.
 const COLOUR = { mode: safeGet("arsenal.piano.colour") || "pitch" };
 const fifthsIndex = (pc) => (pc * 7) % 12;
+// Each hue is taken near its own most colourful lightness (blue and violet peak dark, yellow and teal
+// peak light) at 95% of the sRGB edge, so no note is a pastel. A fixed lightness for every hue can only
+// be as saturated as the weakest hue allows, which is what made the old palette chalky.
+const vividCache = new Map();
+function vivid(hDeg, baseL, pull = 0.75) {
+  const key = `${Math.round(hDeg)}:${baseL}:${pull}`;
+  let lc = vividCache.get(key);
+  if (!lc) {
+    let cuspL = 0.5, cuspC = 0;
+    for (let L = 0.3; L <= 0.98; L += 0.01) { const c = maxChroma(L, hDeg); if (c > cuspC) { cuspC = c; cuspL = L; } }
+    const L = lerp(baseL, cuspL, pull);
+    lc = [L, maxChroma(L, hDeg) * 0.95];
+    vividCache.set(key, lc);
+  }
+  return [lc[0], lc[1], hDeg];
+}
 function noteLch(midi, vel) {
   if (COLOUR.mode === "velocity") {
     const t = clamp(vel / 127, 0, 1);
-    return [0.60 + 0.24 * t, 0.13 + 0.05 * t, lerp(255, 350, t)];
+    return vivid(Math.round(lerp(255, 350, t)), 0.62 + 0.2 * t);
   }
-  if (COLOUR.mode === "mono") return [0.80, 0.14, 68];
-  return [0.76, 0.155, (200 + 30 * fifthsIndex(Theory.mod(midi, 12))) % 360];
+  if (COLOUR.mode === "mono") return vivid(68, 0.8, 0.5);
+  return vivid((200 + 30 * fifthsIndex(Theory.mod(midi, 12))) % 360, 0.72);
 }
-function oklchToLinear(L, C, hDeg) {
+function oklchToLinearRaw(L, C, hDeg) {
   const h = (hDeg * Math.PI) / 180;
   const a = C * Math.cos(h), b = C * Math.sin(h);
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
   const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
   const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
-  return [Math.max(0, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-          Math.max(0, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-          Math.max(0, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)];
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+          -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+          -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
 }
+function oklchToLinear(L, C, hDeg) {
+  return oklchToLinearRaw(L, C, hDeg).map((v) => Math.max(0, v));
+}
+function maxChroma(L, hDeg) {  // the largest chroma still inside sRGB at this lightness and hue
+  let lo = 0, hi = 0.4;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (oklchToLinearRaw(L, mid, hDeg).every((v) => v >= -1e-4 && v <= 1.0001)) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+// At their most colourful, hues differ a lot in luminance (yellow-green is about 4.7x violet), which would let a
+// soft yellow note outshine a hard violet one. Pitch colours are pulled most of the way toward the palette's
+// geometric mean luminance, so velocity decides how bright a note is, not its name. Channels above 1 are fine in
+// the linear half-float pipeline; key albedo clamps its own copy (see updateKeys).
+const LUMA_PULL = 0.65;
+const lumaOf = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+let pitchLumaMean = 0;
+const colourCache = new Map();  // numeric keys: 0-11 pitch class, 12 mono, 100+vel velocity; built once per note
 function noteColor(midi, vel, target = new THREE.Color()) {
-  const [r, g, b] = oklchToLinear(...noteLch(midi, vel));
-  return target.setRGB(r, g, b);  // linear working space
+  const pc = Theory.mod(midi, 12);
+  const key = COLOUR.mode === "velocity" ? 100 + Math.round(clamp(vel, 0, 127)) : COLOUR.mode === "mono" ? 12 : pc;
+  let rgb = colourCache.get(key);
+  if (!rgb) {
+    rgb = oklchToLinear(...noteLch(midi, vel));
+    if (COLOUR.mode === "pitch") {
+      if (!pitchLumaMean) {
+        let sum = 0;
+        for (let p = 0; p < 12; p++) sum += Math.log(lumaOf(...oklchToLinear(...noteLch(60 + p, 100))));
+        pitchLumaMean = Math.exp(sum / 12);
+      }
+      const s = Math.pow(pitchLumaMean / Math.max(lumaOf(...rgb), 1e-4), LUMA_PULL);
+      rgb = rgb.map((v) => v * s);
+    }
+    colourCache.set(key, rgb);
+  }
+  return target.setRGB(rgb[0], rgb[1], rgb[2]);  // linear working space
 }
+// Noteheads and chord letters sit on the dark scrim, so they keep a lightness floor (chroma refits to the sRGB edge
+// there); the columns and keys keep each hue's own deeper, most colourful lightness.
+const cssCache = new Map();
 function noteCss(midi, vel, alpha = 1) {
-  const [L, C, h] = noteLch(midi, vel);
-  return `oklch(${L} ${C} ${h} / ${alpha})`;
+  const [l, , h] = noteLch(midi, vel);
+  const key = `${h}:${l.toFixed(3)}`;
+  let lc = cssCache.get(key);
+  if (!lc) {
+    const L = Math.max(l, 0.68);
+    lc = [+L.toFixed(3), +(maxChroma(L, h) * 0.95).toFixed(4)];
+    cssCache.set(key, lc);
+  }
+  return `oklch(${lc[0]} ${lc[1]} ${h} / ${alpha})`;
 }
 
 // ---------------------------------------------------------------- framing --
@@ -425,11 +485,13 @@ let noteLightNext = 0;
 const whiteGeo = new RoundedBoxGeometry(KEY.whiteW, KEY.whiteH, KEY.whiteL, 3, 0.07);
 const blackGeo = new RoundedBoxGeometry(KEY.blackW, KEY.blackH, KEY.blackL, 3, 0.06);
 const keys = new Map();  // midi -> key state
+const IVORY = new THREE.Color(0xdedbd3);
+const keyAlbedo = new THREE.Color();
 for (let m = KEY.first; m <= KEY.last; m++) {
   const black = isBlack(m);
   const material = black
     ? new THREE.MeshPhysicalMaterial({ color: 0x0a0a0d, roughness: 0.3, clearcoat: 1.0, clearcoatRoughness: 0.08, envMap, envMapIntensity: 0.8 })
-    : new THREE.MeshPhysicalMaterial({ color: 0xdedbd3, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.2, envMap, envMapIntensity: 0.35 });
+    : new THREE.MeshPhysicalMaterial({ color: IVORY, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.2, envMap, envMapIntensity: 0.35 });
   const len = black ? KEY.blackL : KEY.whiteL;
   const pivot = new THREE.Group();
   const pivotZ = KEY.back - KEY.pivotBack;
@@ -445,14 +507,46 @@ for (let m = KEY.first; m <= KEY.last; m++) {
 // ----------------------------------------------------------------- trails --
 // One instanced draw for every trail. Each instance stores its note's start, release and
 // sound-end times; the vertex shader places the bar from the clock, so a trail costs nothing
-// per frame on the CPU. The bright part is the held duration; the dim tail is pedal sustain.
+// per frame on the CPU. Each height is a moment in the note's life, so a column draws its loudness over
+// time: a bright strike, a slow sag while it sounds, and a quick let-go when the sound stops.
 const T0 = nowSec();
 const clock = () => nowSec() - T0;
 const FAR = 1e6;
 const TRAIL_MAX = 640;          // the cap: slots are recycled, so a long session never grows
 const TRAIL_SPEED = 6.5;        // world units per second
+// A stretch of column dims as it ages, so a column's life is counted in seconds, not in how much sky the
+// follow camera happens to show. Past TRAIL_LIFE it is black, and is neither drawn nor counted.
+const TRAIL_LIFE = 7.0;
+// Pedal history as a ring texture (60 samples a second): the shader asks whether the pedal was down at the
+// moment each stretch of a held note left its key, so a pedal press lifts the column from there on. The ring
+// is sized to outlast TRAIL_LIFE (512 samples, 8.5 s), so no drawn stretch ever reads a wrapped sample.
+const PEDAL_HZ = 60, PEDAL_LEN = 2 ** Math.ceil(Math.log2((TRAIL_LIFE + 1) * PEDAL_HZ));
+const pedalHist = new THREE.DataTexture(new Uint8Array(PEDAL_LEN), PEDAL_LEN, 1, THREE.RedFormat, THREE.UnsignedByteType);
+pedalHist.magFilter = pedalHist.minFilter = THREE.NearestFilter;
+pedalHist.needsUpdate = true;
+let pedalHistAt = -1;
 const trailUniforms = { uNow: { value: 0 }, uSpeed: { value: TRAIL_SPEED }, uBaseY: { value: RAIL_Y },
-                        uZ: { value: TRAIL_Z }, uTop: { value: 30 }, uPedal: { value: 0 }, uDensity: { value: 1 } };
+                        uZ: { value: TRAIL_Z }, uTop: { value: 30 }, uLife: { value: TRAIL_LIFE }, uPedal: { value: 0 },
+                        uPedalHist: { value: pedalHist }, uDensity: { value: 1 } };
+
+// The light model, shared by the key glow (glowLevel) and the trail shader (as #defines), so a key and its
+// column always agree. Daniel, 2026-09-13: brightest with finger and pedal down together, still clearly lit
+// while only the pedal holds the note, and velocity always counts.
+//   loudness s seconds after the strike, like a struck string: a bright attack (strike, settling on strikeTau),
+//     then a slow sag toward sagFloor on sagTau for as long as the note sounds
+//   state: finger down 1.0, pedalBoost from the moment the pedal also goes down, pedalOnly once released
+//   sound over: releaseFast of the light goes on releaseFastTau, the faint rest on releaseSlowTau; skipped after endCut
+//   a stretch dims on afterglow as it rises; past freshAge it also shares the light budget (see renderFrame)
+const LIGHT = { strike: 0.7, strikeTau: 0.22, sagFloor: 0.5, sagTau: 6.0, pedalBoost: 1.45, pedalOnly: 0.8,
+                releaseFast: 0.82, releaseFastTau: 0.14, releaseSlowTau: 1.2, endCut: 5.0, afterglow: 3.2, freshAge: 0.6 };
+const LIGHT_BUDGET = 1.2;  // old light allowed on screen, in screen-tall columns at full level
+const velFactor = (vel01) => 0.35 + 0.65 * Math.pow(clamp(vel01, 0, 1), 0.8);
+const envelope = (s) => (1 + LIGHT.strike * Math.exp(-s / LIGHT.strikeTau))
+                      * (LIGHT.sagFloor + (1 - LIGHT.sagFloor) * Math.exp(-s / LIGHT.sagTau));
+const releaseLevel = (gone) => LIGHT.releaseFast * Math.exp(-gone / LIGHT.releaseFastTau)
+                             + (1 - LIGHT.releaseFast) * Math.exp(-gone / LIGHT.releaseSlowTau);
+const lightLevel = (vel01, held, pedal, s) => velFactor(vel01) * envelope(s) * (held ? lerp(1, LIGHT.pedalBoost, pedal) : LIGHT.pedalOnly);
+const glslF = (x) => x.toFixed(4);
 const trailGeo = new THREE.InstancedBufferGeometry();
 {
   const base = new THREE.PlaneGeometry(1, 1);
@@ -473,62 +567,90 @@ trailAttr.aT2.array.fill(-FAR);
 trailGeo.instanceCount = TRAIL_MAX;
 const trailMesh = new THREE.Mesh(trailGeo, new THREE.ShaderMaterial({
   uniforms: trailUniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  defines: { STRIKE: glslF(LIGHT.strike), STRIKE_TAU: glslF(LIGHT.strikeTau), SAG_FLOOR: glslF(LIGHT.sagFloor),
+             SAG_TAU: glslF(LIGHT.sagTau), PEDAL_BOOST: glslF(LIGHT.pedalBoost), PEDAL_ONLY: glslF(LIGHT.pedalOnly),
+             RELEASE_FAST: glslF(LIGHT.releaseFast), RELEASE_FAST_TAU: glslF(LIGHT.releaseFastTau),
+             RELEASE_SLOW_TAU: glslF(LIGHT.releaseSlowTau), END_CUT: glslF(LIGHT.endCut),
+             AFTERGLOW: glslF(LIGHT.afterglow), FRESH_AGE: glslF(LIGHT.freshAge) },
   vertexShader: `
-    uniform float uNow, uSpeed, uBaseY, uZ, uTop;
+    uniform float uNow, uSpeed, uBaseY, uZ, uTop, uLife, uPedal;
     attribute float aX, aW, aT0, aT1, aT2, aVel;
     attribute vec3 aColor;
     varying vec2 vP;
-    varying float vBot, vTop, vHold, vW, vVel, vSounding, vHeld, vT1, vT2;
+    varying float vBot, vTop, vW, vT0, vT1, vEnd, vBar, vHeld, vFoot;
     varying vec3 vColor;
+    float envelope(float s) { return (1.0 + STRIKE * exp(-s / STRIKE_TAU)) * (SAG_FLOOR + (1.0 - SAG_FLOOR) * exp(-s / SAG_TAU)); }
+    float letGo(float t, float t1) { float x = clamp((t - t1 + 0.03) / 0.15, 0.0, 1.0); return x * x * (3.0 - 2.0 * x); }
     void main() {
-      float bot = uBaseY + (uNow - min(uNow, aT2)) * uSpeed;
-      if (aT0 < -1e5 || bot > uTop) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
-      float top = uBaseY + (uNow - aT0) * uSpeed;
-      float pad = aW * 1.2;
-      float w = aW + pad * 2.0;
-      float y = mix(bot - pad, max(top, bot + 0.001) + pad, position.y);
+      float end = min(uNow, aT2);
+      float gone = uNow - end;
+      float bot = uBaseY + gone * uSpeed;
+      if (aT0 < -1e5 || bot > uTop || gone > END_CUT) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+      // stretches older than uLife are already black, so a long pedalled note's quad stops there
+      float top = uBaseY + min(uNow - aT0, uLife) * uSpeed;
+      float padX = aW * 0.6;   // halo reach to each side: neighbouring columns barely overlap
+      float padY = aW * 0.8;   // room below for the foot glow and above for the rounded end
+      float w = aW + padX * 2.0;
+      float y = mix(bot - padY, max(top, bot + 0.001) + padY, position.y);
       vP = vec2(position.x * w, y);
-      vBot = bot; vTop = top; vHold = uBaseY + (uNow - min(uNow, aT1)) * uSpeed;
-      vW = aW; vVel = aVel; vColor = aColor; vSounding = aT2 > uNow ? 1.0 : 0.0; vHeld = aT1 > uNow ? 1.0 : 0.0;
-      vT1 = aT1; vT2 = aT2;
+      vBot = bot; vTop = top;
+      vW = aW; vColor = aColor;
+      vT0 = aT0; vT1 = aT1; vEnd = end;
+      // the terms that are the same for the whole column are worked out here once instead of per fragment
+      // once the sound stops the whole column lets go within a few tenths of a second, leaving a faint ghost
+      float release = RELEASE_FAST * exp(-gone / RELEASE_FAST_TAU) + (1.0 - RELEASE_FAST) * exp(-gone / RELEASE_SLOW_TAU);
+      vBar = (0.35 + 0.65 * pow(clamp(aVel, 0.0, 1.0), 0.8)) * release;
+      vHeld = 1.0 - letGo(uNow, aT1);
+      // the foot glows with how loud the note is right now
+      vFoot = vBar * envelope(end - aT0) * mix(mix(1.0, PEDAL_BOOST, uPedal), PEDAL_ONLY, 1.0 - vHeld);
       gl_Position = projectionMatrix * modelViewMatrix * vec4(aX + vP.x, y, uZ, 1.0);
     }`,
   fragmentShader: `
-    uniform float uTop, uSpeed, uNow, uPedal, uDensity;
+    uniform float uTop, uSpeed, uNow, uBaseY, uLife, uDensity;
+    uniform sampler2D uPedalHist;
     varying vec2 vP;
-    varying float vBot, vTop, vHold, vW, vVel, vSounding, vHeld, vT1, vT2;
+    varying float vBot, vTop, vW, vT0, vT1, vEnd, vBar, vHeld, vFoot;
     varying vec3 vColor;
     float sdRoundBox(vec2 p, vec2 b, float r) {
       vec2 q = abs(p) - b + r;
       return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
     }
+    float pedalAt(float t) {  // the smoothed pedal level at clock time t, from the ring written in renderFrame
+      float i = mod(floor(t * ${PEDAL_HZ}.0), ${PEDAL_LEN}.0);
+      return texture2D(uPedalHist, vec2((i + 0.5) / ${PEDAL_LEN}.0, 0.5)).r;
+    }
+    // Loudness s seconds after the strike (LIGHT above): a bright attack, then a slow sag. glowLevel() is the same curve.
+    float envelope(float s) { return (1.0 + STRIKE * exp(-s / STRIKE_TAU)) * (SAG_FLOOR + (1.0 - SAG_FLOOR) * exp(-s / SAG_TAU)); }
+    // 0 while the finger is down, easing to 1 over the 0.15 s around the release (no hard step in the column);
+    // written without an edge difference, so FAR for a still-held note stays exact
+    float letGo(float t, float t1) { float x = clamp((t - t1 + 0.03) / 0.15, 0.0, 1.0); return x * x * (3.0 - 2.0 * x); }
     void main() {
       float h = max(vTop - vBot, 0.0);
       float r = min(vW * 0.5, h * 0.5);
       float d = sdRoundBox(vP - vec2(0.0, 0.5 * (vTop + vBot)), vec2(vW * 0.5, h * 0.5), r);
       float core = 1.0 - smoothstep(-0.025, 0.025, d);
-      float halo = exp(-max(d, 0.0) * 4.5 / max(vW, 0.1)) * (1.0 - core);
+      float halo = exp(-max(d, 0.0) * 7.0 / max(vW, 0.1)) * (1.0 - core);
       float axis = 1.0 - smoothstep(0.0, vW * 0.5, abs(vP.x));
-      float held = smoothstep(vHold - 0.1, vHold + 0.1, vP.y);
-      // Brightness follows the note's state, so a pedalled note stays lit all the way down to its key.
+      // te is the moment this stretch left the key: the column is the note's loudness over time, newest at the key
+      float te = clamp(uNow - (vP.y - uBaseY) / uSpeed, vT0, vEnd);
       // Daniel, 2026-09-13: brightest with finger and pedal down together, and velocity always counts.
-      //   finger down: 1.0, rising to 1.25 while the pedal is also down
-      //   released but the pedal still holds it: 0.75, easing to 0.5 as it rings
-      //   sound over: fades toward half of wherever it was as the bar rises away, so a lift reads as a clearing
-      float vf = 0.35 + 0.65 * pow(clamp(vVel, 0.0, 1.0), 0.8);
-      float soundEnd = min(vT2, uNow);
-      float ring = 0.5 + 0.25 * exp(-max(soundEnd - vT1, 0.0) / 4.0);
-      float pedalled = step(0.01, soundEnd - min(vT1, uNow));
-      float level = vHeld > 0.5 ? mix(1.0, 1.25, uPedal)
-                  : vSounding > 0.5 ? ring
-                  : mix(1.0, ring, pedalled) * (0.5 + 0.5 * exp(-max(uNow - vT2, 0.0) / 0.8));
-      // the stretch played with the finger down reads a touch brighter than the pedalled stretch
-      float energy = vf * level * mix(0.8, 1.0, held) * uDensity;
+      //   finger down: 1.0, rising to PEDAL_BOOST from the moment the pedal also goes down
+      //   released but the pedal still holds it: PEDAL_ONLY, with the envelope still sagging underneath
+      float state = mix(mix(1.0, PEDAL_BOOST, pedalAt(te)), PEDAL_ONLY, letGo(te, vT1));
+      // an old stretch dims as it rises
+      float age = uNow - te;
+      float after = exp(-max(age - 0.5, 0.0) / AFTERGLOW) * (1.0 - smoothstep(uLife * 0.6, uLife, age));
+      // Light budget: the stretch near the key and any column still under a finger spend at full price;
+      // older stretches share what renderFrame allows, so a long pedal dims its history instead of stacking it.
+      float fresh = max(vHeld, 1.0 - smoothstep(FRESH_AGE * 0.5, FRESH_AGE, age));
+      float energy = vBar * envelope(te - vT0) * state * after * mix(uDensity, 1.0, fresh);
       float fade = 1.0 - smoothstep(uTop * 0.6, uTop, vP.y);
-      vec3 col = vColor * (core * (0.75 + 1.15 * axis * axis) + halo * 0.24) * energy;
-      col += vec3(1.0) * core * pow(axis, 3.0) * 0.14 * energy;
-      float fd = length((vP - vec2(0.0, vBot)) * vec2(1.0 / max(vW, 0.1), 1.4));
-      col += vColor * vSounding * level * exp(-fd * 1.9) * 1.5 * vf * uDensity;
+      vec3 col = vColor * (core * (0.55 + 0.9 * axis * axis) + halo * 0.2) * energy;
+      // a hot filament only in the attack, so each strike leaves a bright head that rises away
+      float attack = exp(-(te - vT0) / STRIKE_TAU);
+      col += mix(vColor, vec3(1.0), 0.35) * core * pow(axis, 3.0) * 0.6 * attack * energy;
+      float fd = length((vP - vec2(0.0, vBot)) * vec2(1.4 / max(vW, 0.1), 1.4));
+      col += vColor * vFoot * exp(-fd * 1.9) * 1.1;
       gl_FragColor = vec4(col * fade, 1.0);
     }`,
 }));
@@ -543,7 +665,7 @@ const trails = {
     let slot = -1;
     for (let i = 0; i < TRAIL_MAX; i++) {
       const j = (this.next + i) % TRAIL_MAX;
-      const gone = A.aT0.array[j] < -1e5 || (A.aT2.array[j] < t && RAIL_Y + (t - A.aT2.array[j]) * TRAIL_SPEED > 80);
+      const gone = A.aT0.array[j] < -1e5 || t - A.aT2.array[j] > LIGHT.endCut;  // faded out: the shader skips it
       if (gone) { slot = j; break; }
     }
     if (slot < 0) slot = this.next;  // every slot busy: recycle the oldest in ring order
@@ -557,7 +679,9 @@ const trails = {
     const c = noteColor(m, vel);
     A.aColor.array.set([c.r, c.g, c.b], slot * 3);
     trailsDirty = true;
-    return { slot, t0: t };
+    // the ref keeps the float32 value actually stored: comparing against the double t would never match,
+    // so release() and end() would silently drop every note and all trails would read as held forever
+    return { slot, t0: A.aT0.array[slot] };
   },
   release(ref, t) {
     if (!ref || trailAttr.aT0.array[ref.slot] !== ref.t0) return;
@@ -570,15 +694,26 @@ const trails = {
     trailAttr.aT2.array[ref.slot] = Math.min(trailAttr.aT2.array[ref.slot], t);
     trailsDirty = true;
   },
-  liveCount(t) {
-    let n = 0;
-    const top = trailUniforms.uTop.value;
+  // Visible columns (the shader's cull test), and the light their old stretches spend: each released column's
+  // level times its afterglow integrated from FRESH_AGE up to the top of the screen, as a share of the screen height.
+  // Columns still under a finger are exempt in the shader, so they are not counted here either.
+  scan(t) {
+    const A = trailAttr, top = trailUniforms.uTop.value, G = LIGHT.afterglow;
+    const screen = Math.max(1e-3, (top - RAIL_Y) / TRAIL_SPEED);  // seconds of column the screen shows
+    let live = 0, oldLoad = 0;
     for (let j = 0; j < TRAIL_MAX; j++) {
-      const t2 = trailAttr.aT2.array[j];
-      if (trailAttr.aT0.array[j] > -1e5 && RAIL_Y + (t - Math.min(t, t2)) * TRAIL_SPEED <= top) n++;
+      const t0 = A.aT0.array[j], gone = t - Math.min(t, A.aT2.array[j]);
+      if (t0 < -1e5 || gone > LIGHT.endCut || RAIL_Y + gone * TRAIL_SPEED > top) continue;
+      live++;
+      if (A.aT1.array[j] > t) continue;
+      const a0 = Math.max(gone, LIGHT.freshAge), a1 = Math.min(t - t0, TRAIL_LIFE * 0.8, screen);
+      if (a1 <= a0) continue;
+      const spent = G * (Math.exp(-(a0 - 0.5) / G) - Math.exp(-(a1 - 0.5) / G)) / screen;
+      oldLoad += lightLevel(A.aVel.array[j], false, 0, Math.max(0, t - t0 - 0.5 * (a0 + a1))) * releaseLevel(gone) * spent;
     }
-    return n;
+    return { live, oldLoad };
   },
+  liveCount(t) { return this.scan(t).live; },
   upload() {
     if (!trailsDirty) return;
     for (const attr of Object.values(trailAttr)) attr.needsUpdate = true;
@@ -644,7 +779,7 @@ function burst(m, vel, t) {
     sparkAttr.aLife.array[j] = 0.7 + Math.random() * 1.6;
     sparkAttr.aSize.array[j] = 0.16 + Math.random() * 0.26;
     sparkAttr.aSeed.array[j] = Math.random() * 6.283;
-    sparkAttr.aColor.array.set([c.r * 1.2 + 0.08, c.g * 1.2 + 0.08, c.b * 1.2 + 0.08], j * 3);
+    sparkAttr.aColor.array.set([c.r * 1.3, c.g * 1.3, c.b * 1.3], j * 3);  // no white lift: sparks keep the note's hue
   }
   sparksDirty = true;
 }
@@ -664,7 +799,20 @@ function updateKeys(dt) {
     if (Math.abs(k.depth) < 1e-5 && k.target === 0 && Math.abs(k.v) < 1e-4) { k.depth = 0; k.v = 0; }
     k.pivot.rotation.x = k.depth / k.lever;
     k.glow = damp(k.glow, k.glowTarget, k.glowTarget > k.glow ? 0.012 : 0.22, dt);
-    k.material.emissive.copy(k.color).multiplyScalar(k.glow * (k.black ? 1.7 : 0.7));
+    // a lit white key takes the note's colour into its surface instead of laying a tint over ivory, and sheds
+    // most of its white clearcoat sheen, so it reads as coloured rather than pastel (pedal-held keys too)
+    if (!k.black) {
+      const tint = Math.min(1, k.glow * 2.5);
+      keyAlbedo.copy(k.color);
+      const peak = Math.max(keyAlbedo.r, keyAlbedo.g, keyAlbedo.b);
+      if (peak > 1) keyAlbedo.multiplyScalar(1 / peak);  // a surface can't reflect more than it receives
+      k.material.color.copy(IVORY).lerp(keyAlbedo, tint * 0.95);
+      k.material.clearcoat = 0.5 - 0.35 * tint;  // never 0, so the material never recompiles
+    }
+    // The surface colour is already full by glow 0.4, so above a plain held note the emissive climbs faster: the
+    // pedal boost and hard velocities show on the key itself, capped so a strike doesn't burn to white.
+    const lift = k.black ? k.glow * 1.7 : Math.min(1.4, k.glow * 0.45 + Math.max(0, k.glow - 0.8) * 0.9);
+    k.material.emissive.copy(k.color).multiplyScalar(lift);
   }
   for (const nl of noteLights) {
     nl.target *= Math.exp(-dt / 0.7);
@@ -1074,12 +1222,11 @@ let pcHistoryAt = 0;
 let keyGuess = null;
 const stats = { noteOns: 0 };
 
-// How lit a sounding key is; the trail shader uses the same levels. Daniel, 2026-09-13: brightest with
-// finger and pedal down together, still clearly lit while only the pedal holds the note, velocity always counts.
+// How lit a sounding key is: the shared light model (LIGHT, also the trail shader's), taken at this moment.
+// Daniel, 2026-09-13: brightest with finger and pedal down together, still clearly lit while only the
+// pedal holds the note, velocity always counts.
 function glowLevel(st, t) {
-  const vf = 0.35 + 0.65 * Math.pow(st.vel / 127, 0.8);
-  if (st.held) return vf * (sustain ? 1.25 : 1.0);
-  return vf * (0.5 + 0.25 * Math.exp(-(t - st.tRelease) / 4));
+  return lightLevel(st.vel / 127, st.held, sustain ? 1 : 0, t - st.t0);
 }
 
 function noteOn(m, vel) {
@@ -1624,10 +1771,20 @@ function renderFrame() {
     if (k) k.glowTarget = glowLevel(st, t);  // pedalled notes ring down slowly instead of switching off
   }
   trailUniforms.uPedal.value = damp(trailUniforms.uPedal.value, sustain ? 1 : 0, 0.06, dt);
-  // Past six bars on screen, ease total light down so a long pedalled passage can't wash out the chord
-  // name. It counts every visible bar, not just sounding notes, and dims fast but recovers slowly, so
-  // the bars still rising after a pedal lift don't flare back up.
-  const densityTarget = 1 / Math.sqrt(1 + Math.max(0, trails.liveCount(t) - 6) / 8);
+  // record the pedal for the trail shader's pedalAt(): every sample slot since the last frame gets this level
+  const pedalIdx = Math.floor(t * PEDAL_HZ);
+  if (pedalIdx !== pedalHistAt) {
+    const level = Math.round(clamp(trailUniforms.uPedal.value, 0, 1) * 255);
+    for (let i = Math.max(pedalHistAt + 1, pedalIdx - PEDAL_LEN + 1); i <= pedalIdx; i++) {
+      pedalHist.image.data[((i % PEDAL_LEN) + PEDAL_LEN) % PEDAL_LEN] = level;
+    }
+    pedalHistAt = pedalIdx;
+    pedalHist.needsUpdate = true;
+  }
+  // Light budget: old light (released columns, past their first FRESH_AGE above the key) may add up to
+  // LIGHT_BUDGET screen-tall full-level columns; past that it is scaled down to fit, while fresh strikes, feet and
+  // held notes keep full price. It dims fast but recovers slowly, so a lift doesn't flare the fading columns back up.
+  const densityTarget = Math.min(1, LIGHT_BUDGET / Math.max(trails.scan(t).oldLoad, 1e-3));
   const density = trailUniforms.uDensity;
   density.value = damp(density.value, densityTarget, densityTarget < density.value ? 0.05 : 1.5, dt);
   if (count) glowMix.multiplyScalar(1 / count);
