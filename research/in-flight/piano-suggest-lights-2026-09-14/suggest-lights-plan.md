@@ -437,3 +437,11 @@ Vandor commits each step, since Vandor is the sole committer. No existing file c
   - `readings.js` duplicates Python rules until V2-F, and SR1 is the tripwire;
   - light prices; the KeyLab lip size; whether the KeyLab DIN Out carries the keybed; whether Piano LED Plus accepts notes on MIDI IN; Wi-Fi at the piano; Windows MIDI Services on this update-blocked machine.
 - **Privacy.** This plan holds no session ids, no clock times and no transcriptions. The counts quoted come from `chord-suggestions.md`, already aggregated.
+
+## Daniel's decisions (2026-09-14, answered on Discord)
+
+On Discord Daniel answered the questions below, sent with recommended defaults, with: "Yes to all of them! Really good ideas!". Recorded as:
+- **Q1 (chips):** 3 suggestion chips. A chip's keys light only while you point at it, and a click plays the move.
+- **Q2 (lights):** start with option D, the free on-screen strip, then option A, best DIY. Before anything is bought, Daniel measures the lip behind the KeyLab 88 mk3's keys and checks whether an Ethernet cable reaches the piano. The purchase itself stays his call.
+- **Q3 (page closed):** no. The lights do not need to work with the piano page closed.
+- **Q4 (brightness):** subtle practice lights, with hints dark while recording.

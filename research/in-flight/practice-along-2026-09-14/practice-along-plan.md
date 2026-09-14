@@ -531,3 +531,11 @@ go under `state/arsenal/receipts/along/<check>-<date>/`.
   - the fake-capture flag in this Chrome (section 8);
   - that FL/Kontakt reaches the Loopback (D4);
   - every accuracy figure for real music (AL5, D7).
+
+## Daniel's decisions (2026-09-14, answered on Discord)
+
+On Discord Daniel answered the questions below, sent with recommended defaults, with: "Yes to all of them! Really good ideas!". Recorded as:
+- **Q1 (controls):** simple controls through Windows media controls. No Spotify app registration and no search or playlists in the page for now.
+- **Q2 (recordings):** songs stay out of recordings by default, with a one-click include.
+- **Q3 (following):** key and tempo apply automatically at "fair" confidence, with undo.
+- **Q4 (drills):** yes to about 15 minutes of drills together, scheduled when Daniel is home. The drills play and pause his Spotify.
