@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at da45a213. A bound you discover by collision is not awareness -- this sheet
+> Derived at a886a0af. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,12 +272,19 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (168 numeric constants)
+## Mechanical bounds (184 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
 | `ACTIVITY_TTL` | 25 | core/comm/control.py |  |
 | `AGENT_TTL_SECONDS` | 300 | research/in-flight/t342/dead-modules/multi_agent.py |  |
+| `AREA_ALONE_MS` | 5,000 | arsenal/performance.py | key before it); a part with less playing than AREA_ALONE_MS always joins |
+| `AREA_CONTEXT_MS` | 10,000 | arsenal/performance.py | the sounding time in the 10 s around it (arsenal/practice.py's key path steps the same way |
+| `AREA_FRAME_MS` | 1,000 | arsenal/performance.py | key areas (each part of a session numbered in its own key): one step a second, scoring |
+| `AREA_GAP_MS` | 10,000 | arsenal/performance.py | but never across a silence this long into a key that leaves out more than AREA_GAP_FIT mor |
+| `AREA_MIN_HEARD_MS` | 1,500 | arsenal/performance.py | a step hearing less than this, or fewer than 3 pitch classes, scores every key alike |
+| `AREA_MIN_MS` | 30,000 | arsenal/performance.py | a key area with less playing than this joins the neighbour whose key leaves out less of it |
+| `AREA_SNAP_MS` | 5,000 | arsenal/performance.py | a key change moves to the nearest note-on this close (else to where playing resumes), then |
 | `AURORA_COMBO_OUTPUT_CHARS` | 24,000 | agent/harness/codex_bifrost_wake.py |  |
 | `BACKUP_INTERVAL` | 300 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 5 minutes - routine backup |
 | `BENCH_MIN_SURFACED` | 10 | core/recall/curator.py | exposure floor: it had its chances... |
@@ -345,6 +352,8 @@ Class: reference
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py |  |
 | `IMPLAUSIBLE_MIN_N` | 5 | core/coord/sift.py | below this, a high rate is small-n noise, not an alarm |
 | `INNER_BLOCK_MS` | 120,000 | research/in-flight/t342/dead-modules/scripts__heimdall.py | 2-min inner blocks; loop if a batch is all noise |
+| `IOI_BIN_MS` | 50 | arsenal/performance.py | inter-onset-interval histogram bin width |
+| `IOI_MAX_MS` | 2,000 | arsenal/performance.py | gaps at or above this are counted as pauses, not binned |
 | `LANE_MEMBERSHIP_WINDOW` | 500 | core/comm/bifrost_api.py |  |
 | `LINE_BUDGET` | 120 | core/coord/task_costs.py |  |
 | `MANIFEST_TTL` | 300 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 5 minutes - manifest expires if not refreshed |
@@ -360,25 +369,31 @@ Class: reference
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
+| `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
+| `MAX_STEPS` | 4,000 | arsenal/pianocue.py |  |
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
+| `MAX_TEXT` | 500 | arsenal/pianocue.py |  |
 | `MESSAGE_TTL` | 3,600 | research/in-flight/t342/dead-modules/fast_agent_comm.py | 1 hour |
 | `MESSAGE_TTL_DAYS` | 7 | research/in-flight/t342/dead-modules/multi_agent.py |  |
 | `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
+| `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
 | `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
 | `MONITOR_INTERVAL` | 100 | research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py | ms - fast polling |
 | `NUDGE_TTL` | 120 | core/comm/nudge.py | a nudge auto-expires so a missed pick-up never sticks |
+| `ONSET_MERGE_MS` | 40 | arsenal/performance.py | note-ons within 40 ms of a group's first onset count as one onset (a chord, a roll) |
 | `OUTCOME_MAXLEN` | 20,000 | core/recall/at_action.py |  |
+| `PEDAL_RING_MS` | 10,000 | arsenal/performance.py | a note released under the pedal counts as sounding for this long at most: a pedal held thr |
 | `PER_AGENT_MAXLEN` | 10,000 | core/events/event_log.py | per-agent: a shallower convenience index |
 | `PER_AGENT_MAXLEN` | 10,000 | core/signals/agent_signal_ledger.py | signals retained per agent stream |
 | `PER_STREAM_LIMIT` | 400 | core/comm/flow_trace.py | bounded read per stream; the window trims harder |
@@ -407,6 +422,7 @@ Class: reference
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |
 | `STEER_TTL` | 900 | core/comm/nudge.py | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py |  |
+| `TEMPO_WINDOW_MS` | 25 | arsenal/performance.py | a gap's cluster is every in-range gap within 25 ms of it |
 | `TF_LEN_UNIT` | 4,000 | core/recall/lookback.py | chars of text per EXPECTED occurrence of a matched stem: a 12KB doc |
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py | chars: below this a body is "a pointer with manners" |
 | `TIMEOUT` | 15 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |

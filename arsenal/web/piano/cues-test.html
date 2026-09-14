@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Claude's hand — cue test</title>
+<style>
+  :root { --bg: #07080c; --panel: #10131a; --line: #232838; --ink: #ece8df; --dim: #8d92a2; --gold: #f2b54a;
+          --silver: #d3dbe8; --teal: #35c2b0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px 20px 24px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--dim); margin: 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; background: var(--panel);
+         border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; }
+  .pill { font: 600 12px/1 Consolas, "JetBrains Mono", monospace; padding: 6px 9px; border-radius: 999px;
+          border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .pill[data-state="listening"], .pill[data-state="ready"] { color: #9be7c4; border-color: #2f6b52; }
+  .pill[data-state="connecting"], .pill[data-state="reconnecting"], .pill[data-state="needs a click"] { color: #ffd48a; border-color: #7a5a20; }
+  .pill[data-state="closed"], .pill[data-state="off"], .pill[data-state="unsupported"] { color: #ff9f9f; border-color: #7a2f2f; }
+  .pill[data-state="another tab"], .pill[data-state="paused"] { color: #b9c3d6; border-color: #3a4560; }
+  button, select { font: inherit; color: var(--ink); background: #1a1f2b; border: 1px solid #2e3548; border-radius: 7px; padding: 5px 10px; }
+  button:hover, select:hover { border-color: #4a5572; }
+  button[aria-pressed="true"] { background: #243049; border-color: #5a6ea0; }
+  button.want { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(242, 181, 74, 0.35); }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); }
+  input[type="range"] { width: 120px; accent-color: var(--gold); }
+  .spacer { flex: 1; }
+  .stage { background: #040509; border: 1px solid var(--line); border-radius: 10px; padding: 8px; margin-bottom: 10px; }
+  canvas { display: block; width: 100%; height: 300px; touch-action: none; }
+  .legend { color: var(--dim); font-size: 12px; display: flex; gap: 16px; flex-wrap: wrap; padding: 6px 4px 0; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
+        font: 12px/1.5 Consolas, "JetBrains Mono", monospace; color: #c9cdd8; height: 190px; overflow: auto; white-space: pre-wrap; }
+  .title { color: var(--dim); font-size: 12px; margin: 0 0 4px 2px; }
+  @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Claude's hand</h1>
+    <p class="sub">cue test for /piano &middot; play, hover, sequence, clear</p>
+  </header>
+
+  <section class="bar" aria-label="Connection and voice">
+    <span class="pill" id="conn" data-state="connecting" title="the cue stream">cues: connecting</span>
+    <span class="pill" id="voice-state" data-state="needs a click" title="Claude's voice">voice: needs a click</span>
+    <button type="button" id="btn-voice">Enable voice</button>
+    <label for="vol">Volume <input type="range" id="vol" min="0" max="1" step="0.01" /></label>
+    <label for="midi-out">MIDI out
+      <select id="midi-out" aria-label="Claude's MIDI output"><option value="">none</option></select>
+    </label>
+    <label><input type="checkbox" id="synth" checked /> built-in synth</label>
+    <label title="more harmonics on low notes, so a slash bass is heard on laptop and phone speakers"><input type="checkbox" id="lowlift" checked /> bass lift</label>
+    <label title="a chord's bass below C3 also sounds an octave up, quietly, in the built-in synth only (never MIDI out)"><input type="checkbox" id="bassdouble" /> bass octave</label>
+    <span class="spacer"></span>
+    <span class="pill" id="where" title="where cues come from"></span>
+  </section>
+
+  <div class="stage">
+    <canvas id="kb" aria-label="88-key keyboard: gold keys are Claude playing, silver outlines are Claude hovering, teal keys are yours"></canvas>
+    <div class="legend">
+      <span><span class="sw" style="background: var(--gold)"></span>Claude plays (filled)</span>
+      <span><span class="sw" style="border: 2px solid var(--silver)"></span>Claude hovers (outlined)</span>
+      <span><span class="sw" style="background: var(--teal)"></span>you (click or drag on keys: never touched by cues)</span>
+    </div>
+  </div>
+
+  <section class="bar" aria-label="Local cues">
+    <span class="title" style="margin:0">local cues (straight into the player, no server):</span>
+    <button type="button" data-local="lydian">Play Abmaj9#11</button>
+    <button type="button" data-local="sus">Hover Bb7sus4/Eb</button>
+    <button type="button" data-local="borrowed">Sequence Abm &rarr; Eb</button>
+    <button type="button" data-local="hold">Hold Dbmaj9 (until clear)</button>
+    <button type="button" data-local="replay">Replay "you, at 0:30"</button>
+    <button type="button" data-local="clear">Clear</button>
+  </section>
+
+  <div class="cols">
+    <div><p class="title">events</p><pre id="log"></pre></div>
+    <div><p class="title">state</p><pre id="state"></pre></div>
+  </div>
+</main>
+
+<script type="module">
+import { createCueClient, createCuePlayer, createClaudeVoice } from "./cues.js";
+
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const CUE_URL = params.get("cues") || "/api/piano/cues";
+// the same keys piano.js is to use, so settings carry between the two pages on one origin
+const PREF = { voice: "arsenal.piano.cueVoice", volume: "arsenal.piano.cueVolume", midiOut: "arsenal.piano.cueMidiOut",
+               synth: "arsenal.piano.cueSynth", lowLift: "arsenal.piano.cueLowLift", bassDouble: "arsenal.piano.cueBassDouble" };
+function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } }
+
+// ------------------------------------------------------------ receipt log --
+const events = [];
+const record = (kind, data) => { events.push({ t: performance.now(), kind, ...data }); if (events.length > 20000) events.splice(0, 5000); };
+const slim = (meta) => { if (!meta) return meta; const { notes, ...rest } = meta; return rest; };
+const lines = [];
+let linesDirty = true;
+function log(text) {
+  lines.push(`${(performance.now() / 1000).toFixed(2).padStart(8)}  ${text}`);
+  if (lines.length > 300) lines.shift();
+  linesDirty = true;
+}
+
+// ------------------------------------------------------------------ state --
+const claude = new Map();   // midi -> { vel, level, down }
+const daniel = new Set();   // keys "Daniel" holds on this page (mouse): cues must never touch them
+let hovering = null;        // { notes, info }
+let captionInfo = null;
+let lastCue = null;
+
+const NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
+const noteName = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+
+// ------------------------------------------------------------------ voice --
+let voice = null;
+function syncVoice() {
+  if (!voice) return;
+  const s = voice.status();
+  $("voice-state").textContent = `voice: ${s}`;
+  $("voice-state").dataset.state = s;
+  const b = $("btn-voice");
+  b.textContent = s === "needs a click" ? "Enable voice" : voice.enabled ? "Voice on" : "Voice off";
+  b.setAttribute("aria-pressed", String(s === "ready"));
+  if (s !== "needs a click") b.classList.remove("want");
+}
+voice = createClaudeVoice({
+  volume: Number.parseFloat(safeGet(PREF.volume) ?? "0.7"),
+  enabled: safeGet(PREF.voice) !== "off",
+  internal: safeGet(PREF.synth) !== "off",
+  lowLift: safeGet(PREF.lowLift) === "off" ? 0 : 1,
+  onStatus: (s) => { syncVoice(); log(`voice: ${s}`); record("voice", { status: s }); },
+});
+syncVoice();
+
+// ----------------------------------------------------------------- player --
+const player = createCuePlayer({
+  voice,
+  timer: params.get("timer") || "auto",
+  noteOn(m, vel, meta) {
+    const k = claude.get(m) || { level: 0 };
+    k.vel = vel; k.down = true; k.level = 1;
+    claude.set(m, k);
+    record("on", { midi: m, vel, meta: slim(meta) });
+  },
+  noteOff(m, meta) {
+    const k = claude.get(m);
+    if (k) k.down = false;
+    record("off", { midi: m, meta: slim(meta) });
+  },
+  hover(notes, info) {
+    hovering = { notes, info };
+    record("hover", { notes, meta: slim(info) });
+    log(`hover ${info.label || notes.map(noteName).join(" ")}`);
+  },
+  clearHover(info) {
+    hovering = null;
+    record("clearHover", { meta: slim(info) });
+    log(`hover cleared (${info.reason})`);
+  },
+  caption(info) {
+    captionInfo = info;
+    record("caption", { meta: slim(info) });
+  },
+  onError: (e) => { log(`player error: ${e && (e.message || e)}`); record("error", { error: String(e) }); },
+});
+
+// ----------------------------------------------------------------- client --
+$("where").textContent = CUE_URL;
+const client = createCueClient({
+  url: CUE_URL,
+  onCue(cue, info) {
+    lastCue = { cue, info };
+    record("cue", { id: info.id, type: cue.type, label: cue.label, age_ms: info.age_ms, skew_ms: info.skew_ms });
+    log(`cue #${info.id} ${cue.type}${cue.label ? ` ${cue.label}` : ""} (${info.age_ms} ms old)`);
+    const r = player.handle(cue, info);
+    if (!r.ok) log(`cue #${info.id} refused: ${r.error}`);
+    if ((cue.type === "play" || cue.type === "sequence") && cue.sound && voice.status() === "needs a click") {
+      $("btn-voice").classList.add("want");  // Claude wants to be heard: one click lets the voice sound
+    }
+  },
+  onStatus(s) {
+    $("conn").textContent = `cues: ${s}`;
+    $("conn").dataset.state = s;
+    record("status", { status: s });
+    log(`cues: ${s}`);
+  },
+  onDrop(reason, detail) {
+    record("drop", { reason, detail });
+    log(`dropped (${reason}) ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
+  },
+});
+
+// --------------------------------------------------------------- controls --
+$("btn-voice").addEventListener("click", async () => {
+  if (voice.status() === "needs a click") {
+    await voice.unlock();
+  } else {
+    const on = !voice.enabled;
+    voice.setEnabled(on);
+    safeSet(PREF.voice, on ? "on" : "off");
+    if (on) await voice.unlock();  // still inside the click, so the context may start
+  }
+  syncVoice();
+});
+const vol = $("vol");
+vol.value = String(voice.volume);
+vol.addEventListener("input", () => { voice.setVolume(Number(vol.value)); safeSet(PREF.volume, vol.value); });
+const synth = $("synth");
+synth.checked = voice.internal;
+synth.addEventListener("change", () => { voice.setInternal(synth.checked); safeSet(PREF.synth, synth.checked ? "on" : "off"); });
+const lowlift = $("lowlift");
+lowlift.checked = voice.lowLift > 0;
+lowlift.addEventListener("change", () => { voice.setLowLift(lowlift.checked ? 1 : 0); safeSet(PREF.lowLift, lowlift.checked ? "on" : "off"); });
+const bassdouble = $("bassdouble");
+bassdouble.checked = player.setBassDouble(safeGet(PREF.bassDouble) === "on" || params.get("bassDouble") === "1");
+bassdouble.addEventListener("change", () => { player.setBassDouble(bassdouble.checked); safeSet(PREF.bassDouble, bassdouble.checked ? "on" : "off"); });
+
+const midiSelect = $("midi-out");
+let midiListed = false;
+async function listMidi() {
+  try {
+    const outs = await voice.listMidiOutputs();
+    const keep = midiSelect.value;
+    midiSelect.textContent = "";
+    midiSelect.append(new Option("none", ""));
+    for (const o of outs) midiSelect.append(new Option(`${o.name}${o.state === "disconnected" ? " (disconnected)" : ""}`, o.id));
+    const saved = safeGet(PREF.midiOut);
+    const match = outs.find((o) => o.id === keep) || (!midiListed && saved && outs.find((o) => o.name === saved));
+    midiSelect.value = match ? match.id : "";
+    if (!midiListed && match) await voice.setMidiOutput(match.id);
+    midiListed = true;
+    return outs;
+  } catch (e) {
+    log(`MIDI outputs unavailable: ${e && (e.message || e)}`);
+    return [];
+  }
+}
+// ask for MIDI only when Daniel reaches for the menu (or it was already granted), so the page never prompts on load
+midiSelect.addEventListener("pointerdown", () => { if (!midiListed) listMidi(); });
+midiSelect.addEventListener("focus", () => { if (!midiListed) listMidi(); });
+midiSelect.addEventListener("change", async () => {
+  try {
+    const port = await voice.setMidiOutput(midiSelect.value || null);
+    safeSet(PREF.midiOut, port ? port.name : "");
+    log(`MIDI out: ${port ? port.name : "none"}`);
+  } catch (e) { log(`MIDI out failed: ${e && (e.message || e)}`); }
+  midiSelect.blur();
+});
+(async () => {
+  try { if ((await navigator.permissions.query({ name: "midi" })).state === "granted" && safeGet(PREF.midiOut)) listMidi(); }
+  catch { /* not queryable */ }
+})();
+
+const LOCAL = {
+  lydian: { type: "play", notes: [44, 60, 63, 67, 70, 74], velocity: 92, arpeggio_ms: 45, hold_ms: 3200,
+            label: "Abmaj9#11", detail: "4maj9#11 in Eb major · the Lydian 4" },
+  sus: { type: "hover", notes: [39, 58, 63, 65, 68], hold_ms: 4000, label: "Bb7sus4/Eb",
+         detail: "5 7sus4 over the 1 in Eb major · the suspended 5" },
+  borrowed: { type: "sequence", label: "iv to I", detail: "the borrowed minor 4 resolving home",
+              steps: [{ at_ms: 0, type: "play", notes: [44, 59, 63, 68], hold_ms: 1700, arpeggio_ms: 30, label: "Abm",
+                        detail: "4m in Eb major · borrowed from Eb minor" },
+                      { at_ms: 1800, type: "play", notes: [39, 58, 63, 67, 70], hold_ms: 2600, arpeggio_ms: 30, label: "Eb",
+                        detail: "1 in Eb major · home" }] },
+  hold: { type: "play", notes: [37, 53, 60, 63, 68], hold_ms: 0, arpeggio_ms: 60, label: "Dbmaj9",
+          detail: "b7maj9 in Eb major · borrowed" },
+  replay: { type: "sequence", source: "replay", label: "you, at 0:30", detail: "4 s from the test session",
+            steps: [{ at_ms: 0, type: "play", notes: [48, 55, 63], hold_ms: 1900, label: "Cm", detail: "1m in C minor" },
+                    { at_ms: 1000, type: "play", notes: [67, 72], hold_ms: 800, label: "Cm", detail: "1m in C minor" },
+                    { at_ms: 2000, type: "play", notes: [44, 60, 63], hold_ms: 1900, label: "Ab", detail: "b6 in C minor" }] },
+  clear: { type: "clear" },
+};
+let localSeq = 0;
+function local(name) {
+  const r = player.handle(LOCAL[name], { id: `local-${++localSeq}` });
+  log(`local ${name}${r.ok ? "" : ` refused: ${r.error}`}`);
+  return r;
+}
+for (const b of document.querySelectorAll("[data-local]")) b.addEventListener("click", () => { local(b.dataset.local); b.blur(); });
+
+// ------------------------------------------------------------- the keyboard --
+const canvas = $("kb");
+const g = canvas.getContext("2d");
+const isBlack = (m) => [1, 3, 6, 8, 10].includes(m % 12);
+const whites = [];
+for (let m = 21; m <= 108; m++) if (!isBlack(m)) whites.push(m);
+const whiteIndex = new Map(whites.map((m, i) => [m, i]));
+const CAPTION_H = 128;  // room for a replay's step line under its own caption
+function geometry(W, H) {
+  const top = CAPTION_H + 12, kh = H - top - 22, ww = W / whites.length;
+  return { W, H, top, kh, ww, bw: ww * 0.62, bh: kh * 0.62 };
+}
+function keyRect(m, geo) {
+  if (!isBlack(m)) return { x: whiteIndex.get(m) * geo.ww, y: geo.top, w: geo.ww, h: geo.kh };
+  return { x: (whiteIndex.get(m - 1) + 1) * geo.ww - geo.bw / 2, y: geo.top, w: geo.bw, h: geo.bh };
+}
+function hit(x, y, geo) {
+  for (let m = 21; m <= 108; m++) {
+    if (!isBlack(m)) continue;
+    const r = keyRect(m, geo);
+    if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return m;
+  }
+  if (y < geo.top || y > geo.top + geo.kh) return null;
+  return whites[Math.max(0, Math.min(whites.length - 1, Math.floor(x / geo.ww)))];
+}
+let geo = geometry(1200, 300);
+let dragKey = null;
+canvas.addEventListener("pointerdown", (e) => {
+  const r = canvas.getBoundingClientRect();
+  const m = hit(e.clientX - r.left, e.clientY - r.top, geo);
+  if (m === null) return;
+  canvas.setPointerCapture(e.pointerId);
+  dragKey = m;
+  daniel.add(m);
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (dragKey === null) return;
+  const r = canvas.getBoundingClientRect();
+  const m = hit(e.clientX - r.left, e.clientY - r.top, geo);
+  if (m !== null && m !== dragKey) { daniel.delete(dragKey); dragKey = m; daniel.add(m); }
+});
+const lift = () => { if (dragKey !== null) daniel.delete(dragKey); dragKey = null; };
+canvas.addEventListener("pointerup", lift);
+canvas.addEventListener("pointercancel", lift);
+
+function roundRect(x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function drawCaption() {
+  const info = captionInfo || (hovering ? hovering.info : null);
+  if (!info) {
+    g.fillStyle = "rgba(141, 146, 162, 0.55)";
+    g.font = "500 14px 'Segoe UI', system-ui, sans-serif";
+    g.fillText("waiting for Claude…", 18, 40);
+    return;
+  }
+  const kind = info.kind === "hover" ? "hovering" : info.kind === "sequence" ? "sequence" : "playing";
+  g.font = "600 13px 'Segoe UI', system-ui, sans-serif";
+  const lead = info.source === "replay" ? "YOU  ·  " : "CLAUDE  ·  ";
+  const leadW = g.measureText(lead).width;
+  g.font = "700 30px 'Segoe UI', system-ui, sans-serif";
+  const label = info.label || (hovering ? hovering.notes.map(noteName).join(" ") : "");
+  const labelW = g.measureText(label).width;
+  g.font = "500 15px 'Segoe UI', system-ui, sans-serif";
+  const detail = info.detail || "";
+  const detailW = g.measureText(detail).width;
+  // a replay keeps its own caption on top; the step playing now (its chord, its number) sits on a line under it
+  const under = info.under ? [info.under.label, info.under.detail].filter(Boolean).join("  ·  ") : "";
+  g.font = "600 15px 'Segoe UI', system-ui, sans-serif";
+  const underW = under ? g.measureText(under).width : 0;
+  const w = Math.max(leadW + labelW + 90, detailW + 40, underW + 40), x = 14, y = 12, h = under ? 108 : 84;
+  roundRect(x, y, w, h, 12);
+  g.fillStyle = "rgba(16, 19, 27, 0.92)";
+  g.fill();
+  g.lineWidth = 1.5;
+  g.strokeStyle = info.kind === "hover" ? "rgba(211, 219, 232, 0.85)" : "rgba(242, 181, 74, 0.8)";
+  g.stroke();
+  g.fillStyle = "rgba(211, 219, 232, 0.8)";
+  g.font = "600 13px 'Segoe UI', system-ui, sans-serif";
+  g.fillText(lead, x + 18, y + 38);
+  g.fillStyle = "#f4f1ea";
+  g.font = "700 30px 'Segoe UI', system-ui, sans-serif";
+  g.fillText(label, x + 18 + leadW, y + 42);
+  g.fillStyle = "rgba(141, 146, 162, 0.9)";
+  g.font = "600 11px Consolas, monospace";
+  g.fillText(kind.toUpperCase(), x + 26 + leadW + labelW, y + 40);
+  g.fillStyle = "rgba(236, 232, 223, 0.72)";
+  g.font = "500 15px 'Segoe UI', system-ui, sans-serif";
+  g.fillText(detail, x + 18, y + 68);
+  if (under) {
+    g.fillStyle = "rgba(242, 181, 74, 0.92)";
+    g.font = "600 15px 'Segoe UI', system-ui, sans-serif";
+    g.fillText(under, x + 18, y + 94);
+  }
+}
+function fillKey(r, black, colour, part = 1) {
+  g.fillStyle = colour;
+  const inset = black ? 1 : 1.5;
+  const h = (r.h - inset * 2) * part;
+  g.fillRect(r.x + inset, r.y + r.h - inset - h, r.w - inset * 2, h);
+}
+function drawKeys() {
+  const hoverSet = new Set(hovering ? hovering.notes : []);
+  const paint = (m, black) => {
+    const r = keyRect(m, geo);
+    g.fillStyle = black ? "#101114" : "#e6e2d8";
+    g.fillRect(r.x + (black ? 0 : 0.5), r.y, r.w - (black ? 0 : 1), r.h);
+    const d = daniel.has(m), c = claude.get(m);
+    if (d) fillKey(r, black, "#35c2b0");
+    if (c && c.level > 0.01) {
+      const a = c.level * (0.45 + 0.55 * c.vel / 127);
+      fillKey(r, black, `rgba(242, 181, 74, ${a.toFixed(3)})`, d ? 0.55 : 1);
+    }
+    // silver alone vanishes on ivory (receipt 2026-09-14: a hovered F4 barely showed), so a hovered white key also takes
+    // a cool tint, painted before the black keys so it never lies over them
+    if (!black && hoverSet.has(m)) fillKey(r, black, "rgba(112, 134, 172, 0.34)");
+  };
+  for (const m of whites) paint(m, false);
+  g.fillStyle = "rgba(0,0,0,0.35)";
+  for (let i = 1; i < whites.length; i++) g.fillRect(i * geo.ww - 0.5, geo.top, 1, geo.kh);
+  for (let m = 21; m <= 108; m++) if (isBlack(m)) paint(m, true);
+  // hover: silver outlines with a soft glow, and the note name over each key
+  if (hoverSet.size) {
+    g.save();
+    g.shadowColor = "rgba(211, 219, 232, 0.95)";
+    g.shadowBlur = 14;
+    g.lineWidth = 2.5;
+    for (const m of hoverSet) {
+      const r = keyRect(m, geo);
+      g.strokeStyle = isBlack(m) ? "#d3dbe8" : "#5f7090";  // a slate edge on ivory, silver on black
+      g.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4);
+    }
+    g.restore();
+    g.font = "600 11px 'Segoe UI', system-ui, sans-serif";
+    g.textAlign = "center";
+    g.fillStyle = "#d3dbe8";
+    for (const m of hoverSet) { const r = keyRect(m, geo); g.fillText(noteName(m), r.x + r.w / 2, geo.top - 4); }
+    g.textAlign = "left";
+  }
+  g.font = "500 10px Consolas, monospace";
+  g.fillStyle = "rgba(141, 146, 162, 0.8)";
+  for (const m of whites) if (m % 12 === 0) { const r = keyRect(m, geo); g.fillText(`C${m / 12 - 1}`, r.x + 2, geo.top + geo.kh + 14); }
+}
+let lastFrame = performance.now(), stateAt = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  player.pump();
+  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+  const dpr = window.devicePixelRatio || 1;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
+    canvas.width = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+  }
+  geo = geometry(cw, ch);
+  for (const [m, k] of claude) {
+    if (k.down) continue;
+    k.level *= Math.exp(-dt / 0.18);
+    if (k.level < 0.01) claude.delete(m);
+  }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cw, ch);
+  drawCaption();
+  drawKeys();
+  if (now - stateAt > 250) {
+    stateAt = now;
+    if (linesDirty) { $("log").textContent = lines.slice(-80).join("\n"); $("log").scrollTop = 1e9; linesDirty = false; }
+    const ps = player.state();
+    $("state").textContent = JSON.stringify({
+      client: client.stats(), player: { ...ps, sounding: ps.sounding.map(noteName) },
+      voice: voice.stats(), daniel: [...daniel].map(noteName),
+      last_cue: lastCue ? { id: lastCue.info.id, type: lastCue.cue.type, label: lastCue.cue.label } : null,
+    }, null, 1);
+  }
+}
+requestAnimationFrame(frame);
+
+// for the CDP receipt and DevTools
+window.__cues = {
+  ready: true, client, player, voice, events, local,
+  get hovering() { return hovering ? { notes: hovering.notes, label: hovering.info.label } : null; },
+  get caption() {
+    return captionInfo ? { label: captionInfo.label, detail: captionInfo.detail, kind: captionInfo.kind, source: captionInfo.source,
+                           under: captionInfo.under ? { label: captionInfo.under.label, detail: captionInfo.under.detail } : null } : null;
+  },
+  get claudeKeys() { return [...claude].filter(([, k]) => k.down).map(([m]) => m).sort((a, b) => a - b); },
+  get daniel() { return [...daniel].sort((a, b) => a - b); },
+  pressDaniel(m) { daniel.add(m); },
+  releaseDaniel(m) { daniel.delete(m); },
+};
+</script>
+</body>
+</html>

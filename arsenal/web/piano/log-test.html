@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Practice log test</title>
+<style>
+  body { background: #111; color: #ddd; font: 13px/1.5 ui-monospace, Consolas, monospace; margin: 16px; }
+</style>
+</head>
+<body>
+<h1>Practice log round trip</h1>
+<p>Plays a I-V-vi-IV progression in C with legato pedalling into <code>log.js</code>, in real time.
+With <code>?auto=1</code> the page also creates a log at load (so sessions buffered by an earlier page upload),
+configured by <code>flushMs</code>, <code>uploadEveryMs</code>, <code>maxBatch</code> and <code>idleCloseMs</code>
+in the query, and <code>__logTest.burst()</code> plays into it instantly for the headless buffer check.</p>
+<pre id="out"></pre>
+<script type="module">
+import { createPerformanceLog } from "./log.js";
+
+const out = document.getElementById("out");
+const say = (line) => { out.textContent += line + "\n"; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const clock = () => performance.now() / 1000;
+const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const spell = (m) => ({ name: NAMES[m % 12], octave: Math.floor(m / 12) - 1 });
+const params = new URLSearchParams(location.search);
+const num = (name, fallback) => (params.has(name) ? Number(params.get(name)) : fallback);
+
+// Left hand root + fifth, right hand triad: C, G, Am, F, then home to C.
+const PROGRESSION = [
+  { name: "C", nns: "1", notes: [36, 43, 60, 64, 67] },
+  { name: "G", nns: "5", notes: [43, 50, 59, 62, 67] },
+  { name: "Am", nns: "6m", notes: [45, 52, 60, 64, 69] },
+  { name: "F", nns: "4", notes: [41, 48, 60, 65, 69] },
+];
+
+let log = null;
+
+async function run({ loops = 2, beatMs = 750, flushMs = 300, closeWith = "stop" } = {}) {
+  log = createPerformanceLog({ flushMs, idleCloseMs: 60000, meta: { page: "log-test", closeWith } });
+  const chords = [];
+  for (let i = 0; i < loops; i++) chords.push(...PROGRESSION);
+  chords.push(PROGRESSION[0]);
+  let held = [];
+  const states = new Set();
+  for (const [i, chord] of chords.entries()) {
+    const t = clock();
+    if (i > 0) log.pedal(false, 0, t);                      // lift as the new chord lands (legato pedalling)
+    for (const m of held) log.soundEnd(m, "pedal", t);
+    for (const [j, m] of chord.notes.entries()) log.noteOn(m, 60 + ((i * 7 + j * 5) % 40), t);
+    log.chord({ name: chord.name, notes: chord.notes.map(spell), root: spell(chord.notes[0]), bass: null, key: "C major",
+                nns: chord.nns, nns_key: "C major", key_conf: 0.8, locked: false }, t);
+    held = chord.notes;
+    await sleep(Math.round(beatMs * 0.15));
+    log.pedal(true, 127, clock());                           // catch the chord
+    await sleep(Math.round(beatMs * 0.5));
+    for (const m of held) log.noteOff(m, clock());           // hands leave; the pedal keeps it ringing
+    states.add(log.status().state);
+    await sleep(Math.round(beatMs * 0.35));
+  }
+  log.pedal(false, 0, clock());
+  for (const m of held) log.soundEnd(m, "pedal", clock());
+  log.chord(null, clock());
+  await sleep(200);
+  const session = log.session;
+  say(`played ${chords.length} chords into session ${session}`);
+  if (closeWith === "pagehide") {
+    await sleep(flushMs + 300);                               // let the events upload, then the driver navigates away
+    log.noteOn(72, 90, clock());                              // one last note that only the pagehide beacon can deliver
+    log.noteOff(72, clock() + 0.1);
+    return { session, states: [...states], stats: log.stats() };
+  }
+  const closed = await log.stop();
+  say(`closed: ${closed && closed.session}`);
+  return { session, states: [...states], closed: !!closed, summary: closed && closed.summary, stats: log.stats() };
+}
+
+// Plays `chords` chords instantly with synthetic page-clock times spacingMs apart: notes, chord, pedal down,
+// releases, pedal up and the sounds that lift ended. Every call lands in the log, so the return value is the
+// exact number of events the log recorded (as long as the first chord starts a session).
+function burst(target, { chords = 8, spacingMs = 500 } = {}) {
+  let n = 0;
+  const t0 = clock();
+  for (let i = 0; i < chords; i++) {
+    const chord = PROGRESSION[i % PROGRESSION.length];
+    const t = t0 + (i * spacingMs) / 1000, lift = t + spacingMs / 1000 - 0.01;
+    for (const [j, m] of chord.notes.entries()) { target.noteOn(m, 50 + ((i * 7 + j * 5) % 60), t); n++; }
+    target.chord({ name: chord.name, notes: chord.notes.map(spell), bass: null, key: "C major", nns: chord.nns,
+                   nns_key: "C major", key_conf: 0.8, locked: false }, t); n++;
+    target.pedal(true, 127, t + 0.05); n++;
+    for (const m of chord.notes) { target.noteOff(m, t + 0.2); n++; }
+    target.pedal(false, 0, lift); n++;
+    for (const m of chord.notes) { target.soundEnd(m, "pedal", lift); n++; }
+  }
+  return n;
+}
+
+// What the IndexedDB buffer holds right now, read independently of log.js.
+function idb() {
+  return new Promise((resolve) => {
+    const req = indexedDB.open("arsenal-performance-log", 1);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore("sessions", { keyPath: "local" });
+      req.result.createObjectStore("batches", { keyPath: ["local", "seq"] });
+    };
+    req.onerror = () => resolve({ error: String(req.error) });
+    req.onsuccess = () => {
+      const db = req.result, found = { sessions: 0, batches: 0, events: 0 };
+      const tx = db.transaction(["sessions", "batches"], "readonly");
+      tx.objectStore("sessions").count().onsuccess = (e) => { found.sessions = e.target.result; };
+      tx.objectStore("batches").getAll().onsuccess = (e) => {
+        found.batches = e.target.result.length;
+        found.events = e.target.result.reduce((sum, b) => sum + b.events.length, 0);
+      };
+      tx.oncomplete = () => { db.close(); resolve(found); };
+    };
+  });
+}
+
+function make(options = {}) {
+  window.__log = createPerformanceLog({ meta: { page: "log-test", mode: "auto" }, ...options });
+  return true;
+}
+
+window.__logTest = {
+  run, make, idb,
+  burst: (options) => burst(window.__log, options),
+  status: () => window.__log && window.__log.status(),
+  stats: () => (window.__log || log) && (window.__log || log).stats(),
+  stash: () => localStorage.getItem("arsenal-performance-log:stash"),
+};
+if (params.has("auto")) {
+  make({ flushMs: num("flushMs", 1000), uploadEveryMs: num("uploadEveryMs", 60000), maxBatch: num("maxBatch", 1000),
+         idleCloseMs: num("idleCloseMs", 300000) });
+}
+say("ready");
+</script>
+</body>
+</html>
