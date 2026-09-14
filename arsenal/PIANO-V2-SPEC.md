@@ -87,12 +87,13 @@ The keys, camera, stage and overlay (chord name, staff) stay in the core and are
 
 ## 2. Sustain (core)
 
-- **Brightness, Daniel's rule (2026-09-13):** "notes dont stay lit if I have sustain pressed, when I hold sustain and other notes it should be brighest when I am pressing sustain and note at same time, velocity should be a factor as well".
-  - Finger-held with the pedal down is the brightest state, 1.25.
-  - Finger-held alone is 1.0.
-  - Pedal-held notes stay clearly lit: 0.75, easing to 0.5 as they ring (time constant 4 s).
+- **Brightness, Daniel's rules (2026-09-13):** "notes dont stay lit if I have sustain pressed, when I hold sustain and other notes it should be brighest when I am pressing sustain and note at same time, velocity should be a factor as well". Then, after the first version stacked into a white wall: "Can you make the piano note colors more saturated and visible? also the bloom doesn't seem to decay or go down, it just stacks".
+  - Loudness follows a struck string: a 1.7x strike that settles in about a quarter second, then a slow sag toward half (time constant 6 s) for as long as the note sounds.
+  - State multiplies it: finger held with the pedal down is the brightest state, 1.45; finger held alone is 1.0; pedal-held is 0.8.
   - Every level is scaled by velocity: `0.35 + 0.65·v^0.8`.
-  - Keys and trails share these levels. The live `/piano` already implements them (`glowLevel` and the trail shader in piano.js), and piano-next and every scheme must match.
+  - A trail records this over time. Each stretch shows the loudness and state at the moment it left the key, so the stretch where the pedal went down is visibly brighter. When the sound ends, 82% of the light goes on 0.14 s and the rest on 1.2 s. A stretch dims on a 3.2 s afterglow as it rises and is gone 5 s after its note ended.
+  - Keys and trails share one `LIGHT` object in piano.js: `lightLevel` drives key glow, and the same constants reach the trail shader as `#define`s. piano-next and every scheme must match.
+  - Pitch colours are gamut-mapped to full saturation and pulled toward one shared luminance (spread 4.65x down to 1.71x), so velocity decides how bright a note is, not its name.
 - **Hysteresis:** after polarity, the pedal is down at CC64 ≥ 64 and up below 40. Values from 40 to 63 keep the last state, so half-pedal chatter never flips it.
 - **Polarity:**
   - The setting is `normal` or `inverted`, stored in localStorage `arsenal.piano.pedalPolarity`, with a top-bar toggle.
@@ -108,7 +109,7 @@ The keys, camera, stage and overlay (chord name, staff) stay in the core and are
   - the staff draws their note heads hollow at 60% opacity, while held notes stay solid
   - the chord name still includes them, as today
 - **No wash-out** (Neon Trails, and a rule for every scheme):
-  - Brightness must not grow without bound with note count. Trail energy is scaled by `1 / sqrt(1 + heldAndSounding / 10)` through a per-frame uniform.
+  - Brightness must not grow without bound with note count. Light older than 0.6 s shares a light budget (`LIGHT_BUDGET`, measured in screen-tall columns at full level). The budget dims old light first and never dims a fresh strike, a held key or its foot.
   - The overlay gets a soft dark readability plate behind the chord name and the staff, so they stay legible over any scheme.
   - **Acceptance:** during a dense pedalled synthetic passage (40 notes in 4 s across three octaves, pedal down throughout), mean luma inside the staff box stays below 0.6, and every note head on the staff is visible in the screenshot.
 - **Recording:** see section 3. The pedal mark is part of the frame.
