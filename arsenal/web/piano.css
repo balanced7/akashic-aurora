@@ -228,6 +228,53 @@ select:hover { border-color: var(--ink-3); }
 
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Claude's group. The voice button asks for the one click Chrome needs, in
+   moonlight (the colour of Claude's keys), when a cue has tried to sound. */
+.btn[data-want="true"] {
+  border-color: #C8DCFF;
+  color: #C8DCFF;
+  box-shadow: 0 0 0 2px rgba(200, 220, 255, 0.25);
+  animation: cue-want 1.6s ease-in-out infinite;
+}
+
+@keyframes cue-want { 50% { box-shadow: 0 0 0 4px rgba(200, 220, 255, 0.08); } }
+
+.range {
+  width: 72px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.log-status[data-state="listening"] { color: #C8DCFF; }
+.log-status[data-state="connecting"],
+.log-status[data-state="reconnecting"] { color: var(--accent); }
+.log-status[data-state="paused"] { color: var(--ink-2); }
+.log-status[data-state="error"] { color: var(--control); }
+
+/* Claude's group keeps one width whatever Claude sends or the voice's state:
+   a readout that grew with a progression's label wrapped the top bar and moved
+   the stage. The readout shows only the state word (the last label is in its
+   tooltip and the HUD), the voice button is as wide as its longest label, and
+   the group is tight enough to share the second row at 1600 px. */
+#cue-group { gap: 6px; }
+#cue-group .field { gap: 4px; }
+#cue-group .range { width: 52px; }
+#btn-cue-voice { min-width: 88px; }
+
+#cue-status {
+  display: inline-block;
+  width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+#cue-midi-select { max-width: 150px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn[data-want="true"] { animation: none; }
+}
+
 .meter {
   width: 46px;
   height: 6px;
@@ -263,6 +310,16 @@ select:hover { border-color: var(--ink-3); }
   display: block;
   background: #030407;
   box-shadow: 0 0 0 1px var(--rule);
+}
+
+/* The glass: piano.js gives it the canvas's exact box. It is not part of the
+   canvas, so REC never records it. */
+.cue-glass {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .stage:fullscreen { background: #000; }
