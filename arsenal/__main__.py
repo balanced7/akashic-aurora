@@ -55,7 +55,9 @@ def main(argv=None) -> int:
     fl = sub.add_parser("floors",
                         help="visual floors: pinned checks on a rendered frame (dead, blown, "
                              "flat, illegible) -- so an eye is never spent on a histogram")
-    fl.add_argument("path", help="an image or video frame")
+    fl.add_argument("path", nargs="?", help="an image or video frame")
+    fl.add_argument("--dir", help="census mode: lint every matching frame under this directory")
+    fl.add_argument("--pattern", default="*.jpg", help="census glob (default *.jpg; .png is added)")
     fl.add_argument("--region", help="fractional crop x,y,w,h in 0..1 (e.g. 0,0.06,0.6,0.86)")
     fl.add_argument("--floors", help="comma-separated subset: not_dead,not_blown,variety,legibility")
     fl.add_argument("--set", dest="floor_set", choices=["canvas", "label", "frame"],
@@ -188,6 +190,35 @@ def main(argv=None) -> int:
         names = [n.strip() for n in args.floors.split(",")] if args.floors else None
         if names is None and args.floor_set:
             names = fl_mod.SETS[args.floor_set]
+        if args.dir:
+            receipts = fl_mod.sweep(args.dir, pattern=args.pattern, region=region, floors=names)
+            if not receipts:
+                print(f"no frames matched {args.pattern} under {args.dir}", file=sys.stderr)
+                return 2
+            summary = fl_mod.summarise(receipts)
+            if args.json:
+                print(json.dumps({"summary": summary, "receipts": receipts}, indent=2))
+            else:
+                for r in receipts:
+                    bad = [f"{res['floor']}({', '.join(f'{k}={v}' for k, v in (res.get('measured') or {}).items())})"
+                           for res in r["results"] if not res["pass"]]
+                    mark = "ok  " if r["pass"] else "FAIL"
+                    name = str(r["frame"]).split("receipts")[-1].lstrip("\\/")
+                    print(f"  [{mark}] {name}")
+                    for b in bad:
+                        print(f"          {b}")
+                print(f"census: {summary['frames']} frame(s) -- {summary['passed']} pass, "
+                      f"{summary['failed']} fail, {summary['unreadable']} unreadable"
+                      + (f", pass rate {summary['pass_rate']}" if summary["pass_rate"] is not None else ""))
+                if summary["failures_by_floor"]:
+                    print("  failures by floor: " + ", ".join(f"{k}={v}" for k, v in
+                                                              summary["failures_by_floor"].items()))
+                for note in summary["blind"]:
+                    print(f"  blind: {note}")
+            return 0 if summary["failed"] == 0 else 1
+        if not args.path:
+            print("give a frame path, or --dir for a census", file=sys.stderr)
+            return 2
         receipt = fl_mod.check(args.path, region=region, floors=names)
         if args.json:
             print(json.dumps(receipt, indent=2))
