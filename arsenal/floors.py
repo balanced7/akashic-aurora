@@ -148,9 +148,35 @@ def check_many(paths, *, region=None, floors: Optional[List[str]] = None, **kw) 
     return [check(p, region=region, floors=floors, **kw) for p in paths]
 
 
-def sweep(directory, *, pattern: str = "*.jpg", region=None, **kw) -> List[dict]:
-    """Every matching frame in a directory, sorted -- the batch form a lane or a report uses."""
+def sweep(directory, *, pattern: str = "*.jpg", region=None, floors: Optional[List[str]] = None,
+          **kw) -> List[dict]:
+    """Every matching frame under a directory (recursive), sorted -- the batch form a lane or
+    a census report uses. Recursive because receipts live in per-run subdirectories."""
     d = Path(directory)
     if not d.is_dir():
         return []
-    return check_many(sorted(d.glob(pattern)), region=region, **kw)
+    paths = sorted(list(d.rglob(pattern)) + list(d.rglob(pattern.replace("*.jpg", "*.png"))))
+    return check_many(sorted(set(paths)), region=region, floors=floors, **kw)
+
+
+def summarise(receipts: List[dict]) -> dict:
+    """Counts and the failure leaderboard. A census is only honest if it says how many frames
+    it looked at, how many it could not read, and which floor does most of the failing."""
+    failed = [r for r in receipts if not r["pass"]]
+    unreadable = [r for r in receipts
+                  if any("error" in res for res in r["results"])]
+    by_floor: Dict[str, int] = {}
+    for receipt in failed:
+        for res in receipt["results"]:
+            if not res["pass"]:
+                by_floor[res["floor"]] = by_floor.get(res["floor"], 0) + 1
+    return {
+        "frames": len(receipts),
+        "passed": len(receipts) - len(failed),
+        "failed": len(failed),
+        "unreadable": len(unreadable),
+        "failures_by_floor": dict(sorted(by_floor.items(), key=lambda kv: -kv[1])),
+        "pass_rate": round((len(receipts) - len(failed)) / len(receipts), 3) if receipts else None,
+        "blind": ["frames not matched by the pattern are not in this census",
+                  "a pass means no floor fired, never that the frame is good"],
+    }

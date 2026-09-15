@@ -81,3 +81,33 @@ def test_a_broken_floor_is_a_failed_floor_not_a_traceback(monkeypatch, tmp_path)
     receipt = F.check(str(path), floors=["variety"])
     assert receipt["pass"] is False
     assert "RuntimeError" in receipt["results"][0]["error"]
+
+
+def _png(path, array):
+    with av.open(str(path), mode="w", format="image2") as out:
+        stream = out.add_stream("png", rate=1)
+        stream.width, stream.height, stream.pix_fmt = array.shape[1], array.shape[0], "rgb24"
+        for packet in stream.encode(av.VideoFrame.from_ndarray(array, format="rgb24")):
+            out.mux(packet)
+        for packet in stream.encode():
+            out.mux(packet)
+    return path
+
+
+def test_census_counts_and_names_its_blind_spots(tmp_path):
+    dead = _frame(4)
+    blown = _frame(20)
+    blown[80:, :] = 255
+    healthy = _frame(40)
+    healthy[30:70, 40:200] = np.array([120, 90, 200], dtype=np.uint8)
+    _png(tmp_path / "dead.jpg".replace(".jpg", ".png"), dead)
+    _png(tmp_path / "blown.png", blown)
+    _png(tmp_path / "healthy.png", healthy)
+    receipts = F.sweep(str(tmp_path), floors=F.SETS["canvas"])
+    summary = F.summarise(receipts)
+    assert summary["frames"] == 3
+    assert summary["failed"] == 2 and summary["passed"] == 1
+    assert summary["failures_by_floor"]["not_dead"] >= 1
+    assert summary["failures_by_floor"]["not_blown"] >= 1
+    assert any("not matched" in note for note in summary["blind"])
+    assert any("never that the frame is good" in note for note in summary["blind"])
