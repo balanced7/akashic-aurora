@@ -46,3 +46,28 @@ Status after round 4: the full runner gives 6732 passed and 0 failed, the contra
   - A result whose kind is `cluster` reports band `none` on every path, including the all-rootless template path (ruling above).
   - The root-position aug(add9) (`C3 E3 G#3 D4`) should list `C+(add9)` among its readings.
 
+## Round 5-6 status and the spelling ruling for TN2 (2026-09-15)
+
+**Status after rounds 5-6** (workflow run wf_99e481b7-10a):
+- The full runner gives 6823 passed and 0 failed, and contracts 6191 passed.
+- The real-window lane holds 19/19 with every figure unchanged. The S1-S6 windows show 0 read or detect differences.
+- `detect()` honours `bassMidi` on every path (sweep 0 faults). Cluster band is `none` on every path.
+- The augmented family (aug, aug(add9), maj7#5 named as such) takes the enharmonic root whose 3rd needs no double accidental. For example, `B#+(add9)` in C♯ minor now reads `C+(add9)`.
+- **The code verifier passes.**
+- **The musical verifier still fails, on spelling only, in sharp minor keys.** Its four findings:
+  - a triple-sharp 7#5 in G♯ minor;
+  - a real window whose 7#5 root and bass letters disagree;
+  - ODD basses on top slash names;
+  - maj7#5 voicings named as slash triads, which escape the augmented rule.
+
+These are one class, and one more point rule would not close it. **Ruling:** stop patching point cases in TN1. TN2 implements one general speller for every reading.
+
+**General spelling rule (TN2, before the reader is wired into /piano):**
+1. **Chord tones first.** For each candidate root spelling (the key's spelling, and its enharmonic when that has at most one accidental), spell every chord tone and the bass by letter steps from the root. Score each candidate as the sum of accidentals: a double accidental costs 3, a triple is forbidden, and an ODD letter (B♯, E♯, C♭, F♭) outside the key's scale costs 2.
+2. **Pick the lowest score.** On a tie, take the key's spelling, then the bias spelling.
+3. **Bass follows the same rule.** It is spelled as a chord tone of the chosen root when it is one. Otherwise it is spelled in the key, with the ODD rule applying.
+4. **One speller for the reader and the page.** The page's `spellForKey` respells the reader's info and reintroduces the defect in some keys (`F+(add9)` becomes `E#+(add9)` in F♯ major). When TN2 wires the reader in, `piano.js` uses the reader's spelled name and does not respell it. Or both call the same shared speller module (`piano/spell.js`, which live sheet music LS6 also plans). There must be one speller, not two.
+5. **Receipts:** 0 triple accidentals and 0 double accidentals on a root or bass across the full synthetic sweep (every 3-7 pitch-class set, three voicings, 24 keys and no key, both biases). Every S1-S6 window reads the same or better by the musical verifier's list. Sharp-key V+ chords (`F#+` in B minor, where only the #5 is doubled) keep the key's letters.
+
+**Hand values:** the 6 new strict augmented-root cases stand, pending the musical verifier's one-by-one review in TN2. `Cb+(add9)` in E♭ minor is correct (C♭ is on the scale).
+
