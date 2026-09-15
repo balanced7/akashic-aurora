@@ -1,0 +1,955 @@
+{
+ "note": "LR1 reference numbers. section3: plan section 3 run (scratch quant.mjs -> quant.out, 3 decimals). tempoLane: tempo-meter.md 4.2 recommended configuration on held-out seeds 37, 41, 53 (scratch tracker.mjs re-run 2026-09-14, identical to the published table), freeBands: 9 random pieces, seeds 700-708, ticks after 8 s. Synthetic aggregates only.",
+ "section3": {
+  "ALL": {
+   "oNaive": {
+    "acc": 0.983,
+    "cov": 1,
+    "beat": 0.963,
+    "bar": 0.889
+   },
+   "oNoPrior": {
+    "acc": 0.991,
+    "cov": 1,
+    "beat": 0.984,
+    "bar": 0.949
+   },
+   "oLive": {
+    "acc": 0.994,
+    "cov": 1,
+    "beat": 0.988,
+    "bar": 0.966
+   },
+   "oClean": {
+    "acc": 0.994,
+    "cov": 1,
+    "beat": 0.988,
+    "bar": 0.966
+   },
+   "t30Live": {
+    "acc": 0.979,
+    "cov": 1,
+    "beat": 0.962,
+    "bar": 0.895
+   },
+   "t30Clean": {
+    "acc": 0.981,
+    "cov": 1,
+    "beat": 0.964,
+    "bar": 0.903
+   },
+   "t45Live": {
+    "acc": 0.946,
+    "cov": 1,
+    "beat": 0.905,
+    "bar": 0.768
+   },
+   "t45Clean": {
+    "acc": 0.949,
+    "cov": 1,
+    "beat": 0.911,
+    "bar": 0.788
+   },
+   "iLive": {
+    "acc": 0.974,
+    "cov": 0.443,
+    "beat": 0.436,
+    "bar": 0.37
+   },
+   "iClean": {
+    "acc": 0.976,
+    "cov": 0.443,
+    "beat": 0.437,
+    "bar": 0.372
+   },
+   "n": 81
+  },
+  "rub0": {
+   "oNaive": {
+    "acc": 1,
+    "cov": 1,
+    "beat": 1,
+    "bar": 1
+   },
+   "oNoPrior": {
+    "acc": 1,
+    "cov": 1,
+    "beat": 1,
+    "bar": 1
+   },
+   "oLive": {
+    "acc": 1,
+    "cov": 1,
+    "beat": 1,
+    "bar": 1
+   },
+   "oClean": {
+    "acc": 1,
+    "cov": 1,
+    "beat": 1,
+    "bar": 1
+   },
+   "t30Live": {
+    "acc": 0.996,
+    "cov": 1,
+    "beat": 0.991,
+    "bar": 0.974
+   },
+   "t30Clean": {
+    "acc": 0.996,
+    "cov": 1,
+    "beat": 0.991,
+    "bar": 0.976
+   },
+   "t45Live": {
+    "acc": 0.974,
+    "cov": 1,
+    "beat": 0.952,
+    "bar": 0.87
+   },
+   "t45Clean": {
+    "acc": 0.97,
+    "cov": 1,
+    "beat": 0.95,
+    "bar": 0.872
+   },
+   "iLive": {
+    "acc": 1,
+    "cov": 0.649,
+    "beat": 0.646,
+    "bar": 0.638
+   },
+   "iClean": {
+    "acc": 1,
+    "cov": 0.649,
+    "beat": 0.646,
+    "bar": 0.638
+   },
+   "n": 27
+  },
+  "rub1": {
+   "oNaive": {
+    "acc": 0.991,
+    "cov": 1,
+    "beat": 0.981,
+    "bar": 0.939
+   },
+   "oNoPrior": {
+    "acc": 0.998,
+    "cov": 1,
+    "beat": 0.997,
+    "bar": 0.99
+   },
+   "oLive": {
+    "acc": 0.999,
+    "cov": 1,
+    "beat": 0.998,
+    "bar": 0.992
+   },
+   "oClean": {
+    "acc": 0.998,
+    "cov": 1,
+    "beat": 0.996,
+    "bar": 0.988
+   },
+   "t30Live": {
+    "acc": 0.981,
+    "cov": 1,
+    "beat": 0.964,
+    "bar": 0.911
+   },
+   "t30Clean": {
+    "acc": 0.985,
+    "cov": 1,
+    "beat": 0.969,
+    "bar": 0.924
+   },
+   "t45Live": {
+    "acc": 0.949,
+    "cov": 1,
+    "beat": 0.911,
+    "bar": 0.799
+   },
+   "t45Clean": {
+    "acc": 0.953,
+    "cov": 1,
+    "beat": 0.913,
+    "bar": 0.817
+   },
+   "iLive": {
+    "acc": 0.988,
+    "cov": 0.438,
+    "beat": 0.436,
+    "bar": 0.369
+   },
+   "iClean": {
+    "acc": 0.992,
+    "cov": 0.438,
+    "beat": 0.438,
+    "bar": 0.369
+   },
+   "n": 27
+  },
+  "rub2": {
+   "oNaive": {
+    "acc": 0.958,
+    "cov": 1,
+    "beat": 0.91,
+    "bar": 0.729
+   },
+   "oNoPrior": {
+    "acc": 0.974,
+    "cov": 1,
+    "beat": 0.954,
+    "bar": 0.856
+   },
+   "oLive": {
+    "acc": 0.982,
+    "cov": 1,
+    "beat": 0.967,
+    "bar": 0.906
+   },
+   "oClean": {
+    "acc": 0.984,
+    "cov": 1,
+    "beat": 0.969,
+    "bar": 0.911
+   },
+   "t30Live": {
+    "acc": 0.961,
+    "cov": 1,
+    "beat": 0.931,
+    "bar": 0.801
+   },
+   "t30Clean": {
+    "acc": 0.961,
+    "cov": 1,
+    "beat": 0.932,
+    "bar": 0.809
+   },
+   "t45Live": {
+    "acc": 0.914,
+    "cov": 1,
+    "beat": 0.853,
+    "bar": 0.637
+   },
+   "t45Clean": {
+    "acc": 0.925,
+    "cov": 1,
+    "beat": 0.87,
+    "bar": 0.677
+   },
+   "iLive": {
+    "acc": 0.938,
+    "cov": 0.242,
+    "beat": 0.224,
+    "bar": 0.104
+   },
+   "iClean": {
+    "acc": 0.941,
+    "cov": 0.242,
+    "beat": 0.225,
+    "bar": 0.109
+   },
+   "n": 27
+  },
+  "4/4": {
+   "oNaive": {
+    "acc": 0.984,
+    "cov": 1,
+    "beat": 0.969,
+    "bar": 0.898
+   },
+   "oNoPrior": {
+    "acc": 0.993,
+    "cov": 1,
+    "beat": 0.988,
+    "bar": 0.955
+   },
+   "oLive": {
+    "acc": 0.995,
+    "cov": 1,
+    "beat": 0.99,
+    "bar": 0.965
+   },
+   "oClean": {
+    "acc": 0.995,
+    "cov": 1,
+    "beat": 0.991,
+    "bar": 0.966
+   },
+   "t30Live": {
+    "acc": 0.975,
+    "cov": 1,
+    "beat": 0.957,
+    "bar": 0.87
+   },
+   "t30Clean": {
+    "acc": 0.976,
+    "cov": 1,
+    "beat": 0.957,
+    "bar": 0.871
+   },
+   "t45Live": {
+    "acc": 0.942,
+    "cov": 1,
+    "beat": 0.904,
+    "bar": 0.736
+   },
+   "t45Clean": {
+    "acc": 0.94,
+    "cov": 1,
+    "beat": 0.902,
+    "bar": 0.735
+   },
+   "iLive": {
+    "acc": 0.974,
+    "cov": 0.568,
+    "beat": 0.563,
+    "bar": 0.472
+   },
+   "iClean": {
+    "acc": 0.978,
+    "cov": 0.568,
+    "beat": 0.564,
+    "bar": 0.469
+   },
+   "n": 27
+  },
+  "3/4": {
+   "oNaive": {
+    "acc": 0.981,
+    "cov": 1,
+    "beat": 0.957,
+    "bar": 0.892
+   },
+   "oNoPrior": {
+    "acc": 0.99,
+    "cov": 1,
+    "beat": 0.98,
+    "bar": 0.954
+   },
+   "oLive": {
+    "acc": 0.991,
+    "cov": 1,
+    "beat": 0.983,
+    "bar": 0.962
+   },
+   "oClean": {
+    "acc": 0.99,
+    "cov": 1,
+    "beat": 0.981,
+    "bar": 0.956
+   },
+   "t30Live": {
+    "acc": 0.973,
+    "cov": 1,
+    "beat": 0.946,
+    "bar": 0.88
+   },
+   "t30Clean": {
+    "acc": 0.973,
+    "cov": 1,
+    "beat": 0.945,
+    "bar": 0.877
+   },
+   "t45Live": {
+    "acc": 0.933,
+    "cov": 1,
+    "beat": 0.872,
+    "bar": 0.736
+   },
+   "t45Clean": {
+    "acc": 0.932,
+    "cov": 1,
+    "beat": 0.869,
+    "bar": 0.735
+   },
+   "iLive": {
+    "acc": 0.979,
+    "cov": 0.579,
+    "beat": 0.567,
+    "bar": 0.501
+   },
+   "iClean": {
+    "acc": 0.977,
+    "cov": 0.579,
+    "beat": 0.567,
+    "bar": 0.504
+   },
+   "n": 27
+  },
+  "12/8": {
+   "oNaive": {
+    "acc": 0.985,
+    "cov": 1,
+    "beat": 0.965,
+    "bar": 0.877
+   },
+   "oNoPrior": {
+    "acc": 0.99,
+    "cov": 1,
+    "beat": 0.982,
+    "bar": 0.937
+   },
+   "oLive": {
+    "acc": 0.995,
+    "cov": 1,
+    "beat": 0.992,
+    "bar": 0.971
+   },
+   "oClean": {
+    "acc": 0.996,
+    "cov": 1,
+    "beat": 0.994,
+    "bar": 0.977
+   },
+   "t30Live": {
+    "acc": 0.99,
+    "cov": 1,
+    "beat": 0.982,
+    "bar": 0.936
+   },
+   "t30Clean": {
+    "acc": 0.994,
+    "cov": 1,
+    "beat": 0.989,
+    "bar": 0.961
+   },
+   "t45Live": {
+    "acc": 0.962,
+    "cov": 1,
+    "beat": 0.941,
+    "bar": 0.833
+   },
+   "t45Clean": {
+    "acc": 0.976,
+    "cov": 1,
+    "beat": 0.962,
+    "bar": 0.895
+   },
+   "iLive": {
+    "acc": 0.963,
+    "cov": 0.182,
+    "beat": 0.177,
+    "bar": 0.138
+   },
+   "iClean": {
+    "acc": 0.972,
+    "cov": 0.182,
+    "beat": 0.179,
+    "bar": 0.143
+   },
+   "n": 27
+  },
+  "ballad": {
+   "oNaive": {
+    "acc": 0.98,
+    "cov": 1,
+    "beat": 0.956,
+    "bar": 0.865
+   },
+   "oNoPrior": {
+    "acc": 0.989,
+    "cov": 1,
+    "beat": 0.979,
+    "bar": 0.937
+   },
+   "oLive": {
+    "acc": 0.992,
+    "cov": 1,
+    "beat": 0.984,
+    "bar": 0.955
+   },
+   "oClean": {
+    "acc": 0.991,
+    "cov": 1,
+    "beat": 0.982,
+    "bar": 0.95
+   },
+   "t30Live": {
+    "acc": 0.972,
+    "cov": 1,
+    "beat": 0.953,
+    "bar": 0.861
+   },
+   "t30Clean": {
+    "acc": 0.974,
+    "cov": 1,
+    "beat": 0.955,
+    "bar": 0.866
+   },
+   "t45Live": {
+    "acc": 0.933,
+    "cov": 1,
+    "beat": 0.888,
+    "bar": 0.708
+   },
+   "t45Clean": {
+    "acc": 0.934,
+    "cov": 1,
+    "beat": 0.892,
+    "bar": 0.719
+   },
+   "iLive": {
+    "acc": 0.962,
+    "cov": 0.451,
+    "beat": 0.439,
+    "bar": 0.37
+   },
+   "iClean": {
+    "acc": 0.961,
+    "cov": 0.451,
+    "beat": 0.437,
+    "bar": 0.366
+   },
+   "n": 27
+  },
+  "arp": {
+   "oNaive": {
+    "acc": 0.99,
+    "cov": 1,
+    "beat": 0.975,
+    "bar": 0.921
+   },
+   "oNoPrior": {
+    "acc": 0.995,
+    "cov": 1,
+    "beat": 0.991,
+    "bar": 0.971
+   },
+   "oLive": {
+    "acc": 0.998,
+    "cov": 1,
+    "beat": 0.996,
+    "bar": 0.985
+   },
+   "oClean": {
+    "acc": 0.998,
+    "cov": 1,
+    "beat": 0.997,
+    "bar": 0.99
+   },
+   "t30Live": {
+    "acc": 0.989,
+    "cov": 1,
+    "beat": 0.975,
+    "bar": 0.945
+   },
+   "t30Clean": {
+    "acc": 0.992,
+    "cov": 1,
+    "beat": 0.979,
+    "bar": 0.958
+   },
+   "t45Live": {
+    "acc": 0.969,
+    "cov": 1,
+    "beat": 0.935,
+    "bar": 0.856
+   },
+   "t45Clean": {
+    "acc": 0.972,
+    "cov": 1,
+    "beat": 0.939,
+    "bar": 0.874
+   },
+   "iLive": {
+    "acc": 0.997,
+    "cov": 0.343,
+    "beat": 0.342,
+    "bar": 0.31
+   },
+   "iClean": {
+    "acc": 0.993,
+    "cov": 0.343,
+    "beat": 0.342,
+    "bar": 0.312
+   },
+   "n": 27
+  },
+  "mixed": {
+   "oNaive": {
+    "acc": 0.98,
+    "cov": 1,
+    "beat": 0.959,
+    "bar": 0.882
+   },
+   "oNoPrior": {
+    "acc": 0.989,
+    "cov": 1,
+    "beat": 0.98,
+    "bar": 0.938
+   },
+   "oLive": {
+    "acc": 0.992,
+    "cov": 1,
+    "beat": 0.985,
+    "bar": 0.958
+   },
+   "oClean": {
+    "acc": 0.993,
+    "cov": 1,
+    "beat": 0.986,
+    "bar": 0.959
+   },
+   "t30Live": {
+    "acc": 0.976,
+    "cov": 1,
+    "beat": 0.958,
+    "bar": 0.88
+   },
+   "t30Clean": {
+    "acc": 0.976,
+    "cov": 1,
+    "beat": 0.958,
+    "bar": 0.884
+   },
+   "t45Live": {
+    "acc": 0.934,
+    "cov": 1,
+    "beat": 0.893,
+    "bar": 0.742
+   },
+   "t45Clean": {
+    "acc": 0.94,
+    "cov": 1,
+    "beat": 0.902,
+    "bar": 0.772
+   },
+   "iLive": {
+    "acc": 0.969,
+    "cov": 0.535,
+    "beat": 0.526,
+    "bar": 0.431
+   },
+   "iClean": {
+    "acc": 0.979,
+    "cov": 0.535,
+    "beat": 0.531,
+    "bar": 0.439
+   },
+   "n": 27
+  },
+  "jit15ms": {
+   "oNaive": {
+    "acc": 0.998,
+    "cov": 1,
+    "beat": 0.995,
+    "bar": 0.984
+   },
+   "oNoPrior": {
+    "acc": 0.999,
+    "cov": 1,
+    "beat": 0.999,
+    "bar": 0.997
+   },
+   "oLive": {
+    "acc": 0.999,
+    "cov": 1,
+    "beat": 0.999,
+    "bar": 0.997
+   },
+   "oClean": {
+    "acc": 0.999,
+    "cov": 1,
+    "beat": 0.999,
+    "bar": 0.995
+   },
+   "t30Live": {
+    "acc": 0.993,
+    "cov": 1,
+    "beat": 0.987,
+    "bar": 0.959
+   },
+   "t30Clean": {
+    "acc": 0.993,
+    "cov": 1,
+    "beat": 0.989,
+    "bar": 0.964
+   },
+   "t45Live": {
+    "acc": 0.962,
+    "cov": 1,
+    "beat": 0.934,
+    "bar": 0.828
+   },
+   "t45Clean": {
+    "acc": 0.966,
+    "cov": 1,
+    "beat": 0.941,
+    "bar": 0.846
+   },
+   "n": 27
+  },
+  "jit30ms": {
+   "oNaive": {
+    "acc": 0.963,
+    "cov": 1,
+    "beat": 0.922,
+    "bar": 0.753
+   },
+   "oNoPrior": {
+    "acc": 0.984,
+    "cov": 1,
+    "beat": 0.977,
+    "bar": 0.918
+   },
+   "oLive": {
+    "acc": 0.986,
+    "cov": 1,
+    "beat": 0.979,
+    "bar": 0.927
+   },
+   "oClean": {
+    "acc": 0.987,
+    "cov": 1,
+    "beat": 0.982,
+    "bar": 0.935
+   },
+   "t30Live": {
+    "acc": 0.961,
+    "cov": 1,
+    "beat": 0.936,
+    "bar": 0.805
+   },
+   "t30Clean": {
+    "acc": 0.968,
+    "cov": 1,
+    "beat": 0.947,
+    "bar": 0.84
+   },
+   "t45Live": {
+    "acc": 0.919,
+    "cov": 1,
+    "beat": 0.863,
+    "bar": 0.647
+   },
+   "t45Clean": {
+    "acc": 0.928,
+    "cov": 1,
+    "beat": 0.879,
+    "bar": 0.69
+   },
+   "n": 27
+  },
+  "jit45ms": {
+   "oNaive": {
+    "acc": 0.888,
+    "cov": 1,
+    "beat": 0.76,
+    "bar": 0.4
+   },
+   "oNoPrior": {
+    "acc": 0.904,
+    "cov": 1,
+    "beat": 0.842,
+    "bar": 0.562
+   },
+   "oLive": {
+    "acc": 0.922,
+    "cov": 1,
+    "beat": 0.871,
+    "bar": 0.65
+   },
+   "oClean": {
+    "acc": 0.925,
+    "cov": 1,
+    "beat": 0.878,
+    "bar": 0.676
+   },
+   "t30Live": {
+    "acc": 0.892,
+    "cov": 1,
+    "beat": 0.812,
+    "bar": 0.538
+   },
+   "t30Clean": {
+    "acc": 0.901,
+    "cov": 1,
+    "beat": 0.829,
+    "bar": 0.581
+   },
+   "t45Live": {
+    "acc": 0.847,
+    "cov": 1,
+    "beat": 0.737,
+    "bar": 0.427
+   },
+   "t45Clean": {
+    "acc": 0.852,
+    "cov": 1,
+    "beat": 0.745,
+    "bar": 0.466
+   },
+   "n": 27
+  },
+  "jit60ms": {
+   "oNaive": {
+    "acc": 0.799,
+    "cov": 1,
+    "beat": 0.59,
+    "bar": 0.206
+   },
+   "oNoPrior": {
+    "acc": 0.812,
+    "cov": 1,
+    "beat": 0.682,
+    "bar": 0.312
+   },
+   "oLive": {
+    "acc": 0.82,
+    "cov": 1,
+    "beat": 0.701,
+    "bar": 0.369
+   },
+   "oClean": {
+    "acc": 0.828,
+    "cov": 1,
+    "beat": 0.711,
+    "bar": 0.391
+   },
+   "t30Live": {
+    "acc": 0.78,
+    "cov": 1,
+    "beat": 0.623,
+    "bar": 0.248
+   },
+   "t30Clean": {
+    "acc": 0.784,
+    "cov": 1,
+    "beat": 0.633,
+    "bar": 0.285
+   },
+   "t45Live": {
+    "acc": 0.746,
+    "cov": 1,
+    "beat": 0.569,
+    "bar": 0.191
+   },
+   "t45Clean": {
+    "acc": 0.75,
+    "cov": 1,
+    "beat": 0.575,
+    "bar": 0.214
+   },
+   "n": 27
+  }
+ },
+ "tempoLane": {
+  "all": {
+   "fb": 0.6416,
+   "fbLag": 0.6396,
+   "fAny": 0.7317,
+   "acc1": 0.7101,
+   "acc1s": 0.5775,
+   "acc2": 0.8155,
+   "oct": 0.1054,
+   "flips": 1.6,
+   "meter": 0.8148,
+   "fdb": 0.5777,
+   "lockT": 9.38,
+   "never": 4
+  },
+  "rub0": {
+   "fb": 0.8553,
+   "fbLag": 0.8475,
+   "fAny": 0.9308,
+   "acc1": 0.8908,
+   "acc1s": 0.8908,
+   "acc2": 0.9831,
+   "oct": 0.0923,
+   "flips": 0.4494,
+   "meter": 0.8889,
+   "fdb": 0.9055,
+   "lockT": 5.67,
+   "never": 2
+  },
+  "rub1": {
+   "fb": 0.6144,
+   "fbLag": 0.6075,
+   "fAny": 0.7359,
+   "acc1": 0.8478,
+   "acc1s": 0.648,
+   "acc2": 0.9435,
+   "oct": 0.0957,
+   "flips": 1.5824,
+   "meter": 0.9259,
+   "fdb": 0.6548,
+   "lockT": 6.74,
+   "never": 1
+  },
+  "rub2": {
+   "fb": 0.4551,
+   "fbLag": 0.4637,
+   "fAny": 0.5283,
+   "acc1": 0.3917,
+   "acc1s": 0.1936,
+   "acc2": 0.5198,
+   "oct": 0.1281,
+   "flips": 2.768,
+   "meter": 0.6296,
+   "fdb": 0.1728,
+   "lockT": 15.587,
+   "never": 1
+  },
+  "4/4": {
+   "fb": 0.7276,
+   "fbLag": 0.7289,
+   "fAny": 0.7758,
+   "acc1": 0.7578,
+   "acc1s": 0.6315,
+   "acc2": 0.7966,
+   "oct": 0.0388,
+   "flips": 1.1192,
+   "meter": 0.8889,
+   "fdb": 0.5879,
+   "lockT": 8.593,
+   "never": 0
+  },
+  "3/4": {
+   "fb": 0.6927,
+   "fbLag": 0.6888,
+   "fAny": 0.7396,
+   "acc1": 0.6343,
+   "acc1s": 0.5147,
+   "acc2": 0.7801,
+   "oct": 0.1458,
+   "flips": 1.7139,
+   "meter": 0.6667,
+   "fdb": 0.5814,
+   "lockT": 8.28,
+   "never": 2
+  },
+  "6/8": {
+   "fb": 0.5045,
+   "fbLag": 0.5011,
+   "fAny": 0.6797,
+   "acc1": 0.7383,
+   "acc1s": 0.5862,
+   "acc2": 0.8697,
+   "oct": 0.1315,
+   "flips": 1.9668,
+   "meter": 0.8889,
+   "fdb": 0.5637,
+   "lockT": 11.33,
+   "never": 2
+  },
+  "confusion": {
+   "4/4->4/4": 24,
+   "4/4->6/8": 2,
+   "4/4->12/8": 1,
+   "3/4->3/4": 18,
+   "3/4->6/8": 8,
+   "3/4->4/4": 1,
+   "6/8->6/8": 24,
+   "6/8->12/8": 3
+  },
+  "freeBands": {
+   "steady": 0.0016818028927009755,
+   "loose": 0.20988900100908173,
+   "free": 0.7884291960982173,
+   "lock": 0.617221661621258
+  }
+ }
+}
