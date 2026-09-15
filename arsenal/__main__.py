@@ -46,6 +46,12 @@ def main(argv=None) -> int:
     sb.add_argument("--frames", action="store_true", help="also write one PNG per kept pick")
     sb.add_argument("--json", action="store_true", help="print the whole manifest")
 
+    cp = sub.add_parser("coupling",
+                        help="audio-coupling census of the preset bank: which channels each "
+                             "preset actually reads, and how deeply")
+    cp.add_argument("--dir", help="a preset directory (default arsenal/web/presets)")
+    cp.add_argument("--json", action="store_true")
+
     sub.add_parser("takes", help="list recorded takes")
 
     pf = sub.add_parser("performance", help="the piano practice log: list sessions, print a summary, prune")
@@ -138,6 +144,23 @@ def main(argv=None) -> int:
             print(f"  picks kept  : {len(manifest['picks'])} of {manifest['picks_before_dedupe']}")
             print(f"  sheet       : {'written' if manifest['sheet_written'] else 'NOT written'}")
             print(f"  manifest    : {manifest['manifest_path']}")
+        return 0
+
+    if args.cmd == "coupling":
+        from .presets import coupling_table
+        rows = coupling_table(args.dir)
+        if args.json:
+            print(json.dumps(rows, indent=2))
+        else:
+            print(f"{'preset':<20} {'verdict':<10} {'distinct':>8} {'refs':>5}  channels")
+            for r in rows:
+                channels = ", ".join(f"{k} x{v}" for k, v in sorted(r["used"].items(),
+                                                                     key=lambda kv: -kv[1])) or "-"
+                print(f"{r['id']:<20} {r['verdict']:<10} {r['distinct']:>8} {r['references']:>5}  {channels}")
+            counts = {}
+            for r in rows:
+                counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
+            print("  " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         return 0
 
     if args.cmd == "takes":
