@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Piano lab: instruments</title>
+<!-- A standalone lab for piano/instruments/<id>.js: a simple 88-key row aligned with keyX, one instrument mounted by ?id=,
+     synthetic chords so reactive parts show, and window.__lab for receipts. Same three r186 import map as piano.html.
+     ?id=<instrument> &view=hero|player|close|page &demo=0|1 &allkeys=1 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #010206; overflow: hidden; }
+  canvas#lab { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+  .chord { position: absolute; left: 0; right: 0; top: 6vh; text-align: center; pointer-events: none;
+    font-family: Outfit, Jost, Raleway, "Segoe UI", system-ui, sans-serif; font-weight: 600; letter-spacing: 0.02em;
+    font-size: 6.2vmin; color: #f3f1ec; text-shadow: 0 0 24px rgba(0,0,0,0.9); transition: opacity 0.2s; }
+  .chord small { display: block; font-size: 0.42em; font-weight: 400; letter-spacing: 0.18em; opacity: 0.7; margin-top: 0.3em; }
+  .pick { position: absolute; left: 12px; bottom: 12px; font: 12px "Segoe UI", system-ui, sans-serif; color: #8d97aa; }
+  .pick a { color: #c9d3e6; margin-right: 10px; }
+  .err { position: absolute; left: 12px; top: 12px; right: 12px; color: #ff9a8a; font: 13px ui-monospace, monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<canvas id="lab" aria-label="instrument lab render"></canvas>
+<div class="chord" id="chord" aria-live="polite"></div>
+<div class="pick" id="pick"></div>
+<div class="err" id="err" hidden></div>
+<script type="module" src="piano-lab-instruments.js"></script>
+</body>
+</html>

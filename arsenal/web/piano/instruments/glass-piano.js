@@ -1,0 +1,773 @@
+// Crystal Grand — arsenal/web/piano/instruments/glass-piano.js  (ES module, a piano instrument, no imports)
+//
+// A cast-acrylic grand built around the host's 88-key span. The case (rim, lid, legs, lyre, key blocks, keybed, key slip,
+// fallboard, music desk) is clear MeshPhysicalMaterial transmission; the action inside is opaque and visible through it:
+// a gold plate with a hammer gap, a spruce soundboard, 229 strings, 88 hammers, 68 dampers, tuning pins, three pedals.
+//
+// Proportions: Kawai CR-40A class (L 1850 x W 1500 x H 1000 mm, spec.md section 2 GLASS PIANO), key tops 715 mm above the
+// floor. Host units: 1 unit = one white-key pitch = 23.57 mm (52 whites = 1225.7 mm), key tops at y = 0, white fronts at
+// z = +3.1, key backs at z = -3.1.
+//
+// Reactive (everything decays; nothing glows at rest):
+//  - hammers: a struck key throws its hammer up to the string (faster the harder), it rebounds to check height while the
+//    key is held and falls back on release. The felt tip flashes the note colour, v^2 peak over the bloom threshold,
+//    exp(-age / 0.28 s), with a faint held floor under the threshold.
+//  - strings: the struck note's strings take its colour and fade (0.35 s dry, 1.8 s while held or pedalled).
+//  - dampers: lift while their key is held or the sustain pedal is down; the right pedal dips with the pedal.
+//  - case: a fresnel edge term (no environment map) outlines the crystal; strikes tint it toward the notes' colours,
+//    capped under the bloom threshold.
+//  - music desk: the chord name (state.chord.name, our own text) is etched in the chord's colour, flares on a change.
+//
+// Integration notes for the host: the instrument brings its own keybed, key blocks and key slip, so the host's lacquer
+// stage body should hide while it is mounted (hints.hideStageBody). The legs reach a floor 715 mm below the key tops
+// (hints.floorY = -30.33); the host floor at y = -2.3 would cut them. Nothing in front of z = -3.55 rises above the key
+// tops, so the host's trails (emitted at z = -3.42) are never hidden by the glass.
+// Options (ctx.options or setOptions): lid "auto" (off on the page, long prop in the lab's hero view) | "long" |
+// "short" | "closed" | "off"; glass "crystal" (transmission) | "fast"
+// (plain alpha blend, no transmission pass); desk true | false.
+
+const MM = 1225.7 / 52;
+const DEG = Math.PI / 180;
+const KEY_STYLE = Object.freeze({ whiteColor: 0xe8e4db, blackColor: 0x0b0c10, capHeight: null, frontLip: 0.28 });
+const HINTS = Object.freeze({ hideStageBody: true, floorY: -715 / MM });
+
+const G = Object.freeze({
+  halfW: 31.82, rimTh: 1.3, rimBottom: -3.2, rimTop: 11.5, front: -3.6,
+  blockInner: 26.12, blockFront: 3.85, bedTop: -0.85, bedBottom: -2.3,
+  strY: 2.4, bassStrY: 2.9, agraffeZ: -9.4, strikeZ: -12.3, shank: 5.2, pivotY: -0.99, restTop: 0.4,
+  damperZ: -15.6, plateY0: 1.3, plateY1: 1.9, gap0: -9.6, gap1: -16.8, boardY: -1.6,
+  lidTh: 0.55, lidFrontZ: -8.8, floorY: -715 / MM,
+});
+const LID_ANGLE = { long: 38, short: 10, closed: 0, off: 0 };
+const GLOW = { peak: 5.0, tau: 0.28, held: 0.3 };
+const STR = { peak: 1.1, tauDry: 0.35, tauWet: 1.8 };
+const EDGE = { base: [0.05, 0.06, 0.075], pow: 3.6, gain: 0.05, tau: 1.1, maxLuma: 0.09 };
+const STRING_W = 0.06;  // strings are thin crossed ribbons, not GL lines, so MSAA smooths them
+const ETCH = { level: 0.3, flash: 0.9, tau: 0.5 };
+const CHECK = 0.42;   // share of the blow the hammer is held at while its key stays down
+
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const damp = (a, b, tau, dt) => b + (a - b) * Math.exp(-dt / tau);
+const norm2 = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
+
+// ------------------------------------------------------------------ 2D helpers (x, z) --
+function signedArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; a += p[0] * q[1] - q[0] * p[1]; }
+  return a / 2;
+}
+// Rings along a path in the XZ plane: position, tangent, outward normal n = (t.z, -t.x), miter k. Sharp corners (> 35
+// degrees) get two rings, one per edge, so flat faces keep flat normals.
+function pathRings(pts, closed) {
+  const n = pts.length, out = [], cs = Math.cos(35 * DEG);
+  for (let i = 0; i < n; i++) {
+    const p = pts[i];
+    const dIn = closed || i > 0 ? norm2(p[0] - pts[(i - 1 + n) % n][0], p[1] - pts[(i - 1 + n) % n][1]) : null;
+    const dOut = closed || i < n - 1 ? norm2(pts[(i + 1) % n][0] - p[0], pts[(i + 1) % n][1] - p[1]) : null;
+    const push = (d, k) => out.push({ x: p[0], z: p[1], tx: d[0], tz: d[1], nx: d[1], nz: -d[0], k });
+    if (dIn && dOut) {
+      const dot = dIn[0] * dOut[0] + dIn[1] * dOut[1];
+      if (dot < cs) { push(dIn, 1); push(dOut, 1); } else {
+        const a = norm2(dIn[0] + dOut[0], dIn[1] + dOut[1]);
+        push(a, 1 / Math.max(0.4, a[0] * dIn[0] + a[1] * dIn[1]));
+      }
+    } else push(dIn || dOut, 1);
+  }
+  if (closed) out.push({ ...out[0] });
+  return out;
+}
+function insetPoly(pts, d) {  // closed; positive d moves inward (against the outward normal)
+  const n = pts.length;
+  return pts.map((p, i) => {
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    const di = norm2(p[0] - a[0], p[1] - a[1]), dout = norm2(b[0] - p[0], b[1] - p[1]);
+    const ni = [di[1], -di[0]], no = [dout[1], -dout[0]];
+    const m = norm2(ni[0] + no[0], ni[1] + no[1]);
+    const k = 1 / Math.max(0.3, m[0] * ni[0] + m[1] * ni[1]);
+    return [p[0] - m[0] * d * k, p[1] - m[1] * d * k];
+  });
+}
+function clipPolyZ(pts, zc) {  // closed polygon, keep z <= zc
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], q = pts[(i + 1) % pts.length], pin = p[1] <= zc, qin = q[1] <= zc;
+    if (pin) out.push(p);
+    if (pin !== qin) { const s = (zc - p[1]) / (q[1] - p[1]); out.push([p[0] + (q[0] - p[0]) * s, zc]); }
+  }
+  return out;
+}
+function clipLineZ(pts, zc) {  // open polyline, keep z <= zc
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], pin = p[1] <= zc;
+    if (i > 0) {
+      const q = pts[i - 1];
+      if ((q[1] <= zc) !== pin) { const s = (zc - q[1]) / (p[1] - q[1]); out.push([q[0] + (p[0] - q[0]) * s, zc]); }
+    }
+    if (pin) out.push(p);
+  }
+  return out;
+}
+function resample(pts, maxLen, closed) {
+  const out = [], n = pts.length;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p = pts[i], q = pts[(i + 1) % n], steps = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / maxLen));
+    for (let s = 0; s < steps; s++) out.push([p[0] + (q[0] - p[0]) * s / steps, p[1] + (q[1] - p[1]) * s / steps]);
+  }
+  if (!closed) out.push(pts[n - 1]);
+  return out;
+}
+function inside(poly, x, z) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
+}
+// A rounded rectangle in the (u, v) profile plane, counter-clockwise.
+function rrect(u0, u1, v0, v1, r, seg = 4) {
+  r = Math.min(r, (u1 - u0) / 2 - 1e-4, (v1 - v0) / 2 - 1e-4);
+  const out = [];
+  const arc = (cu, cv, a0) => { for (let s = 0; s <= seg; s++) { const a = (a0 + 90 * s / seg) * DEG; out.push([cu + r * Math.cos(a), cv + r * Math.sin(a)]); } };
+  if (r <= 1e-3) return [[u0, v0], [u1, v0], [u1, v1], [u0, v1]];
+  arc(u1 - r, v0 + r, -90); arc(u1 - r, v1 - r, 0); arc(u0 + r, v1 - r, 90); arc(u0 + r, v0 + r, 180);
+  return out;
+}
+
+// ------------------------------------------------------------------ geometry builders --
+function makeBuilders(THREE) {
+  // Sweep a closed (u, v) profile along XZ rings: u runs along the ring's outward normal, v is world y.
+  function sweep(rings, poly, caps) {
+    if (signedArea(poly) < 0) poly = poly.slice().reverse();
+    const n = poly.length, cs = Math.cos(35 * DEG), prof = [];
+    for (let i = 0; i < n; i++) {
+      const p = poly[i], a = poly[(i - 1 + n) % n], b = poly[(i + 1) % n];
+      const di = norm2(p[0] - a[0], p[1] - a[1]), dout = norm2(b[0] - p[0], b[1] - p[1]);
+      const ni = [di[1], -di[0]], no = [dout[1], -dout[0]];
+      if (di[0] * dout[0] + di[1] * dout[1] < cs) prof.push([p[0], p[1], ni[0], ni[1]], [p[0], p[1], no[0], no[1]]);
+      else { const m = norm2(ni[0] + no[0], ni[1] + no[1]); prof.push([p[0], p[1], m[0], m[1]]); }
+    }
+    prof.push(prof[0].slice());
+    const P = prof.length, R = rings.length, pos = [], nor = [], idx = [];
+    for (const r of rings) for (const q of prof) {
+      const u = q[0] * r.k;
+      pos.push(r.x + r.nx * u, q[1], r.z + r.nz * u);
+      nor.push(r.nx * q[2], q[3], r.nz * q[2]);
+    }
+    for (let i = 0; i < R - 1; i++) for (let j = 0; j < P - 1; j++) {
+      const a = i * P + j, b = (i + 1) * P + j, c = a + 1, d = b + 1;
+      idx.push(a, b, c, c, b, d);
+    }
+    const faceDot = (a, b, c) => {
+      const ax = pos[a * 3], ay = pos[a * 3 + 1], az = pos[a * 3 + 2];
+      const ux = pos[b * 3] - ax, uy = pos[b * 3 + 1] - ay, uz = pos[b * 3 + 2] - az;
+      const vx = pos[c * 3] - ax, vy = pos[c * 3 + 1] - ay, vz = pos[c * 3 + 2] - az;
+      const fx = uy * vz - uz * vy, fy = uz * vx - ux * vz, fz = ux * vy - uy * vx;
+      return fx * (nor[a * 3] + nor[b * 3] + nor[c * 3]) + fy * (nor[a * 3 + 1] + nor[b * 3 + 1] + nor[c * 3 + 1]) + fz * (nor[a * 3 + 2] + nor[b * 3 + 2] + nor[c * 3 + 2]);
+    };
+    let score = 0;
+    for (let k = 0; k < idx.length; k += 3) score += faceDot(idx[k], idx[k + 1], idx[k + 2]);
+    if (score < 0) for (let k = 0; k < idx.length; k += 3) { const t = idx[k + 1]; idx[k + 1] = idx[k + 2]; idx[k + 2] = t; }
+    if (caps) {
+      const tris = THREE.ShapeUtils.triangulateShape(poly.map((p) => new THREE.Vector2(p[0], p[1])), []);
+      for (const end of [0, 1]) {
+        const r = end ? rings[R - 1] : rings[0], sg = end ? 1 : -1, base = pos.length / 3;
+        for (const p of poly) { const u = p[0] * r.k; pos.push(r.x + r.nx * u, p[1], r.z + r.nz * u); nor.push(sg * r.tx, 0, sg * r.tz); }
+        for (const t of tris) {
+          const a = base + t[0], b = base + t[1], c = base + t[2];
+          if (faceDot(a, b, c) >= 0) idx.push(a, b, c); else idx.push(a, c, b);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    g.setIndex(idx);
+    return g;
+  }
+  const slabX = (x0, x1, zf, zb, y0, y1, r) => sweep(pathRings([[x0, 0], [x1, 0]], false), rrect(-zf, -zb, y0, y1, r), true);
+  const slabZ = (zf, zb, xl, xr, y0, y1, r) => sweep(pathRings([[0, zf], [0, zb]], false), rrect(-xr, -xl, y0, y1, r), true);
+  const bar = (x0, z0, x1, z1, hw, y0, y1, r) => sweep(pathRings([[x0, z0], [x1, z1]], false), rrect(-hw, hw, y0, y1, r), true);
+  function capSlab(poly, y0, y1) {  // flat top and bottom caps of a closed XZ polygon (the lid's inner field)
+    const tris = THREE.ShapeUtils.triangulateShape(poly.map((p) => new THREE.Vector2(p[0], -p[1])), []);
+    const cw = signedArea(poly.map((p) => [p[0], -p[1]])) < 0;
+    const pos = [], nor = [], idx = [];
+    for (const [y, up] of [[y1, 1], [y0, -1]]) {
+      const base = pos.length / 3;
+      for (const p of poly) { pos.push(p[0], y, p[1]); nor.push(0, up, 0); }
+      // triangulated in (x, -z): CCW there faces -y after mapping back, so flip for the top
+      for (const t of tris) {
+        const flip = (up > 0) !== cw;
+        idx.push(base + t[0], base + (flip ? t[2] : t[1]), base + (flip ? t[1] : t[2]));
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    g.setIndex(idx);
+    return g;
+  }
+  function merge(list) {
+    const parts = list.map((g) => (g.index ? g.toNonIndexed() : g));
+    let count = 0;
+    for (const g of parts) count += g.attributes.position.count;
+    const pos = new Float32Array(count * 3), nor = new Float32Array(count * 3), uv = new Float32Array(count * 2);
+    let o = 0;
+    for (const g of parts) {
+      pos.set(g.attributes.position.array, o * 3);
+      if (g.attributes.normal) nor.set(g.attributes.normal.array, o * 3);
+      if (g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
+      o += g.attributes.position.count;
+    }
+    for (const g of list) g.dispose();
+    for (const g of parts) g.dispose();
+    const out = new THREE.BufferGeometry();
+    out.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    out.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+    out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    out.computeBoundingSphere();
+    return out;
+  }
+  const at = (g, x, y, z, rx = 0, ry = 0, rz = 0) => {
+    if (rx || ry || rz) g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz)));
+    g.translate(x, y, z);
+    return g;
+  };
+  return { sweep, slabX, slabZ, bar, capSlab, merge, at };
+}
+
+// The case plan: spine straight on the left, rounded tail, a gently concave bentside, a short straight treble cheek.
+// Returned as world (x, z) points from the front-left corner round to the front-right corner.
+function caseOutline(THREE) {
+  const W = G.halfW, f = -G.front;
+  const p = new THREE.Path();
+  p.moveTo(-W, f);
+  p.lineTo(-W, 50);
+  p.bezierCurveTo(-W, 72, -6, 82, -1, 74);
+  p.bezierCurveTo(5, 64.4, 24, 27, W, 17);
+  p.lineTo(W, f);
+  const out = [];
+  for (const v of p.getSpacedPoints(220)) {
+    const q = [v.x, -v.y], last = out[out.length - 1];
+    if (!last || Math.hypot(q[0] - last[0], q[1] - last[1]) > 1e-3) out.push(q);
+  }
+  return out;
+}
+
+function grainTexture(THREE) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 512;
+  const g = c.getContext("2d");
+  g.fillStyle = "#8d6c47";
+  g.fillRect(0, 0, 512, 512);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 260; i++) {
+    const x = rnd() * 512, w = 0.6 + rnd() * 2.6, light = rnd() < 0.5;
+    g.fillStyle = light ? `rgba(236,205,160,${0.05 + rnd() * 0.12})` : `rgba(60,38,20,${0.05 + rnd() * 0.16})`;
+    g.fillRect(x, 0, w, 512);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1 / 26, 1 / 26);
+  t.rotation = 0.55;
+  return t;
+}
+
+export default {
+  id: "glass-piano",
+  name: "Crystal Grand",
+  keyStyle: KEY_STYLE,
+  hints: HINTS,
+
+  create(ctx) {
+    const { THREE, scene } = ctx;
+    const B = makeBuilders(THREE);
+    const KEY = ctx.KEY || { first: 21, last: 108 };
+    const first = KEY.first, N = KEY.last - KEY.first + 1;
+    const keyX = ctx.keyX || ((m) => (m - 21 - 43.5) * 52 / 88);
+    const span = ctx.span || {};
+    const left = span.left ?? keyX(first) - 0.5, right = span.right ?? keyX(KEY.last) + 0.5;
+    const options = { lid: "auto", glass: "crystal", desk: true, ...(ctx.options || {}) };
+    let heroPose = false;  // the lab's hero view poses the lid on its long prop; the page takes it off so action and sky stay clear
+    const fallbackColor = (m, vel, target) => target.setHSL(((m % 12) * 7 % 12) / 12, 0.9, 0.5);
+    const noteColor = ctx.noteColor || fallbackColor;
+    const floorY = ctx.floorY ?? G.floorY;
+
+    const group = new THREE.Group();
+    group.name = "instrument:glass-piano";
+    group.position.x = (left + right) / 2;
+    group.scale.setScalar((right - left) / 52);
+    scene.add(group);
+    const geos = [], mats = [], texs = [];
+    const add = (mesh) => { group.add(mesh); return mesh; };
+
+    // ---------------------------------------------------------------- materials --
+    const edgeU = { value: new THREE.Color(...EDGE.base) }, edgePow = { value: EDGE.pow };
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: 0xf2faff, roughness: 0.035, metalness: 0, transmission: 1, thickness: 1.4, ior: 1.49,
+      attenuationColor: new THREE.Color(0xd2eeff), attenuationDistance: 28, specularIntensity: 1,
+      clearcoat: 0.6, clearcoatRoughness: 0.04,
+    });
+    glass.onBeforeCompile = (sh) => {
+      sh.uniforms.uEdge = edgeU;
+      sh.uniforms.uEdgePow = edgePow;
+      sh.fragmentShader = "uniform vec3 uEdge;\nuniform float uEdgePow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>",
+        "#include <emissivemap_fragment>\n{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);\n  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow); }");
+    };
+    glass.customProgramCacheKey = () => "glass-piano-crystal";
+    const gold = new THREE.MeshPhysicalMaterial({ color: 0xc8a052, metalness: 0.55, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.25 });
+    const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46c, metalness: 0.7, roughness: 0.28 });
+    const grain = grainTexture(THREE);
+    texs.push(grain);
+    const spruce = new THREE.MeshPhysicalMaterial({ color: 0x957250, map: grain, roughness: 0.66 });
+    const maple = new THREE.MeshPhysicalMaterial({ color: 0xc49a66, roughness: 0.55 });
+    const dark = new THREE.MeshPhysicalMaterial({ color: 0x2b2019, roughness: 0.5, clearcoat: 0.4 });
+    const steel = new THREE.MeshPhysicalMaterial({ color: 0xaeb4bd, metalness: 0.6, roughness: 0.3 });
+    const felt = new THREE.MeshPhysicalMaterial({ color: 0xe6e0d2, roughness: 0.9, sheen: 0.8, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffffff) });
+    felt.onBeforeCompile = (sh) => {
+      sh.vertexShader = "attribute vec3 aGlow;\nattribute float aTip;\nvarying vec3 vGlow;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nvGlow = aGlow * aTip;");
+      sh.fragmentShader = "varying vec3 vGlow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vGlow;");
+    };
+    felt.customProgramCacheKey = () => "glass-piano-felt";
+    const stringMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    mats.push(glass, gold, brass, spruce, maple, dark, steel, felt, stringMat);
+
+    function applyGlass(mode) {
+      const fast = mode === "fast";
+      glass.transmission = fast ? 0 : 1;
+      glass.transparent = fast;
+      glass.opacity = fast ? 0.16 : 1;
+      glass.depthWrite = !fast;
+      glass.color.set(fast ? 0xbfe2ff : 0xf2faff);
+      glass.needsUpdate = true;
+    }
+
+    // ---------------------------------------------------------------- the plan --
+    const outline = caseOutline(THREE);                 // U path, front-left round to front-right
+    const innerRim = insetPoly(outline, G.rimTh);        // same indices
+    const hitchPoly = insetPoly(outline, G.rimTh + 1.6);
+    const strutPoly = insetPoly(outline, G.rimTh + 1.3);
+
+    // ---------------------------------------------------------------- crystal body (one draw) --
+    const W = G.halfW, bi = G.blockInner;
+    const bodyParts = [
+      B.sweep(pathRings(outline, false), rrect(-G.rimTh, 0, G.rimBottom, G.rimTop, 0.45), true),               // rim
+      B.slabZ(G.blockFront, G.front, -W, -bi, G.bedBottom, 1.45, 0.45),                                         // key blocks
+      B.slabZ(G.blockFront, G.front, bi, W, G.bedBottom, 1.45, 0.45),
+      B.slabX(-bi, bi, 3.2, G.front, G.bedBottom, G.bedTop, 0.1),                                               // keybed
+      B.slabX(-bi, bi, G.blockFront, 3.2, G.bedBottom, -0.28, 0.18),                                            // key slip
+      B.slabX(-W, W, G.front, G.gap0, G.rimBottom, G.bedBottom, 0.1),                                           // belly
+      B.slabX(-bi, bi, -3.72, -4.95, -0.55, 2.75, 0.35),                                                        // fallboard
+      B.slabX(-15.5, 15.5, -5.0, -6.3, G.plateY1, 2.9, 0.2),                                                    // desk rest
+    ];
+    const leg = (x, z, top) => {
+      const h = top - floorY - 0.9, pts = [[2.2, 0], [2.2, -0.5], [1.6, -1.2], [1.85, -4], [1.25, -h + 2.6], [1.55, -h + 0.5], [1.4, -h]];
+      return B.at(new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), 28), x, top, z);
+    };
+    bodyParts.push(leg(-28.9, -0.4, G.bedBottom), leg(28.9, -0.4, G.bedBottom), leg(-8, -64, G.rimBottom));
+    const lyreTop = G.rimBottom, boxTop = floorY + 3.0;
+    for (const x of [-2.9, 2.9]) bodyParts.push(B.at(new THREE.CylinderGeometry(0.42, 0.52, lyreTop - boxTop, 16), x, (lyreTop + boxTop) / 2, -5.8));
+    bodyParts.push(B.slabX(-5.8, 5.8, -4.1, -7.6, floorY + 1.1, boxTop, 0.4));                                   // pedal box
+    for (const x of [-4.2, 4.2]) {                                                                               // lyre braces
+      const g = new THREE.CylinderGeometry(0.22, 0.22, 1, 10);
+      const a = [x, boxTop, -7.2], b = [x * 0.6, lyreTop, -12.5];
+      const len = Math.hypot(b[1] - a[1], b[2] - a[2]);
+      g.scale(1, len, 1);
+      g.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.atan2(b[2] - a[2], b[1] - a[1])));
+      g.applyMatrix4(new THREE.Matrix4().makeRotationZ(-Math.atan2(b[0] - a[0], b[1] - a[1])));
+      g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+      bodyParts.push(g);
+    }
+    const bodyGeo = B.merge(bodyParts);
+    const body = add(new THREE.Mesh(bodyGeo, glass));
+    geos.push(bodyGeo);
+
+    // music desk (glass) and its etched chord name
+    const deskGroup = new THREE.Group();
+    deskGroup.position.set(0, 2.9, -5.6);
+    deskGroup.rotation.x = -14 * DEG;
+    add(deskGroup);
+    const deskGeo = B.merge([B.slabX(-15, 15, 0.22, -0.22, 0, 9.5, 0.12), B.slabX(-15, 15, 0.95, -0.22, -0.2, 0.45, 0.15)]);
+    deskGroup.add(new THREE.Mesh(deskGeo, glass));
+    geos.push(deskGeo);
+    const etchCanvas = document.createElement("canvas");
+    etchCanvas.width = 1024;
+    etchCanvas.height = 256;
+    const etchTex = new THREE.CanvasTexture(etchCanvas);
+    etchTex.colorSpace = THREE.SRGBColorSpace;
+    texs.push(etchTex);
+    const etchMat = new THREE.MeshBasicMaterial({ map: etchTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: 0x000000, toneMapped: true });
+    mats.push(etchMat);
+    const etchGeo = new THREE.PlaneGeometry(22, 5.5);
+    geos.push(etchGeo);
+    const etch = new THREE.Mesh(etchGeo, etchMat);
+    etch.position.set(0, 5.4, 0.3);
+    etch.renderOrder = 2;
+    deskGroup.add(etch);
+
+    // lid and prop (glass), hinged on the spine
+    const lidPoly = resample(clipPolyZ(outline, G.lidFrontZ), 1.0, true).map((p) => [p[0] + W, p[1]]);
+    const lidGeo = B.merge([
+      B.sweep(pathRings(lidPoly, true), [[-0.7, 0], [-0.05, 0], [0.09, 0.06], [0.15, 0.2], [0.15, 0.35], [0.09, 0.49], [-0.05, 0.55], [-0.7, 0.55]], false),
+      B.capSlab(insetPoly(lidPoly, 0.7), 0, G.lidTh),
+    ]);
+    geos.push(lidGeo);
+    const lid = add(new THREE.Mesh(lidGeo, glass));
+    lid.position.set(-W, G.rimTop, 0);
+    const propGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 14);
+    geos.push(propGeo);
+    const prop = add(new THREE.Mesh(propGeo, glass));
+    let propBase = [24, -36];
+    { let best = Infinity;
+      for (const p of insetPoly(outline, G.rimTh / 2)) if (p[0] > 0 && Math.abs(p[1] + 36) < best) { best = Math.abs(p[1] + 36); propBase = p; } }
+    function applyLid(want) {
+      // auto: lid off on the page (render 2026-09-15: even the short prop veiled the action in 9:16), long prop for the hero
+      const mode = want === "auto" ? (heroPose ? "long" : "off") : want;
+      const th = (LID_ANGLE[mode] ?? 10) * DEG;
+      lid.visible = mode !== "off";
+      lid.rotation.z = th;
+      prop.visible = mode === "long" || mode === "short";
+      const len = (propBase[0] + W) * Math.sin(th);
+      prop.scale.set(1, Math.max(len, 0.01), 1);
+      prop.rotation.z = th;
+      prop.position.set(propBase[0] - Math.sin(th) * len / 2, G.rimTop + Math.cos(th) * len / 2, propBase[1]);
+    }
+
+    // ---------------------------------------------------------------- plate, soundboard, rails --
+    const plateParts = [
+      B.slabX(-30.3, 30.3, -5.0, G.gap0, G.plateY0, G.plateY1, 0.25),
+      B.slabX(-30.4, 30.4, G.gap1, G.gap1 - 1.6, G.plateY0, G.plateY1, 0.25),
+      B.sweep(pathRings(clipLineZ(innerRim, G.gap0), false), rrect(-2.6, 0, G.plateY0, G.plateY1, 0.2), true),
+    ];
+    for (const [x0, dx] of [[-11.3, 0.45], [6.5, 0.15], [19, 0]]) {
+      const d = norm2(dx, -1);
+      let L = 2;
+      while (L < 90 && inside(strutPoly, x0 + d[0] * L, G.gap1 - 1.6 + d[1] * L)) L += 0.5;
+      plateParts.push(B.bar(x0, G.gap1 - 1.2, x0 + d[0] * L, G.gap1 - 1.6 + d[1] * L, 0.6, G.plateY0, G.plateY1, 0.2));
+    }
+    const plateGeo = B.merge(plateParts);
+    geos.push(plateGeo);
+    add(new THREE.Mesh(plateGeo, gold));
+
+    const boardPoly = clipPolyZ(innerRim, G.gap0);
+    const boardShape = new THREE.Shape(boardPoly.map((p) => new THREE.Vector2(p[0], -p[1])));
+    const boardGeo = new THREE.ShapeGeometry(boardShape, 1);
+    boardGeo.rotateX(-Math.PI / 2);
+    boardGeo.translate(0, G.boardY, 0);
+    geos.push(boardGeo);
+    add(new THREE.Mesh(boardGeo, spruce));
+
+    // wood: hammer flange rail, rest rail, damper guide rail
+    const hx0 = -26, pitch = 52 / N;
+    const hammerX = (i) => hx0 + (i + 0.5) * pitch;
+    const pivotZ = G.strikeZ + G.shank;
+    const damperCount = Math.max(0, Math.min(N, 88 - first + 1));
+    const woodGeo = B.merge([
+      B.slabX(-26.6, 26.6, pivotZ + 0.5, pivotZ - 0.5, -1.6, -1.1, 0.12),
+      B.slabX(-26.6, 26.6, -10.4, -11.2, -1.4, -1.08, 0.1),
+      B.slabX(-26.4, hammerX(damperCount - 1) + 0.5, G.damperZ + 0.5, G.damperZ - 0.5, 0.35, 0.75, 0.1),
+    ]);
+    geos.push(woodGeo);
+    add(new THREE.Mesh(woodGeo, dark));
+
+    const brassParts = [];
+    for (const x of [-26.9, -13.3, 13.3, 26.9]) brassParts.push(B.slabZ(-6.2, -8.8, x - 0.15, x + 0.15, G.bedBottom, -1.12, 0.05));
+    for (const z of [-20, -42]) brassParts.push(B.slabZ(z + 1.2, z - 1.2, -W - 0.12, -W + 0.5, G.rimTop - 0.4, G.rimTop + 0.08, 0.08));
+    const caster = (x, z) => B.at(new THREE.LatheGeometry([[0, 0], [1.2, 0], [1.5, 0.35], [1.45, 0.8], [1.1, 0.95], [0, 0.95]].map((p) => new THREE.Vector2(p[0], p[1])), 20), x, floorY, z);
+    brassParts.push(caster(-28.9, -0.4), caster(28.9, -0.4), caster(-8, -64));
+    const brassGeo = B.merge(brassParts);
+    geos.push(brassGeo);
+    add(new THREE.Mesh(brassGeo, brass));
+
+    // ---------------------------------------------------------------- strings and pins --
+    const strings = [];     // [key index, x front, y, z pin, x back, z back]
+    const keyStr0 = new Uint16Array(N), keyStrN = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      const m = first + i, n = m <= 28 ? 1 : m <= 47 ? 2 : 3, bass = m < 48;
+      const raw = 2.2 * Math.pow(1.94, (108 - m) / 12);
+      let L = 62 * (1 - Math.exp(-raw / 62));
+      const d = norm2(bass ? 0.45 : 0, -1), y = bass ? G.bassStrY : G.strY;
+      keyStr0[i] = strings.length;
+      keyStrN[i] = n;
+      for (let s = 0; s < n; s++) {
+        const xf = hammerX(i) + (n === 1 ? 0 : (s - (n - 1) / 2) * (n === 2 ? 0.16 : 0.14));
+        let l = L;
+        while (l > 1 && !inside(hitchPoly, xf + d[0] * l, G.agraffeZ + d[1] * l)) l -= 0.4;
+        strings.push([i, xf, y, -5.7 - (strings.length % 3) * 1.1, xf + d[0] * l, G.agraffeZ + d[1] * l]);
+      }
+    }
+    const NS = strings.length, SV = 16;  // per string: 2 segments (pin to agraffe, speaking) x 2 crossed ribbons x 4 vertices
+    const sPos = new Float32Array(NS * SV * 3), sCol = new Float32Array(NS * SV * 3), sBase = new Float32Array(NS * 3), sIdx = [];
+    const hw = STRING_W / 2;
+    strings.forEach(([i, xf, y, zp, xb, zb], k) => {
+      const segs = [[xf, G.plateY1 + 0.55, zp, xf, y, G.agraffeZ], [xf, y, G.agraffeZ, xb, y, zb]];
+      segs.forEach((s, si) => {
+        const d = norm2(s[3] - s[0], s[5] - s[2]), hx = -d[1] * hw, hz = d[0] * hw;  // horizontal side vector
+        const o = (k * SV + si * 8) * 3;
+        sPos.set([s[0] - hx, s[1], s[2] - hz, s[0] + hx, s[1], s[2] + hz, s[3] - hx, s[4], s[5] - hz, s[3] + hx, s[4], s[5] + hz,
+                  s[0], s[1] - hw, s[2], s[0], s[1] + hw, s[2], s[3], s[4] - hw, s[5], s[3], s[4] + hw, s[5]], o);
+        for (const r of [0, 4]) { const b = k * SV + si * 8 + r; sIdx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
+      });
+      const base = first + i < 41 ? [0.13, 0.065, 0.028] : [0.15, 0.155, 0.17];
+      sBase.set(base, k * 3);
+      for (let v = 0; v < SV; v++) sCol.set(v < 8 ? base.map((c) => c * 0.6) : base, (k * SV + v) * 3);
+    });
+    const stringGeo = new THREE.BufferGeometry();
+    stringGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
+    const sColAttr = new THREE.BufferAttribute(sCol, 3).setUsage(THREE.DynamicDrawUsage);
+    stringGeo.setAttribute("color", sColAttr);
+    stringGeo.setIndex(sIdx);
+    stringGeo.computeBoundingSphere();
+    geos.push(stringGeo);
+    add(new THREE.Mesh(stringGeo, stringMat));
+
+    const pinGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.55, 6);
+    pinGeo.translate(0, 0.275, 0);
+    geos.push(pinGeo);
+    const pins = add(new THREE.InstancedMesh(pinGeo, steel, NS));
+    const m4 = new THREE.Matrix4();
+    strings.forEach(([, xf, , zp], k) => pins.setMatrixAt(k, m4.makeTranslation(xf, G.plateY1, zp)));
+    pins.frustumCulled = false;
+
+    // ---------------------------------------------------------------- hammers --
+    const shankGeo = B.merge([
+      B.at(new THREE.CylinderGeometry(0.075, 0.075, G.shank + 0.3, 6), 0, 0, -(G.shank + 0.3) / 2 + 0.15, Math.PI / 2),
+      new THREE.BoxGeometry(0.3, 0.42, 0.6).translate(0, -0.1, 0.05),
+    ]);
+    const headGeo = B.sweep(pathRings([[-0.22, 0], [0.22, 0]], false), [[-0.2, 0.05], [0.2, 0.05], [0.2, 0.38], [0.3, 0.5], [0.355, 0.68], [0.35, 0.86], [0.31, 1.02], [0.24, 1.16], [0.14, 1.26], [0, 1.3], [-0.14, 1.26], [-0.24, 1.16], [-0.31, 1.02], [-0.35, 0.86], [-0.355, 0.68], [-0.3, 0.5], [-0.2, 0.38]], true);
+    headGeo.translate(0, 0.09, -G.shank);
+    { const p = headGeo.attributes.position, tip = new Float32Array(p.count);
+      for (let v = 0; v < p.count; v++) { const s = clamp01((p.getY(v) - 0.09 - 0.5) / 0.8); tip[v] = 0.15 + 0.85 * s * s * (3 - 2 * s); }
+      headGeo.setAttribute("aTip", new THREE.BufferAttribute(tip, 1)); }
+    const glowArr = new Float32Array(N * 3);
+    const glowAttr = new THREE.InstancedBufferAttribute(glowArr, 3).setUsage(THREE.DynamicDrawUsage);
+    headGeo.setAttribute("aGlow", glowAttr);
+    geos.push(shankGeo, headGeo);
+    const shanks = add(new THREE.InstancedMesh(shankGeo, maple, N));
+    const heads = add(new THREE.InstancedMesh(headGeo, felt, N));
+    shanks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    heads.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    shanks.frustumCulled = heads.frustumCulled = false;
+    const aTop = new Float32Array(N);
+    for (let i = 0; i < N; i++) aTop[i] = Math.asin(Math.min(0.9, ((first + i < 48 ? G.bassStrY : G.strY) - 0.03 - G.restTop) / G.shank));
+
+    // ---------------------------------------------------------------- dampers and pedals --
+    const damperGeo = B.merge([
+      B.slabX(-0.21, 0.21, 0.55, -0.55, 0, 0.85, 0.08),
+      new THREE.CylinderGeometry(0.035, 0.035, 4.2, 5).translate(0, -2.1, 0),
+    ]);
+    geos.push(damperGeo);
+    const dampers = damperCount > 0 ? add(new THREE.InstancedMesh(damperGeo, dark, damperCount)) : null;
+    if (dampers) { dampers.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dampers.frustumCulled = false; }
+    const pedalGeo = B.sweep(pathRings([[0, 0], [0, 3.3]], false), rrect(-0.36, 0.36, -0.14, 0.14, 0.1), true);
+    geos.push(pedalGeo);
+    const pedals = add(new THREE.InstancedMesh(pedalGeo, brass, 3));
+    pedals.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const pedalY = floorY + 2.0;
+
+    // ---------------------------------------------------------------- reactive state --
+    const strikeT = new Float64Array(N).fill(-1e9), strikeV = new Float32Array(N), strikeCol = new Float32Array(N * 3);
+    const held = new Uint8Array(N), topHit = new Uint8Array(N), ang = new Float32Array(N), shownAng = new Float32Array(N).fill(NaN);
+    const lift = new Float32Array(damperCount), shownLift = new Float32Array(damperCount).fill(NaN), strLevel = new Float32Array(N);
+    const tmp = new THREE.Color(), edgeAcc = new THREE.Color(0, 0, 0), chordCol = new THREE.Color(0.6, 0.7, 1);
+    const chordAcc = new THREE.Color();
+    let chordN = 0, frameT = 0, active = true, pedalAng = 0, shownPedal = NaN, etchName = null, etchLevel = 0, etchFlash = 0;
+    let framing = ctx.framing || null;
+
+    function strike(m, vel, t0) {
+      const i = m - first;
+      if (i < 0 || i >= N || !(t0 > strikeT[i] + 1e-4) || t0 > frameT + 0.05) return;
+      const v = clamp01(vel > 1 ? vel / 127 : vel);
+      strikeT[i] = t0;
+      strikeV[i] = v;
+      topHit[i] = 0;
+      noteColor(m, vel > 1 ? vel : vel * 127, tmp);
+      strikeCol[i * 3] = tmp.r; strikeCol[i * 3 + 1] = tmp.g; strikeCol[i * 3 + 2] = tmp.b;
+      const age = frameT - t0, fade = age > 0 ? Math.exp(-age / EDGE.tau) : 1;
+      edgeAcc.r += tmp.r * v * EDGE.gain * fade; edgeAcc.g += tmp.g * v * EDGE.gain * fade; edgeAcc.b += tmp.b * v * EDGE.gain * fade;
+    }
+    function visitPressed(st, m) {
+      const i = m - first;
+      if (i < 0 || i >= N) return;
+      held[i] = 1;
+      strike(m, st.vel, st.t0);
+      noteColor(m, st.vel, tmp);
+      chordAcc.r += tmp.r; chordAcc.g += tmp.g; chordAcc.b += tmp.b;
+      chordN++;
+    }
+    function drawEtch(name, nns) {
+      const g = etchCanvas.getContext("2d");
+      g.clearRect(0, 0, 1024, 256);
+      if (!name) { etchTex.needsUpdate = true; return; }
+      g.fillStyle = "#ffffff";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.font = '500 128px Outfit, Jost, Raleway, "Segoe UI", sans-serif';
+      g.fillText(name, 512, nns ? 104 : 128, 1000);
+      if (nns) {
+        g.globalAlpha = 0.6;
+        g.font = '400 52px Raleway, Jost, Outfit, "Segoe UI", sans-serif';
+        g.fillText(nns, 512, 208, 1000);
+        g.globalAlpha = 1;
+      }
+      etchTex.needsUpdate = true;
+    }
+
+    function reset() {
+      strikeT.fill(-1e9); held.fill(0); ang.fill(0); lift.fill(0); strLevel.fill(1);
+      edgeAcc.setRGB(0, 0, 0); etchLevel = 0; etchFlash = 0; pedalAng = 0;
+      glowArr.fill(0); glowAttr.needsUpdate = true;
+      edgeU.value.setRGB(...EDGE.base);
+      etchMat.color.setRGB(0, 0, 0);
+      pose(0);
+    }
+
+    function pose(dt) {
+      let moved = false;
+      for (let i = 0; i < N; i++) {
+        if (shownAng[i] === ang[i]) continue;
+        shownAng[i] = ang[i];
+        m4.makeRotationX(ang[i]);
+        m4.setPosition(hammerX(i), G.pivotY, pivotZ);
+        shanks.setMatrixAt(i, m4);
+        heads.setMatrixAt(i, m4);
+        moved = true;
+      }
+      if (moved) { shanks.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true; }
+      if (dampers) {
+        let lifted = false;
+        for (let i = 0; i < damperCount; i++) {
+          if (shownLift[i] === lift[i]) continue;
+          shownLift[i] = lift[i];
+          m4.makeTranslation(hammerX(i), (first + i < 48 ? G.bassStrY : G.strY) + 0.03 + lift[i] * 0.5, G.damperZ);
+          dampers.setMatrixAt(i, m4);
+          lifted = true;
+        }
+        if (lifted) dampers.instanceMatrix.needsUpdate = true;
+      }
+      if (shownPedal !== pedalAng) {
+        shownPedal = pedalAng;
+        for (let k = 0; k < 3; k++) {
+          m4.makeRotationX(k === 2 ? pedalAng : 0);
+          m4.setPosition(-2.4 + 2.4 * k, pedalY, -4.1);
+          pedals.setMatrixAt(k, m4);
+        }
+        pedals.instanceMatrix.needsUpdate = true;
+      }
+    }
+
+    applyGlass(options.glass);
+    applyLid(options.lid);
+    deskGroup.visible = options.desk !== false;
+    reset();
+
+    return {
+      group,
+      keyStyle: KEY_STYLE,
+      hints: HINTS,
+      stage: { floorY },
+      // lab cameras: a three-quarter from the front right (the open lid faces that way) and a close-up of the action
+      views: {
+        hero: () => { heroPose = true; applyLid(options.lid); return { from: [64, 40, 44], target: [0, 1, -27], fov: 30 }; },
+        close: { from: [17, 12.5, -1.5], target: [-1.8, 1.2, -13], fov: 34 },
+      },
+      info: { hammers: N, strings: NS, dampers: damperCount, pins: NS, pedals: 3 },
+      update(dt, t, state) {
+        if (!active) return;
+        dt = Math.min(Math.max(dt || 0, 0), 0.1);
+        frameT = t;
+        held.fill(0);
+        chordAcc.setRGB(0, 0, 0);
+        chordN = 0;
+        if (state && state.pressed) state.pressed.forEach(visitPressed);
+        const notes = state && state.notes;
+        if (notes) for (let k = 0; k < notes.length; k++) { const n = notes[k]; strike(n.midi, n.vel, n.t); }
+        const pedal = !!(state && state.pedal);
+
+        const eK = Math.exp(-dt / EDGE.tau);
+        edgeAcc.r *= eK; edgeAcc.g *= eK; edgeAcc.b *= eK;
+        const luma = 0.2126 * edgeAcc.r + 0.7152 * edgeAcc.g + 0.0722 * edgeAcc.b;
+        if (luma > EDGE.maxLuma) { const s = EDGE.maxLuma / luma; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
+        edgeU.value.setRGB(EDGE.base[0] + edgeAcc.r, EDGE.base[1] + edgeAcc.g, EDGE.base[2] + edgeAcc.b);
+
+        let glowDirty = false, strDirty = false;
+        for (let i = 0; i < N; i++) {
+          const age = t - strikeT[i], v = strikeV[i], rise = 0.055 - 0.037 * v;
+          if (age >= 0 && age < rise) { const s = age / rise; ang[i] = aTop[i] * s * s; } else {
+            let rem = dt;
+            if (!topHit[i] && age >= rise && age < 2) { ang[i] = aTop[i]; topHit[i] = 1; rem = Math.min(dt, age - rise); }
+            const goal = held[i] ? aTop[i] * CHECK : 0;
+            ang[i] = Math.abs(ang[i] - goal) < 1e-4 ? goal : damp(ang[i], goal, held[i] ? 0.05 : 0.07, rem);
+          }
+          if (i < damperCount) {
+            const goal = held[i] || pedal ? 1 : 0;
+            lift[i] = Math.abs(lift[i] - goal) < 1e-3 ? goal : damp(lift[i], goal, goal ? 0.035 : 0.08, dt);
+          }
+          // felt glow and string shimmer, both from the strike clock
+          const struck = age >= rise && age < 12;
+          const wet = held[i] || pedal;
+          const g = struck ? GLOW.peak * v * v * Math.exp(-(age - rise) / GLOW.tau) + (held[i] ? GLOW.held * v : 0) : 0;
+          const o = i * 3, gr = strikeCol[o] * g, gg = strikeCol[o + 1] * g, gb = strikeCol[o + 2] * g;
+          if (glowArr[o] !== gr || glowArr[o + 1] !== gg || glowArr[o + 2] !== gb) { glowArr[o] = gr; glowArr[o + 1] = gg; glowArr[o + 2] = gb; glowDirty = true; }
+          let lvl = struck ? STR.peak * v * Math.exp(-(age - rise) / (wet ? STR.tauWet : STR.tauDry)) : 0;
+          if (lvl < 0.003) lvl = 0;
+          if (lvl !== strLevel[i]) {
+            strLevel[i] = lvl;
+            strDirty = true;
+            for (let s = keyStr0[i], e = s + keyStrN[i]; s < e; s++) {
+              for (let vtx = 0; vtx < SV; vtx++) {
+                const k = (s * SV + vtx) * 3, w = vtx < 8 ? 0.6 : 1;
+                sCol[k] = (sBase[s * 3] + strikeCol[o] * lvl) * w;
+                sCol[k + 1] = (sBase[s * 3 + 1] + strikeCol[o + 1] * lvl) * w;
+                sCol[k + 2] = (sBase[s * 3 + 2] + strikeCol[o + 2] * lvl) * w;
+              }
+            }
+          }
+        }
+        if (glowDirty) glowAttr.needsUpdate = true;
+        if (strDirty) sColAttr.needsUpdate = true;
+        pedalAng = Math.abs(pedalAng - (pedal ? -0.11 : 0)) < 1e-4 ? (pedal ? -0.11 : 0) : damp(pedalAng, pedal ? -0.11 : 0, 0.05, dt);
+        pose(dt);
+
+        // the etched chord name
+        if (deskGroup.visible) {
+          const chord = state && state.chord, name = chord && chord.name ? chord.name : null;
+          if (name !== etchName) {
+            if (name) { drawEtch(name, chord.nns || ""); etchFlash = ETCH.flash; }
+            etchName = name;
+          }
+          if (chordN > 0) chordCol.setRGB(chordAcc.r / chordN, chordAcc.g / chordN, chordAcc.b / chordN);
+          etchFlash *= Math.exp(-dt / ETCH.tau);
+          etchLevel = damp(etchLevel, name ? ETCH.level : 0, name ? 0.08 : 0.4, dt);
+          const e = etchLevel + etchFlash * (name ? 1 : 0);
+          etchMat.color.setRGB(chordCol.r * e, chordCol.g * e, chordCol.b * e);
+          etch.visible = e > 0.002;
+        }
+      },
+      resize(f) { framing = f || framing; heroPose = false; applyLid(options.lid); },
+      setActive(on) {
+        active = !!on;
+        group.visible = active;
+        if (!active) reset();
+      },
+      setOptions(o) {
+        Object.assign(options, o || {});
+        applyGlass(options.glass);
+        applyLid(options.lid);
+        deskGroup.visible = options.desk !== false;
+      },
+      get framing() { return framing; },
+      dispose() {
+        scene.remove(group);
+        for (const g of geos) g.dispose();
+        for (const m of mats) m.dispose();
+        for (const t of texs) t.dispose();
+        shanks.dispose(); heads.dispose(); pins.dispose(); pedals.dispose();
+        if (dampers) dampers.dispose();
+      },
+    };
+  },
+};
