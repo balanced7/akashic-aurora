@@ -1296,6 +1296,24 @@ class Bus:
                 pass
         return {f: str(h.get(f, "0")) for f in self._LANE_CURSOR_FIELDS}
 
+    def read_lane_flip_seed(self) -> Dict[str, str]:
+        """The WORK positions lane_cursor_flip_init seeded a migrant at ({'inbox', 'bc'};
+        '0' where no flip was recorded -- newborns, and hashes flipped before the record
+        existed). Twins at or behind a seed are the flip gap the straggler net delivers.
+        A per-incarnation cursor inherits the trunk's record (read_lane_cursor's fork rule)."""
+        keys = [self.lane_cursor_key()]
+        trunk = f"{self.ns}:cursor:lane:{self.agent_id}"
+        if trunk not in keys:
+            keys.append(trunk)
+        for key in keys:
+            try:
+                vals = self._client.hmget(key, "flip_inbox", "flip_bc") or [None, None]
+            except Exception:
+                vals = [None, None]
+            if any(vals):
+                return {"inbox": str(vals[0] or "0"), "bc": str(vals[1] or "0")}
+        return {"inbox": "0", "bc": "0"}
+
     def _lane_keys(self, lane: str) -> Dict[str, str]:
         """Logical inbox/bc pair -> this agent's stream keys on `lane`."""
         from core.comm import packet_spec
@@ -1333,6 +1351,14 @@ class Bus:
             # unconsumed legacy backlog rides the straggler net (no loss at the flip).
             fields["shadow_inbox"] = shared.get("inbox", "0")
             fields["shadow_bc"] = shared.get("bc", "0")
+            # Remember WHERE the work lane was seeded (2026-09-15). A packet dual-written
+            # before the flip has its lane twin at or behind these seeds, and the straggler
+            # net is its only delivery; every twin after them is the work lane's to deliver.
+            # Without the record the net cannot tell that flip gap from a days-old twin the
+            # work lane already delivered -- and re-delivered 285 of those on 2026-09-14.
+            for seed, field in (("flip_inbox", "inbox"), ("flip_bc", "bc")):
+                if fields.get(field, "0") != "0":
+                    fields[seed] = fields[field]
         else:
             # NEWBORN (cfdcb65f storm find): BROADCAST history is room-noise -- bc
             # positions seed at tails (RB-25 F2 discipline; 44 replays caught live).

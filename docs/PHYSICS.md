@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0fd950bd. A bound you discover by collision is not awareness -- this sheet
+> Derived at cbb1ebf5. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (308 numeric constants)
+## Mechanical bounds (310 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -393,8 +393,10 @@ Class: reference
 | `KEY_SNAP_MS` | 5,000 | arsenal/practice.py | a key change moves to the nearest window start this close |
 | `LANDING_AFTER_MS` | 250 | arsenal/practice_riff.py | ...to 250 ms after it |
 | `LANE_MEMBERSHIP_WINDOW` | 500 | core/comm/bifrost_api.py |  |
+| `LANE_TWIN_SLACK_MS` | 60,000 | core/comm/bifrost_api.py |  |
 | `LAUNCH_MIN_LEAD_MS` | 150 | arsenal/jam/runs.py |  |
 | `LEASE_MS` | 30,000 | arsenal/jam/runs.py |  |
+| `LEGACY_NET_SCAN_BUDGET` | 5,000 | core/comm/bifrost_api.py |  |
 | `LINE_BUDGET` | 120 | core/coord/task_costs.py |  |
 | `LINE_FULL_MAX` | 70 | arsenal/practice_riff.py | ...or above backing full's top voice, at most A4 + 1 |
 | `LINE_LEN_CAP_BEATS` | 2 | arsenal/practice_riff.py | a note's length is capped here (the pedal never stretches it) |
