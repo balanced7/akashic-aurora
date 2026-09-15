@@ -105,7 +105,7 @@ export default {
   name: "Bead & Beam",
 
   create(ctx) {
-    const { THREE, scene, keyX, isBlack, noteColor, RAIL_Y, TRAIL_Z } = ctx;
+    const { THREE, scene, keyX, isBlack, noteColor, RAIL_Y, TRAIL_Z, renderer } = ctx;
     const added = [];
     const tmpColor = new THREE.Color();
     const strikes = new Map();   // midi -> bar ref
