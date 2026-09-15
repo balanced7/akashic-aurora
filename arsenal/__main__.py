@@ -52,6 +52,17 @@ def main(argv=None) -> int:
     cp.add_argument("--dir", help="a preset directory (default arsenal/web/presets)")
     cp.add_argument("--json", action="store_true")
 
+    fl = sub.add_parser("floors",
+                        help="visual floors: pinned checks on a rendered frame (dead, blown, "
+                             "flat, illegible) -- so an eye is never spent on a histogram")
+    fl.add_argument("path", help="an image or video frame")
+    fl.add_argument("--region", help="fractional crop x,y,w,h in 0..1 (e.g. 0,0.06,0.6,0.86)")
+    fl.add_argument("--floors", help="comma-separated subset: not_dead,not_blown,variety,legibility")
+    fl.add_argument("--set", dest="floor_set", choices=["canvas", "label", "frame"],
+                    help="named floor set by target (canvas: not_dead,variety,not_blown; "
+                         "label: legibility; frame: all)")
+    fl.add_argument("--json", action="store_true")
+
     sub.add_parser("takes", help="list recorded takes")
 
     pf = sub.add_parser("performance", help="the piano practice log: list sessions, print a summary, prune")
@@ -162,6 +173,33 @@ def main(argv=None) -> int:
                 counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
             print("  " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
         return 0
+
+    if args.cmd == "floors":
+        from . import floors as fl_mod
+        region = None
+        if args.region:
+            try:
+                region = tuple(float(p) for p in args.region.split(","))
+                if len(region) != 4:
+                    raise ValueError
+            except ValueError:
+                print("--region wants four fractions: x,y,w,h (e.g. 0,0.06,0.6,0.86)", file=sys.stderr)
+                return 2
+        names = [n.strip() for n in args.floors.split(",")] if args.floors else None
+        if names is None and args.floor_set:
+            names = fl_mod.SETS[args.floor_set]
+        receipt = fl_mod.check(args.path, region=region, floors=names)
+        if args.json:
+            print(json.dumps(receipt, indent=2))
+        else:
+            print(f"{receipt['frame']}  {receipt['size'][0]}x{receipt['size'][1]}"
+                  + (f"  region={region}" if region else ""))
+            for r in receipt["results"]:
+                mark = "ok  " if r["pass"] else "FAIL"
+                measured = ", ".join(f"{k}={v}" for k, v in (r.get("measured") or {}).items())
+                print(f"  [{mark}] {r['floor']:<11} {measured or r.get('error', '')}")
+            print("  verdict: " + ("pass" if receipt["pass"] else "FAIL"))
+        return 0 if receipt["pass"] else 1
 
     if args.cmd == "takes":
         from .take import TakeLedger
