@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 9ec96e78. A bound you discover by collision is not awareness -- this sheet
+> Derived at 248cd425. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (251 numeric constants)
+## Mechanical bounds (253 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -333,9 +333,11 @@ Class: reference
 | `DEFAULT_MAXLEN` | 10,000 | core/comm/bus.py |  |
 | `DEFAULT_MAXLEN` | 100,000 | core/events/event_index.py | match the firehose (event_log.CANONICAL_MAXLEN) |
 | `DEFAULT_MAX_CHARS` | 170 | core/primitives/consolidator.py |  |
+| `DEFAULT_MAX_HAMMING` | 6 | arsenal/storyboard.py | dHash distance at or under which two frames are the same moment |
 | `DEFAULT_MAX_MESSAGE_BYTES` | 65,536 | core/comm/packet_spec.py |  |
 | `DEFAULT_MAX_OCCURRENCES` | 120 | core/coord/sift.py |  |
 | `DEFAULT_MAX_PROMOTE` | 10 | core/narrative/event_promoter.py | per-run cap (rate-limit; no Beat flood) |
+| `DEFAULT_SETTLE_FRAMES` | 3 | arsenal/storyboard.py |  |
 | `DEFAULT_THRESHOLD` | 3 | core/narrative/event_promoter.py | salience >= this is worth a Beat |
 | `DEFAULT_TIMEOUT` | 5 | research/in-flight/t342/dead-modules/gemini_bridge.py | 5 seconds max to determine bridge failure |
 | `DEFAULT_TIMEOUT` | 5 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py |  |
