@@ -17,14 +17,22 @@
 //                peaks and falls back within about 0.2 s to a held glow; pedal-held notes fade slowly; the peak is
 //                the only part that blooms. The same light washes up the fallboard's lower face.
 //   candles      the two flames are lit at rest (warm, no bloom). Strikes feed them: they stretch, brighten past
-//                the bloom threshold and lean toward the colours just played, and their point lights throw that
-//                colour onto the panel, the book and the keys. In portrait framing (the 9:16 player, where note bars
-//                rise over the upper panel) the flame colour is halved and the lights cap at 60.
+//                the bloom threshold and lean toward the colours just played, and their light throws that colour
+//                onto the panel, the book, the brass and the host's keys (see Lifetime). In portrait framing (the
+//                9:16 player, where note bars rise over the upper panel) the flame colour is halved and the lights cap
+//                at 60.
 //   book         shows the chord name, Nashville number and key on its right page, inked in the root's colour. The
 //                letters glow a little on a strike (emissive at most 0.8, and luminance-capped so they stay under
 //                bloom) and fade over about half a second.
 //   pedal        the right (sustain) pedal goes down with the sustain pedal.
 //   metronome    the pendulum starts swinging while you play and slows to rest a few seconds after you stop.
+//
+// Lifetime: after dispose() the renderer's geometries, textures and programs are back where they were before create(),
+// except for one bounded cost kept on purpose. The candles are scene PointLights by default so they warm the host's ivory
+// keys (without them the keys read visibly grey; ruled 2026-09-15). A scene light makes every host material that draws
+// with it (the keys, the floor) compile a light-count variant three keeps for the page's life: 2 programs, once, not per
+// switch. ctx.options.hostLight === false removes that cost: the candles then light only this case's own materials in its
+// shaders, with three's point-light maths, and dispose() returns exactly to baseline.
 //
 // Contract: default export {id, name, create(ctx)}; create returns {group, update(dt, t, state), resize(framing),
 // setActive(on), dispose()} plus hints: keyStyle, stage and views (see the bottom of create).
@@ -380,6 +388,12 @@ function create(ctx) {
   // candle sconces: rosette on the veneer, an S-curved arm, a drip pan with a finial, a wax candle and a wick
   const flames = [];
   const candleLights = [];
+  // A candle's light: a scene PointLight by default, so it warms the host's keys (see Lifetime at the top); with
+  // ctx.options.hostLight === false an Object3D carrying a point light's place, colour, intensity, distance and decay,
+  // which candleShading draws on the case alone.
+  const hostLight = ctx.options?.hostLight !== false;
+  const candleLight = (color, intensity, distance, decay) => Object.assign(new THREE.Object3D(),
+    { isCandleLight: true, color: new THREE.Color(color), intensity, distance, decay });
   const flameGeo = (() => {
     const g = lathe([[0, 0], [0.1, 0.04], [0.19, 0.22], [0.2, 0.46], [0.14, 0.78], [0.06, 1.08], [0, 1.3]], 16);
     const pa = g.attributes.position.array, col = new Float32Array(pa.length);
@@ -413,7 +427,7 @@ function create(ctx) {
     flame.renderOrder = 2;
     group.add(flame);
     flames.push({ mesh: flame, phase: s > 0 ? 1.3 : 4.1 });
-    const light = new THREE.PointLight(0xffb070, 0, 42, 1.6);
+    const light = hostLight ? new THREE.PointLight(0xffb070, 0, 42, 1.6) : candleLight(0xffb070, 0, 42, 1.6);
     light.position.set(cupX - s * 0.6, cupY + 5.4, cupZ + 1.0);
     group.add(light);
     candleLights.push(light);
@@ -566,6 +580,57 @@ function create(ctx) {
   drawBook(null);
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => { if (!disposed) drawBook(shown.name ? { ...shown } : null); });
+  }
+
+  // ------------------------------------------------------------ candle shading --
+  // Without hostLight the candles light the case's own lit materials: three's point light (r186 getPointLightInfo), added
+  // right after the scene's point lights, where the two PointLights were. A degenerate triangle drawn first each frame
+  // moves the candles into the camera's view space (as three does for a PointLight's uniforms) before any lit part draws.
+  if (!hostLight) {
+    const candleU = { uCandlePos: { value: [new THREE.Vector3(), new THREE.Vector3()] },
+      uCandleColor: { value: [new THREE.Color(0, 0, 0), new THREE.Color(0, 0, 0)] }, uCandleFall: { value: new THREE.Vector2(42, 1.6) } };
+    const CANDLE_GLSL = `#if defined( RE_Direct )
+for ( int i = 0; i < 2; i ++ ) {
+	IncidentLight candleDirect;
+	vec3 candleVector = uCandlePos[ i ] - geometryPosition;
+	candleDirect.direction = normalize( candleVector );
+	float candleDistance = length( candleVector );
+	candleDirect.color = uCandleColor[ i ];
+	candleDirect.color *= getDistanceAttenuation( candleDistance, uCandleFall.x, uCandleFall.y );
+	candleDirect.visible = ( candleDirect.color != vec3( 0.0 ) );
+	RE_Direct( candleDirect, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+}
+#endif
+`;
+    const beginChunk = THREE.ShaderChunk.lights_fragment_begin;
+    const spotAt = beginChunk.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
+    const CANDLE_BEGIN = spotAt >= 0 ? beginChunk.slice(0, spotAt) + CANDLE_GLSL + beginChunk.slice(spotAt) : beginChunk + CANDLE_GLSL;
+    const candleShading = (sh) => {
+      Object.assign(sh.uniforms, candleU);
+      sh.fragmentShader = "uniform vec3 uCandlePos[ 2 ];\nuniform vec3 uCandleColor[ 2 ];\nuniform vec2 uCandleFall;\n" +
+        sh.fragmentShader.replace("#include <lights_fragment_begin>", CANDLE_BEGIN);
+    };
+    for (const k in M) {
+      if (!M[k] || !M[k].isMeshStandardMaterial) continue;
+      M[k].onBeforeCompile = candleShading;
+      M[k].customProgramCacheKey = () => "upright-candles";
+    }
+    const hookGeo = keep(new THREE.BufferGeometry());
+    hookGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+    const frameHook = new THREE.Mesh(hookGeo, M.dark);
+    frameHook.name = "frame hook";
+    frameHook.frustumCulled = false;
+    frameHook.renderOrder = -1e6;
+    frameHook.onBeforeRender = (renderer, scene, camera) => {
+      const view = camera.matrixWorldInverse;
+      for (let i = 0; i < 2; i++) {
+        const l = candleLights[i];
+        candleU.uCandlePos.value[i].setFromMatrixPosition(l.matrixWorld).applyMatrix4(view);
+        candleU.uCandleColor.value[i].copy(l.color).multiplyScalar(l.intensity);
+      }
+      candleU.uCandleFall.value.set(candleLights[0].distance, candleLights[0].decay);
+    };
+    group.add(frameHook);
   }
 
   // ------------------------------------------------------------ merged meshes --

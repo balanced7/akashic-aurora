@@ -1170,6 +1170,497 @@ function updateCamera(dt, t, snap = false) {
   sparkUniforms.uPx.value = framing.h * renderScale / (2 * Math.tan(vfov / 2));
 }
 
+// ------------------------------------------------------------------ looks --
+// Daniel, 2026-09-15: "can we all try at a dedicated synthesia lookinf mode like the original?" and "Do you think we can make a
+// 3d model of my arturia keylab in the visualizer? I think it would be really cool to see the keyboard in the visualizer!"
+// Two hosts share the stage with the page's own look:
+//   Scheme: what draws the music (PIANO-V2-SPEC.md section 1, the piano-next.js scheme host). "classic" is this page's own
+//     columns and sparks; every other scheme is ./piano/schemes/<id>.js, { id, name, create(ctx) } -> noteOn(m, vel, t),
+//     noteRelease(m, t), noteEnd(m, t), pedal(down, raw, t), update(dt, t, frame), resize(framing), setActive(on), dispose().
+//   Instrument: the body around the keys (instruments-plan.md section 3). "page" is this page's own lacquer piano; every other
+//     is ./piano/instruments/<id>.js, { id, name, create(ctx) } -> { group, update(dt, t, state), resize(framing),
+//     setActive(on), dispose() } plus hints (keyStyle, keySpan, stage / stageHints / hints with floorY and hideHostBody).
+// Both load with import(), one of each at a time: a switch disposes the one before (the GPU memory it held comes back), and a
+// scheme starts from what is sounding now. Both are error-isolated: a module that fails to import, to create or in any call
+// is disposed, says so in a toast, and the page falls back to its own look (the stored choice stays, so a fixed module comes
+// back on the next load). Both persist in localStorage. Neither changes while REC runs (a module load and its shader
+// compiles would hitch the take); REC takes the canvas, so both are in every take.
+// Who draws what while a scheme is active (the rule):
+//   - this page's classic columns (Daniel's; a replay's still show) and sparks are hidden;
+//   - spectacle keeps its world: sky, lake, forest or city, weather, fog, theme light and bloom, the floor ripples and chord
+//     rings, and the chord diagram of every chord view but "Atmosphere" (theory, like the overlay). The "Atmosphere" chord
+//     view is itself a note scheme, so its note layers are hidden while a scheme is active (threads, motes, veils, curtains,
+//     halo, note glass; on the lake, Moonwater's strands, note labels, leaders, heading and fifths inlays): spectacle draws
+//     what it draws in every other chord view, and the page's own chord label shows;
+//   - the overlay (chord name, Nashville number, the staff and its key signature), Claude's moonlight keys, ghosts and chip, the
+//     jam glass and the floor pool stay the page's;
+//   - schemes and instruments hear Daniel's notes only, so REC in auto (Claude off the canvas) draws them as with no Claude.
+// An instrument replaces the page's lacquer body (keybed, cheeks, back rail, felt, rail light) unless its hints say
+// hideHostBody: false, since every model was built and judged around bare keys. It hides the keys outside its keySpan, colours
+// the keys from keyStyle (whiteColor, blackColor; the atmosphere's theme still tints them), and lowers the floor (and the jam's
+// floor pool with it) to its floorY. All of it is restored on a switch.
+const LOOK_KEYS = { scheme: "arsenal.piano.scheme", instrument: "arsenal.piano.instrument" };
+const LOOK_ID = /^[a-z0-9-]+$/;
+// probe: a bake-off seat whose entry may not have landed; it is listed once its file answers (probeLooks)
+const SCHEMES = [
+  { id: "classic", name: "Classic trails" },
+  { id: "upright-roll", name: "Upright Roll" },
+  { id: "synth-vandor", name: "Straight Roll" },
+  { id: "synth-navi", name: "Bead & Beam" },
+  { id: "synth-heimdall", name: "Glow Echo" },
+  { id: "synth-sol", name: "Afterglow Roll" },
+  { id: "synth-asta", name: "synth-asta", probe: true },
+  { id: "synth-rill", name: "synth-rill", probe: true },
+];
+const INSTRUMENTS = [
+  { id: "page", name: "Page keys" },
+  { id: "keylab88mk3", name: "KeyLab 88 mk3" },
+  { id: "concert-grand", name: "Concert grand" },
+  { id: "upright", name: "Upright" },
+  { id: "suitcase-ep", name: "Suitcase EP" },
+  { id: "vintage-synth", name: "Vintage synth" },
+  { id: "glass-piano", name: "Crystal grand" },
+];
+const LOOK_BUILTIN = { scheme: "classic", instrument: "page" };
+const SCHEME_METHODS = ["noteOn", "noteRelease", "noteEnd", "pedal", "update", "resize", "setActive", "dispose"];
+const PAGE_LOOK = { white: IVORY.clone(), black: new THREE.Color(0x0a0a0d), floorY: floor.position.y };
+const pageBody = [...scene.children.filter((o) => o.isMesh && o.material === lacquer), felt, railLine];  // keybed, cheeks, rail
+const looks = {
+  ready: false,
+  scheme: { id: "classic", active: null, loading: null, token: 0, errors: 0, lastError: null },
+  instrument: { id: "page", active: null, loading: null, token: 0, errors: 0, lastError: null, hints: null },
+  registered: new Map(),  // id -> scheme module, from __piano.registerScheme (scheme development)
+  listed: new Map(),      // probe id -> its module's name, once its file answers
+  counts: { noteOn: 0, noteRelease: 0, noteEnd: 0, pedal: 0 },
+  hidden: 0,              // spectacle's Atmosphere note layers hidden in the last frame
+  // what a scheme's update() and an instrument's update() get: one object each, refreshed in place every frame
+  frame: { info: null, sounding: null, pedalDown: false, framing: null, view: { top: 30, pointScale: 1000 } },
+  state: { pressed: new Map(), pedal: false, chord: null, notes: [] },
+  chord: { name: "", nns: "", key: "", from: null, keyFrom: null },
+};
+let lookFramingInfo = null;
+function lookFraming() {  // the frame in framing pixels, as schemes and instruments are told it (a new object on a change)
+  if (!lookFramingInfo || lookFramingInfo.id !== framing.id) {
+    lookFramingInfo = Object.freeze({ id: framing.id, width: framing.w, height: framing.h, w: framing.w, h: framing.h });
+  }
+  return lookFramingInfo;
+}
+// Schemes turn gl_FragCoord into framing pixels with renderer.getPixelRatio(). This page renders Ultra and Cinema by sizing the
+// drawing buffer (renderScale) at a pixel ratio of 1, so the ratio a scheme is told includes renderScale: its bands stay put.
+function lookPixelRatio() { return renderer.getPixelRatio() * renderScale; }
+const lookRenderer = (() => {
+  const bound = new Map();
+  return new Proxy(renderer, {
+    get(target, prop) {
+      if (prop === "getPixelRatio") return lookPixelRatio;
+      const v = Reflect.get(target, prop, target);
+      if (typeof v !== "function") return v;
+      let f = bound.get(prop);
+      if (!f) { f = v.bind(target); bound.set(prop, f); }
+      return f;
+    },
+  });
+})();
+const schemeCtx = Object.freeze({
+  THREE, scene, camera, renderer: lookRenderer, clock, keyX, isBlack, noteColor, noteCss,
+  KEY: Object.freeze({ first: KEY.first, last: KEY.last }), RAIL_Y, TRAIL_Z,
+  get framing() { return lookFraming(); },
+});
+function instrumentCtx() {
+  return {
+    THREE, scene, keyX, isBlack, noteColor, noteCss, RoundedBoxGeometry, RAIL_Y, TRAIL_Z, KEY: { ...KEY }, framing: lookFraming(),
+    span: { first: KEY.first, last: KEY.last, left: keyX(KEY.first) - 0.5, right: keyX(KEY.last) + 0.5, width: 52, keyTop: 0,
+            blackTop: KEY.blackTop, keyFront: KEY.back + KEY.whiteL, keyBack: KEY.back, bedTop: -0.8, floorY: PAGE_LOOK.floorY,
+            mmPerUnit: 1225.7 / 52 },
+    fonts: { display: FONT.display },
+    options: {},
+  };
+}
+function lookList(kind) {
+  if (kind === "instrument") return INSTRUMENTS.map((s) => ({ id: s.id, name: s.name, listed: true }));
+  const out = SCHEMES.map((s) => ({ id: s.id, name: looks.registered.get(s.id)?.name || looks.listed.get(s.id) || s.name,
+                                    listed: !s.probe || looks.listed.has(s.id) || looks.registered.has(s.id) }));
+  for (const [id, mod] of looks.registered) if (!out.some((s) => s.id === id)) out.push({ id, name: mod.name, listed: true });
+  return out;
+}
+function lookModuleProblem(mod, id) {
+  if (!mod || typeof mod !== "object") return "the module has no default export object";
+  if (typeof mod.id !== "string" || !LOOK_ID.test(mod.id)) return "id must be lowercase letters, digits and dashes";
+  if (id !== undefined && mod.id !== id) return `the module's id "${mod.id}" does not match its file "${id}"`;
+  if (typeof mod.name !== "string" || !mod.name) return "name is missing";
+  if (typeof mod.create !== "function") return "create(ctx) is missing";
+  return "";
+}
+async function lookModule(kind, id) {  // id is one of the listed ids (checked by the caller)
+  if (kind === "scheme" && looks.registered.has(id)) return looks.registered.get(id);
+  const mod = kind === "scheme" ? await import(`./piano/schemes/${id}.js`) : await import(`./piano/instruments/${id}.js`);
+  return mod.default;
+}
+function lookFailed(kind, entry, what, e) {
+  const L = looks[kind];
+  L.errors++;
+  L.lastError = `${entry.id} ${what}: ${errText(e)}`;
+  console.error(`[piano] ${kind} ${entry.id} ${what} failed:`, e);
+  toast(`${kind === "scheme" ? "Scheme" : "Instrument"} ${entry.name}: ${what} failed (${errText(e)}). Showing ${
+    kind === "scheme" ? "Classic trails" : "Page keys"}.`, true);
+  if (kind === "scheme") unmountScheme(); else unmountInstrument();
+  L.id = LOOK_BUILTIN[kind];
+  L.loading = null;
+  syncLooksUi();
+  return false;
+}
+// Note events for the active scheme and the instrument's state: Daniel's notes on the 88 keys (the notes engine calls these)
+function lookEvent(method, a, b, c) {
+  looks.counts[method]++;
+  const s = looks.scheme.active;
+  if (!s) return;
+  try { s.instance[method](a, b, c); } catch (e) { lookFailed("scheme", s, method, e); }
+}
+function lookNoteOn(m, vel, t, st) {
+  if (m < KEY.first || m > KEY.last) return;
+  const S = looks.state;
+  S.pressed.set(m, st);  // the sounding entry itself: { vel, t0, held, ... }
+  const n = S.notes.length < 64 ? { midi: 0, vel: 0, t: 0 } : S.notes.shift();
+  n.midi = m; n.vel = vel; n.t = t;
+  S.notes.push(n);
+  lookEvent("noteOn", m, vel, t);
+}
+function lookNoteOff(m, t, pedalHolds) {
+  if (m < KEY.first || m > KEY.last) return;
+  looks.state.pressed.delete(m);
+  lookEvent(pedalHolds ? "noteRelease" : "noteEnd", m, t);
+}
+function lookNoteEnd(m, t) {  // a repeat strike, a pedal lift or all-notes-off ends a sound
+  if (m < KEY.first || m > KEY.last) return;
+  looks.state.pressed.delete(m);
+  lookEvent("noteEnd", m, t);
+}
+let atmosphereLook = false;  // spectacle's atmosphere is on (its classic(on) callback says so)
+function applyClassicLook() {  // the page's own columns and sparks show with no scheme and no atmosphere
+  const classic = !atmosphereLook && !looks.scheme.active;
+  trailUniforms.uAtmosphere.value = classic ? 0 : 1;
+  sparkPoints.visible = classic;
+}
+function unmountScheme() {
+  const s = looks.scheme.active;
+  looks.scheme.active = null;
+  if (s) {
+    try { s.instance.setActive(false); } catch (e) { console.error(`[piano] scheme ${s.id} setActive(false) failed:`, e); }
+    try { s.instance.dispose(); } catch (e) { console.error(`[piano] scheme ${s.id} dispose failed:`, e); }
+  }
+  applyClassicLook();
+}
+async function selectScheme(id, persist = true) {
+  const L = looks.scheme;
+  const listed = lookList("scheme").find((s) => s.id === id && s.listed);
+  if (!listed) return false;
+  if (rec.state !== "idle" || rec.arming) { toast("Stop recording before changing the scheme", true); syncLooksUi(); return false; }
+  const token = ++L.token;
+  if (persist) safeSet(LOOK_KEYS.scheme, id);
+  if (id === LOOK_BUILTIN.scheme) { unmountScheme(); L.id = id; L.loading = null; syncLooksUi(); return true; }
+  L.loading = id;
+  syncLooksUi();
+  let mod;
+  try {
+    mod = await lookModule("scheme", id);
+    const problem = lookModuleProblem(mod, id);
+    if (problem) throw new Error(problem);
+  } catch (e) {
+    return token === L.token ? lookFailed("scheme", listed, "load", e) : false;
+  }
+  if (token !== L.token) return false;  // a later pick won
+  unmountScheme();
+  const entry = { id, name: mod.name, instance: null };
+  try {
+    const instance = mod.create(schemeCtx);
+    const missing = SCHEME_METHODS.filter((k) => !instance || typeof instance[k] !== "function");
+    if (missing.length) {
+      try { instance?.dispose?.(); } catch { /* half-built */ }
+      throw new Error(`create() returned an instance without ${missing.join(", ")}`);
+    }
+    entry.instance = instance;
+    instance.setActive(false);
+    instance.resize(lookFraming());
+    const t = clock();
+    for (const [m, st] of sounding) {  // start from what is sounding now
+      if (m < KEY.first || m > KEY.last) continue;
+      instance.noteOn(m, st.vel, st.t0);
+      if (!st.held) instance.noteRelease(m, st.tRelease || t);
+    }
+    if (sustain) instance.pedal(true, 127, t);
+    instance.setActive(true);
+  } catch (e) {
+    if (entry.instance) { try { entry.instance.setActive(false); entry.instance.dispose(); } catch { /* broken */ } }
+    return lookFailed("scheme", listed, "create", e);
+  }
+  L.active = entry;
+  L.id = id;
+  L.loading = null;
+  applyClassicLook();
+  syncLooksUi();
+  return true;
+}
+function instrumentHints(def, handle) {
+  const stage = { ...(def.hints || {}), ...(handle.hints || {}), ...(handle.stageHints || {}), ...(handle.stage || {}) };
+  const style = handle.keyStyle || def.keyStyle || null;
+  const span = handle.keySpan || def.keySpan || null;
+  return {
+    white: Number.isFinite(style?.whiteColor) ? style.whiteColor : null,
+    black: Number.isFinite(style?.blackColor) ? style.blackColor : null,
+    first: Number.isFinite(span?.first) ? Math.max(KEY.first, span.first) : KEY.first,
+    last: Number.isFinite(span?.last) ? Math.min(KEY.last, span.last) : KEY.last,
+    floorY: Number.isFinite(stage.floorY) ? Math.min(PAGE_LOOK.floorY, stage.floorY) : PAGE_LOOK.floorY,
+    hideBody: stage.hideHostBody !== false && stage.hideStageBody !== false,
+  };
+}
+const lookBlack = new THREE.Color();
+function paintBlackKeys() {
+  const h = looks.instrument.hints;
+  lookBlack.copy(PAGE_LOOK.black);
+  if (h && h.black !== null) lookBlack.set(h.black);
+  for (const k of keys.values()) if (k.black) k.material.color.copy(lookBlack);
+}
+function applyInstrumentHints(h) {  // null: the page's own keys, body, floor and pool
+  IVORY.copy(PAGE_LOOK.white);
+  if (h && h.white !== null) IVORY.set(h.white);
+  paintBlackKeys();
+  moonSurfaceScales.clear();  // Claude's key surface is fitted to the ivory
+  for (const k of keys.values()) k.pivot.visible = !h || (k.m >= h.first && k.m <= h.last);
+  for (const o of pageBody) o.visible = !h || !h.hideBody;
+  floor.position.y = h ? h.floorY : PAGE_LOOK.floorY;
+  poolMesh.position.y = POOL.y + (floor.position.y - PAGE_LOOK.floorY);
+}
+function unmountInstrument() {
+  const L = looks.instrument, a = L.active;
+  L.active = null;
+  if (a) {
+    try { a.handle.setActive?.(false); } catch (e) { console.error(`[piano] instrument ${a.id} setActive(false) failed:`, e); }
+    try { a.handle.dispose?.(); } catch (e) { console.error(`[piano] instrument ${a.id} dispose failed:`, e); }
+    a.handle.group.removeFromParent();
+  }
+  if (L.hints) { L.hints = null; applyInstrumentHints(null); }
+}
+async function selectInstrument(id, persist = true) {
+  const L = looks.instrument;
+  const listed = lookList("instrument").find((s) => s.id === id);
+  if (!listed) return false;
+  if (rec.state !== "idle" || rec.arming) { toast("Stop recording before changing the instrument", true); syncLooksUi(); return false; }
+  const token = ++L.token;
+  if (persist) safeSet(LOOK_KEYS.instrument, id);
+  if (id === LOOK_BUILTIN.instrument) { unmountInstrument(); L.id = id; L.loading = null; syncLooksUi(); return true; }
+  L.loading = id;
+  syncLooksUi();
+  let def;
+  try {
+    def = await lookModule("instrument", id);
+    const problem = lookModuleProblem(def, id);
+    if (problem) throw new Error(problem);
+  } catch (e) {
+    return token === L.token ? lookFailed("instrument", listed, "load", e) : false;
+  }
+  if (token !== L.token) return false;
+  unmountInstrument();
+  let handle = null;
+  try {
+    handle = def.create(instrumentCtx());
+    if (!handle || !handle.group || !handle.group.isObject3D || typeof handle.update !== "function") {
+      throw new Error("create() returned no group or no update()");
+    }
+    if (!handle.group.parent) scene.add(handle.group);
+    L.active = { id, name: def.name, handle, def };
+    L.hints = instrumentHints(def, handle);
+    applyInstrumentHints(L.hints);
+    handle.resize?.(lookFraming());
+    handle.setActive?.(true);
+  } catch (e) {
+    if (!L.active && handle) {
+      try { handle.dispose?.(); } catch { /* half-built */ }
+      handle.group?.removeFromParent?.();
+    }
+    return lookFailed("instrument", listed, "create", e);
+  }
+  L.id = id;
+  L.loading = null;
+  syncLooksUi();
+  return true;
+}
+function resizeLooks() {  // applyFraming (framing and render quality)
+  const f = lookFraming(), s = looks.scheme.active, i = looks.instrument.active;
+  if (s) { try { s.instance.resize(f); } catch (e) { lookFailed("scheme", s, "resize", e); } }
+  if (i && typeof i.handle.resize === "function") { try { i.handle.resize(f); } catch (e) { lookFailed("instrument", i, "resize", e); } }
+}
+// Spectacle's "Atmosphere" chord view draws the notes itself (the rule above). Spectacle hands out no handles, so its note
+// layers are found by what they are: in its group, the second unnamed group (note glass), meshes with a veil layer or a note
+// attribute, point clouds with per-mote uv or per-pitch colour, and the halo loop; in Moonwater, the strands, leaders, labels
+// and heading (render orders 3, 14, 15, 30) and the lake's letters and connections.
+let atmosphereRoot = null;
+function hideAtmosphereNotes() {
+  if (!atmosphereRoot || atmosphereRoot.parent !== scene) atmosphereRoot = scene.getObjectByName("Piano atmosphere") || null;
+  if (!atmosphereRoot) return 0;
+  let hidden = 0, groups = 0;
+  for (const o of atmosphereRoot.children) {
+    if (o.isGroup && !o.name) {  // the world, then the note glass
+      if (groups++ === 1 && o.visible) { o.visible = false; hidden++; }
+      continue;
+    }
+    if (o.name === "Moonwater") {
+      for (const c of o.children) {
+        const ro = c.renderOrder;
+        if ((ro === 3 || ro === 14 || ro === 15 || ro === 30) && c.visible) { c.visible = false; hidden++; }
+        const u = c.name === "Lake reflection" && c.material ? c.material.uniforms : null;
+        if (u && u.uLetters && (u.uLetters.value || u.uConnections.value)) { u.uLetters.value = 0; u.uConnections.value = 0; hidden++; }
+      }
+      continue;
+    }
+    const g = o.geometry, a = g && g.attributes, u = o.material && o.material.uniforms;
+    const note = (o.isMesh && ((u && u.uLayer) || (a && a.aNote))) || (o.isPoints && a && (a.aUv || a.color)) || o.isLineLoop;
+    if (note && o.visible) { o.visible = false; hidden++; }
+  }
+  return hidden;
+}
+const schemeOwnsNotes = () => !!looks.scheme.active && !!spectacle && spectacle.settings.enabled && spectacle.settings.harmonyMode === "atmosphere";
+function lookChord(info) {  // the instrument's state.chord: { name, nns, key } while a chord reads, else null
+  if (!info || info.kind !== "chord" || !info.name) return null;
+  const C = looks.chord;
+  C.name = info.name;
+  if (C.from !== lastNns) { C.from = lastNns; C.nns = lastNns ? formatNumber(lastNns).display : ""; }
+  if (C.keyFrom !== keyView.name) { C.keyFrom = keyView.name; C.key = keyView.name ? keyText(keyView.name) : ""; }
+  return C;
+}
+// renderFrame, after spectacle's update and before the composer renders
+function updateLooks(dt, t, info) {
+  const s = looks.scheme.active;
+  if (s) {
+    const F = looks.frame;
+    F.info = info; F.sounding = sounding; F.pedalDown = sustain; F.framing = lookFraming();
+    F.view.top = trailUniforms.uTop.value;        // where rising things leave the picture (updateCamera)
+    F.view.pointScale = sparkUniforms.uPx.value;  // drawing-buffer pixels per world unit at distance 1
+    try { s.instance.update(dt, t, F); } catch (e) { lookFailed("scheme", s, "update", e); }
+  }
+  looks.hidden = schemeOwnsNotes() ? hideAtmosphereNotes() : 0;
+  const i = looks.instrument.active;
+  if (i) {
+    const S = looks.state;
+    S.pedal = sustain;
+    S.chord = lookChord(info);
+    try { i.handle.update(dt, t, S); } catch (e) { lookFailed("instrument", i, "update", e); }
+  }
+}
+function fillLookSelect(select, list, L) {
+  if (!select) return;
+  const rows = list.filter((s) => s.listed);
+  const signature = rows.map((s) => `${s.id}:${s.name}`).join("|");
+  if (select.dataset.list !== signature) {
+    select.textContent = "";
+    for (const s of rows) select.append(new Option(s.name, s.id));
+    select.dataset.list = signature;
+  }
+  select.value = L.loading || L.id;
+  select.dataset.loading = String(!!L.loading);
+}
+function syncLooksUi() {
+  fillLookSelect($("scheme-select"), lookList("scheme"), looks.scheme);
+  fillLookSelect($("instrument-select"), lookList("instrument"), looks.instrument);
+}
+// The bake-off seats still to land are fetched only when the Scheme menu is reached for (or a stored pick names one), so a
+// page load never asks for a file that is not there.
+let lookProbe = null;
+function probeLooks() {
+  lookProbe ||= Promise.all(SCHEMES.filter((s) => s.probe).map(async (s) => {
+    try {
+      const r = await fetch(new URL(`./piano/schemes/${s.id}.js`, import.meta.url), { cache: "no-store" });
+      if (!r.ok) return;
+      const name = /\bname:\s*["']([^"'\n]{1,60})["']/.exec(await r.text());
+      looks.listed.set(s.id, name ? name[1] : s.name);
+    } catch { /* not there */ }
+  })).then(() => { lookProbe = null; syncLooksUi(); });
+  return lookProbe;
+}
+function startLooks() {  // boot, after spectacle: the stored scheme and instrument
+  syncLooksUi();
+  const scheme = safeGet(LOOK_KEYS.scheme), instrument = safeGet(LOOK_KEYS.instrument);
+  (async () => {
+    try {
+      if (SCHEMES.some((s) => s.id === scheme && s.probe)) await probeLooks();
+      if (scheme && scheme !== LOOK_BUILTIN.scheme) await selectScheme(scheme, false);
+      if (instrument && instrument !== LOOK_BUILTIN.instrument) await selectInstrument(instrument, false);
+    } catch (e) {
+      console.error("[piano] looks did not start:", e);
+    } finally {
+      looks.ready = true;
+    }
+  })();
+}
+function registerScheme(mod) {  // __piano.registerScheme: a scheme module object without a file, for this page load
+  const problem = lookModuleProblem(mod);
+  if (problem) throw new Error(problem);
+  looks.registered.set(mod.id, mod);
+  syncLooksUi();
+  if (looks.scheme.id === mod.id) selectScheme(mod.id, false);  // re-registering the active one rebuilds it
+  return mod.id;
+}
+function looksHudText(t) {
+  const S = looks.scheme, I = looks.instrument;
+  let live = "";
+  if (S.active && typeof S.active.instance.stats === "function") {
+    try { const s = S.active.instance.stats(t); if (s && s.trailsLive !== undefined) live = ` · ${s.trailsLive} live`; } catch { /* optional */ }
+  }
+  const name = (L, kind) => (L.active ? L.active.name : (lookList(kind).find((s) => s.id === L.id) || {}).name || L.id);
+  return `${name(S, "scheme")}${S.loading ? ` (loading ${S.loading})` : ""}${live} · ${name(I, "instrument")}` +
+         `${I.loading ? ` (loading ${I.loading})` : ""}${S.errors + I.errors ? ` · ${S.errors + I.errors} errors` : ""}` +
+         `${looks.hidden ? " · atmosphere notes hidden" : ""}`;
+}
+// __piano.looks(): what shows, what loads, errors, the renderer's GPU memory; geometry: the instrument's box against its keys;
+// render: one frame drawn with the renderer's counters kept across passes (calls, triangles)
+function lookStats(opts = {}) {
+  const S = looks.scheme, I = looks.instrument, info = renderer.info;
+  const safe = (fn) => { try { return fn(); } catch (e) { return { error: errText(e) }; } };
+  let shown = 0;
+  for (const k of keys.values()) if (k.pivot.visible) shown++;
+  const out = {
+    ready: looks.ready,
+    scheme: S.id, schemeName: (lookList("scheme").find((s) => s.id === S.id) || {}).name || null, schemeLoading: S.loading,
+    schemeErrors: S.errors, schemeLastError: S.lastError,
+    instrument: I.id, instrumentName: I.active ? I.active.name : "Page keys", instrumentLoading: I.loading,
+    instrumentErrors: I.errors, instrumentLastError: I.lastError,
+    schemes: lookList("scheme").map((s) => ({ ...s, active: s.id === S.id })),
+    instruments: lookList("instrument").map((s) => ({ ...s, active: s.id === I.id })),
+    counts: { ...looks.counts },
+    classicTrails: trailUniforms.uAtmosphere.value === 0, sparks: sparkPoints.visible,
+    atmosphereNotesHidden: looks.hidden, labelOnCanvas: overlay.label ? overlay.label.mesh.visible : null,
+    keysShown: shown, bodyShown: pageBody.every((o) => o.visible), floorY: +floor.position.y.toFixed(3),
+    keyStyle: I.hints ? { ...I.hints } : null,
+    chordForInstrument: looks.state.chord ? { name: looks.state.chord.name, nns: looks.state.chord.nns, key: looks.state.chord.key } : null,
+    memory: { geometries: info.memory.geometries, textures: info.memory.textures }, programs: info.programs ? info.programs.length : null,
+    schemeStats: S.active && typeof S.active.instance.stats === "function" ? safe(() => S.active.instance.stats(clock())) : null,
+    instrumentStats: I.active ? safe(() => (typeof I.active.handle.stats === "function" ? I.active.handle.stats() : I.active.handle.info ?? null)) : null,
+  };
+  if (opts.render) {
+    info.autoReset = false;
+    info.reset();
+    try { renderFrame(); } finally { info.autoReset = true; }
+    out.render = { calls: info.render.calls, triangles: info.render.triangles };
+  }
+  if (opts.geometry) {
+    const h = I.hints, first = h ? h.first : KEY.first, last = h ? h.last : KEY.last;
+    const g = { span: { first, last, left: keyX(first) - 0.5, right: keyX(last) + 0.5 }, keyFront: KEY.back + KEY.whiteL, keyBack: KEY.back,
+                box: null, screenPx: null };
+    if (I.active) {
+      I.active.handle.group.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(I.active.handle.group);
+      g.box = { min: box.min.toArray().map((v) => +v.toFixed(3)), max: box.max.toArray().map((v) => +v.toFixed(3)) };
+      const lay = I.active.handle.layout;
+      if (lay && lay.screen && Number.isFinite(lay.yPlate)) {
+        camera.updateMatrixWorld();
+        const v = new THREE.Vector3(lay.screen.x, lay.yPlate, lay.screen.z).project(camera);
+        g.screenPx = [+((v.x + 1) * 0.5 * framing.w).toFixed(1), +((1 - v.y) * 0.5 * framing.h).toFixed(1)];
+      }
+    }
+    out.geometry = g;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- overlay --
 // The chord label and the grand staff are Canvas2D layers drawn at output resolution and
 // composited after bloom (so they stay crisp), inside the WebGL canvas (so REC records them).
@@ -1726,6 +2217,12 @@ const overlay = {
   shown: null, pending: null, pendingSince: 0, staffKey: "", labelKey: "", nnsKey: "",
   labelAlpha: 0, staffAlpha: 0, pop: 0, silentSince: 0, needsRedraw: true,
   cueShown: null, cueDrawn: undefined, cueFont: null, cueAlpha: 0,
+  // The label's settle on Daniel's own reading (ownInfo), run beside the shown one: the two are the same until the jam key
+  // (8.10) reads his chords. On the frame the jam key leaves (REC in auto arms on it) the shown label takes this state, so a
+  // take's label, number and staff are a no-band page's from its first frame, pop and fade included (A5).
+  // jamRead: the jam key was shown on the last update.
+  own: { shown: null, pending: null, pendingSince: 0, pendingGrew: undefined, lastOnCount: undefined, labelAlpha: 0, pop: 0 },
+  jamRead: false,
   build() {
     disposeLayer(this.label);
     disposeLayer(this.staff);
@@ -1742,11 +2239,31 @@ const overlay = {
     this.invalidate();
   },
   invalidate() { this.labelKey = ""; this.staffKey = ""; this.nnsKey = ""; this.cueDrawn = undefined; this.needsRedraw = true; },
-  // info: the detection for what is sounding right now, or null for silence
-  update(info, t, dt) {
+  // The label's settle (see update), on a state: this, the label shown, or this.own, Daniel's own beside it
+  settle(st, info, t) {
+    if (info) {
+      const grew = info.onCount !== st.lastOnCount;
+      st.lastOnCount = info.onCount;
+      if (!st.pending || st.pending.name !== info.name) { st.pending = info; st.pendingSince = t; st.pendingGrew = grew; }
+      else st.pending = info;
+      if (st.shown && st.shown.name === info.name) {
+        st.shown = info;  // same name, new voicing: follow at once
+      } else if (t - st.pendingSince >= (st.pendingGrew ? 0.12 : 0.3)) {
+        if (st.shown) st.pop = 1;
+        st.shown = st.pending;
+      }
+    } else if (st.pending && st.pendingGrew && (!st.shown || st.shown.name !== st.pending.name)) {
+      st.shown = st.pending;
+      st.pop = 1;
+    }
+  },
+  // info: the detection for what is sounding right now, or null for silence; own: Daniel's own reading of it (ownInfo)
+  update(info, t, dt, own = info) {
     const sounding = !!info;
     if (sounding) this.silentSince = 0;
     else if (!this.silentSince) this.silentSince = t;
+    if (this.jamRead && !keyView.jam) Object.assign(this, this.own);  // the jam key left: the label is Daniel's own from this frame
+    this.jamRead = !!keyView.jam;
 
     // The staff follows every change at once. The label waits for the set to settle: 120 ms after a
     // note-on (a rolled chord does not flash its partial names), 300 ms after a release (letting go
@@ -1761,21 +2278,8 @@ const overlay = {
       this.staff.tex.needsUpdate = true;
       this.staffKey = staffKey;
     }
-    if (sounding) {
-      const grew = info.onCount !== this.lastOnCount;
-      this.lastOnCount = info.onCount;
-      if (!this.pending || this.pending.name !== info.name) { this.pending = info; this.pendingSince = t; this.pendingGrew = grew; }
-      else this.pending = info;
-      if (this.shown && this.shown.name === info.name) {
-        this.shown = info;  // same name, new voicing: follow at once
-      } else if (t - this.pendingSince >= (this.pendingGrew ? 0.12 : 0.3)) {
-        if (this.shown) this.pop = 1;
-        this.shown = this.pending;
-      }
-    } else if (this.pending && this.pendingGrew && (!this.shown || this.shown.name !== this.pending.name)) {
-      this.shown = this.pending;
-      this.pop = 1;
-    }
+    this.settle(this.own, own, t);
+    this.settle(this, info, t);
     // the number depends on the key, the minor numbering and how sure the tracker is; "Numbers only" puts it in the label
     const theory = `${theoryUi.nns}|${theoryUi.minor}|${keyView.name}|${keyView.dim}`;
     const labelKey = this.shown ? this.shown.name + "|" + this.shown.notes.map((n) => n.name).join(",") + COLOUR.mode + fontState.text
@@ -1818,9 +2322,11 @@ const overlay = {
 
     const quiet = sounding ? 0 : t - this.silentSince;
     const target = sounding ? 1 : quiet < 2.4 ? 0.62 : 0;
-    this.labelAlpha = damp(this.labelAlpha, this.shown ? target : 0, target > this.labelAlpha ? 0.05 : (quiet < 2.4 ? 0.2 : 0.55), dt);
+    for (const st of [this.own, this]) {  // the label shown and Daniel's own beside it fade alike
+      st.labelAlpha = damp(st.labelAlpha, st.shown ? target : 0, target > st.labelAlpha ? 0.05 : (quiet < 2.4 ? 0.2 : 0.55), dt);
+      st.pop = damp(st.pop, 0, 0.09, dt);
+    }
     this.staffAlpha = damp(this.staffAlpha, sounding ? 1 : quiet < 2.4 ? 0.7 : 0.4, 0.25, dt);
-    this.pop = damp(this.pop, 0, 0.09, dt);
     this.label.mat.opacity = this.labelAlpha * (1 - 0.35 * this.pop);
     this.label.mesh.scale.setScalar(1 + 0.045 * this.pop);
     this.nns.mat.opacity = this.label.mat.opacity;
@@ -1830,7 +2336,7 @@ const overlay = {
     if (!cueInfo && this.cueAlpha < 0.01) { this.cueAlpha = 0; this.cueShown = null; }  // under 1%: gone
     this.cue.mat.opacity = this.cueAlpha * cueStage.mix;  // off the canvas (jam view) the glass draws it instead
     this.cue.mesh.visible = this.cue.mat.opacity > 0.002;
-    if (!sounding && quiet > 4.5 && this.shown) { this.shown = null; this.pending = null; }
+    for (const st of [this.own, this]) if (!sounding && quiet > 4.5 && st.shown) { st.shown = null; st.pending = null; }
   },
 };
 
@@ -1855,13 +2361,13 @@ const KEY_TICK = 0.1;
 const DIM_HOLD = 0.8;  // "unsure" must hold this long before the numbers dim, and "fair" as long before they brighten
 const keyTracker = createKeyTracker();
 // jam: the running section's key while Claude's band plays (jamKey, jam spec 8.10), else null. trackDim: the tracker's own
-// unsure state with its hold (dim is that, unless the jam key is shown)
+// unsure state with its hold (dim is that, unless the jam key is shown). trackName: the tracker's own key's name, shown or not
 const keyView = { key: null, name: "", confidence: "unsure", locked: false, candidate: null, dim: false, trackDim: false, dimSince: 0,
-                  at: -Infinity, jam: null };
+                  at: -Infinity, jam: null, trackName: "" };
 let keyRaw = null;
-// The staff's key signature (live sheet music LS6, piano/keysig.js): the key the numbers use, adopted once the tracker has held
-// it with lock confidence for 2 bars (4 s in free time), never inside an open chord, at most once per 8 bars; a key locked in
-// the Key menu wins at once. tickKey feeds it at the tracker's 10 Hz.
+// The staff's key signature (live sheet music LS6, piano/keysig.js): the tracker's key, the one the numbers use with no band,
+// adopted once the tracker has held it with lock confidence for 4 s (free time), never inside an open chord, at most once per
+// 16 s; a key locked in the Key menu wins at once. tickKey feeds it at the tracker's 10 Hz, from Daniel's playing only.
 const keySig = createKeySignatureModel();
 const keyText = (name) => String(name).replace(/^([A-G])b/, "$1♭").replace(/^([A-G])#/, "$1♯");
 // The jam key (8.10): while a run plays, and for 2 s after it ends, the key shown (numbers, spelling, the Key menu's auto
@@ -1885,22 +2391,22 @@ let keyTrack = null;  // the tracker's last reading
 function tickKey(t, force = false) {
   if (!force && t - keyView.at < KEY_TICK) return;
   keyView.at = t;
-  keyTrack = keyTracker.update(pcHistory, t, lastInfo);  // copies the histogram; the sounding chord gives the V7 -> I cue
+  // copies the histogram; the sounding chord gives the V7 -> I cue. It hears Daniel's chords as his own reading names them
+  // (ownInfo, in the tracker's key), never as the jam key reads them, so its key is the one a page with no band reaches (A5)
+  keyTrack = keyTracker.update(pcHistory, t, ownInfo);
   // the dim hold runs on the tracker's own confidence, band or no band, so it is where a page with no band would be the
   // moment the jam key goes (REC in auto); the jam key only lifts the dim while it is shown
   const unsure = !keyTrack.locked && keyTrack.confidence === "unsure";
   if (unsure === keyView.trackDim) keyView.dimSince = t;
   else if (t - keyView.dimSince >= DIM_HOLD) { keyView.trackDim = unsure; keyView.dimSince = t; }
   showKey(t);
-  // lock confidence: the tracker fair or sure, or the jam key; a chord is open while the notes of its last onset sound
-  keySig.update({ t, key: keyView.key, sure: !!keyView.jam || keyView.confidence === "sure" || keyView.confidence === "fair",
-                  manual: theoryUi.key !== "auto" ? theoryUi.key : null, bar: jamBar(), chord: sounding.size ? stats.noteOns : null });
-}
-// Claude's band's bar clock while its key is the one shown (a run plays): the signature's settle gate counts bars, not seconds.
-function jamBar() {
-  const p = keyView.jam ? jam.position : null;
-  if (!p || !Number.isFinite(p.bar) || !Number.isFinite(p.beat)) return null;
-  return { index: p.bar, pos: p.bar + Math.min(0.999, Math.max(0, p.beat / (p.beats_per_bar || 4))) };
+  // The signature hears Daniel alone (LS6: the page's key tracker; a manual key lock wins): the tracker's own key, with lock
+  // confidence when it holds it fair or sure, and the key he locked. Never the jam key (8.10): it numbers his chords while
+  // the band plays, but it must never change what a take shows (A5). Nor the band's bar clock, the only one the page has:
+  // it would move the moment a signature lands, so the staff settles in free time (4 s). A chord is open while the notes of
+  // its last onset sound.
+  keySig.update({ t, key: keyTrack.key, sure: keyTrack.confidence === "sure" || keyTrack.confidence === "fair",
+                  manual: theoryUi.key !== "auto" ? theoryUi.key : null, bar: null, chord: sounding.size ? stats.noteOns : null });
 }
 // The key shown: the tracker's last reading, or the jam key over it. REC in auto calls it as it arms (startRecording), before
 // any recorded frame, so a take numbers Daniel's chords in his own key from its first frame, exactly as with no band.
@@ -1914,8 +2420,12 @@ function showKey(t) {
   keyView.candidate = jk ? null : s.candidate;
   const name = keyView.key ? keyView.key.name : "";
   const jamName = jk ? jk.name : null;
+  // Daniel's own reading is read again when the tracker's key changes, band or no band, exactly as on a page with no band;
+  // the reading shown is read again when the jam key comes, goes or changes (jamDirty; REC in auto arms on such a frame)
+  const trackName = s.key ? s.key.name : "";
+  if (trackName !== keyView.trackName) { keyView.trackName = trackName; detectDirty = true; }
   if (name !== keyView.name || jamName !== keyView.jam) {
-    if (name !== keyView.name) detectDirty = true;  // respell and renumber what is sounding
+    jamDirty = true;  // respell and renumber what is sounding
     keyView.name = name;
     keyView.jam = jamName;
     syncKeySelect();
@@ -2058,7 +2568,9 @@ function logChord(t) {
 const sounding = new Map();  // midi -> { held, vel, t0, trail }
 let sustain = false;
 let detectDirty = true;
+let jamDirty = false;  // the jam key came, went or changed: the reading shown is read again, Daniel's own is not (currentInfo)
 let lastInfo = null;
+let ownInfo = null;    // Daniel's own reading, in the tracker's key (lastInfo itself whenever the jam key is not shown)
 let lastNns = null;  // nashville() of lastInfo in the shown key
 const pcHistory = new Array(12).fill(0);  // decaying pitch-class weights: the key tracker and estimateKey read it
 let pcHistoryAt = 0;
@@ -2079,6 +2591,7 @@ function noteOn(m, vel) {
   const prev = sounding.get(m);
   if (prev) {
     trails.end(prev.trail, t);  // a repeated note closes its previous trail
+    lookNoteEnd(m, t);          // and the scheme's previous sound
     logged((log) => log.soundEnd(m, "repeat", pageSec(t)));
   }
   logged((log) => log.noteOn(m, vel, pageSec(t)));
@@ -2092,6 +2605,7 @@ function noteOn(m, vel) {
     burst(m, vel, t);
     lightNote(m, vel);
     hintCamera(m, t);
+    lookNoteOn(m, vel, t, sounding.get(m));
   }
   const f = Math.exp(-(t - pcHistoryAt) / 12);
   for (let i = 0; i < 12; i++) pcHistory[i] *= f;
@@ -2113,6 +2627,7 @@ function noteOff(m) {
   st.tRelease = t;
   jamRest.noteOff(m);
   trails.release(st.trail, t);
+  lookNoteOff(m, t, sustain);  // the scheme: a release while the pedal holds the sound, else the sound's end
   const k = keys.get(m);
   // Daniel's fields only: a key Claude still holds stays down and moonlit (cueTarget, cueGlowTarget: Claude's hand)
   if (k) { k.target = 0; k.glowTarget = sustain ? glowLevel(st, t) : 0; }
@@ -2128,6 +2643,7 @@ function setSustain(on, value = on ? 127 : 0) {
   spectacle?.pedal(on, t);
   beforeChange(t);
   sustain = on;
+  lookEvent("pedal", on, value, t);
   if (!demo.running) jamRest.sustain(on);
   logged((log) => log.pedal(on, value, pageSec(t)));
   if (!on) {
@@ -2135,6 +2651,7 @@ function setSustain(on, value = on ? 127 : 0) {
     for (const [m, st] of sounding) {
       if (st.held) continue;
       trails.end(st.trail, t);
+      lookNoteEnd(m, t);
       logged((log) => log.soundEnd(m, "pedal", pageSec(t)));
       sounding.delete(m);
       const k = keys.get(m);
@@ -2150,13 +2667,14 @@ function allNotesOff() {  // CC120 (all sound off), CC123 (all notes off), input
   beforeChange(t);
   for (const [m, st] of sounding) {
     trails.end(st.trail, t);
+    lookNoteEnd(m, t);
     logged((log) => log.soundEnd(m, "all-off", pageSec(t)));
     const k = keys.get(m);
     if (k) { k.target = 0; k.glowTarget = 0; }
   }
   for (const m of sounding.keys()) jamRest.noteOff(m);
   sounding.clear();
-  if (sustain) logged((log) => log.pedal(false, 0, pageSec(t)));
+  if (sustain) { logged((log) => log.pedal(false, 0, pageSec(t))); lookEvent("pedal", false, 0, t); }
   sustain = false;
   jamRest.sustain(false);
   detectDirty = true;
@@ -2164,31 +2682,49 @@ function allNotesOff() {  // CC120 (all sound off), CC123 (all notes off), input
   // Claude's hand is untouched here: a Demo or a MIDI input switch is about Daniel's notes. The MIDI panic itself
   // (CC120/123, onMidiMessage) and Esc/Backspace hush Claude as well.
 }
-// The chord reader names what sounds (TN2) with the key it may trust: the shown key while the tracker holds it fair or sure,
-// a key locked in the Key menu, or the jam key. An unsure key is no key to it (spec 2.1 A1: a no-3rd chord's family stays
-// open, and names are spelled by the bias), and spellForKey then spells its name in the shown key. prev: the root of the
-// chord before, the reader's previous-root prior.
+// The chord reader names what sounds (TN2) with the key it may trust (trust): a key the tracker holds fair or sure, a key
+// locked in the Key menu, or the jam key. An unsure key is no key to it (spec 2.1 A1: a no-3rd chord's family stays open,
+// and names are spelled by the bias), and spellForKey then spells its name in the key read in. prev: the root of the chord
+// before, the reader's previous-root prior. own: Daniel's own reading (in the tracker's key), the only one that moves that
+// prior; the jam key's reading borrows it as it stands, so his own reading is never steered by the band's key.
 const readerChord = { root: null, prev: null };
-function detectSounding(bias) {
+function detectSounding(bias, trust = null, own = true) {
   const midis = [...sounding.keys()];
   if (!pianoReader) return Theory.detect(midis, bias);
-  const k = keyView.key && (keyView.locked || keyView.jam || keyView.confidence !== "unsure") ? keyContext(keyView.key) : null;
+  const k = trust ? keyContext(trust) : null;
   const info = Theory.detect(midis, bias, { key: k ? k.name : null, prev: readerChord.prev === null ? null : { root: readerChord.prev } });
   if (info && k && Array.isArray(info.readings)) info.spelledIn = k.name;  // the reader spelled it in this key already
-  if (info && info.kind === "chord" && info.root) {
+  if (own && info && info.kind === "chord" && info.root) {
     const root = Theory.pcOf(info.root);
     if (root !== readerChord.root) { readerChord.prev = readerChord.root; readerChord.root = root; }
   }
   return info;
 }
+// What sounds, read in key (trusted: the reader may use it) and spelled in it
+function readSounding(key, trusted, own) {
+  const bias = key ? key.bias : keyRaw ? keyRaw.bias : 0;
+  return spellForKey(detectSounding(bias, key && trusted ? key : null, own), key);
+}
 // t: the moment it is read at (a frame's clock, or a catch-up's; see "theory without frames")
+// Two readings (A5). ownInfo is Daniel's own, in the tracker's key, read again only when a page with no band would read
+// again (detectDirty: a note, the pedal, the minor numbering, the tracker's key): the key tracker hears it, and the label
+// settles on it beside the shown one (overlay.own). lastInfo is what the page shows: while the jam key (8.10) is shown, what
+// sounds read in that key (read again on jamDirty too), else ownInfo itself. So the frame the jam key leaves (REC in auto)
+// reads and draws exactly what a page with no band would.
 function currentInfo(t = clock()) {
-  if (!detectDirty) return lastInfo;
+  if (!detectDirty && !jamDirty) return lastInfo;
+  // the jam key's reading first, so it borrows the reader's prior as Daniel's own reading finds it
+  const jamRead = keyView.jam && sounding.size ? readSounding(keyView.key, true, false) : null;
+  if (detectDirty) {
+    keyRaw = Theory.estimateKey(pcHistory);
+    const track = keyTrack && keyTrack.key ? keyTrack : null;
+    ownInfo = sounding.size ? readSounding(track ? track.key : null, !!track && (track.locked || track.confidence !== "unsure"), true) : null;
+    if (ownInfo) ownInfo.onCount = stats.noteOns;  // lets the label tell a new note from a release
+  }
+  if (jamRead) jamRead.onCount = stats.noteOns;
   detectDirty = false;
-  keyRaw = Theory.estimateKey(pcHistory);
-  const bias = keyView.key ? keyView.key.bias : keyRaw ? keyRaw.bias : 0;
-  lastInfo = sounding.size ? spellForKey(detectSounding(bias), keyView.key) : null;
-  if (lastInfo) lastInfo.onCount = stats.noteOns;  // lets the label tell a new note from a release
+  jamDirty = false;
+  lastInfo = keyView.jam ? jamRead : ownInfo;
   lastNns = numberFor(lastInfo);
   logChord(t);
   return lastInfo;
@@ -3213,6 +3749,7 @@ function applyFraming(id, persist = true) {
   camera.fov = framing.fov;
   camera.aspect = framing.w / framing.h;
   overlay.build();
+  resizeLooks();  // schemes and instruments (the KeyLab's phone profile follows 9:16)
   $("btn-916").setAttribute("aria-pressed", String(framing.id === "9:16"));
   $("btn-169").setAttribute("aria-pressed", String(framing.id === "16:9"));
   updateCamera(0, clock(), true);
@@ -3451,6 +3988,7 @@ function updateHud(t) {
   }
   $("hud-pedal").textContent = sustain ? "down (CC64)" : "up";
   $("hud-trails").textContent = `${trails.liveCount(t)} live / cap ${TRAIL_MAX}`;
+  $("hud-look").textContent = looksHudText(t);
   $("hud-octave").textContent = `computer keys C${3 + kbOctave}-E${5 + kbOctave}`;
   const recText = rec.state === "recording"
     ? `recording ${((performance.now() - rec.startedAt) / 1000).toFixed(1)} s · ${rec.recorder.mimeType || rec.mime}`
@@ -3486,6 +4024,12 @@ function wireUi() {
     }
     overlay.invalidate();
   });
+  // Scheme and Instrument: stored, loaded with import(), error-isolated (the "looks" section); blur so the note keys keep working
+  const schemeSelect = $("scheme-select"), instrumentSelect = $("instrument-select");
+  schemeSelect.addEventListener("pointerdown", () => { probeLooks(); });
+  schemeSelect.addEventListener("focus", () => { probeLooks(); });
+  schemeSelect.addEventListener("change", () => { const id = schemeSelect.value; schemeSelect.blur(); selectScheme(id); });
+  instrumentSelect.addEventListener("change", () => { const id = instrumentSelect.value; instrumentSelect.blur(); selectInstrument(id); });
   const audioSelect = $("audio-select");
   audioSelect.addEventListener("pointerdown", () => { unlockAudioLabels(); });
   audioSelect.addEventListener("change", () => {
@@ -3655,11 +4199,13 @@ function renderFrame() {
   scene.background.copy(stageTint);
   scene.fog.color.copy(stageTint);
 
-  overlay.update(info, t, dt);
+  overlay.update(info, t, dt, ownInfo);
   tickMeter(dt);
   spectacle?.update(dt, t, info, audioIn.stream ? audioIn.level : 0);
+  updateLooks(dt, t, info);  // the scheme and the instrument, after spectacle (its camera drift) and before the composer
   const theoryDisplay = spectacle?.settings.enabled ? spectacle.settings.labels : "full";
-  const ownsTheory = spectacle?.settings.enabled && spectacle?.ownsTheory?.();
+  // with a scheme over spectacle's Atmosphere chord view its note labels are hidden, so the page's own chord label shows
+  const ownsTheory = spectacle?.settings.enabled && spectacle?.ownsTheory?.() && !schemeOwnsNotes();
   overlay.label.mesh.visible = !ownsTheory && theoryDisplay !== "off";
   overlay.staff.mesh.visible = overlay.nns.mesh.visible = theoryDisplay === "full";
   composer.render(dt);
@@ -3712,6 +4258,15 @@ function loop() {
 window.__piano = {
   ready: false,
   get spectacle() { return spectacle; },
+  // Scheme and Instrument (the "looks" section): looks({ geometry, render }) reports; select*() resolve true once shown;
+  // registerScheme(module) joins a module object without a file for this page load (scheme development)
+  looks: (opts) => lookStats(opts),
+  selectScheme: (id, persist = true) => selectScheme(id, persist),
+  selectInstrument: (id, persist = true) => selectInstrument(id, persist),
+  registerScheme: (mod) => registerScheme(mod),
+  probeSchemes: () => probeLooks().then(() => lookList("scheme")),
+  get scheme() { return looks.scheme.active ? looks.scheme.active.instance : null; },
+  get instrument() { return looks.instrument.active ? looks.instrument.active.handle : null; },
   conversation: {
     async mark() {
       if (!perfLog) throw new Error("The practice log is not available yet.");
@@ -3995,8 +4550,11 @@ function boot() {
       recording: () => rec.state !== "idle" || rec.arming, quality: setRenderQuality,
       audio: () => audioIn.stream ? audioIn.data : null,
       lookTarget,
-      classic: (on) => { trailUniforms.uAtmosphere.value = on ? 0 : 1; sparkPoints.visible = on; } });
+      // classic(on): the page's own look, with the atmosphere off; a scheme hides the classic columns too (applyClassicLook).
+      // Turning the atmosphere off restores the keys' colours, so an instrument's black keys are painted again after it.
+      classic: (on) => { atmosphereLook = !on; applyClassicLook(); if (looks.instrument.hints) queueMicrotask(paintBlackKeys); } });
   } catch (e) { console.error("[piano] atmosphere unavailable:", e); toast("Atmosphere unavailable: " + errText(e), true); }
+  startLooks();  // the stored Scheme and Instrument, after spectacle has taken the page's own materials
   syncDemoButton();
   syncRecButton();
   loadFonts();

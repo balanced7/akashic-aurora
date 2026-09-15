@@ -23,7 +23,8 @@
 //             back-check, part way up, as a real grand action does.
 //   dampers   one InstancedMesh (notes 21-88; the top 20 notes have none) lift while their key is held or the pedal is down.
 //   pedal     the right (damper) pedal of the lyre goes down with state.pedal.
-//   case glow one SpotLight over the plate takes the ringing notes' mixed colour. Intensity 0 at rest.
+//   case glow a soft spot over the plate takes the ringing notes' mixed colour. Intensity 0 at rest. It is lit in the
+//             grand's own shaders with three's spot-light maths, not as a scene SpotLight (see Lifetime below).
 //
 // Lid and desk: landscape framing gets the long stick (35 deg) and the music desk; portrait framing gets the recording
 // setup, lid and desk removed, so the upper frame stays clear for the note bars and the whole harp shows. 'short' (10 deg)
@@ -35,6 +36,12 @@
 // lacquer adds a cool sheen so the silhouette separates from a dark stage. Instrument materials ignore scene fog: a 2.7 m
 // case spans more depth than the page fog was tuned for, and fog had turned the hero case to near-black.
 // A faint additive stage pool under the case (handle.parts.pool) lets the legs and lyre read against the floor.
+//
+// Lifetime: after dispose() the renderer's geometries, textures and programs are back where they were before create().
+// The renderer keeps two things for its own life, so the grand avoids both. A canvas equirect set on a material is
+// filtered by the renderer's internal PMREM generator (it keeps 11 geometries, a render target and 2 programs), so the
+// studio map is filtered on the grand's first frame by a PMREMGenerator disposed at once. A scene light makes every host
+// material that draws with it compile a light-count variant it keeps, so the case glow is added in the grand's shaders.
 //
 // Budget (measured in the lab, burst q3, three r186): 32 draw calls / 93,194 triangles in landscape (lid and desk up),
 // 28 / 85,950 in portrait (lid and desk off); 432 instances; shared materials; no per-frame allocation.
@@ -430,6 +437,57 @@ function create(ctx) {
   const partsMat = M(new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.7, clearcoat: 0.2,
     clearcoatRoughness: 0.45, envMap: env, envMapIntensity: 0.7 }));
 
+  // The studio map is filtered here, not by the renderer, whose internal PMREM generator outlives the grand: the materials
+  // start without it and the first frame bakes it (frameHook below) with a PMREMGenerator disposed at once.
+  const envMats = mats.filter((m) => m.envMap === env);
+  for (const m of envMats) m.envMap = null;
+  let studio = null;
+  function bakeStudio(renderer) {
+    if (studio || !renderer) return;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    studio = pmrem.fromEquirectangular(env);
+    pmrem.dispose();
+    env.dispose();                                               // the canvas was only the source
+    for (const m of envMats) { m.envMap = studio.texture; m.needsUpdate = true; }
+  }
+  if (ctx.renderer) bakeStudio(ctx.renderer);
+
+  // Case glow in the grand's own lit materials: three's spot light (r186 getSpotLightInfo), placed right after the scene's
+  // spot lights, so the grand shades as it did under a SpotLight while no host material changes program.
+  const caseU = { uCasePos: { value: new THREE.Vector3() }, uCaseDir: { value: new THREE.Vector3(0, 1, 0) },
+    uCaseColor: { value: new THREE.Color(0, 0, 0) }, uCaseCone: { value: new THREE.Vector4(1, 1, 0, 1) } };  // cone cos, penumbra cos, distance, decay
+  const CASE_GLSL = `#if defined( RE_Direct )
+{
+	IncidentLight caseDirect;
+	vec3 caseVector = uCasePos - geometryPosition;
+	caseDirect.direction = normalize( caseVector );
+	float caseSpot = getSpotAttenuation( uCaseCone.x, uCaseCone.y, dot( caseDirect.direction, uCaseDir ) );
+	if ( caseSpot > 0.0 ) {
+		caseDirect.color = uCaseColor * caseSpot;
+		caseDirect.color *= getDistanceAttenuation( length( caseVector ), uCaseCone.z, uCaseCone.w );
+		caseDirect.visible = ( caseDirect.color != vec3( 0.0 ) );
+	} else {
+		caseDirect.color = vec3( 0.0 );
+		caseDirect.visible = false;
+	}
+	RE_Direct( caseDirect, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+}
+#endif
+`;
+  const beginChunk = THREE.ShaderChunk.lights_fragment_begin;
+  const sunAt = beginChunk.indexOf("#if ( NUM_SUN_LIGHTS > 0 )");
+  const CASE_BEGIN = sunAt >= 0 ? beginChunk.slice(0, sunAt) + CASE_GLSL + beginChunk.slice(sunAt) : beginChunk + CASE_GLSL;
+  const caseShading = (sh) => {
+    Object.assign(sh.uniforms, caseU);
+    sh.fragmentShader = "uniform vec3 uCasePos;\nuniform vec3 uCaseDir;\nuniform vec3 uCaseColor;\nuniform vec4 uCaseCone;\n" +
+      sh.fragmentShader.replace("#include <lights_fragment_begin>", CASE_BEGIN);
+  };
+  for (const m of mats) {
+    if (!m.isMeshStandardMaterial) continue;
+    m.onBeforeCompile = caseShading;
+    m.customProgramCacheKey = () => "concert-grand-case-light";
+  }
+
   // ---- plan ----
   const outer = sampleOutline(THREE, 240);
   let iApex = 0;
@@ -810,10 +868,34 @@ function create(ctx) {
   pool.renderOrder = -1;
 
   // ---- case light: a soft downward spot over the plate takes the ringing chord's colour ----
-  const caseLight = new THREE.SpotLight(0xffffff, 0, 0, 52 * DEG, 1.0, 1.2);
+  // Not a scene SpotLight (caseShading lights the grand's materials): this carries the spot's place and settings.
+  const caseLight = new THREE.Object3D();
+  caseLight.name = "case light";
+  Object.assign(caseLight, { color: new THREE.Color(0xffffff), intensity: 0, distance: 0, angle: 52 * DEG, penumbra: 1.0, decay: 1.2,
+    target: new THREE.Object3D() });
   caseLight.position.set(2, 27, Z_CASE - 50);
   caseLight.target.position.set(-3, Y_PLATE, Z_CASE - 50);
   group.add(caseLight, caseLight.target);
+  // The grand's first draw each frame (a degenerate triangle). An instrument reaches the renderer only here, so this bakes
+  // the studio map on the first frame, then moves the case light into this camera's view space as three does for a
+  // SpotLight's uniforms, before any lit part draws.
+  const caseTmp = new THREE.Vector3();
+  const hookGeo = G(new THREE.BufferGeometry());
+  hookGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+  const frameHook = new THREE.Mesh(hookGeo, felt);
+  frameHook.name = "frame hook";
+  frameHook.frustumCulled = false;
+  frameHook.renderOrder = -1e6;
+  frameHook.onBeforeRender = (renderer, scene, camera) => {
+    bakeStudio(renderer);
+    const view = camera.matrixWorldInverse;
+    caseU.uCasePos.value.setFromMatrixPosition(caseLight.matrixWorld).applyMatrix4(view);
+    caseU.uCaseDir.value.setFromMatrixPosition(caseLight.matrixWorld)
+      .sub(caseTmp.setFromMatrixPosition(caseLight.target.matrixWorld)).transformDirection(view);
+    caseU.uCaseColor.value.copy(caseLight.color).multiplyScalar(caseLight.intensity);
+    caseU.uCaseCone.value.set(Math.cos(caseLight.angle), Math.cos(caseLight.angle * (1 - caseLight.penumbra)), caseLight.distance, caseLight.decay);
+  };
+  group.add(frameHook);
 
   // ---- all geometry that was created inline ----
   group.traverse((o) => { if (o.geometry && !geos.includes(o.geometry)) geos.push(o.geometry); });
@@ -967,6 +1049,7 @@ function create(ctx) {
     for (const g of new Set(geos)) g.dispose();
     for (const m of new Set(mats)) m.dispose();
     for (const t of texs) t.dispose();
+    if (studio) studio.dispose();                                // the baked studio map (a render target)
     for (const im of [pins, hammers, dampers, hinges, legs, casters, rods, braces, pedals]) im.dispose();
   }
 

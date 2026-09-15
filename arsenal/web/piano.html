@@ -7,7 +7,8 @@
 <title>Piano — arsenal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;family=Noto+Music&amp;display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;family=Noto+Music&amp;family=Outfit:wght@400;600;700&amp;family=Jost:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+<!-- Outfit and Jost: the lettering of the KeyLab and vintage-synth instruments (piano/instruments, the Instrument menu). -->
 <link rel="stylesheet" href="/web/piano.css" />
 <!-- The jam space: the deck drawer, the pill and the glass (piano/deck.js, piano/glass.js). Nothing it styles is recorded. -->
 <link rel="stylesheet" href="/web/piano/deck.css" />
@@ -50,6 +51,16 @@
             <option value="velocity">velocity</option>
             <option value="mono">amber</option>
           </select>
+        </label>
+      </div>
+      <div class="group" id="look-group">
+        <label class="field" for="scheme-select" title="What draws the notes. Classic trails is this page's own look; the others are the house's Synthesia schemes. REC records it.">
+          <span class="field-label sig-video">Scheme</span>
+          <select id="scheme-select" aria-label="Note scheme"><option value="classic">Classic trails</option></select>
+        </label>
+        <label class="field" for="instrument-select" title="The instrument drawn around the keys. Page keys is this page's own piano. REC records it.">
+          <span class="field-label sig-video">Instrument</span>
+          <select id="instrument-select" aria-label="Instrument around the keys"><option value="page">Page keys</option></select>
         </label>
       </div>
       <div class="group">
@@ -128,6 +139,7 @@
       <div class="hud-row"><dt>log</dt><dd id="hud-log">&mdash;</dd></div>
       <div class="hud-row"><dt>pedal</dt><dd id="hud-pedal">up</dd></div>
       <div class="hud-row"><dt>trails</dt><dd id="hud-trails">&mdash;</dd></div>
+      <div class="hud-row"><dt>look</dt><dd id="hud-look">&mdash;</dd></div>
       <div class="hud-row"><dt>keys</dt><dd id="hud-octave">&mdash;</dd></div>
       <div class="hud-row"><dt>rec</dt><dd id="hud-rec">idle</dd></div>
       <div class="hud-row"><dt>claude</dt><dd id="hud-cue">&mdash;</dd></div>
