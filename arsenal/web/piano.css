@@ -271,6 +271,10 @@ select:hover { border-color: var(--ink-3); }
 
 #cue-midi-select { max-width: 150px; }
 
+/* The look menus (Scheme and Instrument, piano.js "looks"): amber while a module loads. */
+#look-group select { max-width: 160px; }
+#look-group select[data-loading="true"] { border-color: var(--accent); color: var(--accent); }
+
 @media (prefers-reduced-motion: reduce) {
   .btn[data-want="true"] { animation: none; }
 }

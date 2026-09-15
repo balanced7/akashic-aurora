@@ -8,7 +8,9 @@
 // Sections: the settle model (arsenal/web/piano/keysig.js: free time, unsure, the change mark, spacing, open chords, the bar
 // clock, a manual lock); signatures on the staff (24 keys, accidentals against the signature); the shared Nashville
 // formatter (nashville.js formatNumber: 4 with 6/9 raised, never "46/9"); piano.js's own spellForKey and numberRuns, sliced
-// from the page: one speller for the reader and the page (no rename, never worse, no double accidental on a root or bass).
+// from the page: one speller for the reader and the page (no rename, never worse, no double accidental on a root or bass);
+// piano.js's key section (jamKey, tickKey, showKey, currentInfo), sliced from the page: a jam key never changes the signature
+// or what the key tracker hears, and REC in auto reads Daniel's chords as a page with no band does (A5, LS6, jam spec 8.10).
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as NV from "../arsenal/web/piano/nashville.js";
@@ -328,6 +330,106 @@ if (decls.every(([, x]) => x)) {
     const ds = scenario(["G#2 B2 D#3", "C#3 E3 G#3", "D#3 G3 A#3 C#4", "G#2 B2 D#3"], ["D#3 F#3 A#3", "G#2 B2 D#3", "A#2 D3 E#3 G#3", "D#3 F#3 A#3"]);
     check("finding 2: a sharp key, then a D#-minor passage: pitch class 3 minor (or its relative) is spelled with sharps, never Eb minor's six flats",
       ds.bias === 1 && ds.sig.type === "sharps" && ["D# minor", "F# major"].includes(ds.key), JSON.stringify(ds));
+  }
+
+  // A5 and LS6: a jam key never changes the key signature. piano.js's own key section (jamKey, tickKey, showKey and
+  // currentInfo's two readings), sliced from the page with the real key tracker, signature model and reader, runs twice on the
+  // same synthetic playing: once with no band, once with Claude's band in Eb major on the stage, taken off it by REC in auto
+  // and put back, then a key locked by hand. Rulings: ls1-rulings.md (LS6: the page's key tracker is the source, a manual lock
+  // wins) and jam spec 8.10 (the jam key numbers his chords and the key box reads "jam: E♭").
+  {
+    const KEY_DECLS = ["KEY_TICK", "DIM_HOLD", "keyView", "JAM_KEY_HOLD", "jamKeyState", "jamKey", "keyTrack", "tickKey", "showKey",
+                       "readerChord", "detectSounding", "readSounding", "currentInfo"];
+    const keyDecls = KEY_DECLS.map((n) => [n, declSource(n)]);
+    check("piano.js declares its key section (jamKey, tickKey, showKey, detectSounding, readSounding, currentInfo)", keyDecls.every(([, x]) => x),
+      keyDecls.filter(([, x]) => !x).map(([n]) => n).join(", "));
+    const sigCall = /keySig\.update\(\{[\s\S]*?\}\)/.exec(declSource("tickKey") || "");
+    check("tickKey's keySig.update reads no jam input (neither keyView nor jam) and no bar clock",
+      !!sigCall && !/keyView|jam/i.test(sigCall[0]) && /bar: null/.test(sigCall[0]), sigCall ? sigCall[0] : "no keySig.update in tickKey");
+    // band: the running section's key, or null for no band. fake: null for the page's own key tracker, else { update, lock }.
+    // heard: the chord each tracker tick was handed (name @ the key it was read in).
+    const keyPage = (band, fake = null) => new Function("Theory", "keyContext", "spellForKey", "parseKey", "createKeySignatureModel",
+      "createKeyTracker", "band", "fake",
+      `let detectDirty = true, jamDirty = false, lastInfo = null, ownInfo = null, lastNns = null, keyRaw = null;
+      const env = { t: 0, onStage: true };
+      const pianoReader = true, theoryUi = { key: "auto", minor: "tonic" };
+      const sounding = new Map(), stats = { noteOns: 0 }, pcHistory = new Array(12).fill(0);
+      const heard = [], real = fake || createKeyTracker();
+      const keyTracker = { update: (hist, t, chord) => { heard.push(chord ? chord.name + "@" + (chord.spelledIn || "-") : null); return real.update(hist, t, chord); },
+                           lock: (k) => real.lock(k) };
+      const jam = { get position() { return band ? { state: "playing", key: band, bar: Math.floor(env.t / 2.5), beat: 0, beats_per_bar: 4 } : null; } };
+      const cueOnStage = () => env.onStage;
+      const keySig = createKeySignatureModel();
+      const syncKeySelect = () => {}, numberFor = () => null, logChord = () => {};
+      ${keyDecls.map(([, x]) => x).join("\n")}
+      return { env, keyView, keySig, heard,
+        get own() { return ownInfo; }, get shown() { return lastInfo; },
+        strike(ms) { sounding.clear(); for (const m of ms) { sounding.set(m, {}); pcHistory[((m % 12) + 12) % 12] += 1; } stats.noteOns++; detectDirty = true; },
+        decay() { for (let i = 0; i < 12; i++) pcHistory[i] *= Math.exp(-0.1 / 12); },
+        frame(t) { tickKey(t); return currentInfo(t); },
+        arm(t) { env.onStage = false; showKey(t); },  // startRecording: showKey as REC arms; its clean frame (frame) ticks, then reads
+        lock(name) { theoryUi.key = name; keyTracker.lock(name === "auto" ? null : name); tickKey(env.t, true); return currentInfo(env.t); },
+      };`)(TP, SP.keyContext, page.spellForKey, NV.parseKey, KS.createKeySignatureModel, NV.createKeyTracker, band, fake);
+    const said = (info) => (info ? `${info.name}|${info.notes.map((n) => n.name).join(" ")}|${info.spelledIn || "-"}` : "-");
+    const PROG = ["C3 E3 G3 C4", "F2 A3 C4 F4", "G2 B3 D4 F4", "C3 E3 G3 C4"].map(midis);  // each struck for 2 s
+    const REC_ON = 36, REC_OFF = 44, LOCK_AT = 52, END = 60;
+    const control = keyPage(null), take = keyPage("Eb major");
+    const rows = [];
+    for (let i = 0; i * 0.1 < END - 1e-9; i++) {
+      const t = +(i * 0.1).toFixed(3), row = { t };
+      for (const [name, p] of [["control", control], ["take", take]]) {
+        p.env.t = t;
+        p.decay();
+        if (i % 20 === 0) p.strike(PROG[(i / 20) % PROG.length]);
+        if (name === "take" && t === REC_ON) p.arm(t);
+        if (name === "take" && t === REC_OFF) p.env.onStage = true;
+        if (t === LOCK_AT) p.lock("Gb major");
+        p.frame(t);
+        const v = p.keySig.view(t);
+        row[name] = { sig: v.id, sigKey: v.key, own: said(p.own), shown: said(p.shown), same: p.shown === p.own, jam: p.keyView.jam,
+                      key: p.keyView.key ? p.keyView.key.name : null };
+      }
+      rows.push(row);
+    }
+    const at = (t) => rows[Math.round(t * 10)];
+    const hist = (p) => JSON.stringify(p.keySig.history());
+    const sigDiff = rows.filter((r) => r.control.sig !== r.take.sig);
+    check("a jam key never changes the signature: the take's signature (its history, and its drawn id on every tick) is the no-band page's",
+      hist(take) === hist(control) && sigDiff.length === 0, `${sigDiff.length} ticks differ, first ${JSON.stringify(sigDiff[0])}; ${hist(control)} / ${hist(take)}`);
+    check("the scenario settles C major from Daniel's playing before REC, and the take never shows the band's Eb major",
+      control.keySig.history().some((h) => h.to === "C major" && h.t < REC_ON) && rows.every((r) => r.take.sigKey !== "Eb major"), hist(control));
+    const heardAt = take.heard.findIndex((h, j) => h !== control.heard[j]);
+    check("the key tracker is handed the same chords on both pages (Daniel's own reading, never the jam key's)",
+      take.heard.length === control.heard.length && heardAt === -1, `tick ${heardAt}: ${take.heard[heardAt]} / ${control.heard[heardAt]}`);
+    const ownDiff = rows.filter((r) => r.take.own !== r.control.own);
+    check("Daniel's own reading is the no-band page's on every tick", ownDiff.length === 0, JSON.stringify(ownDiff[0]));
+    const staged = rows.filter((r) => r.t >= 4 && r.t < REC_ON);
+    check("jam spec 8.10 kept: on the stage the key shown is the band's (jam: Eb major), and it reads his chords (spelled in Eb major)",
+      staged.every((r) => r.take.jam === "Eb major" && r.take.key === "Eb major") && staged.some((r) => r.take.shown.endsWith("|Eb major")),
+      JSON.stringify(staged.find((r) => r.take.jam !== "Eb major") || staged[0]));
+    const recRows = rows.filter((r) => r.t >= REC_ON && r.t < REC_OFF);
+    const recBad = recRows.filter((r) => r.take.jam !== null || !r.take.same || r.take.shown !== r.control.shown);
+    check("REC in auto: from the arming tick the jam key is off and the reading shown is Daniel's own, the no-band page's",
+      recRows.length === 80 && recBad.length === 0, `${recBad.length} of ${recRows.length}: ${JSON.stringify(recBad[0])}`);
+    check("after REC the jam key is back on the stage", at(REC_OFF + 0.5).take.jam === "Eb major", JSON.stringify(at(REC_OFF + 0.5)));
+    const locked = at(LOCK_AT);
+    check("a key locked by hand wins at once on both pages, and the jam key gives way to it",
+      locked.control.sigKey === "Gb major" && locked.take.sigKey === "Gb major" && locked.take.jam === null, JSON.stringify(locked));
+    const differs = rows.filter((r) => r.t < REC_ON && r.take.shown !== r.control.shown).length;
+    const changes = (p) => p.keySig.history().map((h) => `${h.to}@${h.t}`).join(", ");
+    report.push(`jam key (A5/LS6): ${rows.length} ticks; signature changes, no band: ${changes(control)}; with the band: ${changes(take)}; `
+      + `${take.heard.filter(Boolean).length} chords handed to the tracker, ${heardAt === -1 ? "identical" : `first differing at tick ${heardAt}`}; `
+      + `the shown reading differed from the no-band page's on ${differs} ticks on the stage and ${recRows.filter((r) => r.take.shown !== r.control.shown).length} during REC`);
+    {  // a tracker that is never sure: a jam key is no lock confidence
+      const unsure = () => { const st = { key: NV.parseKey("D minor"), confidence: "unsure", locked: false, candidate: null }; return { update: () => st, lock: () => {} }; };
+      const c = keyPage(null, unsure()), j = keyPage("Eb major", unsure());
+      for (let i = 0; i < 300; i++) {
+        const t = +(i * 0.1).toFixed(3);
+        for (const p of [c, j]) { p.env.t = t; if (i % 20 === 0) p.strike(PROG[(i / 20) % PROG.length]); p.frame(t); }
+      }
+      check("an unsure tracker under a jam key for 30 s: no signature on either page", c.keySig.view(29.9).key === null && j.keySig.view(29.9).key === null
+        && j.keyView.jam === "Eb major", JSON.stringify([c.keySig.state(), j.keySig.state()]));
+    }
   }
 
   if (!quick) {

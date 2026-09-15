@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Piano (next) — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;family=Noto+Music&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/piano.css" />
+<style>
+  /* piano-next additions; piano.css is shared with the live page and stays untouched */
+  .btn-polarity { min-width: 76px; font-family: var(--font-mono); font-size: 11.5px; }
+  .btn-polarity[aria-pressed="true"] { border-color: var(--control); color: var(--control); }
+</style>
+<!-- three.js r186, pinned. Both files were HEAD-checked on jsDelivr on 2026-09-13. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Piano</span>
+      <span class="brand-sub">arsenal &middot; play night &middot; 88 keys</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="group">
+        <label class="field" for="midi-select">
+          <span class="field-label sig-control">MIDI in</span>
+          <select id="midi-select" aria-label="MIDI input"><option value="">not connected</option></select>
+        </label>
+        <button type="button" class="btn" id="btn-midi">Connect MIDI</button>
+        <span class="field">
+          <span class="field-label sig-control" id="polarity-label">Pedal polarity</span>
+          <button type="button" class="btn btn-polarity" id="btn-polarity" aria-pressed="false" aria-labelledby="polarity-label btn-polarity" title="Flip if notes sustain when your foot is off the pedal">normal</button>
+        </span>
+      </div>
+      <div class="group">
+        <button type="button" class="btn" id="btn-demo" aria-pressed="false">Demo</button>
+        <div class="seg" role="group" aria-label="Framing">
+          <button type="button" class="btn" id="btn-916" aria-pressed="true">9:16</button>
+          <button type="button" class="btn" id="btn-169" aria-pressed="false">16:9</button>
+        </div>
+        <label class="field" for="scheme-select">
+          <span class="field-label sig-video">Scheme</span>
+          <select id="scheme-select" aria-label="Visual scheme (S cycles)" title="S cycles schemes"><option value="neon-trails">Neon Trails</option></select>
+        </label>
+        <label class="field" for="color-select">
+          <span class="field-label sig-video">Colour</span>
+          <select id="color-select" aria-label="Trail colour">
+            <option value="pitch">pitch (fifths)</option>
+            <option value="velocity">velocity</option>
+            <option value="mono">amber</option>
+          </select>
+        </label>
+      </div>
+      <div class="group">
+        <label class="field" for="audio-select">
+          <span class="field-label sig-audio">Rec audio</span>
+          <select id="audio-select" aria-label="Audio input to record"><option value="">none</option></select>
+        </label>
+        <span class="meter" aria-hidden="true"><span class="meter-fill" id="audio-meter"></span></span>
+        <button type="button" class="btn btn-rec" id="btn-rec" aria-pressed="false"><span class="rec-dot"></span><span id="rec-label">REC</span></button>
+        <button type="button" class="btn" id="btn-full">Fullscreen</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="piano-canvas" aria-label="3D piano render (this canvas is what REC records)"></canvas>
+
+    <dl class="hud" id="hud" hidden="hidden">
+      <div class="hud-row"><dt>fps</dt><dd id="hud-fps">&mdash;</dd></div>
+      <div class="hud-row"><dt>render</dt><dd id="hud-render">&mdash;</dd></div>
+      <div class="hud-row"><dt>midi</dt><dd id="hud-midi">&mdash;</dd></div>
+      <div class="hud-row"><dt>sounding</dt><dd id="hud-notes">&mdash;</dd></div>
+      <div class="hud-row"><dt>chord</dt><dd id="hud-chord">&mdash;</dd></div>
+      <div class="hud-row"><dt>pedal</dt><dd id="hud-pedal">up</dd></div>
+      <div class="hud-row"><dt>scheme</dt><dd id="hud-scheme">&mdash;</dd></div>
+      <div class="hud-row"><dt>keys</dt><dd id="hud-octave">&mdash;</dd></div>
+      <div class="hud-row"><dt>rec</dt><dd id="hud-rec">idle</dd></div>
+    </dl>
+
+    <div class="idle-hint" id="idle-hint">
+      <p class="hint-title">Play the KeyLab, press Demo, or use the keyboard</p>
+      <p class="hint-body"><kbd>Z</kbd>&ndash;<kbd>/</kbd> with <kbd>D</kbd> <kbd>G</kbd> <kbd>J</kbd> <kbd>L</kbd> <kbd>;</kbd> play C3&ndash;E4 &middot; <kbd>Q</kbd>&ndash;<kbd>P</kbd> with the number row play C4&ndash;E5 &middot; <kbd>Space</kbd> sustain &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> octave &middot; <kbd>S</kbd> scheme &middot; <kbd>H</kbd> HUD &middot; <kbd>F</kbd> fullscreen</p>
+    </div>
+
+    <div class="toast" id="toast" role="status" hidden="hidden"></div>
+    <div class="boot" id="boot" role="status">Loading three.js&hellip;</div>
+  </main>
+
+</div>
+<script>
+  // If the module never boots (CDN unreachable, import error), say so instead of showing a black stage.
+  setTimeout(function () {
+    if (window.__piano) return;
+    var el = document.getElementById("boot");
+    if (el) el.textContent = "three.js did not load from cdn.jsdelivr.net. Check the network, then reload.";
+  }, 15000);
+</script>
+<script type="module" src="/web/piano-next.js"></script>
+</body>
+</html>

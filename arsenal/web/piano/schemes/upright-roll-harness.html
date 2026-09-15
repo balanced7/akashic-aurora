@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Upright Roll harness</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #07080b; color: #b9bcc6; font: 12px/1.4 "JetBrains Mono", Consolas, monospace; overflow: hidden; }
+  #wrap { display: flex; align-items: center; justify-content: center; height: 100%; }
+  canvas { display: block; max-width: 100vw; max-height: 100vh; width: auto; height: auto; }
+  #info { position: fixed; top: 6px; right: 8px; margin: 0; padding: 6px 8px; background: rgba(0,0,0,0.6); border-radius: 4px; white-space: pre; pointer-events: none; }
+</style>
+<!-- three.js r186, pinned: the same import map as arsenal/web/piano-next.html -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+<pre id="info">loading…</pre>
+<script type="module">
+// A minimal stand-in for piano-next.js, built to test piano/schemes/upright-roll.js honestly:
+// the same renderer settings, stage, lights, 88 keys, follow camera, bloom and stage tint as the
+// host, the same notes engine (and its event guarantees), and a ctx shaped like the host's schemeCtx.
+// The overlay is a stand-in: a fixed chord label and staff in the protected band, so band luma
+// measures the scheme and nothing else. Nothing here is imported by the real page.
+import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import scheme from "./upright-roll.js";
+
+const $ = (id) => document.getElementById(id);
+const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const damp = (c, target, tau, dt) => lerp(c, target, 1 - Math.exp(-dt / Math.max(tau, 1e-4)));
+const mod = (a, n) => ((a % n) + n) % n;
+const T0 = performance.now() / 1000;
+const clock = () => performance.now() / 1000 - T0;
+
+// ----------------------------------------------------------------- colour (piano-next.js, pitch mode)
+const fifthsIndex = (pc) => (pc * 7) % 12;
+const noteLch = (midi) => [0.76, 0.155, (200 + 30 * fifthsIndex(mod(midi, 12))) % 360];
+function oklchToLinear(L, C, hDeg) {
+  const h = (hDeg * Math.PI) / 180, a = C * Math.cos(h), b = C * Math.sin(h);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  return [Math.max(0, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+          Math.max(0, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+          Math.max(0, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)];
+}
+function noteColor(midi, vel, target = new THREE.Color()) { const [r, g, b] = oklchToLinear(...noteLch(midi, vel)); return target.setRGB(r, g, b); }
+function noteCss(midi, vel, alpha = 1) { const [L, C, h] = noteLch(midi, vel); return `oklch(${L} ${C} ${h} / ${alpha})`; }
+
+// ---------------------------------------------------------------- framing + key geometry (host values)
+const FRAMINGS = {
+  "9:16": { id: "9:16", w: 1080, h: 1920, fov: 31, minSpan: 16, follow: true },
+  "16:9": { id: "16:9", w: 1920, h: 1080, fov: 23, minSpan: 56, follow: false },
+};
+let framing = FRAMINGS["9:16"];
+const KEY = { first: 21, last: 108, whiteW: 0.94, whiteH: 0.8, whiteL: 6.2, blackW: 0.56, blackH: 0.64,
+              blackL: 3.95, blackTop: 0.52, back: -3.1, pivotBack: 6.0 };
+const WHITE_OFFSET = [0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6];
+const BLACK_CENTER = { 1: 0.9, 3: 2.1, 6: 3 + 4 / 7 * 1.5, 8: 5.0, 10: 3 + 4 / 7 * 5.5 };
+const isBlack = (m) => BLACK_CENTER[mod(m, 12)] !== undefined;
+function keyX(m) {
+  const oct = Math.floor(m / 12), pc = mod(m, 12);
+  return (isBlack(m) ? oct * 7 + BLACK_CENTER[pc] : oct * 7 + WHITE_OFFSET[pc] + 0.5) - 38;
+}
+const RAIL_Y = 1.12, TRAIL_Z = -3.42;
+
+// ---------------------------------------------------------------- scene (host values)
+const canvas = $("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance" });
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x010206);
+scene.fog = new THREE.Fog(0x010206, 95, 280);
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envMap = (() => {
+  const env = new THREE.Scene();
+  env.add(new THREE.Mesh(new THREE.BoxGeometry(80, 40, 80), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide })));
+  const strip = (w, h, intensity, tint, x, y, z, rx, ry) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(tint).multiplyScalar(intensity), side: THREE.DoubleSide }));
+    m.position.set(x, y, z); m.rotation.set(rx, ry, 0); env.add(m);
+  };
+  strip(44, 3.2, 5.0, 0xffffff, 0, 15, 10, Math.PI / 2, 0);
+  strip(3.2, 18, 2.6, 0xffe1c2, -30, 6, -6, 0, Math.PI / 2);
+  strip(3.2, 18, 2.2, 0xc2d2ff, 30, 6, -12, 0, -Math.PI / 2);
+  strip(36, 1.6, 1.4, 0x9fb4ff, 0, 3, -34, 0, 0);
+  return pmrem.fromScene(env, 0.02).texture;
+})();
+const camera = new THREE.PerspectiveCamera(framing.fov, framing.w / framing.h, 0.5, 900);
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(framing.w, framing.h, { type: THREE.HalfFloatType, samples: 4 }));
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(framing.w, framing.h), 0.45, 0.0, 0.9);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+const STAGE_DARK = new THREE.Color(0x010206);
+const stageTint = STAGE_DARK.clone();
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: 0x020203, roughness: 0.62, metalness: 0.0 }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -2.3; scene.add(floor);
+const lacquer = new THREE.MeshPhysicalMaterial({ color: 0x050609, roughness: 0.24, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.04, envMap, envMapIntensity: 0.9 });
+function addBox(w, h, d, r, x, y, z, material) { const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, r), material); mesh.position.set(x, y, z); scene.add(mesh); return mesh; }
+addBox(56.4, 1.5, 8.3, 0.3, 0, -1.55, -1.45, lacquer);
+addBox(1.5, 2.95, 9.5, 0.36, -27.1, -0.83, -1.0, lacquer);
+addBox(1.5, 2.95, 9.5, 0.36, 27.1, -0.83, -1.0, lacquer);
+addBox(52.7, 1.95, 2.35, 0.26, 0, 0.14, -4.46, lacquer);
+const felt = new THREE.Mesh(new THREE.BoxGeometry(52.2, 0.16, 0.1), new THREE.MeshStandardMaterial({ color: 0x5c0c1a, roughness: 0.95 }));
+felt.position.set(0, 0.08, -3.2); scene.add(felt);
+const railLine = new THREE.Mesh(new THREE.BoxGeometry(52.2, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 0.62, 0.3).multiplyScalar(0.9) }));
+railLine.position.set(0, RAIL_Y - 0.06, -3.3); scene.add(railLine);
+scene.add(new THREE.HemisphereLight(0x8a9cc8, 0x040404, 0.22));
+const keyLight = new THREE.DirectionalLight(0xfff0dc, 1.9); keyLight.position.set(-16, 30, 24); scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x9db6ff, 1.4); rimLight.position.set(12, 16, -30); scene.add(rimLight);
+const noteLights = [0, 1, 2].map(() => { const light = new THREE.PointLight(0xffffff, 0, 9, 2); light.position.set(0, 2.1, -1.4); scene.add(light); return { light, level: 0, target: 0, color: new THREE.Color() }; });
+let noteLightNext = 0;
+
+const whiteGeo = new RoundedBoxGeometry(KEY.whiteW, KEY.whiteH, KEY.whiteL, 3, 0.07);
+const blackGeo = new RoundedBoxGeometry(KEY.blackW, KEY.blackH, KEY.blackL, 3, 0.06);
+const keys = new Map();
+for (let m = KEY.first; m <= KEY.last; m++) {
+  const black = isBlack(m);
+  const material = black
+    ? new THREE.MeshPhysicalMaterial({ color: 0x0a0a0d, roughness: 0.3, clearcoat: 1.0, clearcoatRoughness: 0.08, envMap, envMapIntensity: 0.8 })
+    : new THREE.MeshPhysicalMaterial({ color: 0xdedbd3, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.2, envMap, envMapIntensity: 0.35 });
+  const len = black ? KEY.blackL : KEY.whiteL;
+  const pivot = new THREE.Group();
+  const pivotZ = KEY.back - KEY.pivotBack;
+  pivot.position.set(keyX(m), 0, pivotZ);
+  const mesh = new THREE.Mesh(black ? blackGeo : whiteGeo, material);
+  mesh.position.set(0, black ? KEY.blackTop - KEY.blackH / 2 : -KEY.whiteH / 2, KEY.back + len / 2 - pivotZ);
+  pivot.add(mesh); scene.add(pivot);
+  keys.set(m, { m, black, pivot, material, lever: len + KEY.pivotBack, depth: 0, v: 0, target: 0, glow: 0, glowTarget: 0, color: new THREE.Color() });
+}
+function updateKeys(dt) {
+  const steps = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / steps;
+  for (const k of keys.values()) {
+    const pressing = k.target > k.depth + 1e-4;
+    const stiffness = pressing ? 4200 : 820, damping = pressing ? 118 : 36;
+    for (let i = 0; i < steps; i++) { k.v += ((k.target - k.depth) * stiffness - k.v * damping) * h; k.depth += k.v * h; }
+    if (Math.abs(k.depth) < 1e-5 && k.target === 0 && Math.abs(k.v) < 1e-4) { k.depth = 0; k.v = 0; }
+    k.pivot.rotation.x = k.depth / k.lever;
+    k.glow = damp(k.glow, k.glowTarget, k.glowTarget > k.glow ? 0.012 : 0.22, dt);
+    k.material.emissive.copy(k.color).multiplyScalar(k.glow * (k.black ? 1.7 : 0.55));
+  }
+  for (const nl of noteLights) { nl.target *= Math.exp(-dt / 0.7); nl.level = damp(nl.level, nl.target, 0.03, dt); nl.light.intensity = nl.level; nl.light.color.copy(nl.color); }
+}
+function lightNote(m, vel) {
+  const nl = noteLights[noteLightNext]; noteLightNext = (noteLightNext + 1) % noteLights.length;
+  nl.light.position.x = keyX(m); noteColor(m, vel, nl.color); nl.target = 5 + 13 * (vel / 127);
+}
+
+// ---------------------------------------------------------------- camera (host follow camera)
+// lensShift: "host" uses piano-next.js's 0.25 / 0.29; "scheme" honours the scheme's view.lensShift hint.
+const opts = { tint: true, lensShift: "scheme", overlay: true };
+const cam = { x: 0, span: framing.minSpan, recent: [] };
+const lookTarget = new THREE.Vector3();
+const view = { top: 30, pointScale: 1000 };
+function lensShift() {
+  const host = framing.follow ? 0.25 : 0.29;
+  if (opts.lensShift !== "scheme") return host;
+  const hint = scheme.view && scheme.view.lensShift && scheme.view.lensShift[framing.id];
+  return typeof hint === "number" ? hint : host;
+}
+function updateCamera(dt, t, snap = false) {
+  let lo = Infinity, hi = -Infinity;
+  for (const n of cam.recent) if (t - n.t < 6) { lo = Math.min(lo, n.x); hi = Math.max(hi, n.x); }
+  let targetX = 0, targetSpan = 57;
+  if (framing.follow) {
+    targetSpan = lo <= hi ? clamp(hi - lo + 6, framing.minSpan, 57) : Math.max(cam.span, framing.minSpan);
+    targetX = lo <= hi ? (lo + hi) / 2 : cam.x;
+    targetX = clamp(targetX, -28.5 + targetSpan / 2, 28.5 - targetSpan / 2);
+  }
+  cam.x = snap ? targetX : damp(cam.x, targetX, 1.2, dt);
+  cam.span = snap ? targetSpan : damp(cam.span, targetSpan, 1.6, dt);
+  const vfov = THREE.MathUtils.degToRad(framing.fov);
+  const tanH = Math.tan(vfov / 2) * (framing.w / framing.h);
+  const dist = cam.span / 2 / tanH + 7;
+  const elev = THREE.MathUtils.degToRad(framing.follow ? 22 : 17) + Math.sin(t * 0.13) * 0.012;
+  const yaw = Math.sin(t * 0.071) * (framing.follow ? 0.06 : 0.035);
+  lookTarget.set(cam.x, 0.4, -0.5);
+  camera.position.set(lookTarget.x + dist * Math.sin(yaw) * Math.cos(elev), lookTarget.y + dist * Math.sin(elev), lookTarget.z + dist * Math.cos(yaw) * Math.cos(elev));
+  camera.lookAt(lookTarget);
+  const shift = lensShift();
+  camera.setViewOffset(framing.w, framing.h, 0, -shift * framing.h, framing.w, framing.h);
+  view.top = RAIL_Y + dist * Math.tan(vfov / 2) * (1 + 2 * shift) * 0.98;
+  view.pointScale = framing.h / (2 * Math.tan(vfov / 2));
+}
+
+// ---------------------------------------------------------------- scheme host (ctx shaped like piano-next.js)
+const framingInfo = () => ({ id: framing.id, width: framing.w, height: framing.h });
+const hostObjects = new Set(scene.children);
+const ctx = Object.freeze({
+  THREE, scene, camera, renderer, clock, keyX, isBlack, noteColor, noteCss,
+  KEY: Object.freeze({ first: KEY.first, last: KEY.last }), RAIL_Y, TRAIL_Z,
+  get framing() { return framingInfo(); },
+});
+const counts = { noteOn: 0, noteRelease: 0, noteEnd: 0, pedal: 0 };
+const errors = [];
+const instance = scheme.create(ctx);
+function call(method, args) {
+  try { return instance[method](...args); }
+  catch (e) { errors.push(`${method}: ${e && e.message}`); console.error("[harness] scheme", method, e); }
+}
+function emit(kind, ...args) { counts[kind]++; call(kind, args); }
+call("setActive", [false]);
+call("resize", [framingInfo()]);
+call("setActive", [true]);
+let schemeVisible = true;
+
+// ---------------------------------------------------------------- notes engine (host semantics, explicit t)
+const sounding = new Map();
+let sustain = false;
+function noteOn(m, vel, t) {
+  const prev = sounding.get(m);
+  if (prev) emit("noteEnd", m, t);
+  sounding.set(m, { held: true, vel, t0: t, inRange: true, releasedAt: null });
+  emit("noteOn", m, vel, t);
+  const k = keys.get(m);
+  k.target = 0.17 + 0.27 * (vel / 127); k.glowTarget = 0.5 + 0.5 * (vel / 127);
+  noteColor(m, vel, k.color); lightNote(m, vel);
+  cam.recent.push({ x: keyX(m), t }); if (cam.recent.length > 96) cam.recent.shift();
+}
+function noteOff(m, t) {
+  const st = sounding.get(m);
+  if (!st || !st.held) return;
+  st.held = false;
+  const k = keys.get(m); k.target = 0; k.glowTarget = sustain ? 0.2 : 0;
+  if (!sustain) { emit("noteEnd", m, t); sounding.delete(m); }
+  else { st.releasedAt = t; emit("noteRelease", m, t); }
+}
+function setSustain(on, value, t) {
+  if (sustain === on) return;
+  sustain = on;
+  emit("pedal", on, value, t);
+  if (!on) for (const [m, st] of sounding) { if (st.held) continue; emit("noteEnd", m, t); sounding.delete(m); keys.get(m).glowTarget = 0; }
+}
+function allNotesOff(t) {
+  for (const [m] of sounding) { emit("noteEnd", m, t); const k = keys.get(m); k.target = 0; k.glowTarget = 0; }
+  sounding.clear();
+  if (sustain) { sustain = false; emit("pedal", false, 0, t); }
+}
+
+// ---------------------------------------------------------------- sequences
+// Times in seconds from the sequence start. Events fire with their scheduled time as t, so the scheme
+// sees exact, clock-true times no matter how the frames fall.
+function arp(pcs, lo, hi) { const out = []; for (let m = lo; m <= hi; m++) if (pcs.includes(mod(m, 12))) out.push(m); return out; }
+const SEQUENCES = {
+  silence() { return { duration: 3, events: [], marks: { rest: 2.5 } }; },
+  // I-vi-IV-V in C, twice, with legato pedalling: the old chord's keys come up just before the new
+  // chord, the pedal lifts just after it (one cut) and goes down again.
+  chords() {
+    const ev = [];
+    const prog = [
+      { bass: 36, rh: [64, 67, 71, 74] },   // Cmaj9 (C | E G B D)
+      { bass: 45, rh: [64, 67, 72, 76] },   // Am7
+      { bass: 41, rh: [65, 69, 72, 76] },   // Fmaj7
+      { bass: 43, rh: [65, 67, 71, 74] },   // G7
+    ];
+    const step = 1.5;
+    for (let r = 0; r < 2; r++) prog.forEach((c, i) => {
+      const s = 0.2 + (r * 4 + i) * step;
+      const vels = [96, 70, 82, 76, 104];
+      [c.bass, c.bass + 12, ...c.rh].forEach((m, j) => {
+        ev.push({ at: s + j * 0.012, type: "on", m, v: vels[j % vels.length] + (i % 2) * 8 });
+        ev.push({ at: s + step - 0.06, type: "off", m });
+      });
+      ev.push({ at: s + 0.05, type: "ped", down: false });
+      ev.push({ at: s + 0.16, type: "ped", down: true });
+    });
+    ev.push({ at: 0.2 + 8 * step + 0.05, type: "ped", down: false });
+    return { duration: 0.2 + 8 * step + 1.5, events: ev, marks: { mid: 0.2 + 2 * step + 1.1, late: 0.2 + 6 * step + 0.9 } };
+  },
+  // The pedal storm: pedal down, arpeggios over four octaves (C2..C6), 37 notes in 4.4 s, keys short
+  // so nearly everything sounds only through the pedal, a held bass under the first bar; lift at 5.0 s.
+  storm() {
+    const ev = [{ at: 0.05, type: "ped", down: true }];
+    // Cmaj9, Abmaj7#11, Fm9, Ebmaj9/Bb: both bar pools, black keys drawn over white
+    const shapes = [[0, 4, 7, 11, 2], [8, 0, 3, 7, 2], [5, 8, 0, 3, 7], [3, 7, 10, 2, 5]];
+    let at = 0.15, n = 0;
+    ev.push({ at: 0.12, type: "on", m: 36, v: 100 }, { at: 2.2, type: "off", m: 36 });
+    shapes.forEach((pcs, si) => {
+      const notes = arp(pcs, 36 + si * 3, 84);
+      const run = si % 2 ? [...notes].reverse() : notes;
+      for (const m of run.slice(0, 10)) {
+        const v = Math.round(58 + 62 * (0.5 + 0.5 * Math.sin(n * 1.7)));
+        ev.push({ at, type: "on", m, v }, { at: at + 0.09, type: "off", m });
+        at += 0.118; n++;
+      }
+    });
+    ev.push({ at: 5.0, type: "ped", down: false });
+    return { duration: 7.5, events: ev, marks: { mid: 3.2, lift: 5.0, afterLift: 5.35, notes: n + 1 } };
+  },
+  // Pedal lifts: two pedalled arpeggios, each cut by a lift.
+  lift() {
+    const ev = [{ at: 0.05, type: "ped", down: true }];
+    arp([9, 0, 4], 57, 81).forEach((m, i) => ev.push({ at: 0.15 + i * 0.14, type: "on", m, v: 70 + (i % 3) * 14 }, { at: 0.25 + i * 0.14, type: "off", m }));
+    ev.push({ at: 1.8, type: "ped", down: false }, { at: 2.0, type: "ped", down: true });
+    arp([5, 9, 0], 53, 77).forEach((m, i) => ev.push({ at: 2.1 + i * 0.14, type: "on", m, v: 66 + (i % 4) * 12 }, { at: 2.2 + i * 0.14, type: "off", m }));
+    ev.push({ at: 3.7, type: "ped", down: false });
+    return { duration: 5.5, events: ev, marks: { lift: 1.8, afterLift: 2.05, lift2: 3.7, afterLift2: 4.1 } };
+  },
+  // Repeated strikes on E4: five dry, then five under the pedal (each repeat ends the previous sound).
+  repeat() {
+    const ev = [];
+    const vels = [40, 127, 64, 110, 88, 50, 120, 72, 100, 127];
+    vels.forEach((v, i) => { const at = 0.15 + i * 0.22; ev.push({ at, type: "on", m: 64, v }, { at: at + 0.1, type: "off", m: 64 }); });
+    ev.push({ at: 1.18, type: "ped", down: true }, { at: 2.9, type: "ped", down: false });
+    return { duration: 4.5, events: ev, marks: { mid: 2.35 } };
+  },
+  // One held note, then silence.
+  held() {
+    return { duration: 5.5, events: [{ at: 0.2, type: "on", m: 57, v: 90 }, { at: 4.2, type: "off", m: 57 }], marks: { mid: 2.5, after: 4.8 } };
+  },
+};
+let seq = null;
+function tickSeq(t) {
+  if (!seq) return;
+  while (seq.i < seq.events.length && seq.start + seq.events[seq.i].at <= t) {
+    const e = seq.events[seq.i++], te = seq.start + e.at;
+    if (e.type === "on") noteOn(e.m, e.v, te);
+    else if (e.type === "off") noteOff(e.m, te);
+    else if (e.type === "ped") setSustain(e.down, e.down ? 127 : 0, te);
+  }
+}
+
+// ---------------------------------------------------------------- overlay stand-in
+// A fixed chord label and grand staff, composited after bloom like the host's overlay. The band is
+// the spec's protected band: y 230-630 in 9:16. In 16:9 it follows the host's LAYOUT (label top left,
+// staff top right, y ~40-460).
+const BANDS = {
+  "9:16": { y0: 230, y1: 630, label: { x: 30, y: 230, w: 500, h: 400 }, staff: { x: 550, y: 230, w: 500, h: 400, s: 18 } },
+  "16:9": { y0: 40, y1: 460, label: { x: 40, y: 40, w: 860, h: 310 }, staff: { x: 1240, y: 40, w: 640, h: 420, s: 20 } },
+};
+const overlayScene = new THREE.Scene();
+const overlayCam = new THREE.OrthographicCamera(0, 1, 1, 0, -10, 10);
+let overlayMesh = null;
+function buildOverlay() {
+  if (overlayMesh) { overlayScene.remove(overlayMesh); overlayMesh.geometry.dispose(); overlayMesh.material.map.dispose(); overlayMesh.material.dispose(); }
+  const W = framing.w, H = framing.h, B = BANDS[framing.id];
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const plate = (r) => { g.save(); g.filter = "blur(14px)"; g.fillStyle = "rgba(1, 2, 6, 0.5)"; g.beginPath(); g.roundRect(r.x + 16, r.y + 16, r.w - 32, r.h - 32, 24); g.fill(); g.restore(); };
+  plate(B.label); plate(B.staff);
+  // label
+  const L = B.label, big = framing.id === "9:16" ? 150 : 140;
+  g.textBaseline = "alphabetic"; g.fillStyle = "rgba(244, 241, 234, 1)";
+  g.font = `800 ${big}px "Arial Narrow", "Segoe UI", sans-serif`;
+  const root = "C", suffix = "maj9";
+  const rw = g.measureText(root).width; g.font = `600 ${Math.round(big * 0.54)}px "Segoe UI", sans-serif`;
+  const sw = g.measureText(suffix).width;
+  const x0 = framing.id === "9:16" ? L.x + (L.w - rw - sw) / 2 : L.x + 24, base = L.y + L.h * 0.56;
+  g.shadowColor = noteCss(60, 100, 0.55); g.shadowBlur = 38;
+  g.font = `800 ${big}px "Arial Narrow", "Segoe UI", sans-serif`; g.fillText(root, x0, base);
+  g.font = `600 ${Math.round(big * 0.54)}px "Segoe UI", sans-serif`; g.fillText(suffix, x0 + rw, base - big * 0.3);
+  g.shadowBlur = 0;
+  const small = Math.round(big * 0.24);
+  g.font = `700 ${small}px "Segoe UI", sans-serif`;
+  let lx = framing.id === "9:16" ? L.x + L.w / 2 - 2.6 * small : L.x + 30;
+  for (const [nm, m] of [["C", 48], ["E", 52], ["G", 55], ["B", 59], ["D", 62]]) { g.fillStyle = noteCss(m, 110, 1); g.fillText(nm, lx, base + big * 0.52); lx += small * 1.1; }
+  // staff
+  const S = B.staff, s = S.s, left = S.x + s * 3.2, right = S.x + S.w - s * 1.5;
+  const trebleTop = S.y + S.h / 2 - s * 7.5, bassTop = trebleTop + 11 * s;
+  g.strokeStyle = "rgba(236, 232, 224, 0.52)"; g.lineWidth = Math.max(1, s * 0.1); g.beginPath();
+  for (const top of [trebleTop, bassTop]) for (let i = 0; i < 5; i++) { g.moveTo(left, top + i * s); g.lineTo(right, top + i * s); }
+  g.stroke();
+  g.lineWidth = Math.max(1.5, s * 0.16); g.beginPath(); g.moveTo(left, trebleTop); g.lineTo(left, bassTop + 4 * s); g.moveTo(right, trebleTop); g.lineTo(right, bassTop + 4 * s); g.stroke();
+  g.fillStyle = "rgba(244, 241, 234, 0.9)"; g.font = `${4.4 * s}px "Segoe UI Symbol", serif`; g.fillText("𝄞", left + s * 0.5, trebleTop + 3.1 * s);
+  g.font = `${3.6 * s}px "Segoe UI Symbol", serif`; g.fillText("𝄢", left + s * 0.5, bassTop + 2.1 * s);
+  const noteX = left + (right - left) * 0.6;
+  // heads: C3 E3 (bass, solid), G4 B4 D5 (treble; two hollow = pedalled)
+  const heads = [[bassTop + 5 * s, 48, false], [bassTop + 4 * s, 52, false], [trebleTop + 3 * s, 55, true], [trebleTop + 2 * s, 59, false], [trebleTop + 1.5 * s, 62, true]];
+  heads.forEach(([y, m, hollow], i) => {
+    const x = noteX + (i % 2) * s * 1.3;
+    g.globalAlpha = hollow ? 0.6 : 1; g.fillStyle = g.strokeStyle = noteCss(m, 110, 1); g.lineWidth = Math.max(1.5, s * 0.13);
+    g.beginPath(); g.ellipse(x, y, s * 0.66, s * 0.52, -0.35, 0, Math.PI * 2); hollow ? g.stroke() : g.fill();
+  });
+  g.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+  overlayMesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
+  overlayMesh.position.set(W / 2, H / 2, 0);
+  overlayScene.add(overlayMesh);
+  overlayCam.right = W; overlayCam.top = H; overlayCam.updateProjectionMatrix();
+}
+
+function applyFraming(id) {
+  framing = FRAMINGS[id] || FRAMINGS["9:16"];
+  renderer.setSize(framing.w, framing.h, false);
+  composer.setSize(framing.w, framing.h);
+  camera.fov = framing.fov; camera.aspect = framing.w / framing.h;
+  buildOverlay();
+  schemeFrame.framing = framingInfo();
+  call("resize", [framingInfo()]);
+  updateCamera(0, clock(), true);
+}
+
+// ---------------------------------------------------------------- loop
+const schemeFrame = { info: null, sounding, pedalDown: false, framing: framingInfo(), view };
+let lastT = clock();
+let fps = 0, fpsFrames = 0, fpsAt = clock(), infoAt = 0;
+const frameMs = [];
+const glowMix = new THREE.Color(), tmpColor = new THREE.Color();
+function renderScene(withOverlay = opts.overlay) {
+  composer.render(0);
+  if (withOverlay) { renderer.autoClear = false; renderer.render(overlayScene, overlayCam); renderer.autoClear = true; }
+}
+function renderFrame() {
+  const t = clock();
+  const dt = clamp(t - lastT, 0, 0.1);
+  lastT = t;
+  tickSeq(t);
+  updateKeys(dt);
+  updateCamera(dt, t);
+  schemeFrame.pedalDown = sustain;
+  if (schemeVisible) call("update", [dt, t, schemeFrame]);
+  let count = 0;
+  glowMix.setRGB(0, 0, 0);
+  for (const [m, st] of sounding) { glowMix.add(noteColor(m, st.vel, tmpColor)); count++; }
+  if (count) glowMix.multiplyScalar(1 / count); else glowMix.setRGB(0.05, 0.08, 0.2);
+  tmpColor.copy(STAGE_DARK).lerp(glowMix, opts.tint && count ? 0.03 * Math.min(1, count / 4) : 0);
+  stageTint.lerp(tmpColor, 1 - Math.exp(-dt / 0.6));
+  scene.background.copy(stageTint); scene.fog.color.copy(stageTint);
+  renderScene();
+  return { t, dt };
+}
+let loopErrors = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  let t = clock(), dt = 0;
+  try { ({ t, dt } = renderFrame()); }
+  catch (e) { if (loopErrors++ < 3) { errors.push(`frame: ${e && e.stack}`); console.error("[harness] frame failed", e); } }
+  frameMs.push(dt * 1000); if (frameMs.length > 240) frameMs.shift();
+  fpsFrames++;
+  if (t - fpsAt >= 1) { fps = fpsFrames / (t - fpsAt); fpsFrames = 0; fpsAt = t; }
+  for (const w of waiters.splice(0)) { if (seq && t - seq.start >= w.at) w.resolve(t - seq.start); else waiters.push(w); }
+  if (t - infoAt > 0.25) {
+    infoAt = t;
+    const s = instance.stats(t);
+    $("info").textContent = `${framing.id}  ${fps.toFixed(0)} fps\nseq ${seq ? seq.name + " " + (t - seq.start).toFixed(2) : "-"}\nsounding ${sounding.size}  pedal ${sustain ? "down" : "up"}\nbars ${s.bars.white}+${s.bars.black}  tails ${s.bars.tails}  lane ${s.laneSegments}  sparks ${s.sparksLive}`;
+  }
+}
+const waiters = [];
+
+// ---------------------------------------------------------------- measurement
+const LUMA = [0.2126729, 0.7151522, 0.0721750];   // three r186 luminance() for linear sRGB: what the bloom high-pass uses
+let floatRT = null;
+function floatTarget() {
+  if (!floatRT || floatRT.width !== framing.w || floatRT.height !== framing.h) {
+    if (floatRT) floatRT.dispose();
+    floatRT = new THREE.WebGLRenderTarget(framing.w, framing.h, { type: THREE.FloatType, samples: 0 });
+  }
+  return floatRT;
+}
+// Render the scene (no bloom, no tone mapping: exactly what UnrealBloomPass's high-pass reads) to a float target.
+function renderFloat() {
+  const rt = floatTarget();
+  renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
+  const buf = new Float32Array(framing.w * framing.h * 4);
+  renderer.readRenderTargetPixels(rt, 0, 0, framing.w, framing.h, buf);
+  return buf;
+}
+const schemeObjects = () => scene.children.filter((o) => !hostObjects.has(o));
+function withRoll(visible, fn) {
+  const objs = schemeObjects(), prev = objs.map((o) => o.visible);
+  objs.forEach((o) => { o.visible = visible; });
+  try { return fn(); } finally { objs.forEach((o, i) => { o.visible = prev[i]; }); }
+}
+function readBandBytes() {
+  const gl = renderer.getContext(), B = BANDS[framing.id];
+  const h = B.y1 - B.y0, px = new Uint8Array(framing.w * h * 4);
+  gl.readPixels(0, framing.h - B.y1, framing.w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) sum += LUMA[0] * px[i] + LUMA[1] * px[i + 1] + LUMA[2] * px[i + 2];
+  return sum / (px.length / 4) / 255;
+}
+
+window.__harness = {
+  ready: false,
+  sequences: Object.keys(SEQUENCES),
+  play(name, framingId = framing.id) {
+    const make = SEQUENCES[name];
+    if (!make) throw new Error(`unknown sequence ${name}`);
+    const t = clock();
+    allNotesOff(t);
+    if (framingId !== framing.id) applyFraming(framingId);
+    cam.recent.length = 0;
+    const s = make();
+    s.events.sort((a, b) => a.at - b.at);   // stable: same-time events keep their authored order
+    seq = { name, start: t + 0.25, i: 0, ...s };
+    return { name, framing: framing.id, duration: s.duration, marks: s.marks, events: s.events.length };
+  },
+  seqTime() { return seq ? clock() - seq.start : null; },
+  waitSeq(at) { return new Promise((resolve) => waiters.push({ at, resolve })); },
+  options(o = {}) { Object.assign(opts, o); bloom.enabled = opts.bloom !== false; return { ...opts }; },
+  debug: instance.debug,
+  setSchemeVisible(on) { schemeVisible = !!on; call("setActive", [schemeVisible]); return schemeVisible; },
+  snapshot(type = "image/jpeg", quality = 0.9) { renderFrame(); return canvas.toDataURL(type, quality); },
+  // Mean luma (Rec.709 weights on the 8-bit sRGB output, 0..1) of the full-width protected band,
+  // with the overlay stand-in (what a viewer sees) and without it (the scene alone).
+  bandLuma() {
+    renderFrame();
+    const band = readBandBytes();
+    renderScene(false);
+    const sceneOnly = readBandBytes();
+    renderScene(true);
+    const B = BANDS[framing.id];
+    return { band, sceneOnly, rect: { y0: B.y0, y1: B.y1, x0: 0, x1: framing.w }, seqT: this.seqTime(), sounding: sounding.size };
+  },
+  // The scheme's own light in the band, free of camera sway, stage tint and key state: the same frame
+  // (same clock, camera, keys, tint) composed twice, with and without the scheme's objects; bloom
+  // re-runs both times, so spill from caps and sparks is included.
+  bandLumaAB() {
+    renderFrame();
+    const visible = readBandBytes();
+    const hidden = withRoll(false, () => { renderScene(true); return readBandBytes(); });
+    renderScene(true);
+    return { visible, hidden, seqT: this.seqTime(), sounding: sounding.size };
+  },
+  stats() {
+    const t = clock();
+    const sorted = [...frameMs].sort((a, b) => a - b);
+    return { fps: +fps.toFixed(1), frameMsP95: +(sorted[Math.floor(sorted.length * 0.95)] || 0).toFixed(2), framing: framing.id,
+             seq: seq && seq.name, seqT: seq ? +(t - seq.start).toFixed(3) : null, sounding: sounding.size, pedal: sustain,
+             scheme: instance.stats(t), events: { ...counts }, errors: [...errors], keyFront: this.keyFront(),
+             lensShift: lensShift(), camSpan: +cam.span.toFixed(2), opts: { ...opts } };
+  },
+  // Screen y (px from the top) of the white keys' front edge, over the keys in view, for both lens shifts.
+  keyFront() {
+    const out = {};
+    const saved = opts.lensShift;
+    for (const mode of ["host", "scheme"]) {
+      opts.lensShift = mode;
+      updateCamera(0, clock(), false);
+      camera.updateMatrixWorld();
+      let bottom = -Infinity, top = -Infinity;
+      const p = new THREE.Vector3();
+      for (let m = KEY.first; m <= KEY.last; m++) {
+        if (isBlack(m)) continue;
+        p.set(keyX(m), -KEY.whiteH, KEY.back + KEY.whiteL).project(camera);
+        const sx = (p.x + 1) / 2 * framing.w;
+        if (sx < 0 || sx > framing.w) continue;
+        bottom = Math.max(bottom, (1 - p.y) / 2 * framing.h);
+        p.set(keyX(m), 0, KEY.back + KEY.whiteL).project(camera);
+        top = Math.max(top, (1 - p.y) / 2 * framing.h);
+      }
+      out[mode] = { shift: lensShift(), frontBottomY: +bottom.toFixed(1), frontTopY: +top.toFixed(1) };
+    }
+    opts.lensShift = saved;
+    updateCamera(0, clock(), false);
+    return out;
+  },
+  // Acceptance 2. Method: render the frame's scene (no bloom, no tone mapping) to a float target three
+  // ways at the same clock time: A = roll with onset caps discarded and sparks hidden, B = roll hidden,
+  // C = roll with caps (sparks hidden). A roll pixel is one where A differs from B. Count the roll pixels
+  // whose linear luminance (three's luminance(), the bloom high-pass input) reaches the 0.9 threshold.
+  bloomCheck() {
+    renderFrame();
+    const dbg = instance.debug, thr = dbg.constants.BLOOM_THRESHOLD;
+    dbg.setSparks(false);
+    dbg.setCaps(false);
+    const A = renderFloat();
+    dbg.setCaps(true);
+    const C = renderFloat();
+    const B = withRoll(false, renderFloat);
+    dbg.setSparks(true);
+    const D = renderFloat();   // with sparks, for reporting
+    let rollPx = 0, over = 0, maxNonCap = 0, capOver = 0, maxCap = 0, sparkOver = 0, hostOver = 0, maxHost = 0;
+    let rowsOver = new Set();
+    for (let i = 0; i < A.length; i += 4) {
+      const la = LUMA[0] * A[i] + LUMA[1] * A[i + 1] + LUMA[2] * A[i + 2];
+      const lb = LUMA[0] * B[i] + LUMA[1] * B[i + 1] + LUMA[2] * B[i + 2];
+      const lc = LUMA[0] * C[i] + LUMA[1] * C[i + 1] + LUMA[2] * C[i + 2];
+      const ld = LUMA[0] * D[i] + LUMA[1] * D[i + 1] + LUMA[2] * D[i + 2];
+      if (lb >= thr) hostOver++;
+      maxHost = Math.max(maxHost, lb);
+      const rollA = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 1e-4;
+      if (rollA) {
+        rollPx++;
+        if (la > maxNonCap) maxNonCap = la;
+        if (la >= thr) { over++; rowsOver.add(framing.h - 1 - Math.floor(i / 4 / framing.w)); }
+      }
+      const rollC = Math.abs(C[i] - B[i]) + Math.abs(C[i + 1] - B[i + 1]) + Math.abs(C[i + 2] - B[i + 2]) > 1e-4;
+      if (rollC && lc >= thr) capOver++;
+      if (rollC) maxCap = Math.max(maxCap, lc);
+      if (ld >= thr && lc < thr) sparkOver++;
+    }
+    renderFrame();
+    return { seqT: this.seqTime(), threshold: thr, rollPixelsNonCap: rollPx, nonCapOverThreshold: over, maxLumaNonCap: +maxNonCap.toFixed(4),
+             pixelsOverWithCaps: capOver, maxLumaWithCaps: +maxCap.toFixed(4), sparkPixelsOver: sparkOver,
+             hostPixelsOver: hostOver, maxLumaHost: +maxHost.toFixed(4), rowsOver: [...rowsOver].slice(0, 12), stats: instance.stats(clock()) };
+  },
+  // Acceptance 3. Every tail ended by the lift must share the lift time exactly, and in pixels the bottom
+  // edge of each such tail (found by scanning its column in a roll-only float render) must lie on one line.
+  cutCheck(liftSeqT) {
+    renderFrame();
+    const t = clock(), liftT = seq.start + liftSeqT;
+    const tails = instance.debug.endedTails(t).filter((x) => Math.abs(x.t2 - liftT) < 0.02);
+    const t2s = [...new Set(tails.map((x) => x.t2))];
+    const speed = instance.debug.constants.SPEED;
+    // roll only, on black
+    const bg = scene.background;
+    const hidden = [...hostObjects].filter((o) => o.visible);
+    hidden.forEach((o) => { o.visible = false; });
+    scene.background = null;
+    renderer.setClearColor(0x000000, 0);
+    instance.debug.setSparks(false);
+    const buf = renderFloat();
+    instance.debug.setSparks(true);
+    renderer.setClearColor(0x000000, 1);
+    hidden.forEach((o) => { o.visible = true; });
+    scene.background = bg;
+    camera.updateMatrixWorld();
+    const p = new THREE.Vector3(), rows = [];
+    for (const tail of tails) {
+      const yCut = RAIL_Y + (t - tail.t2) * speed;
+      p.set(tail.x, yCut, TRAIL_Z).project(camera);
+      const sx = Math.round((p.x + 1) / 2 * framing.w), sy = (1 - p.y) / 2 * framing.h;
+      if (sx < 30 || sx >= framing.w - 2) continue;   // skip the pedal lane's columns
+      let found = null;
+      for (let y = Math.round(sy + 40); y >= Math.round(sy - 40); y--) {
+        if (y < 0 || y >= framing.h) continue;
+        const i = ((framing.h - 1 - y) * framing.w + sx) * 4;
+        if (buf[i + 3] > 0.03) { found = y; break; }
+      }
+      if (found !== null) rows.push({ x: sx, y: found, expected: +sy.toFixed(1), black: tail.black });
+    }
+    let fit = null;
+    if (rows.length >= 2) {
+      const n = rows.length, mx = rows.reduce((a, r) => a + r.x, 0) / n, my = rows.reduce((a, r) => a + r.y, 0) / n;
+      let sxy = 0, sxx = 0;
+      for (const r of rows) { sxy += (r.x - mx) * (r.y - my); sxx += (r.x - mx) ** 2; }
+      const b = sxx ? sxy / sxx : 0, a = my - b * mx;
+      const res = rows.map((r) => Math.abs(r.y - (a + b * r.x)));
+      fit = { slopePxPerPx: +b.toFixed(5), maxResidualPx: +Math.max(...res).toFixed(2), rawSpreadPx: Math.max(...rows.map((r) => r.y)) - Math.min(...rows.map((r) => r.y)) };
+    }
+    renderFrame();
+    return { seqT: this.seqTime(), tailsEndedByLift: tails.length, distinctEndTimes: t2s.length, columnsMeasured: rows.length, fit, rows };
+  },
+};
+
+applyFraming("9:16");
+requestAnimationFrame(loop);
+window.__harness.ready = true;
+</script>
+</body>
+</html>

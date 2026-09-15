@@ -320,7 +320,10 @@ export default {
     const edgeU = { value: edgeBase.clone() }, edgePow = { value: EDGE.pow };
     const strikeU = { value: new THREE.Color(0, 0, 0) }, strikePow = { value: EDGE.strikePow };
     let edgeScale = 1;
+    // each glass program's uniforms: the renderer puts its transmission render target's texture in them (see dispose)
+    const glassUniforms = new Set();
     const glassHook = (sh) => {
+      glassUniforms.add(sh.uniforms);
       sh.uniforms.uEdge = edgeU;
       sh.uniforms.uEdgePow = edgePow;
       sh.uniforms.uStrike = strikeU;
@@ -817,6 +820,16 @@ export default {
         for (const t of texs) t.dispose();
         shanks.dispose(); heads.dispose(); pins.dispose(); pedals.dispose();
         if (dampers) dampers.dispose();
+        // The renderer draws what is behind transmissive glass into a render target it makes on first use and keeps for
+        // the page's life (full size, 4x multisampled, mipmapped). It is freed with the glass; a later transmissive
+        // material (spectacle's, or the glass again) gets a new one on its next frame.
+        const targets = new Set();
+        for (const u of glassUniforms) {
+          const t = u.transmissionSamplerMap && u.transmissionSamplerMap.value;
+          if (t && t.renderTarget && t.renderTarget.isRenderTarget) targets.add(t.renderTarget);
+        }
+        for (const rt of targets) rt.dispose();
+        glassUniforms.clear();
       },
     };
   },
