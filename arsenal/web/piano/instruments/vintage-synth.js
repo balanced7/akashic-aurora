@@ -1,11 +1,14 @@
 // Vintage Synth — arsenal/web/piano/instruments/vintage-synth.js  (ES module, a piano instrument)
 // A generic vintage analog synth body built around the host's keys: walnut end cheeks, a black case, a pitch and a mod
-// wheel in a box left of the keys, and a tilted brushed-metal panel with rows of skirted knobs, rocker switches and small
-// jewel lamps. No brand, no wordmark: the legend is our own section and function names drawn on a canvas.
+// wheel in a box left of the keys, and a tilted panel with rows of skirted knobs, rocker switches and small jewel lamps.
+// No brand, no wordmark: the legend is our own section and function names drawn on a canvas.
 //
 // Proportions follow the monosynth notes in the instrument spec (section 2.4: sloping cheek top edge, a panel hinged next
-// to the keys that tilts back on a kickstand, orange / blue / grey rockers, five sections Controllers -> Output), widened to
-// a 61-key span (C2..C7). One world unit is one white-key pitch (23.57 mm), so the body is about 1.0 m wide.
+// to the keys that tilts back on a kickstand, orange / blue / grey rockers, five sections Controllers -> Output, a
+// near-black face with a light-grey legend), widened to a 61-key span (C2..C7). One world unit is one white-key pitch
+// (23.57 mm), so the body is about 1.0 m wide.
+//
+// Options (ctx.options): face "dark" (default, #1b1c1f with a #c9c9c4 legend, per the spec) or "silver" (brushed aluminium).
 //
 // Keys stay host-owned. keySpan says which 61 keys the body frames; keyStyle gives colour hints for them.
 //
@@ -32,6 +35,7 @@ const DEF = {
   name: "Vintage Synth",
   keySpan: { first: 36, last: 96 },  // C2..C7, 61 keys; the host should hide (or dim) keys outside it
   keyStyle: { whiteColor: 0xebe6d8, blackColor: 0x0f0f10, capHeight: 0.8, frontLip: 0.05 },
+  options: { face: { values: ["dark", "silver"], default: "dark" } },
 
   create(ctx) {
     const { THREE, scene, keyX, noteColor } = ctx;
@@ -41,6 +45,8 @@ const DEF = {
     const last = Math.min(KEY.last ?? 108, span.last ?? DEF.keySpan.last, DEF.keySpan.last);
     const whiteL = KEY.whiteL ?? 6.2, keyBack = KEY.back ?? -3.1, keyFront = keyBack + whiteL;
     const floorY = span.floorY ?? -2.3;
+    const FACE = (ctx.options?.face ?? DEF.options.face.default) === "silver" ? "silver" : "dark";
+    const DARK = FACE === "dark";
 
     // ------------------------------------------------------------ layout --
     const keysLeft = keyX(first) - 0.5, keysRight = keyX(last) + 0.5;
@@ -60,6 +66,7 @@ const DEF = {
 
     const disposables = [];
     const own = (x) => { disposables.push(x); return x; };
+    let disposed = false;
 
     // --------------------------------------------------------- textures --
     function walnutTexture() {
@@ -141,45 +148,55 @@ const DEF = {
     const LAMP_PEDAL = 20, LAMP_CHORD = 21, LAMP_PILOT = 22;
     LAMPS.push([0.092, ROW[2], "PEDAL", 1.05], [0.092, 0.19, "CHORD", 1.05], [0.895, 0.19, "", 0.8]);
 
-    function faceTexture() {
-      const W = 2048, H = Math.round(2048 * FH / FW);
-      const c = document.createElement("canvas");
-      c.width = W; c.height = H;
+    // Draws the face (base finish, section band, legend, scales) into its canvas. Called once, and once more if the
+    // legend font was still loading.
+    function drawFace(c) {
+      const W = c.width, H = c.height;
       const g = c.getContext("2d");
       const px = (u) => u * W, py = (v) => v * H;
       const unit = W / FW;                   // canvas px per world unit
-      // brushed aluminium: a light base, then thousands of faint horizontal streaks
-      g.fillStyle = "#b4b7bc";
+      const spacing = (s) => { if ("letterSpacing" in g) g.letterSpacing = s; };
+      spacing("0px");
+      g.globalAlpha = 1;
+      // the base: near-black anodised (dark) or light aluminium (silver), then thousands of faint horizontal brush streaks
+      g.fillStyle = DARK ? "#1b1c1f" : "#b4b7bc";
       g.fillRect(0, 0, W, H);
       let seed = 11;
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-      for (let i = 0; i < 5200; i++) {
+      for (let i = 0, n = DARK ? 3600 : 5200; i < n; i++) {
         const y = rnd() * H, x = rnd() * W, len = 80 + rnd() * 900, l = rnd();
-        g.strokeStyle = l < 0.5 ? `rgba(90,94,100,${0.03 + rnd() * 0.07})` : `rgba(245,247,250,${0.03 + rnd() * 0.08})`;
+        g.strokeStyle = DARK
+          ? (l < 0.5 ? `rgba(0,0,0,${0.06 + rnd() * 0.12})` : `rgba(96,100,108,${0.02 + rnd() * 0.05})`)
+          : (l < 0.5 ? `rgba(90,94,100,${0.03 + rnd() * 0.07})` : `rgba(245,247,250,${0.03 + rnd() * 0.08})`);
         g.lineWidth = 0.5 + rnd() * 1.4;
         g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y + (rnd() - 0.5) * 0.8); g.stroke();
       }
-      const ink = "rgba(22,23,26,0.92)";
-      g.fillStyle = ink; g.strokeStyle = ink;
+      const ink = DARK ? "rgba(201,201,196,0.95)" : "rgba(22,23,26,0.92)";   // #c9c9c4 legend on the dark face
       // title band and section dividers
       const band = 0.12;
-      g.fillStyle = "rgba(24,25,28,0.94)";
+      g.fillStyle = DARK ? "rgba(8,8,10,0.9)" : "rgba(24,25,28,0.94)";
       g.fillRect(0, 0, W, py(band));
-      g.fillStyle = "rgba(230,232,236,0.95)";
+      g.fillStyle = DARK ? "rgba(214,214,209,0.96)" : "rgba(230,232,236,0.95)";
       g.textAlign = "center"; g.textBaseline = "middle";
       g.font = `600 ${Math.round(0.36 * unit)}px ${FONT}`;
-      if ("letterSpacing" in g) g.letterSpacing = `${Math.round(0.08 * unit)}px`;
+      spacing(`${Math.round(0.08 * unit)}px`);
       for (const s of SECTIONS) g.fillText(s.name, px((s.u0 + s.u1) / 2), py(band / 2));
-      g.fillStyle = ink;
+      g.fillStyle = ink; g.strokeStyle = ink;
+      if (DARK) {                            // a thin light rule under the band
+        g.globalAlpha = 0.5;
+        g.fillRect(0, py(band), W, Math.max(2, 0.03 * unit));
+      }
+      g.globalAlpha = DARK ? 0.55 : 1;
       g.lineWidth = Math.max(2, 0.035 * unit);
       for (let i = 1; i < SECTIONS.length; i++) {
         const x = px(SECTIONS[i].u0);
         g.beginPath(); g.moveTo(x, py(band)); g.lineTo(x, H); g.stroke();
       }
+      g.globalAlpha = 1;
       // labels
       const label = (u, v, text, size = 0.2) => {
         g.font = `500 ${Math.round(size * unit)}px ${FONT}`;
-        if ("letterSpacing" in g) g.letterSpacing = `${Math.round(0.03 * unit)}px`;
+        spacing(`${Math.round(0.03 * unit)}px`);
         g.fillText(text, px(u), py(v));
       };
       for (const [u, v, text, s] of KNOBS) {
@@ -203,11 +220,27 @@ const DEF = {
         g.fillRect(px(u) - 0.52 * unit, py(v) - 1.5, 0.16 * unit, 3);
       }
       // a thin frame at the face edge
-      g.strokeStyle = "rgba(20,20,22,0.6)"; g.lineWidth = 3;
+      g.strokeStyle = DARK ? "rgba(201,201,196,0.3)" : "rgba(20,20,22,0.6)"; g.lineWidth = 3;
       g.strokeRect(1.5, 1.5, W - 3, H - 3);
+    }
+    function faceTexture() {
+      const c = document.createElement("canvas");
+      c.width = 2048; c.height = Math.round(2048 * FH / FW);
+      drawFace(c);
       const tex = own(new THREE.CanvasTexture(c));
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 8;
+      // If the legend font is declared but still loading, redraw once it lands (a one-off, never per frame).
+      try {
+        const spec = `600 32px ${FONT}`;
+        if (document.fonts && !document.fonts.check(spec)) {
+          Promise.all([document.fonts.load(spec), document.fonts.load(`500 32px ${FONT}`)]).then(() => {
+            if (disposed) return;
+            drawFace(c);
+            tex.needsUpdate = true;
+          }, () => {});
+        }
+      } catch { /* no FontFaceSet: keep the first draw */ }
       return tex;
     }
 
@@ -218,9 +251,11 @@ const DEF = {
     // Satin black: a broad, dim lobe, so the host's rim light does not paint the case tops pale blue.
     const body = own(new THREE.MeshPhysicalMaterial({ color: 0x08080a, roughness: 0.72, metalness: 0.0,
       clearcoat: 0.12, clearcoatRoughness: 0.6 }));
-    // Held under the host's bloom threshold (0.9) under its 1.9 key light: mid-grey albedo, soft anisotropic specular.
-    const faceMat = own(new THREE.MeshPhysicalMaterial({ color: 0xd6d6d6, map: faceTexture(), roughness: 0.48,
-      metalness: 0.45, anisotropy: 0.45, anisotropyRotation: 0 }));
+    // The face stays under the host's bloom threshold (0.9) under its 1.9 key light. Dark: near-black anodised, a soft
+    // anisotropic sheen, the light legend carries the read. Silver: mid-grey albedo, brushed specular.
+    const faceMat = own(new THREE.MeshPhysicalMaterial(DARK
+      ? { color: 0xffffff, map: faceTexture(), roughness: 0.55, metalness: 0.2, anisotropy: 0.3, anisotropyRotation: 0 }
+      : { color: 0xd6d6d6, map: faceTexture(), roughness: 0.48, metalness: 0.45, anisotropy: 0.45, anisotropyRotation: 0 }));
     const metal = own(new THREE.MeshPhysicalMaterial({ color: 0x8f9398, roughness: 0.44, metalness: 0.6,
       anisotropy: 0.4 }));
     const chrome = own(new THREE.MeshPhysicalMaterial({ color: 0xa9adb3, roughness: 0.3, metalness: 0.8 }));
@@ -230,8 +265,11 @@ const DEF = {
     const rockerMat = own(new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0,
       clearcoat: 0.5, clearcoatRoughness: 0.2 }));
     const rubber = own(new THREE.MeshPhysicalMaterial({ color: 0x151517, roughness: 0.8, metalness: 0 }));
-    // Lamp lenses: smoky jewel glass (PBR), with each instance's colour used as emitted light instead of albedo.
-    const lensMat = own(new THREE.MeshPhysicalMaterial({ color: 0x2a2622, roughness: 0.12, metalness: 0,
+    // Wheel-box deck: rough dark plastic (#2a2a2a), no clearcoat, so the host's rim light cannot mirror off it.
+    const deck = own(new THREE.MeshPhysicalMaterial({ color: 0x2a2a2a, roughness: 0.78, metalness: 0 }));
+    // Lamp lenses: smoky jewel glass (PBR), with each instance's colour used as emitted light instead of albedo. The unlit
+    // lens is a dark smoky #151515 so lit and unlit lamps part clearly at player scale.
+    const lensMat = own(new THREE.MeshPhysicalMaterial({ color: 0x151515, roughness: 0.12, metalness: 0,
       clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x000000 }));
     lensMat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader
@@ -262,28 +300,46 @@ const DEF = {
     addMesh(box(innerW, HINGE.y - 0.1 - BOTTOM, HINGE.z - REAR + 1.0, 0.12), body,
       cx, (HINGE.y - 0.1 + BOTTOM) / 2, (HINGE.z + 1.0 + REAR + 0.2) / 2);                        // rear case
 
-    // wheel box, left of the keys
-    const wheelCx = innerL + WHEEL_BOX / 2;
-    addMesh(box(WHEEL_BOX, 0.9, keyFront - keyBack + 0.2, 0.08), body, wheelCx, -0.5, (keyFront + keyBack) / 2);
-    addMesh(box(WHEEL_BOX - 0.24, 0.05, keyFront - keyBack - 0.1, 0.02), walnut, wheelCx, -0.03, (keyFront + keyBack) / 2);
-    const slotGeo = box(0.95, 0.06, 3.2, 0.03);
-    const slots = new THREE.InstancedMesh(slotGeo, rubber, 2);
-    const wheelGeo = own(new THREE.CylinderGeometry(1.25, 1.25, 0.6, 40, 1));
-    wheelGeo.rotateZ(Math.PI / 2);
-    const wheels = new THREE.InstancedMesh(wheelGeo, rubber, 2);
-    const wheelIdx = new THREE.InstancedMesh(own(new THREE.BoxGeometry(0.62, 0.06, 0.1)), pointerMat, 2);
-    const WHEEL_X = [wheelCx - 0.85, wheelCx + 0.85], WHEEL_Z = (keyFront + keyBack) / 2 + 0.4, WHEEL_Y = -0.62;
+    // wheel box, left of the keys: a dark deck with two wheels half sunk through rubber-lined slots
+    const wheelCx = innerL + WHEEL_BOX / 2, wheelZc = (keyFront + keyBack) / 2;
+    addMesh(box(WHEEL_BOX, 0.9, keyFront - keyBack + 0.2, 0.08), body, wheelCx, -0.5, wheelZc);
+    addMesh(box(WHEEL_BOX - 0.24, 0.05, keyFront - keyBack - 0.1, 0.02), deck, wheelCx, -0.03, wheelZc);
+    const DECK_TOP = -0.005, WHEEL_R = 0.96, WHEEL_W = 0.46;   // 22.6 mm radius over the tread
+    const WHEEL_X = [wheelCx - 0.85, wheelCx + 0.85], WHEEL_Z = wheelZc + 0.4, WHEEL_Y = DECK_TOP;
+    const slots = new THREE.InstancedMesh(box(WHEEL_W + 0.3, 0.05, 2 * WHEEL_R + 0.36, 0.024, 2), rubber, 2);
+    // the wheel: a dished metal hub (lathe, axis along x) inside a knurled rubber tyre (a flattened torus)
+    const V2 = (x, y) => new THREE.Vector2(x, y);
+    const hubGeo = own(new THREE.LatheGeometry([V2(0, -0.19), V2(0.46, -0.19), V2(0.52, -0.225), V2(0.8, -0.225),
+      V2(0.82, -0.2), V2(0.82, 0.2), V2(0.8, 0.225), V2(0.52, 0.225), V2(0.46, 0.19), V2(0, 0.19)], 48));
+    hubGeo.rotateZ(Math.PI / 2);
+    const tyreGeo = own(new THREE.TorusGeometry(0.86, 0.1, 10, 120));
+    {
+      const pos = tyreGeo.getAttribute("position");
+      for (let i = 0; i < pos.count; i++) {  // 30 shallow ridges on the outer half of the ring
+        const x = pos.getX(i), y = pos.getY(i), r = Math.hypot(x, y), a = Math.atan2(y, x);
+        const k = 1 + clamp((r - 0.86) / 0.1, 0, 1) * 0.018 * (0.5 + 0.5 * Math.cos(a * 30)) / r;
+        pos.setXY(i, x * k, y * k);
+      }
+      tyreGeo.scale(1, 1, 2.3);             // tread width about 0.46 along the axle
+      tyreGeo.computeVertexNormals();
+      tyreGeo.rotateY(Math.PI / 2);         // torus axis z -> world x
+    }
+    // satin grey hub: light enough to read the disc against the tyre, rough enough that the key light does not glint off
+    // the dished rim over the bloom threshold
+    const hubMat = own(new THREE.MeshPhysicalMaterial({ color: 0x6d7075, roughness: 0.62, metalness: 0.3 }));
+    const wheels = new THREE.InstancedMesh(hubGeo, hubMat, 2);
+    const tyres = new THREE.InstancedMesh(tyreGeo, rubber, 2);
+    const wheelIdx = new THREE.InstancedMesh(own(new THREE.BoxGeometry(0.5, 0.03, 0.07)), pointerMat, 2);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p3 = new THREE.Vector3(),
       s3 = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0), v3 = new THREE.Vector3();
-    for (let i = 0; i < 2; i++) {
-      m4.makeTranslation(WHEEL_X[i], 0.0, WHEEL_Z);
-      slots.setMatrixAt(i, m4);
-    }
-    group.add(slots, wheels, wheelIdx);
+    for (let i = 0; i < 2; i++) slots.setMatrixAt(i, m4.makeTranslation(WHEEL_X[i], DECK_TOP + 0.02, WHEEL_Z));
+    group.add(slots, wheels, tyres, wheelIdx);
     const setWheel = (i, angle) => {
       q.setFromEuler(e.set(angle, 0, 0));
-      wheels.setMatrixAt(i, m4.compose(p3.set(WHEEL_X[i], WHEEL_Y, WHEEL_Z), q, s3.set(1, 1, 1)));
-      v3.set(0, 1.26, 0).applyQuaternion(q);
+      m4.compose(p3.set(WHEEL_X[i], WHEEL_Y, WHEEL_Z), q, s3.set(1, 1, 1));
+      wheels.setMatrixAt(i, m4);
+      tyres.setMatrixAt(i, m4);
+      v3.set(0, WHEEL_R + 0.025, 0).applyQuaternion(q);
       wheelIdx.setMatrixAt(i, m4.compose(p3.set(WHEEL_X[i] + v3.x, WHEEL_Y + v3.y, WHEEL_Z + v3.z), q, s3));
     };
     setWheel(0, 0); setWheel(1, 0);
@@ -419,7 +475,8 @@ const DEF = {
     panel.add(rings, lenses);
 
     // Instanced bounding spheres are computed once from the static layout (the kickstand's is refreshed with the tilt).
-    for (const im of [slots, wheels, wheelIdx, feet, knobs, caps, pointers, bezels, rockers, rings, lenses]) im.computeBoundingSphere();
+    for (const im of [slots, wheels, tyres, wheelIdx, feet, knobs, caps, pointers, bezels, rockers, rings, lenses]) im.computeBoundingSphere();
+    wheelIdx.boundingSphere.radius += 1.2;   // the index marks roll around the wheel rims
 
     // ---------------------------------------------------------- reactive --
     const lamp = new Float32Array(12);        // strike peak per pitch class, 0..1
@@ -542,14 +599,15 @@ const DEF = {
       if (Math.abs(modWheel - modWheelShown) > 1e-4) {
         setWheel(1, modWheel);
         modWheelShown = modWheel;
-        wheels.instanceMatrix.needsUpdate = wheelIdx.instanceMatrix.needsUpdate = true;
+        wheels.instanceMatrix.needsUpdate = tyres.instanceMatrix.needsUpdate = wheelIdx.instanceMatrix.needsUpdate = true;
       }
     }
 
     function resize(framing) {
-      // the player view (9:16) looks down more steeply, so the panel leans back further to keep trails in front of it
+      // The player view (9:16) looks down from high above the keys, so the panel stands steeper there (50 degrees, 10 up
+      // from the first build) to face that camera and keep the legend legible; 16:9 keeps 48.
       const f = typeof framing === "function" ? framing() : framing;
-      tiltTarget = (f && f.id === "9:16" ? 40 : 48) * Math.PI / 180;
+      tiltTarget = (f && f.id === "9:16" ? 50 : 48) * Math.PI / 180;
     }
 
     function setActive(on) {
@@ -558,6 +616,7 @@ const DEF = {
     }
 
     function dispose() {
+      disposed = true;
       if (group.parent) group.parent.remove(group);
       group.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
       for (const d of disposables) d.dispose?.();
@@ -571,11 +630,14 @@ const DEF = {
       const from = target.clone().addScaledVector(normal, 15).add(new THREE.Vector3(-4.5, 1.5, 6));
       return { target: target.toArray(), from: from.toArray(), fov: 30 };
     }
-    // A lab hero: three-quarter from the front left, the whole body in frame.
-    function heroView() {
+    // A lab hero: three-quarter from the front left, the whole body in frame. Arguments are for receipts only.
+    // Yaw -40, not -34: at -34 the host's rim light (12, 16, -30) mirrors off the low white keys' clearcoat straight into
+    // this camera (HDR probe: left-6-key peak 3.81 at -34, 0.39 with the rim light off, 0.68 at -38, 0.51 at -42).
+    const HERO_YAW = -40, HERO_ELEV = 24;
+    function heroView(yawDeg = HERO_YAW, elevDeg = HERO_ELEV) {
       group.updateMatrixWorld(true);
       const target = group.localToWorld(new THREE.Vector3(cx + 1.0, 0.0, -5.2));
-      const yaw = -34 * Math.PI / 180, elev = 24 * Math.PI / 180, dist = 84;
+      const yaw = yawDeg * Math.PI / 180, elev = elevDeg * Math.PI / 180, dist = 84;
       const from = target.clone().add(new THREE.Vector3(dist * Math.sin(yaw) * Math.cos(elev), dist * Math.sin(elev),
         dist * Math.cos(yaw) * Math.cos(elev)));
       return { target: target.toArray(), from: from.toArray(), fov: 23 };
@@ -589,7 +651,7 @@ const DEF = {
 
     return { group, update, resize, setActive, dispose, panel,
       views: { close: closeView, hero: heroView },
-      info: { keySpan: { first, last }, width: innerW + 2 * CHEEK_T, depth: FRONT - REAR, knobs: N_KNOBS, rockers: N_ROCK, lamps: N_LAMPS } };
+      info: { keySpan: { first, last }, face: FACE, width: innerW + 2 * CHEEK_T, depth: FRONT - REAR, knobs: N_KNOBS, rockers: N_ROCK, lamps: N_LAMPS } };
   },
 };
 export default DEF;

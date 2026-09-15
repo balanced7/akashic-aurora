@@ -11,7 +11,10 @@ Sheet: `instruments-sheet.jpg` (one column per model; rows hero / 9:16 player / 
 - **glass-piano** (25 calls, 85k tris): an acrylic grand. Hammers throw and strings take the note colour. The glass pass redraws the scene.
 
 ## 2. Judge scores (fidelity / beauty)
-vintage-synth 8/8 · upright 7.5/7.5 · suitcase-ep 6/7.5 · keylab88mk3 6.5/7 (before polish; p2 applies all 9 fixes, not re-judged) · glass-piano 6/7 · concert-grand 6.5/5.5.
+After the q pass, judged on the newest `-q` frames (previous score in brackets):
+vintage-synth 8.5/8.5 (8/8) · keylab88mk3 7.5/7.5 (6.5/7) · upright 8/7.5 (7.5/7.5) · suitcase-ep 7.5/7 (6/7.5) · concert-grand 7/6.5 (6.5/5.5) · glass-piano 6.5/6.5 (6/7).
+
+Every model gained on at least one axis and none lost fidelity. Beauty dropped for suitcase-ep (dresser silhouette) and glass-piano (the clear case vanishes in the hero). All models are within 60 calls and 150k triangles.
 
 ## 3. Integration into /piano
 - **Setting:** an "Instrument" select ("Page keys" plus the six), saved in `arsenal.piano.instrument`, loaded with `import()` and error-isolated like the scheme host in `piano-next.js`.
@@ -24,10 +27,14 @@ vintage-synth 8/8 · upright 7.5/7.5 · suitcase-ep 6/7.5 · keylab88mk3 6.5/7 (
 - **Budget:** 13–26 calls per model, so a page frame stays at about 100–130. Glass defaults to `'fast'` until measured. The grand's and upright's lights recompile shaders once on switch.
 
 ## 4. Open issues
+Ordered by what could embarrass us in front of Daniel, most important first.
 - Nothing is mounted in /piano yet.
-- Low white keys bloom in two hero views, probably from the lab key clearcoat.
-- **KeyLab:** the player view is dark, the encoder blooms, and the black wheels read as blocks. The layout is unmeasured. It used 4 bursts (cap 3).
-- **Concert grand:** misplaced dampers and pins, a flat desk, a near-black hero.
-- **Crystal Grand:** the case reads purple, close-up capture stalls, and the final settings are unrendered. One burst held the GPU lock 6 minutes.
-- The judge's fixes for the other five models are unapplied.
-- Outfit and Jost are unbundled; the page loads Archivo.
+- **KeyLab wheels:** still two black rocker caps in the hero, not round wheels. It is his own instrument, so this matters most. The rear-to-front cheek slope is also hard to see at hero scale.
+- **Crystal Grand hero:** with no environment map the clear acrylic has no presence. The rim, legs and lid disappear, so it reads as a dim black grand. It needs stronger fresnel or edge highlights, or a faint environment map. The whole frame still costs about 218 calls, against 100–135 for the others.
+- **Concert grand:** in 9:16 the overstrung bass is a translucent orange sheet and the left cheek has grey banding. In the close-up the pins are oversized posts in a sparse grid and the dampers are tall black slabs. The desk grille looks like a vent, and in the hero a long black bar lies across the plate.
+- **Suitcase EP:** it looks like a two-drawer chest (empty face under the keys, doubled brackets, side handles). The grille shows the speaker cones through it, and the control plate is under the keys instead of on the left name rail. The 9:16 view is dark.
+- **Upright:** the candles are still hot orbs in 9:16. The kneeboard grain is evenly spaced sine contours, and the walnut is orange-red rather than #6b3f22.
+- **Vintage synth:** minor only. The face is bronze-brown, not near-black, and the walnut cheeks look slightly plastic.
+- **Lab-wide:** host keys look grey and muddy in every 9:16 view. Chord text on instruments (the upright's book, the Crystal Grand's desk) repeats the page header.
+- The low-key bloom hot spots from the earlier heroes are gone.
+- **Fonts:** the lab page now loads Outfit, Raleway and Jost from Google Fonts. The /piano page still loads Archivo only.

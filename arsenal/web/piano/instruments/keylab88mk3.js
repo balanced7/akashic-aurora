@@ -51,17 +51,28 @@ const EDITIONS = {
            pad: 0x121317, mark: 0.42, markColor: 0xc9ced8, felt: 0x0d0d10, whiteKey: 0xe6e4de, blackKey: 0x0e0e11,
            bodyMat: { roughness: 0.58, clearcoat: 0.12, clearcoatRoughness: 0.55 },
            panel: { roughness: 0.5, metalness: 0.2, clearcoat: 0.35, clearcoatRoughness: 0.32, sheen: 0.35, sheenRoughness: 0.45 },
-           seam: "#3a3f47" },
+           seam: "#3a3f47", fill: 2.2, soft: 1 },
   // white: albedo held down and the surface kept matte, so the plate stays under the bloom threshold (0.9) in the key light
   white: { body: 0xc9c9c5, plate: 0xcfcfcb, trim: 0xa9adb5, wood: 0xd2ad82, rubber: 0xdcdde0, button: 0xd4d5d8,
            pad: 0x2a2c31, mark: 0.35, markColor: 0x2a2d33, felt: 0x2b2c30, whiteKey: 0xeceae4, blackKey: 0x101013,
            bodyMat: { roughness: 0.62, clearcoat: 0, specularIntensity: 0.4 },
            panel: { roughness: 0.6, metalness: 0, clearcoat: 0, specularIntensity: 0.35, sheen: 0 },
-           seam: null },
+           seam: null, fill: 0.35, soft: 0.35 },   // already bright: a small fill keeps the plate under the bloom threshold
 };
 const LED_ROLE = { plain: 0, rec: 1, play: 2, loop: 3, hold: 4, chord: 5, oct: 6, ctx: 7, stop: 8 };
-const LED_IDLE = 0.06;         // floor for unlit button LEDs, so the control layout reads at phone scale
 const SCREEN_ON = 0.92, SCREEN_IDLE = 0.46;   // screen brightness: lit, and idle at 50%
+// Lettering: Daniel's picks (Google Fonts, OFL). Outfit by default; ctx.options.font or ?font=raleway|jost picks an alternate.
+// The host page loads the faces (a Google Fonts link); nothing is drawn in a fallback face while they load.
+const FONT_CHOICES = { outfit: "Outfit", raleway: "Raleway", jost: "Jost" };
+// Per-view studio profile. The 9:16 player camera sits ~190 units out, inside the host fog (95..280), which halves the
+// instrument toward black; the phone profile keeps a share of that fog off this model and adds a soft top reflection
+// (a satin panel reads by what it reflects), a key fill, a cool edge rim, and brighter idle LEDs and pad rims.
+// fogLit / fogEmit: the share of the host fog applied (1 = all). soft: analytic soft-box reflection. keyFill: an extra
+// Lambert key (x ED.fill). rim: Fresnel edge light. The 16:9 views keep the judged look plus a faint rim.
+const PROFILE = {
+  wide:  { fogLit: 1, fogEmit: 1, soft: 0, keyFill: 0, rim: 0.3, ledIdle: 0.06, padRimIdle: 0.012, phone: false },
+  phone: { fogLit: 0.4, fogEmit: 0.25, soft: 1, keyFill: 1, rim: 1, ledIdle: 0.14, padRimIdle: 0.05, phone: true },
+};
 
 const decay = (tau, dt) => Math.exp(-dt / Math.max(tau, 1e-4));
 
@@ -75,10 +86,14 @@ export default {
     const { THREE, keyX, isBlack } = ctx;
     const doc = ctx.document || globalThis.document;
     // edition: ctx.options.edition, else a ?edition=white URL parameter (the lab passes no options), else black
-    let urlEdition = null;
-    try { urlEdition = new URLSearchParams(globalThis.location?.search || "").get("edition"); } catch { /* no location */ }
+    let urlEdition = null, urlFont = null;
+    try {
+      const q = new URLSearchParams(globalThis.location?.search || "");
+      urlEdition = q.get("edition"); urlFont = q.get("font");
+    } catch { /* no location */ }
     const opts = ctx.options || {};
     const ED = EDITIONS[(opts.edition || urlEdition) === "white" ? "white" : "black"];
+    const FAMILY = FONT_CHOICES[String(opts.font || urlFont || "outfit").toLowerCase()] || FONT_CHOICES.outfit;
     const RB = ctx.RoundedBoxGeometry || null;
 
     // ------------------------------------------------------------------ span --
@@ -130,14 +145,76 @@ export default {
       // wheels: soft matte rubber (the knobs and fader caps keep the satin rubber above)
       wheel: phys({ color: ED.rubber, roughness: 0.8, metalness: 0.0, clearcoat: 0,
                     sheen: 0.45, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x8d9ab4) }),
-      // main encoder: neutral aluminium
-      alu: phys({ color: 0xc9ccd1, roughness: 0.28, metalness: 1.0, clearcoat: 0 }),
+      // main encoder: neutral bead-blasted aluminium (its glint is also soft-clipped under the bloom threshold, see studio)
+      alu: phys({ color: 0xc9ccd1, roughness: 0.36, metalness: 1.0, clearcoat: 0 }),
       bezel: phys({ color: 0x030304, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.03 }),
       felt: keep(new THREE.MeshStandardMaterial({ color: ED.felt, roughness: 1.0 })),
       slot: keep(new THREE.MeshBasicMaterial({ color: 0x010102 })),
       mark: keep(new THREE.MeshBasicMaterial({ color: new THREE.Color(ED.markColor).multiplyScalar(ED.mark) })),
       glow: keep(new THREE.MeshBasicMaterial({ color: 0xffffff })),   // per-instance HDR colour: LEDs and pad rims
     };
+    // Studio: this model's own light, scoped to its materials (no scene lights, so the host's keys and stage are untouched,
+    // and no extra draw calls). The shared uniforms are driven by the view profile (resize); the per-material ones say how
+    // much of each term a surface takes. Every material gets the same injected code for its shader type, so programs are
+    // shared (customProgramCacheKey).
+    const STUDIO = {
+      uKlFogLit: { value: 1 }, uKlFogEmit: { value: 1 },
+      uKlSoft: { value: 0 }, uKlSoftTint: { value: new THREE.Color(0.6, 0.68, 0.84) },
+      uKlKeyFill: { value: 0 }, uKlKeyDir: { value: new THREE.Vector3(-0.3, 0.8, 0.52).normalize() },
+      uKlRim: { value: 0 }, uKlRimColor: { value: new THREE.Color(0.5, 0.64, 1.0) },
+    };
+    const STUDIO_PARS = `
+uniform float uKlFog; uniform float uKlSoft; uniform vec3 uKlSoftTint; uniform float uKlKeyFill; uniform vec3 uKlKeyDir;
+uniform float uKlRim; uniform vec3 uKlRimColor; uniform float uKlRimK; uniform float uKlSoftK; uniform float uKlMaxLum;`;
+    const STUDIO_LIGHT = `
+{
+  vec3 klN = geometryNormal, klV = geometryViewDir;
+  float klNV = saturate( dot( klN, klV ) );
+  vec3 klKey = normalize( ( viewMatrix * vec4( uKlKeyDir, 0.0 ) ).xyz );
+  reflectedLight.directDiffuse += material.diffuseColor * ( RECIPROCAL_PI * uKlKeyFill * saturate( dot( klN, klKey ) ) );
+  // soft box: a sky gradient above the desk, seen in the surface's world-space reflection, Schlick-weighted
+  vec3 klR = inverseTransformDirection( reflect( -klV, klN ), viewMatrix );
+  float klF = 0.04 + 0.96 * pow( 1.0 - klNV, 5.0 );
+  reflectedLight.indirectSpecular += uKlSoftTint * ( uKlSoft * uKlSoftK * klF * smoothstep( -0.15, 0.9, klR.y ) );
+  // edge rim: Fresnel toward the silhouette (rounded edges, bevels, wheel shoulders)
+  reflectedLight.directSpecular += uKlRimColor * ( uKlRim * uKlRimK * pow( 1.0 - klNV, 3.0 ) );
+}`;
+    // soft knee: luminance above 0.6 x uKlMaxLum is compressed toward uKlMaxLum (the bloom pass keys on luminance)
+    const STUDIO_CLIP = `
+{
+  float klL = dot( gl_FragColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ), klK = uKlMaxLum * 0.6;
+  if ( klL > klK ) { float klS = uKlMaxLum - klK; gl_FragColor.rgb *= ( klK + klS * ( 1.0 - exp( -( klL - klK ) / klS ) ) ) / klL; }
+}`;
+    const STUDIO_FOG = `
+#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+  #else
+    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor * uKlFog );
+#endif`;
+    const injectStudio = (shader, m) => {
+      const k = m.userData.kl;
+      Object.assign(shader.uniforms, {
+        uKlFog: k.emit ? STUDIO.uKlFogEmit : STUDIO.uKlFogLit, uKlSoft: STUDIO.uKlSoft, uKlSoftTint: STUDIO.uKlSoftTint,
+        uKlKeyFill: STUDIO.uKlKeyFill, uKlKeyDir: STUDIO.uKlKeyDir, uKlRim: STUDIO.uKlRim, uKlRimColor: STUDIO.uKlRimColor,
+        uKlRimK: k.rimK, uKlSoftK: k.softK, uKlMaxLum: k.maxLum,
+      });
+      let f = shader.fragmentShader.replace("#include <common>", `#include <common>${STUDIO_PARS}`);
+      if (f.includes("#include <lights_fragment_end>")) f = f.replace("#include <lights_fragment_end>", `#include <lights_fragment_end>${STUDIO_LIGHT}`);
+      f = f.replace("#include <tonemapping_fragment>", `${STUDIO_CLIP}\n#include <tonemapping_fragment>`)
+           .replace("#include <fog_fragment>", STUDIO_FOG);
+      shader.fragmentShader = f;
+    };
+    // per material: rim (x profile rim), soft box (x profile soft x ED.soft), max luminance; emit = takes the emissive fog share
+    const studio = (m, { rim = 0, soft = 0, maxLum = 1e4, emit = false } = {}, cacheKey = "keylab88mk3-studio") => {
+      m.userData.kl = { rimK: { value: rim }, softK: { value: soft * ED.soft }, maxLum: { value: maxLum }, emit };
+      const inner = m.onBeforeCompile && m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile ? m.onBeforeCompile : null;
+      m.onBeforeCompile = (shader, renderer) => { if (inner) inner(shader, renderer); injectStudio(shader, m); };
+      m.customProgramCacheKey = () => cacheKey;
+    };
+
     // Pads: dark rubber lit from inside. The per-instance glow is added to the emissive term, so the pad keeps its PBR
     // surface and emits only while a note drives it.
     const PAD_COUNT = 12;
@@ -151,7 +228,20 @@ export default {
         .replace("#include <common>", "#include <common>\nvarying vec3 vGlow;")
         .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vGlow;");
     };
-    mat.pad.customProgramCacheKey = () => "keylab88mk3-pad-glow";
+    studio(mat.body, { rim: 0.75, soft: 0.7 });
+    studio(mat.plate, { rim: 0.6, soft: 1.2 });
+    studio(mat.trim, { rim: 0.3 });
+    studio(mat.wood, { rim: 0.6, soft: 0.5 });
+    studio(mat.rubber, { rim: 0.3, soft: 0.8 });
+    studio(mat.button, { rim: 0.3, soft: 1.3 });
+    studio(mat.pad, { rim: 0.25, soft: 1.0 }, "keylab88mk3-pad-glow-studio");
+    studio(mat.wheel, { rim: 1.5, soft: 0.7 });   // the shoulders' rim is what makes a sunk wheel read as a wheel
+    studio(mat.alu, { maxLum: 0.8 });
+    studio(mat.bezel, { rim: 0.2, soft: 0.9 });
+    studio(mat.felt);
+    studio(mat.slot);
+    studio(mat.mark);   // printed paint: the lit fog share
+    studio(mat.glow, { emit: true });
 
     // Wood grain: a seeded canvas, grain running front to back along the cheek.
     const woodTex = (() => {
@@ -191,16 +281,36 @@ export default {
     const TR = L.transport;
     const TRANSPORT = { w: [TR.w, TR.w, TR.w, TR.w * TR.wide, TR.w * TR.wide, TR.w * TR.wide], x: [] };
     for (let i = 0, edge = TR.x0; i < 6; i++) { TRANSPORT.x.push(edge + TRANSPORT.w[i] / 2); edge += TRANSPORT.w[i] + TR.gap; }
-    const FONT = (ctx.fonts && ctx.fonts.display) || '"Outfit", "Jost", "Century Gothic", "Futura", "Avenir Next", "Segoe UI", sans-serif';
+    const hostFont = ctx.fonts && ctx.fonts.display;
+    const FONT = `"${FAMILY}", ${hostFont ? `${hostFont}, ` : ""}"Outfit", "Jost", "Century Gothic", "Futura", "Avenir Next", "Segoe UI", sans-serif`;
+    // Lettering waits for the chosen face (document.fonts), so no fallback face is drawn and then swapped. A face still
+    // unavailable after 4 s (offline, no stylesheet on the host page) settles anyway and the fallback stack draws.
+    let fontsSettled = !doc.fonts, fontLoaded = false, disposed = false;
+    const settleFonts = [];   // redraws to run once the face is ready
+    const fontsReady = (fontsSettled ? Promise.resolve(false) : Promise.race([
+      (async () => {
+        await doc.fonts.ready;
+        const sample = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+-";
+        const lists = await Promise.all(["600", "700"].map((w) => doc.fonts.load(`${w} 64px "${FAMILY}"`, sample)));
+        return lists.every((l) => l && l.length > 0);
+      })(),
+      new Promise((res) => globalThis.setTimeout(() => res(false), 4000)),
+    ])).catch(() => false).then((ok) => {
+      fontsSettled = true; fontLoaded = !!ok;
+      if (!disposed) settleFonts.forEach((f) => f());
+      return fontLoaded;
+    });
     mat.plateFace = phys({ color: 0xffffff, ...ED.panel, sheenColor: new THREE.Color(0x6d7a92) });
+    studio(mat.plateFace, { soft: 1.6 });
     // legendCanvas(false): the lit face (plate colour, brushing, ink). legendCanvas(true): ink only on black, used as a faint
     // emissive map on the black edition so printed legends read under environment-free lighting (peak ~0.06 linear, far
     // under the bloom threshold: print, not glow).
-    const legendCanvas = (inkOnly) => {
+    // (reuse: redraw into that canvas and return null, once the font settles)
+    const legendCanvas = (inkOnly, reuse) => {
       const px0 = CHASSIS.cheek + 3.5, pw = CHASSIS.w - 2 * CHASSIS.cheek - 7;              // mm, chassis-left based
       const pf = (zFront - (zChamfer - 3 * MM)) / MM + 0.5, pb = CHASSIS.d - 5.5;           // mm from the front
-      const c = doc.createElement("canvas");
-      c.width = 4096; c.height = 512;
+      const c = reuse || doc.createElement("canvas");
+      if (!reuse) { c.width = 4096; c.height = 512; }
       const g = c.getContext("2d");
       const sx = c.width / pw, sy = c.height / (pb - pf);
       const cx = (xmm) => (xmm - px0) * sx, cy = (zmm) => (pb - zmm) * sy;
@@ -216,6 +326,7 @@ export default {
       const faint = ED === EDITIONS.white ? "rgba(38,42,50,0.28)" : "rgba(196,203,216,0.2)";
       g.strokeStyle = ink; g.fillStyle = ink; g.lineCap = "round";
       const label = (text, xmm, zmm, hmm = 2.6) => {
+        if (!fontsSettled) return;
         g.save();
         g.translate(cx(xmm), cy(zmm));
         g.scale(1, sy / sx);
@@ -278,6 +389,7 @@ export default {
           line(x + 4.2, z, x + 4.2 + long, z, 0.35, k % 5 === 0 ? ink : faint);
         }
       }
+      if (reuse) return null;
       const t = keep(new THREE.CanvasTexture(c));
       t.colorSpace = THREE.SRGBColorSpace;
       t.anisotropy = 16;
@@ -289,6 +401,13 @@ export default {
       mat.plateFace.emissive = new THREE.Color(1, 1, 1);
       mat.plateFace.emissiveIntensity = 0.3;
     }
+    settleFonts.push(() => {
+      for (const [tex, inkOnly] of [[mat.plateFace.map, false], [mat.plateFace.emissiveMap, true]]) {
+        if (!tex) continue;
+        legendCanvas(inkOnly, tex.image);
+        tex.needsUpdate = true;
+      }
+    });
 
     // --------------------------------------------------------------- chassis --
     // Base tray under the keys, recessed 4 mm behind the key fronts.
@@ -416,27 +535,33 @@ export default {
     {
       const W = L.wheels, r = W.r * MM;
       add(roundBox(W.well.w * MM, 1.2 * MM, W.well.d * MM, 2, 5 * MM), mat.slot, X(W.well.x), yPlate + 0.2 * MM, Z(W.well.z));
-      const wheelGeo = keep(new THREE.CylinderGeometry(r, r, W.w * MM, 48, 1).rotateZ(Math.PI / 2));
+      // A moulded tyre: a lathe profile (cap centre, a rounded 2.5 mm shoulder, the tread, the other shoulder, cap centre)
+      // so the edges catch the key light and the studio edge rim, and the sunk wheel reads as round rather than as a block.
+      const hw = (W.w / 2) * MM, rs = 2.5 * MM, prof = [[0, -hw]];
+      for (let s = 0; s <= 4; s++) { const a = (s / 4) * Math.PI / 2; prof.push([r - rs + rs * Math.sin(a), -hw + rs - rs * Math.cos(a)]); }
+      for (let s = 0; s <= 4; s++) { const a = (s / 4) * Math.PI / 2; prof.push([r - rs + rs * Math.cos(a), hw - rs + rs * Math.sin(a)]); }
+      prof.push([0, hw]);
+      const wheelGeo = keep(new THREE.LatheGeometry(prof.map(([a, b]) => new THREE.Vector2(a, b)), 48));
       // Moulded grip ribs across the tread (28 around), so the shallow visible arc still reads as a turning wheel. The ribs
-      // are a canvas map on the tread; the caps' UVs are pinned to a rib-free texel, so this stays one draw call.
+      // sit in the canvas' upper half; the tread's two profile rings map into it and the shoulders and caps into the plain
+      // lower half, so this stays one draw call.
       {
         const c = doc.createElement("canvas");
-        c.width = 280; c.height = 4;
+        c.width = 280; c.height = 32;
         const g = c.getContext("2d");
         g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height);
         g.fillStyle = "#6a6a6a";
-        for (let i = 0; i < 28; i++) g.fillRect(i * 10, 0, 3, c.height);
+        for (let i = 0; i < 28; i++) g.fillRect(i * 10, 0, 3, 15);
         const t = keep(new THREE.CanvasTexture(c));
         t.colorSpace = THREE.SRGBColorSpace;
         t.wrapS = THREE.RepeatWrapping;
         t.anisotropy = 8;
         mat.wheel.map = t;
-        const uv = wheelGeo.attributes.uv, idx = wheelGeo.index;
-        for (let gi = 1; gi < wheelGeo.groups.length; gi++) {
-          const { start, count } = wheelGeo.groups[gi];
-          for (let k = start; k < start + count; k++) uv.setXY(idx.getX(k), 6.5 / 280, 0.5);
-        }
+        const n = prof.length, V = prof.map((_, j) => (j === 5 ? 0.62 : j === 6 ? 0.94 : 0.2));   // j 5, 6: the tread rings
+        const uv = wheelGeo.attributes.uv;
+        for (let k = 0; k < uv.count; k++) uv.setY(k, V[k % n]);
       }
+      wheelGeo.rotateZ(Math.PI / 2);
       const wheels = new THREE.InstancedMesh(wheelGeo, mat.wheel, 2);
       const marks = new THREE.InstancedMesh(unitBox, mat.mark, 2);
       const yc = yPlate + (2 * W.r * W.show - W.r) * MM;   // axis height: top of the tread at 0.4 x diameter above the plate
@@ -459,6 +584,7 @@ export default {
     screenTex.colorSpace = THREE.SRGBColorSpace;
     screenTex.anisotropy = 8;
     const screenMat = keep(new THREE.MeshBasicMaterial({ map: screenTex, color: new THREE.Color(SCREEN_IDLE, SCREEN_IDLE, SCREEN_IDLE) }));
+    studio(screenMat, { emit: true });
     add(roundBox(L.screen.bezelW * MM, 1.0 * MM, L.screen.bezelD * MM, 2, 3 * MM), mat.bezel, X(L.screen.x), yPlate + 0.5 * MM, Z(L.screen.z));
     add(keep(new THREE.PlaneGeometry(L.screen.w * MM, L.screen.d * MM).rotateX(-Math.PI / 2)), screenMat,
         X(L.screen.x), yPlate + 1.08 * MM, Z(L.screen.z));
@@ -541,70 +667,82 @@ export default {
       const f = (v) => Math.round(255 * Math.min(1, v + (1 - Math.min(1, v)) * lift));
       return `rgb(${f(tmp.r)},${f(tmp.g)},${f(tmp.b)})`;
     };
+    let phone = false;                       // the 9:16 profile is active (set by resize)
+    const screenArgs = [null, 0, true];      // the last drawScreen arguments, for redraws on font or profile changes
     function drawScreen(chord, mask, dim) {
-      const g = g2, W = SCREEN_W, Hh = SCREEN_H;
+      screenArgs[0] = chord; screenArgs[1] = mask; screenArgs[2] = dim;
+      const g = g2, W = SCREEN_W, Hh = SCREEN_H, text = fontsSettled;
+      // On a phone the whole screen is ~60 px wide: a bigger name and number, no header line, bigger dots.
+      const LY = phone ? { name: 290, nameY: 330, nnsY: 494, big: 132, sup: 70, ph: 158, dotY: 596, dotOn: 19, dotOff: 11 }
+                       : { name: 210, nameY: 318, nnsY: 452, big: 118, sup: 62, ph: 150, dotY: 584, dotOn: 13, dotOff: 9 };
       g.save();
       // Idle is the same layout at half brightness (screenMat's colour, set by the caller), not a near-black panel, so
-      // the screen reads as a lit display at phone scale.
+      // the screen reads as a lit display at phone scale. A deep ground under bright ink: contrast is what survives the
+      // downscale.
       const bg = g.createLinearGradient(0, 0, 0, Hh);
-      bg.addColorStop(0, "#141c34"); bg.addColorStop(1, "#080c18");
+      bg.addColorStop(0, "#0e152b"); bg.addColorStop(1, "#03050b");
       g.fillStyle = bg; g.fillRect(0, 0, W, Hh);
       const vg = g.createRadialGradient(W / 2, Hh * 0.46, 40, W / 2, Hh * 0.46, W * 0.62);
-      vg.addColorStop(0, "rgba(70,92,160,0.22)"); vg.addColorStop(1, "rgba(0,0,0,0)");
+      vg.addColorStop(0, "rgba(70,92,160,0.16)"); vg.addColorStop(1, "rgba(0,0,0,0)");
       g.fillStyle = vg; g.fillRect(0, 0, W, Hh);
       // header
-      g.font = `600 30px ${FONT}`;
-      g.textBaseline = "middle";
-      if ("letterSpacing" in g) g.letterSpacing = "6px";
-      g.fillStyle = "#7d89a6";
-      g.textAlign = "left"; g.fillText("CHORD", 44, 54);
-      g.textAlign = "right"; g.fillText(chord && chord.key ? `KEY  ${pretty(chord.key).toUpperCase().replace(/♭/g, "♭")}` : "KEY  —", W - 44, 54);
-      if ("letterSpacing" in g) g.letterSpacing = "0px";
-      g.fillStyle = "rgba(255,255,255,0.08)"; g.fillRect(44, 90, W - 88, 2);
+      if (text && !phone) {
+        g.font = `600 30px ${FONT}`;
+        g.textBaseline = "middle";
+        if ("letterSpacing" in g) g.letterSpacing = "6px";
+        g.fillStyle = "#98a4c2";
+        g.textAlign = "left"; g.fillText("CHORD", 44, 54);
+        g.textAlign = "right"; g.fillText(chord && chord.key ? `KEY  ${pretty(chord.key).toUpperCase()}` : "KEY  —", W - 44, 54);
+        if ("letterSpacing" in g) g.letterSpacing = "0px";
+        g.fillStyle = "rgba(255,255,255,0.1)"; g.fillRect(44, 90, W - 88, 2);
+      }
       // chord name, filled with a gradient through the chord tones' own colours
       const name = chord ? pretty(chord.name) : "—";
-      let size = 210;
-      g.font = `700 ${size}px ${FONT}`;
-      while (g.measureText(name).width > W - 120 && size > 80) { size -= 8; g.font = `700 ${size}px ${FONT}`; }
-      const tw = g.measureText(name).width;
       const m = /^([A-G])(♭|♯)?/.exec(name);
       let rootPc = m ? ROOT_PC[m[1]] + (m[2] === "♭" ? -1 : m[2] === "♯" ? 1 : 0) : -1;
       rootPc = ((rootPc % 12) + 12) % 12;
-      const grad = g.createLinearGradient(W / 2 - tw / 2, 0, W / 2 + tw / 2, 0);
-      const pcs = [];
-      if (m) pcs.push(rootPc);
-      for (let i = 1; i < 12; i++) { const pc = (rootPc + i) % 12; if (mask & (1 << pc)) pcs.push(pc); }
-      if (pcs.length === 0) grad.addColorStop(0, "#e8ecf4");
-      pcs.forEach((pc, i) => grad.addColorStop(pcs.length === 1 ? 0 : i / (pcs.length - 1), cssOf(ctx.noteColor(60 + pc, 112, rootCol), 0.28)));
-      g.fillStyle = grad;
-      g.textAlign = "center"; g.textBaseline = "alphabetic";
-      g.fillText(name, W / 2, 318);
+      if (text) {
+        let size = LY.name;
+        g.font = `700 ${size}px ${FONT}`;
+        while (g.measureText(name).width > W - (phone ? 60 : 120) && size > 80) { size -= 8; g.font = `700 ${size}px ${FONT}`; }
+        const tw = g.measureText(name).width;
+        const grad = g.createLinearGradient(W / 2 - tw / 2, 0, W / 2 + tw / 2, 0);
+        const pcs = [];
+        if (m) pcs.push(rootPc);
+        for (let i = 1; i < 12; i++) { const pc = (rootPc + i) % 12; if (mask & (1 << pc)) pcs.push(pc); }
+        if (pcs.length === 0) grad.addColorStop(0, "#e8ecf4");
+        pcs.forEach((pc, i) => grad.addColorStop(pcs.length === 1 ? 0 : i / (pcs.length - 1), cssOf(ctx.noteColor(60 + pc, 112, rootCol), 0.36)));
+        g.fillStyle = grad;
+        g.textAlign = "center"; g.textBaseline = "alphabetic";
+        g.fillText(name, W / 2, LY.nameY);
+      }
       // Nashville number in a pill: the page's "1^6/9" -> 1 with a raised 6/9; a string that already carries superscript
       // glyphs ("1⁶ᐟ⁹") is drawn as it is
       const nns = chord && chord.nns ? String(chord.nns) : "";
-      if (nns) {
+      if (nns && text) {
         const [num, sup = ""] = nns.includes("^") ? nns.split("^") : [nns];
-        const bigF = `600 118px ${FONT}`, supF = `600 62px ${FONT}`;
+        const bigF = `600 ${LY.big}px ${FONT}`, supF = `600 ${LY.sup}px ${FONT}`;
         g.font = bigF; const wn = g.measureText(pretty(num)).width;
         g.font = supF; const ws = sup ? g.measureText(pretty(sup)).width + 8 : 0;
-        const total = wn + ws, cx = W / 2, cy = 452, pw = total + 96, ph = 150;
-        g.strokeStyle = "rgba(200,212,240,0.28)"; g.lineWidth = 4;
+        const total = wn + ws, cx = W / 2, cy = LY.nnsY, pw = total + 96, ph = LY.ph;
+        g.strokeStyle = phone ? "rgba(210,222,248,0.45)" : "rgba(200,212,240,0.32)"; g.lineWidth = phone ? 6 : 4;
         g.beginPath(); g.roundRect(cx - pw / 2, cy - ph / 2, pw, ph, ph / 2); g.stroke();
-        g.fillStyle = "#eef2fa"; g.textAlign = "left"; g.textBaseline = "alphabetic";
-        g.font = bigF; g.fillText(pretty(num), cx - total / 2, cy + 42);
-        if (sup) { g.font = supF; g.fillStyle = "#c9d3ea"; g.fillText(pretty(sup), cx - total / 2 + wn + 8, cy - 4); }
+        g.fillStyle = "#f4f7fd"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+        g.font = bigF; g.fillText(pretty(num), cx - total / 2, cy + LY.big * 0.36);
+        if (sup) { g.font = supF; g.fillStyle = "#d6def0"; g.fillText(pretty(sup), cx - total / 2 + wn + 8, cy - 4); }
       }
       // twelve dots: the pads' pitch classes, lit for the chord tones
       for (let pc = 0; pc < 12; pc++) {
-        const x = W / 2 + (pc - 5.5) * 50, y = 584, on = (mask & (1 << pc)) !== 0;
-        g.beginPath(); g.arc(x, y, on ? 13 : 9, 0, Math.PI * 2);
+        const x = W / 2 + (pc - 5.5) * 50, y = LY.dotY, on = (mask & (1 << pc)) !== 0;
+        g.beginPath(); g.arc(x, y, on ? LY.dotOn : LY.dotOff, 0, Math.PI * 2);
         if (on) { g.fillStyle = cssOf(ctx.noteColor(60 + pc, 112, rootCol), 0.1); g.fill(); }
-        else { g.strokeStyle = "rgba(255,255,255,0.16)"; g.lineWidth = 3; g.stroke(); }
+        else { g.strokeStyle = "rgba(255,255,255,0.2)"; g.lineWidth = 3; g.stroke(); }
       }
       g.restore();
       screenTex.needsUpdate = true;
     }
     drawScreen(null, 0, true);
+    settleFonts.push(() => { drawScreen(...screenArgs); lastDim = null; });
 
     const writeRgb = (arr, i, col, k) => { arr[i * 3] = col.r * k; arr[i * 3 + 1] = col.g * k; arr[i * 3 + 2] = col.b * k; };
     const LED_TINT = {
@@ -665,16 +803,16 @@ export default {
       const leds = ledMesh.instanceColor.array;
       let ledsDirty = false;
       for (let i = 0; i < ledLevel.length; i++) {
-        let col = LED_TINT.white, k = LED_IDLE;
+        let col = LED_TINT.white, k = ledIdle;
         switch (ledRole[i]) {
-          case LED_ROLE.rec: col = LED_TINT.red; k = 0.11; break;
-          case LED_ROLE.play: col = LED_TINT.green; k = LED_IDLE + 0.5 * playLevel; break;
-          case LED_ROLE.loop: col = LED_TINT.amber; k = LED_IDLE; break;
-          case LED_ROLE.stop: k = LED_IDLE; break;
-          case LED_ROLE.hold: col = LED_TINT.amber; k = LED_IDLE + 0.92 * pedalLevel; break;
-          case LED_ROLE.chord: col = chord ? rootCol : LED_TINT.white; k = LED_IDLE + 0.77 * chordLevel; break;
-          case LED_ROLE.oct: col = LED_TINT.blue; k = 0.07; break;
-          case LED_ROLE.ctx: k = 0.2; break;
+          case LED_ROLE.rec: col = LED_TINT.red; k = ledIdle + 0.05; break;
+          case LED_ROLE.play: col = LED_TINT.green; k = ledIdle + 0.5 * playLevel; break;
+          case LED_ROLE.loop: col = LED_TINT.amber; k = ledIdle; break;
+          case LED_ROLE.stop: k = ledIdle; break;
+          case LED_ROLE.hold: col = LED_TINT.amber; k = ledIdle + 0.92 * pedalLevel; break;
+          case LED_ROLE.chord: col = chord ? rootCol : LED_TINT.white; k = ledIdle + 0.77 * chordLevel; break;
+          case LED_ROLE.oct: col = LED_TINT.blue; k = ledIdle + 0.01; break;
+          case LED_ROLE.ctx: k = ledIdle + 0.14; break;
           default: break;
         }
         const r = col.r * k, gg = col.g * k, b = col.b * k;
@@ -685,6 +823,17 @@ export default {
       if (ledsDirty) ledMesh.instanceColor.needsUpdate = true;
     }
 
+    // View profile: the host calls resize(framing) when the frame changes; a portrait frame (9:16) gets the phone profile.
+    let ledIdle = PROFILE.wide.ledIdle;
+    function applyProfile(fr) {
+      const P = fr && (fr.id === "9:16" || (fr.w > 0 && fr.h > fr.w)) ? PROFILE.phone : PROFILE.wide;
+      STUDIO.uKlFogLit.value = P.fogLit; STUDIO.uKlFogEmit.value = P.fogEmit; STUDIO.uKlSoft.value = P.soft;
+      STUDIO.uKlKeyFill.value = P.keyFill * ED.fill; STUDIO.uKlRim.value = P.rim;
+      ledIdle = P.ledIdle; PAD.rimIdle = P.padRimIdle;
+      lastDim = null;   // rewrite pad rims and the screen on the next update
+      if (phone !== P.phone) { phone = P.phone; drawScreen(...screenArgs); }
+    }
+
     function setActive(on) {
       active = !!on;
       group.visible = active;
@@ -692,6 +841,7 @@ export default {
     }
 
     function dispose() {
+      disposed = true;
       group.removeFromParent();
       padMesh.geometry.deleteAttribute("aGlow");
       for (const d of disposables) d.dispose?.();
@@ -707,8 +857,10 @@ export default {
         const g = o.geometry, n = g.index ? g.index.count : g.attributes.position.count;
         triangles += (n / 3) * (o.isInstancedMesh ? o.count : 1);
       });
-      return { drawCalls: meshes, triangles, pads: Array.from(padLevel, (v) => +v.toFixed(3)) };
+      return { drawCalls: meshes, triangles, pads: Array.from(padLevel, (v) => +v.toFixed(3)),
+               font: { family: FAMILY, loaded: fontLoaded, settled: fontsSettled }, profile: phone ? "phone" : "wide" };
     }
+    applyProfile(ctx.framing);
 
     const closeTarget = [(X(L.pads.x0 + 2.5 * L.pads.pitch) + X(L.screen.x)) / 2 + 1.0, yPlate, Z(245)];
     // hero: three-quarter from the front left, high enough (30 deg) that the top panel's controls read
@@ -717,7 +869,9 @@ export default {
     const heroFrom = [heroTarget[0] + heroDist * Math.sin(heroYaw) * Math.cos(heroElev), heroTarget[1] + heroDist * Math.sin(heroElev),
                       heroTarget[2] + heroDist * Math.cos(heroYaw) * Math.cos(heroElev)];
     return {
-      group, update, resize() {}, setActive, dispose, stats,
+      group, update, resize: applyProfile, setActive, dispose, stats,
+      fontsReady,   // resolves (true when the chosen face loaded) once the lettering has been drawn in its final face
+      font: FAMILY,
       get info() { return stats(); },
       // hints for the host: key colours for this instrument, and where the desk is. specFloorY is the spec's estimate (key
       // tops 78 mm above the desk); floorY is where this body actually ends (the host floor when one was given).
