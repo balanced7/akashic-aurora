@@ -199,6 +199,9 @@ export function createOnsets(params = {}) {
   return {
     noteOn, noteOff, soundEnd, pedal, flush,
     pending: () => open.length,
+    // the onset finality horizon: the earliest note-on any group not handed out yet can hold (null when none is open).
+    // Every later group starts at or after min(this, now), since flush() is called after every event up to now.
+    oldestPending: () => (open.length ? open[0].t : null),
     recent: () => done.slice(),
     params: () => ({ ...c }),
   };

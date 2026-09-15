@@ -177,10 +177,13 @@ const KINDS = ["on", "off", "pedal", "chord", "sound_end"], BY = ["release", "pe
 }
 
 // ------------------------------------------------------------------------------------------------- LR1 ---
-function laneRun(piece, { meter = "auto", onsetParams = LANE_ONSET_PARAMS, withPedals = true } = {}) {
+// LR1 measures the tempo-lane configuration (LANE_BEAT_PARAMS), per ls1-rulings.md; `params` swaps in the product
+// configuration for the delta reported beside it, and `shown` collects bpmShown samples.
+function laneRun(piece, { meter = "auto", onsetParams = LANE_ONSET_PARAMS, withPedals = true, params = LANE_BEAT_PARAMS, shown = null } = {}) {
   const events = G.eventsOf(withPedals ? piece : { ...piece, pedals: [] });
   const endMs = piece.notes[piece.notes.length - 1].t * 1000 + 1000;
-  const { tracker } = trackEvents(events, { createOnsets, onsetParams, params: LANE_BEAT_PARAMS, options: { meter, trace: true }, endMs });
+  const onTick = shown ? (s) => shown.push({ t_ms: s.t_ms, bpm: s.bpmShown, hold: s.mode === "hold" }) : null;
+  const { tracker } = trackEvents(events, { createOnsets, onsetParams, params, options: { meter, trace: true }, endMs, onTick });
   return tracker.trace();
 }
 
@@ -215,12 +218,15 @@ if (!quick) {
 
   // tempo lane table (recommended configuration)
   const t1 = performance.now();
-  const trows = G.tempoSuite().map((r) => {
-    const tr = laneRun(r.piece);
+  const tempoRows = (params) => G.tempoSuite().map((r) => {
+    const shown = [];
+    const tr = laneRun(r.piece, { params, shown });
     const run = { samples: tr.samples.map((x) => ({ t_ms: x.T, bpm: x.bpmT, hold: x.state === "hold" })), emitted_ms: tr.emitted.map((e) => e.t), settled_ms: tr.emittedLag,
       meterLog: tr.meterLog.map((m) => ({ t_ms: m.T, label: m.label })), downs_ms: tr.emitted.filter((e) => e.down === true).map((e) => e.t) };
-    return { ...r, ...MX.evalTempo(r.piece.truth, run) };
+    const evShown = MX.evalTempo(r.piece.truth, { ...run, samples: shown });
+    return { ...r, ...MX.evalTempo(r.piece.truth, run), acc1Shown: evShown.acc1, flipsShown: evShown.flipsPerMin };
   });
+  const trows = tempoRows(LANE_BEAT_PARAMS);
   const pick = (rs) => { const f = (k) => MX.mean(rs.map((x) => (typeof x[k] === "boolean" ? +x[k] : x[k]))); return { fb: f("fb"), fbLag: f("fbLag"), fAny: f("fAny"), acc1: f("acc1"), acc1s: f("acc1s"), acc2: f("acc2"), oct: f("octave"), flips: f("flipsPerMin"), meter: f("meterOK"), fdb: f("fdb"), lockT: MX.mean(rs.map((x) => x.lockT).filter((x) => x != null)), never: rs.filter((x) => x.lockT == null).length }; };
   const tOut = { all: pick(trows) };
   for (const rub of [0, 1, 2]) tOut["rub" + rub] = pick(trows.filter((x) => x.rub === rub));
@@ -239,8 +245,22 @@ if (!quick) {
   for (const k of ["steady", "loose", "free"]) cmp(`tempoLane freeBands ${k}`, fb[k], ref.tempoLane.freeBands[k], 0.01);
   const tms = performance.now() - t1;
 
-  receipts.push({ id: "LR1", section3: { ALL: s3Out.ALL, rub2: s3Out.rub2, jit30ms: s3Out.jit30ms, jit45ms: s3Out.jit45ms }, tempoLane: { all: tOut.all, rub0: tOut.rub0, rub1: tOut.rub1, rub2: tOut.rub2 },
-    confusion: conf, freeBands: fb, worstShareDeviation: +worst.share.toFixed(4), worstAt: worst.where, ms: { section3: Math.round(s3ms), tempoLane: Math.round(tms) } });
+  // product delta (ls1-rulings.md, LR1 row): the same suite and meter "auto" under the product defaults (BEAT_PARAMS: no
+  // interval across a hold, bpmShown confirmed for a bar). Product minus lane, reported beside LR1, not gated.
+  const t2 = performance.now();
+  const prows = tempoRows({});
+  const productDelta = {};
+  for (const name of ["all", "rub0", "rub1", "rub2"]) {
+    const sel = (rs) => (name === "all" ? rs : rs.filter((x) => x.rub === +name.slice(3)));
+    const a = pick(sel(trows)), b = pick(sel(prows));
+    const shownOf = (rs) => ({ acc1: MX.mean(sel(rs).map((x) => x.acc1Shown)), flips: MX.mean(sel(rs).map((x) => x.flipsShown)) });
+    productDelta[name] = { ...Object.fromEntries(["acc1", "acc1s", "acc2", "fb", "oct", "flips", "lockT", "never"].map((k) => [k, b[k] - a[k]])), shownLane: shownOf(trows), shownProduct: shownOf(prows) };
+  }
+  const pms = performance.now() - t2;
+
+  receipts.push({ id: "LR1", config: "LANE_BEAT_PARAMS (tempo-lane configuration, ls1-rulings.md)", section3: { ALL: s3Out.ALL, rub2: s3Out.rub2, jit30ms: s3Out.jit30ms, jit45ms: s3Out.jit45ms }, tempoLane: { all: tOut.all, rub0: tOut.rub0, rub1: tOut.rub1, rub2: tOut.rub2 },
+    confusion: conf, freeBands: fb, worstShareDeviation: +worst.share.toFixed(4), worstAt: worst.where, ms: { section3: Math.round(s3ms), tempoLane: Math.round(tms), productDelta: Math.round(pms) } });
+  receipts.push({ id: "LR1-productDelta", measured: productDelta, threshold: "reported, not gated (product minus lane)", pass: true });
 }
 
 for (const r of receipts) console.log("RECEIPT", JSON.stringify(r, (k, v) => (typeof v === "number" ? Math.round(v * 10000) / 10000 : v)));

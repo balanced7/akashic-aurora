@@ -12,6 +12,9 @@
 //   const s = bt.tick(nowMs)      // every 250 ms of event time: { bpm, bpmShown, mode, source, drawing, family, ... }
 //
 // All times are ms in one timebase. tick() does the work; addGroup() only queues, so a replay and the live page agree.
+// The clock is monotonic: tick(T) throws a RangeError when T is earlier than the last tick or not a number. A tracker
+// reused after its clock went back (a replay seek) stopped its meter, grid and level steps until the clock passed the
+// old maximum, so a seek builds a new tracker (the lab page and clean() do; trackEvents builds one per call).
 //
 // Steadiness (plan 6.2): periodicity strength = best induction score / mean score. Bands >= 4.5 steady, 3-4.5 loose,
 // < 3 free. A higher band must hold for bandHoldMs (2 s) before the word rises; a lower band takes over after
@@ -39,6 +42,17 @@
 // C4 start value) bars of the tap period after the last tap. After that rung-4 rules apply: no pool restriction, the
 // 1.5x switching law and the tactus conversion. Taps replace any chosen level.
 // Chosen level (chooseLevel, the family buttons): the shown agent is kept within levelOct (0.2 octave) of the level.
+// The family and the level target are taken against the shown tactus period (shownPeriod: the chosen agent's readout
+// period over the tactus factor on display, chosen.p until a readout exists; a holding level's own reading), so a
+// press multiplies the number he sees by the button's ratio. Against the raw agent period a 6/8 read at a dotted
+// quarter of 50 from a quarter agent (factor 2/3) went to 150 on x2 and did not move on x2/3. Once a level holds the
+// factor is 1 in every meter setting: the level is the tactus. While a level holds (its last decision in the window)
+// the readout is the shadow's readout period x q, so the first reading after a press is the shown value times the
+// ratio. Read from the level agent's own beats a slow level misread: its hit window (18% of the period) is wider
+// than the onset spacing and takes the first onset inside it (x0.5 on a 6/8 at 50 read 30, not 25). That reading does
+// not wait for the level agent's own 4 intervals: gated on them, a x0.5 level showed no readout for about 7 s after the
+// press (LS1fix r1: those ticks scored as misses, Acc1 0.864 at the level, 0.915 from the press on). Until the level
+// agent has its own readout, the state words (hold, lock) come from the shadow's beats too.
 // The playing tempo is read from a shadow of the rung-4 choice (the same 1.5x switching law over every agent) by its
 // readout period (median of its last 4 intervals). At the press the level stores q = level period / shadow period, so
 // the level expected from the playing tempo is shadow x q. Once a second, while the level is within levelOct of shadow
@@ -146,6 +160,7 @@ export function createBeatTracker(params = {}, options = {}) {
   let holdFrom = null;
   const holds = [];
   let lastSample = null;
+  let lastTick = -Infinity;      // the clock is monotonic (header)
   const tr = trace ? { emitted: [], emittedLag: [], meterLog: [], samples: [] } : null;
 
   // ---------------------------------------------------------------------------------------- induction ---
@@ -201,6 +216,20 @@ export function createBeatTracker(params = {}, options = {}) {
     return ibis;
   }
   const beatPeriod = (a) => { const ibis = intervalsOf(a); return ibis.length >= 3 ? median(ibis.slice(-4)) : a.p; };
+  // an agent's readout once it has 5 beats and 3 intervals: bpm from its readout period, conf = the share of its last 8
+  // beats that hit an onset, cv = the spread of its intervals
+  function readoutOf(a) {
+    const out = { bpm: null, conf: 0, cv: 1 };
+    const B = a ? a.beats.slice(-9) : [];
+    if (B.length < 5) return out;
+    const ibis = intervalsOf(a);
+    out.conf = B.slice(-8).filter((b) => b.s > 0).length / 8;
+    if (ibis.length >= 3) {
+      out.bpm = 60000 / median(ibis.slice(-4));
+      const m = ibis.reduce((x, y) => x + y) / ibis.length; out.cv = Math.sqrt(ibis.reduce((x, y) => x + (y - m) ** 2, 0) / ibis.length) / m;
+    }
+    return out;
+  }
   const tapsValid = (now) => tapLine != null && now <= tapUntil;
   function eligible(now) {
     let pool = agents;
@@ -339,14 +368,32 @@ export function createBeatTracker(params = {}, options = {}) {
     return grid.fast ? 1 / 3 : 1;
   }
 
-  function familyOf() {
+  // the tactus factor on display at `now`: set meters from the held grid, meter "auto" from the lane's committed meter;
+  // 1 while a chosen level holds (the level is the tactus)
+  function tactusFactor(now) {
+    if (meterSetting !== "auto") return factorFor(now);
+    return !level && meter && chosen && meter.agentId === chosen.id ? (meter.sub || 1) / (meter.tactus || 1) : 1;
+  }
+
+  // a level reads the playing tempo while its last decision was in the window (header)
+  const levelReads = () => !!(level && level.off === 0 && shadow && agents.includes(shadow));
+  // the period behind the number on display: a holding level's reading, else the chosen agent's readout period over
+  // the tactus factor (its own period until it has a readout)
+  function shownPeriod(now) {
+    if (levelReads()) return beatPeriod(shadow) * level.q;
+    return beatPeriod(chosen) / tactusFactor(now);
+  }
+
+  // the family against the shown tactus period (header): ratio r names the agent near shownPeriod / r, and its bpm is
+  // what the button would show
+  function familyOf(now) {
     if (!chosen) return [];
-    const base = rank(chosen) || 1e-9, out = [];
+    const base = rank(chosen) || 1e-9, shownP = shownPeriod(now), out = [];
     for (const ratio of FAMILY_RATIOS) {
-      const target = chosen.p / ratio;
+      const target = shownP / ratio;
       let best = null;
       for (const a of agents) if (Math.abs(Math.log2(a.p / target)) < c.familyOct && (!best || rank(a) > rank(best))) best = a;
-      if (best) out.push({ ratio, score: rank(best) / base, bpm: 60000 / best.p });
+      if (best) out.push({ ratio, score: rank(best) / base, bpm: 60000 / target });
     }
     return out;
   }
@@ -407,7 +454,7 @@ export function createBeatTracker(params = {}, options = {}) {
   function chooseLevel(ratio) {
     if (!chosen) return null;
     const ref = level && shadow && agents.includes(shadow) ? shadow : chosen;
-    const target = chosen.p / ratio;
+    const target = shownPeriod(lastTick) / ratio;   // the shown tactus period over the ratio (header)
     let best = null;
     for (const a of agents) if (Math.abs(Math.log2(a.p / target)) < c.familyOct && (!best || rank(a) > rank(best))) best = a;
     if (!best) {
@@ -418,7 +465,7 @@ export function createBeatTracker(params = {}, options = {}) {
       agents.push(best);
     }
     chosen = best;
-    level = { p: best.p, q: best.p / beatPeriod(ref), off: 0 };
+    level = { p: best.p, q: target / beatPeriod(ref), off: 0 };
     shadow = ref;
     if (tapLine != null) best.line = tapLine;
     return { bpm: 60000 / best.p };
@@ -428,6 +475,8 @@ export function createBeatTracker(params = {}, options = {}) {
 
   // ------------------------------------------------------------------------------------------- tick ---
   function tick(T) {
+    if (!(T >= lastTick)) throw new RangeError(`beat.js tick(${T}): the clock went back from ${lastTick} ms; the clock is monotonic, build a new tracker after a seek`);
+    lastTick = T;
     let newG = false;
     const born = [];
     while (queue.length) {
@@ -502,25 +551,9 @@ export function createBeatTracker(params = {}, options = {}) {
       } else shadow = chosen;
     }
 
-    // readout
-    let bpm = null, conf = 0, cv = 1, state = "none";
-    if (chosen) {
-      const B = chosen.beats.slice(-9);
-      if (B.length >= 5) {
-        const ibis = intervalsOf(chosen);
-        conf = B.slice(-8).filter((b) => b.s > 0).length / 8;
-        if (ibis.length >= 3) {
-          bpm = 60000 / median(ibis.slice(-4));
-          const m = ibis.reduce((a, b) => a + b) / ibis.length; cv = Math.sqrt(ibis.reduce((a, b) => a + (b - m) ** 2, 0) / ibis.length) / m;
-        }
-      }
-      const gap = lastT >= 0 ? T - lastT : 0;
-      if (bpm && gap > Math.max(c.holdMs, c.holdBeats * 60000 / bpm)) state = "hold";
-      else if (bpm && conf >= 0.6 && cv < 0.15) state = "lock";
-      else if (bpm && (conf < 0.35 || cv > 0.3)) state = "free";
-      else if (bpm) state = "tent";
-    }
-    if (state === "hold" && holdFrom == null) holdFrom = lastT;
+    // readout: the chosen agent's own (the level step below may replace it, the state words follow it)
+    let { bpm, conf, cv } = readoutOf(chosen);
+    const ownBpm = bpm;
 
     // meter evidence once a second of event time: the lane's committed label (auto) and the held grid (set meters).
     // The step runs on the first tick in each new whole second, whatever the tick phase: a live page ticks at
@@ -561,9 +594,20 @@ export function createBeatTracker(params = {}, options = {}) {
       level.off = ok ? 0 : level.off + 1;
       if (level.off >= c.levelHold) level = null;
     }
-    let factor = 1;
-    if (meterSetting === "auto") factor = bpm && meter && chosen && meter.agentId === chosen.id ? (meter.sub || 1) / (meter.tactus || 1) : 1;
-    else if (bpm) factor = factorFor(T);
+    // a holding level reads shadow x q (header) from the tick after the press: until the level agent has its own readout
+    // (5 beats, 3 intervals; about 7 s at a x0.5 level) the reading and its state words are the shadow's
+    if (levelReads()) {
+      if (bpm == null) { const sh = readoutOf(shadow); if (sh.bpm != null) ({ bpm, conf, cv } = sh); }
+      if (bpm) bpm = 60000 / (beatPeriod(shadow) * level.q);
+    }
+    let state = "none";
+    const rb = ownBpm ?? bpm, gap = lastT >= 0 ? T - lastT : 0;
+    if (rb && gap > Math.max(c.holdMs, c.holdBeats * 60000 / rb)) state = "hold";
+    else if (rb && conf >= 0.6 && cv < 0.15) state = "lock";
+    else if (rb && (conf < 0.35 || cv > 0.3)) state = "free";
+    else if (rb) state = "tent";
+    if (state === "hold" && holdFrom == null) holdFrom = lastT;
+    const factor = bpm ? tactusFactor(T) : 1;
     const bpmT = bpm ? bpm * factor : null;
     if (trace) tr.samples.push({ T, bpm, bpmT: bpm && meter && chosen && meter.agentId === chosen.id ? bpm * (meter.sub || 1) / (meter.tactus || 1) : bpm, state, per: perNow, conf });
 
@@ -592,10 +636,10 @@ export function createBeatTracker(params = {}, options = {}) {
     const source = valid ? "taps" : chosen ? "inferred" : "none";
     const rung = ladder({ taps: { valid, one: !!barPhase }, inferred: chosen ? { mode } : null, meter: meterSetting === "auto" ? "4/4" : meterSetting });
     lastSample = {
-      t_ms: T, bpm: bpmT, bpmBeat: bpm, bpmShown: shown, mode, band, per: perNow, hitShare: conf, cv,
-      source, drawing: rung.drawing, period_ms: chosen ? chosen.p : null, factor, levelBpm: level ? 60000 / level.p : null,
+      t_ms: T, bpm: bpmT, bpmBeat: bpm, bpmShown: shown, mode, band, per: perNow, hitShare: conf, cv, readout: state,
+      source, drawing: rung.drawing, period_ms: chosen ? chosen.p : null, factor, levelBpm: level ? 60000 / (levelReads() ? beatPeriod(shadow) * level.q : level.p) : null,
       subdivision: grid && chosen && grid.agentId === chosen.id ? grid.sub : null,
-      family: familyOf(), beats: born.filter(Boolean), settled: settledNow,
+      family: familyOf(T), beats: born.filter(Boolean), settled: settledNow,
     };
     return lastSample;
   }
