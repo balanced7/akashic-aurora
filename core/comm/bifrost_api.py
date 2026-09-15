@@ -446,33 +446,110 @@ class BifrostAPI:
         return (str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
                 str(getattr(m, "kind", "")))
 
-    #: How far back to look when asking "is this packet on the work lane at all?".
-    #: Bounded on purpose: the question only matters for recent traffic, and an unbounded
-    #: XRANGE on every drain would make a diagnostic cost more than the delivery it explains.
-    #: A packet older than this window classifies UNKNOWN rather than being called a defect.
+    #: The legacy net's twin lookup (2026-09-15). A dual-write puts the lane copy and the legacy
+    #: copy on one Redis server milliseconds apart, so a legacy packet's twin is searched for in
+    #: a window around the legacy stream id -- exact at any age. The test this replaces asked
+    #: "is the key among the newest 500 work-lane entries?", so every older twin read as a
+    #: failed write: on 2026-09-14 sol's runner-down blockers from 09-09..09-11, each with a
+    #: lane twin 1 ms before its legacy copy, were reported as 285 LANE WRITE FAILED.
+    LANE_TWIN_SLACK_MS = 60_000
+    #: Entries read per half-window (newest-first behind the legacy id, oldest-first after it).
+    #: A half that fills it cannot prove absence: the candidate classifies UNKNOWN.
     LANE_MEMBERSHIP_WINDOW = 500
+    #: How far one drain may page the legacy shadow past packets it will not deliver, and its
+    #: wall-clock bound. Legacy broadcast is ~99% trace (7,927 entries in the 24 h to
+    #: 2026-09-15) and the net used to read `limit` per drain, so the shadow sat days behind
+    #: the work cursor and later re-surfaced week-old mail in bulk.
+    LEGACY_NET_SCAN_BUDGET = 5000
+    LEGACY_NET_TIME_BUDGET_S = 2.0
 
-    def _work_lane_shas(self) -> set:
-        """Dedup keys currently on this agent's WORK lane streams (W166).
-
-        Used only to tell a failed lane write apart from cursor skew. Read from the STREAM,
-        deliberately not from the cursor -- the cursor's position is the very thing that made
-        skew look like a defect.
-        """
-        out = set()
+    @staticmethod
+    def _stream_windows(client, reqs: List[Tuple[str, str, str, str, int]]) -> List[Any]:
+        """Run ("rev"|"fwd", key, a, b, count) range reads in one pipeline round trip when the
+        client offers one, else one call each. rev = XREVRANGE max=a min=b; fwd = XRANGE."""
+        def _one(target, op, key, a, b, n):
+            if op == "rev":
+                return target.xrevrange(key, max=a, min=b, count=n)
+            return target.xrange(key, min=a, max=b, count=n)
+        if not reqs:
+            return []
         try:
-            keys = self.bus._lane_keys("work")
-            client = self.bus._client
-            for stream in (keys.get("inbox"), keys.get("bc")):
-                if not stream:
-                    continue
-                for _sid, fields in client.xrevrange(stream, "+", "-",
-                                                     count=self.LANE_MEMBERSHIP_WINDOW):
-                    g = fields.get if hasattr(fields, "get") else (lambda k, d="": d)
-                    out.add((str(g("frm", "") or ""), str(g("ts", "") or ""),
-                             str(g("kind", "") or "")))
+            pipe = client.pipeline(transaction=False)
+            for req in reqs:
+                _one(pipe, *req)
+            return list(pipe.execute())
         except Exception:
-            return set()          # unreadable -> every candidate classifies UNKNOWN
+            return [_one(client, *req) for req in reqs]
+
+    def _lane_twins(self, cands: List[Any]) -> List[Tuple[str, Optional[Tuple[str, str]]]]:
+        """(verdict, twin) per legacy candidate. `verdict` is classify_straggler's vocabulary;
+        `twin` is (logical stream, lane id) when an intact lane copy exists, else None.
+
+        Read from the STREAMS, never the cursor (W166: the cursor's position is what made skew
+        look like a defect). A lane copy is a twin only if its own integrity holds -- a corrupt
+        lane copy delivered nothing, so the intact legacy copy must still flow (R4). Absence is
+        claimed only when provable: both half-windows read below their cap, and the lane stream
+        either too short to have been trimmed or still holding entries older than the window.
+        Anything else is UNKNOWN, which delivers and claims nothing."""
+        from core.comm import packet_spec
+        if not cands:
+            return []
+        client = self.bus._client
+        keys = self.bus._lane_keys("work")
+        streams = [(lg, keys[lg]) for lg in ("inbox", "bc") if keys.get(lg)]
+        slack, cap = self.LANE_TWIN_SLACK_MS, self.LANE_MEMBERSHIP_WINDOW
+        spans = []
+        reqs: List[Tuple[str, str, str, str, int]] = []
+        for m in cands:
+            ms = _id_key(str(getattr(m, "id", "") or ""))[0]
+            lo, at, hi = max(0, ms - slack), max(0, ms), max(0, ms + slack)
+            spans.append((ms, lo))
+            for _lg, key in streams:
+                reqs.append(("rev", key, str(at), str(lo), cap))
+                reqs.append(("fwd", key, str(at + 1), str(hi), cap))
+        try:
+            heads: Dict[str, int] = {}      # only streams long enough to have been trimmed
+            for lg, key in streams:
+                if int(client.xlen(key) or 0) >= int(packet_spec.lane_maxlen("work") * 0.9):
+                    first = client.xrange(key, "-", "+", count=1)
+                    heads[lg] = _id_key(str(first[0][0]))[0] if first else -1
+            windows = self._stream_windows(client, reqs)
+        except Exception:
+            return [("unknown", None) for _ in cands]
+        out: List[Tuple[str, Optional[Tuple[str, str]]]] = []
+        per = 2 * len(streams)
+        for i, m in enumerate(cands):
+            want = self._dedup_key(m)
+            ms, lo = spans[i]
+            twin: Optional[Tuple[str, str]] = None
+            provable = ms >= 0 and per > 0
+            for j, (lg, _key) in enumerate(streams):
+                for half in (0, 1):
+                    rows = windows[i * per + 2 * j + half] or []
+                    for sid, fields in rows:
+                        g = fields.get if hasattr(fields, "get") else (lambda k, d="": d)
+                        if ((str(g("frm", "") or ""), str(g("ts", "") or ""),
+                             str(g("kind", "") or "")) == want
+                                and packet_spec.verify_integrity(dict(fields))[0]):
+                            twin = (lg, str(sid))
+                            break
+                    if twin:
+                        break
+                    if len(rows) >= cap:
+                        provable = False
+                if twin:
+                    break
+                if lg in heads and heads[lg] > lo:
+                    provable = False
+
+            def _lane_has(_key, _twin=twin, _provable=provable):
+                if _twin:
+                    return True
+                if not _provable:
+                    raise LookupError("absence is not provable in this window")
+                return False
+
+            out.append((classify_straggler(want, _lane_has), twin))
         return out
 
     def work_drain(self, timeout_ms: int = 1500, *, limit: int = 50,
@@ -561,41 +638,53 @@ class BifrostAPI:
                 sh_in = shared.get("inbox", "0")
                 sh_bc = shared.get("bc", "0")
                 seeded_now = sh_in != "0" or sh_bc != "0"
-            shnxt: Dict[str, str] = {}
-            legacy = self.bus.wait(timeout_ms=1, limit=limit,
-                                   since={"inbox": sh_in, "bc": sh_bc}, since_out=shnxt)
-            # R12 (post-ship soak find): only WORK-lane-eligible kinds can be stragglers.
-            # A legacy message whose kind routes to trace/sig was never a lane-write
-            # failure -- its absence from the work lane is the ROUTER working. Unmapped
-            # kinds (lane_for None) stay netted: legacy-only by census gap = deliver.
-            stragglers = [m for m in legacy
-                          if self._dedup_key(m) not in seen
-                          and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)]
+            import sys
+            import time as _time
+            # PAGE, don't peek (2026-09-15). One `limit`-sized read per drain could never keep
+            # up with a trace-flooded legacy broadcast, so the shadow fell days behind the work
+            # cursor and later surfaced week-old twins in bulk. Pages holding only junk or twins
+            # still move the shadow; a page with a straggler stops the scan, so one drain never
+            # returns more than one page of legacy mail. Budgeted in entries and in time.
+            pos = {"inbox": sh_in, "bc": sh_bc}
+            counts = {"lane-write-failed": 0, "cursor-skew": 0, "unknown": 0}
+            stragglers: List[Any] = []
+            skipped = 0
+            flip: Optional[Dict[str, str]] = None
+            deadline = _time.monotonic() + float(self.LEGACY_NET_TIME_BUDGET_S)
+            for _page in range(max(1, int(self.LEGACY_NET_SCAN_BUDGET) // max(1, int(limit)))):
+                shnxt: Dict[str, str] = {}
+                legacy = self.bus.wait(timeout_ms=1, limit=limit, since=dict(pos),
+                                       since_out=shnxt)
+                # R12 (post-ship soak find): only WORK-lane-eligible kinds can be stragglers.
+                # A legacy message whose kind routes to trace/sig was never a lane-write
+                # failure -- its absence from the work lane is the ROUTER working. Unmapped
+                # kinds (lane_for None) stay netted: legacy-only by census gap = deliver.
+                cands = [m for m in legacy
+                         if self._dedup_key(m) not in seen
+                         and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)]
+                # W166: classify before claiming -- now against the packet's own twin window.
+                for m, (verdict, twin) in zip(cands, self._lane_twins(cands)):
+                    counts[verdict] += 1
+                    if twin is not None:
+                        if flip is None:
+                            flip = self.bus.read_lane_flip_seed()
+                        if _id_key(twin[1]) > _id_key(flip.get(twin[0], "0")):
+                            # The lane copy landed after the flip seed, so the work cursor owns
+                            # it: delivered already, or delivered when the cursor gets there.
+                            # Returning the legacy copy as well is how 285 week-old blockers
+                            # were re-delivered and parked on 2026-09-14. At or behind the seed
+                            # is the flip gap, and this net is that packet's only delivery.
+                            skipped += 1
+                            continue
+                    stragglers.append(m)
+                moved = {k: v for k, v in shnxt.items() if v and v != pos.get(k)}
+                pos.update(moved)
+                if stragglers or not moved or _time.monotonic() >= deadline:
+                    break
             if stragglers:
-                import sys
-                # W166: classify before claiming. The old line said "lane write failed
-                # upstream" for every straggler, and measurement put the true rate at 1 in
-                # 192 while a single drain reported 10.
-                _lane_shas = None
-
-                def _lane_has(key):
-                    nonlocal _lane_shas
-                    if _lane_shas is None:
-                        _lane_shas = self._work_lane_shas()
-                    if not _lane_shas:
-                        # Empty means the lane could not be read, NOT that the lane is
-                        # empty -- claiming "absent" here would recreate the false alarm
-                        # this slice exists to remove.
-                        raise RuntimeError("work lane membership unreadable")
-                    return key in _lane_shas
-
-                counts = {"lane-write-failed": 0, "cursor-skew": 0, "unknown": 0}
-                for m in stragglers:
-                    counts[classify_straggler(self._dedup_key(m), _lane_has)] += 1
-                summary = render_straggler_summary(counts)
-                if summary:
-                    print(f"[work-drain] {len(stragglers)} legacy-net packet(s) for "
-                          f"{self.agent}: {summary}", file=sys.stderr)
+                delivered = dict(counts, **{"cursor-skew": counts["cursor-skew"] - skipped})
+                print(f"[work-drain] {len(stragglers)} legacy-net packet(s) for "
+                      f"{self.agent}: {render_straggler_summary(delivered)}", file=sys.stderr)
                 # W97 (T122 scope 3): name the sender + id per straggler -- the
                 # investigation starts at the defect, not at a census. getattr-safe.
                 for m in stragglers[:20]:
@@ -604,14 +693,18 @@ class BifrostAPI:
                           file=sys.stderr)
                 if len(stragglers) > 20:
                     print(f"[work-drain]   (+{len(stragglers) - 20} more)", file=sys.stderr)
+            if skipped:
+                print(f"[work-drain] legacy net for {self.agent}: {skipped} twin(s) already on "
+                      f"the work lane, not re-delivered (the work cursor owns them -- nothing "
+                      f"to chase)", file=sys.stderr)
             for m in stragglers:
                 try:
                     m.meta["_lane_src"] = "legacy"   # consumed via shadow; never advances work fields
                 except Exception:
                     pass
             out += stragglers
-            sh_fields = {f: shnxt[k] for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
-                         if shnxt.get(k) and shnxt[k] != cur[f]}
+            sh_fields = {f: pos[k] for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
+                         if pos.get(k) and pos[k] != cur[f]}
             if not sh_fields and seeded_now:
                 # persist the one-time shared-cursor seed even on a quiet peek
                 sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}

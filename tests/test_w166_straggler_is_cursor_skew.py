@@ -27,6 +27,14 @@ this house adopted from Clarke & Dawe: it responds without answering.
 WHAT THIS SLICE DOES NOT CHANGE: delivery. Returning the legacy copy is CORRECT -- at-least-
 once, and RB-26 consumers are idempotent by design. Only the CLAIM is fixed. A diagnostic that
 cries wolf is worse than no diagnostic, because it spends other people's attention.
+
+AMENDED 2026-09-15 (tests/test_legacy_net_exact_and_bounded.py). Two things this slice left
+standing were wrong at scale. The membership check read only the newest 500 lane entries, so
+an older twin still read as a failed write (285 false LANE WRITE FAILED on 2026-09-14). And
+delivering a twin the work cursor owns was not harmless: a days-behind shadow re-delivered
+week-old blockers, the stale gate parked every one, and the park storm timed out the consume.
+The classifier and render below are unchanged; twins are now found per packet, and a twin past
+the flip seed is no longer re-delivered.
 """
 import pytest
 
