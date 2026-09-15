@@ -1,0 +1,80 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws04-lament-held-hands",
+  "about": "hands hold Bbm11 while the bass walks Bb Ab Gb F: a window per bass note",
+  "key": "Db major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 8000,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Bbm11"
+      },
+      {
+        "start_ms": 2000,
+        "cause": "new bass",
+        "played": "Bbm11/Ab"
+      },
+      {
+        "start_ms": 4000,
+        "cause": "new bass",
+        "played": "Gbmaj13#11"
+      },
+      {
+        "start_ms": 6000,
+        "cause": "new bass",
+        "played": "Bbm11/F"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":46,"vel":58,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":58,"vel":58,"source":"midi"},
+    {"t_ms":10,"kind":"on","note":68,"vel":65,"source":"midi"},
+    {"t_ms":20,"kind":"on","note":72,"vel":59,"source":"midi"},
+    {"t_ms":30,"kind":"on","note":73,"vel":66,"source":"midi"},
+    {"t_ms":40,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":50,"kind":"on","note":77,"vel":67,"source":"midi"},
+    {"t_ms":1950,"kind":"off","note":46,"source":"midi"},
+    {"t_ms":1950,"kind":"sound_end","note":46,"by":"release","source":"midi"},
+    {"t_ms":2000,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":3950,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":4000,"kind":"on","note":42,"vel":58,"source":"midi"},
+    {"t_ms":5950,"kind":"off","note":42,"source":"midi"},
+    {"t_ms":5950,"kind":"sound_end","note":42,"by":"release","source":"midi"},
+    {"t_ms":6000,"kind":"on","note":41,"vel":58,"source":"midi"},
+    {"t_ms":7900,"kind":"off","note":41,"source":"midi"},
+    {"t_ms":7900,"kind":"off","note":58,"source":"midi"},
+    {"t_ms":7900,"kind":"sound_end","note":41,"by":"release","source":"midi"},
+    {"t_ms":7900,"kind":"sound_end","note":58,"by":"release","source":"midi"},
+    {"t_ms":7910,"kind":"off","note":68,"source":"midi"},
+    {"t_ms":7910,"kind":"sound_end","note":68,"by":"release","source":"midi"},
+    {"t_ms":7920,"kind":"off","note":72,"source":"midi"},
+    {"t_ms":7920,"kind":"sound_end","note":72,"by":"release","source":"midi"},
+    {"t_ms":7930,"kind":"off","note":73,"source":"midi"},
+    {"t_ms":7930,"kind":"sound_end","note":73,"by":"release","source":"midi"},
+    {"t_ms":7940,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":7940,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":7950,"kind":"off","note":77,"source":"midi"},
+    {"t_ms":7950,"kind":"sound_end","note":77,"by":"release","source":"midi"}
+  ]
+}

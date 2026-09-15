@@ -1,0 +1,56 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws10-grace-in-melody",
+  "about": "a 60 ms grace note into a melody over a held chord: one window",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 3100,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Abmaj7 with a melody"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":51,"vel":65,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":55,"vel":59,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":60,"vel":66,"source":"midi"},
+    {"t_ms":1000,"kind":"on","note":73,"vel":44,"source":"midi"},
+    {"t_ms":1060,"kind":"off","note":73,"source":"midi"},
+    {"t_ms":1060,"kind":"sound_end","note":73,"by":"release","source":"midi"},
+    {"t_ms":1060,"kind":"on","note":74,"vel":66,"source":"midi"},
+    {"t_ms":1560,"kind":"off","note":74,"source":"midi"},
+    {"t_ms":1560,"kind":"sound_end","note":74,"by":"release","source":"midi"},
+    {"t_ms":1700,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":2100,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":2100,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":3000,"kind":"off","note":51,"source":"midi"},
+    {"t_ms":3000,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":3000,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":51,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":55,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":60,"by":"release","source":"midi"}
+  ]
+}

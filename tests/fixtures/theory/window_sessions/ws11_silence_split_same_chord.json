@@ -1,0 +1,70 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws11-silence-split-same-chord",
+  "about": "the same chord again after 0.9 s of silence: silence always starts a window",
+  "key": "Db major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 3000,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Bbm9"
+      },
+      {
+        "start_ms": 1900,
+        "cause": "silence",
+        "played": "Bbm9"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":46,"vel":58,"source":"midi"},
+    {"t_ms":6,"kind":"on","note":56,"vel":65,"source":"midi"},
+    {"t_ms":12,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":18,"kind":"on","note":61,"vel":66,"source":"midi"},
+    {"t_ms":24,"kind":"on","note":65,"vel":60,"source":"midi"},
+    {"t_ms":1000,"kind":"off","note":46,"source":"midi"},
+    {"t_ms":1000,"kind":"sound_end","note":46,"by":"release","source":"midi"},
+    {"t_ms":1006,"kind":"off","note":56,"source":"midi"},
+    {"t_ms":1006,"kind":"sound_end","note":56,"by":"release","source":"midi"},
+    {"t_ms":1012,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":1012,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":1018,"kind":"off","note":61,"source":"midi"},
+    {"t_ms":1018,"kind":"sound_end","note":61,"by":"release","source":"midi"},
+    {"t_ms":1024,"kind":"off","note":65,"source":"midi"},
+    {"t_ms":1024,"kind":"sound_end","note":65,"by":"release","source":"midi"},
+    {"t_ms":1900,"kind":"on","note":46,"vel":58,"source":"midi"},
+    {"t_ms":1906,"kind":"on","note":56,"vel":65,"source":"midi"},
+    {"t_ms":1912,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":1918,"kind":"on","note":61,"vel":66,"source":"midi"},
+    {"t_ms":1924,"kind":"on","note":65,"vel":60,"source":"midi"},
+    {"t_ms":2900,"kind":"off","note":46,"source":"midi"},
+    {"t_ms":2900,"kind":"sound_end","note":46,"by":"release","source":"midi"},
+    {"t_ms":2906,"kind":"off","note":56,"source":"midi"},
+    {"t_ms":2906,"kind":"sound_end","note":56,"by":"release","source":"midi"},
+    {"t_ms":2912,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":2912,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":2918,"kind":"off","note":61,"source":"midi"},
+    {"t_ms":2918,"kind":"sound_end","note":61,"by":"release","source":"midi"},
+    {"t_ms":2924,"kind":"off","note":65,"source":"midi"},
+    {"t_ms":2924,"kind":"sound_end","note":65,"by":"release","source":"midi"}
+  ]
+}

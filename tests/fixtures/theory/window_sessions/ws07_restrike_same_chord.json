@@ -1,0 +1,95 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws07-restrike-same-chord",
+  "about": "one chord struck four times a second apart, no pedal: one window",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 3900,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Abmaj9"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":6,"kind":"on","note":55,"vel":65,"source":"midi"},
+    {"t_ms":12,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":18,"kind":"on","note":70,"vel":66,"source":"midi"},
+    {"t_ms":24,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":800,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":800,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":806,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":806,"kind":"sound_end","note":55,"by":"release","source":"midi"},
+    {"t_ms":812,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":812,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":818,"kind":"off","note":70,"source":"midi"},
+    {"t_ms":818,"kind":"sound_end","note":70,"by":"release","source":"midi"},
+    {"t_ms":824,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":824,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":1000,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":1006,"kind":"on","note":55,"vel":65,"source":"midi"},
+    {"t_ms":1012,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":1018,"kind":"on","note":70,"vel":66,"source":"midi"},
+    {"t_ms":1024,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":1800,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":1800,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":1806,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":1806,"kind":"sound_end","note":55,"by":"release","source":"midi"},
+    {"t_ms":1812,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":1812,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":1818,"kind":"off","note":70,"source":"midi"},
+    {"t_ms":1818,"kind":"sound_end","note":70,"by":"release","source":"midi"},
+    {"t_ms":1824,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":1824,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":2000,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":2006,"kind":"on","note":55,"vel":65,"source":"midi"},
+    {"t_ms":2012,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":2018,"kind":"on","note":70,"vel":66,"source":"midi"},
+    {"t_ms":2024,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":2800,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":2800,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":2806,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":2806,"kind":"sound_end","note":55,"by":"release","source":"midi"},
+    {"t_ms":2812,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":2812,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":2818,"kind":"off","note":70,"source":"midi"},
+    {"t_ms":2818,"kind":"sound_end","note":70,"by":"release","source":"midi"},
+    {"t_ms":2824,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":2824,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":3006,"kind":"on","note":55,"vel":65,"source":"midi"},
+    {"t_ms":3012,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":3018,"kind":"on","note":70,"vel":66,"source":"midi"},
+    {"t_ms":3024,"kind":"on","note":75,"vel":60,"source":"midi"},
+    {"t_ms":3800,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":3800,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":3806,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":3806,"kind":"sound_end","note":55,"by":"release","source":"midi"},
+    {"t_ms":3812,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":3812,"kind":"sound_end","note":60,"by":"release","source":"midi"},
+    {"t_ms":3818,"kind":"off","note":70,"source":"midi"},
+    {"t_ms":3818,"kind":"sound_end","note":70,"by":"release","source":"midi"},
+    {"t_ms":3824,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":3824,"kind":"sound_end","note":75,"by":"release","source":"midi"}
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws08-melody-over-held-chord",
+  "about": "the left hand holds Ab Eb G while the right hand plays a six-note melody: one window",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 4100,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Abmaj7 with a melody"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":51,"vel":65,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":55,"vel":59,"source":"midi"},
+    {"t_ms":300,"kind":"on","note":72,"vel":64,"source":"midi"},
+    {"t_ms":520,"kind":"off","note":72,"source":"midi"},
+    {"t_ms":520,"kind":"sound_end","note":72,"by":"release","source":"midi"},
+    {"t_ms":550,"kind":"on","note":74,"vel":71,"source":"midi"},
+    {"t_ms":740,"kind":"on","note":75,"vel":65,"source":"midi"},
+    {"t_ms":770,"kind":"off","note":74,"source":"midi"},
+    {"t_ms":770,"kind":"sound_end","note":74,"by":"release","source":"midi"},
+    {"t_ms":960,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":960,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":1140,"kind":"on","note":77,"vel":72,"source":"midi"},
+    {"t_ms":1360,"kind":"off","note":77,"source":"midi"},
+    {"t_ms":1360,"kind":"sound_end","note":77,"by":"release","source":"midi"},
+    {"t_ms":1390,"kind":"on","note":75,"vel":66,"source":"midi"},
+    {"t_ms":1610,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":1610,"kind":"sound_end","note":75,"by":"release","source":"midi"},
+    {"t_ms":1710,"kind":"on","note":74,"vel":73,"source":"midi"},
+    {"t_ms":1930,"kind":"off","note":74,"source":"midi"},
+    {"t_ms":1930,"kind":"sound_end","note":74,"by":"release","source":"midi"},
+    {"t_ms":4000,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":4000,"kind":"off","note":51,"source":"midi"},
+    {"t_ms":4000,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":4000,"kind":"sound_end","note":44,"by":"release","source":"midi"},
+    {"t_ms":4000,"kind":"sound_end","note":51,"by":"release","source":"midi"},
+    {"t_ms":4000,"kind":"sound_end","note":55,"by":"release","source":"midi"}
+  ]
+}

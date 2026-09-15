@@ -1,0 +1,56 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws15-bass-octave-restrike",
+  "about": "the bass restruck in another octave and again on the same key: the same pitch class starts nothing",
+  "key": "Db major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 3100,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Dbmaj9"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":37,"vel":58,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":48,"vel":58,"source":"midi"},
+    {"t_ms":6,"kind":"on","note":53,"vel":65,"source":"midi"},
+    {"t_ms":12,"kind":"on","note":63,"vel":59,"source":"midi"},
+    {"t_ms":18,"kind":"on","note":68,"vel":66,"source":"midi"},
+    {"t_ms":1500,"kind":"on","note":49,"vel":58,"source":"midi"},
+    {"t_ms":2100,"kind":"off","note":37,"source":"midi"},
+    {"t_ms":2100,"kind":"sound_end","note":37,"by":"release","source":"midi"},
+    {"t_ms":2200,"kind":"on","note":37,"vel":58,"source":"midi"},
+    {"t_ms":2300,"kind":"off","note":49,"source":"midi"},
+    {"t_ms":2300,"kind":"sound_end","note":49,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"off","note":37,"source":"midi"},
+    {"t_ms":3000,"kind":"off","note":48,"source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":37,"by":"release","source":"midi"},
+    {"t_ms":3000,"kind":"sound_end","note":48,"by":"release","source":"midi"},
+    {"t_ms":3006,"kind":"off","note":53,"source":"midi"},
+    {"t_ms":3006,"kind":"sound_end","note":53,"by":"release","source":"midi"},
+    {"t_ms":3012,"kind":"off","note":63,"source":"midi"},
+    {"t_ms":3012,"kind":"sound_end","note":63,"by":"release","source":"midi"},
+    {"t_ms":3018,"kind":"off","note":68,"source":"midi"},
+    {"t_ms":3018,"kind":"sound_end","note":68,"by":"release","source":"midi"}
+  ]
+}
