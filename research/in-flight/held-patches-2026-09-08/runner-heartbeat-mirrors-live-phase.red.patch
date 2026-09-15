@@ -1,0 +1,185 @@
+diff --git a/tests/test_runner_heartbeat_mirrors_live_phase.py b/tests/test_runner_heartbeat_mirrors_live_phase.py
+new file mode 100644
+index 00000000..3c8a2f9e
+--- /dev/null
++++ b/tests/test_runner_heartbeat_mirrors_live_phase.py
+@@ -0,0 +1,206 @@
++"""RUNNER HEARTBEAT MUST MIRROR THE LIVE PHASE -- RED first (defer 8c881ab628, fix #1).
++
++The retraction patch (clean-runner-exit-retracts-phase-card) stops a CLEAN exit leaving a
++stale 'running' card behind. It does NOT stop a LIVE runner stamping a card that lies about
++what it is doing. Every runner's heartbeat thread beats roster.heartbeat(..., phase="running")
++HARDCODED every 5s, no matter what liveness.worklive actually says: a freshly rotated runner
++whose first .set() leaves it 'idle' (or 'starting', or 'online') still renders phase='running'
++to every surface that reads the roster -- the doctor's HARD WEDGE rule keys on non-idle phase
+++ dead pulse, so a rotated runner resting in 'idle' still reads as non-idle the whole time its
++pulse is dead-until-first-beat, and a runner that has genuinely gone idle mid-session keeps
++rendering 'running' to the dashboard forever.
++
++THE GUARANTEE UNDER PIN: the phase a runner stamps on the roster is the phase the work path
++actually set -- "running" is a real phase ONLY while the runner is in it (IDLE_PHASES never
++stamp 'running'). A freshly rotated runner whose live phase is idle must NOT page HARD WEDGE.
++
++  P1   MIRROR: a runner whose live phase is 'idle' stamps roster phase='idle', not 'running'
++       -- the heartbeat derives its phase from the WorkLive tracker the .set() calls feed,
++       never from a hardcoded literal. The tracker's current_phase() accessor returns the LAST
++       phase .set() recorded (in-memory, no Redis read in the beat path, so the mirror cannot
++       add a bus round-trip to the heartbeat it rides).
++  P2   STRUCTURAL, enumerated from disk (T147 R3 discipline): every scripts/bifrost_runner_*.py
++       heartbeat -- all five, including the discord gateway whose honest resting phase is
++       RESTING_PHASE ("online"), not "running" -- passes the tracker phase into
++       roster.heartbeat, and NONE of them hardcode the literal phase="running".
++  P3   THE DOCTOR: a rotated runner whose live phase is 'idle' and whose pulse is dead (a
++       fresh incarnation that has not beaten once) does NOT reach a page-grade HARD WEDGE
++       verdict -- an idle live phase must never key the wedge rule, no matter how the pulse
++       clock reads.
++
++Offline: a fake redis stands in for the bus; P1/P3 never touch a live seat's keys (AGENT is a
++probe id, and the fake client is isolated). P2 reads source off disk only.
++
++Run:  py -m pytest tests/test_runner_heartbeat_mirrors_live_phase.py -v -p no:cacheprovider
++"""
++from __future__ import annotations
++
++import json
++import os
++import re
++import sys
++import uuid
++
++ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++sys.path.insert(0, ROOT)
++
++from core.comm import doctor, liveness, roster  # noqa: E402
++
++AGENT = "deepseek-probe"                 # never a live seat's id: no shared-Redis side effects
++
++
++class FakeRedis:
++    """SET with ex/nx + delete + exists, no network. Only what roster.heartbeat calls."""
++
++    def __init__(self):
++        self.kv, self.ex = {}, {}
++
++    def set(self, k, v, ex=None, nx=False):
++        if nx and k in self.kv:
++            return None
++        self.kv[k], self.ex[k] = v, ex
++        return True
++
++    def get(self, k):
++        return self.kv.get(k)
++
++    def delete(self, k):
++        self.kv.pop(k, None)
++        self.ex.pop(k, None)
++
++    def exists(self, k):
++        return k in self.kv
++
++    def expire(self, k, ttl):
++        if k in self.kv:
++            self.ex[k] = ttl
++        return k in self.kv
++
++
++def _ns() -> str:
++    return f"t8c881mirror{uuid.uuid4().hex[:6]}"
++
++
++# ------------------------------------------------------------------ P1: the mirror
++def test_p1_heartbeat_mirrors_the_live_phase():
++    """The heartbeat must stamp the phase the work path SET, not a hardcoded 'running'.
++
++    RED: today the tracker has no public accessor (only the private ._phase), and the beat
++    hardcodes 'running' -- so this fails on the missing accessor, exactly the defect."""
++    wl = liveness.worklive(AGENT)
++    wl.set("idle")                            # a freshly rotated runner is idle, not handling
++
++    assert hasattr(wl, "current_phase"), (
++        "P1 RED: the WorkLive tracker must expose current_phase() so the heartbeat can mirror "
++        "the phase the .set() calls feed -- today it does not, and the beat hardcodes 'running'")
++    roster.heartbeat(_ns(), AGENT, f"3708-{AGENT}", phase=wl.current_phase())
++
++
++def test_p1_current_phase_accessor_returns_last_set_phase():
++    """The accessor the fix uses tracks .set() exactly -- in-memory, no Redis read."""
++    wl = liveness.worklive(AGENT)
++    wl.set("starting")
++    assert wl.current_phase() == "starting", (
++        "P1: current_phase() must return the last .set() phase (in-memory, no Redis read)")
++    wl.set("handling", detail="peer:kind")
++    assert wl.current_phase() == "handling"
++    wl.set("idle")
++    assert wl.current_phase() == "idle"
++
++
++# ------------------------------------------------------------------ P2: every runner, from disk
++def test_p2_every_runner_heartbeat_mirrors_the_tracker_phase():
++    """Enumerated from disk (T146/T147 R3). Every runner -- all five, the gateway included --
++    must stop hardcoding phase="running"; the phase is derived, never hardcoded."""
++    rd = os.path.join(ROOT, "scripts")
++    runners = sorted(f for f in os.listdir(rd)
++                     if f.startswith("bifrost_runner_") and f.endswith(".py"))
++    assert len(runners) >= 5, f"expected >=5 runner scripts, found {len(runners)}"
++    offenders = []
++    for f in runners:
++        src = open(os.path.join(rd, f), encoding="utf-8", errors="replace").read()
++        for m in re.finditer(r"roster\.heartbeat\s*\((.*?)\)", src, re.S):
++            args = m.group(1)
++            pm = re.search(r"phase\s*=\s*\"running\"", args)
++            derived = re.search(r"phase\s*=\s*[^,\"]*(current_phase|wl\.current_phase)", args)
++            if pm and not derived:
++                offenders.append(f"{f}: hardcodes phase=\"running\" at byte {m.start()}")
++    assert not offenders, (
++        f"{len(offenders)} of {len(runners)} runner(s) still hardcode phase=\"running\" in "
++        f"their roster.heartbeat call:\n  " + "\n  ".join(offenders))
++
++
++# ------------------------------------------------------------------ P3: the doctor
++def _examine(c, ns, agent_id, now):
++    """doctor.examine with every ambient probe replaced (the W69 seam)."""
++    def _wl(a):
++        raw = c.get(f"{ns}:worklive:{a}")
++        return json.loads(raw) if raw else None
++    return doctor.examine(agent_id, probes={
++        "now": now,
++        "worklive": _wl,
++        "progress": lambda a: None,
++        "backlog": lambda a: 0,
++        "stalled_since": lambda a, present: None,
++        "halted": lambda a: None,
++        "lane_health": lambda a: None,
++        "token_cost": lambda a: None,
++        "wire": lambda a: [],
++        "feed_failures": lambda a: [],
++        "stale_code": lambda a: None,
++        "bench_count": lambda a: 0,
++    })
++
++
++def _grades(findings):
++    return {(f.get("state"), f.get("grade")) for f in findings}
++
++
++def test_p3_an_idle_rotated_runner_never_pages_hard_wedge():
++    """An idle runner whose pulse is dead must not key the wedge rule."""
++    c, ns = FakeRedis(), _ns()
++    now = 1000000.0
++    incarnation = f"{AGENT}#3708-dee"
++
++    roster.heartbeat(ns, AGENT, f"3708-{AGENT}", phase="running", client=c,
++                     _beat_ts=now - 4232)
++
++    before = _examine(c, ns, incarnation, now)
++    assert ("hard_wedge", "page") in _grades(before), (
++        f"control: a 'running' card aged with a dead pulse must reproduce the page; got "
++        f"{_grades(before)}")
++
++    roster.heartbeat(ns, AGENT, f"3708-{AGENT}", phase="idle", client=c,
++                     _beat_ts=now - 4232)
++    after = _examine(c, ns, incarnation, now)
++    pages = [f for f in after if f.get("grade") == "page"]
++    assert not pages, (
++        f"P3: an IDLE runner whose phase is honestly idle must not page HARD WEDGE even with "
++        f"a dead pulse -- got {[f.get('line') for f in pages]}")
