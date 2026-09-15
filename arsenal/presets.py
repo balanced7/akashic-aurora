@@ -142,3 +142,60 @@ def list_presets(directory=None) -> List[dict]:
         return []
     presets = [parse_preset(path) for path in sorted(directory.glob("*.frag"))]
     return sorted(presets, key=lambda p: (p["name"].lower(), p["id"]))
+
+
+# --------------------------------------------------------------------------- audio coupling
+#: The seven dynamic audio uniforms the page feeds every frame. u_hue/u_intensity are viewer
+#: controls, not audio, so they are deliberately excluded from this census.
+AUDIO_UNIFORMS = ("u_pulse", "u_beat", "u_level", "u_bass", "u_mid", "u_high", "u_flux")
+
+#: The one idiom that LOOKS like listening and is not: a whole-frame additive glow. A preset
+#: whose every audio reference sits in one `col += col * ...` line responds to the music the
+#: way a lamp responds to a hand clap -- it brightens, and nothing else moves.
+_GLOW_IDIOM = re.compile(r"col\s*\+=\s*col\s*\*")
+
+
+def coupling(path) -> dict:
+    """Which audio channels a preset ACTUALLY reads, and how deeply.
+
+    Textual, and honest about being textual: it counts references to audio uniforms OUTSIDE
+    their declarations, and flags the glow-only idiom. It cannot tell a beautiful use from a
+    lazy one -- that is what the storyboard sheet and a pair of eyes are for. It CAN say,
+    cheaply and reproducibly, that a preset which declares seven channels and reads one is
+    wearing the uniform list as decoration.
+    """
+    path = Path(path)
+    text = path.read_text(encoding="utf-8")
+    body = _UNIFORM_DECL.sub("", _strip_comments(text))      # a declaration is never a use
+    used = {}
+    for name in AUDIO_UNIFORMS:
+        count = len(re.findall(rf"\b{name}\b", body))
+        if count:
+            used[name] = count
+    references = sum(used.values())
+    distinct = len(used)
+    glow_lines = [ln for ln in body.splitlines() if _GLOW_IDIOM.search(ln)]
+    glow_refs = sum(len(re.findall(r"\bu_(?:pulse|beat|level|bass|mid|high|flux)\b", ln))
+                    for ln in glow_lines)
+    glow_only = references > 0 and glow_refs == references
+    if references == 0:
+        verdict = "silent"
+    elif distinct >= 5 or references >= 8:
+        verdict = "driven"
+    elif distinct >= 3 or references >= 4:
+        verdict = "listening"
+    elif glow_only:
+        verdict = "cosmetic"
+    else:
+        verdict = "listening"
+    return {"id": path.stem, "file": path.name, "distinct": distinct, "references": references,
+            "used": used, "glow_references": glow_refs, "verdict": verdict}
+
+
+def coupling_table(directory=None) -> List[dict]:
+    """The whole bank's listening profile, most-coupled first (ties broken by name)."""
+    directory = Path(directory) if directory else PRESET_DIR
+    if not directory.is_dir():
+        return []
+    rows = [coupling(path) for path in sorted(directory.glob("*.frag"))]
+    return sorted(rows, key=lambda r: (-r["references"], -r["distinct"], r["id"]))
