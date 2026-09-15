@@ -29,23 +29,23 @@ export default {
     const flashGeo = new THREE.RingGeometry(0.42, 0.58, 18);
 
     const bodyMat = new THREE.MeshBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.72,
+      transparent: true, opacity: 0.72,
       depthWrite: false, toneMapped: true,
     });
     const historyMat = new THREE.MeshBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.30,
+      transparent: true, opacity: 0.30,
       depthWrite: false, toneMapped: true,
     });
     const shellMat = new THREE.MeshBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.80,
+      transparent: true, opacity: 0.80,
       depthWrite: false, toneMapped: true,
     });
     const peakMat = new THREE.MeshBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.96,
+      transparent: true, opacity: 0.96,
       depthWrite: false, toneMapped: false,
     });
     const flashMat = new THREE.MeshBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.92,
+      transparent: true, opacity: 0.92,
       depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
     });
 
