@@ -12,7 +12,10 @@
 // result; A2 and the augmented duplicate over every chord shape; spellings the page keeps (E#, Cb); inputs a live window
 // hands in (a bass outside the notes, weights that are not numbers); detect()'s info shape and D12. The band ceiling and
 // canvas ALSO spec 2.6 gives every case are checked on the cases that are not strict too. Real-window receipts (NG2,
-// the rest of NG3) replay S1-S6 read only, in a scratch lane (theory-nextgen/tn1/static_lane.mjs), counts only.
+// the rest of NG3) replay S1-S6 read only, in a scratch lane (theory-nextgen/tn1/static_lane.mjs), counts only, scored as
+// research/in-flight/piano-theory-nextgen-2026-09-14/tn1-rulings.md restates them (RESTATED below; the report prints them).
+// The page-consumer contract slices piano.js's own consumers of Theory.detect's info read-only (spellForKey, the number,
+// the label, the HUD's lines, the practice log's chord event) and runs them on the reader's info, rootless tops included.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve } from "node:path";
@@ -151,14 +154,59 @@ check("prototype voicing: 5 named, 2 tag-only", protoSet("voicing").filter((c) =
 check("prototype: 6 wanted voicing tags", proto.reduce((a, c) => a + (c.expect.tags || []).length, 0) === 6);
 check("D6: no accept list names a no-3rd shape 11", !cases.some((c) => ["C/D", "F/G"].includes(c.expect.name) && (c.expect.accept || []).some((a) => /11$/.test(a))));
 // spec 2.6: each case carries an expected band ceiling and an expected canvas ALSO (written by hand)
-const HAND = ["prototype", "transposed", "defect", "chip"];
+// (tn1-rulings.md must-fix 4: seed slots too, so a seed without them is reported)
+const HAND = ["prototype", "transposed", "defect", "chip", "seed"];
 const handMiss = cases.filter((c) => HAND.includes(c.group) && c.expect.name && (!(c.expect.band_max || c.expect.band) || c.expect.also === undefined));
-check("spec 2.6: every named prototype, transposed, defect and chip case writes a band ceiling and a canvas ALSO", handMiss.length === 0, handMiss.slice(0, 6).map((c) => c.id).join(", "));
+check("spec 2.6: every named prototype, transposed, defect, chip and seed case writes a band ceiling and a canvas ALSO", handMiss.length === 0, handMiss.slice(0, 6).map((c) => c.id).join(", "));
+check("spec 2.6: every seed slot writes a band ceiling and a canvas ALSO", group("seed").length > 0 && group("seed").every((c) => c.expect.band_max && c.expect.also !== undefined));
+check("tn1-rulings.md: every cluster case writes the band ceiling none", cases.filter((c) => c.expect.kind === "cluster" || (c.expect.name === null && (c.expect.tags || []).includes("cluster"))).every((c) => c.expect.band_max === "none"));
 check("spec 2.6: the tag-only quartal voicing writes a band ceiling", proto.some((c) => c.expect.name === null && (c.expect.tags || []).includes("quartal") && c.expect.band_max === "leaning"));
 for (const c of cases.filter((x) => x.expect.also && x.expect.name)) {
   const [r1, , b1] = ident(c.expect.also).split("|"), [r2, , b2] = ident(c.expect.name).split("|");
   check(`${c.id} ALSO ${c.expect.also} is on another root or bass than ${c.expect.name}`, r1 !== r2 || b1 !== b2);
 }
+// Every name the corpus expects, accepts, shows as ALSO or close, or includes names notes that sound (tn1-rulings.md
+// must-fix 3: F13/A, G11, Cmaj13#11, Ab6/9#11 and Gb6/9#11 each named a tone that does not sound). The suffix is read by
+// chordread.js parseSuffix. Allowed: a missing 5th, a missing 9 under an 11 or 13, a missing 3rd in a (no3) name, and a
+// rootless name (only its root missing, its 3rd and 7th sounding, on a base that may be rootless), which may stand on
+// another bass. Every other name's bass (or root) is the lowest note, and every sounding note is a tone of the name or
+// its slash bass.
+const readerPath = here("../arsenal/web/piano/chordread.js");
+const CR = existsSync(readerPath) ? await import(pathToFileURL(readerPath).href) : null;
+function nameTruth(name, notes) {
+  const c = NV.parseChord(String(name).replace("(no3)", ""));
+  if (!c || c.kind !== "chord") return "does not read as a chord";
+  const p = CR.parseSuffix(c.suffix + (/\(no3\)/.test(name) ? "(no3)" : ""));  // "(no3)" drops the 3rd from the tones
+  if (!p.known) return `suffix ${c.suffix} does not parse`;
+  const root = pcOfSp(c.root), bass = c.bass ? pcOfSp(c.bass) : root;
+  const ms = midis(notes), heard = new Set(ms.map((m) => mod(m, 12))), low = mod(Math.min(...ms), 12);
+  const tones = new Map(Object.keys(p.tones).map((x) => [mod(root + Number(x), 12), Number(x)]));
+  const missing = [...tones].filter(([pc]) => !heard.has(pc)).map(([, iv]) => iv)
+    .filter((iv) => iv !== 7 && !(iv === 2 && /(^|[^0-9b#])1[13]/.test(c.suffix)));
+  const third = [3, 4].find((x) => tones.has(mod(root + x, 12))), seventh = [10, 11].find((x) => tones.has(mod(root + x, 12)));
+  const rootless = missing.length === 1 && missing[0] === 0 && ["7", "maj7", "m7", "m7b5"].includes(p.base)
+    && third !== undefined && seventh !== undefined && heard.has(mod(root + third, 12)) && heard.has(mod(root + seventh, 12));
+  const out = [];
+  if (missing.length && !rootless) out.push(`name tones that do not sound (semitones above the root): ${missing.join(",")}`);
+  if (!rootless && low !== bass) out.push(`bass ${bass} but the lowest note is ${low}`);
+  const extra = [...heard].filter((x) => !tones.has(x) && x !== bass);
+  if (extra.length) out.push(`sounding notes outside the name: ${extra.map((x) => mod(x - root, 12)).join(",")}`);
+  return out.join("; ");
+}
+if (CR) {
+  const untrue = [];
+  for (const c of cases) {
+    const e = c.expect;
+    for (const [role, n] of [["name", e.name], ...(e.accept || []).map((a) => ["accept", a]), ["also", e.also], ["close", e.close], ...(e.include || []).map((x) => ["include", x.name])]) {
+      if (n == null) continue;
+      const why = nameTruth(n, c.notes);
+      if (why) untrue.push(`${c.id} ${role} ${n} (${c.notes}): ${why}`);
+    }
+  }
+  check("every expected, accepted, ALSO, close and include name names notes that sound", untrue.length === 0, untrue.slice(0, 6).join(" | "));
+  check("the name-truth check catches a name whose tone does not sound", !!nameTruth("Ab6/9#11", "Ab2 Bb3 D4 C5 Eb5") && !nameTruth("Abadd9(#11)", "Ab2 Bb3 D4 C5 Eb5")
+    && !nameTruth("C9", "E3 G3 Bb3 D4") && !!nameTruth("F13/A", "A2 F3 Eb4 G4 C5"));
+} else check("chordread.js parseSuffix is there for the corpus name-truth check", false);
 // transpositions: Daniel's 24 in every major key
 const transposed = group("transposed");
 check("transposed: Daniel's 24 in 11 more keys", transposed.length === 24 * 11, String(transposed.length));
@@ -461,6 +509,199 @@ async function scoreReader(file) {
   check("alsoOf needs a template chord", reader.alsoOf(lab.res, { ...lab.tInfo, kind: "cluster" }, 1000) === null);
   check("closeOf waits 1 s", reader.closeOf(R(byId.get("also-lab-8")).res, 999) === null);
 
+  // ------------------------------------ piano.js's own consumers of Theory.detect's info (tn1-rulings.md must-fix 2) --
+  // Sliced read-only from arsenal/web/piano.js by declaration name (as THEORY is sliced) and run on the installed reader's
+  // info the way the page runs them: currentInfo's spellForKey(Theory.detect(sounding, bias), keyView.key), the number
+  // (numberFor, nashville.js), the chord label (drawLabel on a recording 2D context, name and "numbers only" modes), the
+  // HUD's chord and notes lines (fmtNotes), and the practice log's chord event (logChord into a stand-in log). Colours
+  // (noteCss) are stubbed. Inputs: every set of 3-6 pitch classes in a close and a spread voicing, keyed and not, which
+  // holds rootless tops, plus the bassMidi-outside-the-notes calls of the round-2 verifier.
+  function declSource(name) {
+    const m = new RegExp(`^(?:function\\s+${name}\\s*\\(|(?:const|let)\\s+${name}\\s*=)`, "m").exec(pianoSrc);
+    if (!m) return null;
+    const s = pianoSrc, isFn = m[0].startsWith("function"), stack = [];
+    let prevSig = "", body = false;
+    for (let i = m.index; i < s.length; i++) {
+      const ch = s[i], nx = s[i + 1], top = stack[stack.length - 1];
+      if (top === "`") {  // inside a template literal: text until its backtick or a ${ expression
+        if (ch === "\\") i++;
+        else if (ch === "`") { stack.pop(); prevSig = "`"; } else if (ch === "$" && nx === "{") { stack.push("${"); i++; }
+        continue;
+      }
+      if (/\s/.test(ch)) continue;
+      if (ch === "/" && nx === "/") { const j = s.indexOf("\n", i); i = j < 0 ? s.length : j; continue; }
+      if (ch === "/" && nx === "*") { i = s.indexOf("*/", i + 2) + 1; continue; }
+      if (ch === "'" || ch === '"') { for (i++; i < s.length && s[i] !== ch; i++) if (s[i] === "\\") i++; prevSig = ch; continue; }
+      if (ch === "`") { stack.push("`"); continue; }
+      if (ch === "/" && "(,=:[!&|?{};+-*%<>~^".includes(prevSig)) {  // a regex literal
+        let cls = false;
+        for (i++; i < s.length; i++) { if (s[i] === "\\") { i++; continue; } if (s[i] === "[") cls = true; else if (s[i] === "]") cls = false; else if (s[i] === "/" && !cls) break; }
+        prevSig = "/";
+        continue;
+      }
+      if (ch === "(" || ch === "[" || ch === "{") { stack.push(ch); if (ch === "{" && stack.length === 1) body = true; }
+      else if (ch === ")" || ch === "]") stack.pop();
+      else if (ch === "}") { stack.pop(); if (isFn && body && stack.length === 0) return s.slice(m.index, i + 1); }
+      else if (ch === ";" && stack.length === 0 && !isFn) return s.slice(m.index, i + 1);
+      prevSig = ch;
+    }
+    return null;
+  }
+  const PAGE_DECLS = ["ODD_NAMES", "spellForKey", "accGlyph", "FONT", "INK", "INK_UNSURE", "nameRuns", "suffixRuns", "drawRuns", "measureRuns",
+    "degreeRuns", "numberRuns", "numberFor", "drawLabel", "fmtNotes", "logChord"];
+  const decls = PAGE_DECLS.map((n) => [n, declSource(n)]);
+  check("piano.js declares every consumer the page-consumer contract slices", decls.every(([, x]) => x), decls.filter(([, x]) => !x).map(([n]) => n).join(", "));
+  if (decls.every(([, x]) => x)) {
+    const TP = sliceTheory();
+    M.installReader(TP, NV);  // the page's install (TN7): Theory.detect is the reader's
+    const pageBody = `const { nashville, spellInKey } = NV;\nlet lastInfo = null, lastNns = null, loggedChord = "";\n${decls.map(([, x]) => x).join("\n")}\n`
+      + "return { spellForKey, numberFor, drawLabel, fmtNotes, logChord, set(info, nns) { lastInfo = info; lastNns = nns; } };";
+    const pageWith = (keyView, theoryUi, sink) => new Function("Theory", "NV", "noteCss", "keyView", "theoryUi", "logged", "pageSec", pageBody)(
+      TP, NV, () => "rgba(255, 255, 255, 1)", keyView, theoryUi, (fn) => fn({ chord: (info) => sink.push(info) }), (t) => t);
+    const spPc = (sp) => mod(LETTER_PC[sp.letter] + sp.acc, 12);
+    const faults = [];
+    let consumed = 0, rootlessTops = 0, rootlessNamed = 0, rootlessChords = 0, rootlessLetters = 0;
+    const consume = (label, ms, keyName, minor, opts, nns) => {
+      const k = keyName ? NV.parseKey(keyName) : null;
+      const keyView = { key: k, name: keyName || "", dim: false, confidence: "sure", locked: false };
+      const sink = [], P = pageWith(keyView, { nns, minor, key: "auto" }, sink);
+      const bad = [];
+      let info = null;
+      try {
+        info = opts ? TP.detect(ms, k ? k.bias : 0, opts) : TP.detect(ms, k ? k.bias : 0);  // the page calls it with no opts
+        const shape = validate({ $ref: "contracts.schema.json#/$defs/DetectInfo" }, info, "contracts.schema.json");
+        if (shape.length) bad.push(`DetectInfo shape: ${shape[0]}`);
+        const out = P.spellForKey(info, keyView.key);                                        // currentInfo, piano.js
+        const heard = new Set([...ms, ...(opts && Number.isFinite(opts.bassMidi) ? [opts.bassMidi] : [])].map((x) => mod(x, 12)));
+        const notePcs = out.notes.map((n) => mod(n.midi, 12));
+        if (!sameSet([...heard], [...new Set(notePcs)])) bad.push("info.notes are not the sounding notes");
+        if (out.notes.some((n) => TP.nameOf(n) !== n.name || spPc(n) !== mod(n.midi, 12))) bad.push("a note's name is not its spelling");
+        if (JSON.stringify(out.pcNames) !== JSON.stringify([...new Set(notePcs)].map((pc) => out.notes.find((n) => mod(n.midi, 12) === pc).name))) bad.push("info.pcNames do not follow info.notes");
+        let number = null;
+        if (out.kind === "chord") {
+          if (!heard.has(spPc(out.root))) bad.push("info.root does not sound");
+          if (out.bass && !heard.has(spPc(out.bass))) bad.push("info.bass does not sound");
+          if (out.name !== TP.nameOf(out.root) + out.suffix + (out.bass ? "/" + TP.nameOf(out.bass) : "")) bad.push(`info.name ${out.name} is not root, suffix and bass`);
+          number = P.numberFor(out);
+          if (k && !number) bad.push("no number in the key");
+        }
+        // a chord result (band not none) whose top reading is rootless names it in info.rootless; any other info has none
+        const top = Array.isArray(info.readings) ? info.readings[0] : null;
+        if (top && info.band !== "none" && top.omit.rootless) {
+          rootlessTops++;
+          if (out.kind === "chord") rootlessChords++; else rootlessLetters++;
+          if (!info.rootless || spPc(info.rootless.root) !== top.root || info.rootless.name !== top.name || heard.has(top.root)) bad.push("info.rootless does not name the rootless top");
+          else rootlessNamed++;
+        } else if (info.rootless != null) bad.push("info.rootless on a top whose root sounds");
+        const ctx = { drawn: [], clearRect() {}, measureText: (t) => ({ width: 10 * String(t).length }), fillText(t) { this.drawn.push(String(t)); } };
+        P.drawLabel({ ctx, spec: { w: 1060, h: 340, size: 170, align: "center" } }, out);                 // the chord label
+        if (out.kind === "chord" && nns === "chord" && !ctx.drawn.includes(TP.LETTERS[out.root.letter])) bad.push("the label does not draw the root");
+        const hud = [(out ? out.name : "none") + (number ? ` · ${number.text}` : ""), P.fmtNotes(out)];     // updateHud's chord and notes lines
+        if (hud[1].split(" ").length !== out.notes.length || /undefined|NaN/.test(hud.join(" "))) bad.push("a HUD line");
+        P.set(out, number);
+        P.logChord(0);                                                                                     // the practice log's chord event
+        const ev = sink[0];
+        if (!ev || ev.name !== out.name || ev.notes !== out.notes || ev.kind !== out.kind || (out.bass ? !heard.has(spPc(ev.bass)) : ev.bass)
+          || (k && out.kind === "chord" && ev.nns !== number.text)) bad.push("the log's chord event");
+      } catch (e) { bad.push(`throws: ${String(e.message)}`); }
+      consumed++;
+      if (bad.length) faults.push(`${label} ${ms.join(",")} ${keyName} (${info && info.readings ? info.readings[0]?.name : info?.name}): ${bad.join("; ")}`);
+    };
+    const KEYS = [null, "C major", "Eb major", "F# major", "A minor", "C# minor"];
+    let n = 0;
+    for (let mask = 1; mask < 4096; mask++) {
+      const pcs = [];
+      for (let b = 0; b < 12; b++) if (mask & (1 << b)) pcs.push(b);
+      if (pcs.length < 3 || pcs.length > 6) continue;
+      const close = pcs.map((p) => 48 + p), spread = [36 + pcs[0], ...pcs.slice(1).map((p, i) => 60 + p + (i % 2 ? 12 : 0))];
+      for (const ms of [close, spread]) {
+        const keyName = KEYS[n++ % KEYS.length];
+        consume("sweep", ms, keyName, n % 5 === 0 ? "relative" : "tonic", null, n % 7 === 0 ? "numbers" : "chord");
+      }
+    }
+    // C#2 G3 Bb3 B3: a rootless top shown as today's letters; E2 G3 C#4 D4 E4 F4: a rootless top (A7b13(11)/E) named by the
+    // listed reading whose root sounds (Dm(maj9)(11)/E), 16 of 4,928 rootless tops in a scratch sweep; then bassMidi calls
+    for (const [ms, keyName, bassMidi] of [[midis("C#2 G3 Bb3 B3"), null, null], [midis("C#2 G3 Bb3 B3"), "Ab major", null], [midis("E2 G3 C#4 D4 E4 F4"), null, null],
+      [midis("E2 G3 C#4 D4 E4 F4"), "D minor", null], [[48, 51, 55], "C minor", 44], [[48, 52, 55], "F major", 58], [[50, 53, 57], null, 43]]) {
+      for (const nns of ["chord", "numbers"]) consume("probe", ms, keyName, "tonic", bassMidi === null ? null : { key: keyName, bassMidi }, nns);
+    }
+    report.push(`page consumers of Theory.detect's info: ${consumed} infos through spellForKey, numberFor, drawLabel, the HUD lines and logChord; `
+      + `${rootlessTops} rootless tops (${rootlessChords} named by a reading whose root sounds, ${rootlessLetters} as letters; ${rootlessNamed} with info.rootless); ${faults.length} faults`);
+    check("the page's own consumers of Theory.detect's info run on the reader's info, rootless tops included, and keep it consistent", faults.length === 0, `${faults.length}: ${faults.slice(0, 5).join(" | ")}`);
+    check("the page-consumer contract meets rootless tops named by a sounding root and shown as letters", rootlessChords > 0 && rootlessLetters > 0 && rootlessNamed === rootlessTops,
+      `${rootlessTops} rootless tops: ${rootlessChords} chords, ${rootlessLetters} letters, ${rootlessNamed} named`);
+    // C#2 G3 Bb3 B3: the round-2 verifier's rootless top (Eb7b13/Db, root Eb silent). Today's page shows letters for these
+    // notes, and so does the info now; the rootless top stays first in info.readings and names itself in info.rootless.
+    const probe = TP.detect(midis("C#2 G3 Bb3 B3"), 0);
+    check("C#2 G3 Bb3 B3: the info's root and bass sound, and info.rootless names the rootless top Eb7b13/Db", !!probe.rootless && probe.readings[0].omit.rootless
+      && ident(probe.rootless.name) === ident("Eb7b13/Db") && (probe.root === null || probe.notes.some((x) => mod(x.midi, 12) === spPc(probe.root)))
+      && !probe.notes.some((x) => mod(x.midi, 12) === spPc(probe.rootless.root)), `${probe.kind} ${probe.name} ${JSON.stringify(probe.rootless)}`);
+  }
+
+  // tn1-rulings.md must-fix 1, structural: root, 3rd, 6th and 9th read 6/9 on top whatever the minor-over-its-3rd cost term,
+  // the chord before or the key, and the relative minor name stays second; the same hand with its 5th keeps its reading.
+  const sixNine = [];
+  for (const costs of [null, { minorAddOverThird: 0 }, { minorAddOverThird: 1.6 }]) {
+    const rr = M.createReader({ Theory: sliceTheory(), NV, ...(costs ? { costs } : {}) });
+    for (const [key, prev] of [["C major", null], [null, null], ["G major", null], ["C major", { root: 9 }], [null, { root: 9 }], ["A minor", { root: 9 }]]) {
+      const got = rr.read(midis("C3 E3 A3 D4"), { key, prev }), with5 = rr.read(midis("C3 E3 G3 A3 D4"), { key, prev });
+      const ok = ident(got.readings[0]?.name) === ident("C6/9") && ident(got.readings[1]?.name) === ident("Am(add11)/C")
+        && ident(with5.readings[0]?.name) === ident("C6/9") && ident(with5.readings[1]?.name) === ident("Am7(11)/C");
+      if (!ok) sixNine.push(`${JSON.stringify(costs)} ${key} prev ${prev?.root}: ${got.readings.slice(0, 2).map((r) => r.name).join(", ")} / ${with5.readings.slice(0, 2).map((r) => r.name).join(", ")}`);
+    }
+  }
+  check("the 6/9 without its 5th reads 6/9 on top under every cost of the minor-over-its-3rd term, after Am and with no key; its 5th-present twin keeps its reading", sixNine.length === 0, sixNine.slice(0, 4).join(" | "));
+  // Round 4, the same rank rule on the 9 chord with no 3rd: with its root doubled above the bass (C3 G3 C4 D4 Bb4, and the
+  // spread C2 G2 C3 Bb3 D4 given its bass as bassMidi) the 9 chord with no 3rd reads on top, leaning, and Gm(add11)/C, the
+  // minor on its 5th over its own 11, second, after Gm, after C and with no key; with the root only in the bass
+  // (C3 G3 Bb3 D4) Gm/C keeps the top and is never clear.
+  const nineNo3 = [];
+  for (const [key, prev, want] of [["F major", null, "C9(no3)"], [null, null, "C9(no3)"], ["Bb major", null, "Cm9(no3)"], ["Ab major", { root: 7 }, "Cm9(no3)"],
+    [null, { root: 7 }, "C9(no3)"], ["F major", { root: 7 }, "C9(no3)"], ["Eb major", { root: 0 }, "Cm9(no3)"]]) {
+    for (const [notes, bassMidi] of [["C3 G3 C4 D4 Bb4", undefined], ["C2 G2 C3 Bb3 D4", 36]]) {
+      const got = reader.read(midis(notes), { key, prev, bassMidi }), low = reader.read(midis("C3 G3 Bb3 D4"), { key, prev });
+      const ok = ident(got.readings[0]?.name) === ident(want) && !!got.readings[0]?.omit.no3 && ident(got.readings[1]?.name) === ident("Gm(add11)/C")
+        && got.band === "leaning" && ident(low.readings[0]?.name) === ident("Gm/C") && low.band !== "clear";
+      if (!ok) nineNo3.push(`${notes} ${key} prev ${prev?.root}: ${got.readings.slice(0, 2).map((r) => r.name).join(", ")} ${got.band} / ${low.readings.slice(0, 2).map((r) => r.name).join(", ")} ${low.band}`);
+    }
+  }
+  check("the 9 chord with no 3rd and its root doubled above reads on top, leaning, with the minor over its own 11 second (keyed, no key, after Gm or C); with the root only in the bass Gm/C stays on top, never clear", nineNo3.length === 0, nineNo3.slice(0, 4).join(" | "));
+  // Round 4, same-notes twins (a measured band rule): the Lydian 4 and the gospel 5 over 4, and a maj13 with no 9 and its
+  // relative m9 over its 3rd, are never clear while the other is a reading within 1.5. The rule's edges stay clear: the
+  // 5 over 4 without the 5 chord's 5th, and the Lydian 4 or maj13 with its maj7 and 9 sounding.
+  const twinBands = [];
+  for (const [notes, key, prev, want, band] of [["Ab2 Eb3 C4 D4 F4 Bb4", "Eb major", { root: 8 }, "Ab6/9#11", "leaning"], ["Db2 Bb3 Ab4 C5 F5", "Db major", { root: 6 }, "Dbmaj13", "leaning"],
+    ["Eb2 C4 Bb4 D5 G5", "Eb major", null, "Ebmaj13", "leaning"], ["Ab2 Bb3 D4 C5 Eb5", "Eb major", null, "Abadd9(#11)", "clear"],
+    ["Gb2 Ab3 C4 Bb4 Db5", "Db major", null, "Gbadd9(#11)", "clear"], ["Ab2 Eb3 G3 C4 D4 F4 Bb4", "Eb major", null, "Abmaj13#11", "clear"],
+    ["Gb2 Db3 F3 Ab3 Bb3 C4 Eb4", "Db major", null, "Gbmaj13#11", "clear"]]) {
+    const got = reader.read(midis(notes), { key, prev });
+    if (!(ident(got.readings[0]?.name) === ident(want) && got.band === band)) twinBands.push(`${notes} in ${key}: ${got.readings[0]?.name} ${got.band}, want ${want} ${band}`);
+  }
+  check("same-notes twins are never clear (Ab6/9#11 after Ab, Dbmaj13 with no 9); the 5 over 4 without its 5th and the Lydian 4 or maj13 with its maj7 and 9 stay clear", twinBands.length === 0, twinBands.join(" | "));
+  // tn1-rulings.md: the template fallback takes opts.bassMidi, never another sounding bass. Every set of 3-6 pitch classes in
+  // close position, each of its pitch classes given as the bass an octave above (so the lowest note is another one), with
+  // no key and in C major: every reading, the template fallback's included, stands on the given bass.
+  let fallbackReads = 0, fallbacks = 0, offBass = 0;
+  const offBassEx = [];
+  for (let mask = 1; mask < 4096; mask++) {
+    const pcs = [];
+    for (let b = 0; b < 12; b++) if (mask & (1 << b)) pcs.push(b);
+    if (pcs.length < 3 || pcs.length > 6) continue;
+    for (const b of pcs) for (const key of [null, "C major"]) {
+      let res;
+      try { res = reader.read(pcs.map((p) => 48 + p), { key, bassMidi: 60 + b }); } catch (e) { offBass++; continue; }
+      fallbackReads++;
+      if (res.readings.some((r) => r.path === "template")) fallbacks++;
+      const off = res.readings.filter((r) => (r.bass ?? r.root) !== b);
+      if (off.length) { offBass++; if (offBassEx.length < 3) offBassEx.push(`${pcs.join(",")} bass ${b} ${key}: ${off[0].name} (${off[0].path})`); }
+    }
+  }
+  report.push(`bassMidi sweep: ${fallbackReads} reads, ${fallbacks} with a template fallback, ${offBass} with a reading on another bass`);
+  check("every reading stands on opts.bassMidi, the template fallback's included (C3 D3 Eb3 over D4 reads Cm(add9)/D, not Cm(add9))", offBass === 0 && fallbacks > 0
+    && ident(reader.read([48, 50, 51], { bassMidi: 62 }).readings[0]?.name) === ident("Cm(add9)/D"), `${offBass} off the bass, ${fallbacks} fallbacks: ${offBassEx.join(" | ")}`);
+  const clusterBands = cases.filter((c) => R(c).res?.kind === "cluster" && R(c).res.band !== "none");
+  check("tn1-rulings.md: every cluster result reports band none", clusterBands.length === 0 && reader.read(midis("C4 D4 E4 F4"), { key: "C major" }).band === "none", clusterBands.map((c) => c.id).join(", "));
+
   // ---------------------------------------------------------------- TN1 reader invariants over every fixture result --
   // parseSuffix twins nashville.js's hand tables (NG4's twin lands in TN5): TONE_STEPS exactly, FAMILY and DOMINANT read
   // from nashville.js's own source.
@@ -633,6 +874,19 @@ async function scoreReader(file) {
     oddErrs.length === 0 && odd.readings[0]?.name === "Cmaj9" && odd.readings.every((r) => Number.isFinite(r.cost) && Number.isFinite(r.p)), `${oddErrs[0] || ""} ${odd.readings[0]?.name} ${odd.readings[0]?.cost}`);
   check("p sums to 1 over the readings returned", odd.readings.length > 0 && Math.abs(odd.readings.reduce((s, r) => s + r.p, 0) - 1) < 1e-9);
 }
+
+// The real-window receipts as research/in-flight/piano-theory-nextgen-2026-09-14/tn1-rulings.md restates them (it wins over
+// theory-nextgen-spec.md 7 where they differ). They replay S1-S6 read only, so they run in the scratch lane
+// (theory-nextgen/tn1/static_lane.mjs, counts only), which scores exactly these; this runner states them so they travel
+// with the fixture receipts.
+const RESTATED = [
+  "NG2 gains: the A1-adjusted count, at least 188 windows (568 s): a window where the offline engine names a dominant with no 3rd heard and A1 reads the key's m7(no3) counts as agreement",
+  "NG3 HUD close: at most 75 windows, counted only where no canvas ALSO shows; costs are not tuned for it",
+  "NG3 ALSO loss coverage: a share of the losses, at least 90% any length and at least 65% held 1 s",
+  "NG3 colour-tone clause: 0 canvas ALSO names from a slash reading over its b9, 9 or #11 (a former name over its b13, Bbm11/Gb, is allowed)",
+  "A6 stacked-4ths cap (ratified): three pitch classes holding bass+5 and bass+10 are never clear",
+];
+report.push(`real-window receipts as tn1-rulings.md restates them (scored by the lane):\n  ${RESTATED.join("\n  ")}`);
 
 if (!contractsOnly) {
   const readerFile = readerArg ? resolve(readerArg) : here("../arsenal/web/piano/chordread.js");

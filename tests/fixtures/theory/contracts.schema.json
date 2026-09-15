@@ -56,14 +56,17 @@
     "DetectInfo": {
       "type": "object",
       "required": ["kind", "name"],
-      "description": "today's Theory.detect info shape from the top reading, plus readings, band, tags and no3",
+      "description": "today's Theory.detect info shape from the top reading, plus readings, band, tags, no3 and rootless. Its root and bass always sound (tn1-rulings.md must-fix 2): a rootless top is named by the first listed reading whose root sounds, else today's template info, and info.rootless names the rootless top (null otherwise)",
       "properties": {
         "kind": { "enum": ["chord", "cluster", "interval", "note"] },
         "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
         "readings": { "type": "array" },
         "band": { "$ref": "#/$defs/band" },
         "tags": { "type": "array" },
-        "no3": { "type": "boolean" }
+        "no3": { "type": "boolean" },
+        "rootless": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["root", "name", "suffix", "bass"],
+          "properties": { "root": { "type": "object", "required": ["letter", "acc"] }, "name": { "type": "string" }, "suffix": { "type": "string" },
+            "bass": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["letter", "acc"] }] } } }] }
       }
     },
     "ParsedSuffix": {
