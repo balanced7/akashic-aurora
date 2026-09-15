@@ -32,6 +32,23 @@ These rulings answer the open decisions from the LS0-LS5 build (workflow run wf_
   - remove the dead line in `index.js` freezeBar.
 - **LS1-level counting:** count levels that were already wrong before the press as misses, as the builder did (Acc1 0.914 / 0.915, gate 0.90). The two 6/8 ballads that read at double tempo with no press are a rung-4 level error, which LR2a and LR2d already count. Don't exclude them from the gate: the margin is thin, and it should stay visible.
 
+## LS2close to LS5 rulings (2026-09-15, conventions the verifiers asked for)
+
+- **The pin (LS2close): accepted, but per voice.** When a revision would place an onset inside a frozen continuation, only the notes in the conflicting voice move to the continuation's end (at most 6 ticks). Notes of the same onset group in other voices stay where they were heard. This fixes 12 of 19 fixture pins (and 3 of 7 session pins) that moved upper-staff notes for no reason. A pinned note that lands on the same tick as another group in its voice merges into that chord, counted as `pinMerged` in stats.
+- **Clef versus octave lines (LS3).**
+  - A clef change needs at least 2 consecutive bars that want it, and a clef never returns within 2 bars (no one-bar round trips).
+  - A shorter excursion uses an octave line: **8va only above the treble staff and 8vb only below the bass staff** (T5). A bass-staff passage that climbs is handled by switching that staff to treble under the 2-bar rule, never by a bass-clef 8va.
+  - Target: at most 5 clef changes per 100 bars on S1..Sn, and 0 one-bar round trips.
+- **Beyond three ledger lines when nothing else holds (LS3):** use 15ma above the treble or 15mb below the bass for a passage of at least 2 notes. For a single note, accept the ledger lines and count it in stats. Never change clef mid-bar.
+- **The beam writer (LS4): must-fix.** A beam group never spans an unbeamable item. Split the group at any quarter or longer note or rest, and write begin, continue and end only across consecutive beamable items. Add a MusicXML schema-level test that catches the failing case.
+- **"freely" marks (LS4):** print "freely" once at the start of each free-time (tape) passage, and "a tempo" once where a tracked beat resumes, never on every measure. A clean-copy export with no taps and no jam beat is one free-time passage: one "freely" at the top, measures at the rough BPM in the key's meter, and no per-measure marks.
+- **Short measures (LS4):** `implicit="yes"` only for a pickup at the very start of the score. A shorter measure mid-score, where a new segment starts, gets an explicit time signature for that measure (for example 2/4 inside 4/4) and restores the meter in the next measure. Never an unmarked short measure.
+- **Accidentals (LS4 and LS5), standard engraving practice:**
+  - Accidental state is tracked per staff and position, with written order by position and then by pitch. F4 and F♯4 at the same position print the F4 natural and the F♯4 sharp.
+  - After a tied-in altered note, a later different spelling of that letter in the same bar prints a courtesy accidental in parentheses.
+  - Duplicate pitches in two lanes at one position share the accidental decision, so both copies print it.
+- **LS5 leave-out rule:** when a staff's second voice holds only an omitted tied-in piece, keep the two-voice layout for that bar and draw a hidden rest for voice 2, so stems do not flip mid-phrase.
+
 ## LS6 rulings: Daniel's answers (2026-09-15)
 
 Daniel's words, verbatim:
