@@ -14,8 +14,9 @@
 //    exp(-age / 0.28 s), with a faint held floor under the threshold.
 //  - strings: the struck note's strings take its colour and fade (0.35 s dry, 1.8 s while held or pedalled).
 //  - dampers: lift while their key is held or the sustain pedal is down; the right pedal dips with the pedal.
-//  - case: a fresnel edge term (no environment map) outlines the crystal; strikes tint it toward the notes' colours,
-//    capped under the bloom threshold.
+//  - case: clear cast acrylic (white base, a faint cool attenuation over 400 mm, 15 mm walls, 25 mm legs and lyre). A
+//    cool-white fresnel edge (no environment map) outlines the silhouettes; strikes tint only the sharpest edges toward
+//    the notes' colours, capped under the bloom threshold, so the body never fills with colour.
 //  - music desk: the chord name (state.chord.name, our own text) is etched in the chord's colour, flares on a change.
 //
 // Integration notes for the host: the instrument brings its own keybed, key blocks and key slip, so the host's lacquer
@@ -23,8 +24,8 @@
 // (hints.floorY = -30.33); the host floor at y = -2.3 would cut them. Nothing in front of z = -3.55 rises above the key
 // tops, so the host's trails (emitted at z = -3.42) are never hidden by the glass.
 // Options (ctx.options or setOptions): lid "auto" (off on the page, long prop in the lab's hero view) | "long" |
-// "short" | "closed" | "off"; glass "crystal" (transmission) | "fast"
-// (plain alpha blend, no transmission pass); desk true | false.
+// "short" | "closed" | "off" (a portrait framing never raises it past "short"); glass "crystal" (transmission) | "fast"
+// (plain alpha blend, no transmission pass); desk true | false; edge 0..2 (fresnel edge strength, default 1).
 
 const MM = 1225.7 / 52;
 const DEG = Math.PI / 180;
@@ -41,13 +42,23 @@ const G = Object.freeze({
 const LID_ANGLE = { long: 38, short: 10, closed: 0, off: 0 };
 const GLOW = { peak: 5.0, tau: 0.28, held: 0.3 };
 const STR = { peak: 1.1, tauDry: 0.35, tauWet: 1.8 };
-const EDGE = { base: [0.05, 0.06, 0.075], pow: 3.6, gain: 0.05, tau: 1.1, maxLuma: 0.09 };
+// Clear cast acrylic. Judge 2026-09-15: the old body read purple, because a broad fresnel term carried the chord's strike
+// tint across whole faces. Now the base is white, the attenuation a faint cool grey over 400 mm, and the walls 15 mm
+// (25 mm in the legs and lyre).
+const GLASS = { color: 0xffffff, roughness: 0.03, ior: 1.49, thickness: 15 / MM, legThickness: 25 / MM,
+  attenuationColor: 0xdfe6ef, attenuationDistance: 400 / MM, fastColor: 0xdfe6ef, fastOpacity: 0.16 };
+// The edge is cool white at 0.12 and tight (pow 5.5), so it outlines silhouettes. The strike tint rides pow 10 and is
+// capped at luminance 0.09 and at 0.15 per channel. Render 2026-09-15 q2: under a luma-only cap a blue/violet chord
+// kept about 1.0 in blue, since blue carries only 0.07 of the luma weight, and at pow 7 that filled the grazing lid
+// underside navy.
+const EDGE = { color: 0xcfe0ff, gain: 0.12, pow: 5.5, strikePow: 10.0, strikeGain: 0.05, tau: 1.1, maxLuma: 0.09, maxChannel: 0.15 };
 const STRING_W = 0.06;  // strings are thin crossed ribbons, not GL lines, so MSAA smooths them
-const ETCH = { level: 0.3, flash: 0.9, tau: 0.5 };
+const ETCH = { level: 0.15, flash: 0.9, tau: 0.5 };  // a low resting glow, so the etch never competes with the page's chord header
 const CHECK = 0.42;   // share of the blow the hammer is held at while its key stays down
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const damp = (a, b, tau, dt) => b + (a - b) * Math.exp(-dt / tau);
+const isPortrait = (f) => !!f && (f.id === "9:16" || (f.h > 0 && f.h > f.w));
 const norm2 = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
 
 // ------------------------------------------------------------------ 2D helpers (x, z) --
@@ -290,7 +301,7 @@ export default {
     const keyX = ctx.keyX || ((m) => (m - 21 - 43.5) * 52 / 88);
     const span = ctx.span || {};
     const left = span.left ?? keyX(first) - 0.5, right = span.right ?? keyX(KEY.last) + 0.5;
-    const options = { lid: "auto", glass: "crystal", desk: true, ...(ctx.options || {}) };
+    const options = { lid: "auto", glass: "crystal", desk: true, edge: 1, ...(ctx.options || {}) };
     let heroPose = false;  // the lab's hero view poses the lid on its long prop; the page takes it off so action and sky stay clear
     const fallbackColor = (m, vel, target) => target.setHSL(((m % 12) * 7 % 12) / 12, 0.9, 0.5);
     const noteColor = ctx.noteColor || fallbackColor;
@@ -305,19 +316,30 @@ export default {
     const add = (mesh) => { group.add(mesh); return mesh; };
 
     // ---------------------------------------------------------------- materials --
-    const edgeU = { value: new THREE.Color(...EDGE.base) }, edgePow = { value: EDGE.pow };
-    const glass = new THREE.MeshPhysicalMaterial({
-      color: 0xf2faff, roughness: 0.035, metalness: 0, transmission: 1, thickness: 1.4, ior: 1.49,
-      attenuationColor: new THREE.Color(0xd2eeff), attenuationDistance: 28, specularIntensity: 1,
-      clearcoat: 0.6, clearcoatRoughness: 0.04,
-    });
-    glass.onBeforeCompile = (sh) => {
+    const edgeBase = new THREE.Color(EDGE.color).multiplyScalar(EDGE.gain);
+    const edgeU = { value: edgeBase.clone() }, edgePow = { value: EDGE.pow };
+    const strikeU = { value: new THREE.Color(0, 0, 0) }, strikePow = { value: EDGE.strikePow };
+    let edgeScale = 1;
+    const glassHook = (sh) => {
       sh.uniforms.uEdge = edgeU;
       sh.uniforms.uEdgePow = edgePow;
-      sh.fragmentShader = "uniform vec3 uEdge;\nuniform float uEdgePow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>",
-        "#include <emissivemap_fragment>\n{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);\n  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow); }");
+      sh.uniforms.uStrike = strikeU;
+      sh.uniforms.uStrikePow = strikePow;
+      sh.fragmentShader = "uniform vec3 uEdge;\nuniform float uEdgePow;\nuniform vec3 uStrike;\nuniform float uStrikePow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>",
+        "#include <emissivemap_fragment>\n{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);\n  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow) + uStrike * pow(fr, uStrikePow); }");
     };
-    glass.customProgramCacheKey = () => "glass-piano-crystal";
+    // one program, two materials: the case walls and the thicker legs/lyre share the uniforms above
+    const makeGlass = (thickness) => {
+      const m = new THREE.MeshPhysicalMaterial({
+        color: GLASS.color, roughness: GLASS.roughness, metalness: 0, transmission: 1, thickness, ior: GLASS.ior,
+        attenuationColor: new THREE.Color(GLASS.attenuationColor), attenuationDistance: GLASS.attenuationDistance,
+        specularIntensity: 1, clearcoat: 0.6, clearcoatRoughness: 0.04,
+      });
+      m.onBeforeCompile = glassHook;
+      m.customProgramCacheKey = () => "glass-piano-crystal";
+      return m;
+    };
+    const glass = makeGlass(GLASS.thickness), glassLeg = makeGlass(GLASS.legThickness);
     const gold = new THREE.MeshPhysicalMaterial({ color: 0xc8a052, metalness: 0.55, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.25 });
     const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46c, metalness: 0.7, roughness: 0.28 });
     const grain = grainTexture(THREE);
@@ -333,16 +355,22 @@ export default {
     };
     felt.customProgramCacheKey = () => "glass-piano-felt";
     const stringMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-    mats.push(glass, gold, brass, spruce, maple, dark, steel, felt, stringMat);
+    mats.push(glass, glassLeg, gold, brass, spruce, maple, dark, steel, felt, stringMat);
 
     function applyGlass(mode) {
       const fast = mode === "fast";
-      glass.transmission = fast ? 0 : 1;
-      glass.transparent = fast;
-      glass.opacity = fast ? 0.16 : 1;
-      glass.depthWrite = !fast;
-      glass.color.set(fast ? 0xbfe2ff : 0xf2faff);
-      glass.needsUpdate = true;
+      for (const m of [glass, glassLeg]) {
+        m.transmission = fast ? 0 : 1;
+        m.transparent = fast;
+        m.opacity = fast ? GLASS.fastOpacity : 1;
+        m.depthWrite = !fast;
+        m.color.set(fast ? GLASS.fastColor : GLASS.color);
+        m.needsUpdate = true;
+      }
+    }
+    function applyEdge() {
+      edgeScale = Math.max(0, Math.min(2, Number(options.edge ?? 1) || 0));
+      edgeU.value.copy(edgeBase).multiplyScalar(edgeScale);
     }
 
     // ---------------------------------------------------------------- the plan --
@@ -367,10 +395,11 @@ export default {
       const h = top - floorY - 0.9, pts = [[2.2, 0], [2.2, -0.5], [1.6, -1.2], [1.85, -4], [1.25, -h + 2.6], [1.55, -h + 0.5], [1.4, -h]];
       return B.at(new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), 28), x, top, z);
     };
-    bodyParts.push(leg(-28.9, -0.4, G.bedBottom), leg(28.9, -0.4, G.bedBottom), leg(-8, -64, G.rimBottom));
+    // legs, lyre and pedal box: one draw in the thicker-walled acrylic, so they read as crystal columns
+    const legParts = [leg(-28.9, -0.4, G.bedBottom), leg(28.9, -0.4, G.bedBottom), leg(-8, -64, G.rimBottom)];
     const lyreTop = G.rimBottom, boxTop = floorY + 3.0;
-    for (const x of [-2.9, 2.9]) bodyParts.push(B.at(new THREE.CylinderGeometry(0.42, 0.52, lyreTop - boxTop, 16), x, (lyreTop + boxTop) / 2, -5.8));
-    bodyParts.push(B.slabX(-5.8, 5.8, -4.1, -7.6, floorY + 1.1, boxTop, 0.4));                                   // pedal box
+    for (const x of [-2.9, 2.9]) legParts.push(B.at(new THREE.CylinderGeometry(0.42, 0.52, lyreTop - boxTop, 16), x, (lyreTop + boxTop) / 2, -5.8));
+    legParts.push(B.slabX(-5.8, 5.8, -4.1, -7.6, floorY + 1.1, boxTop, 0.4));                                    // pedal box
     for (const x of [-4.2, 4.2]) {                                                                               // lyre braces
       const g = new THREE.CylinderGeometry(0.22, 0.22, 1, 10);
       const a = [x, boxTop, -7.2], b = [x * 0.6, lyreTop, -12.5];
@@ -379,11 +408,12 @@ export default {
       g.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.atan2(b[2] - a[2], b[1] - a[1])));
       g.applyMatrix4(new THREE.Matrix4().makeRotationZ(-Math.atan2(b[0] - a[0], b[1] - a[1])));
       g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
-      bodyParts.push(g);
+      legParts.push(g);
     }
-    const bodyGeo = B.merge(bodyParts);
+    const bodyGeo = B.merge(bodyParts), legGeo = B.merge(legParts);
     const body = add(new THREE.Mesh(bodyGeo, glass));
-    geos.push(bodyGeo);
+    add(new THREE.Mesh(legGeo, glassLeg));
+    geos.push(bodyGeo, legGeo);
 
     // music desk (glass) and its etched chord name
     const deskGroup = new THREE.Group();
@@ -425,7 +455,8 @@ export default {
       for (const p of insetPoly(outline, G.rimTh / 2)) if (p[0] > 0 && Math.abs(p[1] + 36) < best) { best = Math.abs(p[1] + 36); propBase = p; } }
     function applyLid(want) {
       // auto: lid off on the page (render 2026-09-15: even the short prop veiled the action in 9:16), long prop for the hero
-      const mode = want === "auto" ? (heroPose ? "long" : "off") : want;
+      let mode = want === "auto" ? (heroPose ? "long" : "off") : want;
+      if (portrait && mode === "long") mode = "short";  // judge 2026-09-15: a raised lid sat in the air the 9:16 note bars need
       const th = (LID_ANGLE[mode] ?? 10) * DEG;
       lid.visible = mode !== "off";
       lid.rotation.z = th;
@@ -576,6 +607,7 @@ export default {
     const chordAcc = new THREE.Color();
     let chordN = 0, frameT = 0, active = true, pedalAng = 0, shownPedal = NaN, etchName = null, etchLevel = 0, etchFlash = 0;
     let framing = ctx.framing || null;
+    let portrait = isPortrait(framing);
 
     function strike(m, vel, t0) {
       const i = m - first;
@@ -587,7 +619,7 @@ export default {
       noteColor(m, vel > 1 ? vel : vel * 127, tmp);
       strikeCol[i * 3] = tmp.r; strikeCol[i * 3 + 1] = tmp.g; strikeCol[i * 3 + 2] = tmp.b;
       const age = frameT - t0, fade = age > 0 ? Math.exp(-age / EDGE.tau) : 1;
-      edgeAcc.r += tmp.r * v * EDGE.gain * fade; edgeAcc.g += tmp.g * v * EDGE.gain * fade; edgeAcc.b += tmp.b * v * EDGE.gain * fade;
+      edgeAcc.r += tmp.r * v * EDGE.strikeGain * fade; edgeAcc.g += tmp.g * v * EDGE.strikeGain * fade; edgeAcc.b += tmp.b * v * EDGE.strikeGain * fade;
     }
     function visitPressed(st, m) {
       const i = m - first;
@@ -598,18 +630,28 @@ export default {
       chordAcc.r += tmp.r; chordAcc.g += tmp.g; chordAcc.b += tmp.b;
       chordN++;
     }
+    // Daniel's lettering picks (Outfit, Raleway, Jost; OFL). The host's display face leads when it passes one. The etch
+    // redraws when a web font finishes loading, so a first chord drawn in the fallback face gets replaced.
+    const displayFace = ctx.fonts && ctx.fonts.display ? `${ctx.fonts.display}, ` : "";
+    const NAME_FONT = `500 128px ${displayFace}Outfit, Jost, Raleway, "Segoe UI", sans-serif`;
+    const NNS_FONT = '400 52px Raleway, Jost, Outfit, "Segoe UI", sans-serif';
+    const fontSet = typeof document !== "undefined" && document.fonts ? document.fonts : null;
+    let etchNns = "";
+    const onFontsLoaded = () => { if (etchName) drawEtch(etchName, etchNns); };
+    if (fontSet && fontSet.addEventListener) fontSet.addEventListener("loadingdone", onFontsLoaded);
     function drawEtch(name, nns) {
+      etchNns = nns || "";
       const g = etchCanvas.getContext("2d");
       g.clearRect(0, 0, 1024, 256);
       if (!name) { etchTex.needsUpdate = true; return; }
       g.fillStyle = "#ffffff";
       g.textAlign = "center";
       g.textBaseline = "middle";
-      g.font = '500 128px Outfit, Jost, Raleway, "Segoe UI", sans-serif';
+      g.font = NAME_FONT;
       g.fillText(name, 512, nns ? 104 : 128, 1000);
       if (nns) {
         g.globalAlpha = 0.6;
-        g.font = '400 52px Raleway, Jost, Outfit, "Segoe UI", sans-serif';
+        g.font = NNS_FONT;
         g.fillText(nns, 512, 208, 1000);
         g.globalAlpha = 1;
       }
@@ -620,7 +662,7 @@ export default {
       strikeT.fill(-1e9); held.fill(0); ang.fill(0); lift.fill(0); strLevel.fill(1);
       edgeAcc.setRGB(0, 0, 0); etchLevel = 0; etchFlash = 0; pedalAng = 0;
       glowArr.fill(0); glowAttr.needsUpdate = true;
-      edgeU.value.setRGB(...EDGE.base);
+      strikeU.value.setRGB(0, 0, 0);
       etchMat.color.setRGB(0, 0, 0);
       pose(0);
     }
@@ -660,6 +702,7 @@ export default {
     }
 
     applyGlass(options.glass);
+    applyEdge();
     applyLid(options.lid);
     deskGroup.visible = options.desk !== false;
     reset();
@@ -671,7 +714,9 @@ export default {
       stage: { floorY },
       // lab cameras: a three-quarter from the front right (the open lid faces that way) and a close-up of the action
       views: {
-        hero: () => { heroPose = true; applyLid(options.lid); return { from: [64, 40, 44], target: [0, 1, -27], fov: 30 }; },
+        // fitted offline (judge 2026-09-15: the lid tip and tail were cropped): the case, the long-prop lid and the tail
+        // sit inside +-0.9 NDC, centred; only the feet of the front legs leave the bottom edge
+        hero: () => { heroPose = true; applyLid(options.lid); return { from: [106.4, 72.8, 78.7], target: [-7.3, 10.5, -23.4], fov: 30 }; },
         close: { from: [17, 12.5, -1.5], target: [-1.8, 1.2, -13], fov: 34 },
       },
       info: { hammers: N, strings: NS, dampers: damperCount, pins: NS, pedals: 3 },
@@ -691,7 +736,9 @@ export default {
         edgeAcc.r *= eK; edgeAcc.g *= eK; edgeAcc.b *= eK;
         const luma = 0.2126 * edgeAcc.r + 0.7152 * edgeAcc.g + 0.0722 * edgeAcc.b;
         if (luma > EDGE.maxLuma) { const s = EDGE.maxLuma / luma; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
-        edgeU.value.setRGB(EDGE.base[0] + edgeAcc.r, EDGE.base[1] + edgeAcc.g, EDGE.base[2] + edgeAcc.b);
+        const peak = Math.max(edgeAcc.r, edgeAcc.g, edgeAcc.b);
+        if (peak > EDGE.maxChannel) { const s = EDGE.maxChannel / peak; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
+        strikeU.value.setRGB(edgeAcc.r * edgeScale, edgeAcc.g * edgeScale, edgeAcc.b * edgeScale);
 
         let glowDirty = false, strDirty = false;
         for (let i = 0; i < N; i++) {
@@ -736,7 +783,8 @@ export default {
         if (deskGroup.visible) {
           const chord = state && state.chord, name = chord && chord.name ? chord.name : null;
           if (name !== etchName) {
-            if (name) { drawEtch(name, chord.nns || ""); etchFlash = ETCH.flash; }
+            // no flare in portrait: there the etch sits behind the note bars and would echo the page's chord header
+            if (name) { drawEtch(name, chord.nns || ""); etchFlash = portrait ? 0 : ETCH.flash; }
             etchName = name;
           }
           if (chordN > 0) chordCol.setRGB(chordAcc.r / chordN, chordAcc.g / chordN, chordAcc.b / chordN);
@@ -747,7 +795,7 @@ export default {
           etch.visible = e > 0.002;
         }
       },
-      resize(f) { framing = f || framing; heroPose = false; applyLid(options.lid); },
+      resize(f) { framing = f || framing; portrait = isPortrait(framing); heroPose = false; applyLid(options.lid); },
       setActive(on) {
         active = !!on;
         group.visible = active;
@@ -756,12 +804,14 @@ export default {
       setOptions(o) {
         Object.assign(options, o || {});
         applyGlass(options.glass);
+        applyEdge();
         applyLid(options.lid);
         deskGroup.visible = options.desk !== false;
       },
       get framing() { return framing; },
       dispose() {
         scene.remove(group);
+        if (fontSet && fontSet.removeEventListener) fontSet.removeEventListener("loadingdone", onFontsLoaded);
         for (const g of geos) g.dispose();
         for (const m of mats) m.dispose();
         for (const t of texs) t.dispose();

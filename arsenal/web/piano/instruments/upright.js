@@ -3,9 +3,10 @@
 // A warm walnut upright built around the host's 88-key row. The keys stay the host's. This module draws the case
 // around them: fallboard, cheek arms with a scrolled top, key slip, a music shelf holding an open book, turned
 // front legs on toe blocks, three brass pedals, a pair of swing-arm candle sconces and a little metronome on the lid.
-// Everything is procedural: rounded boxes, extrusions, lathes, tubes and canvas textures (walnut grain, a
-// bookmatched cathedral veneer, the book's paper). No brand name or logo anywhere; the only lettering is our own
-// chord name on the book.
+// Everything is procedural: rounded boxes, extrusions, lathes, tubes and canvas textures (walnut grain; a veneer
+// atlas holding a straight vertical-stripe kneeboard and a horizontal-grain upper panel, planar-mapped so each panel
+// shows its whole region; the book's paper). No brand name or logo anywhere; the only lettering is our own chord name
+// on the book.
 //
 // Proportions (spec.md section 2.2): about 1500 W x 1250 H x 610 D mm, key tops about 750 mm above the floor. One
 // host world unit is one white-key pitch; the 52 white keys are 1225.7 mm, so 1 mm = 52 / 1225.7 units. The whole
@@ -17,9 +18,11 @@
 //                the only part that blooms. The same light washes up the fallboard's lower face.
 //   candles      the two flames are lit at rest (warm, no bloom). Strikes feed them: they stretch, brighten past
 //                the bloom threshold and lean toward the colours just played, and their point lights throw that
-//                colour onto the panel, the book and the keys.
-//   book         shows the chord name, Nashville number and key on its right page. The letters glow in the root's
-//                colour on a strike and fade over about half a second.
+//                colour onto the panel, the book and the keys. In portrait framing (the 9:16 player, where note bars
+//                rise over the upper panel) the flame colour is halved and the lights cap at 60.
+//   book         shows the chord name, Nashville number and key on its right page, inked in the root's colour. The
+//                letters glow a little on a strike (emissive at most 0.8, and luminance-capped so they stay under
+//                bloom) and fade over about half a second.
 //   pedal        the right (sustain) pedal goes down with the sustain pedal.
 //   metronome    the pendulum starts swinging while you play and slows to rest a few seconds after you stop.
 //
@@ -40,6 +43,7 @@ const KEY_STYLE = Object.freeze({ whiteColor: 0xe9dcc2, blackColor: 0x17110d, ca
 export default { id: "upright", name: "Walnut Upright", keyStyle: KEY_STYLE, create };
 
 function create(ctx) {
+  const T_BUILD = performance.now();
   const THREE = ctx.THREE;
   const KEY = ctx.KEY || { first: 21, last: 108 };
   const FIRST = KEY.first, COUNT = KEY.last - KEY.first + 1;
@@ -136,6 +140,19 @@ function create(ctx) {
     parts.forEach((part, pi) => {
       let g = part.geo.index ? part.geo.toNonIndexed() : part.geo;
       if (g !== part.geo) part.geo.dispose();
+      if (part.planar) {
+        // planar UVs over the part's own x/y extent, into an atlas rect [u0, v0, u1, v1]. A rounded box's own UVs put
+        // the whole flat face into 0.4..0.6, which magnified the veneer five times into a swirl with stepped lines.
+        g.computeBoundingBox();
+        const bb = g.boundingBox, [u0, v0, u1, v1] = part.planar;
+        const pa = g.attributes.position.array, uv = new Float32Array(pa.length / 3 * 2);
+        const sx = (u1 - u0) / Math.max(1e-6, bb.max.x - bb.min.x), sy = (v1 - v0) / Math.max(1e-6, bb.max.y - bb.min.y);
+        for (let i = 0, j = 0; i < pa.length; i += 3, j += 2) {
+          uv[j] = u0 + (pa[i] - bb.min.x) * sx;
+          uv[j + 1] = v0 + (pa[i + 1] - bb.min.y) * sy;
+        }
+        g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+      }
       const r = part.rot || [0, 0, 0], p = part.pos || [0, 0, 0];
       eu.set(r[0], r[1], r[2], r[3] || "XYZ");
       m4.compose(tv.set(p[0], p[1], p[2]), qt.setFromEuler(eu), one);
@@ -193,7 +210,9 @@ function create(ctx) {
     const a = hash2(xa, ya, seed), b = hash2(xb, ya, seed), c = hash2(xa, yb, seed), d = hash2(xb, yb, seed);
     return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
   }
-  const WALNUT_LIGHT = [150, 94, 58], WALNUT_DARK = [46, 26, 16];
+  // Walnut toward spec #6b3f22 but less saturated than it: the candles and key light are warm, and the earlier
+  // [150, 94, 58] / [46, 26, 16] read orange-red once lit.
+  const WALNUT_LIGHT = [138, 97, 68], WALNUT_DARK = [40, 27, 19];
   function paintWood(W, H, valueAt) {
     const cv = document.createElement("canvas");
     cv.width = W; cv.height = H;
@@ -224,15 +243,31 @@ function create(ctx) {
     const figure = vnoise(u * 3, v * 8, 3, 8, 3);
     return 0.36 + 0.34 * figure + 0.12 * pores + 0.12 * streak - 0.32 * late;
   });
-  // Bookmatched cathedral veneer: arched rings mirrored about the centre line, with a soft cross-figure shimmer.
-  const veneerCanvas = paintWood(1024, 1024, (x, y) => {
-    const xm = x < 512 ? 511 - x : x - 512, xn = xm / 512, yu = 1 - y / 1024;
-    const r = (yu + 0.55 * xn * xn + 0.04 * Math.sin(TAU * (yu * 3 + xn * 2)) + 0.1 * vnoise(xn * 5, yu * 5, 64, 64, 9)) * 44;
-    const late = Math.pow(0.5 + 0.5 * Math.cos(TAU * r), 8);
-    const shimmer = 0.5 + 0.5 * Math.sin(TAU * (xn * 7 + yu * 0.6));
-    const pores = vnoise(xn * 180, yu * 40, 4096, 4096, 21);
-    return 0.42 + 0.14 * shimmer + 0.14 * pores - 0.3 * late - 0.08 * xn;
+  // Veneer atlas, 1024 x 2048 (flipY: canvas top = v 1). Both halves are mirrored about the centre line (a quiet
+  // bookmatch) with the old cathedral sway cut to 40%.
+  //   top half (v 0.5..1)     kneeboard: straight vertical stripes, low-contrast figure, latewood lines at 0.15
+  //   bottom half (v 0..0.5)  upper panel: horizontal grain, long soft streaks, latewood lines at 0.2 (was ~0.5)
+  const veneerCanvas = paintWood(1024, 2048, (x, y) => {
+    const xm = x < 512 ? 511 - x : x - 512, xn = xm / 512;
+    if (y < 1024) {
+      const yu = y / 1024;
+      const sway = 0.4 * (0.05 * Math.sin(TAU * (yu * 1.2 + xn * 1.5)) + 0.05 * vnoise(xn * 4, yu * 3, 64, 64, 9));
+      const late = Math.pow(0.5 + 0.5 * Math.cos(TAU * (xn + sway) * 26), 6);
+      const figure = vnoise(xn * 12, yu * 1.5, 64, 64, 13);
+      const pores = vnoise(xn * 300, yu * 16, 4096, 4096, 21);
+      return 0.5 + 0.1 * figure + 0.08 * pores - 0.15 * late - 0.04 * xn;
+    }
+    // straighter and thinner lines than the kneeboard's: the close-up puts this panel at 4x magnification
+    const yu = (y - 1024) / 1024;
+    const warp = 0.2 * (0.05 * Math.sin(TAU * (xn * 1.1 + yu * 0.4)) + 0.05 * vnoise(xn * 2, yu * 4, 64, 64, 7));
+    const late = Math.pow(0.5 + 0.5 * Math.cos(TAU * (yu + warp) * 18), 12);
+    const streak = vnoise(xn * 2.5, yu * 40, 64, 64, 17);
+    const pores = vnoise(xn * 60, yu * 320, 4096, 4096, 23);
+    return 0.48 + 0.08 * streak + 0.07 * pores - 0.2 * late - 0.03 * xn;
   });
+  const ATLAS_PAD_U = 4 / 1024, ATLAS_PAD_V = 6 / 2048;
+  const KNEE_RECT = [ATLAS_PAD_U, 0.5 + ATLAS_PAD_V, 1 - ATLAS_PAD_U, 1 - ATLAS_PAD_V];
+  const UPPER_RECT = [ATLAS_PAD_U, ATLAS_PAD_V, 1 - ATLAS_PAD_U, 0.5 - ATLAS_PAD_V];
   function canvasTex(cv, repeat) {
     const t = keep(new THREE.CanvasTexture(cv));
     t.colorSpace = THREE.SRGBColorSpace;
@@ -252,8 +287,8 @@ function create(ctx) {
 
   // ------------------------------------------------------------ materials --
   const M = {
-    case: new THREE.MeshPhysicalMaterial({ map: grainTex, roughness: 0.46, clearcoat: 0.55, clearcoatRoughness: 0.2 }),
-    veneer: new THREE.MeshPhysicalMaterial({ map: veneerTex, roughness: 0.4, clearcoat: 0.75, clearcoatRoughness: 0.12 }),
+    case: new THREE.MeshPhysicalMaterial({ map: grainTex, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
+    veneer: new THREE.MeshPhysicalMaterial({ map: veneerTex, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.14 }),
     dark: new THREE.MeshPhysicalMaterial({ color: 0x1e120b, roughness: 0.78 }),
     leather: new THREE.MeshPhysicalMaterial({ color: 0x4a1a12, roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.4 }),
     felt: new THREE.MeshPhysicalMaterial({ color: 0x6e1622, roughness: 1, sheen: 1, sheenColor: new THREE.Color(0xd07080),
@@ -270,7 +305,7 @@ function create(ctx) {
 
   // ------------------------------------------------------------ the case --
   const wood = [], veneer = [], dark = [], brass = [];
-  const add = (list, geo, pos, grain, rot) => list.push({ geo, pos, grain, rot });
+  const add = (list, geo, pos, grain, rot, planar) => list.push({ geo, pos, grain, rot, planar });
 
   // sides, lid and its moulding
   for (const s of [-1, 1]) add(wood, roundBox(2.0, 52.0, 17.9, 0.24), [s * 30.8, FLOOR_Y + 26.0, -13.35], "y");
@@ -279,7 +314,7 @@ function create(ctx) {
   add(dark, roundBox(59.6, 51.0, 0.6, 0.1), [0, FLOOR_Y + 25.5, -21.9]);
   // upper panel with a moulded frame around a bookmatched veneer
   add(wood, roundBox(59.6, 17.2, 0.6, 0.12), [0, 11.6, -5.5], "x");
-  add(veneer, roundBox(54.6, 12.6, 0.2, 0.06), [0, 12.6, -5.12]);
+  add(veneer, roundBox(54.6, 12.6, 0.2, 0.06), [0, 12.6, -5.12], null, null, UPPER_RECT);
   add(wood, roundBox(55.6, 0.5, 0.36, 0.16), [0, 19.15, -5.05], "x");
   add(wood, roundBox(55.6, 0.5, 0.36, 0.16), [0, 6.05, -5.05], "x");
   for (const s of [-1, 1]) add(wood, roundBox(0.5, 13.6, 0.36, 0.16), [s * 27.55, 12.6, -5.05], "y");
@@ -314,7 +349,7 @@ function create(ctx) {
   add(dark, roundBox(52.2, 1.75, 8.9, 0.05), [0, -1.73, -1.3]);
   // lower case: kneeboard, frame, veneer, plinth, toe blocks, turned legs
   add(wood, roundBox(59.6, 27.5, 0.6, 0.1), [0, -16.85, -5.5], "x");
-  add(veneer, roundBox(52.6, 22.6, 0.2, 0.06), [0, -16.7, -5.12]);
+  add(veneer, roundBox(52.6, 22.6, 0.2, 0.06), [0, -16.7, -5.12], null, null, KNEE_RECT);
   add(wood, roundBox(54.1, 0.5, 0.36, 0.16), [0, -5.0, -5.05], "x");
   add(wood, roundBox(54.1, 0.5, 0.36, 0.16), [0, -28.4, -5.05], "x");
   for (const s of [-1, 1]) add(wood, roundBox(0.5, 23.9, 0.36, 0.16), [s * 26.8, -16.7, -5.05], "y");
@@ -408,18 +443,21 @@ function create(ctx) {
   fallFrame.position.set(0, 2.35, -4.15);
   fallFrame.rotation.x = -FALL_TILT;
   fallFrame.updateMatrix();
-  const washGeo = keep(new THREE.PlaneGeometry(HOST_SPAN, 2.4, 1, 6));
+  // The wash covers only the lower third of the fallboard (was 2.4 of its 4.45) and fades faster, so the coloured
+  // wisps stay well under the fallboard's top edge and out of the 9:16 frame's note-bar zone.
+  const WASH_H = 1.5;
+  const washGeo = keep(new THREE.PlaneGeometry(HOST_SPAN, WASH_H, 1, 6));
   {
     const pa = washGeo.attributes.position.array, col = new Float32Array(pa.length);
     for (let i = 0; i < pa.length; i += 3) {
-      // clamped: float32 positions put the top row a hair past 1, and pow(negative, 1.8) is NaN (bloom spreads it over the frame)
-      const f = Math.pow(Math.max(0, Math.min(1, 1 - (pa[i + 1] + 1.2) / 2.4)), 1.8);
+      // clamped: float32 positions put the top row a hair past 1, and pow(negative, x) is NaN (bloom spreads it over the frame)
+      const f = Math.pow(Math.max(0, Math.min(1, 1 - (pa[i + 1] + WASH_H / 2) / WASH_H)), 2.2);
       col[i] = f; col[i + 1] = f; col[i + 2] = f;
     }
     washGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
   }
   const wash = new THREE.Mesh(washGeo, M.wash);
-  wash.position.set(0, -1.0, 0.235).applyMatrix4(fallFrame.matrix);
+  wash.position.set(0, -2.2 + WASH_H / 2, 0.235).applyMatrix4(fallFrame.matrix);
   wash.rotation.x = -FALL_TILT;
   wash.renderOrder = 1;
   group.add(wash);
@@ -480,6 +518,8 @@ function create(ctx) {
     return size;
   }
   const shown = { name: null, nns: null, key: null };
+  const BOOK_GLOW_MAX = 0.8, BOOK_GLOW_LUMA = 0.45;
+  let glowCap = BOOK_GLOW_MAX;
   function drawBook(chord) {
     const W = BOOK.cvW, H = BOOK.cvH, g2 = paperCanvas.getContext("2d");
     const paper = g2.createLinearGradient(0, 0, W, 0);
@@ -497,6 +537,9 @@ function create(ctx) {
       const pc = rootPc(chord.name);
       if (pc >= 0) ctx.noteColor(60 + pc, 110, inkColor); else inkColor.setRGB(0.3, 0.2, 0.12);
       const peak = Math.max(inkColor.r, inkColor.g, inkColor.b, 1e-3);
+      // glow cap: emissive at most 0.8 per channel, and its luminance at most 0.45 so ink + lit paper stays under bloom
+      const inkLuma = (0.2126 * inkColor.r + 0.7152 * inkColor.g + 0.0722 * inkColor.b) / peak;
+      glowCap = Math.min(BOOK_GLOW_MAX, BOOK_GLOW_LUMA / Math.max(inkLuma, 1e-3));
       const cxp = W * 0.75, maxW = W / 2 - 200;
       g2.textAlign = "center"; g2.textBaseline = "alphabetic";
       const size = fitFont(g2, chord.name, 600, 250, maxW);
@@ -550,6 +593,10 @@ function create(ctx) {
   }
   const acc = new Float32Array(FELT_W * 3);
   const tmp = new THREE.Color(), warm = new THREE.Color(1.0, 0.6, 0.26), flameCol = new THREE.Color(), tint = new THREE.Color();
+  // the candles' light is warm but less saturated than the flame, so the walnut doesn't go orange-red under it
+  const lightWarm = new THREE.Color(1.0, 0.74, 0.46);
+  const isPortrait = (f) => !!f && (f.id === "9:16" || (f.w > 0 && f.h > f.w));
+  let portrait = isPortrait(ctx.framing);
   let flameE = 0, playE = 0, sheetPulse = 0, tintR = 0, tintG = 0, tintB = 0, tintW = 0;
   let pedalDepth = 0, swingPhase = 0, swingAmp = 0, feltLit = false, active = true, disposed = false, now = 0;
 
@@ -639,18 +686,20 @@ function create(ctx) {
       tint.multiplyScalar(1 / pk);
       mixAmt = Math.min(0.7, E * 0.55);
     } else tint.copy(warm);
+    // portrait (9:16 player): the note bars rise over the upper panel, so the flames bloom half as hard there
+    const flameGain = portrait ? 0.5 : 1, lightCap = portrait ? 60 : Infinity;
     for (let i = 0; i < flames.length; i++) {
       const f = flames[i], ph = f.phase;
       const flick = 1 + 0.06 * Math.sin(t * 13.1 + ph) + 0.04 * Math.sin(t * 23.7 + ph * 2) + 0.03 * Math.sin(t * 7.3 + ph * 3);
       f.mesh.scale.set(1 + 0.12 * E, (1 + 0.5 * E) * (0.96 + 0.08 * flick), 1 + 0.12 * E);
       f.mesh.rotation.z = 0.05 * Math.sin(t * 3.1 + ph) + 0.05 * E * Math.sin(t * 17.0 + ph);
       if (i === 0) {
-        flameCol.copy(warm).lerp(tint, mixAmt).multiplyScalar((0.5 + 2.0 * E) * flick);
+        flameCol.copy(warm).lerp(tint, mixAmt).multiplyScalar((0.5 + 2.0 * E) * flick * flameGain);
         M.flame.color.copy(flameCol);
       }
       const light = candleLights[i];
-      light.color.copy(warm).lerp(tint, mixAmt * 0.8);
-      light.intensity = (16 + 70 * E) * flick;
+      light.color.copy(lightWarm).lerp(tint, mixAmt * 0.8);
+      light.intensity = Math.min(lightCap, (16 + 70 * E) * flick);
     }
     M.wax.emissiveIntensity = 0.03 + 0.05 * E;
 
@@ -665,7 +714,7 @@ function create(ctx) {
       drawBook(null);
     }
     sheetPulse *= Math.exp(-dt / 0.5);
-    M.paper.emissiveIntensity = shown.name ? 3.2 * sheetPulse * sheetPulse : 0;
+    M.paper.emissiveIntensity = shown.name ? glowCap * sheetPulse * sheetPulse : 0;
 
     // sustain pedal
     pedalDepth += ((pedal ? 1 : 0) - pedalDepth) * (1 - Math.exp(-dt / 0.045));
@@ -686,7 +735,8 @@ function create(ctx) {
       for (const l of candleLights) l.intensity = 0;
     }
   }
-  function resize() { /* world-space instrument: nothing depends on the framing */ }
+  // world-space instrument: only the candles' bloom depends on the framing (halved in portrait)
+  function resize(framing) { if (framing) portrait = isPortrait(framing); }
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -711,6 +761,7 @@ function create(ctx) {
       hero: { from: W(68, 15, 101), target: W(-2, -4.5, -8), fov: 34 },
       close: { from: W(23, 9, 21), target: W(11.5, 6.5, -4), fov: 38 },
     },
-    info: { parts: { wood: wood.length, veneer: veneer.length, dark: dark.length, brass: brass.length } },
+    info: { parts: { wood: wood.length, veneer: veneer.length, dark: dark.length, brass: brass.length },
+      buildMs: Math.round(performance.now() - T_BUILD) },
   };
 }
