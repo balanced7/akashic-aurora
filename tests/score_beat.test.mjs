@@ -153,6 +153,20 @@ function levelRun(events, { meter = "4/4", at, ratio, endMs = null, taps = [] })
   }
   check("beat: setMeter rejects an unknown meter", (() => { try { createBeatTracker().setMeter("5/4"); return false; } catch { return true; } })());
 
+  // the clock is monotonic (ls1-rulings.md): tick() throws when time goes backwards; a seek replays on a new tracker
+  {
+    const threw = (f) => { try { f(); return null; } catch (e) { return e; } };
+    const bt3 = createBeatTracker();
+    check("beat: tick() accepts a repeated time", threw(() => { bt3.tick(5000); bt3.tick(5000); }) === null);
+    const back = threw(() => bt3.tick(4999));
+    check("beat: tick() throws a RangeError when the clock goes back", back instanceof RangeError && /new tracker/.test(back.message), String(back));
+    check("beat: tick() throws on a clock that is not a number", threw(() => bt3.tick(NaN)) instanceof RangeError);
+    check("beat: a refused tick leaves the tracker running", threw(() => bt3.tick(5250)) === null);
+    const evs3 = metronome({ bpm: 80, seconds: 20 });
+    const once = trackEvents(evs3, { createOnsets }).samples, again = trackEvents(evs3, { createOnsets }).samples;
+    check("beat: a replay on a new tracker repeats itself", JSON.stringify(once.map((y) => [y.bpm, y.mode, y.bpmShown, y.factor])) === JSON.stringify(again.map((y) => [y.bpm, y.mode, y.bpmShown, y.factor])));
+  }
+
   check("ladder: jam wins", ladder({ jam: { live: true, aligned: true }, taps: { valid: true } }).source === "jam");
   check("ladder: song without 1 is beat tape", ladder({ song: { phaseConf: 0.8, floor: 0.5, one: false } }).drawing === "beat-tape");
   check("ladder: song below its floor falls to taps", ladder({ song: { phaseConf: 0.3, floor: 0.5 }, taps: { valid: true, one: true } }).source === "taps");
@@ -225,6 +239,34 @@ function levelRun(events, { meter = "4/4", at, ratio, endMs = null, taps = [] })
     const at140 = MX.mean(pre.map((y) => +(Math.abs(y.bpm / 140 - 1) <= 0.08)));
     const fam = MX.mean(late.map((y) => +(Math.abs(y.bpm / 95 - 1) <= 0.08 || Math.abs(y.bpm / 190 - 1) <= 0.08)));
     check(`beat: chooseLevel(2) then a step 70 -> 95 (seed ${seed}): 140 before, 95 or 190 after`, at140 >= 0.9 && fam >= 0.85, JSON.stringify({ at140, fam, med: MX.median(late.map((y) => y.bpm)) }));
+  }
+
+  // family buttons against the shown tactus (ls1-rulings.md must-fix): a press multiplies the number on display by the
+  // button's ratio (+-3%) under a tactus factor of 2/3 (6/8 and 12/8 read from a quarter agent) and 0.5 (a 4/4 arp read
+  // from its eighths). Before the fix, the 6/8 at 49.8 went to 150 on x2, 37.5 on x0.5, 112.5 on x1.5 and stayed on x2/3.
+  const pins = [
+    { name: "6/8 arp 50", meter: "6/8", factor: 2 / 3, ev: G.eventsOf(G.genPiece("6/8", "arp", 0, 50, 4242, { pickup: 0 })) },
+    { name: "12/8 arp 50", meter: "12/8", factor: 2 / 3, ev: G.eventsOf(G.genScore("12/8", "arp", 0, 50, 4242)) },
+    { name: "4/4 arp 63", meter: "4/4", factor: 0.5, ev: G.eventsOf(G.genPiece("4/4", "arp", 0, 63, 4242, { pickup: 0 })) },
+  ];
+  const within3 = (v, want) => v != null && Math.abs(v / want - 1) <= 0.03;
+  for (const pin of pins) for (const ratio of FAMILY_RATIOS) {
+    const AT = 20000;
+    let pre = null, next = null;
+    const s = trackEvents(pin.ev, { createOnsets, options: { meter: pin.meter }, endMs: AT + 45000,
+      onTick: (y, bt) => { if (pre && !next) next = y; if (!pre && y.t_ms >= AT) { pre = y; bt.chooseLevel(ratio); } } }).samples;
+    const want = pre.bpm * ratio, post = s.filter((y) => y.t_ms > AT + 12000 && y.bpm);
+    const label = `beat: ${pin.name} under ${pin.meter}, x${+ratio.toFixed(3)} pressed at ${pre.bpm.toFixed(1)}`;
+    check(`${label}: tactus factor ${+pin.factor.toFixed(3)} at the press`, near(pre.factor, pin.factor, 1e-9), String(pre.factor));
+    check(`${label}: family entries name shown x ratio`, pre.family.length > 0 && pre.family.every((f) => within3(f.bpm, pre.bpm * f.ratio)), JSON.stringify(pre.family));
+    check(`${label}: the requested level is shown x ratio`, within3(next.levelBpm, want), JSON.stringify([next.levelBpm, want]));
+    const med = MX.median(post.map((y) => y.bpm)), share = MX.mean(post.map((y) => +within3(y.bpm, want)));
+    check(`${label}: readout within 3% of ${want.toFixed(1)} (median; >= 90% of ticks)`, post.length > 100 && within3(med, want) && share >= 0.9, JSON.stringify({ want, med, share, n: post.length }));
+    // no null window (LS1fix r1): a holding level reads shadow x q from the tick after the press, before the level agent
+    // has its own 4 intervals (a x0.5 level had no readout for about 7 s, and those ticks scored as misses)
+    const early = s.filter((y) => y.t_ms > pre.t_ms && y.t_ms <= AT + 12000);
+    const off = early.filter((y) => !(y.mode === "hold" || within3(y.bpm, want)));
+    check(`${label}: a readout at the request from the tick after the press (no null window)`, early.length > 40 && off.length === 0, JSON.stringify(off.slice(0, 3).map((y) => [y.t_ms, y.bpm, y.levelBpm, y.mode])));
   }
 }
 
@@ -332,20 +374,43 @@ if (!quick) {
   }
   receipts.push({ id: "LR2g", measured: curves, threshold: "reported; sets K (C4 start value 4)", pass: true, ms: Math.round(performance.now() - t1) });
 
-  // chosen level under rubato (reported; rub0 x2 checked): x2 or x0.5 pressed at 15 s on the held-out 4/4 and 3/4
-  // pieces. Acc1 at the chosen level = the readout divided by the ratio against the true tempo, after the press.
+  // chosen level under rubato (ls1-rulings.md LS1-level row): x2 or x0.5 pressed at 15 s. Suite per rubato level: the
+  // held-out 4/4 and 3/4 pieces ("simple", 18), the held-out 6/8 pieces (9, factor 2/3 or 1/3 at most presses) and a
+  // simple-meter tactus-0.5 set ("tactus05", 8: arp eighths read just above 125 bpm, factor 0.5 at every rub0 press; the
+  // factors at the press are reported). Acc1 at the chosen level = the readout divided by the ratio against the true
+  // tactus tempo, after the press (a tick with no readout counts as a miss). Reported beside it, not gated:
+  // acc1AtLevelRead counts only ticks with a readout (equal to acc1AtLevel since LS1fix r1: a holding level reads from
+  // the tick after the press, where a x0.5 level used to show nothing for about 7 s), acc1NoPress is the same window on
+  // the same piece without a press, and wrongLevelBeforePress counts pieces with acc1NoPress < 0.5. A level shown wrong
+  // before the press stays wrong after it: the buttons multiply the number on display (must-fix), they do not correct
+  // it. On rub0 those are two 6/8 ballads that the tempo lane's own tracker also reads at double tempo.
   const t2 = performance.now(), levelRep = {};
+  const TACTUS05 = [["4/4", 63], ["4/4", 63.5], ["4/4", 64], ["4/4", 64.5], ["3/4", 63], ["3/4", 63.5], ["3/4", 64], ["3/4", 64.5]];
+  const acc1Of = (truth, s, ratio) => { const v = MX.evalTempo(truth, { samples: s.map((y) => ({ t_ms: y.t_ms, bpm: y.bpm ? y.bpm / ratio : y.bpm, hold: y.mode === "hold" })), emitted_ms: [], settled_ms: [] }, { readFromMs: 16000 }).acc1; return Number.isFinite(v) ? v : 0; };
+  const noPress = new Map();
   for (const ratio of [2, 0.5]) for (const rubLevel of [0, 1, 2]) {
-    const rows = G.tempoSuite(G.TEMPO_TEST_SEEDS).filter((x) => x.rub === rubLevel && x.meter !== "6/8").map((r) => {
-      const s = levelRun(G.eventsOf(r.piece), { meter: r.meter, at: 15000, ratio, endMs: r.piece.notes[r.piece.notes.length - 1].t * 1000 + 1000 }).filter((y) => y.t_ms > 16000);
-      const ev = MX.evalTempo(r.piece.truth, { samples: s.map((y) => ({ t_ms: y.t_ms, bpm: y.bpm ? y.bpm / ratio : y.bpm, hold: y.mode === "hold" })), emitted_ms: [], settled_ms: [] }, { readFromMs: 16000 });
-      return { released: s.some((y) => y.levelBpm == null), held: MX.mean(s.map((y) => +(y.levelBpm != null))), acc1: ev.acc1 };
+    const suite = [
+      ...G.tempoSuite(G.TEMPO_TEST_SEEDS).filter((x) => x.rub === rubLevel).map((x) => ({ group: x.meter === "6/8" ? "6/8" : "simple", meter: x.meter, piece: x.piece })),
+      ...TACTUS05.map(([meter, bpm]) => ({ group: "tactus05", meter, piece: G.genPiece(meter, "arp", rubLevel, bpm, 4242, { pickup: 0 }) })),
+    ];
+    const rows = suite.map((r, i) => {
+      let factorAtPress = null, done = false;
+      const endMs = r.piece.notes[r.piece.notes.length - 1].t * 1000 + 1000, key = `${rubLevel}:${i}`;
+      if (!noPress.has(key)) noPress.set(key, acc1Of(r.piece.truth, trackEvents(G.eventsOf(r.piece), { createOnsets, options: { meter: r.meter }, endMs }).samples.filter((y) => y.t_ms > 16000), 1));
+      const s = trackEvents(G.eventsOf(r.piece), { createOnsets, options: { meter: r.meter }, endMs,
+        onTick: (y, bt) => { if (!done && y.t_ms >= 15000) { factorAtPress = y.bpm ? +y.factor.toFixed(3) : null; done = !!bt.chooseLevel(ratio); } } }).samples.filter((y) => y.t_ms > 16000);
+      return { group: r.group, factorAtPress, released: s.some((y) => y.levelBpm == null), held: MX.mean(s.map((y) => +(y.levelBpm != null))),
+        acc1: acc1Of(r.piece.truth, s, ratio), acc1Read: acc1Of(r.piece.truth, s.filter((y) => y.bpm), ratio), acc1NoPress: noPress.get(key) };
     });
-    levelRep[`x${ratio}.rub${rubLevel}`] = { pieces: rows.length, released: rows.filter((x) => x.released).length, heldShare: MX.mean(rows.map((x) => x.held)), acc1AtLevel: MX.mean(rows.map((x) => x.acc1)) };
+    const agg = (rs) => ({ pieces: rs.length, released: rs.filter((x) => x.released).length, heldShare: MX.mean(rs.map((x) => x.held)), acc1AtLevel: MX.mean(rs.map((x) => x.acc1)),
+      acc1AtLevelRead: MX.mean(rs.map((x) => x.acc1Read)), acc1NoPress: MX.mean(rs.map((x) => x.acc1NoPress)), wrongLevelBeforePress: rs.filter((x) => x.acc1NoPress < 0.5).length,
+      factorsAtPress: rs.reduce((m, x) => { m[x.factorAtPress] = (m[x.factorAtPress] || 0) + 1; return m; }, {}) });
+    levelRep[`x${ratio}.rub${rubLevel}`] = { all: agg(rows), ...Object.fromEntries(["simple", "6/8", "tactus05"].map((g) => [g, agg(rows.filter((x) => x.group === g))])) };
   }
-  const lv0 = levelRep["x2.rub0"], lvOk = lv0.released <= 2 && lv0.acc1AtLevel >= 0.9;
-  receipts.push({ id: "LS1-level", measured: levelRep, threshold: "reported; x2 rub0: <= 2 of 18 released and Acc1 at the level >= 0.90", pass: lvOk, ms: Math.round(performance.now() - t2) });
-  check("LS1-level x2 rub0 holds", lvOk, JSON.stringify(lv0));
+  const lvGate = (k) => levelRep[k].all.released <= 2 && levelRep[k].all.acc1AtLevel >= 0.9;
+  const lvOk = lvGate("x2.rub0") && lvGate("x0.5.rub0");
+  receipts.push({ id: "LS1-level", measured: levelRep, threshold: "as ruled: x2 and x0.5 on rub0 (whole suite): <= 2 released and Acc1 at the level >= 0.90; rub1, rub2 reported", pass: lvOk, ms: Math.round(performance.now() - t2) });
+  check("LS1-level x2 and x0.5 on rub0 hold", lvOk, JSON.stringify({ x2: levelRep["x2.rub0"].all, x05: levelRep["x0.5.rub0"].all }));
 
   // LR3a: random unmetered playing, share of time steady / free (product words: bands, hysteresis, hit veto, hold)
   const fr = [], perS = [];
