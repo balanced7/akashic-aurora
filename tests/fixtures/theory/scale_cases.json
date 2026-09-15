@@ -1,0 +1,478 @@
+{
+  "api": "arsenal.piano.theory.scale_cases/v1",
+  "about": "Scale corpus for arsenal/web/piano/scales.js (theory-nextgen-spec 2.4, TN0; frozen after TN0). NG6: the 11 prototype cases (design-engine 8.2), gate-closed cases give no canvas caption, roots spelled in the key, the vamps (D Dorian, A Dorian, A Aeolian), his Db loop none. Expectations are written by hand; the scale table is design-engine 8.1's, the gate table spec 2.4's.",
+  "conventions": {
+    "notes": "pitch names without octave; only the pitch class counts",
+    "rank": "rankScales(chord pcs, weights, root pc, key): weights are 1 for chord notes and the given share for melody notes. expect.top is ranked[0].name on expect.root_name, spelled in the key (A7)",
+    "sounded": "namingGate(scale, heard pcs, recent pcs): every character note of the scale (the gate table) is in the heard or the recent pitch classes; a scale with no gate entry never passes",
+    "implied": "the scale's pitch classes that are neither heard (chord, melody) nor recent",
+    "canvas": "the row may draw the scale caption: a key, the gate open, the chord diatonic in the key with a heard key tone outside its plain triad (a colour chord), and not the key's own Ionian over 1 or Aeolian over a minor tonic. Omitted where the spec leaves it open",
+    "centre": "centreOf(chords, key): { root, mode } or null (the share values are not asserted)",
+    "view": "createScaleView({ margin, holdMs }).update(ranked, t, same_window) at each step returns the scale expect names"
+  },
+  "scales": [
+    {
+      "name": "Ionian",
+      "family": "major",
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "Dorian",
+      "family": "major",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Phrygian",
+      "family": "major",
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "Lydian",
+      "family": "major",
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "Mixolydian",
+      "family": "major",
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Aeolian",
+      "family": "major",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "Locrian",
+      "family": "major",
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "melodic minor",
+      "family": "melodic",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "Dorian b2",
+      "family": "melodic",
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Lydian augmented",
+      "family": "melodic",
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "Lydian dominant",
+      "family": "melodic",
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Mixolydian b6",
+      "family": "melodic",
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "Locrian #2",
+      "family": "melodic",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "altered",
+      "family": "melodic",
+      "intervals": [
+        0,
+        1,
+        3,
+        4,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "harmonic minor",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        7,
+        8,
+        11
+      ]
+    },
+    {
+      "name": "Locrian #6",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        1,
+        3,
+        5,
+        6,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Ionian #5",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        2,
+        4,
+        5,
+        8,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "Dorian #4",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        2,
+        3,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "Phrygian dominant",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        1,
+        4,
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "Lydian #2",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        3,
+        4,
+        6,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "altered diminished",
+      "family": "harmonic",
+      "intervals": [
+        0,
+        1,
+        3,
+        4,
+        6,
+        8,
+        9
+      ]
+    },
+    {
+      "name": "major pentatonic",
+      "family": "pentatonic",
+      "intervals": [
+        0,
+        2,
+        4,
+        7,
+        9
+      ]
+    },
+    {
+      "name": "minor pentatonic",
+      "family": "pentatonic",
+      "intervals": [
+        0,
+        3,
+        5,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "blues",
+      "family": "pentatonic",
+      "intervals": [
+        0,
+        3,
+        5,
+        6,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "blues",
+      "family": "dominant blues",
+      "intervals": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "whole tone",
+      "family": "symmetric",
+      "intervals": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10
+      ]
+    },
+    {
+      "name": "half-whole diminished",
+      "family": "symmetric",
+      "intervals": [
+        0,
+        1,
+        3,
+        4,
+        6,
+        7,
+        9,
+        10
+      ]
+    },
+    {
+      "name": "whole-half diminished",
+      "family": "symmetric",
+      "intervals": [
+        0,
+        2,
+        3,
+        5,
+        6,
+        8,
+        9,
+        11
+      ]
+    }
+  ],
+  "gate": {
+    "Lydian": {
+      "character": [
+        6
+      ],
+      "words": "#4"
+    },
+    "Mixolydian": {
+      "character": [
+        10
+      ],
+      "words": "b7"
+    },
+    "Dorian": {
+      "character": [
+        9
+      ],
+      "words": "natural 6 over a minor 3rd"
+    },
+    "Aeolian": {
+      "character": [
+        8
+      ],
+      "words": "b6"
+    },
+    "Phrygian": {
+      "character": [
+        1
+      ],
+      "words": "b2"
+    },
+    "Locrian": {
+      "character": [
+        6
+      ],
+      "words": "b5"
+    },
+    "Lydian dominant": {
+      "character": [
+        6,
+        10
+      ],
+      "words": "#4 and b7"
+    },
+    "melodic minor": {
+      "character": [
+        9,
+        11
+      ],
+      "words": "natural 6 and 7 over a minor 3rd"
+    }
+  },
+  "cases": [
+    {"id":"s-rank-01","group":"prototype-11","kind":"rank","label":"Abmaj13#11 in Eb major","chord":"Abmaj13#11","chord_notes":["Ab","C","Eb","G","Bb","D","F"],"root":"Ab","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Lydian","root_name":"Ab","sounded":true,"implied":[],"canvas":true}},
+    {"id":"s-rank-02","group":"prototype-11","kind":"rank","label":"Abmaj9 in Eb major, no 4th heard (gate closed)","chord":"Abmaj9","chord_notes":["Ab","C","Eb","G","Bb"],"root":"Ab","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Lydian","root_name":"Ab","sounded":false,"implied":["D","F"],"canvas":false}},
+    {"id":"s-rank-03","group":"prototype-11","kind":"rank","label":"Cmaj9 in C major","chord":"Cmaj9","chord_notes":["C","E","G","B","D"],"root":"C","key":"C major","melody":{},"recent":[],"expect":{"top":"Ionian","root_name":"C","sounded":false,"implied":["F","A"],"canvas":false}},
+    {"id":"s-rank-04","group":"prototype-11","kind":"rank","label":"Dm7 in C major","chord":"Dm7","chord_notes":["D","F","A","C"],"root":"D","key":"C major","melody":{},"recent":[],"expect":{"top":"Dorian","root_name":"D","sounded":false,"implied":["E","G","B"],"canvas":false}},
+    {"id":"s-rank-05","group":"prototype-11","kind":"rank","label":"Am7 with an F melody in C major","chord":"Am7","chord_notes":["A","C","E","G"],"root":"A","key":"C major","melody":{"F":0.3,"D":0.2},"recent":[],"expect":{"top":"Aeolian","root_name":"A","sounded":true,"implied":["B"],"canvas":true}},
+    {"id":"s-rank-06","group":"prototype-11","kind":"rank","label":"G7 in C major","chord":"G7","chord_notes":["G","B","D","F"],"root":"G","key":"C major","melody":{},"recent":[],"expect":{"top":"Mixolydian","root_name":"G","sounded":true,"implied":["A","C","E"],"canvas":true}},
+    {"id":"s-rank-07","group":"prototype-11","kind":"rank","label":"C7#11, no key","chord":"C7#11","chord_notes":["C","E","G","Bb","F#"],"root":"C","key":null,"melody":{},"recent":[],"expect":{"top":"Lydian dominant","root_name":"C","sounded":true,"implied":["D","A"],"canvas":false}},
+    {"id":"s-rank-08","group":"prototype-11","kind":"rank","label":"G7#9b13 into Cm","chord":"G7#9b13","chord_notes":["G","B","F","Bb","Eb"],"root":"G","key":"C minor","melody":{},"recent":[],"expect":{"top":"altered","root_name":"G","sounded":false,"implied":["Ab","Db"],"canvas":false}},
+    {"id":"s-rank-09","group":"prototype-11","kind":"rank","label":"E7b9 in A minor","chord":"E7b9","chord_notes":["E","G#","B","D","F"],"root":"E","key":"A minor","melody":{},"recent":[],"expect":{"top":"Phrygian dominant","root_name":"E","sounded":false,"implied":["A","C"],"canvas":false}},
+    {"id":"s-rank-10","group":"prototype-11","kind":"rank","label":"C7 with an Eb Gb melody (blues)","chord":"C7","chord_notes":["C","E","G","Bb"],"root":"C","key":"C major","melody":{"Eb":0.4,"Gb":0.3,"F":0.3},"recent":[],"expect":{"top":"blues","root_name":"C","sounded":false,"implied":[],"canvas":false}},
+    {"id":"s-rank-11","group":"prototype-11","kind":"rank","label":"Cm7 with a pentatonic melody in Bb major","chord":"Cm7","chord_notes":["C","Eb","G","Bb"],"root":"C","key":"Bb major","melody":{"F":0.4},"recent":[],"expect":{"top":"Dorian","root_name":"C","sounded":false,"implied":["D","A"],"canvas":false}},
+    {"id":"s-rank-12","group":"implied","kind":"rank","label":"Abmaj9 in Eb major, D struck in the last 2 s over the same reading (gate open)","chord":"Abmaj9","chord_notes":["Ab","C","Eb","G","Bb"],"root":"Ab","key":"Eb major","melody":{},"recent":["D"],"expect":{"top":"Lydian","root_name":"Ab","sounded":true,"implied":["F"],"canvas":true}},
+    {"id":"s-rank-13","group":"implied","kind":"rank","label":"Fm7 in Eb major, no D (gate closed)","chord":"Fm7","chord_notes":["F","Ab","C","Eb"],"root":"F","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Dorian","root_name":"F","sounded":false,"implied":["G","Bb","D"],"canvas":false}},
+    {"id":"s-rank-14","group":"gate","kind":"rank","label":"Fm9 with a D melody in Eb major","chord":"Fm9","chord_notes":["F","Ab","C","Eb","G"],"root":"F","key":"Eb major","melody":{"D":0.3},"recent":[],"expect":{"top":"Dorian","root_name":"F","sounded":true,"implied":["Bb"],"canvas":true}},
+    {"id":"s-rank-15","group":"implied","kind":"rank","label":"Gm7 in Eb major, no Ab (gate closed)","chord":"Gm7","chord_notes":["G","Bb","D","F"],"root":"G","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Phrygian","root_name":"G","sounded":false,"implied":["Ab","C","Eb"],"canvas":false}},
+    {"id":"s-rank-16","group":"gate","kind":"rank","label":"Gm7 with an Ab melody in Eb major","chord":"Gm7","chord_notes":["G","Bb","D","F"],"root":"G","key":"Eb major","melody":{"Ab":0.3},"recent":[],"expect":{"top":"Phrygian","root_name":"G","sounded":true,"implied":["C","Eb"],"canvas":true}},
+    {"id":"s-rank-17","group":"gate","kind":"rank","label":"Dm7b5 in Eb major (the b5 is a chord tone)","chord":"Dm7b5","chord_notes":["D","F","Ab","C"],"root":"D","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Locrian","root_name":"D","sounded":true,"implied":["Eb","G","Bb"],"canvas":true}},
+    {"id":"s-rank-18","group":"gate","kind":"rank","label":"Ebmaj7 in Eb major: never the key's own Ionian over 1","chord":"Ebmaj7","chord_notes":["Eb","G","Bb","D"],"root":"Eb","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Ionian","root_name":"Eb","sounded":false,"implied":["F","Ab","C"],"canvas":false}},
+    {"id":"s-rank-19","group":"implied","kind":"rank","label":"Cm7 in Eb major, no Ab (gate closed)","chord":"Cm7","chord_notes":["C","Eb","G","Bb"],"root":"C","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Aeolian","root_name":"C","sounded":false,"implied":["D","F","Ab"],"canvas":false}},
+    {"id":"s-rank-20","group":"gate","kind":"rank","label":"Cm with Ab and Bb in C minor: never Aeolian over a minor tonic","chord":"Cm","chord_notes":["C","Eb","G"],"root":"C","key":"C minor","melody":{"Ab":0.3,"Bb":0.3},"recent":[],"expect":{"top":"Aeolian","root_name":"C","sounded":true,"implied":["D","F"],"canvas":false}},
+    {"id":"s-rank-21","group":"gate","kind":"rank","label":"Bb7 in Eb major","chord":"Bb7","chord_notes":["Bb","D","F","Ab"],"root":"Bb","key":"Eb major","melody":{},"recent":[],"expect":{"top":"Mixolydian","root_name":"Bb","sounded":true,"implied":["C","Eb","G"],"canvas":true}},
+    {"id":"s-rank-22","group":"spelling","kind":"rank","label":"Bbmaj7 in G major: the root is spelled Bb, never A# (A7)","chord":"Bbmaj7","chord_notes":["Bb","D","F","A"],"root":"Bb","key":"G major","melody":{},"recent":[],"expect":{"top":"Lydian","root_name":"Bb","sounded":false,"implied":["C","E","G"],"canvas":false}},
+    {"id":"s-rank-23","group":"gate","kind":"rank","label":"Cm(maj7) with an A in C minor","chord":"Cm(maj7)","chord_notes":["C","Eb","G","B"],"root":"C","key":"C minor","melody":{"A":0.3},"recent":[],"expect":{"top":"melodic minor","root_name":"C","sounded":true,"implied":["D","F"]}},
+    {"id":"g-01","group":"gate","kind":"gate","scale":"Lydian","root":"Ab","heard":["Ab","C","Eb","G"],"recent":[],"expect":{"gate":false}},
+    {"id":"g-02","group":"gate","kind":"gate","scale":"Lydian","root":"Ab","heard":["Ab","C","Eb","G"],"recent":["D"],"expect":{"gate":true}},
+    {"id":"g-03","group":"gate","kind":"gate","scale":"Lydian dominant","root":"C","heard":["C","E","G","F#"],"recent":[],"expect":{"gate":false}},
+    {"id":"g-04","group":"gate","kind":"gate","scale":"Lydian dominant","root":"C","heard":["C","E","G","Bb","F#"],"recent":[],"expect":{"gate":true}},
+    {"id":"g-05","group":"gate","kind":"gate","scale":"melodic minor","root":"C","heard":["C","Eb","G","A"],"recent":[],"expect":{"gate":false}},
+    {"id":"g-06","group":"gate","kind":"gate","scale":"melodic minor","root":"C","heard":["C","Eb","G","A","B"],"recent":[],"expect":{"gate":true}},
+    {"id":"g-07","group":"gate","kind":"gate","scale":"Dorian","root":"D","heard":["D","F","A","B"],"recent":[],"expect":{"gate":true}},
+    {"id":"g-08","group":"gate","kind":"gate","scale":"Mixolydian","root":"G","heard":["G","B","D"],"recent":[],"expect":{"gate":false}},
+    {"id":"g-09","group":"gate","kind":"gate","scale":"Aeolian","root":"A","heard":["A","C","E"],"recent":["F"],"expect":{"gate":true}},
+    {"id":"g-10","group":"gate","kind":"gate","scale":"Phrygian","root":"E","heard":["E","G","B","F"],"recent":[],"expect":{"gate":true}},
+    {"id":"g-11","group":"gate","kind":"gate","scale":"Locrian","root":"B","heard":["B","D","F"],"recent":[],"expect":{"gate":true}},
+    {"id":"g-12","group":"gate","kind":"gate","scale":"Ionian","root":"C","heard":["C","E","G","B","D","F","A"],"recent":[],"expect":{"gate":false}},
+    {"id":"c-01","group":"vamp","kind":"centre","label":"Dm7 G7 vamp in C major","key":"C major","chords":[{"chord":"Dm7","root":"D","family":"min","seconds":6},{"chord":"G7","root":"G","family":"dom","seconds":3},{"chord":"Dm7","root":"D","family":"min","seconds":6},{"chord":"G7","root":"G","family":"dom","seconds":3},{"chord":"Dm7","root":"D","family":"min","seconds":6},{"chord":"G7","root":"G","family":"dom","seconds":3}],"expect":{"centre":{"root":"D","mode":"Dorian"}}},
+    {"id":"c-02","group":"vamp","kind":"centre","label":"Am7 D vamp in G major","key":"G major","chords":[{"chord":"Am7","root":"A","family":"min","seconds":6},{"chord":"D","root":"D","family":"maj","seconds":6},{"chord":"Am7","root":"A","family":"min","seconds":6},{"chord":"D","root":"D","family":"maj","seconds":6}],"expect":{"centre":{"root":"A","mode":"Dorian"}}},
+    {"id":"c-03","group":"vamp","kind":"centre","label":"Am F C G in C major","key":"C major","chords":[{"chord":"Am","root":"A","family":"min","seconds":3},{"chord":"F","root":"F","family":"maj","seconds":3},{"chord":"C","root":"C","family":"maj","seconds":3},{"chord":"G","root":"G","family":"maj","seconds":3},{"chord":"Am","root":"A","family":"min","seconds":3},{"chord":"F","root":"F","family":"maj","seconds":3},{"chord":"C","root":"C","family":"maj","seconds":3},{"chord":"G","root":"G","family":"maj","seconds":3}],"expect":{"centre":{"root":"A","mode":"Aeolian"}}},
+    {"id":"c-04","group":"vamp","kind":"centre","label":"6m 4 1 5 with a long 6m in Eb major","key":"Eb major","chords":[{"chord":"Cm","root":"C","family":"min","seconds":8},{"chord":"Ab","root":"Ab","family":"maj","seconds":3},{"chord":"Eb","root":"Eb","family":"maj","seconds":3},{"chord":"Bb","root":"Bb","family":"maj","seconds":3},{"chord":"Cm","root":"C","family":"min","seconds":8},{"chord":"Ab","root":"Ab","family":"maj","seconds":3},{"chord":"Eb","root":"Eb","family":"maj","seconds":3},{"chord":"Bb","root":"Bb","family":"maj","seconds":3}],"expect":{"centre":{"root":"C","mode":"Aeolian"}}},
+    {"id":"c-05","group":"daniel","kind":"centre","label":"his loop 1maj9 4maj13#11 in Db major","key":"Db major","chords":[{"chord":"Dbmaj9","root":"Db","family":"maj","seconds":6},{"chord":"Gbmaj13#11","root":"Gb","family":"maj","seconds":6},{"chord":"Dbmaj9","root":"Db","family":"maj","seconds":6},{"chord":"Gbmaj13#11","root":"Gb","family":"maj","seconds":6}],"expect":{"centre":null}},
+    {"id":"c-06","group":"daniel","kind":"centre","label":"his loop started on the 4 in Db major","key":"Db major","chords":[{"chord":"Gbmaj13#11","root":"Gb","family":"maj","seconds":6},{"chord":"Dbmaj9","root":"Db","family":"maj","seconds":6},{"chord":"Gbmaj13#11","root":"Gb","family":"maj","seconds":6},{"chord":"Dbmaj9","root":"Db","family":"maj","seconds":6}],"expect":{"centre":null}},
+    {"id":"c-07","group":"guard","kind":"centre","label":"Dm7 G7 for only 12 s: a passage, not a vamp","key":"C major","chords":[{"chord":"Dm7","root":"D","family":"min","seconds":4},{"chord":"G7","root":"G","family":"dom","seconds":2},{"chord":"Dm7","root":"D","family":"min","seconds":4},{"chord":"G7","root":"G","family":"dom","seconds":2}],"expect":{"centre":null}},
+    {"id":"c-08","group":"guard","kind":"centre","label":"F G vamp with no C in C major: Lydian","key":"C major","chords":[{"chord":"Fmaj7#11","root":"F","family":"maj","seconds":8},{"chord":"G","root":"G","family":"maj","seconds":2},{"chord":"Fmaj7#11","root":"F","family":"maj","seconds":8},{"chord":"G","root":"G","family":"maj","seconds":2},{"chord":"Fmaj7#11","root":"F","family":"maj","seconds":8}],"expect":{"centre":{"root":"F","mode":"Lydian"}}},
+    {"id":"c-09","group":"guard","kind":"centre","label":"F C vamp in C major: the 4 leans home, the tonic is over 10%","key":"C major","chords":[{"chord":"F","root":"F","family":"maj","seconds":8},{"chord":"C","root":"C","family":"maj","seconds":3},{"chord":"F","root":"F","family":"maj","seconds":8},{"chord":"C","root":"C","family":"maj","seconds":3},{"chord":"F","root":"F","family":"maj","seconds":8}],"expect":{"centre":null}},
+    {"id":"c-10","group":"guard","kind":"centre","label":"G F vamp in C major: Mixolydian","key":"C major","chords":[{"chord":"G","root":"G","family":"maj","seconds":6},{"chord":"F","root":"F","family":"maj","seconds":6},{"chord":"G","root":"G","family":"maj","seconds":6},{"chord":"F","root":"F","family":"maj","seconds":6}],"expect":{"centre":{"root":"G","mode":"Mixolydian"}}},
+    {"id":"c-11","group":"guard","kind":"centre","label":"D G vamp in C major: a major chord on the 2 is no Dorian centre","key":"C major","chords":[{"chord":"D","root":"D","family":"maj","seconds":8},{"chord":"G","root":"G","family":"maj","seconds":4},{"chord":"D","root":"D","family":"maj","seconds":8},{"chord":"G","root":"G","family":"maj","seconds":4}],"expect":{"centre":null}},
+    {"id":"v-01","group":"view","kind":"view","label":"a challenger within 0.35 never takes over","margin":0.35,"hold_ms":1500,"steps":[{"t":0,"same_window":false,"ranked":[{"name":"Lydian","root":"Ab","score":0},{"name":"Ionian","root":"Ab","score":0.3}],"expect":{"name":"Lydian","root":"Ab"}},{"t":500,"same_window":true,"ranked":[{"name":"Ionian","root":"Ab","score":0},{"name":"Lydian","root":"Ab","score":0.3}],"expect":{"name":"Lydian","root":"Ab"}},{"t":2500,"same_window":true,"ranked":[{"name":"Ionian","root":"Ab","score":0},{"name":"Lydian","root":"Ab","score":0.3}],"expect":{"name":"Lydian","root":"Ab"}}]},
+    {"id":"v-02","group":"view","kind":"view","label":"a challenger ahead by more than 0.35 takes over after 1.5 s of the same window","margin":0.35,"hold_ms":1500,"steps":[{"t":0,"same_window":false,"ranked":[{"name":"Dorian","root":"D","score":0},{"name":"Aeolian","root":"D","score":0.5}],"expect":{"name":"Dorian","root":"D"}},{"t":100,"same_window":true,"ranked":[{"name":"Aeolian","root":"D","score":0},{"name":"Dorian","root":"D","score":0.5}],"expect":{"name":"Dorian","root":"D"}},{"t":1000,"same_window":true,"ranked":[{"name":"Aeolian","root":"D","score":0},{"name":"Dorian","root":"D","score":0.5}],"expect":{"name":"Dorian","root":"D"}},{"t":1600,"same_window":true,"ranked":[{"name":"Aeolian","root":"D","score":0},{"name":"Dorian","root":"D","score":0.5}],"expect":{"name":"Aeolian","root":"D"}}]},
+    {"id":"v-03","group":"view","kind":"view","label":"a new chord the shown scale cannot hold switches at once","margin":0.35,"hold_ms":1500,"steps":[{"t":0,"same_window":false,"ranked":[{"name":"Lydian","root":"Ab","score":0}],"expect":{"name":"Lydian","root":"Ab"}},{"t":300,"same_window":false,"ranked":[{"name":"Mixolydian","root":"Bb","score":0},{"name":"Lydian","root":"Ab","score":5}],"expect":{"name":"Mixolydian","root":"Bb"}}]}
+  ]
+}

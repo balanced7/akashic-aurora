@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arsenal.piano.theory.contracts/v1",
+  "title": "Theory next-gen shapes, frozen at TN0 (theory-nextgen-spec 2.2-2.5, 3.1-3.4)",
+  "description": "The shapes chordread.js, harmony.js, scales.js, function.js and the page's window.__piano.theory.frame() return. Module headers copy these; tests/theory_chordread.test.mjs checks the reader's results against Reading, ReadResult, AlsoResult and DetectInfo. Additive fields are allowed; removing or renaming one goes through the conductor.",
+  "$defs": {
+    "pc": { "type": "integer", "minimum": 0, "maximum": 11 },
+    "band": { "enum": ["clear", "leaning", "ambiguous", "none"] },
+    "family": { "enum": ["maj", "min", "dom", "sus", "dim", "hdim", "aug", "open", "other"] },
+    "Reading": {
+      "type": "object",
+      "required": ["root", "suffix", "bass", "name", "cost", "p", "reasons", "base", "tensions", "omit", "path"],
+      "properties": {
+        "root": { "$ref": "#/$defs/pc" },
+        "suffix": { "type": "string" },
+        "bass": { "anyOf": [{ "$ref": "#/$defs/pc" }, { "type": "null" }], "description": "null when the bass is the root" },
+        "name": { "type": "string", "minLength": 1, "description": "root spelled in the key (spellInKey), suffix, slash bass" },
+        "cost": { "type": "number" },
+        "p": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reasons": { "type": "array", "items": { "type": "string" }, "description": "plain strings, each an instance of a lexicon reason.* entry" },
+        "base": {
+          "type": "object", "required": ["id", "family"],
+          "properties": { "id": { "type": "string" }, "family": { "$ref": "#/$defs/family" } }
+        },
+        "tensions": { "type": "array", "items": { "$ref": "#/$defs/pc" }, "description": "semitones above the root" },
+        "omit": {
+          "type": "object", "required": ["no3", "no5", "rootless"],
+          "properties": { "no3": { "type": "boolean" }, "no5": { "type": "boolean" }, "rootless": { "type": "boolean" } }
+        },
+        "path": { "enum": ["full", "slash", "drop", "template"] }
+      }
+    },
+    "Tag": {
+      "type": "object", "required": ["tag"],
+      "properties": { "tag": { "enum": ["upper structure", "polychord", "quartal", "cluster"] } }
+    },
+    "ReadResult": {
+      "type": "object",
+      "required": ["kind", "readings", "band", "margin", "confidence", "tags"],
+      "properties": {
+        "kind": { "enum": ["chord", "cluster", "small"] },
+        "readings": { "type": "array", "items": { "$ref": "#/$defs/Reading" } },
+        "band": { "$ref": "#/$defs/band" },
+        "margin": { "type": "number" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tags": { "type": "array", "items": { "$ref": "#/$defs/Tag" } },
+        "key": { "anyOf": [{ "type": "string" }, { "type": "null" }], "description": "additive: the key the result was read in, so alsoOf can spell in it" }
+      }
+    },
+    "AlsoResult": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "object", "required": ["name", "kind"], "properties": { "name": { "type": "string", "minLength": 1 }, "kind": { "const": "was" } } }
+      ]
+    },
+    "DetectInfo": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "description": "today's Theory.detect info shape from the top reading, plus readings, band, tags and no3",
+      "properties": {
+        "kind": { "enum": ["chord", "cluster", "interval", "note"] },
+        "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "readings": { "type": "array" },
+        "band": { "$ref": "#/$defs/band" },
+        "tags": { "type": "array" },
+        "no3": { "type": "boolean" }
+      }
+    },
+    "ParsedSuffix": {
+      "type": "object",
+      "required": ["tones", "family", "dominant", "tensions"],
+      "properties": {
+        "tones": { "type": "object", "description": "{ semitones: letter steps }, the root included" },
+        "family": { "type": "string" },
+        "dominant": { "type": "boolean" },
+        "tensions": { "type": "array", "items": { "$ref": "#/$defs/pc" } }
+      }
+    },
+    "ScaleResult": {
+      "type": "object",
+      "required": ["name", "rootName", "score", "set", "character", "sounded", "implied"],
+      "properties": {
+        "name": { "type": "string" },
+        "rootName": { "type": "string", "description": "spelled in the key (A7)" },
+        "score": { "type": "number" },
+        "set": { "type": "array", "items": { "$ref": "#/$defs/pc" } },
+        "character": { "type": "array", "items": { "$ref": "#/$defs/pc" } },
+        "sounded": { "type": "boolean" },
+        "implied": { "type": "array", "items": { "$ref": "#/$defs/pc" } }
+      }
+    },
+    "CentreResult": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "object", "required": ["root", "mode", "share", "tonicShare"], "properties": { "root": { "$ref": "#/$defs/pc" }, "mode": { "type": "string" }, "share": { "type": "number" }, "tonicShare": { "type": "number" } } }
+      ]
+    },
+    "FunctionResult": {
+      "type": "object",
+      "required": ["label", "target", "lexId", "detail"],
+      "properties": {
+        "label": { "enum": ["diatonic", "secondary dominant", "backdoor", "tritone substitute", "passing diminished", "from the old key", "borrowed", "modal colour", "chromatic"] },
+        "target": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "lexId": { "type": "string", "pattern": "^fn\\." },
+        "detail": { "type": "object" }
+      }
+    },
+    "HarmonyWindow": {
+      "type": "object",
+      "required": ["id", "startT", "pcs", "salience", "bassMidi", "heldMs"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "startT": { "type": "number" },
+        "pcs": { "type": "array", "items": { "$ref": "#/$defs/pc" } },
+        "salience": { "type": "array", "minItems": 12, "maxItems": 12, "items": { "type": "number" } },
+        "bassMidi": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "heldMs": { "type": "number", "minimum": 0 }
+      }
+    },
+    "HarmonyTick": {
+      "type": "object",
+      "required": ["window", "reading", "also", "changed", "upgradeOf", "stats"],
+      "properties": {
+        "window": { "anyOf": [{ "$ref": "#/$defs/HarmonyWindow" }, { "type": "null" }] },
+        "reading": { "anyOf": [{ "$ref": "#/$defs/ReadResult" }, { "type": "null" }] },
+        "also": { "$ref": "#/$defs/AlsoResult" },
+        "changed": { "enum": ["none", "grow", "new"] },
+        "upgradeOf": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "stats": { "type": "object" }
+      }
+    },
+    "NoteEvent": {
+      "type": "object",
+      "required": ["t_ms", "kind", "source"],
+      "properties": {
+        "t_ms": { "type": "number", "minimum": 0 },
+        "kind": { "enum": ["on", "off", "sound_end", "pedal"] },
+        "note": { "type": "integer", "minimum": 21, "maximum": 108 },
+        "vel": { "type": "integer", "minimum": 1, "maximum": 127 },
+        "by": { "enum": ["release", "pedal", "repeat"] },
+        "down": { "type": "boolean" },
+        "source": { "enum": ["midi", "keys", "demo", "claude", "replay", "ghost"], "description": "harmony.js hears midi, keys and demo only (H2)" }
+      }
+    },
+    "CaptionRun": {
+      "type": "object",
+      "required": ["text", "role", "lexId"],
+      "properties": {
+        "text": { "type": "string" },
+        "role": { "enum": ["plain", "theory", "key"] },
+        "lexId": { "anyOf": [{ "type": "string" }, { "type": "null" }], "description": "null only for a slot's own text (a key or scale name)" }
+      }
+    },
+    "TheoryFrame": {
+      "type": "object",
+      "description": "window.__piano.theory.frame(): what the theory surfaces draw this frame (spec 3.1-3.4).",
+      "required": ["api", "t_ms", "view", "chordName", "engine", "window", "label", "chip", "row", "diamond", "scale", "function", "key", "hud"],
+      "properties": {
+        "api": { "const": "arsenal.piano.theory.frame/v1" },
+        "t_ms": { "type": "number" },
+        "view": { "enum": ["classic", "nextgen"] },
+        "chordName": { "enum": ["steady", "every"] },
+        "engine": { "enum": ["reader", "templates"] },
+        "lesson": { "type": "boolean" },
+        "window": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "object", "required": ["id", "startT", "heldMs", "changed"], "properties": { "id": { "type": "integer" }, "startT": { "type": "number" }, "heldMs": { "type": "number" }, "changed": { "enum": ["none", "grow", "new"] } } }
+          ]
+        },
+        "label": {
+          "type": "object", "required": ["name", "kind", "band", "pop"],
+          "properties": {
+            "name": { "anyOf": [{ "type": "string" }, { "type": "null" }], "description": "drawn without (no3) (D12)" },
+            "kind": { "enum": ["chord", "cluster", "small", "note", "interval", "none"] },
+            "band": { "$ref": "#/$defs/band" },
+            "pop": { "type": "boolean", "description": "true only on a window's new commit (H3)" }
+          }
+        },
+        "chip": {
+          "type": "object", "required": ["no3", "also"],
+          "properties": { "no3": { "type": "boolean" }, "also": { "$ref": "#/$defs/AlsoResult" } }
+        },
+        "row": {
+          "type": "object", "required": ["number", "priority", "runs", "dim", "banner"],
+          "properties": {
+            "number": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "priority": { "type": "integer", "minimum": 0, "maximum": 4 },
+            "runs": { "type": "array", "items": { "$ref": "#/$defs/CaptionRun" } },
+            "dim": { "type": "boolean" },
+            "banner": { "type": "boolean" }
+          }
+        },
+        "diamond": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "object", "required": ["pc"], "properties": { "pc": { "$ref": "#/$defs/pc" }, "midi": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } } }
+          ]
+        },
+        "scale": {
+          "anyOf": [
+            { "type": "null" },
+            { "allOf": [{ "$ref": "#/$defs/ScaleResult" }], "type": "object", "properties": { "canvas": { "type": "boolean" } } }
+          ]
+        },
+        "function": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/FunctionResult" }] },
+        "key": {
+          "anyOf": [
+            { "type": "null" },
+            { "type": "object", "required": ["name", "confidence", "locked", "jam"], "properties": { "name": { "type": "string" }, "confidence": { "enum": ["sure", "fair", "unsure"] }, "locked": { "type": "boolean" }, "jam": { "type": "boolean" } } }
+          ]
+        },
+        "hud": {
+          "type": "object", "required": ["line", "readings", "close", "centre"],
+          "properties": {
+            "line": { "type": "string" },
+            "readings": { "type": "array", "items": { "type": "object", "required": ["name", "cost"], "properties": { "name": { "type": "string" }, "cost": { "type": "number" } } } },
+            "close": { "anyOf": [{ "type": "null" }, { "type": "string" }] },
+            "centre": { "$ref": "#/$defs/CentreResult" }
+          }
+        }
+      }
+    }
+  }
+}

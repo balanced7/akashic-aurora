@@ -1,0 +1,107 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws16-computer-keys-blocks",
+  "about": "computer keys (velocity 92, all notes at once): four blocks on new basses",
+  "key": "C major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "keys"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 6000,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Cmaj9"
+      },
+      {
+        "start_ms": 1500,
+        "cause": "new bass",
+        "played": "Am11"
+      },
+      {
+        "start_ms": 3000,
+        "cause": "new bass",
+        "played": "Fmaj7#11"
+      },
+      {
+        "start_ms": 4500,
+        "cause": "new bass",
+        "played": "G7sus4"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":36,"vel":86,"source":"keys"},
+    {"t_ms":0,"kind":"on","note":52,"vel":93,"source":"keys"},
+    {"t_ms":0,"kind":"on","note":59,"vel":87,"source":"keys"},
+    {"t_ms":0,"kind":"on","note":62,"vel":94,"source":"keys"},
+    {"t_ms":0,"kind":"on","note":67,"vel":88,"source":"keys"},
+    {"t_ms":1480,"kind":"off","note":36,"source":"keys"},
+    {"t_ms":1480,"kind":"off","note":52,"source":"keys"},
+    {"t_ms":1480,"kind":"off","note":59,"source":"keys"},
+    {"t_ms":1480,"kind":"off","note":62,"source":"keys"},
+    {"t_ms":1480,"kind":"off","note":67,"source":"keys"},
+    {"t_ms":1480,"kind":"sound_end","note":36,"by":"release","source":"keys"},
+    {"t_ms":1480,"kind":"sound_end","note":52,"by":"release","source":"keys"},
+    {"t_ms":1480,"kind":"sound_end","note":59,"by":"release","source":"keys"},
+    {"t_ms":1480,"kind":"sound_end","note":62,"by":"release","source":"keys"},
+    {"t_ms":1480,"kind":"sound_end","note":67,"by":"release","source":"keys"},
+    {"t_ms":1500,"kind":"on","note":45,"vel":86,"source":"keys"},
+    {"t_ms":1500,"kind":"on","note":55,"vel":93,"source":"keys"},
+    {"t_ms":1500,"kind":"on","note":60,"vel":87,"source":"keys"},
+    {"t_ms":1500,"kind":"on","note":71,"vel":94,"source":"keys"},
+    {"t_ms":1500,"kind":"on","note":74,"vel":88,"source":"keys"},
+    {"t_ms":2980,"kind":"off","note":45,"source":"keys"},
+    {"t_ms":2980,"kind":"off","note":55,"source":"keys"},
+    {"t_ms":2980,"kind":"off","note":60,"source":"keys"},
+    {"t_ms":2980,"kind":"off","note":71,"source":"keys"},
+    {"t_ms":2980,"kind":"off","note":74,"source":"keys"},
+    {"t_ms":2980,"kind":"sound_end","note":45,"by":"release","source":"keys"},
+    {"t_ms":2980,"kind":"sound_end","note":55,"by":"release","source":"keys"},
+    {"t_ms":2980,"kind":"sound_end","note":60,"by":"release","source":"keys"},
+    {"t_ms":2980,"kind":"sound_end","note":71,"by":"release","source":"keys"},
+    {"t_ms":2980,"kind":"sound_end","note":74,"by":"release","source":"keys"},
+    {"t_ms":3000,"kind":"on","note":41,"vel":86,"source":"keys"},
+    {"t_ms":3000,"kind":"on","note":52,"vel":93,"source":"keys"},
+    {"t_ms":3000,"kind":"on","note":57,"vel":87,"source":"keys"},
+    {"t_ms":3000,"kind":"on","note":71,"vel":94,"source":"keys"},
+    {"t_ms":3000,"kind":"on","note":72,"vel":88,"source":"keys"},
+    {"t_ms":4480,"kind":"off","note":41,"source":"keys"},
+    {"t_ms":4480,"kind":"off","note":52,"source":"keys"},
+    {"t_ms":4480,"kind":"off","note":57,"source":"keys"},
+    {"t_ms":4480,"kind":"off","note":71,"source":"keys"},
+    {"t_ms":4480,"kind":"off","note":72,"source":"keys"},
+    {"t_ms":4480,"kind":"sound_end","note":41,"by":"release","source":"keys"},
+    {"t_ms":4480,"kind":"sound_end","note":52,"by":"release","source":"keys"},
+    {"t_ms":4480,"kind":"sound_end","note":57,"by":"release","source":"keys"},
+    {"t_ms":4480,"kind":"sound_end","note":71,"by":"release","source":"keys"},
+    {"t_ms":4480,"kind":"sound_end","note":72,"by":"release","source":"keys"},
+    {"t_ms":4500,"kind":"on","note":43,"vel":86,"source":"keys"},
+    {"t_ms":4500,"kind":"on","note":53,"vel":93,"source":"keys"},
+    {"t_ms":4500,"kind":"on","note":60,"vel":87,"source":"keys"},
+    {"t_ms":4500,"kind":"on","note":74,"vel":94,"source":"keys"},
+    {"t_ms":5980,"kind":"off","note":43,"source":"keys"},
+    {"t_ms":5980,"kind":"off","note":53,"source":"keys"},
+    {"t_ms":5980,"kind":"off","note":60,"source":"keys"},
+    {"t_ms":5980,"kind":"off","note":74,"source":"keys"},
+    {"t_ms":5980,"kind":"sound_end","note":43,"by":"release","source":"keys"},
+    {"t_ms":5980,"kind":"sound_end","note":53,"by":"release","source":"keys"},
+    {"t_ms":5980,"kind":"sound_end","note":60,"by":"release","source":"keys"},
+    {"t_ms":5980,"kind":"sound_end","note":74,"by":"release","source":"keys"}
+  ]
+}

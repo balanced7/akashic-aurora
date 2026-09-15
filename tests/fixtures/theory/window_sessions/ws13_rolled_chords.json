@@ -1,0 +1,70 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws13-rolled-chords",
+  "about": "two chords rolled over 160 ms each (Demo): each roll is one window from its first note",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0,
+    "sources": [
+      "demo"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 4000,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Ebmaj9"
+      },
+      {
+        "start_ms": 2000,
+        "cause": "new bass",
+        "played": "Abmaj9"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"on","note":39,"vel":58,"source":"demo"},
+    {"t_ms":40,"kind":"on","note":46,"vel":65,"source":"demo"},
+    {"t_ms":80,"kind":"on","note":55,"vel":59,"source":"demo"},
+    {"t_ms":120,"kind":"on","note":62,"vel":66,"source":"demo"},
+    {"t_ms":160,"kind":"on","note":65,"vel":60,"source":"demo"},
+    {"t_ms":1800,"kind":"off","note":39,"source":"demo"},
+    {"t_ms":1800,"kind":"sound_end","note":39,"by":"release","source":"demo"},
+    {"t_ms":1840,"kind":"off","note":46,"source":"demo"},
+    {"t_ms":1840,"kind":"sound_end","note":46,"by":"release","source":"demo"},
+    {"t_ms":1880,"kind":"off","note":55,"source":"demo"},
+    {"t_ms":1880,"kind":"sound_end","note":55,"by":"release","source":"demo"},
+    {"t_ms":1920,"kind":"off","note":62,"source":"demo"},
+    {"t_ms":1920,"kind":"sound_end","note":62,"by":"release","source":"demo"},
+    {"t_ms":1960,"kind":"off","note":65,"source":"demo"},
+    {"t_ms":1960,"kind":"sound_end","note":65,"by":"release","source":"demo"},
+    {"t_ms":2000,"kind":"on","note":44,"vel":58,"source":"demo"},
+    {"t_ms":2040,"kind":"on","note":51,"vel":65,"source":"demo"},
+    {"t_ms":2080,"kind":"on","note":60,"vel":59,"source":"demo"},
+    {"t_ms":2120,"kind":"on","note":67,"vel":66,"source":"demo"},
+    {"t_ms":2160,"kind":"on","note":74,"vel":60,"source":"demo"},
+    {"t_ms":3800,"kind":"off","note":44,"source":"demo"},
+    {"t_ms":3800,"kind":"sound_end","note":44,"by":"release","source":"demo"},
+    {"t_ms":3840,"kind":"off","note":51,"source":"demo"},
+    {"t_ms":3840,"kind":"sound_end","note":51,"by":"release","source":"demo"},
+    {"t_ms":3880,"kind":"off","note":60,"source":"demo"},
+    {"t_ms":3880,"kind":"sound_end","note":60,"by":"release","source":"demo"},
+    {"t_ms":3920,"kind":"off","note":67,"source":"demo"},
+    {"t_ms":3920,"kind":"sound_end","note":67,"by":"release","source":"demo"},
+    {"t_ms":3960,"kind":"off","note":74,"source":"demo"},
+    {"t_ms":3960,"kind":"sound_end","note":74,"by":"release","source":"demo"}
+  ]
+}

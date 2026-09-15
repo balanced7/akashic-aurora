@@ -1,0 +1,69 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws06-pedal-held-through-change",
+  "about": "the pedal held through 1maj7 to 2m9: the old bass still rings under the new one, yet the chord changed",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0.93,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 6000,
+    "windows": [
+      {
+        "start_ms": 50,
+        "cause": "first",
+        "played": "Ebmaj7"
+      },
+      {
+        "start_ms": 3000,
+        "cause": "change",
+        "played": "Fm9"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"pedal","down":true,"source":"midi"},
+    {"t_ms":50,"kind":"on","note":39,"vel":58,"source":"midi"},
+    {"t_ms":58,"kind":"on","note":50,"vel":65,"source":"midi"},
+    {"t_ms":66,"kind":"on","note":55,"vel":59,"source":"midi"},
+    {"t_ms":74,"kind":"on","note":58,"vel":66,"source":"midi"},
+    {"t_ms":550,"kind":"off","note":39,"source":"midi"},
+    {"t_ms":558,"kind":"off","note":50,"source":"midi"},
+    {"t_ms":566,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":574,"kind":"off","note":58,"source":"midi"},
+    {"t_ms":3000,"kind":"on","note":41,"vel":58,"source":"midi"},
+    {"t_ms":3008,"kind":"on","note":56,"vel":65,"source":"midi"},
+    {"t_ms":3016,"kind":"on","note":60,"vel":59,"source":"midi"},
+    {"t_ms":3024,"kind":"on","note":63,"vel":66,"source":"midi"},
+    {"t_ms":3032,"kind":"on","note":67,"vel":60,"source":"midi"},
+    {"t_ms":3500,"kind":"off","note":41,"source":"midi"},
+    {"t_ms":3508,"kind":"off","note":56,"source":"midi"},
+    {"t_ms":3516,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":3524,"kind":"off","note":63,"source":"midi"},
+    {"t_ms":3532,"kind":"off","note":67,"source":"midi"},
+    {"t_ms":5600,"kind":"pedal","down":false,"source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":39,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":41,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":50,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":55,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":56,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":58,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":60,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":63,"by":"pedal","source":"midi"},
+    {"t_ms":5600,"kind":"sound_end","note":67,"by":"pedal","source":"midi"}
+  ]
+}

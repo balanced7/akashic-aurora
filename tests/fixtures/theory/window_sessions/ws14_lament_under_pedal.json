@@ -1,0 +1,82 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws14-lament-under-pedal",
+  "about": "hands struck once under a held pedal while the bass walks C Bb Ab G: a window per bass note",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0.95,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 8000,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Cm11"
+      },
+      {
+        "start_ms": 2000,
+        "cause": "new bass",
+        "played": "Cm11/Bb"
+      },
+      {
+        "start_ms": 4000,
+        "cause": "new bass",
+        "played": "Abmaj13#11"
+      },
+      {
+        "start_ms": 6000,
+        "cause": "new bass",
+        "played": "Cm11/G"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"pedal","down":true,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":48,"vel":58,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":60,"vel":58,"source":"midi"},
+    {"t_ms":10,"kind":"on","note":70,"vel":65,"source":"midi"},
+    {"t_ms":20,"kind":"on","note":74,"vel":59,"source":"midi"},
+    {"t_ms":30,"kind":"on","note":75,"vel":66,"source":"midi"},
+    {"t_ms":40,"kind":"on","note":77,"vel":60,"source":"midi"},
+    {"t_ms":50,"kind":"on","note":79,"vel":67,"source":"midi"},
+    {"t_ms":600,"kind":"off","note":48,"source":"midi"},
+    {"t_ms":600,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":610,"kind":"off","note":70,"source":"midi"},
+    {"t_ms":620,"kind":"off","note":74,"source":"midi"},
+    {"t_ms":630,"kind":"off","note":75,"source":"midi"},
+    {"t_ms":640,"kind":"off","note":77,"source":"midi"},
+    {"t_ms":650,"kind":"off","note":79,"source":"midi"},
+    {"t_ms":2000,"kind":"on","note":46,"vel":58,"source":"midi"},
+    {"t_ms":2600,"kind":"off","note":46,"source":"midi"},
+    {"t_ms":4000,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":4600,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":6000,"kind":"on","note":43,"vel":58,"source":"midi"},
+    {"t_ms":6600,"kind":"off","note":43,"source":"midi"},
+    {"t_ms":7600,"kind":"pedal","down":false,"source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":43,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":44,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":46,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":48,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":60,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":70,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":74,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":75,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":77,"by":"pedal","source":"midi"},
+    {"t_ms":7600,"kind":"sound_end","note":79,"by":"pedal","source":"midi"}
+  ]
+}

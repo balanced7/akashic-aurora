@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arsenal.piano.theory.scale_cases.schema/v1",
+  "title": "scale_cases.json",
+  "type": "object",
+  "required": ["api", "about", "conventions", "scales", "gate", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "api": { "const": "arsenal.piano.theory.scale_cases/v1" },
+    "about": { "type": "string" },
+    "conventions": { "type": "object" },
+    "scales": {
+      "type": "array", "minItems": 28, "maxItems": 28,
+      "items": {
+        "type": "object", "required": ["name", "family", "intervals"], "additionalProperties": false,
+        "properties": { "name": { "type": "string" }, "family": { "type": "string" }, "intervals": { "type": "array", "minItems": 5, "items": { "$ref": "#/$defs/semis" } } }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object", "required": ["character", "words"], "additionalProperties": false,
+        "properties": { "character": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/semis" } }, "words": { "type": "string" } }
+      }
+    },
+    "cases": { "type": "array", "minItems": 20, "items": { "anyOf": [{ "$ref": "#/$defs/rank" }, { "$ref": "#/$defs/gateCase" }, { "$ref": "#/$defs/centre" }, { "$ref": "#/$defs/view" }] } }
+  },
+  "$defs": {
+    "semis": { "type": "integer", "minimum": 0, "maximum": 11 },
+    "note": { "type": "string", "pattern": "^[A-G](#|b)?$" },
+    "key": { "anyOf": [{ "type": "string", "pattern": "^[A-G](#|b)? (major|minor)$" }, { "type": "null" }] },
+    "id": { "type": "string", "pattern": "^[a-z]-[a-z0-9-]+$" },
+    "rank": {
+      "type": "object",
+      "required": ["id", "group", "kind", "label", "chord", "chord_notes", "root", "key", "melody", "recent", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "group": { "type": "string" }, "kind": { "const": "rank" }, "label": { "type": "string" },
+        "chord": { "type": "string" }, "chord_notes": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/note" } },
+        "root": { "$ref": "#/$defs/note" }, "key": { "$ref": "#/$defs/key" },
+        "melody": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+        "recent": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "expect": {
+          "type": "object", "required": ["top", "root_name", "sounded", "implied"], "additionalProperties": false,
+          "properties": {
+            "top": { "type": "string" }, "root_name": { "$ref": "#/$defs/note" }, "sounded": { "type": "boolean" },
+            "implied": { "type": "array", "items": { "$ref": "#/$defs/note" } }, "canvas": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "gateCase": {
+      "type": "object",
+      "required": ["id", "group", "kind", "scale", "root", "heard", "recent", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "group": { "const": "gate" }, "kind": { "const": "gate" }, "scale": { "type": "string" }, "root": { "$ref": "#/$defs/note" },
+        "heard": { "type": "array", "items": { "$ref": "#/$defs/note" } }, "recent": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "expect": { "type": "object", "required": ["gate"], "additionalProperties": false, "properties": { "gate": { "type": "boolean" } } }
+      }
+    },
+    "centre": {
+      "type": "object",
+      "required": ["id", "group", "kind", "label", "key", "chords", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "group": { "type": "string" }, "kind": { "const": "centre" }, "label": { "type": "string" }, "key": { "$ref": "#/$defs/key" },
+        "chords": {
+          "type": "array", "minItems": 3,
+          "items": { "type": "object", "required": ["chord", "root", "family", "seconds"], "additionalProperties": false, "properties": { "chord": { "type": "string" }, "root": { "$ref": "#/$defs/note" }, "family": { "enum": ["maj", "min", "dom", "sus", "dim", "hdim", "aug"] }, "seconds": { "type": "number", "minimum": 0 } } }
+        },
+        "expect": {
+          "type": "object", "required": ["centre"], "additionalProperties": false,
+          "properties": { "centre": { "anyOf": [{ "type": "null" }, { "type": "object", "required": ["root", "mode"], "additionalProperties": false, "properties": { "root": { "$ref": "#/$defs/note" }, "mode": { "type": "string" } } }] } }
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": ["id", "group", "kind", "label", "margin", "hold_ms", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" }, "group": { "const": "view" }, "kind": { "const": "view" }, "label": { "type": "string" },
+        "margin": { "type": "number" }, "hold_ms": { "type": "number" },
+        "steps": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "required": ["t", "same_window", "ranked", "expect"], "additionalProperties": false,
+            "properties": {
+              "t": { "type": "number" }, "same_window": { "type": "boolean" },
+              "ranked": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["name", "root", "score"], "additionalProperties": false, "properties": { "name": { "type": "string" }, "root": { "$ref": "#/$defs/note" }, "score": { "type": "number" } } } },
+              "expect": { "type": "object", "required": ["name", "root"], "additionalProperties": false, "properties": { "name": { "type": "string" }, "root": { "$ref": "#/$defs/note" } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

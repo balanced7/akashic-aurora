@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "arsenal.piano.theory.chord_cases.schema/v1",
+  "title": "chord_readings_cases.json",
+  "type": "object",
+  "required": ["api", "about", "conventions", "groups", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "api": { "const": "arsenal.piano.theory.chord_cases/v1" },
+    "about": { "type": "string" },
+    "conventions": { "type": "object" },
+    "groups": { "type": "object" },
+    "cases": { "type": "array", "minItems": 180, "items": { "$ref": "#/$defs/case" } }
+  },
+  "$defs": {
+    "notes": { "type": "string", "pattern": "^[A-G](#|b)?-?[0-9]( [A-G](#|b)?-?[0-9])*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "band": { "enum": ["clear", "leaning", "ambiguous", "none"] },
+    "tag": { "enum": ["upper structure", "polychord", "quartal", "cluster"] },
+    "case": {
+      "type": "object",
+      "required": ["id", "group", "source", "notes", "key", "prev", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9-]*$" },
+        "group": { "enum": ["prototype", "transposed", "also-lab", "defect", "chip", "seed"] },
+        "set": { "enum": ["plain", "daniel", "dominant", "voicing"] },
+        "source": { "type": "string" },
+        "notes": { "$ref": "#/$defs/notes" },
+        "key": { "anyOf": [{ "type": "string", "pattern": "^[A-G](#|b)? (major|minor)$" }, { "type": "null" }] },
+        "prev": { "anyOf": [{ "$ref": "#/$defs/name" }, { "type": "null" }] },
+        "of": { "type": "string" },
+        "shift": { "type": "integer", "minimum": -6, "maximum": 6 },
+        "card": { "type": "string" },
+        "variant": { "type": "string" },
+        "note": { "type": "string" },
+        "expect": {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "anyOf": [{ "$ref": "#/$defs/name" }, { "type": "null" }] },
+            "accept": { "type": "array", "items": { "$ref": "#/$defs/name" } },
+            "band": { "$ref": "#/$defs/band" },
+            "band_max": { "$ref": "#/$defs/band" },
+            "also": { "anyOf": [{ "$ref": "#/$defs/name" }, { "type": "null" }] },
+            "close": { "anyOf": [{ "$ref": "#/$defs/name" }, { "type": "null" }] },
+            "kind": { "enum": ["chord", "cluster", "small"] },
+            "tags": { "type": "array", "items": { "$ref": "#/$defs/tag" } },
+            "tags_absent": { "type": "array", "items": { "$ref": "#/$defs/tag" } },
+            "base_family": { "type": "string" },
+            "no3": { "type": "boolean" },
+            "number": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "include": { "type": "array", "items": { "type": "object", "required": ["name", "within"], "additionalProperties": false, "properties": { "name": { "$ref": "#/$defs/name" }, "within": { "type": "integer", "minimum": 1 } } } },
+            "exclude": { "type": "array", "items": { "type": "object", "required": ["name"], "additionalProperties": false, "properties": { "name": { "$ref": "#/$defs/name" }, "any_bass": { "type": "boolean" } } } },
+            "strict": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

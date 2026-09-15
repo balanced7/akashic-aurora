@@ -1,0 +1,83 @@
+{
+  "api": "arsenal.piano.theory.window_session/v1",
+  "id": "ws03-arpeggio-under-pedal",
+  "about": "a seven-note arpeggio under the pedal is one chord; after a pedal change a new arpeggio on a new bass is the next",
+  "key": "Eb major",
+  "profile": {
+    "gap_ms": [
+      190,
+      250,
+      400
+    ],
+    "pedal_down_share": 0.97,
+    "sources": [
+      "midi"
+    ]
+  },
+  "same_as": null,
+  "tick_ms": [
+    100,
+    1000
+  ],
+  "expect": {
+    "tolerance_ms": 50,
+    "end_ms": 7500,
+    "windows": [
+      {
+        "start_ms": 0,
+        "cause": "first",
+        "played": "Abmaj13#11"
+      },
+      {
+        "start_ms": 4000,
+        "cause": "new bass",
+        "played": "Bb13sus4"
+      }
+    ]
+  },
+  "events": [
+    {"t_ms":0,"kind":"pedal","down":true,"source":"midi"},
+    {"t_ms":0,"kind":"on","note":44,"vel":58,"source":"midi"},
+    {"t_ms":190,"kind":"on","note":51,"vel":65,"source":"midi"},
+    {"t_ms":280,"kind":"off","note":44,"source":"midi"},
+    {"t_ms":440,"kind":"on","note":55,"vel":59,"source":"midi"},
+    {"t_ms":470,"kind":"off","note":51,"source":"midi"},
+    {"t_ms":720,"kind":"off","note":55,"source":"midi"},
+    {"t_ms":840,"kind":"on","note":58,"vel":66,"source":"midi"},
+    {"t_ms":1090,"kind":"on","note":60,"vel":60,"source":"midi"},
+    {"t_ms":1120,"kind":"off","note":58,"source":"midi"},
+    {"t_ms":1280,"kind":"on","note":62,"vel":67,"source":"midi"},
+    {"t_ms":1370,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":1530,"kind":"on","note":65,"vel":61,"source":"midi"},
+    {"t_ms":1560,"kind":"off","note":62,"source":"midi"},
+    {"t_ms":1810,"kind":"off","note":65,"source":"midi"},
+    {"t_ms":3950,"kind":"pedal","down":false,"source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":44,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":51,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":55,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":58,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":60,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":62,"by":"pedal","source":"midi"},
+    {"t_ms":3950,"kind":"sound_end","note":65,"by":"pedal","source":"midi"},
+    {"t_ms":4000,"kind":"on","note":46,"vel":58,"source":"midi"},
+    {"t_ms":4050,"kind":"pedal","down":true,"source":"midi"},
+    {"t_ms":4250,"kind":"on","note":53,"vel":65,"source":"midi"},
+    {"t_ms":4280,"kind":"off","note":46,"source":"midi"},
+    {"t_ms":4440,"kind":"on","note":56,"vel":59,"source":"midi"},
+    {"t_ms":4530,"kind":"off","note":53,"source":"midi"},
+    {"t_ms":4720,"kind":"off","note":56,"source":"midi"},
+    {"t_ms":4840,"kind":"on","note":60,"vel":66,"source":"midi"},
+    {"t_ms":5090,"kind":"on","note":63,"vel":60,"source":"midi"},
+    {"t_ms":5120,"kind":"off","note":60,"source":"midi"},
+    {"t_ms":5280,"kind":"on","note":67,"vel":67,"source":"midi"},
+    {"t_ms":5370,"kind":"off","note":63,"source":"midi"},
+    {"t_ms":5560,"kind":"off","note":67,"source":"midi"},
+    {"t_ms":7400,"kind":"pedal","down":false,"source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":46,"by":"pedal","source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":53,"by":"pedal","source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":56,"by":"pedal","source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":60,"by":"pedal","source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":63,"by":"pedal","source":"midi"},
+    {"t_ms":7400,"kind":"sound_end","note":67,"by":"pedal","source":"midi"}
+  ]
+}
