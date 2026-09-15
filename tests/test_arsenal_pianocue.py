@@ -515,7 +515,7 @@ def test_numbers_and_notes():
 @needs_node
 @pytest.mark.parametrize("key,items,names", [
     # b6 in Eb major is spelled Cb from the key, but the page never shows a Cb root off the key's scale: it shows B
-    ("Eb major", ["1", "4", "5", "6m", "b3", "b6", "b7maj9", "#4m7b5"], ["Eb", "Ab", "Bb", "Cm", "Gb", "B", "Dbmaj9", "Am7b5"]),
+    ("Eb major", ["1", "4", "5", "6m", "b3", "b6", "b7maj9", "#4m7b5"], ["Eb", "Ab", "Bb", "Cm", "Gb", "Cb", "Dbmaj9", "Am7b5"]),
     ("C minor", ["1", "1m", "b3", "4", "5", "b6", "b7"], ["C", "Cm", "Eb", "F", "G", "Ab", "Bb"]),
     ("A minor", ["1m", "b3", "4m", "5"], ["Am", "C", "Dm", "E"]),
 ])
@@ -652,11 +652,13 @@ def test_drop2_triads_double_the_root_on_top_over_a_root_bass():
 
 @needs_node
 @pytest.mark.parametrize("key,items,names", [
-    ("Eb major", ["b6", "b2", "b5", "#4", "b3", "b7maj9"], ["B", "E", "A", "A", "Gb", "Dbmaj9"]),
-    ("Db major", ["b3", "b7", "b6m", "4"], ["E", "B", "Am", "Gb"]),
-    ("Gb major", ["4", "b7", "b3"], ["Cb", "E", "A"]),       # Cb is on Gb major's scale: the page shows it
-    ("Eb minor", ["b6", "b2", "b3"], ["Cb", "E", "Gb"]),     # and on Eb minor's
-    ("C major", ["#1m", "b1"], ["Dbm", "B"]),
+    # TN2 shared speller (piano/spell.js; tn1-rulings.md "the spelling ruling for TN2"): a chord is spelled by the fewest
+    # accidentals counted against the key, so a flat key's b6/b7/b2 keep their degree letters (Cb, Fb) instead of sharps.
+    ("Eb major", ["b6", "b2", "b5", "#4", "b3", "b7maj9"], ["Cb", "E", "A", "A", "Gb", "Dbmaj9"]),
+    ("Db major", ["b3", "b7", "b6m", "4"], ["E", "Cb", "Am", "Gb"]),
+    ("Gb major", ["4", "b7", "b3"], ["Cb", "Fb", "A"]),      # Fb major (Fb Ab Cb) beats E major (E G# B) in Gb
+    ("Eb minor", ["b6", "b2", "b3"], ["Cb", "Fb", "Gb"]),    # and in Eb minor
+    ("C major", ["#1m", "b1"], ["C#m", "B"]),                # C#m (C# E G#) beats Dbm (Db Fb Ab)
 ])
 def test_numbers_are_named_as_the_page_names_them(key, items, names):
     rs = _voice(items, key=key)
@@ -678,7 +680,9 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
             rt, root = r["roundtrip"], root_of(r["name"])
             if rt["match"] in ("exact", "enharmonic"):
                 assert r["name"] == rt["page_name"], (key, r["input"], r["name"], rt)
-            if re.search(r"[A-G](bb|##)", r["name"]) or root in ("E#", "B#", "Cb", "Fb"):
+            # An odd root must be the page's own spelling when the page reads the SAME chord (exact or enharmonic);
+            # an "equivalent" roundtrip is the same notes read as another chord (Cb/Ab against the page's Abm7), whose root differs.
+            if rt["match"] in ("exact", "enharmonic") and (re.search(r"[A-G](bb|##)", r["name"]) or root in ("E#", "B#", "Cb", "Fb")):
                 assert root_of(rt["page_name"]) == root, (key, r["input"], r["name"], rt)  # F## in G# minor: the page's own
             checked += 1
     assert checked == len(keys) * len(items)
@@ -1220,8 +1224,12 @@ const NV = await import(pathToFileURL(ROOT + "web/piano/nashville.js").href);
 // the page's own spellForKey, run out of piano.js, with the minor-key numbering under test (the page's pref)
 const s0 = src.indexOf("function spellForKey(info, key) {"), s1 = src.indexOf("\n}\n", s0) + 2;
 if (s0 < 0) throw new Error("spellForKey is gone from piano.js");
-const spellForKey = new Function("Theory", "spellInKey", "theoryUi", "ODD_NAMES", src.slice(s0, s1) + "\nreturn spellForKey;")(
-  Theory, NV.spellInKey, { minor: %(minor)s }, new Set(["E#", "B#", "Cb", "Fb"]));
+// TN2: spellForKey spells with the one shared speller (piano/spell.js) and chordread.js's parseSuffix, injected as the page imports them
+const SPELL = await import(pathToFileURL(ROOT + "web/piano/spell.js").href);
+const { parseSuffix } = await import(pathToFileURL(ROOT + "web/piano/chordread.js").href);
+const spellForKey = new Function("Theory", "spellInKey", "theoryUi", "ODD_NAMES", "keyContext", "spellChord", "spellNote", "parseSuffix",
+  src.slice(s0, s1) + "\nreturn spellForKey;")(Theory, NV.spellInKey, { minor: %(minor)s }, new Set(["E#", "B#", "Cb", "Fb"]),
+  SPELL.keyContext, SPELL.spellChord, SPELL.spellNote, parseSuffix);
 const page = (notes, keyName) => { const k = NV.parseKey(keyName); return spellForKey(Theory.detect(notes, k.bias), k).name; };
 const bridge = (items, key) => JSON.parse(execFileSync(process.execPath, [ROOT + "pianocue_voicing.mjs"], {
   input: JSON.stringify({ items, key, voicing: "close", minor: %(minor)s }), encoding: "utf8", maxBuffer: 1e8,

@@ -69,6 +69,9 @@ if (A < 0 || B <= A) {
 }
 const Theory = new Function(src.slice(A, B) + "\nreturn Theory;")();
 const NV = await import(pathToFileURL(here("./web/piano/nashville.js")).href);
+// TN2: the page's spellForKey spells with the one shared speller (piano/spell.js) and chordread.js's parseSuffix
+const SPELL = await import(pathToFileURL(here("./web/piano/spell.js")).href);
+const { parseSuffix } = await import(pathToFileURL(here("./web/piano/chordread.js")).href);
 
 const { LETTERS, LETTER_PC, mod, pcOf, nameOf, octaveOf, spellInterval, TEMPLATES } = Theory;
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
@@ -452,8 +455,9 @@ const PAGE_SPELL = (() => {
   const s0 = src.indexOf("function spellForKey(info, key) {"), s1 = s0 < 0 ? -1 : src.indexOf("\n}\n", s0);
   if (s1 < 0) { PAGE_SPELL_WHY = "spellForKey was not found in arsenal/web/piano.js"; return null; }
   try {
-    const fn = new Function("Theory", "spellInKey", "theoryUi", "ODD_NAMES", `${src.slice(s0, s1 + 2)}\nreturn spellForKey;`)(
-      Theory, NV.spellInKey, THEORY_UI, ODD_NAMES);
+    const fn = new Function("Theory", "spellInKey", "theoryUi", "ODD_NAMES", "keyContext", "spellChord", "spellNote", "parseSuffix",
+      `${src.slice(s0, s1 + 2)}\nreturn spellForKey;`)(Theory, NV.spellInKey, THEORY_UI, ODD_NAMES, SPELL.keyContext, SPELL.spellChord,
+      SPELL.spellNote, parseSuffix);
     const probe = fn(Theory.detect([56, 60, 63, 67], 0), NV.parseKey("C# minor"));  // Abmaj7 in C# minor
     if (!probe || typeof probe.name !== "string") throw new Error("it returned no name");
     return fn;
@@ -482,25 +486,27 @@ function pageName(info, keyName) {
   const shown = pageSpell(info, keyName);
   return shown ? shown.name : null;
 }
+// A copy of piano.js spellForKey (TN2: the one shared speller, piano/spell.js) for the infos the templates read (no readings):
+// a chord's suffix tones by their letter steps from the root that needs the fewest accidentals against the key, ties to the
+// key's spelling; an interval keeps its letter distance; any other note, a note alone and a cluster spelled in the key.
 function pageSpellOwn(info, keyName) {
   if (!info) return null;
-  if (!keyName || !NV.parseKey(keyName)) return asShown(info);
-  const inKey = (sp, suffix = null) => {
-    const s = NV.spellInKey(sp, keyName, { suffix, minor: THEORY_UI.minor });
-    return s && (s.inScale || (Math.abs(s.acc) <= 1 && !ODD_NAMES.has(nameOf(s)))) ? { letter: s.letter, acc: s.acc } : { letter: sp.letter, acc: sp.acc };
-  };
-  const moved = (sp, by) => { const letter = mod(sp.letter + by, 7); return { letter, acc: mod(pcOf(sp) - LETTER_PC[letter] + 6, 12) - 6 }; };
+  const K = keyName ? SPELL.keyContext(keyName) : null;
+  if (!K) return asShown(info);
   const pcOfNote = (n) => (Number.isInteger(n.midi) ? mod(n.midi, 12) : pcOf(n));  // detect's notes, or bare spellings
-  const map = new Map();  // pitch class -> spelling
-  if (info.kind === "cluster") {
-    for (const n of info.notes) if (!map.has(pcOfNote(n))) map.set(pcOfNote(n), inKey(n));
-  } else {
-    const root = inKey(info.root, info.kind === "chord" ? info.suffix : null);
-    const by = root.letter - info.root.letter;
-    for (const n of info.notes) if (!map.has(pcOfNote(n))) map.set(pcOfNote(n), moved(n, by));
-    // a slash bass and an interval's top note keep plain letters where the move would need a double accidental
-    for (const x of [info.bass, info.upper]) if (x && Math.abs(map.get(pcOf(x)).acc) > 1) map.set(pcOf(x), inKey(x));
+  const pcs = [...new Set(info.notes.map(pcOfNote))];
+  let chord = null;
+  if (info.kind === "chord" && info.root) {
+    const rootPc = pcOf(info.root), parsed = parseSuffix(info.suffix), steps = { ...parsed.tones };
+    if (parsed.base === "dim7" && 9 in steps) steps[9] = [6, 5];  // spell.js DIM7_SEVENTH, as piano.js spellForKey (TN2 repair round 1)
+    chord = SPELL.spellChord({ rootPc, tonesPc: Object.keys(steps).map((iv) => rootPc + Number(iv)), steps,
+                               bassPc: info.bass ? pcOf(info.bass) : null, key: K, suffix: info.suffix });
+  } else if (info.kind === "interval" && info.root && info.upper) {
+    const rootPc = pcOf(info.root), iv = mod(pcOf(info.upper) - rootPc, 12);
+    chord = SPELL.spellChord({ rootPc, tonesPc: [rootPc + iv], steps: { [iv]: mod(info.upper.letter - info.root.letter, 7) }, key: K });
   }
+  const map = new Map();  // pitch class -> spelling
+  for (const pc of pcs) { const s = SPELL.spellNote(pc, K, { chord }); map.set(pc, { letter: s.letter, acc: s.acc }); }
   if ([...map.values()].some((s) => Math.abs(s.acc) > 2)) return asShown(info);
   const at = (sp) => map.get(pcOf(sp));
   const shown = (name) => ({ name, root: info.kind === "cluster" ? null : at(info.root), bass: info.bass ? at(info.bass) : null });
