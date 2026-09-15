@@ -5,8 +5,9 @@
 //     finger + pedal together is the brightest state
 //   - the velocity cap: the head's length is the velocity (W x (0.45 + 2.1 v)); on the strike it flashes and
 //     glows, and that glow is the ONLY part of the picture that crosses the bloom threshold; it decays, and a
-//     hard strike glows brighter and wider than a soft one. The in-cap flash and the halo are one mesh, the only
-//     additive draw, and it draws last
+//     hard strike glows brighter and wider than a soft one, and a soft one still glows a little (a velocity floor).
+//     While the finger holds, the glow settles to a small ember proportional to velocity instead of vanishing. The
+//     in-cap flash and the halo are one mesh, the only additive draw, and it draws last
 //   - X's attack at the key edge, in the same frame: a flash with an anamorphic streak, a ring across the key
 //     tops and sparks, all scaled by velocity
 //   - bloom budget: every other light layer (board, floor, flash, ring, sparks) is composited as luma-bounded
@@ -25,6 +26,9 @@
 // Contract (PIANO-V2-SPEC.md section 1): no imports, everything from ctx; draws only the music (no words: chord
 // names and onset stamps belong to the host). Pooled instanced geometry, every position from the clock in the
 // vertex shader, uploads only on note events (update ranges), no allocation in update(). 10 draw calls.
+// Host state is read, never written: every object lives in the scheme's one group (its own render-order slot, the
+// default layer), and update() only reads the camera's matrices as the host last rendered them. Nothing touches the
+// camera, the renderer, the fog or the scene's own settings.
 
 const FAR = 1e6;
 const SLOTS = 768;                 // bars; recycled, so a long session never grows
@@ -40,6 +44,9 @@ const W_WHITE = 0.84, W_BLACK = 0.50;
 const BLOOM_SAFE = 0.80;           // linear luma cap for everything except the peak (host bloom threshold 0.9)
 const LIGHT_CAP = 0.85;            // the fixed point of luma-bounded light: a stack of these layers never exceeds it
 const METER = { y0: 0.60, height: 4.2, hold: 1.0, gravity: 6.0 };   // a hard peak falls for about 1.2 s after its hold
+// Peak glow: strength = FLOOR + (1 - FLOOR) v^1.35, so a soft strike still crosses the bloom threshold faintly; while
+// the finger holds, the glow decays only to HOLD x v (a sustained ember), then fades in 0.25 s once the finger lifts.
+const GLOW = { floor: 0.34, hold: 0.20 };
 // Screen band (fraction of the drawing buffer height, from the bottom) where the roll fades out, under the
 // host's words: 9:16 per the reconciliation (0.665-0.77); 16:9 clears the heading block.
 const BAND = { "9:16": [0.665, 0.77], "16:9": [0.80, 0.95] };
@@ -101,6 +108,12 @@ export default {
     const { THREE, scene, camera, renderer, keyX, isBlack, noteColor, KEY, TRAIL_Z } = ctx;
     const Z = TRAIL_Z + Z_OFF;
     const added = [];
+    // The scheme's own group: one scene child. As a Group its renderOrder is the group order its layers sort under, so
+    // their internal render orders (5-17) never interleave with the host's (the host's own layers sort at group order 0).
+    const root = new THREE.Group();
+    root.name = "synth-vandor";
+    root.renderOrder = 1;
+    scene.add(root);
     const tmpColor = new THREE.Color();
     const tmpV2 = new THREE.Vector2();
     const p0 = new THREE.Vector3(), p1 = new THREE.Vector3();
@@ -130,7 +143,7 @@ export default {
       obj.renderOrder = order;
       obj.name = `synth-vandor:${name}`;
       obj.visible = false;
-      scene.add(obj);
+      root.add(obj);
       added.push(obj);
       return obj;
     }
@@ -271,9 +284,12 @@ export default {
 
     // --------------------------------------------------------- peak glow --
     // THE PEAK, the one thing allowed to bloom, in one additive mesh that draws after everything else:
-    //   - the strike flash inside the cap: v^1.35 x 2.2 e^(-age/0.16), where the finger was down;
-    //   - a halo that hugs the cap: v^1.35 x (2.2 e^(-age/0.16) + 0.6 e^(-age/0.8)), reach W x (0.22 + 0.8 v), cut
-    //     short once the sound ends.
+    //   - strength pk = FLOOR + (1 - FLOOR) v^1.35: a soft strike still glows faintly, a hard one far more;
+    //   - the strike flash inside the cap: pk x 2.2 e^(-age/0.16), where the finger was down;
+    //   - a halo that hugs the cap: pk x (2.2 e^(-age/0.16) + 0.6 e^(-age/0.8)), reach W x (0.22 + 0.8 v), cut
+    //     short once the sound ends;
+    //   - while the finger holds, both decay only down to the ember HOLD x v (max, never a sum), which fades in 0.25 s
+    //     once the finger lifts.
     // Both are a little brighter with the pedal down at the onset. Nothing sums over time: each bar's glow only decays.
     const GLOW_VERT = `
       uniform float uNow, uSpeed, uBase, uZ, uTop, uWpp, uGlowOn;
@@ -285,11 +301,14 @@ export default {
       ${GLSL_COMMON.replace(/float bandFade[^\n]*\n/, "")}
       void main() {
         float age = uNow - aT0;
-        if (aT0 < -1e5 || age < 0.0 || age > 3.0 || uGlowOn < 0.5) { ${COLLAPSE} }
+        float fingerUp = uNow - min(uNow, aT1);            // 0 while the finger holds, then seconds since it lifted
+        if (aT0 < -1e5 || age < 0.0 || (age > 3.0 && fingerUp > 1.5) || uGlowOn < 0.5) { ${COLLAPSE} }
         float v = clamp(aVel, 0.0, 1.0);
-        float pk = pow(v, 1.35) * mix(1.0, 1.2, pedalAt(aT0));
-        float flash = pk * 2.2 * exp(-age / 0.16);
-        float gi = pk * (2.2 * exp(-age / 0.16) + 0.60 * exp(-age / 0.8));
+        float boost = mix(1.0, 1.2, pedalAt(aT0));
+        float pk = (${GLOW.floor.toFixed(3)} + ${(1 - GLOW.floor).toFixed(3)} * pow(v, 1.35)) * boost;
+        float ember = ${GLOW.hold.toFixed(3)} * v * boost * exp(-fingerUp / 0.25);   // the held floor
+        float flash = max(pk * 2.2 * exp(-age / 0.16), ember);
+        float gi = max(pk * (2.2 * exp(-age / 0.16) + 0.60 * exp(-age / 0.8)), ember);
         gi *= aT2 <= uNow ? exp(-(uNow - aT2) / 0.25) : 1.0;
         if (max(gi, flash) < 0.004) { ${COLLAPSE} }
         ${BAR_PLACE}
@@ -786,7 +805,7 @@ export default {
         U.uTop.value = top + 2;
         renderer.getDrawingBufferSize(tmpV2);
         U.uResY.value = tmpV2.y;
-        camera.updateMatrixWorld();
+        // read-only: project() reads matrixWorldInverse and projectionMatrix as the host last rendered them
         p0.set(camera.position.x, 1, Z).project(camera);
         p1.set(camera.position.x, 2, Z).project(camera);
         const pxPerUnit = Math.abs(p1.y - p0.y) * 0.5 * tmpV2.y;
@@ -804,7 +823,8 @@ export default {
       },
       dispose() {
         const geos = new Set(), mats = new Set();
-        for (const obj of added) { scene.remove(obj); geos.add(obj.geometry); mats.add(obj.material); }
+        for (const obj of added) { root.remove(obj); geos.add(obj.geometry); mats.add(obj.material); }
+        scene.remove(root);
         for (const g of geos) g.dispose();
         for (const m of mats) m.dispose();
         laneTex.dispose();

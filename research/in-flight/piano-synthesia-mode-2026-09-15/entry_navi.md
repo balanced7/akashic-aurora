@@ -27,8 +27,12 @@ Two flourishes:
 - Body lightness `0.46 + 0.36·v^0.8` (clamped under 0.8 luma); cap lightness `0.90 + 0.08·v`, chroma boost 0.62×; tail lightness 0.80.
 - Pedal tail: outline decays `max(0.30, 0.72·exp(−tailAge/1.5))`; fill `0.06`.
 - Hit line: `0.055 ± 0.020` s behind the cap, blended as `+0.9·white·(1 − ended)`.
-- Ghosts: `GHOST_TAU 0.30 s`, spawned every 0.02 s while sounding, fading to nothing — ~7 deep per note.
-- Top fade band (host overlay): 9:16 → `650–860 px`; 16:9 → `470–600 px`, screen-space so it holds under any camera.
+- Ghosts: `GHOST_TAU 0.30 s`, `GHOST_H 0.10` world units tall (a streak, not a zero-height quad), spawned every 0.02 s while sounding, fading to nothing — ~7 deep per note.
+- Cap strike ceiling `CAP_LUMA_MAX 2.2` luma: a hard hit saturates instead of washing to white (heat 1 measured 29–36% washed-out strike pixels — now capped).
+- Finger + pedal = brightest state: live (unended) cap and body get a `×(1 + 0.30·uPedal)` lift; the pedal floor is tracked in `pedal(down, raw, t)` and fed to `uPedal`.
+- Peak-hold needle: `HOLD_H 0.012` world units (a true hairline, ~2 px, not the ~10 px dotted row heat 1 saw), hold `0.5 s` then fall `0.5 s`; clamped under the bloom threshold.
+- Top fade band (host overlay): now follows the active framing — 9:16 → `650–860 px`; 16:9 → `470–600 px`, applied in `applyFraming` from `resize` and `update` (heat 1 was stuck on 9:16, so landscape bars stopped near y 660).
+- Ghosts + ribbon + needle all clamp under the bloom threshold (`uBodyMax`); the ribbon now carries `bandFade` so it fades inside the protected band instead of crossing it.
 
 ## Budget
 
@@ -46,8 +50,20 @@ The hit line's lag: it should read as the note **moving**, not as double-vision.
 
 **Peak glow.** The bead cap is now the one blooming part, and its bloom is **the velocity squared**, riding the same exponential decay as the flash (`flash + 0.9·v²·exp(−age/0.16)`). A hard strike blooms hotter and fades; a gentle press only glows. It never stacks, it never whites — it is a decayed peak, exactly the "peaks of the velocity bars glow" Daniel asked for.
 
-**Named choice 1 — the VU peak-hold marker.** On every strike a thin luminous *needle* flickers at the bead's peak height — its height *is* the velocity (a hard strike parks a higher needle). It holds ~1.0 s, then **falls back toward the key** over ~0.6 s and fades. I chose this because Daniel already reads velocity as cap height; the peak-hold just extends that reading one beat into the past, so "how hard was that last strike" stays readable after the bar has risen out of frame. It is the literal VU-meter metaphor he's describing, transposed onto each note instead of a single global meter.
+**Named choice 1 — the VU peak-hold marker.** On every strike a thin luminous *needle* flickers at the bead's peak height — its height *is* the velocity (a hard strike parks a higher needle). It holds ~0.5 s, then **falls back toward the key** over ~0.5 s and fades. I chose this because Daniel already reads velocity as cap height; the peak-hold just extends that reading one beat into the past, so "how hard was that last strike" stays readable after the bar has risen out of frame. It is the literal VU-meter metaphor he's describing, transposed onto each note instead of a single global meter.
 
 **Named choice 2 (beyond the list) — the phrase loudness ribbon.** A slim strip pinned at the **left edge**, `pp` at the bottom warming to `ff` at the top, with a live dot riding it. The dot is a fast-attack / slow-decay follower over recent strike velocities, so a **crescendo climbs the ribbon** and a decrescendo sinks back. I added this because the peak glow and peak-hold both read *single-note* dynamics; the ribbon reads the **phrase** — the swells and falls that make a run musical. Note-level loudness and phrase-level loudness are different things, and the ribbon gives the eye the second one at zero per-note cost.
 
 Both are screen-true additions that cost nothing per frame (the needle is pooled instanced geometry positioned from the clock; the ribbon is a single full-screen quad carved in the fragment shader).
+
+## Heat 1 fixes (scored 5.50; measured defects addressed before the final heat)
+
+All six measurer-flagged defects are fixed in `synth-navi.js`, verified against the cited line ranges:
+
+1. **16:9 band never applied** — `resize()` now runs `applyFraming(framing)`, which switches `uFadeEnd/uFadeStart` to the `BAND[id]` for the active aspect (`update()` also re-checks `frame.framing`). Landscape bars now fade into the 470–600 px band instead of stopping near y 660.
+2. **Ghosts zero height** — the ghost vertex now folds `position.y` into `yy` with `GHOST_H 0.10`, so each after-image quad has real height and reads as a streak.
+3. **Ribbon crossed the protected band** — the ribbon fragment now multiplies by `bandFade(gl_FragCoord.y)` and discards inside the band.
+4. **`pedal()` empty** — it now tracks `pedalDown` and drives `uPedal`; on a pedal-held repeat, `noteOn` force-closes the prior bar so repeats read as separate beads, and finger+pedal gets a `×(1+0.30)` brightness lift (the brightest state).
+5. **Peak-hold needle ~10 px / dotted, crossing bloom** — `HOLD_H` cut 0.06→0.012 (hairline), hold shortened 1.0/0.6→0.5/0.5, and the `×1.4` removed with a `uBodyMax` clamp; the ribbon also clamps, so no non-cap pixels cross the 0.9-luma threshold.
+6. **1 s cap glow, 50k px halo, washed 29–36% strikes** — cap strike brightness is clamped by `CAP_LUMA_MAX 2.2` so hard hits saturate instead of washing to white; the ghost's `×1.4` bloom multiplier was removed (under-threshold), killing the soft-note halo; the 1 s glow was the needle's old hold time, now 0.5 s.
+

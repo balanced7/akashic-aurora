@@ -37,6 +37,7 @@ const FAR = 1e6;
 const SPEED = 6.0;                          // world units per second (one unit = one white-key pitch)
 const POOL = { white: 384, black: 256 };    // slots per pool, recycled so a long session never grows
 const RECYCLE_Y = 80;                       // a bar whose bottom has risen past this is gone for good
+const BEAD_GAP = 0.06;                      // seconds pulled back from a re-strike so repeats read as beads
 const ECHO_MAX = 512;                       // pooled rising ghosts (needle) — bounded, recycled
 
 const WHITE_W = 0.72, BLACK_W = 0.40, BLACK_EDGE = 0.05;
@@ -114,7 +115,7 @@ export default {
       uNow: { value: 0 }, uSpeed: { value: SPEED }, uBaseY: { value: RAIL_Y }, uZ: { value: TRAIL_Z },
       uTopW: { value: 30 }, uFrameH: { value: 1920 }, uPR: { value: 1 },
       uFadeEnd: { value: BAND["9:16"].fadeEnd }, uFadeStart: { value: BAND["9:16"].fadeStart },
-      uBodyMax: { value: BODY_LUMA_MAX }, uNoCap: { value: 0 },
+      uBodyMax: { value: BODY_LUMA_MAX }, uNoCap: { value: 0 }, uPedal: { value: 0 },
     };
     const premultiplied = {
       transparent: true, depthWrite: false, blending: THREE.CustomBlending,
@@ -130,7 +131,7 @@ export default {
       attribute float aX, aW, aT0, aT1, aT2, aVel;
       attribute vec3 aBody, aCap, aTail;
       varying vec2 vP;
-      varying float vW, vTop, vHold, vBot, vCapH, vAge, vEnded;
+      varying float vW, vTop, vHold, vBot, vCapH, vAge, vEnded, vVel;
       varying vec3 vBody, vCapC, vTailC;
       void main() {
         float bot = uBaseY + (uNow - min(uNow, aT2)) * uSpeed;
@@ -142,13 +143,14 @@ export default {
         vW = aW; vTop = top; vBot = bot; vCapH = capH; vAge = uNow - aT0;
         vHold = uBaseY + (uNow - min(uNow, aT1)) * uSpeed;
         vEnded = aT2 <= uNow ? 1.0 : 0.0;
+        vVel = aVel;
         vBody = aBody; vCapC = aCap; vTailC = aTail;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(aX + vP.x, y, uZ, 1.0);
       }`;
     const BAR_FRAG = `
-      uniform float uSpeed, uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax, uNoCap, uBlack;
+      uniform float uSpeed, uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax, uNoCap, uBlack, uPedal;
       varying vec2 vP;
-      varying float vW, vTop, vHold, vBot, vCapH, vAge, vEnded;
+      varying float vW, vTop, vHold, vBot, vCapH, vAge, vEnded, vVel;
       varying vec3 vBody, vCapC, vTailC;
       ${GLSL_COMMON}
       void main() {
@@ -163,18 +165,27 @@ export default {
         float a = 1.0;
         bool cap = y > vTop;
         if (cap) {
-          // onset cap: the strike. Rounded top corners; a flash that dies in about a quarter second;
-          // the bloom rides the SAME exponential (v^2 scaling) so it decays, never stacks.
+          // onset cap: the strike. Rounded top corners; a flash that dies in about a quarter second.
+          // The velocity term rides the SAME exponential (v^2 scaling) so a hard strike glows hotter
+          // and the glow decays, never stacks -- "the peaks of the velocity bars glow".
           if (uNoCap > 0.5) discard;
           float r = min(halfW, vCapH) * 0.55;
           vec2 q = vec2(abs(vP.x) - (halfW - r), y - (vTop + vCapH - r));
           float d = length(max(q, 0.0)) - r;
           a = 1.0 - smoothstep(-fx, fx, d);
-          col = vCapC * (1.0 + ${CAP_FLASH.toFixed(2)} * exp(-vAge / ${CAP_TAU.toFixed(3)})) * (1.0 - 0.08 * across * across);
+          float ve = vVel * vVel;
+          float flash = 1.0 + ${CAP_FLASH.toFixed(2)} * exp(-vAge / ${CAP_TAU.toFixed(3)});
+          // Glow strength scales with velocity squared (the entry's stated v^2 law): a hard strike
+          // blooms hot and a soft one only glimmers, so brightness tracks velocity.
+          float glow = (0.28 + 0.72 * ve) * flash;
+          col = vCapC * glow * (1.0 - 0.08 * across * across);
           float seam = 1.0 - smoothstep(0.6, 1.6, (y - vTop) / fy);
           col *= 1.0 - 0.35 * seam * step(vHold, vTop - 0.001);
         } else if (y >= vHold) {
-          col = vBody * (0.80 + 0.20 * (1.0 - across * across));
+          // Hold body: brighter on the axis. Finger+pedal together is the brightest state by
+          // construction (pedal lifts the whole hold, not just the tail).
+          float pedalBoost = 1.0 + 0.28 * uPedal;
+          col = vBody * pedalBoost * (0.80 + 0.20 * (1.0 - across * across));
         } else {
           float tailAge = (vHold - y) / uSpeed;
           float edgeA = max(${TAIL_FLOOR.toFixed(2)}, ${TAIL_A0.toFixed(2)} * exp(-tailAge / ${TAIL_TAU.toFixed(2)}));
@@ -250,7 +261,9 @@ export default {
       A.aT2.array[slot] = FAR;
       A.aVel.array[slot] = v;
       A.aBody.array.set(relight(tmpColor, 0.46 + 0.36 * v ** 0.8, 1.0, BODY_LUMA_MAX - 0.05), slot * 3);
-      A.aCap.array.set(relight(tmpColor, 0.92, 0.55), slot * 3);
+      // Cap: saturated note colour, chroma boosted by velocity (so a hard strike is a deeper note colour,
+      // never a white wash), lightness kept below the bloom point -- the velocity GLOW above supplies bloom.
+      A.aCap.array.set(relight(tmpColor, 0.80, 1.0 + 0.55 * v, BLOOM_THRESHOLD - 0.12), slot * 3);
       A.aTail.array.set(relight(tmpColor, 0.80, 1.0, BODY_LUMA_MAX - 0.05), slot * 3);
       pool.dirty = true;
       return { pool, slot, t0: Math.fround(t), m };
@@ -295,33 +308,41 @@ export default {
         attribute vec3 aColor;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vVel;
         void main() {
           float age = uNow - aBirth;
           if (age < 0.0 || age > aLife) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
           float k = age / aLife;
           // The ghost lifts off the cap and climbs (a slow-breathing sideways drift keeps the eye on
-          // the motion, not a dead vertical line).
-          float rise = ${ECHO_RISE.toFixed(2)} * age;
+          // the motion, not a dead vertical line). Climb speed is a second velocity channel: a hard
+          // strike's ghost rises faster, so the motion itself carries the dynamic.
+          float rise = ${ECHO_RISE.toFixed(2)} * (0.6 + 0.55 * aVel) * age;
           float sway = sin(age * 2.2 + aSeed) * 0.14 * k;
           vec3 p = position + vec3(sway, rise, 0.0);
           p.y = min(p.y, uTopW - 0.2);                     // stays inside the picture
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = max(2.0, aVel * uPx * 0.12 * (1.0 - 0.55 * k) / max(-mv.z, 0.1));
-          vAlpha = (1.0 - k) * (1.0 - k) * (0.35 + 0.65 * aVel);
+          // Bigger, and it swells with velocity, so a loud strike leaves a larger, longer-lived mark.
+          gl_PointSize = max(2.0, (0.20 + 0.85 * aVel) * uPx * (1.0 - 0.45 * k) / max(-mv.z, 0.1));
+          vAlpha = (1.0 - k) * (1.0 - k) * (0.25 + 0.75 * aVel);
+          vVel = aVel;
           vColor = aColor;
         }`,
       fragmentShader: `
         uniform float uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax;
         varying vec3 vColor;
         varying float vAlpha;
+        varying float vVel;
         ${GLSL_COMMON}
         void main() {
           float r = length(gl_PointCoord - 0.5);
           float a = (1.0 - smoothstep(0.15, 0.5, r)) * vAlpha * bandFade(gl_FragCoord.y);
           // The echo is a bloom object: it deliberately crosses the threshold so a hard strike's
-          // peak visibly glows as it climbs, then fades. Sparse points cannot stack into a wash.
-          vec3 col = vColor * min(1.0, ${BLOOM_THRESHOLD.toFixed(2)} / max(lumaOf(vColor), 1e-4));
+          // peak visibly glows as it climbs, then fades. Its brightness rides v^2 (the velocity term
+          // the cap also shares), so a loud strike blooms above the 0.9 line and a soft one stays
+          // below it -- and sparse points cannot stack into a wash.
+          float ve = vVel * vVel;
+          vec3 col = vColor * (1.0 + ${BLOOM_THRESHOLD.toFixed(2)} * ve);
           if (a < 0.002) discard;
           gl_FragColor = vec4(col * a, a);
         }`,
@@ -346,7 +367,7 @@ export default {
       noteColor(m, vel, tmpColor);
       // Slightly hotter, slightly desaturated versus the cap, so it reads as the glow of the strike
       // rather than a second cap.
-      const c = relight(tmpColor, 0.94, 0.5);
+      const c = relight(tmpColor, 0.66, 1.0 + 0.5 * v);
       echoAttr.position.array.set([x + (rand() - 0.5) * 0.12, RAIL_Y + capH, TRAIL_Z + 0.15], j * 3);
       echoAttr.aBirth.array[j] = t;
       echoAttr.aLife.array[j] = ECHO_LIFE * (0.75 + 0.5 * v);
@@ -360,6 +381,7 @@ export default {
     const strikes = new Map();  // midi -> bar ref of the strike that is sounding
     let active = false;
     let lastApplied = null;
+    let pedalDown = false;
 
     function applyFraming(framing) {
       const id = framing && framing.id ? framing.id : "9:16";
@@ -389,6 +411,13 @@ export default {
       id: "synth-heimdall",
       name: "Glow Echo",
       noteOn(m, vel, t) {
+        // Beads: a re-struck note ends its previous sound a small gap BEFORE the new onset, so six Eb4
+        // under pedal give six separate bars with visible gaps, never one merged run (host already
+        // calls noteEnd for a sounding note, but its t is the onset itself -- we pull the end back).
+        const prev = strikes.get(m);
+        if (prev && prev.pool.attr.aT2.array[prev.slot] > t - 1e-4) {
+          barEnd(prev, t - BEAD_GAP);
+        }
         strikes.set(m, barStart(m, vel, t));
         spawnEcho(m, vel, t);
       },
@@ -399,7 +428,21 @@ export default {
         barEnd(strikes.get(m), t);
         strikes.delete(m);
       },
-      pedal() { /* pedal sustain is already the dim tail below each release */ },
+      pedal(down, raw, t) {
+        // Sustain is a state, not a one-shot: it brightens every live body while held, and lifting
+        // the pedal ends every non-held (pedal-tailing) sound, exactly as the host's noteEnd sweep does.
+        pedalDown = !!down;
+        shared.uPedal.value = pedalDown ? 1 : 0;
+        if (!down) {
+          // The host also sweeps noteEnd for every released note, but belt-and-braces: end any ref
+          // we still hold whose finger is already up, so no pedal tail outlives the lift.
+          for (const [m, ref] of strikes) {
+            const A = ref.pool.attr;
+            // released (finger up -> aT1 is a real time, not FAR) but not yet ended -> close at lift.
+            if (A.aT1.array[ref.slot] < FAR && A.aT2.array[ref.slot] >= FAR) { barEnd(ref, t); strikes.delete(m); }
+          }
+        }
+      },
       update(dt, t, frame) {
         lastT = t;
         shared.uNow.value = t;
@@ -445,7 +488,7 @@ export default {
       },
       // For the harness and the receipt: measurement switches and the facts behind the pictures.
       debug: {
-        constants: { SPEED, BLOOM_THRESHOLD, BODY_LUMA_MAX, BAND, TAIL_A0, TAIL_TAU, TAIL_FLOOR, ECHO_LIFE, ECHO_RISE, ECHO_MIN_VEL, CAP_BASE, CAP_VEL, GLOW_TAU },
+        constants: { SPEED, BLOOM_THRESHOLD, BODY_LUMA_MAX, BAND, TAIL_A0, TAIL_TAU, TAIL_FLOOR, ECHO_LIFE, ECHO_RISE, ECHO_MIN_VEL, CAP_BASE, CAP_VEL, GLOW_TAU, BEAD_GAP },
         objects: () => [...added],
         setEchoes(on) { echoPoints.visible = active && !!on; },
         endedTails(t = lastT) {

@@ -21,7 +21,7 @@
 // Dynamics addendum (Daniel's "peaks glow" ask, 2026-09-15):
 //   8. peak glow — the bead cap's bloom is the velocity SQUARED riding the flash's own decay, so a
 //      hard strike blooms hotter and every peak decays to nothing, never stacks.
-//   9. (named) VU peak-hold needle — a thin tick at each strike's peak height holds ~1 s then falls
+//   9. (named) VU peak-hold needle — a thin tick at each strike's peak height holds ~0.5 s then falls
 //      back toward the key and fades; its height is the velocity.
 //  10. (named) phrase loudness ribbon — a pp..ff strip at the left edge whose dot rides the running
 //      phrase loudness, so crescendo climbs and decrescendo sinks.
@@ -48,9 +48,12 @@ const CAP_FLASH = 1.6, CAP_FLASH_TAU = 0.16;        // cap brightness x (1 + 1.6
 // Peak glow (Dynamics addendum): the cap's bloom is the velocity, squared, on top of the flash. Hard
 // strikes glow more; the glow decays and never stacks (it rides the same exp as the flash).
 const CAP_GLOW = 0.9;                                 // v^2 coefficient for the bloom term
+// Strike brightness ceiling (linear luma) so a hard hit saturates instead of washing to near-white.
+const CAP_LUMA_MAX = 2.2;
 const HIT_LAG = 0.055, HIT_EDGE = 0.020;            // hit line trails the cap by ~0.055 s
 const TAIL_A0 = 0.72, TAIL_TAU = 1.5, TAIL_FLOOR = 0.30, TAIL_FILL = 0.06;
 const GHOST_TAU = 0.30;                             // ghost after-image fade time
+const GHOST_H = 0.10;                             // ghost quad height in world units (a streak, not a dot)
 
 // The host's bloom is UnrealBloomPass(threshold 0.9) on linear luminance (Rec.709). Only the bead
 // cap and its ghost are allowed to cross it; bodies, tails and the hit line clamp below.
@@ -115,8 +118,24 @@ export default {
       uTopW: { value: 30 }, uFrameH: { value: 1920 }, uPR: { value: 1 },
       uFadeEnd: { value: BAND["9:16"].fadeEnd }, uFadeStart: { value: BAND["9:16"].fadeStart },
       uBodyMax: { value: BODY_LUMA_MAX },
+      uPedal: { value: 0 },
       uPx: { value: 1000 },
     };
+    let pedalDown = false, pedalT = -1e9;
+    // The protected-band values must follow the active framing (9:16 vs 16:9). They default to
+    // 9:16 above; applyFraming switches them when the aspect id changes. Without this, a 16:9
+    // landscape uses the 9:16 band and its bars stop near y 660 instead of fading into the band.
+    let lastFramingId = null;
+    function applyFraming(framing) {
+      if (!framing) return;
+      const id = BAND[framing.id] ? framing.id : (framing.height > framing.width ? "9:16" : "16:9");
+      if (id === lastFramingId) return;
+      lastFramingId = id;
+      const band = BAND[id];
+      shared.uFadeEnd.value = band.fadeEnd;
+      shared.uFadeStart.value = band.fadeStart;
+      if (framing.width) ribbonUniforms.uFrameW.value = framing.width;
+    }
     const premultiplied = {
       transparent: true, depthWrite: false, blending: THREE.CustomBlending,
       blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -147,7 +166,7 @@ export default {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(aX + vP.x, y, uZ, 1.0);
       }`;
     const BAR_FRAG = `
-      uniform float uSpeed, uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax;
+      uniform float uSpeed, uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax, uPedal;
       varying vec2 vP;
       varying float vW, vTop, vHold, vBot, vCapH, vAge, vEnded, vVel;
       varying vec3 vBody, vCapC, vTailC;
@@ -173,7 +192,13 @@ export default {
           // Peak glow (Dynamics addendum): the bloom is the velocity squared, riding the same decay
           // as the flash. Hard strikes glow more; the glow decays, it never stacks.
           float glow = ${CAP_GLOW.toFixed(2)} * vVel * vVel * exp(-vAge / ${CAP_FLASH_TAU.toFixed(3)});
-          col = vCapC * (flash + glow) * (1.0 - 0.08 * across * across);
+          // finger + pedal together is the brightest state (Daniel's "pressing sustain and note at
+          // the same time"); only the live (unended) cap gets the pedal lift, never the fading flash.
+          float pedalLift = (1.0 - vEnded) * uPedal;
+          col = vCapC * (flash + glow) * (1.0 + 0.30 * pedalLift) * (1.0 - 0.08 * across * across);
+          // Cap budget: clip the strike's peak luma so it saturates rather than washes to white
+          // (a hard hit was hitting ~3.5 luma at the strike, reading 29-36% washed-out).
+          col *= min(1.0, ${CAP_LUMA_MAX.toFixed(2)} / max(lumaOf(col), 1e-4));
         } else {
           // moved-note hit line: a white stroke a little BEHIND the cap (below it) that only shows
           // while a note is still sounding; its offset is fixed in time (HIT_LAG) so it hugs the cap.
@@ -182,7 +207,9 @@ export default {
           hit *= 1.0 - vEnded;                          // gone once the sound ends
           if (y >= vHold) {
             // FINGER-HELD BODY: solid luminous core, brighter on the axis, dimmer at the rim.
-            col = vBody * (0.80 + 0.20 * (1.0 - across * across));
+            // Finger + pedal is the brightest state by construction: the live body gets a lift too.
+            float pedalLift = (1.0 - vEnded) * uPedal;
+            col = vBody * (0.80 + 0.20 * (1.0 - across * across)) * (1.0 + 0.30 * pedalLift);
           } else {
             // PEDAL TAIL: a hollow tube whose outline decays to a floor; the cut line stays readable.
             float tailAge = (vHold - y) / uSpeed;
@@ -313,8 +340,10 @@ export default {
           if (aGone < 0.5) {
             float age = uNow - aT;
             float k = clamp(age / ${GHOST_TAU.toFixed(3)}, 0.0, 1.0);
-            // fade and drift slightly downward (against the rise) so it streaks behind the cap
-            float yy = aY - age * ${(SPEED * 0.5).toFixed(3)};
+            // fade and drift slightly downward (against the rise) so it streaks behind the cap.
+            // The quad's position.y (0..1 after translate(0,0.5,0)) gives it a real height so the
+            // after-image is a visible streak, not a zero-height degenerate quad.
+            float yy = aY - age * ${(SPEED * 0.5).toFixed(3)} + (position.y - 0.5) * ${GHOST_H.toFixed(3)};
             p = vec3(aX + position.x * aW, yy, uZ);
             vA = (1.0 - k) * 0.8;
             vP = vec2(position.x * aW, yy);
@@ -333,10 +362,11 @@ export default {
           float fade = bandFade(gl_FragCoord.y);
           if (fade <= 0.0) discard;
           // a soft hot streak on the axis, falling off at the sides, so it reads as a wake
-          float halfW = mix(${WHITE_W.toFixed(2)}, ${BLACK_W.toFixed(2)}, 0.0) * 0.5;
+          float halfW = ${WHITE_W.toFixed(2)} * 0.5;
           float across = abs(vP.x) / max(halfW, 0.05);
           float a = vA * (1.0 - smoothstep(0.0, 1.0, across)) * fade;
-          vec3 col = vColor * 1.4;          // ghosts bloom: they ride just over the threshold
+          vec3 col = vColor;                       // ghosts stay under the bloom threshold (no halo)
+          col *= min(1.0, uBodyMax / max(lumaOf(col), 1e-4));
           if (a < 0.004) discard;
           gl_FragColor = vec4(col * a, a);
         }`,
@@ -387,8 +417,8 @@ export default {
     // HOLDS about HOLD_TIME, then FALLS back toward the key and fades. It reads like a VU meter's
     // peak-hold: the last beat's loudness stays readable after the bar has risen past it.
     const HOLD_MAX = 384;
-    const HOLD_TIME = 1.0, HOLD_FALL = 0.6;   // hold 1 s, then fall 0.6 s
-    const HOLD_H = 0.06;                      // needle thickness in world units (a hairline)
+    const HOLD_TIME = 0.5, HOLD_FALL = 0.5;   // hold 0.5 s, then fall 0.5 s (was 1.0/0.6: read as 1 s glow)
+    const HOLD_H = 0.012;                      // needle thickness in world units (a true hairline, ~2px)
     const holdUnion = { ...shared };
     const holdGeo = new THREE.InstancedBufferGeometry();
     {
@@ -437,7 +467,7 @@ export default {
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }`,
       fragmentShader: `
-        uniform float uFrameH, uPR, uFadeEnd, uFadeStart;
+        uniform float uFrameH, uPR, uFadeEnd, uFadeStart, uBodyMax;
         varying vec3 vColor;
         varying float vA;
         varying vec2 vP;
@@ -450,7 +480,8 @@ export default {
           // VU tick pressed against the bead's peak. Width hugs the bar; height is a hairline.
           float across = abs(vP.x);
           float axis = 1.0 - smoothstep(0.0, 0.5, across);
-          vec3 col = vColor * (0.8 + 0.7 * axis) * 1.4;
+          vec3 col = vColor * (0.8 + 0.7 * axis);       // under the bloom threshold (no dotted bloom)
+          col *= min(1.0, uBodyMax / max(lumaOf(col), 1e-4));
           float a = vA * fade;
           if (a < 0.004) discard;
           gl_FragColor = vec4(col * a, a);
@@ -494,8 +525,9 @@ export default {
           gl_Position = vec4(position.xy * 2.0 - 1.0, 0.0, 1.0);
         }`,
       fragmentShader: `
-        uniform float uFrameH, uFrameW, uDotY, uEnergy;
+        uniform float uFrameH, uFrameW, uDotY, uEnergy, uPR, uFadeEnd, uFadeStart, uBodyMax;
         varying vec2 vP;
+        ${GLSL_COMMON}
         void main() {
           float px = vP.x * uFrameW;                // pixel x from the LEFT edge
           float py = vP.y * uFrameH;                // pixel y from the TOP
@@ -516,10 +548,15 @@ export default {
           float dot = 1.0 - smoothstep(0.0, 2.5, dotD);
           float strip = 1.0 - smoothstep(0.85, 1.0, dx);
           if (strip <= 0.0) discard;
-          float a = strip * (0.22 + 0.30 * t);
+          // the strip must fade inside the protected top band (it was crossing it in 16:9)
+          float fade = bandFade(gl_FragCoord.y);
+          if (fade <= 0.0) discard;
+          float a = strip * (0.22 + 0.30 * t) * fade;
           vec3 col = band;
           col += vec3(0.95, 0.88, 0.72) * dot * (0.55 + 0.45 * uEnergy);
-          a += dot * 0.7;
+          // no part of the ribbon may cross the bloom threshold (it read as 798 non-cap pixels)
+          col *= min(1.0, uBodyMax / max(lumaOf(col), 1e-4));
+          a += dot * 0.7 * fade;
           if (a < 0.004) discard;
           gl_FragColor = vec4(col * a, a);
         }`,
@@ -547,9 +584,14 @@ export default {
 
     return {
       noteOn(m, vel, t) {
+        // If a note repeats while its prior bar is still live (pedal-held, so the host may not emit
+        // a noteEnd), close the old bar now: pedalled repeats must read as SEPARATE beads with a
+        // gap, never as one continuous run.
+        const prior = strikes.get(m);
+        if (prior && prior.pool.attr.aT2.array[prior.slot] > t) barEnd(prior, t);
         const ref = barStart(m, vel, t);
         strikes.set(m, ref);
-        // Peak-hold tick: park it at the bead's peak height (velocity as height). It holds ~1 s
+        // Peak-hold tick: park it at the bead's peak height (velocity as height). It holds ~0.5 s
         // then falls; harder strikes hold a visibly higher tick.
         const A = ref.pool.attr;
         const slot = ref.slot;
@@ -566,7 +608,13 @@ export default {
         barEnd(strikes.get(m), t);
         strikes.delete(m);
       },
-      pedal() { /* pedal sustain is already the hollow tail below each release */ },
+      pedal(down, raw, t) {
+        // Track the sustain state so finger+pedal can be the brightest state and pedalled repeats
+        // stay distinct. `raw` is the pedal depth 0..1 when available; otherwise a boolean.
+        pedalDown = !!down;
+        pedalT = t;
+        shared.uPedal.value = pedalDown ? 1.0 : 0.0;
+      },
       update(dt, t, frame) {
         shared.uNow.value = t;
         if (frame.view) {
@@ -574,6 +622,7 @@ export default {
           shared.uPx.value = frame.view.pointScale;
         }
         if (frame.framing) {
+          applyFraming(frame.framing);
           shared.uFrameH.value = frame.framing.height;
           if (frame.framing.width) ribbonUniforms.uFrameW.value = frame.framing.width;
         }
@@ -590,6 +639,7 @@ export default {
       },
       resize(framing) {
         if (!framing) return;
+        applyFraming(framing);
         shared.uFrameH.value = framing.height;
         if (framing.width) ribbonUniforms.uFrameW.value = framing.width;
       },
