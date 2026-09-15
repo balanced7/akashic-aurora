@@ -49,6 +49,17 @@ These rulings answer the open decisions from the LS0-LS5 build (workflow run wf_
   - Duplicate pitches in two lanes at one position share the accidental decision, so both copies print it.
 - **LS5 leave-out rule:** when a staff's second voice holds only an omitted tied-in piece, keep the two-voice layout for that bar and draw a hidden rest for voice 2, so stems do not flip mid-phrase.
 
+## Conventions round 2 rulings (2026-09-15, after the round verified PASS)
+
+- **The PENDING RULING gating in score_hands: ratified as a no-regress gate.**
+  - The three receipts (LR7 voice F1 0.8588, LR3d triplet-chip hit 0.111, LR8) depend on convention and on real labelled takes, not on a code defect.
+  - They stay visible as PENDING in every run and fail the suite if they get worse than their recorded values.
+  - They are settled in LS9 with Daniel's labelled takes: group left-hand figures by beat after quantization, then re-measure LR7. The LR3d chip reads tatum, not grid, once the ×2/3 level exists. LR8 counts ties per metric bar only and ignores dynamics on sessions under 2 minutes.
+- **Metronome marks:** printed only at the start, after a free-time passage, or where the tempo changes by 5% or more from the mark in force. Never a restatement of the tempo already in force.
+- **Per-voice pin off the group's subdivision:** the pinned note takes the nearest tick on its onset group's subdivision grid that is at or after the continuation's end, if one lies within a 16th. Otherwise it stays at the continuation's end and is counted as `pinOffGrid`. No 3-against-4 is ever written.
+- **Left-hand figures spanning roughly A2-C5:** notes at or above C4 in a left-hand figure may be drawn cross-staff on the upper staff when that staff has no note at that position. Otherwise accept the ledger lines, counted. There is still no mid-bar clef change and no bass-clef 8va. This lands as LS3b after LS6.
+- **Clef readings:** octave lines go by clef, not by staff role, so a treble-clef lower staff may take 8va (the written rule). The live ribbon commits a clef change only when both bars that want it have settled (causal). The clean copy may use lookahead. No drawn change may rest on an open bar.
+
 ## LS6 rulings: Daniel's answers (2026-09-15)
 
 Daniel's words, verbatim:
