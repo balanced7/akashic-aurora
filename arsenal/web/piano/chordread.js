@@ -21,8 +21,31 @@
 //                  key: key name | null (additive: alsoOf spells in it) }
 //   AlsoResult = { name, kind: "was" } | null
 //   DetectInfo = today's Theory.detect info ({ kind, root, suffix, bass, name, sub, pcNames, notes, cost }) plus readings,
-//                band, tags, no3
+//                band, tags, no3, rootless. Its root and bass always sound (both are among info.notes), so piano.js's
+//                spellForKey, the label, the number, the HUD and the practice log's chord event read it as they read
+//                today's info. A top reading whose root does not sound (rootless) is named by the first listed reading
+//                whose root sounds (else today's template info), and the rootless top is the additive
+//                info.rootless = { root: spelling, name, suffix, bass: spelling | null } (null otherwise). tn1-rulings.md 2.
 //   ParsedSuffix = { tones: { semis: letterSteps }, family, dominant, tensions: [semis] } (+ base, quality, no3, known)
+//
+// Rulings (research/in-flight/piano-theory-nextgen-2026-09-14/tn1-rulings.md; they win over the spec where they differ):
+// - A6, honest calibration, stacked-4ths cap (ratified): three pitch classes holding bass+5 and bass+10 (D G C) are never
+//   clear. They are D7sus4 without its 5th, Gsus4 over its 5th or Csus2 over its 9. It demotes 3 real windows of S1-S6
+//   and changes no fixture band.
+// - Cluster band: a result of kind "cluster" reports band "none" (it makes no chord-name claim).
+// - The 6/9 without its 5th (root, 3rd, 6th, 9th: C E A D) reads C6/9 on top in every key and with no key. Its other
+//   name, the relative minor over its own 3rd with the 11 added (Am(add11)/C), is the same notes named from the 6th: it
+//   ranks directly behind the 6/9, SAME_NOTES_STEP behind, where its 5th-present twin (Am7(11)/C behind C6/9) ranks. A
+//   rank rule, not a cost term: the voicings that sound the 5th never meet it (Gb6/9 over Ebm7(11)/Gb keeps its reading).
+// - The 9 chord with no 3rd with its root doubled above (C3 G3 C4 D4 Bb4) reads C9(no3) on top (Cm9(no3) where the key
+//   gives C a minor 3rd), leaning, in every key and with no key: its twin Gm(add11)/C, the minor on its 5th over its own
+//   11, ranks SAME_NOTES_STEP behind it (round 4, the same rank rule as the 6/9). With the root only in the bass
+//   (C3 G3 Bb3 D4) Gm/C stays on top as the costs give it.
+// - Same-notes twins are never clear while the other is a reading within 1.5: the Lydian 4 and the gospel 5 over 4
+//   (Ab6/9#11 and Bb11/Ab, design-engine 9.9) and a maj13 with no 9 and its relative m9 over its 3rd (Dbmaj13 and
+//   Bbm9/Db). Round 4, a measured band rule, awaiting the conductor's ratification as A6's cap had.
+// - Template fallback: when the grammar has no reading, the page's template name is taken over opts.bassMidi when it is
+//   given, and dropped when its bass is another sounding note.
 //
 // Conventions:
 // - Families (Reading.base.family): maj, min, dom, sus, dim, hdim, aug; "open" for a no-3rd reading read without a key
@@ -96,6 +119,10 @@ export const COSTS = Object.freeze({
   minorAddOverFifth: 1.0,   // the same over its 5th (Gm(add9,11)/D against Bbmaj13/D)
   sixNineInversion: -0.3,   // a 6/9 chord over its 3rd or 5th (Ab6/9/Eb against Fm7(11)/Eb, the same notes): 13 losses fixed
 });
+// Not a tuned cost: the gap a minor name over its own 3rd keeps behind the bass-rooted 6/9 of the same notes when the 5th
+// is left out (C E A D: Am(add11)/C behind C6/9). It is the gap the 5th-present twin already has (C E G A D: Am7(11)/C
+// 0.25 behind C6/9), so both voicings read in the same band with the same HUD runner-up (tn1-rulings.md must-fix 1).
+const SAME_NOTES_STEP = 0.25;
 
 // The lead-sheet name of a base plus tensions (design-engine 3.2).
 function suffixOf(base, ext, flags = {}) {
@@ -226,6 +253,10 @@ function clusterRun(ms) {
 }
 // A3: 4 or more notes within 5 semitones with an adjacent semitone are a cluster in any band (C D E F, not Dm9/C).
 const isCluster = (ms) => ms.length >= 4 && ms[ms.length - 1] - ms[0] <= 5 && ms.slice(1).some((m, i) => m - ms[i] === 1);
+// The notes with a given bass lowest, for the templates (which take the lowest note as the bass): every note under it
+// moves up by octaves. Pitch classes are unchanged; with no bass given, or the bass already lowest, nothing moves.
+const overBass = (midis, bassMidi) => (Number.isFinite(bassMidi)
+  ? midis.map((m) => { let x = m; while (x < bassMidi) x += 12; return x; }) : midis.slice());
 
 function voicingTags(ms) {
   const tags = [];
@@ -442,6 +473,32 @@ export function createReader({ Theory, NV = Nashville, costs = null } = {}) {
     const kept = out.filter((r) => !(r.path === "slash" && [9, 10, 11].includes(mod(r.bass - r.root, 12)) && fullOn.has(`${r.root}|${r.bass}`))
       && !(r.base.id === "aug" && r.ext.size > 0 && [4, 8].some((up) => sevenSharpFive.has(`${r.group}|${mod(r.root + up, 12)}`))));
 
+    // The 6/9 without its 5th (tn1-rulings.md must-fix 1). Root, 3rd, 6th and 9th (C E A D) are also the relative minor
+    // over its own 3rd with the 11 added (Am(add11)/C): the same notes, named from the 6th. That minor name ranks
+    // SAME_NOTES_STEP behind the 6/9 on the bass whatever the costs say (a key, no key, the chord before), and it stays
+    // listed for the HUD. A minor triad over its 3rd is only ever this 6/9's twin: with the 6/9's 5th sounding, the minor
+    // name holds a 7th and is a m7(11) (Ebm7(11)/Gb behind Gb6/9), which this rule never touches.
+    const sixNoFifth = new Map(kept.filter((r) => r.base.id === "6" && r.flags.no5 && r.bass === null && r.path !== "slash")
+      .map((r) => [`${r.group}|${r.root}`, r]));
+    for (const r of kept) {
+      if (r.base.id !== "m" || !r.ext.size || r.bass === null || r.path === "slash" || mod(r.bass - r.root, 12) !== 3) continue;
+      const six = sixNoFifth.get(`${r.group}|${r.bass}`);
+      if (six && r.cost < six.cost + SAME_NOTES_STEP) r.cost = six.cost + SAME_NOTES_STEP;
+    }
+    // The 9 chord with no 3rd (C G Bb D: root and 5th below, b7 and 9 above, the neo-soul and gospel sus-colour hand) is
+    // also the minor triad on its 5th over its own 11 (Gm(add11)/C): the same notes, named from the 5th. When the bass
+    // pitch sounds again above the lowest note, it is a chord tone, not only a bass, so that minor name ranks
+    // SAME_NOTES_STEP behind the no-3rd 9 chord on the bass (C9(no3), or Cm9(no3) where the key gives C a minor 3rd), as the
+    // 6/9's relative minor does. A rank rule, not a cost term. When the bass sounds only lowest, the slash name (Gm/C) is
+    // the plain name and already ranks ahead of both, so the rule leaves that list, and its band, as the costs give it.
+    const nineNoThird = new Map(kept.filter((r) => r.flags.no3 && (r.base.id === "7" || r.base.id === "m7") && r.ext.has(2)
+      && r.bass === null && r.path !== "slash").map((r) => [`${r.group}|${r.root}`, r]));
+    for (const r of bassOnlyLow ? [] : kept) {
+      if (r.base.id !== "m" || r.bass === null || r.path === "slash" || mod(r.bass - r.root, 12) !== 5) continue;
+      const nine = nineNoThird.get(`${r.group}|${r.bass}`);
+      if (nine && r.cost < nine.cost + SAME_NOTES_STEP) r.cost = nine.cost + SAME_NOTES_STEP;
+    }
+
     const seen = new Map();
     for (const r of kept) {
       r.suffix = suffixOf(r.base, r.ext, r.flags);
@@ -454,8 +511,11 @@ export function createReader({ Theory, NV = Nashville, costs = null } = {}) {
     const cands = [...seen.values()].map((r, i) => ({ r, i }))
       .sort((a, b) => a.r.cost - b.r.cost || (isBassRoot(a.r) === isBassRoot(b.r) ? a.i - b.i : isBassRoot(a.r) ? -1 : 1)).map((x) => x.r);
     if (!cands.length) {  // nothing in the grammar: the page's own template reading stays (Fm(add9)/Ab without its 5th)
-      const info = detectTemplates(notes.map((n) => n.midi), bias);
-      const id = info && info.kind === "chord" ? identOfName(info.name) : null;
+      // Over the window's bass (tn1-rulings.md): the templates take the lowest note as the bass, so every note under
+      // opts.bassMidi moves up by octaves first, and a template name on any other bass is no name at all.
+      const info = detectTemplates(overBass(notes.map((n) => n.midi), bassMidi), bias);
+      const named = info && info.kind === "chord" ? identOfName(info.name) : null;
+      const id = named && (named.bass ?? named.root) === bassPc ? named : null;
       if (id) {
         const ps = parseSuffix(id.suffix);
         cands.push({ root: id.root, suffix: id.suffix, bass: id.bass, cost: (info.cost ?? 3) + 0.5, reasons: ["the page's own name (fallback)"],
@@ -478,6 +538,31 @@ export function createReader({ Theory, NV = Nashville, costs = null } = {}) {
     // A6, honest calibration: three pitch classes stacked in 4ths up from the bass (D G C) name no chord for sure. They
     // are D7sus4 without its 5th, Gsus4 over its 5th or Csus2 over its 9 (scratch tn1r/variants3.mjs: 3 real windows).
     if (band === "clear" && pcs.size === 3 && pcs.has(mod(bassPc + 5, 12)) && pcs.has(mod(bassPc + 10, 12))) band = "leaning";
+    // Same-notes twins, honest calibration (spec 2.6's hand rule: leaning where the same notes carry a second name as plain
+    // on another root or bass). Neither is clear while the other is a reading within 1.5 (alsoOf's reach), whichever tops:
+    // - the Lydian 4 and the gospel 5 over 4 (design-engine 9.9: what follows decides): a root-position major chord with
+    //   its #11 and no maj7 (Ab6/9#11), and the dominant 11 on its 2nd over it, with that dominant's 5th and 9 sounding
+    //   (Bb11/Ab). Without the 5 chord's 5th (Ab Bb D C Eb, no F) Abadd9(#11) is the one plain name, and stays clear.
+    // - a maj13 with no 9 (Dbmaj13: Db F Ab C Bb) and its relative minor over its 3rd, whose 9 is the maj7 (Bbm9/Db; with
+    //   the #11 sounding, Gbmaj13#11 with no Ab and Ebm13/Gb). design-engine 5 on Abmaj13 and Fm9/Ab: "Both are right."
+    // Measured on S1-S6 (scratch theory-nextgen/tn1t/diff_r4.mjs): 8 real windows leave clear, clear-band agreement rises
+    // (0.960 to 0.966, multi-reading 0.952 to 0.959), and every lane receipt holds.
+    const lydianFour = (x) => x.path === "full" && x.bass === null && x.root === bassPc && x.family === "maj" && !x.flags.no3
+      && !x.flags.rootless && x.ext.has(6) && !x.base.tones.includes(11);
+    const gospelFive = (x) => x.path === "full" && x.base.id === "7" && x.root === mod(bassPc + 2, 12) && x.bass === bassPc && !x.flags.no3
+      && !x.flags.no5 && !x.flags.rootless && x.ext.has(2) && x.ext.has(5);
+    const majThirteenNoNine = (x) => x.path === "full" && x.bass === null && x.root === bassPc && x.base.id === "maj7" && !x.flags.no3
+      && !x.flags.rootless && x.ext.has(9) && !x.ext.has(2);
+    const relativeMinorNine = (x) => x.path === "full" && x.base.id === "m7" && x.root === mod(bassPc + 9, 12) && x.bass === bassPc
+      && !x.flags.rootless && x.ext.has(2);
+    const TWINS = [[lydianFour, gospelFive], [majThirteenNoNine, relativeMinorNine]];
+    if (band === "clear" && TWINS.some(([a, b]) => cands.some((x) => x !== top && x.cost - top.cost <= 1.5 && ((a(top) && b(x)) || (b(top) && a(x)))))) {
+      band = "leaning";
+    }
+    // A3's cluster kind makes no chord-name claim, so no band sits beside it (tn1-rulings.md): the HUD never shows clear
+    // beside letters. The readings stay listed.
+    const kind = !top || isCluster(ms) ? "cluster" : "chord";
+    if (kind === "cluster") band = "none";
     const fit = top ? Math.exp(-Math.max(0, top.cost - 1.0) / 1.5) : 0;  // an only reading that takes a lot of naming is still weak
     // The readings any consumer can use: every one within 1.5 of the top (alsoOf's reach), and at least three (the HUD).
     // opts.reach (additive) widens the list for a lab or a test; p sums to 1 over the readings returned.
@@ -490,7 +575,7 @@ export function createReader({ Theory, NV = Nashville, costs = null } = {}) {
       base: { id: r.base.id, family: r.family }, tensions: [...r.ext].sort((a, b) => a - b),
       omit: { no3: !!r.flags.no3, no5: !!r.flags.no5, rootless: !!r.flags.rootless }, path: r.path,
     }));
-    return { kind: !top ? "cluster" : isCluster(ms.sort((a, b) => a - b)) ? "cluster" : "chord", readings, band,
+    return { kind, readings, band,
              margin: Math.min(margin, 9), confidence: top ? Math.max(0, Math.min(1, (1 / Z) * fit)) : 0, tags, key: keyName };
 
     function nameOf(r, b, kn) {
@@ -526,40 +611,61 @@ export function createReader({ Theory, NV = Nashville, costs = null } = {}) {
   }
 
   // Theory.detect's signature and info shape, named by the reader: a note, an interval or a power chord keeps today's
-  // info; 3 or more pitch classes take the top reading. opts (additive): { key, prev, bassMidi } for the reader.
+  // info; 3 or more pitch classes take the reading. opts (additive): { key, prev, bassMidi } for the reader.
+  // The info's root and bass always sound (tn1-rulings.md must-fix 2), because piano.js's spellForKey, the label, the
+  // number, the HUD and the practice log's chord event look them up among info.notes:
+  // - a bassMidi whose pitch class is not among the notes joins the notes detect spells, as read() takes it;
+  // - a top reading whose root does not sound (rootless) is named by the first listed reading whose root sounds, else by
+  //   today's template info over the same bass. The rootless top stays first in info.readings, and the additive
+  //   info.rootless = { root, name, suffix, bass } names it (null when the top's root sounds).
   function detect(midiNotes, keyBias = 0, opts = {}) {
     const notes = [...new Set(midiNotes || [])].sort((a, b) => a - b);
-    if (new Set(notes.map((n) => mod(n, 12))).size < 3) return detectTemplates(midiNotes, keyBias);
-    const res = read(notes, { key: opts.key ?? null, prev: opts.prev ?? null, bassMidi: opts.bassMidi, keyBias });
+    const bassIn = Number.isFinite(opts.bassMidi) ? Math.round(opts.bassMidi) : null;
+    if (bassIn !== null && !notes.some((n) => mod(n, 12) === mod(bassIn, 12))) { notes.push(bassIn); notes.sort((a, b) => a - b); }
+    if (new Set(notes.map((n) => mod(n, 12))).size < 3) return detectTemplates(bassIn === null ? midiNotes : overBass(notes, bassIn), keyBias);
+    const res = read(notes, { key: opts.key ?? null, prev: opts.prev ?? null, bassMidi: bassIn ?? undefined, keyBias });
     const key = keyOf(opts.key);
     const bias = key ? key.bias : keyBias;
+    const keyName = key ? key.name : null;
     const pcs = [];
     for (const n of notes) if (!pcs.includes(mod(n, 12))) pcs.push(mod(n, 12));
     const extras = { readings: res.readings, band: res.band, tags: res.tags };
     const top = res.kind === "chord" ? res.readings[0] : null;
+    const sounds = (pc) => pc == null || pcs.includes(pc);
+    const spOf = (sp) => (sp ? { letter: sp.letter, acc: sp.acc } : null);
+    let rootless = null;
+    if (top && !sounds(top.root)) {
+      const t = NV.parseChord(top.name);
+      rootless = { root: spOf(t.root), name: top.name, suffix: top.suffix, bass: spOf(t.bass) };
+    }
     const spelled = (map) => notes.map((midi) => {
       const sp = map[mod(midi, 12)];
       return { midi, letter: sp.letter, acc: sp.acc, name: spName(sp), octave: Theory.octaveOf(midi, sp), diatonic: Theory.diatonicOf(midi, sp) };
     });
     if (!top) {
       const map = {};
-      for (const pc of pcs) map[pc] = spellRoot(pc, bias, key ? key.name : null, null);
+      for (const pc of pcs) map[pc] = spellRoot(pc, bias, keyName, null);
       return { kind: "cluster", root: null, suffix: "", bass: null, name: pcs.map((pc) => spName(map[pc])).join(" "), sub: "no chord name",
-               pcNames: pcs.map((pc) => spName(map[pc])), notes: spelled(map), ...extras, no3: false };
+               pcNames: pcs.map((pc) => spName(map[pc])), notes: spelled(map), ...extras, no3: false, rootless: null };
     }
-    const c = NV.parseChord(top.name);
-    const suffix = top.suffix.replace("(no3)", "");
-    const tones = parseSuffix(top.suffix).tones;
+    const named = res.readings.find((r) => sounds(r.root) && sounds(r.bass));
+    if (!named) {  // every listed reading is rootless: today's template info names the notes (its root and bass sound)
+      const info = detectTemplates(bassIn === null ? notes : overBass(notes, bassIn), bias);
+      return { ...info, ...extras, no3: false, rootless };
+    }
+    const c = NV.parseChord(named.name);
+    const suffix = named.suffix.replace("(no3)", "");
+    const tones = parseSuffix(named.suffix).tones;
     const map = {};
     for (const pc of pcs) {
-      const iv = mod(pc - top.root, 12);
-      map[pc] = iv in tones ? spellFromRoot(c.root, pc, tones[iv], bias, key ? key.name : null) : spellRoot(pc, bias, key ? key.name : null, null);
+      const iv = mod(pc - named.root, 12);
+      map[pc] = iv in tones ? spellFromRoot(c.root, pc, tones[iv], bias, keyName) : spellRoot(pc, bias, keyName, null);
     }
-    map[top.root] = c.root;
-    if (c.bass) map[top.bass] = c.bass;
+    map[named.root] = c.root;
+    if (c.bass) map[named.bass] = c.bass;
     const name = spName(c.root) + suffix + (c.bass ? "/" + spName(c.bass) : "");
     return { kind: "chord", root: c.root, suffix, bass: c.bass || null, name, sub: "", pcNames: pcs.map((pc) => spName(map[pc])),
-             notes: spelled(map), cost: top.cost, ...extras, no3: top.omit.no3 };
+             notes: spelled(map), cost: named.cost, ...extras, no3: named.omit.no3, rootless };
   }
 
   return { read, alsoOf, closeOf, detect, detectTemplates };

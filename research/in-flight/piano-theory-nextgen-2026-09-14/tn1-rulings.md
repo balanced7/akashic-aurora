@@ -27,3 +27,22 @@ These rulings answer the open decisions from the TN1 build, repair round and rou
 2. **`installReader` keeps `Theory.detect`'s info shape (spec 2.2).** When the top reading is rootless, `info.notes`, `info.pcNames` and every field `piano.js` reads (the `spellForKey` path near its line 2077, the chord HUD and the practice-log chord event) stay consistent. A rootless root that does not sound is exposed as an additive field, never by breaking the existing arrays. Add a contract test that runs the page's own consumers of `info` on rootless tops.
 3. **Two seed-card accept names** that name a non-sounding 6th are removed.
 4. **Seed cases** get band ceilings and ALSO, and the runner checks them.
+
+## Round 4 rulings (2026-09-15, after repair rounds 3-4)
+
+Status after round 4: the full runner gives 6732 passed and 0 failed, the contracts give 6116 passed, and the real-window lane holds 19/19. The musical-truth verifier passes. The code verifier still fails on one contract defect (below).
+
+- **Same-notes twin band cap: ratified.** Two same-notes twins are never *clear* while the other is a reading within 1.5, whichever is on top. The twins are:
+  - the Lydian 4 against the gospel 5 over 4, which requires the dominant's 5th and 9;
+  - a maj13 with no 9 against its relative minor over its 3rd.
+
+  Why ratified: it is structural, not a cost nudge, and it follows design-engine 9.9 and 5. It moves 8 real windows out of clear and changes 0 tops. Clear-band agreement rises from 0.960 to 0.966, and the voicer's 5-over-4 slots without their 5th stay clear.
+- **The doubled-root no-3rd 9 rank rule: ratified.** `C3 G3 C4 D4 Bb4` reads `C9(no3)` (or `Cm9(no3)` where the key gives a minor 3rd) ahead of `Gm(add11)/C` by 0.25. With the root only in the bass (`C3 G3 Bb3 D4`), the reading stays `Gm/C`, ambiguous. The 132 strict cases are ratified.
+  - The 12 cases expecting `m9(no3)` where the key's 3rd is minor (for example C G C D Bb in A♭ major) follow A1 and stand for now. They are flagged for Daniel's ear in the gold-set sitting (ultimate-practice plan #3).
+- **HUD close for the doubled 9(no3) is `Gm(add11)/C`: accepted for v1.** It follows the 6/9 precedent (close `Am(add11)/C`, with the canvas ALSO beside it). Revisit the closeOf wording with the gold set rather than tuning it now.
+- **Must-fix before TN2 (code verifier, round 4).** `detect()` must honour `opts.bassMidi` on its template path. When every listed reading is rootless (chordread.js around lines 652-654), it currently calls `detectTemplates(overBass(notes, bassIn))`. overBass moves nothing when the bass pitch class already sounds above the lowest note, so the template names the chord over a different sounding note. Pin it with a case where the bass pitch class sounds both lowest-but-one and above.
+- **Also for that follow-up (cheap, same file):**
+  - Runner-up and rootless basses follow the page's ODD spelling rule: never B♯, E♯, C♭ or F♭ unless the key's scale has them. This covers `G#7b13/B#` at bias 1 and the off-key runner-up basses (`Am7b5(11)/E#` in B♭).
+  - A result whose kind is `cluster` reports band `none` on every path, including the all-rootless template path (ruling above).
+  - The root-position aug(add9) (`C3 E3 G#3 D4`) should list `C+(add9)` among its readings.
+
