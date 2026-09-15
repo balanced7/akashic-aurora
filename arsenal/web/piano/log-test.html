@@ -13,6 +13,9 @@
 With <code>?auto=1</code> the page also creates a log at load (so sessions buffered by an earlier page upload),
 configured by <code>flushMs</code>, <code>uploadEveryMs</code>, <code>maxBatch</code> and <code>idleCloseMs</code>
 in the query, and <code>__logTest.burst()</code> plays into it instantly for the headless buffer check.</p>
+<p>Timebase check (jam-spec J5): <code>pageId</code> in the query names the log's page, <code>__logTest.offline(true)</code>
+makes the practice-log requests fail as a network error does, <code>__logTest.opens()</code> lists the open requests this
+page sent with their bodies, and <code>__logTest.timebase()</code> is <code>log.timebase()</code>.</p>
 <pre id="out"></pre>
 <script type="module">
 import { createPerformanceLog } from "./log.js";
@@ -25,6 +28,23 @@ const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const spell = (m) => ({ name: NAMES[m % 12], octave: Math.floor(m / 12) - 1 });
 const params = new URLSearchParams(location.search);
 const num = (name, fallback) => (params.has(name) ? Number(params.get(name)) : fallback);
+
+// Every practice-log request passes through here: opens are recorded with the body sent, and while offline is on
+// they fail the way a server that cannot be reached does (log.js looks fetch up at call time, so this is what it uses).
+const realFetch = window.fetch.bind(window);
+const opens = [];
+let offline = false;
+window.fetch = (url, init) => {
+  const u = String(url);
+  const isLog = /\/api\/performance(\/|$)/.test(u) && init && init.method === "POST";
+  if (isLog && /\/open$/.test(u)) {
+    let body = null;
+    try { body = JSON.parse(init.body); } catch { /* not JSON */ }
+    opens.push({ url: u, body, offline, wall_ms: Date.now() });
+  }
+  if (isLog && offline) return Promise.reject(new TypeError("Failed to fetch (log-test offline)"));
+  return realFetch(url, init);
+};
 
 // Left hand root + fifth, right hand triad: C, G, Am, F, then home to C.
 const PROGRESSION = [
@@ -128,10 +148,15 @@ window.__logTest = {
   status: () => window.__log && window.__log.status(),
   stats: () => (window.__log || log) && (window.__log || log).stats(),
   stash: () => localStorage.getItem("arsenal-performance-log:stash"),
+  timebase: () => (window.__log || log) && (window.__log || log).timebase(),
+  offline: (on) => { offline = !!on; return offline; },
+  opens: () => JSON.parse(JSON.stringify(opens)),
+  // The page's two clocks read together, for checking opened_at_client against t0_perf_ms.
+  clocks: () => { const perf = performance.now(); return { wall_ms: Date.now(), perf_ms: perf }; },
 };
 if (params.has("auto")) {
   make({ flushMs: num("flushMs", 1000), uploadEveryMs: num("uploadEveryMs", 60000), maxBatch: num("maxBatch", 1000),
-         idleCloseMs: num("idleCloseMs", 300000) });
+         idleCloseMs: num("idleCloseMs", 300000), pageId: params.get("pageId") || undefined });
 }
 say("ready");
 </script>

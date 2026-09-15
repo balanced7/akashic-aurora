@@ -312,9 +312,10 @@ select:hover { border-color: var(--ink-3); }
   box-shadow: 0 0 0 1px var(--rule);
 }
 
-/* The glass: piano.js gives it the canvas's exact box. It is not part of the
-   canvas, so REC never records it. */
-.cue-glass {
+/* The glass (#jam-glass, piano/glass.js): piano.js gives it the canvas's exact
+   box. It is not part of the canvas, so REC never records it. deck.css carries
+   the same rule for the deck's own test page. */
+.jam-glass {
   position: absolute;
   left: 0;
   top: 0;

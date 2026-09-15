@@ -1,0 +1,209 @@
+{
+  "api": "arsenal.jam.def/v0",
+  "card": {
+    "id": "lydian-four",
+    "rev": 1,
+    "title": "The Lydian 4 chord",
+    "variant": null
+  },
+  "key": "Eb major",
+  "beats_per_bar": 4,
+  "cycle_beats": 8,
+  "backing": "full",
+  "sections": [
+    {
+      "i": 0,
+      "key": "Eb major",
+      "from_beat": 0
+    }
+  ],
+  "slots": [
+    {
+      "i": 0,
+      "section": 0,
+      "at_beat": 0,
+      "beats": 4,
+      "n": "1maj9",
+      "name": "Ebmaj9",
+      "key": "Eb major",
+      "tones_pc": {
+        "root": 3,
+        "third": 7,
+        "fifth": 10,
+        "seventh": 2,
+        "ninth": 5
+      },
+      "bass_pc": 3,
+      "chord_pcs": [
+        3,
+        7,
+        10,
+        2,
+        5
+      ],
+      "scale": [
+        3,
+        5,
+        7,
+        8,
+        10,
+        0,
+        2
+      ],
+      "scale_name": "Eb major",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          39,
+          50,
+          55,
+          65,
+          70
+        ],
+        "full": [
+          39,
+          55,
+          58,
+          62,
+          65
+        ],
+        "comp": [
+          39,
+          55,
+          62
+        ],
+        "bass": [
+          39
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "fifth",
+          "seventh",
+          "ninth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Ebmaj9",
+        "number": "1maj9",
+        "match": "exact"
+      },
+      "warnings": [],
+      "hold": "legato"
+    },
+    {
+      "i": 1,
+      "section": 0,
+      "at_beat": 4,
+      "beats": 4,
+      "n": "4maj7#11",
+      "name": "Abmaj7#11",
+      "key": "Eb major",
+      "tones_pc": {
+        "root": 8,
+        "third": 0,
+        "fifth": 3,
+        "seventh": 7,
+        "eleventh": 2
+      },
+      "bass_pc": 8,
+      "chord_pcs": [
+        8,
+        0,
+        3,
+        7,
+        2
+      ],
+      "scale": [
+        8,
+        10,
+        0,
+        2,
+        3,
+        5,
+        7
+      ],
+      "scale_name": "Ab Lydian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          44,
+          55,
+          60,
+          74,
+          75
+        ],
+        "full": [
+          44,
+          51,
+          55,
+          60,
+          62
+        ],
+        "comp": [
+          32,
+          48,
+          55,
+          62
+        ],
+        "bass": [
+          44
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "fifth",
+          "seventh",
+          "third",
+          "eleventh"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh",
+          "eleventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Abmaj7#11",
+        "number": "4maj7#11",
+        "match": "exact"
+      },
+      "warnings": [],
+      "hold": "legato",
+      "omits": []
+    }
+  ],
+  "warnings": [],
+  "landing": {
+    "slot": 1,
+    "role": "#11",
+    "relative_to": "root",
+    "pc": 2,
+    "pull": "D, the #11, floats over the Ab bass and leans up a half step to Eb, home"
+  }
+}

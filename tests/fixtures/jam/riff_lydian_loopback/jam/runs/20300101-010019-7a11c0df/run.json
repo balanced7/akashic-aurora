@@ -1,0 +1,169 @@
+{
+  "api": "arsenal.jam.run/v0",
+  "run": "20300101-010019-7a11c0df",
+  "mode": "loop",
+  "route": "page",
+  "engine": "groove/1",
+  "state": "stopped",
+  "created_at": "2030-01-01T01:00:19.200+00:00",
+  "created_by": "claude",
+  "card": {
+    "id": "lydian-four",
+    "rev": 1,
+    "title": "The Lydian 4 chord",
+    "variant": null
+  },
+  "card_snapshot": {
+    "api": "arsenal.jam.card/v0",
+    "id": "lydian-four",
+    "rev": 1,
+    "title": "The Lydian 4 chord",
+    "meaning": "The 4 chord with a raised 4th inside: it floats instead of landing.",
+    "theory_name": "Lydian",
+    "group": "moves",
+    "kind": "loop",
+    "key": "Eb major",
+    "also_in": [
+      "Db major",
+      "F major"
+    ],
+    "chords": [
+      {
+        "n": "1maj9",
+        "beats": 4
+      },
+      {
+        "n": "4maj7#11",
+        "beats": 4
+      }
+    ],
+    "voicing": {
+      "style": "spread",
+      "voice_lead": false,
+      "octave": null
+    },
+    "groove": "hold",
+    "backing": "full",
+    "tempo": {
+      "bpm": 66,
+      "beats_per_bar": 4,
+      "feel": "straight"
+    },
+    "bars": 2,
+    "playback": {
+      "velocity": 48,
+      "arpeggio_ms": 0,
+      "hold": "legato",
+      "count": null
+    },
+    "explanation": "The 4 chord (Ab) with a D in it. D is the #11, a raised 4th above Ab. It already belongs to Eb major, so it shimmers and still sounds like home's family.",
+    "why": "It is a colour you reach for often, in Eb and in Db.",
+    "try": "Keep the loop going. On the Ab bar, move your top finger between C and D: C is the plain chord, D is the shimmer. Then try D over the Eb bar too, where it is the major 7th.",
+    "listen_for": "the moment D arrives over the Ab bass.",
+    "checks": [
+      {
+        "id": "sharp-eleven",
+        "slot": 1,
+        "role": "#11",
+        "want": "present",
+        "say": "you touched D, the #11 of Ab"
+      }
+    ],
+    "tags": [
+      "signature",
+      "lydian",
+      "colour"
+    ],
+    "related": [
+      "one-note-apart",
+      "blooming-chord",
+      "db-opening"
+    ],
+    "page_reads": [
+      {
+        "variant": null,
+        "slot": 0,
+        "key": "Eb major",
+        "voicing": "spread",
+        "notes": [
+          39,
+          50,
+          55,
+          65,
+          70
+        ],
+        "name": "Ebmaj9",
+        "number": "1maj9",
+        "match": "exact"
+      },
+      {
+        "variant": null,
+        "slot": 1,
+        "key": "Eb major",
+        "voicing": "spread",
+        "notes": [
+          44,
+          55,
+          60,
+          74,
+          75
+        ],
+        "name": "Abmaj7#11",
+        "number": "4maj7#11",
+        "match": "exact"
+      }
+    ],
+    "landing": {
+      "slot": 1,
+      "role": "#11",
+      "pull": "D, the #11, floats over the Ab bass and leans up a half step to Eb, home"
+    },
+    "source": {
+      "kind": "seed",
+      "seed_version": 1
+    },
+    "created_by": "claude",
+    "updated_by": "claude",
+    "created_at": "2030-01-01T00:00:00.000+00:00",
+    "updated_at": "2030-01-01T00:00:00.000+00:00"
+  },
+  "key": "Eb major",
+  "beats_per_bar": 4,
+  "count_in_bars": 1,
+  "start_epoch_ms": 1893459620000.0,
+  "bar0_epoch_ms": 1893459623636.3635,
+  "segments": [
+    {
+      "from_bar": -1,
+      "bpm": 66,
+      "epoch_ms": 1893459620000.0,
+      "def_version": 1,
+      "def_from_bar": 0
+    }
+  ],
+  "settings": [
+    {
+      "from_bar": 0,
+      "groove": "hold",
+      "backing": "comp",
+      "level": 44,
+      "humanize": 0,
+      "seed": 90210,
+      "walk": 0,
+      "try_backing": null,
+      "passes": 0,
+      "ending": "cut"
+    }
+  ],
+  "last_version": 2,
+  "owner_page_id": "p-0a1c",
+  "courtesy": {
+    "held_ms": 0,
+    "via": "now"
+  },
+  "closed": true,
+  "stopped_epoch_ms": 1893459681818.182,
+  "stop_bar": 16,
+  "stop_reason": "cli",
+  "late_dropped": 0
+}

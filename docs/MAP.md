@@ -71,7 +71,7 @@ Class: reference
 | `redis_connection.py` | Redis Connection: Fail-fast connectivity primitive | GAP | GAP | `AKASHIC_REDIS_HEALTH_CHECK_SEC`, `REDIS_DB`, `REDIS_HOST`, `REDIS_PORT` |
 | `relationship_types.py` | Comprehensive Relationship Type Framework for Knowledge Graphs | tests/test_relationship_types.py | GAP |  |
 | `sqlite_store.py` | SqliteStore -- the durable Store backend with real cross-process safety. | tests/test_sqlite_store.py | GAP | `AI_SETUP` |
-| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_filestore_coherence.py | docs/filestore-coherence-design-2026-07.md | `AI_SETUP`, `AKASHIC_STORE_BACKEND` |
+| `store.py` | Store: Swappable persistence interface (full Redis-mirror) | tests/test_arsenal_jam_store.py | docs/filestore-coherence-design-2026-07.md | `AI_SETUP`, `AKASHIC_STORE_BACKEND` |
 | `streams.py` | streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28). | tests/test_t150_runner_streams_are_watchable.py | GAP |  |
 | `timeutil.py` | timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a | GAP | GAP |  |
 
@@ -228,7 +228,7 @@ Class: reference
 | `pack_replay.py` | pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline. | GAP | GAP |  |
 | `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `TEMP` |
 | `prevention.py` | prevention -- the missing consumer of the outcome stage log (S2, recall's AAR). | tests/test_s2_prevention_observer_red.py | docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md |  |
-| `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_forge_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
+| `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_arsenal_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |
 | `staleness.py` | The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false. | tests/test_t116_retroactive_staleness.py | docs/library/brief/20260719_w04-staleness-stamps-design-brief-for-ki_4aad76.md |  |
 | `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260901_discord-verb-surface-taxonomy-navi-00000_1b1008.md | `AKASHIC_AGENT_ID` |
@@ -265,7 +265,7 @@ Class: reference
 | `event_bridge.py` | EventBridge (Slice 4) -- join the narrative timeline to the raw event firehose. | tests/test_event_bridge.py | GAP |  |
 | `event_promoter.py` | EventPromoter (Slice 5) -- promote salient raw events into narrative Beats. | tests/test_event_promoter.py | GAP |  |
 | `health.py` | Narrative health counters (Slice W-c) -- give the silent best-effort paths a voice. | tests/test_narrative_health.py | GAP |  |
-| `schema.py` | Narrative schema (Slice 0) — the data shapes of the multi-domain narrative spine. | tests/test_narrative_schema.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Narrative schema (Slice 0) — the data shapes of the multi-domain narrative spine. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 | `session.py` | Session lifecycle (Slice 1 auto-capture) -- the spine fills itself. | tests/test_notes_supersession.py | docs/library/brief/20260723_charter-the-supersession-sweep-megaread_76cc41.md |  |
 | `tag_audit.py` | TagAuditor (Slice G2) -- detect likely mis-tags. FLAG-ONLY: it returns suspects and | tests/test_tag_audit.py | GAP |  |
 | `tag_governance.py` | TagGovernor (Slice G1) -- the append-only, confidence-gated re-tag write path. | tests/test_tag_governance.py | docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md |  |
@@ -309,14 +309,14 @@ Class: reference
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `lifecycle.py` | Node lifecycle (Slice C2, delta E3) -- bi-temporal stamping + supersession as TYPE-AGNOSTIC | GAP | docs/library/design/20260718_gemini-t086-seat-wake-hook-lifecycle-pri_dc70d6.md |  |
-| `schema.py` | Resource schema (Slice C2) -- the knowledge-axis node + the structural bi-temporal contract. | tests/test_narrative_schema.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Resource schema (Slice C2) -- the knowledge-axis node + the structural bi-temporal contract. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 
 ## core/perspectives/  (2 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `reinforce.py` | ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use | GAP | GAP |  |
-| `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_narrative_schema.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 
 ## agent/harness/  (13 modules)
 

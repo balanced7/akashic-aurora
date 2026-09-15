@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Listen again · Piano Jam</title>
+  <link rel="stylesheet" href="/web/piano/replay.css">
+  <script type="module" src="/web/piano/replay.js"></script>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">PIANO JAM <span> / </span> LISTEN AGAIN</p>
+    <a class="conversation-link" href="/web/conversation.html">Browse the question cards →</a>
+    <h1 id="title">A moment from your playing</h1>
+    <p id="range" class="subtle">Loading your passage…</p>
+    <section class="player" aria-label="Passage player">
+      <div class="plot"><canvas id="roll" aria-label="Notes in this excerpt, from low to high"></canvas></div>
+      <section class="harmony" aria-label="Chords in this passage">
+        <div class="harmony-heading"><span>CHORDS IN YOUR PLAYING</span><small>Hover to see · click to hear</small></div>
+        <div id="chords" class="chord-strip" aria-label="Chord timeline"></div>
+        <div id="chord-preview" class="chord-preview">
+          <div><strong id="chord-name">Explore a chord</strong><span id="chord-time"></span></div>
+          <p id="chord-notes">Notes ringing together, including sustain.</p>
+          <div id="chord-keys" class="chord-keys" role="img" aria-label="Chord notes on a keyboard"></div>
+          <small id="chord-detail">A rolled chord is grouped from the notes that keep ringing.</small>
+        </div>
+      </section>
+      <div class="time"><output id="position">0:00</output><span id="end">0:00</span></div>
+      <input id="seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position in excerpt" disabled>
+      <div class="controls">
+        <button id="play" class="primary" disabled>Play passage</button>
+        <button id="stop" disabled>Start over</button>
+        <label>Speed <select id="speed" disabled><option value="0.5">½ speed</option><option value="0.75">¾ speed</option><option value="1" selected>Original</option><option value="1.25">1¼ speed</option><option value="1.5">1½ speed</option><option value="2">2× speed</option></select></label>
+        <label class="loop"><input id="loop" type="checkbox"> Loop</label>
+      </div>
+      <p id="status" role="status" aria-live="polite">Nothing plays until you press Play.</p>
+    </section>
+    <p class="footnote">Your logged notes, timing, velocity and sustain, reconstructed with a soft keys voice. This is a MIDI replay, not the original piano recording. Notes already ringing at the cut are sounded again.</p>
+  </main>
+</body>
+</html>

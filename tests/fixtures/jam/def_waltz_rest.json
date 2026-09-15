@@ -1,0 +1,266 @@
+{
+  "api": "arsenal.jam.def/v0",
+  "card": null,
+  "key": "C major",
+  "beats_per_bar": 3,
+  "cycle_beats": 12,
+  "backing": "full",
+  "sections": [
+    {
+      "i": 0,
+      "key": "C major",
+      "from_beat": 0
+    }
+  ],
+  "slots": [
+    {
+      "i": 0,
+      "section": 0,
+      "at_beat": 0,
+      "beats": 3,
+      "n": "1maj7",
+      "name": "Cmaj7",
+      "key": "C major",
+      "tones_pc": {
+        "root": 0,
+        "third": 4,
+        "fifth": 7,
+        "seventh": 11
+      },
+      "bass_pc": 0,
+      "chord_pcs": [
+        0,
+        4,
+        7,
+        11
+      ],
+      "scale": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        11
+      ],
+      "scale_name": "C major",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          36,
+          52,
+          59,
+          67
+        ],
+        "full": [
+          36,
+          52,
+          55,
+          59
+        ],
+        "comp": [
+          36,
+          52,
+          59
+        ],
+        "bass": [
+          36
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "fifth",
+          "seventh"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": "a bar of rest follows",
+      "page_reads": {
+        "name": "Cmaj7",
+        "number": "1maj7",
+        "match": "exact"
+      },
+      "warnings": []
+    },
+    {
+      "i": 1,
+      "section": 0,
+      "at_beat": 6,
+      "beats": 3,
+      "n": "6m7",
+      "name": "Am7",
+      "key": "C major",
+      "tones_pc": {
+        "root": 9,
+        "third": 0,
+        "fifth": 4,
+        "seventh": 7
+      },
+      "bass_pc": 9,
+      "chord_pcs": [
+        9,
+        0,
+        4,
+        7
+      ],
+      "scale": [
+        9,
+        11,
+        0,
+        2,
+        4,
+        5,
+        7
+      ],
+      "scale_name": "A Aeolian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          45,
+          55,
+          60,
+          64
+        ],
+        "full": [
+          45,
+          55,
+          60,
+          64
+        ],
+        "comp": [
+          45,
+          48,
+          55
+        ],
+        "bass": [
+          45
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "seventh",
+          "third",
+          "fifth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Am7",
+        "number": "6m7",
+        "match": "exact"
+      },
+      "warnings": []
+    },
+    {
+      "i": 2,
+      "section": 0,
+      "at_beat": 9,
+      "beats": 3,
+      "n": "5^7",
+      "name": "G7",
+      "key": "C major",
+      "tones_pc": {
+        "root": 7,
+        "third": 11,
+        "fifth": 2,
+        "seventh": 5
+      },
+      "bass_pc": 7,
+      "chord_pcs": [
+        7,
+        11,
+        2,
+        5
+      ],
+      "scale": [
+        7,
+        9,
+        11,
+        0,
+        2,
+        4,
+        5
+      ],
+      "scale_name": "G Mixolydian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          43,
+          53,
+          59,
+          62
+        ],
+        "full": [
+          43,
+          53,
+          59,
+          62
+        ],
+        "comp": [
+          43,
+          53,
+          59
+        ],
+        "bass": [
+          43
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "seventh",
+          "third",
+          "fifth"
+        ],
+        "comp": [
+          "bass",
+          "seventh",
+          "third"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "G7",
+        "number": "5^7",
+        "match": "exact"
+      },
+      "warnings": [],
+      "hold": "detached",
+      "reads_as": null
+    }
+  ],
+  "warnings": []
+}

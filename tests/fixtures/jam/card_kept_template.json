@@ -1,0 +1,54 @@
+{
+  "api": "arsenal.jam.card/v0",
+  "id": "t-20300101-000142-9c1e",
+  "rev": 1,
+  "title": "Gb Db Ab Bb F Eb C, 00:01",
+  "meaning": "The chord you were holding when you pressed Keep.",
+  "group": "kept",
+  "kind": "chord",
+  "key": "Db major",
+  "chords": [
+    {
+      "n": null,
+      "beats": 4,
+      "notes": [
+        42,
+        49,
+        54,
+        56,
+        58,
+        61,
+        65,
+        70,
+        75,
+        77,
+        80,
+        84
+      ]
+    }
+  ],
+  "explanation": "These are the notes you held, kept as you played them.",
+  "why": "It is your own voicing, so you can hear it again and build on it.",
+  "try": "Play it, then change one note at a time and listen to what moves.",
+  "moments": [
+    {
+      "session": "20300101-000012-5e55a0f1",
+      "at": "2:22",
+      "until": null,
+      "label": "saved from the page"
+    }
+  ],
+  "source": {
+    "kind": "saved-live",
+    "saved_by": "daniel",
+    "page_name": "Gb Db Ab Bb F Eb C",
+    "page_number": null,
+    "key_conf": "sure",
+    "log_session": "20300101-000012-5e55a0f1",
+    "log_t_ms": 142000
+  },
+  "created_by": "daniel",
+  "updated_by": "daniel",
+  "created_at": "2030-01-01T00:02:34.000+00:00",
+  "updated_at": "2030-01-01T00:02:34.000+00:00"
+}

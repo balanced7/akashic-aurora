@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversation · Piano Jam</title><link rel="stylesheet" href="/web/piano/conversation.css">
+<script type="module" src="/web/piano/conversation.js"></script></head>
+<body><main>
+  <header><p class="eyebrow">PIANO JAM / CONVERSATION</p><h1>Let's hear your answer.</h1>
+    <p>Little moments from your playing, and a few things I'm curious about.</p>
+    <div class="toolbar"><span id="count">Loading cards…</span><button id="refresh">Refresh cards</button></div>
+    <a id="open-piano" href="http://127.0.0.1:8793/piano?conversation=1" target="_top">Open these beside the piano →</a>
+    <p id="notice" role="status" aria-live="polite"></p>
+  </header>
+  <div id="cards"></div>
+  <footer>Replays use your MIDI with a soft keys voice. Saved answers stay on this computer with their question; they do not generate an automatic AI reply.</footer>
+</main></body></html>

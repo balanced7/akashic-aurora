@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Claude's band — transport test</title>
+<style>
+  :root { --bg: #07080c; --panel: #10131a; --line: #232838; --ink: #ece8df; --dim: #8d92a2; --gold: #f2b54a;
+          --moon: #c8dcff; --teal: #35c2b0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px 20px 24px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--dim); margin: 0; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; background: var(--panel);
+         border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; }
+  .pill { font: 600 12px/1 Consolas, "JetBrains Mono", monospace; padding: 6px 9px; border-radius: 999px;
+          border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .pill[data-state="listening"], .pill[data-state="ready"], .pill[data-state="owner"] { color: #9be7c4; border-color: #2f6b52; }
+  .pill[data-state="connecting"], .pill[data-state="reconnecting"], .pill[data-state="needs a click"] { color: #ffd48a; border-color: #7a5a20; }
+  .pill[data-state="closed"], .pill[data-state="off"] { color: #ff9f9f; border-color: #7a2f2f; }
+  button, select, input { font: inherit; color: var(--ink); background: #1a1f2b; border: 1px solid #2e3548; border-radius: 7px; padding: 5px 10px; }
+  input[type="text"] { width: 320px; }
+  input[type="number"] { width: 72px; }
+  button:hover, select:hover { border-color: #4a5572; }
+  button.go { border-color: #5a6ea0; }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); }
+  .strip { display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 12px; align-items: center; background: #0b0d14;
+           border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; min-height: 118px; }
+  #countdown { font: 700 64px/1 "Segoe UI", system-ui, sans-serif; color: var(--gold); text-align: center; min-height: 64px; }
+  .now .k, .next .k { color: var(--dim); font: 600 11px/1 Consolas, monospace; letter-spacing: 0.08em; }
+  .now .v { font: 700 30px/1.15 "Segoe UI", system-ui, sans-serif; color: var(--moon); }
+  .next .v { font: 600 22px/1.15 "Segoe UI", system-ui, sans-serif; color: #b9c3d6; }
+  .n { color: var(--dim); font: 500 13px/1.3 Consolas, monospace; }
+  .pips { display: flex; gap: 8px; margin-bottom: 6px; }
+  .pip { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #3a4560; }
+  .pip.on { background: var(--moon); border-color: var(--moon); }
+  .pip.down.on { background: var(--gold); border-color: var(--gold); }
+  .knock { color: var(--gold); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
+        font: 12px/1.5 Consolas, "JetBrains Mono", monospace; color: #c9cdd8; height: 260px; overflow: auto; white-space: pre-wrap; }
+  .title { color: var(--dim); font-size: 12px; margin: 0 0 4px 2px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } .strip { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Claude's band</h1>
+    <p class="sub">transport test for the jam space &middot; count-ins, loops, changes on bar lines</p>
+  </header>
+
+  <section class="bar" aria-label="Connection and sound">
+    <span class="pill" id="conn" data-state="connecting">cues: connecting</span>
+    <span class="pill" id="voice-state" data-state="needs a click">voice: needs a click</span>
+    <span class="pill" id="owner" data-state="">owner: none</span>
+    <button type="button" id="btn-voice">Enable voice</button>
+    <label for="timbre">Timbre
+      <select id="timbre"><option value="keys">keys</option><option value="default">default</option><option value="click">click (receipts)</option></select>
+    </label>
+    <label><input type="checkbox" id="duck" checked /> duck when I play</label>
+    <label title="Heimdall: the first bar of a new line plays the bass and one upper note"><input type="checkbox" id="turn" /> turn bar</label>
+    <span class="pill" id="page"></span>
+  </section>
+
+  <section class="bar" aria-label="A run">
+    <label for="line">Chords <input type="text" id="line" value="1maj9:4 | 4maj7#11:4" /></label>
+    <label for="key">Key <select id="key">
+      <option>Eb major</option><option>Db major</option><option>D major</option><option>F major</option><option>Gb major</option>
+      <option>G major</option><option>C major</option><option>E minor</option></select></label>
+    <label for="bpm">bpm <input type="number" id="bpm" min="30" max="240" value="66" /></label>
+    <label for="groove">Groove <select id="groove"><option>ballad</option><option>hold</option><option>pulse</option></select></label>
+    <label for="backing">Backing <select id="backing"><option>comp</option><option>full</option><option>bass</option></select></label>
+    <label for="countin">Count-in <select id="countin"><option>1</option><option>0</option><option>2</option></select></label>
+    <label for="tryb">Try <select id="tryb"><option>bass</option><option>ghosts</option><option>loop</option></select></label>
+  </section>
+
+  <section class="bar" aria-label="Actions">
+    <button type="button" class="go" data-start="loop">Loop</button>
+    <button type="button" class="go" data-start="try">Try</button>
+    <button type="button" class="go" data-start="play">Play</button>
+    <button type="button" id="btn-stop">Stop (Esc)</button>
+    <button type="button" data-tempo="-4">tempo &minus;4</button>
+    <button type="button" data-tempo="+4">tempo +4</button>
+    <button type="button" id="btn-mute">mute</button>
+    <span class="knock" id="knock"></span>
+    <button type="button" id="btn-take" hidden>Hear &#9166;</button>
+    <button type="button" id="btn-decline" hidden>Not now</button>
+  </section>
+
+  <div class="strip" aria-live="off">
+    <div id="countdown"></div>
+    <div class="now"><div class="k">NOW</div><div class="v" id="now-name">&nbsp;</div><div class="n" id="now-n">&nbsp;</div></div>
+    <div class="next"><div class="k">NEXT</div><div class="v" id="next-name">&nbsp;</div><div class="n" id="next-n">&nbsp;</div></div>
+    <div><div class="pips" id="pips"></div><div class="n" id="where">&nbsp;</div><div class="n" id="chip">&nbsp;</div></div>
+  </div>
+
+  <div class="cols">
+    <div><p class="title">events</p><pre id="log"></pre></div>
+    <div><p class="title">state</p><pre id="state"></pre></div>
+  </div>
+</main>
+
+<script type="module">
+import { createCueClient, createCuePlayer, createClaudeVoice } from "./cues.js";
+import { createTransport, createJamApi, createRestDetector, summarize } from "./transport.js";
+
+const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const PAGE_ID = params.get("page") || `p-t7-${Math.random().toString(16).slice(2, 10)}`;
+const PROBE = params.get("probe") === "1";
+const timbreSel = $("timbre");
+timbreSel.value = params.get("timbre") || "keys";
+
+// ------------------------------------------------------------------------------------------------- receipt log
+// Everything a receipt measures, in page time (performance.now()).
+const T = { ons: [], offs: [], ticks: [], schedules: [], onsets: [], pairs: [], strip: [], frames: [], errors: [], ghosts: [] };
+const keep = (list, x, cap = 400000) => { list.push(x); if (list.length > cap) list.splice(0, list.length - cap); };
+const lines = [];
+function log(text) {
+  lines.push(`${(performance.now() / 1000).toFixed(2).padStart(8)}  ${text}`);
+  if (lines.length > 300) lines.shift();
+}
+
+// A fake Date.now() step (A1 f): only the transport reads this clock.
+let wallStep = 0;
+const wallNow = () => Date.now() + wallStep;
+// Frames held back in the page before the transport sees them (A3: a frame that arrives after its bar was handed)
+const delays = [];
+
+// ------------------------------------------------------------------------------------------------------ audio
+const ctx = new AudioContext({ latencyHint: "interactive" });
+ctx.resume().catch(() => {});
+const PROBE_CODE = `
+class OnsetProbe extends AudioWorkletProcessor {
+  constructor(o) { super(); const p = (o && o.processorOptions) || {}; this.thr = p.thr; this.gap = p.gap; this.quiet = 1e9; this.out = []; this.k = 0; }
+  process(inputs, outputs) {
+    const inp = inputs[0] || [], out = outputs[0] || [];
+    for (let c = 0; c < out.length; c++) { const src = inp[c] || inp[0]; if (src) out[c].set(src); }
+    const a = inp[0], b = inp[1];
+    if (a) {
+      for (let i = 0; i < a.length; i++) {
+        const x = Math.max(Math.abs(a[i]), b ? Math.abs(b[i]) : 0);
+        if (x > this.thr) { if (this.quiet >= this.gap) this.out.push(currentFrame + i); this.quiet = 0; } else this.quiet++;
+      }
+    } else this.quiet += 128;
+    if (++this.k % 8 === 0 && this.out.length) { this.port.postMessage(this.out); this.out = []; }
+    return true;
+  }
+}
+registerProcessor("onset-probe", OnsetProbe);`;
+let output = ctx.destination, probeNode = null;
+if (PROBE) {
+  try {
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([PROBE_CODE], { type: "text/javascript" })));
+    probeNode = new AudioWorkletNode(ctx, "onset-probe", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+      processorOptions: { thr: Number(params.get("thr") || 5e-4), gap: Math.round(ctx.sampleRate * 0.03) } });
+    probeNode.port.onmessage = (e) => { for (const f of e.data) keep(T.onsets, f); };
+    probeNode.connect(ctx.destination);
+    output = probeNode;
+  } catch (e) {
+    keep(T.errors, `probe: ${e && (e.message || e)}`);
+  }
+}
+// clock pairs for the receipt, every 100 ms
+setInterval(() => {
+  if (ctx.state !== "running" || typeof ctx.getOutputTimestamp !== "function") return;
+  const ts = ctx.getOutputTimestamp();
+  if (ts.performanceTime > 0) keep(T.pairs, [ts.performanceTime, ts.contextTime * 1000, performance.now()]);
+}, 100);
+
+const voice = createClaudeVoice({
+  context: ctx, output, volume: 0.7,
+  onSchedule: (s) => keep(T.schedules, s),
+  onStatus: (s) => { $("voice-state").textContent = `voice: ${s}`; $("voice-state").dataset.state = s; log(`voice: ${s}`); },
+});
+$("btn-voice").addEventListener("click", async () => { await voice.unlock(); await ctx.resume().catch(() => {}); });
+
+// ----------------------------------------------------------------------------------------------------- player
+const claudeDown = new Map();
+const player = createCuePlayer({
+  voice,
+  noteOn(m, vel, meta) {
+    keep(T.ons, { t: performance.now(), at: meta.at, cue: meta.cue_id, m, vel, sound: meta.sound });
+    claudeDown.set(m, (claudeDown.get(m) || 0) + 1);
+  },
+  noteOff(m, meta) {
+    keep(T.offs, { t: performance.now(), at: meta.at, cue: meta.cue_id, m, reason: meta.reason });
+    claudeDown.delete(m);
+  },
+  onTick(info) { keep(T.ticks, { t: performance.now(), at: info.at, cue: info.cue_id, freq: info.freq, vel: info.velocity }); },
+  caption(info) { $("chip").textContent = info ? `CLAUDE · ${info.label || ""}${info.detail ? ` · ${info.detail}` : ""}` : " "; },
+  onError: (e) => { keep(T.errors, String(e && (e.message || e))); log(`player: ${e && (e.message || e)}`); },
+});
+
+// -------------------------------------------------------------------------------------------------- transport
+const rest = createRestDetector();
+const danielDown = new Set();
+const api = createJamApi();
+const pips = [];
+function drawPips(m) {
+  if (pips.length === m) return;
+  $("pips").textContent = "";
+  pips.length = 0;
+  for (let i = 0; i < m; i++) { const d = document.createElement("div"); d.className = `pip${i === 0 ? " down" : ""}`; $("pips").append(d); pips.push(d); }
+}
+let lastCountdown = null;
+function strip(p) {
+  const t = performance.now();
+  const cd = p && p.counting_in ? String(p.countdown) : "";
+  if (cd !== lastCountdown) {
+    $("countdown").textContent = cd;
+    lastCountdown = cd;
+    keep(T.strip, { t, text: cd, run: p ? p.run : null, bar: p ? p.bar : null, beat: p ? p.beat_index : null });
+  }
+  if (!p) {
+    $("now-name").textContent = " "; $("now-n").textContent = " "; $("next-name").textContent = " ";
+    $("next-n").textContent = " "; $("where").textContent = " ";
+    for (const d of pips) d.classList.remove("on");
+    return;
+  }
+  drawPips(p.beats_per_bar);
+  pips.forEach((d, i) => d.classList.toggle("on", i === p.beat_index));
+  if (p.state === "waiting") {
+    $("now-name").textContent = "starting";
+    for (const id of ["now-n", "next-name", "next-n"]) $(id).textContent = " ";
+    $("where").textContent = `${p.mode} · starts in ${Math.round(p.starts_in_ms)} ms · ${p.bpm} bpm`;
+    return;
+  }
+  $("now-name").textContent = p.counting_in ? "count-in" : p.chord ? p.chord.name || p.chord.n : "rest";
+  $("now-n").textContent = p.chord ? `${p.chord.n} in ${p.chord.key}` : " ";
+  $("next-name").textContent = p.next ? p.next.name || p.next.n : " ";
+  $("next-n").textContent = p.next ? `${p.next.n} in ${p.next.key} · in ${p.next.in_beats} beats` : " ";
+  $("where").textContent = `${p.mode} · bar ${p.bar} · pass ${p.pass + 1} · ${p.bpm} bpm${p.sounding_here ? "" : " · silent here"}`;
+}
+const transport = createTransport({
+  player, voice, api, pageId: PAGE_ID, wallNow, record: true,
+  isResting: () => rest.resting(),
+  sounding: () => [...danielDown],
+  timbre: timbreSel.value, playTimbre: timbreSel.value === "click" ? "click" : null,
+  onPosition: strip,
+  onGhosts: (g) => keep(T.ghosts, { t: performance.now(), ...g }),
+  onState: (s) => {
+    $("owner").textContent = `owner: ${s.owner_here ? "this page" : s.owner || "none"}`;
+    $("owner").dataset.state = s.owner_here ? "owner" : "";
+    const k = s.knock;
+    $("knock").textContent = k ? `Claude has a ${k.mode === "play" ? "Play" : k.mode === "try" ? "Try" : "Loop"} for you${k.card ? `: ${k.card.title}` : ""}` : "";
+    $("btn-take").hidden = !k;
+    $("btn-decline").hidden = !k;
+    log(`state: ${s.state}${s.run ? ` ${s.run}` : ""}${s.pending.length ? ` (${s.pending.length} pending)` : ""}`);
+  },
+  onError: (m) => { keep(T.errors, m); log(m); },
+});
+$("page").textContent = PAGE_ID;
+
+// ----------------------------------------------------------------------------------------------------- stream
+const client = createCueClient({
+  url: `/api/piano/cues?caps=jam1,deck1&page=${encodeURIComponent(PAGE_ID)}`,
+  onCue: (cue, info) => player.handle(cue, info),
+  onStatus: (s) => { $("conn").textContent = `cues: ${s}`; $("conn").dataset.state = s; log(`cues: ${s}`); transport.streamStatus(s); },
+  onDrop: (reason, detail) => log(`dropped (${reason}) ${typeof detail === "string" ? detail : JSON.stringify(detail)}`),
+  events: {
+    jam(payload, info) {
+      const t = performance.now();
+      const i = delays.findIndex((d) => d.count > 0 && (!d.op || d.op === payload.op) && (!d.change || d.change === payload.change));
+      const delay = i >= 0 ? delays[i].ms : 0;
+      if (i >= 0 && --delays[i].count === 0) delays.splice(i, 1);
+      keep(T.frames, { t, op: payload.op, run: payload.run ?? null, version: payload.version ?? null, change: payload.change ?? null,
+                       effective_bar: payload.effective_bar ?? null, delay_ms: delay, id: info.id });
+      log(`jam ${payload.op}${payload.change ? ` ${payload.change}` : ""}${payload.run ? ` ${payload.run}` : ""} v${payload.version ?? "-"}${delay ? ` (held ${delay} ms)` : ""}`);
+      if (delay) setTimeout(() => transport.apply(payload, info), delay);
+      else transport.apply(payload, info);
+    },
+    deck() {},
+  },
+});
+
+// --------------------------------------------------------------------------------------------------- controls
+async function startRun(mode) {
+  try { await voice.unlock(); } catch { /* still locked */ }
+  const body = { mode, chords: $("line").value, key: $("key").value, bpm: Number($("bpm").value), groove: $("groove").value,
+                 backing: $("backing").value, count_in: mode === "play" ? 0 : Number($("countin").value) };
+  if (mode === "try") body.try_backing = $("tryb").value;
+  try { const r = await transport.start(body); log(`start ${mode}: ${r.run} (${r.state})`); }
+  catch (e) { log(`start ${mode} failed: ${e.message}`); }
+}
+for (const b of document.querySelectorAll("[data-start]")) b.addEventListener("click", () => { startRun(b.dataset.start); b.blur(); });
+for (const b of document.querySelectorAll("[data-tempo]")) {
+  b.addEventListener("click", async () => {
+    b.blur();
+    try { const r = await transport.control("tempo", { bpm: b.dataset.tempo, at: "bar" }); log(`tempo ${r.bpm} lands on bar ${r.effective_bar}`); }
+    catch (e) { log(`tempo failed: ${e.message}`); }
+  });
+}
+let muted = false;
+$("btn-mute").addEventListener("click", async () => {
+  $("btn-mute").blur();
+  try { await transport.control(muted ? "unmute" : "mute", {}); muted = !muted; $("btn-mute").textContent = muted ? "unmute" : "mute"; }
+  catch (e) { log(`mute failed: ${e.message}`); }
+});
+$("btn-stop").addEventListener("click", () => { transport.stop("now"); $("btn-stop").blur(); });
+$("btn-take").addEventListener("click", () => transport.takeKnock());
+$("btn-decline").addEventListener("click", () => transport.declineKnock());
+$("duck").addEventListener("change", () => transport.setDuck($("duck").checked));
+$("turn").addEventListener("change", () => transport.setTurnBar($("turn").checked));
+window.addEventListener("keydown", (e) => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.code === "Escape" || e.code === "Backspace") { e.preventDefault(); transport.stop("now"); player.clear(); }
+  if (e.code === "Enter") transport.takeKnock();
+});
+
+// ------------------------------------------------------------------------------------------------ frame loop
+let stateAt = 0;
+function frame(t) {
+  requestAnimationFrame(frame);
+  player.pump();
+  transport.tick(t);
+  if (t - stateAt > 250) {
+    stateAt = t;
+    $("log").textContent = lines.slice(-80).join("\n");
+    $("log").scrollTop = 1e9;
+    const ts = transport.stats();
+    $("state").textContent = JSON.stringify({ transport: { ...ts, runs: ts.runs }, player: player.state(), voice: voice.stats() }, null, 1);
+  }
+}
+requestAnimationFrame(frame);
+
+// ------------------------------------------------------------------------------------------- offline render
+// Render events through a Claude voice on an OfflineAudioContext: onset sample frames and, for ticks, the FFT peak.
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) {
+        const a = i + k, b = a + len / 2;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+      }
+    }
+  }
+}
+function peakFreq(x, start, count, sr) {
+  const N = 32768, re = new Float64Array(N), im = new Float64Array(N);
+  for (let i = 0; i < count && start + i < x.length; i++) re[i] = x[start + i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (count - 1)));
+  fft(re, im);
+  let best = -1, bi = 1;
+  for (let k = 1; k < N / 2; k++) { const m = re[k] * re[k] + im[k] * im[k]; if (m > best) { best = m; bi = k; } }
+  const mag = (k) => Math.log(re[k] * re[k] + im[k] * im[k] + 1e-30);
+  const a = mag(bi - 1), b = mag(bi), c = mag(bi + 1);
+  const d = a - 2 * b + c === 0 ? 0 : 0.5 * (a - c) / (a - 2 * b + c);
+  return (bi + d) * sr / N;
+}
+async function renderOffline({ events, sampleRate = 48000, thr = 1e-6, gapMs = 15, windowMs = 20, dynamics = null }) {
+  const end = Math.max(...events.map((e) => e.release ?? e.time)) + 0.4;
+  const off = new OfflineAudioContext(1, Math.ceil(end * sampleRate), sampleRate);
+  const v = createClaudeVoice({ context: off, exclusive: false, unlockTarget: null, lifecycleTarget: null, volume: 0.7, dynamics });
+  for (const e of events) {
+    if (e.kind === "tick") v.tick({ time: e.time, freq: e.freq, velocity: e.velocity });
+    else {
+      const h = v.noteOn(e.midi, e.velocity, { time: e.time, timbre: e.timbre || "click" });
+      if (h !== null && e.release != null) v.release(h, { time: e.release });
+    }
+  }
+  const buf = await off.startRendering();
+  const x = buf.getChannelData(0);
+  const onsets = [];
+  const gap = Math.round(gapMs / 1000 * sampleRate);
+  let quiet = 1e12;
+  for (let i = 0; i < x.length; i++) {
+    if (Math.abs(x[i]) > thr) { if (quiet >= gap) onsets.push(i); quiet = 0; } else quiet++;
+  }
+  const count = Math.round(windowMs / 1000 * sampleRate);
+  const peaks = events.filter((e) => e.kind === "tick").map((e) => ({ time: e.time, want: e.freq,
+    peak: peakFreq(x, Math.round(e.time * sampleRate), count, sampleRate) }));
+  return { sampleRate, onsets, peaks, frames: x.length, voice: v.stats() };
+}
+
+// ---------------------------------------------------------------------------------------------- receipt hook
+window.__jamTest = {
+  ready: true, pageId: PAGE_ID, T, transport, player, voice, client, api, ctx, probe: !!probeNode,
+  start: (body) => transport.start(body),
+  control: (op, args) => transport.control(op, args),
+  stop: (at) => transport.stop(at),
+  step(ms) { wallStep = ms; return wallStep; },
+  delayNext(ms, { op = null, change = null, count = 1 } = {}) { delays.push({ ms, op, change, count }); return delays.length; },
+  // a slice of a receipt list from index `from` (so a long run is read in pieces)
+  take(name, from = 0) {
+    const r = transport.records();
+    const list = T[name] || (r && r[name]) || [];
+    return { total: list.length, items: list.slice(from) };
+  },
+  stats: () => ({ transport: transport.stats(), player: player.state(), voice: voice.stats(), client: client.stats(),
+                  visibility: document.visibilityState, focus: document.hasFocus() }),
+  renderOffline, summarize,
+  daniel: { on(m) { danielDown.add(m); rest.noteOn(m); transport.noteOn(); }, off(m) { danielDown.delete(m); rest.noteOff(m); } },
+  clear() { for (const k of Object.keys(T)) T[k].length = 0; },
+};
+log(`page ${PAGE_ID}${PROBE ? " with the onset probe" : ""}`);
+</script>
+</body>
+</html>

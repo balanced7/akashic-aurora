@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Deck test — piano jam J8</title>
+<!-- The deck and the glass mounted on their own (jam-spec 13.2 J8), against a live server (the deck, resolve, keep,
+     templates and replay routes) with a fake transport that records what the deck asks for. The stage copies piano.html:
+     a fixed-size canvas fitted into .stage (fitCanvas below is piano.js's, minus the deck's dock width), the glass on the
+     canvas's exact box, the toast. The "3D" keyboard is piano.js's key geometry through a plain-maths perspective camera
+     (updateCamera's position, look target and lens shift), drawn in 2D, so the glass can be measured against it (A9).
+     Receipt hooks: window.__deckTest. Query: ?framing=9:16|16:9 &deck=open &card=<id> &jam=auto|glass &page=<id>. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;family=Noto+Music&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/piano.css" />
+<link rel="stylesheet" href="/web/piano/deck.css" />
+<style>
+  .topbar { padding: 6px 12px; }
+  /* A fixed-width box: the status text (booting, then cards, layout mode, margin, stream) must never change where the top
+     bar wraps. Its first write after boot wrapped the bar at 1280 wide between A8's closed and open samples, moving the
+     stage and the canvas 42 px. */
+  .test-status { display: inline-block; flex: none; width: 64ch; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+                 font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+  .test-status b { color: var(--ink-2); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar" id="topbar">
+    <div class="brand">
+      <span class="brand-mark">Deck test</span>
+      <span class="brand-sub">piano jam &middot; J8 deck and glass</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="group">
+        <div class="seg" role="group" aria-label="Framing">
+          <button type="button" class="btn" id="btn-916" aria-pressed="true">9:16</button>
+          <button type="button" class="btn" id="btn-169" aria-pressed="false">16:9</button>
+        </div>
+        <button type="button" class="btn btn-rec" id="btn-rec" aria-pressed="false"><span class="rec-dot"></span><span>REC</span></button>
+        <button type="button" class="btn" id="btn-playing" aria-pressed="false" title="Pretend Daniel is playing (no rest)">Playing</button>
+        <button type="button" class="btn" id="btn-full">Fullscreen</button>
+      </div>
+      <div class="group">
+        <button type="button" class="btn" id="btn-run">Simulate loop</button>
+        <button type="button" class="btn" id="btn-knock">Simulate knock</button>
+        <button type="button" class="btn" id="btn-ghosts">Ghost 12 keys</button>
+        <button type="button" class="btn" id="btn-clear">Clear</button>
+      </div>
+      <div class="group"><span class="test-status" id="test-status">booting</span></div>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <canvas id="piano-canvas" aria-label="Mock piano (piano.js key geometry, 2D)"></canvas>
+    <canvas id="jam-glass" class="jam-glass" aria-hidden="true"></canvas>
+    <div class="toast" id="toast" role="status" hidden="hidden"></div>
+  </main>
+</div>
+<script type="module">
+import { createDeck, DECK_WIDTH, SHORTCUTS, chipNumber } from "/web/piano/deck.js";
+import { createGlass, outlineCentroid, RIM, KEY_W } from "/web/piano/glass.js";
+import { nashvilleFromName } from "/web/piano/nashville.js";
+
+const params = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("piano-canvas"), glassEl = $("jam-glass"), statusEl = $("test-status");
+const pageId = params.get("page") || `p-decktest-${Math.random().toString(16).slice(2, 8)}`;
+
+// ------------------------------------------------------------------ piano.js geometry and camera, in plain maths --
+const FRAMINGS = {
+  "9:16": { id: "9:16", w: 1080, h: 1920, fov: 31, minSpan: 16, follow: true },
+  "16:9": { id: "16:9", w: 1920, h: 1080, fov: 23, minSpan: 56, follow: false },
+};
+let framing = FRAMINGS[params.get("framing")] || FRAMINGS["9:16"];
+const KEY = { first: 21, last: 108, whiteW: 0.94, whiteH: 0.8, whiteL: 6.2, blackW: 0.56, blackH: 0.64,
+              blackL: 3.95, blackTop: 0.52, back: -3.1, pivotBack: 6.0 };
+const WHITE_OFFSET = [0, -1, 1, -1, 2, 3, -1, 4, -1, 5, -1, 6];
+const BLACK_CENTER = { 1: 0.9, 3: 2.1, 6: 3 + 4 / 7 * 1.5, 8: 5.0, 10: 3 + 4 / 7 * 5.5 };
+const pcOf = (m) => ((m % 12) + 12) % 12;
+const isBlack = (m) => BLACK_CENTER[pcOf(m)] !== undefined;
+function keyX(m) {
+  const oct = Math.floor(m / 12), pc = pcOf(m);
+  const x = isBlack(m) ? oct * 7 + BLACK_CENTER[pc] : oct * 7 + WHITE_OFFSET[pc] + 0.5;
+  return x - 38;
+}
+const cam = { x: -1.5 };
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]); return [a[0] / l, a[1] / l, a[2] / l]; };
+// updateCamera at t = 0 (no wobble): span, distance, elevation, look target, and the lens shift of setViewOffset.
+function projector(f = framing, camX = cam.x) {
+  const span = f.follow ? f.minSpan : 57;
+  const vfov = f.fov * Math.PI / 180, aspect = f.w / f.h, tanH = Math.tan(vfov / 2) * aspect;
+  const dist = span / 2 / tanH + 7;
+  const elev = (f.follow ? 22 : 17) * Math.PI / 180;
+  const T = [camX, 0.4, -0.5];
+  const P = [T[0], T[1] + dist * Math.sin(elev), T[2] + dist * Math.cos(elev)];
+  const fwd = norm(sub(T, P)), right = norm(cross(fwd, [0, 1, 0])), up = cross(right, fwd);
+  const shift = f.follow ? 0.25 : 0.29, fy = 1 / Math.tan(vfov / 2);
+  return (x, y, z) => {
+    const d = [x - P[0], y - P[1], z - P[2]];
+    const cz = dot(d, fwd);
+    if (cz < 0.5) return null;
+    const nx = dot(d, right) / cz * fy / aspect, ny = dot(d, up) / cz * fy;
+    return [(nx + 1) / 2 * f.w, (1 - ny) / 2 * f.h + shift * f.h];  // framing pixels
+  };
+}
+const keyDims = (m) => (isBlack(m) ? { hw: KEY.blackW / 2, top: KEY.blackTop, len: KEY.blackL, W: KEY.blackW }
+                                   : { hw: KEY.whiteW / 2, top: 0, len: KEY.whiteL, W: KEY.whiteW });
+const cssScale = () => (parseFloat(canvas.style.width) || 0) / framing.w;
+// The key's rest-pose top face, as piano.js builds it: back-left, back-right, front-right, front-left.
+function projectKeyTop(m, proj = projector()) {
+  const { hw, top, len } = keyDims(m), x = keyX(m), s = cssScale();
+  const pts = [[x - hw, top, KEY.back], [x + hw, top, KEY.back], [x + hw, top, KEY.back + len], [x - hw, top, KEY.back + len]].map((p) => proj(...p));
+  return pts.every(Boolean) ? pts.map(([px, py]) => [px * s, py * s]) : null;
+}
+
+// ------------------------------------------------------------------ the mock scene --
+const sceneCtx = canvas.getContext("2d");
+function drawScene() {
+  canvas.width = framing.w;
+  canvas.height = framing.h;
+  const g = sceneCtx, proj = projector();
+  g.fillStyle = "#030407";
+  g.fillRect(0, 0, framing.w, framing.h);
+  const quad = (m) => {
+    const { hw, top, len } = keyDims(m), x = keyX(m);
+    return [[x - hw, top, KEY.back], [x + hw, top, KEY.back], [x + hw, top, KEY.back + len], [x - hw, top, KEY.back + len]].map((p) => proj(...p));
+  };
+  for (const black of [false, true]) {
+    for (let m = KEY.first; m <= KEY.last; m++) {
+      if (isBlack(m) !== black) continue;
+      const q = quad(m);
+      if (!q.every(Boolean)) continue;
+      g.beginPath();
+      g.moveTo(q[0][0], q[0][1]);
+      for (let i = 1; i < 4; i++) g.lineTo(q[i][0], q[i][1]);
+      g.closePath();
+      g.fillStyle = black ? "#101014" : "#E9E3D6";
+      g.fill();
+      g.strokeStyle = black ? "#2a2a30" : "#6d675d";
+      g.lineWidth = 1.5;
+      g.stroke();
+    }
+  }
+  g.fillStyle = "rgba(244,241,234,0.5)";
+  g.font = `600 ${Math.round(framing.w / 40)}px Archivo, sans-serif`;
+  g.fillText(`mock stage ${framing.id} · camera x ${cam.x.toFixed(2)}`, framing.w * 0.05, framing.h * 0.06);
+}
+
+// ------------------------------------------------------------------ page state the deck asks about --
+let recording = false, resting = true, minorMode = params.get("minor") === "relative" ? "relative" : "tonic";
+let ghostState = null, claudeKeys = [], sustain = false, noteOns = 0, fitting = false;
+const mockKey = { name: params.get("trackerKey") || "Db major" };
+const log = { ghosts: [], toasts: [], unlocks: 0, replays: [], hush: 0, settings: [], layouts: 0, opens: 0 };
+
+// A fake transport (8.2's shape): it records every call and pretends a run is going, so the deck's Now header, pill and
+// toggles can be driven without a player.
+const fake = {
+  calls: [], n: 0, _state: { state: "idle", run: null, knock: null, def: null },
+  start(opts) {
+    fake.calls.push(["start", JSON.parse(JSON.stringify(opts))]);
+    const run = { run: `fake-${++fake.n}`, mode: opts.mode, state: "running", card: { id: opts.card_id, title: opts.card_id },
+                  key: opts.key, beats_per_bar: 4, segments: [{ from_bar: opts.mode === "play" ? 0 : -1, bpm: opts.bpm || 66, epoch_ms: 0, def_version: 1, def_from_bar: 0 }] };
+    fake._state = { state: "running", run, knock: null, def: null };
+    if (deck) deck.showState(fake._state);
+    return Promise.resolve({ run: run.run, version: 1, state: "running" });
+  },
+  stop(at = "now") { fake.calls.push(["stop", at]); fake._state = { state: "idle", run: null, knock: null, def: null }; if (deck) deck.showState(fake._state); return Promise.resolve({ ok: true }); },
+  control(op, args) { fake.calls.push(["control", op, JSON.parse(JSON.stringify(args || {}))]); return Promise.resolve({ version: 2 }); },
+  takeKnock() { fake.calls.push(["takeKnock"]); fake._state = { ...fake._state, knock: null, state: "running" }; if (deck) deck.showState(fake._state); return Promise.resolve(true); },
+  declineKnock() { fake.calls.push(["declineKnock"]); fake._state = { state: "idle", run: null, knock: null, def: null }; if (deck) deck.showState(fake._state); return Promise.resolve(true); },
+  claimOwner() { fake.calls.push(["claimOwner"]); },
+  apply() {}, dispose() {},
+  state() { return fake._state; },
+  stats() { return { calls: fake.calls.length }; },
+};
+
+let toastTimer = 0;
+function toast(message, isError = false) {
+  const el = $("toast");
+  el.textContent = message;
+  el.classList.toggle("error", !!isError);
+  el.hidden = false;
+  log.toasts.push(message);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 8000);
+}
+
+const glass = createGlass({ canvas: glassEl, projectKeyTop: (m) => projectKeyTop(m) });
+function drawGlass(t = performance.now()) {
+  glass.draw({ ghosts: ghostState ? { target: ghostState.target || [], incoming: ghostState.incoming || [], hold: ghostState.hold || [], found: ghostState.found ?? null } : null,
+               claude: claudeKeys, alpha: 1, t });
+}
+
+// piano.js fitCanvas, with the deck's dock width taken off the stage (8.11 item 7; the deck freezes it during REC).
+function fitCanvas() {
+  if (fitting) return;
+  fitting = true;
+  try {
+    const L = deck ? deck.layout() : { dockWidth: 0 };
+    const r = stage.getBoundingClientRect();
+    const pad = document.fullscreenElement ? 0 : 14;
+    const scale = Math.max(0.05, Math.min((r.width - L.dockWidth - 2 * pad) / framing.w, (r.height - 2 * pad) / framing.h));
+    const w = Math.floor(framing.w * scale), h = Math.floor(framing.h * scale);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    const cr = canvas.getBoundingClientRect();
+    glass.resize({ left: cr.left - r.left - stage.clientLeft, top: cr.top - r.top - stage.clientTop, width: w, height: h },
+                 Math.min(2, window.devicePixelRatio || 1));
+    drawGlass();
+  } finally { fitting = false; }
+}
+
+let deck = null;
+deck = createDeck({
+  stage, api: "", transport: fake, glass, cueClient: { status: () => (sse.open ? "listening" : "connecting") },
+  keyView: () => mockKey, isRecording: () => recording,
+  onOpenChange: () => { log.opens++; fitCanvas(); }, onLayout: () => { log.layouts++; fitCanvas(); },
+  canvas, framing: () => framing, pageId, isResting: () => resting, minor: () => minorMode,
+  onGhosts: (g) => { log.ghosts.push(g ? { source: g.source, notes: g.target.slice(), name: g.name, number: g.number } : null); ghostState = g; drawGlass(); },
+  onSettings: (s, name) => log.settings.push([name, s[name]]), toast, unlock: () => { log.unlocks++; },
+  stopDemo: () => false,
+  capture: () => (params.get("capture") === "none" ? null : { notes: [51, 55, 58, 62, 65], name: "Ebmaj9", number: "1maj9", key: "Eb major",
+                  key_conf: "sure", locked: false, title: null, page_id: pageId, perf_ms: performance.now(), log: null }),
+  playReplay: (cue, info) => log.replays.push({ notes: (cue.notes || cue.steps || []).length, info }),
+  hush: () => { log.hush++; },
+});
+drawScene();
+fitCanvas();
+new ResizeObserver(() => fitCanvas()).observe(stage);
+document.addEventListener("fullscreenchange", fitCanvas);
+
+// ------------------------------------------------------------------ the stream: deck frames only --
+const sse = { open: false, opens: 0, frames: 0, errors: 0 };
+const es = new EventSource(`/api/piano/cues?caps=deck1&page=${encodeURIComponent(pageId)}`);
+es.onopen = () => { sse.open = true; sse.opens++; if (sse.opens > 1) deck.refresh(); };
+es.onerror = () => { sse.open = false; sse.errors++; };
+es.addEventListener("deck", (ev) => {
+  try { const f = JSON.parse(ev.data); sse.frames++; deck.applyDeckFrame(f.deck); } catch (e) { console.warn("[deck-test] bad deck frame", e); }
+});
+
+// ------------------------------------------------------------------ keys, as piano.js: the deck first, then KEYMAP --
+const KEYMAP = {
+  KeyZ: 0, KeyS: 1, KeyX: 2, KeyD: 3, KeyC: 4, KeyV: 5, KeyG: 6, KeyB: 7, KeyN: 9, KeyJ: 10, KeyM: 11,
+  Comma: 12, KeyL: 13, Period: 14, Semicolon: 15, Slash: 16,
+  KeyQ: 12, Digit2: 13, KeyW: 14, Digit3: 15, KeyE: 16, KeyR: 17, Digit5: 18, KeyT: 19, Digit6: 20, KeyY: 21,
+  Digit7: 22, KeyU: 23, KeyI: 24, Digit9: 25, KeyO: 26, Digit0: 27, KeyP: 28,
+};
+const kbDown = new Map();
+window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = e.target && e.target.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") { deck.handleKey(e); return; }
+  if (deck.handleKey(e)) return;
+  if (e.code === "Space") { e.preventDefault(); if (!e.repeat) sustain = true; return; }
+  const semi = KEYMAP[e.code];
+  if (semi === undefined) return;
+  e.preventDefault();
+  if (e.repeat || kbDown.has(e.code)) return;
+  kbDown.set(e.code, 48 + semi);
+  noteOns++;
+});
+window.addEventListener("keyup", (e) => {
+  if (e.code === "Space") { sustain = false; return; }
+  kbDown.delete(e.code);
+});
+
+// ------------------------------------------------------------------ controls --
+function setFraming(id) {
+  if (!FRAMINGS[id]) return framing.id;
+  framing = FRAMINGS[id];
+  cam.x = framing.follow ? -1.5 : 0;
+  $("btn-916").setAttribute("aria-pressed", String(id === "9:16"));
+  $("btn-169").setAttribute("aria-pressed", String(id === "16:9"));
+  drawScene();
+  fitCanvas();
+  return framing.id;
+}
+function setRecording(on) {
+  recording = !!on;
+  $("btn-rec").setAttribute("aria-pressed", String(recording));
+  deck.layout();
+  fitCanvas();
+  return recording;
+}
+function setPlaying(on) {
+  resting = !on;
+  $("btn-playing").setAttribute("aria-pressed", String(!!on));
+  return !resting;
+}
+$("btn-916").addEventListener("click", (e) => { e.currentTarget.blur(); setFraming("9:16"); });
+$("btn-169").addEventListener("click", (e) => { e.currentTarget.blur(); setFraming("16:9"); });
+$("btn-rec").addEventListener("click", (e) => { e.currentTarget.blur(); setRecording(!recording); });
+$("btn-playing").addEventListener("click", (e) => { e.currentTarget.blur(); setPlaying(resting); });
+$("btn-full").addEventListener("click", (e) => { e.currentTarget.blur(); if (document.fullscreenElement) document.exitFullscreen(); else stage.requestFullscreen(); });
+$("btn-run").addEventListener("click", (e) => { e.currentTarget.blur(); simulateRun(deck.selected() || "lydian-four"); });
+$("btn-knock").addEventListener("click", (e) => { e.currentTarget.blur(); simulateKnock(deck.selected() || "lydian-four"); });
+$("btn-ghosts").addEventListener("click", (e) => { e.currentTarget.blur(); ghostState = { target: A9_KEYS[framing.id].slice(0, 6), incoming: A9_KEYS[framing.id].slice(6, 9), hold: A9_KEYS[framing.id].slice(9) }; drawGlass(); });
+$("btn-clear").addEventListener("click", (e) => { e.currentTarget.blur(); ghostState = null; claudeKeys = []; fake.stop("now"); deck.showPosition(null); drawGlass(); });
+
+async function getJSON(path) {
+  const r = await fetch(path, { cache: "no-store" });
+  const body = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((body && body.error) || `${path}: ${r.status}`);
+  return body;
+}
+async function simulateRun(cardId, { mode = "loop", bar = 1, beat = 1.25, pass = 2, key = null } = {}) {
+  const qs = key ? `?key=${encodeURIComponent(key)}` : "";
+  const { def } = await getJSON(`/api/piano/deck/cards/${encodeURIComponent(cardId)}/resolve${qs}`);
+  const run = { run: "sim", mode, state: "running", card: { id: cardId, title: def.card.title }, key: def.key, beats_per_bar: def.beats_per_bar,
+                segments: [{ from_bar: -1, bpm: 66, epoch_ms: 0, def_version: 1, def_from_bar: 0 }] };
+  fake._state = { state: "running", run, knock: null, def };
+  deck.showState(fake._state);
+  const cycleBars = Math.round(def.cycle_beats / def.beats_per_bar);
+  const cb = bar < 0 ? 0 : ((bar % cycleBars) + cycleBars) % cycleBars * def.beats_per_bar + beat;
+  const slots = def.slots;
+  let i = slots.findIndex((s) => cb >= s.at_beat && cb < s.at_beat + s.beats);
+  if (i < 0) i = 0;
+  deck.showPosition({ run, def, bar, beat, pass, slot: slots[i].i, next: slots[(i + 1) % slots.length].i, bpm: 66 });
+  claudeKeys = (slots[i].voicings.comp || []).map((m) => ({ midi: m, level: 1 }));
+  drawGlass();
+  return { def, slot: slots[i].i, next: slots[(i + 1) % slots.length].i };
+}
+// The payload shapes J7's transport.js actually emits: state() {state, run: <id>, mode, card, pending, knock: {run, mode,
+// card, at_epoch_ms}} and onPosition {run: <id>, mode, bar, beat, beats_per_bar, pass, cycle_beat, slot, chord, next, ...}.
+async function j7Shapes(cardId = "lament-bass") {
+  const { def } = await getJSON(`/api/piano/deck/cards/${encodeURIComponent(cardId)}/resolve`);
+  const card = { id: cardId, rev: def.card.rev, title: def.card.title, variant: def.card.variant };
+  const runId = "20300101-000000-aaaaaaaa";
+  fake._state = { state: "running", run: runId, mode: "loop", card, pending: [], owner: pageId, page_id: pageId, owner_here: true, knock: null, expired: [] };
+  deck.showState(fake._state);
+  const s = def.slots[2], nx = def.slots[3 % def.slots.length];
+  deck.showPosition({ run: runId, mode: "loop", state: "running", version: 1, def_version: 1, bar: 6, beat: 2.1, beat_index: 2, beats_per_bar: 4,
+                      pass: 1, cycle_beat: 10.1, slot: 2, rest: false, counting_in: false, countdown: null, bpm: 60, key: s.key,
+                      chord: { name: s.name, n: s.n, key: s.key }, next: { slot: nx.i, name: nx.name, n: nx.n, key: nx.key, in_beats: 1.9 },
+                      card, owner: pageId, sounding_here: true, stop: null, perf_ms: performance.now() });
+  await new Promise((r) => setTimeout(r, 700));  // the cycle length comes from a resolve the deck asks for once
+  const n = document.querySelector(".deck-now");
+  const header = { state: n.dataset.state, kind: n.querySelector(".now-kind").textContent, title: n.querySelector(".now-title").textContent,
+                   chord: n.querySelector(".now-chord").textContent, num: n.querySelector(".now-num").textContent,
+                   next: n.querySelector(".now-next").textContent, bar: n.querySelector(".now-bar").textContent, pass: n.querySelector(".now-pass").textContent,
+                   on: [...n.querySelectorAll(".pip")].findIndex((p) => p.classList.contains("on")), progress: n.querySelector(".now-progress span").style.width };
+  deck.showPosition({ run: runId, mode: "loop", state: "running", bar: -1, beat: 1.2, beat_index: 1, beats_per_bar: 4, pass: 0, cycle_beat: null,
+                      slot: null, rest: false, counting_in: true, countdown: 3, bpm: 60, key: def.key, chord: null,
+                      next: { slot: 0, name: def.slots[0].name, n: def.slots[0].n, key: def.slots[0].key, in_beats: 2.8 }, card });
+  const countdown = n.querySelector(".now-count").textContent;
+  deck.showPosition(null);
+  fake._state = { state: "pending", run: null, mode: null, card: null, pending: [{ run: runId, mode: "loop", card, waiting_ms: 21000 }],
+                  knock: { run: runId, mode: "loop", card, at_epoch_ms: Date.now() - 34000 }, expired: [] };
+  deck.showState(fake._state);
+  const knock = { state: n.dataset.state, text: n.querySelector(".knock-text").textContent, wait: n.querySelector(".knock-wait").textContent };
+  const loopWhilePending = deck.stats();
+  fake._state = { state: "idle", run: null, mode: null, card: null, pending: [], knock: null, expired: [] };
+  deck.showState(fake._state);
+  return { expect: { title: def.card.title, chord: s.name, number: s.n, next: nx.name }, header, countdown, knock, idle: n.dataset.state, knockStats: loopWhilePending.knock };
+}
+function simulateKnock(cardId, mode = "loop") {
+  fake._state = { state: "pending", run: { run: "sim-knock", mode, state: "pending", card: { id: cardId, title: cardId } }, knock: { mode, title: cardId } };
+  deck.showState(fake._state);
+  return deck.stats().knock;
+}
+
+// ------------------------------------------------------------------ A9: glass rims against the projected key tops --
+const A9_KEYS = {
+  "9:16": [55, 57, 60, 62, 64, 67, 54, 56, 58, 61, 63, 66],  // 6 white, 6 black, inside the 16-key follow view
+  "16:9": [36, 48, 57, 64, 72, 84, 37, 49, 58, 66, 75, 82],
+};
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+// The glass's rim shape, built independently in world units on the key top (inset 6% of the key width on every side,
+// corner radius 12% of the width), sampled densely and projected through the camera.
+function rimWorld(m, proj) {
+  const { hw, top, len, W } = keyDims(m), x = keyX(m), s = cssScale();
+  const inset = RIM.inset * W, r = RIM.radius * W;
+  const x0 = x - hw + inset, x1 = x + hw - inset, z0 = KEY.back + inset, z1 = KEY.back + len - inset;
+  const pts = [];
+  const arc = (cx, cz, from) => { for (let k = 0; k <= 16; k++) { const a = from + k / 16 * Math.PI / 2; pts.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]); } };
+  arc(x1 - r, z0 + r, -Math.PI / 2);
+  arc(x1 - r, z1 - r, 0);
+  arc(x0 + r, z1 - r, Math.PI / 2);
+  arc(x0 + r, z0 + r, Math.PI);
+  const out = [];
+  for (const [px, pz] of pts) { const p = proj(px, top, pz); if (!p) return null; out.push([p[0] * s, p[1] * s]); }
+  return out;
+}
+async function a9({ keys = A9_KEYS[framing.id], pan = false, panFrom = -3, panTo = 3, alphaMin = 64 } = {}) {
+  const saved = { ghostState, claudeKeys, camX: cam.x };
+  ghostState = null; claudeKeys = [];
+  const g = glassEl.getContext("2d");
+  const dpr = glass.layout().dpr;
+  const out = [];
+  for (let i = 0; i < keys.length; i++) {
+    const m = keys[i];
+    if (pan) cam.x = panFrom + (panTo - panFrom) * (i / Math.max(1, keys.length - 1));
+    await nextFrame();
+    const proj = projector(framing, cam.x);
+    if (pan) drawScene();
+    glass.draw({ ghosts: { target: [m] }, t: 0 });
+    const rec = glass.layout().keys[0];
+    if (!rec) { out.push({ midi: m, black: isBlack(m), cam_x: cam.x, drawn: false }); continue; }
+    const xs = rec.quad.map((p) => p[0]), ys = rec.quad.map((p) => p[1]);
+    const bx0 = Math.max(0, Math.floor((Math.min(...xs) - 6) * dpr)), by0 = Math.max(0, Math.floor((Math.min(...ys) - 6) * dpr));
+    const bx1 = Math.min(glassEl.width, Math.ceil((Math.max(...xs) + 6) * dpr)), by1 = Math.min(glassEl.height, Math.ceil((Math.max(...ys) + 6) * dpr));
+    const inside = Math.min(...xs) >= 0 && Math.min(...ys) >= 0 && Math.max(...xs) * dpr <= glassEl.width && Math.max(...ys) * dpr <= glassEl.height;
+    let sx = 0, sy = 0, sw = 0, pixels = 0;
+    if (bx1 > bx0 && by1 > by0) {
+      const img = g.getImageData(bx0, by0, bx1 - bx0, by1 - by0);
+      for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+        const a = img.data[(y * img.width + x) * 4 + 3];
+        if (a < alphaMin) continue;  // the rim, not the 10% fill
+        sx += (bx0 + x + 0.5) * a; sy += (by0 + y + 0.5) * a; sw += a; pixels++;
+      }
+    }
+    const pixel = sw ? [sx / sw / dpr, sy / sw / dpr] : null;
+    const world = rimWorld(m, proj);
+    const rim3d = world ? outlineCentroid(world) : null;
+    const { top, len } = keyDims(m), s = cssScale();
+    const c = proj(keyX(m), top, KEY.back + len / 2);
+    const centre3d = c ? [c[0] * s, c[1] * s] : null;
+    const d = (a, b) => (a && b ? +Math.hypot(a[0] - b[0], a[1] - b[1]).toFixed(3) : null);
+    out.push({ midi: m, black: isBlack(m), cam_x: +cam.x.toFixed(3), drawn: true, inside, pixels, dpr, lineWidth: rec.lineWidth,
+               pixel: pixel && pixel.map((v) => +v.toFixed(3)), rim3d: rim3d && rim3d.map((v) => +v.toFixed(3)),
+               centre3d: centre3d && centre3d.map((v) => +v.toFixed(3)), d_rim3d: d(pixel, rim3d), d_centre3d: d(pixel, centre3d),
+               d_glass_math: d(pixel, rec.rims[0] && rec.rims[0].centroid) });
+  }
+  if (pan) { cam.x = saved.camX; drawScene(); }
+  ghostState = saved.ghostState; claudeKeys = saved.claudeKeys;
+  drawGlass();
+  return { framing: framing.id, dpr, css: glass.layout().css, pan, keys: out };
+}
+
+// ------------------------------------------------------------------ A4 page agreement: chips against the def --
+const MAJOR = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const MINOR = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+async function agreement({ cards = null, minor = "tonic" } = {}) {
+  const saved = minorMode;
+  minorMode = minor;
+  const docOut = await getJSON("/api/piano/deck");
+  let ids = cards;
+  if (!ids) {  // the seed deck: A4's 17 cards (an edited seed card has source kind "edit"); other cards on the server are left out
+    ids = [];
+    for (const id of docOut.cards.map((c) => c.id).sort()) {
+      const full = (await getJSON(`/api/piano/deck/cards/${encodeURIComponent(id)}`)).card;
+      if (full.source && (full.source.kind === "seed" || full.source.kind === "edit")) ids.push(id);
+    }
+  }
+  const pairs = [];
+  for (const id of ids) {
+    const card = (await getJSON(`/api/piano/deck/cards/${encodeURIComponent(id)}`)).card;
+    const mode = card.key.split(" ")[1];
+    deck.open(id);
+    for (const t of (mode === "minor" ? MINOR : MAJOR)) {
+      const key = `${t} ${mode}`;
+      const t0 = performance.now();
+      await deck.setKey(id, key);
+      const shown = deck.chips(id);
+      const variant = card.chords && card.chords.length ? "" : (card.variants && card.variants[0] ? card.variants[0].id : "");
+      const { def } = await getJSON(`/api/piano/deck/cards/${encodeURIComponent(id)}/resolve?key=${encodeURIComponent(key)}${variant ? `&variant=${variant}` : ""}`);
+      const problems = [];
+      // the reads-as line shows exactly when a chord's page reading is neither exact, enharmonic nor note for note, and
+      // its name differs from the chip's (J0 open issue: the bridge answers exact-note items with match "notes")
+      const expectReadsAs = def.slots.some((s) => s.page_reads && s.page_reads.name && !["exact", "enharmonic", "notes"].includes(s.page_reads.match) && s.page_reads.name !== s.name);
+      if (!shown || shown.pending) problems.push("chips still pending");
+      else {
+        if (shown.chips.length !== def.slots.length) problems.push(`${shown.chips.length} chips for ${def.slots.length} slots`);
+        def.slots.forEach((s, i) => {
+          const c = shown.chips[i];
+          if (!c) return;
+          // tonic: the def's own number; relative: the page's nashville.js reading of the chord from the relative major
+          const rel = minor === "relative" ? nashvilleFromName(s.name, s.key, { minor: "relative" }) : null;
+          const wantNumber = minor === "tonic" ? s.n : (rel && rel.text);
+          if (c.name !== s.name) problems.push(`slot ${s.i} name ${c.name} != ${s.name}`);
+          if ((c.number || null) !== (wantNumber || null)) problems.push(`slot ${s.i} number ${c.number} != ${wantNumber}`);
+        });
+        if (!!shown.readsAs !== expectReadsAs) problems.push(`reads-as line ${shown.readsAs ? "shown" : "missing"} (expected ${expectReadsAs})`);
+      }
+      const pageReads = def.slots.filter((s) => s.page_reads && s.page_reads.number).map((s) => {
+        const p = nashvilleFromName(s.page_reads.name, s.key, { minor: "tonic" });
+        return p && p.text === s.page_reads.number;
+      });
+      pairs.push({ card: id, key, variant: variant || null, ok: problems.length === 0, problems, slots: def.slots.length,
+                   page_reads_agree: pageReads.filter(Boolean).length, page_reads_total: pageReads.length,
+                   reads_as: shown ? shown.readsAs : null, ms: +(performance.now() - t0).toFixed(1) });
+    }
+    await deck.setKey(id, null);
+  }
+  minorMode = saved;
+  return { minor, pairs, ok: pairs.filter((p) => p.ok).length, total: pairs.length };
+}
+
+function rects() {
+  const r = (el) => { if (!el || el.hidden) return null; const b = el.getBoundingClientRect(); return b.width || b.height ? { x: +b.left.toFixed(2), y: +b.top.toFixed(2), w: +b.width.toFixed(2), h: +b.height.toFixed(2) } : null; };
+  const panel = deck.element.querySelector(".deck-panel");
+  const tab = deck.element.querySelector(".deck-tab");
+  return { stage: r(stage), canvas: r(canvas), glass: r(glassEl), deck: deck.stats().open ? r(panel) : null, tab: deck.stats().open ? null : r(tab),
+           pill: r(deck.pill), toast: r($("toast")), topbar: r($("topbar")), viewport: { w: innerWidth, h: innerHeight, dpr: devicePixelRatio } };
+}
+
+setInterval(() => {
+  const s = deck.stats();
+  statusEl.innerHTML = `<b>${s.cards}</b> cards · ${s.layout ? s.layout.mode : "?"} · margin ${s.layout ? s.layout.margin : "?"} · stream ${sse.open ? "open" : "closed"} · noteOns ${noteOns}${sustain ? " · sustain" : ""}`;
+  statusEl.title = statusEl.textContent;  // the whole line, when the fixed-width box cuts it
+}, 300);
+
+window.__deckTest = {
+  deck, glass, transport: fake, log, sse, pageId, KEYMAP, SHORTCUTS, A9_KEYS, FRAMINGS, DECK_WIDTH,
+  get noteOns() { return noteOns; }, get sustain() { return sustain; }, get framing() { return framing.id; },
+  get recording() { return recording; }, get resting() { return resting; },
+  ready: deck.ready, setFraming, setRecording, setPlaying, fit: fitCanvas, toast, rects, a9, agreement,
+  simulateRun, simulateKnock, j7Shapes, projectKeyTop, keyX, isBlack, cam, mockKey,
+  setMinor(m) { minorMode = m === "relative" ? "relative" : "tonic"; return minorMode; },
+  ghost(target = [], incoming = [], hold = []) { ghostState = { target, incoming, hold }; drawGlass(); return glass.layout(); },
+  claude(midis = []) { claudeKeys = midis.map((m) => ({ midi: m, level: 1 })); drawGlass(); return glass.layout(); },
+  clearGlass() { ghostState = null; claudeKeys = []; drawGlass(); return glass.stats(); },
+};
+</script>
+</body>
+</html>

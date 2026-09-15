@@ -1,0 +1,169 @@
+{
+  "note": "Synthetic loop run on lydian-four (Eb major, 66 bpm, a one-bar count-in, tempo 72 from bar 8, stopped by the CLI at bar 16: 8 passes) and the practice session it overlaps. Numbers come from exact rational arithmetic; compare to 0.001 ms. L1 uses the ack's page clock; L2 the session meta's page_id and t0_perf_ms; L3 opened_at_client.",
+  "run": "20300101-000019-7a11c0de",
+  "session": "20300101-000012-5e55a0f1",
+  "session_root": "session",
+  "clock": {
+    "perf_offset_ms": 1893452400000.25,
+    "t0_perf_ms": 3611999.75,
+    "open_client_epoch_ms": 1893456012000.0
+  },
+  "alignment": {
+    "method": "L1",
+    "page_id": "p-0a1b",
+    "bar0_t_ms": 11636.363636363636,
+    "error_ms_max": 2
+  },
+  "landing": {
+    "tempo": {
+      "received_epoch_ms": 1893456049000.0,
+      "at": "bar",
+      "bar": 8
+    },
+    "stop": {
+      "received_epoch_ms": 1893456075000.0,
+      "at": "bar",
+      "bar": 16
+    }
+  },
+  "bars": [
+    {
+      "bar": -1,
+      "epoch_ms": 1893456020000.0,
+      "t_ms": 8000.0,
+      "pass": -1,
+      "bpm": 66
+    },
+    {
+      "bar": 0,
+      "epoch_ms": 1893456023636.3635,
+      "t_ms": 11636.363636363636,
+      "pass": 0,
+      "bpm": 66
+    },
+    {
+      "bar": 1,
+      "epoch_ms": 1893456027272.7273,
+      "t_ms": 15272.727272727272,
+      "pass": 0,
+      "bpm": 66
+    },
+    {
+      "bar": 7,
+      "epoch_ms": 1893456049090.9092,
+      "t_ms": 37090.90909090909,
+      "pass": 3,
+      "bpm": 66
+    },
+    {
+      "bar": 8,
+      "epoch_ms": 1893456052727.2727,
+      "t_ms": 40727.272705078125,
+      "pass": 4,
+      "bpm": 72
+    },
+    {
+      "bar": 9,
+      "epoch_ms": 1893456056060.606,
+      "t_ms": 44060.60603841146,
+      "pass": 4,
+      "bpm": 72
+    },
+    {
+      "bar": 15,
+      "epoch_ms": 1893456076060.606,
+      "t_ms": 64060.60603841146,
+      "pass": 7,
+      "bpm": 72
+    },
+    {
+      "bar": 16,
+      "epoch_ms": 1893456079393.9395,
+      "t_ms": 67393.9393717448,
+      "pass": 8,
+      "bpm": 72
+    }
+  ],
+  "notes": [
+    {
+      "note": 67,
+      "t_ms": 11648,
+      "epoch_ms": 1893456023648.0,
+      "bar": 0,
+      "beat": 0.0128,
+      "pass": 0,
+      "slot": 0,
+      "in_run": true
+    },
+    {
+      "note": 74,
+      "t_ms": 16194,
+      "epoch_ms": 1893456028194.0,
+      "bar": 1,
+      "beat": 1.0134,
+      "pass": 0,
+      "slot": 1,
+      "in_run": true
+    },
+    {
+      "note": 74,
+      "t_ms": 23012,
+      "epoch_ms": 1893456035012.0,
+      "bar": 3,
+      "beat": 0.5132,
+      "pass": 1,
+      "slot": 1,
+      "in_run": true
+    },
+    {
+      "note": 75,
+      "t_ms": 26194,
+      "epoch_ms": 1893456038194.0,
+      "bar": 4,
+      "beat": 0.0134,
+      "pass": 2,
+      "slot": 0,
+      "in_run": true
+    },
+    {
+      "note": 74,
+      "t_ms": 45739,
+      "epoch_ms": 1893456057739.0,
+      "bar": 9,
+      "beat": 2.01407275390625,
+      "pass": 4,
+      "slot": 1,
+      "in_run": true
+    },
+    {
+      "note": 72,
+      "t_ms": 56989,
+      "epoch_ms": 1893456068989.0,
+      "bar": 12,
+      "beat": 3.51407275390625,
+      "pass": 6,
+      "slot": 0,
+      "in_run": true
+    },
+    {
+      "note": 74,
+      "t_ms": 64073,
+      "epoch_ms": 1893456076073.0,
+      "bar": 15,
+      "beat": 0.01487275390625,
+      "pass": 7,
+      "slot": 1,
+      "in_run": true
+    },
+    {
+      "note": 75,
+      "t_ms": 67406,
+      "epoch_ms": 1893456079406.0,
+      "bar": 16,
+      "beat": 0.01447275390625,
+      "pass": 8,
+      "slot": 0,
+      "in_run": false
+    }
+  ]
+}

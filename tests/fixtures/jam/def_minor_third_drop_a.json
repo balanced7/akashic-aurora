@@ -1,0 +1,545 @@
+{
+  "api": "arsenal.jam.def/v0",
+  "card": {
+    "id": "minor-third-drop",
+    "rev": 1,
+    "title": "Down a minor third to a new home",
+    "variant": "a"
+  },
+  "key": "F major",
+  "beats_per_bar": 4,
+  "cycle_beats": 28,
+  "backing": "comp",
+  "sections": [
+    {
+      "i": 0,
+      "key": "F major",
+      "from_beat": 0
+    },
+    {
+      "i": 1,
+      "key": "D major",
+      "from_beat": 12
+    }
+  ],
+  "slots": [
+    {
+      "i": 0,
+      "section": 0,
+      "at_beat": 0,
+      "beats": 4,
+      "n": "1add9",
+      "name": "Fadd9",
+      "key": "F major",
+      "tones_pc": {
+        "root": 5,
+        "third": 9,
+        "fifth": 0,
+        "ninth": 7
+      },
+      "bass_pc": 5,
+      "chord_pcs": [
+        5,
+        9,
+        0,
+        7
+      ],
+      "scale": [
+        5,
+        7,
+        9,
+        10,
+        0,
+        2,
+        4
+      ],
+      "scale_name": "F major",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          41,
+          48,
+          57,
+          67
+        ],
+        "full": [
+          41,
+          55,
+          57,
+          60
+        ],
+        "comp": [
+          41,
+          48,
+          57
+        ],
+        "bass": [
+          41
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "ninth",
+          "third",
+          "fifth"
+        ],
+        "comp": [
+          "bass",
+          "fifth",
+          "third"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Fadd9",
+        "number": "1add9",
+        "match": "exact"
+      },
+      "warnings": []
+    },
+    {
+      "i": 1,
+      "section": 0,
+      "at_beat": 4,
+      "beats": 4,
+      "n": "4maj13",
+      "name": "Bbmaj13",
+      "key": "F major",
+      "tones_pc": {
+        "root": 10,
+        "third": 2,
+        "fifth": 5,
+        "seventh": 9,
+        "ninth": 0,
+        "thirteenth": 7
+      },
+      "bass_pc": 10,
+      "chord_pcs": [
+        10,
+        2,
+        5,
+        9,
+        0,
+        7
+      ],
+      "scale": [
+        10,
+        0,
+        2,
+        4,
+        5,
+        7,
+        9
+      ],
+      "scale_name": "Bb Lydian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          46,
+          57,
+          62,
+          72,
+          79
+        ],
+        "full": [
+          46,
+          50,
+          57,
+          60,
+          67
+        ],
+        "comp": [
+          46,
+          50,
+          57
+        ],
+        "bass": [
+          46
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "seventh",
+          "ninth",
+          "thirteenth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Bbmaj13",
+        "number": "4maj13",
+        "match": "exact"
+      },
+      "warnings": [],
+      "omits": [
+        "fifth"
+      ]
+    },
+    {
+      "i": 2,
+      "section": 0,
+      "at_beat": 8,
+      "beats": 4,
+      "n": "5^6",
+      "name": "C6",
+      "key": "F major",
+      "tones_pc": {
+        "root": 0,
+        "third": 4,
+        "fifth": 7,
+        "sixth": 9
+      },
+      "bass_pc": 0,
+      "chord_pcs": [
+        0,
+        4,
+        7,
+        9
+      ],
+      "scale": [
+        0,
+        2,
+        4,
+        5,
+        7,
+        9,
+        10
+      ],
+      "scale_name": "C Mixolydian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          36,
+          52,
+          57,
+          67
+        ],
+        "full": [
+          36,
+          52,
+          55,
+          57
+        ],
+        "comp": [
+          36,
+          52,
+          57
+        ],
+        "bass": [
+          36
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "fifth",
+          "sixth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "sixth"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": "the door chord",
+      "page_reads": {
+        "name": "C6",
+        "number": "5^6",
+        "match": "exact"
+      },
+      "warnings": []
+    },
+    {
+      "i": 3,
+      "section": 1,
+      "at_beat": 12,
+      "beats": 4,
+      "n": "1add9",
+      "name": "Dadd9",
+      "key": "D major",
+      "tones_pc": {
+        "root": 2,
+        "third": 6,
+        "fifth": 9,
+        "ninth": 4
+      },
+      "bass_pc": 2,
+      "chord_pcs": [
+        2,
+        6,
+        9,
+        4
+      ],
+      "scale": [
+        2,
+        4,
+        6,
+        7,
+        9,
+        11,
+        1
+      ],
+      "scale_name": "D major",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          38,
+          54,
+          57,
+          64
+        ],
+        "full": [
+          38,
+          54,
+          57,
+          64
+        ],
+        "comp": [
+          38,
+          54,
+          57
+        ],
+        "bass": [
+          38
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "fifth",
+          "ninth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "fifth"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Dadd9",
+        "number": "1add9",
+        "match": "exact"
+      },
+      "warnings": []
+    },
+    {
+      "i": 4,
+      "section": 1,
+      "at_beat": 16,
+      "beats": 4,
+      "n": "4maj13",
+      "name": "Gmaj13",
+      "key": "D major",
+      "tones_pc": {
+        "root": 7,
+        "third": 11,
+        "fifth": 2,
+        "seventh": 6,
+        "ninth": 9,
+        "thirteenth": 4
+      },
+      "bass_pc": 7,
+      "chord_pcs": [
+        7,
+        11,
+        2,
+        6,
+        9,
+        4
+      ],
+      "scale": [
+        7,
+        9,
+        11,
+        1,
+        2,
+        4,
+        6
+      ],
+      "scale_name": "G Lydian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          43,
+          54,
+          59,
+          69,
+          76
+        ],
+        "full": [
+          43,
+          54,
+          59,
+          64,
+          69
+        ],
+        "comp": [
+          43,
+          54,
+          59
+        ],
+        "bass": [
+          43
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "seventh",
+          "third",
+          "thirteenth",
+          "ninth"
+        ],
+        "comp": [
+          "bass",
+          "seventh",
+          "third"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Gmaj13",
+        "number": "4maj13",
+        "match": "exact"
+      },
+      "warnings": [],
+      "omits": [
+        "fifth"
+      ]
+    },
+    {
+      "i": 5,
+      "section": 1,
+      "at_beat": 20,
+      "beats": 8,
+      "n": "1maj9",
+      "name": "Dmaj9",
+      "key": "D major",
+      "tones_pc": {
+        "root": 2,
+        "third": 6,
+        "fifth": 9,
+        "seventh": 1,
+        "ninth": 4
+      },
+      "bass_pc": 2,
+      "chord_pcs": [
+        2,
+        6,
+        9,
+        1,
+        4
+      ],
+      "scale": [
+        2,
+        4,
+        6,
+        7,
+        9,
+        11,
+        1
+      ],
+      "scale_name": "D major",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          38,
+          49,
+          54,
+          64,
+          69
+        ],
+        "full": [
+          38,
+          54,
+          57,
+          61,
+          64
+        ],
+        "comp": [
+          38,
+          54,
+          61
+        ],
+        "bass": [
+          38
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "fifth",
+          "seventh",
+          "ninth"
+        ],
+        "comp": [
+          "bass",
+          "third",
+          "seventh"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Dmaj9",
+        "number": "1maj9",
+        "match": "exact"
+      },
+      "warnings": []
+    }
+  ],
+  "warnings": []
+}

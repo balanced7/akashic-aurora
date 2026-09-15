@@ -6,7 +6,10 @@ The server side (arsenal/serve.py routes these):
                                 "id: N / event: cue / data: {id, cue, sent_at}", ": hb" every 15 s. Last-Event-ID (or
                                 ?lastEventId= when the header is absent) replays newer cues from the last 50 that are
                                 younger than 10 s. Ids count up from the server's boot time in epoch ms.
-  GET  /api/piano/cues/status   {"listeners", "last_id"}
+  GET  /api/piano/cues/status   {"listeners", "last_id", "caps": {"jam1": n, "deck1": n}, "pages": [{page_id, caps,
+                                since}]}; a jam page opens the stream as /api/piano/cues?caps=jam1,deck1&page=<id>
+  The same stream carries `deck` and `jam` frames (CueHub.publish_event), numbered from one id sequence in one ring;
+  their routes live in arsenal/jam/runs.py (JamApi), and a cue frame keeps exactly its bytes.
 
 CUE = {"type": "play" | "hover" | "sequence" | "clear", "notes": [21..108], "velocity": 1..127 (80),
        "hold_ms": >= 0 (2500; 0 = until clear), "arpeggio_ms": >= 0 (0), "sound": bool (play true, hover false),
@@ -15,7 +18,8 @@ CUE = {"type": "play" | "hover" | "sequence" | "clear", "notes": [21..108], "vel
 validate_cue fills the defaults in, so every listener receives explicit values.
 
 The verbs (py -m arsenal.pianocue <verb> --help):
-  play, hover, progression, replay, clear, voicing (prints only), status.
+  play, hover, progression, replay, clear, voicing (prints only), status; and the jam verbs card, deck, loop, try, jam
+  and template, implemented in arsenal/jam/cli.py.
 Chord names, Nashville numbers and voicings come from arsenal/pianocue_voicing.mjs, which runs the THEORY block
 of arsenal/web/piano.js and arsenal/web/piano/nashville.js, so the names and numbers match the page's. --minor relative
 follows a page whose minor-key numbering (arsenal.piano.minor) is set to relative.
@@ -58,6 +62,10 @@ HEARTBEAT_S = 15.0
 MAX_CUE_BODY = 2 * 1024 * 1024
 
 NO_LISTENER = "no piano page is listening - open http://127.0.0.1:{port}/piano"
+EVENT_KINDS = ("cue", "deck", "jam")          # named events on the one stream (jam-spec 6)
+KNOWN_CAPS = ("jam1", "deck1")                # what a jam page announces: /api/piano/cues?caps=jam1,deck1&page=<id>
+CAP_RE = re.compile(r"[a-z][a-z0-9]{0,15}")
+PAGE_RE = re.compile(r"[A-Za-z0-9_.:-]{1,80}")
 
 
 # ================================================================================================ validation
@@ -199,46 +207,59 @@ class CueHub:
         self._lock = threading.Lock()
         self._ring: deque = deque(maxlen=ring)  # (id, monotonic time, frame bytes)
         self._listeners: Dict[int, "queue.SimpleQueue"] = {}
+        self._meta: Dict[int, dict] = {}  # token -> {caps, page_id, since}: what each stream announced
         self._next_token = 0
         self.id_base = int(time.time() * 1000) if id_base is None else int(id_base)
         self._last_id = self.id_base
         self._closed = False
 
     @staticmethod
-    def frame(cue_id: int, cue: dict, sent_at: int) -> bytes:
-        data = json.dumps({"id": cue_id, "cue": cue, "sent_at": sent_at}, separators=(",", ":"))
-        return f"id: {cue_id}\nevent: cue\ndata: {data}\n\n".encode("utf-8")
+    def frame(cue_id: int, cue: dict, sent_at: int, kind: str = "cue") -> bytes:
+        """One event-stream frame: "id: N / event: <kind> / data: {id, <kind>: payload, sent_at}". A cue frame keeps
+        exactly the bytes it always had."""
+        data = json.dumps({"id": cue_id, kind: cue, "sent_at": sent_at}, separators=(",", ":"))
+        return f"id: {cue_id}\nevent: {kind}\ndata: {data}\n\n".encode("utf-8")
 
     def publish(self, cue: dict) -> dict:
+        return self.publish_event("cue", cue)
+
+    def publish_event(self, kind: str, payload: dict) -> dict:
+        """Number a cue, deck or jam frame from the one id sequence and hand it to every listener, under one lock and
+        into one ring (jam-spec 6). Returns {id, listeners}."""
+        if kind not in EVENT_KINDS:
+            raise ValueError(f"event kind must be one of {', '.join(EVENT_KINDS)} (got {kind!r})")
         with self._lock:
             self._last_id += 1
             cue_id = self._last_id
-            frame = self.frame(cue_id, cue, int(time.time() * 1000))
+            frame = self.frame(cue_id, payload, int(time.time() * 1000), kind)
             self._ring.append((cue_id, self._clock(), frame))
             for q in self._listeners.values():
                 q.put(frame)
             return {"id": cue_id, "listeners": len(self._listeners)}
 
-    def subscribe(self, last_event_id: Optional[int] = None) -> Tuple[int, "queue.SimpleQueue", List[bytes]]:
+    def subscribe(self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
+                  ) -> Tuple[int, "queue.SimpleQueue", List[bytes]]:
         """Register a listener. Returns (token, queue, backlog): the backlog holds the replayed frames.
 
         Nothing is replayed without a Last-Event-ID (a freshly opened page must not play old cues). An id below this
         hub's id_base or above the last id it issued comes from another (earlier) server, so every young cue is newer.
+        caps (e.g. ("jam1", "deck1")) and page_id are what the page announced in its stream URL; status() counts them.
         """
-        token, q, backlog, _ = self._subscribe(last_event_id)
+        token, q, backlog, _ = self._subscribe(last_event_id, caps, page_id)
         return token, q, backlog
 
-    def open_stream(self, last_event_id: Optional[int] = None) -> Tuple[int, "queue.SimpleQueue", bytes]:
+    def open_stream(self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
+                    ) -> Tuple[int, "queue.SimpleQueue", bytes]:
         """subscribe() for an event stream: returns (token, queue, preamble), the bytes to write before live frames.
 
         The preamble is "retry: 1000" with an "id:" line, then the replayed frames. The id is the cursor just before
         the first replayed cue, or the last id issued, so the page's EventSource has a Last-Event-ID to send back on a
         reconnect even before it has received a cue.
         """
-        token, q, backlog, cursor = self._subscribe(last_event_id)
+        token, q, backlog, cursor = self._subscribe(last_event_id, caps, page_id)
         return token, q, f"retry: 1000\nid: {cursor}\n\n".encode("ascii") + b"".join(backlog)
 
-    def _subscribe(self, last_event_id: Optional[int]):
+    def _subscribe(self, last_event_id: Optional[int], caps=(), page_id: Optional[str] = None):
         with self._lock:
             token = self._next_token
             self._next_token += 1
@@ -246,6 +267,9 @@ class CueHub:
             if self._closed:
                 q.put(None)
             self._listeners[token] = q
+            self._meta[token] = {"caps": tuple(dict.fromkeys(c for c in caps if CAP_RE.fullmatch(str(c)))),
+                                 "page_id": page_id if page_id and PAGE_RE.fullmatch(str(page_id)) else None,
+                                 "since": int(time.time() * 1000)}
             entries = []
             if last_event_id is not None:
                 now = self._clock()
@@ -258,10 +282,24 @@ class CueHub:
     def unsubscribe(self, token: int) -> None:
         with self._lock:
             self._listeners.pop(token, None)
+            self._meta.pop(token, None)
 
     def status(self) -> dict:
+        """{listeners, last_id, caps: {jam1: n, deck1: n, ...}, pages: [{page_id, caps, since}]} (jam-spec 6)."""
         with self._lock:
-            return {"listeners": len(self._listeners), "last_id": self._last_id}
+            caps = {c: 0 for c in KNOWN_CAPS}
+            pages: Dict[str, dict] = {}
+            for token in self._listeners:
+                meta = self._meta.get(token) or {"caps": (), "page_id": None, "since": 0}
+                for c in meta["caps"]:
+                    caps[c] = caps.get(c, 0) + 1
+                if meta["page_id"]:
+                    page = pages.setdefault(meta["page_id"], {"page_id": meta["page_id"], "caps": [],
+                                                              "since": meta["since"]})
+                    page["caps"] = sorted(set(page["caps"]) | set(meta["caps"]))
+                    page["since"] = min(page["since"], meta["since"])
+            return {"listeners": len(self._listeners), "last_id": self._last_id, "caps": caps,
+                    "pages": sorted(pages.values(), key=lambda p: (p["since"], p["page_id"]))}
 
     def close(self) -> None:
         """Wake every stream so its thread ends (server shutdown, tests)."""
@@ -825,6 +863,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     st = sub.add_parser("status", help="listeners and the last cue id")
     port(st)
+
+    from .replay import add_verb as add_replay_link
+    add_replay_link(sub)
+    from .jam import cli as jam_cli  # the jam verbs: card, deck, loop, try, jam, template (jam-spec 7)
+    jam_cli.add_verbs(sub)
     return ap
 
 
@@ -844,6 +887,12 @@ def main(argv=None, out=None) -> int:
     _utf8_streams()
     out = out or sys.stdout
     args = build_parser().parse_args(argv)
+    if args.verb == "replay-link":
+        from .replay import run_link
+        return run_link(args, out)
+    from .jam import cli as jam_cli
+    if args.verb in jam_cli.VERBS:
+        return jam_cli.run(args, out)
     try:
         if args.verb in ("play", "hover"):
             return _cmd_play(args, args.verb == "hover", out)

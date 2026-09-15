@@ -1,0 +1,64 @@
+{
+  "api": "arsenal.jam.card/v0",
+  "id": "float-answer",
+  "rev": 1,
+  "title": "The answer: let it pull home",
+  "meaning": "Start on the sus, give it its 3rd, and land on home.",
+  "theory_name": "dominant 7",
+  "group": "try",
+  "kind": "loop",
+  "key": "Eb major",
+  "chords": [
+    {
+      "n": "5^7sus4",
+      "beats": 2
+    },
+    {
+      "n": "5^7",
+      "beats": 2
+    },
+    {
+      "n": "1maj9",
+      "beats": 4
+    }
+  ],
+  "groove": "hold",
+  "backing": "full",
+  "tempo": {
+    "bpm": 60,
+    "beats_per_bar": 4,
+    "feel": "straight"
+  },
+  "bars": 2,
+  "explanation": "The Eb that hung in the question falls to D, the 3rd of Bb7, and D pulls up to Eb, home.",
+  "why": "Played after the question, the fall from Eb to D is the hinge you hear.",
+  "try": "Pick up the phrase where the question left it, lean on D in the Bb7 beats, and land on Eb.",
+  "listen_for": "D turning the float into a pull.",
+  "checks": [
+    {
+      "id": "lands-home",
+      "slot": 2,
+      "role": "1",
+      "want": "landing",
+      "say": "you landed on home"
+    }
+  ],
+  "pair": {
+    "role": "answer",
+    "with": "float-question"
+  },
+  "tags": [
+    "pair",
+    "dominant"
+  ],
+  "related": [
+    "float-question"
+  ],
+  "source": {
+    "kind": "claude"
+  },
+  "created_by": "claude",
+  "updated_by": "claude",
+  "created_at": "2030-01-01T00:00:00.000+00:00",
+  "updated_at": "2030-01-01T00:00:00.000+00:00"
+}

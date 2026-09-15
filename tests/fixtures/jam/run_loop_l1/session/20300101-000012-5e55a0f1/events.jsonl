@@ -1,0 +1,18 @@
+{"down": true, "kind": "pedal", "t_ms": 11182, "value": 100}
+{"kind": "on", "note": 67, "t_ms": 11648, "vel": 52}
+{"kind": "off", "note": 67, "t_ms": 13455}
+{"kind": "on", "note": 74, "t_ms": 16194, "vel": 48}
+{"kind": "off", "note": 74, "t_ms": 18000}
+{"kind": "on", "note": 74, "t_ms": 23012, "vel": 50}
+{"kind": "off", "note": 74, "t_ms": 24364}
+{"kind": "on", "note": 75, "t_ms": 26194, "vel": 55}
+{"kind": "off", "note": 75, "t_ms": 29364}
+{"kind": "on", "note": 74, "t_ms": 45739, "vel": 47}
+{"kind": "off", "note": 74, "t_ms": 46977}
+{"kind": "on", "note": 72, "t_ms": 56989, "vel": 44}
+{"kind": "off", "note": 72, "t_ms": 58227}
+{"kind": "on", "note": 74, "t_ms": 64073, "vel": 51}
+{"kind": "off", "note": 74, "t_ms": 65727}
+{"kind": "on", "note": 75, "t_ms": 67406, "vel": 40}
+{"kind": "off", "note": 75, "t_ms": 69061}
+{"down": false, "kind": "pedal", "t_ms": 69894, "value": 0}
