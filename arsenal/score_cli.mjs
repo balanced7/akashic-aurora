@@ -26,7 +26,9 @@
 //   LR9a  take.musicxml well-formed; one measure per score measure; every voice stream (notes, rests, forwards with that
 //         voice) sums to its measure length; tie starts and stops pair (same staff and pitch, the stop where the start
 //         ends); the sounding notes after tie merge equal the performance notes (count and pitch multiset of the log's
-//         note-ons in the span) and the score's own notes (tick, pitch, length).
+//         note-ons in the span) and the score's own notes (tick, pitch, length); beam structure (ls1-rulings.md LS4: beam 1
+//         runs begin..end over consecutive beamable notes of one voice, never across an unbeamed note, rest or forward);
+//         every measure's length equals the time signature in force, and implicit="yes" appears only on the opening measure.
 //   LR9b  performance.mid (SMF 0, PPQ 500, tempo 500,000): every logged on (with velocity), off and CC64 crossing at
 //         t_ms - t0 ticks, 0 ms error; CC64 values in {0, 127}; the only extra events are the documented end offs.
 //   LR9c  quantized.mid (SMF 1, 3 tracks, PPQ 480): note count equals the MusicXML sounding notes, and (tick, pitch) pairs
@@ -270,7 +272,13 @@ export function readSmf(bytes) {
 
 const STEP_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 export function readMusicXML(xml) {
-  const out = { wellFormed: true, error: null, measures: [], sounding: [], tieUnmatchedStart: 0, tieUnmatchedStop: 0, negativeCursor: 0, divisions: null };
+  // beamBad (ls1-rulings.md LS4 beam writer): per measure and voice, beam 1 runs begin, continue..., end over consecutive
+  // non-chord notes of that voice; a beam on a quarter or longer note, a continue or end with no open beam, a begin inside
+  // one, an unbeamed note or rest or a <forward> of the voice inside an open beam, and a beam left open at the measure end
+  // each count one. measures[i].implicit / .time (the time signature in force) feed the short-measure check in verifyExport.
+  const out = { wellFormed: true, error: null, measures: [], sounding: [], tieUnmatchedStart: 0, tieUnmatchedStop: 0, negativeCursor: 0, divisions: null, beams: 0, beamBad: 0 };
+  const BEAMABLE = new Set(["eighth", "16th", "32nd", "64th", "128th"]);
+  let curTime = null;
   const fail = (e) => { if (out.wellFormed) { out.wellFormed = false; out.error = e; } };
   // well-formedness: one root, balanced tags, quoted attributes, escaped text
   const re = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[^>]*>|<(\/?)([A-Za-z_][\w.:-]*)((?:\s+[A-Za-z_][\w.:-]*="[^"<]*")*)\s*(\/?)>/g;
@@ -293,8 +301,10 @@ export function readMusicXML(xml) {
   const measRe = /<measure\b([^>]*)>([\s\S]*?)<\/measure>/g;
   let mm;
   while ((mm = measRe.exec(xml))) {
-    const body = mm[2], sums = new Map();
+    const body = mm[2], sums = new Map(), beamOpen = new Map();
     let cursor = 0, lastStart = 0, notes = 0;
+    const tm = /<time><beats>(\d+)<\/beats><beat-type>(\d+)<\/beat-type><\/time>/.exec(body);
+    if (tm) curTime = { beats: Number(tm[1]), beatType: Number(tm[2]) };
     const elRe = /<(note|backup|forward)>([\s\S]*?)<\/\1>/g;
     let el;
     while ((el = elRe.exec(body))) {
@@ -302,9 +312,17 @@ export function readMusicXML(xml) {
       const dur = Number((/<duration>(\d+)<\/duration>/.exec(b) || [0, 0])[1]);
       const voice = (/<voice>([^<]+)<\/voice>/.exec(b) || [0, null])[1];
       if (kind === "backup") { cursor -= dur; if (cursor < 0) out.negativeCursor++; continue; }
-      if (kind === "forward") { if (voice != null) sums.set(voice, (sums.get(voice) || 0) + dur); cursor += dur; continue; }
+      if (kind === "forward") { if (voice != null) { sums.set(voice, (sums.get(voice) || 0) + dur); if (beamOpen.get(voice)) { out.beamBad++; beamOpen.set(voice, false); } } cursor += dur; continue; }
       notes++;
       const chord = /<chord\/>/.test(b);
+      if (!chord) {
+        const bm = (/<beam number="1">(\w+)<\/beam>/.exec(b) || [])[1], ty = (/<type>([^<]+)<\/type>/.exec(b) || [])[1], isOpen = !!beamOpen.get(voice);
+        if (bm && !BEAMABLE.has(ty)) out.beamBad++;
+        if (bm === "begin") { out.beams++; if (isOpen) out.beamBad++; beamOpen.set(voice, true); }
+        else if (bm === "continue") { if (!isOpen) out.beamBad++; beamOpen.set(voice, true); }
+        else if (bm === "end") { if (!isOpen) out.beamBad++; beamOpen.set(voice, false); }
+        else if (isOpen) { out.beamBad++; beamOpen.set(voice, false); }
+      }
       let start;
       if (chord) start = lastStart; else { start = cursor; lastStart = cursor; cursor += dur; sums.set(voice, (sums.get(voice) || 0) + dur); }
       if (/<rest\b/.test(b)) continue;
@@ -321,8 +339,9 @@ export function readMusicXML(xml) {
       out.sounding.push(ch);
       if (tieStart) { if (!open.has(k)) open.set(k, []); open.get(k).push(ch); }
     }
+    for (const open of beamOpen.values()) if (open) out.beamBad++;
     const len = Math.max(0, ...sums.values());
-    out.measures.push({ attrs: mm[1], sums, length: len, notes });
+    out.measures.push({ attrs: mm[1], sums, length: len, notes, implicit: /implicit="yes"/.test(mm[1]), time: curTime });
     offset += len;
   }
   for (const l of open.values()) out.tieUnmatchedStart += l.length;
@@ -342,13 +361,21 @@ export function verifyExport(b) {
   xr.measures.forEach((m, i) => { for (const s of m.sums.values()) { voicesChecked++; if (s !== MT[i]) voiceSumBad++; } });
   const logOns = b.spanEvents.filter((e) => e.kind === "on");
   const scoreSounding = soundingNotes(b.view);
+  // timeBad (ls1-rulings.md LS4 short measures): a measure whose length differs from the time signature in force, unless it
+  // is the opening measure marked implicit; implicitMid: implicit="yes" on any other measure
+  let timeBad = 0, implicitMid = 0;
+  xr.measures.forEach((m, i) => {
+    if (m.implicit && i > 0) implicitMid++;
+    const want = m.time && xr.divisions ? (m.time.beats * 4 * xr.divisions) / m.time.beatType : null;
+    if (!(m.implicit && i === 0) && want !== MT[i]) timeBad++;
+  });
   const lr9a = {
-    wellFormed: xr.wellFormed, error: xr.error, divisions: xr.divisions, measures: xr.measures.length, measuresMatch: xr.measures.length === MT.length, voicesChecked, voiceSumBad,
+    wellFormed: xr.wellFormed, error: xr.error, divisions: xr.divisions, measures: xr.measures.length, measuresMatch: xr.measures.length === MT.length, voicesChecked, voiceSumBad, beams: xr.beams, beamBad: xr.beamBad, timeBad, implicitMid,
     tieUnmatchedStart: xr.tieUnmatchedStart, tieUnmatchedStop: xr.tieUnmatchedStop, negativeCursor: xr.negativeCursor, sounding: xr.sounding.length, logOns: logOns.length,
     pitchDiff: multisetDiff(countBy(xr.sounding, (x) => x.midi), countBy(logOns, (e) => e.note)),
     scoreDiff: multisetDiff(countBy(xr.sounding, (x) => `${x.tick}|${x.midi}|${x.end - x.tick}`), countBy(scoreSounding, (n) => `${n.tick}|${n.note}|${n.dur}`)),
   };
-  lr9a.pass = lr9a.wellFormed && lr9a.divisions === 24 && lr9a.measuresMatch && lr9a.voiceSumBad === 0 && lr9a.tieUnmatchedStart === 0 && lr9a.tieUnmatchedStop === 0 && lr9a.negativeCursor === 0 && lr9a.sounding === lr9a.logOns && lr9a.pitchDiff === 0 && lr9a.scoreDiff === 0;
+  lr9a.pass = lr9a.wellFormed && lr9a.divisions === 24 && lr9a.measuresMatch && lr9a.voiceSumBad === 0 && lr9a.tieUnmatchedStart === 0 && lr9a.tieUnmatchedStop === 0 && lr9a.negativeCursor === 0 && lr9a.sounding === lr9a.logOns && lr9a.pitchDiff === 0 && lr9a.scoreDiff === 0 && lr9a.beamBad === 0 && lr9a.timeBad === 0 && lr9a.implicitMid === 0;
 
   // LR9b
   const P = readSmf(b.perf), t0 = b.t0_ms;

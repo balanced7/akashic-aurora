@@ -259,8 +259,9 @@ for (const [relMs, onMs, bass] of [[4060, 4140, 36], [4060, 4140, 38], [4120, 41
   const extent = v4 ? v4.notes.filter((p) => p.note === 36 && p.tieStop).reduce((e, p) => Math.max(e, p.pos + p.dur), 0) : null;
   check("frozen tie on tracker beats: bar 3 settles by beats at 14500 ms with bass 36 at tick 228 frozen at 96 ticks (tied), the 38 touching at 324",
     !!atSettle && atSettle.T === 14500 && atSettle.reason === "beats" && JSON.stringify(atSettle.bass) === "[228,96]" && atSettle.barTie && atSettle.n38 === 324, JSON.stringify({ ...atSettle, sig: undefined }));
-  check("frozen tie on tracker beats: the 15250 ms grid revision quantizes the seen 38 to 318, and the build pins it to the continuation's end, 324",
-    !!pin && pin.T === 15250 && pin.from === 318 && pin.tick === 324 && tr.stats().pinned >= 1, JSON.stringify({ pin, pinned: tr.stats().pinned }));
+  // the pinned 38 lands on the tick of the bar's own bass 36 (voice 4) and joins its chord: pinMerged (ls1-rulings.md)
+  check("frozen tie on tracker beats: the 15250 ms grid revision quantizes the seen 38 to 318, and the build pins it to the continuation's end, 324, merging with the bass 36 there",
+    !!pin && pin.T === 15250 && pin.from === 318 && pin.tick === 324 && tr.stats().pinned === 1 && tr.stats().pinnedNotes === 1 && tr.stats().pinMerged === 1, JSON.stringify({ pin, stats: tr.stats() }));
   check("frozen tie on tracker beats: bar 4's lower voice is the continuation [0, 36) then the 38 at 36 (72 ticks, no overlap), bar 3 never changed, nothing refused",
     !!cont && !!fresh && extent === 36 && fresh.pos === 36 && v4.notes.every((p) => p.pos + p.dur <= m4.barTicks) && late === 0 && sc.measures.find((m) => m.index === 3).state === "settled" && tr.stats().violations === 0 && tr.stats().refused === 0,
     JSON.stringify({ lower: v4 && v4.notes.map((p) => [p.note, p.pos, p.dur, p.tieStop ? "tieStop" : "", p.barTie ? "barTie" : ""]), late, stats: tr.stats() }));
@@ -312,6 +313,45 @@ for (const [relMs, onMs, bass] of [[4060, 4140, 36], [4060, 4140, 38], [4120, 41
   check("frozen tie before the window: bar 5 holds both continuations [0, 72), bar 4 never changed, nothing refused",
     JSON.stringify(conts) === "[[36,72],[38,72]]" && late === 0 && tr.stats().violations === 0 && tr.stats().refused === 0, JSON.stringify({ conts, late, stats: tr.stats() }));
   check("frozen tie before the window: the score passes the construction audit", TIE_KEYS.every((k) => a[k] === 0), JSON.stringify(a));
+}
+// The pin is per voice (ls1-rulings.md "LS2close to LS5 rulings"): only the notes in the conflicting voice move to the
+// continuation's end; notes of the same onset group in other voices stay where they were heard. Found by the tracker
+// sweep: inferred beats, 4/4, a 450 ms beat stretched x1.3 over a 4-bar ramp from bar 5; treble quarters (72-74) on every
+// beat; bass 36 on beat 1 of even bars; bass 38 at 0.9 of each odd bar with a treble 79 struck with it. At 17500 ms a grid
+// revision quantizes the group played at 15990 ms to tick 372, inside the frozen bass continuation that ends at 376. The
+// 38 (staff 2, voice 4) is pinned to 376; the 79 (staff 1, voice 1) stays at 372. The pre-ruling whole-group pin moved the
+// 79 to 376 as well.
+{
+  const meter = "4/4", K = 4, P = 450, ev = [{ t_ms: 500, kind: "pedal", down: true, value: 100 }];
+  let t = 1000;
+  for (let bar = 0; bar < 16; bar++) {
+    const p = P * (1 + 0.3 * Math.max(0, Math.min(1, (bar - 5 + 1) / 4)));
+    for (let k = 0; k < K; k++) {
+      ev.push({ t_ms: t, kind: "on", note: 72 + (k % 3), vel: k === 0 ? 90 : 60 }, { t_ms: t + p * 0.5, kind: "off", note: 72 + (k % 3) });
+      if (k === 0 && bar % 2 === 0) ev.push({ t_ms: t, kind: "on", note: 36, vel: 90 }, { t_ms: t + 150, kind: "off", note: 36 });
+      if (k === 0 && bar % 2 === 1) { const bt = t + p * K * 0.9; ev.push({ t_ms: bt, kind: "on", note: 38, vel: 70 }, { t_ms: bt + 120, kind: "off", note: 38 }, { t_ms: bt, kind: "on", note: 79, vel: 60 }, { t_ms: bt + 200, kind: "off", note: 79 }); }
+      t += p;
+    }
+    if (bar % 4 === 3) ev.push({ t_ms: t - 20, kind: "pedal", down: false, value: 0 }, { t_ms: t + 30, kind: "pedal", down: true, value: 100 });
+  }
+  ev.sort((x, y) => x.t_ms - y.t_ms);
+  const tr = createTranscriber({ options: { meter } });
+  let firstPin = null, late = 0;
+  const sigs = new Map();
+  replayInto(tr, ev, { onTick: (out, T) => {
+    for (const b of tr.bars()) {
+      if (b.state === "settled") { if (!sigs.has(b.index)) sigs.set(b.index, b.sig); else if (sigs.get(b.index) !== b.sig) late++; }
+      if (!firstPin) { const n38 = b.notes.find((n) => n.note === 38 && Math.round(n.on_ms) === 15990 && n.pinnedFrom != null); if (n38) firstPin = { T, bar: b.index, group: b.notes.filter((n) => Math.round(n.on_ms) === 15990).map((n) => [n.note, n.staff, n.voice, n.segTick, n.pinnedFrom ?? null]) }; }
+    }
+  } });
+  tr.finish();
+  const sc = tr.score(), a = tieAudit(sc), st = tr.stats();
+  const group = tr.bars().flatMap((b) => b.notes.filter((n) => Math.round(n.on_ms) === 15990).map((n) => [b.index, n.note, n.staff, n.voice, n.segTick, n.pinnedFrom ?? null]));
+  check("per-voice pin: at 17500 ms the group played at 15990 ms quantizes to 372; the bass 38 (voice 4) is pinned to 376, the treble 79 (voice 1) stays at 372",
+    !!firstPin && firstPin.T === 17500 && firstPin.bar === 4 && JSON.stringify(firstPin.group) === "[[38,2,4,376,372],[79,1,1,372,null]]", JSON.stringify(firstPin));
+  check("per-voice pin: the settled bar keeps the 38 at 376 and the 79 where it was heard; stats pinned 1, pinnedNotes 1, pinMerged 0",
+    JSON.stringify(group) === "[[4,38,2,4,376,372],[4,79,1,1,372,null]]" && st.pinned === 1 && st.pinnedNotes === 1 && st.pinMerged === 0, JSON.stringify({ group, st }));
+  check("per-voice pin: nothing settled changed, nothing refused, and the score passes the construction audit", late === 0 && st.violations === 0 && st.refused === 0 && TIE_KEYS.every((k) => a[k] === 0), JSON.stringify({ late, a }));
 }
 function churn(runs, onsets) {
   const ref = runs[8], out = {};

@@ -1,12 +1,12 @@
 // Headless page check for the score lab, arsenal/web/piano-lab-score.html (slice LS5 of the live sheet music plan,
 // research/in-flight/live-sheet-music-2026-09-14/live-sheet-music-plan.md section 10.4, receipt LR11; plan-amendments.md
-// section 0 rule 4: replay first, no receipt depends on Web MIDI). A small lab server on 127.0.0.1:8921 serves
+// section 0 rule 4: replay first, no receipt depends on Web MIDI). A small lab server on 127.0.0.1:8981 serves
 // arsenal/web, synthetic fixtures (tests/fixtures/score/gen.mjs) and, with --sessions, S1..Sn events.jsonl by S-number
-// (read-only; ids never leave this machine). A headless Chrome on DevTools port 9921 opens the page and drives it.
+// (read-only; ids never leave this machine). A headless Chrome on DevTools port 9981 opens the page and drives it.
 //   node tests/score_lab.test.mjs                     Node only: the server answers (page, modules, fixtures); no browser
 //   node tests/score_lab.test.mjs --browser           also the headless Chrome check (G1 bench, fixture replays, seeks)
 //   node tests/score_lab.test.mjs --browser --sessions  also replays 180 s of S12 in the page (aggregates only)
-//   node tests/score_lab.test.mjs --serve             the lab server alone on 8921 (open /web/piano-lab-score.html)
+//   node tests/score_lab.test.mjs --serve             the lab server alone on 8981 (open /web/piano-lab-score.html)
 // Browser rules (this machine): headless only, with the three anti-throttling flags; before launch, wait while a node
 // process running jam_timing.mjs or jam_verify.mjs exists (timing receipts are load-sensitive); take the GPU lock
 // (mkdir state/arsenal/gpu-render.lock, which fails while held) and remove it the moment the browser work ends; keep the
@@ -31,7 +31,8 @@ const WEB = path.join(REPO, "arsenal", "web");
 const PERF = path.join(REPO, "state", "arsenal", "performance");
 const OUT = path.join(REPO, "state", "arsenal", "score");
 const LOCK = path.join(REPO, "state", "arsenal", "gpu-render.lock");
-const PORT = 8921, DEVTOOLS = 9921;
+// this build's ports on this machine: the lab server 8981, Chrome DevTools 9981 (8981-8983 / 9981-9983 are reserved for it)
+const PORT = 8981, DEVTOOLS = 9981;
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const argv = process.argv.slice(2);
 const browser = argv.includes("--browser"), sessions = argv.includes("--sessions"), serveOnly = argv.includes("--serve");

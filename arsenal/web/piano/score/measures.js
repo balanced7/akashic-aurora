@@ -333,9 +333,17 @@ export function buildMeasures(notes, { meter, barLines = null, from = null, to =
       const beatsN = Math.ceil(bar.barTicks / BT);
       for (let j = 0; j < beatsN; j++) {
         if (points.has(k0 + j)) { const c = speller.ctxOf(k0 + j); if (c.tup) bar.tuplets.push({ voice: v.voice, beat: j, actual: c.tup.actual, normal: c.tup.normal }); }
+        // beam groups (ls1-rulings.md LS4 beam writer): a group never spans an unbeamable item. The beat's positions in time
+        // order, where a rest or a position holding a quarter or longer piece ends a run; every run of 2 or more consecutive
+        // beamable positions is one group ({ voice, beat, ids, pos }), so a beat can hold several groups.
         const inBeat = v.notes.filter((nt) => nt.pos >= j * BT && nt.pos < (j + 1) * BT);
-        const short = new Set(inBeat.filter((nt) => BEAMED.has(nt.type)).map((nt) => nt.pos));
-        if (short.size >= 2) bar.beams.push({ voice: v.voice, beat: j, ids: [...new Set(inBeat.filter((nt) => short.has(nt.pos)).map((nt) => nt.id))] });
+        const beamable = new Map();
+        for (const nt of inBeat) beamable.set(nt.pos, (beamable.has(nt.pos) ? beamable.get(nt.pos) : true) && BEAMED.has(nt.type));
+        for (const r of v.rests) if (r.pos >= j * BT && r.pos < (j + 1) * BT) beamable.set(r.pos, false);
+        let run = [];
+        const flush = () => { if (run.length >= 2) bar.beams.push({ voice: v.voice, beat: j, ids: [...new Set(inBeat.filter((nt) => run.includes(nt.pos)).map((nt) => nt.id))], pos: run }); run = []; };
+        for (const pos of [...beamable.keys()].sort((a, b) => a - b)) { if (beamable.get(pos)) run.push(pos); else flush(); }
+        flush();
       }
     }
     for (const hv of hideRestVoices) { const v = bar.voices.get(hv); if (v && v.notes.length === 0) bar.voices.delete(hv); }

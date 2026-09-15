@@ -10,7 +10,8 @@
 //               differ from the current signature (mode when the mark names one), with a light-light bar line before it;
 //               <time> from the meter (free: 4/4); <staves>2</staves>; clefs per measure (hands.js clefs: a lower-staff
 //               change writes <clef number="2">).
-//   measures    number i (0 for a leading pickup); implicit="yes" on pickups (meter.js pickupOf); the last bar light-heavy.
+//   measures    number i (0 for a leading pickup); implicit="yes" only on that opening pickup, an explicit <time> on any other
+//               measure of another length (see the rulings block below); the last bar light-heavy.
 //   voices      one stream per score voice (staff 1 voices 1-2, staff 2 voices 3-4), <backup> between. Pieces at one
 //               position with one written length are a <chord/>. Where a voice holds pieces of different lengths at one
 //               position (a chord member released early), or an onset while an earlier note still sounds, the longer ones stay in the
@@ -30,15 +31,57 @@
 //               per-minute "c. N", N the phrase's median tactus BPM, plus <words>rubato</words> when the phrase's bar
 //               tempos spread past rubatoSpread (p90 / p10 > 1.08, the plan's 4% a tempo band both ways) and its bars
 //               were not forced onto a fixed grid; <sound tempo> on every measure from its beat times (quarter notes per
-//               minute); <words>freely</words> on every measure that is forced or not metric; pedal marks as
+//               minute); <words>freely</words> once per free-time passage and "a tempo" where a tracked beat resumes (see
+//               below; C3's mark on every forced measure is superseded); pedal marks as
 //               <pedal type="start|change|stop" line="yes" sign="no"/> on staff 2 and "con Ped." as words, placed by
 //               <offset> in the measure (a stop or change with no open pedal, a start while one is open and an open pedal at
 //               the end are repaired: stats.pedalRepairs); dynamics; <octave-shift> (8va is type "down": note pitches stay
 //               sounding) at the start and end of each run of octave-line bars per staff.
 
+// ls1-rulings.md "LS2close to LS5 rulings" (LS4) replace four of the points above:
+//   beams       a beam group never spans an unbeamable item: begin / continue / end are written only across consecutive
+//               beamable chords of the lane's own stream (no rest, quarter or longer chord, other chord or <forward> between
+//               them); measures.js already splits its groups at rests and quarter or longer pieces (stats.beamSplits counts
+//               groups the writer still had to cut).
+//   freely      once at the start of each free-time passage (a run of measures with no tracked beat: forced, not metric, or
+//               drawn from the inferred rung), and "a tempo" once where a tracked beat (jam, song, taps) resumes. A copy
+//               with no taps and no jam beat is one passage: one "freely" at the top. freeTimeMarks(measures) is the rule.
+//   measures    implicit="yes" only on a pickup at the very start of the score. A measure of another length gets an explicit
+//               <time> for that measure (48 ticks inside 4/4: 2/4) and the meter is written again on the next measure.
+//   accidentals accidentals.js decideAccidentals: per staff and staff position in written order (position, then pitch); a
+//               clash at one position prints both; a courtesy accidental in parentheses after a tied-in note; duplicate
+//               pitches at one position (two lanes) share the decision.
+
 import { measureBeatDurations } from "./midi.js";
+import { decideAccidentals } from "./accidentals.js";
 
 export const MUSICXML_API = "arsenal.piano.score.musicxml/v0";
+
+// Free-time passages (ls1-rulings.md LS4 "freely" marks). A measure has a tracked beat when it is metric, not forced, and
+// drawn from the jam, song or taps rung. -> [{ index (written order), text: "freely" | "a tempo" }]
+const TRACKED = new Set(["jam", "song", "taps"]);
+export const trackedMeasure = (m) => !m.forced && m.kind === "metric" && TRACKED.has(m.source);
+export function freeTimeMarks(measures) {
+  const out = [];
+  let free = false;
+  measures.forEach((m, i) => {
+    const f = !trackedMeasure(m);
+    if (f && !free) out.push({ index: i, text: "freely" });
+    else if (!f && free) out.push({ index: i, text: "a tempo" });
+    free = f;
+  });
+  return out;
+}
+
+// The time signature a measure of `ticks` needs under the meter { beats, beatType } at `tpq` ticks per quarter: the meter
+// itself for a full bar, else the fewest beats over the meter's beat type or a shorter power of two (48 ticks in 4/4: 2/4;
+// 36: 3/8); null when no beat type down to a 64th holds it.
+export function timeSignatureOf(ticks, TS, tpq = 24) {
+  const W = 4 * tpq;
+  if (ticks === (TS.beats * W) / TS.beatType) return { beats: TS.beats, beatType: TS.beatType };
+  for (let bt = TS.beatType; bt <= 64; bt *= 2) { const u = W / bt; if (Number.isInteger(u) && ticks > 0 && ticks % u === 0) return { beats: ticks / u, beatType: bt }; }
+  return null;
+}
 export const MUSICXML_PARAMS = Object.freeze({ rubatoSpread: 1.08, partName: "Piano", title: null, date: null, software: "arsenal.piano.score/v0 musicxml.js" });
 
 const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
@@ -113,7 +156,7 @@ function noteXml(x) {
   s += `<voice>${x.voice}</voice>`;
   if (x.type) s += `<type>${x.type}</type>`;
   for (let k = 0; k < (x.dots || 0); k++) s += "<dot/>";
-  if (x.acc) s += `<accidental>${x.acc}</accidental>`;
+  if (x.acc) s += x.courtesy ? `<accidental cautionary="yes" parentheses="yes">${x.acc}</accidental>` : `<accidental>${x.acc}</accidental>`;
   if (x.tm) s += `<time-modification><actual-notes>${x.tm.actual}</actual-notes><normal-notes>${x.tm.normal}</normal-notes></time-modification>`;
   s += `<staff>${x.staff}</staff>`;
   if (x.beam) s += `<beam number="1">${x.beam}</beam>`;
@@ -132,7 +175,8 @@ export function toMusicXML(score, opts = {}) {
   const c = { ...MUSICXML_PARAMS, ...opts };
   const st = opts.stats || {};
   Object.assign(st, { measures: 0, measureTicks: [], pieces: 0, chords: 0, rests: 0, emptyMeasures: 0, extraLanes: 0, chordSplits: 0, overlapSplits: 0, forwards: 0, tupletBeats: 0, bracketsSkipped: 0, tieStarts: 0, crossVoiceTies: 0,
-    pedal: { start: 0, change: 0, stop: 0, conPed: 0 }, pedalRepairs: 0, pedalUnplaced: 0, unspelledNotes: 0, untypedPieces: 0, metronomes: 0, rubato: 0, freely: 0, keyChanges: 0, clefChanges: 0, octaveShifts: 0, dynamics: 0, dynamicsUnplaced: 0, pickups: 0 });
+    pedal: { start: 0, change: 0, stop: 0, conPed: 0 }, pedalRepairs: 0, pedalUnplaced: 0, unspelledNotes: 0, untypedPieces: 0, metronomes: 0, rubato: 0, freely: 0, aTempo: 0, keyChanges: 0, clefChanges: 0, octaveShifts: 0, dynamics: 0, dynamicsUnplaced: 0, pickups: 0,
+    implicitMeasures: 0, shortMeasures: 0, timeChanges: 0, timeUnwritable: 0, beamGroups: 0, beamRuns: 0, beamSplits: 0, accidentals: 0, courtesy: 0, accClashes: 0 });
   const ms = [...(score.measures || [])].sort((a, b) => a.index - b.index);
   const meter = score.meter || { beats: 4, beatType: 4, beatTicks: 24, compound: false };
   const BT = meter.beatTicks;
@@ -198,19 +242,32 @@ export function toMusicXML(score, opts = {}) {
   L.push(`  <part-list><score-part id="P1"><part-name>${esc(c.partName)}</part-name></score-part></part-list>`);
   L.push('  <part id="P1">');
 
-  const firstIsPickup = ms.length && ms[0].pickup;
+  const TPQ = score.tpq || 24, fullTicks = (TS.beats * 4 * TPQ) / TS.beatType;
+  const firstIsPickup = !!(ms.length && ms[0].pickup && ms[0].barTicks < fullTicks);
+  const freeAt = new Map(freeTimeMarks(ms).map((x) => [x.index, x.text]));
   const lastVoiceOfId = new Map(), prevLanes = new Map();
+  let curTS = null;
   ms.forEach((m, i) => {
     const prev = i > 0 ? ms[i - 1] : null, next = ms[i + 1] || null;
     const barTicks = m.barTicks;
     st.measures++; st.measureTicks.push(barTicks);
     if (m.pickup) st.pickups++;
-    L.push(`    <measure number="${i + (firstIsPickup ? 0 : 1)}"${m.pickup ? ' implicit="yes"' : ""}>`);
+    // implicit only for the opening pickup; any other length writes its own time signature, and the meter comes back after
+    const implicit = i === 0 && firstIsPickup;
+    let ts = implicit ? { beats: TS.beats, beatType: TS.beatType } : timeSignatureOf(barTicks, TS, TPQ);
+    if (barTicks !== fullTicks) st.shortMeasures++;
+    if (!ts) { st.timeUnwritable++; ts = curTS || { beats: TS.beats, beatType: TS.beatType }; }
+    const writeTime = !curTS || curTS.beats !== ts.beats || curTS.beatType !== ts.beatType;
+    if (writeTime && i > 0) st.timeChanges++;
+    curTS = ts;
+    if (implicit) st.implicitMeasures++;
+    L.push(`    <measure number="${i + (firstIsPickup ? 0 : 1)}"${implicit ? ' implicit="yes"' : ""}>`);
     // attributes
     const attr = [];
-    if (i === 0) attr.push(`<divisions>${score.tpq || 24}</divisions>`);
+    if (i === 0) attr.push(`<divisions>${TPQ}</divisions>`);
     if (writeKey[i]) { attr.push(`<key><fifths>${keyOf[i].fifths}</fifths>${keyOf[i].mode ? `<mode>${keyOf[i].mode}</mode>` : ""}</key>`); if (i > 0) st.keyChanges++; }
-    if (i === 0) attr.push(`<time><beats>${TS.beats}</beats><beat-type>${TS.beatType}</beat-type></time>`, "<staves>2</staves>");
+    if (writeTime) attr.push(`<time><beats>${ts.beats}</beats><beat-type>${ts.beatType}</beat-type></time>`);
+    if (i === 0) attr.push("<staves>2</staves>");
     const clef2 = (m.clefs && m.clefs[2]) || "bass", prevClef2 = prev ? (prev.clefs && prev.clefs[2]) || "bass" : null;
     const clefXml = (n, k) => (k === "treble" ? `<clef number="${n}"><sign>G</sign><line>2</line></clef>` : `<clef number="${n}"><sign>F</sign><line>4</line></clef>`);
     if (i === 0) attr.push(clefXml(1, "treble"), clefXml(2, clef2));
@@ -225,13 +282,16 @@ export function toMusicXML(score, opts = {}) {
       L.push(`      ${direction("above", types, { staff: 1, sound: soundTempo })}`);
       st.metronomes++;
     } else if (soundTempo) L.push(`      ${soundTempo}`);
-    if (m.forced || m.kind !== "metric") { L.push(`      ${direction("above", ['<words font-style="italic">freely</words>'], { staff: 1 })}`); st.freely++; }
+    const free = freeAt.get(i);
+    if (free === "freely") { L.push(`      ${direction("above", ['<words font-style="italic">freely</words>'], { staff: 1 })}`); st.freely++; }
+    else if (free === "a tempo") { L.push(`      ${direction("above", ["<words>a tempo</words>"], { staff: 1 })}`); st.aTempo++; }
     for (const w of wordsAt.get(i) || []) L.push(`      ${direction("below", [`<words font-style="italic">${esc(w.text)}</words>`], { staff: 2, offset: Math.min(w.pos, barTicks - 1) })}`);
     const endDirs = [];
     for (const s of [1, 2]) {
       const cur = (m.octave && m.octave[s]) || 0, was = prev ? (prev.octave && prev.octave[s]) || 0 : 0, nxt = next ? (next.octave && next.octave[s]) || 0 : 0;
-      if (cur && cur !== was) { L.push(`      ${direction(s === 1 ? "above" : "below", [`<octave-shift type="${cur === 8 ? "down" : "up"}" size="8" number="${s}"/>`], { staff: s })}`); st.octaveShifts++; }
-      if (cur && nxt !== cur) endDirs.push(direction(s === 1 ? "above" : "below", [`<octave-shift type="stop" size="8" number="${s}"/>`], { staff: s }));
+      // 8va / 15ma (positive, treble clef) above the staff, 8vb / 15mb (negative, bass clef) below; size 8 or 15
+      if (cur && cur !== was) { L.push(`      ${direction(cur > 0 ? "above" : "below", [`<octave-shift type="${cur > 0 ? "down" : "up"}" size="${Math.abs(cur)}" number="${s}"/>`], { staff: s })}`); st.octaveShifts++; }
+      if (cur && nxt !== cur) endDirs.push(direction(cur > 0 ? "above" : "below", [`<octave-shift type="stop" size="${Math.abs(cur)}" number="${s}"/>`], { staff: s }));
     }
     for (const p of pedalAt.get(i) || []) {
       const d = direction("below", [`<pedal type="${p.type}" line="yes" sign="no"/>`], { staff: 2, offset: p.pos });
@@ -239,18 +299,19 @@ export function toMusicXML(score, opts = {}) {
     }
     for (const d of dynAt.get(i) || []) { L.push(`      ${direction("below", [`<dynamics><${d.band}/></dynamics>`], { staff: 1, offset: Math.min(d.pos, barTicks - 1) })}`); st.dynamics++; }
 
-    // accidentals per staff (bar state per step and octave)
-    const ka = keyAlters(keyOf[i].fifths), accOf = new Map(), pitchOfPiece = new Map();
-    for (const s of [1, 2]) {
-      const pieces = m.voices.filter((v) => v.staff === s).flatMap((v) => v.notes).sort((a, b) => a.pos - b.pos || a.note - b.note);
-      const state = new Map();
-      for (const p of pieces) {
-        const pt = pitchOf(p.note, notesById.get(p.id) && notesById.get(p.id).spelled, keyOf[i].fifths);
-        pitchOfPiece.set(p, pt);
-        if (p.tieStop) continue;
-        const k = pt.step + pt.octave, cur = state.has(k) ? state.get(k) : ka[pt.letter];
-        if (cur !== pt.alter) { accOf.set(p, ACC_NAME[pt.alter]); state.set(k, pt.alter); }
-      }
+    // accidentals (accidentals.js: per staff and staff position, written order, clashes, courtesy after a tie-in, shared
+    // by duplicates)
+    const ka = keyAlters(keyOf[i].fifths), accOf = new Map(), pitchOfPiece = new Map(), accItems = [];
+    for (const v of m.voices) for (const p of v.notes) {
+      const pt = pitchOf(p.note, notesById.get(p.id) && notesById.get(p.id).spelled, keyOf[i].fifths);
+      pitchOfPiece.set(p, pt);
+      accItems.push({ ref: p, staff: v.staff, pos: p.pos, pitch: p.note, letter: pt.letter, octave: pt.octave, alter: pt.alter, tieStop: !!p.tieStop, tiedIn: !!p.tieStop && p.pos === 0 });
+    }
+    for (const [p, d] of decideAccidentals(accItems, ka)) if (d.acc !== null) { accOf.set(p, { name: ACC_NAME[d.acc], courtesy: d.courtesy }); st.accidentals++; if (d.courtesy) st.courtesy++; }
+    {
+      const seen = new Map();
+      for (const it of accItems) { const k = it.staff + "|" + it.pos + "|" + it.letter + "|" + it.octave; if (!seen.has(k)) seen.set(k, new Set()); seen.get(k).add(it.alter); }
+      for (const s of seen.values()) if (s.size > 1) st.accClashes++;
     }
     // voice streams
     let cursor = 0, wrote = false;
@@ -269,9 +330,20 @@ export function toMusicXML(score, opts = {}) {
         cursor = 0; wrote = true;
         const beamOf = new Map(), bracketOf = new Map();
         if (li === 0) {
+          // a beam never spans an unbeamable item: runs of consecutive group chords in this lane's stream, cut by a rest, a
+          // quarter or longer chord, a chord outside the group or a gap (a <forward>); runs of 2 or more are beamed
           for (const b of beams) {
-            const els = lane.items.filter((it) => !it.rest && Math.floor(it.pos / BT) === b.beat && BEAMED.has(it.notes[0].type) && it.notes.some((p) => b.ids.has(p.id)));
-            if (els.length >= 2) els.forEach((it, k) => beamOf.set(it, k === 0 ? "begin" : k === els.length - 1 ? "end" : "continue"));
+            st.beamGroups++;
+            const inGroup = (it) => !it.rest && Math.floor(it.pos / BT) === b.beat && BEAMED.has(it.notes[0].type) && !beamOf.has(it) && (b.pos ? b.pos.includes(it.pos) : it.notes.some((p) => b.ids.has(p.id)));
+            const runs = [];
+            let run = [], prevEnd = null;
+            for (const it of lane.items) {
+              if (run.length && !(inGroup(it) && it.pos === prevEnd)) { runs.push(run); run = []; }
+              if (inGroup(it)) { run.push(it); prevEnd = it.pos + it.dur; }
+            }
+            if (run.length) runs.push(run);
+            if (runs.length > 1) st.beamSplits++;
+            for (const r of runs) if (r.length >= 2) { st.beamRuns++; r.forEach((it, k) => beamOf.set(it, k === 0 ? "begin" : k === r.length - 1 ? "end" : "continue")); }
           }
           for (const beat of tup.keys()) {
             const els = lane.items.filter((it) => Math.floor(it.pos / BT) === beat);
@@ -294,7 +366,7 @@ export function toMusicXML(score, opts = {}) {
               if (p.tieStart) st.tieStarts++;
               if (p.tieStop && lastVoiceOfId.has(p.id) && lastVoiceOfId.get(p.id) !== `${v.staff}:${vno}`) st.crossVoiceTies++;
               lastVoiceOfId.set(p.id, `${v.staff}:${vno}`);
-              L.push(`      ${noteXml({ chord: k > 0, pitch: pitchOfPiece.get(p), dur: p.dur, tieStop: p.tieStop, tieStart: p.tieStart, voice: vno, type: p.type, dots: p.dots, acc: accOf.get(p), tm, staff: v.staff, beam: beamOf.get(it), tuplet: k === 0 ? bracketOf.get(it) : null, staccato: p.staccato })}`);
+              L.push(`      ${noteXml({ chord: k > 0, pitch: pitchOfPiece.get(p), dur: p.dur, tieStop: p.tieStop, tieStart: p.tieStart, voice: vno, type: p.type, dots: p.dots, acc: accOf.has(p) ? accOf.get(p).name : null, courtesy: accOf.has(p) && accOf.get(p).courtesy, tm, staff: v.staff, beam: beamOf.get(it), tuplet: k === 0 ? bracketOf.get(it) : null, staccato: p.staccato })}`);
             });
           }
           cursor = it.pos + it.dur;

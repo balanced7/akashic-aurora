@@ -26,11 +26,11 @@ export const ENGRAVER_API = "arsenal.piano.score.engrave/v0";
 export const SMUFL = Object.freeze({
   gClef: "\uE050", fClef: "\uE062", brace: "\uE000",
   whole: "\uE0A2", half: "\uE0A3", black: "\uE0A4",
-  flat: "\uE260", natural: "\uE261", sharp: "\uE262", dsharp: "\uE263", dflat: "\uE264",
+  flat: "\uE260", natural: "\uE261", sharp: "\uE262", dsharp: "\uE263", dflat: "\uE264", parenL: "\uE26A", parenR: "\uE26B",
   restWhole: "\uE4E3", restHalf: "\uE4E4", restQuarter: "\uE4E5", rest8th: "\uE4E6", rest16th: "\uE4E7", rest32nd: "\uE4E8", rest64th: "\uE4E9",
   flagUp: ["", "\uE240", "\uE242", "\uE244", "\uE246"], flagDown: ["", "\uE241", "\uE243", "\uE245", "\uE247"],
   dot: "\uE1E7", tuplet: (d) => String(d).split("").map((x) => String.fromCharCode(0xE880 + Number(x))).join(""),
-  ottavaAlta: "\uE511", ottavaBassa: "\uE51C",
+  ottavaAlta: "\uE511", ottavaBassa: "\uE51C", quindicesimaAlta: "\uE515", quindicesimaBassa: "\uE51D",
 });
 export const ACC_GLYPH = Object.freeze({ "-2": SMUFL.dflat, "-1": SMUFL.flat, "0": SMUFL.natural, "1": SMUFL.sharp, "2": SMUFL.dsharp });
 export const REST_GLYPH = Object.freeze({ whole: SMUFL.restWhole, half: SMUFL.restHalf, quarter: SMUFL.restQuarter, eighth: SMUFL.rest8th, "16th": SMUFL.rest16th, "32nd": SMUFL.rest32nd, "64th": SMUFL.rest64th });
@@ -88,7 +88,11 @@ export function createHouseEngraver(opts = {}) {
     ctx.stroke();
     // heads, accidentals, dots, rests
     for (const h of g.heads) ctx.fillText(SMUFL[h.kind], h.x, h.y);
-    for (const a of g.accidentals) ctx.fillText(ACC_GLYPH[String(Math.max(-2, Math.min(2, a.acc)))], a.x, a.y);
+    for (const a of g.accidentals) {
+      ctx.fillText(ACC_GLYPH[String(Math.max(-2, Math.min(2, a.acc)))], a.x, a.y);
+      // a courtesy accidental (ls1-rulings.md LS5 accidentals) in SMuFL accidental parentheses
+      if (a.courtesy) { ctx.fillText(SMUFL.parenL, a.parenLX, a.y); ctx.fillText(SMUFL.parenR, a.parenRX, a.y); }
+    }
     for (const d of g.dots) ctx.fillText(SMUFL.dot, d.x, d.y);
     for (const r of g.rests) ctx.fillText(REST_GLYPH[r.type] || SMUFL.restQuarter, r.x, r.y);
     // staccato
@@ -163,13 +167,14 @@ export function createHouseEngraver(opts = {}) {
     for (const staff of [1, 2]) {
       const o = model.octave[staff];
       if (!o) continue;
-      const above = o === 8;
+      // 8va / 15ma above (treble clef), 8vb / 15mb below (bass clef): hands.js clefsAndOctaves
+      const above = o > 0, dbl = Math.abs(o) === 15;
       const y = above ? L.staffTop[staff] - 3.2 * sp : L.staffBottom[staff] + 4.0 * sp;
       ctx.font = `${3 * sp}px Bravura`;
-      ctx.fillText(above ? SMUFL.ottavaAlta : SMUFL.ottavaBassa, 0.4 * sp, y);
+      ctx.fillText(above ? (dbl ? SMUFL.quindicesimaAlta : SMUFL.ottavaAlta) : dbl ? SMUFL.quindicesimaBassa : SMUFL.ottavaBassa, 0.4 * sp, y);
       ctx.font = font;
       ctx.setLineDash?.([0.6 * sp, 0.5 * sp]);
-      ctx.beginPath(); ctx.moveTo(3.2 * sp, y - 0.6 * sp); ctx.lineTo(g.width - 0.4 * sp, y - 0.6 * sp); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo((dbl ? 4.2 : 3.2) * sp, y - 0.6 * sp); ctx.lineTo(g.width - 0.4 * sp, y - 0.6 * sp); ctx.stroke();
       ctx.setLineDash?.([]);
     }
     // loose beats: a faint wave over the treble staff

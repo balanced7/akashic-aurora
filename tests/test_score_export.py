@@ -5,7 +5,9 @@ research/in-flight/live-sheet-music-2026-09-14/live-sheet-music-plan.md section 
 LR9a  take.musicxml parses (xml.etree); one <measure> per manifest measure length; every voice stream (notes without
       <chord/>, rests, <forward> with that voice) sums to its measure length; tie starts and stops pair on one staff and
       pitch, the stop at the tick where the start ends; <tied> notations agree with <tie>; the sounding notes after tie merge
-      equal the performance notes (count and pitch multiset of the log's note-ons in the span).
+      equal the performance notes (count and pitch multiset of the log's note-ons in the span); beam structure (ls1-rulings.md
+      LS4: begin / continue / end over consecutive beamable notes of one voice, never across an unbeamed note, rest or
+      forward); every measure's length equals the time signature in force, implicit="yes" only on the opening measure.
 LR9b  performance.mid read here: format 0, one track, PPQ 500, tempo 500000; every logged on (velocity clamped to 1-127),
       off and CC64 crossing at t_ms - t0 ticks with 0 ms error; CC64 values in {0, 127}; the only extra note-offs are the
       manifest's end offs.
@@ -34,6 +36,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SCORE = REPO / "state" / "arsenal" / "score"
 STEP_PC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+BEAMABLE = {"eighth", "16th", "32nd", "64th", "128th"}
 ORDER = {"off": 0, "pedal": 1, "on": 2}
 
 
@@ -98,7 +101,7 @@ def read_smf(data: bytes) -> dict:
 def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -> tuple[dict, list[dict]]:
     res = {"parsed": False, "error": None, "divisions": None, "measures": 0, "measures_match": False, "voices": 0,
            "voice_sum_bad": 0, "negative_cursor": 0, "tie_unmatched_start": 0, "tie_unmatched_stop": 0,
-           "tie_notation_mismatch": 0, "sounding": 0, "pitch_diff": 0,
+           "tie_notation_mismatch": 0, "sounding": 0, "pitch_diff": 0, "beams": 0, "beam_bad": 0, "time_bad": 0, "implicit_mid": 0,
            "pedal": {"start": 0, "change": 0, "stop": 0, "bad_attrs": 0, "sequence_bad": 0}}
     try:
         root = ET.parse(path).getroot()
@@ -110,14 +113,18 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
     measures = part.findall("measure") if part is not None else []
     res["measures"] = len(measures)
     res["measures_match"] = len(measures) == len(measure_ticks)
-    offset, open_chains, sounding, pedal_open = 0, {}, [], False
+    offset, open_chains, sounding, pedal_open, cur_time = 0, {}, [], False, None
     for i, m in enumerate(measures):
-        cursor, last_start, sums = 0, 0, Counter()
+        cursor, last_start, sums, beam_open = 0, 0, Counter(), {}
+        implicit = m.get("implicit") == "yes"
         for el in m:
             if el.tag == "attributes":
                 d = el.findtext("divisions")
                 if d is not None:
                     res["divisions"] = int(d)
+                t = el.find("time")
+                if t is not None:
+                    cur_time = (int(t.findtext("beats")), int(t.findtext("beat-type")))
             elif el.tag == "backup":
                 cursor -= int(el.findtext("duration"))
                 if cursor < 0:
@@ -127,6 +134,9 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                 v = el.findtext("voice")
                 if v is not None:
                     sums[v] += dur
+                    if beam_open.get(v):
+                        res["beam_bad"] += 1
+                        beam_open[v] = False
                 cursor += dur
             elif el.tag == "direction":
                 for ped in el.iter("pedal"):
@@ -148,6 +158,25 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                     continue
                 dur = int(el.findtext("duration"))
                 voice = el.findtext("voice") or "1"
+                if el.find("chord") is None:
+                    # beam structure (ls1-rulings.md LS4): begin / continue / end over consecutive notes of the voice
+                    bm = next((b.text for b in el.findall("beam") if b.get("number", "1") == "1"), None)
+                    is_open = beam_open.get(voice, False)
+                    if bm is not None and el.findtext("type") not in BEAMABLE:
+                        res["beam_bad"] += 1
+                    if bm == "begin":
+                        res["beams"] += 1
+                        res["beam_bad"] += 1 if is_open else 0
+                        beam_open[voice] = True
+                    elif bm == "continue":
+                        res["beam_bad"] += 0 if is_open else 1
+                        beam_open[voice] = True
+                    elif bm == "end":
+                        res["beam_bad"] += 0 if is_open else 1
+                        beam_open[voice] = False
+                    elif is_open:
+                        res["beam_bad"] += 1
+                        beam_open[voice] = False
                 if el.find("chord") is not None:
                     start = last_start
                 else:
@@ -177,7 +206,15 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                 sounding.append(chain)
                 if "start" in ties:
                     open_chains.setdefault(key, []).append(chain)
+        res["beam_bad"] += sum(1 for o in beam_open.values() if o)
         expect = measure_ticks[i] if i < len(measure_ticks) else None
+        # short measures (ls1-rulings.md LS4): implicit only on the opening measure; every other measure's length equals
+        # the time signature in force
+        if implicit and i > 0:
+            res["implicit_mid"] += 1
+        want = cur_time[0] * 4 * res["divisions"] // cur_time[1] if cur_time and res["divisions"] else None
+        if not (implicit and i == 0) and want != expect:
+            res["time_bad"] += 1
         for s in sums.values():
             res["voices"] += 1
             if s != expect:
@@ -224,7 +261,8 @@ def check_export(manifest_path: Path) -> dict:
     lr9a = dict(xml, log_ons=len(ons))
     lr9a["pass"] = (xml["parsed"] and xml["divisions"] == 24 and xml["measures_match"] and xml["voice_sum_bad"] == 0
                     and xml["negative_cursor"] == 0 and xml["tie_unmatched_start"] == 0 and xml["tie_unmatched_stop"] == 0
-                    and xml["tie_notation_mismatch"] == 0 and xml["sounding"] == len(ons) and xml["pitch_diff"] == 0)
+                    and xml["tie_notation_mismatch"] == 0 and xml["sounding"] == len(ons) and xml["pitch_diff"] == 0
+                    and xml["beam_bad"] == 0 and xml["time_bad"] == 0 and xml["implicit_mid"] == 0)
 
     # LR9b
     want_on, want_off, want_cc, rounded, down = Counter(), Counter(), Counter(), 0, False

@@ -36,12 +36,16 @@
 // column (a widened beat), widen: false keeps the beat lines fixed (the open bar). A beat whose content fits its 96 px
 // places every head where the open bar placed it (LR11e: 0 shift by construction on beats that did not widen).
 
+import { decideAccidentals } from "./accidentals.js";
+
 export const LAYOUT_API = "arsenal.piano.score.layout/v0";
 
 export const LAYOUT_PARAMS = Object.freeze({
   sp: 15, beatMinSp: 6.4, tapePxPerSec: 120, playheadShare: 0.7,
   colSp: 1.4, accSp: 1.0, secondSp: 1.18, headWSp: 1.18, headHSp: 1.0, shrinkSp: 0.1, padSp: 0.4, dotSp: 0.6, flagSp: 0.8,
   slotPadSp: 0.2, dMaxPx: 180, tapeTickMs: 1000, accStepGap: 6, clefChangeSp: 2.6, keySigSp: 1.0,
+  parenSp: 0.35,                                                      // each parenthesis of a courtesy accidental
+
   // band stack in staff spaces, top to bottom
   ledgerAboveSp: 4, staffGapSp: 6, ledgerBelowSp: 4, pedalLaneSp: 2,
 });
@@ -95,7 +99,8 @@ export function createLayout({ framing = "9:16", params = {} } = {}) {
 
 // ------------------------------------------------------------------------------------------ pitch geometry ---
 export function staffStep(spelled, clef, octave = 0) {
-  const d = spelled.octave * 7 + spelled.letter - (octave === 8 ? 7 : octave === -8 ? -7 : 0);
+  // written under an octave line: 8va / 15ma one / two octaves down, 8vb / 15mb up (hands.js OCTAVE_SHIFT)
+  const d = spelled.octave * 7 + spelled.letter - (octave === 8 ? 7 : octave === 15 ? 14 : octave === -8 ? -7 : octave === -15 ? -14 : 0);
   return d - CLEF_MID[clef];
 }
 export const stepY = (L, staff, step) => L.staffTop[staff] + 2 * L.sp - (step * L.sp) / 2;
@@ -225,31 +230,29 @@ export function modelBar(bar, { meter, spelledOf, clefs = { 1: "treble", 2: "bas
   const BT = meter.beatTicks;
   const beats = bar.beats ?? Math.ceil((ms.barTicks ?? meter.barTicks) / BT);
   const byStaffVoices = { 1: new Set(), 2: new Set() };
-  for (const v of ms.voices) if (v.notes.length) byStaffVoices[v.staff].add(v.voice);
-  const accState = new Map();
+  // a voice is present if it has notes, or a hidden rest where the ribbon left out a piece tied in from tape (ls1-rulings.md
+  // LS5 leave-out rule: the staff keeps its two-voice layout for that bar)
+  for (const v of ms.voices) if (v.notes.length || (v.rests || []).some((r) => r.hidden)) byStaffVoices[v.staff].add(v.voice);
   const voices = [];
   // accidentals last to the end of the bar per staff, letter and octave (across the staff's voices, never across staves:
-  // an F sharp in the treble does not sharpen the bass's F); a tied-to piece never reprints one (plan 6.5)
-  const pieces = [];
-  for (const v of ms.voices) for (const p of v.notes) pieces.push({ v, p });
-  pieces.sort((a, b) => a.p.pos - b.p.pos || a.p.note - b.p.note);
-  const accOf = new Map();
-  for (const { v, p } of pieces) {
+  // an F sharp in the treble does not sharpen the bass's F); a tied-to piece never reprints one (plan 6.5). The rule is
+  // accidentals.js decideAccidentals, shared with the MusicXML writer (ls1-rulings.md LS4/LS5 accidentals): written order by
+  // position then pitch, both of a clash at one position print, a courtesy accidental (parentheses) after a tied-in note,
+  // duplicate pitches at one position share the decision.
+  const accOf = new Map(), accItems = [];
+  for (const v of ms.voices) for (const p of v.notes) {
     const s = spelledOf(p);
-    if (!s) { accOf.set(p, { s: null, acc: null }); continue; }
-    const key = v.staff + "/" + s.letter + "/" + s.octave;
-    const cur = accState.has(key) ? accState.get(key) : sig[s.letter];
-    let acc = null;
-    if (!p.tieStop && s.acc !== cur) { acc = s.acc; accState.set(key, s.acc); }
-    accOf.set(p, { s, acc });
+    accOf.set(p, { s: s || null, acc: null, courtesy: false });
+    if (s) accItems.push({ ref: p, staff: v.staff, pos: p.pos, pitch: p.note, letter: s.letter, octave: s.octave, alter: s.acc, tieStop: !!p.tieStop, tiedIn: !!p.tieStop && p.pos === 0 });
   }
+  for (const [p, d] of decideAccidentals(accItems, sig)) { const o = accOf.get(p); o.acc = d.acc; o.courtesy = d.courtesy; }
   for (const v of ms.voices) {
     const clef = clefs[v.staff] || (v.staff === 1 ? "treble" : "bass"), oct = octave[v.staff] || 0;
     const two = byStaffVoices[v.staff].size > 1;
     const notes = v.notes.map((p) => {
-      const { s, acc } = accOf.get(p);
+      const { s, acc, courtesy } = accOf.get(p);
       const step = s ? staffStep(s, clef, oct) : 0;
-      return { id: p.id, note: p.note, pos: p.pos, dur: p.dur, type: p.type, dots: p.dots || 0, tieStart: !!p.tieStart, tieStop: !!p.tieStop, barTie: !!p.barTie, staccato: !!p.staccato, step, acc, letter: s ? s.letter : null, spelled: !!s };
+      return { id: p.id, note: p.note, pos: p.pos, dur: p.dur, type: p.type, dots: p.dots || 0, tieStart: !!p.tieStart, tieStop: !!p.tieStop, barTie: !!p.barTie, staccato: !!p.staccato, step, acc, courtesy: acc != null && courtesy, letter: s ? s.letter : null, spelled: !!s };
     });
     let stemUp;
     if (two) stemUp = v.voice === 1 || v.voice === 3;
@@ -280,12 +283,13 @@ export function layoutBar(model, L, { widen = true, beatPx = null, push = true }
     const byPos = new Map();
     for (const n of v.notes) { if (!byPos.has(n.pos)) byPos.set(n.pos, []); byPos.get(n.pos).push(n); }
     for (const [pos, ns] of byPos) colOf(pos).chords.push({ voice: v.voice, staff: v.staff, stemUp: v.stemUp, twoVoices: v.twoVoices, notes: ns.sort((a, b) => a.step - b.step) });
-    for (const r of v.rests) colOf(r.pos).rests.push({ ...r, voice: v.voice, staff: v.staff, stemUp: v.stemUp, twoVoices: v.twoVoices });
+    // a hidden rest keeps its voice in the layout (stem directions) but takes no column, glyph or box
+    for (const r of v.rests) if (!r.hidden) colOf(r.pos).rests.push({ ...r, voice: v.voice, staff: v.staff, stemUp: v.stemUp, twoVoices: v.twoVoices });
   }
   const order = [...cols.values()].sort((a, b) => a.pos - b.pos);
   // per column: head offsets (seconds, voice unisons), accidental columns, dots, flags -> width in s
   for (const col of order) {
-    let accColsMax = 0, widthSp = 0;
+    let accWMax = 0, widthSp = 0;
     col.staff = {};
     for (const staff of [1, 2]) {
       const chords = col.chords.filter((k) => k.staff === staff);
@@ -318,23 +322,28 @@ export function layoutBar(model, L, { widen = true, beatPx = null, push = true }
       for (const ch of chords) for (const n of ch.notes) { minOff = Math.min(minOff, n.off); maxOff = Math.max(maxOff, n.off); }
       // accidentals: top down into the leftmost column with no accidental within accStepGap steps
       const accs = chords.flatMap((k) => k.notes.filter((n) => n.acc != null)).sort((a, b) => b.step - a.step);
-      const accCols = [];
+      // a column is accSp wide, or a courtesy accidental's glyph plus both parentheses when that is wider
+      const accCols = [], accColW = [];
       for (const n of accs) {
         let k = 0;
         while (k < accCols.length && accCols[k].some((s) => Math.abs(s - n.step) < c.accStepGap)) k++;
         if (k === accCols.length) accCols.push([]);
         accCols[k].push(n.step); n.accCol = k;
+        const wn = n.courtesy ? GLYPH.acc[String(Math.max(-2, Math.min(2, n.acc)))].w + 2 * c.parenSp : c.accSp;
+        accColW[k] = Math.max(accColW[k] || c.accSp, wn);
       }
+      for (const n of accs) n.accOff = accColW.slice(0, n.accCol).reduce((a, b) => a + b, 0);
+      const accWSp = accColW.reduce((a, b) => a + b, 0);
       for (const r of rests) dots = Math.max(dots, r.dots);
       const headCols = chords.length ? maxOff - minOff + 1 : 0;
       const restW = rests.length ? Math.max(...rests.map((r) => (GLYPH.rest[r.type] || GLYPH.rest.quarter).w)) : 0;
-      const w = accCols.length * c.accSp + Math.max(headCols * c.headWSp, restW) + dots * c.dotSp + (flag ? c.flagSp : 0);
-      col.staff[staff] = { minOff, maxOff, accCols: accCols.length, dots, flag, headCols, dotY: [] };
-      accColsMax = Math.max(accColsMax, accCols.length);
+      const w = accWSp + Math.max(headCols * c.headWSp, restW) + dots * c.dotSp + (flag ? c.flagSp : 0);
+      col.staff[staff] = { minOff, maxOff, accCols: accCols.length, accWSp, dots, flag, headCols, dotY: [] };
+      accWMax = Math.max(accWMax, accWSp);
       widthSp = Math.max(widthSp, w);
     }
     col.minOff = Math.min(col.staff[1].minOff, col.staff[2].minOff);
-    col.accW = accColsMax * c.accSp * sp + (col.minOff < 0 ? -col.minOff * c.headWSp * sp : 0);
+    col.accW = accWMax * sp + (col.minOff < 0 ? -col.minOff * c.headWSp * sp : 0);
     col.w = (widthSp + c.padSp) * sp;
   }
   // lead-in: a clef change and a key change at the bar line
@@ -379,9 +388,13 @@ export function layoutBar(model, L, { widen = true, beatPx = null, push = true }
         box("head", ch.staff, owner, hx, hy - g.top * sp, g.w * sp, (g.top + g.bot) * sp, { id: n.id });
         if (n.acc != null) {
           const ga = GLYPH.acc[String(Math.max(-2, Math.min(2, n.acc)))];
-          const ax = col.headX - (col.minOff < 0 ? -col.minOff * c.headWSp * sp : 0) - (n.accCol + 1) * c.accSp * sp + (c.accSp - ga.w) * sp;
-          accidentals.push({ id: n.id, staff: ch.staff, x: ax, y: hy, acc: n.acc });
-          box("accidental", ch.staff, owner, ax, hy - ga.top * sp, ga.w * sp, (ga.top + ga.bot) * sp, { id: n.id });
+          // right-aligned in its column; a courtesy accidental's right parenthesis takes the column's right edge
+          const right = col.headX - (col.minOff < 0 ? -col.minOff * c.headWSp * sp : 0) - (n.accOff || 0) * sp;
+          const pw = n.courtesy ? c.parenSp * sp : 0;
+          const ax = right - pw - ga.w * sp;
+          accidentals.push({ id: n.id, staff: ch.staff, x: ax, y: hy, acc: n.acc, courtesy: !!n.courtesy, ...(n.courtesy ? { parenLX: ax - pw, parenRX: ax + ga.w * sp } : {}) });
+          const top = n.courtesy ? Math.max(ga.top, 1.0) : ga.top, bot = n.courtesy ? Math.max(ga.bot, 1.0) : ga.bot;
+          box("accidental", ch.staff, owner, ax - pw, hy - top * sp, ga.w * sp + 2 * pw, (top + bot) * sp, { id: n.id });
         }
         if (n.dots) {
           // dots after the rightmost head of the staff column; on a line a dot moves into the space above (below for a
