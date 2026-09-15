@@ -23,10 +23,12 @@
 // frozen note's recorded duration is never re-capped). So every tie leads into the next bar of its own segment. Live, a
 // continuation stops at the start of the beat the onset finality horizon is in (measures.js heardTick): the tick time, or
 // the oldest note-on onsets.js has not handed out yet if earlier. So an onset the build has not seen when a pause or the
-// settle beats froze the tie rarely lands inside it. The guarantee is the pin: a build never places an onset group inside
-// a frozen continuation in the voice of any of its notes, it places the group at the continuation's end (stats().pinned
-// counts pinned groups; a pinned note carries pinnedFrom, the tick the grid gave it). A tracker revision of the beat grid
-// or a new division of a beat can move an onset the build has already seen earlier after the tie froze.
+// settle beats froze the tie rarely lands inside it. The guarantee is the pin, per voice (ls1-rulings.md): a build never
+// places a note inside a frozen continuation in its voice, it places that note at the continuation's end, while the notes
+// of its onset group in other voices stay where they were heard (stats().pinned counts groups with a pinned note,
+// pinnedNotes the notes, pinMerged pinned voices landing on another group's tick in that voice; a pinned note carries
+// pinnedFrom, the tick the grid gave it). A tracker revision of the beat grid or a new division of a beat can move an
+// onset the build has already seen earlier after the tie froze.
 // Tactus grid. Tactus beat j of a segment sits at agent beat a0 + j / factor (beat.js factor: 1, 1/2, 1/3 or 2/3),
 // linear between the chosen agent's beats (lag-2 settled times once settled), extrapolated one beat past the last.
 // Bar phase. Fixed beats: the beat nearest `one` (else beat 0). Tracker: "This is 1" (beat.js barPhase) when pressed;
@@ -112,7 +114,7 @@ export function createTranscriber({ spell = null, reader = null, harmony = null,
   let lastT = -Infinity, lastOnsetMs = null, dirty = false, nextBarBase = 0, beatBase = 0, tickBase = 0;
   let lastSample = null, floorMs = null, phaseSec = -Infinity, oneAt = o.one, finished = false;
   let changedNow = new Set();
-  const counters = { builds: 0, refused: 0, groups: 0, pinned: 0 };
+  const counters = { builds: 0, refused: 0, groups: 0, pinned: 0, pinnedNotes: 0, pinMerged: 0 };
 
   // ------------------------------------------------------------------------------------------------ inputs ---
   function logEvent(e) {
@@ -346,24 +348,27 @@ export function createTranscriber({ spell = null, reader = null, harmony = null,
       seg.sigma = q.sigma();
     }
     // Frozen continuations are commitments the open bar respects (settled means never repainted). A bar-line tie frozen in
-    // the settled bar before bar iU covers [start of bar iU, its end) in its voice; an onset group holding a note of that
-    // voice is never placed inside it, and is pinned to the continuation's end instead. heardTick (below) keeps the claim
-    // short of onsets the build has not seen; the pin covers onsets it has seen that move earlier after the tie froze: a
-    // tracker revision of the beat grid, or a beat's division changing when a new onset joins it.
+    // the settled bar before bar iU covers [start of bar iU, its end) in its voice; a note of that voice is never placed
+    // inside it, and is pinned to the continuation's end instead. The pin is per voice (ls1-rulings.md "LS2close to LS5
+    // rulings"): only the group's notes in the conflicting voice move; its notes in other voices stay where they were
+    // heard. heardTick (below) keeps the claim short of onsets the build has not seen; the pin covers onsets it has seen
+    // that move earlier after the tie froze: a tracker revision of the beat grid, or a beat's division changing when a new
+    // onset joins it. Counted when a bar settles (freezeBar), so a pin a later build undid is not counted.
     const contEnd = new Map(), frozenPrev = bars.get(seg.barBase + iU - 1), barStartU = (jU - seg.tick0) * BT;
     if (frozenPrev && frozenPrev.frozen && frozenPrev.seg === seg.id) {
       for (const n of frozenPrev.notes) { const e = n.segTick + n.dur; if (e > barStartU && e > (contEnd.get(n.voice) ?? -Infinity)) contEnd.set(n.voice, e); }
     }
+    const notePlace = new Map();   // note -> its own placement when pinned apart from its group
     if (contEnd.size) for (const g of gw) {
       const pl = place.get(g);
       if (!pl) continue;
       const tick = (pl.j - seg.tick0) * BT + pl.off;
-      let to = tick;
-      for (const n of g.notes) { const e = contEnd.get(voiceFor(n).voice); if (e != null && e > to) to = e; }
-      if (to === tick) continue;
-      const k = Math.floor(to / BT);
-      place.set(g, { j: k + seg.tick0, off: to - k * BT, loose: k + seg.tick0 === pl.j ? pl.loose : false, pinnedFrom: tick });
-      if (!g.pinned) { g.pinned = true; counters.pinned++; }
+      for (const n of g.notes) {
+        const e = contEnd.get(voiceFor(n).voice);
+        if (e == null || e <= tick) continue;
+        const k = Math.floor(e / BT);
+        notePlace.set(n, { j: k + seg.tick0, off: e - k * BT, loose: k + seg.tick0 === pl.j ? pl.loose : false, pinnedFrom: tick });
+      }
     }
     const lines = [];
     for (let i = 0; i <= nStarted; i++) lines.push((bnd[i] - seg.tick0) * BT);
@@ -371,8 +376,10 @@ export function createTranscriber({ spell = null, reader = null, harmony = null,
     for (const g of gw) {
       const pl = place.get(g);
       if (!pl) continue;
-      const tick = (pl.j - seg.tick0) * BT + pl.off;
-      for (const n of g.notes) { const v = voiceFor(n); wnotes.push({ id: n.id, note: n.note, vel: n.vel, tick, on_ms: n.t, off_ms: n.off, se_ms: n.soundEnd, voice: v.voice, staff: v.staff, j: pl.j, off: pl.off, loose: pl.loose, pinnedFrom: pl.pinnedFrom, g }); }
+      for (const n of g.notes) {
+        const q = notePlace.get(n) || pl, tick = (q.j - seg.tick0) * BT + q.off, v = voiceFor(n);
+        wnotes.push({ id: n.id, note: n.note, vel: n.vel, tick, on_ms: n.t, off_ms: n.off, se_ms: n.soundEnd, voice: v.voice, staff: v.staff, j: q.j, off: q.off, loose: q.loose, pinnedFrom: q.pinnedFrom, g });
+      }
     }
     // Frozen notes come from the settled bar itself, not from the group time window: a bar-line tie crosses one bar line,
     // so only the bar before iU can hold a continuation into the bars this build rebuilds. The window (t0, from the grid as
@@ -445,6 +452,16 @@ export function createTranscriber({ spell = null, reader = null, harmony = null,
     for (const n of b.notes) {
       n.g.segId = b.seg;
       n.g.notes.forEach((m) => { if (m.id === n.id) m.placed = { segTick: n.segTick, dur: n.dur, voice: n.voice, staff: n.staff, j: n.j, off: n.off }; });
+    }
+    // pins as settled (the per-voice pin in build): pinned counts onset groups with a pinned note, pinnedNotes the notes,
+    // pinMerged a group's pinned voice landing on the tick of another group's note in that voice (merged into its chord)
+    const merged = new Set();
+    for (const n of b.notes) {
+      if (n.pinnedFrom == null) continue;
+      counters.pinnedNotes++;
+      if (!n.g.pinCounted) { n.g.pinCounted = true; counters.pinned++; }
+      const k = n.g.id + "|" + n.voice;
+      if (!merged.has(k) && b.notes.some((m) => m.g !== n.g && m.voice === n.voice && m.segTick === n.segTick)) { merged.add(k); counters.pinMerged++; }
     }
     changedNow.add(gidx);
   }
@@ -559,7 +576,7 @@ export function createTranscriber({ spell = null, reader = null, harmony = null,
   function notate(out) {
     const ms = out.measures;
     for (const m of ms) { const b = bars.get(m.index); Object.assign(m, pickupOf({ bar: b.bar, barTicks: m.barTicks, voices: m.voices }, M)); }
-    clefsAndOctaves(ms, P.hands).forEach((x, i) => { ms[i].clefs = x.clefs; ms[i].octave = x.octave; ms[i].clefChange = x.change; ms[i].ledgerBeyond = x.beyond; });
+    clefsAndOctaves(ms, P.hands).forEach((x, i) => { ms[i].clefs = x.clefs; ms[i].octave = x.octave; ms[i].clefChange = x.change; ms[i].ledgerBeyond = x.beyond; ms[i].ledgerOverflow = x.overflow; });
     const firstNote = new Map();
     for (const n of out.notes) if (n.group != null && !firstNote.has(n.group)) firstNote.set(n.group, n);
     const place = (at_ms, group) => { const n = group != null ? firstNote.get(group) : null; return n ? { bar: n.bar, pos: n.pos } : placeAt(ms, at_ms) || { bar: null, pos: null }; };

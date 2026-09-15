@@ -7,7 +7,9 @@
 //   hands.addGroup(group)                    // onset groups from onsets.js flush(), in time order ({ id, t, notes })
 //   const snap = hands.snapshot();           // the current best path: snap.handOf(noteId) -> "L" | "R", snap.staffOf(note)
 //   assignVoices(notes, { staffOf, now_ms }) // Map id -> { staff, voice } for a window of notes
-//   clefsAndOctaves(measures)                // per bar: clef per staff, 8va / 8vb flags, clef change reason
+//   clefsAndOctaves(measures)                // per bar (hindsight): clef per staff, octave line (8va / 15ma, 8vb / 15mb),
+//                                            // change reason, notes left beyond 3 ledger lines and why
+//   createClefTracker().commit(bar, next)    // live: decide a bar once with the next bar as known then; preview(bars)
 //   ledgerExcess(note, clef, octave)         // semitones beyond the 3-ledger range (0 inside)
 //
 // Split per onset group (T5): the candidate splits are every gap between adjacent pitches plus all-left and all-right
@@ -33,18 +35,11 @@
 // voice 1, sustained lower notes voice 2. Staff 2: sustained lower notes and lone notes voice 4, the moving line above a
 // sustained lower note voice 3. So voice 4 is always the lower staff's lowest line: C7's held bass (measures.js) applies
 // to it, the way the fixture oracle's "voice 4 if present, else 3" does.
-// Clefs and octave lines (T5, plan 6.5): 3 ledger lines are allowed, so a clef holds written pitches treble F3-E6 (53-88)
-// and bass A1-G4 (33-67) (the note on the third ledger line is the limit; written = sounding - 12 under 8va, + 12 under
-// 8vb). The lower staff's clef is a state. Hysteresis moves it to treble at the bar line after clefBars (2) bars whose
-// lower-staff notes all lie at or above C4 (60), and back after 2 bars with a lower-staff note below C4. A bar whose
-// notes do not all fit the state's clef takes the first option that holds them all, in this order (outOfRange "clef"):
-//   1. the other clef: a clef change at that bar line, which becomes the state (hysteresis run reset);
-//   2. an octave line on the state's clef (8va or 8vb, whichever fits; at most one can);
-//   3. an octave line on the other clef (a change too).
-// A bar no option holds (a lower-staff span over 34 semitones) takes the option with the fewest notes beyond 3 ledger
-// lines, then the fewest semitones beyond, the earlier option on a tie. outOfRange "octave" tries 2 before 1 (reported
-// as an alternative). Staff 1 stays treble: octave 0, else the octave line that fits. Every choice reads the bar's own
-// notes and the state left by earlier bars, so a settled bar's clef and octave never change.
+// Clefs and octave lines (T5, plan 6.5, ls1-rulings.md LS3 rulings; the rules are written out above clefStep below): 3
+// ledger lines are allowed, so a clef holds written pitches treble F3-E6 (53-88) and bass A1-G4 (33-67) (the note on the
+// third ledger line is the limit). 8va and 15ma only above a treble clef, 8vb and 15mb only below a bass clef; the lower
+// staff changes clef only after 2 bars that want it and holds a clef at least 2 bars; a note the rules leave beyond 3
+// ledger lines is counted (overflow).
 
 export const HANDS_API = "arsenal.piano.score.hands/v0";
 
@@ -55,7 +50,9 @@ export const HANDS_PARAMS = Object.freeze({
   // 0.8691 at 80, 0.8681 at 120 (where a bass played 90 ms before the next downbeat bass merged with it as a chord)
   switchCost: 3, switchMs: 600, chordPedalSustain: true, clusterMs: 80,
   horizon: 48, histMax: 32, sustainTolMs: 100,
-  trebleMin: 53, trebleMax: 88, bassMin: 33, bassMax: 67, clefUp: 60, clefBars: 2, outOfRange: "clef",
+  // clefs and octave lines (ls1-rulings.md LS3 rulings): written-pitch ranges within 3 ledger lines, the hysteresis note,
+  // the 2-bar rule, the lookahead reading of it, and the least passage for a double octave line
+  trebleMin: 53, trebleMax: 88, bassMin: 33, bassMax: 67, clefUp: 60, clefBars: 2, clefLookahead: true, doubleMinNotes: 2,
 });
 
 const heldAt = (n, t) => n.t < t && (n.off == null || n.off > t);
@@ -229,53 +226,122 @@ export function assignVoices(notes, { staffOf, now_ms = Infinity, pedal = null, 
   return out;
 }
 
+// Written = sounding minus this under an octave line: 8va +12, 15ma +24 (treble clef only); 8vb -12, 15mb -24 (bass clef
+// only). The octave value per staff per bar is 0 | 8 | 15 | -8 | -15.
+export const OCTAVE_SHIFT = Object.freeze({ 0: 0, 8: 12, 15: 24, "-8": -12, "-15": -24 });
+
 // Semitones a sounding pitch lies beyond the 3-ledger range of a clef under an octave line (0 inside).
 export function ledgerExcess(note, clef, octave = 0, params = {}) {
-  const c = { ...HANDS_PARAMS, ...params };
-  const w = note - (octave === 8 ? 12 : octave === -8 ? -12 : 0);
+  // a full parameter set (every internal caller passes one) is read as is; anything else is merged over the defaults
+  const c = "trebleMin" in params && "trebleMax" in params && "bassMin" in params && "bassMax" in params ? params : { ...HANDS_PARAMS, ...params };
+  const w = note - (OCTAVE_SHIFT[octave] ?? 0);
   const lo = clef === "bass" ? c.bassMin : c.trebleMin, hi = clef === "bass" ? c.bassMax : c.trebleMax;
   return w < lo ? lo - w : w > hi ? w - hi : 0;
 }
 
-// Clefs and octave lines per bar. measures: [{ index, voices: [{ staff, notes: [{ note }] }] }] ascending.
-// -> [{ index, clefs: { 1: "treble", 2: "bass" | "treble" }, octave: { 1: 0 | 8 | -8, 2: 0 | -8 | 8 },
-//       change: null | "bars" (hysteresis) | "range" (a note outside the state's clef), beyond: { 1: n, 2: n } (notes
-//       still beyond 3 ledger lines: nonzero only when no option holds the bar) }]
-export function clefsAndOctaves(measures, params = {}) {
+// Clefs and octave lines (ls1-rulings.md "LS2close to LS5 rulings", LS3; plan 6.5; transcription.md T5):
+// - Octave lines by clef: 8va and 15ma only above a treble clef, 8vb and 15mb only below a bass clef. Staff 1 is always
+//   treble. A lower staff that climbs changes to treble clef under the 2-bar rule; it never takes a bass-clef 8va.
+// - The octave line on a bar: none if the clef holds every note within 3 ledger lines, else the single line (8va / 8vb)
+//   if it holds them all; else the double line (15ma / 15mb) only for a passage of at least doubleMinNotes (2) distinct
+//   notes still beyond under the better of the two, when it leaves fewer beyond. A single note beyond is accepted on its
+//   ledger lines and counted (overflow "single"). The clef never changes mid-bar.
+// - The lower staff's clef (initial bass). A bar wants the clef whose lines (0 and its single octave line) hold its notes
+//   when only one clef does; when both do, treble if every note is at or above clefUp (C4, 60), else bass (the plan 6.5
+//   hysteresis); when neither does, nothing. A change needs clefBars (2) consecutive bars that want the other clef (with
+//   clefLookahead, the default, the bar itself and the next bar, so the change sits at the first of them; without it, the
+//   previous bar and this one), and a clef holds for at least clefBars bars before it may change again (no one-bar round
+//   trips). A shorter excursion keeps the clef: an octave line where the clef allows one, else ledger lines, counted as
+//   overflow "excursion".
+// - Every bar reports its notes still beyond 3 ledger lines per staff (beyond: note pieces; beyondNotes: distinct notes)
+//   and why (overflow: "excursion" when the other clef would hold the bar, "single" for one note, "span" otherwise).
+// The decision for a bar reads its own notes, the state earlier bars left and (with lookahead) the next bar's notes.
+// createClefTracker commits bars one at a time with the next bar as then known (live: a settled bar's row is final);
+// clefsAndOctaves runs it over a finished sequence with hindsight.
+const OTHER_CLEF = (k) => (k === "bass" ? "treble" : "bass");
+const LINES = { treble: [8, 15], bass: [-8, -15] };
+
+function piecesOf(m) {
+  const p1 = [], p2 = [];
+  for (const v of (m && m.voices) || []) for (const n of v.notes) (v.staff === 2 ? p2 : p1).push(n);
+  return { p1, p2 };
+}
+// beyond under one clef and octave line: note pieces, distinct notes (by id, else by piece), semitones
+function excessOn(pieces, clef, oct, c) {
+  let beyond = 0, semis = 0;
+  const ids = new Set();
+  for (const x of pieces) { const e = ledgerExcess(x.note, clef, oct, c); if (e) { beyond++; semis += e; ids.add(x.id ?? x); } }
+  return { clef, oct, beyond, notes: ids.size, semis };
+}
+const fewer = (a, b) => (a.notes !== b.notes ? a.notes < b.notes : a.semis !== b.semis ? a.semis < b.semis : Math.abs(a.oct) <= Math.abs(b.oct));
+// the octave line a clef takes for a bar's pieces (see header)
+export function octaveOn(pieces, clef, params = {}) {
   const c = { ...HANDS_PARAMS, ...params };
-  const other = (k) => (k === "bass" ? "treble" : "bass");
-  // the first option holding every note, else the fewest notes beyond, then the fewest semitones beyond
-  const choose = (notes, options) => {
-    let best = null;
-    for (const [clef, oct] of options) {
-      let n = 0, s = 0;
-      for (const x of notes) { const e = ledgerExcess(x, clef, oct, c); if (e) { n++; s += e; } }
-      if (!n) return { clef, oct, beyond: 0 };
-      if (!best || n < best.beyond || (n === best.beyond && s < best.s)) best = { clef, oct, beyond: n, s };
-    }
-    return best;
+  const [single, dbl] = LINES[clef];
+  const o0 = excessOn(pieces, clef, 0, c);
+  if (!o0.beyond) return o0;
+  const o1 = excessOn(pieces, clef, single, c);
+  if (!o1.beyond) return o1;
+  const best = fewer(o1, o0) ? o1 : o0;
+  if (best.notes >= c.doubleMinNotes) { const o2 = excessOn(pieces, clef, dbl, c); if (o2.notes < best.notes || (o2.notes === best.notes && o2.semis < best.semis)) return o2; }
+  return best;
+}
+const holdsWith = (pieces, clef, c) => excessOn(pieces, clef, 0, c).beyond === 0 || excessOn(pieces, clef, LINES[clef][0], c).beyond === 0;
+// the clef a bar's lower-staff pieces want (see header): "bass" | "treble" | null (empty, or neither clef holds them)
+export function clefWant(p2, params = {}) {
+  const c = { ...HANDS_PARAMS, ...params };
+  if (!p2.length) return null;
+  const fb = holdsWith(p2, "bass", c), ft = holdsWith(p2, "treble", c);
+  if (fb && !ft) return "bass";
+  if (ft && !fb) return "treble";
+  if (fb && ft) return p2.every((x) => x.note >= c.clefUp) ? "treble" : "bass";
+  return null;
+}
+
+export function initialClefState() { return { clef2: "bass", held: Infinity, prevClef2: null, prevWant: null }; }
+
+// one bar: -> { row, state }. next: the next bar ({ voices }) or null (unknown or none)
+export function clefStep(state, m, next, params = {}) {
+  const c = { ...HANDS_PARAMS, ...params };
+  const { p1, p2 } = piecesOf(m);
+  const want = clefWant(p2, c);
+  const S = state.clef2, O = OTHER_CLEF(S);
+  const confirm = c.clefLookahead ? (next ? clefWant(piecesOf(next).p2, c) : null) : state.prevWant;
+  let clef2 = S, held = state.held;
+  if (want === O && confirm === O && held >= c.clefBars) { clef2 = O; held = 0; }
+  held++;
+  const s1 = octaveOn(p1, "treble", c), s2 = octaveOn(p2, clef2, c);
+  const change = state.prevClef2 == null || clef2 === state.prevClef2 ? null : holdsWith(p2, S, c) ? "bars" : "range";
+  const reason = (s, staff) => {
+    if (!s.beyond) return null;
+    if (staff === 2 && octaveOn(p2, OTHER_CLEF(clef2), c).beyond === 0) return "excursion";
+    return s.notes === 1 ? "single" : "span";
   };
-  const withOctaves = (clef) => [[clef, 8], [clef, -8]];
-  let clef2 = "bass", run = 0, prev = null;
-  const out = [];
-  for (const m of measures) {
-    const p1 = [], p2 = [];
-    for (const v of m.voices || []) for (const n of v.notes) (v.staff === 2 ? p2 : p1).push(n.note);
-    const s1 = choose(p1, [["treble", 0], ...withOctaves("treble")]);
-    const S = clef2, O = other(clef2);
-    const order = c.outOfRange === "octave"
-      ? [[S, 0], ...withOctaves(S), [O, 0], ...withOctaves(O)]
-      : [[S, 0], [O, 0], ...withOctaves(S), ...withOctaves(O)];
-    const s2 = choose(p2, order);
-    if (s2.clef !== clef2) { clef2 = s2.clef; run = 0; }
-    const change = prev == null || clef2 === prev ? null : s2.clef !== S ? "range" : "bars";
-    out.push({ index: m.index, clefs: { 1: "treble", 2: clef2 }, octave: { 1: s1.oct, 2: s2.oct }, change, beyond: { 1: s1.beyond, 2: s2.beyond } });
-    prev = clef2;
-    if (p2.length) {
-      const up = p2.every((x) => x >= c.clefUp);
-      if ((clef2 === "bass" && up) || (clef2 === "treble" && !up)) run++; else run = 0;
-      if (run >= c.clefBars) { clef2 = other(clef2); run = 0; }
-    }
-  }
-  return out;
+  const row = {
+    index: m.index, clefs: { 1: "treble", 2: clef2 }, octave: { 1: s1.oct, 2: s2.oct }, change, want,
+    beyond: { 1: s1.beyond, 2: s2.beyond }, beyondNotes: { 1: s1.notes, 2: s2.notes }, overflow: { 1: reason(s1, 1), 2: reason(s2, 2) },
+  };
+  return { row, state: { clef2, held, prevClef2: clef2, prevWant: want } };
+}
+
+// Live: commit(bar, next) decides a bar once, with the next bar as known then, and keeps the state; preview(bars) decides
+// later bars from the committed state without committing.
+export function createClefTracker(params = {}) {
+  const c = { ...HANDS_PARAMS, ...params };
+  let st = initialClefState();
+  return {
+    commit(m, next = null) { const r = clefStep(st, m, next, c); st = r.state; return r.row; },
+    preview(ms) { let s = st; return ms.map((m, i) => { const r = clefStep(s, m, ms[i + 1] ?? null, c); s = r.state; return r.row; }); },
+    state: () => ({ ...st }),
+  };
+}
+
+// Clefs and octave lines per bar over a finished sequence (hindsight: each bar sees the next).
+// measures: [{ index, voices: [{ staff, notes: [{ note, id? }] }] }] ascending.
+// -> [{ index, clefs: { 1: "treble", 2: "bass" | "treble" }, octave: { 1: 0 | 8 | 15, 2: 0 | 8 | 15 | -8 | -15 },
+//       change: null | "bars" (the old clef still held the bar) | "range" (it did not), want, beyond: { 1, 2 },
+//       beyondNotes: { 1, 2 }, overflow: { 1, 2 }: null | "excursion" | "single" | "span" }]
+export function clefsAndOctaves(measures, params = {}) {
+  const t = createClefTracker(params);
+  return measures.map((m, i) => t.commit(m, measures[i + 1] ?? null));
 }

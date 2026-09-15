@@ -18,10 +18,10 @@ import { fileURLToPath } from "node:url";
 import * as G from "./fixtures/score/gen.mjs";
 import * as MX from "./fixtures/score/metrics.mjs";
 import { newAudit, auditScore, auditOk, auditLine } from "./fixtures/score/audit.mjs";
-import { toMusicXML, pitchOf } from "../arsenal/web/piano/score/musicxml.js";
+import { toMusicXML, pitchOf, timeSignatureOf } from "../arsenal/web/piano/score/musicxml.js";
 import { performanceMid, quantizedMid, soundingNotes } from "../arsenal/web/piano/score/midi.js";
 import { parseKey } from "../arsenal/web/piano/nashville.js";
-import { parseArgs, parseTime, takeOptions, takeName, pageSpeller, buildTake, writeTake, verifyExport, readSmf, bench, SCORE_ROOT } from "../arsenal/score_cli.mjs";
+import { parseArgs, parseTime, takeOptions, takeName, pageSpeller, buildTake, writeTake, verifyExport, readSmf, bench, SCORE_ROOT, readMusicXML as readMusicXMLFor } from "../arsenal/score_cli.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -170,13 +170,33 @@ const verifyOk = (label, b) => {
   const bo = build(evO, { ...takeOptions({}), beats: beatsL, one: 1000 });
   verifyOk("octave line", bo);
   check("musicxml: an 8va run is octave-shift down then stop, pitches kept sounding", /<octave-shift type="down" size="8" number="1"\/>/.test(bo.xml) && /<octave-shift type="stop" size="8" number="1"\/>/.test(bo.xml) && /<step>C<\/step><octave>7<\/octave>/.test(bo.xml));
+  // 15ma (ls1-rulings.md LS3 rulings): a passage of notes beyond 3 ledger lines even under 8va (G7-B7) takes 15ma, written
+  // as octave-shift size 15 above staff 1, pitches kept sounding
+  const evQ = [];
+  [103, 105, 107, 105, 103, 105, 107, 103].forEach((n, k) => evQ.push({ t_ms: 1000 + 500 * k, kind: "on", note: n, vel: 64 }, { t_ms: 1000 + 500 * k + 450, kind: "off", note: n }));
+  evQ.push({ t_ms: 1000, kind: "on", note: 48, vel: 60 }, { t_ms: 4900, kind: "off", note: 48 });
+  evQ.sort((a, b) => a.t_ms - b.t_ms);
+  const bq = build(evQ, { ...takeOptions({}), beats: beatsL, one: 1000 });
+  verifyOk("15ma line", bq);
+  check("musicxml: a 15ma run is octave-shift down size 15 then stop, placed above, pitches kept sounding", /<direction placement="above">(?:(?!<\/direction>)[^])*<octave-shift type="down" size="15" number="1"\/>/.test(bq.xml) && /<octave-shift type="stop" size="15" number="1"\/>/.test(bq.xml) && /<step>G<\/step><octave>7<\/octave>/.test(bq.xml) && bq.view.measures.every((m) => m.octave[1] === 15 && m.ledgerBeyond[1] === 0), JSON.stringify(bq.view.measures.map((m) => [m.octave, m.ledgerBeyond])));
 
-  // freely (C3): jam-rung copies none; inferred unverified copies every non-metric measure; forced tape; a pinned grid
-  check("musicxml: no freely on a copy with fixed beats", b.stats.musicxml.freely === 0 && !/freely/.test(b.xml));
+  // freely (ls1-rulings.md LS4, replacing C3's mark on every measure): once at the start of each free-time passage, "a tempo"
+  // once where a tracked beat resumes; a copy with no taps and no jam beat is one passage with one "freely" at the top
+  check("musicxml: no freely on a copy with fixed beats", b.stats.musicxml.freely === 0 && b.stats.musicxml.aTempo === 0 && !/freely|a tempo/.test(b.xml));
   const inf = build(pk.events, takeOptions({ meter: "4/4" }));
   verifyOk("pickup inferred", inf);
-  const wantFreely = inf.view.measures.filter((m) => m.forced || m.kind !== "metric").length;
-  check("musicxml: freely on every forced or non-metric measure of an inferred copy", inf.view.rhythm !== "jam" && inf.stats.musicxml.freely === wantFreely && count(inf.xml, /<words font-style="italic">freely<\/words>/g) === wantFreely, JSON.stringify({ freely: inf.stats.musicxml.freely, wantFreely, rhythm: inf.view.rhythm }));
+  const freeMeasures = inf.view.measures.filter((m) => m.forced || m.kind !== "metric").length;
+  check("musicxml: an inferred copy (no taps, no jam) is one free-time passage: one freely at the top, no a tempo, no per-measure marks", inf.view.rhythm !== "jam" && freeMeasures > 1 && inf.stats.musicxml.freely === 1 && inf.stats.musicxml.aTempo === 0 && count(inf.xml, /<words font-style="italic">freely<\/words>/g) === 1 && /<measure number="[01]"[^>]*>(?:(?!<\/measure>)[^])*freely/.test(inf.xml) && inf.view.marks.freely.length === 1 && inf.view.marks.aTempo.length === 0, JSON.stringify({ freely: inf.stats.musicxml.freely, aTempo: inf.stats.musicxml.aTempo, freeMeasures, rhythm: inf.view.rhythm }));
+  {
+    // a jam-beat copy with a free-time passage inside it: measures 2-4 forced -> "freely" on measure 2, "a tempo" on 5
+    const v = JSON.parse(JSON.stringify(b.view));
+    v.measures.forEach((m, i) => { if (i >= 2 && i <= 4) m.forced = true; });
+    const x = toMusicXML(v, { stats: {} }), st2 = {};
+    toMusicXML(v, { stats: st2 });
+    const words = [...x.matchAll(/<measure number="(\d+)"[^>]*>((?:(?!<\/measure>)[^])*)<\/measure>/g)].flatMap((mm) => [...mm[2].matchAll(/<words[^>]*>(freely|a tempo)<\/words>/g)].map((w) => [Number(mm[1]), w[1]]));
+    const first = b.view.measures[0].pickup ? 0 : 1;
+    check("musicxml: a free-time passage inside a jam copy: one freely where it starts, one a tempo where the beat resumes", st2.freely === 1 && st2.aTempo === 1 && JSON.stringify(words) === JSON.stringify([[2 + first, "freely"], [5 + first, "a tempo"]]), JSON.stringify({ words, freely: st2.freely, aTempo: st2.aTempo }));
+  }
   const run4 = G.genTapeRun({ seconds: 4, rate: 10, seed: 3 });
   const bt = build(run4.events, takeOptions({}));
   verifyOk("tape run 4 s", bt);
@@ -187,7 +207,71 @@ const verifyOk = (label, b) => {
   const [{ take: pd, spec: pds }] = G.familySuite("pedal", [72]);
   const bp = build(pd.events, { ...takeOptions({ meter: pds.meter, bpm: String(Math.round(pds.bpm)) }) });
   verifyOk("pinned bpm", bp);
-  check("export.js: --bpm pins a grid: rhythm unverified, every measure forced and marked freely", bp.view.rhythm === "unverified" && bp.view.measures.every((m) => m.forced) && bp.stats.musicxml.freely === bp.view.measures.length && bp.view.pinned && bp.view.pinned.bpm === Math.round(pds.bpm), JSON.stringify({ rhythm: bp.view.rhythm, freely: bp.stats.musicxml.freely, measures: bp.view.measures.length }));
+  check("export.js: --bpm pins a grid: rhythm unverified, every measure forced, one freely at the top (one free-time passage)", bp.view.rhythm === "unverified" && bp.view.measures.every((m) => m.forced) && bp.view.measures.length > 1 && bp.stats.musicxml.freely === 1 && bp.stats.musicxml.aTempo === 0 && bp.view.pinned && bp.view.pinned.bpm === Math.round(pds.bpm), JSON.stringify({ rhythm: bp.view.rhythm, freely: bp.stats.musicxml.freely, measures: bp.view.measures.length }));
+
+  // ---- ls1-rulings.md "LS2close to LS5 rulings", LS4 export conventions, on hand-built measures
+  const M44 = { label: "4/4", beats: 4, beatType: 4, tactus: 4, compound: false, beatTicks: 24, barTicks: 96 };
+  let tAt = 1000;
+  const mk = (index, barTicks, voices, extra = {}) => { const m = { index, seg: 0, kind: "metric", source: "jam", forced: false, barTicks, beats: barTicks / 24, start_ms: tAt, end_ms: tAt + barTicks * 25, beats_ms: [], voices, beams: [], tuplets: [], ...extra }; tAt += barTicks * 25; return m; };
+  const notesOf = (xml, n) => { const mm = [...xml.matchAll(/<measure number="(\d+)"([^>]*)>((?:(?!<\/measure>)[^])*)<\/measure>/g)][n]; return [...mm[3].matchAll(/<note>((?:(?!<\/note>)[^])*)<\/note>/g)].map((x) => ({ step: (/<step>(\w)/.exec(x[1]) || [])[1], alter: Number((/<alter>(-?\d+)/.exec(x[1]) || [0, 0])[1]), octave: Number((/<octave>(-?\d+)/.exec(x[1]) || [0, NaN])[1]), type: (/<type>(\w+)/.exec(x[1]) || [])[1], acc: (/<accidental[^>]*>(\w[\w-]*)</.exec(x[1]) || [])[1] || null, courtesy: /<accidental cautionary="yes" parentheses="yes">/.test(x[1]), beam: (/<beam number="1">(\w+)/.exec(x[1]) || [])[1] || null, voice: (/<voice>(\d+)/.exec(x[1]) || [])[1], rest: /<rest/.test(x[1]) })); };
+
+  // beams (must-fix): the verifier's S4 shape, staff 2 voice 4 beat 4 as a sextuplet 16th, a sextuplet quarter and a 16th.
+  // measures.js no longer groups across the quarter, and the writer never beams across it even when handed the old group.
+  const { buildMeasures } = await import("../arsenal/web/piano/score/measures.js");
+  const [sb] = buildMeasures([{ id: 0, note: 48, tick: 0, dur: 72, voice: 4, staff: 2 }, { id: 1, note: 50, tick: 72, dur: 4, voice: 4, staff: 2 }, { id: 2, note: 52, tick: 76, dur: 16, voice: 4, staff: 2 }, { id: 3, note: 53, tick: 92, dur: 4, voice: 4, staff: 2 }], { meter: M44 });
+  check("measures.js beams: no group spans the sextuplet quarter between two sextuplet 16ths (S4 shape)", sb.voices[0].notes.find((p) => p.id === 2).type === "quarter" && sb.tuplets.some((t) => t.beat === 3 && t.actual === 6) && sb.beams.every((g) => !(g.ids.includes(1) && g.ids.includes(3))), JSON.stringify({ beams: sb.beams, notes: sb.voices[0].notes.map((p) => [p.id, p.pos, p.type]) }));
+  const oldGroup = { tpq: 24, meter: M44, notes: [], marks: {}, measures: [mk(0, 96, sb.voices, { beams: [{ voice: 4, beat: 3, ids: [1, 3] }], tuplets: sb.tuplets })] };
+  const xb = toMusicXML(oldGroup, { stats: {} });
+  const nb = notesOf(xb, 0).filter((x) => !x.rest);
+  check("musicxml beam writer: handed a group across an unbeamable quarter, it writes no beam over it", nb.every((x) => x.beam === null) && pitchOf && readMusicXMLFor(xb).beamBad === 0, JSON.stringify(nb.map((x) => [x.type, x.beam])));
+  const bad = xb.replace(/(<step>D<\/step><octave>3<\/octave>(?:(?!<\/note>)[^])*<staff>2<\/staff>)/, '$1<beam number="1">begin</beam>').replace(/(<step>F<\/step><octave>3<\/octave>(?:(?!<\/note>)[^])*<staff>2<\/staff>)/, '$1<beam number="1">end</beam>');
+  // two violations: the unbeamed quarter inside the open beam (which closes it), then an end with no open beam
+  check("LR9a beam structure check catches the failing case (begin, an unbeamed sextuplet quarter, end)", bad !== xb && readMusicXMLFor(bad).beamBad === 2, String(readMusicXMLFor(bad).beamBad));
+  // 6/8 end to end: an eighth, an eighth rest and an eighth in one beat are not beamed across the rest; the run of 16ths and
+  // a dotted eighth in the beat before stays one beam
+  const ev68 = [], P68 = 900;
+  const on68 = (t, n, d) => ev68.push({ t_ms: t, kind: "on", note: n, vel: 70 }, { t_ms: t + d, kind: "off", note: n });
+  for (let k = 0; k < 4; k++) { const t = 1000 + k * 2 * P68; on68(t, 72, 140); on68(t + 150, 76, 590); on68(t + 750, 79, 140); on68(t + P68, 74, 280); on68(t + P68 + 600, 77, 280); }
+  ev68.sort((a, b) => a.t_ms - b.t_ms);
+  const b68 = build(ev68, { ...takeOptions({ meter: "6/8" }), beats: Array.from({ length: 12 }, (_, k) => 1000 + k * P68), one: 1000 });
+  verifyOk("6/8 beams", b68);
+  const n68 = notesOf(b68.xml, 0);
+  check("musicxml beams (6/8): no beam across the eighth rest; the 16th run is one begin..end", JSON.stringify(n68.map((x) => x.beam)) === JSON.stringify(["begin", "continue", "continue", "end", null, null, null]) && readMusicXMLFor(b68.xml).beamBad === 0 && b68.view.measures.every((m) => m.beams.every((g) => g.pos.length >= 2)), JSON.stringify(n68.map((x) => [x.type, x.rest, x.beam])));
+
+  // short measures: implicit only for the opening pickup; a short measure mid-score writes its time signature and the
+  // next measure restores the meter
+  const whole = (id, note) => [{ voice: 1, staff: 1, notes: [{ id, note, pos: 0, dur: 96, type: "whole", dots: 0 }], rests: [] }];
+  tAt = 1000;
+  const shortScore = { tpq: 24, meter: M44, notes: [], marks: {}, measures: [
+    mk(0, 24, [{ voice: 1, staff: 1, notes: [{ id: 0, note: 67, pos: 0, dur: 24, type: "quarter", dots: 0 }], rests: [] }], { pickup: { implicit: true, ticks: 24, subBeats: 2, offset: 0 } }),
+    mk(1, 96, whole(1, 72)),
+    mk(2, 48, [{ voice: 1, staff: 1, notes: [{ id: 2, note: 74, pos: 0, dur: 48, type: "half", dots: 0 }], rests: [] }], { seg: 1, pickup: { implicit: true, ticks: 48, subBeats: 4, offset: 0 } }),
+    mk(3, 96, whole(3, 76), { seg: 1 }),
+    mk(4, 36, [{ voice: 1, staff: 1, notes: [{ id: 4, note: 77, pos: 0, dur: 36, type: "quarter", dots: 1 }], rests: [] }], { seg: 2, cut: true }),
+  ] };
+  const sst = {}, xs = toMusicXML(shortScore, { stats: sst });
+  const heads = [...xs.matchAll(/<measure number="(\d+)"([^>]*)>(?:\s*<attributes>((?:(?!<\/attributes>)[^])*)<\/attributes>)?/g)].map((mm) => [Number(mm[1]), /implicit="yes"/.test(mm[2]), (/<time><beats>(\d+)<\/beats><beat-type>(\d+)<\/beat-type><\/time>/.exec(mm[3] || "") || []).slice(1).join("/") || null]);
+  check("musicxml: implicit only on the opening pickup; mid-score 2/4 and 3/8 measures carry their time signature and the next measure restores 4/4",
+    JSON.stringify(heads) === JSON.stringify([[0, true, "4/4"], [1, false, null], [2, false, "2/4"], [3, false, "4/4"], [4, false, "3/8"]]) && sst.implicitMeasures === 1 && sst.timeChanges === 3 && sst.timeUnwritable === 0, JSON.stringify({ heads, sst: [sst.implicitMeasures, sst.timeChanges, sst.timeUnwritable] }));
+  const rs = readMusicXMLFor(xs), MTs = shortScore.measures.map((m) => m.barTicks);
+  check("LR9a short-measure check: every measure's length equals its time signature (implicit opening pickup excepted)", rs.measures.every((m, i) => (m.implicit && i === 0) || (m.time.beats * 96) / m.time.beatType === MTs[i]) && rs.measures.filter((m) => m.implicit).length === 1);
+  const unmarked = xs.replace(/<measure number="2">/, '<measure number="2" implicit="yes">').replace("<time><beats>2</beats><beat-type>4</beat-type></time>", "");
+  const ru = readMusicXMLFor(unmarked);
+  check("LR9a short-measure check catches an implicit short measure mid-score", ru.measures[2].implicit && (ru.measures[2].time.beats * 96) / ru.measures[2].time.beatType !== 48);
+  check("timeSignatureOf: 48 in 4/4 is 2/4, 36 is 3/8, 72 in 12/8 is 6/8, a full bar is the meter, 4 ticks has none", same(timeSignatureOf(48, { beats: 4, beatType: 4 }), { beats: 2, beatType: 4 }) && same(timeSignatureOf(36, { beats: 4, beatType: 4 }), { beats: 3, beatType: 8 }) && same(timeSignatureOf(72, { beats: 12, beatType: 8 }), { beats: 6, beatType: 8 }) && same(timeSignatureOf(96, { beats: 4, beatType: 4 }), { beats: 4, beatType: 4 }) && timeSignatureOf(4, { beats: 4, beatType: 4 }) === null);
+
+  // accidentals: F4 + F#4 at one position; a courtesy natural after a tied-in F#4; duplicate A-flats in two lanes both print
+  tAt = 1000;
+  const accScore = { tpq: 24, meter: M44, marks: {}, notes: [{ id: 10, note: 80, spelled: { letter: 5, acc: -1 } }, { id: 11, note: 80, spelled: { letter: 5, acc: -1 } }], measures: [
+    mk(0, 96, [{ voice: 1, staff: 1, notes: [{ id: 0, note: 65, pos: 0, dur: 24, type: "quarter" }, { id: 1, note: 66, pos: 0, dur: 24, type: "quarter" }, { id: 5, note: 66, pos: 72, dur: 24, type: "quarter", tieStart: true }], rests: [{ pos: 24, dur: 48, type: "half" }] }]),
+    mk(1, 96, [{ voice: 1, staff: 1, notes: [{ id: 5, note: 66, pos: 0, dur: 24, type: "quarter", tieStop: true }, { id: 6, note: 65, pos: 48, dur: 24, type: "quarter" }, { id: 7, note: 66, pos: 72, dur: 24, type: "quarter" }], rests: [{ pos: 24, dur: 24, type: "quarter" }] }]),
+    mk(2, 96, [{ voice: 1, staff: 1, notes: [{ id: 10, note: 80, pos: 24, dur: 24, type: "quarter" }, { id: 11, note: 80, pos: 24, dur: 48, type: "half" }], rests: [{ pos: 0, dur: 24, type: "quarter" }, { pos: 72, dur: 24, type: "quarter" }] }]),
+  ] };
+  const ast = {}, xa = toMusicXML(accScore, { stats: ast });
+  const a0 = notesOf(xa, 0).filter((x) => !x.rest), a1 = notesOf(xa, 1).filter((x) => !x.rest), a2 = notesOf(xa, 2).filter((x) => !x.rest);
+  check("musicxml accidentals: F4 and F#4 at one position print a natural and a sharp", JSON.stringify(a0.slice(0, 2).map((x) => [x.step, x.alter, x.acc])) === JSON.stringify([["F", 0, "natural"], ["F", 1, "sharp"]]) && ast.accClashes === 1, JSON.stringify(a0));
+  check("musicxml accidentals: after a tied-in F#4, a later F4 prints a courtesy natural in parentheses, the next F#4 a sharp", JSON.stringify(a1.map((x) => [x.alter, x.acc, x.courtesy])) === JSON.stringify([[1, null, false], [0, "natural", true], [1, "sharp", false]]) && ast.courtesy === 1, JSON.stringify(a1));
+  check("musicxml accidentals: duplicate A-flats at one position in two lanes both print the flat", a2.length === 2 && new Set(a2.map((x) => x.voice)).size === 2 && a2.every((x) => x.step === "A" && x.alter === -1 && x.acc === "flat"), JSON.stringify(a2));
 
   // the modules stay pure and hold no speller
   const scoreDir = path.join(here, "..", "arsenal", "web", "piano", "score");

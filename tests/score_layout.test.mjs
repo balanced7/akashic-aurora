@@ -223,6 +223,50 @@ const shiftOut = (s) => ({
   const tm = modelBar(tie, { meter: METER44, spelledOf, fifths: 0 });
   check("a tied-to note never reprints its accidental; the next one does", tm.voices[0].notes[0].acc === null && tm.voices[0].notes[1].acc === -1, JSON.stringify(tm.voices[0].notes.map((n) => n.acc)));
   check("key signature: Eb in Eb major shows no accidental", modelBar({ ...plain, measure: { ...plain.measure, voices: [{ voice: 1, staff: 1, notes: [{ id: 0, note: 75, pos: 0, dur: 24, type: "quarter" }], rests: [] }] } }, { meter: METER44, spelledOf: (p) => { const s = spellMidi(p.note, "Eb major"); return { letter: s.letter, acc: s.acc, octave: s.octave }; }, fifths: -3 }).voices[0].notes[0].acc === null);
+  // accidentals (ls1-rulings.md LS4/LS5, standard engraving practice; accidentals.js shared with musicxml.js)
+  {
+    const bar = (voices) => ({ ...plain, measure: { ...plain.measure, voices } });
+    // F4 and F#4 at one position print the F4 natural and the F#4 sharp
+    const clash = modelBar(bar([{ voice: 1, staff: 1, notes: [{ id: 0, note: 65, pos: 0, dur: 24, type: "quarter" }, { id: 1, note: 66, pos: 0, dur: 24, type: "quarter" }], rests: [] }]), { meter: METER44, spelledOf: inC, fifths: 0 });
+    check("accidentals: F4 and F#4 at one position print a natural and a sharp", JSON.stringify(clash.voices[0].notes.map((n) => [n.note, n.acc])) === "[[65,0],[66,1]]", JSON.stringify(clash.voices[0].notes.map((n) => [n.note, n.acc])));
+    // after a tied-in F#4, a later F4 in the bar prints a courtesy natural in parentheses; a later F#4 after that one a sharp
+    const tiedIn = bar([{ voice: 1, staff: 1, notes: [{ id: 0, note: 66, pos: 0, dur: 24, type: "quarter", tieStop: true }, { id: 1, note: 65, pos: 48, dur: 24, type: "quarter" }, { id: 2, note: 66, pos: 72, dur: 24, type: "quarter" }], rests: [{ pos: 24, dur: 24, type: "quarter" }] }]);
+    const ti = modelBar(tiedIn, { meter: METER44, spelledOf: inC, fifths: 0 });
+    check("accidentals: after a tied-in F#4 a later F4 prints a courtesy natural, and the F#4 after it a plain sharp", JSON.stringify(ti.voices[0].notes.map((n) => [n.acc, n.courtesy])) === "[[null,false],[0,true],[1,false]]", JSON.stringify(ti.voices[0].notes.map((n) => [n.acc, n.courtesy])));
+    const tl = layoutBar(ti, L, { widen: true }), ca = tl.accidentals.find((a) => a.id === 1), cbox = tl.boxes.find((x) => x.kind === "accidental" && x.id === 1), head1 = tl.heads.find((h) => h.id === 1);
+    check("courtesy accidental: parentheses either side, its box holds glyph and parentheses, left of its head, no glyph collisions",
+      ca && ca.courtesy && ca.parenLX < ca.x && ca.parenRX > ca.x && Math.abs(cbox.w - (0.68 + 2 * L.params.parenSp) * L.sp) < 1e-6 && cbox.x + cbox.w <= head1.x + 1e-6 && overlaps(tl.boxes, L).length === 0,
+      JSON.stringify({ ca, cbox, head: head1 && head1.x, overlaps: overlaps(tl.boxes, L) }));
+    const Ec = createHouseEngraver(); Ec.ready({ smufl: true });
+    const cc = stubCtx(); Ec.engraveBar(cc, ti, { L });
+    check("courtesy accidental: the engraver draws the SMuFL accidental parentheses once each", cc.calls.text.filter((t) => t.s === SMUFL.parenL).length === 1 && cc.calls.text.filter((t) => t.s === SMUFL.parenR).length === 1);
+    // a tied-in note of the same spelling as the later one: no courtesy (the later F#4 prints its sharp as usual)
+    const same = modelBar(bar([{ voice: 1, staff: 1, notes: [{ id: 0, note: 66, pos: 0, dur: 24, type: "quarter", tieStop: true }, { id: 1, note: 66, pos: 48, dur: 24, type: "quarter" }], rests: [] }]), { meter: METER44, spelledOf: inC, fifths: 0 });
+    check("accidentals: a later note spelled as the tied-in one prints its own accidental, never a courtesy", JSON.stringify(same.voices[0].notes.map((n) => [n.acc, n.courtesy])) === "[[null,false],[1,false]]", JSON.stringify(same.voices[0].notes.map((n) => [n.acc, n.courtesy])));
+    // duplicate pitches at one position on one staff (two voices) share the decision: both copies print the sharp
+    const dup = modelBar(bar([{ voice: 3, staff: 2, notes: [{ id: 0, note: 54, pos: 24, dur: 24, type: "quarter" }], rests: [] }, { voice: 4, staff: 2, notes: [{ id: 1, note: 54, pos: 24, dur: 48, type: "half" }], rests: [] }]), { meter: METER44, spelledOf: inC, fifths: 0 });
+    check("accidentals: duplicate pitches at one position share the decision (F#3 in voices 3 and 4: both sharp)", dup.voices.every((v) => v.notes[0].acc === 1), JSON.stringify(dup.voices.map((v) => v.notes.map((n) => n.acc))));
+  }
+  // 15ma and 15mb (ls1-rulings.md LS3 rulings): written two octaves from sounding
+  check("staff steps: 15ma writes C7 where C5 sits; 15mb writes C1 where C3 sits", staffStep(sp(96), "treble", 15) === staffStep(sp(72), "treble") && staffStep(sp(24), "bass", -15) === staffStep(sp(48), "bass"));
+  // ls1-rulings.md LS5 leave-out rule, on the LS5 r1 verifier's probe: staff 1 voice 1 plays E5 quarters; voice 2 holds a
+  // C5 half tied in from tape (left out of the drawn bar) and then a half rest at 48. The left-out piece leaves a hidden rest,
+  // so the staff keeps its two-voice layout: voice 1 stems up, voice 2's half rest drawn as a lower-voice rest, and the
+  // hidden rest draws nothing. Without the hidden rest (the pre-ruling output) voice 1's stems flip down for this bar.
+  const { omitPieces } = await import("../arsenal/web/piano/score/ribbon.js");
+  const leave = { ...plain, measure: { ...plain.measure, voices: [
+    { voice: 1, staff: 1, notes: [0, 24, 48, 72].map((pos, i) => ({ id: 10 + i, note: 76, pos, dur: 24, type: "quarter", dots: 0 })), rests: [] },
+    { voice: 2, staff: 1, notes: [{ id: 20, note: 72, pos: 0, dur: 48, type: "half", dots: 0, tieStop: true }], rests: [{ pos: 48, dur: 48, type: "half", dots: 0 }] }] } };
+  const { bar: leftOut, omitted } = omitPieces(leave, new Set([20]));
+  const lm = modelBar(leftOut, { meter: METER44, spelledOf, fifths: 0 }), ll = layoutBar(lm, L, { widen: true });
+  const lv1 = lm.voices.find((v) => v.voice === 1), lv2 = lm.voices.find((v) => v.voice === 2), lr2 = ll.rests.filter((r) => r.voice === 2);
+  check("leave-out rule: a voice whose tied-in piece was left out keeps a hidden rest there, and the staff keeps two voices (voice 1 stems up)",
+    omitted === 1 && lv2.notes.length === 0 && lv2.rests.some((r) => r.hidden && r.pos === 0 && r.dur === 48) && lv1.twoVoices && lv1.stemUp && lv2.twoVoices && !lv2.stemUp, JSON.stringify({ omitted, v1: [lv1.twoVoices, lv1.stemUp], v2: [lv2.twoVoices, lv2.stemUp, lv2.rests] }));
+  check("leave-out rule: the hidden rest draws nothing; voice 2's half rest at 48 is drawn below the middle line as a lower-voice rest",
+    ll.rests.length === 1 && lr2.length === 1 && lr2[0].pos === 48 && lr2[0].step < 0 && ll.heads.every((h) => h.id !== 20), JSON.stringify(ll.rests));
+  const bare = { ...leftOut, measure: { ...leftOut.measure, voices: leftOut.measure.voices.map((v) => ({ ...v, rests: v.rests.filter((r) => !r.hidden) })) } };
+  const bm = modelBar(bare, { meter: METER44, spelledOf, fifths: 0 }).voices.find((v) => v.voice === 1);
+  check("leave-out rule control: without the hidden rest voice 1 reads as the only voice and its stems flip down", !bm.twoVoices && !bm.stemUp, JSON.stringify([bm.twoVoices, bm.stemUp]));
 
   // engraver interface (plan-amendments.md section 0 rule 1)
   const E = createHouseEngraver();

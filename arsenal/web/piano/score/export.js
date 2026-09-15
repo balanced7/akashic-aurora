@@ -23,6 +23,7 @@
 
 import { clean, meterInfo } from "./index.js";
 import { clefsAndOctaves } from "./hands.js";
+import { freeTimeMarks } from "./musicxml.js";
 
 export const EXPORT_API = "arsenal.piano.score.export/v0";
 export const EXPORT_PARAMS = Object.freeze({ defaultPeriodMs: 750, runGapMs: 2000, leadShare: 0.03, pedalLookbackMs: 60000, forcedMeter: "4/4" });
@@ -143,7 +144,7 @@ export function forceTape(sc, events, opts = {}) {
   notes.sort((a, b) => a.tick - b.tick || a.note - b.note);
 
   // ---- clefs and octave lines over the whole sequence
-  clefsAndOctaves(outMeasures, (opts.params && opts.params.hands) || {}).forEach((x, i) => { Object.assign(outMeasures[i], { clefs: x.clefs, octave: x.octave, clefChange: x.change, ledgerBeyond: x.beyond }); });
+  clefsAndOctaves(outMeasures, (opts.params && opts.params.hands) || {}).forEach((x, i) => { Object.assign(outMeasures[i], { clefs: x.clefs, octave: x.octave, clefChange: x.change, ledgerBeyond: x.beyond, ledgerOverflow: x.overflow }); });
 
   // ---- marks placed again by time
   const byTime = outMeasures.map((m, i) => i).sort((a, b) => outMeasures[a].start_ms - outMeasures[b].start_ms || a - b);
@@ -171,7 +172,9 @@ export function forceTape(sc, events, opts = {}) {
       if (k.at_ms != null) { const m = outMeasures.find((x) => x.start_ms >= k.at_ms); return { ...k, bar: m ? m.index : null }; }
       return { ...k, bar: mapBase.has(k.bar) ? mapBase.get(k.bar) : null };
     }),
-    freely: outMeasures.filter((m, i) => (m.forced || m.kind !== "metric") && !(i > 0 && (outMeasures[i - 1].forced || outMeasures[i - 1].kind !== "metric"))).map((m) => ({ at_ms: m.start_ms, bar: m.index, pos: 0 })),
+    // ls1-rulings.md LS4: "freely" once per free-time passage, "a tempo" where a tracked beat resumes (musicxml.js rule)
+    freely: freeTimeMarks(outMeasures).filter((x) => x.text === "freely").map((x) => ({ at_ms: outMeasures[x.index].start_ms, bar: x.index, pos: 0 })),
+    aTempo: freeTimeMarks(outMeasures).filter((x) => x.text === "a tempo").map((x) => ({ at_ms: outMeasures[x.index].start_ms, bar: x.index, pos: 0 })),
   };
   const segments = [...(sc.segments || []), ...runs.map((r) => ({ id: `f${r.i}`, source: "forced", factor: 1, start_ms: r.beats[0], end_ms: r.beats[r.beats.length - 1], period_ms: r.P, reason: "tape", sigma_ms: null }))];
   const meter = sc.meter && sc.meter.free ? { ...meterInfo(c.forcedMeter), label: "free", free: true } : sc.meter;

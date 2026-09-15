@@ -30,12 +30,15 @@
 //   histogram (piano.js: 12 s decay, 0.5 + vel/127 per note-on), no chord cue; marks.js createKeySignature adopts a
 //   signature after 2 steps of a 2 s clock (4 s, the LS6 free-time rule) of a non-provisional key. A bar takes the
 //   signature in force at its start; tape takes the current one. Spelling is the injected speller in the signature's key.
-// - Clefs: hands.js clefsAndOctaves over every settled bar in order plus the live bars (prefix-stable, so a frozen bar's
-//   clef is final).
+// - Clefs: a hands.js clef tracker (ls1-rulings.md LS3 rulings: a change needs 2 bars that want it, read with the next
+//   bar). A bar resolved in order (committed, demoted or tape) is committed once with the next bar as then known, so a
+//   frozen bar's clef and octave line are final; live bars are previewed from the committed state.
+// - Leave-out rule (ls1-rulings.md LS5): a voice whose pieces were left out keeps a hidden rest in their place, so a
+//   staff that had two voices keeps its two-voice layout for that bar and stems do not flip mid-phrase.
 
 import { createTranscriber, meterInfo } from "./index.js";
 import { createOnsets } from "./onsets.js";
-import { clefsAndOctaves } from "./hands.js";
+import { createClefTracker } from "./hands.js";
 import { pedalMarks, createKeySignature } from "./marks.js";
 import { createKeyTracker } from "../nashville.js";
 import { createLayout, createTapePlacer, tapeHeads, modelBar, layoutBar, barXAt, headShift } from "./layout.js";
@@ -44,6 +47,23 @@ export const RIBBON_API = "arsenal.piano.score.ribbon/v0";
 
 const MAJOR_BY_FIFTHS = Object.freeze({ "-7": "Cb", "-6": "Gb", "-5": "Db", "-4": "Ab", "-3": "Eb", "-2": "Bb", "-1": "F", "0": "C", "1": "G", "2": "D", "3": "A", "4": "E", "5": "B", "6": "F#", "7": "C#" });
 export const keyNameOfFifths = (f) => (f == null ? null : `${MAJOR_BY_FIFTHS[String(f)]} major`);
+
+// The leave-out rule as a pure function: every piece whose note id is in `ids` leaves the bar's voices (bar: a transcriber
+// bar with .measure, or a measure), and each left-out piece leaves a hidden rest at its position and value in its voice
+// (one per position), so the voice still counts for the staff's two-voice layout. -> { bar, omitted: distinct ids }
+export function omitPieces(bar, ids) {
+  const ms = bar.measure || bar;
+  const gone = new Set();
+  const voices = ms.voices.map((v) => {
+    const out = v.notes.filter((p) => ids.has(p.id));
+    if (!out.length) return v;
+    const hidden = new Map();
+    for (const p of out) { gone.add(p.id); if (!hidden.has(p.pos)) hidden.set(p.pos, { pos: p.pos, dur: p.dur, type: p.type, dots: p.dots || 0, hidden: true }); }
+    return { ...v, notes: v.notes.filter((p) => !ids.has(p.id)), rests: [...(v.rests || []), ...hidden.values()].sort((a, b) => a.pos - b.pos) };
+  });
+  if (!gone.size) return { bar, omitted: 0 };
+  return { bar: bar.measure ? { ...bar, measure: { ...ms, voices } } : { ...bar, voices }, omitted: gone.size };
+}
 
 export function createRibbon({ spell = null, layout = null, options = {}, params = {}, keyTracking = true, pendingMaxMs = 3000, keepPx = 6000, tapedTies = "omit" } = {}) {
   const L = layout || createLayout();
@@ -68,10 +88,10 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
   const prevLive = new Map();              // index -> { state, layout, x0 } of last tick's live blocks
   let lastTapeTick = -Infinity, scrollX = 0, T = null, lastHeader = null, lastDrawing = "tape", lastWasBar = true;
   const pedalLog = [], groupTimes = [], tapeTicks = [];   // tapeTicks: recent tick times that drew tape
-  const settledLite = [];
+  const clefT = createClefTracker();
   const stats = {
     ticks: 0, commits: 0, tapeBars: 0, columns: 0, overlaps: 0, clamped: 0, conflicts: 0, collapses: 0, waitMaxMs: 0,
-    tapeMs: 0, idMismatch: 0, liveChanges: 0, demoted: 0, conflictWhy: {}, tiedFromTape: 0,
+    tapeMs: 0, idMismatch: 0, liveChanges: 0, demoted: 0, conflictWhy: {}, tiedFromTape: 0, splitTaped: 0,
     shiftOpenToEngraved: { unwidened: { n: 0, px: 0 }, widened: { n: 0, px: 0 }, moved: 0, x0: { n: 0, px: 0 } },
     shiftSettlingToSettled: { unwidened: { n: 0, px: 0 }, widened: { n: 0, px: 0 }, moved: 0, x0: { n: 0, px: 0 } },
   };
@@ -137,9 +157,11 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
     return out;
   }
   const fifthsAt = (t) => { let f = null; for (const x of fifthsLog) { if (x.at_ms > t) break; f = x.fifths; } return f; };
-  const lite = (b) => ({ index: b.index, voices: (b.measure ? b.measure.voices : b.voices).map((v) => ({ staff: v.staff, notes: v.notes.map((p) => ({ note: p.note })) })) });
-  function clefRows(extra) {
-    const rows = clefsAndOctaves([...settledLite, ...extra.map(lite)]);
+  const lite = (b) => ({ index: b.index, voices: (b.measure ? b.measure.voices : b.voices).map((v) => ({ staff: v.staff, notes: v.notes.map((p) => ({ note: p.note, id: p.id })) })) });
+  // a resolved bar's clef row, decided once (next: the next known bar, or undefined)
+  const commitClef = (b, next) => clefT.commit(lite(b), next ? lite(drawable(next).bar) : null);
+  function clefRows(bars) {
+    const rows = clefT.preview(bars.map(lite));
     return new Map(rows.map((r) => [r.index, r]));
   }
   function modelOf(b, clefRow, fifths, keyChange) {
@@ -168,8 +190,7 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
     const ids = new Set();
     for (const v of ms.voices) for (const p of v.notes) if (taped.has(p.id)) ids.add(p.id);
     if (!ids.size) return { bar: b, omitted: 0 };
-    const voices = ms.voices.map((v) => ({ ...v, notes: v.notes.filter((p) => !ids.has(p.id)) }));
-    return { bar: b.measure ? { ...b, measure: { ...ms, voices } } : { ...b, voices }, omitted: ids.size };
+    return omitPieces(b, ids);
   }
   const lastBlock = () => (blocks.length ? blocks[blocks.length - 1] : null);
   function contentStart(t) { return Math.max(placer.end(), placer.nominal(t)); }
@@ -207,14 +228,14 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
     if (c.clamped) stats.clamped++;
   }
 
-  function commitBar(b0) {
+  function commitBar(b0, next) {
     const { bar: b, omitted } = drawable(b0);
     stats.tiedFromTape += omitted;
-    const rows = clefRows([b]);
+    const row = commitClef(b, next);
     const fifths = fifthsAt(b.start_ms);
     const prevF = lastBlock() ? lastBlock().model.fifths : null;
     const keyChange = lastBlock() && fifths != null && fifths !== prevF ? fifths : null;
-    const model = modelOf(b, rows.get(b.index), fifths, keyChange);
+    const model = modelOf(b, row, fifths, keyChange);
     const layout = layoutBar(model, L, { widen: true });
     const pl = prevLive.get(b.index);
     const x0 = pl && pl.x0 != null ? Math.max(pl.x0, contentStart(b.start_ms)) : contentStart(b.start_ms);
@@ -225,7 +246,6 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
     placer.reanchor(block.x1, b.end_ms);
     runs.push({ id: placer.anchor().run, x: placer.anchor().x, t: b.end_ms });
     lastWasBar = true;
-    settledLite.push(lite(b));
     lastResolved = b.index; known.delete(b.index); meterOf.delete(b.index);
     stats.commits++;
     return block;
@@ -287,7 +307,11 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
         // its bar is not decided yet while bars draw (a grid revision can move the bar's start past the last tape tick)
         if (owner && owner.state !== "settled" && lastDrawing === "bars" && !demoted.has(owner.index)) { keep.push(g); blocked = true; stats.waitMaxMs = Math.max(stats.waitMaxMs, T - g.t); continue; }
         if (!owner && lastDrawing === "bars" && g.t > lastTapeTick && T - g.t < pendingMaxMs) { keep.push(g); blocked = true; stats.waitMaxMs = Math.max(stats.waitMaxMs, T - g.t); continue; }
-        placeTape(g, owner ? (owner.state === "settled" ? "ownerSettledTape" : "ownerUndecided") : lastDrawing === "bars" ? "waitExpired" : "noOwnerDrawingTape");
+        // a group the per-voice pin split (ls1-rulings.md): notes already drawn in a committed bar stay there, and only the
+        // rest go to tape (stats.splitTaped), so no note is drawn twice
+        const rest = g.notes.filter((n) => !barred.has(n.id));
+        if (rest.length < g.notes.length) stats.splitTaped++;
+        placeTape(rest.length < g.notes.length ? { ...g, notes: rest } : g, owner ? (owner.state === "settled" ? "ownerSettledTape" : "ownerUndecided") : lastDrawing === "bars" ? "waitExpired" : "noOwnerDrawingTape");
         continue;
       }
       bi++;
@@ -296,9 +320,10 @@ export function createRibbon({ spell = null, layout = null, options = {}, params
         // when tapedTies is "demote" (with "omit" that note's pieces leave the drawn bar instead)
         const tp = b.kind === "metric" ? tapedIn(b) : null;
         const holds = tp ? [...tp].filter(([, own]) => own || tapedTies === "demote") : [];
-        if (b.kind === "metric" && !holds.length) commitBar(b);
-        else if (b.kind === "metric") { const onMs = new Map(b.notes.map((n) => [n.id, n.on_ms])); for (const [id, own] of holds) { const w = tapedWhy.get(id) + (!own ? ":tiedIn" : onMs.get(id) < b.start_ms ? ":beforeStart" : ":inside"); stats.conflictWhy[w] = (stats.conflictWhy[w] || 0) + 1; } demoted.add(b.index); stats.demoted++; stats.conflicts += holds.length; settledLite.push(lite(b)); lastResolved = b.index; known.delete(b.index); meterOf.delete(b.index); }
-        else { settledLite.push(lite(b)); lastResolved = b.index; known.delete(b.index); meterOf.delete(b.index); stats.tapeBars++; }
+        const next = bars[bi];
+        if (b.kind === "metric" && !holds.length) commitBar(b, next);
+        else if (b.kind === "metric") { const onMs = new Map(b.notes.map((n) => [n.id, n.on_ms])); for (const [id, own] of holds) { const w = tapedWhy.get(id) + (!own ? ":tiedIn" : onMs.get(id) < b.start_ms ? ":beforeStart" : ":inside"); stats.conflictWhy[w] = (stats.conflictWhy[w] || 0) + 1; } demoted.add(b.index); stats.demoted++; stats.conflicts += holds.length; clefT.commit(lite(b), next ? lite(drawable(next).bar) : null); lastResolved = b.index; known.delete(b.index); meterOf.delete(b.index); }
+        else { clefT.commit(lite(b), next ? lite(drawable(next).bar) : null); lastResolved = b.index; known.delete(b.index); meterOf.delete(b.index); stats.tapeBars++; }
         continue;
       }
       if (candidate(b)) { newLive.push(b); blocked = true; }
