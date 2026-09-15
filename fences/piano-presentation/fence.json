@@ -1,0 +1,17 @@
+{
+  "id": "piano-presentation",
+  "question": "What should Daniel's piano visualizer look like and show, for practising at the keys and for 9:16 TikTok posts, so the systems we have built (spectacle worlds, harmony views, voice paths, chord reader, Nashville numbers, jam space, live sheet music) read as beautiful and meaningful rather than lacking in presentation? What is the feature set and information hierarchy, what is the visual language, and how will we know by measurement and by eye that it looks right?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-09-15T06:28:31.669131+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-15T06:32:02.682309+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
