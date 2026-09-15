@@ -1,0 +1,206 @@
+{
+  "api": "arsenal.jam.def/v0",
+  "card": {
+    "id": "dorian-vamp",
+    "rev": 1,
+    "title": "Two-chord Dorian vamp",
+    "variant": null
+  },
+  "key": "D minor",
+  "beats_per_bar": 4,
+  "cycle_beats": 8,
+  "backing": "comp",
+  "sections": [
+    {
+      "i": 0,
+      "key": "D minor",
+      "from_beat": 0
+    }
+  ],
+  "slots": [
+    {
+      "i": 0,
+      "section": 0,
+      "at_beat": 0,
+      "beats": 4,
+      "n": "1m11",
+      "name": "Dm11",
+      "key": "D minor",
+      "tones_pc": {
+        "root": 2,
+        "third": 5,
+        "fifth": 9,
+        "seventh": 0,
+        "ninth": 4,
+        "eleventh": 7
+      },
+      "bass_pc": 2,
+      "chord_pcs": [
+        2,
+        5,
+        9,
+        0,
+        4,
+        7
+      ],
+      "scale": [
+        2,
+        4,
+        5,
+        7,
+        9,
+        11,
+        0
+      ],
+      "scale_name": "D Dorian",
+      "class": "diatonic",
+      "voicings": {
+        "play": [
+          38,
+          48,
+          53,
+          64,
+          67
+        ],
+        "full": [
+          38,
+          53,
+          55,
+          60,
+          64
+        ],
+        "comp": [
+          38,
+          48,
+          53
+        ],
+        "bass": [
+          38
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "third",
+          "eleventh",
+          "seventh",
+          "ninth"
+        ],
+        "comp": [
+          "bass",
+          "seventh",
+          "third"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "Dm11",
+        "number": "1m11",
+        "match": "exact"
+      },
+      "warnings": [],
+      "omits": [
+        "fifth"
+      ]
+    },
+    {
+      "i": 1,
+      "section": 0,
+      "at_beat": 4,
+      "beats": 4,
+      "n": "4^13",
+      "name": "G13",
+      "key": "D minor",
+      "tones_pc": {
+        "root": 7,
+        "third": 11,
+        "fifth": 2,
+        "seventh": 5,
+        "ninth": 9,
+        "thirteenth": 4
+      },
+      "bass_pc": 7,
+      "chord_pcs": [
+        7,
+        11,
+        2,
+        5,
+        9,
+        4
+      ],
+      "scale": [
+        2,
+        4,
+        5,
+        7,
+        9,
+        11,
+        0
+      ],
+      "scale_name": "D Dorian",
+      "class": "modal",
+      "voicings": {
+        "play": [
+          43,
+          53,
+          59,
+          69,
+          76
+        ],
+        "full": [
+          43,
+          53,
+          59,
+          64
+        ],
+        "comp": [
+          43,
+          53,
+          59
+        ],
+        "bass": [
+          43
+        ]
+      },
+      "roles": {
+        "full": [
+          "bass",
+          "seventh",
+          "third",
+          "thirteenth"
+        ],
+        "comp": [
+          "bass",
+          "seventh",
+          "third"
+        ],
+        "bass": [
+          "bass"
+        ]
+      },
+      "exact": false,
+      "upper_same": false,
+      "vel": 48,
+      "arp_ms": 0,
+      "say": null,
+      "page_reads": {
+        "name": "G13",
+        "number": "4^13",
+        "match": "exact"
+      },
+      "warnings": [],
+      "omits": [
+        "fifth",
+        "ninth"
+      ]
+    }
+  ],
+  "warnings": []
+}

@@ -12,11 +12,26 @@
 // The player only ever releases notes it started. Daniel may be playing at the same moment and his notes live in the
 // page's own map, so every callback carries meta.source ("claude" or "replay") and the page keeps cue notes out of the
 // practice log, the key tracker and anything that counts his playing. See the integration notes for piano.js.
+//
+// The jam space (jam-spec 9.3, 9.5-9.7, section 6) adds, all additive (a page that uses none of it behaves as before):
+//   createCueClient({events: {deck, jam}})  named deck and jam frames on the same stream, deduped, never dropped as stale
+//   player.handle(cue, {id, at, ticks, grace, timbre})
+//                                            at: an absolute performance.now() start (transport.js hands one bar at a
+//                                            time); a step more than AT_LATE_MS late is dropped, a grace step (the
+//                                            downbeat bass) up to AT_GRACE_MS; ticks: count-in and ghost clicks
+//   player.extend(id, stepIndex, offAt)      moves a planned or sounding note's release (a tie into the next bar)
+//   player.cancel(id)                        ends one cue: actions not started go, sounding notes fade over 80 ms
+//   voice.tick, setPolyphony, setDuck/duck, timbre("keys"), sampleClock (the fitted audio clock), extend
 
 export const STALE_MS = 10000;
 export const NOTE_MIN = 21;
 export const NOTE_MAX = 108;
 export const CUE_DEFAULTS = Object.freeze({ velocity: 80, hold_ms: 2500, arpeggio_ms: 0 });
+export const AT_LATE_MS = 20;       // an at-cue step later than this when it would sound is dropped (9.3)
+export const AT_GRACE_MS = 40;      // ...except a grace step (the downbeat bass), up to this
+export const CANCEL_FADE_MS = 80;   // cancel(id): notes already sounding fade out over this
+export const TICK_MS = 20;          // voice.tick: a short sine
+export const TIMBRES = Object.freeze(["default", "keys", "click"]);
 
 // ------------------------------------------------------------------ protocol --
 const TYPES = new Set(["play", "hover", "sequence", "clear"]);
@@ -57,7 +72,21 @@ function readText(src, field, where) {
   if (typeof v !== "string") throw new CueError(`${where}${field} must be a string or null`);
   return v;
 }
-function readCue(raw) {
+// A time field: whole ms on the wire (the server's rule); a page-local cue with an absolute `at` (the transport) may
+// carry fractions of a ms, so a bar's notes land on the tempo map exactly.
+function readTime(src, field, fallback, where, exact) {
+  if (!exact) return readInt(src, field, 0, Infinity, fallback, where);
+  const v = src[field];
+  if (v === undefined || v === null) {
+    if (fallback === undefined) throw new CueError(`${where}${field} is required`);
+    return fallback;
+  }
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+    throw new CueError(`${where}${field} must be a number >= 0, not ${JSON.stringify(v)}`);
+  }
+  return v;
+}
+function readCue(raw, { exact = false, emptySteps = false } = {}) {
   if (!isObj(raw)) throw new CueError("a cue must be a JSON object");
   if (!TYPES.has(raw.type)) throw new CueError(`type must be play, hover, sequence or clear, not ${JSON.stringify(raw.type)}`);
   const source = raw.source === undefined || raw.source === null ? "claude" : raw.source;
@@ -65,25 +94,25 @@ function readCue(raw) {
   const cue = { type: raw.type, source, label: readText(raw, "label", ""), detail: readText(raw, "detail", "") };
   if (cue.type === "clear") return cue;
   cue.velocity = readInt(raw, "velocity", 1, 127, CUE_DEFAULTS.velocity, "");
-  cue.hold_ms = readInt(raw, "hold_ms", 0, Infinity, CUE_DEFAULTS.hold_ms, "");
-  cue.arpeggio_ms = readInt(raw, "arpeggio_ms", 0, Infinity, CUE_DEFAULTS.arpeggio_ms, "");
+  cue.hold_ms = readTime(raw, "hold_ms", CUE_DEFAULTS.hold_ms, "", exact);
+  cue.arpeggio_ms = readTime(raw, "arpeggio_ms", CUE_DEFAULTS.arpeggio_ms, "", exact);
   if (raw.sound !== undefined && raw.sound !== null && typeof raw.sound !== "boolean") throw new CueError("sound must be true or false");
   cue.sound = cue.type === "hover" ? false : raw.sound !== false;
   if (cue.type !== "sequence") {
     cue.notes = readNotes(raw, "");
     return cue;
   }
-  if (!Array.isArray(raw.steps) || raw.steps.length === 0) throw new CueError("a sequence needs steps, a non-empty list");
+  if (!Array.isArray(raw.steps) || (raw.steps.length === 0 && !emptySteps)) throw new CueError("a sequence needs steps, a non-empty list");
   if (raw.steps.length > MAX_STEPS) throw new CueError(`a sequence may have at most ${MAX_STEPS} steps`);
   cue.steps = raw.steps.map((s, i) => {
     const where = `steps[${i}].`;
     if (!isObj(s)) throw new CueError(`steps[${i}] must be an object`);
     if (!STEP_TYPES.has(s.type)) throw new CueError(`${where}type must be play or hover, not ${JSON.stringify(s.type)}`);
     return {
-      index: i, at_ms: readInt(s, "at_ms", 0, Infinity, undefined, where), type: s.type, notes: readNotes(s, where),
+      index: i, at_ms: readTime(s, "at_ms", undefined, where, exact), type: s.type, notes: readNotes(s, where),
       velocity: readInt(s, "velocity", 1, 127, cue.velocity, where),
-      hold_ms: readInt(s, "hold_ms", 0, Infinity, cue.hold_ms, where),
-      arpeggio_ms: readInt(s, "arpeggio_ms", 0, Infinity, cue.arpeggio_ms, where),
+      hold_ms: readTime(s, "hold_ms", cue.hold_ms, where, exact),
+      arpeggio_ms: readTime(s, "arpeggio_ms", cue.arpeggio_ms, where, exact),
       label: readText(s, "label", where), detail: readText(s, "detail", where),
     };
   }).sort((a, b) => a.at_ms - b.at_ms || a.index - b.index);
@@ -91,9 +120,11 @@ function readCue(raw) {
 }
 
 // { ok: true, cue } with every default filled in, or { ok: false, error } saying what is wrong. Idempotent.
-export function normalizeCue(raw) {
+// opts (page-local cues only, never the wire): exact lets time fields carry fractions of a ms; emptySteps accepts a
+// sequence with no steps (a count-in bar that is only ticks).
+export function normalizeCue(raw, opts = {}) {
   try {
-    return { ok: true, cue: readCue(raw) };
+    return { ok: true, cue: readCue(raw, opts) };
   } catch (e) {
     if (e instanceof CueError) return { ok: false, error: e.message };
     throw e;
@@ -120,11 +151,15 @@ export function normalizeCue(raw) {
 // Staleness: a cue is dropped when (page clock + skew) - sent_at > staleMs. The skew comes from the Date header of
 // GET <url>/status on every (re)connect (one-second resolution, so offsets under 1.5 s count as none). Events that
 // arrive while that probe is out are held, at most a second, so a replay burst is judged with the right clock.
+// Named frames (jam-spec 6): events: {deck: fn, jam: fn} registers a listener per kind on the same EventSource.
+// fn(payload, {id, sent_at, age_ms, skew_ms, kind}) gets each frame once (the same id:sent_at dedupe as cues). They are
+// never dropped as stale and never held behind the clock probe: a deck or jam frame is idempotent by rev or version,
+// and its epochs place a late one correctly. The page opens the stream as /api/piano/cues?caps=jam1,deck1&page=<id>.
 export function createCueClient({
   url = "/api/piano/cues", statusUrl = null, onCue = () => {}, onStatus = () => {}, onDrop = () => {},
   staleMs = STALE_MS, EventSourceImpl = globalThis.EventSource, fetchImpl = globalThis.fetch ? globalThis.fetch.bind(globalThis) : null,
   wallNow = () => Date.now(), backoffMs = [1000, 2000, 4000, 8000, 15000], autoStart = true,
-  lifecycleTarget = typeof window !== "undefined" ? window : null,
+  lifecycleTarget = typeof window !== "undefined" ? window : null, events = {},
 } = {}) {
   if (!EventSourceImpl) throw new Error("EventSource is unavailable in this browser");
   const probeUrl = statusUrl || `${url.replace(/[?#].*$/, "").replace(/\/+$/, "")}/status`;
@@ -132,6 +167,8 @@ export function createCueClient({
   const seen = new Map();  // `${id}:${sent_at}`, oldest first
   const held = [];
   const counts = { received: 0, accepted: 0, stale: 0, duplicate: 0, malformed: 0, opens: 0, errors: 0, pauses: 0 };
+  const namedKinds = isObj(events) ? Object.keys(events).filter((k) => k !== "cue" && typeof events[k] === "function") : [];
+  const named = Object.fromEntries(namedKinds.map((k) => [k, 0]));
   let es = null, status = "idle", closed = false, parked = false, retryTimer = 0, attempt = 0;
   let skewMs = 0, skewKnown = false, probing = false, lastId = null, server = null;
   let cursor = null, cueSinceOpen = false;  // the id a fresh EventSource asks to resume from
@@ -168,6 +205,13 @@ export function createCueClient({
       counts.received++;
       if (probing) held.push(ev); else handle(ev);
     });
+    for (const kind of namedKinds) {
+      source.addEventListener(kind, (ev) => {
+        if (source !== es || closed) return;
+        counts.received++;
+        handleNamed(kind, ev);
+      });
+    }
     source.onerror = () => {
       if (source !== es || closed) return;
       counts.errors++;
@@ -234,6 +278,26 @@ export function createCueClient({
       onCue(n.cue, { id: msg.id, sent_at: msg.sent_at, age_ms: Math.round(age), skew_ms: Math.round(skewMs) });
     } catch (e) { warn("onCue failed", e); }
   }
+  // A deck or jam frame: deduped with the cues (one id sequence), never stale, never held behind the clock probe.
+  function handleNamed(kind, ev) {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return drop("malformed", `the ${kind} event data is not JSON`); }
+    if (!isObj(msg) || !isInt(msg.id) || typeof msg.sent_at !== "number" || !isObj(msg[kind])) {
+      return drop("malformed", `a ${kind} event needs id, ${kind} and sent_at`);
+    }
+    const key = `${msg.id}:${msg.sent_at}`;
+    if (seen.has(key)) return drop("duplicate", { id: msg.id, kind });
+    seen.set(key, true);
+    if (seen.size > 256) seen.delete(seen.keys().next().value);
+    if (ev.lastEventId) lastId = ev.lastEventId;
+    cursor = String(msg.id);
+    cueSinceOpen = true;
+    named[kind]++;
+    const age = wallNow() + skewMs - msg.sent_at;
+    try {
+      events[kind](msg[kind], { id: msg.id, sent_at: msg.sent_at, age_ms: Math.round(age), skew_ms: Math.round(skewMs), kind });
+    } catch (e) { warn(`on ${kind} failed`, e); }
+  }
 
   // Close the stream while the page cannot play (hidden in the back/forward cache, or frozen), reopen when it comes
   // back. A page restored from the cache fires resume before pageshow, so resume reopens only a stream freeze closed.
@@ -277,7 +341,7 @@ export function createCueClient({
 
   const client = {
     get status() { return status; },
-    stats: () => ({ status, ...counts, lastId, cursor, skewMs: Math.round(skewMs), skewKnown, server }),
+    stats: () => ({ status, ...counts, lastId, cursor, skewMs: Math.round(skewMs), skewKnown, server, events: { ...named } }),
     start() { if (!es && !closed) { parked = false; connect(); } },
     reconnect() { if (closed) return; if (es) es.close(); es = null; parked = false; attempt = 0; connect(); },
     close() {
@@ -307,6 +371,8 @@ export function createCueClient({
 // it can (the piano window may well sit behind the Claude app while Claude plays into it).
 const WORKER_TIMER = "const t=new Map();onmessage=(e)=>{const d=e.data;if(d.cancel){clearTimeout(t.get(d.id));t.delete(d.id);return;}" +
                      "t.set(d.id,setTimeout(()=>{t.delete(d.id);postMessage(d.id);},d.delay));};";
+// The same timer for other page modules that keep time (transport.js): {kind, set(fn, delayMs), clear(id), dispose()}.
+export function createCueTimer(mode = "auto") { return createTimer(mode); }
 function createTimer(mode) {
   const plain = { kind: "timeout", set: (fn, delay) => setTimeout(fn, delay), clear: (id) => clearTimeout(id), dispose() {} };
   if (mode === "timeout" || typeof Worker !== "function" || typeof Blob !== "function" || !globalThis.URL?.createObjectURL) return plain;
@@ -380,16 +446,37 @@ function createTimer(mode) {
 // hold_ms counts from each note's own onset (an arpeggio releases in the order it rolled); 0 holds until clear.
 // A new cue never cancels an older one; only clear does. When two cues hold the same midi the key stays down until the
 // last of them lets go, and each strike is its own voice.
+//
+// At-cues (jam-spec 9.3): handle(cue, {id, at, ticks, grace, timbre}) with `at` a performance.now() time starts the cue
+// at `at` exactly (no start delay, no backlog spacing) and lets its time fields carry fractions of a ms. A note of an
+// at-cue that would sound more than AT_LATE_MS late is dropped, when it is planned or when its time comes, and never
+// played late (the grace steps, a bar's downbeat bass, get AT_GRACE_MS); state().atLateDropped and cueInfo(id).dropped
+// count them. ticks: [{at_ms, freq, velocity}] from `at`, sounded by voice.tick (a sequence may then have no steps).
+// timbre: the voice timbre for its notes ("keys" for the jam backing). An at-cue with an id can be extended
+// (extend(id, stepIndex, offAt): stepIndex is the step's index as sent) and cancelled (cancel(id): what has not
+// started goes, what sounds fades out over 80 ms). onTick(info) is called as each tick sounds.
+//
+// An at-cue's sound goes to the voice atLookaheadMs (200 ms) ahead, not lookaheadMs: the voice schedules for the time
+// Daniel hears it (the fitted clock), and the render clock runs ahead of that by the output latency (64-72 ms
+// measured headless) plus the bus dynamics' 12 ms, so a 60 ms hand-off would reach the voice already late.
+export const AT_LOOKAHEAD_MS = 200;
 export function createCuePlayer({
-  noteOn = () => {}, noteOff = () => {}, hover = () => {}, clearHover = () => {}, caption = () => {},
+  noteOn = () => {}, noteOff = () => {}, hover = () => {}, clearHover = () => {}, caption = () => {}, onTick = () => {},
   voice = null, now = () => performance.now(), startDelayMs = 50, lookaheadMs = 60, timer = "auto", onError = null,
   lateDropMs = null, lifecycleTarget = typeof window !== "undefined" ? window : null, bassDouble = false, freshMs = 250,
+  atLookaheadMs = AT_LOOKAHEAD_MS,
 } = {}) {
   const clock = createTimer(timer);
+  const maxLook = Math.max(lookaheadMs, atLookaheadMs);
+  // an at-cue's actions (its notes, releases and ticks) go to the voice earlier than a plain cue's
+  const lookFor = (a) => (a.atLimit !== undefined || (a.kind !== "capOn" && a.kind !== "capOff" && groupOfAction(a).rec)
+    ? atLookaheadMs : lookaheadMs);
+  const groupOfAction = (a) => (a.kind === "on" || a.kind === "off" ? a.strike.group : a.group);
   const EARLY_MS = 1;
   const GAP_SLACK_MS = 25;       // send-gap shortfall under this is jitter, not a backlog
   const BASS_DOUBLE_BELOW = 48;  // C3
   const BASS_DOUBLE_VEL = 0.5;
+  const TRACK_MAX = 512;         // at-cues remembered by id (for extend, cancel and cueInfo)
   // How late a key-down may be and still play (see tooLate): the worker timer is never more than a few ms late unless
   // the page was frozen; plain timers in a hidden page wake about once a second.
   const lateLimit = () => lateDropMs ?? (clock.kind === "worker" ? 250 : 1500);
@@ -400,11 +487,12 @@ export function createCuePlayer({
   let backlog = [];          // { order, base }: cues that arrived stale and have not started, since the last fresh cue
   let bassDoubleNow = !!bassDouble;
   const held = new Map();    // midi -> strikes whose key the player put down, oldest first
+  const tracked = new Map(); // at-cue id -> { id, order, steps: Map(stepIndex -> strikes), dropped, ticks, cancelled }
   let hovers = [], captions = [];
   let shownHover = null, shownCaption = null, shownUnder = null;
   let hoverDirty = false, captionDirty = false;  // shown once per pump (see pump)
   const counts = { cues: 0, noteOns: 0, noteOffs: 0, hovers: 0, clears: 0, lateDropped: 0, pageHides: 0, spaced: 0,
-                   backlogDropped: 0, doubled: 0 };
+                   backlogDropped: 0, doubled: 0, atCues: 0, atLateDropped: 0, ticks: 0, extended: 0, cancelled: 0 };
   const late = { n: 0, sum: 0, max: -Infinity };
 
   function report(e) {
@@ -427,35 +515,65 @@ export function createCuePlayer({
 
   // One play or hover: a whole cue, or one step of a sequence (parent: the sequence's own caption group, if it has
   // one). Returns when it ends (Infinity: at clear).
-  function plan(kind, spec, cue, at, cueId, step, parent, order, voiceCue = null) {
+  // ext (at-cues only): { rec, timbre, limitFor(step) } (see handleCue).
+  function plan(kind, spec, cue, at, cueId, step, parent, order, voiceCue = null, ext = null) {
     const group = { id: ++groupSeq, kind, cueId, source: cue.source, label: spec.label, detail: spec.detail,
-                    notes: spec.notes, step, parent, order, voiceCue, at, total: 0, offs: 0, started: false, finished: false };
+                    notes: spec.notes, step, parent, order, voiceCue, at, total: 0, offs: 0, started: false, finished: false,
+                    rec: ext ? ext.rec : null, sound: false };
     if (kind === "hover") {
       insert({ at, rank: 1, kind: "hoverOn", group, audioDone: true });
       if (spec.hold_ms > 0) insert({ at: at + spec.hold_ms, rank: 0, kind: "hoverOff", group, audioDone: true });
       return spec.hold_ms > 0 ? at + spec.hold_ms : Infinity;
     }
     const sound = cue.sound && !!voice;
+    group.sound = sound;
     const low = spec.notes[0];  // notes are sorted bottom-up
     const double = bassDoubleNow && sound && spec.notes.length >= 3 && low < BASS_DOUBLE_BELOW && !spec.notes.includes(low + 12)
       ? low + 12 : null;
-    let end = at;
+    const tNow = ext ? now() : 0;
+    const limit = ext ? ext.limitFor(step) : undefined;
+    let end = at, planned = 0;
     spec.notes.forEach((midi, i) => {
       const onAt = at + i * spec.arpeggio_ms;
       const strike = { midi, vel: spec.velocity, group, handle: null, handle2: null, double: i === 0 ? double : null,
-                       down: false, done: false };
-      insert({ at: onAt, rank: 1, kind: "on", strike, audioDone: !sound });
-      if (spec.hold_ms > 0) insert({ at: onAt + spec.hold_ms, rank: 0, kind: "off", strike, audioDone: !sound });
+                       down: false, done: false, off: null, dropped: false, timbre: ext ? ext.timbre : null };
+      if (ext) {
+        const key = step ?? 0, list = ext.rec.steps.get(key) || [];
+        list.push(strike);
+        ext.rec.steps.set(key, list);
+        if (tNow - onAt > limit) {  // already too late to sound on time: skipped, never played late
+          strike.dropped = strike.done = true;
+          ext.rec.dropped++;
+          counts.atLateDropped++;
+          return;
+        }
+      }
+      const on = { at: onAt, rank: 1, kind: "on", strike, audioDone: !sound };
+      if (ext) on.atLimit = limit;
+      insert(on);
+      if (spec.hold_ms > 0) {
+        strike.off = { at: onAt + spec.hold_ms, rank: 0, kind: "off", strike, audioDone: !sound };
+        insert(strike.off);
+      }
       end = Math.max(end, onAt + spec.hold_ms);
+      planned++;
     });
-    group.total = spec.notes.length;
+    group.total = planned;
     return spec.hold_ms > 0 ? end : Infinity;
   }
 
   function handleCue(raw, info = {}) {
     if (disposed) return { ok: false, error: "the player is disposed" };
-    const n = normalizeCue(raw);
+    const atMode = typeof info.at === "number" && Number.isFinite(info.at);
+    const ticks = atMode && Array.isArray(info.ticks) ? info.ticks : [];
+    const n = normalizeCue(raw, atMode ? { exact: true, emptySteps: ticks.length > 0 } : {});
     if (!n.ok) return n;
+    for (const [i, tk] of ticks.entries()) {
+      if (!isObj(tk) || typeof tk.at_ms !== "number" || !Number.isFinite(tk.at_ms) || tk.at_ms < 0 || typeof tk.freq !== "number"
+          || !(tk.freq > 0) || (tk.velocity !== undefined && (!isInt(tk.velocity) || tk.velocity < 1 || tk.velocity > 127))) {
+        return { ok: false, error: `ticks[${i}] must be {at_ms >= 0, freq > 0, velocity 1..127}` };
+      }
+    }
     const cue = n.cue, cueId = info.id ?? null;
     counts.cues++;
     const order = ++cueOrder;
@@ -464,25 +582,51 @@ export function createCuePlayer({
       clearAll("clear");
       return { ok: true };
     }
-    const base = startOf(info, order);
+    // An at-cue starts exactly at its `at` and stays out of the backlog rules (it has no send time).
+    const base = atMode ? info.at : startOf(info, order);
     // One voice across tabs: as the cue arrives the voice notes which tabs had it (see createTabArbiter), and every
     // strike of it carries that key, so the voice never passes to a tab that does not have this cue.
     const voiceCue = cue.sound && voice && typeof voice.admitCue === "function" ? voice.admitCue(info) : null;
+    let ext = null;
+    if (atMode) {
+      counts.atCues++;
+      const rec = { id: cueId, order, steps: new Map(), dropped: 0, ticks: 0, cancelled: false };
+      if (cueId !== null) {
+        tracked.delete(cueId);
+        tracked.set(cueId, rec);
+        while (tracked.size > TRACK_MAX) tracked.delete(tracked.keys().next().value);
+      }
+      const grace = new Set(Array.isArray(info.grace) ? info.grace : []);
+      ext = { rec, timbre: typeof info.timbre === "string" ? info.timbre : null,
+              limitFor: (step) => (grace.has(step ?? 0) ? AT_GRACE_MS : AT_LATE_MS) };
+    }
     if (cue.type === "play" || cue.type === "hover") {
-      plan(cue.type, cue, cue, base, cueId, null, null, order, voiceCue);
+      plan(cue.type, cue, cue, base, cueId, null, null, order, voiceCue, ext);
     } else {
       // The sequence's own caption spans it. A labelled step of Claude's shows over it (the chord sounding now is the
       // news); a replay of Daniel's playing keeps its own caption ("you, at 0:30") on top, with the step's under it.
-      const group = cue.label || cue.detail
+      const group = (cue.label || cue.detail) && cue.steps.length
         ? { id: ++groupSeq, kind: "sequence", cueId, source: cue.source, label: cue.label, detail: cue.detail,
             notes: [...new Set(cue.steps.flatMap((s) => s.notes))].sort((a, b) => a - b), step: null, parent: null,
-            order, at: base + cue.steps[0].at_ms, started: false, finished: false }
+            order, at: base + cue.steps[0].at_ms, started: false, finished: false, rec: ext ? ext.rec : null }
         : null;
       let end = -Infinity;
-      for (const step of cue.steps) end = Math.max(end, plan(step.type, step, cue, base + step.at_ms, cueId, step.index, group, order, voiceCue));
+      for (const step of cue.steps) end = Math.max(end, plan(step.type, step, cue, base + step.at_ms, cueId, step.index, group, order, voiceCue, ext));
       if (group) {
         insert({ at: base + cue.steps[0].at_ms, rank: 0, kind: "capOn", group, audioDone: true });
         if (end !== Infinity) insert({ at: end, rank: 1, kind: "capOff", group, audioDone: true });
+      }
+    }
+    if (ticks.length) {
+      const tickGroup = { id: ++groupSeq, kind: "tick", cueId, source: cue.source, label: null, detail: null, notes: [], step: null,
+                          parent: null, order, voiceCue, at: base, rec: ext.rec, started: true, finished: false, sound: cue.sound && !!voice };
+      const tNow = now();
+      for (const tk of ticks) {
+        const at = base + tk.at_ms;
+        if (tNow - at > AT_LATE_MS) { ext.rec.dropped++; counts.atLateDropped++; continue; }
+        insert({ at, rank: 1, kind: "tick", group: tickGroup, tick: { freq: tk.freq, velocity: tk.velocity ?? 60 },
+                 audioDone: !tickGroup.sound, atLimit: AT_LATE_MS });
+        ext.rec.ticks++;
       }
     }
     pump();
@@ -579,26 +723,50 @@ export function createCuePlayer({
     }
     return newest;
   }
+  // An at-cue's note or tick (a.atLimit) is simply too late once its time is more than its limit past, unless its
+  // sound already went to the voice on time: late music is worse than none (9.3; Heimdall's clock honesty).
   function tooLate(a, t, newest) {
-    if ((a.kind !== "on" && a.kind !== "hoverOn") || a.handed || t - a.at <= lateLimit() || !newest) return false;
+    if (a.handed) return false;
+    if (a.atLimit !== undefined) return (a.kind === "on" || a.kind === "tick") && t - a.at > a.atLimit;
+    if ((a.kind !== "on" && a.kind !== "hoverOn") || t - a.at <= lateLimit() || !newest) return false;
     const g = groupOf(a), top = newest.get(`${g.order}:${a.kind}`);
     return !!top && top.at > g.at;
   }
   function dropLate(a, t) {
-    counts.lateDropped++;
+    if (a.atLimit !== undefined) {
+      counts.atLateDropped++;
+      const g = groupOf(a);
+      if (g.rec) g.rec.dropped++;
+    } else {
+      counts.lateDropped++;
+    }
+    if (a.kind === "tick") return;
     if (a.kind === "hoverOn") { a.group.finished = true; return; }  // its hoverOff finds nothing to end
     const s = a.strike;
     s.done = true;
+    s.dropped = true;
     if (++s.group.offs === s.group.total) endGroup(s.group);
   }
 
   function doAudio(a) {
     a.audioDone = true;
     a.handed = true;
+    if (a.kind === "tick") {
+      if (typeof voice.tick === "function") {
+        try {
+          const h = voice.tick({ at: a.at, freq: a.tick.freq, velocity: a.tick.velocity, cue: a.group.voiceCue, cue_id: a.group.cueId });
+          a.tickHandle = h === undefined ? null : h;
+        } catch (e) { report(e); }
+      }
+      return;
+    }
     const s = a.strike;
     try {
       if (a.kind === "on") {
-        const h = voice.noteOn(s.midi, s.vel, { at: a.at, source: s.group.source, cue: s.group.voiceCue });
+        const when = { at: a.at, source: s.group.source, cue: s.group.voiceCue };
+        if (s.timbre) when.timbre = s.timbre;
+        if (s.group.rec) when.cue_id = s.group.cueId;
+        const h = voice.noteOn(s.midi, s.vel, when);
         s.handle = h === undefined ? null : h;
         if (s.double !== null && s.handle !== null) {
           const vel = Math.max(1, Math.round(s.vel * BASS_DOUBLE_VEL));
@@ -611,14 +779,15 @@ export function createCuePlayer({
       }
     } catch (e) { report(e); }
   }
-  function releaseStrike(s, at) {
+  function releaseStrike(s, at, fadeMs = null) {
     if (!voice) return;
-    if (s.handle !== null) safe(() => voice.release(s.handle, { at }));
-    if (s.handle2 !== null) safe(() => voice.release(s.handle2, { at }));
+    const when = fadeMs === null ? { at } : { at, fadeMs };
+    if (s.handle !== null) safe(() => voice.release(s.handle, when));
+    if (s.handle2 !== null) safe(() => voice.release(s.handle2, when));
   }
 
   function exec(a, t) {
-    if (a.kind === "on" || a.kind === "off" || a.kind === "hoverOn") {
+    if (a.kind === "on" || a.kind === "off" || a.kind === "hoverOn" || a.kind === "tick") {
       const d = t - a.at;
       late.n++; late.sum += d; late.max = Math.max(late.max, d);
     }
@@ -653,8 +822,41 @@ export function createCuePlayer({
       case "hoverOff": hovers = hovers.filter((g) => g !== a.group); endGroup(a.group); hoverDirty = true; break;
       case "capOn": startGroup(a.group); break;
       case "capOff": endGroup(a.group); break;
+      case "tick":
+        counts.ticks++;
+        safe(onTick, { at: a.at, freq: a.tick.freq, velocity: a.tick.velocity, cue_id: a.group.cueId, source: a.group.source,
+                       sound: a.tickHandle !== undefined && a.tickHandle !== null });
+        break;
       default: break;
     }
+  }
+
+  // A tie (the transport's extend): move a strike's release to offAt, later or earlier. False when there is nothing
+  // left to move: the note was dropped or has ended, or its release already went to a voice that cannot move it.
+  function extendStrike(s, offAt) {
+    if (s.dropped || s.done) return false;
+    let a = s.off;
+    if (a) {
+      const i = queue.indexOf(a);
+      if (i < 0) return false;
+      queue.splice(i, 1);
+      if (a.handed) {  // the release is already with the voice (inside the lookahead): the voice has to move it
+        let moved = false;
+        if (voice && typeof voice.extend === "function" && s.handle !== null) {
+          try { moved = !!voice.extend(s.handle, { at: offAt }); } catch (e) { report(e); }
+        }
+        if (!moved) { insert(a); return false; }
+        if (s.handle2 !== null) safe(() => voice.extend(s.handle2, { at: offAt }));
+      } else {
+        a.audioDone = !s.group.sound;
+      }
+    } else {  // held until clear: give it a release
+      a = { rank: 0, kind: "off", strike: s, audioDone: !s.group.sound };
+      s.off = a;
+    }
+    a.at = offAt;
+    insert(a);
+    return true;
   }
 
   // End every cue: its pending actions, its keys and sound, its hover and caption.
@@ -664,8 +866,8 @@ export function createCuePlayer({
     cancel(() => true, reason);
   }
   // End the cues whose arrival order `endsOrder(order)` accepts (clearAll: all of them; dropBacklog: backlog cues that
-  // have not started).
-  function cancel(endsOrder, reason) {
+  // have not started; cancelCue: one at-cue, whose sounding notes fade over fadeMs).
+  function cancel(endsOrder, reason, fadeMs = null) {
     const ended = (g) => endsOrder(g.order);
     const pending = [], kept = [];
     for (const a of queue) (ended(groupOf(a)) ? pending : kept).push(a);
@@ -673,11 +875,16 @@ export function createCuePlayer({
     cancelTimer();
     const t = now();
     // sound already handed to the voice inside the lookahead, for a key that has not gone down: silence it
-    for (const a of pending) if (a.kind === "on" && !a.strike.down) releaseStrike(a.strike, t);
+    for (const a of pending) {
+      if (a.kind === "on" && !a.strike.down) releaseStrike(a.strike, t);
+      else if (a.kind === "tick" && a.tickHandle !== undefined && a.tickHandle !== null && voice && typeof voice.stopTick === "function") {
+        safe(() => voice.stopTick(a.tickHandle));
+      }
+    }
     for (const [midi, list] of [...held]) {
       const going = list.filter((s) => ended(s.group));
       if (!going.length) continue;
-      for (const s of going) { releaseStrike(s, t); s.done = true; }
+      for (const s of going) { releaseStrike(s, t, fadeMs); s.done = true; }
       const staying = list.filter((s) => !ended(s.group));
       if (staying.length) { held.set(midi, staying); continue; }  // a later cue still holds this key down
       held.delete(midi);
@@ -700,8 +907,8 @@ export function createCuePlayer({
       const newest = dueNewest(t);
       if (voice) {
         for (const a of queue) {
-          if (a.at - lookaheadMs > t) break;
-          if (a.audioDone) continue;
+          if (a.at - maxLook > t) break;
+          if (a.audioDone || a.at - lookFor(a) > t) continue;
           if (tooLate(a, t, newest)) a.audioDone = true;  // not sounded: exec below drops it
           else doAudio(a);
         }
@@ -730,8 +937,8 @@ export function createCuePlayer({
     if (disposed) return;
     let wake = Infinity;
     for (const a of queue) {
-      if (a.at - lookaheadMs >= wake) break;
-      wake = Math.min(wake, a.audioDone ? a.at - EARLY_MS : a.at - lookaheadMs);
+      if (a.at - maxLook >= wake) break;
+      wake = Math.min(wake, a.audioDone ? a.at - EARLY_MS : a.at - lookFor(a));
     }
     if (timerId !== null && wake === timerAt) return;
     cancelTimer();
@@ -753,6 +960,38 @@ export function createCuePlayer({
     handle: handleCue,
     clear: () => { if (!disposed) { anchor = null; clearAll("clear"); } },
     pump,
+    // Move the release of step stepIndex of at-cue `id` (every note of that step) to offAt (performance.now() ms).
+    extend(id, stepIndex, offAt) {
+      if (disposed || typeof offAt !== "number" || !Number.isFinite(offAt)) return false;
+      const rec = tracked.get(id);
+      if (!rec || rec.cancelled) return false;
+      const strikes = rec.steps.get(stepIndex);
+      if (!strikes || !strikes.length) return false;
+      let ok = true;
+      for (const s of strikes) ok = extendStrike(s, offAt) && ok;
+      if (ok) counts.extended++;
+      arm();
+      return ok;
+    },
+    // End at-cue `id`: actions not started are removed, notes already sounding fade out over fadeMs.
+    cancel(id, { fadeMs = CANCEL_FADE_MS } = {}) {
+      if (disposed) return false;
+      const rec = tracked.get(id);
+      if (!rec || rec.cancelled) return false;
+      rec.cancelled = true;
+      counts.cancelled++;
+      cancel((order) => order === rec.order, "cancel", fadeMs);
+      return true;
+    },
+    // {id, strikes, dropped, ticks, pending, cancelled} for an at-cue still remembered, else null
+    cueInfo(id) {
+      const rec = tracked.get(id);
+      if (!rec) return null;
+      let pending = 0, strikes = 0;
+      for (const a of queue) if (groupOf(a).order === rec.order) pending++;
+      for (const list of rec.steps.values()) strikes += list.length;
+      return { id, strikes, dropped: rec.dropped, ticks: rec.ticks, pending, cancelled: rec.cancelled };
+    },
     get timer() { return clock.kind; },
     setBassDouble(on) { bassDoubleNow = !!on; return bassDoubleNow; },  // chords planned from now on
     get bassDouble() { return bassDoubleNow; },
@@ -978,10 +1217,29 @@ function createTabArbiter({ name, target, canSound, onChange, wallNow = () => Da
   };
 }
 
+// Jam additions (jam-spec 9.3, 9.5-9.7):
+//   polyphony: setPolyphony(n) (24 by default; the transport raises it to 40 while a run sounds); voices over the new
+//     limit are stolen only as new strikes need room.
+//   timbre(name) / noteOn(..., {timbre}): "default" (today's voice), "keys" (the backing: the sawtooth partial x 0.6, a
+//     lowpass of min(6000, f(2 + 7v^2) + 200 + 1200v^2), sine partials only below E2) or "click" (a short sine blip
+//     for timing receipts).
+//   tick({at|time, freq, velocity}): a 20 ms sine tick through the same bus; never MIDI. stopTick(handle).
+//   setDuck(on) / duck(): with the duck on, each of Daniel's note-ons (duck()) takes the master gain to 0.7 (-3 dB)
+//     over 80 ms, holds it until 1.2 s after his last note-on, then lets it back with a 0.6 s time constant.
+//   The fitted clock: `at` (performance.now() ms) maps to the audio clock through a least-squares line over
+//     (performanceTime, contextTime) pairs from getOutputTimestamp in the last 10 s, sampled on every sampleClock()
+//     call (the transport's worker wake) and whenever a strike finds the last pair older than 250 ms. A pair more than
+//     5 ms off the line starts the line again. outputLatency is not added. clock() describes it.
+//   The bus dynamics (two DynamicsCompressorNodes) delay what they pass by their look-ahead; strikes and ticks are
+//     scheduled that much earlier (DYNAMICS_DELAY_S), so the sound leaves the bus at `at`.
+//   release(handle, {at, fadeMs}) fades linearly over fadeMs; extend(handle, {at}) moves a release not yet begun.
+//   onSchedule(info) (receipts): {kind: "note"|"tick", midi, freq, velocity, at, mapped, time, cue_id, fit} for every
+//     sound scheduled; mapped is `at` through the clock (seconds), time what was used (never before currentTime).
 export function createClaudeVoice({
   context = null, output = null, polyphony = 24, volume = 0.7, enabled = true, internal = true, lowLift = 1,
   onStatus = () => {}, midiAccess = null, unlockTarget = typeof window !== "undefined" ? window : null, dynamics = null,
   exclusive = true, channel = "arsenal.piano.cueVoice", lifecycleTarget = typeof window !== "undefined" ? window : null,
+  timbre = "default", onSchedule = null,
 } = {}) {
   const dyn = { trim_db: dynamics?.trim_db ?? VOICE_DYNAMICS.trim_db, glue: { ...VOICE_DYNAMICS.glue, ...(dynamics?.glue || {}) },
                 limit: { ...VOICE_DYNAMICS.limit, ...(dynamics?.limit || {}) } };
@@ -989,10 +1247,15 @@ export function createClaudeVoice({
   const offline = !!context && typeof OfflineAudioContext !== "undefined" && context instanceof OfflineAudioContext;
   let ctx = context, graph = null, status = "", armed = false, ownContext = !context;
   let enabledNow = !!enabled, internalNow = !!internal, volumeNow = clamp01(volume), liftNow = clamp01(lowLift);
+  const clampPoly = (n) => Math.min(128, Math.max(1, Math.round(Number.isFinite(+n) ? +n : 24)));
+  let polyNow = clampPoly(polyphony), timbreNow = TIMBRES.includes(timbre) ? timbre : "default";
+  let duckOn = false;
   const voices = [];            // synth voices still sounding, oldest first
   const strikes = new Map();    // handle -> { midi, voice, midiOn }
+  const tickVoices = new Map(); // tick handle -> { osc, env }
   let handleSeq = 0;
-  const counts = { strikes: 0, silent: 0, stolen: 0, midiOn: 0, midiOff: 0, yielded: 0 };
+  const counts = { strikes: 0, silent: 0, stolen: 0, midiOn: 0, midiOff: 0, yielded: 0, ticks: 0, silentTicks: 0, extended: 0,
+                   faded: 0, ducks: 0 };
   const midi = { access: midiAccess, pending: null, port: null, held: new Map(), warned: false };
   let arbiter = null;  // one voice across tabs (created at start, below)
 
@@ -1035,8 +1298,10 @@ export function createClaudeVoice({
     const limit = setUp(ctx.createDynamicsCompressor(), dyn.limit);
     const master = ctx.createGain();
     master.gain.value = volumeNow * volumeNow;
-    bus.connect(comp).connect(limit).connect(master).connect(output || ctx.destination);
-    graph = { bus, comp, limit, master };
+    const duck = ctx.createGain();  // the jam duck (setDuck, duck): after the volume, so each keeps its own automation
+    duck.gain.value = 1;
+    bus.connect(comp).connect(limit).connect(master).connect(duck).connect(output || ctx.destination);
+    graph = { bus, comp, limit, master, duck };
     return graph;
   }
 
@@ -1063,15 +1328,71 @@ export function createClaudeVoice({
     return status;
   }
 
+  // ------------------------------------------------------------------ the fitted clock (jam-spec 9.7)
+  const CLOCK_WINDOW_MS = 10000;   // pairs older than this leave the line
+  const CLOCK_RESEED_MS = 5;       // a pair this far off the line starts it again (a device change, a suspend)
+  const CLOCK_MIN_SPAN_MS = 2000;  // under this span the slope is taken as 1 (only the offset is fitted)
+  const CLOCK_STALE_MS = 250;      // a strike after this long without a pair samples one itself
+  const fit = { pairs: [], n: 0, slope: 1, xm: 0, ym: 0, span: 0, residual: null, reseeds: 0, samples: 0, frozen: 0,
+                lastSampleAt: -Infinity };
+  function refit() {
+    const p = fit.pairs, n = p.length;
+    fit.n = n;
+    if (!n) return;
+    let sx = 0, sy = 0;
+    for (const [x, y] of p) { sx += x; sy += y; }
+    const xm = sx / n, ym = sy / n;
+    fit.span = p[n - 1][0] - p[0][0];
+    let slope = 1;
+    if (n >= 3 && fit.span >= CLOCK_MIN_SPAN_MS) {
+      let sxx = 0, sxy = 0;
+      for (const [x, y] of p) { sxx += (x - xm) * (x - xm); sxy += (x - xm) * (y - ym); }
+      if (sxx > 0) slope = sxy / sxx;
+    }
+    fit.slope = slope;
+    fit.xm = xm;
+    fit.ym = ym;
+    let r = 0;
+    for (const [x, y] of p) r = Math.max(r, Math.abs(ym + slope * (x - xm) - y));
+    fit.residual = r;
+  }
+  const fitMs = (perf) => fit.ym + fit.slope * (perf - fit.xm);
+  function sampleClock() {
+    const c = ctx;
+    fit.lastSampleAt = typeof performance !== "undefined" ? performance.now() : 0;
+    if (!c || offline || c.state !== "running" || typeof c.getOutputTimestamp !== "function") return null;
+    const ts = c.getOutputTimestamp();
+    if (!ts || !(ts.performanceTime > 0)) return null;
+    const x = ts.performanceTime, y = ts.contextTime * 1000;
+    const last = fit.pairs[fit.pairs.length - 1];
+    if (last && x <= last[0]) { fit.frozen++; return null; }
+    fit.samples++;
+    if (fit.n >= 2 && Math.abs(fitMs(x) - y) > CLOCK_RESEED_MS) { fit.pairs = []; fit.reseeds++; }
+    fit.pairs.push([x, y]);
+    while (fit.pairs.length > 1 && x - fit.pairs[0][0] > CLOCK_WINDOW_MS) fit.pairs.shift();
+    refit();
+    return [x, y];
+  }
+  // `at` (performance.now() ms) on the audio clock in seconds, before any floor; a context is required. A stale line
+  // takes a new pair only at the start of a burst (no map in the last 20 ms), so a chord's notes all map through the
+  // same line: a pair taken between them could move the line by a few ms and flam the chord.
+  let lastMapAt = -Infinity;
+  function mapAt(at) {
+    const c = ctx;
+    const tNow = performance.now();
+    if (tNow - fit.lastSampleAt > CLOCK_STALE_MS && tNow - lastMapAt > 20) sampleClock();
+    lastMapAt = tNow;
+    if (fit.n > 0) return fitMs(at) / 1000;
+    const ts = typeof c.getOutputTimestamp === "function" ? c.getOutputTimestamp() : null;
+    if (ts && ts.performanceTime > 0) return ts.contextTime + (at - ts.performanceTime) / 1000;
+    return c.currentTime + (at - performance.now()) / 1000;
+  }
+  // The context time to schedule at so the sound leaves the bus at `at` (or `time`): the dynamics' look-ahead earlier.
   function ctxTime({ at = null, time = null } = {}) {
     const c = ctx;
-    if (time !== null && time !== undefined) return Math.max(time, c.currentTime);
+    if (time !== null && time !== undefined) return Math.max(time - DYNAMICS_DELAY_S, c.currentTime);
     if (at === null || at === undefined || offline) return c.currentTime;
-    let t;
-    const ts = typeof c.getOutputTimestamp === "function" ? c.getOutputTimestamp() : null;
-    if (ts && ts.performanceTime > 0) t = ts.contextTime + (at - ts.performanceTime) / 1000;
-    else t = c.currentTime + (at - performance.now()) / 1000;
-    return Math.max(t, c.currentTime);
+    return Math.max(mapAt(at) - DYNAMICS_DELAY_S, c.currentTime);
   }
 
   function levelAt(v, t) {
@@ -1115,14 +1436,21 @@ export function createClaudeVoice({
     stopOscs(victim, at + 0.02);
   }
 
-  function startVoice(m, vel, t) {
-    while (voices.length >= polyphony) steal(t);
+  // The bus dynamics' look-ahead: each DynamicsCompressorNode delays what it passes by 6 ms, and the bus has two.
+  const DYNAMICS_DELAY_S = 0.012;
+  const KEYS_SINE_BELOW = 40;  // E2: the keys timbre plays sine partials only under it
+  const KEYS_SAW_GAIN = 0.6;
+  const CLICK_TAU = 0.012;     // the click timbre: one sine, gone in about 80 ms
+  const CLICK_LEN = 0.12;
+  function startVoice(m, vel, t, timbre = timbreNow) {
+    while (voices.length >= polyNow) steal(t);
     const c = ctx, g = ensureGraph();
     const f = 440 * 2 ** ((m - 69) / 12);
     const v = vel / 127;
+    const keys = timbre === "keys", click = timbre === "click";
     const low = Math.min(1, Math.max(0, (108 - m) / 87));  // 1 at A0, 0 at C8
-    const lift = liftNow * Math.min(1, Math.max(0, (LIFT_TOP - m) / LIFT_SPAN));  // 1 at C2 and below, 0 from A3 up
-    const t60 = 2 + 2 * low;
+    const lift = click ? 0 : liftNow * Math.min(1, Math.max(0, (LIFT_TOP - m) / LIFT_SPAN));  // 1 at C2 and below, 0 from A3 up
+    const t60 = click ? CLICK_TAU * 6.91 : 2 + 2 * low;
     const tau = t60 / 6.91;
     const peak = VOICE_LEVEL * (0.06 + 0.94 * v ** 1.6);
     const env = c.createGain();
@@ -1132,15 +1460,18 @@ export function createClaudeVoice({
     const lp = c.createBiquadFilter();
     lp.type = "lowpass";
     lp.Q.value = 0.5;
-    const bright = Math.min(16000, f * (2 + 14 * v * v) + 200 + 3000 * v * v);
-    const dull = Math.min(bright, f * (1.5 + 3 * lift) + 200);  // a lifted bass keeps harmonics a small speaker can play
+    const bright = keys ? Math.min(6000, f * (2 + 7 * v * v) + 200 + 1200 * v * v)
+      : Math.min(16000, f * (2 + 14 * v * v) + 200 + 3000 * v * v);
+    const dull = click ? bright : Math.min(bright, f * (1.5 + 3 * lift) + 200);  // a lifted bass keeps harmonics a small speaker can play
     lp.frequency.setValueAtTime(bright, t);
     lp.frequency.setTargetAtTime(dull, t + ATTACK, tau * 1.2);
     lp.connect(env).connect(g.bus);
-    const stopAt = t + t60 * 1.1 + 0.05;
+    const stopAt = click ? t + CLICK_LEN : t + t60 * 1.1 + 0.05;
     const oscs = [], gains = [];
     for (const p of PARTIALS) {
-      const level = p.gain(v, lift);
+      if (click && (p.ratio !== 1 || p.type !== "sine")) continue;
+      if (keys && p.type !== "sine" && m < KEYS_SINE_BELOW) continue;
+      const level = p.gain(v, lift) * (keys && p.type === "sawtooth" ? KEYS_SAW_GAIN : 1);
       if (f * p.ratio > 14000 || level <= 0) continue;
       const o = c.createOscillator();
       o.type = p.type;
@@ -1155,13 +1486,14 @@ export function createClaudeVoice({
       oscs.push(o);
       gains.push(pg);
     }
-    const voice = { m, t, peak, tau, relTau: 0.045 + 0.08 * low, releasedAt: Infinity, stopAt, oscs, gains, env, lp,
-                    ended: false, handle: null };
+    const voice = { m, t, peak, tau, relTau: 0.045 + 0.08 * low, releasedAt: Infinity, stopAt, naturalStop: stopAt, oscs,
+                    gains, env, lp, timbre, ended: false, handle: null };
     oscs[0].onended = () => finish(voice);
     voices.push(voice);
     return voice;
   }
-  function releaseVoice(v, tr) {
+  // fadeS: a linear fade to silence over that many seconds (cancel), instead of the damper's release
+  function releaseVoice(v, tr, fadeS = null) {
     if (v.ended || tr >= v.releasedAt) return;  // an earlier release already stands
     const gain = v.env.gain;
     if (tr <= v.t) {  // it has not started (cleared inside the lookahead): never let it sound
@@ -1173,9 +1505,28 @@ export function createClaudeVoice({
     }
     if (typeof gain.cancelAndHoldAtTime === "function") gain.cancelAndHoldAtTime(tr);
     else { gain.cancelScheduledValues(tr); gain.setValueAtTime(levelAt(v, tr), tr); }
-    gain.setTargetAtTime(0, tr, v.relTau);
     v.releasedAt = tr;
+    if (fadeS !== null) {
+      gain.linearRampToValueAtTime(0, tr + fadeS);
+      stopOscs(v, tr + fadeS + 0.005);
+      counts.faded++;
+      return;
+    }
+    gain.setTargetAtTime(0, tr, v.relTau);
     stopOscs(v, tr + v.relTau * 9);  // about -78 dB
+  }
+  // A release already scheduled but not begun moves to tr (a tie extended after its release reached the voice).
+  function extendVoice(v, tr) {
+    if (v.ended || !ctx) return false;
+    if (v.releasedAt !== Infinity) {
+      if (ctx.currentTime >= v.releasedAt - 0.003) return false;  // already letting go
+      v.env.gain.cancelScheduledValues(v.releasedAt);
+      v.releasedAt = Infinity;
+      for (const o of v.oscs) { try { o.stop(v.naturalStop); } catch { /* ended */ } }  // the last stop() call wins
+      v.stopAt = v.naturalStop;
+    }
+    releaseVoice(v, tr);
+    return true;
   }
 
   function midiSend(bytes, at) {
@@ -1214,8 +1565,11 @@ export function createClaudeVoice({
     if (midi.port && when.time === undefined && !when.synthOnly) { midiNoteOn(m, vel, when.at); strike.midiOn = true; }
     if (internalNow) {
       if (ctx && (offline || ctx.state === "running")) {
-        strike.voice = startVoice(m, vel, ctxTime(when));
+        const t = ctxTime(when);
+        const tb = typeof when.timbre === "string" && TIMBRES.includes(when.timbre) ? when.timbre : timbreNow;
+        strike.voice = startVoice(m, vel, t, tb);
         strike.voice.handle = handle;
+        if (onSchedule) scheduled("note", when, t, { midi: m, velocity: vel, timbre: tb });
       } else {
         counts.silent++;
         refresh();
@@ -1225,12 +1579,104 @@ export function createClaudeVoice({
     strikes.set(handle, strike);
     return handle;
   }
+  function scheduled(kind, when, t, extra) {
+    let mapped = null;
+    try {
+      if (when.time !== null && when.time !== undefined) mapped = when.time;
+      else if (when.at !== null && when.at !== undefined && !offline) mapped = mapAt(when.at);
+    } catch { mapped = null; }
+    try {
+      onSchedule({ kind, ...extra, at: when.at ?? null, mapped, time: t + DYNAMICS_DELAY_S, cue_id: when.cue_id ?? null,
+                   fit: fit.n > 0 ? "fit" : "timestamp" });
+    } catch { /* a receipt hook must never stop the music */ }
+  }
   function release(handle, when = {}) {
     const s = strikes.get(handle);
     if (!s) return false;
-    if (s.midiOn) { midiNoteOff(s.midi, when.at); s.midiOn = false; }
-    if (s.voice && !s.voice.ended && ctx) releaseVoice(s.voice, ctxTime(when));
+    if (s.midiOn) { midiNoteOff(s.midi, when.at); s.midiOn = false; s.midiReleased = true; }
+    if (s.voice && !s.voice.ended && ctx) {
+      const fade = typeof when.fadeMs === "number" && Number.isFinite(when.fadeMs) && when.fadeMs >= 0 ? when.fadeMs / 1000 : null;
+      releaseVoice(s.voice, ctxTime(when), fade);
+    }
     if (!s.voice || s.voice.ended) strikes.delete(handle);
+    return true;
+  }
+  // Move a release the voice already has (it has not begun): true when moved. A MIDI note-off already sent cannot move.
+  function extend(handle, when = {}) {
+    const s = strikes.get(handle);
+    if (!s || s.midiReleased) return false;
+    if (!s.voice) return !!s.midiOn;
+    if (!extendVoice(s.voice, ctxTime(when))) return false;
+    counts.extended++;
+    return true;
+  }
+
+  // A count-in or ghost tick: a 20 ms sine through the bus (so volume and duck apply), never MIDI out.
+  const TICK_S = TICK_MS / 1000;
+  function tick({ at = null, time = null, freq = 1500, velocity = 60, cue = null, cue_id = null } = {}) {
+    if (!enabledNow || !internalNow) { counts.silentTicks++; return null; }
+    if (arbiter && !(cue != null ? arbiter.leaderFor(cue) : arbiter.leader())) { counts.yielded++; return null; }
+    if (!ctx || !(offline || ctx.state === "running")) { counts.silentTicks++; refresh(); return null; }
+    const g = ensureGraph();
+    const when = { at, time, cue_id };
+    const t = ctxTime(when);
+    const f = Number.isFinite(+freq) && +freq > 0 ? +freq : 1500;
+    const vel = Math.min(127, Math.max(1, Math.round(Number.isFinite(+velocity) ? +velocity : 60)));
+    const v = vel / 127;
+    const peak = VOICE_LEVEL * (0.06 + 0.94 * v ** 1.6);
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(peak, t + 0.001);
+    env.gain.setValueAtTime(peak, t + TICK_S - 0.004);
+    env.gain.linearRampToValueAtTime(0, t + TICK_S);
+    osc.connect(env).connect(g.bus);
+    osc.start(t);
+    osc.stop(t + TICK_S + 0.005);
+    const handle = ++handleSeq;
+    tickVoices.set(handle, { osc, env });
+    osc.onended = () => { try { osc.disconnect(); env.disconnect(); } catch { /* gone */ } tickVoices.delete(handle); };
+    counts.ticks++;
+    if (onSchedule) scheduled("tick", when, t, { freq: f, velocity: vel });
+    return handle;
+  }
+  function stopTick(handle) {
+    const k = tickVoices.get(handle);
+    if (!k || !ctx) return false;
+    try {
+      k.env.gain.cancelScheduledValues(0);
+      k.env.gain.setValueAtTime(0, ctx.currentTime);
+      k.osc.stop(ctx.currentTime + 0.005);
+    } catch { /* already ended */ }
+    return true;
+  }
+
+  // The duck (jam-spec 9.5): Loop and Try only, the transport turns it on while a run sounds.
+  const DUCK_GAIN = 0.7, DUCK_ATTACK_S = 0.08, DUCK_HOLD_S = 1.2, DUCK_RELEASE_TAU = 0.6;
+  function holdGain(param, at) {
+    if (typeof param.cancelAndHoldAtTime === "function") param.cancelAndHoldAtTime(at);
+    else { const v = param.value; param.cancelScheduledValues(at); param.setValueAtTime(v, at); }
+  }
+  function setDuck(on) {
+    duckOn = !!on;
+    if (!duckOn && graph && ctx) {
+      const now = ctx.currentTime;
+      holdGain(graph.duck.gain, now);
+      graph.duck.gain.setTargetAtTime(1, now, DUCK_RELEASE_TAU);
+    }
+    return duckOn;
+  }
+  function duck() {
+    if (!duckOn || !ctx) return false;
+    const gr = ensureGraph();
+    if (!gr) return false;
+    const now = ctx.currentTime;
+    holdGain(gr.duck.gain, now);
+    gr.duck.gain.linearRampToValueAtTime(DUCK_GAIN, now + DUCK_ATTACK_S);
+    gr.duck.gain.setTargetAtTime(1, now + DUCK_HOLD_S, DUCK_RELEASE_TAU);
+    counts.ducks++;
     return true;
   }
   function noteOff(m, when = {}) {
@@ -1269,6 +1715,26 @@ export function createClaudeVoice({
     noteOff,
     allOff,
     unlock,
+    extend,
+    tick,
+    stopTick,
+    setDuck,
+    duck,
+    get ducking() { return duckOn; },
+    // the timbre for strikes that name none: "default", "keys" or "click"; returns the one in use
+    timbre(name) {
+      if (name !== undefined) { if (!TIMBRES.includes(name)) throw new Error(`timbre must be one of ${TIMBRES.join(", ")}`); timbreNow = name; }
+      return timbreNow;
+    },
+    setPolyphony(n) { polyNow = clampPoly(n); return polyNow; },  // strikes from now on; nothing sounding is cut
+    get polyphony() { return polyNow; },
+    sampleClock,
+    // the fitted clock: {mode: "fit" | "timestamp" | "none", pairs, slope, span_ms, residual_ms, reseeds, samples, frozen}
+    clock: () => ({ mode: fit.n > 0 ? "fit" : ctx && !offline ? "timestamp" : "none", pairs: fit.n, slope: fit.slope,
+                    span_ms: +fit.span.toFixed(3), residual_ms: fit.residual === null ? null : +fit.residual.toFixed(3),
+                    reseeds: fit.reseeds, samples: fit.samples, frozen: fit.frozen, dynamics_delay_ms: DYNAMICS_DELAY_S * 1000 }),
+    // `at` (performance.now() ms) on the audio clock (seconds): when a strike at `at` leaves the bus. null without a context.
+    perfToContext: (at) => (ctx && !offline && Number.isFinite(at) ? mapAt(at) : null),
     admitCue: (info) => (arbiter ? arbiter.admit(info) : null),  // the player calls this as each cue arrives
     status: () => status,
     get context() { return ctx; },
@@ -1308,7 +1774,8 @@ export function createClaudeVoice({
     },
     get midiOutput() { return midi.port ? { id: midi.port.id, name: midi.port.name || midi.port.id } : null; },
     stats: () => ({
-      status, live: voices.length, polyphony, ...counts, midiOut: midi.port ? midi.port.name || midi.port.id : null,
+      status, live: voices.length, polyphony: polyNow, timbre: timbreNow, duck: duckOn, ...counts,
+      midiOut: midi.port ? midi.port.name || midi.port.id : null,
       tab: arbiter ? arbiter.stats() : null,
       context: ctx ? { state: ctx.state, sampleRate: ctx.sampleRate, baseLatency: ctx.baseLatency ?? null,
                        outputLatency: ctx.outputLatency ?? null } : null,
@@ -1317,7 +1784,12 @@ export function createClaudeVoice({
       allOff();
       disarm();
       if (arbiter) { arbiter.dispose(); arbiter = null; }
-      if (graph) { graph.bus.disconnect(); graph.comp.disconnect(); graph.limit.disconnect(); graph.master.disconnect(); graph = null; }
+      for (const k of tickVoices.values()) { try { k.osc.stop(); k.osc.disconnect(); k.env.disconnect(); } catch { /* ended */ } }
+      tickVoices.clear();
+      if (graph) {
+        graph.bus.disconnect(); graph.comp.disconnect(); graph.limit.disconnect(); graph.master.disconnect(); graph.duck.disconnect();
+        graph = null;
+      }
       if (ctx && ownContext && !offline && ctx.state !== "closed") ctx.close().catch(() => {});
     },
   };

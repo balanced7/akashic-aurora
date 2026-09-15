@@ -287,6 +287,58 @@ function local(name) {
 }
 for (const b of document.querySelectorAll("[data-local]")) b.addEventListener("click", () => { local(b.dataset.local); b.blur(); });
 
+// ------------------------------------------------------------- jam additions (jam-spec 9.3, 9.5-9.7) --
+// The voice's timbres, duck and ticks, and one bar handed the way transport.js hands them: an absolute `at`, count
+// ticks, a tied note whose release can be moved (extend) and a cancel that fades what sounds. Straight into the
+// player, no server; transport-test.html runs the real thing.
+const jamBar = document.createElement("section");
+jamBar.className = "bar";
+jamBar.setAttribute("aria-label", "Jam additions");
+jamBar.innerHTML = `<span class="title" style="margin:0">jam additions:</span>
+  <label for="timbre">Timbre <select id="timbre"><option value="default">default</option><option value="keys">keys</option><option value="click">click</option></select></label>
+  <button type="button" data-jam="tick">Tick</button>
+  <button type="button" data-jam="bar">Bar at +300 ms</button>
+  <button type="button" data-jam="extend">Extend its tie a bar</button>
+  <button type="button" data-jam="cancel">Cancel the bar</button>
+  <label title="while on, each of Daniel's notes dips Claude 3 dB for 1.2 s"><input type="checkbox" id="duck" /> duck</label>
+  <button type="button" data-jam="duck">Daniel plays (duck)</button>`;
+document.querySelector('[aria-label="Local cues"]').after(jamBar);
+$("timbre").addEventListener("change", () => { voice.timbre($("timbre").value); $("timbre").blur(); });
+$("duck").addEventListener("change", () => { voice.setDuck($("duck").checked); log(`duck ${$("duck").checked ? "on" : "off"}`); });
+let jamSeq = 0, lastBar = null;
+const JAM = {
+  tick() { return voice.tick({ at: performance.now() + 50, freq: 2000, velocity: 60 }); },
+  bar() {
+    const id = `jam:test:1:${++jamSeq}`, at = performance.now() + 300, beat = 60000 / 66;
+    const r = player.handle({ type: "sequence", label: "Abmaj7#11", detail: "4maj7#11 in Eb major · a test bar", steps: [
+      { at_ms: 0, type: "play", notes: [44], velocity: 46, hold_ms: 4 * beat - 30 },
+      { at_ms: 0, type: "play", notes: [55], velocity: 40, hold_ms: 4 * beat + 30 },  // a tie: the next downbeat + 30 ms
+      { at_ms: 0, type: "play", notes: [60], velocity: 40, hold_ms: 4 * beat - 30 },
+      { at_ms: 0, type: "play", notes: [62], velocity: 44, hold_ms: 4 * beat - 30 },
+      { at_ms: 2 * beat, type: "play", notes: [60, 62], velocity: 32, hold_ms: 2 * beat - 30 },
+    ] }, { id, at, grace: [0], timbre: voice.timbre() === "default" ? "keys" : voice.timbre(),
+           ticks: [0, 1, 2, 3].map((k) => ({ at_ms: k * beat, freq: k ? 1500 : 2000, velocity: 40 })) });
+    lastBar = { id, at, beat };
+    log(`at-cue ${id}${r.ok ? "" : ` refused: ${r.error}`}`);
+    return { ...lastBar, ok: r.ok };
+  },
+  extend() {
+    if (!lastBar) return false;
+    const ok = player.extend(lastBar.id, 1, lastBar.at + 8 * lastBar.beat + 30);
+    log(`extend ${lastBar.id} step 1: ${ok}`);
+    return ok;
+  },
+  cancel() {
+    if (!lastBar) return false;
+    const ok = player.cancel(lastBar.id);
+    log(`cancel ${lastBar.id}: ${ok}`);
+    return ok;
+  },
+  duck() { const ok = voice.duck(); log(`duck: ${ok}`); return ok; },
+  info: () => (lastBar ? player.cueInfo(lastBar.id) : null),
+};
+for (const b of jamBar.querySelectorAll("[data-jam]")) b.addEventListener("click", () => { JAM[b.dataset.jam](); b.blur(); });
+
 // ------------------------------------------------------------- the keyboard --
 const canvas = $("kb");
 const g = canvas.getContext("2d");
@@ -469,7 +521,7 @@ requestAnimationFrame(frame);
 
 // for the CDP receipt and DevTools
 window.__cues = {
-  ready: true, client, player, voice, events, local,
+  ready: true, client, player, voice, events, local, jam: JAM,
   get hovering() { return hovering ? { notes: hovering.notes, label: hovering.info.label } : null; },
   get caption() {
     return captionInfo ? { label: captionInfo.label, detail: captionInfo.detail, kind: captionInfo.kind, source: captionInfo.source,

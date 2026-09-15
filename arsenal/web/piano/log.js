@@ -4,9 +4,18 @@
 //   log.noteOn(m, vel, t); log.noteOff(m, t); log.pedal(down, value, t); log.soundEnd(m, by, t); log.chord(info, t);
 //   log.status();           // { state: "off"|"idle"|"live"|"buffering"|"uploading", session, sent, buffered, lastError }
 //   log.setEnabled(false);  // stop recording; what is already buffered is kept, and still uploaded
+//   log.timebase();         // { local, session, t0_perf_ms } of the session being recorded, or null
 //
 // t is page-clock seconds. A session starts lazily on the first note and ends after idleCloseMs without
 // events, on setEnabled(false), on stop(), or on pagehide.
+//
+// The timebase (jam-spec 11.2, design-data 7.5). Every open, live, buffered or reopened, adds three fields to meta:
+// page_id (the page that recorded the session: this log's pageId, which createPerformanceLog({ pageId }) sets
+// so the jam transport's acks can share it; it must be unique per page load), t0_perf_ms (the page clock in ms at
+// the session's t_ms 0) and opened_at_client (the browser's wall clock at t_ms 0). A session reopened after the
+// server closed it keeps all three, because its t_ms still count from the same t0. timebase() hands the jam ack and
+// template capture the same t0_perf_ms, the local id (the open's client_id, or its prefix after a reopen) and the
+// server session (null until the open is answered).
 //
 // Nothing is sent per note. Every flushMs the queued events become one numbered batch in a local buffer
 // (IndexedDB, or memory when IndexedDB is unavailable), and one uploader at a time (a Web Lock shared by
@@ -30,6 +39,8 @@ const LEASE_MS = 20000;          // a recording page refreshes its session's lea
 const LEASE_STALE_MS = 180000;   // a session not refreshed for this long lost its page, so any page may upload it
 const SOUND_END_BY = new Set(["release", "pedal", "repeat", "all-off"]);
 const LETTERS = "CDEFGAB";
+const PAGE_ID_RE = /^[A-Za-z0-9_.:-]{1,80}$/;  // as arsenal/jam/schemas.py PAGE_ID_RE
+const WALL_SKEW_MAX_MS = 60000;  // a first note's t this far from performance.now() is not trusted for the wall clock
 
 const clampInt = (x, lo, hi) => Math.min(hi, Math.max(lo, Math.round(Number(x) || 0)));
 const nowSec = () => performance.now() / 1000;
@@ -133,10 +144,14 @@ function removeStash(locals) {
 
 export function createPerformanceLog({
   endpoint = "/api/performance", flushMs = 1000, idleCloseMs = 300000, meta = {}, enabled = true,
-  uploadEveryMs = 60000, maxBufferedEvents = 200000, maxBatch = 1000, storage = "indexeddb",
+  uploadEveryMs = 60000, maxBufferedEvents = 200000, maxBatch = 1000, storage = "indexeddb", pageId: pageIdOption = null,
 } = {}) {
   const base = String(endpoint).replace(/\/+$/, "");
-  const pageId = randomHex(6);
+  let pageId = randomHex(6);
+  if (pageIdOption != null) {
+    if (typeof pageIdOption === "string" && PAGE_ID_RE.test(pageIdOption)) pageId = pageIdOption;
+    else warn("pageId must be 1 to 80 letters, digits or _ . : -; using a random one");
+  }
   let baseMeta = {};
   try { baseMeta = JSON.parse(JSON.stringify(meta || {})); } catch { warn("meta is not JSON; logging without it"); }
   let on = !!enabled;
@@ -144,8 +159,10 @@ export function createPerformanceLog({
 
   // ---------------------------------------------------------------- the buffer --
   // Memory is the working copy; IndexedDB is the durable one, written behind it in order.
-  // A record: { local, owner, lease_ms, created_ms, opened_at, meta, next_seq, server_session, buffered,
+  // A record: { local, owner, lease_ms, created_ms, opened_at, t0_perf_ms, meta, next_seq, server_session, buffered,
   //             reopens, continued_from, lost, ended, events, sent }
+  // opened_at and t0_perf_ms are the wall clock and the page clock at t_ms 0; records an older log.js stored have
+  // no t0_perf_ms, and their opens go without it.
   const sessions = new Map();   // local id -> record
   const batches = new Map();    // local id -> [{ seq, events }], ascending seq
   let storedEvents = 0;         // events in batches: recorded, not yet accepted by the server
@@ -294,9 +311,14 @@ export function createPerformanceLog({
 
   function begin(t) {
     const now = Date.now();
+    // t_ms 0 is the first event's t, which the caller may have stamped a moment before now: the page clock is kept to
+    // the microsecond, and the wall clock is read at that same instant.
+    const t0PerfMs = Math.round(t * 1e6) / 1e3;
+    const skew = t0PerfMs - performance.now();
+    const openedMs = Math.abs(skew) <= WALL_SKEW_MAX_MS ? Math.round(now + skew) : now;
     const rec = { local: `${now.toString(36)}-${randomHex(4)}`, owner: pageId, lease_ms: now, created_ms: now,
-      opened_at: new Date(now).toISOString(), meta: baseMeta, next_seq: 0, server_session: null, buffered: offline,
-      reopens: 0, continued_from: null, lost: 0, ended: false, events: 0, sent: 0 };
+      opened_at: new Date(openedMs).toISOString(), t0_perf_ms: t0PerfMs, meta: baseMeta, next_seq: 0,
+      server_session: null, buffered: offline, reopens: 0, continued_from: null, lost: 0, ended: false, events: 0, sent: 0 };
     sessions.set(rec.local, rec);
     batches.set(rec.local, []);
     saveSession(rec);
@@ -437,8 +459,12 @@ export function createPerformanceLog({
     let url, body;
     if (op === "open") {
       const m = { ...rec.meta };
-      if (rec.buffered) { m.buffered = true; m.opened_at_client = rec.opened_at; }
+      if (rec.buffered) m.buffered = true;
       if (rec.continued_from) m.continued_from = rec.continued_from;
+      // The timebase, on every open (see the header): the recording page, not the one uploading.
+      if (typeof rec.owner === "string") m.page_id = rec.owner;
+      if (Number.isFinite(rec.t0_perf_ms)) m.t0_perf_ms = rec.t0_perf_ms;
+      if (typeof rec.opened_at === "string") m.opened_at_client = rec.opened_at;
       url = `${base}/open`;
       body = { meta: m, client_id: rec.reopens ? `${rec.local}.${rec.reopens}` : rec.local };
     } else if (op === "events") {
@@ -657,5 +683,12 @@ export function createPerformanceLog({
           ended: r.ended, events: r.events, sent: r.sent, batches: (batches.get(r.local) || []).length })) };
     },
     get session() { return (cur && cur.rec.server_session) || null; },
+    // Read only. { local, session, t0_perf_ms } of the session being recorded, the values its open sends; session is
+    // null until the server answers the open (a buffered session). null when no session is being recorded.
+    timebase() {
+      const tb = guard(() => (cur && Number.isFinite(cur.rec.t0_perf_ms)
+        ? { local: cur.rec.local, session: cur.rec.server_session || null, t0_perf_ms: cur.rec.t0_perf_ms } : null));
+      return tb || null;
+    },
   };
 }

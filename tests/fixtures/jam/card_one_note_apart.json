@@ -1,0 +1,172 @@
+{
+  "api": "arsenal.jam.card/v0",
+  "id": "one-note-apart",
+  "rev": 2,
+  "title": "One note apart",
+  "meaning": "Your two favourite chords over an Ab bass are one finger apart.",
+  "theory_name": "Lydian and the 5 over 4",
+  "group": "moves",
+  "kind": "concept",
+  "key": "Eb major",
+  "variants": [
+    {
+      "id": "a",
+      "label": "the Lydian 4, with G",
+      "chords": [
+        {
+          "n": "4maj13#11",
+          "beats": 8,
+          "notes": [
+            44,
+            51,
+            55,
+            60,
+            62,
+            65,
+            70
+          ],
+          "name": "Abmaj13#11"
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "label": "the gospel 5 over 4, without G",
+      "chords": [
+        {
+          "n": "5^11/4",
+          "beats": 8,
+          "notes": [
+            44,
+            51,
+            60,
+            62,
+            65,
+            70
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c",
+      "label": "back and forth",
+      "chords": [
+        {
+          "n": "4maj13#11",
+          "beats": 4,
+          "notes": [
+            44,
+            51,
+            55,
+            60,
+            62,
+            65,
+            70
+          ],
+          "name": "Abmaj13#11"
+        },
+        {
+          "n": "5^11/4",
+          "beats": 4,
+          "notes": [
+            44,
+            51,
+            60,
+            62,
+            65,
+            70
+          ]
+        },
+        {
+          "n": "1/3",
+          "beats": 8
+        }
+      ],
+      "tempo": {
+        "bpm": 56
+      },
+      "say": "listen for the lean when G leaves"
+    }
+  ],
+  "groove": "hold",
+  "backing": "full",
+  "tempo": {
+    "bpm": 60,
+    "beats_per_bar": 4,
+    "feel": "straight"
+  },
+  "explanation": "Over an Ab bass, Bb11/Ab and Abmaj13#11 share six notes: Ab Bb C D Eb F. The Lydian chord adds one more, G.",
+  "why": "G is the major 7th of Ab. With it the chord floats and can stay; without it the chord belongs to Bb and leans toward Eb.",
+  "try": "Hold the Ab bass. Play a, then lift only the G and listen to the chord start to lean. Put it back.",
+  "listen_for": "the lean when G leaves.",
+  "tags": [
+    "signature",
+    "lydian",
+    "gospel"
+  ],
+  "related": [
+    "lydian-four",
+    "gospel-five-over-four"
+  ],
+  "page_reads": [
+    {
+      "variant": "a",
+      "slot": 0,
+      "key": "Eb major",
+      "voicing": "notes",
+      "notes": [
+        44,
+        51,
+        55,
+        60,
+        62,
+        65,
+        70
+      ],
+      "name": "Cm11/Ab",
+      "number": "6m11/4",
+      "match": "notes",
+      "note": "your screen may give these notes another name: the notes are what matter"
+    },
+    {
+      "variant": "b",
+      "slot": 0,
+      "key": "Eb major",
+      "voicing": "notes",
+      "notes": [
+        44,
+        51,
+        60,
+        62,
+        65,
+        70
+      ],
+      "name": "Bb11/Ab",
+      "number": "5^11/4",
+      "match": "notes"
+    },
+    {
+      "variant": "c",
+      "slot": 2,
+      "key": "Eb major",
+      "voicing": "spread",
+      "notes": [
+        43,
+        51,
+        58,
+        63
+      ],
+      "name": "Eb/G",
+      "number": "1/3",
+      "match": "exact"
+    }
+  ],
+  "source": {
+    "kind": "edit",
+    "from_seed_version": 1
+  },
+  "created_by": "claude",
+  "updated_by": "daniel",
+  "created_at": "2030-01-01T00:00:00.000+00:00",
+  "updated_at": "2030-01-01T00:09:30.000+00:00"
+}

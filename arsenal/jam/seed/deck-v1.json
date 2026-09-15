@@ -1,0 +1,709 @@
+{
+  "api": "arsenal.jam.seed/v0",
+  "seed_version": 1,
+  "cards": [
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "lydian-four",
+      "title": "The Lydian 4 chord",
+      "meaning": "The 4 chord with a raised 4th inside: it floats instead of landing.",
+      "theory_name": "Lydian",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Eb major",
+      "also_in": ["Db major", "F major"],
+      "chords": [{"n": "1maj9", "beats": 4}, {"n": "4maj7#11", "beats": 4}],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 66, "beats_per_bar": 4},
+      "bars": 2,
+      "playback": {"velocity": 48},
+      "explanation": "The 4 chord (Ab) with a D in it. D is the #11, a raised 4th above Ab. It already belongs to Eb major, so it shimmers and still sounds like home's family.",
+      "why": "It is your signature colour. The practice analyzer found a Lydian 4 in 80 moments across your four sessions on 2026-09-14, in Eb and in Db.",
+      "try": "Keep the loop going. On the Ab bar, move your top finger between C and D: C is the plain chord, D is the shimmer. Then try D over the Eb bar too, where it is the major 7th.",
+      "listen_for": "the moment D arrives over the Ab bass.",
+      "checks": [{"id": "sharp-eleven", "slot": 1, "role": "#11", "want": "present", "say": "you touched D, the #11 of Ab"}],
+      "tags": ["signature", "lydian", "colour"],
+      "related": ["one-note-apart", "blooming-chord", "db-opening"],
+      "landing": {"slot": 1, "role": "#11", "pull": "D, the #11, floats over the Ab bass and leans up a half step to Eb, home."},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "gospel-five-over-four",
+      "title": "The gospel 5 over 4",
+      "meaning": "The 5 chord standing on the 4 in the bass: churchy, and it leans home softly.",
+      "theory_name": "slash chord, 5 over 4",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Eb major",
+      "also_in": ["Db major", "D major"],
+      "chords": [
+        {"n": "4maj9", "beats": 4},
+        {"n": "5^11/4", "beats": 4},
+        {
+          "n": "1/3",
+          "beats": 4,
+          "say": "a plain Eb/G on purpose, so the bass step is what you hear; bar 4 brings the colour back."
+        },
+        {"n": "1maj9", "beats": 4}
+      ],
+      "variants": [
+        {
+          "id": "b",
+          "label": "keep it rolling",
+          "chords": [
+            {"n": "4maj9", "beats": 4},
+            {"n": "5^11/4", "beats": 4},
+            {"n": "3m9", "beats": 4},
+            {"n": "6m11", "beats": 4}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 66, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "In Bb11/Ab your right hand plays the 5 chord (Bb) while the bass stays on Ab, the 4. It leans toward home without the hard pull of a plain 5.",
+      "why": "The bass only has to step down from Ab to G to land (G is the 3rd of Eb), so the arrival is soft and churchy. It is one of your most used shapes, and you played it in three keys on 2026-09-14.",
+      "try": "Let the loop run and follow the bass with your ear: Ab, Ab, G, Eb. Then make a melody from C and Eb, which sit well over all four bars. For a loop that never lands, switch to variant b.",
+      "listen_for": "the bass stepping from Ab down to G.",
+      "checks": [
+        {
+          "id": "lands-on-g",
+          "slot": 2,
+          "role": "3",
+          "want": "landing",
+          "say": "you landed on G as the bass stepped down"
+        },
+        {
+          "id": "lands-home",
+          "slot": 2,
+          "role": "1",
+          "want": "landing",
+          "say": "you landed on home as the bass stepped down"
+        }
+      ],
+      "tags": ["signature", "gospel", "slash"],
+      "related": ["one-note-apart", "db-opening"],
+      "landing": {
+        "slot": 1,
+        "role": "1",
+        "relative_to": "bass",
+        "pull": "Ab in the bass holds under the 5 chord and wants to step down a half step to G."
+      },
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "one-note-apart",
+      "title": "One note apart",
+      "meaning": "Your two favourite chords over an Ab bass are one finger apart.",
+      "theory_name": "Lydian and the 5 over 4",
+      "group": "moves",
+      "kind": "concept",
+      "key": "Eb major",
+      "variants": [
+        {
+          "id": "a",
+          "label": "the Lydian 4, with G",
+          "chords": [{"n": "4maj13#11", "beats": 8, "notes": [44, 51, 55, 60, 62, 65, 70], "name": "Abmaj13#11"}]
+        },
+        {
+          "id": "b",
+          "label": "the gospel 5 over 4, without G",
+          "chords": [{"n": "5^11/4", "beats": 8, "notes": [44, 51, 60, 62, 65, 70]}]
+        },
+        {
+          "id": "c",
+          "label": "back and forth",
+          "chords": [
+            {"n": "4maj13#11", "beats": 4, "notes": [44, 51, 55, 60, 62, 65, 70], "name": "Abmaj13#11"},
+            {"n": "5^11/4", "beats": 4, "notes": [44, 51, 60, 62, 65, 70]},
+            {"n": "1/3", "beats": 8}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "playback": {"velocity": 48},
+      "explanation": "Over an Ab bass, Bb11/Ab and Abmaj13#11 share six notes: Ab Bb C D Eb F. The Lydian chord adds one more, G.",
+      "why": "G is the major 7th of Ab. With it the chord floats and can stay; without it the chord belongs to Bb and leans toward Eb. In Db the same pair is Gbmaj13#11 and Ab11/Gb, and the note is F.",
+      "try": "Hold the Ab bass. Play a, then lift only the G and listen to the chord start to lean. Put it back. The screen may give the same sound three names: the notes are what matter.",
+      "listen_for": "the lean when G leaves.",
+      "tags": ["signature", "lydian", "gospel"],
+      "related": ["lydian-four", "gospel-five-over-four"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "blooming-chord",
+      "title": "The blooming chord",
+      "meaning": "One chord opening like a flower: no 3rd, then the 3rd, then the 7th, then the Lydian top.",
+      "theory_name": "added colour tones",
+      "group": "moves",
+      "kind": "progression",
+      "key": "Eb major",
+      "chords": [
+        {"n": "4sus2", "beats": 4, "notes": [44, 51, 58, 63], "arp_ms": 45},
+        {"n": "4add9", "beats": 4, "notes": [44, 51, 58, 60, 63], "arp_ms": 45},
+        {"n": "4maj9", "beats": 4, "notes": [44, 51, 55, 58, 60, 63], "arp_ms": 45},
+        {"n": "4maj13#11", "beats": 8, "notes": [44, 51, 55, 58, 60, 63, 74, 77], "arp_ms": 45, "name": "Abmaj13#11"}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "bars": 5,
+      "playback": {"velocity": 48},
+      "explanation": "Keep the root and bass still and add colour one note at a time: sus2 (Ab Bb Eb), then the 3rd arrives (add9), then the major 7th (maj9), then the Lydian top (D and F).",
+      "why": "A chord can grow in front of the listener: the harmony stays and the colour rises. The analyzer found 65 of these colour additions in your longest session alone.",
+      "try": "Play along with it, then un-bloom it yourself: take the notes away in reverse, one per bar, until only Ab and Eb are left.",
+      "listen_for": "which added note changes the mood most.",
+      "tags": ["signature", "colour"],
+      "related": ["lydian-four"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "half-step-slide",
+      "title": "The half-step slide",
+      "meaning": "Slide one note down a half step and the colour turns from bright to shadow.",
+      "theory_name": "chromatic voice leading",
+      "group": "moves",
+      "kind": "concept",
+      "key": "Eb major",
+      "variants": [
+        {
+          "id": "a",
+          "label": "the bass slides",
+          "chords": [
+            {"n": "2^9/#4", "beats": 4, "notes": [45, 53, 63, 67, 72]},
+            {"n": "2m9/4", "beats": 4, "notes": [44, 53, 63, 67, 72]},
+            {"n": "4maj7#11", "beats": 8}
+          ]
+        },
+        {
+          "id": "b",
+          "label": "the top slides over a still bass",
+          "key": "b7 major",
+          "chords": [
+            {"n": "#4m7/6", "beats": 4, "notes": [46, 53, 55, 58, 62]},
+            {"n": "4maj7/6", "beats": 8, "notes": [46, 53, 54, 58, 61]}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "playback": {"velocity": 48},
+      "explanation": "In a, only one note moves: A slides down to Ab, and F, Eb, G and C stay where they are. In b, over a held Bb, two notes slide down a half step: G to Gb and D to Db.",
+      "why": "A half step is the smallest move on the keyboard, so the colour changes while everything else holds, and the ear follows the note that moved.",
+      "try": "Loop a and play the moving note yourself as a tiny melody an octave up: A, then Ab. Then look for another chord in your pieces where one note can slide.",
+      "listen_for": "A turning into Ab.",
+      "tags": ["signature", "half-step"],
+      "related": ["lament-bass"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "lament-bass",
+      "title": "Walking bass under a held chord",
+      "meaning": "Hold one chord and let the bass step down underneath: the sad staircase.",
+      "theory_name": "lament bass",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Db major",
+      "also_in": ["Eb major"],
+      "chords": [
+        {"n": "6m11", "beats": 4, "notes": [46, 58, 68, 72, 73, 75, 77]},
+        {"n": "6m11/5", "beats": 4, "notes": [44, 58, 68, 72, 73, 75, 77], "upper": "same"},
+        {"n": "6m11/4", "beats": 4, "notes": [42, 58, 68, 72, 73, 75, 77], "upper": "same"},
+        {"n": "6m11/3", "beats": 4, "notes": [41, 58, 68, 72, 73, 75, 77], "upper": "same"}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "Your hands hold one chord, Bbm11, the whole time. Only the bass walks down: Bb, Ab, Gb, F.",
+      "why": "Four bass notes stepping down from the minor chord's root is the old lament bass. The hands never move, yet the harmony does: over Gb the same notes are the whole Lydian 4 (Gbmaj13#11), and over F they hold Dbmaj9 plus a Bb.",
+      "try": "Keep the loop going and play a slow melody that stays on one note, Db or F, while the bass walks under it. Listen to the same note change its meaning bar by bar.",
+      "listen_for": "bar 3, where the chord turns bright.",
+      "checks": [
+        {
+          "id": "lydian-over-gb",
+          "slot": 2,
+          "role": "#11",
+          "relative_to": "bass",
+          "want": "present",
+          "say": "you found C, the Lydian note, over the Gb bass"
+        }
+      ],
+      "tags": ["signature", "bass"],
+      "related": ["half-step-slide", "lydian-four"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "minor-third-drop",
+      "title": "Down a minor third to a new home",
+      "meaning": "Move home down three half steps and walk through a door chord into a warmer room.",
+      "theory_name": "modulation down a minor third",
+      "group": "moves",
+      "kind": "progression",
+      "key": "F major",
+      "chords": [
+        {"n": "1add9", "beats": 4},
+        {"n": "4maj13", "beats": 4},
+        {"n": "5^6", "beats": 4},
+        {"key": "6 major"},
+        {"n": "1add9", "beats": 4},
+        {"n": "4maj13", "beats": 4},
+        {"n": "1maj9", "beats": 8}
+      ],
+      "variants": [
+        {
+          "id": "a",
+          "label": "F to D",
+          "chords": [
+            {"n": "1add9", "beats": 4},
+            {"n": "4maj13", "beats": 4},
+            {"n": "5^6", "beats": 4},
+            {"key": "6 major"},
+            {"n": "1add9", "beats": 4},
+            {"n": "4maj13", "beats": 4},
+            {"n": "1maj9", "beats": 8}
+          ]
+        },
+        {
+          "id": "b",
+          "label": "Gb to Eb",
+          "key": "b2 major",
+          "chords": [
+            {"n": "4maj9", "beats": 4},
+            {"n": "1maj9", "beats": 4},
+            {"n": "5sus4", "beats": 4},
+            {"key": "b7 major"},
+            {"n": "b3add9/b7", "beats": 2},
+            {"n": "1add9", "beats": 6},
+            {"n": "4maj9", "beats": 4},
+            {"n": "1maj9", "beats": 8}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "comp",
+      "tempo": {"bpm": 66, "beats_per_bar": 4},
+      "playback": {"velocity": 48},
+      "explanation": "To change key, move home down a minor third (three half steps): F to D, Gb to Eb. The door is your old 5 chord: C is the 5 of F and also the b7 of D. Play it, then land on the new 1. The chips restart their numbers at 1 in the new key.",
+      "why": "The new key arrives through a chord that belongs to both keys, so the change sounds like walking through a door instead of jumping. It works from any key: the old 5 is always the b7 of the key three half steps below.",
+      "try": "Loop the door chord (C6) for two bars and choose your moment to step through. Then use the same door from Eb: Bb, the 5 of Eb, is the b7 of C major.",
+      "listen_for": "the bar where D major arrives.",
+      "tags": ["signature", "key-change"],
+      "related": ["sunrise-ending"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "borrowed-four-minor",
+      "title": "The borrowed 4 minor",
+      "meaning": "Lower one note in the 4 chord and it turns bittersweet just before home.",
+      "theory_name": "borrowed from Eb minor",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Eb major",
+      "chords": [
+        {"n": "1maj9", "beats": 4},
+        {"n": "4add9", "beats": 4},
+        {"n": "4m(add9)", "beats": 4},
+        {"n": "1maj9", "beats": 4}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 66, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "4m is your Ab chord with its 3rd lowered: C drops to Cb. Cb comes from Eb minor, so the chord is \"borrowed\".",
+      "why": "One lowered note turns the 4 chord from warm to bittersweet right before home. It is the sigh at the end of a lot of ballads, and you reached for Abm in two sessions.",
+      "try": "Move only the finger on C. Then let your melody use Cb during that bar, and C again when home comes back.",
+      "listen_for": "the sigh in bar 3.",
+      "checks": [{"id": "borrowed-note", "slot": 2, "role": "b3", "want": "present", "say": "you played Cb, the borrowed note"}],
+      "tags": ["borrowed"],
+      "related": ["borrowed-b6-b7-home", "sunrise-ending"],
+      "landing": {"slot": 2, "role": "b3", "pull": "Cb, the borrowed note, sighs down a half step to Bb as home comes back."},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "borrowed-b6-b7-home",
+      "title": "b6, b7, home",
+      "meaning": "Two borrowed major chords climb a whole step at a time into home.",
+      "theory_name": "Aeolian cadence",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Eb major",
+      "chords": [{"n": "b6maj9", "beats": 4}, {"n": "b7maj9", "beats": 4}, {"n": "1maj9", "beats": 8}],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 66, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "Two major chords borrowed from Eb minor, a whole step apart, climb into home: Cb, Db, Eb.",
+      "why": "The roots rise step by step (b6, b7, 1), so home arrives big and open without any 5 chord.",
+      "try": "You once ended a piece on Dbmaj9. Loop this and choose each time: stop on b7 (the door stays open) or go on to 1 (home).",
+      "listen_for": "how open home sounds without a 5 chord.",
+      "tags": ["borrowed", "ending"],
+      "related": ["open-ending-b7", "borrowed-four-minor"],
+      "landing": {
+        "slot": 1,
+        "role": "1",
+        "pull": "Db, the b7 chord's root, leaves the door open and climbs a whole step to Eb, home."
+      },
+      "pair": {"role": "answer", "with": "open-ending-b7"},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "float-or-pull",
+      "title": "Float or pull",
+      "meaning": "The sus 5 chord floats; give it its 3rd and it pulls you home.",
+      "theory_name": "suspended dominant and dominant 7",
+      "group": "try",
+      "kind": "concept",
+      "key": "Eb major",
+      "variants": [
+        {
+          "id": "a",
+          "label": "float (your habit)",
+          "chords": [
+            {"n": "1maj9", "beats": 4},
+            {"n": "5^7sus4/1", "beats": 8, "notes": [39, 51, 63, 65, 68, 70]},
+            {"n": "1maj9", "beats": 4}
+          ]
+        },
+        {
+          "id": "b",
+          "label": "pull",
+          "chords": [{"n": "1maj9", "beats": 4}, {"n": "5^7", "beats": 8}, {"n": "1maj9", "beats": 4}]
+        },
+        {
+          "id": "c",
+          "label": "float, then pull",
+          "chords": [
+            {"n": "1maj9", "beats": 4},
+            {"n": "5^7sus4", "beats": 4, "notes": [46, 53, 56, 63]},
+            {"n": "5^7", "beats": 4, "notes": [46, 53, 56, 62]},
+            {"n": "1maj9", "beats": 8}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "playback": {"velocity": 48},
+      "explanation": "Bb7sus4 swaps Bb7's 3rd (D) for Eb. D sits a half step under home (Eb), so Bb7 pulls toward Eb. Bb7sus4 already holds Eb, so it floats.",
+      "why": "None of the 5-to-1 moves the analyzer found in your sessions use a plain 5 chord with its 3rd. Your 5 chords arrive suspended (Bb7sus4 over Eb, held 15 seconds) or with an added 11th. The pull is a colour you have not used yet, and contrast (float, then pull, then home) makes an arrival feel earned.",
+      "try": "Play a, b and c. Then loop c and riff: lean on D during the Bb7 bar and let it rise to Eb when home comes.",
+      "listen_for": "D, the note that turns float into pull.",
+      "checks": [
+        {
+          "id": "third-of-five",
+          "variant": "c",
+          "slot": 2,
+          "role": "3",
+          "want": "present",
+          "say": "you played D, the 3rd of Bb7"
+        },
+        {"id": "lands-home", "variant": "c", "slot": 3, "role": "1", "want": "landing", "say": "you landed on home"}
+      ],
+      "tags": ["growth-edge", "dominant"],
+      "related": ["held-sus-five", "lush-two-five-one"],
+      "landing": {
+        "variant": "c",
+        "slot": 2,
+        "role": "3",
+        "pull": "D, the 3rd of Bb7, sits a half step under Eb and pulls up to home."
+      },
+      "pair": {"role": "answer", "with": "held-sus-five"},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "lush-two-five-one",
+      "title": "The lush 2-5-1",
+      "meaning": "A real 2-5-1 in your lush colours: one note falls a half step at each change.",
+      "theory_name": "ii-V-I with guide tones",
+      "group": "try",
+      "kind": "loop",
+      "key": "Eb major",
+      "chords": [
+        {"n": "2m9", "beats": 4, "notes": [41, 51, 56, 60, 67]},
+        {"n": "5^13", "beats": 4, "notes": [46, 50, 56, 60, 67]},
+        {"n": "1maj9", "beats": 8, "notes": [39, 50, 55, 58, 65]}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "ballad",
+      "backing": "full",
+      "tempo": {"bpm": 63, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "At each change one note steps down a half step while its neighbour holds: Eb falls to D (Fm9 to Bb13), then Ab falls to G (Bb13 to Ebmaj9).",
+      "why": "This is the pull of a real 5 chord, still in your lush colours. The falling half steps (each chord's 7th becoming the next chord's 3rd) are what make home sound like arriving.",
+      "try": "Play only the two inner notes as a little two-voice line (Eb and Ab, D and Ab, D and G), then put the full chords back. Then swap Bb13 for your Bb7sus4 over Eb and compare.",
+      "listen_for": "the two falling half steps.",
+      "checks": [
+        {
+          "id": "pull-home",
+          "slot": 1,
+          "role": "3",
+          "want": "present",
+          "say": "you played D, the note that pulls home"
+        }
+      ],
+      "tags": ["growth-edge", "dominant"],
+      "related": ["float-or-pull"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "sunrise-ending",
+      "title": "The sunrise ending",
+      "meaning": "Minor home, a lift into its bright relative, then home again in full light.",
+      "theory_name": "relative major, then parallel major",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Eb major",
+      "chords": [
+        {"n": "1m11", "beats": 4},
+        {"n": "1m11", "beats": 4},
+        {"n": "b6maj7#11", "beats": 4},
+        {"n": "5^7sus4", "beats": 2},
+        {"n": "5^7", "beats": 2},
+        {"n": "b3maj9", "beats": 4},
+        {"n": "b3maj9", "beats": 4},
+        {"n": "4m6", "beats": 4},
+        {"n": "1maj9", "beats": 4}
+      ],
+      "variants": [
+        {
+          "id": "b",
+          "label": "the long way, three homes",
+          "chords": [
+            {"n": "1m9", "beats": 4},
+            {"n": "4m9", "beats": 4},
+            {"n": "b6maj9", "beats": 4},
+            {"n": "b7maj9", "beats": 4},
+            {"key": "b3 major"},
+            {"n": "4maj9", "beats": 4},
+            {"n": "6m9", "beats": 4},
+            {"n": "5sus4", "beats": 4},
+            {"n": "1maj9", "beats": 8},
+            {"key": "1 major"},
+            {"n": "b3add9/b7", "beats": 4},
+            {"n": "1add9", "beats": 4},
+            {"n": "4maj9", "beats": 4},
+            {"n": "1maj9", "beats": 8}
+          ]
+        }
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "bars": 8,
+      "playback": {"velocity": 48},
+      "explanation": "Ebm11 is home in minor. Gbmaj9 uses the same notes with Gb as home: that is the climax. Abm6 keeps one borrowed note for a last sigh, then Ebmaj9 arrives with the light on: Gb has become G.",
+      "why": "This is how you end a dark piece in full light: Eb minor, a Gb major climax, then Eb major. Bar 4 also gives your 5 chord its 3rd for two beats, the pull from card 10.",
+      "try": "Play the Gb bars as the loudest part of the loop, then let Ebmaj9 arrive soft and slow. Listen for the G natural in the last bar.",
+      "listen_for": "G natural in the last bar.",
+      "checks": [
+        {
+          "id": "lights-on",
+          "slot": 8,
+          "role": "3",
+          "want": "present",
+          "say": "you played G, the note that turns the lights on"
+        }
+      ],
+      "tags": ["signature", "key-change", "ending"],
+      "related": ["minor-third-drop", "borrowed-four-minor"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "db-opening",
+      "title": "Your Db opening",
+      "meaning": "Your own opening, straightened into a loop.",
+      "theory_name": "Lydian 4, slash chords",
+      "group": "moves",
+      "kind": "loop",
+      "key": "Db major",
+      "chords": [
+        {"n": "4maj9", "beats": 2},
+        {"n": "4maj7#11", "beats": 6, "notes": [42, 49, 54, 56, 58, 61, 65, 70, 75, 77, 80, 84], "name": "Gbmaj13#11"},
+        {"n": "5^11/4", "beats": 4},
+        {"n": "4maj7#11", "beats": 4, "notes": [42, 49, 54, 56, 58, 61, 65, 70, 75, 77, 80, 84], "name": "Gbmaj13#11"},
+        {"n": "6m9/1", "beats": 8}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 56, "beats_per_bar": 4},
+      "bars": 6,
+      "playback": {"velocity": 48},
+      "explanation": "Gbmaj9 blooms into the Lydian 4 of Db, Ab11/Gb takes a breath, and Bbm9 over Db brings you home.",
+      "why": "You never play a plain Db chord here, and it still sounds like home, because the bass lands on Db.",
+      "try": "Ab is in every chord of this loop: start a melody on Ab, then reach up to C, which is in every chord but the first.",
+      "listen_for": "home arriving through the bass alone.",
+      "tags": ["yours", "lydian"],
+      "related": ["lydian-four", "gospel-five-over-four"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "held-sus-five",
+      "title": "The held sus 5",
+      "meaning": "Tension and rest at the same time: a 5 chord over the home bass.",
+      "theory_name": "pedal point",
+      "group": "moves",
+      "kind": "moment",
+      "key": "Eb major",
+      "chords": [{"n": "5^7sus4/1", "beats": 16, "notes": [39, 51, 63, 65, 68, 70]}],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "You held Bb7sus4 over Eb for 15 seconds: Eb F Ab Bb, with Eb in three octaves. It never resolved, and it did not need to: Eb, home, is inside it.",
+      "why": "A 5 chord over the home bass is tension and rest at once. It is the root of your floating sound.",
+      "try": "Hear yourself play it. Then play it again and, after a few seconds, move Eb4 down to D4: Bb7 over Eb, a new colour on the same bass.",
+      "listen_for": "how long it can hang without resolving.",
+      "tags": ["yours", "dominant"],
+      "related": ["float-or-pull"],
+      "landing": {
+        "slot": 0,
+        "role": "4",
+        "pull": "Eb, the sus, could fall a half step to D; it floats instead, because Eb is home."
+      },
+      "pair": {"role": "question", "with": "float-or-pull"},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "open-ending-b7",
+      "title": "The open ending",
+      "meaning": "Ending on the b7 chord leaves the door open.",
+      "theory_name": "borrowed bVII",
+      "group": "moves",
+      "kind": "moment",
+      "key": "Eb major",
+      "chords": [{"n": "b7maj9", "beats": 16, "notes": [49, 56, 63, 65, 68, 72, 73, 77, 80]}],
+      "voicing": {"style": "spread"},
+      "groove": "hold",
+      "backing": "full",
+      "tempo": {"bpm": 60, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "You ended an Eb major piece on Dbmaj9, the b7 chord, borrowed from Eb minor. The piece stops with the door open instead of closing it.",
+      "why": "An ending that is not 1 feels like a question. It is a real choice, and this card keeps it so you can choose it on purpose.",
+      "try": "Hear your ending. Then play it once more and add one bar of Ebmaj9 after it, and decide which ending the piece wants.",
+      "listen_for": "the question the last chord leaves.",
+      "tags": ["yours", "borrowed", "ending"],
+      "related": ["borrowed-b6-b7-home"],
+      "landing": {
+        "slot": 0,
+        "role": "1",
+        "pull": "Db, the b7 chord's root, leaves the door open: one whole step up is Eb, home."
+      },
+      "pair": {"role": "question", "with": "borrowed-b6-b7-home"},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "white-keys",
+      "title": "Same shapes, white keys",
+      "meaning": "Your favourite numbers in a key with no black keys to lean on.",
+      "theory_name": "transposition",
+      "group": "try",
+      "kind": "loop",
+      "key": "C major",
+      "chords": [
+        {"n": "1maj9", "beats": 4},
+        {"n": "6m11", "beats": 4},
+        {"n": "4maj7#11", "beats": 4},
+        {"n": "5^7sus4", "beats": 2},
+        {"n": "5^13", "beats": 2}
+      ],
+      "voicing": {"style": "spread"},
+      "groove": "pulse",
+      "backing": "full",
+      "tempo": {"bpm": 72, "beats_per_bar": 4},
+      "bars": 4,
+      "playback": {"velocity": 48},
+      "explanation": "These are the numbers of your Lydian 4 loop and the pull of a real 5 chord, moved to C major, where every note of the key is a white key.",
+      "why": "In Eb, Db and Gb the black keys anchor your hands. The same sounds in C ask your ear, not your hand shapes, to find them.",
+      "try": "Loop it and find the #11 (B) over the F bar. Then notice when your hand reaches for Bb, Eb or Ab: those are your home keys talking.",
+      "listen_for": "B natural over the F bar.",
+      "checks": [{"id": "sharp-eleven", "slot": 2, "role": "#11", "want": "present", "say": "you found B, the #11 of F"}],
+      "tags": ["stretch", "geography", "lydian"],
+      "related": ["lydian-four", "float-or-pull"],
+      "landing": {"slot": 4, "role": "3", "pull": "B, the 3rd of G13, sits a half step under C and pulls the loop back home."},
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    },
+    {
+      "api": "arsenal.jam.card/v0",
+      "id": "dorian-vamp",
+      "title": "Two-chord Dorian vamp",
+      "meaning": "Two chords, one scale, and a steady beat to play against.",
+      "theory_name": "Dorian",
+      "group": "try",
+      "kind": "loop",
+      "key": "D minor",
+      "chords": [{"n": "1m11", "beats": 4}, {"n": "4^13", "beats": 4}],
+      "voicing": {"style": "spread"},
+      "groove": "pulse",
+      "backing": "comp",
+      "tempo": {"bpm": 88, "beats_per_bar": 4},
+      "bars": 2,
+      "playback": {"velocity": 48},
+      "explanation": "Dm11 and G13 share one scale: every white key, with D as home. B natural is the telling note: the 3rd of G and the 6 of D.",
+      "why": "All your sessions so far are in free time, so there is no beat yet to play against. The pulse at 88 bpm is a little slower than your own note rate, so it leaves room to place notes off the beat.",
+      "try": "Play short phrases that start just after the beat. Leave a full bar of space after each phrase and let the vamp answer.",
+      "listen_for": "B natural against the Bb your hand expects.",
+      "checks": [{"id": "thirds-of-g", "slot": 1, "role": "3", "want": "present", "say": "you played B, the 3rd of G"}],
+      "tags": ["stretch", "rhythm", "dorian"],
+      "related": ["white-keys"],
+      "source": {"kind": "seed", "seed_version": 1},
+      "created_by": "claude"
+    }
+  ]
+}

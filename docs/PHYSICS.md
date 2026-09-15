@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 1d85c50c. A bound you discover by collision is not awareness -- this sheet
+> Derived at fc9f3e9d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -272,7 +272,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (253 numeric constants)
+## Mechanical bounds (308 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -286,6 +286,7 @@ Class: reference
 | `AREA_MIN_MS` | 30,000 | arsenal/performance.py | a key area with less playing than this joins the neighbour whose key leaves out less of it |
 | `AREA_SNAP_MS` | 5,000 | arsenal/performance.py | a key change moves to the nearest note-on this close (else to where playing resumes), then |
 | `AREA_TONIC_MIN_MS` | 1,500 | arsenal/practice.py | a key area needs its tonic chord for this long, or two chord roots that the neighbouring |
+| `ARP_MAX_MS` | 2,000 | arsenal/jam/schemas.py |  |
 | `ASK_LOOP_CAP` | 20 | arsenal/practice.py | a loop, however long, ranks under a key change, a cadence or a colour habit |
 | `ASK_MIN_AREA_S` | 20 | arsenal/practice.py | a key change is a moment to ask about when both areas last this long |
 | `ASK_PEDAL_MAX_OCTAVE` | 3 | arsenal/practice.py | a pedal point to ask about sits below middle C |
@@ -299,6 +300,7 @@ Class: reference
 | `BENCH_MIN_SURFACED` | 10 | core/recall/curator.py | exposure floor: it had its chances... |
 | `BODY_CHARS` | 12,000 | core/recall/lookback.py | rationale often sits DEEP: a synthesis doc's convergence and |
 | `BOOT_CAP` | 3 | core/coord/defer_queue.py |  |
+| `BRIDGE_TIMEOUT_S` | 60 | arsenal/jam/resolve.py |  |
 | `BRIEF_MAX_LINES` | 80 | arsenal/practice.py | the brief, glossary included, fits in this many lines |
 | `BUDGET_CHARS_DEFAULT` | 2,000 | core/context/relevance_budget.py |  |
 | `BUDGET_CHARS_DEFAULT` | 2,000 | research/in-flight/t342/dead-modules/context__relevance_budget.py |  |
@@ -323,6 +325,8 @@ Class: reference
 | `CLARIFY_TIMEOUT_S` | 300 | core/comm/toolbox.py |  |
 | `COMPLEXITY_CODE_LINES_THRESHOLD` | 50 | research/in-flight/t342/dead-modules/master.py | If proposal has > 50 lines of code, mark as complex |
 | `COMPLEXITY_STEPS_THRESHOLD` | 5 | research/in-flight/t342/dead-modules/master.py | If > 5 steps, mark as complex |
+| `COMP_TOP_MAX` | 64 | arsenal/jam/schemas.py | E4: only the defining altered colour reaches it |
+| `COUNT_IN_MAX` | 2 | arsenal/jam/schemas.py |  |
 | `CREDITED_MIN_CONTEXTS` | 2 | core/recall/replay.py | criterion 3: credited contexts per credited lesson... |
 | `CRUSH_MS` | 80 | arsenal/practice.py | a note struck this soon before a louder neighbour a half or whole step away... |
 | `DEFAULT_BUDGET` | 2,000 | core/comm/mailbox.py |  |
@@ -352,6 +356,7 @@ Class: reference
 | `DISCORD_MAX` | 2,000 | core/comm/discord_bridge.py |  |
 | `DRAIN_FLUSH_JOIN_SEC` | 2 | core/comm/launcher.py |  |
 | `DRAIN_TTL_S` | 300 | core/comm/control.py |  |
+| `ENGINE_MAX` | 40 | arsenal/jam/schemas.py |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |
 | `EVIDENCE_MS` | 30,000 | arsenal/practice.py | a key change's evidence compares the notes heard this long on either side of it |
 | `FLOOR` | 4,900 | scripts/check_fresh_clone.py |  |
@@ -360,6 +365,7 @@ Class: reference
 | `FPS_UPDATE_INTERVAL_MS` | 1,000 | arsenal/lanes/gst_d3d12_soak.py |  |
 | `FRAGMENT_MAX_MS` | 30,000 | arsenal/practice.py | a section this short holding fewer than two chord roots is numbered in its own centre |
 | `FRESH_MIN_DEFAULT` | 30 | core/comm/wake_seat.py | AKASHIC_WAKE_MARKER_FRESH_MIN overrides |
+| `FULL_TOP_MAX` | 69 | arsenal/jam/schemas.py | A4, hard |
 | `GEMINI` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py | Gemini strategic review |
 | `GIT_CAP` | 10 | agent/harness/delta.py | commits listed before the pull pointer takes over |
 | `GRACE_MS` | 100 | arsenal/practice.py | ...except a grace note or crush sounding under this long, which is heard only while it sou |
@@ -372,6 +378,7 @@ Class: reference
 | `HEARTBEAT_INTERVAL` | 30 | research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py | seconds |
 | `HEARTBEAT_INTERVAL` | 10 | research/in-flight/t342/dead-modules/agent_comm_service.py | seconds - heartbeat frequency |
 | `HEARTBEAT_INTERVAL` | 30 | research/in-flight/t342/dead-modules/multi_agent.py |  |
+| `HIGHLIGHT_SECONDS` | 6 | arsenal/practice_riff.py |  |
 | `HINT_MAX_PER_AGENT` | 8 | core/comm/context_hints.py | ring buffer cap per receiving agent |
 | `HINT_TTL_SECONDS` | 300 | core/comm/context_hints.py | 5 min soft expiry (stale hints silently dropped by drain) |
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py |  |
@@ -384,24 +391,39 @@ Class: reference
 | `KEY_JOIN_MS` | 5,000 | arsenal/practice.py | a weak area joins a neighbour whose windows come this close |
 | `KEY_MIN_HEARD_MS` | 1,500 | arsenal/practice.py | a step hearing less than this scores every key alike |
 | `KEY_SNAP_MS` | 5,000 | arsenal/practice.py | a key change moves to the nearest window start this close |
+| `LANDING_AFTER_MS` | 250 | arsenal/practice_riff.py | ...to 250 ms after it |
 | `LANE_MEMBERSHIP_WINDOW` | 500 | core/comm/bifrost_api.py |  |
+| `LAUNCH_MIN_LEAD_MS` | 150 | arsenal/jam/runs.py |  |
+| `LEASE_MS` | 30,000 | arsenal/jam/runs.py |  |
 | `LINE_BUDGET` | 120 | core/coord/task_costs.py |  |
+| `LINE_FULL_MAX` | 70 | arsenal/practice_riff.py | ...or above backing full's top voice, at most A4 + 1 |
+| `LINE_LEN_CAP_BEATS` | 2 | arsenal/practice_riff.py | a note's length is capped here (the pedal never stretches it) |
+| `LINE_MIN_NOTE` | 60 | arsenal/practice_riff.py | C4: the top line starts here... |
 | `LINE_MIN_ONSETS` | 3 | arsenal/practice.py | a pedalled treble passage (nothing below middle C) of at least this many single notes... |
+| `LOOPBACK_MS` | 15 | arsenal/practice_riff.py |  |
 | `LYDIAN_JOIN_MS` | 300 | arsenal/practice.py | back-to-back Lydian 4 windows this close, on one root and bass, are one moment |
 | `MANIFEST_TTL` | 300 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 5 minutes - manifest expires if not refreshed |
+| `MARK_TEXT_MAX` | 200 | arsenal/jam/schemas.py |  |
+| `MAX_ALSO_IN` | 6 | arsenal/jam/schemas.py |  |
 | `MAX_BACKOFF` | 30 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
 | `MAX_BACKUP_AGE_ALERT` | 900 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 15 minutes - alert threshold |
 | `MAX_BACKUP_AGE_CRITICAL` | 1,800 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py | 30 minutes - critical threshold |
+| `MAX_BAND_NOTES` | 7 | arsenal/jam/schemas.py | a bass and up to 6 upper voices (MUSIC 3.2) |
 | `MAX_BARS` | 64 | arsenal/band.py |  |
+| `MAX_BEATS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
 | `MAX_CHARS_PER_ENTRY` | 170 | core/narrative/chronicler.py |  |
+| `MAX_CHECKS` | 8 | arsenal/jam/schemas.py |  |
 | `MAX_CLIPS` | 500 | arsenal/serve.py |  |
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
+| `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
+| `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
+| `MAX_MOMENTS` | 12 | arsenal/jam/schemas.py |  |
 | `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
 | `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
@@ -409,12 +431,15 @@ Class: reference
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
+| `MAX_RELATED` | 8 | arsenal/jam/schemas.py |  |
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
 | `MAX_STEPS` | 4,000 | arsenal/pianocue.py |  |
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
+| `MAX_TAGS` | 12 | arsenal/jam/schemas.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |
+| `MAX_VARIANTS` | 6 | arsenal/jam/schemas.py |  |
 | `MAX_WINDOW_MS` | 90,000 | arsenal/practice.py | the segmenter looks back this far |
 | `MESSAGE_TTL` | 3,600 | research/in-flight/t342/dead-modules/fast_agent_comm.py | 1 hour |
 | `MESSAGE_TTL_DAYS` | 7 | research/in-flight/t342/dead-modules/multi_agent.py |  |
@@ -422,39 +447,51 @@ Class: reference
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
+| `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
 | `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |
 | `MIN_WINDOW_MS` | 400 | arsenal/practice.py | shorter windows are transients |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
+| `MOMENT_LABEL_MAX` | 120 | arsenal/jam/schemas.py |  |
 | `MONITOR_INTERVAL` | 100 | research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py | ms - fast polling |
 | `MUD_FLOOR` | 55 | arsenal/band.py | G3: no minor second is stacked with its lower note under this |
+| `NAME_MAX` | 24 | arsenal/jam/schemas.py |  |
 | `NEIGHBOUR_STEP_MS` | 1,200 | arsenal/practice.py | ...or a step away from one note and back to it, each at most this far apart in time |
 | `NUDGE_TTL` | 120 | core/comm/nudge.py | a nudge auto-expires so a missed pick-up never sticks |
+| `NUMBER_MAX` | 24 | arsenal/jam/schemas.py |  |
 | `ONSET_GROUP_MS` | 50 | arsenal/practice.py | note-ons within 50 ms of a group's first onset are one attack (a window can start there) |
 | `ONSET_MERGE_MS` | 40 | arsenal/performance.py | note-ons within 40 ms of a group's first onset count as one onset (a chord, a roll) |
 | `OPEN_TAIL_MS` | 60,000 | arsenal/practice.py | in an open session, notes still down are counted up to now, at most this long past the las |
 | `OUTCOME_MAXLEN` | 20,000 | core/recall/at_action.py |  |
+| `OVERLAP_SLACK_MS` | 5,000 | arsenal/jam/align.py |  |
+| `PASSING_MAX_BEATS` | 1 | arsenal/practice_riff.py | a passing rub is shorter than this... |
 | `PASSING_MAX_MS` | 400 | arsenal/practice.py | a chromatic passing note is held (key down) at most this long, struck alone... |
 | `PASSING_STEP_MS` | 600 | arsenal/practice.py | ...and stepped into and out of, one way, by notes at most this far apart in time |
 | `PEDAL_POINT_HARMONY_MS` | 1,000 | arsenal/practice.py | ...and each held at least this long over the bass |
 | `PEDAL_POINT_MAX_PCS` | 6 | arsenal/practice.py | different harmonies of at most this many pitch classes (a pedal wash holds every note), |
 | `PEDAL_POINT_MIN_MS` | 4,000 | arsenal/practice.py | a pedal point lasts at least this long... |
 | `PEDAL_RING_MS` | 10,000 | arsenal/performance.py | a note released under the pedal counts as sounding for this long at most: a pedal held thr |
+| `PENDING_EXPIRE_MS` | 90,000 | arsenal/jam/runs.py | 20 s waiting for his rest + a 60 s knock + margin (8.9) |
 | `PER_AGENT_MAXLEN` | 10,000 | core/events/event_log.py | per-agent: a shallower convenience index |
 | `PER_AGENT_MAXLEN` | 10,000 | core/signals/agent_signal_ledger.py | signals retained per agent stream |
 | `PER_STREAM_LIMIT` | 400 | core/comm/flow_trace.py | bounded read per stream; the window trims harder |
+| `PHRASE_MAX_BARS` | 4 | arsenal/practice_riff.py | a longer phrase splits at its longest inner gap... |
 | `POLL_INTERVAL` | 5 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | seconds between checks |
 | `POLL_INTERVAL` | 30 | research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py | seconds between checks |
 | `PORT_TEST_UI_MAX` | 8,999 | config.py | last test-UI port. A test UI MUST live in [8900, 8999]. |
 | `PRESENCE_TTL` | 90 | core/comm/bus.py | seconds an agent is considered "online" after its last activity |
 | `PROG_GAP_MS` | 4,000 | arsenal/practice.py | a longer gap between two chords, or a change of key area, ends a chord sequence |
 | `PROPOSAL_TTL` | 60 | core/coord/intent.py | proposal records auto-expire after a minute |
+| `PULL_MAX` | 120 | arsenal/jam/schemas.py |  |
+| `READING_MIN_NOTES` | 3 | arsenal/practice_riff.py |  |
 | `REDIS_CHECK_TIMEOUT` | 30 | research/in-flight/t342/dead-modules/launch.py |  |
 | `REDIS_TIMEOUT` | 5 | config.py |  |
 | `REHAB_MIN_CONTEXTS` | 8 | core/recall/replay.py | criterion 2: surfaced contexts per rehab candidate... |
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py | rehab class definition (mirrors the audit / curator) |
 | `REHOME_CLAIM_TTL_S` | 30 | core/comm/reaper.py |  |
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py | X1: turn_metrics EST_CACHE_TTL pattern |
+| `REPLAY_MAX_SECONDS` | 600 | arsenal/jam/schemas.py |  |
+| `REPLAY_MAX_SPEED` | 4 | arsenal/jam/schemas.py |  |
 | `REPORT_TTL_SEC` | 900 | core/fleet/seat_model.py |  |
 | `RETURN_AREA_MS` | 8,000 | arsenal/practice.py | inside a key area, the parallel mode's 3rd back this long, with no sign of the area's own |
 | `RETURN_MIN_MS` | 4,000 | arsenal/practice.py | chords with the parallel key's 3rd (and not the area's own) this long in a row: the mode f |
@@ -465,6 +502,8 @@ Class: reference
 | `SAME_HARMONY_MAX_MS` | 10,000 | arsenal/practice.py | a step merged from different chords spans at most this long |
 | `SAME_HARMONY_MAX_PCS` | 5 | arsenal/practice.py | ...over a new bass only when both hold at most this many pitch classes (a pedal wash holds |
 | `SAME_HARMONY_SHORT_MS` | 1,000 | arsenal/practice.py | ...or when the new bass is shorter than this, on a note the chord already holds |
+| `SAY_MAX` | 120 | arsenal/jam/schemas.py |  |
+| `SCALE_MIN_NOTES` | 12 | arsenal/practice_riff.py |  |
 | `SCHEMA_KNOWN_MAX` | 1 | core/library/atoms.py |  |
 | `SEATSEEN_TTL_S` | 86,400 | core/comm/roster.py | kimi F1: death must outlive the worklive TTL to be RENDERABLE |
 | `SECTION_GAP_MS` | 5,000 | arsenal/practice.py | this long with nothing sounding and the pedal up ends a section: key areas, key changes, |
@@ -485,6 +524,17 @@ Class: reference
 | `STEER_TTL` | 900 | core/comm/nudge.py | a queued steer that's never picked up self-expires after 15 min |
 | `SURFACE_MAXLEN` | 6,000 | core/recall/at_action.py |  |
 | `SUS_HOLD_MS` | 300 | arsenal/practice.py | a suspension: the sus chord complete and held this long, then a pause this long before |
+| `T10_MIN_PHRASES` | 6 | arsenal/practice_riff.py |  |
+| `T13_MIN_NOTES` | 8 | arsenal/practice_riff.py | and each side of the comparison needs this many top-line notes |
+| `T13_MIN_PASSES` | 4 | arsenal/practice_riff.py |  |
+| `T13_MIN_PASS_NOTES` | 4 | arsenal/practice_riff.py | a pass counts toward T13 only when it holds his playing (top-line notes) |
+| `T14_MIN` | 3 | arsenal/practice_riff.py |  |
+| `T1_MIN` | 4 | arsenal/practice_riff.py |  |
+| `T3_MIN_PHRASES` | 6 | arsenal/practice_riff.py |  |
+| `T5_MIN` | 2 | arsenal/practice_riff.py |  |
+| `T6_MIN_NOTES` | 100 | arsenal/practice_riff.py |  |
+| `T7_MIN` | 3 | arsenal/practice_riff.py |  |
+| `TEMPLATE_MAX_NOTES` | 16 | arsenal/jam/cards.py |  |
 | `TEMPO_WINDOW_MS` | 25 | arsenal/performance.py | a gap's cluster is every in-range gap within 25 ms of it |
 | `TF_LEN_UNIT` | 4,000 | core/recall/lookback.py | chars of text per EXPECTED occurrence of a matched stem: a 12KB doc |
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py | chars: below this a body is "a pointer with manners" |
@@ -493,9 +543,13 @@ Class: reference
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |
+| `TRY_CONCEPT_MIN` | 2 | arsenal/practice_riff.py |  |
+| `TRY_EARLY_MIN_PHRASES` | 3 | arsenal/practice_riff.py | try rule 4 ("start one phrase a beat early") needs a few phrases to speak of |
+| `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |
+| `WARNING_MAX` | 300 | arsenal/jam/schemas.py |  |
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |
 | `WINDOW` | 30 | core/coord/method_drift.py |  |
 | `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py |  |
@@ -514,6 +568,7 @@ Class: reference
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
 | `_MAX_LECTURE_BYTES` | 2,000,000 | core/library/college.py |  |
 | `_MAX_NOTE` | 100,000 | agent_cli.py | durable note bodies: a ceiling against runaway pastes, not a working size |
+| `_MAX_STEPS` | 100,000 | arsenal/jam/tempomap.py |  |
 | `_MAX_SUMMARY` | 500 | core/events/event_log.py |  |
 | `_MIN_MARKER` | 6 | core/trust/private_plane.py |  |
 | `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |

@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from . import __version__
 from .graph import GraphError, load_graph
 from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
+from .jam.runs import JamApi
 from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
 from .presets import list_presets
@@ -50,6 +51,11 @@ RECORDING_TYPES = {"video/webm": ".webm", "video/mp4": ".mp4", "video/x-matroska
 MAX_RECORDING = 4 * 1024 ** 3
 _ID = r"[0-9a-f]{16}"
 _TAKE = r"\d{8}-\d{6}-[0-9a-f]{8}"
+
+
+def _is_jam_path(path: str) -> bool:
+    return path == "/api/piano/replay" or path == "/api/piano/deck" or path.startswith("/api/piano/deck/") or \
+        path == "/api/piano/jam" or path.startswith("/api/piano/jam/")
 
 
 def clip_id_for(path) -> str:
@@ -147,7 +153,7 @@ class Jobs:
 
 class App:
     def __init__(self, roots: List[str], takes_root=None, presets_dir=None, performance_root=None,
-                 performance_log: bool = True):
+                 performance_log: bool = True, jam_root=None):
         self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
@@ -157,6 +163,12 @@ class App:
         self.jobs = Jobs()
         self.probes: Dict[str, dict] = {}
         self.cues = CueHub()  # Claude's hand on the piano page (arsenal/pianocue.py)
+        # The jam space: deck, runs and their routes (arsenal/jam). Its files sit beside the practice log's
+        # (state/arsenal/jam by default; <performance root>/../jam for a server given --performance-root). Nothing is
+        # read or written until a jam route is used; serve() closes runs a previous server left open.
+        if jam_root is None and performance_root is not None:
+            jam_root = Path(performance_root).resolve().parent / "jam"
+        self.jam = JamApi(root=jam_root, performance=self.performance, hub=lambda: self.cues)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -242,6 +254,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._cue_stream(query)
                 if path == "/api/piano/cues/status":
                     return self._json(200, self.app.cues.status())
+                if _is_jam_path(path):
+                    return self._jam_route("GET", path, query)
                 logging = self.app.performance is not None
                 if path == "/api/performance" and logging:
                     return self._json(200, {"sessions": self.app.performance.list()})
@@ -265,6 +279,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._take_open()
                 if path == "/api/piano/cue":
                     return self._cue_post()
+                if _is_jam_path(path):
+                    return self._jam_route("POST", path, query)
                 m = re.fullmatch(rf"/api/take/({_TAKE})/(events|close)", path)
                 if m:
                     return self._take_post(m.group(1), m.group(2))
@@ -528,6 +544,9 @@ class Handler(BaseHTTPRequestHandler):
             header = ((query.get("lastEventId") or [""])[0]).strip()
         if re.fullmatch(r"\d{1,18}", header):
             last_event_id = int(header)
+        # a jam page announces itself: ?caps=jam1,deck1&page=<page id> (the hub keeps only well-formed values)
+        caps = tuple(c for c in ((query or {}).get("caps") or [""])[0].split(",") if c)[:8]
+        page_id = ((query or {}).get("page") or [None])[0]
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -536,7 +555,7 @@ class Handler(BaseHTTPRequestHandler):
         self.close_connection = True  # no Content-Length: the stream ends when the connection does
         if self.command == "HEAD":
             return
-        token, inbox, preamble = hub.open_stream(last_event_id)
+        token, inbox, preamble = hub.open_stream(last_event_id, caps, page_id)
         try:
             self.wfile.write(preamble)  # "retry: 1000", an id: cursor, then any replayed cues
             last_write = time.monotonic()
@@ -559,6 +578,33 @@ class Handler(BaseHTTPRequestHandler):
             return  # the page went away mid-write
         finally:
             hub.unsubscribe(token)
+
+    def _jam_route(self, method: str, path: str, query) -> None:
+        """The deck, jam and replay routes (jam-spec 5), answered by arsenal/jam/runs.py JamApi. A POST is read and
+        checked as a cue post is: the 2 MB cap, the same-machine origin check, a JSON object."""
+        body = None
+        if method == "POST":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                self.close_connection = True
+                return self._json(400, {"error": "Content-Length is not a number"})
+            if length > MAX_CUE_BODY:
+                self.close_connection = True
+                return self._json(413, {"error": f"a jam body is at most {MAX_CUE_BODY} bytes"})
+            raw = self.rfile.read(length) if length > 0 else b""
+            origin = self.headers.get("Origin")
+            if origin is not None and urlsplit(origin).hostname not in ("127.0.0.1", "localhost"):
+                return self._json(403, {"error": f"jam requests are accepted from this machine's pages only, not "
+                                                 f"{origin}"})
+            try:
+                body = json.loads(raw.decode("utf-8") or "null")
+            except ValueError as exc:
+                return self._json(400, {"error": f"the body is not JSON: {exc}"})
+            if body is None:
+                body = {}
+        status, reply = self.app.jam.handle(method, path, query, body)
+        return self._json(status, reply)
 
     def _peer_gone(self) -> bool:
         """An EventSource never sends after its request, so a readable socket means the peer closed (or reset)."""
@@ -626,10 +672,24 @@ def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, 
     print(f"[arsenal] First Light at {base}/first-light, Play at {base}/play  (library: {roots_text})", flush=True)
     log_text = f"sessions in {app.performance.root}" if app.performance else "off (the routes answer 404)"
     print(f"[arsenal] practice log: {log_text}", flush=True)
+    closed = app.jam.runs.close_unclosed()  # a run left open by an earlier server ends with server-restart
+    print(f"[arsenal] jam: deck and runs in {app.jam.root}"
+          + (f"; closed {len(closed)} run(s) an earlier server left open" if closed else ""), flush=True)
+    ticking = threading.Event()
+
+    def tick() -> None:  # passes that end by themselves, pending runs nobody launched
+        while not ticking.wait(0.5):
+            try:
+                app.jam.tick()
+            except Exception as exc:  # the ticker never takes the server down
+                sys.stderr.write(f"[arsenal] jam tick: {type(exc).__name__}: {exc}\n")
+
+    threading.Thread(target=tick, daemon=True, name="jam-tick").start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        ticking.set()
         app.cues.close()  # ends every open cue stream
         server.server_close()

@@ -6,9 +6,14 @@
 //   echo '{"items": ["Abmaj9#11", "5^7sus4/1"], "key": "Eb major", "voicing": "spread"}' | node arsenal/pianocue_voicing.mjs
 //   node arsenal/pianocue_voicing.mjs "Bb7sus4/Eb" --key "Eb major" --voicing drop2
 //
-// Request: { items: [text], key: "Eb major" | null, voicing: close|open|spread|drop2|shell, octave: int | null,
-//            voice_lead: bool, minor: "tonic" | "relative" }  or  { check: true } (the suffix reader against every
-//            Theory.TEMPLATES suffix).
+// Request: { items: [text | {text, key, upper}], key: "Eb major" | null, voicing: close|open|spread|drop2|shell|band,
+//            octave: int | null, voice_lead: bool, minor: "tonic" | "relative", line: "ring" | "chain" (band) }  or
+//            { check: true } (the suffix reader against every Theory.TEMPLATES suffix)  or  { requests: [request] }
+//            (a batch in one node start: { ok, replies: [reply] }, each reply byte-identical to the request alone). An item's own key overrides the
+//            request's (a line through a key change); upper: "same" is read by the band voicer (see "band" below).
+//   node arsenal/pianocue_voicing.mjs 1maj9 4maj7#11 --key "Eb major" --voicing band [--line chain]
+// Every chord result carries tones_pc ({role: pitch class}) and bass_pc; notes the page reads as a chord carry them too
+// (tones_pc is null for a cluster, and bass_pc is then the lowest note's).
 // An item is a chord name ("Abmaj9#11", "Bb7sus4/Eb", "Ebm(add9)/Bb"), a Nashville number with a key ("1", "4", "b3",
 // "4maj9#11", "b7maj9", "5^7sus4/1"; tonic numbering with major-scale accidentals, as nashville.js), or notes
 // ("Ab3 Eb4 G4" or MIDI numbers 21..108; one token like "E4" is a note, but "G5", "C7" read as chords, as nashville.js
@@ -639,13 +644,32 @@ function readsAsItself(chord, style, octave, keyName, bias) {
 }
 
 // ------------------------------------------------------------------- items --
-function voiceItem(text0, req, prev) {
+const keyError = (keyName) => new Error(`cannot read the key ${JSON.stringify(keyName)} (try "Eb major" or "C# minor")`);
+
+// The pitch class of each chord tone by role ({root: 10, third: 1, ...}), in the chord's own order.
+const tonesPc = (chord) => Object.fromEntries([...chord.tones].map(([role, [semis]]) => [role, mod(chord.rootPc + semis, 12)]));
+
+// In a key the label is the page's name for the chord, typed or numbered: Ab7 in C# minor is G#7 (beside 5^7), b6 in Eb
+// major is B. Without a key a typed name is Claude's own spelling and stays. The chord is rebuilt from the page's root
+// and bass spellings with its own suffix, never by reading the page's name back as text.
+function inPageSpelling(chord, keyName, key) {
+  if (!key) return chord;
+  const shown = pageSpelledName(chord, keyName, key.bias);
+  const bass = chord.bass && shown ? shown.bass : null;
+  const sameSp = (a, b) => (!a && !b) || (!!a && !!b && a.letter === b.letter && a.acc === b.acc);
+  if (shown && shown.root && pcOf(shown.root) === chord.rootPc && (!chord.bass || (bass && pcOf(bass) === chord.bassPc))
+      && !(sameSp(shown.root, chord.root) && sameSp(bass, chord.bass))) {
+    try { return chordFromParts({ root: shown.root, suffix: chord.suffix, bass }); } catch { /* keep the typed spelling */ }
+  }
+  return chord;
+}
+
+// One item read as the page reads it: notes (given), or a chord from a name or a Nashville number, spelled as the page
+// shows it in the key. The plain styles (voiceItem) and the band voicer (bandItem) both start here.
+function readItem(text0, keyName) {
   const text = clean(text0);
-  const keyName = req.key || null;
   const key = keyName ? NV.parseKey(keyName) : null;
-  if (keyName && !key) throw new Error(`cannot read the key ${JSON.stringify(keyName)} (try "Eb major" or "C# minor")`);
-  const style = req.voicing || "close";
-  if (!STYLES.includes(style)) throw new Error(`voicing must be one of ${STYLES.join(", ")}`);
+  if (keyName && !key) throw keyError(keyName);
   const minor = THEORY_UI.minor;
   const warnings = [];
 
@@ -659,17 +683,7 @@ function voiceItem(text0, req, prev) {
       warnings.push(`${text} was read as the MIDI note ${spelledNames([given[0].midi], new Map(), key.bias)[0]}, not a Nashville number; ` +
                     `write one number per chord ("5^7" for the 5 chord with a 7th, "5 7" as a progression)`);
     }
-    const notes = [...new Set(given.map((n) => n.midi))].sort((a, b) => a - b);
-    const bias = key ? key.bias : 0;
-    const info = Theory.detect(notes, bias);
-    const spell = new Map();
-    for (const g of given) if (g.sp && !spell.has(mod(g.midi, 12))) spell.set(mod(g.midi, 12), g.sp);
-    for (const n of info.notes) if (!spell.has(mod(n.midi, 12))) spell.set(mod(n.midi, 12), { letter: n.letter, acc: n.acc });
-    const number = key ? NV.nashville(info, keyName, { minor }) : null;
-    return { input: text0, kind: "notes", name: pageName(info, keyName) || info.name, key: key ? key.name : null,
-             number: number ? number.text : null, voicing: "as given", notes, names: spelledNames(notes, spell, bias),
-             roundtrip: { detected: info.name, match: "notes", page_name: pageName(info, keyName), page_number: number ? number.text : null },
-             movement: movement(prev, notes), warnings };
+    return { text, key, keyName, minor, warnings, given };
   }
 
   let kind = "chord", name = dashMinor ? text.replace(/^([A-Ga-g](?:#{1,2}|b{1,2})?)-\^?/, "$1m") : text, numberIn = null;
@@ -682,21 +696,57 @@ function voiceItem(text0, req, prev) {
   } else if (/\s/.test(text)) {
     throw new Error(`cannot read ${JSON.stringify(text)}: notes need octaves ("Ab3 Eb4") and chords have no spaces`);
   }
-  let chord = parts ? chordFromParts(parts) : chordFrom(name);
-  if (key) {
-    // In a key the label is the page's name for the chord, typed or numbered: Ab7 in C# minor is G#7 (beside 5^7),
-    // b6 in Eb major is B. Without a key a typed name is Claude's own spelling and stays. The chord is rebuilt from
-    // the page's root and bass spellings with its own suffix, never by reading the page's name back as text.
-    const shown = pageSpelledName(chord, keyName, key.bias);
-    const bass = chord.bass && shown ? shown.bass : null;
-    const sameSp = (a, b) => (!a && !b) || (!!a && !!b && a.letter === b.letter && a.acc === b.acc);
-    if (shown && shown.root && pcOf(shown.root) === chord.rootPc && (!chord.bass || (bass && pcOf(bass) === chord.bassPc))
-        && !(sameSp(shown.root, chord.root) && sameSp(bass, chord.bass))) {
-      try { chord = chordFromParts({ root: shown.root, suffix: chord.suffix, bass }); } catch { /* keep the typed spelling */ }
-    }
-  }
+  const chord = inPageSpelling(parts ? chordFromParts(parts) : chordFrom(name), keyName, key);
   if (!chord.template) warnings.push(`the page has no name for ${chord.suffix} chords; it will read these notes another way`);
   const bias = key ? key.bias : Math.sign(chord.root.acc);
+  return { text, key, keyName, minor, warnings, chord, kind, numberIn, bias };
+}
+
+// The chord's Nashville number in the key, with a warning when a typed number reads back as another one.
+function numberFor(chord, p) {
+  let number = p.key ? NV.nashville({ kind: "chord", root: chord.root, suffix: chord.suffix, bass: chord.bass }, p.keyName, { minor: p.minor }) : null;
+  number = number ? number.text : null;
+  if (p.numberIn && number && bare(number) !== bare(p.numberIn) && !sameChord(number, p.numberIn, p.keyName, p.minor)) {
+    p.warnings.push(`${p.numberIn} reads back as ${number} in ${p.key.name}`);
+  }
+  return number;
+}
+
+// The tones of notes the page reads as a chord (tones_pc, bass_pc), or null tones with the lowest note as the bass.
+function notesTones(info, notes) {
+  if (info && info.kind === "chord") {
+    try {
+      const chord = chordFromParts({ root: info.root, suffix: info.suffix, bass: info.bass });
+      return { tones_pc: tonesPc(chord), bass_pc: chord.bassPc };
+    } catch { /* a reading without tones: fall through */ }
+  }
+  return { tones_pc: null, bass_pc: mod(notes[0], 12) };
+}
+
+function voiceItem(text0, req, prev) {
+  const keyName = req.key || null;
+  if (keyName && !NV.parseKey(keyName)) throw keyError(keyName);
+  const style = req.voicing || "close";
+  if (!STYLES.includes(style)) throw new Error(`voicing must be one of ${[...STYLES, "band"].join(", ")}`);
+  const p = readItem(text0, keyName);
+  const { key, minor, warnings } = p;
+
+  if (p.given) {
+    const notes = [...new Set(p.given.map((n) => n.midi))].sort((a, b) => a - b);
+    const bias = key ? key.bias : 0;
+    const info = Theory.detect(notes, bias);
+    const spell = new Map();
+    for (const g of p.given) if (g.sp && !spell.has(mod(g.midi, 12))) spell.set(mod(g.midi, 12), g.sp);
+    for (const n of info.notes) if (!spell.has(mod(n.midi, 12))) spell.set(mod(n.midi, 12), { letter: n.letter, acc: n.acc });
+    const number = key ? NV.nashville(info, keyName, { minor }) : null;
+    return { input: text0, kind: "notes", name: pageName(info, keyName) || info.name, key: key ? key.name : null,
+             number: number ? number.text : null, voicing: "as given", notes, names: spelledNames(notes, spell, bias),
+             roundtrip: { detected: info.name, match: "notes", page_name: pageName(info, keyName), page_number: number ? number.text : null },
+             ...notesTones(info, notes), movement: movement(prev, notes), warnings };
+  }
+
+  const chord = p.chord;
+  const { kind, numberIn, bias } = p;
   const octave = Number.isInteger(req.octave) ? req.octave : null;
 
   const base = fit(VOICERS[style](chord, octave));
@@ -743,14 +793,571 @@ function voiceItem(text0, req, prev) {
     warnings.push(`low-interval crowding (may sound muddy): ${pairs.join(", ")}`);
   }
 
-  let number = key ? NV.nashville({ kind: "chord", root: chord.root, suffix: chord.suffix, bass: chord.bass }, keyName, { minor }) : null;
-  number = number ? number.text : null;
-  if (numberIn && number && bare(number) !== bare(numberIn) && !sameChord(number, numberIn, keyName, minor)) {
-    warnings.push(`${numberIn} reads back as ${number} in ${key.name}`);
-  }
+  const number = numberFor(chord, p);
   return { input: text0, kind, name: chord.name, key: key ? key.name : null, number, number_typed: numberIn, voicing: style, octave,
            notes: best.notes, names: spelledNames(best.notes, chord.spell, bias),
-           tones: [...chord.tones.keys()], roundtrip: best.back.rt, movement: movement(prev, best.notes), warnings };
+           tones: [...chord.tones.keys()], tones_pc: tonesPc(chord), bass_pc: chord.bassPc,
+           roundtrip: best.back.rt, movement: movement(prev, best.notes), warnings };
+}
+
+// --------------------------------------------------------------------- band --
+// The band voicer (jam-spec 10.1, design-music 4.1-4.8): the backing voicings for Loop and Try, in registers that leave
+// Daniel his own (Bb4 up). One request voices a whole line three ways:
+//   full   a bass in E1-D3 (28-50, preferring C2-B2) and 4 upper voices (up to 6 when the tones need them) from D3,
+//          top voice soft F4, hard A4
+//   comp   2-3 upper voices in C3-B3 (4 over a foreign bass); the top voice and an altered colour may reach E4. It
+//          keeps the full voicing's bass wherever its register allows one
+//   bass   the bass note alone: the full voicing's bass
+// Tones: the 3rd or sus, the 7th or 6th and any altered colour (b9 #9 #11 b13 b5 #5) always; the named 9, 11 and 13 in
+// full only; the root when the bass is not the root; the natural 5th and then a doubled root fill free voices (and
+// come out again when the filled set cannot fit). The bass pitch class is never doubled above the bass, except a
+// root-position root when the chord would otherwise have fewer than 3 upper voices, and inside a run of upper "same"
+// slots.
+// Candidates (4.3): every ordering of the tones, the first note in [lo, lo+11] or an octave up, each later note on the
+// first instance above the one before or an octave higher; kept when under the top, clear of the low-interval limits
+// (BAND_LIL, adjacent pairs), within two octaves, without a minor 9th the name does not call for, and without a minor
+// 2nd between the top two voices. Each is paired with a bass at least a 5th below it (and clear of the limit for that
+// pair) and scored by the static cost S (4.5); the best 40 go on. Only when no tone set fits are the rules loosened,
+// one step at a time (BAND_LOOSER), and the result says which in a warning.
+// Gate (4.8): a full candidate is kept only if the page reads it back as the chord (exact or enharmonic). If none is,
+// the natural 5th a free voice took is left out, then the omitted tones are added one at a time (up to 6 upper voices);
+// if still none, the best shape stays and reads_as says what the page calls it, with a warning. comp and bass are not
+// read back: they leave colours to him, and the page never names Claude's notes.
+// Line (4.6-4.7): the chosen voicings minimise S plus the move cost T between neighbours, over a ring (line "ring", the
+// default: the last chord leads back to the first, for loops) or an open chain (line "chain", for a card played once).
+// Ties go to the lower total S, then to the candidate with the lower MIDI list. A ring keeps its seam from being the
+// loop's biggest move (4.9: the wrap move is no larger than the largest other move between the line's chords): the
+// cheapest line that does so wins (bandLine, bandSeamSearch); a comp line that cannot is voiced again with free basses,
+// then with its thinner 2-voice shapes among the candidates.
+// Upper "same" (jam-spec 10.1 amendment): an item {text, upper: "same"} keeps the previous slot's upper voices note for
+// note, and only its bass is chosen, nearest the previous bass under the limits. The run is one chord to the line: its
+// shared shape holds every run slot's required tones, and it passes the gate only if every slot reads back with its own
+// bass; a run that cannot pass is voiced anyway, with the warning.
+// Each result adds band {full, comp, bass: {notes, names, roles, static_cost, move_cost}}, tones_pc, bass_pc,
+// upper_same, reads_as and omits; its notes, names and roundtrip are the full voicing's. move_cost is T from the slot
+// before (slot 0 in a ring: the wrap move from the last slot; in a chain: null).
+const BAND = {
+  full: { lo: 50, softTop: 65, hardTop: 69, colourTop: 69, centre: 58, voices: 4 },
+  comp: { lo: 48, softTop: 59, hardTop: 59, colourTop: 64, centre: 55, voices: 3 },
+};
+const BAND_BASS = { lo: 28, hi: 50, preferLo: 36, preferHi: 47 };
+const BAND_MAX_UPPER = 6, BAND_SPAN = 24, BAND_BASS_GAP = 7, BAND_KEEP = 40, EPS = 1e-9;
+// The lowest allowed lower note of an adjacent pair, by the interval in semitones (design-music 4.4: m2 E3, M2 Eb3,
+// m3 C3, M3 and P4 Bb2, tritone B2, P5 Bb1, m6 to M7 F2, m9 E2, M9 Eb2; the octave and a 10th or wider are free).
+const BAND_LIL = { 1: 52, 2: 51, 3: 48, 4: 46, 5: 46, 6: 47, 7: 34, 8: 41, 9: 41, 10: 41, 11: 41, 13: 40, 14: 39 };
+const underLimit = (lo, hi) => BAND_LIL[hi - lo] !== undefined && lo < BAND_LIL[hi - lo];
+const TOP_COLOURS = new Set(["ninth", "eleventh", "thirteenth"]);
+const r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000 + 0);
+
+// The chord's tones for the band: { root, third (or sus), seventh (or 6th), fifth (natural only), altered, named }.
+function bandRoles(chord) {
+  const tone = (role) => {
+    if (!chord.tones.has(role)) return null;
+    const semis = mod(chord.tones.get(role)[0], 12);
+    return { role, pc: mod(chord.rootPc + semis, 12), semis, altered: false };
+  };
+  const NATURAL = { ninth: 2, eleventh: 5, thirteenth: 9 };
+  const fifth = tone("fifth"), seventh = tone("seventh"), sixth = tone("sixth");
+  const altered = [], named = [];
+  if (fifth && fifth.semis !== 7) altered.push({ ...fifth, altered: true });
+  for (const x of ["ninth", "eleventh", "thirteenth"].map(tone)) {
+    if (!x) continue;
+    if (x.semis === NATURAL[x.role]) named.push(x); else altered.push({ ...x, altered: true });
+  }
+  if (seventh && sixth) named.push(sixth);
+  return { root: tone("root"), third: tone("third") || tone("sus"), seventh: seventh || sixth,
+           fifth: fifth && fifth.semis === 7 ? fifth : null, altered, named };
+}
+
+// The tones a backing must hold for one slot, most important first, without the slot's bass pitch class.
+function bandRequired(chord, backing) {
+  const r = bandRoles(chord);
+  const out = [r.third, r.seventh, ...r.altered, ...(backing === "full" ? r.named : [])];
+  if (chord.bassPc !== chord.rootPc) out.push(r.root);
+  return out.filter((t) => t && t.pc !== chord.bassPc);
+}
+
+const hasPc = (tones, pc) => tones.some((t) => t.pc === pc);
+const roleOfPc = (chord, pc) => {
+  for (const [role, [semis]] of chord.tones) if (mod(chord.rootPc + semis, 12) === pc) return role;
+  return null;
+};
+
+// The tone sets to try for a group (one slot, or a run of upper "same" slots), in order: the required tones with the
+// free voices filled; for full, that set without a 5th that only filled a voice, then with omitted tones added one at a
+// time (the gate's fallbacks).
+function bandToneOptions(group, backing) {
+  const warnings = [];
+  const req = [];
+  for (const s of group) for (const t of bandRequired(s.chord, backing)) if (!hasPc(req, t.pc)) req.push(t);
+  if (req.length > BAND_MAX_UPPER) {
+    warnings.push(`the ${backing} voicing leaves out the ${req.slice(BAND_MAX_UPPER).map((t) => t.role).join(" and ")} ` +
+                  `(at most ${BAND_MAX_UPPER} upper voices)`);
+    req.length = BAND_MAX_UPPER;
+  }
+  const first = group[0].chord, r = bandRoles(first);
+  const base = [...req];
+  let fifth = null;
+  if (base.length < BAND[backing].voices && r.fifth && r.fifth.pc !== first.bassPc && !hasPc(base, r.fifth.pc)) {
+    fifth = r.fifth;
+    base.push(fifth);
+  }
+  let root = null;
+  if (base.length < BAND[backing].voices && (r.root.pc !== first.bassPc || base.length < 3)) { root = { ...r.root }; base.push(root); }
+  const options = [base];
+  if (backing === "full") {
+    if (fifth) options.push(base.filter((t) => t !== fifth));
+    const run = group.length > 1;
+    let cur = base;
+    for (const s of group) {
+      const rr = bandRoles(s.chord);
+      for (const t of [rr.fifth, ...rr.named, ...rr.altered, rr.third, rr.seventh, rr.root]) {
+        if (!t || cur.length >= BAND_MAX_UPPER || hasPc(cur, t.pc) || (!run && t.pc === first.bassPc)) continue;
+        cur = [...cur, t];
+        options.push(cur);
+      }
+    }
+  }
+  // fewer voices when the filled set cannot fit the register (F C F over an A bass has no comp shape in C3-B3)
+  if (backing === "comp" && fifth) options.push(base.filter((t) => t !== fifth));
+  if (root) options.push(base.filter((t) => t !== root));
+  if (root && fifth && base.length > 2) options.push(base.filter((t) => t !== root && t !== fifth));
+  return { options, warnings };
+}
+
+// Upper shapes (ascending MIDI lists) for a multiset of tones. The top voice and an altered colour may reach the colour
+// top (comp: E4); the inner voices stay under the hard top (comp: B3). level relaxes the rules when nothing fits
+// (BAND_LOOSER): 1 allows a minor 2nd between the top two voices and a minor 9th; 2 lets an inner voice reach the colour
+// top; 3 drops the low-interval limits; 4 widens the span to three octaves.
+const BAND_LOOSER = { 1: "keeps a minor 2nd between its top two voices or a minor 9th",
+                      2: "lets an inner voice over the top of its register", 3: "breaks a low-interval limit",
+                      4: "spans more than two octaves" };
+function bandShapes(tones, reg, level, b9) {
+  const n = tones.length, out = [], seen = new Set(), used = new Array(n).fill(false), cur = [], high = [];
+  const span = level >= 4 ? 36 : BAND_SPAN;
+  const walk = () => {
+    if (cur.length === n) {
+      if (level < 1 && n >= 2 && cur[n - 1] - cur[n - 2] === 1) return;
+      if (high.slice(0, -1).some(Boolean)) return;  // only the top voice may sit over the hard top without being a colour
+      const key = cur.join(",");
+      if (!seen.has(key)) { seen.add(key); out.push([...cur]); }
+      return;
+    }
+    const tried = new Set();
+    const prev = cur.length ? cur[cur.length - 1] : null;
+    for (let i = 0; i < n; i++) {
+      if (used[i] || tried.has(tones[i].pc)) continue;
+      tried.add(tones[i].pc);
+      const first = prev === null ? above(tones[i].pc, reg.lo) : above(tones[i].pc, prev + 1);
+      for (const note of [first, first + 12]) {
+        if (note > reg.colourTop) continue;
+        if (prev !== null) {
+          if (note - cur[0] > span) continue;
+          if (level < 3 && underLimit(prev, note)) continue;
+          if (level < 1 && !b9 && cur.some((m) => note - m === 13)) continue;
+        }
+        used[i] = true; cur.push(note); high.push(level < 2 && note > reg.hardTop && !tones[i].altered);
+        walk();
+        cur.pop(); high.pop(); used[i] = false;
+      }
+    }
+  };
+  walk();
+  return out;
+}
+
+const bassNotes = (pc) => { const out = []; for (let m = above(pc, BAND_BASS.lo); m <= BAND_BASS.hi; m += 12) out.push(m); return out; };
+const bassPairOk = (bass, lowest, level) => lowest - bass >= BAND_BASS_GAP && (level >= 3 || !underLimit(bass, lowest));
+const preferDistance = (b) => (b < BAND_BASS.preferLo ? BAND_BASS.preferLo - b : b > BAND_BASS.preferHi ? b - BAND_BASS.preferHi : 0);
+
+// Static cost S of one voicing [bass, ...upper] (design-music 4.5).
+function bandStatic(notes, reg, chord) {
+  const bass = notes[0], upper = notes.slice(1), top = upper[upper.length - 1], gap = upper[0] - bass;
+  let s = 0.5 * Math.abs(mean(upper) - reg.centre) + Math.max(0, top - reg.softTop) + 0.3 * preferDistance(bass);
+  s += 0.3 * Math.max(0, 10 - gap) + 0.3 * Math.max(0, gap - 24);
+  for (let i = 1; i < upper.length; i++) if (upper[i] - upper[i - 1] === 1) s += 0.4;
+  if (TOP_COLOURS.has(roleOfPc(chord, mod(top, 12)))) s -= 0.4;
+  return s;
+}
+
+// The cheapest one-to-one matching of the smaller list's notes into the larger's (semitones moved).
+function matchCost(a, b) {
+  if (a.length === b.length) { let t = 0; for (let i = 0; i < a.length; i++) t += Math.abs(a[i] - b[i]); return t; }
+  const [s, l] = a.length < b.length ? [a, b] : [b, a];
+  const dp = new Float64Array(1 << l.length).fill(Infinity);
+  dp[0] = 0;
+  let best = Infinity;
+  for (let mask = 0; mask < dp.length; mask++) {
+    if (dp[mask] === Infinity) continue;
+    let i = 0;
+    for (let m = mask; m; m &= m - 1) i++;
+    if (i === s.length) { best = Math.min(best, dp[mask]); continue; }
+    for (let j = 0; j < l.length; j++) {
+      if (mask & (1 << j)) continue;
+      const c = dp[mask] + Math.abs(s[i] - l[j]);
+      if (c < dp[mask | (1 << j)]) dp[mask | (1 << j)] = c;
+    }
+  }
+  return best;
+}
+
+// Move cost T(a, b) between consecutive voicings (design-music 4.6). The same chord twice keeps its voicing: 0 when it
+// does, 3 when it does not.
+function bandMove(a, b, sameChord) {
+  if (sameChord) return a.length === b.length && a.every((n, i) => n === b[i]) ? 0 : 3;
+  const ua = a.slice(1), ub = b.slice(1);
+  let t = matchCost(ua, ub) + 1.5 * Math.abs(ua.length - ub.length);
+  for (const n of ub) if (ua.includes(n)) t -= 1;
+  const ta = ua[ua.length - 1], tb = ub[ub.length - 1], ba = a[0], bb = b[0];
+  t += 0.8 * Math.max(0, Math.abs(tb - ta) - 3);
+  if (ba !== bb) {
+    if (mod(ba, 12) === mod(bb, 12)) t += 5;
+    else { const d = Math.abs(bb - ba); t += 0.15 * Math.min(d, 7) + 0.6 * Math.max(0, d - 7); }
+  }
+  const ia = mod(ta - ba, 12), ib = mod(tb - bb, 12);
+  if ((ia === 0 || ia === 7) && ia === ib && ba !== bb && ta !== tb && Math.sign(bb - ba) === Math.sign(tb - ta)) t += 1;
+  return t;
+}
+const sameChordAs = (x, y) => x.chord.name === y.chord.name;
+
+// Whether the page reads a full voicing back as the slot's chord. The reading depends only on the distinct pitch classes
+// in order from the bass up (detect breaks ties by that order) and on whether the bass pitch class sounds again above.
+const GATE_MEMO = new Map();
+function bandReads(slot, notes) {
+  const order = [];
+  for (const n of notes) if (!order.includes(mod(n, 12))) order.push(mod(n, 12));
+  const again = notes.slice(1).some((n) => mod(n, 12) === mod(notes[0], 12));
+  const memo = `${slot.chord.name}|${slot.chord.suffix}|${slot.chord.bassPc}|${slot.keyName}|${slot.bias}|${THEORY_UI.minor}|${order}|${again}`;
+  let ok = GATE_MEMO.get(memo);
+  if (ok === undefined) {
+    ok = ["exact", "enharmonic"].includes(readBack(slot.chord, notes, slot.keyName, slot.bias).rt.match);
+    GATE_MEMO.set(memo, ok);
+  }
+  return ok;
+}
+
+// Candidates for one group and backing: { slots: [voicing per slot], S, flat }, best BAND_KEEP by S. fixed (per slot,
+// or null) asks for those bass notes; a group with no candidate on them is voiced with free basses. pool (comp only)
+// gathers the candidates of every tone set that fits (3 voices and the thinner 2), for a ring the register leaves
+// without a choice.
+function bandGroupCandidates(group, backing, fixed, pool = false) {
+  const reg = BAND[backing];
+  const { options, warnings } = bandToneOptions(group, backing);
+  const b9 = group.some((s) => s.chord.tones.has("ninth") && mod(s.chord.tones.get("ninth")[0], 12) === 1);
+  const gated = backing === "full";
+
+  const build = (shapes, level, fixedBass) => {
+    const out = [];
+    for (const upper of shapes) {
+      const firsts = fixedBass ? [fixedBass[0]] : bassNotes(group[0].chord.bassPc);
+      for (const b0 of firsts) {
+        if (!bassPairOk(b0, upper[0], level)) continue;
+        const slots = [[b0, ...upper]];
+        let S = bandStatic(slots[0], reg, group[0].chord), ok = true;
+        for (let k = 1; k < group.length; k++) {
+          const prevBass = slots[k - 1][0];
+          let bass = fixedBass && bassPairOk(fixedBass[k], upper[0], level) ? fixedBass[k] : null;
+          if (bass === null) {
+            for (const b of bassNotes(group[k].chord.bassPc)) {
+              if (!bassPairOk(b, upper[0], level)) continue;
+              const better = bass === null || Math.abs(b - prevBass) < Math.abs(bass - prevBass)
+                || (Math.abs(b - prevBass) === Math.abs(bass - prevBass) && preferDistance(b) < preferDistance(bass));
+              if (better) bass = b;
+            }
+          }
+          if (bass === null) { ok = false; break; }
+          slots.push([bass, ...upper]);
+          S += bandStatic(slots[k], reg, group[k].chord) + bandMove(slots[k - 1], slots[k], sameChordAs(group[k - 1], group[k]));
+        }
+        if (ok) out.push({ slots, S, flat: slots.flat() });
+      }
+    }
+    return out;
+  };
+  const byCost = (a, b) => {
+    if (Math.abs(a.S - b.S) > EPS) return a.S - b.S;
+    for (let i = 0; i < Math.min(a.flat.length, b.flat.length); i++) if (a.flat[i] !== b.flat[i]) return a.flat[i] - b.flat[i];
+    return a.flat.length - b.flat.length;
+  };
+  // At the strictest spacing level anything fits: the first tone set with a candidate the gate keeps (full), or the
+  // first that fits (comp); if the gate keeps none, the first set that fits, marked. Fixed basses are tried only at
+  // the strict level, so keeping the full voicing's bass never loosens the comp's spacing.
+  const voice = (fixedBass, maxLevel) => {
+    for (let level = 0; level <= maxLevel; level++) {
+      let fallback = null;
+      const pooled = [], seen = new Set();
+      for (const tones of options) {
+        if (!tones.length) continue;
+        const shapes = bandShapes(tones, reg, level, b9);
+        if (!shapes.length) continue;
+        const all = build(shapes, level, fixedBass);
+        if (!all.length) continue;
+        if (!gated && pool) {
+          for (const c of all) if (!seen.has(c.flat.join(","))) { seen.add(c.flat.join(",")); pooled.push(c); }
+          continue;
+        }
+        if (!gated) return { cands: all, level, gateFailed: false };
+        const cands = all.filter((c) => c.slots.every((v, k) => bandReads(group[k], v)));
+        if (cands.length) return { cands, level, gateFailed: false };
+        if (!fallback) fallback = { cands: all, level, gateFailed: true };
+      }
+      if (pooled.length) return { cands: pooled, level, gateFailed: false };
+      if (fallback) return fallback;
+    }
+    return null;
+  };
+  const got = (fixed && voice(fixed, 0)) || voice(null, 4);
+  if (!got) throw new Error(`no ${backing} band voicing fits ${group.map((s) => s.chord.name).join(", ")}`);
+  if (got.level > 0) warnings.push(`nothing else fits, so the ${backing} voicing of ${group[0].chord.name} ${BAND_LOOSER[got.level]}`);
+  got.cands.sort(byCost);
+  return { cands: got.cands.slice(0, BAND_KEEP), gateFailed: got.gateFailed, warnings };
+}
+
+// Choose one candidate per group over the line: a ring (with the wrap move) or an open chain. Returns the indices.
+// In a ring every (start, end) pair keeps its cheapest path and the largest move along it; the cheapest pair whose wrap
+// move is no larger than that wins (design-music 4.9: the seam is never the loop's biggest move), else the cheapest.
+function bandLine(groups, cands, ring) {
+  const M = groups.length;
+  const lastSlot = (g) => groups[g][groups[g].length - 1];
+  const edges = [null];
+  for (let g = 1; g < M; g++) {
+    const same = sameChordAs(lastSlot(g - 1), groups[g][0]);
+    edges.push(cands[g - 1].map((a) => Float64Array.from(cands[g].map((b) => bandMove(a.slots[a.slots.length - 1], b.slots[0], same)))));
+  }
+  const wrapSame = sameChordAs(lastSlot(M - 1), groups[0][0]);
+  const wrap = ring ? cands[M - 1].map((a) => Float64Array.from(cands[0].map((b) => bandMove(a.slots[a.slots.length - 1], b.slots[0], wrapSame)))) : null;
+
+  // the cheapest path from start x (every start when x is null) to each end: cost, sum of S, predecessor, largest move
+  const forward = (x) => {
+    const cost = [], sumS = [], from = [], most = [];
+    cost.push(Float64Array.from(cands[0].map((c, y) => (x === null || y === x ? c.S : Infinity))));
+    sumS.push(Float64Array.from(cands[0].map((c) => c.S)));
+    from.push(new Int16Array(cands[0].length).fill(-1));
+    most.push(new Float64Array(cands[0].length).fill(-Infinity));
+    for (let g = 1; g < M; g++) {
+      const K = cands[g].length, P = cands[g - 1].length;
+      const c = new Float64Array(K).fill(Infinity), s = new Float64Array(K), f = new Int16Array(K).fill(-1);
+      const m = new Float64Array(K).fill(-Infinity);
+      for (let y = 0; y < K; y++) {
+        for (let z = 0; z < P; z++) {
+          if (cost[g - 1][z] === Infinity) continue;
+          const v = cost[g - 1][z] + edges[g][z][y], vs = sumS[g - 1][z];
+          if (f[y] < 0 || v < c[y] - EPS || (Math.abs(v - c[y]) <= EPS && vs < s[y] - EPS)) {
+            c[y] = v; s[y] = vs; f[y] = z; m[y] = Math.max(most[g - 1][z], edges[g][z][y]);
+          }
+        }
+        c[y] += cands[g][y].S;
+        s[y] += cands[g][y].S;
+      }
+      cost.push(c); sumS.push(s); from.push(f); most.push(m);
+    }
+    return { cost, sumS, from, most };
+  };
+  const better = (a, b) => !b || a.total < b.total - EPS || (Math.abs(a.total - b.total) <= EPS && a.s < b.s - EPS);
+  const backtrack = (from, y) => {
+    const pick = new Array(M);
+    pick[M - 1] = y;
+    for (let g = M - 1; g > 0; g--) pick[g - 1] = from[g][pick[g]];
+    return pick;
+  };
+
+  if (!ring) {
+    const { cost, sumS, from } = forward(null);
+    let best = null;
+    for (let y = 0; y < cands[M - 1].length; y++) {
+      const got = { total: cost[M - 1][y], s: sumS[M - 1][y], y };
+      if (got.total !== Infinity && better(got, best)) best = got;
+    }
+    return backtrack(from, best.y);
+  }
+  let best = null, seam = null;
+  for (let x = 0; x < cands[0].length; x++) {
+    const { cost, sumS, from, most } = forward(x);
+    for (let y = 0; y < cands[M - 1].length; y++) {
+      if (cost[M - 1][y] === Infinity) continue;
+      const got = { total: cost[M - 1][y] + wrap[y][x], s: sumS[M - 1][y], x, y, from };
+      if (better(got, best)) best = got;
+      if ((M < 2 || wrap[y][x] <= most[M - 1][y] + EPS) && better(got, seam)) seam = got;
+    }
+  }
+  if (seam) return backtrack(seam.from, seam.y);
+  return bandSeamSearch(cands, edges, wrap) || backtrack(best.from, best.y);
+}
+
+// When no pair's cheapest path keeps the seam small: for each start and end among the best BAND_SEAM_K candidates of
+// their groups, the cheapest path with at least one move as large as the wrap move (a DP with a flag for "such a move is
+// in"). Returns the indices, or null when there is none.
+const BAND_SEAM_K = 16;
+function bandSeamSearch(cands, edges, wrap) {
+  const M = cands.length;
+  const K = cands.map((c) => Math.min(c.length, BAND_SEAM_K));
+  let best = null;
+  for (let x = 0; x < K[0]; x++) {
+    for (let y = 0; y < K[M - 1]; y++) {
+      const w = wrap[y][x];
+      // cost[g][z * 2 + flag], with the sum of S and the predecessor state for ties and the backtrack
+      const cost = [], sumS = [], from = [];
+      const c0 = new Float64Array(K[0] * 2).fill(Infinity);
+      c0[x * 2] = cands[0][x].S;
+      cost.push(c0); sumS.push(Float64Array.from(c0, (v) => (v === Infinity ? 0 : v))); from.push(new Int32Array(K[0] * 2).fill(-1));
+      for (let g = 1; g < M; g++) {
+        const n = K[g], c = new Float64Array(n * 2).fill(Infinity), s = new Float64Array(n * 2), f = new Int32Array(n * 2).fill(-1);
+        for (let z2 = 0; z2 < n; z2++) {
+          if (g === M - 1 && z2 !== y) continue;
+          for (let z = 0; z < K[g - 1]; z++) {
+            const e = edges[g][z][z2];
+            for (let flag = 0; flag < 2; flag++) {
+              const prev = cost[g - 1][z * 2 + flag];
+              if (prev === Infinity) continue;
+              const to = z2 * 2 + (flag || e >= w - EPS ? 1 : 0);
+              const v = prev + e + cands[g][z2].S, vs = sumS[g - 1][z * 2 + flag] + cands[g][z2].S;
+              if (f[to] < 0 || v < c[to] - EPS || (Math.abs(v - c[to]) <= EPS && vs < s[to] - EPS)) { c[to] = v; s[to] = vs; f[to] = z * 2 + flag; }
+            }
+          }
+        }
+        cost.push(c); sumS.push(s); from.push(f);
+      }
+      const end = y * 2 + 1;
+      if (cost[M - 1][end] === Infinity) continue;
+      const got = { total: cost[M - 1][end] + w, s: sumS[M - 1][end] };
+      if (!best || got.total < best.total - EPS || (Math.abs(got.total - best.total) <= EPS && got.s < best.s - EPS)) {
+        const pick = new Array(M);
+        let state = end;
+        for (let g = M - 1; g >= 0; g--) { pick[g] = state >> 1; state = from[g][state]; }
+        best = { ...got, pick };
+      }
+    }
+  }
+  return best ? best.pick : null;
+}
+
+// One band item: a chord text (a name, a number or notes) or {text, key, upper}.
+function bandItem(raw, req) {
+  const it = typeof raw === "string" ? { text: raw } : raw;
+  if (!it || typeof it !== "object" || Array.isArray(it) || typeof it.text !== "string") {
+    throw new Error("an item is a chord text or {text, key, upper}");
+  }
+  if (it.upper != null && it.upper !== "same") throw new Error(`upper must be "same" (got ${JSON.stringify(it.upper)})`);
+  const keyName = it.key != null ? it.key : (req.key || null);
+  const p = readItem(it.text, keyName);
+  let chord = p.chord, bias = p.bias;
+  if (p.given) {
+    const notes = [...new Set(p.given.map((n) => n.midi))].sort((a, b) => a - b);
+    bias = p.key ? p.key.bias : 0;
+    const info = Theory.detect(notes, bias);
+    if (!info || info.kind !== "chord") {
+      throw new Error(`the band voices chords, and the page reads ${JSON.stringify(it.text)} as ${info ? info.name : "nothing"}`);
+    }
+    chord = inPageSpelling(chordFromParts({ root: info.root, suffix: info.suffix, bass: info.bass }), keyName, p.key);
+  }
+  return { text0: it.text, p, chord, bias, keyName, upperSame: it.upper === "same", kind: p.given ? "notes" : p.kind };
+}
+
+function runBand(req) {
+  const line = req.line == null ? "ring" : req.line;
+  if (!["ring", "chain"].includes(line)) return { ok: false, error: `line must be ring or chain, not ${JSON.stringify(line)}` };
+  const results = [];
+  const slots = [];
+  for (const raw of req.items) {
+    try {
+      const s = bandItem(raw, req);
+      s.index = results.length;
+      s.number = numberFor(s.chord, s.p);
+      s.warnings = s.p.warnings;
+      results.push(null);
+      slots.push(s);
+    } catch (e) {
+      const input = typeof raw === "string" ? raw : raw && typeof raw.text === "string" ? raw.text : JSON.stringify(raw);
+      results.push({ input, error: e.message });
+    }
+  }
+  if (!slots.length) return { ok: true, line, results };
+
+  // groups: a slot and the upper "same" slots straight after it
+  const groups = [];
+  for (const s of slots) {
+    const prev = slots[slots.indexOf(s) - 1];
+    if (s.upperSame && prev && prev.index === s.index - 1) groups[groups.length - 1].push(s);
+    else {
+      if (s.upperSame) s.warnings.push(`upper "same" needs a chord right before it; ${s.chord.name} is voiced on its own`);
+      s.upperSame = false;
+      groups.push([s]);
+    }
+  }
+
+  const voiceLine = (backing, fixed, pool = false) => {
+    const got = groups.map((g, gi) => bandGroupCandidates(g, backing, fixed ? fixed[gi] : null, pool));
+    const pick = bandLine(groups, got.map((x) => x.cands), line === "ring");
+    return groups.map((g, gi) => ({ group: g, chosen: got[gi].cands[pick[gi]], gateFailed: got[gi].gateFailed, warnings: got[gi].warnings }));
+  };
+  // the seam rule at the line's level (a run is one chord): the wrap move is no larger than the largest other move
+  const seamOk = (voiced) => {
+    if (line !== "ring" || voiced.length < 2) return true;
+    const move = (g) => {
+      const prev = voiced[(g + voiced.length - 1) % voiced.length], cur = voiced[g];
+      return bandMove(prev.chosen.slots[prev.chosen.slots.length - 1], cur.chosen.slots[0],
+                      sameChordAs(prev.group[prev.group.length - 1], cur.group[0]));
+    };
+    const moves = voiced.map((_, g) => move(g));
+    return moves[0] <= Math.max(...moves.slice(1)) + EPS;
+  };
+  const full = voiceLine("full", null);
+  // comp keeps the full voicing's bass where it can; when that leaves the seam the loop's biggest move (a bass that
+  // allows one comp shape per chord), the comp line is chosen with free basses instead, and when the register still
+  // leaves no choice, with the thinner 2-voice shapes among the candidates too
+  let comp = voiceLine("comp", full.map((x) => x.chosen.slots.map((v) => v[0])));
+  if (!seamOk(comp)) {
+    const free = voiceLine("comp", null);
+    if (seamOk(free)) comp = free;
+    else {
+      const pooled = voiceLine("comp", null, true);
+      if (seamOk(pooled)) comp = pooled;
+    }
+  }
+
+  const flat = (voiced) => voiced.flatMap((x) => x.group.map((s, k) => ({ s, notes: x.chosen.slots[k], x, k })));
+  const fullSlots = flat(full), compSlots = flat(comp);
+  const moves = (list) => list.map((cur, i) => {
+    if (i === 0) {
+      if (line !== "ring") return null;
+      const last = list[list.length - 1];
+      return bandMove(last.notes, cur.notes, sameChordAs(last.s, cur.s));
+    }
+    return bandMove(list[i - 1].notes, cur.notes, sameChordAs(list[i - 1].s, cur.s));
+  });
+  const fullMoves = moves(fullSlots), compMoves = moves(compSlots);
+  const rolesOf = (s, first, notes) => ["bass", ...notes.slice(1).map((n) => roleOfPc(s.chord, mod(n, 12)) || roleOfPc(first.chord, mod(n, 12)) || "root")];
+  const part = (entry, backing, move) => ({
+    notes: entry.notes, names: spelledNames(entry.notes, entry.s.chord.spell, entry.s.bias),
+    roles: rolesOf(entry.s, entry.x.group[0], entry.notes), static_cost: r3(bandStatic(entry.notes, BAND[backing], entry.s.chord)),
+    move_cost: r3(move),
+  });
+
+  let prevFull = null;
+  fullSlots.forEach((f, i) => {
+    const s = f.s, c = compSlots[i], chord = s.chord;
+    const warnings = [...s.warnings];
+    if (f.k === 0) for (const w of [...f.x.warnings, ...c.x.warnings]) if (!warnings.includes(w)) warnings.push(w);
+    const back = readBack(chord, f.notes, s.keyName, s.bias);
+    const readsItself = ["exact", "enharmonic"].includes(back.rt.match);
+    const readsAs = readsItself ? null : back.rt.page_name || back.rt.detected || "a cluster";
+    if (!readsItself) {
+      warnings.push(f.x.group.length > 1
+        ? `no upper shape shared by ${f.x.group.map((g) => g.chord.name).join(", ")} reads back as each chord; the page reads this one as ${readsAs}`
+        : `no full band voicing of ${chord.name} reads back as itself; the page reads it as ${readsAs}`);
+    }
+    results[s.index] = {
+      input: s.text0, kind: s.kind, name: chord.name, key: s.p.key ? s.p.key.name : null, number: s.number,
+      number_typed: s.p.numberIn || null, voicing: "band", octave: null, notes: f.notes,
+      names: spelledNames(f.notes, chord.spell, s.bias), tones: [...chord.tones.keys()], tones_pc: tonesPc(chord),
+      bass_pc: chord.bassPc, upper_same: s.upperSame, reads_as: readsAs, omits: back.rt.omits,
+      band: { full: part(f, "full", fullMoves[i]), comp: part(c, "comp", compMoves[i]),
+              bass: { notes: [f.notes[0]], names: spelledNames([f.notes[0]], chord.spell, s.bias), roles: ["bass"] } },
+      roundtrip: back.rt, movement: movement(prevFull, f.notes), warnings,
+    };
+    prevFull = f.notes;
+  });
+  return { ok: true, line, results };
 }
 
 function check() {
@@ -767,19 +1374,30 @@ function check() {
 }
 
 function run(req) {
+  if (Array.isArray(req.requests)) {
+    // a batch: one node start for many requests (a card in all 12 keys); each reply is what the request alone answers
+    return { ok: true, replies: req.requests.map((r) => (r && typeof r === "object" && !Array.isArray(r) && r.requests === undefined
+      ? run(r) : { ok: false, error: "each request is an object, and batches do not nest" })) };
+  }
   if (req.check) return check();
   if (req.minor != null && !["tonic", "relative"].includes(req.minor)) return { ok: false, error: `minor must be tonic or relative, not ${JSON.stringify(req.minor)}` };
   THEORY_UI.minor = req.minor === "relative" ? "relative" : "tonic";
   if (!Array.isArray(req.items) || !req.items.length) return { ok: false, error: "items must be a non-empty list" };
+  if (req.voicing === "band") {
+    try { return runBand(req); } catch (e) { return { ok: false, error: e.message }; }
+  }
   const results = [];
   let prev = null;
   for (const item of req.items) {
+    // an item is a text, or {text, key} with its own key (a line through a key change)
+    const obj = item && typeof item === "object" && !Array.isArray(item) && typeof item.text === "string";
+    const text = obj ? item.text : String(item);
     try {
-      const r = voiceItem(String(item), req, prev);
+      const r = voiceItem(text, obj && item.key != null ? { ...req, key: item.key } : req, prev);
       results.push(r);
       prev = r.notes;
     } catch (e) {
-      results.push({ input: String(item), error: e.message });
+      results.push({ input: text, error: e.message });
     }
   }
   return { ok: true, results };
@@ -802,6 +1420,7 @@ if (argv.length) {
     else if (a === "--octave") request.octave = Number(argv[++i]);
     else if (a === "--voice-lead") request.voice_lead = true;
     else if (a === "--minor") request.minor = argv[++i];
+    else if (a === "--line") request.line = argv[++i];
     else if (a === "--check") request.check = true;
     else request.items.push(a);
   }

@@ -1,0 +1,58 @@
+{
+  "api": "arsenal.jam.card/v0",
+  "id": "float-question",
+  "rev": 1,
+  "title": "The question: stop on the sus",
+  "meaning": "Loop home and the sus 5, and stop there: the phrase ends open.",
+  "theory_name": "suspended dominant",
+  "group": "try",
+  "kind": "loop",
+  "key": "Eb major",
+  "chords": [
+    {
+      "n": "1maj9",
+      "beats": 4
+    },
+    {
+      "n": "5^7sus4",
+      "beats": 4,
+      "say": "stay here"
+    }
+  ],
+  "groove": "hold",
+  "backing": "full",
+  "tempo": {
+    "bpm": 60,
+    "beats_per_bar": 4,
+    "feel": "straight"
+  },
+  "bars": 2,
+  "explanation": "Bb7sus4 holds Eb where Bb7 has D, so the chord waits instead of pulling.",
+  "why": "A phrase that stops on a colour sounds like a question. Its answer is the next card.",
+  "try": "Play a short phrase that ends on Eb during the sus bar, and let it hang.",
+  "listen_for": "the phrase hanging open at the end of the loop.",
+  "landing": {
+    "slot": 1,
+    "role": "4",
+    "relative_to": "root",
+    "pull": "Eb, the sus, hangs a half step above D and waits to fall"
+  },
+  "pair": {
+    "role": "question",
+    "with": "float-answer"
+  },
+  "tags": [
+    "pair",
+    "dominant"
+  ],
+  "related": [
+    "float-answer"
+  ],
+  "source": {
+    "kind": "claude"
+  },
+  "created_by": "claude",
+  "updated_by": "claude",
+  "created_at": "2030-01-01T00:00:00.000+00:00",
+  "updated_at": "2030-01-01T00:00:00.000+00:00"
+}

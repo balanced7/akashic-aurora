@@ -123,7 +123,7 @@ def test_two_listeners_get_the_same_cue_with_defaults(server):
     a, b = SSE(server.port), SSE(server.port)
     try:
         assert a.status == 200 and a.headers["content-type"].startswith("text/event-stream")
-        assert _status(server.port) == {"listeners": 2, "last_id": 0}
+        assert _status(server.port) == {"listeners": 2, "last_id": 0, "caps": {"jam1": 0, "deck1": 0}, "pages": []}
         before = int(time.time() * 1000)
         status, reply = _post_cue(server.port, {"type": "play", "notes": [67, 60, 64, 60], "label": "C"})
         assert (status, reply) == (200, {"id": 1, "listeners": 2})
@@ -133,7 +133,7 @@ def test_two_listeners_get_the_same_cue_with_defaults(server):
             got = listener.cue()
             assert got["id"] == 1 and got["cue"] == want
             assert before - 1000 <= got["sent_at"] <= int(time.time() * 1000) + 1000
-        assert _status(server.port) == {"listeners": 2, "last_id": 1}
+        assert _status(server.port) == {"listeners": 2, "last_id": 1, "caps": {"jam1": 0, "deck1": 0}, "pages": []}
     finally:
         a.close()
         b.close()
@@ -149,6 +149,49 @@ def test_frame_bytes_are_exactly_the_protocol(server):
         assert json.loads(lines[2][6:])["cue"] == {"type": "clear", "label": None, "detail": None, "source": "claude"}
     finally:
         listener.close()
+
+
+def test_deck_and_jam_frames_share_the_id_sequence_and_the_ring(server):
+    """jam-spec 6: cue, deck and jam frames are numbered from one sequence into one ring; each names its event."""
+    hub = server.app.cues
+    listener = SSE(server.port)
+    try:
+        assert hub.publish_event("deck", {"op": "open", "card_id": "lydian-four"}) == {"id": 1, "listeners": 1}
+        _post_cue(server.port, {"type": "clear"})
+        assert hub.publish_event("jam", {"op": "mark", "text": "a synthetic mark"})["id"] == 3
+        blocks = [listener.block() for _ in range(3)]
+        assert [tuple(b.split("\n")[:2]) for b in blocks] == [("id: 1", "event: deck"), ("id: 2", "event: cue"),
+                                                             ("id: 3", "event: jam")]
+        first = json.loads(blocks[0].split("\n")[2][6:])
+        assert set(first) == {"id", "deck", "sent_at"} and first["deck"] == {"op": "open", "card_id": "lydian-four"}
+    finally:
+        listener.close()
+    back = SSE(server.port, last_event_id=1)
+    try:
+        assert [back.block().split("\n")[1] for _ in range(2)] == ["event: cue", "event: jam"]
+    finally:
+        back.close()
+    with pytest.raises(ValueError):
+        hub.publish_event("chat", {})
+
+
+def test_the_stream_counts_the_caps_and_page_a_jam_page_announces(server):
+    page = SSE(server.port, path="/api/piano/cues?caps=jam1,deck1,Bad!&page=p-7f3a")
+    plain = SSE(server.port)
+    try:
+        st = _status(server.port)
+        assert st["listeners"] == 2 and st["caps"] == {"jam1": 1, "deck1": 1}
+        assert [(p["page_id"], p["caps"]) for p in st["pages"]] == [("p-7f3a", ["deck1", "jam1"])]
+    finally:
+        page.close()
+    deadline = time.monotonic() + 5
+    while _status(server.port)["listeners"] > 1 and time.monotonic() < deadline:
+        time.sleep(0.05)
+    try:
+        st = _status(server.port)
+        assert st["listeners"] == 1 and st["caps"] == {"jam1": 0, "deck1": 0} and st["pages"] == []
+    finally:
+        plain.close()
 
 
 def test_last_event_id_replays_newer_cues_once_and_fresh_pages_get_none(server):
@@ -331,7 +374,8 @@ def test_malformed_cues_answer_400_and_keep_the_connection(server, body, message
     try:
         status, reply = _request(server.port, "POST", "/api/piano/cue", body, conn=conn)
         assert status == 400 and message in reply["error"], reply
-        assert _request(server.port, "GET", "/api/piano/cues/status", conn=conn) == (200, {"listeners": 0, "last_id": 0})
+        assert _request(server.port, "GET", "/api/piano/cues/status", conn=conn) == \
+            (200, {"listeners": 0, "last_id": 0, "caps": {"jam1": 0, "deck1": 0}, "pages": []})
     finally:
         conn.close()
 

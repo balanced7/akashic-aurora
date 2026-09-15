@@ -5002,6 +5002,9 @@ def _session_verb(args, sess: dict, t_ms: float = 0.0) -> Tuple[object, str]:
 
 
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["riff"]:  # riff analysis over a jam run: arsenal/practice_riff.py (jam-spec section 11)
+        return __import__(f"{__package__}.practice_riff", fromlist=["main"]).main(argv[1:])
     parser = argparse.ArgumentParser(prog="py -m arsenal.practice",
                                      description="Harmony verbs over the piano practice log (read only).")
     sub = parser.add_subparsers(dest="verb", required=True)
