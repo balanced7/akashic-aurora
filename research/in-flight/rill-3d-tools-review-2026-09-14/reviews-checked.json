@@ -1,0 +1,595 @@
+[
+ {
+  "review": {
+   "whatItDoes": "It decodes a video at about 5 fps and downscales each frame to 480 px wide. For each pair of neighbouring samples it computes a change score: half is the mean absolute luma difference on a point-sampled 32x32 grid, half is the L1 distance between 8-bin RGB histograms. The score curve is split with hysteresis into SETTLED runs (score <= 0.02) and TRANSITIONS (a peak >= 0.08, closed after 3 quiet samples). It keeps one pick per segment: the middle of a settled run, the peak of a transition. Near-duplicate picks are dropped when the dHash distance is <= 6 AND the mean-RGB palette delta is <= 0.06. A second decode pass pulls the kept frames. It writes storyboard.png (a 3-column mosaic of 320x180 cells, no labels), storyboard.json (a manifest with the declared sampling, segments, picks and a not_measured list) and, with --frames, one PNG per pick. It uses only numpy and PyAV. There are no arsenal imports.",
+   "triedOn": [
+    "Asta 4K VP9 take: state/arsenal/receipts/spectacle/fixture/library/arsenal-renders/2026-09-14 22-48-28 piano.webm (3840x2160, 55 frames over 2.62 s, avg_rate None, one 1.689 s capture stall)",
+    "Asta 1440p H.264 take: .../2026-09-14 22-48-31 piano.mp4 (2560x1440, 163 frames over 2.98 s, stalls of 176 ms and 134 ms)",
+    "Edge files: 22-43-26 piano.mp4 (no video stream), 23-18-49 piano.webm (8 frames, 0.14 s), 22-47-45 piano.mp4 (6 frames)",
+    "Asta screenshots refined-{ember,city,nebula,rain,winter}-{soft,hard,attack}.jpg (2560x1440): dedupe and score on soft/hard/attack pairs",
+    "Three of Daniel's newest real takes, anonymised as take#7/#3/#2 (1920x1080 60 fps HEVC; 56 s, 62 s, 217 s). Aggregate numbers only; I did not look at their frames. Note that E:/Video Output E/arsenal-renders is empty (0 files); the 96 videos (54 GB) sit in the root of E:/Video Output E",
+    "Synthetic clips: 3-colour hard cuts at 10 fps; hand-built score curves for the segmenter edge cases",
+    "jam receipts: state/arsenal/receipts/jam has 69 files (json/png/log/mjs) and no video, so there was nothing to storyboard"
+   ],
+   "testsRun": "`py -m pytest tests/test_storyboard.py -q`: 5 passed. The CLI ran on the 4K VP9 take: 11 frames examined, 1 settled run, 0 transitions, 1 of 1 picks kept, sheet written, 0.76 s wall. A timing and peak-memory harness ran in a fresh process per file, using psutil peak_wset: 4K VP9 analyse 0.18 s, full storyboard with --frames 0.82 s, peak 596 MB; 1440p H.264 analyse 0.22 s, full 1.25 s, peak 487 MB. Daniel's takes: 56 s take in 5.5 s wall, 213 MB; 62 s take in 7.6 s, 213 MB; 217 s take in 33.6 s (about 6.5x realtime for both decode passes), 214 MB. A dark-frame probe decoded every frame of both spectacle takes and gave score percentiles, dHash noise bits, all-pairs dedupe verdicts, and analyse at fps 5/10/30/60. A soft/hard/attack screenshot dedupe matrix covered 15 pairs. An off-by-one probe used a synthetic red/blue/green clip. Segmenter edge cases A-F used hand-built score curves. A ground-truth inspector found audio onsets (none: flat -16.5 dB RMS in both spectacle takes), listed stalls, ran a tuned-threshold analyse, and drew my own timestamped 12-frame reference grids. A score-variant comparison set the tool score against area-mean and block-local max. A 4K decode-cost micro benchmark was run. The CLI was run on 3 edge files. I viewed both spectacle contact sheets, both reference grids and one soft/hard screenshot pair myself.",
+   "strengths": [
+    {
+     "claim": "The idea is right and the code is small and clean. It is standalone, the manifest declares its sampling and its not_measured limits, and the docstrings state plainly what the tool cannot see.",
+     "evidence": "storyboard.py is 323 lines using numpy and av only. The manifest carries api, sampling {fps,width,low,high,settle_frames,max_hamming} and not_measured (audio, strobe/fade, 'the sheet is a SAMPLE'). The palette() docstring records the flat-frame dHash trap, and test_dedupe_merges_same_moment_and_keeps_a_different_palette pins it (I confirmed hamming(green, blue) == 0)."
+    },
+    {
+     "claim": "Fast and cheap. The 4K cost is fine, and memory on 1080p stays flat whatever the take length.",
+     "evidence": "The 4K VP9 2.6 s take: analyse 0.18 s, full run with PNGs 0.82 s. Daniel's 217 s 1080p60 HEVC take: 33.6 s for both passes, and peak memory was 212.5-213.8 MB across the 56 s, 62 s and 217 s takes. My suspicion that downscaling first would be cheaper was wrong: on 4K VP9, full to_ndarray took 5.9 ms/frame and reformat to 480x270 took 7.6 ms/frame (decode alone 2.7 ms/frame). The current approach is sound."
+    },
+    {
+     "claim": "With its defaults it works as intended on content with hard changes, meaning ordinary screen and performance recordings.",
+     "evidence": "Daniel's 56 s take gave 2 transitions (600 ms each), 2 settled runs and 4 picks. The 62 s take gave 7 transitions (median 400 ms, max 1000 ms) and 14 picks deduped to 8. Score maxima on those takes were 0.16-0.41, well above high=0.08. The synthetic hard cuts were found at exactly t=1.0 and t=2.0."
+    },
+    {
+     "claim": "Hysteresis does keep a slow fade as one segment, and the CLI wiring is tidy.",
+     "evidence": "test_segment_hysteresis passes. The CLI prints the transition list with ms lengths and 'picks kept N of M'. --fps, --width, --out, --frames and --json are wired in __main__.py lines 39-47 and 137-158."
+    }
+   ],
+   "defects": [
+    {
+     "claim": "On Asta's spectacle visuals the default thresholds see nothing. Both takes come out as one 'settled' run with a single pick at every sampling rate, so the tool reports 'nothing happened' on takes where notes visibly strike, particle columns rise and fade, and the background changes.",
+     "evidence": "1440p take at native rate: score p50/p90/max = 0.0034/0.0051/0.0111. Zero steps exceed low=0.02, and analyse at fps 5/10/30/60 gives settled=1, transitions=0, picks 1/1 every time. 4K take: max 0.0667 < high 0.08, settled=1, transitions=0 at every fps. Even whole-frame comparisons of different states barely reach the thresholds: soft vs hard change_score is 0.040-0.084 and soft vs attack 0.027-0.076 across five worlds. My timestamped reference grid of the 1440p take shows key highlights moving and glow bursts (e.g. near t=1.01 and t=1.49), none of which reached the manifest. The thresholds are absolute and suit hard cuts (Daniel's takes peak at 0.16-0.41), not low-contrast procedural motion.",
+     "severity": "high"
+    },
+    {
+     "claim": "The score is a global, point-sampled measure. Small bright events (a key glow, a particle burst) fall between sample points or are averaged away, so the score picks up capture stalls more readily than note strikes.",
+     "evidence": "signature() point-samples about 32x32 pixels with no area averaging. In the 4K take the only step above low (0.0667 at t=1.889) is the frame straight after a 1.689 s recorder stall, not a musical event. In the 1440p take the second-highest step (t=0.461) follows a 134 ms stall. Dynamic range of the curves on the 1440p take (max/p50): tool score 3.3x, area-mean 160x90 MAD 8.9x, max over 16x9 area-averaged blocks 10.2x. I could not check strike timing against audio, because both takes have flat audio (-16.5 dB RMS, zero onsets at a 6 dB flux threshold). The manifest never mentions the 1.689 s stall, which is a real recording defect worth surfacing.",
+     "severity": "high"
+    },
+    {
+     "claim": "In its current form the contact sheet cannot show Asta's 'repeated notes restart the animation' problem or Daniel's 'soft and hard look alike' problem to a vision-capable reader.",
+     "evidence": "I looked at both spectacle sheets: each is 960x180 with one 320x180 frame and two solid black cells, and no timestamps, kind or segment labels. At 320x180 an 88-key keyboard gives each key only a few pixels. The 4K take has a real scene change across the stall (my reference grid: mountains and a water ring before t=0.2, nebula-only background from t=1.938), and the sheet shows only the after state. Segmenter on hand-built curves: repeated strikes every 3 samples peaking at 0.12 become ONE 3200 ms transition with one pick, so restarts collapse into a single frame (case C). The same strikes peaking at 0.07 are labelled 'settled' (case B). Daniel's sheets: 4 picks produced 6 cells with 2 black (take#2 and take#7); 8 picks produced 9 cells.",
+     "severity": "medium"
+    },
+    {
+     "claim": "Off-by-one: each pick's image is the sample BEFORE the time its t_s names. A transition pick therefore shows the pre-change frame, the least useful frame for judging a strike.",
+     "evidence": "pick_representatives indexes scores, where scores[k] is the step from sample k to sample k+1 and t_s = times[k+1]. But dedupe (frames_at_pick) and the second decode pass (i // stride in keep) use frame_index k as a sample index. Synthetic red/blue/green clip: the transition pick with t_s=1.0 has frame_index 9, which is RED (t=0.9); blue begins at sample 10. Real 4K take: the pick says t_s 2.121 but its image is decoded frame 20 (about t 2.04). The existing cut test still passes because the wrong red transition pick is deduped into the red settled pick.",
+     "severity": "medium"
+    },
+    {
+     "claim": "dHash plus palette dedupe is weak on dark, low-contrast frames. The palette gate never fires, so decisions rest on dHash, and dHash bits on these frames are largely decided by noise. It can merge exactly the soft/attack difference that needs reviewing.",
+     "evidence": "Mean luma of the spectacle takes is 0.088-0.141. Within a take the largest palette delta between any two frames was 0.0075 (1440p) and 0.0377 (4K), against the 0.06 gate. A median of 25% (1440p) and 26% (4K) of dHash bits are decided by a neighbour luma difference under 2/255. On the 1440p take 8640 of 13203 frame pairs (65.4%) count as 'same moment', including 2974 pairs more than 1 s apart. Screenshots: nebula soft vs attack is MERGED (hamming 5, palette delta 0.017), while the other 14 soft/hard/attack pairs were kept apart (hamming 14-31).",
+     "severity": "medium"
+    },
+    {
+     "claim": "The manifest's honesty claims are only partly backed. It promises a 'fraction represented' but has no such field, segment boundaries overlap so durations over-count, the declared fps can differ from the rate actually sampled, and one threshold goes undeclared.",
+     "evidence": "not_measured says 'see picks/total for the fraction it represents', yet no total, coverage or stride field exists. Summed segment durations exceed the covered span: Daniel's 62 s take 63.4 s against a 62.4 s file; 217 s take 217.6 s against a 217.4 s span; synthetic 3-cut clip 3000 ms against 2800 ms; edge case E 1800 against 1600 ms. A transition ends at index i-quiet_run+1 and the next settled run starts at the same index, and _mk extends end to times[b+1]. The first sample interval is dropped (times[1:]). The 4K webm has average_rate None, so rate falls back to 25 and stride=5 over roughly 21 fps real frames with a 1.7 s hole, while the manifest still says fps 5.0 and records neither stride, source rate nor stalls. DEFAULT_MAX_PALETTE is missing from 'sampling' and cannot be set through analyse() or the CLI. low, high and settle_frames are not CLI flags either.",
+     "severity": "medium"
+    },
+    {
+     "claim": "Segment labels depend on where the take starts, and the 'settled run is at least settle_frames long' rule in the docstring is not enforced.",
+     "evidence": "Case A: a constant 0.05 curve from the first sample is labelled one 3800 ms TRANSITION with peak 0.05, below high, because cur_kind starts as 'transition' when scores[0] > low. Case B: mid-level motion peaking at 0.07 is labelled SETTLED. Cases C and D produce 1-frame settled segments of 200 ms. Case F, a take starting inside a transition, produces transition 0.0-0.6 overlapping settled 0.4-1.0. The final filter `duration_ms >= 0` never removes anything.",
+     "severity": "low"
+    },
+    {
+     "claim": "Memory on 4K is high for a 2.6 s file and grows linearly with picks, because the second pass keeps full-resolution RGB for every kept pick. The file is also decoded twice.",
+     "evidence": "Peak working set: 596 MB on the 4K VP9 take and 487 MB on 1440p, against 213 MB on 1080p takes of any length. The thumbs list keeps rgb at full resolution: 3840*2160*3 = 24.9 MB per pick at 4K. That figure is computed, not measured at high pick counts, so 30 picks would add about 750 MB. Downscaling to cell size before appending would bound it.",
+     "severity": "low"
+    },
+    {
+     "claim": "Edge files fail loudly or quietly instead of saying what happened.",
+     "evidence": "22-43-26 piano.mp4 has no video stream: IndexError traceback from storyboard.py line 262, exit 1. 23-18-49 piano.webm (0.14 s) and 22-47-45 piano.mp4: 'examined 1 frame(s) at 5.0 fps', picks 0 of 0, 'sheet NOT written', exit 0, with no explanation that the clip is shorter than one stride.",
+     "severity": "low"
+    },
+    {
+     "claim": "Sheet cells are a fixed 320x180 whatever the source aspect ratio, so a true portrait (9:16) frame would be squashed horizontally.",
+     "evidence": "_contact_sheet always resamples to th=180, tw=320. Known from the code only: the 'refined-9-16-*' and 'portrait' receipts decode as 2560x1440 and 1920x1080 (landscape files), so I could not show it on a real portrait video.",
+     "severity": "low"
+    },
+    {
+     "claim": "The tests cover only bright, flat, constant-frame-rate synthetics. Nothing pins dark or low-contrast content, variable frame rate or stalls, that a pick's image matches its t_s, the start-of-take label asymmetry, or a file with no video.",
+     "evidence": "tests/test_storyboard.py has 5 tests. Their fixtures are solid red, blue and green at 160x120 and 10 fps constant frame rate. The off-by-one and the overlapping durations both pass the current suite.",
+     "severity": "low"
+    }
+   ],
+   "ideas": [
+    "Make thresholds relative to each take: derive low and high from the take's own curve (median and a robust spread, or percentiles), and declare 'curve too flat to segment' rather than returning a confident single 'settled'. On the 1440p take, low=p50 and high=1.5*p90 gave 2 transitions; they were stall-adjacent, so a better score is needed too.",
+    "Score locally, not just globally: area-average to about 160x90 (frame.reformat or a block mean), then take the max or p95 over a 16x9 block grid, optionally split into regions (a keyboard band vs the sky, reusing floors' --region idea). On the 1440p take this gave max/p50 = 10.2x against 3.3x for the current score.",
+    "Detect capture stalls (dt > 3x the median frame interval) and report them as their own segment kind, e.g. capture_gap, with no score. The 4K take's 1.689 s hole is the most important fact about that recording and is currently invisible.",
+    "Fix the pick index (use sample k+1 for the image), and give each transition a before/peak/after triptych instead of one frame. That is what shows a strike, or an animation restarting.",
+    "Burn labels into every cell (t, kind, segment_ms, score), keep the source aspect ratio, never leave black cells, and add a minimum of N evenly spaced floor frames when there are few picks. My timestamped 12-frame reference grid of a 3 s take showed far more than the one-frame sheet. Offer --cell-width or a crop so key-level detail survives.",
+    "For Asta's restart problem, add a time-strip (slit-scan) view: one fixed row or column (e.g. through the particle columns above the keys) stacked over time. Restarts appear as repeated sawtooth edges in one image, which a vision agent can read at a glance.",
+    "For Daniel's soft-vs-hard problem, add an A/B mode: two takes or two screenshots side by side, with a diff heatmap and per-region change numbers. Keep dedupe out of A/B comparisons entirely; the nebula soft/attack pair would currently be merged away.",
+    "Harden dedupe for dark frames: compute dHash on an area-averaged, contrast-normalised image (or a 16x16 hash), scale the palette gate to the frame's own luma spread, and never dedupe across a kind boundary.",
+    "Add coverage fields to the manifest: source_frames, stride, effective_fps, time_covered_s, stalls, a check that segment durations sum to the span, max_palette. Expose low, high, settle_frames and max_palette on the CLI.",
+    "Optionally align picks to audio onsets from arsenal.analysis (onset + about 50-150 ms) for music-driven takes. Both spectacle fixtures carry flat audio, so a fixture with real note onsets is needed first.",
+    "Downscale thumbnails to cell size in the second pass to bound 4K memory. Fail cleanly with a one-line message on no-video files and on clips shorter than one stride.",
+    "Add pins for: a dark low-contrast clip with a small localized flash, a variable-frame-rate clip with a stall, pick image == frame at t_s, and a curve that starts at mid-level motion."
+   ],
+   "artifacts": [
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/cli-4k/storyboard.png",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/cli-4k/storyboard.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/h-1440-h264/storyboard.png",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/h-4k-vp9/storyboard.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/ref-grid-1440.png",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/ref-grid-4k.png",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/harness.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/darkframes.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/offbyone.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/inspect_take.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/agg.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/storyboard/daniel_launch.py"
+   ],
+   "tool": "arsenal storyboard (Rill, commit bbd0406a): arsenal/storyboard.py, CLI verb `py -m arsenal storyboard`, tests/test_storyboard.py"
+  },
+  "verdict": {
+   "items": [
+    {
+     "kind": "strength",
+     "claim": "Idea right; small, clean, standalone; manifest declares sampling and not_measured; palette() docstring records the flat-frame dHash trap, pinned by a test",
+     "holds": true,
+     "note": "storyboard.py is 323 lines. Its only third-party imports are numpy and av (plus stdlib). sampling keys are exactly fps, width, low, high, settle_frames, max_hamming. not_measured has the three strings. test_dedupe asserts hamming(green, blue) == 0, and all 5 tests pass. A minor overstatement: the manifest's 'fraction represented' promise is not backed by any field (see the defect)."
+    },
+    {
+     "kind": "strength",
+     "claim": "Fast and cheap: the 4K cost is fine and memory on 1080p stays flat; downscaling first would not be cheaper",
+     "holds": true,
+     "note": "Reproduced on the 4K VP9 take 22-48-28: analyse 0.18 s, storyboard 0.50 s (reviewer 0.82). 217.4 s 1080p60 HEVC: 31.0 s (reviewer 33.6). Decode timing on the 4K take: to_ndarray 3.5 ms/frame vs reformat to 480x270 4.7 ms/frame, the same direction as the reviewer's figures. I did not re-measure the 1080p peak memory (213 MB), so the 'flat' part is unverified by me."
+    },
+    {
+     "kind": "strength",
+     "claim": "Works with defaults on hard-change content (Daniel's takes); synthetic cuts found at exactly t=1.0 and t=2.0",
+     "holds": true,
+     "note": "56.1 s HEVC take: settled 2, transitions 2 [600, 600] ms, picks 4/4, max score 0.407. 62.4 s take: transitions 7 [1000, 400 x6], picks 8 of 14, max 0.310. 217.4 s take: max 0.164. Across these the score maxima run 0.164-0.407, matching the reviewer's 0.16-0.41. On the synthetic R/B/G clip, transitions start at exactly 1.0 and 2.0."
+    },
+    {
+     "kind": "strength",
+     "claim": "Hysteresis keeps a slow fade as one segment; CLI wiring tidy",
+     "holds": true,
+     "note": "test_segment_hysteresis passes. __main__.py lines 39-47 define path, --fps, --width, --out, --frames and --json. Lines 137-158 print the transition list with ms lengths and 'picks kept N of M'."
+    },
+    {
+     "kind": "defect",
+     "claim": "On Asta's spectacle takes the default thresholds see nothing: one settled run, one pick at every fps",
+     "holds": true,
+     "note": "1440p take 22-48-31, native rate: p50/p90/max 0.0034/0.0051/0.0111, and 0 steps exceed low (exact match). 22-45-50 behaves the same: max 0.0152, fps 5/10/30/60 all give settled 1, transitions 0, picks 1/1. 4K 22-48-28: max 0.0667, settled 1, transitions 0 at every fps. Screenshot pairs downscaled to 480 wide: soft-hard 0.050-0.102 and soft-attack 0.038-0.088, somewhat higher than the reviewer's ranges (winter soft-hard 0.102 does cross high), but still mostly below 0.08. I did not verify the visual claims about key highlights at t=1.01 and t=1.49."
+    },
+    {
+     "kind": "defect",
+     "claim": "The global point-sampled score picks up capture stalls more readily than note strikes; the only 4K step above low follows a 1.689 s stall",
+     "holds": true,
+     "note": "The code confirms signature() point-samples with strides and no area averaging, after analyse() has already point-sampled columns down to 480 wide. 4K take: the top step is 0.0667 at t=1.889 with gap_before=1.689 s. The next-highest steps are only 0.0077 and 0.0067, and the maximum gap is that same 1.689 s. The manifest has no stall or gap field. I did not rerun the 1440p t=0.461 stall, the dynamic-range ratios (3.3x, 8.9x, 10.2x) or the audio check."
+    },
+    {
+     "kind": "defect",
+     "claim": "The contact sheet cannot show restart or soft/hard differences: 960x180 with one frame, two black cells, no labels; repeated strikes collapse into one transition",
+     "holds": true,
+     "note": "Both generated spectacle sheets are exactly that: one 320x180 thumbnail, two black cells, no text. _contact_sheet has no labelling code. Hand curve with strikes every 3 samples peaking at 0.12 (settle_frames=3): settled 0-0.4, then ONE transition 0.4-3.8 s (3400 ms), 2 picks in total. My curve differs slightly from the reviewer's (they reported 3200 ms and 1 pick), but the collapse is reproduced. The same pattern peaking at 0.07 is labelled settled (3800 ms). The cell counts for Daniel's sheets follow from cols=3 (4 thumbs give 6 cells, 8 give 9)."
+    },
+    {
+     "kind": "defect",
+     "claim": "Off-by-one: a pick's image is the sample before the time its t_s names; a transition pick shows the pre-change frame",
+     "holds": true,
+     "note": "Confirmed in the code: analyse passes times[1:], so t_s = times[k+1], while frames_at_pick and keep use sample k. Synthetic clip: the transition pick has t_s 1.0, idx 9 and pixel [220,19,19] (RED), and t_s 2.0 has idx 19 BLUE. Real 4K take: the pick has t_s 2.121 and frame_index 4, which with stride 5 is decoded frame 20. Settled picks are also shifted by one sample. Small misattribution: test_synthetic_cut never inspects picks at all, so it would pass regardless of dedupe. It is not passing 'because' of dedupe."
+    },
+    {
+     "kind": "defect",
+     "claim": "dHash plus palette dedupe is weak on dark low-contrast frames; the palette gate never fires; 65.4% of pairs count as 'same moment'; nebula soft vs attack MERGED (hamming 5)",
+     "holds": false,
+     "note": "Most of this reproduces exactly on 22-48-31: max palette delta 0.0075, median 25% of dHash bits with a neighbour difference under 2/255, 8640 of 13203 pairs (65.4%) same, 2974 of them more than 1 s apart. On 4K: max palette 0.0377, 26% low bits, luma 0.114. The one concrete visual example does NOT reproduce. Nebula soft vs attack gives hamming 11 at full resolution and 7 at 480 wide (palette 0.014-0.015), so it is KEPT apart (the gate is <=6). All 15 screenshot pairs were kept at both resolutions. The statistical weakness is real, but the claimed merge of exactly the soft/attack difference is not shown."
+    },
+    {
+     "kind": "defect",
+     "claim": "The manifest's honesty claims are only partly backed: no total/coverage/stride field; overlapping segments over-count; fps can differ from the rate actually sampled; max_palette undeclared and not settable",
+     "holds": true,
+     "note": "No total, coverage or stride key exists (frames_examined does exist and could serve as a denominator, which softens this slightly). Segment sums: synthetic 3 s clip 3000 ms over a 0.1-2.9 covered span; 62.4 s take 63.4 s; 217.4 s take 217.6 s. Segments overlap: transition 1.0-1.2 then settled 1.1-2.0, because _mk extends end to times[b+1] and the next run starts at b. The 4K webm has average_rate None, so the rate falls back to 25, stride is 5, and frames_examined is 11 while the manifest says fps 5.0. DEFAULT_MAX_PALETTE is absent from sampling and from analyse()'s parameters. The CLI has no low, high or settle flags."
+    },
+    {
+     "kind": "defect",
+     "claim": "Segment labels depend on where the take starts; the settle_frames minimum for settled runs is not enforced; the duration_ms>=0 filter is dead",
+     "holds": true,
+     "note": "Case A, constant 0.05: one transition 0.0-3.8, peak 0.05. Case B, peak 0.07: settled. Case F [0.2,0.2,0,0,0,0]: transition 0.0-0.6 overlaps settled 0.4-1.0. The code opens a transition on any rising edge regardless of how long the settled run was. With monotone times, _mk always gives t1 >= t0, so the filter never removes anything. I did not reproduce the exact 1-frame 200 ms settled segments in cases C/D because the reviewer's curves are unknown, but the mechanism allows them."
+    },
+    {
+     "kind": "defect",
+     "claim": "Memory on 4K is high (596 MB) and grows linearly with picks because thumbs keep full-resolution RGB; the file is decoded twice",
+     "holds": true,
+     "note": "The mechanism is confirmed in the code: thumbs.append(rgb) at full resolution (24.9 MB per 4K pick), and storyboard() reopens and decodes the file a second time. The magnitude was not reproduced: polled PeakWorkingSet64 on python.exe gave 385.8 MB for the 4K webm and 298.5 MB for 1440p, against the reviewer's 596/487 MB. The direction and linear growth hold, but the reported figures look overstated or machine-dependent."
+    },
+    {
+     "kind": "defect",
+     "claim": "Edge files: a file with no video stream raises IndexError at line 262; clips shorter than one stride say 'sheet NOT written' with no reason",
+     "holds": true,
+     "note": "22-43-26 piano.mp4 has no video stream and raises IndexError 'tuple index out of range' at storyboard.py line 262. 23-18-49 piano.webm and 22-47-45 piano.mp4: frames_examined 1, picks 0 of 0, sheet_written False, no explanation. The CLI returns 0 on that path."
+    },
+    {
+     "kind": "defect",
+     "claim": "Sheet cells are fixed at 320x180, so portrait frames get squashed; reviewer says the portrait receipts decode as landscape",
+     "holds": true,
+     "note": "The defect holds from the code: th=180 and tw=320 are hard-coded. The evidence misreads the files, though. refined-9-16-hard.jpg decodes to array shape (2560, 1440, 3) and portrait.jpg to (1920, 1080, 3), i.e. height > width, so both are TRUE portrait. A real portrait still exists and would be squashed (as a single-frame image). The defect stands and the reviewer undersold the available evidence."
+    },
+    {
+     "kind": "defect",
+     "claim": "Tests cover only bright flat constant-rate synthetics; nothing pins dark content, VFR/stalls, pick image vs t_s, start-label asymmetry or no-video files",
+     "holds": true,
+     "note": "tests/test_storyboard.py has 5 tests with solid-colour 160x120 mpeg4 fixtures at 10 fps. All pass, even though the off-by-one (transition idx 9 is red) and the overlapping durations (3000 ms over 2800 ms) are reproduced."
+    }
+   ]
+  }
+ },
+ {
+  "review": {
+   "whatItDoes": "A text scan of each preset's .frag file. It strips comments and uniform declarations, then counts references to the seven audio uniforms (u_pulse, u_beat, u_level, u_bass, u_mid, u_high, u_flux). It gives each preset a verdict: silent (0 references), driven (5+ distinct channels or 8+ references), listening (3+ distinct or 4+ references), and cosmetic when every reference sits on a `col += col *` glow line. Results come out sorted by reference count. On the real bank of 8 presets it says: first-light driven (6 distinct, 8 refs), chromatic-bloom listening (4/7), halftone-pop driven (5/5), feedback-tunnel listening (3/5), glitch-blocks listening (4/4), mirror-hue listening (3/3), aurora-ribbons cosmetic (2/2), scope-bars listening (2/2). Totals: cosmetic=1, driven=2, listening=5.",
+   "triedOn": [
+    "arsenal/web/presets/*.frag (all 8, read line by line and checked against every counted reference)",
+    "The same 8 presets rendered in a headless WebGL2 ablation harness (Chrome --headless=new, SwiftShader, the three anti-throttling flags, separate profile in scratch): 2 modes (visualizer, video) x 12 uniform configs, 24 frames each, 320x180",
+    "design/vfx-sketches/*.frag (20 files) and arsenal/web/shaders (1 file) via --dir",
+    "The piano gesture model arsenal/web/piano/spectacle-motion.js (untracked working-tree file), imported read-only in node 24.14.1 and driven with soft, hard, pedal and triad scripts",
+    "Asta's refined-{16-9,9-16,city,ember,nebula,rain,winter}-{soft,hard,attack}.jpg in state/arsenal/receipts/spectacle (pixel diffs)",
+    "E:/Video Output E/arsenal-renders: a recursive listing found 0 files, so there were no aggregate numbers to take from Daniel's takes"
+   ],
+   "testsRun": "1) pytest tests/test_presets_coupling.py: 5 passed. 2) `py -m arsenal coupling` and `--json`: 3.8 ms for the bank; vfx-sketches 13.5 ms (19 silent, 1 listening); shaders 0.4 ms. 3) Checked all 44 counted references by hand: every one is a real, non-declaration use, and no direct use of the seven uniforms was missed. 4) Headless ablation (scratchpad/rill-review/ablate.py -> ablate.html -> dump.html -> ablation.json), 6.3 s total. Each cell is the mean |dRGB| (0-255) against a silent baseline, plus the residual left after fitting a single brightness gain. Residual near 0 means the change is only brightness; residual near the mean means it is spatial. Caveats: uniforms held constant for 24 frames, synthetic video and spectrum, knobs at header defaults, intensity 0.8, SwiftShader. 5) Spearman rank correlation between census reference count and measured all-channel coupling. 6) node gesture_sim.mjs: triad and single note at v40/v100/v114/v115, with and without pedal, sampled at 0.1/0.5/1.0/1.5 s. 7) Soft/hard/attack pairs diffed with PIL/numpy (mean diff, share of pixels changed by more than 8, gain residual, mean luminance), plus two reference pairs of different moments: city vs city-impact and rain vs forest-rain. No git state changes; the only files written are under scratchpad/rill-review.",
+   "strengths": [
+    {
+     "claim": "Everything it counts is real: no declaration or comment is ever counted as a use.",
+     "evidence": "I checked all 44 references across the 8 presets against the source. Examples: first-light u_pulse x3 at lines 83, 87 and 108; chromatic-bloom u_bass x2 at lines 131 and 146; feedback-tunnel u_beat x3 at lines 62, 63 and 116. None were missed or spurious for the seven named uniforms. test_comments_do_not_count_as_use and test_declared_but_never_read_is_silent pin this."
+    },
+    {
+     "claim": "Its central idea, that a whole-frame glow only brightens the picture, holds up when rendered.",
+     "evidence": "aurora-ribbons has its only u_pulse and u_beat uses on the `col += col * (...)` line. Driving those uniforms to 1.0 moves pixels 1.87/255 mean in visualizer mode with a residual of 0.29 after a brightness-gain fit, and 5.69 with residual 0.28 in video mode. About 85-95% of the change is a single brightness gain, which is what the docstring says."
+    },
+    {
+     "claim": "Cheap, reproducible, wired into the CLI, and honest about being a text scan.",
+     "evidence": "3.8 ms for the whole bank, and --json output works. The docstring says outright that it can't tell a beautiful use from a lazy one and points to the storyboard and a pair of eyes for that. Tests pass (5/5)."
+    },
+    {
+     "claim": "It asks a useful question for the bank.",
+     "evidence": "It is the right shape for the problem Daniel is describing on the piano page: which inputs actually reach which effects. The problems below are in how it measures, not in what it asks."
+    }
+   ],
+   "defects": [
+    {
+     "claim": "The census ignores the u_audio spectrum/waveform texture, so aurora-ribbons is wrongly called 'cosmetic' and scope-bars ranks last when it is the most audio-coupled preset.",
+     "evidence": "aurora-ribbons.frag lines 65-67 sample u_audio three times, and s0/s1/s2 drive ribbon displacement, thickness and colour (lines 79-100). With only the texture active, the render moves 22.44 mean with a residual of 16.01 and changes 68% of pixels, in both modes. That contradicts the docstring's 'it brightens, and nothing else moves'. scope-bars has 2 counted references but 7 texture reads per pixel, and the highest measured visualizer coupling: 144.15 mean / 129.99 residual with all channels on. 6 of the 8 presets read u_audio.",
+     "severity": "high"
+    },
+    {
+     "claim": "The census ranking runs opposite to measured coupling.",
+     "evidence": "Spearman correlation between census references and the measured all-channel residual is -0.39 in visualizer mode and -0.48 in video mode. Measured visualizer order: scope-bars 130.0, mirror-hue 92.9, halftone-pop 67.5, chromatic-bloom 38.6, feedback-tunnel 26.2, glitch-blocks 19.4, aurora-ribbons 19.1, first-light 6.8. The census puts first-light at the top (8 refs, 'driven'); measured, it is last in visualizer mode and 7th of 8 in video mode (18.1).",
+     "severity": "high"
+    },
+    {
+     "claim": "The census is blind to video vs visualizer mode: 9 of the 44 counted references do nothing when a video is loaded.",
+     "evidence": "first-light reads u_level, u_bass, u_mid and u_high only inside generative(), which never runs in video mode: 0.00 measured. halftone-pop's u_level and u_bass go through mix(g, lv, hv) at line 74, weight zero with video: 0.00. glitch-blocks reads u_bass and u_mid only in field_at, also mixed out by hv: 0.00. feedback-tunnel's u_level is in the generative core only: 0.00. first-light's '6 distinct channels, driven' is, with video, one channel plus the u_flux dust.",
+     "severity": "medium"
+    },
+    {
+     "claim": "Aliases are invisible: presets that clamp a uniform once into a local variable and reuse it score low.",
+     "evidence": "Uses of the alias variables that the census cannot see: glitch-blocks has 4 raw references but burst=clamp(u_beat) is used 9 times and flux 4 times. mirror-hue has 3 raw references, plus beat used 3 times and breath 4 times. scope-bars has 2 raw references, plus beat used 4 times. glitch-blocks' u_beat gives the largest single-channel change in video mode (40.88 mean / 27.13 residual), yet it is only 'listening'. The spec itself recommends this smoothing style (PLAY-NIGHT-SPEC line 119).",
+     "severity": "medium"
+    },
+    {
+     "claim": "The glow pattern is too narrow, so plain brightness gains pass as real listening.",
+     "evidence": "The regex only matches `col += col *`. mirror-hue line 78 `vidCol *= ... * (1.0 + 0.2 * beat * amt)` is also a pure gain: in video mode u_beat measures 14.28 mean with a residual of 0.25, about 98% explained by one gain. Its soft-vs-hard velocity difference is 6.75 with residual 0.24. The census counts it as a real use.",
+     "severity": "medium"
+    },
+    {
+     "claim": "Every reference counts the same regardless of weight, so near-zero terms count as full references.",
+     "evidence": "first-light line 122, `(dust - 0.5) * 0.018 * u_k5 * u_flux`, measures 0.43-0.44 mean. chromatic-bloom's u_beat reaches the frame only through the 0.06*u_k5 warm bleed at line 146: 2.37-2.51. Knob multipliers are also unmodeled: aurora-ribbons' glow is multiplied by u_k5, so it vanishes when that knob is at 0.",
+     "severity": "low"
+    },
+    {
+     "claim": "The tests never pin a verdict for a real preset, so the aurora-ribbons misclassification passes CI.",
+     "evidence": "test_the_real_bank_is_censused_without_raising only checks that verdicts are in the allowed set and that the counts add up. The synthetic fixtures cover declarations, comments, glow and plain use, but not texture reads, aliases, mode branches or multiplicative gain.",
+     "severity": "low"
+    },
+    {
+     "claim": "Shaders with a different uniform vocabulary are reported as 'silent' instead of 'not applicable'.",
+     "evidence": "`--dir design/vfx-sketches` returns 19 silent and 1 listening. All 20 sketches declare u_res and u_time plus bench-specific uniforms (u_tint, u_star, u_wire...), not the Play Night audio set, so 'silent' is a misleading result there.",
+     "severity": "low"
+    }
+   ],
+   "ideas": [
+    "Count u_audio as its own channels: a texture/textureLod call on u_audio at y=0.25 is a spectrum read, at y=0.75 a waveform read. That one change fixes aurora-ribbons and scope-bars.",
+    "Follow one level of assignment: if `float x = ...u_beat...;` then later uses of x count as u_beat. That fixes glitch-blocks, mirror-hue and scope-bars.",
+    "Better still, have the verdict come from rendering rather than text. The harness in scratchpad/rill-review/ablate.py renders the whole bank in both modes in 6.3 s and splits each change into brightness-only (gain fit) vs spatial (residual). That makes 'cosmetic' a measurement and covers aliases, textures, mode branches and weights in one pass. The text scan can stay as a quick pre-check.",
+    "Pin real-bank verdicts in tests (aurora-ribbons is not cosmetic; scope-bars is at least listening) so a regression in the scanner shows up.",
+    "Widen the glow check to any `x *= (1.0 + k*u_*)` / `x += x * ...u_*` form, or replace it with the rendered gain-residual test.",
+    "Label files without the Play Night uniform set as 'not a preset' rather than 'silent'.",
+    "Piano page, same idea, rendered rather than text-scanned. The chain MIDI -> spectacle-motion.js state -> spectacle.js uniforms -> GLSL passes through textures (noteData y = v/127, keyMotion), exactly the census's blind spot. The gesture model is a plain ES module that runs in node. Evidence so far: at 0.5 s into a triad, soft (v40) vs hard (v100) gives energy .177 vs .442 (2.5x), force .095 vs .593 (6.2x), impact .048 vs .303 (6.3x), key height 4.66 vs 17.06 (3.7x). So the model separates soft from hard well. The downstream on/off switches don't use velocity: any triad spawns a ring (ring:true at both v40 and v100); a single note needs v>=115 (v114 no ring, v115 ring). Ring size at 2 s is only 21.7 vs 30.7 (1.41x), ripple width 5.17 vs 6.07 (1.17x), bloom strength .445 vs .575, mote alpha 1.93x, mote size 1.8x. uOpacity is scaled by note density, not velocity. Velocity mostly scales brightness inside additive blend, bloom and tone mapping.",
+    "Asta's refined soft/hard stills agree: soft -> hard raises mean luminance by 6-12 codes (9-16: 31.3->43.7, city: 20.3->26.5, winter: 27.4->37.2). The spatial difference (mean 8.9-17.5, residual about equal to the mean) is no bigger than between two different moments or worlds (city vs city-impact 12.79, rain vs forest-rain 8.30). The one systematic signal is a roughly 25-40% brightness lift, which matches 'soft and hard look too alike'. There is no same-velocity control pair, so capture one (same velocity, same world, two moments) to set the noise floor before judging any fix.",
+    "A piano 'coupling sheet' could have two halves: (a) node-drive createGestureModel with matched scripts (soft vs hard, pedal vs dry, triad vs single) and tabulate every uniform and texture value that reaches a render sink; (b) render matched pairs with a fixed seed and time through the storyboard and report the spatial residual, not just mean difference. Levers worth testing, not prescriptions: let velocity decide whether a ring appears or its shape, not just its strength; give velocity a shape-changing effect (spawn speed, turbulence, colour temperature) rather than only gain.",
+    "The same gap exists on /play: MIDI velocity reaches only u_beat, linear v/127 (play.js lines 2102-2106). Measured soft (v40) vs hard (v100) in video mode: first-light 0.00 (it never reads u_beat), chromatic-bloom 1.11, aurora-ribbons 2.68, scope-bars 3.55, feedback-tunnel 6.58, mirror-hue 6.75 (brightness only), halftone-pop 6.85, glitch-blocks 26.57. With a piano input, 2 of the 8 presets effectively cannot show velocity, and only glitch-blocks shows it strongly."
+   ],
+   "artifacts": [
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/ablate.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/ablate.html",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/ablation.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/coupling.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/dump.html",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/gesture_sim.mjs"
+   ],
+   "tool": "Coupling census (commit dc0125a5): arsenal/presets.py coupling() and coupling_table(), the `py -m arsenal coupling [--dir] [--json]` verb, tests/test_presets_coupling.py"
+  },
+  "verdict": {
+   "items": [
+    {
+     "claim": "Everything it counts is real: no declaration or comment is ever counted as a use.",
+     "kind": "strength",
+     "holds": true,
+     "note": "Holds, but one number in the evidence is wrong. coupling_table() gives 36 references across the 8 presets, not 44 (8+7+5+5+4+3+2+2). The line numbers do check out: first-light u_pulse at 83/87/108, chromatic-bloom u_bass at 131/146, feedback-tunnel u_beat at 62/63/116. Declarations are stripped by _UNIFORM_DECL.sub and comments by _strip_comments, and I found nothing counted wrongly."
+    },
+    {
+     "claim": "Its central idea, that a whole-frame glow only brightens the picture, holds up when rendered.",
+     "kind": "strength",
+     "holds": true,
+     "note": "I re-rendered with the reviewer's ablate.html in headless Chrome (SwiftShader). aurora-ribbons u_pulse gave 1.865/0.294 in visualizer mode (saved: 1.867/0.293) and 5.687/0.283 in video mode. The largest difference between the saved run and my rerun across all cells was 0.51. The only uses sit on line 113 `col += col * (0.25*u_k5*(0.4+u_pulse+u_beat))`, and u_pulse and u_beat produce identical deltas. This supports the idea for that glow line only, not the docstring's broader 'nothing else moves' (see defect 1)."
+    },
+    {
+     "claim": "Cheap, reproducible, wired into the CLI, and honest about being a text scan.",
+     "kind": "strength",
+     "holds": true,
+     "note": "Measured 3.87 ms in-process for coupling_table() (71 ms wall time including Python startup). `py -m arsenal coupling --help` shows --dir and --json. pytest tests/test_presets_coupling.py: 5 passed. The docstring does say 'Textual, and honest about being textual' and points to the storyboard sheet and a pair of eyes."
+    },
+    {
+     "claim": "It asks a useful question for the bank.",
+     "kind": "strength",
+     "holds": true,
+     "note": "This is a judgment rather than something to measure. It is reasonable: the tool asks which audio channels each preset reads, and the defects below are about how it measures that. I did not verify the piano-page context."
+    },
+    {
+     "claim": "The census ignores the u_audio texture, so aurora-ribbons is wrongly called 'cosmetic' and scope-bars ranks last when it is the most audio-coupled preset.",
+     "kind": "defect-high",
+     "holds": true,
+     "note": "Holds, with two corrections. AUDIO_UNIFORMS leaves out u_audio. aurora-ribbons reads it at lines 65-67, and s0/s1/s2 feed d0..d2, w0..w2 and band (lines 79-100). With only the texture on it measures 22.44/16.01 at frac 0.678 in visualizer mode and 22.41/16.88 in video mode. 6 of 8 presets read u_audio; glitch-blocks and halftone-pop do not. Corrections: (1) scope-bars has 5 texture reads (lines 84, 85, 117, 118, 119), not 7. (2) 'Most audio-coupled' is true only by residual (all_0.8 visualizer 144.15/129.99). By mean delta, chromatic-bloom is higher (164.33), and in video mode scope-bars is only 4th by residual (26.7). The all_0.8 setting also drives the channels at 0.8, not fully on."
+    },
+    {
+     "claim": "The census ranking runs opposite to measured coupling.",
+     "kind": "defect-high",
+     "holds": false,
+     "note": "The numbers reproduce but the headline overstates them. Spearman between census references and all_0.8 residual is -0.386 (visualizer) and -0.482 (video), and the order the reviewer lists is correct. But the sign depends on the metric. With all_0.8 mean delta instead of residual, visualizer is +0.19 (video -0.45). With only the seven uniforms the census claims to count (sum of per-channel residuals, texture excluded), it is -0.24 in visualizer and +0.10 in video. With n=8, all of these are weak. A fair statement is 'census counts do not predict measured coupling', and most of that is defect 1 again (the loud texture dominates all_0.8). 'Runs opposite' is not supported."
+    },
+    {
+     "claim": "The census is blind to video vs visualizer mode: 9 of the 44 counted references do nothing when a video is loaded.",
+     "kind": "defect-medium",
+     "holds": true,
+     "note": "Reproduced: 9 references measure 0 mean delta in video mode. first-light u_level/u_bass/u_mid/u_high (all inside generative(), line 66) are 0. u_pulse measures 37.08 and u_flux 0.437, so 'one channel plus the dust' is right. halftone-pop u_level/u_bass go through mix(g, lv, hv) at line 74 and measure 0. glitch-blocks u_bass/u_mid are in field_at, mixed out by hv at lines 134-136, and measure 0. feedback-tunnel u_level measures 0. The denominator is wrong: 9 of 36, not 44."
+    },
+    {
+     "claim": "Aliases are invisible: presets that clamp a uniform once into a local variable and reuse it score low.",
+     "kind": "defect-medium",
+     "holds": true,
+     "note": "Alias counts confirmed (uses after the definition): glitch-blocks burst 9 and flux 4; mirror-hue beat 3 and breath 4; scope-bars beat 4. glitch-blocks u_beat video is 40.88/27.13, verdict 'listening'. PLAY-NIGHT-SPEC.md line 119 does recommend smoothing, e.g. `0.6*u_pulse + 0.4*u_bass`. One detail is wrong: glitch-blocks u_beat is not the largest single-channel change in video mode. mirror-hue u_pulse is larger on both measures (65.75 mean / 27.67 residual)."
+    },
+    {
+     "claim": "The glow pattern is too narrow, so plain brightness gains pass as real listening.",
+     "kind": "defect-medium",
+     "holds": false,
+     "note": "The numbers reproduce but the example misreads the code. mirror-hue u_beat in video mode is 14.28/0.253, and soft-vs-hard is 6.75/0.24. Line 78 is a gain on vidCol that applies only in video mode. In visualizer mode the same u_beat is the most structural single channel in the bank (74.53 mean / 72.42 residual), so the census is right to count it as real listening. Line 78 also uses the alias `beat`, not u_beat, so a wider glow regex would not catch it anyway. That makes this a restatement of the mode and alias defects. It is true that the regex only matches `col += col *`, but the review shows no preset whose verdict is wrong because of that."
+    },
+    {
+     "claim": "Every reference counts the same regardless of weight, so near-zero terms count as full references.",
+     "kind": "defect-low",
+     "holds": true,
+     "note": "Confirmed. first-light line 122 `(dust - 0.5) * 0.018 * u_k5 * u_flux` measures 0.435 (visualizer) and 0.437 (video). chromatic-bloom u_beat appears only at line 146, `vec3(0.06,0.02,0.0) * u_k5 * (...)`, and measures 2.51 / 2.37. The aurora-ribbons glow on line 113 is multiplied by u_k5, so it is zero when that knob is 0. The census has no weight or knob modelling."
+    },
+    {
+     "claim": "The tests never pin a verdict for a real preset, so the aurora-ribbons misclassification passes CI.",
+     "kind": "defect-low",
+     "holds": true,
+     "note": "Confirmed by reading the file. test_the_real_bank_is_censused_without_raising only checks that each verdict is in the allowed set and that references == sum(used). The four synthetic tests cover silent, glow-only, plain structural use and comments. None covers u_audio texture reads, aliases, hv/has_video branches or multiplicative gain."
+    },
+    {
+     "claim": "Shaders with a different uniform vocabulary are reported as 'silent' instead of 'not applicable'.",
+     "kind": "defect-low",
+     "holds": true,
+     "note": "The result reproduces: coupling_table('design/vfx-sketches') gives 20 rows, 19 silent and 1 listening. The evidence misdescribes the sketches, though. 18 of 20 declare only u_res and u_time. Only fat-edges and hal-superquadric declare bench uniforms (u_tint, u_star, u_wire...), and both also declare u_pulse, a Play Night audio name, which is probably where the one 'listening' comes from. Low severity and arguably outside the contract, since --dir is documented as 'a preset directory'."
+    }
+   ]
+  }
+ },
+ {
+  "review": {
+   "whatItDoes": "It runs four cheap pixel checks on the first decoded frame of an image or video. not_dead: luma mean >= 0.020 and peak >= 0.15. not_blown: no more than 8% of pixels with all three channels >= 250. variety: luma std >= 0.010. legibility: (p95+0.05)/(p5+0.05) >= 4.5. Luma is Rec.709 weights applied to sRGB-encoded values, not linearised. Regions are fractions of the frame, with presets CANVAS_REGION (Play page, left 60%) and KEYBOARD_REGION (bottom band). Named sets are canvas, label and frame; the CLI default is all four floors on the whole frame. Output is a receipt-shaped dict with thresholds, measured values and a not_measured note. Verdict: a well-framed, honest floor. The thresholds hold up on real dark scenes, and it caught the defects it was built for. It is not yet a per-take REC gate: it reads only the first frame, crashes on a take with no video stream, and passes stalled takes. Its legibility floor measures the spread of brightness in a region, not whether text is there.",
+   "triedOn": [
+    "tests/test_floors.py (pytest)",
+    "42 spectacle JPGs + controls.png from Asta (state/arsenal/receipts/spectacle/*.jpg): six worlds, portrait 9:16, city-impact, waveform, cinema-4k, refined-*",
+    "8 spectacle recordings in fixture/library/arsenal-renders, all frames decoded (571 video frames): 4K VP9 22-48-28.webm (55 frames), 1440p H.264 22-48-31.mp4 (163), two other 1440p takes, stalled 4K H.264 22-45-46 (12 frames) and 22-47-45 (6 frames), 23-18-49.webm (8), and the audio-only 22-43-26.mp4",
+    "27 jam receipt PNGs (A7/A8/A9/A12 page and deck screenshots; the jam receipts hold no video files)",
+    "The receipts that motivated the tool: presets/*__visual-silent.png and *-loud, play-2026091*/visualizer-*.jpg, play-dev/*.png (void and blackout frames), rill-visual/play-20260915-021940/*.jpg",
+    "piano-dev (43 frames, keyboard-glow blowout), piano-wash (306), piano-spectacle (62), piano-v2 (299 unique, including recorder test-card frames), piano-mustfix (6)",
+    "Daniel's takes, aggregate only: E:/Video Output E/arsenal-renders is EMPTY (0 files), so I used the 96 top-level takes in E:/Video Output E, all 1920x1080, first frame plus a seek to the midpoint; no names or frames recorded",
+    "Synthetic probes: gamma/contrast grid, text-coverage sweep, textless gradient, black frame with label, tinted clipping, region edge cases, unknown floor name, audio-only m4a",
+    "Portrait 9:16 chord labels with the label present, erased and at 25% opacity",
+    "CLI: `py -m arsenal floors` on the void screenshot and on the audio-only and stalled 4K takes"
+   ],
+   "testsRun": "pytest tests/test_floors.py: 6 passed. All scripts are in scratchpad/rill-review/floors/ (stills.py, videos.py, probes.py, probes2.py, motivating.py, daniel_aggregate.py, plus inline runs on piano-*). Timings: floors on a 3840x2160 frame take 54/57/62/85 ms each (not_dead/not_blown/variety/legibility), because every floor recomputes luma (50 ms). All four on a 4x-decimated frame take 21 ms and give the same verdicts. Per-frame cost on the recordings: 289-324 ms at 4K, 126-137 ms at 1440p. check() on Daniel's 1080p takes: median 0.098 s. CLI runs: the void screenshot exits 1 with legibility 3.02 as the only failure; with --set canvas --region 0,0.06,0.6,0.86 it FAILs on not_dead (mean 0.0056); the audio-only take gives an IndexError traceback; the stalled 4K take (6 frames) prints 'verdict: pass' and exits 0. No tracked files edited and no git changes; outputs are only in scratchpad.",
+   "strengths": [
+    {
+     "claim": "A dark moonlit lake does NOT trip dead or flat; the thresholds leave real margin on moody scenes.",
+     "evidence": "All 43 spectacle stills pass not_dead and variety. Luma mean min/median/max 0.054/0.101/0.505 (2.7x the 0.020 floor); std min 0.090 (9x the 0.010 floor). gentle-lake: mean 0.101, std 0.103. Exposure sweep (sRGB x k): gentle-lake trips not_dead only at k=0.2 (mean 0.0188) and variety at k=0.07; moon trips at k=0.15; rain, nebula and portrait at 0.2. All 571 frames of the 8 recordings pass (mean min 0.0824 on the 4K VP9 take)."
+    },
+    {
+     "claim": "Bloom does not falsely trip 'blown', while real blowouts DO trip it: good true positives on repo receipts.",
+     "evidence": "Clipped fraction (all channels >= 250) is 0.0000 on every world scene still and max 0.0 across all 571 recording frames; only the inspect diagnostics reach 0.069. Daniel's 96 midpoints: max 0.0387, 0 blown. True positives: piano-dev 20260913-210718-r1-916-keys.jpg (keys dissolved into white haze) KEYBOARD_REGION clip 0.228 FAIL, 8/43 piano-dev frames fail. Jam a9-glass-9x16 page (white haze over the staff and keys) whole-frame clip 0.084 FAIL; the 16:9 version 0.213 FAIL."
+    },
+    {
+     "claim": "The dead floor catches the silent-visualizer void it was built for, when scoped to the canvas.",
+     "evidence": "presets/aurora-ribbons__visual-silent.png FAIL (peak 0.07, std 0.005); chromatic-bloom__visual-silent FAIL (peak 0.13). play-dev dev1-03-viz-fx-trails (a faint ring on black) with CANVAS_REGION: mean 0.0056 FAIL; the *-05-blackout frames: mean 0.005 FAIL. A recorder frame that came out all white (avwa frame0000, avstall frame0150) FAILs variety (std 0.0) and blown (1.0)."
+    },
+    {
+     "claim": "The pinned pixels are meaningful, and the receipt design is honest.",
+     "evidence": "Every result carries its threshold and measured value, so a FAIL is explained without re-running. Regions are fractions (the same region worked on 1080x1920, 2560x1440 and 3840x2160). A floor that throws becomes a failed floor inside the loop. SETS writes down the 4.47-vs-4.5 category-error lesson. not_measured says outright that it does not judge taste. The test pins 'dark-but-alive passes', which is the right first pin for this aesthetic."
+    },
+    {
+     "claim": "Legibility works IF the region is cropped tight to a glyph row.",
+     "evidence": "Portrait 9:16 'A C E' note row, tight region: label present F=9.89 ok; label erased F=2.23 FAIL; label at 25% opacity F=2.55 FAIL. Am glyph tight: at 25% opacity F=2.88 FAIL."
+    }
+   ],
+   "defects": [
+    {
+     "claim": "Cannot gate the 'silently missing video track' take: check() crashes instead of returning a failing receipt, and one bad file would abort a whole check_many()/sweep() batch.",
+     "evidence": "2026-09-14 22-43-26 piano.mp4 (57,127 bytes, 2.30 s, streams=[aac only]): F.check -> 'IndexError: tuple index out of range'; CLI prints a traceback, exit 1. load_rgb() runs before the per-floor try, so the rule 'a broken floor is a failed floor' does not cover 'no decodable frame'. Prior art exists: arsenal/analysis.py:159 already emits 'no video stream', and Asta's spectacle/decode.py asserts both streams and more than 30 frames.",
+     "severity": "high (for REC-gate use)"
+    },
+    {
+     "claim": "It reads only the first frame, so stalled takes, and black frames mid-take, pass.",
+     "evidence": "Stalled 4K H.264 takes: 22-47-45 has 6 video frames in 2.75 s (~2.2 fps) and 22-45-46 has 12 frames (~4.4 fps); CLI says 'verdict: pass', exit 0. 23-18-49.webm has 8 frames in its ~3 s and also passes. Daniel's 96 takes: the first frame passed not_dead in 96/96, but one take's midpoint decoded pure black (mean 0.0), which a first-frame gate misses. Caveat: this was a single seek-based sample.",
+     "severity": "high (for REC-gate use)"
+    },
+    {
+     "claim": "The default (no region) misses a dead canvas when UI chrome or a lit keyboard is in frame, and no region preset fits spectacle or REC frames.",
+     "evidence": "play-dev: 17 frames pass the canvas set on the whole frame but FAIL with CANVAS_REGION. Example: dev1-03-viz-fx-trails whole frame mean 0.0426, peak 0.909, ok; canvas region mean 0.0056, FAIL. The CLI default does FAIL this frame, but only through legibility (3.02): right verdict, wrong reason. Synthetic test on 4 spectacle frames with everything above the keyboard band set to black: the whole-frame canvas set passes all 4 (mean 0.025-0.036), while an upper-70% region fails them. CANVAS_REGION is the Play page's left 60%, so it does not apply to full-frame spectacle recordings.",
+     "severity": "medium"
+    },
+    {
+     "claim": "The CLI default runs whole-frame legibility, which is the very category error SETS warns about, and it produces noise.",
+     "evidence": "23 of 27 readable jam page screenshots FAIL by default (contrast 3.02; e.g. glass-9x16 mock stage with readable text). Daniel's takes: legibility FAILs on 52/96 midpoints and 5/96 first frames, while the canvas set passes 95/96 of each.",
+     "severity": "medium"
+    },
+    {
+     "claim": "'Illegible' measures a region's brightness spread, not whether text is present, so it cannot tell a chord label from an empty busy canvas unless the region is cropped by hand.",
+     "evidence": "Synthetic white text on black: coverage 1%, 3% and 4.5% of the region give F=1.0 FAIL; above 95% coverage also FAILs; a smooth 0..255 gradient with NO text PASSes at 10.29. Real portrait 9:16: the label band with the Am label ERASED still passes (6.11); an empty mid-canvas region passes (6.98); the keyboard band passes (10.32); the tight Am box with the label erased passes at 4.51 against a 4.5 threshold. The Nashville row is not drawn in the spectacle canvas (the word appears only in piano.html, deck.js, chordread.js and nashville.js), so it never reaches REC frames.",
+     "severity": "medium"
+    },
+    {
+     "claim": "The contrast number is computed on gamma-encoded luma but judged against WCAG's 4.5, which is defined on linear luminance. It under-reports mid-tones and over-reports dark textless regions.",
+     "evidence": "White text on grey background: bg=60 gives F=3.68 FAIL vs WCAG 11.03; bg=90 gives 2.61 vs 6.90; bg=118 gives 2.05 vs 4.54. Real dark frames go the other way: portrait empty mid-canvas F 6.98 vs WCAG 4.0; the 43 spectacle stills range F 5.69-9.75 vs WCAG 2.45-5.86. The docstring calls it a 'relative-luminance approximation', but the scale matches neither WCAG nor any stated unit.",
+     "severity": "medium"
+    },
+    {
+     "claim": "not_blown misses tinted or saturated clipping because it requires all three channels to be >= 250.",
+     "evidence": "Half the region clipped in warm bloom (255,236,200), cyan (0,255,255), magenta (255,0,255) or near-white (248,248,248): clipped_fraction 0.0 in each case, pass. On real stills, the any-channel >= 250 fraction reaches 0.235 on inspect-diagnostic vs 0.0083 for all channels, so colour-channel saturation is invisible to the floor.",
+     "severity": "low-medium"
+    },
+    {
+     "claim": "Region crop edge cases silently measure the wrong pixels, and a bad floor name crashes.",
+     "evidence": "On a 240x120 frame: region (0,0,0,0) crops to the WHOLE frame (120x240, through the `or w` / `or h` fallback); (-0.5,0,1,1) silently clips to half width; (1.0,0,0.1,0.1) gives an empty crop and IndexError (reported as a failed floor). `check(floors=['not_ded'])` raises KeyError outside the try; `floors=[]` runs all four.",
+     "severity": "low"
+    },
+    {
+     "claim": "Too slow for an all-frames take gate: luma is recomputed four times at full resolution.",
+     "evidence": "luma() alone takes 50 ms on a 4K frame, and the four floors take ~257 ms. Measured 289-324 ms per 4K recording frame, so a 3-minute 4K60 take would need about 10,800 frames x 0.3 s, roughly 54 min. Computing luma once on a 4x-decimated frame took 21 ms with identical verdicts on cinema-4k.jpg.",
+     "severity": "low"
+    },
+    {
+     "claim": "Test coverage is synthetic and misses the failure modes above.",
+     "evidence": "The 6 tests cover uniform fills and rectangles only. Nothing covers video input, a missing video stream, region edge cases, tinted clipping, text coverage below 5%, or gamma. The 4.47-vs-4.5 anecdote is not pinned. Separately, not_dead flags intentionally sparse test cards: 16 recorder test-card frames in piano-v2 (black with a progress bar) read mean 0.0062 and count as 'dead'. That is defensible, but a title-card preset on black would fail the same way.",
+     "severity": "low"
+    }
+   ],
+   "ideas": [
+    "Add check_take(path): no video stream becomes a structured FAIL (reuse analysis.py:159), not a traceback. Compare decoded frame count to duration (effective fps), which would flag 22-47-45 at ~2.2 fps. Sample ~16 evenly spaced frames at 4x decimation and report the worst frame index and value. Estimated cost ~0.35 s per take.",
+    "Compute luma once per frame and pass it to every floor; decimate by default for canvas floors (21 ms vs 257 ms at 4K with the same verdicts).",
+    "Make --set canvas the CLI default, require an explicit region for legibility, and add a SPECTACLE/REC region preset (e.g. sky above the keyboard, (0,0,1,0.70)), since CANVAS_REGION is Play-page geometry.",
+    "Legibility: either linearise with the sRGB transfer curve and keep the WCAG 4.5 threshold, or rename the number to 'luma ratio' and recalibrate. For text, measure local contrast inside a glyph mask (Otsu or edges) in a tight region, or pin a 'label erased' twin crop as the negative (the erase probe separated them at 9.89 vs 2.23 on the ACE row).",
+    "not_blown: also count luma >= 0.95 or max channel >= 250 with low saturation, so warm or cyan glow clipping registers.",
+    "Add a stall/freeze floor over sampled frames: consecutive-frame difference plus timestamp gaps. Asta's MediaRecorder stall and the silent 4K track omission (piano.js:2907) are stream and timing defects, not pixel defects.",
+    "Validate regions: raise on zero-area or out-of-range fractions instead of falling back to the whole frame.",
+    "Calibrate from receipts per Rill's own 'sample a gate on frames it should PASS' rule: this run gives a PASS corpus of 43 scene stills (mean >= 0.054, std >= 0.090) and a FAIL corpus (aurora-ribbons__visual-silent, play-dev blackout, piano-dev 916-keys, jam a9-glass page). Pin a few decimated real crops as fixtures."
+   ],
+   "artifacts": [
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/common.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/stills.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/stills.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/videos.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/videos.json",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/probes.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/probes2.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/motivating.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/daniel_aggregate.py",
+    "C:/Users/L5/AppData/Local/Temp/claude/E--/bee0f118-f0f5-4b8a-a0d8-66aee48f3df1/scratchpad/rill-review/floors/daniel_aggregate.json"
+   ],
+   "tool": "arsenal.floors (visual floors), Rill's commit 03ccaad1: arsenal/floors.py, tests/test_floors.py, `py -m arsenal floors` in arsenal/__main__.py"
+  },
+  "verdict": {
+   "items": [
+    {
+     "kind": "strength",
+     "claim": "A dark moonlit lake does NOT trip dead or flat; the thresholds leave real margin on moody scenes.",
+     "holds": true,
+     "note": "Reproduced. I reran the canvas set on all 43 spectacle stills: 0 fails, luma mean min/median/max 0.0545/0.1062/0.5047, std min 0.0999 (review: 0.101 median, 0.090 std). On gentle-lake I got mean 0.1088 and std 0.118 (review: 0.101 and 0.103); its mtime suggests the stills were re-rendered. In the exposure sweep (sRGB x k, truncated) gentle-lake still PASSES not_dead at k=0.2 (mean 0.0204) and only trips at k=0.1 (0.0094); variety trips at 0.07 as claimed. The review's 'trips at 0.2 (0.0188)' is off by about one sweep step, but that only means more margin. I did not rerun moon/rain/nebula/portrait. There are now 10 recordings with video and 828 frames, all passing, mean min 0.0824. The review's 571 frames equals exactly the first 7 recordings, so files were added after it ran."
+    },
+    {
+     "kind": "strength",
+     "claim": "Bloom does not falsely trip 'blown', while real blowouts DO trip it: good true positives on repo receipts.",
+     "holds": true,
+     "note": "Reproduced on repo receipts. The all-channel clipped fraction is 0.0 on every world still; only inspect-all (0.0689), inspect-diagnostic (0.0083) and motion-contact-sheet (0.0001) are nonzero. Max is 0.0 across all 828 recording frames. piano-dev 20260913-210718-r1-916-keys.jpg with KEYBOARD_REGION: 0.2283 FAIL. I count 7/39 piano-dev jpgs failing, not 8/43 (different glob, probably png included). a9-glass-9x16 page: 0.0842 FAIL; 16x9: 0.2129 FAIL. NOT reproduced: Daniel's 96 midpoints. 'E:/Video Output E/arsenal-renders' is empty now, so 0 files. That part is unverified, but the claim does not depend on it."
+    },
+    {
+     "kind": "strength",
+     "claim": "The dead floor catches the silent-visualizer void it was built for, when scoped to the canvas.",
+     "holds": true,
+     "note": "Reproduced. aurora-ribbons__visual-silent: peak 0.0732, std 0.0055, not_dead and variety FAIL. chromatic-bloom: peak 0.1294, not_dead FAIL (variety passes at 0.0154). dev1-03-viz-fx-trails with CANVAS_REGION: mean 0.0056 FAIL; the *-05-blackout frames: 0.0046 FAIL. avwa frame0000 and avstall frame0150 fail variety (std 0.0) and blown (1.0). Note that not_dead PASSES those white frames (mean 1.0), which the review does not claim otherwise. The other 6 silent presets pass, so this is not a universal detector; that is fair since they are not voids."
+    },
+    {
+     "kind": "strength",
+     "claim": "The pinned pixels are meaningful, and the receipt design is honest.",
+     "holds": true,
+     "note": "Confirmed by reading floors.py. Every result includes its threshold and measured value. Regions are fractions (crop uses np.clip(x,0,1)*w). Per-floor try/except turns an exception into pass=False with an error. SETS carries the 4.47-vs-4.5 comment. not_measured names taste. test_dark_but_alive_frame_passes_the_dead_floor exists. The pytest run gives 6 passed. The 'honest' framing slightly overlooks that load_rgb and FLOORS[name] sit outside the try (covered by defects 1 and 7)."
+    },
+    {
+     "kind": "strength",
+     "claim": "Legibility works IF the region is cropped tight to a glyph row.",
+     "holds": true,
+     "note": "Reproduced in direction on portrait.jpg (1080x1920). Tight 'A C E' box: present F=8.87 (review 9.89), erased 1.0 (review 2.23), 25% opacity 2.63 (review 2.55). Tight Am box: present 8.94, 25% opacity 2.32 (review 2.88). The exact values depend on box coordinates and how the erase is done; I used a flat median-background fill, the review used something softer. The pass/fail verdicts match."
+    },
+    {
+     "kind": "defect",
+     "claim": "Cannot gate the 'silently missing video track' take: check() crashes instead of returning a failing receipt, and one bad file would abort a whole check_many()/sweep() batch.",
+     "holds": true,
+     "note": "Reproduced. 2026-09-14 22-43-26 piano.mp4 has 57,127 bytes, 2.30 s and streams ['audio']. F.check raises 'IndexError: tuple index out of range'. load_rgb runs before the per-floor try, and check_many is a bare list comprehension, so the exception aborts the batch. arsenal/analysis.py:159 does set 'no video stream', as cited. I did not run the CLI to confirm the exit code."
+    },
+    {
+     "kind": "defect",
+     "claim": "It reads only the first frame, so stalled takes, and black frames mid-take, pass.",
+     "holds": true,
+     "note": "Reproduced from code (load_rgb returns the first decoded frame) and from the files. 22-47-45: 6 frames at 3840x2160 h264 in 2.75 s. 22-45-46: 12 frames in 2.75 s. 23-18-49.webm: 8 frames. F.check gives pass=True on all three. NOT reproduced: the black midpoint among Daniel's 96 takes, because the arsenal-renders folder is empty now. The stall evidence alone supports the defect."
+    },
+    {
+     "kind": "defect",
+     "claim": "The default (no region) misses a dead canvas when UI chrome or a lit keyboard is in frame, and no region preset fits spectacle or REC frames.",
+     "holds": true,
+     "note": "Reproduced. dev1-03-viz-fx-trails: whole frame mean 0.0426, peak 0.909, pass; CANVAS_REGION mean 0.0056, FAIL. The CLI-default check fails it only on legibility 3.02, as claimed. Count differs: I get 14 of 103 play-dev images (png+jpg) that pass whole-frame but fail with the canvas region, not 17. Synthetic blackout above 70% on city/ember/moon/rain: whole-frame canvas set passes all 4 (mean 0.028-0.042), upper-70% region fails all 4. CANVAS_REGION is (0,0.06,0.60,0.86), per its Play-page comment."
+    },
+    {
+     "kind": "defect",
+     "claim": "The CLI default runs whole-frame legibility, which is the very category error SETS warns about, and it produces noise.",
+     "holds": true,
+     "note": "Partly reproduced. check() defaults to all FLOORS (floors or list(FLOORS)), so legibility runs whole-frame. 23 of 27 jam images fail legibility by default; every glass-9x16/16x9 alignment shot reads 3.02. NOT reproduced: the 52/96 and 5/96 counts on Daniel's takes (folder empty). I did not confirm what the CLI entry point itself defaults to; this rests on check()'s default."
+    },
+    {
+     "kind": "defect",
+     "claim": "'Illegible' measures a region's brightness spread, not whether text is present, so it cannot tell a chord label from an empty busy canvas unless the region is cropped by hand.",
+     "holds": true,
+     "note": "The core claim is reproduced. The code uses the 5th/95th luma percentiles. White-on-black coverage of 1%, 3%, 4.5% and 96% all give F=1.0 FAIL. A 0..255 gradient with no text gives 10.33 PASS (review 10.29). On portrait.jpg, the label band with Am erased passes at 5.87 (review 6.11), an empty mid-canvas region passes at 6.12, and the keyboard band passes at 10.91. Not reproduced: the tight Am box erased at 4.51, because my flat erase gives 1.0. FACTUAL ERROR in the sub-claim that Nashville never reaches REC frames. spectacle.js:335 offers 'Chord + Nashville + note glass', and spectacle-voicing.js:132/173 consumes the Nashville reading into numberGlass. So the Nashville row IS drawn in the spectacle canvas. That sentence should be struck; the defect still holds."
+    },
+    {
+     "kind": "defect",
+     "claim": "The contrast number is computed on gamma-encoded luma but judged against WCAG's 4.5, which is defined on linear luminance. It under-reports mid-tones and over-reports dark textless regions.",
+     "holds": true,
+     "note": "Reproduced. luma() applies Rec.709 weights to sRGB values without linearizing. White text on grey: bg=60 gives 3.68, bg=90 gives 2.61, bg=118 gives 2.05, matching exactly. WCAG for bg=60 is about 11.03 by hand. On the stills, every dark world frame has F above WCAG (for example moon 6.98 vs 4.01, gentle-lake 6.86 vs 3.94). The ranges differ from the review: over all 43 I get F 6.03-16.49 and WCAG 2.71-20.05 (the inspect frames push the max), probably because the stills were re-rendered. The direction and mechanism are confirmed."
+    },
+    {
+     "kind": "defect",
+     "claim": "not_blown misses tinted or saturated clipping because it requires all three channels to be >= 250.",
+     "holds": true,
+     "note": "Reproduced. The code uses (patch>=clip_at).all(axis=2). Half-frame fills of (255,236,200), (0,255,255), (255,0,255) and (248,248,248) all give clipped_fraction 0.0. The any-channel >=250 fraction on inspect-diagnostic is 0.2346 vs 0.0083 all-channel. The (248,248,248) case is just a threshold choice rather than a tint problem, so that example is weak. Severity low-medium is fair."
+    },
+    {
+     "kind": "defect",
+     "claim": "Region crop edge cases silently measure the wrong pixels, and a bad floor name crashes.",
+     "holds": true,
+     "note": "Reproduced on 240x120. Region (0,0,0,0) crops to (120,240), the whole frame, through `or w`. Region (-0.5,0,1,1) crops to (120,120), half width. Region (1.0,0,0.1,0.1) gives shape (12,0): not_dead raises ValueError, legibility raises IndexError (both become failed floors), not_blown and variety return NaN and pass=False. The review says only 'IndexError', which is slightly imprecise, but the outcome (reported as a failure) is right. FLOORS[name] is outside the try, so a bad name raises KeyError, and `floors or list(FLOORS)` makes [] run all four. Both confirmed by reading the code."
+    },
+    {
+     "kind": "defect",
+     "claim": "Too slow for an all-frames take gate: luma is recomputed four times at full resolution.",
+     "holds": true,
+     "note": "Reproduced. On cinema-4k.jpg the four floors take 0.26 s and F.check 0.275 s; the same floors on a 4x-decimated array take 0.02 s with identical verdicts. luma on a random 4K array: 71 ms. On real recording frames the 3-floor canvas set took about 0.20-0.22 s per 4K frame and about 0.095 s per 1440p frame, so 0.29-0.32 s with all four floors at 4K is plausible. The 54-minute figure is simple arithmetic and follows."
+    },
+    {
+     "kind": "defect",
+     "claim": "Test coverage is synthetic and misses the failure modes above.",
+     "holds": true,
+     "note": "Confirmed. tests/test_floors.py has 6 tests (6 passed) using uniform fills and rectangles, plus two PNG round-trips. Nothing covers video, a missing stream, region edges, tinted clipping, low coverage or gamma, and the 4.47 anecdote is not pinned. Recorder test cards: exactly 16 piano-v2 pngs fail not_dead with mean about 0.0062 (peak about 0.83), matching the review."
+    }
+   ]
+  }
+ }
+]
