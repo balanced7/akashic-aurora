@@ -9,7 +9,8 @@
 // results are checked against tests/fixtures/theory/contracts.schema.json ($defs ReadResult, Reading, AlsoResult,
 // DetectInfo, ParsedSuffix). After the corpus receipts come the TN1 reader invariants: parseSuffix against nashville.js's
 // TONE_STEPS, FAMILY and DOMINANT; every reading's name parsing back to its notes; A1, A2, A4 and A7 over every fixture
-// result; A2 and the augmented duplicate over every chord shape; spellings the page keeps (E#, Cb); inputs a live window
+// result; A2 and the augmented duplicate over every chord shape; spellings the page keeps (E#, Cb); the augmented chord's
+// root, never on a double-accidental 3rd (C+(add9) in C# minor, round 6); inputs a live window
 // hands in (a bass outside the notes, weights that are not numbers); detect()'s info shape and D12. The band ceiling and
 // canvas ALSO spec 2.6 gives every case are checked on the cases that are not strict too. Real-window receipts (NG2,
 // the rest of NG3) replay S1-S6 read only, in a scratch lane (theory-nextgen/tn1/static_lane.mjs), counts only, scored as
@@ -585,9 +586,13 @@ async function scoreReader(file) {
           number = P.numberFor(out);
           if (k && !number) bad.push("no number in the key");
         }
-        // a chord result (band not none) whose top reading is rootless names it in info.rootless; any other info has none
+        // a result read() gives as a chord whose top reading is rootless names it in info.rootless, whether the info shows a
+        // name or letters; any other info has none. Letters carry band none, a chord info a band (tn1-rulings.md round 4).
         const top = Array.isArray(info.readings) ? info.readings[0] : null;
-        if (top && info.band !== "none" && top.omit.rootless) {
+        const readKind = TP.read(ms, { key: opts ? opts.key ?? null : null, keyBias: k ? k.bias : 0, ...(opts && Number.isFinite(opts.bassMidi) ? { bassMidi: opts.bassMidi } : {}) }).kind;
+        if (info.kind === "cluster" && info.band !== "none") bad.push(`letters with band ${info.band}`);
+        if (info.kind === "chord" && (info.band === "none" || info.band === undefined)) bad.push("a chord info with no band");
+        if (top && readKind === "chord" && top.omit.rootless) {
           rootlessTops++;
           if (out.kind === "chord") rootlessChords++; else rootlessLetters++;
           if (!info.rootless || spPc(info.rootless.root) !== top.root || info.rootless.name !== top.name || heard.has(top.root)) bad.push("info.rootless does not name the rootless top");
@@ -699,6 +704,89 @@ async function scoreReader(file) {
   report.push(`bassMidi sweep: ${fallbackReads} reads, ${fallbacks} with a template fallback, ${offBass} with a reading on another bass`);
   check("every reading stands on opts.bassMidi, the template fallback's included (C3 D3 Eb3 over D4 reads Cm(add9)/D, not Cm(add9))", offBass === 0 && fallbacks > 0
     && ident(reader.read([48, 50, 51], { bassMidi: 62 }).readings[0]?.name) === ident("Cm(add9)/D"), `${offBass} off the bass, ${fallbacks} fallbacks: ${offBassEx.join(" | ")}`);
+  // Round 4 must-fix (code verifier): detect() honours opts.bassMidi on its template path. When every listed reading is
+  // rootless, today's templates read the notes over the given bass even when its pitch class also sounds above the lowest
+  // note, and a template name on another bass is no name (letters, band none). Pinned by hand on C4 C#4 E4 G4 (C# lowest
+  // but one) and C4 C#4 E4 G4 C#5 (and above) over C#2, E2 and G2, moved to every root, with no key and in the major keys
+  // on the rootless root and on its 6th: the templates name no chord over those basses (never C#dim/C), so the info shows
+  // letters with band none, over detect's own notes, and info.rootless names the rootless top A7#9 over the given bass.
+  const MAJOR = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+  const detBass = [];
+  for (let s = 0; s < 12; s++) {
+    const d = s > 5 ? s - 12 : s;
+    for (const upper of ["C4 C#4 E4 G4", "C4 C#4 E4 G4 C#5"]) for (const bassNote of ["C#2", "E2", "G2"]) for (const key of [null, `${MAJOR[mod(s + 9, 12)]} major`, `${MAJOR[mod(s + 2, 12)]} major`]) {
+      const ms = midis(upper).map((m) => m + d), bassMidi = midiOf(bassNote) + d, b = mod(bassMidi, 12), k = key ? NV.parseKey(key) : null;
+      const info = reader.detect(ms, k ? k.bias : 0, { key, bassMidi });
+      const ok = info.kind === "cluster" && info.band === "none" && info.root === null && !!info.rootless && ident(info.rootless.name) === `${mod(s + 9, 12)}|7#9|${b}`
+        && info.readings[0]?.omit.rootless && sameSet(info.notes.map((n) => n.midi), [...new Set(ms)]) && info.pcNames.length === new Set(ms.map((m) => mod(m, 12))).size;
+      if (!ok) detBass.push(`${upper} ${d >= 0 ? "+" : ""}${d} over ${bassNote} in ${key}: ${info.kind} ${info.name} ${info.band}, rootless ${info.rootless?.name}`);
+    }
+  }
+  check("detect over a bassMidi whose pitch class also sounds higher up, every reading rootless: letters with band none and info.rootless on the given bass, never a template name on another bass (C4 C#4 E4 G4 over C#2 is not C#dim/C), in every root and key", detBass.length === 0, `${detBass.length}: ${detBass.slice(0, 4).join(" | ")}`);
+  // then every set of 3-6 pitch classes over each of its pitch classes two octaves down, with no key and in Eb major
+  let detReads = 0, detRootless = 0, detOff = 0;
+  const detOffEx = [];
+  for (let mask = 1; mask < 4096; mask++) {
+    const pcs = [];
+    for (let bit = 0; bit < 12; bit++) if (mask & (1 << bit)) pcs.push(bit);
+    if (pcs.length < 3 || pcs.length > 6) continue;
+    for (const b of pcs) for (const key of [null, "Eb major"]) {
+      const info = reader.detect(pcs.map((p) => 60 + p), key ? NV.parseKey(key).bias : 0, { key, bassMidi: 36 + b });
+      detReads++;
+      if (info.rootless) detRootless++;
+      if ((info.kind === "chord" && pcOfSp(info.bass || info.root) !== b) || (info.kind === "cluster" && info.band !== "none")) {
+        detOff++;
+        if (detOffEx.length < 3) detOffEx.push(`${pcs.join(",")} over ${b} ${key}: ${info.kind} ${info.name} ${info.band}`);
+      }
+    }
+  }
+  report.push(`detect bassMidi sweep: ${detReads} infos over a bass that also sounds higher up, ${detRootless} with a rootless top, ${detOff} naming another bass or letters with a band`);
+  check("detect over every bassMidi: a chord info stands on the given bass and letters carry band none (tn1-rulings.md round 4)", detOff === 0 && detRootless > 0, `${detOff}: ${detOffEx.join(" | ")}`);
+
+  // Round 4 follow-up: runner-up and rootless basses follow the page's ODD rule, never B#, E#, Cb or Fb unless the key's
+  // scale has that spelling; a top whose root sounds keeps its chord's letters (Abm/Cb and C#/E#, the A7 checks below).
+  // Pinned by hand: the F13 voicing's runner-up, the half-diminished chord on the 7 over the 5 (Am7b5(11)/F in Bb major,
+  // not /E#), as the 5 of every major key; the rootless 7b13 over its #9 (C3 Eb3 E3 F#3: G#7b13/C at bias 1, not /B#);
+  // in F# major the scale's E# stays (C#7b13/E#, G#m6/E#), in C# minor its B# (D#6/B#). Then every set of 3-6 pitch
+  // classes, close and spread, in all 12 major keys and with no key at bias 1 and -1.
+  const F13_RUNNER = { C: "Bm7b5(11)/G", Db: "Cm7b5(11)/Ab", D: "C#m7b5(11)/A", Eb: "Dm7b5(11)/Bb", E: "D#m7b5(11)/B", F: "Em7b5(11)/C",
+    "F#": "E#m7b5(11)/C#", G: "F#m7b5(11)/D", Ab: "Gm7b5(11)/Eb", A: "G#m7b5(11)/E", Bb: "Am7b5(11)/F", B: "A#m7b5(11)/F#" };
+  const spellBad = [];
+  MAJOR.forEach((tonic, t) => {
+    const key = `${tonic} major`, got = reader.read(midis("F2 A3 Eb4 G4 C5 D5").map((m) => m + mod(t - 10 + 6, 12) - 6), { key });
+    if (plainText(got.readings[1]?.name) !== F13_RUNNER[tonic]) spellBad.push(`F13 voicing as the 5 of ${key}: runner-up ${got.readings[1]?.name}, want ${F13_RUNNER[tonic]}`);
+  });
+  const bassText = (name) => plainText(name).slice(plainText(name).lastIndexOf("/") + 1);
+  for (const [notes, key, bias, at, want, bass] of [["C3 Eb3 E3 F#3", null, 1, 0, "G#7b13/C", "C"], ["C3 Eb3 E3 F#3", null, -1, 0, "Ab7b13/C", "C"],
+    ["F3 Ab3 A3 B3", "F# major", 0, 0, "C#7b13/E#", "E#"], ["F3 Ab3 A3 B3", "C major", 0, 0, "C#7b13/F", "F"],
+    ["F3 Ab3 B3", "F# major", 0, 1, "G#m6/E#", "E#"], ["F3 Ab3 B3", "C major", 0, 1, "G#m6/F", "F"], ["C3 Eb3 G3", "C# minor", 0, 1, "D#6/B#", "B#"], ["C3 Eb3 G3", "Bb major", 0, 1, "D#6/C", "C"]]) {
+    const r = reader.read(midis(notes), { key, keyBias: bias }).readings[at];
+    if (!r || ident(r.name) !== ident(want) || bassText(r.name) !== bass || (at === 0 && !r.omit.rootless)) spellBad.push(`${notes} ${key ?? "bias " + bias}: reading ${at} ${r?.name}, want ${want.split("/")[0]} over ${bass}`);
+  }
+  let spellReads = 0, oddKept = 0, oddOff = 0;
+  const oddOffEx = [];
+  for (let mask = 1; mask < 4096; mask++) {
+    const pcs = [];
+    for (let bit = 0; bit < 12; bit++) if (mask & (1 << bit)) pcs.push(bit);
+    if (pcs.length < 3 || pcs.length > 6) continue;
+    for (const ms of [pcs.map((p) => 48 + p), [36 + pcs[0], ...pcs.slice(1).map((p, i) => 60 + p + (i % 2 ? 12 : 0))]]) {
+      for (const [key, bias] of [...MAJOR.map((x) => [`${x} major`, 0]), [null, 1], [null, -1]]) {
+        spellReads++;
+        reader.read(ms, { key, keyBias: bias }).readings.forEach((r, i) => {
+          if (i === 0 && !r.omit.rootless) return;
+          const c = NV.parseChord(plainText(r.name));
+          if (!c?.bass || !["B#", "E#", "Cb", "Fb"].includes(bassText(r.name))) return;
+          const s = key ? NV.spellInKey(c.bass, key) : null;
+          if (s && s.inScale && s.letter === c.bass.letter && s.acc === c.bass.acc) oddKept++;
+          else { oddOff++; if (oddOffEx.length < 3) oddOffEx.push(`${ms.join(",")} ${key ?? "bias " + bias}: ${r.name}`); }
+        });
+      }
+    }
+  }
+  report.push(`runner-up and rootless bass spellings: ${spellReads} reads in the 12 major keys and with no key; odd basses ${oddKept} on the key's scale, ${oddOff} off it`);
+  check("runner-up and rootless basses are never B#, E#, Cb or Fb off the key's scale, in all 12 major keys and with no key (Am7b5(11)/F in Bb major, G#7b13/C at bias 1); the scale's own E# and B# stay", spellBad.length === 0 && oddOff === 0 && oddKept > 0,
+    `${spellBad.join(" | ")} ${oddOff} off the scale: ${oddOffEx.join(" | ")}`);
+
   const clusterBands = cases.filter((c) => R(c).res?.kind === "cluster" && R(c).res.band !== "none");
   check("tn1-rulings.md: every cluster result reports band none", clusterBands.length === 0 && reader.read(midis("C4 D4 E4 F4"), { key: "C major" }).band === "none", clusterBands.map((c) => c.id).join(", "));
 
@@ -721,6 +809,8 @@ async function scoreReader(file) {
   const badA1 = [], badBack = [], badA7 = [];
   const keyScaleOf = (k) => new Set((k.mode === "major" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10, 11]).map((x) => mod(x + k.tonic, 12)));
   const overOwnTop = (r) => r.path === "slash" && r.bass != null && [9, 10, 11].includes(mod(r.bass - r.root, 12));
+  // the accidental of the note `steps` letters and `semis` semitones above a spelling (the 3rd of B# is D##: 2)
+  const accAbove = (sp, semis, steps) => mod(pcOfSp(sp) + semis - LETTER_PC[mod(sp.letter + steps, 7)] + 6, 12) - 6;
   let augT = 0;
   for (const c of cases) {
     const res = R(c).res;
@@ -755,15 +845,18 @@ async function scoreReader(file) {
       } else a1++;
       // A2: no slash reading over its own 6th, b7 or 7th survives beside a full reading on that root and bass (a duplicate)
       if (!(overOwnTop(r) && wide.some((f) => f.path === "full" && f.root === r.root && f.bass === r.bass))) a2++;
-      if (r.base.id === "aug" && r.tensions.length) augT++;
+      if (r.base.id === "aug" && r.tensions.length && !(r.suffix === "+(add9)" && r.bass === null)) augT++;
       // A4 and D6: no 11 without a 3rd
       if (!(r.omit.no3 && r.tensions.includes(5))) a4++;
       // A7: the root is spelled as spellInKey spells it whenever the page's spellForKey takes that spelling: on the key's
-      // scale (E# and Cb included), or one accidental at most and not E#, B#, Cb or Fb
+      // scale (E# and Cb included), or one accidental at most and not E#, B#, Cb or Fb. Round 6: an augmented chord whose
+      // 3rd that spelling would double (B#+ in C# minor) takes the enharmonic root whose 3rd and #5 need none (C+).
       if (k) {
         const root = NV.parseChord(r.name).root, w = NV.spellInKey(root, c.key, { suffix: r.base.id });
         const wName = "CDEFGAB"[w.letter] + (w.acc > 0 ? "#".repeat(w.acc) : "b".repeat(-w.acc));
-        if (!(w.inScale || (Math.abs(w.acc) <= 1 && !["E#", "B#", "Cb", "Fb"].includes(wName))) || (w.letter === root.letter && w.acc === root.acc)) a7++;
+        const augEnharmonic = r.base.family === "aug" && Math.abs(accAbove(w, 4, 2)) > 1 && Math.abs(root.acc) <= 1
+          && Math.abs(accAbove(root, 4, 2)) <= 1 && Math.abs(accAbove(root, 8, 4)) <= 1;
+        if (!(w.inScale || (Math.abs(w.acc) <= 1 && !["E#", "B#", "Cb", "Fb"].includes(wName))) || (w.letter === root.letter && w.acc === root.acc) || augEnharmonic) a7++;
         else badA7.push(`${c.id} ${r.name} (${c.key}: ${wName})`);
       } else a7++;
     }
@@ -773,7 +866,7 @@ async function scoreReader(file) {
   check("every reading's family is its suffix's quality (open only for no-3rd without a key)", fam === nRead, String(nRead - fam));
   check("A1: every no-3rd reading takes the key's diatonic 3rd (open with no key)", a1 === nRead, badA1.slice(0, 6).join(" | "));
   check("A2: no slash duplicate (a slash reading over its own 6th, b7 or 7th beside a full reading on that root and bass) in any result", a2 === nRead, String(nRead - a2));
-  check("no augmented triad with a tension in any result (it is a 7#5 chord on another root)", augT === 0, String(augT));
+  check("no augmented triad with a tension in any result (it is a 7#5 chord on another root), but the root-position C+(add9) (round 4)", augT === 0, String(augT));
   check("A4: no 11 over a missing 3rd in any result", a4 === nRead, String(nRead - a4));
   check("A7: every root spelled in the key", a7 === nRead, badA7.slice(0, 6).join(" | "));
   for (const [s] of emitted) check(`parseSuffix(${JSON.stringify(s)}) reads the whole suffix`, M.parseSuffix(s).known === true);
@@ -813,7 +906,7 @@ async function scoreReader(file) {
   // A2 over every chord shape: each set of 4-8 pitch classes over a bass that sounds only lowest, with no key and in C
   // major and C minor, every candidate listed. No slash reading over its own 6th, b7 or 7th sits beside a full reading on
   // that root and bass; one with no full reading is a name of its own and stays. No augmented triad keeps a tension.
-  let shapes = 0, dupes = 0, keptSlash = 0, augShapes = 0;
+  let shapes = 0, dupes = 0, keptSlash = 0, augShapes = 0, augNine = 0, augNineClear = 0;
   for (let mask = 0; mask < 1 << 11; mask++) {
     const upper = [];
     for (let b = 0; b < 11; b++) if (mask & (1 << b)) upper.push(b + 1);
@@ -824,17 +917,35 @@ async function scoreReader(file) {
       const over = all.filter(overOwnTop), full = (x) => all.some((f) => f.path === "full" && f.root === x.root && f.bass === x.bass);
       if (over.some(full)) dupes++;
       if (over.some((x) => !full(x))) keptSlash++;
-      if (all.some((x) => x.base.id === "aug" && x.tensions.length)) augShapes++;
+      if (all.some((x) => x.base.id === "aug" && x.tensions.length && !(x.suffix === "+(add9)" && x.bass === null))) augShapes++;
+      if (all.some((x) => x.suffix === "+(add9)")) { augNine++; if (all[0]?.suffix === "+(add9)" && reader.read([36, ...upper.map((x) => 48 + x)], { key }).band === "clear") augNineClear++; }
     }
   }
-  report.push(`A2 over ${shapes} chord shapes: ${dupes} with a slash duplicate; ${keptSlash} keep a slash name over its 6th, b7 or 7th with no full reading`);
+  report.push(`A2 over ${shapes} chord shapes: ${dupes} with a slash duplicate; ${keptSlash} keep a slash name over its 6th, b7 or 7th with no full reading; ${augNine} list the root-position C+(add9)`);
   check(`A2: no slash duplicate in ${shapes} chord shapes`, dupes === 0, String(dupes));
-  check(`no augmented triad with a tension in ${shapes} chord shapes`, augShapes === 0, String(augShapes));
+  check(`no augmented triad with a tension in ${shapes} chord shapes but the root-position C+(add9), which is never a clear top (round 4)`, augShapes === 0 && augNine > 0 && augNineClear === 0,
+    `${augShapes} other aug with a tension, ${augNine} C+(add9), ${augNineClear} clear`);
   const noFull = reader.read([36, 49, 50, 52, 53, 57], {});
   check("A2 keeps a slash name with no full reading on its root: C2 C#3 D3 E3 F3 A3 reads Dm(maj9)/C", noFull.kind === "chord" && ident(noFull.readings[0]?.name) === ident("Dm(maj9)/C"), `${noFull.kind} ${noFull.readings[0]?.name}`);
   const augRead = reader.read(midis("G#2 C3 E3 D4"), { key: "A minor", reach: Infinity });
   check("an augmented triad with a tension reads as its 7#5 chord: G#2 C3 E3 D4 in A minor is E7#5/G#", augRead.readings[0]?.name === "E7#5/G#"
     && !augRead.readings.some((r) => r.base.id === "aug" && r.tensions.length), augRead.readings.slice(0, 3).map((r) => r.name).join(", "));
+  // Round 4: the root-position augmented triad with its 9 (C3 E3 G#3 D4) lists C+(add9) beside its twin E7#5/C, in every
+  // root, on the key's 1, as the 5 of the minor key and with no key, and neither is clear; over its #5 (G#2 C3 E3 D4)
+  // the notes stay E7#5/G# with no augmented reading.
+  const augNineBad = [];
+  const MINOR_KEYS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+  for (let s = 0; s < 12; s++) {
+    const d = s > 5 ? s - 12 : s;
+    for (const key of [`${["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"][s]} major`, `${MINOR_KEYS[(s + 5) % 12]} minor`, null]) {
+      const got = reader.read(midis("C3 E3 G#3 D4").map((m) => m + d), { key }), over = reader.read(midis("G#2 C3 E3 D4").map((m) => m + d), { key, reach: Infinity });
+      const ids = got.readings.slice(0, 3).map(identOf);
+      const ok = ids.includes(`${s}|+(add9)|`) && ids.includes(`${mod(s + 4, 12)}|7#5|${s}`) && got.band !== "clear" && got.kind === "chord"
+        && identOf(over.readings[0]) === `${mod(s + 4, 12)}|7#5|${mod(s + 8, 12)}` && !over.readings.some((r) => r.base.id === "aug");
+      if (!ok) augNineBad.push(`+${s} ${key}: ${got.readings.slice(0, 3).map((r) => r.name).join(", ")} ${got.band} / ${over.readings[0]?.name}`);
+    }
+  }
+  check("the root-position aug(add9) lists C+(add9) and E7#5/C in the first 3 readings, never clear, in every root and key; over its #5 it stays E7#5/G#", augNineBad.length === 0, augNineBad.slice(0, 4).join(" | "));
   const q3 = reader.read(midis("D3 G3 C4"), { key: "C major" });
   check("three pitch classes stacked in 4ths up from the bass are never clear: D3 G3 C4", q3.kind === "chord" && q3.band !== "clear", `${q3.readings[0]?.name} ${q3.band}`);
   const rootless = reader.read(midis("C2 E3 Bb3 D4 F#4 A4"), { key: "F major", allowRootless: false });
@@ -847,6 +958,53 @@ async function scoreReader(file) {
     const got = reader.read(midis(notes), { key }).readings[0]?.name, info = reader.detect(midis(notes), NV.parseKey(key).bias, { key });
     check(`A7: ${notes} in ${key} is spelled ${want}`, got === want && info.name === want, `read ${got}, detect ${info.name}`);
   }
+  // Round 6: an augmented chord's root (aug, maj7#5) takes the key's letters only while its 3rd needs no double accidental.
+  // C E G# D reads C+(add9) in C# minor, not B#+(add9) (B# D## F##). F#+, C#+ and G#+ keep the key's letters: only their #5
+  // is doubled. Checked for every root of the aug triad, the aug(add9) and the aug triad over its 3rd, in the 24 keys and
+  // with no key at each bias, on read()'s readings (runner-ups included), detect()'s label and alsoOf's respelled template.
+  const TONIC_NAMES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+  const augKeys = [...MAJOR.map((x) => [`${x} major`, 0]), ...["A", "E", "B", "F#", "C#", "G#", "D", "G", "C", "F", "Bb", "Eb"].map((x) => [`${x} minor`, 0]),
+    [null, -1], [null, 0], [null, 1]];
+  const augRootBad = [];
+  let augRootReads = 0, augRootNames = 0, augSharpFive = 0, augAlso = 0;
+  const doubledThird = (sp) => Math.abs(sp.acc) > 1 || Math.abs(accAbove(sp, 4, 2)) > 1;
+  for (const [key, bias] of augKeys) {
+    for (let s = 0; s < 12; s++) {
+      for (const shape of [[0, 4, 8], [0, 4, 8, 14], [4, 8, 12]]) {
+        const ms = shape.map((x) => 48 + s + x), where = `${ms.join(",")} ${key ?? "bias " + bias}`;
+        const res = reader.read(ms, { key, keyBias: bias });
+        augRootReads++;
+        for (const r of res.readings) {
+          if (r.base.family !== "aug") continue;
+          augRootNames++;
+          const root = NV.parseChord(plainText(r.name)).root;
+          if (doubledThird(root)) augRootBad.push(`${where}: ${r.name}`);
+          else if (Math.abs(accAbove(root, 8, 4)) > 1) augSharpFive++;
+        }
+        const info = reader.detect(ms, key ? NV.parseKey(key).bias : bias, { key });
+        if (info.kind === "chord" && M.parseSuffix(info.suffix).quality === "aug" && doubledThird(info.root)) augRootBad.push(`${where}: detect ${info.name}`);
+        const other = res.readings.find((r) => r.base.family === "aug" && r.root !== res.readings[0].root);
+        if (other && res.kind === "chord") {
+          const also = reader.alsoOf(res, { kind: "chord", name: `${TONIC_NAMES[other.root]}${other.suffix}${other.bass == null ? "" : "/" + TONIC_NAMES[other.bass]}` }, 1000);
+          if (also) { augAlso++; if (doubledThird(NV.parseChord(plainText(also.name)).root)) augRootBad.push(`${where}: ALSO ${also.name}`); }
+        }
+      }
+    }
+  }
+  const augPins = [["C3 E3 G#3 D4", "C# minor", 0, "C+(add9)"], ["C3 E3 G#3", "C# minor", 0, "Caug"], ["F3 A3 C#4 G4", "F# major", 0, "F+(add9)"],
+    ["Eb3 G3 B3 F4", "A major", 0, "Eb+(add9)"], ["G3 B3 D#4", "G# minor", 0, "Gaug"], ["Eb3 G3 B3", null, 1, "Ebaug"], ["F#3 A#3 D4 G#4", "B minor", 0, "F#+(add9)"],
+    ["G#3 C4 E4", "A minor", 0, "G#aug"], ["C3 E3 G#3 B3", "C# minor", 0, "E/C"]];
+  for (const [notes, key, bias, want] of augPins) {
+    const res = reader.read(midis(notes), { key, keyBias: bias }), info = reader.detect(midis(notes), key ? NV.parseKey(key).bias : bias, { key });
+    if (res.readings[0]?.name !== want || info.name !== want) augRootBad.push(`${notes} ${key ?? "bias " + bias}: read ${res.readings[0]?.name}, detect ${info.name}, want ${want}`);
+  }
+  const cmaj = reader.read(midis("C3 E3 G#3 B3"), { key: "C# minor" }).readings.find((r) => r.base.id === "maj7#5");
+  if (cmaj?.name !== "Cmaj7#5") augRootBad.push(`C3 E3 G#3 B3 in C# minor: runner-up ${cmaj?.name}, want Cmaj7#5`);
+  const augTpl = reader.alsoOf(reader.read(midis("E3 G#3 C4"), { key: "C# minor" }), { kind: "chord", name: "Caug/E" }, 1000);
+  if (augTpl?.name !== "Caug/E") augRootBad.push(`E3 G#3 C4 in C# minor: ALSO ${augTpl?.name}, want Caug/E`);
+  report.push(`augmented roots: ${augRootReads} reads in the 24 keys and with no key; ${augRootNames} augmented names (${augSharpFive} keep the key's letters with only the #5 doubled, F#+), ${augAlso} ALSO names; ${augRootBad.length} on a double-accidental 3rd or off the pins`);
+  check("an augmented chord's root takes the key's letters only while its 3rd needs no double accidental (C+(add9) in C# minor, F+(add9) in F# major, Eb+(add9) in A major; F#+(add9) in B minor keeps its letters), in read(), detect() and alsoOf (round 6)",
+    augRootBad.length === 0 && augRootNames > 0 && augSharpFive > 0 && augAlso > 0, augRootBad.slice(0, 6).join(" | "));
 
   // inputs a live window hands in (H5): a bass outside the notes joins them, so every reason is a lexicon reason and every
   // name's bass sounds; weights that are missing, not a number or out of range never reach a cost. A reader that throws
