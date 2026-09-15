@@ -36,6 +36,16 @@ def main(argv=None) -> int:
     an.add_argument("path")
     an.add_argument("--out")
 
+    sb = sub.add_parser("storyboard",
+                        help="dynamic capture: score a video's motion, segment it into settled "
+                             "runs and transitions, and write a contact sheet + manifest")
+    sb.add_argument("path")
+    sb.add_argument("--fps", type=float, default=None, help="analysis sampling rate (default 5)")
+    sb.add_argument("--width", type=int, default=None, help="downscale before scoring (default 480)")
+    sb.add_argument("--out", help="output directory (default state/arsenal/storyboards/<stem>)")
+    sb.add_argument("--frames", action="store_true", help="also write one PNG per kept pick")
+    sb.add_argument("--json", action="store_true", help="print the whole manifest")
+
     sub.add_parser("takes", help="list recorded takes")
 
     pf = sub.add_parser("performance", help="the piano practice log: list sessions, print a summary, prune")
@@ -105,6 +115,29 @@ def main(argv=None) -> int:
             summary = {k: v for k, v in features.items() if k != "frames"}
             summary["rows"] = rows
             print(json.dumps(summary, indent=2))
+        return 0
+
+    if args.cmd == "storyboard":
+        from . import storyboard as sb_mod
+        kw = {}
+        if args.fps is not None:
+            kw["fps"] = args.fps
+        if args.width is not None:
+            kw["width"] = args.width
+        manifest = sb_mod.storyboard(args.path, out_dir=args.out, write_frames=args.frames, **kw)
+        if args.json:
+            print(json.dumps(manifest, indent=2))
+        else:
+            print(f"examined {manifest['frames_examined']} frame(s) at {manifest['sampling']['fps']} fps")
+            print(f"  settled runs: {manifest['settled']}")
+            print(f"  transitions : {manifest['transitions']}")
+            for seg in manifest["segments"]:
+                if seg["kind"] == "transition":
+                    print(f"    {seg['start_s']:>8.3f}s -> {seg['end_s']:>8.3f}s  "
+                          f"{seg['duration_ms']:>6} ms  peak {seg['peak_score']}")
+            print(f"  picks kept  : {len(manifest['picks'])} of {manifest['picks_before_dedupe']}")
+            print(f"  sheet       : {'written' if manifest['sheet_written'] else 'NOT written'}")
+            print(f"  manifest    : {manifest['manifest_path']}")
         return 0
 
     if args.cmd == "takes":
