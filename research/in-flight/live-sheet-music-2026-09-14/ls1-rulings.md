@@ -17,6 +17,39 @@ These rulings answer the open decisions from the LS0-LS5 build (workflow run wf_
 - Fix: compute the family and the level target against the **shown tactus period** (`chosen.p / factor`). A button press must multiply the number Daniel sees by exactly the button's ratio (±3%).
 - Pin it in 6/8, 12/8 and a simple meter with factor 0.5.
 
+## LS2 rulings (2026-09-15, after LS2 repair round 2)
+
+- **C2 sextuplets: the `d6MinGroups = 5` gate becomes the default.** The rhythm alphabet stays {1, 2, 3, 4, 6}, but d = 6 is only a candidate for a beat holding at least 5 onset groups.
+  - C2 as written, where d = 6 competes on every beat, fails 6 gated receipts: LR4a bars 0.9359, LR4b 0.8376, LR4c 0.9612 / 0.8343, LR4d 0.8759 / 0.5354, LR4e +0.1096, and false d = 6 on 2.50% of beats.
+  - Under the gate, all 66 checks pass: LR4a 0.9943 / 0.9713, LR4b 0.9189, LR4c 0.9814 / 0.9115, LR4d 0.9286 / 0.6727, LR4e +0.1864, false d = 6 on 0.07% of beats, and sextuplet recovery 0.9839 / 0.8715.
+  - Why this is not loosening a receipt: the critic's own evidence for C2 was beats with 5 or more onsets, 0-22% of beats in Daniel's playing. Six even divisions are only plausible when about that many onsets are present, so the gate is the rule C2 meant.
+  - Record it in plan-amendments.md threshold changes as a rule change: no threshold moves.
+- **Phase-keep convention: ratified.** When a phase correction would leave partial the bar after a settled bar-line tie, the new phase starts one bar later. It fired 59 times on fixtures and 20 on sessions.
+  - Why: *settled means never repainted*. Re-capping a frozen note's recorded duration would change a bar Daniel has already seen, which breaks the settle-then-freeze promise. Record it as a design note beside the C2 row.
+- **Also for LS2 close:**
+  - add the overlap count to `tests/score_settle.test.mjs` tieAudit, so the sessions check covers the same five properties as auditScore;
+  - add a dedicated fixture for the frozen-tie overlap edge (a bar settling on a 2 s pause while a tie is claimed, then an onset in the same voice before the next bar's midpoint);
+  - remove the dead line in `index.js` freezeBar.
+- **LS1-level counting:** count levels that were already wrong before the press as misses, as the builder did (Acc1 0.914 / 0.915, gate 0.90). The two 6/8 ballads that read at double tempo with no press are a rung-4 level error, which LR2a and LR2d already count. Don't exclude them from the gate: the margin is thin, and it should stay visible.
+
+## LS6 rulings: Daniel's answers (2026-09-15)
+
+Daniel's words, verbatim:
+- the ask: "I really liked the sheet music, if it could change depending on the key so we dont have a million flats that would be really cool. or have it change and adapt depending on what key the nashville numbers are from after playing."
+- LQ1 (VexFlow): "Lets use it for a beta build then make our own".
+- the key signature: "Auto, after it settles".
+
+- **LQ1 VexFlow: approved for the beta.**
+  - Load VexFlow 5.0.0 core pinned from jsDelivr, the same way three.js is loaded. It is the drawer behind the `engrave.js` interface for settled bars.
+  - Critic C9 still applies: pin or self-host the Bravura font the page already loads, so the unpinned `@vexflow-fonts` host is never used, and skip Academico.
+  - Keep the in-house drawer working behind the same interface. The long-term plan is our own engraver replacing VexFlow ("then make our own"), so nothing outside `engrave.js` may call VexFlow directly.
+- **Key signatures follow the key the Nashville numbers use, after it settles.**
+  - **Source:** the page's key tracker, the same key that numbers the chords. A manual key lock wins.
+  - **Settle gate:** a new signature is adopted only after the tracker has held the new key with lock confidence for at least 2 bars, or 4 s in free time, and never inside an open bar. A key change is written at the next bar line with a double bar, the new signature and a small "→ D♭ major" tag. There are no courtesy naturals in the live strip; the clean copy may add them.
+  - **Spelling:** every note is spelled in the signature's key by the one shared accidental-minimising speller (theory TN2 ruling), so accidentals appear only on notes outside the key. Flat keys never show sharps for diatonic notes, and a G♭ passage shows six flats once in the signature, not on every note.
+  - **Ambiguity:** while the tracker is unsure (it read "home · D minor" under E♭m11 in Daniel's 2026-09-15 screenshot), keep the last settled signature and spell the outliers with accidentals. Never flip the signature back and forth: at most one signature change per 8 bars.
+  - **The existing "now" staff** (`drawStaff` in piano.js) gets the same key signature rule in LS6, so the live staff and the score strip always agree.
+
 ## Also for that round
 
 - **Clock going backwards.** A tracker reused after its clock goes back (a replay seek on the lab page) stops its meter, grid and level steps until the clock passes the old maximum. Rule: the lab page and `clean()` build a **new tracker on every seek**, and `beat.js` documents that its clock is monotonic. Add an assertion that throws in tests if time goes backwards.
