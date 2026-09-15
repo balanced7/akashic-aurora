@@ -322,6 +322,71 @@ export function nashvilleFromName(chordName, keyName, opts = {}) {
   return build(c.kind, c.root, c.suffix, c.bass, c.upper, ctx, opts);
 }
 
+// ------------------------------------------------------------- display --
+// One formatter for every view that draws a number (the canvas row and label, the HUD, the spectacle's number glass). The
+// quality and extensions are raised and never run into the degree: 4 with 6/9 raised, never "46/9". "^" is only the text
+// form's joiner and is never drawn. Display only: no Python twin (arsenal/nashville.py keeps the text form).
+// n: a nashville() result, or its text ("4^6/9", "b3^6/9/5", "2m7", "1-3", "3").
+//   formatNumber("4^6/9") -> { text: "4^6/9", display: "4⁶ᐟ⁹",
+//                              parts: [{ role: "degree", acc: 0, num: "4", text: "4" }, { role: "sup", text: "6/9" }] }
+// parts, in drawing order:
+//   degree  a numeral with its accidental (acc -2..2, drawn before the numeral; num; text as written, "b3")
+//   sup     the raised suffix as written ("6/9", "maj7#11", "m7", "°7", "+", "-7"): its b and # are flats and sharps
+//   dash    between an interval's two degrees
+//   slash   before a slash chord's bass degree
+//   bass    the bass degree (drawn a size smaller)
+// display: plain Unicode for DOM text (raised digits and letters, ♭ ♯ at size). Unreadable text: one degree-less "plain" part.
+const SUP = { 0: "⁰", 1: "¹", 2: "²", 3: "³", 4: "⁴", 5: "⁵", 6: "⁶", 7: "⁷", 8: "⁸", 9: "⁹", "+": "⁺", "-": "⁻", "(": "⁽", ")": "⁾",
+  "/": "ᐟ", a: "ᵃ", d: "ᵈ", i: "ⁱ", j: "ʲ", l: "ˡ", m: "ᵐ", n: "ⁿ", o: "ᵒ", s: "ˢ", t: "ᵗ", u: "ᵘ", b: "♭", "#": "♯" };
+const DEGREE_RE = /^(b{1,2}|#{1,2})?(\d+)$/;
+export function formatNumber(n) {
+  if (n == null) return null;
+  const text = typeof n === "string" ? n : n.text;
+  if (typeof text !== "string" || !text) return null;
+  const glyph = (acc) => (acc > 0 ? "♯".repeat(acc) : "♭".repeat(-acc));
+  const degree = (t, role = "degree") => {
+    const m = DEGREE_RE.exec(t || "");
+    return m ? { role, acc: !m[1] ? 0 : m[1][0] === "#" ? m[1].length : -m[1].length, num: m[2], text: t } : null;
+  };
+  const shown = (d) => glyph(d.acc) + d.num;
+  const raised = (s) => [...s].map((c) => SUP[c] ?? c).join("");
+  const finish = (parts) => ({
+    text, parts,
+    display: parts.map((p) => (p.role === "sup" ? raised(p.text) : p.role === "dash" ? "–" : p.role === "slash" ? "/"
+      : p.role === "plain" ? p.text : shown(p))).join(""),
+  });
+  const structured = typeof n === "object" && typeof n.root === "string";
+  // an interval: "1-3"
+  const iv = structured ? (n.kind === "interval" && n.upper ? [n.root, n.upper.text] : null) : /^((?:b{1,2}|#{1,2})?\d+)-((?:b{1,2}|#{1,2})?\d+)$/.exec(text)?.slice(1);
+  if (iv) {
+    const lo = degree(iv[0]), hi = degree(iv[1]);
+    if (lo && hi) return finish([lo, { role: "dash", text: "-" }, hi]);
+  }
+  let root, suffix, bass = null;
+  if (structured) {
+    root = degree(n.root);
+    suffix = n.suffix || "";
+    bass = n.bass && n.bass.text ? degree(n.bass.text, "bass") : null;
+  } else {
+    let body = text;
+    const slash = text.lastIndexOf("/");
+    if (slash > 0) {  // a bass is a degree 1-7 after the last "/"; the 9 of "6/9" is not one
+      const b = degree(text.slice(slash + 1), "bass");
+      if (b && Number(b.num) >= 1 && Number(b.num) <= 7) { bass = b; body = text.slice(0, slash); }
+    }
+    const m = /^((?:b{1,2}|#{1,2})?[1-7])(.*)$/.exec(body);
+    root = m ? degree(m[1]) : null;
+    suffix = m ? m[2] : "";
+  }
+  if (!root) return { text, parts: [{ role: "plain", text }], display: text };
+  if (suffix.startsWith("^")) suffix = suffix.slice(1);
+  else if (suffix.startsWith("-^")) suffix = "-" + suffix.slice(2);
+  const parts = [root];
+  if (suffix) parts.push({ role: "sup", text: suffix });
+  if (bass) parts.push({ role: "slash", text: "/" }, bass);
+  return finish(parts);
+}
+
 // ---------------------------------------------------------- key tracker --
 // createKeyTracker names the key the notes are in and holds it against flicker. Its clocks count playing time only:
 // seconds within ACTIVE_SEC of a note-on. piano.js's pcHistory is frozen in silence, so a pause is no evidence, and
@@ -522,6 +587,19 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
   const strip = (k) => ({ tonic: k.tonic, mode: k.mode, name: k.name, bias: k.bias });
   const same = (a, b) => !!(a && b && a.tonic === b.tonic && a.mode === b.mode);
   const idOf = (k) => `${k.tonic}:${k.mode}`;
+  // The two keys of six accidentals each way (F# or Gb major, D# or Eb minor) are named from the key shown before them (TN2
+  // repair round 1; live sheet music LS6: "a G♭ passage shows six flats once in the signature"): flats after a flat key (Eb
+  // major -> Gb major), sharps after a sharp key (B major -> F# major). With no key before, or one with no sharps or flats,
+  // the default names stand (F# major, Eb minor). A key Daniel locks keeps its own name. lastShown survives a pause.
+  let lastShown = null;
+  const named = (k) => {
+    const from = key || lastShown;
+    const six = k.tonic === (k.mode === "major" ? 6 : 3);
+    if (!six || !from || !from.bias || same(from, k)) return strip(k);
+    const flat = from.bias < 0;
+    const tonicName = k.mode === "major" ? (flat ? "Gb" : "F#") : (flat ? "Eb" : "D#");
+    return { tonic: k.tonic, mode: k.mode, name: `${tonicName} ${k.mode}`, bias: flat ? -1 : 1 };
+  };
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
   // The keys a near tie can confuse a key with: its parallel, its relative, and the keys a fifth away in its mode.
   const related = (a, b) => a.tonic === b.tonic || (a.mode === b.mode && [5, 7].includes(mod(a.tonic - b.tonic, 12)))
@@ -666,7 +744,8 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
       const pick = rank(slow, 1).filter((k) => !barred(k));
       const lead = pick[0].score - pick[1].score;
       if (pick[0].r >= minR && (lead >= FIRST_GAP || age >= FIRST_WAIT)) {
-        key = strip(pick[0]);
+        key = named(pick[0]);
+        lastShown = key;
         youngPick = age < YOUNG_SEC;
         provisional = lead < FIRST_GAP; confirmSec = 0; challenger = null;
       }
@@ -694,7 +773,7 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
       }
     }
     if (switchTo) {
-      key = strip(switchTo); cur = switchTo; banked.clear();
+      key = named(switchTo); lastShown = key; cur = switchTo; banked.clear();
       youngPick = youngPick && age < YOUNG_SEC;
       provisional = false; stale = false; challenger = null;
       shownAt.set(idOf(key), clock);
@@ -713,7 +792,7 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
       else if (challenger && (challenger.sec -= LEAD_DRAIN * act) <= 0) challenger = null;
       const need = shownAt.has(idOf(best)) && clock - shownAt.get(idOf(best)) <= RECENT_SEC ? 2 * holdSec : holdSec;
       if (leads && challenger.sec >= need) {
-        key = strip(best); cur = ranked.find((s) => same(s, best)); banked.clear(); challenger = null;
+        key = named(best); lastShown = key; cur = ranked.find((s) => same(s, best)); banked.clear(); challenger = null;
         provisional = best.score - pick[1].score < FIRST_GAP; confirmSec = 0;
         youngPick = age < YOUNG_SEC;
         shownAt.set(idOf(key), clock);
@@ -734,7 +813,7 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
     state.r = cur.r;
     state.confidence = !key || !heard || age < YOUNG_SEC || provisional || (fifthAway && gap < margin) ? "unsure"
       : cur.score >= SURE_R && gap >= SURE_GAP ? "sure" : cur.score >= minR && gap >= 0 ? "fair" : "unsure";
-    state.candidate = candKey ? { ...strip(candKey), r: candKey.r, heldSec: cand.sec } : null;
+    state.candidate = candKey ? { ...named(candKey), r: candKey.r, heldSec: cand.sec } : null;
     state.locked = locked;
     return state;
   }
@@ -748,6 +827,7 @@ export function createKeyTracker({ holdSec = 5, margin = 0.04, minR = 0.55 } = {
     const k = keyContext(keyName);
     if (!k) return state;
     key = strip(k);
+    lastShown = key;
     locked = true;
     state.key = key;
     state.locked = true;

@@ -124,10 +124,15 @@ eq("spellInKey: an F# major chord in C major reads Gb (b5)", spellInKey({ letter
 eq("spellInKey: the note F# in C major stays F# (#4)", spellInKey({ letter: 3, acc: 1 }, "C major"), { letter: 3, acc: 1, inScale: false });
 eq("spellInKey without a key", spellInKey({ letter: 0, acc: 0 }, null), null);
 
-const sa = src.indexOf("const ODD_NAMES"), sb = src.indexOf("\n}\n", src.indexOf("function spellForKey"));
+// TN2: spellForKey spells with the one shared speller (piano/spell.js) and chordread.js's parseSuffix, injected here as the
+// page imports them.
+const sa = src.indexOf("function spellForKey(info, key) {"), sb = src.indexOf("\n}\n", sa);
 check("spellForKey present in piano.js", sa >= 0 && sb > sa);
 const theoryUi = { minor: "tonic" };
-const spellForKey = new Function("Theory", "spellInKey", "theoryUi", src.slice(sa, sb + 2) + "\nreturn spellForKey;")(Theory, spellInKey, theoryUi);
+const SPELL = await import("../arsenal/web/piano/spell.js");
+const { parseSuffix } = await import("../arsenal/web/piano/chordread.js");
+const spellForKey = new Function("Theory", "spellInKey", "theoryUi", "keyContext", "spellChord", "spellNote", "parseSuffix", src.slice(sa, sb + 2) + "\nreturn spellForKey;")(
+  Theory, spellInKey, theoryUi, SPELL.keyContext, SPELL.spellChord, SPELL.spellNote, parseSuffix);
 const QUALITY = { maj: [0, 4, 7], min: [0, 3, 7], dom7: [0, 4, 7, 10], dim: [0, 3, 6], dim7: [0, 3, 6, 9] };
 const LETTERS = "CDEFGAB";
 let spelled = 0;
@@ -141,7 +146,11 @@ for (const key of scoreKeys([1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1])) {
     const n = nashville(info, key);
     const letterDegree = (LETTERS.indexOf(info.name[0]) - LETTERS.indexOf(key.name[0]) + 7) % 7 + 1;
     const chips = info.notes.every((x) => x.name === Theory.nameOf(x) && Theory.pcOf(x) === x.midi % 12);
-    check(`${info.name} in ${key.name} is named with the key's letters (${n.text})`, letterDegree === n.degree && chips);
+    // TN2 spelling ruling, rule 5: a root never takes a double accidental, so a diatonic root the key spells with one (G#
+    // minor's leading tone F##) is written on its plain letter (Gdim7 beside 7°7); every other one keeps the key's letters
+    const keyRoot = spellInKey(info.root, key);
+    const plainRoot = !!keyRoot && Math.abs(keyRoot.acc) > 1 && Math.abs(info.root.acc) <= 1;
+    check(`${info.name} in ${key.name} is named with the key's letters (${n.text})`, (letterDegree === n.degree || plainRoot) && chips);
     spelled++;
   }
 }
@@ -155,12 +164,14 @@ eq("G#7 beside 5^7 in C# minor (detect alone wrote Ab7)", named_([44, 60, 63, 66
 eq("B#dim7 beside 7°7 in C# minor", named_([48, 51, 54, 57], "C# minor"), ["B#dim7", "7°7"]);
 eq("Ebm beside 1m in Eb minor (detect alone wrote D#m)", named_([51, 54, 58], "Eb minor"), ["Ebm", "1m"]);
 eq("A#m beside 3m in F# major", named_([46, 61, 65], "F# major"), ["A#m", "3m"]);
-eq("a chromatic chord keeps a plain name: B beside b7 in Db major, not Cb", named_([47, 63, 66], "Db major"), ["B", "b7"]);
+// TN2 spelling ruling, rule 2: B D# F# and Cb Eb Gb cost the same against Db major (2 each), so the tie goes to the key's
+// spelling; under Db major's five flats Cb Eb Gb needs one accidental on the staff, B D# F# three
+eq("a chord on the b7 in Db major reads Cb (a tie goes to the key's spelling)", named_([47, 63, 66], "Db major"), ["Cb", "b7"]);
 eq("Gb beside b5 in C major", named_([42, 58, 61], "C major"), ["Gb", "b5"]);
 eq("spellForKey without a key leaves detect's name", spellForKey(Theory.detect([44, 60, 63, 66], 1), null).name, "Ab7");
-// An interval's top note keeps plain letters where moving it with the root would need a double accidental, as a slash
-// chord's bass does (the page named D7/F#'s F#-A in Bb major Gb-Bbb). The number reads from the root either way.
-eq("F#-A in Bb major is Gb-A beside b6-7, not Gb-Bbb", named_([54, 57], "Bb major"), ["Gb-A", "b6-7"]);
+// An interval keeps its letter distance and never takes a double accidental (the page once named D7/F#'s F#-A in Bb major
+// Gb-Bbb). TN2 spelling ruling: F#-A costs 1 against Bb major, Gb-Bbb 4. The number reads from the root either way.
+eq("F#-A in Bb major is F#-A beside b6-7, not Gb-Bbb", named_([54, 57], "Bb major"), ["F#-A", "b6-7"]);
 {
   const keys = [...scoreKeys([1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]).map((k) => k.name), "Gb major", "C# major", "Cb major", "D# minor", "A# minor", "Ab minor"];
   let intervals = 0;

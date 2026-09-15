@@ -23,6 +23,11 @@ import { createJamApi, createRestDetector, createTransport } from "./piano/trans
 import { createDeck } from "./piano/deck.js";
 import { createGlass } from "./piano/glass.js";
 import { createSpectacle } from "./piano/spectacle.js";
+import * as NV from "./piano/nashville.js";
+import { formatNumber } from "./piano/nashville.js";
+import { installReader, parseSuffix } from "./piano/chordread.js";
+import { keyContext, spellChord, spellNote } from "./piano/spell.js";
+import { createKeySignatureModel, signaturePlaces, staffAccidental } from "./piano/keysig.js";
 
 // ===== THEORY BEGIN (pure: no DOM, no three.js; the node tests extract this block) =====
 const Theory = (() => {
@@ -281,6 +286,21 @@ const nowSec = () => performance.now() / 1000;
 const errText = (e) => (e && (e.message || e.name)) || String(e);
 function safeGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function safeSet(key, value) { try { localStorage.setItem(key, value); } catch { /* storage blocked */ } }
+// The chord reader (theory next-gen TN2, research/in-flight/piano-theory-nextgen-2026-09-14): "next" installs
+// piano/chordread.js over Theory.detect (the same signature and info shape, with next-gen names: Gbmaj13#11 where the
+// templates say Bbm11/Gb); "classic" keeps the templates. localStorage arsenal.piano.reader ("next" | "classic", default
+// next). Receipts may ask with ?reader=next|classic or ?engine=templates, never stored.
+const READER_MODES = ["next", "classic"];
+const readerMode = (() => {
+  const q = new URLSearchParams(location.search);
+  if (q.get("engine") === "templates") return "classic";
+  if (READER_MODES.includes(q.get("reader"))) return q.get("reader");
+  return READER_MODES.includes(safeGet("arsenal.piano.reader")) ? safeGet("arsenal.piano.reader") : "next";
+})();
+const pianoReader = (() => {
+  if (readerMode !== "next") return null;
+  try { return installReader(Theory, NV); } catch (e) { console.warn("[piano] chord reader unavailable, templates kept:", errText(e)); return null; }
+})();
 // One id per page load (jam-spec 8.11): the practice log, Claude's band (its acks) and the cue stream all carry it, so a
 // run's acks meet this page's log session (the L2 alignment). Never reused across reloads: log.js treats records carrying
 // its own id as its own. ?page=<id> sets it for receipts, never stored.
@@ -1290,16 +1310,21 @@ function degreeRuns(text, size, weight, color) {
   runs.push({ text: m[2], font: `${weight} ${size}px ${FONT.display}`, color });
   return runs;
 }
-// A nashville() result drawn like a chord name: numeral, superscript suffix ("maj7", "°7", "m"), then "/" and the bass degree.
+// A nashville() result drawn like a chord name, by the shared formatter (nashville.js formatNumber, which the other views
+// use too): the numeral, the quality and extensions raised ("maj7", "°7", "m", "6/9": a 4 with 6/9 raised, never "46/9"),
+// then "/" and the bass degree a size smaller.
 function numberRuns(n, size, color) {
   const slash = (s) => ({ text: s, font: `300 ${Math.round(size * 0.78)}px ${FONT.display}`, color, dy: 0, kern: size * 0.02 });
-  if (n.kind === "interval") {
-    return [...degreeRuns(n.root, size, 800, color), { text: " – ", font: `300 ${size}px ${FONT.display}`, color },
-            ...(n.upper ? degreeRuns(n.upper.text, size, 800, color) : [])];
+  const f = formatNumber(n);
+  const runs = [];
+  for (const p of f ? f.parts : []) {
+    if (p.role === "degree") runs.push(...degreeRuns(p.text, size, 800, color));
+    else if (p.role === "sup") runs.push(...suffixRuns(p.text, size, color));
+    else if (p.role === "dash") runs.push({ text: " – ", font: `300 ${size}px ${FONT.display}`, color });
+    else if (p.role === "slash") runs.push(slash("/"));
+    else if (p.role === "bass") runs.push(...degreeRuns(p.text, Math.round(size * 0.78), 700, color));
+    else runs.push({ text: p.text, font: `800 ${size}px ${FONT.display}`, color });
   }
-  const runs = degreeRuns(n.root, size, 800, color);
-  if (n.suffix) runs.push(...suffixRuns(n.suffix, size, color));
-  if (n.bass) runs.push(slash("/"), ...degreeRuns(n.bass.text, Math.round(size * 0.78), 700, color));
   return runs;
 }
 // "Bb major" as small capitals with a real flat: B♭ MAJOR.
@@ -1372,9 +1397,12 @@ function drawLabel(layer, info) {
 // caption (the number is the label). A chord outside the key reads "outside F major": a fact, not a verdict.
 // While the tracker is unsure of the key the whole line reads dimmer.
 const INK_UNSURE = "rgba(244, 241, 234, 0.5)";
+let nnsDrawn = null;  // the runs the Nashville row last drew: [{ text, raised }] (window.__piano.theory.nns())
+const drawnRuns = (runs) => runs.map((r) => ({ text: r.text, raised: (r.dy || 0) < 0 }));
 function drawNumbers(layer, info) {
   const { ctx, spec } = layer;
   ctx.clearRect(0, 0, spec.w, spec.h);
+  nnsDrawn = null;
   if (!info || theoryUi.nns === "off") return;
   ctx.fontStretch = "semi-condensed";
   ctx.textBaseline = "alphabetic";
@@ -1383,6 +1411,7 @@ function drawNumbers(layer, info) {
   if (!keyView.key) {  // the tracker hears a few bars before it names a key; say so, faintly, where the number will be
     const wait = keyCaptionRuns("listening for the key", "", Math.round(S * 0.34), "rgba(244, 241, 234, 0.34)");
     drawRuns(ctx, wait, spec.align === "center" ? (spec.w - measureRuns(ctx, wait)) / 2 : 30, spec.h * 0.62, "rgba(0, 0, 0, 0.8)");
+    nnsDrawn = drawnRuns(wait);
     return;
   }
   const number = numberFor(info);
@@ -1390,11 +1419,14 @@ function drawNumbers(layer, info) {
   const runs = theoryUi.nns === "chord" && number ? numberRuns(number, S, ink) : [];
   const words = (runs.length ? "   " : "") + (number && !number.diatonic ? "outside " : "in ");
   runs.push(...keyCaptionRuns(words, keyView.key.name, Math.round(S * 0.34), keyView.dim ? "rgba(244, 241, 234, 0.34)" : "rgba(244, 241, 234, 0.58)"));
+  nnsDrawn = drawnRuns(runs);
   const width = measureRuns(ctx, runs);
   drawRuns(ctx, runs, spec.align === "center" ? (spec.w - width) / 2 : 30, spec.h * 0.62, "rgba(0, 0, 0, 0.8)");
 }
 
-function drawStaff(layer, info) {
+let staffDrawn = null;  // what drawStaff last drew: the signature and each note's accidental (window.__piano.theory.staff())
+// sig: the key signature model's view (piano/keysig.js), or null for none.
+function drawStaff(layer, info, sig = null) {
   const { ctx, spec } = layer;
   const { w, h, s } = spec;
   ctx.clearRect(0, 0, w, h);
@@ -1447,6 +1479,39 @@ function drawStaff(layer, info) {
     ctx.font = `${3.6 * s}px ${FONT.music}`;
     ctx.fillText("𝄢", left + s * 0.5, bassTop + 2.1 * s);
   }
+  // The key signature (live sheet music LS6): the key the numbers use, once it settles (piano/keysig.js). For 2 s after a
+  // change, a double bar after the clefs, then the new signature, and a small "→ key" tag under the staff.
+  const signature = sig ? sig.signature : null;
+  const showing = !!(sig && sig.showing && sig.change);
+  if (showing) {
+    ctx.strokeStyle = LINE;
+    ctx.lineWidth = Math.max(1.5, s * 0.14);
+    ctx.beginPath();
+    for (const x of [left + s * 3.75, left + s * 4.15]) { ctx.moveTo(x, trebleTop); ctx.lineTo(x, bassBottom); }
+    ctx.stroke();
+  }
+  if (signature && signature.count) {
+    const sigX = left + s * (showing ? 4.75 : 3.9);
+    ctx.fillStyle = CLEF;
+    for (const [clef, yOf] of [["treble", (d) => trebleBottom - (d - 30) * s / 2], ["bass", (d) => bassBottom - (d - 18) * s / 2]]) {
+      signaturePlaces(signature, clef).forEach((p, i) => {
+        const x = sigX + i * s * (p.acc > 0 ? 1.2 : 1.0);  // a sharp is wider than a flat: neighbours never touch
+        if (fontState.smufl) {
+          ctx.font = `${4 * s}px Bravura`;
+          ctx.fillText(p.acc > 0 ? SMUFL.sharp : SMUFL.flat, x, yOf(p.diatonic));
+        } else {
+          ctx.font = `${2.2 * s}px ${FONT.music}`;
+          ctx.fillText(accGlyph(p.acc), x, yOf(p.diatonic) + s * 0.55);
+        }
+      });
+    }
+  }
+  if (showing) {
+    const tag = keyCaptionRuns("→ ", sig.change.to, Math.round(s * 0.8), "rgba(244, 241, 234, 0.78)");
+    drawRuns(ctx, tag, left + s * 3.75, bassBottom + s * 2.6, "rgba(0, 0, 0, 0.8)");
+  }
+  staffDrawn = { key: sig ? sig.key : null, type: signature ? signature.type : "none", count: signature ? signature.count : 0,
+                 doubleBar: showing, tag: showing ? sig.change.to : null, notes: [] };
   if (!info) return;
 
   const noteX = left + (right - left) * 0.6;
@@ -1477,9 +1542,12 @@ function drawStaff(layer, info) {
     for (let d = staff.lo - 2; d >= minD; d -= 2) ledger(d, (n) => n.diatonic <= d);
     ctx.stroke();
 
-    // accidentals, stacked into columns from the top so they never collide
+    // accidentals against the key signature (a note the signature already gives needs none, a natural cancels the
+    // signature), stacked into columns from the top so they never collide
+    for (const n of notes) n.shown = staffAccidental(n, signature);
+    staffDrawn.notes.push(...notes.map((n) => ({ name: n.name + n.octave, midi: n.midi, shown: n.shown })));
     const accCols = [];
-    const withAcc = notes.filter((n) => n.acc).sort((a, b) => b.diatonic - a.diatonic);
+    const withAcc = notes.filter((n) => n.shown !== null).sort((a, b) => b.diatonic - a.diatonic);
     for (const n of withAcc) {
       let c = 0;
       while (accCols[c] && accCols[c].some((d) => Math.abs(d - n.diatonic) < 6)) c++;
@@ -1497,8 +1565,8 @@ function drawStaff(layer, info) {
         if (fontState.smufl) {
           ctx.font = `${4 * s}px Bravura`;
           ctx.fillText(SMUFL.whole, x, y);
-          if (n.acc) {
-            const glyph = { 1: SMUFL.sharp, 2: SMUFL.dsharp, [-1]: SMUFL.flat, [-2]: SMUFL.dflat }[n.acc];
+          if (n.shown !== null) {
+            const glyph = { 0: SMUFL.natural, 1: SMUFL.sharp, 2: SMUFL.dsharp, [-1]: SMUFL.flat, [-2]: SMUFL.dflat }[n.shown];
             ctx.fillText(glyph, noteX - s * 0.35 - (n.accCol + 1) * s * 1.3, y);
           }
         } else {
@@ -1506,9 +1574,9 @@ function drawStaff(layer, info) {
           ctx.ellipse(x + headW / 2, y, headW / 2, s * 0.52, -0.35, 0, Math.PI * 2);
           ctx.ellipse(x + headW / 2, y, headW * 0.22, s * 0.3, 0.9, 0, Math.PI * 2);
           ctx.fill("evenodd");
-          if (n.acc) {
+          if (n.shown !== null) {
             ctx.font = `${2.2 * s}px ${FONT.music}`;
-            ctx.fillText(accGlyph(n.acc), noteX - s * 0.2 - (n.accCol + 1) * s * 1.3, y + s * 0.55);
+            ctx.fillText(n.shown === 0 ? "♮" : accGlyph(n.shown), noteX - s * 0.2 - (n.accCol + 1) * s * 1.3, y + s * 0.55);
           }
         }
       }
@@ -1684,9 +1752,12 @@ const overlay = {
     // note-on (a rolled chord does not flash its partial names), 300 ms after a release (letting go
     // of a chord note by note keeps its name), and a quick note released before settling still gets named.
     const staffInfo = info || this.shown;
-    const staffKey = staffInfo ? staffInfo.notes.map((n) => n.midi + n.name).join(",") + COLOUR.mode + fontState.smufl : "none" + fontState.smufl;
+    const sig = keySig.view(t);  // the settled key signature (LS6); its id changes only when the drawing does
+    const staffKey = (staffInfo ? staffInfo.notes.map((n) => n.midi + n.name).join(",") + COLOUR.mode + fontState.smufl : "none" + fontState.smufl)
+                     + "|" + sig.id + "|" + theoryUi.minor;
     if (staffKey !== this.staffKey || this.needsRedraw) {
-      drawStaff(this.staff, staffInfo);
+      // the notes are spelled in the signature's key: the shown key's spelling when the two agree, else the one speller's
+      drawStaff(this.staff, sig.key && staffInfo ? spellForKey(staffInfo, { name: sig.key }) : staffInfo, sig);
       this.staff.tex.needsUpdate = true;
       this.staffKey = staffKey;
     }
@@ -1788,6 +1859,10 @@ const keyTracker = createKeyTracker();
 const keyView = { key: null, name: "", confidence: "unsure", locked: false, candidate: null, dim: false, trackDim: false, dimSince: 0,
                   at: -Infinity, jam: null };
 let keyRaw = null;
+// The staff's key signature (live sheet music LS6, piano/keysig.js): the key the numbers use, adopted once the tracker has held
+// it with lock confidence for 2 bars (4 s in free time), never inside an open chord, at most once per 8 bars; a key locked in
+// the Key menu wins at once. tickKey feeds it at the tracker's 10 Hz.
+const keySig = createKeySignatureModel();
 const keyText = (name) => String(name).replace(/^([A-G])b/, "$1♭").replace(/^([A-G])#/, "$1♯");
 // The jam key (8.10): while a run plays, and for 2 s after it ends, the key shown (numbers, spelling, the Key menu's auto
 // line) is the running section's, so Daniel's chords are numbered in the key the band is in. A key he locked by hand
@@ -1817,6 +1892,15 @@ function tickKey(t, force = false) {
   if (unsure === keyView.trackDim) keyView.dimSince = t;
   else if (t - keyView.dimSince >= DIM_HOLD) { keyView.trackDim = unsure; keyView.dimSince = t; }
   showKey(t);
+  // lock confidence: the tracker fair or sure, or the jam key; a chord is open while the notes of its last onset sound
+  keySig.update({ t, key: keyView.key, sure: !!keyView.jam || keyView.confidence === "sure" || keyView.confidence === "fair",
+                  manual: theoryUi.key !== "auto" ? theoryUi.key : null, bar: jamBar(), chord: sounding.size ? stats.noteOns : null });
+}
+// Claude's band's bar clock while its key is the one shown (a run plays): the signature's settle gate counts bars, not seconds.
+function jamBar() {
+  const p = keyView.jam ? jam.position : null;
+  if (!p || !Number.isFinite(p.bar) || !Number.isFinite(p.beat)) return null;
+  return { index: p.bar, pos: p.bar + Math.min(0.999, Math.max(0, p.beat / (p.beats_per_bar || 4))) };
 }
 // The key shown: the tracker's last reading, or the jam key over it. REC in auto calls it as it arms (startRecording), before
 // any recorded frame, so a take numbers Daniel's chords in his own key from its first frame, exactly as with no band.
@@ -1848,41 +1932,52 @@ function setKeyChoice(choice, persist = true) {
   syncKeySelect();
 }
 const numberFor = (info) => (info && keyView.key ? nashville(info, keyView.key, { minor: theoryUi.minor }) : null);
-// The chord name and note chips sit beside the number, so they are spelled in the shown key too: G#7 beside 5^7 in
-// C# minor, where Theory.detect alone writes Ab7. The root is spelled as nashville.js reads it (a chromatic root
-// keeps detect's spelling unless the key's is as plain: E stays E in Db major, not Fb); every other chord tone moves
-// by the same letter distance, so the chord's intervals keep their spelling. A cluster is spelled note by note.
-const ODD_NAMES = new Set(["E#", "B#", "Cb", "Fb"]);
+// The chord name, the note chips and the staff are spelled in a key by the one shared speller, piano/spell.js (the TN2
+// spelling ruling, tn1-rulings.md): the root whose chord needs the fewest accidentals against the key wins (ties: the key's
+// spelling, then the bias); every tone the name names goes by its letter steps from that root (the reader's own inputs, so a
+// #9 stays a #9: G#7 beside 5^7 in C# minor); a bass or passing note that is no chord tone is spelled in the key. Letters
+// follow the key, not the minor numbering pref (the reader spells as the tonic numbering reads). An info the reader already
+// spelled in this key (info.spelledIn) comes back as it is, and one it spelled otherwise gets the same letters it would
+// have had, so the page never respells the reader's name (F+(add9) stays F+(add9) in F# major, never E#+(add9)). An
+// interval keeps its letter distance; a note and a cluster are spelled note by note. key: a tracker key or { name }.
 function spellForKey(info, key) {
-  if (!info || !key) return info;
-  const inKey = (sp, suffix = null) => {
-    const s = spellInKey(sp, key, { minor: theoryUi.minor, suffix });
-    return s && (s.inScale || (Math.abs(s.acc) <= 1 && !ODD_NAMES.has(Theory.nameOf(s)))) ? { letter: s.letter, acc: s.acc } : sp;
-  };
-  const moved = (sp, by) => {
-    const letter = Theory.mod(sp.letter + by, 7);
-    return { letter, acc: Theory.mod(Theory.pcOf(sp) - Theory.LETTER_PC[letter] + 6, 12) - 6 };
-  };
+  if (!info || !key || !Array.isArray(info.notes)) return info;
+  const K = keyContext(key);
+  if (!K || info.spelledIn === K.name) return info;
   const pcOfMidi = (m) => Theory.mod(m, 12);
-  const map = new Map();  // pitch class -> spelling
-  if (info.kind === "cluster") {
-    for (const n of info.notes) if (!map.has(pcOfMidi(n.midi))) map.set(pcOfMidi(n.midi), inKey(n));
-  } else {
-    const root = inKey(info.root, info.kind === "chord" ? info.suffix : null);
-    const by = root.letter - info.root.letter;
-    for (const n of info.notes) if (!map.has(pcOfMidi(n.midi))) map.set(pcOfMidi(n.midi), moved(n, by));
-    // A slash chord's bass and an interval's top note keep plain letters where the move would need a double accidental:
-    // D#/G, not D#/F##; F#-A in Bb major reads Gb-A, not Gb-Bbb (nashville.js numbers both from the root either way).
-    for (const x of [info.bass, info.upper]) if (x && Math.abs(map.get(Theory.pcOf(x)).acc) > 1) map.set(Theory.pcOf(x), inKey(x));
+  const pcs = [...new Set(info.notes.map((n) => pcOfMidi(n.midi)))];
+  let chord = null;  // spellChord's result: the chord's tones and bass, spelled together
+  if (info.kind === "chord" && info.root) {
+    // The tones the name names, as the reader passes them (chordread.js namedTones and spellReading): for the reading the
+    // name came from, its base's tones (an omitted 5th or 3rd left out) and the tensions that sound; for a template name,
+    // every tone of its suffix. Letter steps from the suffix (a dim7's 7th: spell.js DIM7_SEVENTH, a diminished 7th or a 6th,
+    // whichever the key needs fewer accidentals for: B D F Ab in C minor), and the suffix the key's spelling of the root reads
+    // (the reading's base, or the template's own suffix).
+    const rootPc = Theory.pcOf(info.root), bassPc = info.bass ? Theory.pcOf(info.bass) : null;
+    const r = Array.isArray(info.readings) ? info.readings.find((x) => x && x.root === rootPc && (x.bass ?? null) === bassPc
+      && !!(x.omit && x.omit.no3) === !!info.no3 && String(x.suffix).replace("(no3)", "") === info.suffix) : null;
+    const parsed = parseSuffix(r ? r.suffix : info.suffix), steps = { ...parsed.tones };
+    if (parsed.base === "dim7" && 9 in steps) steps[9] = [6, 5];  // spell.js DIM7_SEVENTH
+    const grammar = !!r && r.path !== "template" && !!r.base && Array.isArray(r.tensions);
+    const ivs = grammar
+      ? [...Object.keys(parseSuffix(r.base.id).tones).map(Number).filter((t) => !(r.omit.no5 && t === 7) && !(r.omit.no3 && (t === 3 || t === 4))), ...r.tensions]
+      : Object.keys(steps).map(Number);
+    chord = spellChord({ rootPc, tonesPc: ivs.map((iv) => rootPc + iv), steps, bassPc, key: K,
+                         suffix: r ? (r.path === "template" ? r.suffix : r.base.id) : info.suffix });
+  } else if (info.kind === "interval" && info.root && info.upper) {
+    const rootPc = Theory.pcOf(info.root), iv = Theory.mod(Theory.pcOf(info.upper) - rootPc, 12);
+    chord = spellChord({ rootPc, tonesPc: [rootPc + iv], steps: { [iv]: Theory.mod(info.upper.letter - info.root.letter, 7) }, key: K });
   }
+  const map = new Map();  // pitch class -> spelling
+  for (const pc of pcs) { const s = spellNote(pc, K, { chord }); map.set(pc, { letter: s.letter, acc: s.acc }); }
   if ([...map.values()].some((s) => Math.abs(s.acc) > 2)) return info;
   const at = (sp) => map.get(Theory.pcOf(sp));
   const notes = info.notes.map((n) => {
     const s = map.get(pcOfMidi(n.midi));
     return { ...n, letter: s.letter, acc: s.acc, name: Theory.nameOf(s), octave: Theory.octaveOf(n.midi, s), diatonic: Theory.diatonicOf(n.midi, s) };
   });
-  const pcNames = [...new Set(notes.map((n) => pcOfMidi(n.midi)))].map((pc) => Theory.nameOf(map.get(pc)));
-  const out = { ...info, notes, pcNames };
+  const pcNames = pcs.map((pc) => Theory.nameOf(map.get(pc)));
+  const out = { ...info, notes, pcNames, spelledIn: K.name };
   if (info.kind === "cluster") { out.name = pcNames.join(" "); return out; }
   out.root = at(info.root);
   if (info.upper) out.upper = at(info.upper);
@@ -2069,13 +2164,30 @@ function allNotesOff() {  // CC120 (all sound off), CC123 (all notes off), input
   // Claude's hand is untouched here: a Demo or a MIDI input switch is about Daniel's notes. The MIDI panic itself
   // (CC120/123, onMidiMessage) and Esc/Backspace hush Claude as well.
 }
+// The chord reader names what sounds (TN2) with the key it may trust: the shown key while the tracker holds it fair or sure,
+// a key locked in the Key menu, or the jam key. An unsure key is no key to it (spec 2.1 A1: a no-3rd chord's family stays
+// open, and names are spelled by the bias), and spellForKey then spells its name in the shown key. prev: the root of the
+// chord before, the reader's previous-root prior.
+const readerChord = { root: null, prev: null };
+function detectSounding(bias) {
+  const midis = [...sounding.keys()];
+  if (!pianoReader) return Theory.detect(midis, bias);
+  const k = keyView.key && (keyView.locked || keyView.jam || keyView.confidence !== "unsure") ? keyContext(keyView.key) : null;
+  const info = Theory.detect(midis, bias, { key: k ? k.name : null, prev: readerChord.prev === null ? null : { root: readerChord.prev } });
+  if (info && k && Array.isArray(info.readings)) info.spelledIn = k.name;  // the reader spelled it in this key already
+  if (info && info.kind === "chord" && info.root) {
+    const root = Theory.pcOf(info.root);
+    if (root !== readerChord.root) { readerChord.prev = readerChord.root; readerChord.root = root; }
+  }
+  return info;
+}
 // t: the moment it is read at (a frame's clock, or a catch-up's; see "theory without frames")
 function currentInfo(t = clock()) {
   if (!detectDirty) return lastInfo;
   detectDirty = false;
   keyRaw = Theory.estimateKey(pcHistory);
   const bias = keyView.key ? keyView.key.bias : keyRaw ? keyRaw.bias : 0;
-  lastInfo = sounding.size ? spellForKey(Theory.detect([...sounding.keys()], bias), keyView.key) : null;
+  lastInfo = sounding.size ? spellForKey(detectSounding(bias), keyView.key) : null;
   if (lastInfo) lastInfo.onCount = stats.noteOns;  // lets the label tell a new note from a release
   lastNns = numberFor(lastInfo);
   logChord(t);
@@ -3324,8 +3436,11 @@ function updateHud(t) {
   $("hud-render").textContent = `${canvas.width}x${canvas.height} (${framing.id}) · three r${THREE.REVISION}`;
   $("hud-midi").textContent = midi.status + (midi.last ? ` · ${midi.last}` : "");
   $("hud-notes").textContent = fmtNotes(info);
-  $("hud-chord").textContent = (info ? info.name : "none") + (lastNns ? ` · ${lastNns.text}` : "");
-  $("hud-key").textContent = keySummary();
+  $("hud-chord").textContent = (info ? info.name : "none") + (lastNns ? ` · ${formatNumber(lastNns).display}` : "")
+    + (info && info.band ? ` · ${info.band}` : "") + (pianoReader ? "" : " · classic names");
+  const staffSig = keySig.state(), settling = staffSig.waiting || staffSig.candidate;
+  $("hud-key").textContent = keySummary() + ` · staff ${staffSig.key ? keyText(staffSig.key) : "no signature"}`
+    + (settling ? ` (settling ${keyText(settling.key)})` : "");
   const routes = logRoutes === true ? "" : logRoutes === null ? " · asking" : logRoutes === "reload" ? " · routes now: reload" : " · no routes";
   if (perfLog) {
     const s = perfLog.status();
@@ -3775,6 +3890,16 @@ window.__piano = {
              version: gl.getParameter(gl.VERSION), three: THREE.REVISION };
   },
   get lastUpload() { return lastUpload; },
+};
+// Theory next-gen (TN2) and the staff's key signature (LS6), for receipts: the reader mode and the reader, what the staff and
+// the Nashville row last drew, the signature model with its changes, and the shared number formatter.
+window.__piano.theory = {
+  get mode() { return pianoReader ? "next" : "classic"; },
+  get reader() { return pianoReader; },
+  staff: () => staffDrawn && { ...staffDrawn, notes: staffDrawn.notes.map((n) => ({ ...n })) },
+  nns: () => nnsDrawn && nnsDrawn.map((r) => ({ ...r })),
+  signature: () => ({ ...keySig.state(), history: keySig.history() }),
+  formatNumber,
 };
 
 function cueStats() {

@@ -174,6 +174,8 @@ for (const c of cases.filter((x) => x.expect.also && x.expect.name)) {
 // its slash bass.
 const readerPath = here("../arsenal/web/piano/chordread.js");
 const CR = existsSync(readerPath) ? await import(pathToFileURL(readerPath).href) : null;
+const spellPath = here("../arsenal/web/piano/spell.js");
+const SP = existsSync(spellPath) ? await import(pathToFileURL(spellPath).href) : null;  // TN2: the one shared speller
 function nameTruth(name, notes) {
   const c = NV.parseChord(String(name).replace("(no3)", ""));
   if (!c || c.kind !== "chord") return "does not read as a chord";
@@ -438,6 +440,13 @@ async function scoreReader(file) {
   report.push(`NG1 cluster tag on Daniel's 24: ${clusterFp.length} (at most 4, goal 2)`);
   check("NG1: cluster tag on at most 4 of Daniel's 24", clusterFp.length <= 4, clusterFp.map((c) => c.id).join(", "));
 
+  // TN2 spelling ruling (tn1-rulings.md): strict cases whose spelling the one speller changes. The corpus is frozen, so the
+  // new spellings are listed here (and in the report) for the conductor's corpus edit. With no key at bias 0 the chord's
+  // accidentals decide: C#9(no3) is C# G# B D#, Db9(no3) is Db Ab Cb Eb with an odd Cb; G#m is G# B D#, Abm is Ab Cb Eb;
+  // C#m is C# E G#, Dbm is Db Fb Ab. A bass outside the chord leans the way the chord does (G#m/C#).
+  const TN2_RESPELLED = { "d-9no3-doubled-nokey-Db": "C#9(no3)", "d-9no3-spread-nokey-Db": "C#9(no3)", "d-9no3-bass-only-nokey-Db": "G#m/C#",
+    "d-9no3-bass-only-nokey-Gb": "C#m/F#" };
+  report.push(`TN2 respelled strict cases (corpus spelling -> the one speller's): ${Object.entries(TN2_RESPELLED).map(([id, n]) => `${id} ${byId.get(id)?.expect.name} -> ${n}`).join("; ")}`);
   // strict cases: defects and chips (NG1), the ALSO lab table (NG3)
   for (const c of cases.filter((x) => x.expect.strict)) {
     const r = R(c), e = c.expect, res = r.res || { readings: [] }, out = [];
@@ -460,7 +469,8 @@ async function scoreReader(file) {
     if (e.also !== undefined && exact(c)) { const got = r.also ? plainText(r.also.name) : null; if (got !== e.also) out.push(`ALSO ${got}, want ${e.also}`); }
     if (e.close !== undefined) { const got = r.close ? plainText(r.close.name) : null; if (got !== e.close) out.push(`HUD close ${got}, want ${e.close}`); }
     if (e.number !== undefined && (e.name === null || exact(c))) { const got = first ? numberOf(first.name, c.key) : null; if (got !== e.number) out.push(`number ${got}, want ${e.number}`); }
-    if (e.name && exact(c) && plainText(first.name).replace("(no3)", "") !== e.name.replace("(no3)", "")) out.push(`spelled ${first.name}, want ${e.name}`);
+    const spelledAs = TN2_RESPELLED[c.id] ?? e.name;
+    if (e.name && exact(c) && plainText(first.name).replace("(no3)", "") !== spelledAs.replace("(no3)", "")) out.push(`spelled ${first.name}, want ${spelledAs}`);
     check(`${c.group === "also-lab" ? "NG3" : "NG1"} ${c.group} ${c.id} (${c.notes} in ${c.key})`, out.length === 0, out.join("; "));
   }
 
@@ -548,17 +558,20 @@ async function scoreReader(file) {
     }
     return null;
   }
-  const PAGE_DECLS = ["ODD_NAMES", "spellForKey", "accGlyph", "FONT", "INK", "INK_UNSURE", "nameRuns", "suffixRuns", "drawRuns", "measureRuns",
+  // TN2: spellForKey calls the one shared speller (spell.js) with chordread.js's parseSuffix, and numberRuns the shared
+  // Nashville formatter (nashville.js formatNumber); the page's own ODD_NAMES rule is gone.
+  const PAGE_DECLS = ["spellForKey", "accGlyph", "FONT", "INK", "INK_UNSURE", "nameRuns", "suffixRuns", "drawRuns", "measureRuns",
     "degreeRuns", "numberRuns", "numberFor", "drawLabel", "fmtNotes", "logChord"];
   const decls = PAGE_DECLS.map((n) => [n, declSource(n)]);
   check("piano.js declares every consumer the page-consumer contract slices", decls.every(([, x]) => x), decls.filter(([, x]) => !x).map(([n]) => n).join(", "));
   if (decls.every(([, x]) => x)) {
     const TP = sliceTheory();
     M.installReader(TP, NV);  // the page's install (TN7): Theory.detect is the reader's
-    const pageBody = `const { nashville, spellInKey } = NV;\nlet lastInfo = null, lastNns = null, loggedChord = "";\n${decls.map(([, x]) => x).join("\n")}\n`
+    const pageBody = `const { nashville, spellInKey, formatNumber } = NV;\nconst { keyContext, spellChord, spellNote } = SP;\nconst { parseSuffix } = M;\n`
+      + `let lastInfo = null, lastNns = null, loggedChord = "";\n${decls.map(([, x]) => x).join("\n")}\n`
       + "return { spellForKey, numberFor, drawLabel, fmtNotes, logChord, set(info, nns) { lastInfo = info; lastNns = nns; } };";
-    const pageWith = (keyView, theoryUi, sink) => new Function("Theory", "NV", "noteCss", "keyView", "theoryUi", "logged", "pageSec", pageBody)(
-      TP, NV, () => "rgba(255, 255, 255, 1)", keyView, theoryUi, (fn) => fn({ chord: (info) => sink.push(info) }), (t) => t);
+    const pageWith = (keyView, theoryUi, sink) => new Function("Theory", "NV", "SP", "M", "noteCss", "keyView", "theoryUi", "logged", "pageSec", pageBody)(
+      TP, NV, SP, M, () => "rgba(255, 255, 255, 1)", keyView, theoryUi, (fn) => fn({ chord: (info) => sink.push(info) }), (t) => t);
     const spPc = (sp) => mod(LETTER_PC[sp.letter] + sp.acc, 12);
     const faults = [];
     let consumed = 0, rootlessTops = 0, rootlessNamed = 0, rootlessChords = 0, rootlessLetters = 0;
@@ -743,12 +756,14 @@ async function scoreReader(file) {
   report.push(`detect bassMidi sweep: ${detReads} infos over a bass that also sounds higher up, ${detRootless} with a rootless top, ${detOff} naming another bass or letters with a band`);
   check("detect over every bassMidi: a chord info stands on the given bass and letters carry band none (tn1-rulings.md round 4)", detOff === 0 && detRootless > 0, `${detOff}: ${detOffEx.join(" | ")}`);
 
-  // Round 4 follow-up: runner-up and rootless basses follow the page's ODD rule, never B#, E#, Cb or Fb unless the key's
-  // scale has that spelling; a top whose root sounds keeps its chord's letters (Abm/Cb and C#/E#, the A7 checks below).
-  // Pinned by hand: the F13 voicing's runner-up, the half-diminished chord on the 7 over the 5 (Am7b5(11)/F in Bb major,
-  // not /E#), as the 5 of every major key; the rootless 7b13 over its #9 (C3 Eb3 E3 F#3: G#7b13/C at bias 1, not /B#);
-  // in F# major the scale's E# stays (C#7b13/E#, G#m6/E#), in C# minor its B# (D#6/B#). Then every set of 3-6 pitch
-  // classes, close and spread, in all 12 major keys and with no key at bias 1 and -1.
+  // TN2 spelling ruling, rule 3 (it replaces round 4's ODD rule for runner-up and rootless basses): a bass is spelled as a
+  // chord tone of the chosen root when it is one, and otherwise in the key, where B#, E#, Cb and Fb stand only on the key's
+  // scale; no bass takes a double accidental. Pinned by hand: the F13 voicing's runner-up, the half-diminished chord on the
+  // 7 over the 5 (Am7b5(11)/F in Bb major, not /E#: F is outside that chord), as the 5 of every major key; the rootless
+  // 7b13 over its 3rd (C3 Eb3 E3 F#3: G#7b13/B# at bias 1, changed from round 4's /C, and Ab7b13/C at bias -1; F3 Ab3 A3 B3:
+  // C#7b13/E# in C major too, changed from /F, since Db7b13 would need Cb and Bbb); in F# major the scale's E# (C#7b13/E#,
+  // G#m6/E#), in C# minor its B# (D#6/B#). Then every reading of every set of 3-6 pitch classes, close and spread, in all
+  // 12 major keys and with no key at bias 1 and -1.
   const F13_RUNNER = { C: "Bm7b5(11)/G", Db: "Cm7b5(11)/Ab", D: "C#m7b5(11)/A", Eb: "Dm7b5(11)/Bb", E: "D#m7b5(11)/B", F: "Em7b5(11)/C",
     "F#": "E#m7b5(11)/C#", G: "F#m7b5(11)/D", Ab: "Gm7b5(11)/Eb", A: "G#m7b5(11)/E", Bb: "Am7b5(11)/F", B: "A#m7b5(11)/F#" };
   const spellBad = [];
@@ -757,14 +772,20 @@ async function scoreReader(file) {
     if (plainText(got.readings[1]?.name) !== F13_RUNNER[tonic]) spellBad.push(`F13 voicing as the 5 of ${key}: runner-up ${got.readings[1]?.name}, want ${F13_RUNNER[tonic]}`);
   });
   const bassText = (name) => plainText(name).slice(plainText(name).lastIndexOf("/") + 1);
-  for (const [notes, key, bias, at, want, bass] of [["C3 Eb3 E3 F#3", null, 1, 0, "G#7b13/C", "C"], ["C3 Eb3 E3 F#3", null, -1, 0, "Ab7b13/C", "C"],
-    ["F3 Ab3 A3 B3", "F# major", 0, 0, "C#7b13/E#", "E#"], ["F3 Ab3 A3 B3", "C major", 0, 0, "C#7b13/F", "F"],
+  for (const [notes, key, bias, at, want, bass] of [["C3 Eb3 E3 F#3", null, 1, 0, "G#7b13/B#", "B#"], ["C3 Eb3 E3 F#3", null, -1, 0, "Ab7b13/C", "C"],
+    ["F3 Ab3 A3 B3", "F# major", 0, 0, "C#7b13/E#", "E#"], ["F3 Ab3 A3 B3", "C major", 0, 0, "C#7b13/E#", "E#"],
     ["F3 Ab3 B3", "F# major", 0, 1, "G#m6/E#", "E#"], ["F3 Ab3 B3", "C major", 0, 1, "G#m6/F", "F"], ["C3 Eb3 G3", "C# minor", 0, 1, "D#6/B#", "B#"], ["C3 Eb3 G3", "Bb major", 0, 1, "D#6/C", "C"]]) {
     const r = reader.read(midis(notes), { key, keyBias: bias }).readings[at];
     if (!r || ident(r.name) !== ident(want) || bassText(r.name) !== bass || (at === 0 && !r.omit.rootless)) spellBad.push(`${notes} ${key ?? "bias " + bias}: reading ${at} ${r?.name}, want ${want.split("/")[0]} over ${bass}`);
   }
-  let spellReads = 0, oddKept = 0, oddOff = 0;
-  const oddOffEx = [];
+  // letter steps as the reader spells a suffix (parseSuffix, a dim7's 7th written as a 6th), and the accidental of a note
+  // `steps` letters and `semis` semitones above a spelling
+  // a dim7's 7th: the choice chordread.js stepsOf passes (spell.js DIM7_SEVENTH: a diminished 7th, or a 6th; repair round 1)
+  const stepsFor = (suffix) => { const p = M.parseSuffix(suffix), s = { ...p.tones }; if (p.base === "dim7" && 9 in s) s[9] = [6, 5]; return s; };
+  const accOver = (sp, semis, steps) => mod(pcOfSp(sp) + semis - LETTER_PC[mod(sp.letter + steps, 7)] + 6, 12) - 6;
+  const ODD_NAMES = ["B#", "E#", "Cb", "Fb"];
+  let spellReads = 0, basses = 0, oddTone = 0, oddPlainOn = 0, oddPlainOff = 0, bassDouble = 0, bassLetter = 0;
+  const bassEx = [];
   for (let mask = 1; mask < 4096; mask++) {
     const pcs = [];
     for (let bit = 0; bit < 12; bit++) if (mask & (1 << bit)) pcs.push(bit);
@@ -772,20 +793,26 @@ async function scoreReader(file) {
     for (const ms of [pcs.map((p) => 48 + p), [36 + pcs[0], ...pcs.slice(1).map((p, i) => 60 + p + (i % 2 ? 12 : 0))]]) {
       for (const [key, bias] of [...MAJOR.map((x) => [`${x} major`, 0]), [null, 1], [null, -1]]) {
         spellReads++;
-        reader.read(ms, { key, keyBias: bias }).readings.forEach((r, i) => {
-          if (i === 0 && !r.omit.rootless) return;
+        for (const r of reader.read(ms, { key, keyBias: bias }).readings) {
           const c = NV.parseChord(plainText(r.name));
-          if (!c?.bass || !["B#", "E#", "Cb", "Fb"].includes(bassText(r.name))) return;
-          const s = key ? NV.spellInKey(c.bass, key) : null;
-          if (s && s.inScale && s.letter === c.bass.letter && s.acc === c.bass.acc) oddKept++;
-          else { oddOff++; if (oddOffEx.length < 3) oddOffEx.push(`${ms.join(",")} ${key ?? "bias " + bias}: ${r.name}`); }
-        });
+          if (r.bass == null || r.path === "template" || !c?.bass) continue;
+          basses++;
+          const where = `${ms.join(",")} ${key ?? "bias " + bias}: ${r.name}`, fault = (why) => { if (bassEx.length < 4) bassEx.push(`${where} (${why})`); };
+          const b = bassText(r.name), s = key ? NV.spellInKey(c.bass, key) : null, onScale = !!s && s.inScale && s.letter === c.bass.letter && s.acc === c.bass.acc;
+          if (Math.abs(c.bass.acc) > 1) { bassDouble++; fault("a double accidental"); }
+          if (r.path !== "slash") {  // the bass sounds in the reading's own set: a chord tone, on its letter unless that needs a double
+            const iv = mod(r.bass - r.root, 12), sts = [].concat(stepsFor(r.suffix)[iv] ?? []);
+            if (sts.length && sts.every((st) => mod(c.bass.letter - c.root.letter, 7) !== st) && sts.some((st) => Math.abs(accOver(c.root, iv, st)) <= 1)) { bassLetter++; fault("off its chord letter"); }
+            if (ODD_NAMES.includes(b) && !onScale) oddTone++;
+          } else if (ODD_NAMES.includes(b)) { if (onScale) oddPlainOn++; else { oddPlainOff++; fault("an odd letter off the scale"); } }
+        }
       }
     }
   }
-  report.push(`runner-up and rootless bass spellings: ${spellReads} reads in the 12 major keys and with no key; odd basses ${oddKept} on the key's scale, ${oddOff} off it`);
-  check("runner-up and rootless basses are never B#, E#, Cb or Fb off the key's scale, in all 12 major keys and with no key (Am7b5(11)/F in Bb major, G#7b13/C at bias 1); the scale's own E# and B# stay", spellBad.length === 0 && oddOff === 0 && oddKept > 0,
-    `${spellBad.join(" | ")} ${oddOff} off the scale: ${oddOffEx.join(" | ")}`);
+  report.push(`bass spellings (TN2 rule 3): ${spellReads} reads in the 12 major keys and with no key, ${basses} slash names; chord-tone basses on B#, E#, Cb or Fb off the key's scale ${oddTone} (the chord's letters); `
+    + `basses outside the chord on those letters ${oddPlainOn} on the scale, ${oddPlainOff} off it; ${bassDouble} double accidentals; ${bassLetter} chord-tone basses off their letter`);
+  check("TN2 rule 3: a bass is a chord tone of its root when it is one (G#7b13/B# at bias 1, C#7b13/E# in C major), otherwise spelled in the key and never B#, E#, Cb or Fb off its scale (Am7b5(11)/F in Bb major); never a double accidental",
+    spellBad.length === 0 && oddPlainOff === 0 && bassDouble === 0 && bassLetter === 0 && basses > 0, `${spellBad.join(" | ")} ${bassEx.join(" | ")}`);
 
   const clusterBands = cases.filter((c) => R(c).res?.kind === "cluster" && R(c).res.band !== "none");
   check("tn1-rulings.md: every cluster result reports band none", clusterBands.length === 0 && reader.read(midis("C4 D4 E4 F4"), { key: "C major" }).band === "none", clusterBands.map((c) => c.id).join(", "));
@@ -805,7 +832,7 @@ async function scoreReader(file) {
     check(`parseSuffix(${JSON.stringify(s)}) dominant equals nashville.js DOMINANT`, p.dominant === DOMINANT.has(s));
   }
   const emitted = new Map();
-  let nRead = 0, a1 = 0, a2 = 0, a4 = 0, a7 = 0, back = 0, fam = 0;
+  let nRead = 0, a1 = 0, a2 = 0, a4 = 0, a7 = 0, back = 0, fam = 0, offKey = 0;
   const badA1 = [], badBack = [], badA7 = [];
   const keyScaleOf = (k) => new Set((k.mode === "major" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10, 11]).map((x) => mod(x + k.tonic, 12)));
   const overOwnTop = (r) => r.path === "slash" && r.bass != null && [9, 10, 11].includes(mod(r.bass - r.root, 12));
@@ -848,16 +875,21 @@ async function scoreReader(file) {
       if (r.base.id === "aug" && r.tensions.length && !(r.suffix === "+(add9)" && r.bass === null)) augT++;
       // A4 and D6: no 11 without a 3rd
       if (!(r.omit.no3 && r.tensions.includes(5))) a4++;
-      // A7: the root is spelled as spellInKey spells it whenever the page's spellForKey takes that spelling: on the key's
-      // scale (E# and Cb included), or one accidental at most and not E#, B#, Cb or Fb. Round 6: an augmented chord whose
-      // 3rd that spelling would double (B#+ in C# minor) takes the enharmonic root whose 3rd and #5 need none (C+).
-      if (k) {
-        const root = NV.parseChord(r.name).root, w = NV.spellInKey(root, c.key, { suffix: r.base.id });
-        const wName = "CDEFGAB"[w.letter] + (w.acc > 0 ? "#".repeat(w.acc) : "b".repeat(-w.acc));
-        const augEnharmonic = r.base.family === "aug" && Math.abs(accAbove(w, 4, 2)) > 1 && Math.abs(root.acc) <= 1
-          && Math.abs(accAbove(root, 4, 2)) <= 1 && Math.abs(accAbove(root, 8, 4)) <= 1;
-        if (!(w.inScale || (Math.abs(w.acc) <= 1 && !["E#", "B#", "Cb", "Fb"].includes(wName))) || (w.letter === root.letter && w.acc === root.acc) || augEnharmonic) a7++;
-        else badA7.push(`${c.id} ${r.name} (${c.key}: ${wName})`);
+      // A7 as the TN2 spelling ruling has it (rule 4, one speller; it replaces the page's spellForKey rule and round 6's
+      // augmented-root rule): every name is the shared speller's spelling of the reading's tones (spell.js spellChord), with
+      // no double accidental on its root or bass, and a root off the key's own spelling (spellInKey) is taken only when that
+      // spelling scores worse or needs a forced note (F#7b5/C in F major, not Gb7b5/C, which needs Dbb and Fb).
+      if (r.path !== "template" && SP) {
+        const pn = NV.parseChord(plainText(r.name)), steps = stepsFor(r.suffix);
+        const tonesPc = Object.keys(steps).map(Number).filter((iv) => iv === 0 || (pcs.has(mod(r.root + iv, 12)) && !(r.omit.no5 && iv === 7)
+          && !(r.omit.no3 && (iv === 3 || iv === 4)) && !(r.path === "slash" && mod(r.root + iv, 12) === r.bass))).map((iv) => r.root + iv);
+        const sp = SP.spellChord({ rootPc: r.root, tonesPc, steps, bassPc: r.bass, key: c.key, bias: 0, suffix: r.base.id });
+        const w = k ? NV.spellInKey(pn.root, c.key, { suffix: r.base.id }) : null, wName = w ? SP.nameOf(w) : null;
+        const pick = sp.candidates.find((x) => x.root === sp.parts.root), alt = wName ? sp.candidates.find((x) => x.root === wName) : null;
+        const offKeyOk = !w || wName === SP.nameOf(pn.root) || !alt || alt.forced > pick.forced || (alt.forced === pick.forced && alt.score > pick.score);
+        if (k && wName !== SP.nameOf(pn.root)) offKey++;
+        if (SP.chordName(sp, r.suffix) === plainText(r.name) && offKeyOk && Math.abs(pn.root.acc) <= 1 && !(pn.bass && Math.abs(pn.bass.acc) > 1)) a7++;
+        else badA7.push(`${c.id} ${r.name} (${c.key}: speller ${SP.chordName(sp, r.suffix)}, key's ${wName})`);
       } else a7++;
     }
   }
@@ -868,7 +900,8 @@ async function scoreReader(file) {
   check("A2: no slash duplicate (a slash reading over its own 6th, b7 or 7th beside a full reading on that root and bass) in any result", a2 === nRead, String(nRead - a2));
   check("no augmented triad with a tension in any result (it is a 7#5 chord on another root), but the root-position C+(add9) (round 4)", augT === 0, String(augT));
   check("A4: no 11 over a missing 3rd in any result", a4 === nRead, String(nRead - a4));
-  check("A7: every root spelled in the key", a7 === nRead, badA7.slice(0, 6).join(" | "));
+  report.push(`A7 (TN2): ${offKey} keyed readings over the fixtures take a root off the key's own spelling because that spelling scores worse`);
+  check("A7 (TN2 rule 4): every name is the one speller's, with no double accidental on a root or bass, and a root leaves the key's spelling only when that spelling scores worse", a7 === nRead, badA7.slice(0, 6).join(" | "));
   for (const [s] of emitted) check(`parseSuffix(${JSON.stringify(s)}) reads the whole suffix`, M.parseSuffix(s).known === true);
   const allReasons = new Set(cases.flatMap((c) => (R(c).res?.readings || []).flatMap((r) => r.reasons)));
   const offLex = [...allReasons].filter((s) => !reasonRes.some((re) => re.test(plainText(s))));
@@ -993,7 +1026,8 @@ async function scoreReader(file) {
   }
   const augPins = [["C3 E3 G#3 D4", "C# minor", 0, "C+(add9)"], ["C3 E3 G#3", "C# minor", 0, "Caug"], ["F3 A3 C#4 G4", "F# major", 0, "F+(add9)"],
     ["Eb3 G3 B3 F4", "A major", 0, "Eb+(add9)"], ["G3 B3 D#4", "G# minor", 0, "Gaug"], ["Eb3 G3 B3", null, 1, "Ebaug"], ["F#3 A#3 D4 G#4", "B minor", 0, "F#+(add9)"],
-    ["G#3 C4 E4", "A minor", 0, "G#aug"], ["C3 E3 G#3 B3", "C# minor", 0, "E/C"]];
+    // TN2 changed one pin: G#3 C4 E4 in A minor reads Abaug (Ab C E), not G#aug (G# B# D##: an odd B# and a double).
+    ["G#3 C4 E4", "A minor", 0, "Abaug"], ["C3 E3 G#3 B3", "C# minor", 0, "E/C"]];
   for (const [notes, key, bias, want] of augPins) {
     const res = reader.read(midis(notes), { key, keyBias: bias }), info = reader.detect(midis(notes), key ? NV.parseKey(key).bias : bias, { key });
     if (res.readings[0]?.name !== want || info.name !== want) augRootBad.push(`${notes} ${key ?? "bias " + bias}: read ${res.readings[0]?.name}, detect ${info.name}, want ${want}`);
