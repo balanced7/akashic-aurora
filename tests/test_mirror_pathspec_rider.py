@@ -7,8 +7,9 @@ lesson), but `git add -- <paths>` followed by a bare `git commit` commits the wh
 Root fix: pathspec-limited `git commit -m msg -- <paths>`, leaving stranger staged entries
 staged for their own author's commit.
 
-Offline: runs against a copy of mirror.py inside a temp repo with a local bare origin, so
-the push leg exercises for real without a network.
+Offline: runs against a copy of mirror.py inside a temp repo with a local bare origin.
+Since 2026-09-16 mirror only commits on --commit and only pushes on --push; these pins
+commit, and the push leg is pinned in tests/test_mirror_publish_guard.py.
 """
 import os
 import shutil
@@ -59,8 +60,13 @@ def twin_repo(tmp_path):
 
 
 def _mirror(work, *args):
-    return subprocess.run([sys.executable, "scripts/mirror.py", *args],
-                          cwd=str(work), capture_output=True, text=True)
+    # run as the claude seat (the only seat mirror.py serves) whatever seat runs the suite
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("AKASHIC_AGENT_ID", "AKASHIC_SEAT_DOOR", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL")}
+    env["AKASHIC_AGENT_ID"] = "claude"
+    return subprocess.run([sys.executable, "scripts/mirror.py", *args, "--commit"],
+                          cwd=str(work), env=env, stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True)
 
 
 def test_named_path_commit_excludes_strangers_staged_files(twin_repo):

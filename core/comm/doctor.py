@@ -750,7 +750,7 @@ def unwedge(agent: str) -> Dict[str, Any]:
             f"{agent}: STALLED — {lh['depth']} unprocessed on the work lane "
             f"(lane cursor {age}s behind)" + (f", {len(evidence['locks'])} lock(s) held"
             if evidence["locks"] else "")), (
-            f"triaged drain: py scripts/mirror.py skip-to-now {agent} "
+            f"triaged drain: py agent_cli.py bifrost-skip-to-now {agent} --by <you> --reason '<why>' "
             f"| or drill down: py agent_cli.py mailbox --explain {agent}")
     elif stalled:
         status, verdict, rec = "stalled", (
@@ -773,8 +773,9 @@ def unwedge(agent: str) -> Dict[str, Any]:
             # stale-ask gate parks in BATCHES, so one pass rarely finishes. Saying so
             # keeps a half-drained lane from reading as a failed recommendation.
             f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work py agent_cli.py "
-            f"bifrost-sync {agent} --consume  | if it will not drain: py scripts/mirror.py "
-            f"skip-to-now {agent}  | inspect: py agent_cli.py mailbox --explain {agent}")
+            f"bifrost-sync {agent} --consume  | if it will not drain: py agent_cli.py "
+            f"bifrost-skip-to-now {agent} --by <you> --reason '<why>'  "
+            f"| inspect: py agent_cli.py mailbox --explain {agent}")
     elif runner == "down":
         status, verdict, rec = "down", (
             f"{agent}: runner DOWN — daemon holds presence but no live runner"), (

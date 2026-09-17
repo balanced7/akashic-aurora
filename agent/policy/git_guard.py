@@ -25,8 +25,8 @@ _REASON = (
     "bundles the OTHER agent's unreviewed changes into your commit and pushes them "
     "(the FM1 failure, 2026-06-28). Stage what is YOURS explicitly:\n"
     "  git add <path...>   then commit\n"
-    '  or  py scripts/mirror.py "msg" <path...>\n'
-    "Need to sweep everything anyway? `py scripts/mirror.py \"msg\" --all` is the "
+    '  or  py scripts/mirror.py "msg" <path...> --commit   (claude seat or Daniel)\n'
+    "Need to sweep everything anyway? `py scripts/mirror.py \"msg\" --all --commit` is the "
     "explicit opt-in. See docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md (Layer 2 / C0)."
 )
 

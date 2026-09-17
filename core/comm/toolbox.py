@@ -1372,7 +1372,11 @@ class ToolBox:
             if banned:
                 return None, None, (f"path(s) {banned} are outside your mirror scope -- "
                                     "security/ and .claude/ stay super-admin-gated (IR-4)")
-            return argv, {}, None
+            # 2026-09-16, after 97b85ecd (a line count run as `mirror.py "count-plus-lines" <path>`
+            # published 63 commits): mirror.py itself now refuses the toolbox door and every seat
+            # but claude. Stamp the door here so that refusal never rests on an inherited
+            # AKASHIC_AGENT_ID (the bifrost_ui console calls this family with no agent_id).
+            return argv, {"AKASHIC_SEAT_DOOR": "toolbox"}, None
         # family: READ-ONLY git -- G7 (Daniil 2026-09-09 verbatim: "I trust you guys, can
         # you make that for yourself, heimdall, sunshine and rill?"). The family gate (not
         # the ACL) refused `git` outright even though git.read is in every admin's caps --
