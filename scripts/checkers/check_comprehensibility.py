@@ -64,8 +64,12 @@ REF_ALLOWLIST = {
                   "mid-marathon): the path lives as "
                   "PROSE inside the SA-1 arc label on atoms, rendered into generated ARCS/"
                   "SHELVES; real file is docs/library/design/20260722_security-schema-"
-                  "amendment-scoped-admin-g_17c9ca.md. Root fix = retitle the arc label at "
-                  "the atom (deferred: no doc-verb retitle surface exists yet; see defer).",
+                  "amendment-scoped-admin-g_17c9ca.md. ATOM SIDE DONE 2026-09-16: "
+                  "art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784 relabelled arc "
+                  "'SA-1' (AtomFamily.set_arc, v3) and its projection re-rendered; its JSONL line "
+                  "waits in the working tree with the other seats' uncommitted atom lines. What is "
+                  "left: the ARCS/SHELVES full regen, which also cites ~10 uncommitted 09-01..05 "
+                  "projections (21 F FAILs if committed alone). Remove this entry when it lands.",
     },
     "tests/test_codex_hook_contract.py": {
         "expires": "2026-09-21",

@@ -126,6 +126,42 @@ def test_supersede_links_both_and_moves_indexes(fam):
         assert sum(1 for l in f if l.strip()) == 3
 
 
+def test_set_arc_relabels_in_place_as_a_version_event(fam):
+    a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
+    got = fam.set_arc(a["id"], "SA-1", now=2000.0)
+    assert (got["id"], got["body_sha"], got["version"], got["updated_ts"]) == (a["id"], a["body_sha"], 2, 2000.0)
+    assert got["header"]["arc"] == "SA-1" and fam.get(a["id"]) == got
+    assert a["id"] not in fam.store.smembers("artifact:index:arc:SA-1 (docs/gone.md)")
+    assert a["id"] in fam.store.smembers("artifact:index:arc:SA-1")
+    path = os.path.join(fam.jsonl_dir, "design.jsonl")
+    with open(path, encoding="utf-8") as f:
+        assert [json.loads(l)["version"] for l in f if l.strip()] == [1, 2]  # append-only: mint, relabel
+    assert fam.set_arc(a["id"], " SA-1 ", now=3000.0)["version"] == 2  # unchanged label: no event
+    fresh = at.AtomFamily(FakeStore(), jsonl_dir=fam.jsonl_dir)
+    fresh.rebuild()
+    assert fresh.get(a["id"])["header"]["arc"] == "SA-1"  # the JSONL record carries the relabel
+    with pytest.raises(at.AtomError):
+        fam.set_arc("art_20260101_missing_000000", "SA-1")
+
+
+def test_doc_arc_door_relabels_and_rerenders_the_projection(tmp_path, capsys):
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    import agent_cli
+    fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "store"), repo_root=str(tmp_path))
+    a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
+    assert agent_cli._doc_arc(fam, a["id"], "SA-1", str(tmp_path)) == 0
+    proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_"):] + ".md")
+    text = proj.read_text(encoding="utf-8")
+    assert "\narc: SA-1\n" in text and "docs/gone.md" not in text
+    assert fam.get(a["id"])["version"] == 2
+    assert agent_cli._doc_arc(fam, "art_20260101_missing_000000", "SA-1", str(tmp_path)) == 2
+    assert agent_cli._doc_arc(fam, "", "SA-1", str(tmp_path)) == 2
+    assert "REFUSED" in capsys.readouterr().out
+
+
 def test_find_intersects_facets_newest_first(fam):
     a = fam.mint("design", "bus routing one", "b", categories=["bus"], now=1.0)
     b = fam.mint("design", "bus routing two", "b", categories=["bus"], now=2.0)

@@ -1,14 +1,16 @@
 ---
 akashic_id: art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784
 akashic_sha: 62fcb681eb04
+schema_version: 1
 status: draft
 type: design
-arc: SA-1 (docs/security-amendment-deepseek-scoped-admin-2026-07-22.md)
+arc: SA-1
 date: 2026-07-23
 title: SA-1 Cap Enforcement — Pre-Registered Acceptance Suite
 gist: "Arc: SA-1 (docs/security-amendment-deepseek-scoped-admin-2026-07-22.md) Charter: charters/sa1-cap-enforcement-charter-2026-07-22.md · Date: "
 tenant: solo
 visibility: fleet
+body_type: markdown
 seats: []
 category: [security, conducting, testing]
 origin: migrated
@@ -19,7 +21,7 @@ citations:
   - target: art_20260722_security-schema-amendment-scoped-admin-g_17c9ca
     rel: cites
 created: "2026-07-23T08:34:58"
-updated: "2026-07-23T21:42:11"
+updated: "2026-09-16T20:08:52"
 ---
 <!-- GENERATED PROJECTION of art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 
