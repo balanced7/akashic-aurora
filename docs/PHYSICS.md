@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 91b9315c. A bound you discover by collision is not awareness -- this sheet
+> Derived at a8f9cfd1. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -273,7 +273,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (315 numeric constants)
+## Mechanical bounds (317 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -404,6 +404,8 @@ Class: reference
 | `LINE_LEN_CAP_BEATS` | 2 | arsenal/practice_riff.py | a note's length is capped here (the pedal never stretches it) |
 | `LINE_MIN_NOTE` | 60 | arsenal/practice_riff.py | C4: the top line starts here... |
 | `LINE_MIN_ONSETS` | 3 | arsenal/practice.py | a pedalled treble passage (nothing below middle C) of at least this many single notes... |
+| `LIT_DELTA_MAX` | 12 | arsenal/tiktok.py | (raised to the ring's noise, but never past this) |
+| `LIT_DELTA_MIN` | 2 | arsenal/tiktok.py | a pixel is "lit" when it differs from the background by more than this |
 | `LOOPBACK_MS` | 15 | arsenal/practice_riff.py |  |
 | `LYDIAN_JOIN_MS` | 300 | arsenal/practice.py | back-to-back Lydian 4 windows this close, on one root and bass, are one moment |
 | `MANIFEST_TTL` | 300 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 5 minutes - manifest expires if not refreshed |

@@ -1,4 +1,4 @@
-"""arsenal command line: serve | plan | inspect | probe | analyze | takes.
+"""arsenal command line: serve | plan | inspect | probe | analyze | takes | tiktok.
 
 Run from the repo root (or with PYTHONPATH pointing at it):  py -m arsenal serve
 """
@@ -66,6 +66,59 @@ def main(argv=None) -> int:
     fl.add_argument("--json", action="store_true")
 
     sub.add_parser("takes", help="list recorded takes")
+
+    tk = sub.add_parser(
+        "tiktok",
+        help="make a ready-to-post TikTok copy of a recording: cut the black borders, trim the "
+             "silence, 1080x1920",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Make a ready-to-post TikTok copy of a screen recording.\n\n"
+                    "It finds the picture inside the black borders (ignoring the mouse pointer and\n"
+                    "thin tabs at the screen edge), cuts the borders off, makes it tall 1080x1920,\n"
+                    "starts half a second before the first note and ends two seconds after the last,\n"
+                    "evens out the loudness, and saves a phone-friendly MP4 next to the original,\n"
+                    "named '<name> tiktok.mp4'. The original is never changed.",
+        epilog="examples:\n"
+               "  py -m arsenal tiktok \"E:\\Video Output E\\my take.mp4\"\n"
+               "      makes \"my take tiktok.mp4\" beside it\n"
+               "  py -m arsenal tiktok --latest --dry-run --preview\n"
+               "      checks the newest recording: prints the box, the trim and the ffmpeg command,\n"
+               "      saves a preview picture, and encodes nothing\n\n"
+               "Tip: drag videos onto arsenal\\tools\\tiktok-ready.cmd to do the same without typing.")
+    tk.add_argument("videos", nargs="*", metavar="video", help="one or more recordings (.mp4, .mkv, .mov)")
+    tk.add_argument("--latest", action="store_true",
+                    help="use the newest recording in --folder instead of naming one")
+    tk.add_argument("--folder", metavar="DIR",
+                    help="where --latest looks (default: the library folder 'py -m arsenal serve' uses)")
+    tk.add_argument("--out", metavar="PATH",
+                    help="a folder to save into, made if missing (a name with no extension, or ending "
+                         "in \\, is a folder), or a file name ending in .mp4 (default: beside the original)")
+    tk.add_argument("--force", action="store_true",
+                    help="replace the output and the preview if they already exist "
+                         "(the original is never replaced)")
+    tk.add_argument("--dropped", action="store_true", help=argparse.SUPPRESS)  # set by tiktok-ready.cmd
+    tk.add_argument("--dry-run", action="store_true",
+                    help="show the box, the trim, the final size and the ffmpeg command; encode nothing")
+    tk.add_argument("--preview", action="store_true",
+                    help="also save '<name> tiktok-preview.jpg', one frame of the final framing")
+    tk_shape = tk.add_mutually_exclusive_group()
+    tk_shape.add_argument("--fit", dest="shape", action="store_const", const="fit",
+                          help="show the whole picture, black bars where it does not reach (default)")
+    tk_shape.add_argument("--fill", dest="shape", action="store_const", const="fill",
+                          help="fill the whole phone screen, cutting the picture's edges to fit")
+    tk.set_defaults(shape="fit")
+    tk.add_argument("--no-trim", action="store_true", help="keep the silence at the start and the end")
+    tk.add_argument("--lead", type=float, default=0.5, metavar="SECONDS",
+                    help="start this long before the first sound (default 0.5)")
+    tk.add_argument("--tail", type=float, default=2.0, metavar="SECONDS",
+                    help="keep this long after the last sound, then fade out (default 2.0)")
+    tk.add_argument("--lufs", type=float, default=-16.0, metavar="LUFS",
+                    help="loudness target (default -16, right for phones)")
+    tk.add_argument("--no-loudnorm", action="store_true", help="leave the loudness as recorded")
+    tk.add_argument("--crf", type=int, default=17, metavar="N",
+                    help="picture quality: lower is sharper and bigger (default 17)")
+    tk.add_argument("--fps", choices=["auto", "30", "60"], default="auto",
+                    help="frames per second (default auto: the recording's own, at most 60)")
 
     pf = sub.add_parser("performance", help="the piano practice log: list sessions, print a summary, prune")
     pf_sub = pf.add_subparsers(dest="perf_cmd", required=True)
@@ -238,6 +291,10 @@ def main(argv=None) -> int:
             state = "closed" if take["closed"] else "open  "
             print(f"{take['take_id']}  {state}  {take['event_count']:>6} events  {take.get('clip') or ''}")
         return 0
+
+    if args.cmd == "tiktok":
+        from .tiktok import run_cli
+        return run_cli(args)
 
     if args.cmd == "performance":
         from .performance import PerformanceError, PerformanceStore
