@@ -6,6 +6,8 @@
 // Needs `py -m arsenal serve` on 127.0.0.1:8793, Chrome, Node 22+, and the page's test hook window.__play
 // (presets, active, select, stats, errors, loadClip, setAudioSource). Writes play-<stamp>.json plus one
 // screenshot per preset and mode under state/arsenal/receipts, and exits 1 if the verdict fails.
+// GPU lock (arsenal/GPU-LOCK.md): Chrome starts only under state/arsenal/gpu-render.lock, taken through gpu_lock.mjs after
+// any jam_timing / jam_verify run ends; if the lock stays held past --gpu-wait-min (2) it prints ERROR and exits 1.
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,6 +15,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
+import { acquireGpuLock } from "./gpu_lock.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const { values: opt } = parseArgs({
@@ -22,6 +25,7 @@ const { values: opt } = parseArgs({
     out: { type: "string", default: join(REPO, "state", "arsenal", "receipts") },
     app: { type: "string", default: "http://127.0.0.1:8793" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
+    "gpu-wait-min": { type: "string", default: "2" },  // then give up: `qm receipts` kills a run after 300 s
     port: { type: "string", default: "9334" },
     // No window at all, so a run can't steal focus from whatever Daniel is doing (a full-screen game, say).
     headless: { type: "boolean", default: false },
@@ -45,6 +49,15 @@ const report = {
     "how each preset looks to a person: the screenshots are for that",
   ],
 };
+
+let gpu;
+try {
+  gpu = await acquireGpuLock({ label: "play_verify presets", maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000 });
+} catch (err) {
+  console.log("ERROR", err.message);
+  process.exit(1);
+}
+report.gpu_lock = { acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
 
 const chrome = spawn(opt.chrome, [
   `--remote-debugging-port=${opt.port}`, `--user-data-dir=${profile}`,
@@ -219,6 +232,7 @@ try {
   try { await browser?.send("Browser.close"); } catch { /* already closed */ }
   await delay(1000);
   try { chrome.kill(); } catch { /* already gone */ }
+  gpu.release();
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold a file */ }
   console.log("broken presets:", JSON.stringify(report.broken_presets));
   console.log("clip frames:", JSON.stringify(report.clip_frames), "| decoder:", report.media.kVideoDecoderName);

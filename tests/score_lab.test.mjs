@@ -7,9 +7,9 @@
 //   node tests/score_lab.test.mjs --browser           also the headless Chrome check (G1 bench, fixture replays, seeks)
 //   node tests/score_lab.test.mjs --browser --sessions  also replays 180 s of S12 in the page (aggregates only)
 //   node tests/score_lab.test.mjs --serve             the lab server alone on 8981 (open /web/piano-lab-score.html)
-// Browser rules (this machine): headless only, with the three anti-throttling flags; before launch, wait while a node
-// process running jam_timing.mjs or jam_verify.mjs exists (timing receipts are load-sensitive); take the GPU lock
-// (mkdir state/arsenal/gpu-render.lock, which fails while held) and remove it the moment the browser work ends; keep the
+// Browser rules (this machine): headless only, with the three anti-throttling flags; before launch, take the GPU lock
+// through arsenal/lanes/gpu_lock.mjs (arsenal/GPU-LOCK.md), which first waits while a node process running jam_timing.mjs
+// or jam_verify.mjs exists (timing receipts are load-sensitive), and release it the moment the browser work ends; keep the
 // burst under 3 minutes. Never `chrome --version`. Writes state/arsenal/score/ls5-lab-2026-09-15.json (and a fixture
 // screenshot) with S-numbers and aggregates only.
 // Receipts measured in the page: LR11a paintOpenBar / paintTape p95 on 43- and 67-onset windows; LR11b engraveBar
@@ -20,17 +20,17 @@ import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import * as G from "./fixtures/score/gen.mjs";
+import { acquireGpuLock } from "../arsenal/lanes/gpu_lock.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(here, "..");
 const WEB = path.join(REPO, "arsenal", "web");
 const PERF = path.join(REPO, "state", "arsenal", "performance");
 const OUT = path.join(REPO, "state", "arsenal", "score");
-const LOCK = path.join(REPO, "state", "arsenal", "gpu-render.lock");
 // this build's ports on this machine: the lab server 8981, Chrome DevTools 9981 (8981-8983 / 9981-9983 are reserved for it)
 const PORT = 8981, DEVTOOLS = 9981;
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
@@ -109,10 +109,6 @@ const get = async (p) => { const r = await fetch(`http://127.0.0.1:${PORT}${p}`)
 }
 
 // ------------------------------------------------------------------------------------------ browser ---
-function jamProcesses() {
-  const r = spawnSync("powershell.exe", ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | ForEach-Object { $_.CommandLine }"], { encoding: "utf8" });
-  return (r.stdout || "").split(/\r?\n/).filter((l) => /jam_timing\.mjs|jam_verify\.mjs/.test(l)).length;
-}
 function connect(wsUrl) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(wsUrl);
@@ -132,12 +128,9 @@ async function waitFor(fn, ms, what) { const t0 = Date.now(); while (Date.now() 
 if (browser) {
   const report = { api: "arsenal.receipt/v0", slice: "LS5", receipt: "LR11", date: "2026-09-15", port: PORT, devtools: DEVTOOLS, steps: [], console: [], exceptions: [] };
   const step = (name, data) => { report.steps.push({ name, ...data }); console.log(`[${name}]`, JSON.stringify(data).slice(0, 600)); };
-  let chrome = null, profile = null, locked = false, cdp = null, burstStart = null;
+  let chrome = null, profile = null, gpu = null, cdp = null, burstStart = null;
   try {
-    for (let n = jamProcesses(); n > 0; n = jamProcesses()) { step("wait-jam-timing", { processes: n }); spawnSync(process.execPath, ["-e", "setTimeout(()=>{},60000)"]); }
-    for (let tries = 0; ; tries++) {
-      try { fs.mkdirSync(LOCK); locked = true; break; } catch (e) { if (e.code !== "EEXIST" || tries > 30) throw e; step("wait-gpu-lock", { tries }); await delay(20000); }
-    }
+    gpu = await acquireGpuLock({ label: "score_lab LR11", maxWaitMs: 20 * 60_000, log: (message) => step("gpu-lock", { message }) });
     burstStart = Date.now();
     if (!fs.existsSync(CHROME)) throw new Error("Chrome not found at " + CHROME);
     profile = fs.mkdtempSync(path.join(os.tmpdir(), "score-lab-chrome-"));
@@ -236,7 +229,7 @@ if (browser) {
     try { await cdp?.send("Browser.close"); } catch { /* gone */ }
     await delay(800);
     try { chrome?.kill(); } catch { /* gone */ }
-    if (locked) { try { fs.rmdirSync(LOCK); } catch (e) { console.log("could not remove the GPU lock:", e.message); } }
+    gpu?.release();
     report.lockReleasedAt = new Date().toISOString();
     try { if (profile) fs.rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may hold a file */ }
     report.receipts = receipts;
