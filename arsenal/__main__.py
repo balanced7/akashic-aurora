@@ -77,19 +77,31 @@ def main(argv=None) -> int:
                     "thin tabs at the screen edge), cuts the borders off, makes it tall 1080x1920,\n"
                     "starts half a second before the first note and ends two seconds after the last,\n"
                     "evens out the loudness, and saves a phone-friendly MP4 next to the original,\n"
-                    "named '<name> tiktok.mp4'. The original is never changed.",
+                    "named '<name> tiktok.mp4'. The original is never changed.\n\n"
+                    "A long recording (TikTok stops at 10 minutes) is cut to a window with --from and\n"
+                    "--to: the borders, the silence and the loudness are all read inside the window,\n"
+                    "a copy that starts or ends in the middle of a note fades in or out, and the copy\n"
+                    "is named '<name> tiktok 28-52-end.mp4' so it sits beside the other copies.",
         epilog="examples:\n"
                "  py -m arsenal tiktok \"E:\\Video Output E\\my take.mp4\"\n"
                "      makes \"my take tiktok.mp4\" beside it\n"
                "  py -m arsenal tiktok --latest --dry-run --preview\n"
                "      checks the newest recording: prints the box, the trim and the ffmpeg command,\n"
-               "      saves a preview picture, and encodes nothing\n\n"
+               "      saves a preview picture, and encodes nothing\n"
+               "  py -m arsenal tiktok --latest --from 28:52\n"
+               "      the newest recording from 28:52 to its end (the keeper at the end of a long take),\n"
+               "      saved as \"<name> tiktok 28-52-end.mp4\"; add --to 31:00 to stop there\n\n"
                "Tip: drag videos onto arsenal\\tools\\tiktok-ready.cmd to do the same without typing.")
     tk.add_argument("videos", nargs="*", metavar="video", help="one or more recordings (.mp4, .mkv, .mov)")
     tk.add_argument("--latest", action="store_true",
                     help="use the newest recording in --folder instead of naming one")
     tk.add_argument("--folder", metavar="DIR",
                     help="where --latest looks (default: the library folder 'py -m arsenal serve' uses)")
+    tk.add_argument("--from", dest="start", metavar="TIME",
+                    help="start the copy here instead of at the start of the recording; TIME is seconds "
+                         "(1732 or 1731.6), m:ss (28:52 or 28:52.5) or h:mm:ss (1:05:03.2)")
+    tk.add_argument("--to", dest="end", metavar="TIME",
+                    help="end the copy here instead of at the end of the recording (same forms as --from)")
     tk.add_argument("--out", metavar="PATH",
                     help="a folder to save into, made if missing (a name with no extension, or ending "
                          "in \\, is a folder), or a file name ending in .mp4 (default: beside the original)")

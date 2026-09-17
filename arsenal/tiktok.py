@@ -8,9 +8,14 @@ AAC 256k 48 kHz stereo, loudness-normalised, index at the front (+faststart).
 No ffprobe, numpy or Pillow: duration, fps, size and streams come from parsing ``ffmpeg -i`` stderr,
 and pixels come from ffmpeg piping raw grey frames into pure Python.
 
+--from/--to confine the copy to a window of the recording (a 30-minute take whose keeper is at the
+end; TikTok stops at 10 minutes). The box is sampled, the silence trimmed and the loudness measured
+inside the window only; a copy that starts inside sound fades in, one that ends inside sound fades
+out, and the window goes into the output name ('<stem> tiktok 28-52-end.mp4').
+
 Two layers. Pure functions (ffmpeg discovery order, stderr parsing, box detection, aspect math,
-silence math, naming, command building) that the tests drive directly; and a thin run layer
-(``process``/``run_cli``) that calls ffmpeg and prints the report.
+silence math, time parsing, naming, command building) that the tests drive directly; and a thin
+run layer (``process``/``run_cli``) that calls ffmpeg and prints the report.
 
 Known limits (documented, not fixed):
   - a recording that is not fullscreen, with a full-width taskbar across it, has no quiet border
@@ -69,7 +74,10 @@ MIN_SOUND_S = 0.3         # shorter sounds at either end are clicks, not the fir
 CLICK_GAP_S = 1.0         # ...but only when this much silence cuts them off from the playing...
 STOP_CLICK_S = 1.0        # ...and, at the end, only when they start this close to the end of the file
 BLIP_REPORT_S = 0.05      # (clicks at least this long are named in the report)
-FADE_S = 0.3
+FADE_S = 0.3              # the fade-out, whenever the copy is cut short of the end of the recording
+FADE_IN_S = 0.4           # the fade-in, when the copy starts inside sound (a ringing pedal would pop in)
+START_SOUND_S = 0.1       # "inside sound": sound within this much of the copy's start (or end)
+END_SLACK_S = 0.05        # --to may overshoot the recording's end by this much (the length is shown to 10 ms)
 
 # --- audio clock -------------------------------------------------------------------------------
 # Every audio path starts with this, so the sound stays on its picture whatever the flags:
@@ -474,13 +482,14 @@ def combine_boxes(boxes: Sequence[Optional[Box]], width: int, height: int) -> De
     return Detection(box, len(found), len(boxes), "borders")
 
 
-def sample_times(duration: Optional[float], count: int = SAMPLE_FRAMES) -> List[float]:
-    """Frames spread across the middle 90% of the video."""
+def sample_times(duration: Optional[float], count: int = SAMPLE_FRAMES, start: float = 0.0) -> List[float]:
+    """Frames spread across the middle 90% of the stretch that begins at `start` and lasts `duration`
+    (the whole video, or the --from/--to window: a dark intro outside it never votes)."""
     if not duration or duration <= 0:
-        return [0.0]
+        return [round(start, 3)]
     if count == 1:
-        return [duration / 2]
-    return [round(duration * (0.05 + 0.9 * i / (count - 1)), 3) for i in range(count)]
+        return [round(start + duration / 2, 3)]
+    return [round(start + duration * (0.05 + 0.9 * i / (count - 1)), 3) for i in range(count)]
 
 
 def grab_gray_frame(ffmpeg: str, path, t: float, stream_index: int, width: int, height: int) -> Optional[bytes]:
@@ -653,40 +662,139 @@ def edge_blips(silences: Sequence[Tuple[float, Optional[float]]], audio_end: flo
             if (b <= window[0] or a >= window[1]) and b - a >= BLIP_REPORT_S]
 
 
+def sound_near(silences: Sequence[Tuple[float, Optional[float]]], audio_end: float,
+               a: float, b: float) -> bool:
+    """True when some sound (a stretch silencedetect did not call silent) touches [a, b]."""
+    return any(s < b and e > a for s, e in sound_segments(silences, audio_end))
+
+
+class Window(NamedTuple):
+    """The stretch of the recording the copy is confined to (--from/--to), in seconds from its start."""
+    start: float = 0.0
+    end: Optional[float] = None          # None: to the end of the recording
+
+    @property
+    def length(self) -> Optional[float]:
+        return None if self.end is None else self.end - self.start
+
+
 @dataclass
 class Trim:
     start: float = 0.0
-    end: Optional[float] = None          # None: keep to the end
+    end: Optional[float] = None          # None: keep to the end of the recording
     first_sound: Optional[float] = None
     last_sound: Optional[float] = None
     note: str = ""
     ignored: List[Tuple[float, float]] = field(default_factory=list)
+    fade_in: bool = False                # the copy starts inside sound: fade the audio in (given the room)
+    ends_in_sound: bool = False          # the copy is cut inside sound (no tail room): said in the report
 
     @property
     def fade(self) -> bool:
+        """The fade-out: whenever the copy is cut short of the end of the recording (given the room).
+
+        fade_in and fade say where the copy meets sound; fades_for says which ramps a copy this long
+        can hold, and the filter chain and the report both read that one answer.
+        """
         return self.end is not None
 
 
-def plan_trim(window: Optional[Tuple[float, float]], duration: float, lead: float, tail: float) -> Trim:
-    if window is None:
-        return Trim(note="no sound found (silent all the way through), so nothing was trimmed")
-    first, last = window[0], min(window[1], duration)
-    start = max(0.0, first - lead)
-    if start < 0.05:
-        start = 0.0
+def plan_trim(sound: Optional[Tuple[float, float]], duration: float, lead: float, tail: float,
+              window: Optional[Window] = None) -> Trim:
+    """Where the copy starts and ends: `lead` before the first sound and `tail` after the last, kept
+    inside the window (the whole recording when None). All times count from the recording's start.
+
+    With a window whose end was given (--to), the copy always ends there or earlier: its end is never
+    None, so it always fades out. Without one, a tail that reaches the end of the recording means
+    "keep to the end" (end None, no fade), as before.
+    """
+    w0 = window.start if window is not None else 0.0
+    w1 = window.end if window is not None else None
+    if sound is None:
+        where = " in the window" if window is not None else ""
+        return Trim(round(w0, 3), w1, note=f"no sound found{where} (silent all the way through), "
+                                            "so nothing was trimmed")
+    first, last = sound[0], min(sound[1], duration if w1 is None else w1)
+    start = max(w0, first - lead)
+    if start - w0 < 0.05:
+        start = w0
     end: Optional[float] = last + tail
-    if end >= duration - 0.05 or end <= start + 1.0:
+    if w1 is not None:
+        if end >= w1 or end <= start + 1.0:
+            end = w1
+    elif end >= duration - 0.05 or end <= start + 1.0:
         end = None
     return Trim(round(start, 3), None if end is None else round(end, 3), first, last)
 
 
+def fades_for(trim: Trim) -> Tuple[bool, bool]:
+    """(fade in, fade out): the fades the audio filter applies, so the report names exactly those.
+
+    A copy too short to hold a ramp gets none there: the fade-in needs more than FADE_IN_S + FADE_S
+    (room for both ramps), the fade-out more than FADE_S. A copy that keeps to the end of the
+    recording has room for anything.
+    """
+    keep = None if trim.end is None else trim.end - trim.start
+    fade_in = bool(trim.fade_in and (keep is None or keep > FADE_IN_S + FADE_S))
+    fade_out = bool(trim.fade and keep > FADE_S)
+    return fade_in, fade_out
+
+
 # =================================================================================================
-# naming
+# times and naming
 # =================================================================================================
 
+_TIME_PART = re.compile(r"\d+")
+_TIME_LAST = re.compile(r"\d+(?:\.\d+)?")
+TIME_FORMS = "seconds (1732 or 1731.6), m:ss (28:52) or h:mm:ss (1:05:03.2)"
+
+
+def parse_time(text: str) -> float:
+    """Seconds from '1732', '1731.6', '28:52', '28:52.5' or '1:05:03.2'; one plain sentence otherwise."""
+    raw = str(text).strip()
+    if raw.startswith("-"):
+        raise TikTokError(f"{raw} is a negative time; the recording starts at 0:00")
+    parts = raw.split(":")
+    if not (1 <= len(parts) <= 3 and all(_TIME_PART.fullmatch(p) for p in parts[:-1])
+            and _TIME_LAST.fullmatch(parts[-1])):
+        raise TikTokError(f"cannot read the time {raw!r}; give {TIME_FORMS}")
+    values = [float(p) for p in parts]
+    if any(v >= 60 for v in values[1:]):
+        raise TikTokError(f"cannot read the time {raw!r}: after a colon, minutes and seconds go up to 59")
+    seconds = 0.0
+    for value in values:
+        seconds = seconds * 60 + value
+    return seconds
+
+
+def name_time(seconds: float) -> str:
+    """'28-52', '28-51.6' or '1-05-03.2': a time as it goes into a file name."""
+    seconds = round(max(0.0, seconds), 3)
+    whole = int(seconds)
+    minutes, secs = divmod(whole, 60)
+    hours, minutes = divmod(minutes, 60)
+    text = f"{hours}-{minutes:02d}-{secs:02d}" if hours else f"{minutes}-{secs:02d}"
+    fraction = f"{seconds - whole:.3f}".rstrip("0")
+    return text + (fraction[1:] if fraction != "0." else "")
+
+
+def window_tag(start: Optional[float], end: Optional[float]) -> str:
+    """' 28-52-end' for the output name; '' when neither --from nor --to was given."""
+    if start is None and end is None:
+        return ""
+    return f" {'start' if start is None else name_time(start)}-{'end' if end is None else name_time(end)}"
+
+
+# ' tiktok', then optionally a space and a tag that starts like a time ('28-52-end', 'start-3-00', or
+# a copy cut by hand and named '28-52'), then optionally '-preview'
+_OURS_RE = re.compile(rf"{OUTPUT_TAG}(?: (?:start|\d)[\w.-]*)?(?:-preview)?$")
+
+
 def is_our_output(path: Path) -> bool:
+    """'<stem> tiktok', '<stem> tiktok 28-52-end' (or any '<stem> tiktok <time...>' cut by hand),
+    their -preview pictures and .partial files: copies, never the recording --latest looks for."""
     stem = path.stem.lower()
-    return stem.endswith(OUTPUT_TAG) or stem.endswith(PREVIEW_TAG) or stem.endswith(PARTIAL_TAG)
+    return stem.endswith(PARTIAL_TAG) or _OURS_RE.search(stem) is not None
 
 
 def _looks_like_dir(out: str) -> bool:
@@ -695,9 +803,13 @@ def _looks_like_dir(out: str) -> bool:
     return out.endswith(("/", "\\")) or path.is_dir() or (not path.suffix and not path.exists())
 
 
-def output_path_for(source: Path, out: Optional[str] = None, many: bool = False) -> Path:
-    """'<stem> tiktok.mp4' beside the source, inside --out when it is a folder, or --out itself."""
-    name = f"{source.stem}{OUTPUT_TAG}.mp4"
+def output_path_for(source: Path, out: Optional[str] = None, many: bool = False, tag: str = "") -> Path:
+    """'<stem> tiktok.mp4' beside the source, inside --out when it is a folder, or --out itself.
+
+    tag: window_tag(--from, --to), so a windowed copy is '<stem> tiktok 28-52-end.mp4' and never
+    replaces the whole-recording copy (or another window's) beside it.
+    """
+    name = f"{source.stem}{OUTPUT_TAG}{tag}.mp4"
     if not out:
         return source.with_name(name)
     if _looks_like_dir(out):
@@ -714,8 +826,8 @@ def output_path_for(source: Path, out: Optional[str] = None, many: bool = False)
     return path
 
 
-def preview_path_for(source: Path, output: Path) -> Path:
-    return output.parent / f"{source.stem}{PREVIEW_TAG}.jpg"
+def preview_path_for(source: Path, output: Path, tag: str = "") -> Path:
+    return output.parent / f"{source.stem}{OUTPUT_TAG}{tag}-preview.jpg"
 
 
 def partial_path_for(output: Path) -> Path:
@@ -780,13 +892,21 @@ def latest_video(folder: Path) -> Path:
 # commands
 # =================================================================================================
 
-def silence_command(ffmpeg: str, source, audio_index: int) -> List[str]:
+def silence_command(ffmpeg: str, source, audio_index: int, window: Optional[Window] = None) -> List[str]:
     # volumedetect first, so "before" measures the recording's own samples. Then the encode's audio
     # clock: audio that starts after the video (a late track in an MKV) is silence from 0 up to its
     # first sample, not an unheard stretch that silencedetect would count as the first sound.
-    return [ffmpeg, "-hide_banner", "-nostdin", "-i", str(source), "-map", f"0:{audio_index}",
-            "-af", f"volumedetect,{AUDIO_CLOCK},silencedetect=noise={SILENCE_DB}dB:d={SILENCE_MIN_S}",
-            "-vn", "-sn", "-dn", "-f", "null", "-"]
+    # The window is cut the way the encode cuts it (-ss before -i, -t after), so every time this
+    # scan reports counts from the window's start, on the encode's own clock.
+    cmd = [ffmpeg, "-hide_banner", "-nostdin"]
+    if window is not None and window.start > 0:
+        cmd += ["-ss", f"{window.start:.3f}"]
+    cmd += ["-i", str(source)]
+    if window is not None and window.end is not None:
+        cmd += ["-t", f"{window.length:.3f}"]
+    return cmd + ["-map", f"0:{audio_index}",
+                  "-af", f"volumedetect,{AUDIO_CLOCK},silencedetect=noise={SILENCE_DB}dB:d={SILENCE_MIN_S}",
+                  "-vn", "-sn", "-dn", "-f", "null", "-"]
 
 
 def audio_filter(trim: Trim, lufs: Optional[float]) -> str:
@@ -800,10 +920,13 @@ def audio_filter(trim: Trim, lufs: Optional[float]) -> str:
     # not), so players put the audio late. Re-stamp from the sample count, which the clock above made
     # match the timeline; STARTPTS keeps where the stream starts.
     parts.append("asetpts=STARTPTS+N/SR/TB")
-    if trim.fade:
-        keep = trim.end - trim.start
-        if keep > FADE_S:
-            parts.append(f"afade=t=out:st={keep - FADE_S:.3f}:d={FADE_S}")
+    # both fades come after loudnorm, so its gain does not undo their ramps; fades_for decides which
+    # ramps fit the copy, and the report reads the same answer
+    fade_in, fade_out = fades_for(trim)
+    if fade_in:
+        parts.append(f"afade=t=in:st=0:d={FADE_IN_S}")
+    if fade_out:
+        parts.append(f"afade=t=out:st={trim.end - trim.start - FADE_S:.3f}:d={FADE_S}")
     return ",".join(parts)
 
 
@@ -864,10 +987,24 @@ class Options:
     crf: int = 17
     fps: str = "auto"
     dropped: bool = False   # started by dragging videos onto tiktok-ready.cmd (messages cannot say --force)
+    start: Optional[float] = None   # --from, seconds (None: the start of the recording)
+    end: Optional[float] = None     # --to, seconds (None: the end of the recording)
+
+
+def window_problem(start: Optional[float], end: Optional[float]) -> Optional[str]:
+    """Why --from/--to make no window: --to at or before the start, which is 0:00 without --from
+    ('--to 0' alone used to slip through and leave a zero-length, stream-less copy)."""
+    if end is not None and end <= (start or 0.0):
+        after = f"--from {clock(start)}" if start is not None else "the start of the recording"
+        return f"--to {clock(end)} must come after {after}"
+    return None
 
 
 def validate(opts: Options) -> List[str]:
     problems = []
+    problem = window_problem(opts.start, opts.end)
+    if problem:
+        problems.append(problem)
     if opts.lead < 0:
         problems.append("--lead must be 0 or more seconds")
     if opts.tail < 0:
@@ -883,9 +1020,30 @@ def validate(opts: Options) -> List[str]:
     return problems
 
 
-def _loudness(ffmpeg: str, path, audio_index: int) -> Tuple[str, Tuple[Optional[float], Optional[float]]]:
-    text = _text(_run(silence_command(ffmpeg, path, audio_index)).stderr)
+def _loudness(ffmpeg: str, path, audio_index: int,
+              window: Optional[Window] = None) -> Tuple[str, Tuple[Optional[float], Optional[float]]]:
+    text = _text(_run(silence_command(ffmpeg, path, audio_index, window)).stderr)
     return text, parse_volume(text)
+
+
+def fit_window(opts: Options, duration: Optional[float]) -> Optional[Window]:
+    """The --from/--to window checked against the recording's length; None when neither was given."""
+    if opts.start is None and opts.end is None:
+        return None
+    problem = window_problem(opts.start, opts.end)   # validate said so at the prompt; process() callers too
+    if problem:
+        raise TikTokError(problem)
+    start, end = opts.start or 0.0, opts.end
+    if duration is not None:
+        if start >= duration:
+            raise TikTokError(f"--from {clock(start)} is past the end of the recording, "
+                              f"which is {clock(duration)} long")
+        if end is not None and end > duration + END_SLACK_S:
+            raise TikTokError(f"--to {clock(end)} is past the end of the recording, "
+                              f"which is {clock(duration)} long")
+        if end is not None:
+            end = min(end, duration)
+    return Window(start, end)
 
 
 def _encode(cmd: List[str], seconds: float, output: Path) -> None:
@@ -934,7 +1092,8 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     src = Path(source)
     if not src.is_file():
         raise TikTokError(f"cannot find the video {src}")
-    output = output_path_for(src, opts.out, many)
+    tag = window_tag(opts.start, opts.end)
+    output = output_path_for(src, opts.out, many, tag)
     partial = partial_path_for(output)
     for target in (output, partial):
         if same_path(src, target):
@@ -943,7 +1102,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     if not opts.dry_run:
         check_output(src, output, opts.force, opts.dropped)
     if opts.preview:  # the preview is written even on a dry run, so it is checked either way
-        check_preview(preview_path_for(src, output), opts.force)
+        check_preview(preview_path_for(src, output, tag), opts.force)
 
     info = probe(ff, src)
     video = info.video
@@ -953,9 +1112,14 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     if not width or not height:
         raise TikTokError(f"could not read the picture size of {src.name}")
     duration = info.duration
+    window = fit_window(opts, duration)
+    # the copy's bounds before any trim: the window, or the whole recording
+    w0 = window.start if window is not None else 0.0
+    w1 = window.end if window is not None else None
+    bound = w1 if w1 is not None else duration           # where the copy can run to (None: unknown length)
 
     boxes = []
-    for t in sample_times(duration):
+    for t in sample_times(None if bound is None else bound - w0, start=w0):
         frame = grab_gray_frame(ff, src, t, video.index, width, height)
         if frame is not None:
             boxes.append(detect_frame_box(frame, width, height))
@@ -968,20 +1132,34 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
 
     audio = info.audio
     loud_before: Tuple[Optional[float], Optional[float]] = (None, None)
-    trim = Trim()
+    trim = Trim(round(w0, 3), w1)
     if audio is None:
         trim.note = "no audio track: kept video-only and not trimmed"
     else:
-        text, loud_before = _loudness(ff, src, audio.index)
+        # the scan is cut to the window, so its times count from w0 on the encode's own clock
+        text, loud_before = _loudness(ff, src, audio.index, window)
+        audio_end = parse_last_time(text) or (bound - w0 if bound is not None else 0.0)
+        silences = parse_silence(text)
         if opts.trim:
-            audio_end = parse_last_time(text) or duration or 0.0
-            total = duration or audio_end
-            silences = parse_silence(text)
-            window = sound_window(silences, audio_end)
-            trim = plan_trim(window, total, opts.lead, opts.tail)
-            trim.ignored = edge_blips(silences, audio_end, window)
+            # a --to point is not the end of the file: no stop hotkey click lives there, and the end
+            # rule that drops one must not drop a short last note before the point Daniel chose
+            stop_click = 0.0 if w1 is not None else STOP_CLICK_S
+            sound = sound_window(silences, audio_end, stop_click=stop_click)
+            total = duration if duration is not None else w0 + audio_end
+            trim = plan_trim(None if sound is None else (sound[0] + w0, sound[1] + w0),
+                             total, opts.lead, opts.tail, window)
+            trim.ignored = [(at + w0, length) for at, length in edge_blips(silences, audio_end, sound)]
         else:
             trim.note = "trimming is off (--no-trim)"
+        at = trim.start - w0
+        trim.fade_in = sound_near(silences, audio_end, at, at + START_SOUND_S)
+        if trim.end is None and sound_near(silences, audio_end, audio_end - START_SOUND_S, audio_end):
+            # the recording itself stops inside sound (OBS was stopped while a note rang): cut the
+            # copy at the audio's end, so it fades out there instead of stopping dead
+            trim.end = round(w0 + audio_end, 3)
+        if trim.fade:
+            at = trim.end - w0
+            trim.ends_in_sound = sound_near(silences, audio_end, at - START_SOUND_S, at)
 
     vf = video_filter(detection.box, framing, fps_text)
     af = audio_filter(trim, opts.lufs if opts.loudnorm else None) if audio is not None else None
@@ -1000,7 +1178,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
         "source": src, "source_bytes": src.stat().st_size, "duration": duration,
         "width": width, "height": height, "fps": video.fps, "video_codec": video.codec,
         "bit_depth": video.bit_depth, "audio_codec": audio.codec if audio else None,
-        "detection": detection, "framing": framing, "trim": trim, "keep": keep,
+        "detection": detection, "framing": framing, "trim": trim, "keep": keep, "window": window,
         "fps_text": fps_text, "fps_value": fps_value, "loud_before": loud_before, "loud_after": (None, None),
         "loudnorm": opts.loudnorm and audio is not None, "output": output, "output_existed": output_existed,
         "force": opts.force, "command": cmd, "shown_command": shown, "partial": partial,
@@ -1009,7 +1187,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     }
 
     if opts.preview:
-        preview = preview_path_for(src, output)
+        preview = preview_path_for(src, output, tag)
         preview.parent.mkdir(parents=True, exist_ok=True)
         at = trim.start + keep / 2 if keep > 0 else 0.0
         proc = _run(preview_command(ff, src, preview, video_index=video.index,
@@ -1110,13 +1288,33 @@ def format_report(r: dict) -> str:
         how = f"fills the screen; {f.scaled_w}x{f.scaled_h} with the edges cut"
     lines.append(f"  scale     x{f.scale:.2f} to {TARGET_W}x{TARGET_H} ({how})")
     duration = r["duration"] or 0.0
+    w: Optional[Window] = r.get("window")
+    if w is not None:
+        to = "the end" if w.end is None else clock(w.end)
+        bound = w.end if w.end is not None else r["duration"]
+        length = clock(None if bound is None else bound - w.start)
+        lines.append(f"  window    {clock(w.start)} to {to} ({length} of the {clock(r['duration'])} recording)")
     if t.note:
         lines.append(f"  trim      {t.note}")
-    else:
-        cut_end = (duration - t.end) if t.end is not None else 0.0
+    elif w is None:
+        cut_end = max(0.0, duration - t.end) if t.end is not None else 0.0
         blips = "".join(f"; ignored a {length:.2f} s click at {at:.2f} s" for at, length in t.ignored[:2])
         lines.append(f"  trim      cut {t.start:.2f} s at the start and {cut_end:.2f} s at the end "
                      f"(first sound {t.first_sound:.2f} s, last sound {t.last_sound:.2f} s{blips})")
+    else:
+        bound = w.end if w.end is not None else duration
+        cut_end = max(0.0, bound - t.end) if t.end is not None else 0.0
+        blips = "".join(f"; ignored a {length:.2f} s click at {clock(at)}" for at, length in t.ignored[:2])
+        lines.append(f"  trim      cut {t.start - w.start:.2f} s at the start and {cut_end:.2f} s at the end "
+                     f"of the window (first sound {clock(t.first_sound)}, last sound {clock(t.last_sound)}{blips})")
+    fade_in, fade_out = fades_for(t)     # the fades the filter chain applies, never one it dropped
+    fades = []
+    if fade_in:
+        fades.append(f"in over the first {FADE_IN_S:g} s (the copy starts inside sound)")
+    if fade_out and r["audio_codec"]:
+        fades.append(f"out over the last {FADE_S:g} s" + (" (it ends inside sound)" if t.ends_in_sound else ""))
+    if fades:
+        lines.append(f"  fades     {'; '.join(fades)}")
     if r["loudnorm"] or r["loud_before"][0] is not None:
         after = _db(r["loud_after"]) if not r["dry_run"] else "measured after a real run"
         lines.append(f"  loudness  before: {_db(r['loud_before'])}; after: {after}")
@@ -1162,15 +1360,27 @@ def os_problem(exc: BaseException) -> str:
 
 
 def options_from_args(args) -> Options:
+    """The parser's namespace as Options; --from/--to are parsed here (a TikTokError names the bad one)."""
+    times = {}
+    for flag, name in (("--from", "start"), ("--to", "end")):
+        text = getattr(args, name, None)
+        try:
+            times[name] = None if text is None else parse_time(text)
+        except TikTokError as exc:
+            raise TikTokError(f"{flag}: {exc}") from exc
     return Options(out=args.out, force=args.force, dry_run=args.dry_run, preview=args.preview,
                    mode=args.shape, trim=not args.no_trim, lead=args.lead, tail=args.tail,
                    lufs=args.lufs, loudnorm=not args.no_loudnorm, crf=args.crf, fps=args.fps,
-                   dropped=getattr(args, "dropped", False))
+                   dropped=getattr(args, "dropped", False), start=times["start"], end=times["end"])
 
 
 def run_cli(args) -> int:
     """py -m arsenal tiktok: 0 when every video succeeded, 1 when any failed, 2 for a usage problem."""
-    opts = options_from_args(args)
+    try:
+        opts = options_from_args(args)
+    except TikTokError as exc:
+        _say(f"tiktok: {exc}", sys.stderr)
+        return 2
     problems = validate(opts)
     if args.latest and args.videos:
         problems.append("give video files or --latest, not both")
