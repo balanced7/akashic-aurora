@@ -318,7 +318,7 @@
 - `map_generator.py` — T381 M1 -- the living map's first render (c-map-design reconciled).
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
-- `mirror.py` — mirror.py -- commit local changes and push to GitHub in one step.
+- `mirror.py` — mirror.py -- the PUBLISH door: commit named paths and push them to the PUBLIC GitHub repo.
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `remote_bridge_fetch.py` — Follow a blob ref across the bridge and write the bytes to disk.

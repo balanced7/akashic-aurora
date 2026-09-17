@@ -57,8 +57,11 @@ _ROOT_DOCS = ("AGENTS.md", "CLAUDE.md", "README.md", "bootstrap.md")
 REF_ALLOWLIST = {
     # "some/path.py": {"expires": "2026-12-31", "reason": "why this ref is legitimately not on disk"},
     "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
-        "expires": "2026-09-15",
-        "reason": "RENEWED 2026-08-24 (first expiry lapsed mid-marathon): the path lives as "
+        "expires": "2026-09-30",
+        "reason": "RENEWED 2026-09-16 by Daniel's call (the 09-15 expiry blocked every commit, "
+                  "including the mirror.py publish guard; the atom fix would commit other seats' "
+                  "uncommitted store/docs/design.jsonl). RENEWED 2026-08-24 (first expiry lapsed "
+                  "mid-marathon): the path lives as "
                   "PROSE inside the SA-1 arc label on atoms, rendered into generated ARCS/"
                   "SHELVES; real file is docs/library/design/20260722_security-schema-"
                   "amendment-scoped-admin-g_17c9ca.md. Root fix = retitle the arc label at "
