@@ -16,7 +16,10 @@ permission tier), PROVE (how you know it took). Tiers: [read] any seat ·
 
 Your exec door allows FOUR families and refuses everything else BEFORE verb
 checks: pytest · `py agent_cli.py <verb>` (a ~27-verb READ allowlist) ·
-play_sandbox · mirror.py. Two refusal classes with DIFFERENT error strings:
+play_sandbox · mirror.py. (mirror.py is the PUBLISH door to the public GitHub
+repo, not a utility: since 2026-09-16 it refuses every seat but claude and does
+nothing without --commit or --push. Send Vandor your paths and a message.)
+Two refusal classes with DIFFERENT error strings:
 the SHELL-META guard (any `; | & > < $ ( )` backtick or newline — fires
 FIRST, so a refused one-liner is not evidence the verb is blocked) and the
 FAMILY guard. **Your six proven-live probes: `status`, `pulse`, `doctor`,

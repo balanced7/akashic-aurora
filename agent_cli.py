@@ -265,8 +265,9 @@ def _warn_unmirrored(soft=False, status=None):
     print(f"\n[!] UNMIRRORED WORK: {label} -- a slice isn't done until it's mirrored.")
     if s.get("summary"):
         print(f"    changed: {s['summary']}" + (" ..." if s["dirty"] > 6 else ""))
-    print('    Run:  py scripts/mirror.py "<msg>" <explicit paths>  (commit+push, YOUR '
-          "files only -- never a sweep over a sibling's lane), then  "
+    print('    Commit YOUR files by name (never a sweep over a sibling\'s lane). claude seat: '
+          'py scripts/mirror.py "<msg>" <explicit paths> --commit (publishing to the public repo '
+          "is a separate --push --yes); other seats: send Vandor the paths and a message. Then  "
           "py scripts/ops/snapshot_knowledge.py snapshot")
     return True
 

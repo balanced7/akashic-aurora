@@ -69,7 +69,8 @@ def setup(agent: str, root=ROOT, base=None) -> Path:
         _git(root, "worktree", "add", "-b", br, str(wt), DEFAULT_BRANCH)
     print(f"[worktree] {agent}: {wt}  (branch {br})")
     print(f"  -> Open THIS dir in your IDE: {wt}")
-    print(f"  -> Commit to {br}; `py scripts/mirror.py \"msg\" <paths>` to push.")
+    print(f"  -> Commit to {br}; publish with `py scripts/mirror.py \"msg\" <paths> --push --yes` "
+          "(claude seat or Daniel only).")
     print(f"  -> When a slice is green: py scripts/worktree.py integrate {slugify(agent)}")
     return wt
 

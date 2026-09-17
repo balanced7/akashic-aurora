@@ -49,7 +49,14 @@ def build_plan(args):
         # Label deliberately unchanged: this step still runs the FULL suite, so the name stays
         # true and two existing pins that match it keep passing. What changed is the JUDGEMENT.
         steps.append(("tests (full suite)", [PY, "scripts/ship_gate.py", "--run"]))
-    steps.append(("commit + push", [PY, "scripts/mirror.py", args.message, *args.paths]))
+    # mirror.py only pushes on an explicit --push, and asks for the branch name unless --yes
+    # rides along; ship forwards its own --yes/--include-others and never supplies them itself.
+    publish = [PY, "scripts/mirror.py", args.message, *args.paths, "--push"]
+    if getattr(args, "yes", False):
+        publish.append("--yes")
+    if getattr(args, "include_others", False):
+        publish.append("--include-others")
+    steps.append(("commit + push", publish))
     if args.learn_exp:
         learn = [PY, "agent_cli.py", "learn", args.agent, "--experiment", args.learn_exp]
         if args.tried:
@@ -85,12 +92,21 @@ def main():
     p.add_argument("--no-test", action="store_true", help="skip the gate (rare; e.g. a docs-only fixup)")
     p.add_argument("--no-snapshot", action="store_true")
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit")
+    p.add_argument("--yes", action="store_true",
+                   help="confirm the push to the PUBLIC repo without a prompt (needed without a terminal)")
+    p.add_argument("--include-others", dest="include_others", action="store_true",
+                   help="let the push publish commits authored by other seats (see mirror.py)")
     args = p.parse_args()
 
     if not args.paths:
         print("ERROR: name the EXPLICIT paths you're shipping (ship never `git add -A` in a shared tree).")
         print('Example: py scripts/ship.py "fix X" core/foo.py tests/test_foo.py')
         return 2
+    from mirror import stdin_is_terminal   # scripts/ is sys.path[0]; NUL reads as a tty on Windows
+    if not args.dry_run and not args.yes and not stdin_is_terminal():
+        # Fail before the gate: the full suite is long, and mirror.py would refuse the push anyway.
+        print("ERROR: ship ends in a push to the PUBLIC repo. Without a terminal, pass --yes to confirm it.")
+        return 5
 
     steps = build_plan(args)
     if args.dry_run:
