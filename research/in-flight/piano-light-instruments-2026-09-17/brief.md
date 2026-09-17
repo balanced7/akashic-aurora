@@ -70,6 +70,42 @@ f.dance   // { interval, family, consonance, motion ('contrary'|'similar'|'paral
 f.events  // { chordChanged, bassMoved, soloMoved }  true only on the frame it happens
 ```
 
+### The energy of the moment
+
+Daniel again, verbatim:
+
+> "When a chord feels really intense it can start building some kind of artifact, then when the chord changes it can change. some way of visually changing the overall energy level and feel depending on pace and flow. where the visuals creatively display the density and relationship of notes and can measure the emotional feel of the moment. just throwing ideas out there ^__^"
+
+- **An intense chord builds something.** While a tense or lush chord is held and the energy stays up, a structure grows: crystal, a storm cell, a sculpture of light, a knot. **When the chord changes, it releases** by shattering, blooming, dissolving or transforming into the next thing. The artifact is the visual memory of that chord.
+- **Overall energy and feel follow pace and flow:**
+  - how many notes, how hard and how wide;
+  - how steady or free the timing;
+  - how connected or detached the playing.
+
+  The whole instrument's world can breathe with it: calm and spacious, restless, surging, spent.
+- **Show density and relationships**, not just individual notes.
+- **Read the feel of the moment.** This is an estimate of the music's character from its features, not a claim about Daniel's own emotions.
+
+A second shared helper, **`arsenal/web/piano/moment.js`**, is built after `harmony-feel.js` lands. It pairs with it:
+
+```js
+import { createMoment } from "../moment.js";
+const moment = createMoment();               // one per instrument, next to a harmony-feel instance
+const m = moment.update(state, dt, t, f);    // f = feel.update(...); one object refreshed in place
+m.energy     // 0..1: note rate, velocity, register spread and pedal wash, smoothed over ~2 s
+m.pace       // notes per second, smoothed
+m.pulse      // 0..1: steady timing (1) vs free rubato (0)
+m.flow       // 0..1: connected and legato (1) vs detached and staccato (0)
+m.density    // 0..1: distinct notes sounding or struck in the recent window
+m.intensity  // 0..1: builds while a tense or lush chord is held with energy up; decays after release
+m.artifact   // { growth 0..1, seed (new on every chord change), age, released (true on the frame a built-up chord changes), releaseStrength 0..1 }
+m.arc        // 'resting' | 'building' | 'peak' | 'sustaining' | 'releasing'
+m.mood       // { valence -1..1 (bright/consonant .. dark/tense), arousal 0..1, label: 'calm' | 'tender' | 'yearning' | 'searching' | 'playful' | 'tense' | 'dark' | 'triumphant' }
+m.events     // { build, peak, release, restart }: true only on the frame it happens
+```
+
+Build against this interface now. If your entry needs a field that isn't here, say so on the bus before 09:00.
+
 ### Low-cost tricks that look astounding
 
 These are suggestions from the demoscene toolbox, not requirements. Each looks organic at little cost.
