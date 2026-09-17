@@ -1,0 +1,702 @@
+{
+  "note": "Windows the engine named correctly before the sounding fix (git 7c2266a2); they must not change.",
+  "windows": [
+    {
+      "at": "0:00",
+      "start_ms": 0,
+      "end_ms": 2000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:02",
+      "start_ms": 2000,
+      "end_ms": 4000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:04",
+      "start_ms": 4000,
+      "end_ms": 6000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:06",
+      "start_ms": 6000,
+      "end_ms": 8000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:08",
+      "start_ms": 8000,
+      "end_ms": 10000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:10",
+      "start_ms": 10000,
+      "end_ms": 12000,
+      "name": "Ab/Eb",
+      "label": "Ab/Eb",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:12",
+      "start_ms": 12000,
+      "end_ms": 14000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:14",
+      "start_ms": 14000,
+      "end_ms": 16000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:16",
+      "start_ms": 16000,
+      "end_ms": 18000,
+      "name": "Cm",
+      "label": "Cm",
+      "pcs": [
+        "C",
+        "Eb",
+        "G"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:18",
+      "start_ms": 18000,
+      "end_ms": 20000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:20",
+      "start_ms": 20000,
+      "end_ms": 22000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:22",
+      "start_ms": 22000,
+      "end_ms": 24000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:24",
+      "start_ms": 24000,
+      "end_ms": 27000,
+      "name": "Abmaj7",
+      "label": "Abmaj7",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb",
+        "G"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:27",
+      "start_ms": 27000,
+      "end_ms": 29000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:29",
+      "start_ms": 29000,
+      "end_ms": 31000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:31",
+      "start_ms": 31000,
+      "end_ms": 37000,
+      "name": "F11",
+      "label": "F11",
+      "pcs": [
+        "F",
+        "G",
+        "A",
+        "Bb",
+        "C",
+        "Eb"
+      ],
+      "class": "secondary dominant",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:37",
+      "start_ms": 37000,
+      "end_ms": 39000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:39",
+      "start_ms": 39000,
+      "end_ms": 41000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:41",
+      "start_ms": 41000,
+      "end_ms": 43000,
+      "name": "Absus2",
+      "label": "Absus2",
+      "pcs": [
+        "Ab",
+        "Bb",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:43",
+      "start_ms": 43000,
+      "end_ms": 45000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:45",
+      "start_ms": 45000,
+      "end_ms": 47000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:47",
+      "start_ms": 47000,
+      "end_ms": 49000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:49",
+      "start_ms": 49000,
+      "end_ms": 53000,
+      "name": "Ebmaj9",
+      "label": "Ebmaj9",
+      "pcs": [
+        "Eb",
+        "F",
+        "G",
+        "Bb",
+        "D"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:53",
+      "start_ms": 53000,
+      "end_ms": 55000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:55",
+      "start_ms": 55000,
+      "end_ms": 57000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:57",
+      "start_ms": 57000,
+      "end_ms": 59000,
+      "name": "broken chord (Eb)",
+      "label": null,
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "broken chord",
+      "key": "Eb major"
+    },
+    {
+      "at": "0:59",
+      "start_ms": 59000,
+      "end_ms": 61000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:01",
+      "start_ms": 61000,
+      "end_ms": 63000,
+      "name": "Ebmaj7 (no 3rd, reading)",
+      "label": "Ebmaj7(no3)",
+      "pcs": [
+        "Eb",
+        "Bb",
+        "D"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:03",
+      "start_ms": 63000,
+      "end_ms": 65000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:05",
+      "start_ms": 65000,
+      "end_ms": 67000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:07",
+      "start_ms": 67000,
+      "end_ms": 69180,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:09",
+      "start_ms": 69180,
+      "end_ms": 71000,
+      "name": "Eb major run F5 G5 Ab5 Bb5 C6 D6 Eb6",
+      "label": null,
+      "pcs": [
+        "C",
+        "D",
+        "Eb",
+        "F",
+        "G",
+        "Ab",
+        "Bb"
+      ],
+      "class": "line",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:11",
+      "start_ms": 71000,
+      "end_ms": 73000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:13",
+      "start_ms": 73000,
+      "end_ms": 75000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:15",
+      "start_ms": 75000,
+      "end_ms": 78500,
+      "name": "Bb11",
+      "label": "Bb11(no5)",
+      "pcs": [
+        "Bb",
+        "C",
+        "D",
+        "Eb",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:18",
+      "start_ms": 78500,
+      "end_ms": 80500,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:20",
+      "start_ms": 80500,
+      "end_ms": 82500,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:22",
+      "start_ms": 82500,
+      "end_ms": 84500,
+      "name": "Eb-G",
+      "label": "Eb-G",
+      "pcs": [
+        "Eb",
+        "G"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:24",
+      "start_ms": 84500,
+      "end_ms": 90000,
+      "name": "Ab",
+      "label": "Ab",
+      "pcs": [
+        "Ab",
+        "C",
+        "Eb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:30",
+      "start_ms": 90000,
+      "end_ms": 92000,
+      "name": "Bb7",
+      "label": "Bb7",
+      "pcs": [
+        "Bb",
+        "D",
+        "F",
+        "Ab"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    },
+    {
+      "at": "1:32",
+      "start_ms": 92000,
+      "end_ms": 94000,
+      "name": "Eb",
+      "label": "Eb",
+      "pcs": [
+        "Eb",
+        "G",
+        "Bb"
+      ],
+      "class": "diatonic",
+      "key": "Eb major"
+    }
+  ],
+  "cadences": [
+    [
+      "0:02",
+      "4 -> 1 (plagal)",
+      [
+        "Ab",
+        "Eb"
+      ]
+    ],
+    [
+      "0:06",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "0:14",
+      "5 -> 6m (deceptive)",
+      [
+        "Bb7",
+        "Cm"
+      ]
+    ],
+    [
+      "0:20",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "0:27",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "0:31",
+      "2 -> 5 -> 1 (authentic)",
+      [
+        "F11",
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "0:45",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "0:59",
+      "4 -> 1 (plagal)",
+      [
+        "Ab",
+        "Ebmaj7(no3)"
+      ]
+    ],
+    [
+      "1:05",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ],
+    [
+      "1:11",
+      "4 -> 1 (plagal)",
+      [
+        "Ab",
+        "Eb"
+      ]
+    ],
+    [
+      "1:15",
+      "5 -> 1 (authentic)",
+      [
+        "Bb11(no5)",
+        "Eb"
+      ]
+    ],
+    [
+      "1:30",
+      "5 -> 1 (authentic)",
+      [
+        "Bb7",
+        "Eb"
+      ]
+    ]
+  ],
+  "areas": [
+    "Eb major"
+  ]
+}

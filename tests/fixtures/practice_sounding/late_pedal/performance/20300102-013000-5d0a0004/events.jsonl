@@ -1,0 +1,290 @@
+{"kind": "on", "note": 38, "t_ms": 0, "vel": 64}
+{"kind": "on", "note": 53, "t_ms": 0, "vel": 64}
+{"kind": "on", "note": 57, "t_ms": 0, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 0, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 100, "value": 100}
+{"kind": "off", "note": 38, "t_ms": 1900}
+{"kind": "off", "note": 53, "t_ms": 1900}
+{"kind": "off", "note": 57, "t_ms": 1900}
+{"kind": "off", "note": 62, "t_ms": 1900}
+{"down": false, "kind": "pedal", "t_ms": 2000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 38, "t_ms": 2000}
+{"by": "pedal", "kind": "sound_end", "note": 53, "t_ms": 2000}
+{"by": "pedal", "kind": "sound_end", "note": 57, "t_ms": 2000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 2000}
+{"kind": "on", "note": 43, "t_ms": 2000, "vel": 64}
+{"kind": "on", "note": 58, "t_ms": 2000, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 2000, "vel": 64}
+{"kind": "on", "note": 67, "t_ms": 2000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 2100, "value": 100}
+{"kind": "off", "note": 43, "t_ms": 3900}
+{"kind": "off", "note": 58, "t_ms": 3900}
+{"kind": "off", "note": 62, "t_ms": 3900}
+{"kind": "off", "note": 67, "t_ms": 3900}
+{"down": false, "kind": "pedal", "t_ms": 4000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 43, "t_ms": 4000}
+{"by": "pedal", "kind": "sound_end", "note": 58, "t_ms": 4000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 4000}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 4000}
+{"kind": "on", "note": 46, "t_ms": 4000, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 4000, "vel": 64}
+{"kind": "on", "note": 65, "t_ms": 4000, "vel": 64}
+{"kind": "on", "note": 70, "t_ms": 4000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 4100, "value": 100}
+{"kind": "off", "note": 46, "t_ms": 5900}
+{"kind": "off", "note": 62, "t_ms": 5900}
+{"kind": "off", "note": 65, "t_ms": 5900}
+{"kind": "off", "note": 70, "t_ms": 5900}
+{"down": false, "kind": "pedal", "t_ms": 6000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 46, "t_ms": 6000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 6000}
+{"by": "pedal", "kind": "sound_end", "note": 65, "t_ms": 6000}
+{"by": "pedal", "kind": "sound_end", "note": 70, "t_ms": 6000}
+{"kind": "on", "note": 45, "t_ms": 6000, "vel": 64}
+{"kind": "on", "note": 61, "t_ms": 6000, "vel": 64}
+{"kind": "on", "note": 64, "t_ms": 6000, "vel": 64}
+{"kind": "on", "note": 67, "t_ms": 6000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 6100, "value": 100}
+{"kind": "off", "note": 45, "t_ms": 7900}
+{"kind": "off", "note": 61, "t_ms": 7900}
+{"kind": "off", "note": 64, "t_ms": 7900}
+{"kind": "off", "note": 67, "t_ms": 7900}
+{"down": false, "kind": "pedal", "t_ms": 8000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 45, "t_ms": 8000}
+{"by": "pedal", "kind": "sound_end", "note": 61, "t_ms": 8000}
+{"by": "pedal", "kind": "sound_end", "note": 64, "t_ms": 8000}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 8000}
+{"kind": "on", "note": 38, "t_ms": 8000, "vel": 64}
+{"kind": "on", "note": 53, "t_ms": 8000, "vel": 64}
+{"kind": "on", "note": 57, "t_ms": 8000, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 8000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 8100, "value": 100}
+{"kind": "off", "note": 38, "t_ms": 9900}
+{"kind": "off", "note": 53, "t_ms": 9900}
+{"kind": "off", "note": 57, "t_ms": 9900}
+{"kind": "off", "note": 62, "t_ms": 9900}
+{"down": false, "kind": "pedal", "t_ms": 10000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 38, "t_ms": 10000}
+{"by": "pedal", "kind": "sound_end", "note": 53, "t_ms": 10000}
+{"by": "pedal", "kind": "sound_end", "note": 57, "t_ms": 10000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 10000}
+{"kind": "on", "note": 43, "t_ms": 10000, "vel": 64}
+{"kind": "on", "note": 58, "t_ms": 10000, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 10000, "vel": 64}
+{"kind": "on", "note": 67, "t_ms": 10000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 10100, "value": 100}
+{"kind": "off", "note": 43, "t_ms": 11900}
+{"kind": "off", "note": 58, "t_ms": 11900}
+{"kind": "off", "note": 62, "t_ms": 11900}
+{"kind": "off", "note": 67, "t_ms": 11900}
+{"down": false, "kind": "pedal", "t_ms": 12000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 43, "t_ms": 12000}
+{"by": "pedal", "kind": "sound_end", "note": 58, "t_ms": 12000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 12000}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 12000}
+{"kind": "on", "note": 46, "t_ms": 12000, "vel": 64}
+{"kind": "on", "note": 62, "t_ms": 12000, "vel": 64}
+{"kind": "on", "note": 65, "t_ms": 12000, "vel": 64}
+{"kind": "on", "note": 70, "t_ms": 12000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 12100, "value": 100}
+{"kind": "off", "note": 46, "t_ms": 13900}
+{"kind": "off", "note": 62, "t_ms": 13900}
+{"kind": "off", "note": 65, "t_ms": 13900}
+{"kind": "off", "note": 70, "t_ms": 13900}
+{"down": false, "kind": "pedal", "t_ms": 14000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 46, "t_ms": 14000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 14000}
+{"by": "pedal", "kind": "sound_end", "note": 65, "t_ms": 14000}
+{"by": "pedal", "kind": "sound_end", "note": 70, "t_ms": 14000}
+{"kind": "on", "note": 45, "t_ms": 14000, "vel": 64}
+{"kind": "on", "note": 61, "t_ms": 14000, "vel": 64}
+{"kind": "on", "note": 64, "t_ms": 14000, "vel": 64}
+{"kind": "on", "note": 67, "t_ms": 14000, "vel": 64}
+{"down": true, "kind": "pedal", "t_ms": 14100, "value": 100}
+{"kind": "off", "note": 45, "t_ms": 15900}
+{"kind": "off", "note": 61, "t_ms": 15900}
+{"kind": "off", "note": 64, "t_ms": 15900}
+{"kind": "off", "note": 67, "t_ms": 15900}
+{"down": false, "kind": "pedal", "t_ms": 16000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 45, "t_ms": 16000}
+{"by": "pedal", "kind": "sound_end", "note": 61, "t_ms": 16000}
+{"by": "pedal", "kind": "sound_end", "note": 64, "t_ms": 16000}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 16000}
+{"down": true, "kind": "pedal", "t_ms": 16000, "value": 100}
+{"kind": "on", "note": 34, "t_ms": 16000, "vel": 90}
+{"kind": "on", "note": 46, "t_ms": 16000, "vel": 90}
+{"kind": "on", "note": 62, "t_ms": 16000, "vel": 90}
+{"kind": "on", "note": 74, "t_ms": 16000, "vel": 90}
+{"down": false, "kind": "pedal", "t_ms": 16050, "value": 0}
+{"down": true, "kind": "pedal", "t_ms": 16170, "value": 100}
+{"kind": "off", "note": 34, "t_ms": 16400}
+{"kind": "off", "note": 46, "t_ms": 16400}
+{"kind": "off", "note": 62, "t_ms": 16400}
+{"kind": "off", "note": 74, "t_ms": 16400}
+{"kind": "on", "note": 65, "t_ms": 16500, "vel": 70}
+{"kind": "on", "note": 69, "t_ms": 16500, "vel": 70}
+{"kind": "off", "note": 65, "t_ms": 16800}
+{"kind": "off", "note": 69, "t_ms": 16800}
+{"kind": "on", "note": 58, "t_ms": 16800, "vel": 60}
+{"kind": "off", "note": 58, "t_ms": 16920}
+{"by": "repeat", "kind": "sound_end", "note": 62, "t_ms": 17000}
+{"kind": "on", "note": 62, "t_ms": 17000, "vel": 60}
+{"kind": "off", "note": 62, "t_ms": 17120}
+{"by": "repeat", "kind": "sound_end", "note": 65, "t_ms": 17200}
+{"kind": "on", "note": 65, "t_ms": 17200, "vel": 60}
+{"kind": "off", "note": 65, "t_ms": 17320}
+{"by": "repeat", "kind": "sound_end", "note": 69, "t_ms": 17400}
+{"kind": "on", "note": 69, "t_ms": 17400, "vel": 60}
+{"kind": "off", "note": 69, "t_ms": 17520}
+{"by": "repeat", "kind": "sound_end", "note": 58, "t_ms": 17600}
+{"kind": "on", "note": 58, "t_ms": 17600, "vel": 60}
+{"kind": "off", "note": 58, "t_ms": 17720}
+{"by": "repeat", "kind": "sound_end", "note": 62, "t_ms": 17800}
+{"kind": "on", "note": 62, "t_ms": 17800, "vel": 60}
+{"kind": "off", "note": 62, "t_ms": 17920}
+{"by": "repeat", "kind": "sound_end", "note": 65, "t_ms": 18000}
+{"kind": "on", "note": 65, "t_ms": 18000, "vel": 60}
+{"kind": "off", "note": 65, "t_ms": 18120}
+{"by": "repeat", "kind": "sound_end", "note": 69, "t_ms": 18200}
+{"kind": "on", "note": 69, "t_ms": 18200, "vel": 60}
+{"kind": "off", "note": 69, "t_ms": 18320}
+{"kind": "on", "note": 31, "t_ms": 18500, "vel": 90}
+{"kind": "on", "note": 43, "t_ms": 18500, "vel": 90}
+{"by": "repeat", "kind": "sound_end", "note": 58, "t_ms": 18500}
+{"kind": "on", "note": 58, "t_ms": 18500, "vel": 90}
+{"kind": "on", "note": 70, "t_ms": 18500, "vel": 90}
+{"down": false, "kind": "pedal", "t_ms": 18550, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 34, "t_ms": 18550}
+{"by": "pedal", "kind": "sound_end", "note": 46, "t_ms": 18550}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 18550}
+{"by": "pedal", "kind": "sound_end", "note": 65, "t_ms": 18550}
+{"by": "pedal", "kind": "sound_end", "note": 69, "t_ms": 18550}
+{"by": "pedal", "kind": "sound_end", "note": 74, "t_ms": 18550}
+{"down": true, "kind": "pedal", "t_ms": 18670, "value": 100}
+{"kind": "off", "note": 31, "t_ms": 18900}
+{"kind": "off", "note": 43, "t_ms": 18900}
+{"kind": "off", "note": 58, "t_ms": 18900}
+{"kind": "off", "note": 70, "t_ms": 18900}
+{"kind": "on", "note": 74, "t_ms": 19000, "vel": 70}
+{"kind": "on", "note": 77, "t_ms": 19000, "vel": 70}
+{"kind": "off", "note": 74, "t_ms": 19300}
+{"kind": "off", "note": 77, "t_ms": 19300}
+{"kind": "on", "note": 67, "t_ms": 19300, "vel": 60}
+{"kind": "off", "note": 67, "t_ms": 19420}
+{"by": "repeat", "kind": "sound_end", "note": 70, "t_ms": 19500}
+{"kind": "on", "note": 70, "t_ms": 19500, "vel": 60}
+{"kind": "off", "note": 70, "t_ms": 19620}
+{"by": "repeat", "kind": "sound_end", "note": 74, "t_ms": 19700}
+{"kind": "on", "note": 74, "t_ms": 19700, "vel": 60}
+{"kind": "off", "note": 74, "t_ms": 19820}
+{"by": "repeat", "kind": "sound_end", "note": 77, "t_ms": 19900}
+{"kind": "on", "note": 77, "t_ms": 19900, "vel": 60}
+{"kind": "off", "note": 77, "t_ms": 20020}
+{"by": "repeat", "kind": "sound_end", "note": 67, "t_ms": 20100}
+{"kind": "on", "note": 67, "t_ms": 20100, "vel": 60}
+{"kind": "off", "note": 67, "t_ms": 20220}
+{"by": "repeat", "kind": "sound_end", "note": 70, "t_ms": 20300}
+{"kind": "on", "note": 70, "t_ms": 20300, "vel": 60}
+{"kind": "off", "note": 70, "t_ms": 20420}
+{"by": "repeat", "kind": "sound_end", "note": 74, "t_ms": 20500}
+{"kind": "on", "note": 74, "t_ms": 20500, "vel": 60}
+{"kind": "off", "note": 74, "t_ms": 20620}
+{"by": "repeat", "kind": "sound_end", "note": 77, "t_ms": 20700}
+{"kind": "on", "note": 77, "t_ms": 20700, "vel": 60}
+{"kind": "off", "note": 77, "t_ms": 20820}
+{"kind": "on", "note": 33, "t_ms": 21000, "vel": 90}
+{"kind": "on", "note": 45, "t_ms": 21000, "vel": 90}
+{"kind": "on", "note": 61, "t_ms": 21000, "vel": 90}
+{"kind": "on", "note": 73, "t_ms": 21000, "vel": 90}
+{"down": false, "kind": "pedal", "t_ms": 21050, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 31, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 43, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 58, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 70, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 74, "t_ms": 21050}
+{"by": "pedal", "kind": "sound_end", "note": 77, "t_ms": 21050}
+{"down": true, "kind": "pedal", "t_ms": 21170, "value": 100}
+{"kind": "off", "note": 33, "t_ms": 21400}
+{"kind": "off", "note": 45, "t_ms": 21400}
+{"kind": "off", "note": 61, "t_ms": 21400}
+{"kind": "off", "note": 73, "t_ms": 21400}
+{"kind": "on", "note": 64, "t_ms": 21500, "vel": 70}
+{"kind": "on", "note": 67, "t_ms": 21500, "vel": 70}
+{"kind": "off", "note": 64, "t_ms": 21800}
+{"kind": "off", "note": 67, "t_ms": 21800}
+{"kind": "on", "note": 57, "t_ms": 21800, "vel": 60}
+{"kind": "off", "note": 57, "t_ms": 21920}
+{"by": "repeat", "kind": "sound_end", "note": 61, "t_ms": 22000}
+{"kind": "on", "note": 61, "t_ms": 22000, "vel": 60}
+{"kind": "off", "note": 61, "t_ms": 22120}
+{"by": "repeat", "kind": "sound_end", "note": 64, "t_ms": 22200}
+{"kind": "on", "note": 64, "t_ms": 22200, "vel": 60}
+{"kind": "off", "note": 64, "t_ms": 22320}
+{"by": "repeat", "kind": "sound_end", "note": 67, "t_ms": 22400}
+{"kind": "on", "note": 67, "t_ms": 22400, "vel": 60}
+{"kind": "off", "note": 67, "t_ms": 22520}
+{"by": "repeat", "kind": "sound_end", "note": 57, "t_ms": 22600}
+{"kind": "on", "note": 57, "t_ms": 22600, "vel": 60}
+{"kind": "off", "note": 57, "t_ms": 22720}
+{"by": "repeat", "kind": "sound_end", "note": 61, "t_ms": 22800}
+{"kind": "on", "note": 61, "t_ms": 22800, "vel": 60}
+{"kind": "off", "note": 61, "t_ms": 22920}
+{"by": "repeat", "kind": "sound_end", "note": 64, "t_ms": 23000}
+{"kind": "on", "note": 64, "t_ms": 23000, "vel": 60}
+{"kind": "off", "note": 64, "t_ms": 23120}
+{"by": "repeat", "kind": "sound_end", "note": 67, "t_ms": 23200}
+{"kind": "on", "note": 67, "t_ms": 23200, "vel": 60}
+{"kind": "off", "note": 67, "t_ms": 23320}
+{"kind": "on", "note": 26, "t_ms": 23500, "vel": 90}
+{"kind": "on", "note": 38, "t_ms": 23500, "vel": 90}
+{"kind": "on", "note": 65, "t_ms": 23500, "vel": 90}
+{"kind": "on", "note": 77, "t_ms": 23500, "vel": 90}
+{"down": false, "kind": "pedal", "t_ms": 23550, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 33, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 45, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 57, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 61, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 64, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 67, "t_ms": 23550}
+{"by": "pedal", "kind": "sound_end", "note": 73, "t_ms": 23550}
+{"down": true, "kind": "pedal", "t_ms": 23670, "value": 100}
+{"kind": "off", "note": 26, "t_ms": 23900}
+{"kind": "off", "note": 38, "t_ms": 23900}
+{"kind": "off", "note": 65, "t_ms": 23900}
+{"kind": "off", "note": 77, "t_ms": 23900}
+{"kind": "on", "note": 69, "t_ms": 24000, "vel": 70}
+{"kind": "on", "note": 72, "t_ms": 24000, "vel": 70}
+{"kind": "off", "note": 69, "t_ms": 24300}
+{"kind": "off", "note": 72, "t_ms": 24300}
+{"kind": "on", "note": 62, "t_ms": 24300, "vel": 60}
+{"kind": "off", "note": 62, "t_ms": 24420}
+{"by": "repeat", "kind": "sound_end", "note": 65, "t_ms": 24500}
+{"kind": "on", "note": 65, "t_ms": 24500, "vel": 60}
+{"kind": "off", "note": 65, "t_ms": 24620}
+{"by": "repeat", "kind": "sound_end", "note": 69, "t_ms": 24700}
+{"kind": "on", "note": 69, "t_ms": 24700, "vel": 60}
+{"kind": "off", "note": 69, "t_ms": 24820}
+{"by": "repeat", "kind": "sound_end", "note": 72, "t_ms": 24900}
+{"kind": "on", "note": 72, "t_ms": 24900, "vel": 60}
+{"kind": "off", "note": 72, "t_ms": 25020}
+{"by": "repeat", "kind": "sound_end", "note": 62, "t_ms": 25100}
+{"kind": "on", "note": 62, "t_ms": 25100, "vel": 60}
+{"kind": "off", "note": 62, "t_ms": 25220}
+{"by": "repeat", "kind": "sound_end", "note": 65, "t_ms": 25300}
+{"kind": "on", "note": 65, "t_ms": 25300, "vel": 60}
+{"kind": "off", "note": 65, "t_ms": 25420}
+{"by": "repeat", "kind": "sound_end", "note": 69, "t_ms": 25500}
+{"kind": "on", "note": 69, "t_ms": 25500, "vel": 60}
+{"kind": "off", "note": 69, "t_ms": 25620}
+{"by": "repeat", "kind": "sound_end", "note": 72, "t_ms": 25700}
+{"kind": "on", "note": 72, "t_ms": 25700, "vel": 60}
+{"kind": "off", "note": 72, "t_ms": 25820}
+{"down": false, "kind": "pedal", "t_ms": 26000, "value": 0}
+{"by": "pedal", "kind": "sound_end", "note": 26, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 38, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 62, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 65, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 69, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 72, "t_ms": 26000}
+{"by": "pedal", "kind": "sound_end", "note": 77, "t_ms": 26000}
