@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Studio harness — piano practice and looks</title>
+<!-- The Studio drawer (studio.js) mounted on its own, so it can be looked at and screenshotted without the 3D page. Real
+     modules: practice/library.js, practice/player.js, looks/registry.js, looks/store.js and cues.js createCuePlayer. Fakes:
+     the page (window.__piano's looks surface, kept in memory), a silent voice, the looks server (an in-memory fetch, so
+     nothing is written to disk), a flat 2D keyboard for the canvas, and a stand-in deck that shares the right edge.
+     Nothing here makes sound or records anything.
+     Query: ?open=1 &tab=practice|looks &exercise=<id> &play=1 &framing=9:16|16:9 &rec=1 &voice=off &search=<text>
+            &look=<preset id> &drift=1 (change two settings after the look, for the changed dot) &deck=open
+     Receipt hooks: window.__studioTest. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;family=Noto+Music&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/piano.css" />
+<link rel="stylesheet" href="/web/piano/deck.css" />
+<link rel="stylesheet" href="/web/piano/studio/studio.css" />
+<style>
+  .topbar { padding: 6px 12px; }
+  .test-status { display: inline-block; width: 58ch; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+                 font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+  /* the stand-in deck: only its edge behaviour (data-open, the stage classes) matters here */
+  .fake-deck-body { padding: 16px; color: var(--ink-2); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Studio harness</span>
+      <span class="brand-sub">practice &middot; looks &middot; fakes</span>
+    </div>
+    <div class="topbar-actions">
+      <div class="group">
+        <div class="seg" role="group" aria-label="Framing">
+          <button type="button" class="btn" id="btn-916" aria-pressed="true">9:16</button>
+          <button type="button" class="btn" id="btn-169" aria-pressed="false">16:9</button>
+        </div>
+        <button type="button" class="btn btn-rec" id="btn-rec" aria-pressed="false"><span class="rec-dot"></span><span>REC</span></button>
+        <button type="button" class="btn" id="btn-cue-voice" aria-pressed="true">Voice on</button>
+        <button type="button" class="btn" id="btn-hush" title="What Esc or Backspace does on the page: clear Claude's cues">Hush</button>
+        <button type="button" class="btn" id="btn-deck">Cards</button>
+      </div>
+      <div class="group"><span class="test-status" id="test-status">booting</span></div>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <canvas id="piano-canvas" aria-label="Mock canvas (a flat keyboard)"></canvas>
+    <aside id="deck" class="deck" data-open="false" aria-label="Cards (stand-in)">
+      <button type="button" class="deck-tab" aria-label="Open the cards"><span class="deck-tab-text">CARDS</span></button>
+      <div class="deck-panel"><p class="fake-deck-body">The cards drawer (a stand-in). Opening it closes the Studio.</p></div>
+    </aside>
+    <div class="toast" id="toast" role="status" hidden="hidden"></div>
+  </main>
+</div>
+<script type="module">
+import { mountStudio } from "/web/piano/studio/studio.js";
+import { FAMILIES, EXERCISES } from "/web/piano/practice/library.js";
+import { createExercisePlayer } from "/web/piano/practice/player.js";
+import * as registry from "/web/piano/looks/registry.js";
+import { createLooksStore } from "/web/piano/looks/store.js";
+import { createCuePlayer } from "/web/piano/cues.js";
+
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), canvas = $("piano-canvas"), statusEl = $("test-status");
+const FRAMINGS = { "9:16": { id: "9:16", w: 1080, h: 1920 }, "16:9": { id: "16:9", w: 1920, h: 1080 } };
+const tick = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ------------------------------------------------------------------------------------------ the fake page --
+const P = {
+  framing: FRAMINGS[q.get("framing")] ? q.get("framing") : "9:16", rec: "idle",  // ?rec=1 starts REC once the scene is set
+  scheme: "classic", instrument: "page", colour: "pitch", nns: "chord", minor: "tonic",
+};
+const settings = { enabled: false, theme: "moon", weather: "world", quality: "studio", intensity: 0.85, motion: 1, journey: 0,
+                   harmony: true, waveform: true, autoWorld: false, harmonyMode: "tonnetz", labels: "harmony" };
+let toastT = 0;
+function toast(text, isError = false) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.toggle("error", !!isError);
+  el.hidden = false;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { el.hidden = true; }, 3500);
+}
+const voice = {
+  enabled: q.get("voice") !== "off", unlocks: 0,
+  status() { return this.enabled ? "ready" : "off"; },
+  unlock() { this.unlocks++; return Promise.resolve(true); },
+  setEnabled(on) { this.enabled = !!on; syncVoice(); },
+};
+function syncVoice() {
+  const b = $("btn-cue-voice");
+  b.textContent = voice.enabled ? "Voice on" : "Voice off";
+  b.setAttribute("aria-pressed", String(voice.enabled));
+}
+const sounding = new Map(), hovering = { notes: [], label: null };
+let caption = null;
+const cuePlayer = createCuePlayer({
+  noteOn: (m) => sounding.set(m, (sounding.get(m) || 0) + 1),
+  noteOff: (m) => { const n = (sounding.get(m) || 1) - 1; if (n > 0) sounding.set(m, n); else sounding.delete(m); },
+  hover: (notes, meta) => { hovering.notes = notes; hovering.label = meta.label; },
+  clearHover: () => { hovering.notes = []; hovering.label = null; },
+  caption: (meta) => { caption = meta; },
+});
+const page = {
+  looks: () => ({ ready: true, scheme: P.scheme, instrument: P.instrument,
+    schemes: registry.LOOK_SETTINGS[0].values.map((o) => ({ id: o.value, name: o.label, listed: true })),
+    instruments: registry.LOOK_SETTINGS[1].values.map((o) => ({ id: o.value, name: o.label, listed: true })) }),
+  stats: () => ({ framing: P.framing, nnsMode: P.nns, colour: P.colour, minor: P.minor, rec: P.rec }),
+  spectacle: {
+    settings,
+    configure(patch) {
+      if (patch.quality && P.rec !== "idle") { toast("Stop recording before changing render quality.", true); return false; }
+      Object.assign(settings, patch);
+      return true;
+    },
+  },
+  applyFraming(id) {
+    if (P.rec !== "idle" && id !== P.framing) { toast("Stop recording before changing the framing", true); return false; }
+    P.framing = FRAMINGS[id] ? id : "9:16";
+    $("btn-916").setAttribute("aria-pressed", String(P.framing === "9:16"));
+    $("btn-169").setAttribute("aria-pressed", String(P.framing === "16:9"));
+    fitCanvas();
+    return true;
+  },
+  setColourMode(mode) { P.colour = mode; },
+  setNumbersMode(mode) { P.nns = mode; },
+  async selectScheme(id) { if (P.rec !== "idle") return false; await tick(40); P.scheme = id; return true; },
+  async selectInstrument(id) { if (P.rec !== "idle") return false; await tick(60); P.instrument = id; return true; },
+  async probeSchemes() { return page.looks().schemes; },
+  // the Studio's own hooks
+  cues: cuePlayer, voice, toast,
+  framing: () => FRAMINGS[P.framing],
+  minor: () => P.minor,
+};
+
+// ------------------------------------------------------------------------------------------ the looks server (memory) --
+const server = { rev: 0, presets: [] };
+async function fakeFetch(url, init = {}) {
+  await tick(30);
+  const reply = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
+  if (init.method === "PUT") {
+    const body = JSON.parse(init.body);
+    if (body.rev !== server.rev) return reply(409, { error: "stale rev", rev: server.rev });
+    server.rev++;
+    server.presets = body.presets;
+  }
+  return reply(200, { api: "arsenal.piano.looks/v1", rev: server.rev, presets: server.presets });
+}
+const memory = new Map();
+const memStore = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, String(v)), removeItem: (k) => memory.delete(k) };
+// three sample saved looks, so both rows (favourites, the rest) show
+server.presets = [
+  { id: "look-evening", name: "Evening glow", favourite: true, settings: { enabled: true, theme: "ember", weather: "embers", harmonyMode: "petals", framing: "9:16", colour: "pitch" } },
+  { id: "look-snow", name: "Quiet snow", settings: { enabled: true, theme: "winter", weather: "snow", intensity: 0.6, framing: "9:16" } },
+  { id: "look-wide", name: "Wide and clean", settings: { enabled: false, framing: "16:9", scheme: "synth-vandor", colour: "mono", nns: "numbers" } },
+];
+server.rev = 3;
+const store = createLooksStore({ fetch: fakeFetch, storage: memStore });
+
+// ------------------------------------------------------------------------------------------ the stand-in deck --
+const deckEl = $("deck");
+const deck = {
+  open() { deckEl.dataset.open = "true"; stage.classList.add("deck-open", "deck-dock"); fitCanvas(); },
+  close() { if (deckEl.dataset.open !== "true") return; deckEl.dataset.open = "false"; stage.classList.remove("deck-open", "deck-dock"); fitCanvas(); },
+  layout: () => ({ dockWidth: deckEl.dataset.open === "true" ? 380 : 0 }),
+};
+deckEl.querySelector(".deck-tab").addEventListener("click", (e) => { e.currentTarget.blur(); deck.open(); });
+$("btn-deck").addEventListener("click", (e) => { e.currentTarget.blur(); deckEl.dataset.open === "true" ? deck.close() : deck.open(); });
+
+// ------------------------------------------------------------------------------------------ the Studio --
+const uiMemory = new Map();
+let studio = null;
+function fitCanvas() {
+  const f = FRAMINGS[P.framing];
+  canvas.width = f.w / 2;
+  canvas.height = f.h / 2;
+  const dock = Math.max(studio ? studio.dockWidth() : 0, deck.layout().dockWidth);
+  const r = stage.getBoundingClientRect();
+  const pad = 14;
+  const scale = Math.max(0.05, Math.min((r.width - dock - 2 * pad) / f.w, (r.height - 2 * pad) / f.h));
+  canvas.style.width = `${Math.floor(f.w * scale)}px`;
+  canvas.style.height = `${Math.floor(f.h * scale)}px`;
+}
+studio = mountStudio({
+  stage, page, deck,
+  practice: { library: { FAMILIES, EXERCISES }, createPlayer: (o) => createExercisePlayer(o) },
+  looks: { registry, store },
+  onLayout: () => fitCanvas(),
+  storage: { get: (k) => uiMemory.get(k) ?? null, set: (k, v) => uiMemory.set(k, v) },
+});
+new ResizeObserver(fitCanvas).observe(stage);
+fitCanvas();
+
+// ------------------------------------------------------------------------------------------ the mock canvas --
+const THEME_TINT = { moon: "#0d2a33", ember: "#2e140e", nebula: "#1c1030", winter: "#15293a", rain: "#0b1522", city: "#0c0f2a" };
+const isBlack = (m) => [1, 3, 6, 8, 10].includes(m % 12);
+function draw() {
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, settings.enabled ? THEME_TINT[settings.theme] || "#101418" : "#05070a");
+  g.addColorStop(1, "#030407");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  const keysTop = H * 0.72, whiteW = W / 52;
+  let x = 0;
+  const pos = new Map();
+  for (let m = 21; m <= 108; m++) if (!isBlack(m)) { pos.set(m, x); x += whiteW; }
+  for (let m = 21; m <= 108; m++) if (isBlack(m)) pos.set(m, pos.get(m - 1) + whiteW * 0.68);
+  const lit = (m) => sounding.has(m);
+  for (let m = 21; m <= 108; m++) if (!isBlack(m)) {
+    ctx.fillStyle = lit(m) ? "#C8DCFF" : "#d9d6cf";
+    ctx.fillRect(pos.get(m) + 0.5, keysTop, whiteW - 1, H * 0.2);
+    if (hovering.notes.includes(m)) { ctx.strokeStyle = "#C8DCFF"; ctx.lineWidth = 2; ctx.strokeRect(pos.get(m) + 2, keysTop + 2, whiteW - 4, H * 0.2 - 4); }
+  }
+  for (let m = 21; m <= 108; m++) if (isBlack(m)) {
+    ctx.fillStyle = lit(m) ? "#8fb2f0" : "#0a0a0d";
+    ctx.fillRect(pos.get(m), keysTop, whiteW * 0.64, H * 0.125);
+    if (hovering.notes.includes(m)) { ctx.strokeStyle = "#C8DCFF"; ctx.lineWidth = 2; ctx.strokeRect(pos.get(m) + 1, keysTop + 1, whiteW * 0.64 - 2, H * 0.125 - 2); }
+  }
+  const cap = caption && caption.label ? caption : hovering.label ? { label: hovering.label, cue_id: "exercise:" } : null;
+  if (cap) {
+    const lead = String(cap.cue_id || "").startsWith("exercise:") ? "EXERCISE · " : "CLAUDE · ";
+    ctx.font = `600 ${Math.round(W / 26)}px "Archivo", sans-serif`;
+    ctx.fillStyle = "#C8DCFF";
+    ctx.fillText(lead + cap.label, W * 0.06, H * 0.12);
+    if (cap.detail) { ctx.font = `${Math.round(W / 40)}px "JetBrains Mono", monospace`; ctx.fillStyle = "#A3ACB7"; ctx.fillText(cap.detail, W * 0.06, H * 0.12 + W / 22); }
+  }
+  ctx.font = `${Math.round(W / 50)}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = "#4b535c";
+  ctx.fillText(`mock canvas · ${P.framing} · ${P.scheme} · ${settings.enabled ? settings.theme : "no atmosphere"}`, W * 0.06, H * 0.96);
+  const s = studio.stats();
+  statusEl.textContent = `studio ${s.layout.mode} dock ${s.layout.dockWidth} · ${s.practice.state ? s.practice.state.status : "idle"} · rec ${P.rec} · look ${s.looks.active || "-"}${s.looks.changed.length ? "*" : ""}`;
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// ------------------------------------------------------------------------------------------ harness controls --
+$("btn-916").addEventListener("click", (e) => { e.currentTarget.blur(); page.applyFraming("9:16"); });
+$("btn-169").addEventListener("click", (e) => { e.currentTarget.blur(); page.applyFraming("16:9"); });
+function setRec(on) {
+  P.rec = on ? "recording" : "idle";
+  $("btn-rec").setAttribute("aria-pressed", String(on));
+}
+$("btn-rec").addEventListener("click", (e) => { e.currentTarget.blur(); setRec(P.rec === "idle"); });
+$("btn-cue-voice").addEventListener("click", (e) => { e.currentTarget.blur(); voice.setEnabled(!voice.enabled); if (voice.enabled) voice.unlock(); });
+$("btn-hush").addEventListener("click", (e) => { e.currentTarget.blur(); cuePlayer.clear(); });
+syncVoice();
+
+window.__studioTest = {
+  studio, page, store, registry, cuePlayer, voice, P, settings, server, deck, setRec,
+  hush: () => cuePlayer.clear(), sounding: () => [...sounding.keys()].sort((a, b) => a - b), hovering: () => hovering.notes.slice(),
+  caption: () => caption && { label: caption.label, detail: caption.detail, cue_id: caption.cue_id },
+  click: (sel, opts = {}) => { const el = document.querySelector(sel); if (!el) return false; el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1, ...opts })); return true; },
+  ready: null,
+};
+
+// ------------------------------------------------------------------------------------------ the query's scene --
+window.__studioTest.ready = (async () => {
+  await studio.ready;
+  if (q.get("deck") === "open") deck.open();
+  const tab = q.get("tab");
+  if (q.get("open") === "1" || tab) studio.open(tab === "looks" ? "looks" : "practice");
+  const look = q.get("look");
+  if (look) {
+    window.__studioTest.click(`.sl-chip[data-id="${CSS.escape(look)}"]`);
+    for (let i = 0; i < 80 && studio.stats().looks.active !== look; i++) await tick(25);
+    if (q.get("drift") === "1") page.spectacle.configure({ theme: "city", harmonyMode: "rings", intensity: 1.2 });
+  }
+  const search = q.get("search");
+  if (search) { const f = document.querySelector(".sp-find"); f.value = search; f.dispatchEvent(new Event("input", { bubbles: true })); }
+  const id = q.get("exercise");
+  if (id) window.__studioTest.click(`.sp-ex[data-id="${CSS.escape(id)}"]`) || (() => {
+    // the family may be closed: open it first
+    const ex = EXERCISES.find((e) => e.id === id);
+    if (ex) window.__studioTest.click(`.sp-famhead[data-family="${CSS.escape(ex.family)}"]`);
+    return window.__studioTest.click(`.sp-ex[data-id="${CSS.escape(id)}"]`);
+  })();
+  if (q.get("play") === "1") { await tick(50); window.__studioTest.click('.sp-transport [data-act="play-pause"]'); }
+  if (q.get("rec") === "1") setRec(true);
+  return studio.stats();
+})();
+</script>
+</body>
+</html>

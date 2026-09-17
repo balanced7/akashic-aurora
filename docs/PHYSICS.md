@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c2703f79. A bound you discover by collision is not awareness -- this sheet
+> Derived at 91b9315c. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -273,7 +273,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (311 numeric constants)
+## Mechanical bounds (315 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -428,18 +428,22 @@ Class: reference
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
 | `MAX_MOMENTS` | 12 | arsenal/jam/schemas.py |  |
+| `MAX_NAME` | 60 | arsenal/pianolooks.py |  |
 | `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
 | `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
+| `MAX_PRESETS` | 100 | arsenal/pianolooks.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
 | `MAX_RELATED` | 8 | arsenal/jam/schemas.py |  |
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |
+| `MAX_SETTINGS` | 64 | arsenal/pianolooks.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
 | `MAX_STEPS` | 4,000 | arsenal/pianocue.py |  |
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
+| `MAX_STRING` | 200 | arsenal/pianolooks.py |  |
 | `MAX_TAGS` | 12 | arsenal/jam/schemas.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |

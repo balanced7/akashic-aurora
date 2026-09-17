@@ -13,13 +13,13 @@ dock.append(close,frame);document.body.append(dock);
 function fitDock(){const bottom=document.querySelector(".topbar")?.getBoundingClientRect().bottom||0;dock.style.top=`${Math.max(12,Math.min(innerHeight-240,bottom+8))}px`;}
 fitDock();window.addEventListener("resize",fitDock);
 if(typeof ResizeObserver!=="undefined")new ResizeObserver(fitDock).observe(document.querySelector(".topbar"));
-function show(on){if(on)window.__piano?.jam?.deck?.close();dock.hidden=!on;button.setAttribute("aria-expanded",String(on));if(on&&!frame.getAttribute("src"))frame.src=origin+"/web/conversation.html";
+function show(on){if(on){window.__piano?.jam?.deck?.close();window.__piano?.studio?.close();}dock.hidden=!on;button.setAttribute("aria-expanded",String(on));if(on&&!frame.getAttribute("src"))frame.src=origin+"/web/conversation.html";
   if(!on)frame.contentWindow?.postMessage({type:"arsenal.conversation.pause"},origin);}
-// Both drawers use the same edge of the stage. Opening one gives it that space;
+// The deck, the Studio and this dock use the same edge of the stage. Opening one gives it that space;
 // closing the deck does not stop its musical transport.
-function watchDeck(){const deck=document.querySelector('#deck');if(!deck)return false;
-  new MutationObserver(()=>{if(deck.dataset.open==='true'&&!dock.hidden)show(false);}).observe(deck,{attributes:true,attributeFilter:['data-open']});return true;}
-if(!watchDeck()){const mounting=new MutationObserver(()=>{if(watchDeck())mounting.disconnect();});mounting.observe(document.body,{childList:true,subtree:true});}
+function watchDrawer(sel){const drawer=document.querySelector(sel);if(!drawer)return false;
+  new MutationObserver(()=>{if(drawer.dataset.open==='true'&&!dock.hidden)show(false);}).observe(drawer,{attributes:true,attributeFilter:['data-open']});return true;}
+for(const sel of ['#deck','#studio'])if(!watchDrawer(sel)){const mounting=new MutationObserver(()=>{if(watchDrawer(sel))mounting.disconnect();});mounting.observe(document.body,{childList:true,subtree:true});}
 button.addEventListener("click",()=>show(dock.hidden));close.addEventListener("click",()=>show(false));
 window.addEventListener("message",async e=>{
   if(e.origin!==origin||e.source!==frame.contentWindow)return;

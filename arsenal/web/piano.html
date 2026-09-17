@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="/web/piano.css" />
 <!-- The jam space: the deck drawer, the pill and the glass (piano/deck.js, piano/glass.js). Nothing it styles is recorded. -->
 <link rel="stylesheet" href="/web/piano/deck.css" />
+<!-- The Studio drawer: practice exercises and saved looks (piano/studio/studio.js). Outside the canvas, so never recorded. -->
+<link rel="stylesheet" href="/web/piano/studio/studio.css" />
 <!-- three.js r186, pinned. Both files were HEAD-checked on jsDelivr on 2026-09-13. -->
 <script type="importmap">
 {
@@ -149,6 +151,7 @@
       <p class="hint-title">Play the KeyLab, press Demo, or use the keyboard</p>
       <p class="hint-body"><kbd>Z</kbd>&ndash;<kbd>/</kbd> with <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>J</kbd> <kbd>L</kbd> <kbd>;</kbd> play C3&ndash;E4 &middot; <kbd>Q</kbd>&ndash;<kbd>P</kbd> with the number row play C4&ndash;E5 &middot; <kbd>Space</kbd> sustain &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> octave &middot; <kbd>H</kbd> HUD &middot; <kbd>F</kbd> fullscreen &middot; <kbd>Esc</kbd> or <kbd>Backspace</kbd> hush Claude</p>
       <p class="hint-body"><kbd>A</kbd> cards &middot; <kbd>&uarr;</kbd> <kbd>&darr;</kbd> pick &middot; <kbd>Enter</kbd> play &middot; <kbd>K</kbd> show &middot; <kbd>\</kbd> loop &middot; <kbd>'</kbd> try &middot; <kbd>-</kbd> <kbd>=</kbd> key &middot; <kbd>[</kbd> <kbd>]</kbd> tempo</p>
+      <p class="hint-body"><kbd>`</kbd> studio: exercises and looks &middot; <kbd>Home</kbd> play or pause &middot; <kbd>End</kbd> stop &middot; <kbd>PgUp</kbd> <kbd>PgDn</kbd> exercise &middot; <kbd>Ins</kbd> <kbd>Del</kbd> saved look</p>
     </div>
 
     <div class="toast" id="toast" role="status" hidden="hidden"></div>
