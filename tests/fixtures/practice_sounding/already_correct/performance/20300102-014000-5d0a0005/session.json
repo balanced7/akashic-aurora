@@ -1,0 +1,16 @@
+{
+  "api": "arsenal.performance/v0",
+  "client_id": "lg-5d0a",
+  "closed": true,
+  "duration_s": 94.0,
+  "event_count": 721,
+  "last_t_ms": 94000,
+  "meta": {
+    "buffered": false,
+    "opened_at_client": "2030-01-02T01:40:00.000+00:00",
+    "page_id": "p-5d0a"
+  },
+  "opened_at": "2030-01-02T01:40:00.041+00:00",
+  "opened_ns": 1893548400041000000,
+  "session": "20300102-014000-5d0a0005"
+}

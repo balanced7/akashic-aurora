@@ -15,8 +15,11 @@ The live page names whatever sounds every few milliseconds. Offline we see the w
    arpeggio stays one window while its bass walks, a held sus2 followed by its add9 splits in two, and a quick passing
    note stays inside as a passing tone. A note counts as heard for at least HEARD_MIN_MS after its onset (a broken
    chord is heard as a chord). Silences of SILENCE_SPLIT_MS always split. A window under MIN_WINDOW_MS only survives
-   as a whole isolated phrase, and such a phrase is dropped as a transient (counted, never named). After naming,
-   touching windows with the same chord (root and suffix; the bass may move) merge into one.
+   as a whole isolated phrase, and such a phrase is dropped as a transient (counted, never named). After naming, a
+   chord built note by note under one pedal is one window named as it stands complete, unless a stage of it stood as
+   a chord of its own (a figure played over it for FIGURE_STAGE_MS): what joins it then starts a new window. Touching
+   windows with the same chord (root, suffix and whether its 3rd sounds; the bass may move) merge into one. A note
+   that a pedal lift silenced is not heard on into the next window.
 3. Naming by the page's own code: arsenal/practice_theory.mjs slices piano.js's THEORY block and runs Theory.detect
    over every window, one node call per session. Names are spelled in the local key (Abm, not G#m, in Eb). A set detect
    leaves unnamed, and a slash chord over a bass that is not one of its tones, also gets an extended reading: a base
@@ -112,7 +115,10 @@ BASS_LINE_MAX_UPPER = 3      # a low bass walking through notes the voices above
 WALK_STEP_MAX_MS = 1000      # ...and back-to-back windows this short, each on a new bass note under the same notes, are
                              # read together as one such walk
 BUILD_MAX_MS = 4000          # a window this short whose notes all ring on under one pedal into the next, which only adds
-                             # notes over the same bass, is that chord being built (F A C, then Eb, then G: one F11)
+                             # notes over the same bass, is that chord being built (F A C, then Eb, then G: one F11)...
+FIGURE_STAGE_MS = 1500       # ...unless it lasted this long with its chord's notes struck again inside it: a figure
+                             # played over that harmony makes it a chord of its own (Dm for 3 s, then a G joins: Dm,
+                             # then Dm(add11)), and what arrives next is a change, not the next note of a roll
 AREA_TONIC_MIN_MS = 1500     # a key area needs its tonic chord for this long, or two chord roots that the neighbouring
                              # key lacks (beyond one chord's own 3rd), else it is one chord's colour inside that key
 RETURN_AREA_MS = 8000        # inside a key area, the parallel mode's 3rd back this long, with no sign of the area's own
@@ -757,7 +763,9 @@ def _walk_short(w: dict) -> bool:
 def _building(w: dict, nxt: dict, ctx: dict) -> bool:
     """w is the start of nxt's chord being built: shorter than BUILD_MAX_MS, over the same bass, nxt only adds notes,
     the pedal stays down from just after w's first attack into nxt, and nothing sounding in w stops before nxt (a
-    re-strike is not a stop). Adding the 3rd to a chord without one is a suspension, not a build."""
+    re-strike is not a stop). w must not have stood as a chord of its own (_stood). Adding the 3rd to a sus chord (its
+    2nd or 4th sounding, no 3rd) is a suspension, not a build; adding it to an open shape (octaves, root and 5th,
+    D A C#) completes the chord."""
     a, b = w["start_ms"], nxt["start_ms"]
     pw, pn = set(w["pcs"]), set(nxt["pcs"])
     if w["end_ms"] != b or b - a >= BUILD_MAX_MS or not pw < pn or w["bass"] is None or nxt["bass"] is None or \
@@ -769,8 +777,32 @@ def _building(w: dict, nxt: dict, ctx: dict) -> bool:
     for n in _onsets_between(ctx, a - ctx["longest"] - 1, b):
         if lo < n["end_ms"] < b and n["by"] != "repeat":
             return False
+    if _stood(w, ctx):
+        return False
     thirds = {(w["bass"] + 3) % 12, (w["bass"] + 4) % 12}
-    return bool(thirds & pw) or not thirds & pn
+    sus = {(w["bass"] + 2) % 12, (w["bass"] + 5) % 12}
+    return bool(thirds & pw) or not thirds & pn or not sus & pw
+
+
+def _stood(w: dict, ctx: dict) -> bool:
+    """A window that stood as a chord of its own: at least FIGURE_STAGE_MS long, a chord (three or more pitch classes,
+    or root and 5th over the bass; a melody note over the bass is not one), and one of its keys struck again inside it
+    (a figure played over the harmony, not a chord's notes arriving once each and ringing on: F2, then F3 an octave up,
+    is a note of the chord arriving). What joins such a chord later changes it; it is not the next note of the same
+    roll."""
+    a, b = w["start_ms"], w["end_ms"]
+    rel = {(pc - w["bass"]) % 12 for pc in w["pcs"]} if w["bass"] is not None else set()
+    if b - a < FIGURE_STAGE_MS or not (len(rel) >= 3 or rel == {0, 7}):
+        return False
+    first: Dict[int, float] = {}
+    for n in _onsets_between(ctx, a, b):
+        if n["note"] % 12 not in w["pcs"]:
+            continue
+        if n["note"] not in first:
+            first[n["note"]] = n["on_ms"]
+        elif n["on_ms"] - first[n["note"]] > ONSET_GROUP_MS:
+            return True
+    return False
 
 
 def _stable_ms(w: dict, ctx: dict) -> float:
@@ -811,6 +843,24 @@ def merge_growth(windows: List[dict], ctx: dict) -> List[dict]:
     return ws
 
 
+def _damped_before(ctx: dict, a: float, b: float, quiet: List[int]) -> set:
+    """Of the pitch classes that hardly sound in [a, b) (quiet), those heard there only because a note struck before it
+    is heard for HEARD_MIN_MS: none struck inside, and the last one struck before it silenced by a pedal lift. The lift
+    cleared that sound on purpose, so it is the chord before, not part of this one (Bb D struck, the pedal changed 50
+    ms later over an A still ringing from the Dm: Bb-D, not a broken Bbmaj7)."""
+    if not quiet:
+        return set()
+    near = _onsets_between(ctx, a - HEARD_MIN_MS - 1, b)
+    out = set()
+    for pc in quiet:
+        own = [n for n in near if n["note"] % 12 == pc]
+        before = [n for n in own if n["on_ms"] < a]
+        if before and not any(n["on_ms"] >= a for n in own) and \
+                max(before, key=lambda n: n["on_ms"])["by"] == "pedal":
+            out.add(pc)
+    return out
+
+
 def _facts(w: dict, ctx: dict) -> None:
     """The numeric facts of a window: chord pitch classes, bass, the voicing handed to detect, touch, live events."""
     a, b = w["start_ms"], w["end_ms"]
@@ -821,6 +871,8 @@ def _facts(w: dict, ctx: dict) -> None:
     sound_ms = [_sound_in(ctx, pc, ta, tb) for pc in range(12)]
     need = min(CHORD_SOUND_MS, CHORD_SOUND_SHARE * (tb - ta))
     heard_pcs = [pc for pc in range(12) if share[pc] >= CHORD_SHARE and pc not in drop]
+    damped = _damped_before(ctx, ta, tb, [pc for pc in heard_pcs if sound_ms[pc] < need])
+    heard_pcs = [pc for pc in heard_pcs if pc not in damped]
     sounding_pcs = [pc for pc in heard_pcs if sound_ms[pc] >= need]  # a held chord holds only what really sounds
     lows: Dict[int, float] = {}
     figure: List[list] = []
@@ -1232,19 +1284,22 @@ def split_returns(areas: List[dict], windows: List[dict]) -> List[dict]:
     """A key area whose parallel mode comes back for a while is cut around that return: from the end of the last window
     with the area's own 3rd to the last window with the parallel 3rd, when that stretch has no window with the area's own
     3rd, lasts RETURN_AREA_MS, and holds the tonic with the parallel 3rd for RETURN_TONIC_MS (Eb minor, then 12 s of Eb
-    and Eb/G, then Eb minor again). The return is an area of the parallel key, marked return."""
+    and Eb/G, then Eb minor again). A stretch that ends the area counts that tonic before its last chord only: an area
+    ending on its tonic in the other mode (a minor piece closing on the major chord, a Picardy third) keeps its key.
+    The return is an area of the parallel key, marked return."""
     out: List[dict] = []
     for area in areas:
         tonic, mode = KEYS[area["state"]]
         own, other = ((tonic + 3) % 12, (tonic + 4) % 12) if mode == "minor" else ((tonic + 4) % 12, (tonic + 3) % 12)
         cuts: List[tuple] = []
-        state = {"since": area["start_ms"], "first": None, "last": None, "tonic_ms": 0.0}
+        state = {"since": area["start_ms"], "first": None, "last": None, "tonic_ms": 0.0, "last_tonic_ms": 0.0}
 
-        def flush():
+        def flush(ending: bool = False):
+            tonic_ms = state["tonic_ms"] - (state["last_tonic_ms"] if ending else 0.0)
             if state["first"] is not None and state["last"] - state["since"] >= RETURN_AREA_MS and \
-                    state["tonic_ms"] >= RETURN_TONIC_MS:
+                    tonic_ms >= RETURN_TONIC_MS:
                 cuts.append((state["since"], state["last"]))
-            state.update(first=None, last=None, tonic_ms=0.0)
+            state.update(first=None, last=None, tonic_ms=0.0, last_tonic_ms=0.0)
         for w in windows:
             if not _in_area(w, area) or len(w["pcs"]) < 2:
                 continue
@@ -1255,9 +1310,9 @@ def split_returns(areas: List[dict], windows: List[dict]) -> List[dict]:
             elif other in pcs:
                 state["first"] = state["first"] or w
                 state["last"] = w["end_ms"]
-                if tonic in pcs:
-                    state["tonic_ms"] += w["end_ms"] - w["start_ms"]
-        flush()
+                state["last_tonic_ms"] = w["end_ms"] - w["start_ms"] if tonic in pcs else 0.0
+                state["tonic_ms"] += state["last_tonic_ms"]
+        flush(ending=True)
         t = area["start_ms"]
         parallel = KEYS.index((tonic, "major" if mode == "minor" else "minor"))
         for c0, c1 in cuts:
@@ -1616,9 +1671,12 @@ ANALYSIS_KEYS = ("info", "reading", "from", "root_pc", "suffix", "implied_root",
 
 
 def _identity(w: dict) -> tuple:
+    """What makes two windows the same chord: root, suffix, and whether its 3rd sounds (Dmaj7 without its 3rd, then
+    Dmaj7, is two harmonies: merged, the longer part's name would hide the 3rd that arrived)."""
     if w["root_pc"] is None or len(w["pcs"]) < 3:
         return ("set", tuple(w["pcs"]))
-    return ("chord", w["root_pc"], w["suffix"])
+    third = bool({(w["root_pc"] + 3) % 12, (w["root_pc"] + 4) % 12} & set(w["pcs"]))
+    return ("chord", w["root_pc"], w["suffix"], third)
 
 
 def merge_built(windows: List[dict], ctx: dict) -> List[dict]:
@@ -2117,23 +2175,28 @@ def _cadence(ws: List[dict], n: int) -> Optional[dict]:
     - 5 over a 1 pedal -> 1: the 5 chord over the home note in the bass, resolving above it.
     - 4 -> 1 (plagal), 4m -> 1 (minor plagal), b7 -> 1, b6 -> b7 -> 1: the bass moves and arrives on 1.
     - 5 -> 6m (deceptive): a root-position 5 moving to the 6 chord, or to anything over the 6 in the bass.
-    A two-note shape never arrives, and a pair over the same bass is no cadence (except the pedal form). A short moment
-    with no chord over the arrival's own bass (its notes still unfolding) between the two is passed over."""
-    a, b = ws[n - 1], ws[n]
+    A chord arrives with three or more pitch classes, or as root and 5th (D5); another two-note shape never arrives,
+    and a pair over the same bass is no cadence (except the pedal form). Moments that are no harmony of their own
+    between the two (_passing_moment: an unnamed set, a line or broken chord, a note or its octaves, a two-note shape)
+    are passed over while the two stay within CADENCE_GAP_MS. An unnamed set over the 5 in the bass with the key's
+    leading tone departs as the 5 chord (_bass_dominant)."""
+    b = ws[n]
     lead = n - 1
-    if a["_root_pc"] is None and n >= 2 and a["end_ms"] - a["start_ms"] <= CADENCE_GAP_MS and \
-            a["_bass_pc"] is not None and a["_bass_pc"] == b["_bass_pc"]:
-        lead = n - 2
-        a = ws[lead]
+    while lead >= 1 and _passing_moment(ws[lead]) and b["start_ms"] - ws[lead]["start_ms"] <= CADENCE_GAP_MS:
+        lead -= 1
+    a = ws[lead]
     area = a["_area"]
     if not area or b["_area"] is not area or b["start_ms"] - a["end_ms"] > CADENCE_GAP_MS:
         return None
-    if a["_root_pc"] is None or b["_root_pc"] is None or not _chordal(a) or len(set(b["_pcs"])) < 3:
+    dominant = _bass_dominant(a)
+    a_root = a["_bass_pc"] if dominant else a["_root_pc"]
+    a_third = "major" if dominant else a["third"]
+    if a_root is None or b["_root_pc"] is None or not (dominant or _chordal(a)) or not _chordal(b):
         return None
     if b["end_ms"] - b["start_ms"] < CADENCE_ARRIVAL_MS or a["_bass_pc"] is None or b["_bass_pc"] is None:
         return None
     tonic = area["tonic"]
-    arel, brel = _rel(a, a["_root_pc"]), _rel(b, b["_root_pc"])
+    arel, brel = _rel(a, a_root), _rel(b, b["_root_pc"])
     bass_a, bass_b = (a["_bass_pc"] - tonic) % 12, (b["_bass_pc"] - tonic) % 12
     kind, chain = None, [a, b]
     names: Dict[int, tuple] = {}  # chain position -> (name, number) shown instead of the window's own label
@@ -2147,7 +2210,7 @@ def _cadence(ws: List[dict], n: int) -> Optional[dict]:
     nxt = ws[n + 1] if n + 1 < len(ws) else None
     if arel == 7 and brel == 0 and bass_b == 0:
         if bass_a == 7:
-            kind = "5 -> 1 (authentic)" if a["third"] else "5sus -> 1 (suspended dominant)"
+            kind = "5 -> 1 (authentic)" if a_third else "5sus -> 1 (suspended dominant)"
             if prev_ok and _rel(prev, prev["_root_pc"]) == 2:
                 kind, chain = kind.replace("5", "2 -> 5", 1), [prev, a, b]
         elif bass_a == 0:
@@ -2161,21 +2224,21 @@ def _cadence(ws: List[dict], n: int) -> Optional[dict]:
         names[0] = (five, _number(five, a["key"]))
     elif arel == 7 and bass_a == 7 and bass_b == six and brel == bass_b and b["third"] == six_third:
         kind = "5 -> 6m (deceptive)" if area["mode"] == "major" else "5 -> b6 (deceptive)"
-    elif arel == 7 and bass_a == 7 and a["third"] and bass_b == six and brel == six and b["third"] is None and \
+    elif arel == 7 and bass_a == 7 and a_third and bass_b == six and brel == six and b["third"] is None and \
             nxt is not None and nxt["_area"] is area and nxt["start_ms"] - b["end_ms"] <= CADENCE_GAP_MS and \
             nxt["_root_pc"] == b["_root_pc"] and nxt["_bass_pc"] == b["_bass_pc"] and nxt["third"] == six_third:
         kind = "5 -> 6m (deceptive)" if area["mode"] == "major" else "5 -> b6 (deceptive)"  # through a sus on 6
         chain = [a, b, nxt]
     if kind and "deceptive" in kind:
         k = lead - 1  # a 6m -> 5 -> 6m neighbour motion never expected home: no deceptive cadence
-        while k >= 0 and ws[k]["_root_pc"] == a["_root_pc"] and ws[k]["_area"] is area:
+        while k >= 0 and ws[k]["_root_pc"] == a_root and ws[k]["_area"] is area:
             k -= 1
         if k >= 0 and ws[k]["_area"] is area and ws[k]["_root_pc"] == b["_root_pc"] and \
                 ws[k]["third"] == six_third and ws[k + 1]["start_ms"] - ws[k]["end_ms"] <= CADENCE_GAP_MS:
             return None
     elif brel == 0 and bass_b == 0 and bass_a != 0:
         if arel == 5:
-            kind = "4m -> 1 (minor plagal)" if a["third"] == "minor" else "4 -> 1 (plagal)"
+            kind = "4m -> 1 (minor plagal)" if a_third == "minor" else "4 -> 1 (plagal)"
         elif arel == 10:
             if prev_ok and _rel(prev, prev["_root_pc"]) == 8:
                 kind, chain = "b6 -> b7 -> 1 (Aeolian)", [prev, a, b]
@@ -2183,8 +2246,10 @@ def _cadence(ws: List[dict], n: int) -> Optional[dict]:
                 kind = "b7 -> 1"
     if not kind:
         return None
+    if dominant:  # no chord name: the 5 chord by its bass and leading tone, shown by its notes
+        names[chain.index(a)] = (a["name"], _number(pc_name(a_root, a["key"]), a["key"], "note"))
     k = lead - 1  # the chord before the move (past repeats of its first chord), for the learned-progression check
-    while k >= 0 and ws[k]["_root_pc"] == a["_root_pc"] and ws[k]["_area"] is area:
+    while k >= 0 and ws[k]["_root_pc"] == a_root and ws[k]["_area"] is area:
         k -= 1
     before = ws[k] if k >= 0 and ws[k]["_area"] is area and ws[k]["_root_pc"] is not None and \
         ws[k + 1]["start_ms"] - ws[k]["end_ms"] <= CADENCE_GAP_MS else None
@@ -2194,6 +2259,26 @@ def _cadence(ws: List[dict], n: int) -> Optional[dict]:
                        for i, c in enumerate(chain)],
             "numbers": [names[i][1] if i in names else c["number"] for i, c in enumerate(chain)],
             "bass": [c["bass"]["note"] for c in chain]}
+
+
+def _passing_moment(w: dict) -> bool:
+    """A window that is no harmony of its own, for a cadence: no root (an unnamed set, a line, a broken chord), or one
+    pitch class, or a two-note shape other than root and 5th. An unnamed set that is the 5 chord by its bass
+    (_bass_dominant) is a harmony."""
+    if _bass_dominant(w):
+        return False
+    return w["_root_pc"] is None or not _chordal(w)
+
+
+def _bass_dominant(w: dict) -> bool:
+    """An unnamed held set (no chord name, no reading) over the 5 in the bass, holding the key's leading tone (the 5
+    chord's major 3rd): A Bb C# D over A1 in D minor is heard as the 5 chord."""
+    area = w["_area"]
+    if w["_root_pc"] is not None or not area or w["_bass_pc"] is None or not w["_low_bass"] or \
+            w.get("texture", "chord") != "chord" or len(set(w["_pcs"])) < 3:
+        return False
+    tonic = area["tonic"]
+    return (w["_bass_pc"] - tonic) % 12 == 7 and (tonic + 11) % 12 in w["_pcs"]
 
 
 def _onsets_between(ctx: dict, a: float, b: float) -> List[dict]:
@@ -4506,15 +4591,17 @@ DOMINANT_ARRIVALS = ("5 -> 1", "5sus -> 1", "2 -> 5 -> 1", "2 -> 5sus -> 1", "5 
 
 
 def cadence_kinds(cadences: List[dict]) -> List[dict]:
-    """Cadences by kind (its short name: '4 -> 1', every key area together), most often first: [{kind, count, first_at,
-    first (the first cadence of the kind), times}]. A habit counts each of its times."""
+    """Cadences by kind (its short name: '4 -> 1', every key area together), most often first, and among kinds as
+    often, the landings from 5 first (the strongest way home): [{kind, count, first_at, first (the first cadence of the
+    kind), times}]. A habit counts each of its times."""
     groups: Dict[str, dict] = {}
     for c in cadences:
         kind = c["kind"].split(" (")[0]
         g = groups.setdefault(kind, {"kind": kind, "count": 0, "first_at": c["at"], "first": c, "times": []})
         g["count"] += c.get("times") or 1
         g["times"] += c.get("at_times") or [c["at"]]
-    return sorted(groups.values(), key=lambda g: (-g["count"], g["first"]["start_ms"]))
+    return sorted(groups.values(), key=lambda g: (-g["count"], g["kind"] not in DOMINANT_ARRIVALS,
+                                                  g["first"]["start_ms"]))
 
 
 TIMELINE_PER_AREA = 5        # the brief's timeline shows each key area's longest chords, in time order: this many...
