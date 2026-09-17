@@ -23,6 +23,9 @@
 //   (f) no bar line moves after the clock step (0.000 ms), and an ack reports offset_step_ms 30
 // A3: count-ins at 60, 72, 140 bpm with 1 and 2 bars; 30 tempo changes and swaps at random times; a frame held 180 ms.
 //
+// GPU lock (arsenal/GPU-LOCK.md): it takes state/arsenal/gpu-render.lock through gpu_lock.mjs before it starts anything and
+// holds it for the whole run (about 14 minutes, so it declares a 30-minute cap; 10 with --short). Render lanes also wait
+// while this script runs, because its receipts are load-sensitive.
 // Writes state/arsenal/receipts/jam/jam-timing-<date>/jam-timing-<stamp>.json and exits 1 if a check fails.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -32,6 +35,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { barOfRun, eventTimes } from "../web/piano/groove.js";
+import { acquireGpuLock } from "./gpu_lock.mjs";
 import { barMs, nextLine, segmentAt, tEpoch } from "../web/piano/tempomap.js";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -116,7 +120,7 @@ const defsOf = (events) => {
 const beatKey = (b) => Math.round(b * 1e6) / 1e6;
 
 // ------------------------------------------------------------------------------------------------ processes, CDP
-let server = null;
+let server = null, gpu = null;
 async function getJSON(url) { const r = await fetch(url, { cache: "no-store" }); return r.json(); }
 async function postJSON(path, body) {
   const r = await fetch(`${APP}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -627,6 +631,9 @@ async function a1() {
 
 // ------------------------------------------------------------------------------------------------------- main
 try {
+  const lockWait = Date.now();
+  gpu = await acquireGpuLock({ label: `jam_timing ${[...ONLY].join(",")}${SHORT ? " --short" : ""}`, yieldToJam: false, maxHoldMs: (SHORT ? 10 : 30) * 60_000 });
+  report.gpu_lock = { waited_s: Math.round((Date.now() - lockWait) / 1000), acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
   if (!opt.app) {
     const state = opt.state || join(tmpdir(), `arsenal-jam-timing-state-${stamp}`);
     mkdirSync(join(state, "performance"), { recursive: true });
@@ -677,6 +684,7 @@ try {
   try { await browser?.send("Browser.close"); } catch { /* closed */ }
   await delay(1000);
   try { chrome?.kill(); } catch { /* gone */ }
+  gpu?.release();
   if (server) {
     try { spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* gone */ }
   }

@@ -24,6 +24,9 @@
 //      moonlight pixels, the recorder's sources, the recorded audio against the control, the glass during REC, jam view
 //      glass outside REC, Claude back on the stage after REC
 //
+// GPU lock (arsenal/GPU-LOCK.md): it takes state/arsenal/gpu-render.lock through gpu_lock.mjs before it starts anything and
+// holds it for the whole run, declaring a cap of 5 minutes per check (10 at least; a5 alone runs about 4.5). Render lanes
+// also wait while this script runs. Started by a script that already holds the lock through gpu_lock.mjs, it inherits it.
 // Writes state/arsenal/receipts/jam/<check>-<date>/<check>-<stamp>.json (and screenshots) per check plus
 // jam-verify-<date>/jam-verify-<stamp>.json, and exits 1 if any check fails.
 import { spawn, execFileSync } from "node:child_process";
@@ -36,6 +39,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { RIM, outlineCentroid } from "../web/piano/glass.js";
+import { acquireGpuLock } from "./gpu_lock.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 function pageFiles() {
@@ -96,7 +100,7 @@ function check(section, name, pass, detail) {
 const round = (x, n = 3) => (Number.isFinite(x) ? Math.round(x * 10 ** n) / 10 ** n : x);
 
 // ---------------------------------------------------------------------------------------------------- processes
-let server = null, chrome = null, browser = null, proxy = null;
+let server = null, chrome = null, browser = null, proxy = null, gpu = null;
 const killTree = (pid) => { try { execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" }); } catch { /* gone */ } };
 async function waitFor(fn, ms, what) {
   const t0 = Date.now();
@@ -1378,6 +1382,9 @@ async function a5() {
 const SECTIONS = { a12, a6, a7, a8, a9, a10, a5 };
 let exitCode = 0;
 try {
+  const lockWait = Date.now();
+  gpu = await acquireGpuLock({ label: `jam_verify ${ONLY.join(",")}`, yieldToJam: false, maxHoldMs: Math.max(10, 5 * ONLY.length) * 60_000 });
+  report.gpu_lock = { waited_s: Math.round((Date.now() - lockWait) / 1000), acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
   await startServer();
   await startChrome();
   if (!ONLY.includes("a12")) {  // the other checks need the seeded deck
@@ -1415,6 +1422,7 @@ try {
   try { await browser?.send("Browser.close"); } catch { /* closed */ }
   await delay(800);
   if (chrome) killTree(chrome.pid);
+  gpu?.release();
   await stopServer().catch(() => {});
   try { rmSync(PROFILE, { recursive: true, force: true }); } catch { /* busy */ }
   console.log(`summary ${JSON.stringify(report.summary)} -> ${join(dir, `jam-verify-${STAMP}.json`)}`);
