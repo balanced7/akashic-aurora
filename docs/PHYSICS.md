@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c39c2526. A bound you discover by collision is not awareness -- this sheet
+> Derived at 7c2266a2. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (258 names)
+## Configuration flags (259 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +32 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +33 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -216,6 +216,7 @@ Class: reference
 | `GEMINI_WEB_TIMEOUT_MS` | `"120000"` | scripts/gemini_web.py |
 | `GEMINI_WEB_TZ` | `"America/New_York"` | scripts/gemini_web.py |
 | `GEMMA_URL` | `"http://localhost:5000"` | research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py |
+| `GIT_AUTHOR_NAME` | `` | scripts/mirror.py |
 | `KIMI_API_KEY` | `` | scripts/kimi_chat.py |
 | `KIMI_BASE_URL` | `"https://api.moonshot.ai/v1"` | core/comm/ask.py |
 | `KIMI_BUDGET_USD` | `"105.0"` | scripts/kimi_chat.py |
@@ -272,7 +273,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (310 numeric constants)
+## Mechanical bounds (311 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -359,6 +360,7 @@ Class: reference
 | `ENGINE_MAX` | 40 | arsenal/jam/schemas.py |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |
 | `EVIDENCE_MS` | 30,000 | arsenal/practice.py | a key change's evidence compares the notes heard this long on either side of it |
+| `FIGURE_STAGE_MS` | 1,500 | arsenal/practice.py | ...unless it lasted this long with its chord's notes struck again inside it: a figure |
 | `FLOOR` | 4,900 | scripts/check_fresh_clone.py |  |
 | `FLOOR_CHARS` | 15 | scripts/bifrost_runner_deepseek.py |  |
 | `FORGE_WATCH_MIN_IMPRESSIONS` | 8 | core/recall/curator.py | ...or this many fresh impressions, whichever first |
