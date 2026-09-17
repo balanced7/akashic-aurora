@@ -287,6 +287,7 @@ MANIFEST = {
     "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
     "new": "cli_only",             # subcommand of `doc`
+    "arc": "cli_only",             # subcommand of `doc`: relabel an atom's arc in place (curation, like `new`)
     # ``college`` is the shared capability. These are its ergonomic argparse
     # subcommands; MCP/ToolBox carry the same operation in college(action=...),
     # so five duplicate top-level model tools would create surface, not parity.

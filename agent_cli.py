@@ -3514,6 +3514,27 @@ def _adopt_seats(stem: str) -> str:
     return ",".join(hits)
 
 
+def _doc_arc(fam, atom_id: str, label: str, repo_root: str) -> int:
+    """`doc arc`: relabel an atom's arc in place (AtomFamily.set_arc: a header-only version event, the body and
+    its sha untouched) and re-render its projection. The rename door an arc label lacked: SA-1's label embedded
+    the path of a doc that was later deleted, and the generated ARCS/SHELVES kept citing it."""
+    from core.library.atoms import AtomError
+    from core.library.projection import render_atom
+    atom_id = (atom_id or "").strip()
+    if not atom_id:
+        print("[doc] REFUSED: arc needs an atom id -- doc arc <atom_id> [label] (no label clears the arc)")
+        return 2
+    try:
+        atom = fam.set_arc(atom_id, label)
+    except AtomError as e:
+        print(f"[doc] REFUSED: {e}")
+        return 2
+    path = render_atom(atom, repo_root=repo_root)
+    print(f"[doc] atom {atom['id']}  arc: {atom['header'].get('arc') or '(none)'}  (v{atom.get('version', 1)})")
+    print(f"  projection -> {os.path.relpath(path, repo_root)}")
+    return 0
+
+
 def cmd_doc(args):
     """A1 (2026-07-23, artifact-substrate build; supersedes D1's file-writer): the birth
     door. Mints a typed ATOM in the store (append-only, supersession-aware; JSONL durable
@@ -3531,6 +3552,12 @@ def cmd_doc(args):
     --draft births status:draft (wrap sweep + library lint curate drafts).
     """
     sub = getattr(args, "sub", "new")
+    if sub == "arc":
+        from core.library.atoms import AtomFamily
+        from core.foundation.store import create_store
+        repo = str(Path(__file__).resolve().parent)
+        return _doc_arc(AtomFamily(create_store(), repo_root=repo), getattr(args, "atom_id", ""),
+                        getattr(args, "label", "") or "", repo)
     if sub == "adopt":
         # NON-DESTRUCTIVE by construction: read, mint, leave the original exactly where it
         # is. An adopt that deleted its source would be a Scribe that can lose work.
@@ -3556,7 +3583,8 @@ def cmd_doc(args):
               f"seats={args.seats or '(none — pass --seats)'}   [override with flags]")
         sub = "new"
     if sub != "new":
-        print("[doc] only 'new' and 'adopt' are implemented — pass 'doc new ...' or 'doc adopt <path>'")
+        print("[doc] only 'new', 'adopt' and 'arc' are implemented — pass 'doc new ...', 'doc adopt <path>' or "
+              "'doc arc <atom_id> [label]'")
         return 2
 
     typ = (getattr(args, "type", "") or "").strip().lower()
@@ -7697,6 +7725,13 @@ def build_parser():
     dado.add_argument("--gist", default="", help="one-line abstract (auto-derived if absent)")
     dado.add_argument("--cite", action="append", default=None, help="atom id this artifact discusses")
     dado.set_defaults(fn=cmd_doc)
+
+    # arc: relabel an atom's arc in place -- a filing facet, so a header-only version event, never a
+    # supersession; the body, its sha and the atom id stay, and the projection is re-rendered.
+    darc = dsps.add_parser("arc", help="relabel an atom's arc in place (header-only version event, body untouched)")
+    darc.add_argument("atom_id", help="the atom to relabel (art_...)")
+    darc.add_argument("label", nargs="?", default="", help="the new arc label (absent = clear the arc)")
+    darc.set_defaults(fn=cmd_doc)
 
     ap = sub.add_parser("tag-anti-pattern", help="tag an EXISTING lesson as a reusable known-bad")
     ap.add_argument("agent_id"); ap.add_argument("--experiment", required=True)

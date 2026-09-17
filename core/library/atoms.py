@@ -261,6 +261,39 @@ class AtomFamily:
             self._append_jsonl(flipped)
         return successor
 
+    def set_arc(self, atom_id: str, arc: Optional[str], *, now: Optional[float] = None) -> Dict[str, Any]:
+        """Relabel an atom's arc in place: a header-only version event (id, body and body_sha stay, so the
+        projection still self-verifies), CAS-updated in the store, the arc index moved, one JSONL line appended.
+        An arc is a filing facet, not content, so relabelling it is not a supersession (the founding case: SA-1's
+        label embedded a path that was later deleted, and the generated ARCS/SHELVES kept citing it). An unchanged
+        label writes nothing."""
+        old = self.get(atom_id)
+        if old is None:
+            raise AtomError(f"cannot relabel unknown atom {atom_id}")
+        new_arc = (arc or "").strip() or None
+        if old["header"].get("arc") == new_arc:
+            return old
+        ts = float(now if now is not None else time.time())
+        seen: Dict[str, Any] = {}
+
+        def _relabel(raw: Optional[str]) -> Optional[str]:
+            if raw is None:
+                return None
+            cur = json.loads(raw)
+            seen["arc"] = cur["header"].get("arc")
+            cur["header"]["arc"] = new_arc
+            cur["updated_ts"] = ts
+            cur["version"] = int(cur.get("version", 1)) + 1
+            return json.dumps(cur, ensure_ascii=False, sort_keys=True)
+
+        atom = json.loads(self.store.update_atomic(KEY_PREFIX + atom_id, _relabel))
+        if seen.get("arc"):
+            self.store.srem(_idx_key("arc", seen["arc"]), atom_id)
+        if new_arc:
+            self.store.sadd(_idx_key("arc", new_arc), atom_id)
+        self._append_jsonl(atom)
+        return atom
+
     def find(self, *, type_: Optional[str] = None, arc: Optional[str] = None,
              category: Optional[str] = None, status: Optional[str] = None) -> List[Dict[str, Any]]:
         """Index-intersection find; newest first. Facets are ANDed."""

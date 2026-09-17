@@ -40,7 +40,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
-| `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt}` |
+| `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt,arc}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |
 | `events` | search / drill / capture the raw event firehose | `--search` `--around` `--window` `--get` `--capture` `--promote` `--threshold` `--kind` `--summary` `--detail-json` `--refs` `--agent` `--track` `--since` `--until` `--limit` `--json` |
