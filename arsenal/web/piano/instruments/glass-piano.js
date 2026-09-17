@@ -12,7 +12,12 @@
 //  - hammers: a struck key throws its hammer up to the string (faster the harder), it rebounds to check height while the
 //    key is held and falls back on release. The felt tip flashes the note colour, v^2 peak over the bloom threshold,
 //    exp(-age / 0.28 s), with a faint held floor under the threshold.
-//  - strings: the struck note's strings take its colour and fade (0.35 s dry, 1.8 s while held or pedalled).
+//  - strings: the struck note's strings take its colour AND start vibrating, and both last exactly as long as the page
+//    says the sound does (state.sounding): a flash, a prompt decay, a pitch-dependent aftersound, then a velocity-scaled
+//    floor held for the whole note, finger or pedal, and a 0.30 s damping fade at its end. The vibration is drawn as a
+//    translucent long-exposure blur (Dune's ornithopter wings), wide and slow in the bass, a fine shimmer at the top.
+//    They are screen-space ribbons in the OPAQUE list under CustomBlending, so they survive the transmission pass.
+//    Tuning table below, under "the string light envelope and the vibration blur".
 //  - dampers: lift while their key is held or the sustain pedal is down; the right pedal dips with the pedal.
 //  - case: clear cast acrylic (white base, a faint cool attenuation over 400 mm, 15 mm walls, 25 mm legs and lyre). A
 //    cool-white fresnel edge (no environment map) outlines the silhouettes; strikes tint only the sharpest edges toward
@@ -41,7 +46,58 @@ const G = Object.freeze({
 });
 const LID_ANGLE = { long: 38, short: 10, closed: 0, off: 0 };
 const GLOW = { peak: 5.0, tau: 0.28, held: 0.3 };
-const STR = { peak: 1.1, tauDry: 0.35, tauWet: 1.8 };
+// ---- the string light envelope and the vibration blur ----
+// Daniel, 2026-09-17: "the color decay doesn't fully match the sustain of the length of the note ... the decay should be
+// slower and have a higher floor", and "notes that are lower could have more of a blur and vibration similar to the wings
+// in the helicopters from the movie Dune". The same model as the concert grand's, tuned the same way, so the two
+// instruments answer a held pedal identically; only the gains differ, because the crystal's strings sit on gold and are
+// NOT its bloom source (the hammer felt is, GLOW.peak above — the strings stay under the 0.9 luminance line at fff).
+//
+//   name             what it is                                                       value
+//   PEAK_EXP         body height at the strike = v^PEAK_EXP  (v = vel/127)            1.35
+//   FLASH_EXP        the strike transient's height = v^FLASH_EXP                      2.0
+//   TAU_FLASH        the transient's decay                                            0.09 s
+//   FLOOR_LO/HI      the floor the body settles on, as a share of the strike body     0.33 at vel 1 -> 0.50 at vel 127
+//                    (42 % at vel 64, 46 % at vel 96), held for the WHOLE sound
+//   AFTER_SHARE      how much of the above-floor body is in the slow aftersound       0.55
+//   TAU_PROMPT       the prompt decay, a real string's first fast loss                1.00 s at A0 -> 0.45 s at C8
+//   TAU_AFTER        the aftersound: bass rings for seconds, treble does not          7.0 s at A0 -> 1.2 s at C8
+//                    (at C4: prompt 0.70 s, aftersound 3.2 s)                         geometric in pitch
+//   TAU_DAMP         the damper landing, when the sound ENDS: the fall's time constant 0.16 s
+//   DAMP_FADE        and the window that closes that fall to exactly 0, so the light   0.30 s
+//                    never outlives the sound. Level at the release x1, +0.05 s 0.68,
+//                    +0.1 s 0.41, +0.15 s 0.21, +0.2 s 0.09, +0.25 s 0.03, +0.3 s 0.
+//                    A fade, not a snap: the steepest 60 fps step is 11 % of the level
+//                    at the release, and the window lands with zero slope.
+//   TAU_VIB_OFF      the blur dies faster than the light: the damper stops the string 0.07 s
+//   STR_BODY/FLASH   string colour = base + noteColor * (body * 1.10 + flash * 0.45)  (1.10 is the old STR.peak, so a
+//                    strike is as bright as it ever was; at fff the pair reach 0.85 luminance, under the 0.9 bloom line)
+//   AMP_BASS/TREBLE  swing half-amplitude at full body, world units, geometric in     0.38 -> 0.038 units
+//                    pitch (0.135 at C4). On screen at 16:9 Ultra: about 8.5 framing   (the same numbers the concert
+//                    px at A0, 3.4 at C4, 1 at C7. Measured perpendicular px/unit at   grand uses — the two cameras put
+//                    the string band: 22.3 / 22.8 / 25.3 / 28.3 (A0/A1/C4/C7).         a unit within 15 % of each other)
+//   AMP_EXP          amplitude = AMP(pitch) * body^AMP_EXP: it narrows as the note settles, and never stops while it sounds
+//   VIB_HZ           the blur envelope's visual breathing rate, never the real pitch  3.1 Hz (bass) -> 9.5 Hz (top)
+//   VIB_WOBBLE       a slow drift of the blur's centre, as a share of its width, so it reads as alive and not as a bar
+//   VIB_DETUNE       the unison strings' rates differ by this much, so they beat against each other as real unisons do
+//   BLUR_CONSERVE    how much of the string's light is spread rather than added as it widens (1 = conserved exactly,
+//                    0 = same peak at any width). 0.45 keeps a wide blur luminous and every pixel of it dimmer than the
+//                    string at rest, which is what keeps the bloom out of it.
+//   STRING_MIN_PX    the ribbon's half-width floor in drawing-buffer pixels, under the string's own STRING_W/2
+// The old string model, kept only as the record of what it was: peak 1.1 now lives in STR_BODY_GAIN, and the two decays
+// (0.35 s dry, 1.8 s wet) are what Daniel's "the colour decay doesn't match the sustain" was about.
+const PEAK_EXP = 1.35, FLASH_EXP = 2;
+const FLOOR_LO = 0.33, FLOOR_HI = 0.50;
+const AFTER_SHARE = 0.55;
+const TAU_PROMPT_BASS = 1.00, TAU_PROMPT_TREBLE = 0.45;
+const TAU_AFTER_BASS = 7.0, TAU_AFTER_TREBLE = 1.2;
+const TAU_FLASH = 0.09, TAU_DAMP = 0.16, DAMP_FADE = 0.30, TAU_VIB_OFF = 0.07;
+const STR_BODY_GAIN = 1.10, STR_FLASH_GAIN = 0.45;
+const AMP_BASS = 0.38, AMP_TREBLE = 0.038, AMP_EXP = 0.8;
+const VIB_HZ_BASS = 3.1, VIB_HZ_TREBLE = 9.5, VIB_WOBBLE = 0.22, VIB_DETUNE = 0.06;
+const BLUR_DENS_CAP = 3.0, BLUR_DENS_NORM = 0.69, BLUR_CONSERVE = 0.45, STRING_MIN_PX = 0.55;
+const pitchOf = (m) => (m - 21) / 87;                    // 0 at A0, 1 at C8
+const overPitch = (m, lo, hi) => lo * Math.pow(hi / lo, pitchOf(m));
 // Clear cast acrylic. Judge 2026-09-15: the old body read purple, because a broad fresnel term carried the chord's strike
 // tint across whole faces. Now the base is white, the attenuation a faint cool grey over 400 mm, and the walls 15 mm
 // (25 mm in the legs and lyre).
@@ -57,7 +113,72 @@ const ETCH = { level: 0.15, flash: 0.9, tau: 0.5 };  // a low resting glow, so t
 const CHECK = 0.42;   // share of the blow the hammer is held at while its key stays down
 
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const mix = (a, b, f) => a + (b - a) * f;
 const damp = (a, b, tau, dt) => b + (a - b) * Math.exp(-dt / tau);
+// The damper's fade, x seconds after the sound ended: the body is already falling at TAU_DAMP, and this window closes
+// that fall to exactly 0 at DAMP_FADE. A bare exponential has no end — at TAU_DAMP alone a loud release was still on
+// screen a second later, i.e. the light outlived the sound. Smoothstep, so it lands with zero slope and never snaps.
+const dampFade = (x) => { if (x >= DAMP_FADE) return 0; const u = x / DAMP_FADE; return 1 - u * u * (3 - 2 * u); };
+
+// ---- the string ribbon shader (the same pair as concert-grand.js; kept per file, an instrument imports nothing) ----
+// Vertex: the ribbon is widened perpendicular to the string AS DRAWN, in screen space, so a blur reads the same however
+// the string is foreshortened. Half-width = the swing amplitude carried per note in uNote[i].w (world units, projected
+// here), never under the string's own resting width. aParam = (u along the speaking length, side -1/+1, light dim, note).
+// Fragment: the long-exposure density of a sine swing, 1/sqrt(1-(x/A)^2) — what the eye actually sees of a wing that beats
+// faster than the frame rate — normalised and conserved, so a wider blur is fainter per pixel and never stacks to white.
+const stringVert = (notes) => `
+precision highp float;
+uniform vec2 uRes;
+uniform float uTime, uMinPx, uRestHalf, uWobble;
+uniform vec4 uNote[${notes}];
+attribute vec3 aBase;
+attribute vec3 aDir;
+attribute vec4 aParam;
+attribute vec2 aVib;
+varying vec3 vCol;
+varying float vAcross;
+varying float vCore;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vec4 clip = projectionMatrix * mv;
+  vec3 dv = mat3(modelViewMatrix) * aDir;                           // aDir is a unit vector in object space,
+  float kScale = length(dv);                                        // so its length here is the host's scale on the instrument
+  vec4 clipB = projectionMatrix * (mv + vec4(dv, 0.0));
+  float w = max(clip.w, 1e-4);
+  vec2 s0 = clip.xy / w * uRes * 0.5;
+  vec2 s1 = clipB.xy / max(clipB.w, 1e-4) * uRes * 0.5;
+  vec2 tang = s1 - s0;
+  vec2 nrm = dot(tang, tang) > 1e-8 ? normalize(vec2(-tang.y, tang.x)) : vec2(1.0, 0.0);
+  float pxPerUnit = projectionMatrix[1][1] * uRes.y * 0.5 / w;
+  vec4 nd = uNote[int(aParam.w + 0.5)];
+  float shape = sin(3.14159265 * aParam.x);
+  float amp = nd.w * shape;
+  float halfW = max(uRestHalf, amp * (0.80 + 0.20 * sin(uTime * aVib.y + aVib.x)));
+  float wob = amp * uWobble * sin(uTime * aVib.y * 0.5 + aVib.x * 1.7);
+  float restPx = max(uMinPx, uRestHalf * kScale * pxPerUnit);
+  float halfPx = max(restPx, halfW * kScale * pxPerUnit);
+  clip.xy += nrm * (aParam.y * halfPx + wob * kScale * pxPerUnit) / (uRes * 0.5) * w;
+  gl_Position = clip;
+  vCol = aBase + nd.rgb * aParam.z;
+  vAcross = aParam.y;
+  vCore = restPx / halfPx;
+}`;
+const STRING_FRAG = `
+precision highp float;
+uniform float uDensCap, uDensNorm, uConserve;
+varying vec3 vCol;
+varying float vAcross;
+varying float vCore;
+void main() {
+  float d = min(abs(vAcross), 1.0);
+  float dens = min(inversesqrt(max(1.0 - d * d, 1e-3)), uDensCap) * uDensNorm;
+  float blur = dens * pow(vCore, uConserve) * smoothstep(1.0, 0.86, d);
+  float solid = smoothstep(1.0, 0.72, d);                         // the string at rest: the thin ribbon it has always been
+  float a = mix(solid, blur, smoothstep(0.0, 0.55, 1.0 - vCore));
+  gl_FragColor = vec4(vCol, clamp(a, 0.0, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
 const isPortrait = (f) => !!f && (f.id === "9:16" || (f.h > 0 && f.h > f.w));
 const norm2 = (x, z) => { const l = Math.hypot(x, z) || 1; return [x / l, z / l]; };
 
@@ -357,7 +478,23 @@ export default {
       sh.fragmentShader = "varying vec3 vGlow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vGlow;");
     };
     felt.customProgramCacheKey = () => "glass-piano-felt";
-    const stringMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    // The strings must stay in the OPAQUE list: a transparent material drops out of three's transmission pass, and the
+    // whole case is transmission 1 — the lit strings would vanish behind the desk and the rim. CustomBlending gives plain
+    // "over" compositing without the transparent flag (three applies the blend either way), so a string at rest, alpha 1,
+    // composites exactly as the opaque ribbon it replaces, and only a vibrating one goes translucent.
+    const strU = {
+      uRes: { value: new THREE.Vector2(1920, 1080) },
+      uTime: { value: 0 },
+      uNote: { value: new Float32Array(N * 4) },        // rgb = the note's light, w = its swing amplitude in units
+      uMinPx: { value: STRING_MIN_PX }, uRestHalf: { value: STRING_W / 2 }, uWobble: { value: VIB_WOBBLE },
+      uDensCap: { value: BLUR_DENS_CAP }, uDensNorm: { value: BLUR_DENS_NORM }, uConserve: { value: BLUR_CONSERVE },
+    };
+    const stringMat = new THREE.ShaderMaterial({
+      uniforms: strU, vertexShader: stringVert(N), fragmentShader: STRING_FRAG,
+      transparent: false, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+      depthWrite: false, side: THREE.DoubleSide,
+    });
+    stringMat.customProgramCacheKey = () => "glass-piano-strings";
     mats.push(glass, glassLeg, gold, brass, spruce, maple, dark, steel, felt, stringMat);
 
     function applyGlass(mode) {
@@ -533,30 +670,64 @@ export default {
         strings.push([i, xf, y, -5.7 - (strings.length % 3) * 1.1, xf + d[0] * l, G.agraffeZ + d[1] * l]);
       }
     }
-    const NS = strings.length, SV = 16;  // per string: 2 segments (pin to agraffe, speaking) x 2 crossed ribbons x 4 vertices
-    const sPos = new Float32Array(NS * SV * 3), sCol = new Float32Array(NS * SV * 3), sBase = new Float32Array(NS * 3), sIdx = [];
-    const hw = STRING_W / 2;
+    // A string is a screen-space ribbon: its width is set in the vertex shader, so it can widen into a vibration blur
+    // without ever becoming a hairline that aliases. The speaking length is subdivided so sin(pi u) has somewhere to go;
+    // the pin-to-agraffe stretch never moves and stays dimmed to 0.6 as it always was.
+    const NS = strings.length;
+    const SPEAK_SPANS = 8;
+    const NODES = 2 + SPEAK_SPANS + 1;                 // pin, agraffe | agraffe ... hitch
+    const SV = NODES * 2, TRIS = (1 + SPEAK_SPANS) * 2;
+    const sPos = new Float32Array(NS * SV * 3), sBase = new Float32Array(NS * SV * 3), sDir = new Float32Array(NS * SV * 3);
+    const sParam = new Float32Array(NS * SV * 4), sVib = new Float32Array(NS * SV * 2);
+    const sIdx = new Uint16Array(NS * TRIS * 3);
     strings.forEach(([i, xf, y, zp, xb, zb], k) => {
-      const segs = [[xf, G.plateY1 + 0.55, zp, xf, y, G.agraffeZ], [xf, y, G.agraffeZ, xb, y, zb]];
-      segs.forEach((s, si) => {
-        const d = norm2(s[3] - s[0], s[5] - s[2]), hx = -d[1] * hw, hz = d[0] * hw;  // horizontal side vector
-        const o = (k * SV + si * 8) * 3;
-        sPos.set([s[0] - hx, s[1], s[2] - hz, s[0] + hx, s[1], s[2] + hz, s[3] - hx, s[4], s[5] - hz, s[3] + hx, s[4], s[5] + hz,
-                  s[0], s[1] - hw, s[2], s[0], s[1] + hw, s[2], s[3], s[4] - hw, s[5], s[3], s[4] + hw, s[5]], o);
-        for (const r of [0, 4]) { const b = k * SV + si * 8 + r; sIdx.push(b, b + 2, b + 1, b + 1, b + 2, b + 3); }
-      });
-      const base = first + i < 41 ? [0.13, 0.065, 0.028] : [0.15, 0.155, 0.17];
-      sBase.set(base, k * 3);
-      for (let v = 0; v < SV; v++) sCol.set(v < 8 ? base.map((c) => c * 0.6) : base, (k * SV + v) * 3);
+      const m = first + i;
+      const base = m < 41 ? [0.13, 0.065, 0.028] : [0.15, 0.155, 0.17];
+      const nodes = [[xf, G.plateY1 + 0.55, zp, 0, 0.6], [xf, y, G.agraffeZ, 0, 0.6]];
+      for (let q = 0; q <= SPEAK_SPANS; q++) {
+        const f = q / SPEAK_SPANS;
+        nodes.push([mix(xf, xb, f), y, mix(G.agraffeZ, zb, f), f, 1]);
+      }
+      const dir = (a, b) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(d[0], d[1], d[2]) || 1; return [d[0] / l, d[1] / l, d[2] / l]; };
+      const d0 = dir(nodes[0], nodes[1]), d1 = dir(nodes[2], nodes[NODES - 1]);
+      const l = k - keyStr0[i], n = keyStrN[i];                              // this string's place in its unison group
+      const phase = (k * 2.39996323) % (2 * Math.PI);
+      const om = 2 * Math.PI * overPitch(m, VIB_HZ_BASS, VIB_HZ_TREBLE) * (1 + VIB_DETUNE * (l - (n - 1) / 2));
+      const v0 = k * SV;
+      for (let q = 0; q < NODES; q++) {
+        const nd = nodes[q], d = q < 2 ? d0 : d1;
+        for (let side = 0; side < 2; side++) {
+          const v = v0 + q * 2 + side, o3 = v * 3;
+          sPos[o3] = nd[0]; sPos[o3 + 1] = nd[1]; sPos[o3 + 2] = nd[2];
+          sBase[o3] = base[0] * nd[4]; sBase[o3 + 1] = base[1] * nd[4]; sBase[o3 + 2] = base[2] * nd[4];
+          sDir[o3] = d[0]; sDir[o3 + 1] = d[1]; sDir[o3 + 2] = d[2];
+          const o4 = v * 4;
+          sParam[o4] = nd[3]; sParam[o4 + 1] = side ? 1 : -1; sParam[o4 + 2] = nd[4]; sParam[o4 + 3] = i;
+          sVib[v * 2] = phase; sVib[v * 2 + 1] = om;
+        }
+      }
+      let ti = k * TRIS * 3;
+      const quad = (a) => { sIdx[ti++] = a; sIdx[ti++] = a + 2; sIdx[ti++] = a + 1; sIdx[ti++] = a + 1; sIdx[ti++] = a + 2; sIdx[ti++] = a + 3; };
+      quad(v0);
+      for (let q = 0; q < SPEAK_SPANS; q++) quad(v0 + (2 + q) * 2);
     });
     const stringGeo = new THREE.BufferGeometry();
     stringGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
-    const sColAttr = new THREE.BufferAttribute(sCol, 3).setUsage(THREE.DynamicDrawUsage);
-    stringGeo.setAttribute("color", sColAttr);
-    stringGeo.setIndex(sIdx);
+    stringGeo.setAttribute("aBase", new THREE.BufferAttribute(sBase, 3));
+    stringGeo.setAttribute("aDir", new THREE.BufferAttribute(sDir, 3));
+    stringGeo.setAttribute("aParam", new THREE.BufferAttribute(sParam, 4));
+    stringGeo.setAttribute("aVib", new THREE.BufferAttribute(sVib, 2));
+    stringGeo.setIndex(new THREE.BufferAttribute(sIdx, 1));
     stringGeo.computeBoundingSphere();
     geos.push(stringGeo);
-    add(new THREE.Mesh(stringGeo, stringMat));
+    const stringMesh = add(new THREE.Mesh(stringGeo, stringMat));
+    stringMesh.renderOrder = 1;                        // after the plate and soundboard, so it blends over them
+    stringMesh.frustumCulled = false;
+    const strViewport = new THREE.Vector4();
+    stringMesh.onBeforeRender = (renderer) => {        // the pass actually drawing: the transmission target is its own size
+      renderer.getCurrentViewport(strViewport);
+      strU.uRes.value.set(strViewport.z, strViewport.w);
+    };
 
     const pinGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.55, 6);
     pinGeo.translate(0, 0.275, 0);
@@ -606,29 +777,61 @@ export default {
     const strikeT = new Float64Array(N).fill(-1e9), strikeV = new Float32Array(N), strikeCol = new Float32Array(N * 3);
     const held = new Uint8Array(N), topHit = new Uint8Array(N), ang = new Float32Array(N), shownAng = new Float32Array(N).fill(NaN);
     const lift = new Float32Array(damperCount), shownLift = new Float32Array(damperCount).fill(NaN), strLevel = new Float32Array(N);
+    // The light envelope (the tuning table at the top): body = floor + prompt + aftersound, plus the strike flash. It is
+    // integrated, not recomputed from the strike clock, so a re-strike carries the level it finds, a sound's end fades
+    // instead of snapping, and a pedal PRESS never resurrects a note the page has already ended.
+    const bFloor = new Float32Array(N), bPrompt = new Float32Array(N), bAfter = new Float32Array(N);
+    const bodyLvl = new Float32Array(N), flash = new Float32Array(N), vibGate = new Float32Array(N), shownAmp = new Float32Array(N);
+    const dampT = new Float32Array(N);                               // seconds into the damper's fade, 0 while it sounds
+    const alive = new Uint8Array(N), seenStrike = new Uint32Array(N);
+    const lastNote = new Float64Array(N).fill(-Infinity);            // the strike ring's high-water mark per key
+    const riseT = new Float64Array(N).fill(-1e9);                    // the hammer is still in flight until then
+    const tauPrompt = new Float32Array(N), tauAfter = new Float32Array(N), ampMax = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      tauPrompt[i] = overPitch(first + i, TAU_PROMPT_BASS, TAU_PROMPT_TREBLE);
+      tauAfter[i] = overPitch(first + i, TAU_AFTER_BASS, TAU_AFTER_TREBLE);
+      ampMax[i] = overPitch(first + i, AMP_BASS, AMP_TREBLE);
+    }
+    let seeded = false;
     const tmp = new THREE.Color(), edgeAcc = new THREE.Color(0, 0, 0), chordCol = new THREE.Color(0.6, 0.7, 1);
     const chordAcc = new THREE.Color();
     let chordN = 0, frameT = 0, active = true, pedalAng = 0, shownPedal = NaN, etchName = null, etchLevel = 0, etchFlash = 0;
     let framing = ctx.framing || null;
     let portrait = isPortrait(framing);
 
-    function strike(m, vel, t0) {
+    // age > 0 seeds a sound that was already ringing when the crystal was mounted, or a strike the ring reports late: the
+    // envelope is analytic, so it can simply be advanced. A strike never dips the light to dark first — whatever is still
+    // showing above the new peak is folded into the prompt term and decays from there.
+    function strike(m, vel, t0, age = 0) {
       const i = m - first;
-      if (i < 0 || i >= N || !(t0 > strikeT[i] + 1e-4) || t0 > frameT + 0.05) return;
+      if (i < 0 || i >= N) return;
       const v = clamp01(vel > 1 ? vel / 127 : vel);
+      const lit = bodyLvl[i] > 0;                     // this string is still showing light from a sound that has not ended
       strikeT[i] = t0;
       strikeV[i] = v;
       topHit[i] = 0;
+      // The hammer's flight, 18-33 ms: a DARK string waits for it. A lit one must not — re-arming the gate on a re-strike
+      // blanked the note to full dark for the frames before the new flash, throwing away the level the carry just kept.
+      // The hammer arm still flies either way: it is animated off strikeT/strikeV, not off this gate.
+      riseT[i] = lit ? -1e9 : t0 + (0.055 - 0.037 * v);
       noteColor(m, vel > 1 ? vel : vel * 127, tmp);
       strikeCol[i * 3] = tmp.r; strikeCol[i * 3 + 1] = tmp.g; strikeCol[i * 3 + 2] = tmp.b;
-      const age = frameT - t0, fade = age > 0 ? Math.exp(-age / EDGE.tau) : 1;
+      const peak = Math.pow(v, PEAK_EXP), fl = peak * mix(FLOOR_LO, FLOOR_HI, v), above = peak - fl;
+      const carry = Math.max(0, bodyLvl[i] - peak);
+      bFloor[i] = fl;
+      bPrompt[i] = (above * (1 - AFTER_SHARE) + carry) * Math.exp(-age / tauPrompt[i]);
+      bAfter[i] = above * AFTER_SHARE * Math.exp(-age / tauAfter[i]);
+      bodyLvl[i] = bFloor[i] + bPrompt[i] + bAfter[i];
+      flash[i] = Math.max(flash[i], Math.pow(v, FLASH_EXP) * Math.exp(-age / TAU_FLASH));
+      vibGate[i] = 1;
+      dampT[i] = 0;                                   // a strike during the damper's fade reopens the window
+      strLevel[i] = -1;                                 // the colour changed with the note: write it even at the same level
+      const fade = age > 0 ? Math.exp(-age / EDGE.tau) : 1;
       edgeAcc.r += tmp.r * v * EDGE.strikeGain * fade; edgeAcc.g += tmp.g * v * EDGE.strikeGain * fade; edgeAcc.b += tmp.b * v * EDGE.strikeGain * fade;
     }
-    function visitPressed(st, m) {
+    function visitPressed(st, m) {                     // the etched chord name is what the FINGERS hold, as it always was
       const i = m - first;
       if (i < 0 || i >= N) return;
-      held[i] = 1;
-      strike(m, st.vel, st.t0);
       noteColor(m, st.vel, tmp);
       chordAcc.r += tmp.r; chordAcc.g += tmp.g; chordAcc.b += tmp.b;
       chordN++;
@@ -662,7 +865,10 @@ export default {
     }
 
     function reset() {
-      strikeT.fill(-1e9); held.fill(0); ang.fill(0); lift.fill(0); strLevel.fill(1);
+      strikeT.fill(-1e9); riseT.fill(-1e9); held.fill(0); ang.fill(0); lift.fill(0); strLevel.fill(-1);
+      bFloor.fill(0); bPrompt.fill(0); bAfter.fill(0); bodyLvl.fill(0); flash.fill(0); vibGate.fill(0); dampT.fill(0);
+      alive.fill(0); shownAmp.fill(0); strU.uNote.value.fill(0);
+      seeded = false;
       edgeAcc.setRGB(0, 0, 0); etchLevel = 0; etchFlash = 0; pedalAng = 0;
       glowArr.fill(0); glowAttr.needsUpdate = true;
       strikeU.value.setRGB(0, 0, 0);
@@ -728,11 +934,43 @@ export default {
         dt = Math.min(Math.max(dt || 0, 0), 0.1);
         frameT = t;
         held.fill(0);
+        alive.fill(0);
         chordAcc.setRGB(0, 0, 0);
         chordN = 0;
         if (state && state.pressed) state.pressed.forEach(visitPressed);
+        const first0 = !seeded;
+        seeded = true;
+        // The sustain record (piano.js, the instrument-host header): an entry lives exactly while the page holds that
+        // sound, finger or pedal. This is the whole of "the light lasts as long as the note does".
+        const sounding = state && state.sounding;
+        if (sounding) {
+          for (const [m, e] of sounding) {
+            const i = m - first;
+            if (i < 0 || i >= N) continue;
+            alive[i] = 1;
+            held[i] = e.held ? 1 : 0;
+            if (e.strike !== seenStrike[i]) {
+              seenStrike[i] = e.strike;
+              strike(m, e.vel, e.t0, first0 ? Math.max(0, t - e.t0) : 0);
+              if (e.t0 > lastNote[i]) lastNote[i] = e.t0;     // the ring reports the same strike: do not count it twice
+            }
+          }
+        } else if (state && state.pressed) {
+          // A host with no sustain record (an older page, an embedder): fingers and the pedal, as this instrument read them before.
+          state.pressed.forEach((st, m) => { const i = m - first; if (i >= 0 && i < N) { held[i] = 1; alive[i] = 1; } });
+          const ped = !!(state && state.pedal);
+          for (let i = 0; i < N; i++) if (!alive[i] && bodyLvl[i] > 0 && (ped ? i < damperCount : false)) alive[i] = 1;
+        }
+        // The strike ring: the only place a note struck and released inside one frame shows at all.
         const notes = state && state.notes;
-        if (notes) for (let k = 0; k < notes.length; k++) { const n = notes[k]; strike(n.midi, n.vel, n.t); }
+        if (notes) {
+          for (let k = 0; k < notes.length; k++) {
+            const n = notes[k], i = n.midi - first;
+            if (i < 0 || i >= N || !(n.t > lastNote[i]) || n.t > t + 0.05) continue;
+            lastNote[i] = n.t;
+            if (!first0) strike(n.midi, n.vel, n.t, Math.max(0, t - n.t));   // on the first frame the ring is history
+          }
+        }
         const pedal = !!(state && state.pedal);
 
         const eK = Math.exp(-dt / EDGE.tau);
@@ -743,7 +981,9 @@ export default {
         if (peak > EDGE.maxChannel) { const s = EDGE.maxChannel / peak; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
         strikeU.value.setRGB(edgeAcc.r * edgeScale, edgeAcc.g * edgeScale, edgeAcc.b * edgeScale);
 
-        let glowDirty = false, strDirty = false;
+        const kFlash = Math.exp(-dt / TAU_FLASH), kDamp = Math.exp(-dt / TAU_DAMP), kVibOff = Math.exp(-dt / TAU_VIB_OFF);
+        const un = strU.uNote.value;
+        let glowDirty = false;
         for (let i = 0; i < N; i++) {
           const age = t - strikeT[i], v = strikeV[i], rise = 0.055 - 0.037 * v;
           if (age >= 0 && age < rise) { const s = age / rise; ang[i] = aTop[i] * s * s; } else {
@@ -756,29 +996,42 @@ export default {
             const goal = held[i] || pedal ? 1 : 0;
             lift[i] = Math.abs(lift[i] - goal) < 1e-3 ? goal : damp(lift[i], goal, goal ? 0.035 : 0.08, dt);
           }
-          // felt glow and string shimmer, both from the strike clock
+          // the felt glow, still read straight off the strike clock (it is the crystal's bloom flash)
           const struck = age >= rise && age < 12;
-          const wet = held[i] || pedal;
           const g = struck ? GLOW.peak * v * v * Math.exp(-(age - rise) / GLOW.tau) + (held[i] ? GLOW.held * v : 0) : 0;
           const o = i * 3, gr = strikeCol[o] * g, gg = strikeCol[o + 1] * g, gb = strikeCol[o + 2] * g;
           if (glowArr[o] !== gr || glowArr[o + 1] !== gg || glowArr[o + 2] !== gb) { glowArr[o] = gr; glowArr[o + 1] = gg; glowArr[o + 2] = gb; glowDirty = true; }
-          let lvl = struck ? STR.peak * v * Math.exp(-(age - rise) / (wet ? STR.tauWet : STR.tauDry)) : 0;
+          // the string light and its vibration blur, both alive exactly as long as the SOUND is
+          flash[i] *= kFlash;
+          if (flash[i] < 1e-4) flash[i] = 0;
+          if (alive[i]) {                                 // sounding: the two-stage decay onto a velocity-scaled floor
+            bPrompt[i] *= Math.exp(-dt / tauPrompt[i]);
+            bAfter[i] *= Math.exp(-dt / tauAfter[i]);
+            vibGate[i] = 1;
+            if (dampT[i]) dampT[i] = 0;                   // it is sounding again: the damper's window reopens
+          } else if (bodyLvl[i] > 0) {                    // the sound ended: the damper lands, a fade and not a snap
+            dampT[i] += dt;
+            bFloor[i] *= kDamp; bPrompt[i] *= kDamp; bAfter[i] *= kDamp;
+            vibGate[i] *= kVibOff;                        // the string stops moving before its glow is gone
+          }
+          // the stored terms keep falling at TAU_DAMP; the window is applied on read, so it cannot compound frame to frame
+          let b = bFloor[i] + bPrompt[i] + bAfter[i];
+          if (dampT[i] > 0) b *= dampFade(dampT[i]);      // ... and it is over, all the way to rest, by DAMP_FADE
+          if (b < 1.5e-3) { b = 0; bFloor[i] = 0; bPrompt[i] = 0; bAfter[i] = 0; vibGate[i] = 0; }
+          bodyLvl[i] = b;
+          const on = t >= riseT[i] ? 1 : 0;               // nothing lights while the hammer is still on its way
+          let lvl = (b * STR_BODY_GAIN + flash[i] * STR_FLASH_GAIN) * on;
           if (lvl < 0.003) lvl = 0;
-          if (lvl !== strLevel[i]) {
-            strLevel[i] = lvl;
-            strDirty = true;
-            for (let s = keyStr0[i], e = s + keyStrN[i]; s < e; s++) {
-              for (let vtx = 0; vtx < SV; vtx++) {
-                const k = (s * SV + vtx) * 3, w = vtx < 8 ? 0.6 : 1;
-                sCol[k] = (sBase[s * 3] + strikeCol[o] * lvl) * w;
-                sCol[k + 1] = (sBase[s * 3 + 1] + strikeCol[o + 1] * lvl) * w;
-                sCol[k + 2] = (sBase[s * 3 + 2] + strikeCol[o + 2] * lvl) * w;
-              }
-            }
+          const amp = b > 0 ? ampMax[i] * Math.pow(b, AMP_EXP) * vibGate[i] * on : 0;
+          if (lvl !== strLevel[i] || amp !== shownAmp[i]) {
+            strLevel[i] = lvl; shownAmp[i] = amp;
+            const o4 = i * 4;
+            un[o4] = strikeCol[o] * lvl; un[o4 + 1] = strikeCol[o + 1] * lvl; un[o4 + 2] = strikeCol[o + 2] * lvl;
+            un[o4 + 3] = amp;
           }
         }
         if (glowDirty) glowAttr.needsUpdate = true;
-        if (strDirty) sColAttr.needsUpdate = true;
+        strU.uTime.value = t;
         pedalAng = Math.abs(pedalAng - (pedal ? -0.11 : 0)) < 1e-4 ? (pedal ? -0.11 : 0) : damp(pedalAng, pedal ? -0.11 : 0, 0.05, dt);
         pose(dt);
 

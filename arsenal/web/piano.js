@@ -1181,6 +1181,22 @@ function updateCamera(dt, t, snap = false) {
 //   Instrument: the body around the keys (instruments-plan.md section 3). "page" is this page's own lacquer piano; every other
 //     is ./piano/instruments/<id>.js, { id, name, create(ctx) } -> { group, update(dt, t, state), resize(framing),
 //     setActive(on), dispose() } plus hints (keyStyle, keySpan, stage / stageHints / hints with floorY and hideHostBody).
+// An instrument's `state` (looks.state, one object refreshed in place every frame, read-only to the instrument):
+//   pressed   Map midi -> the live sounding entry, while the FINGER is down. Deleted on release even if the pedal holds it.
+//   pedal     CC64 is down.
+//   chord     { name, nns, key } while a chord reads, else null.
+//   notes     a 64-entry ring of { midi, vel, t } strikes — the strike record, the only place a note shorter than one frame
+//             shows at all.
+//   sounding  Map midi -> { vel (1-127), t0, held, pedal, tRelease, strike } — the SUSTAIN record, added 2026-09-17 for the
+//             string light: an entry exists exactly while the page considers that note sounding, which is what the ear hears.
+//             It mirrors the notes engine's own map, so it is the page's answer and not a guess: `held` is the finger,
+//             `pedal` (= !held) is a sound the damper pedal alone is holding, `tRelease` is when the finger lifted (null
+//             while held), `t0` and `tRelease` are seconds on the same clock update() is handed, and `strike` counts that
+//             key's strikes so a re-strike inside one frame is still one event (t0 cannot tell you). The entry objects are
+//             pooled per key, so their identity is stable across frames and across re-strikes; the map itself is refreshed
+//             in place. A pedal-held sound has NO time limit — it ends on the pedal lift, a re-strike or a panic, and its
+//             entry leaves the map exactly then. Pitfall: a note struck and released between two frames never appears here
+//             (it is born and dies inside the gap) — flash from `notes`, sustain from `sounding`.
 // Both load with import(), one of each at a time: a switch disposes the one before (the GPU memory it held comes back), and a
 // scheme starts from what is sounding now. Both are error-isolated: a module that fails to import, to create or in any call
 // is disposed, says so in a toast, and the page falls back to its own look (the stored choice stays, so a fixed module comes
@@ -1236,7 +1252,10 @@ const looks = {
   hidden: 0,              // spectacle's Atmosphere note layers hidden in the last frame
   // what a scheme's update() and an instrument's update() get: one object each, refreshed in place every frame
   frame: { info: null, sounding: null, pedalDown: false, framing: null, view: { top: 30, pointScale: 1000 } },
-  state: { pressed: new Map(), pedal: false, chord: null, notes: [] },
+  // state.sounding mirrors the page's own sound model (the notes engine's `sounding` map): an entry exists exactly while the
+  // page holds the note sounding, finger or pedal. Entry objects are pooled per key, so an instrument may hold on to one.
+  state: { pressed: new Map(), pedal: false, chord: null, notes: [], sounding: new Map() },
+  sounds: new Map(),        // the pool behind state.sounding: midi -> the one entry object this key ever hands out
   chord: { name: "", nns: "", key: "", from: null, keyFrom: null },
 };
 let lookFramingInfo = null;
@@ -1519,6 +1538,26 @@ function hideAtmosphereNotes() {
   }
   return hidden;
 }
+// state.sounding, refreshed in place: one pooled entry per key while the page holds that key's sound, dropped when it ends.
+// It reads the notes engine's own map, so held / pedal / tRelease are the page's answer, not a guess (pedal = !held is exact:
+// an entry with held false exists only while CC64 is down). The keys outside the 88 are the page's to sound and no look's to
+// draw, so they never enter the mirror.
+function refreshSounding(mirror) {
+  const pool = looks.sounds;
+  for (const [m, st] of sounding) {
+    if (m < KEY.first || m > KEY.last) continue;
+    let e = pool.get(m);
+    if (!e) { e = { vel: 0, t0: 0, held: false, pedal: false, tRelease: null, strike: 0 }; pool.set(m, e); }
+    e.vel = st.vel;
+    e.t0 = st.t0;
+    e.held = st.held;
+    e.pedal = !st.held;
+    e.tRelease = st.held ? null : st.tRelease;
+    e.strike = st.strike;
+    if (mirror.get(m) !== e) mirror.set(m, e);
+  }
+  for (const m of mirror.keys()) if (!sounding.has(m)) mirror.delete(m);  // the sounds that ended since the last frame
+}
 const schemeOwnsNotes = () => !!looks.scheme.active && !!spectacle && spectacle.settings.enabled && spectacle.settings.harmonyMode === "atmosphere";
 function lookChord(info) {  // the instrument's state.chord: { name, nns, key } while a chord reads, else null
   if (!info || info.kind !== "chord" || !info.name) return null;
@@ -1544,6 +1583,7 @@ function updateLooks(dt, t, info) {
     const S = looks.state;
     S.pedal = sustain;
     S.chord = lookChord(info);
+    refreshSounding(S.sounding);
     try { i.handle.update(dt, t, S); } catch (e) { lookFailed("instrument", i, "update", e); }
   }
 }
@@ -2575,7 +2615,8 @@ function logChord(t) {
 
 // ----------------------------------------------------------- notes engine --
 // A note sounds while its key is held, or after release while the pedal (CC64) is down.
-const sounding = new Map();  // midi -> { held, vel, t0, trail }
+const sounding = new Map();  // midi -> { held, vel, t0, tRelease, strike, trail }
+const strikeCount = new Uint32Array(128);  // per key, ++ on every note on: two strikes inside one frame share a t0, not this
 let sustain = false;
 let detectDirty = true;
 let jamDirty = false;  // the jam key came, went or changed: the reading shown is read again, Daniel's own is not (currentInfo)
@@ -2606,7 +2647,7 @@ function noteOn(m, vel) {
   }
   logged((log) => log.noteOn(m, vel, pageSec(t)));
   const inRange = m >= KEY.first && m <= KEY.last;
-  sounding.set(m, { held: true, vel, t0: t, tRelease: 0, trail: inRange ? trails.start(m, vel, t) : null });
+  sounding.set(m, { held: true, vel, t0: t, tRelease: 0, strike: ++strikeCount[m], trail: inRange ? trails.start(m, vel, t) : null });
   if (inRange) {
     const k = keys.get(m);
     k.target = 0.17 + 0.27 * (vel / 127);  // velocity-scaled key depth (world units at the key front)

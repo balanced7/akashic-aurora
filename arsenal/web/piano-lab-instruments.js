@@ -178,8 +178,23 @@ function updateKeys(dt) {
 }
 
 // ------------------------------------------------------------ state and playing --
-const state = { pressed: new Map(), pedal: false, chord: null, notes: [] };
+// state.sounding is the host contract's sustain record (piano.js, the looks header): an entry lives exactly while the note
+// sounds, finger or pedal. The lab has no notes engine, so it is derived from state.pressed and state.pedal each step —
+// same shape, same rules, so an instrument behaves here as it does on the page.
+const state = { pressed: new Map(), pedal: false, chord: null, notes: [], sounding: new Map() };
 let t = 0;
+function syncSounding() {
+  for (const [m, p] of state.pressed) {
+    const e = state.sounding.get(m);
+    if (!e || e.t0 !== p.t0) state.sounding.set(m, { vel: p.vel, t0: p.t0, held: true, pedal: false, tRelease: null, strike: (e ? e.strike : 0) + 1 });
+    else { e.held = true; e.pedal = false; e.tRelease = null; }
+  }
+  for (const [m, e] of state.sounding) {
+    if (state.pressed.has(m)) continue;
+    if (e.held) { e.held = false; e.pedal = true; e.tRelease = t; }
+    if (!state.pedal) state.sounding.delete(m);   // no finger and no pedal: the sound ends
+  }
+}
 function noteOn(m, vel) {
   state.pressed.set(m, { vel, t0: t });
   state.notes.push({ midi: m, vel, t });
@@ -307,6 +322,7 @@ let paused = false, last = performance.now(), fps = 0;
 function step(dt) {
   t += dt;
   runDemo();
+  syncSounding();
   updateKeys(dt);
   for (const nl of noteLights) { nl.level *= Math.exp(-dt / 0.5); nl.light.intensity = nl.level * 7; }
   inst?.update?.(dt, t, state);
