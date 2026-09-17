@@ -24,6 +24,7 @@ from . import __version__
 from .graph import GraphError, load_graph
 from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .jam.runs import JamApi
+from . import pianolooks
 from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
 from .presets import list_presets
@@ -153,7 +154,7 @@ class Jobs:
 
 class App:
     def __init__(self, roots: List[str], takes_root=None, presets_dir=None, performance_root=None,
-                 performance_log: bool = True, jam_root=None):
+                 performance_log: bool = True, jam_root=None, looks_root=None):
         self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
@@ -169,6 +170,27 @@ class App:
         if jam_root is None and performance_root is not None:
             jam_root = Path(performance_root).resolve().parent / "jam"
         self.jam = JamApi(root=jam_root, performance=self.performance, hub=lambda: self.cues)
+        # The Studio drawer's saved looks (arsenal/pianolooks.py), placed the way the jam files are: state/arsenal/looks by
+        # default, <performance root>/../looks for a server given --performance-root. Nothing is written before a save.
+        if looks_root is None and performance_root is not None:
+            looks_root = Path(performance_root).resolve().parent / "looks"
+        self.looks = pianolooks.LooksStore(looks_root)
+
+
+class _CountingReader:
+    """A request's rfile that counts the bytes a route reads from it (Handler._route), so a body left unread is known."""
+
+    def __init__(self, raw):
+        self.raw = raw
+        self.count = 0
+
+    def read(self, size=-1):
+        data = self.raw.read(size)
+        self.count += len(data)
+        return data
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)  # anything else (readline, ...) is not counted: the body then counts as unread
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -189,6 +211,8 @@ class Handler(BaseHTTPRequestHandler):
     # ----------------------------------------------------------------- responses
     def _send(self, status: int, body: bytes, content_type: str, headers: Optional[dict] = None) -> None:
         self.send_response(status)
+        if self._body_unread():
+            self.send_header("Connection", "close")  # (send_header sets close_connection too)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
@@ -218,7 +242,38 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._route("POST")
 
+    def do_PUT(self):
+        self._route("PUT")
+
+    def _body_unread(self) -> bool:
+        """True when this request declared a body its route has not read in full. On a keep-alive connection those bytes
+        would be parsed as the next request, and a page on another site can hide a whole request (Host, no Origin, any
+        Content-Type) inside the body of a simple POST that nothing reads, such as a 404's. So such a response closes the
+        connection (_send says so in a Connection header; _route closes it for every other answer)."""
+        if self.headers.get("Transfer-Encoding"):
+            return True  # a chunked body is never decoded here
+        declared = self.headers.get("Content-Length")
+        if declared is None:
+            return False
+        try:
+            length = int(declared)
+        except ValueError:
+            return True
+        if length <= 0:
+            return length < 0
+        reader = self.rfile
+        return not isinstance(reader, _CountingReader) or reader.count < length
+
     def _route(self, method: str) -> None:
+        reader = self.rfile = _CountingReader(self.rfile)
+        try:
+            self._dispatch(method)
+        finally:
+            if self._body_unread():
+                self.close_connection = True
+            self.rfile = reader.raw
+
+    def _dispatch(self, method: str) -> None:
         url = urlsplit(self.path)
         path, query = url.path, parse_qs(url.query)
         try:
@@ -254,6 +309,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._cue_stream(query)
                 if path == "/api/piano/cues/status":
                     return self._json(200, self.app.cues.status())
+                if path == pianolooks.PATH:
+                    return self._looks("GET")
                 if _is_jam_path(path):
                     return self._jam_route("GET", path, query)
                 logging = self.app.performance is not None
@@ -290,6 +347,9 @@ class Handler(BaseHTTPRequestHandler):
                     m = re.fullmatch(rf"/api/performance/({SESSION_PATTERN})/(events|close)", path)
                     if m:
                         return self._performance_post(m.group(1), m.group(2))
+            elif method == "PUT":
+                if path == pianolooks.PATH:
+                    return self._looks("PUT")
             return self._json(404, {"error": f"no route for {method} {path}"})
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             return  # the browser cancelled, usually a seek
@@ -605,6 +665,37 @@ class Handler(BaseHTTPRequestHandler):
                 body = {}
         status, reply = self.app.jam.handle(method, path, query, body)
         return self._json(status, reply)
+
+    def _looks(self, method: str) -> None:
+        """GET and PUT /api/piano/looks: the Studio drawer's saved looks (arsenal/pianolooks.py has the contract). A PUT's
+        body is read first when its size is allowed, so a refusal leaves the keep-alive connection usable."""
+        raw = b""
+        if method == "PUT":
+            declared = self.headers.get("Content-Length")
+            if declared is None or "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                self.close_connection = True
+                return self._json(411, {"error": "saved looks need a Content-Length"})
+            try:
+                length = int(declared)
+            except ValueError:
+                length = -1
+            if length < 0:
+                self.close_connection = True
+                return self._json(400, {"error": "Content-Length is not a number"})
+            if length > pianolooks.MAX_BODY:
+                self.close_connection = True  # the body stays unread, so this connection cannot be reused
+                return self._json(413, {"error": f"saved looks are at most {pianolooks.MAX_BODY // 1024} KB"})
+            raw = self.rfile.read(length) if length else b""
+        problem = pianolooks.request_problem(method, self.headers, self.server.server_address[1])
+        if problem:
+            return self._json(problem[0], {"error": problem[1]})
+        try:
+            if method == "GET":
+                return self._json(200, self.app.looks.read())
+            rev, presets = pianolooks.parse_body(raw)
+            return self._json(200, self.app.looks.replace(rev, presets))
+        except pianolooks.LooksError as exc:
+            return self._json(exc.status, {"error": str(exc), **exc.extra})
 
     def _peer_gone(self) -> bool:
         """An EventSource never sends after its request, so a readable socket means the peer closed (or reset)."""

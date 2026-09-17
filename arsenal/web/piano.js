@@ -314,6 +314,7 @@ const PAGE_ID = (() => {
 // Pitch colour walks the circle of fifths: music in one key keeps a coherent arc of hues
 // (C major = teal through blue and violet to pink) and a modulation visibly shifts the palette.
 const COLOUR = { mode: safeGet("arsenal.piano.colour") || "pitch" };
+const COLOUR_MODES = ["pitch", "velocity", "mono"];  // the Colour menu's choices (piano.html #color-select)
 const fifthsIndex = (pc) => (pc * 7) % 12;
 // Each hue is taken near its own most colourful lightness (blue and violet peak dark, yellow and teal
 // peak light) at 95% of the sRGB edge, so no note is a pastel. A fixed lightness for every hue can only
@@ -2162,6 +2163,15 @@ function fitTextRuns(ctx, text, size, weight, color, maxW) {  // set as above, o
   const runs = cueTextRuns(text, size, weight, color);
   return measureRuns(ctx, runs) <= maxW ? runs : [fitRun(ctx, { text, font: `${weight} ${size}px ${FONT.display}`, color }, maxW)];
 }
+// The chip's first word: YOU for a replay of Daniel's own playing; EXERCISE for the Studio's practice player, whose chords
+// are local cues with ids starting "exercise:" (practice/player.js ID_PREFIX; the caption carries the id, cues.js meta);
+// CLAUDE for everything else. Stream cues carry the server's integer ids, so none of them can read EXERCISE.
+const EXERCISE_CUE_PREFIX = "exercise:";
+function cueChipLead(info) {
+  if (!info) return null;
+  if (info.source === "replay") return "YOU";
+  return typeof info.cue_id === "string" && info.cue_id.startsWith(EXERCISE_CUE_PREFIX) ? "EXERCISE" : "CLAUDE";
+}
 function drawCueChip(layer, info) {
   const { ctx, spec } = layer;
   ctx.clearRect(0, 0, spec.w, spec.h);
@@ -2175,7 +2185,7 @@ function drawCueChip(layer, info) {
   const S = Math.round(spec.size * (underText ? 0.78 : 1)), pad = Math.round(spec.size * 0.45);
   const small = Math.round(spec.size * (underText ? 0.34 : 0.4));
   const maxText = spec.w - 4 - pad * 2;
-  const lead = [{ text: `${replay ? "YOU" : "CLAUDE"}  ·  `, font: `700 ${Math.round(S * 0.42)}px ${FONT.display}`,
+  const lead = [{ text: `${cueChipLead(info)}  ·  `, font: `700 ${Math.round(S * 0.42)}px ${FONT.display}`,
                   color: replay ? CHIP.leadYou : CHIP.lead, spacing: `${Math.round(S * 0.06)}px`, dy: -S * 0.1 }];
   const leadW = measureRuns(ctx, lead), room = maxText - leadW;
   let main = info.label ? cueLabelRuns(info.label, S) : fitTextRuns(ctx, info.detail || "", Math.round(S * 0.62), 600, INK, room);
@@ -3248,6 +3258,54 @@ function startDeck() {
   }
   fitCanvas();
 }
+
+// The Studio (piano/studio/studio.js): a second right-edge drawer inside the stage, outside the recorded canvas, with two
+// tabs. Practice plays the exercise library (piano/practice) through Claude's voice as local cues ("exercise:" ids), so its
+// notes reach the keys, the ghosts and the chip but never `sounding`, the practice log, the key tracker, the chord reader,
+// the Nashville row, the staff, the schemes or a recording (cueNoteOn). Looks saves and applies the page's visual settings
+// through piano/looks/registry.js and the server's /api/piano/looks. The Studio and the deck close each other (the Studio
+// closes the deck when it opens and watches #deck's data-open, as conversation-dock.js does); fitCanvas subtracts whichever
+// is docked. Its modules load with import() after the deck, so a Studio that fails to load never stops the page: the page
+// plays on without it and says so.
+let studio = null;
+async function startStudio() {
+  try {
+    const [studioMod, library, playerMod, registry, storeMod] = await Promise.all([
+      import("./piano/studio/studio.js"), import("./piano/practice/library.js"), import("./piano/practice/player.js"),
+      import("./piano/looks/registry.js"), import("./piano/looks/store.js"),
+    ]);
+    // What the Studio reads and sets is window.__piano (the registry's page: looks(), stats(), spectacle, the select and set
+    // functions); the few hooks below are the Studio's own and stay off window.__piano.
+    const page = Object.assign(Object.create(window.__piano), {
+      canvas, toast,
+      framing: () => framing,
+      pad: () => (document.fullscreenElement ? 0 : 14),
+      minor: () => theoryUi.minor,
+      // REC, as the page's own guards read it (applyFraming, selectScheme): recording, stopping or saving, or about to start.
+      // The Studio holds its dock width through all of it and keeps the settings a take can't change locked.
+      isRecording: () => rec.state !== "idle" || rec.arming,
+      // An exercise starting while Claude's band sounds a run: the band stops first, as Esc or the deck's Stop stop it, so
+      // the two never play through one player at once. A run that isn't sounding (a knock waiting for his rest) is left.
+      beforeExerciseStart: () => {
+        try {
+          if (!transport.stats().runs.some((r) => r.live || r.handed > 0)) return;
+          Promise.resolve(transport.stop("now")).catch((e) => jamWarn("stop", e));
+        } catch (e) { jamWarn("stop", e); }
+      },
+    });
+    studio = studioMod.mountStudio({
+      stage: $("stage"), page, keys: false,  // the page's keydown handler calls studio.handleKey (wireUi)
+      practice: { library: { FAMILIES: library.FAMILIES, EXERCISES: library.EXERCISES }, createPlayer: (o) => playerMod.createExercisePlayer(o) },
+      looks: { registry, store: storeMod.createLooksStore() },
+      onLayout: () => fitCanvas(),
+    });
+  } catch (e) {
+    studio = null;
+    console.error("[piano] Studio unavailable:", e);
+    toast(`The Studio could not start: ${errText(e)}`, true);
+  }
+  fitCanvas();
+}
 // The last cue, for the status readout, the HUD, stats and the REC toast. lastLabel keeps the last cue that had a label, so
 // a clear does not blank it.
 function noteCue(cue, id) {
@@ -3712,15 +3770,17 @@ function hideToast(message) {  // only while that message is the one showing
   clearTimeout(toastTimer);
   el.hidden = true;
 }
-// The canvas fits the stage, less a docked deck's 380 px (8.11 item 7; the deck keeps its dock width frozen while REC runs,
-// so a take never reflows). deck.layout() may itself call back here (onLayout): the guard makes that a no-op, since this
-// call already reads the new width.
+// The canvas fits the stage, less the right drawer that is docked: the deck or the Studio, each 380 px (8.11 item 7; each
+// keeps its dock width frozen while REC runs, so a take never reflows). The two close each other, so at most one is open;
+// while REC runs one that was just closed may still hold its frozen width, so the wider of the two is taken, never the sum
+// (deck.css and studio.css pad the stage by one drawer's width either way). layout() and dockWidth() may themselves call
+// back here (onLayout): the guard makes that a no-op, since this call already reads the new width.
 let fitting = false;
 function fitCanvas() {
   if (fitting) return;
   fitting = true;
   try {
-    const dock = jam.deck ? jam.deck.layout().dockWidth : 0;
+    const dock = Math.max(jam.deck ? jam.deck.layout().dockWidth : 0, studio ? studio.dockWidth() : 0);
     const r = $("stage").getBoundingClientRect();
     const pad = document.fullscreenElement ? 0 : 14;
     const scale = Math.max(0.05, Math.min((r.width - dock - 2 * pad) / framing.w, (r.height - 2 * pad) / framing.h));
@@ -3740,9 +3800,14 @@ function fitCanvas() {
     fitting = false;
   }
 }
+// true once the framing is applied; false when REC refuses it (the buttons ignore the answer, the Studio's Looks read it)
 function applyFraming(id, persist = true) {
-  if (rec.state !== "idle" && FRAMINGS[id] !== framing) { toast("Stop recording before changing the framing", true); return; }
+  if (rec.state !== "idle" && FRAMINGS[id] !== framing) { toast("Stop recording before changing the framing", true); return false; }
+  const was = framing;
   framing = FRAMINGS[id] || FRAMINGS["9:16"];
+  // a new framing starts from its own closest view: with nothing sounding the camera keeps the span it has
+  // (easeCamera), so 16:9's whole keyboard would otherwise stay on a 9:16 page until notes are played
+  if (framing !== was) cam.span = camDan.span = framing.minSpan;
   if (persist) safeSet("arsenal.piano.framing", framing.id);
   renderer.setSize(Math.round(framing.w * renderScale), Math.round(framing.h * renderScale), false);
   composer.setSize(Math.round(framing.w * renderScale), Math.round(framing.h * renderScale));
@@ -3754,6 +3819,7 @@ function applyFraming(id, persist = true) {
   $("btn-169").setAttribute("aria-pressed", String(framing.id === "16:9"));
   updateCamera(0, clock(), true);
   fitCanvas();
+  return true;
 }
 function toggleHud() { $("hud").hidden = !$("hud").hidden; }
 function setRenderQuality(scale) {
@@ -4004,6 +4070,35 @@ function updateHud(t) {
     (midi.echoes ? ` · ${midi.echoes} echoes ignored` : "") + jamHudText();
 }
 
+// The Colour menu and the Studio's Looks set the colour mode here (window.__piano.setColourMode): stored, the keys that
+// sound now recoloured, the menu kept in step. false for a mode the menu doesn't offer (nothing changes).
+function setColourMode(mode) {
+  if (!COLOUR_MODES.includes(mode)) return false;
+  COLOUR.mode = mode;
+  safeSet("arsenal.piano.colour", COLOUR.mode);
+  for (const [m, st] of sounding) { const k = keys.get(m); if (k) noteColor(m, st.vel, k.color); }
+  for (const st of cueSounding.values()) {  // Claude's moonlight level is set per colour mode too (moonColor)
+    const k = keys.get(st.m);
+    if (!k) continue;
+    if (st.source === "replay") { replayColor(st.m, st.vel, k.cueColor); k.cueCss = k.cueColor.getStyle(); }
+    else moonColor(st.vel, k.cueColor);
+  }
+  overlay.invalidate();
+  const select = $("color-select");
+  if (select && select.value !== COLOUR.mode) select.value = COLOUR.mode;
+  return true;
+}
+// The Numbers menu and the Studio's Looks set the Nashville numbers mode here (window.__piano.setNumbersMode): stored, the
+// menu kept in step. false for a mode the menu doesn't offer (nothing changes).
+function setNumbersMode(mode) {
+  if (!NNS_MODES.includes(mode)) return false;
+  theoryUi.nns = mode;
+  safeSet("arsenal.piano.nns", theoryUi.nns);
+  const select = $("nns-select");
+  if (select && select.value !== theoryUi.nns) select.value = theoryUi.nns;
+  return true;
+}
+
 function wireUi() {
   for (const b of document.querySelectorAll(".btn")) b.addEventListener("click", () => b.blur());
   $("btn-midi").addEventListener("click", () => (midi.access ? refreshMidiInputs() : connectMIDI()));
@@ -4012,18 +4107,7 @@ function wireUi() {
   $("btn-916").addEventListener("click", () => applyFraming("9:16"));
   $("btn-169").addEventListener("click", () => applyFraming("16:9"));
   $("color-select").value = COLOUR.mode;
-  $("color-select").addEventListener("change", (e) => {
-    COLOUR.mode = e.target.value;
-    safeSet("arsenal.piano.colour", COLOUR.mode);
-    for (const [m, st] of sounding) { const k = keys.get(m); if (k) noteColor(m, st.vel, k.color); }
-    for (const st of cueSounding.values()) {  // Claude's moonlight level is set per colour mode too (moonColor)
-      const k = keys.get(st.m);
-      if (!k) continue;
-      if (st.source === "replay") { replayColor(st.m, st.vel, k.cueColor); k.cueCss = k.cueColor.getStyle(); }
-      else moonColor(st.vel, k.cueColor);
-    }
-    overlay.invalidate();
-  });
+  $("color-select").addEventListener("change", (e) => { setColourMode(e.target.value); });
   // Scheme and Instrument: stored, loaded with import(), error-isolated (the "looks" section); blur so the note keys keep working
   const schemeSelect = $("scheme-select"), instrumentSelect = $("instrument-select");
   schemeSelect.addEventListener("pointerdown", () => { probeLooks(); });
@@ -4044,8 +4128,7 @@ function wireUi() {
   const nnsSelect = $("nns-select"), minorSelect = $("minor-select"), keySelect = $("key-select");
   nnsSelect.value = theoryUi.nns;
   nnsSelect.addEventListener("change", () => {
-    theoryUi.nns = NNS_MODES.includes(nnsSelect.value) ? nnsSelect.value : "chord";
-    safeSet("arsenal.piano.nns", theoryUi.nns);
+    setNumbersMode(NNS_MODES.includes(nnsSelect.value) ? nnsSelect.value : "chord");
     nnsSelect.blur();  // hand the keyboard back to the computer-key piano
   });
   minorSelect.value = theoryUi.minor;
@@ -4101,6 +4184,10 @@ function wireUi() {
     // The deck's keys (8.7: A, the up and down arrows, Enter, K, \, ', - =, [ ], Esc and Backspace) come before the page's
     // own and KEYMAP. The deck skips form fields itself, except its own search box's Esc.
     if (jam.deck && jam.deck.handleKey(e)) return;
+    // The Studio's keys (none is a letter; every letter is taken): ` toggles it, Page Up / Page Down the previous / next
+    // exercise, Home play or pause, End stop, Insert / Delete the previous / next saved look. Like the deck's, they skip form
+    // fields (the Studio's own search box keeps its Esc) and never run with Ctrl, Meta or Alt (the return above).
+    if (studio && studio.handleKey(e)) return;
     if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") return;
     if (e.code === "KeyH") { e.preventDefault(); if (!e.repeat) toggleHud(); return; }
     if (e.code === "KeyF") { e.preventDefault(); if (!e.repeat) toggleFullscreen(); return; }
@@ -4265,6 +4352,12 @@ window.__piano = {
   selectInstrument: (id, persist = true) => selectInstrument(id, persist),
   registerScheme: (mod) => registerScheme(mod),
   probeSchemes: () => probeLooks().then(() => lookList("scheme")),
+  // The top bar's visual settings as the Studio's Looks set them (looks/registry.js): each is what its own control does, and
+  // each answers false when it keeps the setting as it was (a mode the menu doesn't offer; a framing change while REC runs).
+  setColourMode: (mode) => setColourMode(mode),
+  setNumbersMode: (mode) => setNumbersMode(mode),
+  applyFraming: (id) => (FRAMINGS[id] ? applyFraming(id) : false),
+  get studio() { return studio; },  // the Studio drawer (piano/studio/studio.js), once it has mounted
   get scheme() { return looks.scheme.active ? looks.scheme.active.instance : null; },
   get instrument() { return looks.instrument.active ? looks.instrument.active.handle : null; },
   conversation: {
@@ -4287,17 +4380,30 @@ window.__piano = {
              trailCap: TRAIL_MAX, pedal: sustain, rec: rec.state,
              nns: lastNns ? lastNns.text : null,
              key: { name: keyView.key ? keyView.key.name : null, confidence: keyView.confidence, locked: keyView.locked, dim: keyView.dim },
-             keyRaw: keyRaw ? keyRaw.name : null, nnsMode: theoryUi.nns, minor: theoryUi.minor,
+             keyRaw: keyRaw ? keyRaw.name : null, nnsMode: theoryUi.nns, minor: theoryUi.minor, colour: COLOUR.mode,
              log: perfLog ? perfLog.status() : null, logRoutes,
              fonts: { ...fontState }, demo: demo.running, noteOns: stats.noteOns,
              glow: Object.fromEntries([...sounding.keys()].map((m) => [m, +(keys.get(m)?.glow ?? 0).toFixed(3)])),
              cue: cueStats() };
   },
-  // Claude's hand, for receipts: play(cue) hands a cue straight to the player, as the stream would (no server)
+  // Claude's hand, for receipts: play(cue) hands a cue straight to the player, as the stream would (no server).
+  // play(cue, { id, at, grace }) makes it a local at-cue (cues.js handle): the Studio's practice player hands each chord so,
+  // with an "exercise:" id, and takes chords back with cancel(id) / extend(id, step, offAt); clears() is the player's clear
+  // counter, which only a real clear moves (hush, an SSE clear, pagehide), so the practice player notices one and stops.
   cues: { get client() { return cueClient; }, player: cuePlayer, voice: cueVoice, view: cueView, stage: cueStage,
-          play: (cue) => { const id = `local-${++cueLocalSeq}`; noteCue(cue, id); planCue(cue, id); return cuePlayer.handle(cue, { id }); },
+          play: (cue, opts) => {
+            const o = opts || {};
+            const id = o.id ?? `local-${++cueLocalSeq}`;
+            noteCue(cue, id);
+            planCue(cue, id);
+            return cuePlayer.handle(cue, o.at === undefined ? { id } : { id, at: o.at, grace: o.grace });
+          },
+          cancel: (id, o) => cuePlayer.cancel(id, o),
+          extend: (id, step, offAt) => cuePlayer.extend(id, step, offAt),
+          clears: () => cuePlayer.state().clears,
           clear: () => hushClaude(),
           get chipLabel() { return overlay.cueShown ? overlay.cueShown.label : null; },  // what the chip draws now
+          get chipLead() { return cueChipLead(overlay.cueShown); },  // its first word: CLAUDE, EXERCISE or YOU
           setView: (v) => { cueStage.view = CUE_VIEWS.includes(v) ? v : "auto"; return cueStage.view; } },
   // The jam space, for receipts (arsenal/lanes/jam_verify.mjs; jam spec 8.11 item 12): the deck, Claude's band (transport),
   // the glass and the jam view, stats(), and hooks a harness needs to measure them.
@@ -4561,6 +4667,7 @@ function boot() {
   startLog();
   startCues();
   startDeck();  // the cards, after the stream (8.11 item 13): deck frames arriving before it are read by its first refresh
+  startStudio();  // the Studio after the deck, which it shares the right edge with (it loads its modules on its own)
   (async () => {
     let state = "prompt";
     try { state = (await navigator.permissions.query({ name: "midi" })).state; } catch { /* not queryable */ }
