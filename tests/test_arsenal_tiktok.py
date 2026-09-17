@@ -1,6 +1,7 @@
 """Vandor's tests for py -m arsenal tiktok: border detection, aspect math, silence and stream parsing,
 audio sync (notes on their picture flashes through dropouts and late audio), naming, ffmpeg
-discovery, the drag-and-drop wording, and end-to-end encodes of synthetic screen recordings.
+discovery, the drag-and-drop wording, --from/--to windows (time parsing, trim inside the window,
+the fades, the box sampled inside it), and end-to-end encodes of synthetic screen recordings.
 
 All media is synthetic (pure-Python frames, or ffmpeg lavfi sources in tmp_path); no real recording
 is read. The module skips cleanly when no ffmpeg is discoverable.
@@ -895,3 +896,291 @@ def test_end_to_end_makes_a_tiktok_ready_copy(tmp_path, capsys):
     assert main(["tiktok", str(src), "--out", str(out_dir)]) == 1
     assert "--force" in capsys.readouterr().err
     assert (_sha(src), src.stat().st_size, src.stat().st_mtime_ns) == before
+
+
+# =================================================================================================
+# --from/--to: a window of a long recording (the keeper at the end of a 30-minute take)
+# =================================================================================================
+
+def test_time_parsing_all_forms_and_errors():
+    assert tiktok.parse_time("1732") == 1732.0
+    assert tiktok.parse_time("1731.6") == 1731.6
+    assert tiktok.parse_time("28:52") == 1732.0
+    assert tiktok.parse_time("28:52.5") == 1732.5
+    assert tiktok.parse_time("1:05:03.2") == pytest.approx(3903.2)
+    assert tiktok.parse_time(" 0:07 ") == 7.0
+    assert tiktok.parse_time("90:00") == 5400.0            # minutes run past 59 when there is no hour
+    for bad in ("", "abc", "1:2:3:4", "28:60", "1:75:00", "1.5:00", ":52", "28:", "4.", ".5", "1,5"):
+        with pytest.raises(tiktok.TikTokError, match="cannot read the time"):
+            tiktok.parse_time(bad)
+    with pytest.raises(tiktok.TikTokError, match="negative"):
+        tiktok.parse_time("-5")
+    # the same times as they go into a file name
+    assert tiktok.name_time(1732) == "28-52" and tiktok.name_time(1731.6) == "28-51.6"
+    assert tiktok.name_time(3903.2) == "1-05-03.2" and tiktok.name_time(4) == "0-04"
+    assert tiktok.name_time(1731.9996) == "28-52"          # rounded to the millisecond, never '28-51.'
+    assert tiktok.window_tag(None, None) == ""
+    assert tiktok.window_tag(1732.0, None) == " 28-52-end"
+    assert tiktok.window_tag(None, 180.0) == " start-3-00"
+    assert tiktok.window_tag(1731.6, 3903.2) == " 28-51.6-1-05-03.2"
+
+
+def test_trim_inside_the_window():
+    win = tiktok.Window(100.0, 160.0)
+    assert win.length == 60.0 and tiktok.Window(100.0).length is None
+    trim = tiktok.plan_trim((103.0, 150.0), 200.0, 0.5, 2.0, win)
+    assert (trim.start, trim.end, trim.fade) == (102.5, 152.0, True)
+    # sound from the window's first moment past its last: the window is used whole
+    trim = tiktok.plan_trim((100.0, 160.0), 200.0, 0.5, 2.0, win)
+    assert (trim.start, trim.end) == (100.0, 160.0)
+    # the lead never reaches back before --from, and a start within 50 ms of it snaps to it
+    assert tiktok.plan_trim((100.2, 150.0), 200.0, 0.5, 2.0, win).start == 100.0
+    assert tiktok.plan_trim((100.54, 150.0), 200.0, 0.5, 2.0, win).start == 100.0
+    assert tiktok.plan_trim((100.6, 150.0), 200.0, 0.5, 2.0, win).start == 100.1
+    # no tail room before --to: the copy ends at --to (and, end being set, fades out there)
+    assert tiktok.plan_trim((103.0, 159.0), 200.0, 0.5, 2.0, win).end == 160.0
+    # --from alone: a tail that reaches the end of the recording keeps to the end, as before
+    open_win = tiktok.Window(100.0, None)
+    trim = tiktok.plan_trim((103.0, 199.0), 200.0, 0.5, 2.0, open_win)
+    assert (trim.start, trim.end, trim.fade) == (102.5, None, False)
+    assert tiktok.plan_trim((103.0, 150.0), 200.0, 0.5, 2.0, open_win).end == 152.0
+    # no sound inside the window: nothing trimmed, the window is used exactly
+    trim = tiktok.plan_trim(None, 200.0, 0.5, 2.0, win)
+    assert (trim.start, trim.end) == (100.0, 160.0) and "in the window" in trim.note
+    # the whole-recording plan is what it was
+    assert tiktok.plan_trim((3.201, 11.351), 14.0, 0.5, 2.0) == tiktok.plan_trim((3.201, 11.351), 14.0, 0.5, 2.0, None)
+    # the box is sampled inside the window, spread over its middle 90%
+    assert tiktok.sample_times(4.0, start=6.0) == [6.2, 7.1, 8.0, 8.9, 9.8]
+    assert tiktok.sample_times(None, start=6.0) == [6.0]
+
+
+def test_sound_near_the_copy_ends_and_the_fade_in_filter():
+    spans = tiktok.parse_silence(SILENCE_LEAD_AND_TAIL)      # sound at 3.2-6.05 s and 6.9-11.35 s of 14 s
+    assert not tiktok.sound_near(spans, 14.0, 0.0, 0.1)
+    assert tiktok.sound_near(spans, 14.0, 3.15, 3.25)
+    assert tiktok.sound_near(spans, 14.0, 6.0, 6.1)          # the sound's last 50 ms
+    assert not tiktok.sound_near(spans, 14.0, 6.1, 6.2)
+    assert tiktok.sound_near([], 5.0, 0.0, 0.1)              # no silence reported at all: sound throughout
+    clock = "aresample=async=1:min_hard_comp=0.01:first_pts=0"
+    assert tiktok.audio_filter(Trim(1731.6, 1815.0, fade_in=True), -16.0) == \
+        clock + ",loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,asetpts=STARTPTS+N/SR/TB," \
+        "afade=t=in:st=0:d=0.4,afade=t=out:st=83.100:d=0.3"
+    assert tiktok.audio_filter(Trim(1731.6, None, fade_in=True), None) == \
+        clock + ",asetpts=STARTPTS+N/SR/TB,afade=t=in:st=0:d=0.4"
+    assert tiktok.audio_filter(Trim(1731.6, None), None) == clock + ",asetpts=STARTPTS+N/SR/TB"
+    assert tiktok.audio_filter(Trim(0.0, 0.5, fade_in=True), None).count("afade") == 1   # too short for both
+    # the report names the fades the chain applies, from the same answer: a copy too short for a ramp
+    # is not said to fade (it used to name both fades for a 0.04 s copy whose command had no afade)
+    assert tiktok.fades_for(Trim(0.0, 0.5, fade_in=True)) == (False, True)      # room for the fade-out only
+    assert tiktok.fades_for(Trim(0.0, 0.2, fade_in=True)) == (False, False)     # room for neither
+    assert tiktok.fades_for(Trim(0.0, 0.8, fade_in=True)) == (True, True)
+    assert tiktok.fades_for(Trim(1731.6, None, fade_in=True)) == (True, False)
+    assert tiktok.fades_for(Trim(1731.6, 1815.0)) == (False, True)
+    assert "afade" not in tiktok.audio_filter(Trim(0.0, 0.2, fade_in=True), None)
+    half = tiktok.format_report(_dry_report(Trim(3.0, 3.5, 3.0, 3.5, fade_in=True, ends_in_sound=True)))
+    assert _report_line(half, "fades") == "  fades     out over the last 0.3 s (it ends inside sound)"
+    blink = tiktok.format_report(_dry_report(Trim(3.0, 3.04, 3.0, 3.04, fade_in=True, ends_in_sound=True)))
+    assert "  fades" not in blink and "  trim" in blink
+
+
+def test_windowed_names_are_ours_and_never_the_latest_recording(tmp_path):
+    src = tmp_path / "take.mp4"
+    tag = tiktok.window_tag(1732.0, None)
+    assert tiktok.output_path_for(src, tag=tag) == tmp_path / "take tiktok 28-52-end.mp4"
+    assert tiktok.output_path_for(src, str(tmp_path / "posts") + os.sep, tag=tag) == \
+        tmp_path / "posts" / "take tiktok 28-52-end.mp4"
+    assert tiktok.output_path_for(src, str(tmp_path / "clip.mp4"), tag=tag) == tmp_path / "clip.mp4"
+    out = tiktok.output_path_for(src, tag=tag)
+    assert tiktok.preview_path_for(src, out, tag) == tmp_path / "take tiktok 28-52-end-preview.jpg"
+    assert tiktok.preview_path_for(src, out) == tmp_path / "take tiktok-preview.jpg"
+    assert tiktok.partial_path_for(out) == tmp_path / "take tiktok 28-52-end.partial.mp4"
+    ours = ["take tiktok.mp4", "take tiktok 28-52-end.mp4", "take tiktok start-3-00.mp4",
+            "take tiktok 28-51.6-1-05-03.2.mp4", "take tiktok 28-52-end.partial.mp4",
+            "take tiktok 28-52-end-preview.jpg", "take tiktok-preview.jpg",
+            "take tiktok 28-52.mp4", "take tiktok 2.mp4"]              # copies cut and named by hand
+    assert all(tiktok.is_our_output(Path(name)) for name in ours)
+    assert not tiktok.is_our_output(Path("tiktok take.mp4"))        # a recording about tiktok is not a copy
+    assert not tiktok.is_our_output(Path("take tiktoks.mp4"))
+    src.write_bytes(b"x")
+    os.utime(src, (1_700_000_000, 1_700_000_000))
+    for i, name in enumerate(ours):
+        (tmp_path / name).write_bytes(b"x")
+        os.utime(tmp_path / name, (1_700_000_100 + i, 1_700_000_100 + i))
+    assert tiktok.latest_video(tmp_path) == src
+
+
+@pytest.fixture(scope="module")
+def window_clip(tmp_path_factory):
+    """12 s of a 64x114 picture at 25 fps, red until 4 s then white, with an 880 Hz note at 0-3 s,
+    3.5-7 s and 9.5-12 s (silence between): the recording the window tests cut."""
+    path = tmp_path_factory.mktemp("window") / "take.mp4"
+    notes = "+".join(f"between(t,{a},{b})" for a, b in ((0, 3), (3.5, 7), (9.5, 12)))
+    subprocess.run([FFMPEG, "-hide_banner", "-nostdin", "-v", "error", "-y",
+                    "-f", "lavfi", "-i", "color=c=red:s=64x114:r=25:d=12,"
+                    "drawbox=w=64:h=114:color=white:t=fill:enable='gte(t,4)',format=yuv420p",
+                    "-f", "lavfi", "-i", f"sine=f=880:r=48000:samples_per_frame=240:d=12,"
+                    f"volume='0.4*({notes})':eval=frame,aformat=channel_layouts=stereo",
+                    "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "ultrafast",
+                    "-c:a", "aac", "-b:a", "128k", str(path)], check=True, capture_output=True)
+    return path
+
+
+def _grey_mean(path, at, w, h):
+    frame = tiktok.grab_gray_frame(FFMPEG, path, at, 0, w, h)
+    assert frame is not None, (path, at)
+    return sum(frame) / len(frame)
+
+
+def _report_line(report, key):
+    return next(ln for ln in report.splitlines() if ln.startswith(f"  {key}"))
+
+
+def test_window_errors_are_one_sentence(window_clip, capsys):
+    assert main(["tiktok", "a.mp4", "--from", "abc"]) == 2
+    assert main(["tiktok", "a.mp4", "--to", "-5"]) == 2
+    assert main(["tiktok", "a.mp4", "--from", "5", "--to", "4"]) == 2
+    assert main(["tiktok", "a.mp4", "--from", "5", "--to", "5"]) == 2
+    assert main(["tiktok", "a.mp4", "--to", "0"]) == 2                    # no --from: the start is 0:00
+    assert main(["tiktok", "a.mp4", "--from", "0", "--to", "0"]) == 2
+    err = capsys.readouterr().err
+    assert err.count("tiktok:") == 6 and "Traceback" not in err, err
+    assert "--from: cannot read the time 'abc'" in err and "28:52" in err
+    assert "--to: -5 is a negative time" in err
+    assert "--to 0:05.00 must come after --from 0:05.00" in err
+    assert "--to 0:04.00 must come after --from 0:05.00" in err
+    assert "--to 0:00.00 must come after the start of the recording" in err
+    assert "--to 0:00.00 must come after --from 0:00.00" in err
+    # past the end of this 12 s recording: refused for that video, with its length named
+    assert main(["tiktok", str(window_clip), "--from", "99", "--dry-run"]) == 1
+    assert main(["tiktok", str(window_clip), "--to", "1:39", "--dry-run"]) == 1
+    err = capsys.readouterr().err
+    assert err.count("past the end of the recording, which is 0:12.") == 2, err
+    # '--to 0' without --from used to run: exit 0 and a zero-length, stream-less 'take tiktok start-0-00.mp4'.
+    # It is a usage problem now, at the prompt and for a caller of process() alike, and nothing is written
+    assert main(["tiktok", str(window_clip), "--to", "0"]) == 2
+    assert "--to 0:00.00 must come after the start of the recording" in capsys.readouterr().err
+    with pytest.raises(tiktok.TikTokError, match="must come after the start of the recording"):
+        tiktok.process(window_clip, tiktok.Options(end=0.0), ffmpeg=FFMPEG)
+    assert main(["tiktok", str(window_clip), "--to", "12", "--dry-run"]) == 0     # the end itself is fine
+    capsys.readouterr()
+    assert sorted(p.name for p in window_clip.parent.iterdir()) == ["take.mp4"]
+
+
+def test_window_trim_on_and_off_and_the_fade_in_only_inside_sound(window_clip, capsys):
+    def dry(*flags):
+        assert main(["tiktok", str(window_clip), "--dry-run", *flags]) == 0
+        return capsys.readouterr().out
+
+    # starts inside the first note and ends inside the last: both fades, nothing trimmed
+    report = dry("--from", "1", "--to", "10")
+    assert _report_line(report, "window").startswith("  window    0:01.00 to 0:10.00 (0:09.00 of the 0:12.")
+    assert re.search(r"trim      cut 0\.00 s at the start and 0\.00 s at the end of the window "
+                     r"\(first sound 0:01\.00, last sound 0:(09\.9\d|10\.0\d)\)", report), report
+    assert _report_line(report, "fades") == \
+        "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
+    command = _report_line(report, "command")
+    assert " -ss 1.000 " in command and " -t 9.000 " in command, command
+    assert "afade=t=in:st=0:d=0.4" in command and "afade=t=out:st=8.700:d=0.3" in command
+    assert _report_line(report, "output").endswith("take tiktok 0-01-0-10.mp4")
+    assert "about 0:09.00 long" in report
+
+    # starts in the rest before the second note: the lead is cut inside the window, no fade-in
+    report = dry("--from", "3.1", "--to", "10", "--lead", "0.2")
+    assert re.search(r"cut 0\.[12]\d s at the start and 0\.00 s at the end of the window "
+                     r"\(first sound 0:03\.[45]\d", report), report
+    assert _report_line(report, "fades") == "  fades     out over the last 0.3 s (it ends inside sound)"
+    assert re.search(r" -ss 3\.[23]\d\d ", _report_line(report, "command")), report
+    # with the default lead the start would fall before --from: it snaps to --from, still no fade-in
+    report = dry("--from", "3.1", "--to", "10")
+    assert "cut 0.00 s at the start" in report and " -ss 3.100 " in report and "afade=t=in" not in report
+
+    # tail room before --to: the copy ends after the tail, fading out in silence
+    report = dry("--from", "1", "--to", "9.4")
+    assert re.search(r"cut 0\.00 s at the start and 0\.[34]\d s at the end of the window", report), report
+    assert _report_line(report, "fades") == \
+        "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s"
+    assert _report_line(report, "output").endswith("take tiktok 0-01-0-09.4.mp4")
+
+    # half a second inside the first note: too short for the fade-in, room for the fade-out, and the
+    # report says exactly what the command carries
+    report = dry("--from", "1", "--to", "1.5")
+    assert _report_line(report, "fades") == "  fades     out over the last 0.3 s (it ends inside sound)"
+    command = _report_line(report, "command")
+    assert "afade=t=in" not in command and "afade=t=out:st=0.200:d=0.3" in command, command
+    assert " -t 0.500 " in command and "about 0:00.50 long" in report
+
+    # --no-trim: the window exactly, and the fade-in still only when the start is inside sound
+    report = dry("--from", "3.1", "--to", "10", "--no-trim")
+    assert "trim      trimming is off (--no-trim)" in report
+    assert " -ss 3.100 " in report and " -t 6.900 " in report and "afade=t=in" not in report
+    assert _report_line(report, "fades") == "  fades     out over the last 0.3 s (it ends inside sound)"
+    # --from alone runs to the end of the recording, which stops inside the last note (OBS stopped
+    # while it rang): the copy is cut at the audio's end so it can fade out there, not stop dead
+    report = dry("--from", "1", "--no-trim")
+    assert " -ss 1.000 " in report and re.search(r" -t 1[01]\.\d\d\d ", _report_line(report, "command")), report
+    assert _report_line(report, "fades") == \
+        "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
+    assert _report_line(report, "window").startswith("  window    0:01.00 to the end (0:11.0")
+    assert _report_line(report, "output").endswith("take tiktok 0-01-end.mp4")
+
+    # no window: the report reads as before; a recording that starts inside sound fades in, and
+    # one that stops inside sound fades out
+    report = dry()
+    assert "  window    " not in report and "of the window" not in report
+    assert re.search(r"trim      cut 0\.00 s at the start and 0\.0\d s at the end \(first sound 0\.00 s", report), report
+    assert _report_line(report, "fades") == \
+        "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
+    assert _report_line(report, "output").endswith("take tiktok.mp4")
+
+
+def test_box_is_sampled_inside_the_window(tmp_path, capsys):
+    # the first 60% is a dark full-frame gradient (its bright half reads as a wrong box on its dark
+    # half), the last 40% the canvas strip on black: sampled over the whole file, the intro's three
+    # votes outvote the strip's two; sampled inside the window, the intro never votes
+    src = tmp_path / "intro.mp4"
+    subprocess.run([FFMPEG, "-hide_banner", "-nostdin", "-v", "error", "-y",
+                    "-f", "lavfi", "-i", "color=c=black:s=640x360:r=10:d=10",
+                    "-f", "lavfi", "-i", "gradients=s=640x360:c0=0x101010:c1=0x606060:nb_colors=2:d=10:r=10",
+                    "-f", "lavfi", "-i", "color=c=0x3399ff:s=202x360:r=10:d=10",
+                    "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=10",
+                    "-filter_complex", "[0:v][1:v]overlay=enable='lt(t,6)'[i];"
+                    "[i][2:v]overlay=x=220:y=0:enable='gte(t,6)',format=yuv420p[v]",
+                    "-map", "[v]", "-map", "3:a", "-c:v", "libx264", "-preset", "ultrafast",
+                    "-c:a", "aac", "-b:a", "96k", "-t", "10", str(src)], check=True, capture_output=True)
+    assert main(["tiktok", str(src), "--dry-run"]) == 0
+    whole = capsys.readouterr().out
+    assert "box 202x360 at x=220" not in whole and "crop=202:360:220:0" not in whole, whole
+    assert main(["tiktok", str(src), "--dry-run", "--from", "6", "--to", "10"]) == 0
+    windowed = capsys.readouterr().out
+    assert "box 202x360 at x=220, y=0 (found in 5 of 5 sample frames)" in windowed, windowed
+    assert "crop=202:360:220:0" in windowed
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["intro.mp4"]
+
+
+def test_end_to_end_window_copy_starts_on_the_frame_at_four_seconds(window_clip, tmp_path, capsys):
+    # the source really changes colour at 4 s: red on the frame before, white from the frame at 4 s
+    assert _grey_mean(window_clip, 3.96, 64, 114) < 110 < 160 < _grey_mean(window_clip, 4.0, 64, 114)
+    before = (_sha(window_clip), window_clip.stat().st_mtime_ns)
+    out_dir = tmp_path / "posts"
+    assert main(["tiktok", str(window_clip), "--from", "4", "--to", "10", "--out", str(out_dir)]) == 0
+    report = capsys.readouterr().out
+    out = out_dir / "take tiktok 0-04-0-10.mp4"
+    assert sorted(p.name for p in out_dir.iterdir()) == [out.name] and "saved" in report
+    assert _report_line(report, "window").startswith("  window    0:04.00 to 0:10.00 (0:06.00 of the 0:12.")
+    assert _report_line(report, "fades") == \
+        "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
+    info = tiktok.probe(FFMPEG, out)
+    assert (info.video.width, info.video.height) == (1080, 1920) and info.audio.codec == "aac"
+    assert abs(info.duration - 6.0) <= 0.15, info.duration
+    assert _grey_mean(out, 0.0, 1080, 1920) > 160                 # the first frame is the frame at 4 s
+    jumps, audio_end = _audio_jumps(out)
+    assert jumps == [] and abs(audio_end - 6.0) <= 0.05, (jumps, audio_end)
+    # the same window again refuses to replace its copy; the whole-recording name is a different file
+    assert main(["tiktok", str(window_clip), "--from", "4", "--to", "10", "--out", str(out_dir)]) == 1
+    assert "--force" in capsys.readouterr().err
+    assert not (out_dir / "take tiktok.mp4").exists()
+    # --latest takes the window too
+    assert main(["tiktok", "--latest", "--folder", str(window_clip.parent), "--from", "4", "--dry-run"]) == 0
+    report = capsys.readouterr().out
+    assert _report_line(report, "output").endswith("take tiktok 0-04-end.mp4")
+    assert (_sha(window_clip), window_clip.stat().st_mtime_ns) == before
