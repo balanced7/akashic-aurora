@@ -1237,6 +1237,10 @@ const INSTRUMENTS = [
   { id: "suitcase-ep", name: "Suitcase EP" },
   { id: "vintage-synth", name: "Vintage synth" },
   { id: "glass-piano", name: "Crystal grand" },
+  { id: "light-kimi-aurora", name: "Aurora Harp" },
+  { id: "light-deepseek-orrery", name: "Orrery of Light" },
+  { id: "light-vandor-ornithopter", name: "Ornithopter" },
+  { id: "light-vandor-abyssal", name: "Abyssal" },
 ];
 const LOOK_BUILTIN = { scheme: "classic", instrument: "page" };
 const SCHEME_METHODS = ["noteOn", "noteRelease", "noteEnd", "pedal", "update", "resize", "setActive", "dispose"];
