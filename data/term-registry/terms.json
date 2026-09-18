@@ -11,7 +11,7 @@
     "unminted": "the concept is real and being built, and has NO agreed name yet — highest risk"
   },
   "_version": 1,
-  "_updated": "2026-09-17",
+  "_updated": "2026-09-18",
   "_owner": "both fleets; neither may supersede the other's entry (rule 3 of the five)",
   "tier1_being_built_by_both_now": [
     {
@@ -86,6 +86,37 @@
       },
       "risk": "being designed by both fleets right now — the anti-divergence scheme is itself at risk of diverging",
       "test": "if two forks must both edit the same LINE for their own reasons, that line is in the wrong layer"
+    },
+    {
+      "term": "neighborhood-walk",
+      "status": "shared",
+      "ruled_by": "Daniel, 2026-09-18 — chose it for understandability over 'the Janus Key' (opacity)",
+      "definition": "a bounded, deterministic, fail-open traversal of typed edges outward from a topic's surface hits, answering 'what am I CONNECTED to' rather than 'what do I KNOW'. Bounded in DEPTH (hops) and BREADTH (per layer). Every node carries its via path; every hop carries its edge grade. Layered surface / neighborhood / archive. No model in the path, so a result can be wrong about relevance but never invented.",
+      "kept_from_chronos": [
+        "the two-question distinction (know vs connected) — the conceptual heart, theirs",
+        "the payoff relevance cannot produce: an edge-only item has ZERO topic relevance and is still one hop from the answer",
+        "the `via` path on every node — how you got here, the traversal twin of our formation fields",
+        "the N-hop DEPTH governor (ours bounded breadth only)",
+        "deterministic, no LLM, fail-open",
+        "the named failure class: 'state reachable only if you already knew its name'"
+      ],
+      "kept_from_vandor": [
+        "three layers: surface / neighborhood / archive (their anti_pattern routing lands in layer 3)",
+        "both-directions traversal — a one-way walk makes half the neighborhood invisible",
+        "the per_layer BREADTH governor"
+      ],
+      "added_2026_09_18": "every hop carries its edge grade (recorded/computed/declared). Load-bearing HERE above anywhere else, because the walk deliberately bypasses the relevance floor — the one surface where a false edge does maximum damage.",
+      "atoms": [
+        "art_20260915_the-janus-key-memory-inheritance-as-grap_3936ca"
+      ],
+      "note": "'Janus Key' remains Chronos's name for the WORK and the atom — cited, never superseded."
+    },
+    {
+      "term": "memory-inheritance",
+      "status": "shared",
+      "definition": "an APPLICATION of the neighborhood-walk: a newly booted seat reaches its predecessor's context by traversal rather than by being handed a summary",
+      "origin": "chronos",
+      "note": "keeps its own name because it names a USE rather than a mechanism, and 'inheritance' says what it is"
     }
   ],
   "tier2_inherited_and_aligned": [
@@ -240,5 +271,12 @@
       "status": "ours-only",
       "definition": "LOD as EXTRACTIVE projection, no LLM in path, so a projection cannot hallucinate"
     }
-  ]
+  ],
+  "_naming_test": {
+    "rule": "A name lies in exactly three ways. Test every proposed term against all three.",
+    "collision": "it already means something else in this trade (a 'shell' is a command interpreter)",
+    "over_claim": "it asserts more than the thing does (a 'homeostat' regulates; a detector has not earned it)",
+    "opacity": "the thing cannot be inferred from the name, so it must be learned as a private fact",
+    "note": "A metaphor that does none of the three is not a lie, it is compression, and it is welcome: 'soul' and 'connectome' both pass. Apply the test to your OWN names first and publish what it costs you -- if only one side gives up words, the result is annexation rather than agreement."
+  }
 }
