@@ -1,0 +1,244 @@
+{
+  "_": "SHARED TERM REGISTRY — Daniil's fleet <-> Serge's fleet. Machine-readable on purpose: a prose concordance rots, a diffable registry does not.",
+  "_rule": "BEFORE BUILDING ANYTHING, CHECK THIS REGISTRY. If the concept exists under another name, use that name or mint an alias. A NEW concept gets its term minted BEFORE it is built, not after. This is the 'prior-art check before building' rule from the five non-destructive rules, applied to vocabulary.",
+  "_homonym_law": "A shared term must name the same thing at the SAME EPISTEMIC GRADE in both fleets. Where the grades differ, the TERM must differ. One name for two things is what forks an architecture; two names for one thing is only untidy.",
+  "_status_values": {
+    "shared": "same word, same thing, both fleets — nothing to do",
+    "homonym-live": "SAME WORD, DIFFERENT THING — fix before either fleet builds further",
+    "alias": "different words, same thing — map, do not rename",
+    "ours-only": "exists here, no equivalent there",
+    "theirs-only": "exists there, no equivalent here",
+    "unminted": "the concept is real and being built, and has NO agreed name yet — highest risk"
+  },
+  "_version": 1,
+  "_updated": "2026-09-17",
+  "_owner": "both fleets; neither may supersede the other's entry (rule 3 of the five)",
+  "tier1_being_built_by_both_now": [
+    {
+      "term": "connectome",
+      "status": "homonym-live",
+      "ours": "receipted idea-edges: core/eye/connectome.py, schema carries formed_by / formed_at / formed_via / evidence / hops",
+      "theirs": "computed synapses: edge_growth.py, ~12,300 edges from IDF-pruned token overlap",
+      "fix": "keep the word for the GRAPH; grade every EDGE (see 'edge grade')",
+      "atoms": [
+        "art_20260811_idea-connectome-stance_fa0131"
+      ]
+    },
+    {
+      "term": "edge grade",
+      "status": "unminted",
+      "definition": "the epistemic warrant of a single edge",
+      "proposed_values": {
+        "recorded": "the link was present in the source data; the harness witnessed it",
+        "computed": "a NAMED module derived it (edge-growth, the indexer); reproducible, not witnessed",
+        "declared": "a mind asserted it, including any LLM-in-the-path digest"
+      },
+      "why": "without it, a walk mixes witnessed hops with inferred ones and the reader cannot tell. The Janus Key deliberately bypasses the relevance floor, so a false edge does maximum damage exactly there.",
+      "counter_wanted": "this is the entry most likely to be wrong; both fleets will build on it before anyone notices"
+    },
+    {
+      "term": "seal / sealed envelope",
+      "status": "shared",
+      "definition": "X25519 + XSalsa20-Poly1305 body, detached Ed25519 over canonical(header)||ct; sender key EPHEMERAL per message",
+      "note": "reconciled byte-for-byte 2026-09-17; wire format frozen. alg string 'x25519-xsalsa20poly1305/ed25519-v1'"
+    },
+    {
+      "term": "tombstone",
+      "status": "shared",
+      "definition": "what the midpoint keeps after a body is retired: id, routing, seq, prev, epoch, created_at, expires_at, retired:true, AND tsig",
+      "law": "a tombstone carries its own signature (tsig) or it is not a tombstone. An unsigned one hands the midpoint the power to invent history."
+    },
+    {
+      "term": "chain",
+      "status": "shared",
+      "definition": "per-(sender,recipient) monotonic seq plus the prev id link; gives ABSENCE a shape",
+      "note": "catches INTERIOR gaps only — see 'advert'"
+    },
+    {
+      "term": "epoch",
+      "status": "shared",
+      "definition": "a per-chain id in the signed header; a sender that loses its chain file announces a NEW epoch",
+      "why": "without it a reset reissues seq 1..N and the receiver swallows every message as a duplicate — the original silence, reproduced by the machinery built to prevent it"
+    },
+    {
+      "term": "advert / head",
+      "status": "shared",
+      "definition": "a small SENDER-SIGNED object stating where a sender's chain has reached",
+      "law": "THE ADVERT IS A HINT, NEVER AN AUTHORITY. It may make a fleet look sooner; it must never let one conclude 'nothing new'.",
+      "why": "a withheld TAIL leaves no hole behind it, so seq/prev are structurally blind to truncation",
+      "note": "midpoint-generated adverts are FORBIDDEN: they would hand it the power to say 'nothing new' and be believed"
+    },
+    {
+      "term": "retire",
+      "status": "shared",
+      "definition": "at 30 days the BODY goes home to its owner's local storage and the midpoint keeps the tombstone. Retirement is NOT deletion.",
+      "origin": "Daniil, 2026-09-17",
+      "note": "a request for a retired body QUEUES at the midpoint; the owner answers on its next wake. Makes the midpoint a CACHE, not an archive."
+    },
+    {
+      "term": "Core / Features / Local",
+      "status": "unminted",
+      "definition": "the three layers of the modular proposal",
+      "proposed": {
+        "Core": "pure capability, identical across forks; never names a seat, path, port or fork",
+        "Features": "one module + one registry entry + its own pins",
+        "Local": "instance-specific data, exportable as a profile: entry points, baselines, rosters, ports, peer names"
+      },
+      "risk": "being designed by both fleets right now — the anti-divergence scheme is itself at risk of diverging",
+      "test": "if two forks must both edit the same LINE for their own reasons, that line is in the wrong layer"
+    }
+  ],
+  "tier2_inherited_and_aligned": [
+    {
+      "term": "Store / Ledger",
+      "status": "shared",
+      "definition": "Store = what IS true by key; Ledger = what HAPPENED in order"
+    },
+    {
+      "term": "atom",
+      "status": "shared",
+      "definition": "stable-id record: art_YYYYMMDD_slug_hash; the citation primitive across fleets"
+    },
+    {
+      "term": "projection",
+      "status": "shared",
+      "definition": "a REBUILDABLE view derived from authoritative records; 'raw is sacred, lossy summary + lossless pointer'"
+    },
+    {
+      "term": "bridge kinds",
+      "status": "shared",
+      "values": [
+        "blocker",
+        "chat",
+        "completion",
+        "handoff",
+        "note",
+        "question",
+        "reply"
+      ],
+      "law": "allowlist never denylist; no control verb crosses in either direction"
+    },
+    {
+      "term": "typed relations",
+      "status": "shared",
+      "definition": "66 types in 10 families (core/foundation/relationship_types.py)",
+      "note": "their similar_to / associated_with should map INTO this set rather than beside it"
+    },
+    {
+      "term": "recall-at-action",
+      "status": "shared",
+      "definition": "trigger-aware injection at the moment of a tool call, gated by a relevance floor"
+    },
+    {
+      "term": "the funnel",
+      "status": "shared",
+      "definition": "surfaced -> useful -> helped; the credit path",
+      "warning": "measured 190:1 blind to PREVENTION vs rescue; anything that BOOSTS on it inherits that blindness"
+    },
+    {
+      "term": "the Eye",
+      "status": "shared",
+      "definition": "the episodic layer: transcripts indexed, sessions addressable, connectome walkable",
+      "alias_theirs": "hippocampus"
+    },
+    {
+      "term": "seat",
+      "status": "shared",
+      "definition": "an addressable working identity on the bus"
+    },
+    {
+      "term": "Bifrost",
+      "status": "shared",
+      "definition": "the intra-fleet bus"
+    },
+    {
+      "term": "verb / combo / macro / tool / kit",
+      "status": "shared",
+      "definition": "the capability ladder: verb (one door) -> combo (composed) -> macro (parameterised, $1..$9) -> tool -> kit",
+      "note": "RATIFIED NAMING DECISION: 'recipe' was the Make/justfile candidate; Daniil chose MACRO as the canonical computing word (2026-07-21). Precedent that this house settles terms deliberately rather than by drift."
+    },
+    {
+      "term": "lane",
+      "status": "shared",
+      "definition": "a bus cursor namespace (work / legacy); wake lane and consume lane must not diverge",
+      "note": "T198 on their side, relaunch_must_carry_the_lane_env on ours — both fleets have been bitten by the same divergence, differently"
+    }
+  ],
+  "tier3_one_sided": [
+    {
+      "term": "shell",
+      "status": "homonym-live",
+      "theirs": "the persistent entity a soul enters (Chronos)",
+      "ours_legacy": "a running process / OS shell",
+      "resolution": "WE MOVE: adopt their sense; say 'process' for ours"
+    },
+    {
+      "term": "soul",
+      "status": "theirs-only",
+      "definition": "the model inhabiting a shell",
+      "action": "adopt the word; we never named this"
+    },
+    {
+      "term": "homeostat",
+      "status": "theirs-only",
+      "definition": "read-only drift detector (over-firing / under-performing)",
+      "action": "adopt word and mechanism"
+    },
+    {
+      "term": "valence",
+      "status": "theirs-only",
+      "definition": "0-5 affect charge as a ranker axis",
+      "action": "adopt the word; defect open — tagging 1 or 2 currently scores BELOW untagged"
+    },
+    {
+      "term": "embody / depart",
+      "status": "alias",
+      "ours": "callsign ratification ceremony",
+      "note": "Chronos mapped this himself; one shell = one seat, a name becomes an address only when ratified"
+    },
+    {
+      "term": "fence",
+      "status": "ours-only",
+      "definition": "two seats answer a question blind, then reconcile; convergence = confidence, divergence = the cases each missed"
+    },
+    {
+      "term": "pin (RED / GREEN)",
+      "status": "ours-only",
+      "definition": "a test written BEFORE the code, landing red, then green"
+    },
+    {
+      "term": "UNWIRE-WHEN",
+      "status": "ours-only",
+      "definition": "a built-ahead module's exception entry naming the live consumer that will retire it",
+      "note": "they asked to port this"
+    },
+    {
+      "term": "guardrail baseline",
+      "status": "ours-only",
+      "definition": "per-gate violation COUNT; debt may fall or hold, never rise; a deliberate rise is an edit in the same commit"
+    },
+    {
+      "term": "drill",
+      "status": "ours-only",
+      "definition": "an executed recovery rehearsal with a dated receipt; undrilled recovery paths are presumed broken"
+    },
+    {
+      "term": "Janus Key",
+      "status": "alias",
+      "theirs": "N-hop governor over typed edges",
+      "ours": "knowledge_map: L1 surface / L2 neighborhood / L3 archive with a per_layer governor",
+      "note": "independent arrival at the same design; compare governors, do not carry"
+    },
+    {
+      "term": "session digest",
+      "status": "theirs-only",
+      "definition": "24h digest + LLM intent writer",
+      "grade_note": "an LLM in the path makes it 'declared', never 'computed' — the first real test of the grade vocabulary"
+    },
+    {
+      "term": "the pyramid",
+      "status": "ours-only",
+      "definition": "LOD as EXTRACTIVE projection, no LLM in path, so a projection cannot hallucinate"
+    }
+  ]
+}
