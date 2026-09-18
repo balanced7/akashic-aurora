@@ -225,3 +225,58 @@ def test_a_structurally_wrong_chain_file_refuses(tmp_path):
     p.write_text('{"out": 5, "in": {}}', encoding="utf-8")
     with pytest.raises(seal.ChainCorrupt):
         seal.Chain(p)
+
+
+# ------------------------------------------------- 20 the advert: tail truncation becomes visible
+# Daniil's addition, 2026-09-17. seq/prev catch INTERIOR gaps only: a midpoint that delivers 1..44
+# and withholds 45,46,47 leaves a contiguous chain and the loss is invisible. A signed head closes it.
+def test_a_withheld_tail_is_invisible_to_the_chain_alone(tmp_path):
+    """The hole this exists to close — asserted, so nobody 'fixes' the advert away later."""
+    c = seal.Chain(tmp_path / "c.json")
+    for s in (1, 2, 3):
+        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s-1}" if s > 1 else "",
+                     epoch="e1", verified=True)
+    assert c.missing("serge") == [], "a withheld tail leaves no hole behind it — that is the problem"
+
+
+def test_a_signed_advert_reveals_the_withheld_tail(alice, bob, tmp_path):
+    c = seal.Chain(tmp_path / "c.json")
+    for s in (1, 2, 3):
+        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s-1}" if s > 1 else "",
+                     epoch="e1", verified=True)
+    adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, last_id="m6")
+    got = seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")
+    out = c.check_head("serge", got, verified=True)
+    assert out["missing_tail"] == [4, 5, 6] and out["behind_by"] == 3
+
+
+def test_the_midpoint_cannot_forge_an_advert(alice, bob, tmp_path):
+    adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, last_id="m6")
+    forged = {**adv, "seq": 9}                     # inventing a tail to make us chase it
+    with pytest.raises(seal.SealRefused):
+        seal.verify_head(forged, sender_public=alice["verify_public"], me="serge")
+    mallory = seal.generate_identity()
+    with pytest.raises(seal.SealRefused):
+        seal.verify_head(adv, sender_public=mallory["verify_public"], me="serge")
+
+
+def test_an_unverified_advert_never_reaches_the_chain(tmp_path):
+    c = seal.Chain(tmp_path / "c.json")
+    with pytest.raises(seal.SealRefused):
+        c.check_head("serge", {"seq": 99, "epoch": "e1"}, verified=False)
+
+
+def test_a_stale_advert_is_refusable_but_staleness_is_the_callers_call(alice):
+    """The residual limit, pinned honestly: a midpoint can STALL an advert, so 'cannot lie forward'
+    is the guarantee — not 'cannot withhold'. Only the caller knows if this peer should be chatty."""
+    adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, created_at=1_000_000)
+    seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")      # no max_age: fine
+    with pytest.raises(seal.SealRefused):
+        seal.verify_head(adv, sender_public=alice["verify_public"], me="serge",
+                         now=1_000_000 + 99_999, max_age_s=3600)
+
+
+def test_an_advert_for_another_fleet_is_refused(alice):
+    adv = seal.head(sender=alice, to="someone-else", frm="daniil", epoch="e1", seq=2)
+    with pytest.raises(seal.SealRefused):
+        seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")
