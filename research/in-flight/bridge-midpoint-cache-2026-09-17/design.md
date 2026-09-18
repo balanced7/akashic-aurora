@@ -195,7 +195,40 @@ unfetchable because their node is down — which is itself the argument for this
 Nothing here requires a new dependency: `cryptography` 46.0.7 and PyNaCl 1.6.2 are both already
 installed and available in this environment.
 
-## 7. Open decisions for Daniel
+## 7. Daniel's rulings (2026-09-17, on the §7 questions)
+
+1. **Midpoint: object storage.** Behind our own domain, per §5(A).
+2. **Blobs may ride the midpoint.** His words: *"yes for now, until i get my laptop up or we come up
+   with a better idea."* So third-party blob storage is a provisional answer with a named exit, not a
+   settled one — an always-on machine of his own would retire it.
+3. **Retention: retire at 30 days, and retirement is not deletion.** His design, verbatim: *"we can
+   either clear it manually later, or have it be pullable and requestable from local on demand. we
+   could have a retire to local storage option and a request gets queued at the midpoint."*
+
+   This is better than the TTL I proposed and it changes the model, so it is spelled out:
+
+   - At 30 days an envelope is **retired**, not dropped: the owning fleet pulls the bytes down to local
+     storage and the midpoint keeps a **tombstone** — id, to/from, seq, prev, created_at, the sha, and
+     `retired: true`. The chain stays intact, so a retired message is still visible to gap detection;
+     it is the BODY that moved, not the record.
+   - A fleet asking for a retired body gets a **queued request** at the midpoint
+     (`POST /request/{id}`), which the owning fleet drains on its next wake and answers by re-depositing
+     the body with a fresh `expires_at`.
+   - Consequence worth stating: this makes the midpoint a **cache, not an archive**, which is the
+     property that keeps the storage bill bounded and keeps the durable copy on machines we own. It
+     also means a request can go unanswered indefinitely if the owning fleet never wakes — so the
+     requester must be able to see that its request is still queued rather than assume silence is a no.
+4. **Begin now** with §6 steps 1 and 2 on the existing direct link, which need no infrastructure.
+
+## 8. Still open
+
+- Whether the retire-to-local step is automatic at 30 days or operator-triggered.
+- Where retired bodies live locally (repo-adjacent store vs a blobs directory outside every checkout —
+  note the filed lesson that per-worktree blob dirs make refs dangle across trees).
+- Serge's fleet has not yet countered the schema; §6 order deliberately starts with the two steps that
+  are useful to us whatever they answer.
+
+## 9. Open decisions originally put to Daniel
 
 1. **Which midpoint** — (A) object storage behind `mail.akashiclabs.io`, or (B) a tailnet VPS. My
    recommendation is (A) for the no-server-code property; (B) is stronger on exposure if you would

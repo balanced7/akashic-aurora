@@ -99,6 +99,14 @@ EXCEPTIONS = {
         "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
         "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
     "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
+    "core/comm/bridge_seal.py": "built-ahead (2026-09-17, claude/Vandor): the sealed envelope "
+        "+ chain for the midpoint mail cache (design research/in-flight/bridge-midpoint-cache-"
+        "2026-09-17/design.md; 14 pins green in tests/test_bridge_seal_red.py). Steps 1-2 of a "
+        "strangler rollout -- step 3 wires it into remote_relay behind a flag, off by default. "
+        "UNWIRE-WHEN: remote_relay seals an outbound envelope. That waits on Serge's fleet "
+        "countering the schema AND sending their verify key, because sealing stays off until "
+        "both halves exist. NOT wired blind on purpose: a wire format committed before the "
+        "other endpoint has answered is a format we would then have to break. Owner: claude.",
     # Added 2026-07-25 while clearing a CI that had been RED for over a day -- the boundary
     # guard failed FIRST and skipped every gate behind it, including the whole test suite,
     # so these two never surfaced. Both are kimi-lane builds from arcs still in flight, not
