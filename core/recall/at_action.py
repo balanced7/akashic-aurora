@@ -13,7 +13,7 @@ Design — deterministic, no-LLM, fail-soft (SOTA-informed; see docs/library/des
 - **SHOW NOTHING unless it clears a relevance floor** — a weak, off-topic hint at action-time is
   worse than silence (context-rot). We gate on the Ranker's RELEVANCE component specifically, not
   the blended score, so a merely-important-but-irrelevant lesson never fires.
-- **cap at a few entries** (default 3) — skeleton-first, lossy summary + lossless `source` pointer.
+- **cap at a few entries** (default 3) — complete selected fields with `source` pointers.
 - **FAITH-1 gate** — recalled text runs through `faithfulness_report`; nothing unfaithful (a
   fabricated/unresolvable pointer) ever reaches the agent.
 - **provenance-labelled** — each item is prefixed with outcome-status + author + claim-kind
@@ -780,9 +780,9 @@ def record_feedback(source: str, kind: str = "useful", *, store=None,
 
 
 def full_record(source: str, *, learning_store: Optional[Any] = None) -> Dict[str, Any]:
-    """The one-hop pull from a recalled lesson's lossy summary to its WHOLE record (what_tried,
-    expected, actual, root_cause, metrics, ...) -- the escape hatch `render()` points to when more
-    exists than the capped surface shows. `source` is the pointer already carried on every recalled
+    """Pull a recalled lesson's WHOLE stored record (what_tried, expected, actual,
+    root_cause, metrics, ...), beyond the selected field shown by `render()`.
+    `source` is the pointer already carried on every recalled
     item, e.g. `learn:experiment:NAME`. Fail-soft: {} on any error, bad pointer, or unknown source
     (a failed pull must never brick the caller, same discipline as recall_at)."""
     prefix = "learn:experiment:"
@@ -1890,16 +1890,16 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
     return "[" + " ".join(parts) + "]"
 
 
-def render(result: Dict[str, Any], *, max_chars: int = 110,
+def render(result: Dict[str, Any], *,
            header: str = "Recall-at-action (Akashic) - facts relevant to what you're about to do:",
            hint_style: str = "cli") -> str:
-    """Compact, agent-readable rendering for the hook's additionalContext. Each lesson is prefixed
+    """Render complete selected content for CLI, tools and hook additionalContext. Each lesson is prefixed
     with a provenance tag (verification-status + author + claim-kind) so the agent reads it with the
     right epistemic weight rather than as a settled fact. Empty result -> ''.
 
     When more lessons cleared the relevance floor than `limit` surfaced, appends a single N-of-M
-    escape line — the cheap one-hop pull to the rest, instead of silently truncating (the "recommend
-    less, retrieve more" pull-side: a capped surface should say so, not pretend it's complete)."""
+    retrieval line. Selection is bounded by record count; selected text, source pointers,
+    dissent and qualifications are never shortened to meet a character budget."""
     # A FAILED recall is not an empty one. Say so instead of rendering ordinary silence --
     # otherwise a store outage looks exactly like "nothing relevant here" and the agent acts
     # on a confidence nobody computed. Loud on purpose: this fires before every edit.
@@ -1912,8 +1912,6 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
         lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
     for l in result.get("lessons", []):
         s = l.get("text", "")
-        if len(s) > max_chars:
-            s = s[:max_chars].rsplit(" ", 1)[0] + "..."
         lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")
     # Dissent line: the strongest genuine counter to the TOP lesson (Tier 1). Silent when none — a
     # manufactured counter would be a hallucinated disagreement, the exact failure we're avoiding.
@@ -1925,8 +1923,6 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
             lines.append(f"[counter] the top lesson is disputed above by {counter.get('source')}")
         else:
             cs = counter["text"]
-            if len(cs) > max_chars:
-                cs = cs[:max_chars].rsplit(" ", 1)[0] + "..."
             lines.append(f"[counter] {cs} (source: {counter.get('source')})")
     # T311 verb channel: the door already has a verb for this. Rendered AFTER the lessons because
     # lessons are the proven cargo and verbs ride along; rendered BEFORE the empty-check so a
@@ -1935,8 +1931,6 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
     # a tool-loop reader that cannot run CLI verbs is a dead end in its surface.
     for v in result.get("verbs", []):
         p = v.get("purpose", "")
-        if len(p) > max_chars:
-            p = p[:max_chars].rsplit(" ", 1)[0] + "..."
         if hint_style == "tool":
             lines.append(f"[verb] the door already has a `{v.get('verb')}` verb — {p}")
         else:
@@ -1969,8 +1963,7 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
     except Exception:
         pass   # the cue is a bonus; its failure must never cost the surface
     # Legend (T048 item 4, deepseek design): define the provenance terms IN BAND, but only when a
-    # surfaced lesson actually carries credibility markers. Reference material -> renders LAST, so
-    # it is the first thing the 900-char cap truncates.
+    # surfaced lesson actually carries credibility markers. Keep this qualification in band.
     try:
         def _has_marker(l):
             use = l.get("_use") or {}
@@ -1981,7 +1974,5 @@ def render(result: Dict[str, Any], *, max_chars: int = 110,
                          "unverified=unconfirmed | anti-pattern=known-bad | advice=forward-looking")
     except Exception:
         pass
-    # Factual framing (not imperative — imperative trips prompt-injection defenses). Hard total cap
-    # well under Claude Code's 10k-char additionalContext limit.
-    body = header + "\n" + "\n".join(lines)
-    return body[:900]
+    # Factual framing (not imperative — imperative trips prompt-injection defenses).
+    return header + "\n" + "\n".join(lines)

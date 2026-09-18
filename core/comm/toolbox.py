@@ -9,7 +9,8 @@ scripts/deepseek_chat.py keeps a compat re-export so existing imports keep worki
 
 SECURITY CONTRACT (unchanged): file access scoped to the constructor root; secrets ALWAYS
 blocked; run_command gated by allow_exec/trust + the ACL families door (core.trust); writes
-guarded (path-scoped, locks honored, git-reversible); everything capped to bound tokens.
+guarded (path-scoped, locks honored, git-reversible); ordinary output capped to bound tokens.
+Recall preserves complete selected content; selection is bounded by record count.
 Pins: tests/test_t067_guarded_exec.py G1-G5, tests/test_ir4_mirror_family.py, sol runner suite.
 
 Known carried debt (pre-existing, not introduced here): lazy in-method imports reach
@@ -22,9 +23,11 @@ import fnmatch
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Mapping
 from pathlib import Path
 
 from core.comm import packet_spec
@@ -57,6 +60,29 @@ MAX_FILE_BYTES = 120_000
 MAX_MATCHES = 120
 MAX_LIST = 400
 MAX_CMD_OUT = 16_000
+RECALL_CLI_VERBS = frozenset({"recall", "recall-at", "list"})
+RECALL_TOOL_NAMES = frozenset({"recall_at", "knowledge_recall", "knowledge_full"})
+
+
+def recall_tool_request(name, args=None) -> bool:
+    """Output policy only: identify explicit recall, including a simple CLI read.
+
+    Dispatch/exec authorization still runs normally. Never infer recall from the
+    returned text, or exempt a compound shell command's unrelated output.
+    """
+    if name in RECALL_TOOL_NAMES:
+        return True
+    if name != "run_command" or not isinstance(args, Mapping):
+        return False
+    command = str((args or {}).get("command") or "")
+    if any(c in command for c in ";&|><`$\n\r"):
+        return False
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return False
+    return (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+            and os.path.basename(argv[1]) == "agent_cli.py" and argv[2] in RECALL_CLI_VERBS)
 
 
 # ---- tool schemas (what DeepSeek sees) --------------------------------------
@@ -98,7 +124,7 @@ TOOLS = [
         {"limit": {"type": "integer", "description": "how many lessons to surface (use the M from the hint)"},
          "path": {"type": "string", "description": "file path the action targets (optional)"},
          "command": {"type": "string", "description": "command/tool probe the action targets (optional)"}}),
-    _fn("knowledge_full", "Pull the FULL body of ONE recalled lesson by its source pointer (e.g. 'learn:experiment:NAME') -- the one-hop escape from a truncated recall surface to the raw evidence, all fields verbatim.",
+    _fn("knowledge_full", "Pull the FULL stored record of ONE recalled lesson by its source pointer (e.g. 'learn:experiment:NAME'), including fields beyond the selected recommendation.",
         {"source": {"type": "string", "description": "lesson source pointer, e.g. 'learn:experiment:bifrost_hint_render'"}}, ["source"]),
     _fn("memory_note", "PRIVATE note-to-self (your scratchpad, NOT shared project knowledge): a durable working note injected into YOUR future boots. Re-noting the same title supersedes the old note. Use for how-YOU-work notes, e.g. 'when reviewing T039, start at packet_spec.py'.",
         {"title": {"type": "string", "description": "short stable title (re-noting it supersedes the prior note)"},
@@ -470,7 +496,8 @@ class ToolBox:
         try:
             p = subprocess.run([sys.executable, "agent_cli.py", *args], cwd=str(self.root),
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
-            return (p.stdout or p.stderr or "(no output)")[:MAX_CMD_OUT]
+            out = p.stdout or p.stderr or "(no output)"
+            return out if args and args[0] in RECALL_CLI_VERBS else out[:MAX_CMD_OUT]
         except Exception as e:
             return f"ERROR: agent_cli failed: {e}"
 
@@ -581,7 +608,7 @@ class ToolBox:
             return title_miss + result if title_miss else result
 
     def recall_at(self, limit=3, path=None, command=None):
-        """T048 item 1: the one-hop pull from a truncated recall surface -- same engine, more entries."""
+        """T048 item 1: retrieve complete selected lessons through the same recall engine."""
         args = ["recall-at", "--limit", str(limit), "--hint-style", "tool", "--agent-id",
                 self.agent_id or os.environ.get("AKASHIC_AGENT_ID", "deepseek")]
         if path:
@@ -1477,7 +1504,14 @@ class ToolBox:
                 p = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True,
                                    encoding="utf-8", errors="replace", timeout=capped)
             body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
-            return (body or "(no output)")[:MAX_CMD_OUT] + (f"\n[exit {p.returncode}]" if p.returncode else "")
+            # Only the already-authorized family argv can opt out of generic output
+            # clipping. No shell-text guessing or bypass of the gates above.
+            recall = (argv is not None and len(argv) >= 3
+                      and argv[0] in ("py", "python", "python3")
+                      and os.path.basename(argv[1]) == "agent_cli.py"
+                      and argv[2] in RECALL_CLI_VERBS)
+            out = body or "(no output)"
+            return (out if recall else out[:MAX_CMD_OUT]) + (f"\n[exit {p.returncode}]" if p.returncode else "")
         except subprocess.TimeoutExpired:
             return f"ERROR: command timed out after {capped}s"
         except Exception as e:
@@ -1553,7 +1587,7 @@ class ToolBox:
         if (len(out) < 20 or out.startswith("ERROR") or "0 item" in out[:60]
                 or "nothing relevant" in out[:80]):
             return ""
-        return "\n\n[recall-at (Akashic) -- lessons relevant to this action]\n" + out[:1200]
+        return "\n\n[recall-at (Akashic) -- lessons relevant to this action]\n" + out
 
     # T055/R4 (deepseek design, docs/library/report/20260714_deepseek-r4-pre-flight-recall-design-202_1250bf.md):
     # the six investigation tools that deserve context BEFORE the read; everything else
@@ -1564,7 +1598,7 @@ class ToolBox:
     def _preflight_recall(self, name, args) -> str:
         """R4 pre-flight: recall-at facts injected BEFORE the tool executes -- 'read the
         file WITH context, not discovering context after the fact' (his wishlist b2).
-        Investigation tools only; 2 lessons; 300-char budget with a pull pointer; empty
+        Investigation tools only; 2 complete lessons; empty
         recall = SILENCE (the byte-identical path); advisory, never load-bearing; same
         DEEPSEEK_RECALL_AT gate as the post-flight. Double-injection (his P7) is handled
         at the recall ENGINE: surfaced sources are marked seen, so the post-flight's own
@@ -1583,25 +1617,30 @@ class ToolBox:
                 or "nothing relevant" in out[:80]):
             return ""
         block = "[recall (pre-flight)] " + out.replace("\n", "\n[recall (pre-flight)] ")
-        if len(block) > 300:
-            kept = block[:255].rsplit("\n", 1)[0]
-            more = f"\n[recall (pre-flight)] [+more: recall_at {str(path or probe)[:40]}]"
-            block = (kept + more)[:300]
         return block + "\n"
 
     # -- dispatch --
-    def execute(self, name, args: dict) -> str:
+    def execute(self, name, args: dict, *, output_transform=None) -> str:
+        """Limit ordinary tool output before attaching complete recall, when requested.
+
+        Explicit recall tools always return intact content. The optional transform
+        lets chat loops retain their existing generic bounds without cutting recall.
+        """
+        def bounded(out):
+            return (output_transform(out) if output_transform is not None
+                    and not recall_tool_request(name, args) else out)
+
         fn = getattr(self, name, None)
         if not callable(fn) or name.startswith("_"):
-            return f"ERROR: unknown tool {name}"
+            return bounded(f"ERROR: unknown tool {name}")
         try:
             out = str(fn(**args))
         except TypeError as e:
-            return f"ERROR: bad arguments for {name}: {e}"
+            return bounded(f"ERROR: bad arguments for {name}: {e}")
         except ValueError as e:
-            return f"ERROR: {e}"
+            return bounded(f"ERROR: {e}")
         except Exception as e:
-            return f"ERROR: {type(e).__name__}: {e}"
-        return out + self._recall_at(name, args)
+            return bounded(f"ERROR: {type(e).__name__}: {e}")
+        return bounded(out) + self._recall_at(name, args)
 
 

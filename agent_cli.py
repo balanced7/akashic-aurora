@@ -696,8 +696,8 @@ def cmd_tag_anti_pattern(args):
 # ------------------------------------------------------------------------- recall
 def cmd_recall(args):
     """Search lessons by keyword; with no query, list ALL lessons. --full SOURCE pulls the whole
-    faithful record behind one recalled lesson's source pointer (the one-hop escape from a capped
-    recall-at surface to the raw evidence, e.g. learn:experiment:NAME)."""
+    stored record behind one recalled lesson's source pointer, including fields beyond the
+    selected recommendation (e.g. learn:experiment:NAME)."""
     full = getattr(args, "full", None)
     if full:
         from core.recall.at_action import full_record
@@ -767,7 +767,10 @@ def cmd_recall(args):
         # history, both are excluded from recall surfacing -- the tag says WHY.
         flag = " [graduated]" if str(h.get("graduated") or "").strip() else \
                (" [benched]" if str(h.get("benched") or "").strip() else "")
-        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {_clip(rec, 160)}")
+        source = h.get("source") or f"learn:experiment:{h.get('experiment_name', '?')}"
+        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {rec} (source: {source})")
+    if len(hits) > 25:
+        print(f"# 25 of {len(hits)} lesson(s) shown; `recall --json` with the same query returns all matches")
     return 0
 
 

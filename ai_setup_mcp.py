@@ -227,6 +227,14 @@ _ARG_DEFAULTS = dict(
     # (T256 lens work) and cmd_learn grew repeat_of (the twin's morning `repeat` verb,
     # e2b722f1) -- both CLI-only args the MCP twins would AttributeError on.
     lens_file=None, repeat_of="",
+    # 2026-09-01 parity-pin catch (sixth time, Vandor's flag): cmd_web's search branch reads
+    # args.count (agent_cli.py:3041); it was never a key here, so the MCP web/search twin
+    # would AttributeError while the CLI worked -- the C7-1 shape. One line to close.
+    count=None,
+    # T079/T060 WorldSnapshot read twin. _run's Namespace is the membrane
+    # contract for every delegated cmd_* even when today's tool supplies these.
+    glance_projection="program", max_items=64, brief=False, compact=False,
+    ledger_path=None,
 )
 
 
@@ -357,7 +365,7 @@ async def learn(agent: str, experiment: str, tried: str = "", result: str = "",
 async def recall(query: str = "", full: str = "") -> str:
     """Search past lessons by keyword. Empty query lists ALL lessons.
     Pass `full` = a lesson's source pointer (e.g. learn:experiment:NAME) to pull its WHOLE record
-    instead -- the one-hop escape from a capped recall_at surface to the raw evidence."""
+    instead, including the stored fields beyond the recommendation selected by recall_at."""
     return await _athread(_run, agent_cli.cmd_recall, query=query, full=full or None)
 
 
@@ -392,6 +400,27 @@ async def task(args: str) -> str:
     beats old bus messages -- read it before acting on backlog mail."""
     import shlex
     return await _athread(_run, agent_cli.cmd_task, lock=True, rest=shlex.split(args or "list"))
+
+
+@mcp.tool()
+async def glance(projection: str = "program", max_items: int = 64,
+                 brief: bool = True, compact: bool = True) -> str:
+    """T079/T060 read-only WorldSnapshot door.
+
+    ``program`` is the only slice currently wired. It reads the git-durable task
+    ledger directly, emits a source-derived snapshot id, and represents every
+    unwired organ or unsupported query as UNCHECKABLE. ``brief`` emits the
+    compact operational-orientation packet; it carries no identity authority.
+    """
+    return await _athread(
+        _run,
+        agent_cli.cmd_glance,
+        glance_projection=projection or "program",
+        max_items=max(0, int(max_items)),
+        brief=bool(brief),
+        compact=bool(compact),
+        ledger_path=None,
+    )
 
 
 @mcp.tool()

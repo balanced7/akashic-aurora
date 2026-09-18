@@ -227,11 +227,28 @@ def _presence(subject: str) -> Dict[str, Any]:
         keys = store.keys(f"{ns}:presence:*") or []
     except Exception:
         keys = []
+    # attendance()'s roster projection is fleet-wide and materially expensive.
+    # Every name in this scene must be judged against ONE successful snapshot,
+    # not N serial rebuilds taken at different instants.  If the batch read
+    # fails, omit the preload so attendance keeps its own fail-soft probes.
+    roster_rows = None
+    roster_observed = False
+    try:
+        from core.comm import roster
+        roster_rows = roster.roster(ns, client=store)
+        if roster_rows is None:
+            roster_rows = []
+        roster_observed = True
+    except Exception:
+        pass
     for key in keys:
         name = str(key).rsplit(":", 1)[-1]
         try:
             from core.comm.liveness import attendance
-            state = attendance(name).state
+            kwargs = {"namespace": ns, "client": store}
+            if roster_observed:
+                kwargs["roster_rows"] = roster_rows
+            state = attendance(name, **kwargs).state
         except Exception:
             state = "UNKNOWN"
         (attended if state == "ATTENDED" else unattended).append(name)
