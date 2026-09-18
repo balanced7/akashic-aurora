@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 198 modules lack both pin and paper by name)
+## GAP queue (46 of 199 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -90,7 +90,7 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (70 modules)
+## core/comm/  (71 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -101,6 +101,7 @@ Class: reference
 | `awareness.py` | Pure, bounded awareness providers and the composite ``sweep`` snapshot. | tests/test_t084_awareness_snapshot.py | GAP | `BIFROST_NAMESPACE` |
 | `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |
 | `blobs.py` | BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads. | GAP | GAP | `AI_SETUP` |
+| `bridge_seal.py` | bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint. | tests/test_bridge_seal_red.py | GAP |  |
 | `bridge_status.py` | Remote-bridge status and remediation — the model the Bifrost UI renders. | tests/test_bridge_status_pins.py | GAP |  |
 | `bus.py` | Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams. | tests/test_bifrost_bus.py | GAP | `AGENT_ID`, `AKASHIC_UNATTENDED_S`, `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `BIFROST_REASK_WINDOW_S`, `BIFROST_REPLY_DEDUP_TTL_S`, `CLAUDE_CODE_SESSION_ID`, `PYTEST_CURRENT_TEST` |
 | `conductor_gate.py` | conductor_gate -- succession detection + the acting conductor's bounded mandate. | tests/drill_conductor_gate.py | GAP | `AKASHIC_CONDUCTOR_SUCCESSORS`, `AKASHIC_OPERATOR_IDS`, `BIFROST_AGENT_ID` |

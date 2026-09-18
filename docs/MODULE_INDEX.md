@@ -25,7 +25,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (70 modules)
+## core/comm/  (71 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -33,6 +33,7 @@
 - `awareness.py` — Pure, bounded awareness providers and the composite ``sweep`` snapshot.
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
+- `bridge_seal.py` — bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint.
 - `bridge_status.py` — Remote-bridge status and remediation — the model the Bifrost UI renders.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
 - `conductor_gate.py` — conductor_gate -- succession detection + the acting conductor's bounded mandate.
