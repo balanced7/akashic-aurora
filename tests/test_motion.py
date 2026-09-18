@@ -32,7 +32,7 @@ def _manifest(segments, *, fps=2.0):
 
 
 def _six_per_min():
-    """3 transitions in 30 s, with settled runs of 5.0 / 4.0 / 8.5 s."""
+    """3 transitions in 30 s, with settled runs of 5.0 / 4.0 / 8.5 / 8.0 s."""
     return _manifest([
         _seg("settled", 0.0, 5.0),
         _seg("transition", 5.0, 6.0, peak=0.5),
@@ -58,13 +58,13 @@ def test_a_take_that_never_moves_reads_still():
 def test_the_numbers_are_derived_from_the_segment_table():
     p = M.profile(_six_per_min())
     assert p["duration_s"] == 30.0                      # from the last segment's end, not a field
-    assert p["transitions"] == 3 and p["settled"] == 3
+    assert p["transitions"] == 3 and p["settled"] == 4
     assert p["transitions_per_min"] == 6.0              # 3 in half a minute
     assert p["median_transition_ms"] == 1500
     assert p["p90_transition_ms"] == 1900.0             # default linear percentile of 1000/1500/2000
     assert p["max_transition_ms"] == 2000
-    assert p["median_settled_ms"] == 5000               # settled runs are 5.0 / 4.0 / 8.5 s
-    assert p["longest_calm_s"] == 8.5
+    assert p["median_settled_ms"] == 6500.0             # settled 5.0 / 4.0 / 8.5 / 8.0 s -> mean
+    assert p["longest_calm_s"] == 8.5                   # of the two middles
     assert p["transition_fraction"] == 0.15             # 4.5 s of change inside 30 s
     assert p["peak_median"] == 0.5
 
