@@ -63,6 +63,9 @@ def main(argv=None) -> int:
     fl.add_argument("--set", dest="floor_set", choices=["canvas", "label", "frame"],
                     help="named floor set by target (canvas: not_dead,variety,not_blown; "
                          "label: legibility; frame: all)")
+    fl.add_argument("--no-exempt", action="store_true",
+                    help="ignore declared expected-absence: report the raw red (an exemption "
+                         "hides a red, never the measurement, so the numbers stay either way)")
     fl.add_argument("--json", action="store_true")
 
     sub.add_parser("takes", help="list recorded takes")
@@ -255,8 +258,12 @@ def main(argv=None) -> int:
         names = [n.strip() for n in args.floors.split(",")] if args.floors else None
         if names is None and args.floor_set:
             names = fl_mod.SETS[args.floor_set]
+        # Declared exemptions are ON by default, because a lane that cannot honour a declared
+        # absence tends to grow an UNDECLARED one instead. --no-exempt asks for the raw red.
+        exemptions = [] if args.no_exempt else None
         if args.dir:
-            receipts = fl_mod.sweep(args.dir, pattern=args.pattern, region=region, floors=names)
+            receipts = fl_mod.sweep(args.dir, pattern=args.pattern, region=region, floors=names,
+                                    exemptions=exemptions)
             if not receipts:
                 print(f"no frames matched {args.pattern} under {args.dir}", file=sys.stderr)
                 return 2
@@ -265,37 +272,65 @@ def main(argv=None) -> int:
                 print(json.dumps({"summary": summary, "receipts": receipts}, indent=2))
             else:
                 for r in receipts:
-                    bad = [f"{res['floor']}({', '.join(f'{k}={v}' for k, v in (res.get('measured') or {}).items())})"
-                           for res in r["results"] if not res["pass"]]
-                    mark = "ok  " if r["pass"] else "FAIL"
+                    def _shown(res):
+                        return (f"{res['floor']}("
+                                + ", ".join(f"{k}={v}" for k, v in (res.get("measured") or {}).items())
+                                + ")")
+                    excused = [_shown(res) for res in r["results"] if "exempt" in res]
+                    bad = [_shown(res) for res in r["results"]
+                           if not res["pass"] and "exempt" not in res]
+                    verdict = r.get("verdict") or ("pass" if r["pass"] else "fail")
+                    mark = {"pass": "ok    ", "exempt": "EXEMPT", "fail": "FAIL  "}[verdict]
                     name = str(r["frame"]).split("receipts")[-1].lstrip("\\/")
                     print(f"  [{mark}] {name}")
                     for b in bad:
                         print(f"          {b}")
-                print(f"census: {summary['frames']} frame(s) -- {summary['passed']} pass, "
-                      f"{summary['failed']} fail, {summary['unreadable']} unreadable"
-                      + (f", pass rate {summary['pass_rate']}" if summary["pass_rate"] is not None else ""))
+                    if excused:
+                        ids = sorted({res["exempt"]["id"] for res in r["results"] if "exempt" in res})
+                        for e in excused:
+                            print(f"          {e}  <- measured, declared: {', '.join(ids)}")
+                hard = [r for r in receipts
+                        if (r.get("verdict") or ("pass" if r["pass"] else "fail")) == "fail"]
+                line = (f"census: {summary['frames']} frame(s) -- {summary['passed']} pass, "
+                        f"{summary['failed']} fail, {summary['unreadable']} unreadable")
+                if summary["exempt"]:
+                    line += f", {summary['exempt']} declared-exempt"
+                if summary["pass_rate"] is not None:
+                    line += f", pass rate {summary['pass_rate']}"
+                print(line)
                 if summary["failures_by_floor"]:
                     print("  failures by floor: " + ", ".join(f"{k}={v}" for k, v in
                                                               summary["failures_by_floor"].items()))
+                if summary["exempted_floors"]:
+                    print("  exempted floors: " + ", ".join(f"{k}={v}" for k, v in
+                                                            summary["exempted_floors"].items()))
+                if summary["declarations_unused"]:
+                    print("  declarations that matched NOTHING (stale, or the frames moved): "
+                          + ", ".join(summary["declarations_unused"]))
                 for note in summary["blind"]:
                     print(f"  blind: {note}")
-            return 0 if summary["failed"] == 0 else 1
+            return 0 if not hard else 1
         if not args.path:
             print("give a frame path, or --dir for a census", file=sys.stderr)
             return 2
-        receipt = fl_mod.check(args.path, region=region, floors=names)
+        receipt = fl_mod.check(args.path, region=region, floors=names, exemptions=exemptions)
         if args.json:
             print(json.dumps(receipt, indent=2))
         else:
             print(f"{receipt['frame']}  {receipt['size'][0]}x{receipt['size'][1]}"
                   + (f"  region={region}" if region else ""))
             for r in receipt["results"]:
-                mark = "ok  " if r["pass"] else "FAIL"
+                mark = "ok    " if r["pass"] else ("EXEMPT" if "exempt" in r else "FAIL  ")
                 measured = ", ".join(f"{k}={v}" for k, v in (r.get("measured") or {}).items())
                 print(f"  [{mark}] {r['floor']:<11} {measured or r.get('error', '')}")
-            print("  verdict: " + ("pass" if receipt["pass"] else "FAIL"))
-        return 0 if receipt["pass"] else 1
+                if "exempt" in r:
+                    ex = r["exempt"]
+                    print(f"           declared: {ex['id']} -- {ex['reason']} "
+                          f"(owner {ex['owner']}, {ex['date']})")
+            verdict = receipt.get("verdict") or ("pass" if receipt["pass"] else "fail")
+            print(f"  verdict: {verdict}")
+        return 0 if (receipt.get("verdict")
+                     or ("pass" if receipt["pass"] else "fail")) != "fail" else 1
 
     if args.cmd == "takes":
         from .take import TakeLedger
