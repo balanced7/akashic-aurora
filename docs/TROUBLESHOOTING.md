@@ -132,6 +132,34 @@ docker restart ai-redis
 docker exec ai-redis redis-cli ping
 ```
 
+### 7. Line endings -- CRLF breaks the byte-slicing tests
+
+**Symptoms**: `tests/nashville_js.test.mjs`, `tests/score_hands.test.mjs` or
+`tests/score_export.test.mjs` fail in a fresh `git worktree`, or right after a `git apply`,
+while the very same tests pass in the main tree.
+
+**Cause**: those tests read `arsenal/web/piano.js` as BYTES and cut it with
+`src.indexOf("\n}\n")`, which can never match `\r\n}\r\n` -- the slice returns -1 and the
+failure surfaces far from the cause. `core.autocrlf=true` is set on this machine, so before
+`.gitattributes` existed every checkout wrote CRLF. It bit twice: 2026-09-16 (a fresh
+`git worktree add`) and 2026-09-17 (`git apply` of a worktree patch, 17 files).
+
+**Fix**: nothing to do by hand any more. `.gitattributes` at the repo root pins `eol=lf` for
+every source and text extension, so clones, worktrees and `git apply` all land LF no matter
+what `core.autocrlf` says. `*.cmd` and `*.bat` are deliberately `eol=crlf` (cmd.exe's parser
+expects it); `*.png *.jpg *.mid *.mp4 *.woff2` are `binary` and never normalized.
+
+**To check a file anyway** -- count the bytes. Do NOT use `grep -c $'\r'` under Git Bash on
+this machine; it is unreliable here and will tell you a CRLF file is clean:
+
+```bash
+py -c "import sys,pathlib;b=pathlib.Path(sys.argv[1]).read_bytes();c=b.count(b'\r\n');print('CRLF',c,'loneLF',b.count(b'\n')-c)" arsenal/web/piano.js
+```
+
+**Adding a new file type**: if it is text and anything reads it as bytes, add its extension to
+`.gitattributes`. Still unpinned, and therefore still following `core.autocrlf`:
+`*.jsonl` `*.glsl` `*.ps1` `*.sh` `*.patch` `*.mdc`.
+
 ## Check Commands
 
 ```bash
@@ -156,4 +184,4 @@ netsh interface portproxy show all
 
 ---
 
-## Updated: 2026-04-13
+## Updated: 2026-09-17
