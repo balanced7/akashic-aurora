@@ -358,6 +358,83 @@ def verify_tombstone(tomb: Dict[str, Any], *, sender_public: str) -> Dict[str, A
     return tomb
 
 
+# ------------------------------------------------------------------------------- the advert
+# Daniil, 2026-09-17: "the midpoint should advertise when it has new messages."
+#
+# It closes a hole the chain alone cannot: seq/prev catch INTERIOR gaps only. A midpoint that
+# delivers 1..44 and withholds 45,46,47 leaves a perfectly contiguous chain, and the recipient never
+# learns those messages existed. Tail truncation is invisible to every check above this line.
+#
+# So a sender deposits a HEAD beside its mail: a small SIGNED object saying where its chain has
+# actually reached. The midpoint stores it and cannot forge it, so it can no longer answer "that is
+# everything" when it is not. Two honest limits, stated rather than papered over:
+#   - it can still STALL (serve an old head), so the guarantee is "cannot lie forward", not "cannot
+#     withhold". Staleness is visible; silence used to be not.
+#   - an old head and a quiet sender look identical from here. Only the sender knows which it is,
+#     which is why `created_at` rides inside the signature.
+# THE ADVERT IS A HINT, NEVER AN AUTHORITY. It may make a fleet look sooner; it must never let one
+# conclude "nothing new", or a lying midpoint gains the power to talk us out of checking.
+
+_HEAD_FIELDS = ("v", "kind", "to", "from", "epoch", "seq", "last_id", "created_at", "alg")
+
+
+def head(*, sender: Dict[str, str], to: str, frm: str, epoch: str, seq: Any,
+         last_id: str = "", created_at: Optional[int] = None) -> Dict[str, Any]:
+    """Sign a pointer to where this sender's chain has reached. Deposited beside the mailbox."""
+    hdr = {
+        "v": WIRE_V,
+        "kind": "head",
+        "to": str(to),
+        "from": str(frm),
+        "epoch": str(epoch or ""),
+        "seq": _as_int(seq, what="seq"),
+        "last_id": str(last_id or ""),
+        "created_at": _as_int(created_at if created_at is not None else int(time.time()),
+                              what="created_at"),
+        "alg": ALG,
+    }
+    try:
+        signer = signing.SigningKey(_unb64(sender["sign_secret"]))
+    except SealRefused:
+        raise
+    except (KeyError, TypeError) as e:
+        raise SealRefused("sender identity is incomplete") from e
+    return {**hdr, "sig": _b64(signer.sign(_canon(hdr, _HEAD_FIELDS)).signature)}
+
+
+def verify_head(advert: Dict[str, Any], *, sender_public: str, me: str = "",
+                now: Optional[int] = None, max_age_s: Optional[int] = None) -> Dict[str, Any]:
+    """Verify an advert. Raises SealRefused; returns the head. `max_age_s`, when given, refuses a
+    head older than that — the caller's judgement, because only the caller knows whether this peer
+    is expected to be chatty."""
+    if not isinstance(advert, dict):
+        raise SealRefused("advert is not an object")
+    _check_keys(advert, frozenset(_HEAD_FIELDS) | {"sig"})
+    if str(advert.get("alg") or "") != ALG or str(advert.get("kind") or "") != "head":
+        raise SealRefused("not a head advert of a known suite")
+    try:
+        signing.VerifyKey(_unb64(sender_public)).verify(_canon(advert, _HEAD_FIELDS),
+                                                        _unb64(advert.get("sig", "")))
+    except SealRefused:
+        raise
+    except (BadSignatureError, CryptoError, ValueError, TypeError) as e:
+        raise SealRefused("advert signature does not verify") from e
+    if _as_int(advert.get("v"), what="v") != WIRE_V:
+        raise SealRefused("unknown wire version")
+    for f in ("to", "from", "epoch", "last_id"):
+        if not isinstance(advert.get(f), str):
+            raise SealRefused(f"{f} is not a string")
+    _as_int(advert.get("seq"), what="seq")
+    stamp = _as_int(advert.get("created_at"), what="created_at")
+    if me and str(advert.get("to")) != str(me):
+        raise SealRefused("advert is addressed to another fleet")
+    if max_age_s is not None:
+        clock = _as_int(now if now is not None else int(time.time()), what="now")
+        if clock - stamp > _as_int(max_age_s, what="max_age_s"):
+            raise SealRefused("advert is staler than the caller allows")
+    return advert
+
+
 # ------------------------------------------------------------------------------------- the chain
 class _FileLock:
     """One advisory lock around the whole read-modify-write. Without it two seats claimed the same
@@ -549,6 +626,30 @@ class Chain:
         """Everything below the high-water mark that has still never arrived. O(holes), not O(seq)."""
         row = self._read()["in"].get(str(peer)) or {}
         return sorted(_as_int(h, what="stored hole") for h in (row.get("holes") or []))
+
+    def check_head(self, peer: str, advert: Dict[str, Any], *, verified: bool = False) -> Dict[str, Any]:
+        """Compare a VERIFIED advert against what we hold. Returns the tail this peer says exists and
+        we have never seen — the case seq/prev structurally cannot report, because a withheld tail
+        leaves no hole behind it.
+
+        Like observe_in, this refuses an unverified record: an advert the midpoint could forge would
+        be worse than none, since it would let the midpoint invent a tail and make us chase it."""
+        if not verified:
+            raise SealRefused("refusing an unverified advert: verify_head first")
+        claimed = _as_int(advert.get("seq"), what="seq")
+        row = self._read()["in"].get(str(peer)) or {}
+        known_epoch = str(row.get("epoch") or "")
+        advert_epoch = str(advert.get("epoch") or "")
+        if advert_epoch and known_epoch and advert_epoch != known_epoch:
+            return {"epoch_changed": True, "missing_tail": [], "behind_by": 0,
+                    "claimed_seq": claimed}
+        high = _as_int(row.get("high_water") or 0, what="stored high_water")
+        tail = list(range(high + 1, claimed + 1)) if claimed > high else []
+        if len(tail) > MAX_SEQ_JUMP:
+            raise SealRefused(f"advert claims {len(tail)} unseen messages, past the {MAX_SEQ_JUMP} "
+                              f"cap — refused rather than materialised")
+        return {"epoch_changed": False, "missing_tail": tail, "behind_by": len(tail),
+                "claimed_seq": claimed}
 
     def high_water(self, peer: str) -> int:
         row = self._read()["in"].get(str(peer)) or {}
