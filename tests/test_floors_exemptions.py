@@ -86,7 +86,7 @@ def test_a_declaration_naming_an_unknown_floor_is_refused():
 
 def test_an_exempted_frame_keeps_its_measurement_and_is_labelled_exempt(tmp_path):
     path = _png(tmp_path / "presetbank" / "visualizer-builtin" / "frame.png", _black())
-    receipt = F.check(str(path), floors=["not_dead", "variety"], exemptions=_decl())
+    receipt = F.check(str(path), floors=["not_dead"], exemptions=_decl())
     entry = next(r for r in receipt["results"] if r["floor"] == "not_dead")
     assert entry["pass"] is False                                   # the measurement stands
     assert entry["measured"]["mean"] < entry["min_mean"]           # and the number is printed
@@ -126,13 +126,16 @@ def test_summarise_counts_exemptions_separately_and_names_its_blind_spot(tmp_pat
     dead = _png(tmp_path / "presetbank" / "other-preset" / "frame.png", _black())
     alive = _png(tmp_path / "presetbank" / "healthy-preset" / "frame.png", _alive())
     receipts = F.check_many([str(exempted), str(dead), str(alive)],
-                            floors=["not_dead", "variety"], exemptions=_decl())
+                            floors=["not_dead", "variety"],
+                            # the frame-level label is all-or-nothing: a declaration has to
+                            # cover EVERY failing floor of the frame for it to read `exempt`
+                            exemptions=_decl(floors=["not_dead", "variety"]))
     summary = F.summarise(receipts)
     assert summary["frames"] == 3
     assert summary["passed"] == 1
     assert summary["failed"] == 2                  # raw failures: the exempted frame is one
     assert summary["exempt"] == 1                  # counted on its own line, never folded in
-    assert summary["exempted_floors"] == {"not_dead": 1}
+    assert summary["exempted_floors"] == {"not_dead": 1, "variety": 1}
     assert summary["declarations_used"]["visualizer-builtin-blank"] == 1
     assert any("exempt" in note for note in summary["blind"])
 
