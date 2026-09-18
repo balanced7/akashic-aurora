@@ -46,6 +46,14 @@ def main(argv=None) -> int:
     sb.add_argument("--frames", action="store_true", help="also write one PNG per kept pick")
     sb.add_argument("--json", action="store_true", help="print the whole manifest")
 
+    mo = sub.add_parser("motion",
+                        help="how a take MOVES: pacing read from a storyboard manifest (or a "
+                             "video, analysed first) -- so a seat that cannot watch the video "
+                             "can still compare twenty takes")
+    mo.add_argument("path", nargs="?", help="a storyboard.json, or a video to analyse first")
+    mo.add_argument("--dir", help="profile every storyboard.json under this directory, as a bank")
+    mo.add_argument("--json", action="store_true")
+
     cp = sub.add_parser("coupling",
                         help="audio-coupling census of the preset bank: which channels each "
                              "preset actually reads, and how deeply")
@@ -202,6 +210,44 @@ def main(argv=None) -> int:
             summary = {k: v for k, v in features.items() if k != "frames"}
             summary["rows"] = rows
             print(json.dumps(summary, indent=2))
+        return 0
+
+    if args.cmd == "motion":
+        from . import motion as mo_mod
+        if args.dir:
+            profiles = mo_mod.profile_many(args.dir)
+            if not profiles:
+                print(f"no storyboard.json under {args.dir}", file=sys.stderr)
+                return 2
+            if args.json:
+                print(json.dumps(profiles, indent=2))
+            else:
+                for p in profiles:
+                    name = str(p["source"] or "(unknown source)").replace("\\", "/").split("/")[-1]
+                    print(f"  [{str(p['read']):<7}] {name:<30} {p['transitions']:>3} transition(s) "
+                          f"in {p['duration_s']}s -> {p['transitions_per_min']}/min, "
+                          f"longest calm {p['longest_calm_s']}s")
+            return 0
+        if not args.path:
+            print("give a storyboard.json (or a video), or --dir for a bank", file=sys.stderr)
+            return 2
+        manifest = args.path
+        if Path(args.path).suffix.lower() != ".json":
+            from . import storyboard as sb_mod
+            manifest = sb_mod.analyse(args.path)
+        p = mo_mod.profile(manifest)
+        if args.json:
+            print(json.dumps(p, indent=2))
+        else:
+            print(f"{p['source']}  {p['duration_s']}s  read={p['read']}")
+            for key in ("transitions", "settled", "transitions_per_min", "transition_fraction",
+                        "median_transition_ms", "p90_transition_ms", "max_transition_ms",
+                        "median_settled_ms", "longest_calm_s", "peak_median", "stride_ms"):
+                print(f"  {key:<22} {p[key]}")
+            for note in p.get("not_measured") or []:
+                print(f"  not measured: {note}")
+            for note in p["blind"]:
+                print(f"  blind: {note}")
         return 0
 
     if args.cmd == "storyboard":
