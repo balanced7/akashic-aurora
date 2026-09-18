@@ -1,0 +1,46 @@
+# Line endings are pinned HERE, not by core.autocrlf.
+#
+# core.autocrlf=true is set on this machine, so git checks files out with CRLF and
+# normalizes them back to LF on add. That round trip is invisible until something reads
+# a source file as BYTES rather than as lines. Ours do: tests/nashville_js.test.mjs,
+# tests/score_hands.test.mjs and tests/score_export.test.mjs slice arsenal/web/piano.js
+# with src.indexOf("\n}\n"), which can never match \r\n}\r\n -- the slice comes back -1
+# and the pin fails somewhere far from the cause.
+#
+# It bit twice in two days. On 2026-09-16 a fresh `git worktree add` checked out
+# piano.js and the instrument modules with CRLF; on 2026-09-17 `git apply` of a
+# worktree patch wrote CRLF into 17 files in the main tree. Each time the repair was a
+# manual byte-level renormalization, which fixes the tree and not the trap.
+#
+# eol=lf makes the CHECKOUT side explicit, so every clone, every worktree and every
+# `git apply` lands LF no matter what core.autocrlf says on the machine. The index was
+# already LF for every pattern below (git ls-files --eol: 3883 i/lf, 0 i/crlf), so this
+# file rewrites no blob -- it only stops the working tree from drifting away from it.
+
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.py     text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+*.html   text eol=lf
+*.css    text eol=lf
+*.frag   text eol=lf
+*.vert   text eol=lf
+*.yml    text eol=lf
+*.toml   text eol=lf
+*.txt    text eol=lf
+
+# Windows batch is the deliberate exception: cmd.exe's parser expects CRLF, and LF-only
+# batch files mis-parse around labels and GOTO. arsenal/tools/tiktok-ready.cmd is the
+# live one. The blob stays LF in the repo; the checkout is CRLF, which is what runs.
+*.cmd    text eol=crlf
+*.bat    text eol=crlf
+
+# Byte artifacts: never normalized, never diffed as text. (research/reviewed/
+# origin-prelog-2026-04-11/.gitattributes marks *.aof and *.rdb for the same reason --
+# autocrlf once stripped 18,435 CR bytes out of a RESP archive and made it unparseable.)
+*.png    binary
+*.jpg    binary
+*.mid    binary
+*.mp4    binary
+*.woff2  binary
