@@ -287,6 +287,7 @@
 - `ask_gpt.py` — ask_gpt -- a thin bridge so an agent (or you) can get OpenAI/GPT's take from the CLI.
 - `ask_kimi.py` — ask_kimi -- a thin bridge so an agent (or you) can get Kimi's take from the CLI.
 - `ask_panel.py` — ask_panel -- fan ONE question out to the frontier-model panel (Gemini + GPT + DeepSeek) and print
+- `ask_vision.py` — ask_vision -- ONE targeted question about ONE frame, with retries, provenance and a cache.
 - `bifrost_child.py` — bifrost_child -- managed subprocess + daemon singleton lock (T075 M1-delta).
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
 - `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).
