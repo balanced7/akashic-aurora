@@ -35,7 +35,7 @@ def frame(kind, shape=(180, 240)):
         a[(r >= 0.25) & (r < 0.5)] = 1.0
     elif kind == "flat":
         a[:] = 0.23
-    return (a * 255).astype(np.uint8)
+    return (np.dstack([a, a, a]) * 255).astype(np.uint8)  # gray RGB: luma() consumes 3 channels
 
 print(json.dumps({
   "centre": B.radial_summary(frame("centre")),
