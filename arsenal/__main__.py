@@ -54,6 +54,14 @@ def main(argv=None) -> int:
     mo.add_argument("--dir", help="profile every storyboard.json under this directory, as a bank")
     mo.add_argument("--json", action="store_true")
 
+    bo = sub.add_parser("boost",
+                        help="referee: stretch a dark frame so its structure is visible, and "
+                             "measure whether it has radial banding (a ring vs a glow vs nothing)")
+    bo.add_argument("path", help="an image or video frame")
+    bo.add_argument("--out", help="directory for the boosted PNG (default state/arsenal/receipts/boost)")
+    bo.add_argument("--annuli-only", action="store_true", help="print only the annulus numbers")
+    bo.add_argument("--json", action="store_true")
+
     cp = sub.add_parser("coupling",
                         help="audio-coupling census of the preset bank: which channels each "
                              "preset actually reads, and how deeply")
@@ -210,6 +218,26 @@ def main(argv=None) -> int:
             summary = {k: v for k, v in features.items() if k != "frames"}
             summary["rows"] = rows
             print(json.dumps(summary, indent=2))
+        return 0
+
+    if args.cmd == "boost":
+        from . import boost as bo_mod
+        from . import floors as fl_mod
+        from . import storyboard as sb_mod
+        rgb = fl_mod.load_rgb(args.path)
+        summary = bo_mod.radial_summary(rgb)
+        if args.json:
+            print(json.dumps(summary, indent=2))
+        else:
+            print(f"{args.path}  {'BANDED' if summary['banded'] else 'not banded'}")
+            print(f"  annuli (centre -> edge): {summary['annuli']}")
+            print(f"  {summary['reason']}")
+        if not args.annuli_only:
+            out = Path(args.out) if args.out else Path("state/arsenal/receipts/boost")
+            out.mkdir(parents=True, exist_ok=True)
+            dest = out / (Path(args.path).stem + "-boosted.png")
+            sb_mod._write_png(bo_mod.boost(rgb), str(dest))
+            print(f"  boosted view: {dest}")
         return 0
 
     if args.cmd == "motion":
