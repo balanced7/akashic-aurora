@@ -194,6 +194,12 @@ const DOOR_TOOLS = [
   'resident', 'roles', 'show', 'verdict_file', 'calibration', 'repeat',
   // T383 tranche 3 (2026-08-26, Daniil's rulings): approved ceremony writes + reads
   'nominate', 'assign', 'adopt', 'sift', 'bifrost_fetch',
+  // 2026-09-18 (Daniil: "lets add webfetch to native mcp for you"): the house web door's fetch
+  // half. Without it the seat shells out for every page read (`py agent_cli.py web fetch`), which
+  // is the round trip this door-nesting exists to remove. The door fences ALL served text as
+  // UNTRUSTED DATA in its own words and reports ranges rather than truncating silently, so a
+  // fetched page can be read as material without ever being read as instruction.
+  'web_fetch',
 ]
 const DOOR_PREFIX = 'akashic_'
 const DOOR_TIMEOUT_MS = 60000
