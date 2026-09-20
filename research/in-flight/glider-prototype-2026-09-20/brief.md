@@ -11,6 +11,31 @@ tutorial the *story*: you rediscover your own capabilities by rebuilding them. Y
 become?* The world is beautiful and mystical — full technology, or a **hybrid of magic and machine**
 (recommended: hybrid).
 
+## The backstory (rough, epic)
+
+Two ancient races at war. Humanity lived in harmony with its AI. The attackers hijacked production
+and certain AI models and launched a counterattack from within. As a last resort, a human and their
+friendly AI do the unthinkable — transplant and upload the human consciousness into a prototype host
+console — then use a one-of-a-kind prototype teleporter to whisk it away, its shell blasted as it
+teleports.
+
+The player wakes in that shell, remembering nothing. The world is full of hostile mechs — they are
+the **hijacked production**, the same machines that were once humanity's allies. Every enemy part you
+integrate is a *reclaiming* as much as a repair.
+
+**What the backstory buys, mechanically:**
+
+- The enemy-parts loop gains a moral reason: the enemies are hijacked, not evil.
+- The tutorial IS the backstory: "damaged fuzzy visuals + rudimentary UI" is amnesia made visible —
+  repairing the optics subsystem sharpens the world, repairing memory returns the friend.
+- The friend AI is the emotional spine, and its return is itself a repair ladder: comms → voice →
+  memory → presence.
+- The open theme (a feature, not a hole): *is the upload still human, or just another machine?* This
+  is the game's thesis — leave it open, and earn the answer rather than state it.
+- "Plot holes" worth keeping as features: your damage is your disguise (a broken mech blends into a
+  world of hijacked machines); the one-of-a-kind teleporter is a Chekhov's gun and the reason you
+  cannot simply go home.
+
 ## The one loop
 
 > explore → acquire (an enemy's part, a relic, a resource) → **become** (graft it now, or research
