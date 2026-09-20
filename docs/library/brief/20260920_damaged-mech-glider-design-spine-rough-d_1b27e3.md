@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260920_damaged-mech-glider-design-spine-rough-d_1b27e3
+akashic_sha: 2e237175111c
+schema_version: 1
+status: current
+type: brief
+date: 2026-09-20
+title: Damaged-mech glider — design spine (rough draft)
+gist: "# Damaged-mech glider — design spine (ROUGH DRAFT, in flux) Status: **ROUGH DRAFT**, locked 2026-09-20. Daniel is still concepting; this is "
+visibility: fleet
+body_type: markdown
+seats: [dsh_agent]
+category: [memory, narrative]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-09-20T15:56:41"
+updated: "2026-09-20T15:56:41"
+---
+<!-- GENERATED PROJECTION of art_20260920_damaged-mech-glider-design-spine-rough-d_1b27e3 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# Damaged-mech glider — design spine (rough draft)
+
 # Damaged-mech glider — design spine (ROUGH DRAFT, in flux)
 
 Status: **ROUGH DRAFT**, locked 2026-09-20. Daniel is still concepting; this is the spine, not the
