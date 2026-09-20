@@ -73,6 +73,26 @@ impulse, glide is committed. The movement ladder is cheap to layer on top of wha
 Beautiful and mystical. Tech/magic hybrid: machine parts for movement and structure, magic for the
 *impossible* — the parts that break the physics (which is where a gliding mech gets interesting).
 
+## The third force, and enemies who become friends
+
+A Reaper-like third force (name TBD) started the war between the two races. The attackers' hijack was
+*provoked and used* by it, so the hijacked AI and the third force are the same corruption at two
+scales — which quietly explains the hijack without a separate villain. It stays MYSTERIOUS: its
+motive is implied, never fully explained, because the dread lives in the not-knowing (Mass Effect's
+own lesson is that the Reapers weakened as fiction the more they were explained).
+
+This opens the loop's third hand: **reclamation / diplomacy.** Acquisition splits three ways —
+integrate (hostile), befriend (non-hostile), reclaim (hijacked) — and the "sudden violent enemy" beat
+is the pivot: the real threat appears, and every fight the player has had is recontextualised as two
+victims of the same manipulation. Enemies become friends.
+
+## Narrative beats (template: the locked researcher)
+
+A research lab/outpost where a researcher is locked up, scheduled for execution — discovered out of
+*curiosity* (what led to this, and why), rescued, then collaborated with: information transfer makes
+the researcher the face of the RESEARCH hand. This is the template for every "what happened here?"
+node in the world — the player's motivation is curiosity, never a quest marker.
+
 ## What already exists (built, pinned)
 
 - `arsenal/web/glider/physics.js` (commit `90a1cb91`): point-mass glide, wind-relative thermals, 16
