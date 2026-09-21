@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260921_eye-fuzzy-search-spec-amended-after-revi_f49e48
+akashic_sha: e33f2a9a74b3
+schema_version: 1
+status: current
+type: brief
+date: 2026-09-21
+title: "eye fuzzy search — spec, amended after review"
+gist: "# eye fuzzy search — spec, amended after review Status: **AMENDED 2026-09-21** after review by Navi (kimi) and Heimdall (deepseek). Vandor's"
+visibility: fleet
+body_type: markdown
+seats: [dsh_agent]
+category: [security, method, audit]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-09-21T09:31:46"
+updated: "2026-09-21T09:31:46"
+---
+<!-- GENERATED PROJECTION of art_20260921_eye-fuzzy-search-spec-amended-after-revi_f49e48 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# eye fuzzy search — spec, amended after review
+
 # eye fuzzy search — spec, amended after review
 
 Status: **AMENDED 2026-09-21** after review by Navi (kimi) and Heimdall (deepseek). Vandor's
