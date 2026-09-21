@@ -935,7 +935,43 @@ def format_pulse(p: Dict[str, Any], json_mode: bool = False) -> str:
 # unwedge is conditional (single-agent drill) and appended separately.
 FLIGHTDECK_COMPOSITION = (
     "doctor", "pulse", "lane_health", "locks", "commits", "asks", "turns",
+    "last_turn",
 )
+
+
+def _last_turn(agent: str, *, now: Optional[float] = None,
+               log=None) -> Optional[Dict[str, Any]]:
+    """The most recent COMPLETED turn for an agent, from the turn_metrics firehose.
+    Returns {"ask_kind", "duration_s", "age_s"} or None when there is no turn history.
+    This is "what did they just do" -- the firehose's own record, not the live phase.
+    `now`/`log` injectable so pins never sleep and never touch the real store."""
+    import time as _time
+    now = _time.time() if now is None else float(now)
+    if log is None:
+        try:
+            from core.events.event_log import EventLog
+            log = EventLog()
+        except Exception:
+            return None
+    try:
+        raw = log.scan(agent=str(agent))
+    except Exception:
+        return None
+    best_ts, best_detail = None, None
+    for ev in raw:
+        if str(ev.get("kind") or "") != "turn_metrics":
+            continue
+        detail = ev.get("detail") or {}
+        ts = detail.get("ts")
+        if ts is None:
+            continue                      # a turn with no ts is skipped, never guessed
+        if best_ts is None or float(ts) > best_ts:
+            best_ts, best_detail = float(ts), detail
+    if best_detail is None:
+        return None
+    return {"ask_kind": best_detail.get("ask_kind"),
+            "duration_s": best_detail.get("duration_s"),
+            "age_s": round(max(0.0, now - best_ts), 1)}
 
 
 def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dict[str, Any]:
@@ -1062,6 +1098,21 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
         pass
     out["sections"]["turns"] = turns_rows
 
+    # 8) Last completed turn — the firehose's most recent turn_metrics per agent. The
+    # "what did they just do" signal (kind + duration + seconds-ago) that answers "are
+    # they doing anything" without reading the live phase.
+    last_rows: Dict[str, Any] = {}
+    try:
+        for a_row in out["agents"]:
+            aid = a_row["id"]
+            try:
+                last_rows[aid] = _last_turn(aid)
+            except Exception:
+                last_rows[aid] = None
+    except Exception:
+        pass
+    out["sections"]["last_turn"] = last_rows
+
     # If single-agent focus, fold in unwedge
     if agent:
         out["fleet"] = False
@@ -1172,6 +1223,23 @@ def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
         lines.append("")
         lines.append("── in-flight turns (turns) ──")
         lines.extend(turn_lines)
+
+    # Last completed turn — "what did they just do" (silent when no turn history).
+    last_turns = sec.get("last_turn", {})
+    lt_lines = []
+    for a in fd.get("agents", []):
+        lt = last_turns.get(a["id"])
+        if lt:
+            bits = [str(lt.get("ask_kind") or "?")]
+            if lt.get("duration_s") is not None:
+                bits.append(f"{lt['duration_s']}s")
+            if lt.get("age_s") is not None:
+                bits.append(f"{_fmt_age(lt['age_s'])} ago")
+            lt_lines.append(f"  {a['id']}: {' · '.join(bits)}")
+    if lt_lines:
+        lines.append("")
+        lines.append("── last turn (last_turn) ──")
+        lines.extend(lt_lines)
 
     # Commits
     commits = sec.get("commits", [])
