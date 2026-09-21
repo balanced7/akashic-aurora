@@ -40,6 +40,19 @@ doc per game.
   reinstalling anything.
 - **Backup first, keep rollback one command away.**
 
+## Halo: Campaign Evolved (2026-09-20)
+
+- **Native FSR 4**, enabled automatically on RDNA4 (RX 9000). No OptiScaler needed — this is NOT the
+  Crysis case (the game already ships FSR4).
+- Shipped runtime was **`amd_fidelityfx_upscaler_dx12.dll` v4.0.3.604** at
+  `Engine\Plugins\Halo.External\FSR4\Source\fidelityfx-sdk\Kits\FidelityFX\signedbin\`.
+- **Upgraded to v4.1.1.2740** (OptiScaler's FFX DLL) by a direct DLL swap — the "replace a DLL" trick
+  (igorslab: FSR 4.0 → 4.1.1 = replace the DLL). Original backed up as `…\amd_fidelityfx_upscaler_dx12.dll.v4.0.3.bak`.
+- **What 4.1.1 buys over 4.0.3:** sharper upscaled detail, smoother camera motion (less
+  shimmer/ghosting — the 4.1.1 build is specifically the anti-shimmer update), slightly higher FPS.
+- **Caveat:** shipped UE5 builds may load the DLL from inside a `.pak` rather than the loose file —
+  if the swap has no visible effect, that's the next thing to check. Rollback = restore the `.bak`.
+
 ## Revisit checklist
 
 - [ ] Does the RX 9070 XT driver path need the Adrenalin "FSR4 Upscaling" global toggle for *other*
