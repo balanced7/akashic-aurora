@@ -927,15 +927,27 @@ def format_pulse(p: Dict[str, Any], json_mode: bool = False) -> str:
     return "\n".join(lines)
 
 
+# The cockpit composition recipe, declared as DATA (the `composed_of` contract,
+# dsh_agent 2026-09-21). A view must say what it is a view over — the same provenance
+# law as R1 in the eye-fuzzy spec, applied to the tool surface. A pin asserts the built
+# `sections` match this recipe exactly: a source added without updating the recipe (or
+# declared without being built) fails the pin, so the table of contents cannot rot.
+# unwedge is conditional (single-agent drill) and appended separately.
+FLIGHTDECK_COMPOSITION = (
+    "doctor", "pulse", "lane_health", "locks", "commits", "asks", "turns",
+)
+
+
 def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dict[str, Any]:
     """W25 flightdeck (deepseek, LIFEWORKERS, 2026-07-21): the cockpit one-pager —
     compose doctor + pulse + unwedge + lane-health + locks + recent commits into one
     fleet-at-a-glance view. READ-only v1. No --agent: fleet-wide compact lines. With
     --agent: full detail for one seat.
 
-    The composition law: flightdeck REUSES existing data sources (examine_fleet, pulse,
-    unwedge, _probe_lane_health) — it derives nothing new; it ARRANGES what already
-    exists into one glance."""
+    The composition law: flightdeck REUSES existing data sources — it derives nothing
+    new; it ARRANGES what already exists into one glance. The result carries
+    `composed_of` (the recipe above) so the cockpit says what it is a view over, and a
+    pin keeps that declaration honest against the sections actually built."""
     out: Dict[str, Any] = {"fleet": True, "agents": [], "sections": {}}
     # 1) Doctor — the whole fleet
     try:
@@ -1003,6 +1015,53 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
         pass
     out["sections"]["commits"] = commits
 
+    # 6) Open asks — the ask ledger (is work being ANSWERED, not just running).
+    # expectations.snapshot(agent) is the armed open-ask record for that SENDER; a
+    # deadline already past reads as overdue, attempt>0 reads as redriving. This is the
+    # lens that separates "runner alive" from "answers actually landing".
+    asks_rows: Dict[str, Any] = {}
+    try:
+        from core.comm.expectations import snapshot as _snapshot
+        import time as _time
+        _now = _time.time()
+        for a_row in out["agents"]:
+            aid = a_row["id"]
+            try:
+                recs = _snapshot(aid)
+                n_open = len(recs)
+                n_redriving = sum(1 for r in recs.values()
+                                  if int((r.get("attempt") or 0)) > 0)
+                deadlines = [float(r["deadline_ts"]) for r in recs.values()
+                             if r.get("deadline_ts") is not None]
+                n_overdue = sum(1 for d in deadlines if d < _now)
+                asks_rows[aid] = {
+                    "n_open": n_open, "n_redriving": n_redriving,
+                    "n_overdue": n_overdue,
+                    "soonest_deadline_s": (round(min(deadlines) - _now, 1)
+                                           if deadlines else None),
+                }
+            except Exception:
+                asks_rows[aid] = {"error": "asks unavailable"}
+    except Exception:
+        pass
+    out["sections"]["asks"] = asks_rows
+
+    # 7) In-flight turns — turn_metrics.progress_view (elapsed into the current
+    # reasoning session). None means "no live turn" (idle) — an honest absence, never a
+    # fabricated turn. This is the "N seconds into the reasoning session" gauge.
+    turns_rows: Dict[str, Any] = {}
+    try:
+        from core.comm import turn_metrics as _tm
+        for a_row in out["agents"]:
+            aid = a_row["id"]
+            try:
+                turns_rows[aid] = _tm.progress_view(aid)
+            except Exception:
+                turns_rows[aid] = None
+    except Exception:
+        pass
+    out["sections"]["turns"] = turns_rows
+
     # If single-agent focus, fold in unwedge
     if agent:
         out["fleet"] = False
@@ -1011,6 +1070,13 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
             out["sections"]["unwedge"] = unwedge(agent)
         except Exception:
             out["sections"]["unwedge"] = {"error": "unwedge unavailable"}
+
+    # The table of contents: the declared recipe, plus the conditional drill. A pin
+    # asserts this equals the built sections (membership in the derived view).
+    composed = list(FLIGHTDECK_COMPOSITION)
+    if agent:
+        composed.append("unwedge")
+    out["composed_of"] = composed
 
     return out
 
@@ -1023,6 +1089,9 @@ def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
 
     sec = fd.get("sections", {})
     lines = ["══ FLEET FLIGHTDECK ══", ""]
+    composed = fd.get("composed_of") or []
+    lines.append("composed_of: " + " + ".join(composed))
+    lines.append("")
 
     # Pause banner
     dr = sec.get("doctor", {})
@@ -1070,6 +1139,39 @@ def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
         lks = sec.get("locks", {}).get(aid, [])
         lk_str = str(len(lks)) if lks else "0"
         lines.append(f"{aid:<14} {zone:<10} {status:<22} {lh_str:<22} {lk_str}")
+
+    # Open asks — the answer ledger (silent when nothing is waiting, so a healthy fleet
+    # stays one glance; an overdue ask is the anomaly that must surface).
+    asks = sec.get("asks", {})
+    ask_lines = []
+    for a in fd.get("agents", []):
+        row = asks.get(a["id"]) or {}
+        if row.get("n_open"):
+            bits = [f"{row['n_open']} open"]
+            if row.get("n_redriving"):
+                bits.append(f"{row['n_redriving']} redriving")
+            if row.get("n_overdue"):
+                bits.append(f"{row['n_overdue']} OVERDUE")
+            ask_lines.append(f"  {a['id']}: {', '.join(bits)}")
+    if ask_lines:
+        lines.append("")
+        lines.append("── open asks (asks) ──")
+        lines.extend(ask_lines)
+
+    # In-flight turns — the "N seconds into the reasoning session" gauge. None = idle,
+    # which is absence, so only live turns render (silence = healthy).
+    turns = sec.get("turns", {})
+    turn_lines = []
+    for a in fd.get("agents", []):
+        tv = turns.get(a["id"])
+        if tv:
+            kind = tv.get("ask_kind") or "?"
+            turn_lines.append(
+                f"  {a['id']}: {tv.get('phase')} {tv.get('elapsed_s')}s ({kind})")
+    if turn_lines:
+        lines.append("")
+        lines.append("── in-flight turns (turns) ──")
+        lines.extend(turn_lines)
 
     # Commits
     commits = sec.get("commits", [])
