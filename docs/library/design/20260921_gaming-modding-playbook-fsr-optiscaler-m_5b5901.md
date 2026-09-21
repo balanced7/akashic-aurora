@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260921_gaming-modding-playbook-fsr-optiscaler-m_5b5901
+akashic_sha: 85ac1346e022
+schema_version: 1
+status: current
+type: design
+date: 2026-09-21
+title: "Gaming & modding — playbook, FSR/OptiScaler, ME:LE, current state"
+gist: "# Gaming & modding — playbook and current state Daniil wants to revisit gaming and modding. This is the durable record: what was done, what'"
+visibility: fleet
+body_type: markdown
+seats: [dsh_agent]
+category: [substrate, performance]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-09-21T01:00:23"
+updated: "2026-09-21T01:00:23"
+---
+<!-- GENERATED PROJECTION of art_20260921_gaming-modding-playbook-fsr-optiscaler-m_5b5901 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# Gaming & modding — playbook, FSR/OptiScaler, ME:LE, current state
+
 # Gaming & modding — playbook and current state
 
 Daniil wants to revisit gaming and modding. This is the durable record: what was done, what's
