@@ -1,3 +1,28 @@
+---
+akashic_id: art_20260921_windows-update-owner-s-manual-lgpo-durab_ac273d
+akashic_sha: ed9e893b0031
+schema_version: 1
+status: current
+type: design
+date: 2026-09-21
+title: "Windows Update — owner's manual (LGPO-durable policy)"
+gist: "# Windows Update — owner's manual (this machine) Why this exists: this machine is the **owner's**, not Microsoft's. No unprompted installs, "
+visibility: fleet
+body_type: markdown
+seats: [dsh_agent]
+category: [substrate, testing]
+origin: authored
+settled: settled
+supersedes: null
+superseded: null
+citations: []
+created: "2026-09-21T08:51:37"
+updated: "2026-09-21T08:51:37"
+---
+<!-- GENERATED PROJECTION of art_20260921_windows-update-owner-s-manual-lgpo-durab_ac273d -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
+
+# Windows Update — owner's manual (LGPO-durable policy)
+
 # Windows Update — owner's manual (this machine)
 
 Why this exists: this machine is the **owner's**, not Microsoft's. No unprompted installs, no
