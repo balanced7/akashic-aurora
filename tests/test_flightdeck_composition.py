@@ -149,3 +149,54 @@ def test_p6_format_renders_composition_toc(patched):
     assert "composed_of" in low, "the text render leads with the composition"
     assert "open asks" in low, "the asks section is rendered with its source named"
     assert "in-flight" in low, "the turns section is rendered with its source named"
+
+
+def test_p7_last_turn_composes(patched, monkeypatch):
+    monkeypatch.setattr("core.comm.doctor._last_turn", lambda a: {
+        "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
+        "claude": None,
+    }.get(a))
+    fd = flightdeck()
+    assert "last_turn" in fd["composed_of"], (
+        "the recipe names the last-turn source -- 'what did they just do'")
+    lt = fd["sections"]["last_turn"]
+    assert lt["deepseek"]["ask_kind"] == "nudge"
+    assert lt["deepseek"]["duration_s"] == 39.5
+    assert lt["deepseek"]["age_s"] == 120.0
+    assert lt["claude"] is None, "no turn history is an honest absence, not a zero"
+
+
+def test_p8_render_shows_last_turn(patched, monkeypatch):
+    monkeypatch.setattr("core.comm.doctor._last_turn", lambda a: {
+        "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
+    }.get(a))
+    out = format_flightdeck(flightdeck())
+    low = out.lower()
+    assert "last turn" in low, "the last-turn section is rendered with its source named"
+    assert "nudge" in low and "39.5s" in low
+
+
+def test_p9_last_turn_reads_firehose_most_recent():
+    from core.comm.doctor import _last_turn
+
+    class _Log:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def scan(self, agent):
+            return self._rows
+
+    r = _last_turn("deepseek", now=1000.0, log=_Log([
+        {"kind": "turn_metrics", "detail": {"ts": 900.0, "ask_kind": "question",
+                                            "duration_s": 60.0}},
+        {"kind": "turn_metrics", "detail": {"ts": 950.0, "ask_kind": "nudge",
+                                            "duration_s": 39.5}},
+        {"kind": "boot", "detail": {}},
+        {"kind": "turn_metrics", "detail": {"ask_kind": "no_ts", "duration_s": 1.0}},
+    ]))
+    assert r == {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 50.0}, (
+        "the most recent turn_metrics wins; a missing ts is skipped, never guessed")
+    assert _last_turn("x", now=1000.0, log=_Log([])) is None
+    assert _last_turn("x", now=1000.0, log=_Log([
+        {"kind": "not_a_turn", "detail": {"ts": 950.0}},
+    ])) is None
