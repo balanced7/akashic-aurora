@@ -147,6 +147,61 @@ def test_census_excludes_a_python_that_only_mentions_it_in_a_c_program():
     )
 
 
+LAUNCHER_PARENT = r"C:\WINDOWS\py.exe -3.11 scripts\bifrost_runner_discord.py --agent x"
+LAUNCHER_CHILD = (
+    r"C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe "
+    r"scripts\bifrost_runner_discord.py --agent x"
+)
+
+
+def test_a_launcher_and_its_child_are_one_process_not_two():
+    """sol got here first, on the production branch, and his comment predicts this exactly:
+
+        "py.exe is deliberately excluded: its child python.exe owns the runtime, and
+         counting both would turn one `py script.py` launch into two gateways."
+
+    MEASURED on the live host 2026-09-23, against my own shipped census: asked for
+    codex_bifrost_wake.py it returned [53976, 55332] -- and 55332's ppid IS 53976. One
+    logical watcher, reported as two. The morning's "12 -> 4, all genuine" was 4 reported
+    and 2 real.
+
+    This matters beyond arithmetic: the singleton guard's entire purpose is "exactly one",
+    so a census that doubles a `py`-launched process manufactures a DUPLICATE verdict. The
+    gateway read 1 correctly today only because that launch has no py.exe parent -- a
+    success for the wrong reason, which certifies nothing.
+
+    The fix here is the general form of sol's rule rather than his name list: drop any hit
+    that is the PARENT of another hit. That collapses py.exe->python.exe and
+    pyw.exe->pythonw.exe and any future launcher, without having to enumerate them. The
+    child owns the runtime, so the child is the one kept.
+    """
+    from core.comm import wake_seat as WS
+
+    snap = {
+        53976: {"ppid": 60136, "name": "py.exe", "cmdline": LAUNCHER_PARENT, "created": 0},
+        55332: {"ppid": 53976, "name": "python.exe", "cmdline": LAUNCHER_CHILD, "created": 0},
+    }
+    hits = WS.script_processes(snap, GATEWAY_SCRIPT)
+    assert hits == [55332], (
+        f"a py.exe launcher and the python.exe child it spawned were counted as two "
+        f"gateways (got {hits}); the child owns the runtime and the launcher must not "
+        f"also count"
+    )
+
+
+def test_a_genuine_pair_of_unrelated_gateways_still_counts_as_two():
+    """The collapse must not hide a REAL duplicate -- two independent processes with no
+    parent/child relationship are two gateways, which is what the singleton guard exists
+    to catch."""
+    from core.comm import wake_seat as WS
+
+    snap = {
+        111: {"ppid": 9, "name": "python.exe", "cmdline": LAUNCHER_CHILD, "created": 0},
+        222: {"ppid": 9, "name": "python.exe", "cmdline": LAUNCHER_CHILD, "created": 0},
+    }
+    assert WS.script_processes(snap, GATEWAY_SCRIPT) == [111, 222]
+
+
 def test_census_excludes_the_observer_itself():
     """`status` has no self-exclusion at all today (restart has one; status does not).
 
