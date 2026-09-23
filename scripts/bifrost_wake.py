@@ -380,6 +380,21 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         _beat.set("idle", "armed: blocked on inbox")
     except Exception:
         _beat = None                     # never let a heartbeat stop the thing it describes
+    # AND THE ROSTER, which is the plane the PRODUCTION Discord ear actually reads.
+    # bifrost_runner_discord's _is_seat_live is `any(row.agent == agent and row.state ==
+    # LIVE)` over roster rows, and the roster beat for an interactive seat is written by
+    # its PostToolUse hook -- i.e. only while it is making tool calls. So an idle-but-armed
+    # Vandor read DEAD and every operator message got COLD_SEAT_NOTICE ("Nothing is live on
+    # the Vandor seat right now, so nobody read this yet") while the seat was armed and
+    # blocked on his inbox. Worklive alone does not close that: production reads the roster.
+    _roster_beat = None
+    if session_id:
+        try:
+            from core.comm import roster as _R, liveness as _L
+            _roster_beat = (_R, _L._ns())
+            _R.heartbeat(_roster_beat[1], agent, session_id, phase="idle")
+        except Exception:
+            _roster_beat = None
     # S0-gamma: the session's already-woken-for memory (helpers above). Loaded once per arm;
     # persisted only when a wake delivers something NEW (twin-only and quiet exits change nothing).
     sf = seen_file if seen_file is not None else seen_path(agent, session_id)
@@ -461,6 +476,11 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         if _beat is not None:
             try:
                 _beat.refresh()
+            except Exception:
+                pass
+        if _roster_beat is not None:
+            try:
+                _roster_beat[0].heartbeat(_roster_beat[1], agent, session_id, phase="idle")
             except Exception:
                 pass
         try:
