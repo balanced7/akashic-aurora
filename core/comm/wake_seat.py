@@ -526,8 +526,17 @@ def any_armed(agent: str, tmp: Optional[str] = None, pid_probe=None) -> str:
     return "unknown"
 
 
+def armed_sessions(agent: str, tmp: Optional[str] = None, pid_probe=None) -> List[Optional[str]]:
+    """Session ids whose watcher is ARMED right now (None = a legacy per-agent seat)."""
+    out: List[Optional[str]] = []
+    for _path, sid in iter_seats(agent, tmp):
+        if watcher_state(agent, sid, tmp, pid_probe)[0] == "armed":
+            out.append(sid)
+    return out
+
+
 def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
-              pid_probe=None) -> bool:
+              pid_probe=None, live_sessions=None) -> bool:
     """Will a durable send to `agent` actually be READ, without anyone intervening?
 
     PRESENCE IS NOT REACHABILITY, and conflating them cost the operator four messages --
@@ -551,4 +560,20 @@ def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
     """
     if not presence_live:
         return False
-    return any_armed(agent, tmp, pid_probe) in ("armed", "unknown")
+    state = any_armed(agent, tmp, pid_probe)
+    if state not in ("armed", "unknown"):
+        return False
+    if live_sessions is None or state == "unknown":
+        return True                       # prior contract / probe cannot tell -> assert nothing
+
+    # THE SESSION MUST STILL EXIST (2026-09-23, found by the previous fix verifying itself
+    # wrong). The wake mechanism is PROCESS EXIT RE-INVOKING THE OWNING SESSION, so a watcher
+    # whose session is no longer a live conversation exits into nothing. It is armed, it is a
+    # real process, and it wakes no one. Because any_armed aggregates over every session of an
+    # agent, one stray drill watcher (pid 58216, session 'pin-ephemeral-0000') made a wholly
+    # unreachable agent read as reachable -- the very failure this predicate exists to end,
+    # one layer down. A legacy seat (sid None) predates per-session seats and cannot be
+    # matched either way, so it keeps the benefit of the doubt rather than inventing a verdict.
+    live = {str(s) for s in live_sessions}
+    return any(sid is None or str(sid) in live
+               for sid in armed_sessions(agent, tmp, pid_probe))
