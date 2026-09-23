@@ -2053,6 +2053,178 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     return "\n".join(lines)
 
 
+_WISH_ACTIONS = ("fold", "keep", "decline")
+_WISH_PLACEHOLDERS = (
+    "*(none yet — when one lands here, it keeps its reason.)*",
+    "*(none yet -- when one lands here, it keeps its reason.)*",
+)
+
+
+def _wish_find_block(doc, wid):
+    """The line range of ONE wish, as a BLOCK.
+
+    A wish is a bullet PLUS every continuation line under it. Treating it as a single line
+    would truncate most of this ledger, whose entries routinely run five or ten lines and
+    carry the receipt that makes them worth keeping.
+    """
+    import re as _re
+    lines = doc.split("\n")
+    head = _re.compile(r"^- \[[ x~]\] " + _re.escape(wid) + r"\b")
+    starts = [i for i, ln in enumerate(lines) if head.match(ln)]
+    if not starts:
+        raise ValueError(
+            "no wish %s in the ledger -- refusing rather than silently doing nothing" % wid)
+    if len(starts) > 1:
+        where = ", ".join(str(i + 1) for i in starts)
+        raise ValueError(
+            "%s is AMBIGUOUS: the ledger's id space has COLLIDED and %s appears %d times "
+            "(lines %s). Curating one of them silently is how a ledger starts lying about "
+            "its own history -- renumber first." % (wid, wid, len(starts), where))
+    i = starts[0]
+    j = i + 1
+    while j < len(lines):
+        ln = lines[j]
+        if ln.startswith("- [") or ln.startswith("## ") or ln.startswith("---"):
+            break
+        j += 1
+    while j > i + 1 and not lines[j - 1].strip():
+        j -= 1                      # leave the blank separator where it was
+    return lines, i, j
+
+
+def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, today=None):
+    """Pure: return (new_doc, message). THE MISSING HALF OF THE WISHLIST CHARTER.
+
+    The charter names three dispositions -- FOLD into an arc, stay OPEN, or DECLINE with a
+    reason -- and only filing ever had a door. Measured 2026-09-23: 226 wishes filed, 174
+    open, 32 folded, and DECLINE used ZERO times in the ledger's entire history, with the
+    `## Declined` section still reading "(none yet)".
+
+    That asymmetry is not clerical, it is epistemic. With decline unusable, OPEN means both
+    "queued, your turn is coming" and "nobody will ever build this", and the two render
+    identically -- so a filer reading 174 open wishes draws the pessimistic inference, which
+    is why nothing has been filed since 2026-08-24.
+
+    NOTHING IS EVER DELETED, and the charter's own reason is better than any I would write:
+    "declined wishes teach too." A decline MOVES the wish, text intact, under ## Declined and
+    staples its reason to it.
+    """
+    from datetime import datetime as _dt
+    if action not in _WISH_ACTIONS:
+        raise ValueError("action must be one of %s, not %r" % (_WISH_ACTIONS, action))
+    if action == "fold" and not (task or "").strip():
+        raise ValueError("fold needs --task: a wish folds INTO something, and an unnamed "
+                         "destination turns a fold into an unverifiable claim")
+    if action in ("decline", "keep") and not (reason or "").strip():
+        raise ValueError("%s needs --reason: an undeclared %s is exactly the silent state "
+                         "this verb exists to end" % (action, action))
+    today = today or _dt.now().strftime("%m-%d")
+    seat = seat or "unknown"
+    lines, i, j = _wish_find_block(doc, wid)
+    block = list(lines[i:j])
+
+    if action == "fold":
+        block[0] = block[0].replace("- [ ] ", "- [x] ", 1)
+        extra = (" " + reason.strip()) if (reason or "").strip() else ""
+        block.append("  FOLDED %s (%s) -> %s.%s" % (today, seat, task.strip(), extra))
+        out = lines[:i] + block + lines[j:]
+        return "\n".join(out), "[wish-curate] %s FOLDED -> %s" % (wid, task.strip())
+
+    if action == "keep":
+        block.append("  STILL OPEN %s (%s): %s" % (today, seat, reason.strip()))
+        out = lines[:i] + block + lines[j:]
+        return "\n".join(out), (
+            "[wish-curate] %s stays OPEN with a dated reason -- 'open' is now a decision "
+            "rather than a default" % wid)
+
+    block[0] = block[0].replace("- [ ] ", "- [~] ", 1)
+    block.append("  DECLINED %s (%s): %s" % (today, seat, reason.strip()))
+    rest = lines[:i] + lines[j:]
+    doc2 = "\n".join(rest)
+    if "## Declined" not in doc2:
+        raise ValueError("## Declined section missing -- the ledger structure drifted; file "
+                         "by hand rather than inventing a home for it")
+    head, tail = doc2.split("## Declined", 1)
+    for ph in _WISH_PLACEHOLDERS:
+        tail = tail.replace(ph + "\n", "", 1).replace(ph, "", 1)
+    body = "\n".join(block)
+    doc2 = head + "## Declined\n\n" + body + "\n" + tail.lstrip("\n")
+    return doc2, (
+        "[wish-curate] %s DECLINED -- and that is the loop WORKING, not a loss. The charter "
+        "keeps it so it can still teach." % wid)
+
+
+def cmd_wish_curate(args):
+    """The curation half of the wishlist charter (2026-09-23).
+
+    Filing has been one frictionless command since 2026-07-18. Curation has been an unowned
+    hand-edit of a 1,400-line tracked document at a "natural gate" that names nobody, and the
+    result is measurable: 226 wishes filed, 174 open, 32 folded, and DECLINE used ZERO times
+    in the ledger's entire history. Asymmetric friction always starves the unowned side.
+
+    With no --id this is READ-ONLY: it prints the oldest open wishes so a gate has something
+    concrete to dispose of. Three is the default on purpose -- small enough that skipping it
+    is not worth it, large enough to clear the backlog inside a year at one gate a week.
+    """
+    import re as _re
+    path = Path(os.getenv("AKASHIC_WISHLIST_FILE",
+                          str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
+    if not path.exists():
+        print("[wish-curate] REFUSED: %s missing -- the ledger is git-tracked; restore it "
+              "first" % path)
+        return 2
+    doc = path.read_text(encoding="utf-8")
+
+    if not getattr(args, "wish_id", None):
+        opens = _re.findall(r"^- \[ \] (W\d+) \(([^)]*)\) [-—]+ (.{0,86})",
+                            doc, _re.M)
+        total = len(_re.findall(r"^- \[ \] W\d+", doc, _re.M))
+        folded = len(_re.findall(r"^- \[x\] W\d+", doc, _re.M))
+        declined = len(_re.findall(r"^- \[~\] W\d+", doc, _re.M))
+        n = max(1, int(getattr(args, "count", 3) or 3))
+        print("# wishlist: %d open | %d folded | %d declined" % (total, folded, declined))
+        if declined == 0:
+            print("#   DECLINE HAS NEVER BEEN USED. With it unused, 'open' means both "
+                  "'queued' and")
+            print("#   'never', and the two render identically -- which is why filing stops.")
+        print("#")
+        print("# the %d oldest open, awaiting a disposition:" % min(n, len(opens)))
+        for wid, who, head in opens[:n]:
+            print("  %-6s (%s) %s" % (wid, who, head.rstrip()))
+        print()
+        print("# dispose of one with:")
+        print("#   py agent_cli.py wish-curate %s --id W## --as fold --task T### "
+              "[--reason ...]" % args.agent_id)
+        print("#   py agent_cli.py wish-curate %s --id W## --as keep --reason '<why still>'"
+              % args.agent_id)
+        print("#   py agent_cli.py wish-curate %s --id W## --as decline --reason '<why not>'"
+              % args.agent_id)
+        print("# a DECLINE is the loop working. Nothing is ever deleted -- declined wishes "
+              "teach too.")
+        return 0
+
+    action = (getattr(args, "as_", None) or "").strip()
+    try:
+        new_doc, msg = _wish_curate_apply(
+            doc, args.wish_id.strip(), action,
+            reason=getattr(args, "reason", None), task=getattr(args, "task", None),
+            seat=args.agent_id)
+    except ValueError as e:
+        print("[wish-curate] REFUSED: %s" % e)
+        return 2
+    path.write_text(new_doc, encoding="utf-8")
+    print(msg)
+    try:
+        capture_event("wish", "%s curated %s: %s" % (args.agent_id, args.wish_id, action),
+                      agent_id=args.agent_id,
+                      detail={"wish": args.wish_id, "action": action,
+                              "reason": (getattr(args, "reason", "") or "")[:300],
+                              "task": getattr(args, "task", "") or ""})
+    except Exception:
+        pass
+    return 0
+
+
 def cmd_wish(args):
     """One-command door to docs/WISHLIST.md (W12; Daniel's standing ergonomics ledger,
     2026-07-18): file a wish the MOMENT friction is felt -- no ceremony, no approval,
@@ -7357,6 +7529,18 @@ def build_parser():
     wsh.add_argument("--trigger", default="", help="what hurt (one clause)")
     wsh.add_argument("--land", default="", help="suggested landing arc/slice")
     wsh.set_defaults(fn=cmd_wish)
+
+    wcur = sub.add_parser("wish-curate", help="the curation half of the wishlist charter: "
+                          "fold / keep / DECLINE an open wish (read-only with no --id)")
+    wcur.add_argument("agent_id", help="your stable seat id (dispositions are attributed)")
+    wcur.add_argument("--id", dest="wish_id", help="the wish to dispose of, e.g. W159")
+    wcur.add_argument("--as", dest="as_", choices=["fold", "keep", "decline"],
+                      help="fold (needs --task) | keep (needs --reason) | decline (needs --reason)")
+    wcur.add_argument("--reason", help="why -- required for keep and decline")
+    wcur.add_argument("--task", help="the T-number that absorbed it -- required for fold")
+    wcur.add_argument("--count", type=int, default=3,
+                      help="how many oldest-open to list when no --id is given (default 3)")
+    wcur.set_defaults(fn=cmd_wish_curate)
 
     web_p = sub.add_parser("web", help="the house web door: fetch a URL (cleaned+raw, "
                                        "etag-cached, receipted, fenced UNTRUSTED) or search")
