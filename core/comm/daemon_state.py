@@ -158,6 +158,71 @@ def write_rearm_trigger(agent: str, session_id: str, tmp: Optional[str] = None) 
         return False
 
 
+#: How long a .rearm trigger may sit before its daemon is presumed not to be consuming.
+#: Generous on purpose -- a daemon tick plus a listener's python startup, with room to spare.
+#: A false wedge costs one loud line; a missed wedge costs an unreachable seat for hours.
+REARM_STALE_S = 180.0
+
+
+def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
+    """(state, detail) for 'is this agent's daemon actually CONSUMING its rearm triggers?'
+
+    THREE STATES, because the remedies differ and a two-state answer forces a wrong one:
+
+        'working'  nothing stale -- either consuming, or nothing to consume
+        'wedged'   a trigger has sat past the tolerance; the process may be perfectly alive
+        'unknown'  the probe could not read the directory -- claim NEITHER direction (A4)
+
+    WHY THIS EXISTS. The stop hook, seeing a live daemon, writes a .rearm trigger and passes,
+    because consuming it is the daemon's job (consume_rearms, only under --manage-listener).
+    So a daemon that is alive but not consuming produces silence that every other surface
+    reads as health: the triggers pile up, nothing re-arms, the seat goes unreachable, and
+    revive._live() -- a command-line string match -- keeps reporting the rung healthy. On
+    2026-09-23 that shape cost four directed operator messages, two of them for five days.
+
+    DELIBERATELY NOT 'down'. A wedged daemon needs a RESTART; a missing one needs a SPAWN.
+    Returning 'down' here would have decide() spawn a second daemon beside the wedged one,
+    which is how duplicates breed.
+    """
+    import os as _os
+    import time as _time
+    import tempfile as _tempfile
+    base = tmp or _tempfile.gettempdir()
+    try:
+        names = _os.listdir(base)
+    except Exception as e:                                              # noqa: BLE001
+        return "unknown", ("cannot read %s (%s) -- claiming neither direction rather than "
+                           "reporting a health this probe did not observe"
+                           % (base, type(e).__name__))
+    prefix = "bifrost_wake_"
+    agent_parts = str(agent).split("_")
+    now = _time.time()
+    stale = []
+    for name in names:
+        if not (name.startswith(prefix) and name.endswith(REARM_SUFFIX)):
+            continue
+        # EXACT-component boundary, mirroring wake_seat.iter_seats: a raw prefix made agent
+        # 'codex' enumerate codex_root's files and parse another agent's session id as its own.
+        parts = name[len(prefix):-len(REARM_SUFFIX)].split("_")
+        if len(parts) != len(agent_parts) + 1 or parts[:-1] != agent_parts:
+            continue
+        try:
+            age = now - _os.path.getmtime(_os.path.join(base, name))
+        except Exception:                                               # noqa: BLE001
+            continue
+        if age > tolerance_s:
+            stale.append((parts[-1], age))
+    if not stale:
+        return "working", "no stale rearm trigger for %s" % agent
+    stale.sort(key=lambda t: -t[1])
+    oldest_sid, oldest_age = stale[0]
+    return "wedged", (
+        "%d rearm trigger(s) for %s unconsumed past %.0fs -- oldest is session %s at %.0fs. "
+        "The daemon process may be perfectly alive; it is not doing its job. Remedy is a "
+        "RESTART, not a spawn (a spawn beside a wedged daemon breeds duplicates)."
+        % (len(stale), agent, tolerance_s, oldest_sid, oldest_age))
+
+
 def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
                    tmp: Optional[str] = None) -> int:
     """Daemon-side: for each of OWN agent's .rearm triggers, call spawn_fn(sid);

@@ -155,13 +155,36 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
     dead_runners = [a for a in RUNNER_AGENTS if not _live(a, "bifrost_runner_")]
     gateway_n = cmds.count("bifrost_runner_discord.py")
-    out["daemon"] = {
-        "healthy": not dead_daemons,
-        "detail": (f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
+    # ALIVE IS NOT WORKING (2026-09-23). _live() is a command-line string match, so a daemon
+    # wedged mid-tick matches it perfectly while consuming none of the .rearm triggers the stop
+    # hook leaves for it -- nothing re-arms, the seat goes unreachable, and this rung keeps
+    # reporting health. That shape cost four directed operator messages, two of them for five
+    # days. A wedge is reported, never auto-healed: the remedy is a RESTART and spawning beside
+    # a wedged daemon is how duplicates breed, so `dead` (which drives the spawn plan) is
+    # deliberately left alone.
+    wedged = []
+    try:
+        from core.comm import daemon_state as _ds
+        for _a in DAEMON_AGENTS:
+            if _a in dead_daemons:
+                continue                       # down, not wedged -- different remedy
+            _state, _why = _ds.rearm_backlog_state(_a)
+            if _state == "wedged":
+                wedged.append((_a, _why))
+    except Exception:                                                   # noqa: BLE001
+        pass                                   # probe unavailable -> claim nothing, as ever
+    _alive_note = (f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
                    if not dead_daemons else
                    f"DOWN: {', '.join(dead_daemons)} "
-                   f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})"),
+                   f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})")
+    if wedged:
+        _alive_note += ("  ||  WEDGED (alive but not consuming rearms; RESTART, do not spawn): "
+                        + "; ".join(f"{a}: {why}" for a, why in wedged))
+    out["daemon"] = {
+        "healthy": (not dead_daemons) and (not wedged),
+        "detail": _alive_note,
         "repairable": True,      # the probe ANSWERED -- a zero here is a real absence
+        "wedged": [a for a, _ in wedged],
         "dead": dead_daemons}
     out["runners"] = {
         "healthy": not dead_runners,
