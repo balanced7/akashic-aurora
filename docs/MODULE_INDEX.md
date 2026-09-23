@@ -250,6 +250,13 @@
 - `reports.py` — Report shelf -- one read surface over every report the fleet has produced.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
+## core/screenspace/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `canary.py` — Screenspace UIA availability — POSITIVE CANARY READ, not a context inference.
+- `capture.py` — Screenspace capture substrate — mss one-shot -> ScreenFrame (T386 §1.3, §2, §4.3).
+- `engine.py` — Screenspace engine facade — digest verdicts (T386 §1, §2, §3, §4).
+- `foreground.py` — Screenspace foreground source — WinEventHook tracker (§1.1, the v1 shadow-model spine).
+- `shadow.py` — Screenspace shadow model — L0 pulse (T386 §1.1, F2-gated).
+
 ## core/season/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `scoring.py` — core.season.scoring -- Season 1 scoring, as a pure function over data (T165).
 

@@ -178,6 +178,60 @@ EXCEPTIONS = {
         "single accuracy number. Exercised by 3 test files, no production caller yet. "
         "UNWIRE-WHEN: a door or scheduled audit invokes it -- an instrument nobody runs measures "
         "nothing. Owner: recall lane.",
+    # T386 screenspace observe organ (2026-09-23, kimi + Heimdall): the five modules of the
+    # OBSERVE half only -- capture (pixel substrate), engine (digest facade), foreground
+    # (WinEventHook source, §1.1), shadow (L0 pulse, F2-open), canary (§1 amended-ruling
+    # positive UIA read). Built-ahead per §6 step 2: the
+    # act/input/watch/locate verbs are §6 step 3+, deliberately NOT in this package, and the
+    # whole door is gated on step 0 -- the Sunshine --allow-write/--allow-gui unlock -- so there
+    # is NO production caller yet. Not dead code (the substrate mss/uiautomation is OPTIONAL and
+    # fail-soft per the package docstring). UNWIRE-WHEN: the observe door's production facade
+    # (the CLI/MCP verb that calls engine.peek/delta/refs/read_text) lands behind the unlock;
+    # delete these five entries then. DATED (not grandfathered) because they are NEW debt, per
+    # the ratchet this file's own test enforces. Owner: kimi/Heimdall (T386, design
+    # docs/library/design/20260902_screenspace-organ-design_528df4.md). Pay down by wiring, not
+    # by renewing the date.
+    "core/screenspace/capture.py": {
+        "reason": "built-ahead: T386 observe pixel substrate (mss one-shot -> ScreenFrame), "
+            "fail-soft on headless hosts. UNWIRE-WHEN the observe door's production facade lands "
+            "behind the Sunshine --allow-gui unlock. Owner: kimi/Heimdall.",
+        "expires": "2026-10-15",
+    },
+    "core/screenspace/engine.py": {
+        "reason": "built-ahead: T386 observe digest facade (peek/delta/refs/read_text), the "
+            "verbs the observe door will call. UNWIRE-WHEN that door lands. Owner: kimi/Heimdall.",
+        "expires": "2026-10-15",
+    },
+    "core/screenspace/foreground.py": {
+        "reason": "built-ahead: T386 §1.1 WinEventHook foreground source (ForegroundTracker). "
+            "UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
+        "expires": "2026-10-15",
+    },
+    "core/screenspace/shadow.py": {
+        "reason": "built-ahead: T386 L0 pulse model, F2-open v1-by-construction (cache-first "
+            "pulse reads the WinEventHook tracker; no per-call poll). UNWIRE-WHEN the observe "
+            "door lands. Owner: kimi/Heimdall.",
+        "expires": "2026-10-15",
+    },
+    "core/screenspace/canary.py": {
+        "reason": "built-ahead: T386 §1 amended-ruling POSITIVE CANARY READ (uia_available / "
+            "CanaryState — actually reads the foreground window rather than inferring context). "
+            "Imported only by the other excepted screenspace modules, so it is unwired while the "
+            "door is gated on step 0. UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
+        "expires": "2026-10-15",
+    },
+    "core/screenspace/station.py": {
+        "reason": "DEPRECATION SHIM, pending removal -- NOT built-ahead. It re-exports the canary "
+            "surface and carries its own deletion condition ('DELETE once engine.py is repointed'), "
+            "which is now MET: no production module imports it. It is excepted rather than deleted "
+            "because two PROBE files still import it (tests/test_probe_station_attrs.py and "
+            "tests/_probe_station_attrs.py), both artifacts of the same abandoned window-station "
+            "approach, so removing the shim means removing three files in kimi's lane. "
+            "UNWIRE-WHEN kimi retires the shim with its two probes -- this entry must die with it, "
+            "not be renewed. Owner: kimi. Short expiry on purpose: a deprecation shim that outlives "
+            "its transition is the duplication the §1 ruling exists to kill.",
+        "expires": "2026-10-01",
+    },
     # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
     "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from "
         "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
