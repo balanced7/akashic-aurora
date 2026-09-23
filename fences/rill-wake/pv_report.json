@@ -1,0 +1,40 @@
+{
+  "ran_at": "2026-09-23T02:51:00.590610+00:00",
+  "verified": [
+    "half_a: agent/harness/dsh_plugin/lib/index.js:188",
+    "half_a: core/comm/discord_bridge.py:11",
+    "half_a: docs/DOORS.md:41",
+    "half_a: scripts/bifrost_wake.py",
+    "half_b: agent/harness/codex_bifrost_wake.py:1",
+    "half_b: agent/harness/dsh_plugin/bridge.py",
+    "half_b: agent/harness/dsh_plugin/lib/index.js",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:158",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:217",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:39",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:46",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:460",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:5",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:50",
+    "half_b: core/comm/bifrost_api.py:203",
+    "half_b: core/comm/bus.py:834",
+    "half_b: core/comm/discord_bridge.py:11",
+    "half_b: core/comm/packet_spec.py:189",
+    "half_b: scripts/bifrost_wake.py",
+    "half_b: scripts/bifrost_wake.py:49",
+    "half_b: scripts/install_dsh_plugin.py",
+    "half_b: scripts/local/launch_rill.cmd",
+    "half_b: scripts/local/launch_rill.ps1",
+    "half_b: scripts/local/launch_rill.ps1:245"
+  ],
+  "missing": [
+    "half_a: akashic_recall/payloads_dsh/captures.jsonl",
+    "half_a: deepseek-ai/dsh-agent/lib/types/inbox.d.ts",
+    "half_a: deepseek-ai/dsh-agent/lib/types/index.d.ts",
+    "half_a: deepseek-ai/dsh-agent/lib/types/types.d.ts",
+    "half_a: deepseek-ai/dsh-llm/lib/types/message.d.ts",
+    "half_b: DSH_HOME/profiles/web/cordis.patch.yml",
+    "half_b: DSH_HOME/profiles/web/plugins/dsh-akashic-recall/lib/index.js",
+    "half_b: agent/harness/dsh_plugin/lib/index.js:594",
+    "half_b: akashic_recall/payloads_dsh/captures.jsonl"
+  ]
+}
