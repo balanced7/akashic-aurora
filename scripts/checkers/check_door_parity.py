@@ -362,6 +362,12 @@ MANIFEST = {
                                   # through a shared MCP door -- the session that needs to
                                   # name itself is the one running the command.
     "wish": "cli_only",            # append to WISHLIST.md -- author surface, needs the repo
+    "wish_curate": "cli_only",     # the CURATION half of the same ledger (fold/keep/decline).
+                                   # Matches `wish` deliberately: both mutate a git-tracked
+                                   # document in the working tree, which a shared MCP door
+                                   # cannot do honestly -- the seat holding the repo is the
+                                   # one that must write it. Classified the same way so the
+                                   # two halves of one charter cannot drift apart at the door.
     "web": "cli_only",             # the house web door umbrella (W-slice 2026-09-01); cross-door name is web_fetch
     "fetch": "cli_only",           # subcommand of `web` -- CLI spelling of web_fetch (cleaned+raw, receipts, fenced)
     "search": "cli_only",          # subcommand of `web` -- Brave when keyed; ToolBox web_search serves seats meanwhile

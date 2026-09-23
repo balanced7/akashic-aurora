@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (102 verbs)
+## CLI door -- `py agent_cli.py <verb>` (103 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -115,6 +115,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `watch` | the out-of-band deadman: declare a run so SILENCE becomes a finding, checkpoint while it lives, stand down when done | `<agent_id>*` `--declare` `--grace` `--checkpoint` `--stand-down` `--status` |
 | `web` | the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search | `<web_cmd>* {fetch,search}` |
 | `wish` | file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back) | `<agent_id>*` `<text>*` `--text-file` `--trigger` `--land` |
+| `wish-curate` | the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id) | `<agent_id>*` `--id` `--as {fold,keep,decline}` `--reason` `--task` `--count` |
 | `wrap` | distill this session (commits+lessons+notes) into a DRAFT where-we-are note | `--hours` `--grounding` `--commit` `--title` `--force` `--focus` `--route` |
 
 ## MCP door -- the native tool surface (KNOWN GAP, v0)
