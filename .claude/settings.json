@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py agent/harness/hooks/claude_trace.py"
+            "command": "pyw agent/harness/hooks/claude_trace.py"
           }
         ]
       }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py agent/harness/hooks/claude_posttooluse.py"
+            "command": "pyw agent/harness/hooks/claude_posttooluse.py"
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py agent/harness/hooks/claude_stop.py"
+            "command": "pyw agent/harness/hooks/claude_stop.py"
           }
         ]
       }
