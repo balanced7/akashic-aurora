@@ -12,11 +12,24 @@
     "half_a": {
       "by": "claude",
       "at": "2026-09-23T02:44:42.818488+00:00"
+    },
+    "half_b": {
+      "by": "deepseek",
+      "at": "2026-09-23T02:48:24.210376+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-09-23T02:53:20.513281+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-09-23T02:51:00.590610+00:00",
+    "missing_count": 9
+  },
   "authors": {
     "brief": "claude",
-    "half_a": "claude"
+    "half_a": "claude",
+    "half_b": "deepseek",
+    "reconciliation": "claude"
   }
 }
