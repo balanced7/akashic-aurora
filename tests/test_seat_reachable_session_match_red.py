@@ -9,7 +9,7 @@ replaced presence with reachability on the Discord path, I verified live and got
 
 All three were true statements and the conclusion was false. The armed seat belonged to session
 `pin-ephemeral-0000` -- a REAL bifrost_wake process (pid 58216, cmdline confirmed) left running
-by a drill. My actual session, bee0f118, had no seat at all: its watcher had fired and exited,
+by a drill. My actual session had no seat at all: its watcher had fired and exited,
 correctly cleaning up after itself.
 
 WHY IT MATTERS, precisely. The wake mechanism is PROCESS EXIT RE-INVOKING THE OWNING SESSION.
@@ -36,7 +36,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import wake_seat
 
-LIVE = "bee0f118-f0f5-4b8a-a0d8-66aee48f3df1"
+# SYNTHETIC, never a real session id: a live session id in a tracked file is a
+# privacy leak by the house's own standing rule, and this repo is public.
+LIVE = "aaaaaaaa-0000-4444-8888-000000000001"
 GONE = "pin-ephemeral-0000"
 
 

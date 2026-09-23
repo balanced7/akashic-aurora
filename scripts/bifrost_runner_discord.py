@@ -148,8 +148,15 @@ def _is_seat_reachable(agent: str) -> bool:
     try:
         from core.comm import roster as _roster, liveness as _liveness, wake_seat as _seat
         rows = _roster.roster(_liveness._ns())
-        live = any(r.get("agent") == agent and r.get("state") == "LIVE" for r in rows)
-        return _seat.reachable(agent, presence_live=live)
+        mine = [r for r in rows if r.get("agent") == agent and r.get("state") == "LIVE"]
+        # The armed watcher must belong to a session that STILL EXISTS. Its wake is a process
+        # exit re-invoking the OWNING session, so a watcher for a session that is gone exits
+        # into nothing -- armed, real, and waking no one. A stray drill watcher made a wholly
+        # unreachable agent read as reachable on 2026-09-23; passing the live session ids is
+        # what closes that.
+        live_sessions = {str(r.get("full_sid") or "") for r in mine} - {""}
+        return _seat.reachable(agent, presence_live=bool(mine),
+                               live_sessions=live_sessions)
     except Exception:                                                     # noqa: BLE001
         return True
 
