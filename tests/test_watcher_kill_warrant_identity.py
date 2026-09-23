@@ -123,6 +123,33 @@ def test_an_empty_cmdline_is_not_a_kill_target():
     assert WS.is_watcher(4242, snap) is False
 
 
+def test_the_kill_site_uses_the_strict_warrant_not_the_lenient_check():
+    """agent_watcher's own docstring records deepseek's dissent and the division of
+    labour it produced:
+
+        "name-match alone is not a kill warrant -- a recycled pid can be ANOTHER
+         agent's watcher or an unrelated bifrost_wake_report.py ... is_watcher above
+         stays the lenient kind-only check for NON-LETHAL consumers."
+
+    The strict warrant was built. The single remaining kill calls the lenient one.
+    """
+    src = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8")
+    kill_block = src.split("K6 migration", 1)[0][-1200:]
+    assert "agent_watcher(" in kill_block, (
+        "bifrost_wake.py's K6 kill gates on is_watcher (the lenient kind-only check) "
+        "when agent_watcher (the strict warrant, with the word-bounded --agent token) "
+        "exists and is documented as the one for lethal consumers"
+    )
+
+
+def test_a_foreign_agents_watcher_is_not_my_kill_target():
+    """The other half of deepseek's dissent: a recycled pid can be a LIVE watcher
+    belonging to a different seat. Killing it reopens the 2026-07-10 kill loop."""
+    snap = _snap([(55332, "python.exe", CODEX_WATCHER)])       # --agent sol
+    assert WS.agent_watcher(55332, snap, "claude") is False
+    assert WS.agent_watcher(55332, snap, "sol") is True
+
+
 def test_the_live_ratio_is_the_regression_this_pin_exists_for():
     """One snapshot holding both kinds: only the two real watchers may be warrants."""
     snap = _snap(
