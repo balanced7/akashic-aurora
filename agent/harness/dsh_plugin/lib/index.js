@@ -541,6 +541,20 @@ export async function apply(ctx) {
   ctx.on('session/event', (session, event) => {
     const sid = session && session.id || activeSid()
     rememberSid(sid)              // every event is a chance to learn the real id
+    // WOKEN gate (rill-wake R13): the claimed receipt lives here, never on append. A
+    // next-turn splice that REMOVES a pending message is the loop consuming the doorbell.
+    // The raw shape is captured first (wake-splice-observed) so the idle drill can
+    // confirm the exact field layout; 'woke' is stamped only on a next-turn removal.
+    if (event && event.type === 'agent/inbox/spliced') {
+      const d = (event.data && typeof event.data === 'object') ? event.data : event
+      const target = d && d.target
+      const removedCount = Number((d && d.removedCount) || 0)
+      capture({ at: Date.now(), kind: 'wake-splice-observed', sid, target,
+                removedCount, rawTarget: String(target) })
+      if (target === 'next-turn' && removedCount > 0) {
+        capture({ at: Date.now(), kind: 'wake-woke', sid, target, removedCount })
+      }
+    }
     const st = stateFor(sid)
     if (!st) return
     if (event && event.type === 'user/message') {
