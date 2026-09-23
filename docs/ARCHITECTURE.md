@@ -25,6 +25,7 @@ cannot rot. See "How this map stays alive" at the bottom.
 ```
 INTERFACE (System 5) — the doors agents/humans come through
   agent_cli.py · ai_setup_mcp.py · scripts/bifrost_ui.py · bifrost_runner_deepseek.py · bifrost_wake.py
+  core/screenspace/ — the OBSERVE organ (T386): see the screen, digest it, act gated on unlock
         |
         v
 NARRATIVE (System 4)          KNOWLEDGE & MEMORY               COORDINATION
@@ -102,6 +103,29 @@ Stops agents colliding and plays them to their strengths.
 - **`conductor.py`** — the orchestration shell over the pure ledger.
 - **`negotiation.py` / `intent.py`** — plan-declaration windows. **`cognitive_metrics.py` /
   `experiment.py` / `metrics.py`** — the Stage-3 evidence engine (measure whether coordination helps).
+
+## Screenspace — the OBSERVE organ (`core/screenspace/`)
+The door-plane slice that SEES the screen (T386, observe-only §6 step 2). The `act` / `input` /
+`watch` / `locate` verbs are §6 step 3+, gated on the Sunshine `--allow-write` / `--allow-gui`
+unlock and deliberately NOT exported here — this package is the observe half only.
+- **`capture.py`** — the pixel SUBSTRATE: `mss` one-shot → `ScreenFrame` (pixels + dimensions + DPI
+  scale + sha256; server-side pre-resize to an explicit long-edge budget). Fail-soft: on a headless
+  host the frame returns `available=False`, never a bare exception.
+- **`engine.py`** — the digest FACADE above the substrate: `peek` / `delta` / `refs` / `read_text`
+  return *verdicts* (`ScreenResult`, `ScreenDelta`) shaped so a caller can decide whether to climb a
+  level. `read_text` returns a provenance record (`source:"screen"`, window name), never a bare
+  string that could be read as a command (§4.1 R2).
+- **`foreground.py`** — the §1.1 foreground source (`ForegroundTracker`, the WinEventHook
+  `EVENT_SYSTEM_FOREGROUND` path).
+- **`shadow.py`** — the L0 pulse model (foreground/focus + monotone `gen`), F2-open v1-by-construction:
+  cache-first (its `pulse()` reads the tracker cache via `engine._current_focus()`, no per-call poll).
+- **`canary.py`** — the §1 amended-ruling POSITIVE CANARY READ (`uia_available()` / `CanaryState`):
+  actually reads a property off the real foreground window rather than inferring availability from
+  window-station/session context (the cheaper question that already lied twice).
+
+Design source: the screenspace-organ design atom (2026-09-02, status settled). Every import is
+lazy and fail-soft; the substrate (`mss` / `uiautomation` / `dxcam`) is OPTIONAL and host-installed,
+so the package imports cleanly and degrades honestly on any host.
 
 ## Knowledge & memory (the "codex")
 Give the right agent the right context at the moment of action.
