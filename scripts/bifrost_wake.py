@@ -597,10 +597,21 @@ def _migrate_legacy_ghost(agent: str) -> None:
                 wake_seat.append_provenance(agent, f"K6 migration deferred: snapshot unavailable "
                                                    f"(legacy seat pid {pid} left in place)")
                 return                       # K8 direction: cannot verify -> touch nothing
-            if pid in snap and wake_seat.is_watcher(pid, snap):
+            # THE WARRANT, not the lenient kind check (2026-09-23). agent_watcher's own
+            # docstring records deepseek's dissent -- "is_watcher above stays the lenient
+            # kind-only check for NON-LETHAL consumers" -- and this is the one lethal
+            # consumer in the protocol. is_watcher answers "is this our kind of process";
+            # a kill needs "is this OUR agent's watcher", because a recycled pid can be a
+            # LIVE watcher belonging to another seat, and killing it reopens the
+            # 2026-07-10 loop the Wave-2 fence dissolved.
+            if pid in snap and wake_seat.agent_watcher(pid, snap, agent):
                 wake_seat.taskkill(pid)
                 wake_seat.append_provenance(agent, f"K6 migration: killed legacy name-keyed ghost "
                                                    f"watcher pid {pid}")
+            elif pid in snap:
+                wake_seat.append_provenance(
+                    agent, f"K6 migration: legacy seat pid {pid} is NOT {agent}'s watcher "
+                           f"(no warrant) -- seat file removed, process left alone")
         os.remove(legacy)
         wake_seat.append_provenance(agent, "K6 migration: legacy seat file removed")
     except Exception:
