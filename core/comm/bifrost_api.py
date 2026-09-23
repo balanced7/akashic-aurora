@@ -147,7 +147,28 @@ class BifrostAPI:
 
     @property
     def online_now(self) -> bool:
+        """CONSTRUCTION-TIME fact, not live reachability.
+
+        Bus.online is "self._client is not None" and CAN NEVER FLIP MID-RUN -- RB-30 names
+        wiring a loop guard to it as the invisible-spin bug's shape. Correct for an ARM-TIME
+        gate; wrong for anything inside a loop. Use reachable_now() there.
+        """
         return bool(self.bus.online)
+
+    def reachable_now(self) -> bool:
+        """LIVE reachability: one PING, False on any failure (Bus.probe, RB-30's ground truth,
+        cheap enough for once per loop beat).
+
+        Added 2026-09-23 because the blind-shift fix (60d826c1) re-checked online_now inside
+        the watcher loop and was therefore INERT -- it committed the exact error that night was
+        spent cataloguing, inside the fix for it. Its pins passed only because the test double
+        implemented a flipping property the real object does not have: the fake was the thing
+        under test.
+        """
+        try:
+            return bool(self.bus.probe())
+        except Exception:                                                   # noqa: BLE001
+            return False
 
     # ---- send ----
     def send(self, to: str, text: Any, kind: str = "chat", **meta) -> Optional[str]:
