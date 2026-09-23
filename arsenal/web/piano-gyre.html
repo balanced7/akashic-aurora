@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+  <title>Gyre — light in precession</title>
+  <link rel="stylesheet" href="./piano-gyre.css">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <header><a href="./piano-crystal-studies.html?study=solstice&canopy=ribbons">◈ <span>LIGHT STUDIES</span></a><span class="edition">KINETIC SCULPTURES / 02</span><div><button id="pause" aria-pressed="false">Pause render</button><button id="fullscreen" aria-label="Enter fullscreen">⤢</button></div></header>
+  <main>
+    <aside aria-label="Sculpture controls">
+      <div class="intro"><span class="eyebrow">LIGHT IN PRECESSION</span><h1>Gyre<span>.</span></h1><p>One bent arm.<br>A thousand ways to leave light.</p></div>
+      <label class="select-label">STUDY<select id="preset"><optgroup label="Original studies"><option value="silk">01 · Silk orbit</option><option value="lattice">02 · Prismatic lattice</option><option value="ember">03 · Ember garden</option><option value="bloom">04 · Violet bloom</option></optgroup><optgroup label="New worlds"><option value="braid">05 · Tidal braid</option><option value="pendulum">06 · Pendulum garden</option><option value="wind">07 · Solar wind</option></optgroup></select></label>
+      <section class="preset-library" aria-label="Your saved presets">
+        <div class="preset-actions"><button id="save-preset">Save preset</button><button id="update-preset" disabled>Update selected</button></div>
+        <label class="select-label">YOUR PRESETS<select id="saved-presets"><option value="">No saved presets yet</option></select></label>
+        <form id="preset-form" hidden>
+          <label for="preset-name">Give this light a name</label><input id="preset-name" maxlength="64" required autocomplete="off" placeholder="Golden wings">
+          <div class="preset-actions"><button type="submit">Save this version</button><button id="cancel-preset" type="button">Cancel</button></div>
+        </form>
+        <p id="preset-message" role="status" aria-live="polite">Saved in this browser, on this site.</p>
+      </section>
+      <div class="world-shortcuts" aria-label="Explore new worlds"><button data-world="braid"><span>∞</span>Tidal braid</button><button data-world="pendulum"><span>✺</span>Pendulum</button><button data-world="wind"><span>↟</span>Solar wind</button></div>
+      <label class="select-label">SCULPTURE<select id="sculpture"><option value="gyre">The suspended L</option><option value="braid">Three interwoven ribbons</option><option value="pendulum">Pendulum flowers</option></select></label>
+      <div class="world-fields" id="weave-fields" hidden><label class="slider">Weave depth <output id="weave-value"></output><input id="weave" type="range" min="0" max="1" step=".01"></label><label class="slider">Petals / winding <output id="petals-value"></output><input id="petals" type="range" min="2" max="9" step="1"></label></div>
+      <div class="section-name">THE MOTION</div>
+      <label class="select-label" style="margin-bottom:14px">ARM MOTION<select id="motion"><option value="axial">Axial spin · along the stem</option><option value="sweep">Planar sweep · original motion</option></select></label>
+      <label class="slider">Spin <output id="spin-value"></output><input id="spin" type="range" min="-1.5" max="1.5" step=".01"></label>
+      <label class="slider">Precession <output id="precession-value"></output><input id="precession" type="range" min="-.3" max=".3" step=".001"></label>
+      <label class="slider">Axis tilt <output id="tilt-value"></output><input id="tilt" type="range" min="0" max="88" step="1"></label>
+      <label class="slider">Wobble <output id="wobble-value"></output><input id="wobble" type="range" min="0" max="28" step="1"></label>
+      <div class="section-name">THE FORM</div>
+      <label class="slider">Stem length <output id="stem-value"></output><input id="stem" type="range" min=".8" max="6" step=".05"></label>
+      <label class="slider"><span id="reach-label">Bent arm length</span><output id="reach-value"></output><input id="reach" type="range" min=".2" max="4.5" step=".05"></label>
+      <div class="section-name">RIDE THE LIGHT</div>
+      <label class="select-label">POINT OF VIEW<select id="view"><option value="outside">Outside · free orbit</option><option value="ride">On the bent leg · looking back</option><option value="chase">Squadron · chase camera</option><option value="pilot">Squadron · rear-wing pilot</option></select></label>
+      <p class="control-note" id="view-note">Step onto the L and watch the light stream away.</p>
+      <label class="slider">Wind pull <output id="wind-value"></output><input id="wind" type="range" min="0" max="3" step=".05"></label>
+      <label class="slider">Wind turbulence <output id="turbulence-value"></output><input id="turbulence" type="range" min="0" max="1" step=".01"></label>
+      <section class="flight-section" aria-label="Formation flight">
+        <div class="section-name">FLY THE RAYS</div>
+        <label class="check"><input type="checkbox" id="flightEnabled"> Launch a light squadron</label>
+        <div id="flight-fields" hidden>
+          <label class="select-label">FORMATION<select id="formation"><option value="ballet">Ballet · formations unfold</option><option value="arrowhead">Arrowhead</option><option value="fan">Wide fan</option><option value="file">Single file</option><option value="helix">Helix</option></select></label>
+          <label class="select-label">LIGHTCRAFT<select id="flightCount"><option>5</option><option selected>9</option><option>13</option></select></label>
+          <label class="slider">Flight speed <output id="flightSpeed-value"></output><input id="flightSpeed" type="range" min=".2" max="5" step=".05"></label>
+          <label class="slider">Sideways spread <output id="flightSpread-value"></output><input id="flightSpread" type="range" min=".1" max="1.4" step=".01"></label>
+          <label class="slider">Forward spacing <output id="flightSpacing-value"></output><input id="flightSpacing" type="range" min=".15" max="1.5" step=".01"></label>
+          <label class="slider">Vertical separation <output id="flightHeight-value"></output><input id="flightHeight" type="range" min="0" max="1" step=".01"></label>
+          <label class="slider">Break & regroup <output id="flightBreak-value"></output><input id="flightBreak" type="range" min="0" max="1" step=".01"></label>
+          <label class="slider">Camera banking <output id="flightBank-value"></output><input id="flightBank" type="range" min="0" max="1" step=".01"></label>
+          <label class="slider">Follow ray <output id="flightTrack-value"></output><input id="flightTrack" type="range" min="0" max="1" step=".01"></label>
+          <p class="control-note">Fly the ray's curve, then sweep through a smooth return turn. Choose Outside view to watch the whole squadron.</p>
+          <output id="flight-status" class="control-note">Preparing the formation…</output>
+        </div>
+      </section>
+      <div class="section-name">THE AFTERIMAGE</div>
+      <div class="segments ray-materials" role="group" aria-label="Trail material"><button data-style="silk" aria-pressed="true">Silk</button><button data-style="beads" aria-pressed="false">Beads</button><button data-style="sparks" aria-pressed="false">Sparks</button><button data-style="filigree" aria-pressed="false">Filigree</button><button data-style="prism" aria-pressed="false">Prism</button><button data-style="fireflies" aria-pressed="false">Fireflies</button></div>
+      <p class="control-note" id="ray-note">Try a new material on your favourite motion.</p>
+      <label class="slider">Ray spread <output id="raySpread-value"></output><input id="raySpread" type="range" min="0" max="1" step=".01"></label>
+      <label class="slider">Radiance <output id="radiance-value"></output><input id="radiance" type="range" min=".25" max="1.5" step=".05"></label>
+      <label class="check"><input type="checkbox" id="blackout"> Deep black backdrop</label>
+      <label class="slider">Light memory <output id="memory-value"></output><input id="memory" type="range" min=".4" max="14" step=".1"></label>
+      <label class="slider">LED rhythms <output id="pulse-value"></output><input id="pulse" type="range" min="0" max="4" step=".1"></label>
+      <label class="select-label">TAIL FINISH<select id="tail"><option value="fade">Soft fade · original</option><option value="flicker">Flicker into darkness</option><option value="dissolve">Dissolve · glowing edge</option></select></label>
+      <label class="slider">Tail character <output id="tailAmount-value"></output><input id="tailAmount" type="range" min="0" max="1" step=".05"></label>
+      <label class="slider">Tail flicker rate <output id="tailRate-value"></output><input id="tailRate" type="range" min=".5" max="12" step=".5"></label>
+      <div class="fields"><label>Palette<select id="palette"><option value="tide">Glacial tide</option><option value="prism">Prismatic</option><option value="ember">Ember & gold</option><option value="violet">Violet & rose</option><option value="opal">Opal · sea glass & rose</option></select></label><label>Lights<select id="count"><option>12</option><option>18</option><option selected>24</option><option>32</option><option>40</option></select></label></div>
+      <details class="harmony-controls"><summary>Let harmony shape the light <span>♪</span></summary><label class="check"><input type="checkbox" id="reactive"> Respond to notes</label><p class="control-note">Fuller chords open the weave. Close intervals add twist. Changes breathe into the shape.</p><div class="chord-previews"><button data-chord="major" aria-pressed="false">Cmaj7</button><button data-chord="minor" aria-pressed="false">Am9</button><button data-chord="suspended" aria-pressed="false">G7sus4</button><button data-chord="open" aria-pressed="false">Fmaj9</button></div><p class="control-note">Visual previews · no sound</p><output id="harmony-status" aria-live="polite">Waiting for notes</output><div class="preset-actions"><button id="gyre-connect">Connect MIDI</button><button id="harmony-clear">Release notes</button></div><select id="gyre-midi-input" aria-label="Gyre MIDI input"><option value="">Choose an input…</option></select><p id="midi-message" class="control-note">Connect a keyboard to shape the light as you play.</p></details>
+      <label class="check"><input type="checkbox" id="mechanism" checked> Show the suspended mechanism</label>
+      <div class="aside-bottom"><button id="clear">Clear trails</button><button id="home">Home view</button></div>
+    </aside>
+    <section id="viewport" aria-label="Interactive three dimensional light sculpture">
+      <canvas id="stage" aria-label="Precessing light sculpture with luminous trails. Drag to orbit, scroll to zoom."></canvas>
+      <div class="scene-caption"><span class="eyebrow">LONG EXPOSURE / LIVE MOTION</span><h2 id="study-title">Silk orbit</h2><p id="study-description">Fine threads, slowly folding through space.</p></div>
+      <div id="loading" role="status">Tracing the first light…</div><div id="error" role="alert" hidden></div>
+      <div id="paused" hidden>RENDER PAUSED<span>Resume when you’re ready.</span></div>
+      <div class="scene-bottom"><span id="view-hint">DRAG TO ORBIT <i>↗</i><small>SCROLL TO EXPLORE</small></span><button id="orbit" aria-pressed="false">Slow camera orbit</button></div>
+    </section>
+  </main>
+  <footer><div><label>Resolution <select id="resolution"><option value="native">Native</option><option value="4k">4K fit</option></select></label><output id="status" role="status">Preparing…</output></div><div><button id="measure">Measure 10s</button><output id="measurement" aria-live="polite"></output></div></footer>
+  <script type="module" src="./piano-gyre.js"></script>
+</body>
+</html>
