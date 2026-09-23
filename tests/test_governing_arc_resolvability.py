@@ -91,11 +91,17 @@ def test_the_boot_render_uses_the_checked_renderer():
     the line again and bypass the check."""
     import inspect
 
-    src = inspect.getsource(agent_cli)
-    authoritative = [ln for ln in src.splitlines()
-                     if "Governing arc:" in ln and "from note" in ln]
-    assert authoritative, "the authoritative arc line vanished -- re-point this pin"
-    for ln in authoritative:
-        assert "_arc_line" in ln or "lines.append(_arc_line" in ln, (
-            f"the arc line is still hand-formatted and unchecked: {ln.strip()!r}"
-        )
+    # Look at the CALL SITE, not at any line mentioning the phrase -- _arc_line's own
+    # return statement contains it, and this pin's first draft matched that and went red
+    # against a correct fix. A source grep must exclude the definition it is testing.
+    body = inspect.getsource(agent_cli).split("def _arc_line", 1)
+    outside = body[0] + body[1].split("\ndef ", 1)[-1] if len(body) > 1 else body[0]
+
+    assert "lines.append(_arc_line(" in outside, (
+        "the authoritative Governing arc branch does not go through _arc_line"
+    )
+    handrolled = [ln for ln in outside.splitlines()
+                  if "lines.append(f\"# Governing arc:" in ln and "from note" in ln]
+    assert not handrolled, (
+        f"an arc line is still hand-formatted and bypasses the check: {handrolled!r}"
+    )

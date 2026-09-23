@@ -1643,6 +1643,28 @@ def _grounding_line(pointer: str, created_day: str, age_days=None) -> str:
     return f"# GROUND FIRST: {_clip(' '.join(pointer.split()), 160)}{tags}"
 
 
+def _arc_line(pointer: str, note_title: str) -> str:
+    """Render 'Governing arc' with the SAME resolvability check GROUND FIRST gets (W61).
+
+    The arc render already carried the law in a comment -- "a confidently-wrong
+    'Governing arc:' line is worse than an honest 'no arc governs'" -- and did not apply
+    it, so docs/drill-arc-48cfd5.md rendered as authoritative on every boot of every seat
+    while matching no file in the repo. _grounding_exists was built for precisely this
+    and sat 250 lines above, unused by this caller.
+
+    Inherits deepseek's F1 fence for free: a pointer is only claimed missing when it
+    looks file-ish (a slash AND an extension), so an arc named "C1/C2 design" is prose
+    and is never flagged. The note title always survives, because the note is how you
+    find where the arc actually went.
+    """
+    tags = ""
+    if not _grounding_exists(pointer):
+        tags = (" [MOVED? this path does not resolve -- the arc was re-homed or deleted;"
+                " find it by title (py agent_cli.py lookback \"<title>\") or re-point"
+                " the note]")
+    return f"# Governing arc: {pointer}  (from note '{note_title}'){tags}"
+
+
 def _directive_done_tasks(focus_text: str) -> list:
     """W04 ledger cross-check: T-numbers the directive names whose ledger status
     CONTRADICTS do-this-FIRST (kimi B1(c): parked/abandoned count, not just done).
@@ -1879,7 +1901,7 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
         # with alphabetical-wins and make the fallback's "newest is" line lie.
         match = next((c for c in candidates if c[0]), None)
         if match:
-            lines.append(f"# Governing arc: {match[2]}  (from note '{match[1]}')")
+            lines.append(_arc_line(match[2], match[1]))   # Governing arc: from note, resolved (W61)
         elif candidates:
             lines.append(f"# Governing arc: (none matches the active task -- newest is "
                          f"{candidates[0][2]}, note '{candidates[0][1]}'; trust the "
