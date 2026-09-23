@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 89b1e885. A bound you discover by collision is not awareness -- this sheet
+> Derived at 60d826c1. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -273,7 +273,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 
-## Mechanical bounds (319 numeric constants)
+## Mechanical bounds (320 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -523,6 +523,7 @@ Class: reference
 | `SECTION_MIN_MS` | 4,000 | arsenal/practice.py | a shorter section (a stray note between two pauses) joins its nearer neighbour... |
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SENTINEL_DOWN_AFTER_MS` | 5,000 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py |  |
+| `SETTLEMENT` | 2 | core/comm/wake_tiers.py | an answer to something I asked -- closes my own open loop. |
 | `SHORT_PENALTY_MS` | 50,000 | arsenal/practice.py | (a soft wall: shorter windows exist only as whole phrases) |
 | `SIGNIFICANCE_THRESHOLD` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py |  |
 | `SILENCE_SPLIT_MS` | 700 | arsenal/practice.py | silence at least this long always ends a window |
