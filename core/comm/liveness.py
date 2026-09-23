@@ -254,14 +254,35 @@ def worklive_beat_age(agent: str):
 
     A record whose own beat has aged out is evidence the heartbeat THREAD stopped -- death, not
     life. Readers must check the age, never merely the record's existence.
+
+    INCARNATIONS COUNT (2026-09-23). A runner writes BOTH `worklive:<agent>` and
+    `worklive:<agent>#<session>`; an INTERACTIVE seat writes only the suffixed one. Reading the
+    bare id therefore returned None for a seat that was beating, and this rung -- the one the
+    ladder documents as covering the idle case -- went blind exactly where it was needed. The
+    operator was told "no live seat, nothing is reading it now" while the seat was right there,
+    and had to route through another agent to reach it.
+
+    live_incarnations() was built for this on 2026-08-20 ("Absence of a KEY is not absence of a
+    SEAT") and deliberately NOT folded into read(), because a seat and one of its incarnations
+    are different subjects and read()'s caller might mean either. THIS caller does not have that
+    ambiguity: attendance asks "will mail to this agent be read", for which any live incarnation
+    is a correct yes -- the same semantics rung 1 already uses when it takes min(ages) across
+    roster rows. So this is the caller making the decision that docstring left to callers.
+
+    FRESHEST WINS, and nothing is rescued: a lone stale incarnation still reports its true age,
+    so death still reads as death.
     """
-    rec = read(agent)
-    if not rec:
-        return None
-    try:
-        return max(0.0, time.time() - float(rec["beat_ts"]))
-    except (KeyError, TypeError, ValueError):
-        return None
+    idents = live_incarnations(agent) or [str(agent)]
+    ages = []
+    for ident in idents:
+        rec = read(ident)
+        if not rec:
+            continue
+        try:
+            ages.append(max(0.0, time.time() - float(rec["beat_ts"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return min(ages) if ages else None
 
 
 # T155: the same threshold the send door uses (core/comm/bus.py UNATTENDED_S), read from the same
@@ -296,7 +317,8 @@ class Attendance(tuple):
         return f"Attendance({self.state}, {self.reason!r}, beat_age_s={self.beat_age_s})"
 
 
-def attendance(agent: str, *, namespace: str = None, client=None) -> "Attendance":
+def attendance(agent: str, *, namespace: str = None, client=None,
+               roster_rows=None) -> "Attendance":
     """THE liveness verdict. One answer, so surfaces cannot contradict each other (T155).
 
     Measured 2026-08-03/04: four surfaces gave four answers about one seat, and a directed brief
@@ -313,6 +335,13 @@ def attendance(agent: str, *, namespace: str = None, client=None) -> "Attendance
                              no pulse yet answers instantly (kimi 2.4s, deepseek 1.0s, both called
                              29,611s stale by the roster on 2026-08-03)
 
+    ``roster_rows`` is an optional, successfully-read roster snapshot for batch
+    observers.  Reusing it keeps every seat in one awareness scene on the same
+    observation instant and avoids rebuilding the full fleet census once per
+    seat.  ``None`` means no snapshot was supplied, so the canonical reader is
+    still called here; an explicit empty list means the read succeeded and the
+    roster contained no rows.
+
     NEVER RAISES. If no probe can be reached at all, the verdict is UNKNOWN -- a caller that
     cannot check liveness must not be handed a confident "dead".
     """
@@ -323,7 +352,9 @@ def attendance(agent: str, *, namespace: str = None, client=None) -> "Attendance
     for candidate in _id_forms(name):
         try:
             from core.comm import roster as _roster
-            rows = [r for r in _roster.roster(namespace or _ns(), client=client)
+            observed_rows = (_roster.roster(namespace or _ns(), client=client)
+                             if roster_rows is None else roster_rows)
+            rows = [r for r in observed_rows
                     if str(r.get("agent") or "").split("#")[0] == candidate]
             ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
             probed_anything = True

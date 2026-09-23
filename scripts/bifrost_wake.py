@@ -368,6 +368,18 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # given. Seat-loss is a TRANSITION (held it, lost it) -- an embedder calling watch()
     # without ever seating keeps the old contract and never has files written for it.
     had_seat = _hb_holder(hb) == me
+    # The armed seat's worklive record (see the refresh() call in the loop below for why).
+    # Keyed on the INCARNATION -- `<agent>#<session8>` -- matching what an interactive seat's
+    # hook already writes and what live_incarnations() enumerates, rather than the bare id a
+    # runner owns. Two sessions of one agent must not clobber one another's evidence.
+    _beat = None
+    try:
+        from core.comm.liveness import WorkLive
+        _ident = f"{agent}#{session_id[:8]}" if session_id else str(agent)
+        _beat = WorkLive(_ident)
+        _beat.set("idle", "armed: blocked on inbox")
+    except Exception:
+        _beat = None                     # never let a heartbeat stop the thing it describes
     # S0-gamma: the session's already-woken-for memory (helpers above). Loaded once per arm;
     # persisted only when a wake delivers something NEW (twin-only and quiet exits change nothing).
     sf = seen_file if seen_file is not None else seen_path(agent, session_id)
@@ -432,6 +444,25 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             return 0
         if holder == me:
             had_seat = True              # seat observed OURS at least once -> loss is detectable
+        # ATTENTION IS NOT ACTIVITY (2026-09-23). Until now this listener held a seat file and
+        # beat nothing, so attendance()'s three rungs -- roster beat, progress pulse, worklive --
+        # were all keyed on a seat DOING something. An interactive seat refreshes the roster from
+        # its PostToolUse hook, i.e. only while making tool calls, so it read live while BUSY and
+        # dead while ARMED AND WAITING: the one state in which mail is promptly readable. The
+        # operator was told "no live seat ... nothing is reading it now" while blocked here, and
+        # had to route through another agent. We are the component that is definitionally
+        # present-and-waiting, so we are the one that should say so.
+        #
+        # PHASE IS LOAD-BEARING: doctor keys HARD WEDGE on a non-idle phase with a dead pulse
+        # (IDLE_PHASES = idle/online/replied). Beating "running" while blocked would page the
+        # fleet as wedged every time a seat waited for mail, and a false-alarming monitor is
+        # worse than the blind spot it replaces. Best-effort throughout: a heartbeat must never
+        # be able to take down the listener it describes.
+        if _beat is not None:
+            try:
+                _beat.refresh()
+            except Exception:
+                pass
         try:
             msgs = api.wake_block(timeout_ms=inner_block_ms)
         except Exception as e:

@@ -188,11 +188,12 @@ def test_the_wake_listener_beats_while_it_blocks():
 def test_the_listener_beats_an_idle_phase_not_a_running_one():
     """doctor keys HARD WEDGE on a non-idle phase with a dead pulse. A listener beating
     'running' while blocked would page the fleet as wedged every time a seat waits."""
+    # Scan the WHOLE file. Region-filtered source greps have been wrong three times in one
+    # day -- a filter keyed on the words you expect cannot see the line that omits them, and
+    # `_beat.set("idle", ...)` contains neither "worklive" nor "phase".
     src = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8")
-    beat_region = "".join(ln for ln in src.splitlines(keepends=True)
-                          if "worklive" in ln.lower() or "phase" in ln.lower())
-    assert beat_region, "no beat to inspect"
-    assert any(f'"{p}"' in beat_region or f"'{p}'" in beat_region for p in L.IDLE_PHASES), (
+    assert "WorkLive(" in src, "the listener constructs no worklive record"
+    assert any(f'"{p}"' in src or f"'{p}'" in src for p in L.IDLE_PHASES), (
         f"the listener's beat does not declare one of {sorted(L.IDLE_PHASES)} -- a "
         "blocked listener beating a non-idle phase manufactures HARD WEDGE pages"
     )
