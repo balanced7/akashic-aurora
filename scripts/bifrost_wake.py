@@ -436,7 +436,19 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             msgs = api.wake_block(timeout_ms=inner_block_ms)
         except Exception as e:
             print("WAKE_ERROR: " + str(e)); return 1
-        if not msgs and not api.online_now:
+        # TOLERANT BY DESIGN: watch() accepts an INJECTED api (its own docstring names
+        # embedders), so an api without reachable_now keeps exactly its pre-fix behaviour
+        # rather than crashing. An absent probe means the check is SKIPPED -- never that the
+        # bus is assumed healthy on a probe that was not run.
+        # reachable_now(), NOT online_now: `online` is `self._client is not None`, a
+        # CONSTRUCTION-TIME fact that can never flip mid-run, and RB-30 names wiring a loop
+        # guard to it as the invisible-spin bug's shape. The first version of this fix used
+        # online_now and was therefore INERT -- it committed the exact error this session spent
+        # the night cataloguing, inside the fix for it, and its pins passed only because the
+        # test double implemented a flipping property the real object does not have.
+        # reachable_now() is one PING (Bus.probe), cheap enough for once per empty block.
+        _probe = getattr(api, "reachable_now", None)
+        if not msgs and callable(_probe) and not _probe():
             # THE BLIND SHIFT (2026-09-23, house round). wake_block/_drain return [] for BOTH
             # "nothing arrived in the window" AND "the bus is unreachable" -- bus.py's own
             # docstring says "Returns [] on timeout/offline". The arm-time probe at the top of

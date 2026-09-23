@@ -44,10 +44,22 @@ class FakeApi:
         self.started = clock.now
         self.mail_at, self.mail = mail_at, mail or []
         self.online_probes = 0
+        self.reach_probes = 0
 
     @property
     def online_now(self):
+        """ALWAYS True, mirroring the real object. Bus.online is "self._client is not None" --
+        a CONSTRUCTION-TIME fact that cannot flip mid-run (RB-30). The first version of this
+        double implemented a FLIPPING online_now, so the pins passed against a property the
+        real system does not have: the fake was the thing under test, and the fix it certified
+        was inert. A test double that is kinder than reality certifies nothing."""
         self.online_probes += 1
+        return True
+
+    def reachable_now(self):
+        """The LIVE probe (Bus.probe -> one PING). This is the only thing that can flip
+        mid-shift, so it is the only thing a loop guard may consult."""
+        self.reach_probes += 1
         if self.offline_after_s is None:
             return True
         return (self.clock.now - self.started) < self.offline_after_s
@@ -135,6 +147,6 @@ def test_b4_the_probe_never_runs_on_the_mail_path(tmp_path, monkeypatch, capsys)
     assert rc == 0, f"B4: mail is a benign exit -- got {rc}"
     # arm-time probe is 1; the single empty block before mail may add at most 1 more. The pin
     # that matters: the probe is not run per-message, so it cannot tax the delivery path.
-    assert api.online_probes <= 2, (
+    assert api.reach_probes <= 2, (
         "B4: the liveness probe must run only at arm and on EMPTY returns -- "
-        f"it ran {api.online_probes} times, which means it is on the mail path")
+        f"it ran {api.reach_probes} times, which means it is on the mail path")
