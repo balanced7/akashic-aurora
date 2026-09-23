@@ -278,6 +278,36 @@ def logical_key(m) -> str:
                      str(getattr(m, "kind", ""))))
 
 
+def outage_key(m) -> str:
+    """Stable identity of a T077 A3 runner-down recount, or "" if this is not that shape.
+
+    A3 re-broadcasts a fresh mid every RE_ESCALATION_S with a new ts and a new
+    minute-count baked into the text. (frm, ts, kind) cannot see those as twins.
+    The pager already names this condition `{agent}:runner_down`; this key is the
+    wake-side twin of that name. Empty string = not an A3 recount (other blockers
+    keep the ordinary logical_key path).
+    """
+    if str(getattr(m, "kind", "") or "") != "blocker":
+        return ""
+    text = str(getattr(m, "content", "") or "")
+    if "daemon presence held" not in text or "runner for" not in text:
+        return ""
+    frm = str(getattr(m, "frm", "") or "")
+    return f"{frm}|blocker|runner_down" if frm else ""
+
+
+def runner_still_down(frm: str) -> bool:
+    """Live re-check for A3 coalesce. Fail-open: unreadable/empty runtimes are NOT
+    'still down' -- a bookkeeping fault must not silence a wake (same direction as
+    wake_worthy's mailbox checks)."""
+    try:
+        from core.comm import incarnation as inc
+        rt = inc.daemon_runtimes(str(frm or ""))
+        return str((rt or {}).get("runner") or "") in ("down", "blocked")
+    except Exception:
+        return False
+
+
 def load_seen(path: str) -> list:
     try:
         with open(path, encoding="utf-8") as f:
@@ -403,6 +433,32 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             msgs = api.wake_block(timeout_ms=inner_block_ms)
         except Exception as e:
             print("WAKE_ERROR: " + str(e)); return 1
+        if not msgs and not api.online_now:
+            # THE BLIND SHIFT (2026-09-23, house round). wake_block/_drain return [] for BOTH
+            # "nothing arrived in the window" AND "the bus is unreachable" -- bus.py's own
+            # docstring says "Returns [] on timeout/offline". The arm-time probe at the top of
+            # watch() distinguishes them correctly and then is NEVER CONSULTED AGAIN, so an
+            # outage that BEGINS mid-shift is invisible for the rest of the shift, and the
+            # watcher reports its quiet expiry as though it had been watching the whole time.
+            #
+            # Measured casualty: a remote-bridge watch ran three consecutive 600-minute shifts
+            # and printed "no new peer mail in 600 min -- nothing lost" each time. Had Redis
+            # dropped at minute five it would have printed exactly that, three times. The
+            # operator was told a five-day peer silence was MEASURED; it was measured by an
+            # instrument that checked once and then assumed for ten hours.
+            #
+            # A quiet watch and a dead watch must never print the same sentence. This probe runs
+            # ONLY on an empty return (so at most once per inner block, and never on the mail
+            # path), and stands down with the EXISTING offline vocabulary -- exit 2, the same
+            # code the arm-time check uses -- so the owning session's stop hook re-arms. A
+            # transient blip therefore costs one cheap re-arm; a real outage is now loud at the
+            # minute it starts instead of at the hour it ends.
+            elapsed_s = time.time() - (deadline - total_deadline_s)
+            print(f"BIFROST_WAKE: bus went OFFLINE mid-watch for {lane} after "
+                  f"{elapsed_s / 60.0:.1f} min of a {total_deadline_s / 60.0:.0f}-min shift "
+                  f"(Redis unreachable) -- SHIFT TRUNCATED, this is NOT a quiet watch; "
+                  f"anything that arrived from here on is unobserved, not absent")
+            return 2
         for m in msgs:
             frm = str(getattr(m, "frm", "?"))
             kind = str(getattr(m, "kind", "?"))
@@ -415,12 +471,22 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
                 continue
             # S0-gamma: a logical twin of mail this session was ALREADY woken for (dual-write
             # copy or RB-26 redelivery of the still-unconsumed original) spends no wake.
+            # A3 runner-down recounts share an outage_key (no ts, no minute-count) so a
+            # still-true outage is one wake, not a 10-minute metronome. Live re-check
+            # travels with the coalesce: if the runner is no longer down, a new mid wakes.
             k = logical_key(m)
+            ok = outage_key(m)
+            if ok and ok in seen_set and runner_still_down(frm):
+                twins += 1
+                continue
             if k in seen_set:
                 twins += 1
                 continue
             seen_set.add(k)
             seen_keys.append(k)
+            if ok:
+                seen_set.add(ok)
+                seen_keys.append(ok)
             delivered.append(m)
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
     if out:
