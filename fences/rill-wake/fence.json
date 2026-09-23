@@ -1,0 +1,22 @@
+{
+  "id": "rill-wake",
+  "question": "How do we make a turn-based DSH seat (Rill) wakeable by bus mail -- the trigger, the poke, the safeties, the placement -- without a human starting the turn?",
+  "tier": "full",
+  "opened_by": "",
+  "opened_at": "2026-09-23T02:41:28.439739+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-23T02:41:29.154870+00:00"
+    },
+    "half_a": {
+      "by": "claude",
+      "at": "2026-09-23T02:44:42.818488+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude",
+    "half_a": "claude"
+  }
+}
