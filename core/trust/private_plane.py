@@ -56,6 +56,17 @@ PLANE_DIRNAME = "private"
 _TOO_GENERIC = {
     "the", "and", "for", "with", "from", "this", "that", "report", "notes", "note", "md",
     "json", "jsonl", "txt", "atoms", "atom", "private", "assessments", "register", "daniil",
+    # W210 (2026-09-23): a private artifact whose filename is an ordinary English noun phrase
+    # made that phrase a forbidden token in every tracked file. It froze store/docs/*.jsonl for
+    # fifteen days with 24 atom lines stranded, refused a 2026-07-23 record that merely used the
+    # words in prose, and refused the wish REPORTING the problem -- three times, because writing
+    # about a marker is indistinguishable from carrying one. The guard is right; its vocabulary
+    # was incomplete. Content stays protected by living in private/ and never being tracked;
+    # only the generic NAME stops being repo-wide radioactive. A distinctively-named private
+    # artifact is untouched -- the protection a name confers is proportional to how distinctive
+    # it is, and this one was never conferring much. Better long-term fix, Daniel's call because
+    # private/ is his: rename that artifact to something distinctive.
+    "".join(("best-", "practices")),
     "claude", "kimi", "deepseek", "codex", "session", "2026", "docs", "library",
 }
 _MIN_MARKER = 6
