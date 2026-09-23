@@ -353,7 +353,8 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
 
 def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
           api=None, hb_path: str = None, my_pid: int = None,
-          session_id: str = "", seen_file: str = None) -> int:
+          session_id: str = "", seen_file: str = None,
+          min_tier: int = 3) -> int:   # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
     from core.comm.bifrost_api import BifrostAPI
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
@@ -385,6 +386,8 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     out, seen = [], []
     delivered = []        # the Message objects behind `out` -- say_seen_at_fire stamps these
     steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
+    below_floor = 0       # passed wake_worthy but ranked below the arm's tier floor
+    woke_tiers = []       # tiers of the mail that actually fired this arm
     deadline = time.time() + total_deadline_s
     chunk_s = max(1.0, inner_block_ms / 1000.0)
     cycled = False
@@ -469,6 +472,30 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
             if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
                 continue
+            # THE TIER FLOOR (2026-09-23). A SECOND, independent question asked only of mail
+            # that already passed the gate above: not "does this wake a seat" but "how much
+            # does it outrank other mail". wake_worthy() stays the sole gate -- forking it
+            # would be one meaning under two implementations, which is the drift this house
+            # keeps paying for.
+            #
+            # WHY A FLOOR RATHER THAN A DRAIN. A watcher armed over unconsumed mail fires
+            # immediately BY DESIGN (wake_block's SEED rule: pending mail must wake a watcher
+            # armed after it arrived). With ~1,383 informational messages standing on the work
+            # lane, every arm exited in seconds, so no watcher persisted, so the operator
+            # override was never reached -- four directed operator messages went unread across
+            # five days. The obvious remedy, "consume the backlog then arm", would have the
+            # watcher drain mail the real reader has never seen, which is precisely what
+            # detect-without-consume exists to prevent. A floor makes the seat armable over a
+            # backlog while CONSUMING NOTHING: the backlog stays intact for whoever reads it.
+            #
+            # Default is AMBIENT, so this admits everything it admitted before.
+            from core.comm import wake_tiers   # LAZY: T050 Q6 (arm-vs-stop-hook race)
+            tier = wake_tiers.wake_tier(m, agent=agent, incarnation=str(session_id or ""),
+                                        operator_ids=_operator_ids())
+            if not wake_tiers.admits(tier, min_tier):
+                below_floor += 1
+                continue
+            woke_tiers.append(tier)
             # S0-gamma: a logical twin of mail this session was ALREADY woken for (dual-write
             # copy or RB-26 redelivery of the still-unconsumed original) spends no wake.
             # A3 runner-down recounts share an outage_key (no ts, no minute-count) so a
@@ -521,8 +548,23 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
               f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + ")")
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
-        print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + deduped + ")")
+        # THE FLOOR MUST CONFESS. Mail that passed wake_worthy() and was then held back by the
+        # tier floor is NOT "quiet" -- it is present and deliberately unwaked-for. Reporting the
+        # count is what keeps a floor from becoming the very thing this house spent the night
+        # naming: a silence that reads as an absence.
+        held = (f"; {below_floor} held below tier floor {min_tier} "
+                f"({wake_tiers_name(min_tier)}) -- present, not absent" if below_floor else "")
+        print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + held + deduped + ")")
     return 0
+
+
+def wake_tiers_name(tier: int) -> str:
+    """Name a tier for the report. LAZY import (T050 Q6) and fails open to the number."""
+    try:
+        from core.comm import wake_tiers
+        return wake_tiers.tier_name(tier)
+    except Exception:
+        return str(tier)
 
 
 def _migrate_legacy_ghost(agent: str) -> None:
@@ -562,6 +604,11 @@ def main() -> int:
                          "T073 P3; BIFROST_WAKE_DEADLINE_S dials, BIFROST_WAKE_LONGLIVED=0 "
                          "reverts to the legacy 1800)")
     ap.add_argument("--block", type=int, default=120_000, help="ms per inner blocking read")
+    ap.add_argument("--min-tier", type=int, default=3, choices=[0, 1, 2, 3],
+                    help="wake only for mail at or above this priority: 0 operator, "
+                         "1 +directed asks, 2 +settlements of my own asks, 3 everything "
+                         "(default, unchanged behaviour). A FLOOR lets a seat stay armed "
+                         "over an informational backlog WITHOUT consuming it.")
     a = ap.parse_args()
     if a.deadline is None:
         a.deadline = default_deadline_s()
@@ -578,7 +625,8 @@ def main() -> int:
         _migrate_legacy_ghost(a.agent)
     clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
     try:
-        return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me, session_id=a.session)
+        return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me,
+                     session_id=a.session, min_tier=a.min_tier)
     finally:
         # Remove the seat only if it is still OURS -- a newer watcher may have taken it
         # (newest-wins singleton); deleting its seat would un-arm a live listener.
