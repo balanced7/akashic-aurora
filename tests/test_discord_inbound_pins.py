@@ -484,7 +484,7 @@ def test_p16_a_cold_seat_channel_message_offers_harness_choice_and_spawns_nothin
         channel_id="sc-777", content="how did the fence round land?",
         bus=bus, react=lambda e: reacts.append(e),
         spawner=lambda task, mode="default": born.append((task, mode)) or 91011,
-        is_seat_live=lambda agent: False)
+        is_seat_reachable=lambda agent: False)
     assert bus.directed and bus.directed[0]["to"] == "claude", (
         "the durable send is the WHOLE mechanism now: the message waits on his lane")
     assert born == [], "a plain sentence must never mint a seat behind his back"
@@ -513,7 +513,7 @@ def test_p17_a_live_vandor_is_reached_silently_with_no_spawn_and_no_notice(cfg, 
         channel_id="sc-777", content="one more thing —",
         bus=bus, react=lambda e: reacts.append(e),
         spawner=lambda task, mode="default": born.append(task) or 1,
-        is_seat_live=lambda agent: True)
+        is_seat_reachable=lambda agent: True)
     assert not born and "spawned" not in out and "🌱" not in reacts, (
         "a LIVE claude seat must never be spawned a second time under it")
     assert "cold_seat" not in out and "📭" not in reacts, (
@@ -523,7 +523,7 @@ def test_p17_a_live_vandor_is_reached_silently_with_no_spawn_and_no_notice(cfg, 
 def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_path,
                                                                        monkeypatch):
     """Backward compatibility: every embedder/test that predates this feature (P11
-    above included) calls handle_message without is_seat_live and must see EXACTLY
+    above included) calls handle_message without is_seat_reachable and must see EXACTLY
     the old behaviour — a probe-less caller must never accidentally start spawning
     processes it never asked to start."""
     import json as _json
@@ -561,7 +561,7 @@ def test_p19_a_broken_liveness_probe_never_claims_he_is_unreachable(cfg, tmp_pat
         cfg, author_id="111222333444555666", author_name="d",
         channel_id="sc-777", content="hello?",
         bus=bus, react=lambda e: reacts.append(e),
-        spawner=lambda task, mode="default": 1, is_seat_live=_broken_probe)
+        spawner=lambda task, mode="default": 1, is_seat_reachable=_broken_probe)
     assert out["acted"] is True and bus.directed, "the send already succeeded"
     assert "cold_seat" not in out and reacts == ["📨"], (
         "an unreadable probe degrades to the ordinary delivered receipt, never a raise "
@@ -580,7 +580,7 @@ def test_p20_an_at_mention_of_a_cold_vandor_also_offers_instead_of_spawning(cfg,
         role_mentions=["Vandor"],
         bus=bus, react=lambda e: reacts.append(e),
         spawner=lambda task, mode="default": born.append(task) or 5551,
-        is_seat_live=lambda agent: False)
+        is_seat_reachable=lambda agent: False)
     assert bus.directed and bus.directed[0]["to"] == "claude"
     assert born == [], "an @-mention must not mint a seat either"
     assert "--harness" in (out.get("cold_seat") or "") and "📭" in reacts

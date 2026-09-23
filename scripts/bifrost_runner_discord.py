@@ -124,16 +124,32 @@ def _credential_horizon() -> Optional[float]:
     return credential_horizon_days(creds, int(time.time() * 1000))
 
 
-def _is_seat_live(agent: str) -> bool:
-    """Real backing for handle_message's auto-wake (2026-08-31): is there a currently-LIVE
-    worklive entry for `agent` right now? Any probe failure (Redis hiccup, import error)
-    reads as LIVE -- never spam a fresh `claude -p` spawn because a read glitched; the
-    cost of a missed wake is one more Discord message he has to notice, the cost of a
-    false 'not live' repeated on every hiccup is a duplicate paid seat per message."""
+def _is_seat_reachable(agent: str) -> bool:
+    """Real backing for handle_message's auto-wake: will a durable send to `agent` actually
+    be READ, without anyone intervening?
+
+    RENAMED FROM _is_seat_live 2026-09-23, because the old name was the defect. It asked the
+    roster whether a worklive entry was LIVE, and `_auto_wake` reads a True as "the lane plus
+    its armed wake listener ARE the wake" -- which holds only if a listener is in fact armed.
+    Between 09-17 and 09-23 four directed operator messages, two of them for five days, were
+    delivered perfectly to a seat that was LIVE and beating with NOTHING armed. The predicate
+    said reachable, _auto_wake stayed silent, the cold-seat notice was never posted, and he
+    got silence indistinguishable from being ignored. Presence and reachability were two
+    questions under one name.
+
+    THE FAIL-OPEN NARROWED, and the old justification is quoted so the change is arguable
+    rather than assumed: "the cost of a false 'not live' repeated on every hiccup is a
+    duplicate paid seat per message." True while a cold seat auto-SPAWNED a headless claude.
+    The 2026-09-04 ruling removed spawning -- a cold seat now only posts a notice -- so that
+    cost is gone, while the other side of the trade turned out to be five days of lost mail.
+    A raised probe still fails open (unchanged); 'unarmed' and 'dead-seat' no longer do,
+    because those are determinations rather than an absence of one.
+    """
     try:
-        from core.comm import roster as _roster, liveness as _liveness
+        from core.comm import roster as _roster, liveness as _liveness, wake_seat as _seat
         rows = _roster.roster(_liveness._ns())
-        return any(r.get("agent") == agent and r.get("state") == "LIVE" for r in rows)
+        live = any(r.get("agent") == agent and r.get("state") == "LIVE" for r in rows)
+        return _seat.reachable(agent, presence_live=live)
     except Exception:                                                     # noqa: BLE001
         return True
 
@@ -928,7 +944,7 @@ def main(argv=None) -> int:
                 reviver=lambda target, observe_only: _revive(
                     target, observe_only, message),
                 attachments=att_paths or None,
-                is_seat_live=_is_seat_live,
+                is_seat_reachable=_is_seat_reachable,
                 # discord.py sets this for BOTH @everyone and @here -- it is never a
                 # role, so it never rides message.role_mentions above (2026-08-31,
                 # Daniil: "we can do an @everyone"). Requires the author actually hold

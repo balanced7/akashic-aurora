@@ -461,7 +461,7 @@ COLD_SEAT_NOTICE = (
 
 def _auto_wake(agent: str, task: str,
                spawner: Optional[Callable[..., Any]],
-               is_seat_live: Optional[Callable[[str], bool]]) -> Optional[str]:
+               is_seat_reachable: Optional[Callable[[str], bool]]) -> Optional[str]:
     """Reach the seat that EXISTS; never conjure one behind his back.
 
     HISTORY, because this function's meaning was inverted by ruling and the old shape is
@@ -480,12 +480,12 @@ def _auto_wake(agent: str, task: str,
     Returns None (nothing spawned, ever) or the notice string when the seat is cold.
     Never raises: the bus.send this follows already succeeded, and a wake-path failure
     must not turn an already-landed, already-receipted message into a reported failure
-    (T149: no lie in either direction). `is_seat_live is None` means the caller wired no
+    (T149: no lie in either direction). `is_seat_reachable is None` means the caller wired no
     probe -- stay silent rather than cry cold about a seat we cannot see."""
-    if agent not in _AUTO_WAKE_SEATS or is_seat_live is None:
+    if agent not in _AUTO_WAKE_SEATS or is_seat_reachable is None:
         return None
     try:
-        if is_seat_live(agent):
+        if is_seat_reachable(agent):
             return None                   # live: the lane + its listener ARE the wake
     except Exception:                                                     # noqa: BLE001
         return None                       # cannot tell -> never claim he is unreachable
@@ -548,7 +548,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                    message_id: Optional[str] = None,
                    reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
                    attachments: Optional[list] = None,
-                   is_seat_live: Optional[Callable[[str], bool]] = None,
+                   is_seat_reachable: Optional[Callable[[str], bool]] = None,
                    mentions_everyone: bool = False) -> Dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
@@ -785,7 +785,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                 f"returned None); no receipt for an undelivered word")
         react("📨")
         out = {"acted": True, "id": str(mid), "to": [lane_agent]}
-        cold = _auto_wake(lane_agent, body, spawner, is_seat_live)
+        cold = _auto_wake(lane_agent, body, spawner, is_seat_reachable)
         if cold:
             react("📭")                   # landed, nobody home -- NOT a failure
             out["cold_seat"] = cold
@@ -834,7 +834,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         react("📨")
         out = {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
         for agent in targets:
-            cold = _auto_wake(agent, body, spawner, is_seat_live)
+            cold = _auto_wake(agent, body, spawner, is_seat_reachable)
             if cold:
                 react("📭")
                 out["cold_seat"] = cold
