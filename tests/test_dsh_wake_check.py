@@ -108,3 +108,7 @@ def test_p5_plugin_wake_organ_is_wired():
     assert "wake-poke" in src and "wake-poke-failed" in src
     # arm/stop ride the session lifecycle (R2): created arms, disposed stops
     assert "startWakeTimer()" in src and "stopWakeTimer()" in src
+    # WOKEN gate (R13): claimed-only, via the agent/inbox/spliced session event
+    assert "agent/inbox/spliced" in src
+    assert "wake-woke" in src and "wake-splice-observed" in src
+    assert "never on append" in src or "claimed-only" in src.lower()
