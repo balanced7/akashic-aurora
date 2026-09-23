@@ -42,6 +42,11 @@ from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# The third answer to "which plane?", for identifiers this checker collects by NAME but which
+# are not message vocabularies at all. Distinct from absence: absence means "nobody classified
+# this yet", this means "classified, and the answer is that the question does not apply."
+NOT_A_MESSAGE_KIND = "not-a-message-kind"
+
 # --- MANIFEST: which plane each policy set speaks for -------------------------------------
 # "Enumerate the consumers" is a PRECONDITION of judging fragmentation, so it lives here as
 # data rather than as a step someone performs from memory. A set absent from this map fails.
@@ -101,6 +106,32 @@ PLANES = {
     "TERMINAL_KINDS": "event",
     # the narrative plane -- beats on the story spine
     "BEAT_KINDS": "beat", "BOUNDARY_KINDS": "beat",
+
+    # T084 (landed; all three files now TRACKED, retiring the baseline note that called them
+    # uncommittable). intent_shadow's send vocabulary IS the bus vocabulary -- chat/note/request/
+    # handoff/nudge/hint -- and its absence from this map was the sole cause of the four
+    # "cross-plane-collision" fails on chat/handoff/nudge/request. One honest declaration, five
+    # violations retired.
+    "_SEND_KINDS": "bus",
+
+    # ------------------------------------------------------------------ the third answer
+    # NOT A MESSAGE KIND AT ALL. This checker discovers sets by NAME (*_KINDS), so it collects
+    # identifiers that are unrelated taxonomies which merely end in the same word. For those,
+    # BOTH previous answers were wrong: leaving them out reports a false "unassigned-plane", and
+    # the remedy it printed -- "add it to PLANES (bus / event / beat)" -- offers only WRONG homes,
+    # because putting "measurement" on the bus plane asserts it is a message kind. A remedy a
+    # reader cannot correctly execute is not a remedy.
+    #
+    # This is core/comm/kinds.py's own law applied to the checker that guards it: "a membership
+    # test has two answers and the situation has three." Classified, unclassified, and
+    # OUT-OF-SCOPE are three different states and must not be collapsed into two.
+    #
+    # A set listed here is EXCLUDED from bus coverage, orphan counting and collision detection --
+    # deliberately, with its real subject named. This is a declaration, never a suppression.
+    "_TARGET_KINDS": NOT_A_MESSAGE_KIND,   # orient.py:49 -- what you can orient TOWARD
+                                           # (verb / seat / thread), not what you can send
+    "SOURCE_KINDS": NOT_A_MESSAGE_KIND,    # college.py:503 -- evidence provenance
+                                           # (primary / secondary / measurement / analysis)
 }
 
 # A cross-plane name collision with a WRITTEN rationale is a recorded decision, not drift.
@@ -284,7 +315,9 @@ def main(argv):
 
     for name in unassigned_sets(sets):
         fails.append(f"[unassigned-plane] {name} declares no plane -- add it to PLANES "
-                     f"(bus / event / beat) so nobody has to REMEMBER to classify it")
+                     f"(bus / event / beat), or NOT_A_MESSAGE_KIND if it is a different "
+                     f"taxonomy that merely ends in _KINDS, so nobody has to REMEMBER to "
+                     f"classify it")
 
     for kind, planes_hit in cross_plane_collisions(sets):
         fails.append(f"[cross-plane-collision] '{kind}' lives on {planes_hit} -- one word, two "
