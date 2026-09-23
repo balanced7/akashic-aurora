@@ -303,6 +303,107 @@ def process_snapshot(timeout_s: int = 10) -> Optional[Dict[int, Dict]]:
         return None
 
 
+class CensusUnavailable(RuntimeError):
+    """The process table could not be read. NOT a verdict of 'nothing is running'.
+
+    process_snapshot() returns None on any failure (K8: fail toward alive). Callers that
+    turned that None into an empty dict were converting "I could not look" into "there is
+    nothing there" -- T176's law (a miss must not read as a decision) broken at a door.
+    Raising forces the caller to say which it means.
+    """
+
+
+_PY_INTERPRETERS = {
+    "python.exe", "pythonw.exe", "py.exe", "pyw.exe", "python3.exe",
+    "python", "python3", "py",
+}
+
+
+def _argv_tokens(cmdline: str) -> List[str]:
+    """Split a Windows command line into argv tokens, quotes stripped. Never raises."""
+    import shlex
+
+    try:
+        toks = shlex.split(cmdline, posix=False)
+    except ValueError:
+        toks = cmdline.split()
+    out = []
+    for t in toks:
+        t = t.strip()
+        if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'":
+            t = t[1:-1]
+        if t:
+            out.append(t)
+    return out
+
+
+def _path_basename(token: str) -> str:
+    return re.split(r"[\\/]", token)[-1].lower()
+
+
+def script_processes(
+    snap: Optional[Dict[int, Dict]],
+    script_name: str,
+    exclude_pids: Optional[set] = None,
+) -> List[int]:
+    """PIDs of python processes actually RUNNING <script_name>, matched by launch SHAPE.
+
+    THE RULE (sol, learn:experiment:gateway_status_probe_must_exclude_self_pid): require
+    executable kind plus an exact argv-token shape, and exclude the observer. Never a
+    substring test -- a shell that greps for the script, an editor with it open, and
+    `py -c "...script_name..."` all MENTION it, and none of them are it.
+
+    That distinction is not pedantry. On 2026-09-23 `gateway status` reported four live
+    gateways, three of which were the investigating shells, while a real singleton guard
+    was enforcing exactly one -- i.e. the census was least trustworthy precisely during
+    the incident it exists for. The same defect counted a process-table string into four
+    concurrent gateways on 2026-08-26 (tests/test_dc6200d491_gateway_singleton.py).
+
+    Matching, in order:
+      1. the snapshot must exist            -> CensusUnavailable, never a silent []
+      2. the process is a python interpreter (by Name, else by argv[0])
+      3. some argv TOKEN's basename == script_name  (token, not substring)
+      4. the pid is not the observer, nor in exclude_pids
+
+    Args:
+        snap: a process_snapshot() result. None raises -- see CensusUnavailable.
+        script_name: e.g. "bifrost_runner_discord.py". Matched on basename, case-insensitive.
+        exclude_pids: additional pids to omit. The calling process is ALWAYS omitted.
+
+    Returns:
+        Sorted list of pids. An empty list is a measured absence, and only that.
+    """
+    if snap is None:
+        raise CensusUnavailable(
+            "process_snapshot() returned None -- the process table could not be read. "
+            "This is not evidence that no process is running; say so to the operator "
+            "rather than reporting an absence you did not measure."
+        )
+
+    wanted = _path_basename(script_name)
+    omit = {os.getpid()} | set(exclude_pids or ())
+    hits: List[int] = []
+
+    for pid, rec in snap.items():
+        if pid in omit:
+            continue
+        cmdline = (rec.get("cmdline") or "").strip()
+        if not cmdline:
+            continue
+        tokens = _argv_tokens(cmdline)
+        if not tokens:
+            continue
+        # (2) executable kind. Prefer the snapshot's Name; fall back to argv[0].
+        name = _path_basename(rec.get("name") or "") or _path_basename(tokens[0])
+        if name not in _PY_INTERPRETERS:
+            continue
+        # (3) the script must be an argv TOKEN, not a substring of one.
+        if any(_path_basename(t) == wanted for t in tokens):
+            hits.append(pid)
+
+    return sorted(hits)
+
+
 def is_watcher(pid: int, snap: Dict[int, Dict]) -> bool:
     """Identity check: the pid is OUR kind of process (never judge a recycled pid)."""
     return "bifrost_wake" in (snap.get(pid, {}).get("cmdline") or "")

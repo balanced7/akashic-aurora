@@ -3303,21 +3303,53 @@ def cmd_gateway(args):
     from pathlib import Path
     from core.comm import wake_seat as _WS
 
+    import time as _t
+
     _ROOT = Path(__file__).resolve().parent
     runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
-    marker = "bifrost_runner_discord"
+    SCRIPT = "bifrost_runner_discord.py"
+
+    def _census():
+        """Live gateway pids by launch SHAPE. Raises CensusUnavailable, never lies."""
+        snap = _WS.process_snapshot()
+        return snap, _WS.script_processes(snap, SCRIPT)
+
+    def _runner_root(snap, pid):
+        """Which checkout is that gateway actually running out of? None if unreadable."""
+        cmdline = (snap.get(pid, {}).get("cmdline") or "")
+        for tok in _WS._argv_tokens(cmdline):
+            if _WS._path_basename(tok) == SCRIPT.lower():
+                try:
+                    return Path(tok).resolve().parent.parent
+                except Exception:
+                    return None
+        return None
 
     if args.action == "status":
-        snap = _WS.process_snapshot()
-        live = [pid for pid, r in (snap or {}).items()
-                if marker in (r.get("cmdline") or "")]
+        try:
+            snap, live = _census()
+        except _WS.CensusUnavailable as e:
+            # T176: absence we could not measure is not absence. Distinct exit code so a
+            # caller can tell "none" from "could not look".
+            if args.json:
+                print(json.dumps({"error": "census_unavailable", "detail": str(e)}))
+            else:
+                print(f"# gateway: UNKNOWN -- {e}")
+            return 3
         if args.json:
-            print(json.dumps({"live": live, "count": len(live)})); return 0
+            print(json.dumps({
+                "live": live, "count": len(live),
+                "roots": {str(p): str(_runner_root(snap, p) or "?") for p in live},
+            }))
+            return 0
         if not live:
-            print("# gateway: NOT RUNNING (no live bifrost_runner_discord.py process)")
+            print(f"# gateway: NOT RUNNING (measured: no python process has {SCRIPT} "
+                  f"as an argv token)")
             return 1
         for pid in live:
-            print(f"# gateway: LIVE pid {pid}")
+            root = _runner_root(snap, pid)
+            here = "" if root == _ROOT else f"  [FOREIGN ROOT {root}]"
+            print(f"# gateway: LIVE pid {pid}{here}")
         return 0
 
     if args.action != "restart":
@@ -3325,10 +3357,29 @@ def cmd_gateway(args):
         print(f"gateway: unknown action {args.action!r} (status|restart)")
         return 2
 
-    # restart: find -> kill -> relaunch, atomically, all under the mutation gate.
-    snap = _WS.process_snapshot()
-    live = [pid for pid, r in (snap or {}).items()
-            if marker in (r.get("cmdline") or "") and pid != os.getpid()]
+    # ---------------------------------------------------------------- restart
+    try:
+        snap, live = _census()
+    except _WS.CensusUnavailable as e:
+        print(f"[gateway] REFUSING restart -- {e}")
+        return 3
+
+    # (a) Do we even own this gateway? Production is scheduler-owned out of a separate
+    # worktree under `run_aurora_service.py --world prod`. Killing it and relaunching
+    # THIS repo's runner would resuscitate a different branch into a different world --
+    # discord_persistent_services_must_pin_one_runtime_world. Refuse and name the owner.
+    foreign = [(p, _runner_root(snap, p)) for p in live
+               if _runner_root(snap, p) not in (None, _ROOT)]
+    if foreign and not getattr(args, "force_foreign", False):
+        print("[gateway] REFUSING restart: the live gateway is not ours to relaunch.")
+        for pid, root in foreign:
+            print(f"    pid {pid} runs from {root}")
+        print(f"    this repo would relaunch {runner}")
+        print("    A restart from here would start a different-world gateway from a "
+              "different branch, or be refused by the singleton guard. Restart it "
+              "through its own scheduler, or re-point the scheduled task.")
+        return 4
+
     killed = []
     for pid in live:
         if _WS.taskkill(pid):
@@ -3337,12 +3388,37 @@ def cmd_gateway(args):
             print(f"[gateway] could not kill pid {pid} -- aborting restart rather than "
                   f"double-spawning (a half-restart strands the operator)")
             return 1
-    # Relaunch detached, stdio -> the gateway's own log (AKASHIC_DISCORD_GATEWAY_LOG or the
-    # default). CREATE_NO_WINDOW: no console box. CREATE_NEW_PROCESS_GROUP so our own teardown
-    # cannot signal it.
-    import time as _t
+
+    # (b) Wait for the DAEMON LEASE, not for a socket. DaemonLock has a 120s TTL and is
+    # released only on a CLEAN exit -- taskkill is not one, so the corpse holds its lease
+    # for up to the full TTL. The old code slept 1.0s "to let the socket release" and the
+    # relaunch was refused by the singleton guard, making restart a kill-only lever:
+    #     [gateway-restart 1790168499] relaunching (killed: [35432])
+    #     [discord-in] REFUSED: another discord gateway already holds the daemon lock
     if killed:
-        _t.sleep(1.0)             # let the socket release before the child reclaims it
+        from core.comm import daemon_state as _DS
+        deadline = _t.time() + 135.0
+        waited = False
+        while _t.time() < deadline:
+            try:
+                if not _DS.daemon_is_live("discord"):
+                    break
+            except Exception:
+                break        # cannot read the lease: fall through rather than hang
+            if not waited:
+                print("[gateway] waiting for the killed gateway's daemon lease to "
+                      "expire (DaemonLock TTL 120s; taskkill is not a clean release)...")
+                waited = True
+            _t.sleep(3.0)
+        else:
+            print("[gateway] the daemon lease never cleared within 135s -- NOT "
+                  "relaunching, because the singleton guard would refuse the child and "
+                  "you would be left with no gateway and a success message.")
+            return 5
+
+    # (c) Relaunch detached, stdio -> the gateway's own log (no redirection = no process
+    # and no log to diagnose from). CREATE_NO_WINDOW: no console box.
+    # CREATE_NEW_PROCESS_GROUP so our own teardown cannot signal it.
     log = Path(os.getenv("AKASHIC_DISCORD_GATEWAY_LOG")
                or (_ROOT / "state" / "logs" / "discord-gateway.log"))
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -3350,12 +3426,37 @@ def cmd_gateway(args):
         | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
     with open(log, "a", encoding="utf-8") as fh:
         fh.write(f"\n[gateway-restart {_t.time():.0f}] relaunching (killed: {killed})\n")
-        subprocess.Popen([sys.executable, str(runner)],
-                         cwd=str(_ROOT), stdout=fh, stderr=fh,
-                         creationflags=flags)
-    print(f"[gateway] restarted (killed {', '.join(map(str, killed)) or 'none'}; "
-          f"relaunched detached -> {log})")
-    return 0
+        child = subprocess.Popen([sys.executable, str(runner)],
+                                 cwd=str(_ROOT), stdout=fh, stderr=fh,
+                                 creationflags=flags)
+
+    # (d) VERIFY the child survived before claiming success. The incident printed
+    # "[gateway] restarted" for a child that exited 2 two seconds later: a supervisor's
+    # report must be about the SERVICE, not about its own Popen call.
+    confirm_deadline = _t.time() + 30.0
+    while _t.time() < confirm_deadline:
+        _t.sleep(2.0)
+        rc = child.poll()
+        if rc is not None:
+            print(f"[gateway] RELAUNCH FAILED: the child exited {rc} after "
+                  f"{int(_t.time() - (confirm_deadline - 30.0))}s. Killed "
+                  f"{', '.join(map(str, killed)) or 'none'} and nothing replaced them. "
+                  f"Read {log} for its refusal line.")
+            return 6
+        try:
+            _, now_live = _census()
+        except _WS.CensusUnavailable:
+            continue
+        if now_live:
+            print(f"[gateway] restarted and CONFIRMED live: pid(s) "
+                  f"{', '.join(map(str, now_live))} (killed "
+                  f"{', '.join(map(str, killed)) or 'none'}) -> {log}")
+            return 0
+
+    print(f"[gateway] relaunched but NOT CONFIRMED within 30s -- the child is still "
+          f"running (pid {child.pid}) but no gateway is visible in the process table. "
+          f"Check {log} before assuming Discord is back.")
+    return 7
 
 
 def cmd_sift(args):
