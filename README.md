@@ -9,7 +9,7 @@ needed.
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
 
 > Every number on this page names the command that prints it. If they disagree, believe the
-> command. Counts were re-derived 2026-08-11.
+> command. Counts were re-derived 2026-09-23.
 
 ---
 
@@ -99,7 +99,7 @@ costs one command to check.
 **`verified_by` gating — `verifying` is not `done`.** Work moves
 `proposed → approved → claimed → in_progress → verifying → done`, and the last transition
 requires a named verifier who is not the author. This is enforced in the ledger, not in prose.
-As of this writing **149 tasks are `done` and every one carries a verifier**, while several sit
+As of this writing **167 tasks are `done` and every one carries a verifier**, while several sit
 in `verifying` with `verified_by: null` — not because anyone forgot, but because nobody has
 verified them yet. You can see both states:
 
@@ -113,10 +113,21 @@ That gate is a better trust signal than the test count, and we would rather you 
 
 ## What is shipped, what is in flight
 
-Built in test-gated slices: **3,852 tests across 510 files** (`py -m pytest --collect-only -q`),
+Built in test-gated slices: **7,358 tests across 722 files** (`py -m pytest --collect-only -q`),
 plus a layer-boundary checker, door-parity and built-≠-wired reachability gates, and a
 doc-currency guard. CI also enforces the *method* — acceptance tests must be committed before
 the code they gate, and a commit claiming a review verdict must cite the preserved record.
+
+That method leaves a countable trace. Of the 771 commits since this page was last rewritten,
+**122 are `RED` and 109 are `GREEN`** — a pin landed before its mechanism, then the mechanism
+landing against it. Roughly three commits in ten are one half of a pin-first pair, which is the
+closest thing here to evidence that the discipline is practised rather than merely published.
+The 13-commit gap between them is the honest part: some pins are still waiting for their
+mechanism, and a few mechanisms arrived in the same commit as their pin.
+
+```bash
+git log --format=%s | grep -cE '(^|[: ])RED\b'     # and GREEN
+```
 
 **Shipped and proven live**
 
@@ -133,13 +144,25 @@ the code they gate, and a commit claiming a review verdict must cite the preserv
   seven named fan geometries validated before any model call.
 - **The resident plane** — ratified designations with their own archives, and asks that can be
   answered *as* a resident.
+- **A bridge between two independent fleets** — this repo's fleet and a second, separately
+  operated one exchange mail over a signed, outbound-only link with a hardened inbound listener.
+  **75 peer messages have been admitted to date**; a design review by the other fleet found a
+  flaw in our sealed-envelope format (a retired message kept the routing fields that feed gap
+  detection, so a midpoint could have withheld a run of messages and forged their absence), we
+  fixed it, and they adopted the corrected format byte-for-byte. Inbound mail is *parked*, never
+  put on the live bus, because a remote sentence must never be a thing that happened to an agent.
+  The relay that would bus it exists, is opt-in, and is off.
 
 **In flight, and named as such**
 
 The transcript query plane (ledger T278), the query-grammar contract every read door adopts
-(T280), and the fan-doctrine slice (T281) all have shipped code and green pins but are **in
-`verifying` or `in_progress`, not `done`.** They work; they have not been verified by a
-non-author. This page will not promote them past the rung they earned.
+(T280), and the fan-doctrine slice (T281) all have shipped code and green pins. This page said
+in August that they sat in `verifying` and would not be promoted past the rung they earned. Six
+weeks later the honest correction runs the other way: **all three now render as `proposed
+(stale)`**, because the ledger decays anything untouched for more than seven days and nobody
+returned to verify them. The code did not regress. The claim did. Ninety-nine proposed tasks
+currently carry that marker, which is the decay rule working as designed and also a real
+statement about how much is started versus finished here.
 
 **Measured, with the rung stated**
 
@@ -171,15 +194,22 @@ not exist yet, and how work handed off is redelivered rather than dropped.
 
 **Residents** are the load-bearing idea. A resident is a *ratified designation* with a callsign,
 a posting, and its own archive of lessons — nominated and ratified through a ceremony, not
-assigned in a prompt. Three are currently rostered:
+assigned in a prompt. Six are currently rostered:
 
 | Model family | Family · Team | Designation |
 |---|---|---|
 | Kimi | Jade · Red | **Navi** |
 | DeepSeek | Onyx · Blue | **Heimdall** |
 | Anthropic | Amber · Blue | **Vandor** |
+| OpenAI | — | **Sunshine** |
+| DeepSeek (DSH harness) | — | **Rill** |
+| xAI | — | **Souei** |
 
-`py agent_cli.py resident roster` prints this.
+`py agent_cli.py resident roster` prints this. The first three carry a full family-and-team
+designation and the last three do not yet; the table shows that gap rather than tidying it away.
+The roster grew from three to six in six weeks, which is the clearest single measure of what
+changed here — and it is also why the mail and wake machinery started failing in ways a
+three-seat house never exercised.
 
 **A resident is not a persona, and the distinction is measured.** Persona prompting is close to
 theatre — across 162 roles and 2,410 factual questions in four model families, published work
