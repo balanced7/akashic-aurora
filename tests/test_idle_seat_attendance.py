@@ -185,6 +185,27 @@ def test_the_wake_listener_beats_while_it_blocks():
     )
 
 
+def test_the_listener_also_refreshes_the_roster_the_production_ear_reads():
+    """Worklive alone does not close this.
+
+    The PRODUCTION Discord ear (bifrost_runner_discord._is_seat_live, running from the
+    sunshine-discord-split worktree) decides whether to post COLD_SEAT_NOTICE using:
+
+        rows = roster.roster(ns)
+        any(r["agent"] == agent and r["state"] == "LIVE" for r in rows)
+
+    That is the ROSTER plane, not worklive. An interactive seat's roster beat is written
+    by its PostToolUse hook, so it is fresh only while the seat is making tool calls --
+    and the operator gets "Nothing is live on the Vandor seat right now, so nobody read
+    this yet" on every message sent to an armed, idle, blocked-on-his-inbox seat.
+    """
+    src = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8")
+    assert "roster" in src and "heartbeat(" in src, (
+        "the listener refreshes worklive but not the roster, which is the plane the live "
+        "Discord ear actually reads when deciding whether to tell the operator nobody is home"
+    )
+
+
 def test_the_listener_beats_an_idle_phase_not_a_running_one():
     """doctor keys HARD WEDGE on a non-idle phase with a dead pulse. A listener beating
     'running' while blocked would page the fleet as wedged every time a seat waits."""
