@@ -86,6 +86,74 @@ function stopPresenceBeat() {
   if (beatTimer) { clearInterval(beatTimer); beatTimer = null }
   lastSid = ''
 }
+
+// ---------------------------------------------------------------------------
+// WAKE ORGAN (rill-wake fence, T403). Arm a poll at session/created; each tick
+// calls bridge `wake-check` (non-consuming detect past a local watermark); on
+// wake-worthy mail, append ONE doorbell to the DSH inbox next-turn. The doorbell
+// is a POINTER, never the payload (R5/R15). Fail-open: a seat without ctx.agents/
+// inbox, or a bridge miss, captures the reason and never raises. An append is a
+// POKE, never WOKEN (R13): WOKEN is claimed-only, wired in a later slice.
+// ---------------------------------------------------------------------------
+const WAKE_MS = 15000
+let wakeTimer = null
+let wakePoked = false
+
+function startWakeTimer() {
+  if (wakeTimer) return
+  wakeTimer = setInterval(() => {
+    if (!lastSid) return
+    spawnBridge(['wake-check'], { await_: true, timeoutMs: 5000 })
+      .then((res) => {
+        if (!res || !res.has_wake_worthy || !res.count) { wakePoked = false; return }
+        if (wakePoked) return   // coalesce a burst to one poke (R11)
+        wakePoked = true
+        pokeWake(lastSid, res)
+      })
+      .catch(() => {})
+  }, WAKE_MS)
+  if (typeof wakeTimer.unref === 'function') wakeTimer.unref()
+}
+
+function stopWakeTimer() {
+  if (wakeTimer) { clearInterval(wakeTimer); wakeTimer = null }
+  wakePoked = false
+}
+
+function pokeWake(sid, summary) {
+  // A coarse per-minute latch gives the inbox's "already pending" throw a stable
+  // identity to dedupe on, so re-pokes within a minute coalesce rather than stack.
+  const latch = Math.floor(Date.now() / 60000)
+  const doorbell = {
+    id: `akashic-wake-${latch}`,
+    role: 'user',
+    content: [{
+      type: 'text',
+      text: `[wake] ${summary.count} unread wake-worthy message(s) -- read them with ` +
+        `bifrost_inbox (kinds: ${(summary.kinds || []).join(', ') || '?'}; ` +
+        `senders: ${(summary.senders || []).join(', ') || '?'})`,
+    }],
+    source: { kind: 'plugin', plugin: 'dsh-akashic-recall', form: 'snapshot' },
+  }
+  try {
+    const agent = applyCtx && applyCtx.agents && applyCtx.agents.get(sid)
+    if (!agent || !agent.inbox || typeof agent.inbox.append !== 'function') {
+      capture({ at: Date.now(), kind: 'wake-seat-down', sid, count: summary.count,
+                reason: 'ctx.agents/inbox unreachable' })
+      return
+    }
+    agent.inbox.append('next-turn', doorbell)
+    capture({ at: Date.now(), kind: 'wake-poke', sid, count: summary.count,
+              kinds: summary.kinds, senders: summary.senders, doorbellId: doorbell.id })
+  } catch (e) {
+    const msg = String(e && e.message)
+    if (/already pending/i.test(msg)) {
+      capture({ at: Date.now(), kind: 'wake-coalesced', sid, count: summary.count })
+    } else {
+      capture({ at: Date.now(), kind: 'wake-poke-failed', sid, reason: msg })
+    }
+  }
+}
 const stateFor = (sid) => {
   if (!sid) return null
   if (!sessions.has(sid)) sessions.set(sid, { whisperText: '', whisperInjected: false, planPending: false, lastPrompt: '', probe: null })
@@ -461,6 +529,7 @@ export async function apply(ctx) {
   ctx.on('session/created', (session) => {
     // pass the id the EVENT carries; do not make firePresence re-derive it from env
     firePresence('idle', session && session.id)
+    startWakeTimer()   // arm the wake poll (rill-wake fence, T403)
     const st = stateFor(session && session.id || activeSid())
     if (st && !st.whisperText) {
       spawnBridge(['boot-whisper', '--cwd', process.cwd() || '', '--agent-id', SESSION_KEY, '--session-id', session && session.id || activeSid()])
@@ -561,6 +630,7 @@ export async function apply(ctx) {
     const sid = session && session.id || activeSid()   // capture BEFORE stop clears lastSid
     firePresence('offline')
     stopPresenceBeat()                          // a departed seat must not re-beat alive
+    stopWakeTimer()                             // a departed seat must not re-poll for wake
     spawnBridge(['session-end', '--session-id', sid], { await_: false })
     if (sid) sessions.delete(sid)
   })
