@@ -146,6 +146,70 @@ def cmd_plan_recall(a) -> int:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
 
 
+def _wake_watermark_path() -> str:
+    """The DSH wake timer's LOCAL seen watermark. Never the shared Bifrost cursor."""
+    return os.path.join(_repo(), "state", "coord", "dsh_wake_watermark.json")
+
+
+def cmd_wake_check(a) -> int:
+    """Non-consuming wake-worthy detect for the DSH wake timer (rill-wake fence, R8).
+
+    Reads the work lane past a persisted LOCAL watermark WITHOUT advancing any shared
+    cursor, so every wake-worthy message stays unread for the real consumer (bifrost-
+    sync/inbox). Returns the count + kinds + senders of NEW wake-worthy mail and moves
+    only the local watermark, so a re-poll never re-wakes on the same mail. A kind not
+    on WAKE_WORTHY_KINDS is silent-by-default (the allowlist ratchet)."""
+    try:
+        repo = _repo()
+        sys.path.insert(0, repo)
+        os.chdir(repo)
+        from core.comm.bus import Bus
+        from scripts.bifrost_wake import WAKE_WORTHY_KINDS
+        agent = os.environ.get("AKASHIC_AGENT_ID", "dsh_agent")
+        bus = Bus(agent)
+
+        wm_path = _wake_watermark_path()
+        wm = {"inbox": "0", "bc": "0"}
+        try:
+            if os.path.exists(wm_path):
+                with open(wm_path, "r", encoding="utf-8") as fh:
+                    wm = json.load(fh)
+        except Exception:
+            wm = {"inbox": "0", "bc": "0"}
+        # First arm: seed from the shared cursor so mail that predates the organ never
+        # re-wakes it (the codex_bifrost_wake.py baseline rule). A virgin cursor that is
+        # still "0" is seeded as-is; bus.wait's since-mode reads only NEW mail past it.
+        if str(wm.get("inbox", "0")) == "0" and str(wm.get("bc", "0")) == "0":
+            try:
+                wm = dict(bus.cursor() or {})
+            except Exception:
+                wm = {"inbox": "0", "bc": "0"}
+
+        since_out: dict = {}
+        msgs = bus.wait(timeout_ms=1, limit=50, since=wm, since_out=since_out, advance=False)
+        next_wm = dict(since_out) if since_out else dict(wm)
+        if next_wm and any(next_wm.get(k) for k in ("inbox", "bc")):
+            try:
+                os.makedirs(os.path.dirname(wm_path), exist_ok=True)
+                tmp = wm_path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    json.dump(next_wm, fh)
+                os.replace(tmp, wm_path)
+            except Exception:
+                pass
+
+        wake = [m for m in msgs if str(m.kind) in WAKE_WORTHY_KINDS]
+        return _emit({
+            "agent": agent,
+            "count": len(wake),
+            "has_wake_worthy": bool(wake),
+            "kinds": sorted({str(m.kind) for m in wake}),
+            "senders": sorted({str(m.frm) for m in wake}),
+        })
+    except Exception as e:
+        return _emit({"count": 0, "error": type(e).__name__, "error_detail": str(e)[:200]})
+
+
 def _read_dsh_lines(transcript_path: str, max_bytes: int = 16 * 1024 * 1024):
     """DSH session log -> (text lines, truncated). The log is zstd-FRAME-per-line
     JSONL (session.jsonl.zstd); plain .jsonl is also accepted (tests/fixtures)."""
@@ -413,6 +477,9 @@ def main() -> int:
     se.set_defaults(fn=cmd_session_end)
 
     _build_draft_keepalive_parser(sub)
+
+    wc = sub.add_parser("wake-check", help="non-consuming wake-worthy detect for the DSH wake timer")
+    wc.set_defaults(fn=cmd_wake_check)
 
     a = ap.parse_args()
     return a.fn(a)
