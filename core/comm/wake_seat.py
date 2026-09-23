@@ -404,9 +404,38 @@ def script_processes(
     return sorted(hits)
 
 
+WATCHER_SCRIPTS = ("bifrost_wake.py", "codex_bifrost_wake.py")
+
+
 def is_watcher(pid: int, snap: Dict[int, Dict]) -> bool:
-    """Identity check: the pid is OUR kind of process (never judge a recycled pid)."""
-    return "bifrost_wake" in (snap.get(pid, {}).get("cmdline") or "")
+    """Identity check: the pid is OUR kind of process (never judge a recycled pid).
+
+    LENIENT means kind-only -- it does not ask WHICH agent (that is agent_watcher, the
+    kill warrant). It has never meant "any process that says the word".
+
+    Until 2026-09-23 the body was `"bifrost_wake" in cmdline`, which on the live host
+    accepted TWELVE processes: two real watchers, six bash shells and four python
+    one-liners, every one of the ten a shell that merely NAMED bifrost_wake while
+    DIAGNOSING it. So the recycled-pid guard failed in precisely its own scenario --
+    stale seat file, recycled pid, and whoever was debugging the wake system at that
+    moment satisfied the identity check.
+
+    Now matched by launch shape via script_processes: interpreter kind + an exact argv
+    token. Same law and the same callable as the gateway census (ddf88661); this is its
+    second door, and the corpus already held the rule
+    (sol, learn:experiment:gateway_status_probe_must_exclude_self_pid).
+
+    A pid absent from the snapshot, with an unreadable command line, or judged while the
+    process table cannot be read, is UNPROVEN and therefore False -- for a lethal
+    consumer, unproven must never read as convicted.
+    """
+    if pid not in (snap or {}):
+        return False
+    try:
+        return any(pid in script_processes(snap, script, exclude_pids=set())
+                   for script in WATCHER_SCRIPTS)
+    except CensusUnavailable:
+        return False
 
 
 def agent_watcher(pid: int, snap: Dict[int, Dict], agent: str) -> bool:
@@ -418,9 +447,9 @@ def agent_watcher(pid: int, snap: Dict[int, Dict], agent: str) -> bool:
     token is word-bounded because --agent codex is a substring of
     --agent codex_root (the K4 collision, one level down). is_watcher above stays
     the lenient kind-only check for non-lethal consumers."""
-    cmd = (snap.get(pid, {}) or {}).get("cmdline") or ""
-    if "bifrost_wake" not in cmd:
+    if not is_watcher(pid, snap):            # KIND, now by launch shape (2026-09-23)
         return False
+    cmd = (snap.get(pid, {}) or {}).get("cmdline") or ""
     return bool(re.search(rf"--agent\s+{re.escape(agent)}(?!\S)", cmd))
 
 

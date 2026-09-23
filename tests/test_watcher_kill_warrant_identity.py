@@ -133,8 +133,12 @@ def test_the_kill_site_uses_the_strict_warrant_not_the_lenient_check():
 
     The strict warrant was built. The single remaining kill calls the lenient one.
     """
-    src = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8")
-    kill_block = src.split("K6 migration", 1)[0][-1200:]
+    lines = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8").splitlines()
+    kills = [i for i, ln in enumerate(lines) if "taskkill(pid)" in ln]
+    assert kills, "the K6 kill disappeared -- re-point this pin at wherever it went"
+    # Look at what GUARDS each kill, not at a byte window: an earlier mention of the
+    # same log string is not the call site (this pin's first draft made that mistake).
+    kill_block = "\n".join(lines[max(0, kills[0] - 10):kills[0] + 1])
     assert "agent_watcher(" in kill_block, (
         "bifrost_wake.py's K6 kill gates on is_watcher (the lenient kind-only check) "
         "when agent_watcher (the strict warrant, with the word-bounded --agent token) "
