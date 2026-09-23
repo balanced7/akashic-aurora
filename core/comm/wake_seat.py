@@ -401,6 +401,23 @@ def script_processes(
         if any(_path_basename(t) == wanted for t in tokens):
             hits.append(pid)
 
+    # (5) COLLAPSE LAUNCHERS. `py script.py` is TWO processes -- py.exe and the
+    # python.exe it spawns -- both carrying the same argv, so a shape census counts one
+    # launch twice. sol found this first on the production branch and his comment states
+    # it exactly: "py.exe is deliberately excluded: its child python.exe owns the
+    # runtime, and counting both would turn one `py script.py` launch into two
+    # gateways." Measured here 2026-09-23 against this very function: asked for
+    # codex_bifrost_wake.py it returned [53976, 55332], and 55332's ppid IS 53976.
+    #
+    # This is the general form of his rule rather than his name list -- drop any hit that
+    # is the PARENT of another hit -- so py.exe->python.exe, pyw.exe->pythonw.exe and any
+    # future launcher collapse without enumerating them. The child owns the runtime, so
+    # the child is the one kept. Two hits with no parent/child relationship remain TWO,
+    # which is what the singleton guard exists to catch.
+    hit_set = set(hits)
+    hits = [p for p in hits
+            if not any(snap[q].get("ppid") == p for q in hit_set if q != p)]
+
     return sorted(hits)
 
 
