@@ -499,3 +499,56 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
             results.append((path, "skip", f"error {type(e).__name__} -- assuming alive (K8)"))
             append_provenance(agent, f"skip seat {os.path.basename(path)}: error {type(e).__name__} (K8)", tmp)
     return results
+
+
+# --------------------------------------------------------------- reachability (2026-09-23)
+#: Aggregate precedence across an agent's sessions. ARMED wins because ONE listening session
+#: is enough to reach the agent -- a stale sibling seat must never mask a live one. UNKNOWN
+#: outranks the two negatives because a probe that cannot tell must not manufacture a verdict.
+_ARMED_PRECEDENCE = ("armed", "unknown", "dead-seat", "unarmed")
+
+
+def any_armed(agent: str, tmp: Optional[str] = None, pid_probe=None) -> str:
+    """Is ANY session of `agent` holding a live wake listener? One of the four
+    `watcher_state` states, aggregated across every seat file the agent owns.
+
+    'unarmed' here means something precise and load-bearing: not one seat file exists, so
+    nothing is listening and we KNOW it. That is a determination, not an absence of one --
+    which is exactly the distinction the rest of this house keeps having to relearn.
+    """
+    seats = iter_seats(agent, tmp)
+    if not seats:
+        return "unarmed"
+    states = {watcher_state(agent, sid, tmp, pid_probe)[0] for _path, sid in seats}
+    for state in _ARMED_PRECEDENCE:
+        if state in states:
+            return state
+    return "unknown"
+
+
+def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
+              pid_probe=None) -> bool:
+    """Will a durable send to `agent` actually be READ, without anyone intervening?
+
+    PRESENCE IS NOT REACHABILITY, and conflating them cost the operator four messages --
+    two of them for five days -- between 2026-09-17 and 2026-09-23. His mail was delivered
+    perfectly, to a seat that was LIVE and beating, with no wake listener armed. Discord's
+    `_auto_wake` reads "live" as "the lane plus its armed listener ARE the wake" and so said
+    nothing; the notice that would have told him nobody was home was never posted. He got
+    silence, which is indistinguishable from being ignored.
+
+    A LIVE SEAT WITH NO ARMED LISTENER IS A LIT ROOM WITH NOBODY IN IT.
+
+    Both halves are necessary. An armed watcher on a seat with no presence is a listener for
+    a session that is gone; presence with nothing armed is the incident above.
+
+    FAIL-OPEN IS DELIBERATELY NARROW. It applies ONLY to 'unknown' -- a probe that genuinely
+    cannot tell -- because `watcher_state`'s own law is to claim neither direction there. It
+    does NOT apply to 'unarmed' or 'dead-seat', which are real determinations. The predicate
+    this replaces failed open on everything, justified by the cost of spawning a duplicate
+    paid seat; the 2026-09-04 ruling removed spawning, so that cost is gone while the cost of
+    a false 'reachable' turned out to be five days of unread operator mail.
+    """
+    if not presence_live:
+        return False
+    return any_armed(agent, tmp, pid_probe) in ("armed", "unknown")
