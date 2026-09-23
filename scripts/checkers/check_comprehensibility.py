@@ -71,14 +71,6 @@ REF_ALLOWLIST = {
                   "left: the ARCS/SHELVES full regen, which also cites ~10 uncommitted 09-01..05 "
                   "projections (21 F FAILs if committed alone). Remove this entry when it lands.",
     },
-    "tests/test_codex_hook_contract.py": {
-        "expires": "2026-09-21",
-        "reason": "2026-09-07: cited by docs/CODEX_INTEGRATION.md (verification commands) but "
-                  "present-but-UNTRACKED on the workstation since 08-26 -- git ls-files empty, "
-                  "not gitignored -- so every clone and CI saw a broken path the workstation "
-                  "could not (a3d09c4e5d). TEMPORARY by shape: the codex seat commits the pin "
-                  "or the doc drops the ref, then this entry goes.",
-    },
 }
 
 
