@@ -91,3 +91,20 @@ def test_p4_fails_open_on_bus_error(patched, monkeypatch, capsys):
     rc, out = _run(capsys)
     assert rc == 0 and out.get("count") == 0 and "error" in out, (
         "a dead bus is a fail-open shape, never a traceback")
+
+
+def test_p5_plugin_wake_organ_is_wired():
+    """Static seam pins for the JS half (rill-wake T403): the poll timer, the
+    non-consuming wake-check call, the inbox next-turn append (pointer, form snapshot),
+    the loud seat-down capture, and arm/stop at session/created/disposed."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "agent" / "harness" / "dsh_plugin"
+           / "lib" / "index.js").read_text(encoding="utf-8")
+    assert "startWakeTimer" in src and "stopWakeTimer" in src
+    assert "['wake-check']" in src, "the poll calls the non-consuming detect"
+    assert "inbox.append('next-turn', doorbell)" in src, "the poke is the inbox append seam"
+    assert "form: 'snapshot'" in src, "the doorbell source form is snapshot (R11)"
+    assert "wake-seat-down" in src, "seat down must be LOUD (R6)"
+    assert "wake-poke" in src and "wake-poke-failed" in src
+    # arm/stop ride the session lifecycle (R2): created arms, disposed stops
+    assert "startWakeTimer()" in src and "stopWakeTimer()" in src
