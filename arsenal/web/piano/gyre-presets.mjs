@@ -3,7 +3,7 @@ import {WORLD_DEFAULTS,PRESETS} from './gyre-motion.mjs';
 import {RAY_DEFAULTS,RAY_STYLES} from './gyre-light-rays.mjs';
 import {FLIGHT_DEFAULTS,FLIGHT_RANGES,FORMATIONS} from './gyre-flight-motion.mjs';
 export const PRESET_STORAGE_KEY = 'piano.gyre.presets.v1';
-const ranges = {spin:[-1.5,1.5],precession:[-.3,.3],tilt:[0,88],wobble:[0,28],memory:[.4,14],pulse:[0,4],stem:[.8,6],reach:[.2,4.5],tailAmount:[0,1],tailRate:[.5,12],weave:[0,1],petals:[2,9],wind:[0,3],turbulence:[0,1],raySpread:[0,1],radiance:[.25,1.5]};
+const ranges = {spin:[-1.5,1.5],precession:[-.3,.3],tilt:[0,88],wobble:[0,90],memory:[.4,14],pulse:[0,4],stem:[.8,6],reach:[.2,4.5],tailAmount:[0,1],tailRate:[.5,12],weave:[0,1],petals:[2,9],wind:[0,3],turbulence:[0,1],raySpread:[0,1],radiance:[.25,1.5]};
 const choices = {motion:['axial','sweep'],style:['silk','beads','sparks',...RAY_STYLES],palette:['tide','prism','ember','violet','opal'],tail:['fade','flicker','dissolve'],count:[12,18,24,32,40],sculpture:['gyre','braid','pendulum'],view:['outside','ride']};
 const finite = (n,min,max) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max;
 Object.assign(ranges,FLIGHT_RANGES);choices.formation=FORMATIONS;choices.flightCount=[5,9,13];choices.view.push('chase','pilot');
