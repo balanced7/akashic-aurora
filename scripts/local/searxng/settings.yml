@@ -9,3 +9,62 @@ search:
   formats:
     - html
     - json
+
+# ---------------------------------------------------------------------------------------
+# THE LONG TAIL, enabled 2026-09-24 after search returned zero for every query for days.
+#
+# The default engine set gives you FOUR real web-search engines -- google, duckduckgo,
+# brave, startpage -- and every one of them now refuses this machine:
+#
+#     brave       Suspended: too many requests
+#     duckduckgo  CAPTCHA
+#     startpage   Suspended: CAPTCHA
+#
+# The control query "python programming language" returned 0 results, so this was never a
+# query problem. A seat asked about a rare name, got "(no results)", and reported to the
+# operator that the subject did not exist. The four defaults are the four most-scraped
+# engines on the web and therefore the four most aggressively defended; depending on only
+# those is a single point of failure wearing four names.
+#
+# EVERY ENGINE BELOW WAS MEASURED FROM THIS MACHINE before being enabled, not guessed --
+# probed individually against the same control query on 2026-09-24:
+#
+#     mwmbl 148 · yep 20 · naver 15 · encyclosearch 15 · seznam 12 · wiby 12
+#     yandex 10 · duckduckgo web 10 · zapmeta 9 · bing 7 · 360search 6
+#
+# Probed and REFUSED us, so deliberately left off rather than added as decoration:
+#     baidu (CAPTCHA) · sogou (CAPTCHA) · qwant (access denied) · dogpile (access denied)
+#     fireball (access denied) · yahoo (HTTP protocol error) · presearch (HTTP error)
+#     quark (crash) · mojeek (empty) · crowdview (empty)
+#
+# Note `duckduckgo web` answers while `duckduckgo` is CAPTCHA-blocked -- two different
+# implementations against the same source, and only one of them is being turned away.
+#
+# The four defaults are deliberately NOT disabled. They cost a little latency while they
+# are walled, SearXNG suspends them on its own, and they come back for free when whatever
+# rate limit or fingerprint check is refusing us relaxes. Removing them would trade a
+# recoverable outage for a permanent one.
+# ---------------------------------------------------------------------------------------
+engines:
+  - name: mwmbl
+    disabled: false
+  - name: yep
+    disabled: false
+  - name: naver
+    disabled: false
+  - name: encyclosearch
+    disabled: false
+  - name: seznam
+    disabled: false
+  - name: wiby
+    disabled: false
+  - name: yandex
+    disabled: false
+  - name: duckduckgo web
+    disabled: false
+  - name: zapmeta
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: 360search
+    disabled: false
