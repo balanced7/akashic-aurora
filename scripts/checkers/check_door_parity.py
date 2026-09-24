@@ -371,7 +371,11 @@ MANIFEST = {
     "web": "cli_only",             # the house web door umbrella (W-slice 2026-09-01); cross-door name is web_fetch
     "fetch": "cli_only",           # subcommand of `web` -- CLI spelling of web_fetch (cleaned+raw, receipts, fenced)
     "search": "cli_only",          # subcommand of `web` -- Brave when keyed; ToolBox web_search serves seats meanwhile
-    "web_fetch": "mcp_only",       # MCP spelling of the fetch door; ToolBox wiring lands with the Heimdall fence
+    "web_fetch": "mcp_only",       # MCP spelling of the fetch door. ToolBox wiring LANDED 2026-09-24
+                                   # (was designed 2026-09-01, lost when that write-blocked !spawn
+                                   # could not apply it; for 3 weeks no runner seat could fetch at all
+                                   # -- 171 receipts, only claude + dsh_agent). Stays mcp_only because
+                                   # this axis is CLI<->MCP parity; the CLI spells it `web fetch`.
     "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---
     "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
