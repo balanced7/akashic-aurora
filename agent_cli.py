@@ -7196,6 +7196,36 @@ def cmd_boop(args):
     return 0
 
 
+def cmd_find(args):
+    """Find a file BY NAME anywhere on the machine via Search Everything (voidtools).
+
+    The house's other read doors (read_file / search_files / grep) are scoped to the
+    project root. This verb is the one that answers "where is this file REALLY" when a
+    file or attachment landed OUTSIDE the tree -- a stale worktree, AppData, a temp
+    dir. It shells to ``es.exe`` (Everything's CLI), which indexes all of the user
+    profile in the background and returns full paths in milliseconds.
+
+    The origin receipt: 2026-09-23 a Discord attachment landed in
+    C:\\Users\\L5\\AppData\\Local\\AkashicAurora\\worktrees\\sunshine-discord-split\\state\\inbound-media
+    and every project-scoped search came up empty. Search Everything found it in one
+    keystroke. That blind spot is the thing this verb closes.
+
+    FAIL-SOFT, not silent: if Everything is not installed, the command says so (it does
+    NOT print an empty "no results" -- absence of the tool must never read as absence
+    of the file)."""
+    from core.tools.everything import search, format_result
+    query = str(getattr(args, "query", "") or "")
+    res = search(
+        query,
+        max_results=int(getattr(args, "limit", 200) or 200),
+        match_path=bool(getattr(args, "path", False)),
+        sort_by_name=not bool(getattr(args, "no_sort", False)),
+        timeout=float(getattr(args, "timeout", 15.0) or 15.0),
+    )
+    print(format_result(res))
+    return 0 if res.ok else 1
+
+
 def cmd_blob(args):
     """T113: fetch a spilled payload by its content-addressed ref.
 
@@ -8710,6 +8740,15 @@ def build_parser():
     bop.add_argument("--agent", dest="agent_id", default="",
                      help="subject for --surface (default: $AKASHIC_AGENT_ID; no identity fallback)")
     bop.set_defaults(fn=cmd_boop)
+
+    fnd = sub.add_parser("find",
+                         help="find a file BY NAME anywhere on the machine (Search Everything / es.exe)")
+    fnd.add_argument("query", help="Everything search term -- a bare word matches any filename substring, case-insensitive")
+    fnd.add_argument("--limit", type=int, default=200, help="max results (default 200)")
+    fnd.add_argument("--path", action="store_true", help="match against the full path, not just the name")
+    fnd.add_argument("--no-sort", action="store_true", dest="no_sort", help="skip name sort (default sorts by name)")
+    fnd.add_argument("--timeout", type=float, default=15.0, help="seconds before giving up on es.exe (default 15)")
+    fnd.set_defaults(fn=cmd_find)
 
     shp = sub.add_parser("shell-home",
                          help="where the shell is now + where fresh harness shells land (cwd-guard's other half)")

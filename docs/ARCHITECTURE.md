@@ -188,6 +188,10 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
 - **Web** — `core/web/` (`door.py` = the house web door: cache-first fetch with etag revalidation,
   raw-next-to-cleaned text planes, PDF structural pass, range API over silent truncation, a receipts
   ledger at `state/coord/web_fetch_receipts.jsonl`, and UNTRUSTED fencing on every served byte).
+- **Tools (out-of-root reach)** — `core/tools/` (`everything.py` = find a file BY NAME anywhere on
+  the machine, not just under the project root. Prefers the Search Everything index (`es.exe`) and
+  falls back to a BOUNDED filesystem walk when it is absent — the render always names which engine
+  answered, and an empty bounded walk says so explicitly rather than reading as absence).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
 - **Season / game mechanics** — `core/season/` (`scoring.py` = Season 1 round scoring as a PURE

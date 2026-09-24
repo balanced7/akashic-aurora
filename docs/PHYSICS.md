@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f85d50d0. A bound you discover by collision is not awareness -- this sheet
+> Derived at 402619e1. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (259 names)
+## Configuration flags (262 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -155,6 +155,7 @@ Class: reference
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
+| `APPDATA` | `` | core/tools/everything.py |
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
 | `BIFROST_AGENT_ID` | `` | core/comm/conductor_gate.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
@@ -194,6 +195,7 @@ Class: reference
 | `DSH_SESSION_ID` | `` | seat_topology.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
+| `ES_EXE` | `` | core/tools/everything.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |
 | `GEMINI_API_KEY` | `""` | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py |
 | `GEMINI_BUDGET_USD` | `"105.0"` | scripts/gemini_chat.py |
@@ -238,7 +240,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, scripts/trader_archivist.py |
+| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py +1 |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
@@ -272,6 +274,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
+| `USERPROFILE` | `` | core/tools/everything.py |
 
 ## Mechanical bounds (320 numeric constants)
 
