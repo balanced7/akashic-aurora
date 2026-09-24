@@ -310,7 +310,32 @@ def _filename_case():
 
 # ---- the existing structural checks (A/B/C/D/E), unchanged in intent ------------------------------
 
-def _subpackages_in_arch(arch, subs):
+def _core_subpackages():
+    """core/ subpackages AS THE INDEX SEES THEM (tracked + staged), not as the disk has them.
+
+    This used to be an os.listdir of core/, which contradicted this module's own stated rule at
+    the top of the file -- "the guard asks the INDEX, never the working tree" -- and the cost was
+    not theoretical. Several seats share this working tree, so ONE seat's untracked scratch
+    package made check A fail for EVERY other seat's commit: the gate blocked work that had
+    nothing to do with the violation, and the only ways out were to document a package a fresh
+    clone would not have, to record someone else's debt as your own deliberate rise, or to
+    --no-verify. Found 2026-09-23 when core/tools/ (untracked, another seat's WIP) blocked an
+    unrelated mailbox commit.
+
+    Reading the index instead is STRICTER WHERE IT MATTERS and quieter where it does not: the
+    moment that package is added or staged it must be named in ARCHITECTURE.md, which is exactly
+    when the documentation actually owes a reader something.
+    """
+    subs = set()
+    for rel in _tracked_paths():
+        parts = rel.split("/")
+        if len(parts) >= 3 and parts[0] == "core" and not parts[1].startswith("__"):
+            subs.add(parts[1])
+    return sorted(subs)
+
+
+def _subpackages_in_arch(arch, subs=None):
+    subs = _core_subpackages() if subs is None else subs
     return [f"ARCHITECTURE.md is missing core/ subpackage(s): {', '.join(m)} -> add one line each "
             f"(a new subsystem the map doesn't know about)"
             for m in [[s for s in subs if f"core/{s}" not in arch]] if m]
@@ -363,7 +388,8 @@ def _derived_docs_current():
     return out
 
 
-def _docstring_coverage(subs):
+def _docstring_coverage(subs=None):
+    subs = _core_subpackages() if subs is None else subs
     nodoc = [f"core/{s}/{m}" for s in subs for m in gen.modules(f"core/{s}")
              if gen.first_doc(os.path.join(ROOT, "core", s, m)) == "(no docstring)"]
     return ([f"{len(nodoc)} module(s) have no line-1 docstring: " + ", ".join(nodoc[:8])
@@ -401,21 +427,21 @@ def _run(label, fn, *a):
 def main():
     fast = "--fast" in sys.argv
     arch = _read("docs/ARCHITECTURE.md")
-    subs = sorted(d for d in os.listdir(os.path.join(ROOT, "core"))
-                  if os.path.isdir(os.path.join(ROOT, "core", d)) and not d.startswith("__"))
 
     fails, warns, broken = [], [], []
     # FAIL checks. --fast (pre-commit hook) runs only the cheap stat-based drift checks (F, G).
     fail_checks = [("F stale-refs", _stale_refs), ("G filename-case", _filename_case)]
     if not fast:
-        fail_checks = [("A subpackages", _subpackages_in_arch, arch, subs),
+        # `subs` is derived inside the check, from the INDEX, so a git failure surfaces through
+        # _run as a broken-check FAIL rather than excusing everything with an empty set.
+        fail_checks = [("A subpackages", _subpackages_in_arch, arch),
                        ("B index-current", _index_current),
                        ("B2 derived-docs-current", _derived_docs_current)] + fail_checks
     for label, fn, *a in fail_checks:
         got, crash = _run(label, fn, *a)
         (broken.append(crash) if crash else fails.extend(got))
     if not fast:
-        for label, fn, *a in [("C docstrings", _docstring_coverage, subs),
+        for label, fn, *a in [("C docstrings", _docstring_coverage),
                               ("D doc-age", _doc_age), ("E living-indexed", _living_docs_indexed),
                               ("F2 instance-local-refs", _instance_local_refs)]:
             got, crash = _run(label, fn, *a)
