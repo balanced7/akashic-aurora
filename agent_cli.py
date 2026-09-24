@@ -7348,6 +7348,28 @@ def cmd_packet_trace(args):
     return 0
 
 
+def _mailbox_refusal(out, agent_id):
+    """Print a mailbox id refusal so the reader can tell WHICH of the four states they are in.
+
+    The whole T095 M2 defect was one sentence doing duty for four facts. Printing only `reason`
+    here would keep that fixed for code and broken for people.
+    """
+    how = out.get("how") or "?"
+    print(f"[mailbox] {out.get('reason') or 'refused'}")
+    cands = out.get("candidates") or []
+    if how == "ambiguous" and cands:
+        shown = cands[:10]
+        matched = out.get("matched") or len(cands)
+        tail = "" if len(shown) == matched else f" of {matched} that matched"
+        print(f"  showing {len(shown)}{tail}:")
+        for c in shown:
+            print(f"    {c}")
+        print(f"  -> re-run with more characters, e.g. --open {shown[0][:16]}")
+    elif how == "absent":
+        print(f"  -> list what IS here:  py agent_cli.py mailbox {agent_id}")
+    return 1
+
+
 def cmd_mailbox(args):
     """T095 M0 shadow mailbox: the free question 'what is addressed to X and in what
     state?' -- evidence ladder acked > replied/auto_acked > consumed > unhandled,
@@ -7394,7 +7416,7 @@ def cmd_mailbox(args):
         if args.json:
             print(json.dumps(out, indent=2, default=str)); return 0
         if not out.get("ok"):
-            print(f"[mailbox] {out['reason']}"); return 1
+            return _mailbox_refusal(out, args.agent_id)
         readers = ", ".join(r["incarnation"] for r in out["seen_by"]) or "(none)"
         print(f"[mailbox-open] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
         print(f"  seen by: {readers}"
@@ -7421,7 +7443,7 @@ def cmd_mailbox(args):
         if args.json:
             print(json.dumps(out, indent=2, default=str)); return 0
         if not out.get("found"):
-            print(f"[mailbox] no entry for {args.state_sha}"); return 1
+            return _mailbox_refusal(out, args.agent_id)
         print(f"[mailbox-state] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
         print(f"  opened by : {', '.join(r['incarnation'] for r in out['seen_by']) or '(nobody)'}")
         print(f"  intent    : {out['intent'] or 'NONE DECLARED'}")
@@ -7438,8 +7460,8 @@ def cmd_mailbox(args):
         if args.json:
             print(json.dumps(out, indent=2, default=str)); return 0
         if not out.get("ok"):
-            print(f"[mailbox] {out['reason']}"); return 1
-        print(f"[mailbox-intent] {args.intent_sha[:12]} -> {out['intent']}"
+            return _mailbox_refusal(out, args.agent_id)
+        print(f"[mailbox-intent] {out.get('sha', args.intent_sha)[:12]} -> {out['intent']}"
               f"{' to ' + out['to'] if out['to'] else ''} (by {out['by']})")
         return 0
 
