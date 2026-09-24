@@ -285,6 +285,19 @@ TOOLS = [
         "reads inside it.",
         {"session": {"type": "string", "description": "the session id"}},
         ["session"]),
+    _fn("find",
+        "Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a bounded-walk "
+        "fallback when Everything's CLI is absent. The ONLY read verb not scoped to the project root: "
+        "read_file/search_files/list_directory stop at the root, so a file that landed in AppData, a "
+        "stale worktree, or a temp dir is invisible to every other tool. The render names which engine "
+        "answered ([engine: Everything index] vs [engine: walk]) and a bounded miss says so loudly "
+        "instead of a bare zero.",
+        {"query": {"type": "string", "description": "name substring to find (case-insensitive)"},
+         "limit": {"type": "integer", "description": "max results (default 200)"},
+         "path": {"type": "boolean", "description": "match full path, not just the name"},
+         "no_sort": {"type": "boolean", "description": "skip name sort"},
+         "timeout": {"type": "number", "description": "seconds before giving up (default 15)"}},
+        ["query"]),
 ]
 
 # R7 (T058, deepseek design): mid-turn clarification dials.
@@ -579,6 +592,22 @@ class ToolBox:
 
     def eye_zoom(self, session):
         return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
+
+    def find(self, query, limit=200, path=False, no_sort=False, timeout=15.0):
+        r"""Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a
+        bounded-walk fallback when Everything's CLI is absent. This is the ONE read door not
+        scoped to the project root: read_file/search_files/list_directory all stop at
+        E:\AI-Setup, so an attachment or binary that landed in AppData, a stale worktree, or
+        a temp dir is invisible to every tool but this one. The render NAMES which engine
+        answered ([engine: everything index] vs [engine: walk]) and a bounded miss says so
+        loudly rather than printing a bare zero -- an unsearched space is not an empty one."""
+        args = ["find", str(query), "--limit", str(int(limit))]
+        if bool(path):
+            args.append("--path")
+        if bool(no_sort):
+            args.append("--no-sort")
+        args += ["--timeout", str(float(timeout))]
+        return self._agent_cli(args)
 
     def knowledge_recall(self, query, novelty=False):
         result = self._agent_cli(["recall", query, "--json"])

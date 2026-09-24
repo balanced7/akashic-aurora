@@ -437,7 +437,7 @@ MANIFEST = {
     # own names (eye/find/freq/get/zoom are in KNOWN GAPS); double-counting it would inflate the
     # backlog with one omission wearing two spellings.
     "eye_freq": "toolbox_only",          # CLI reaches this as `eye freq`
-    "eye_find": "toolbox_only",          # CLI reaches this as `eye find`
+    "eye_find": "mcp_only",              # the MCP spelling of `eye find` (corpus search); ToolBox carries it as eye_find
     "eye_get": "toolbox_only",           # CLI reaches this as `eye get`
     "eye_zoom": "toolbox_only",          # CLI reaches this as `eye zoom`
     "memory_note": "toolbox_only", "memory_recall": "toolbox_only",  # private scratchpad, no twin
@@ -463,7 +463,12 @@ TOOLBOX_ALIASES = {
     "boot": "knowledge_boot",
     "bifrost_sync": "bifrost_inbox",   # same read (peek unread); consume stays runner-owned
     "handoff": "bifrost_send",         # ToolBox hands off via bifrost_send(kind='handoff')
-    "find": "eye_find",                # the eye primitives the ToolBox spells eye_*
+    # NOTE (2026-09-24): "find" is now a NATIVE ToolBox method (the Search-Everything
+    # whole-machine file locator, core/comm/toolbox.py), so it needs NO alias here. The
+    # prior `"find": "eye_find"` entry silently mapped it onto the EYE's session-corpus
+    # search -- one spelling, two meanings -- so a seat reaching for "find this file on the
+    # machine" was handed a transcript grep. The two capabilities are now distinct on the
+    # ToolBox: `find` (file location) and `eye_find` (corpus search, toolbox_only).
     "freq": "eye_freq",
     "get": "eye_get",
     "zoom": "eye_zoom",
