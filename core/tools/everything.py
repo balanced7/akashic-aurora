@@ -140,7 +140,7 @@ def _rank_exact_first(paths, needle):
     return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
 
 
-def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
+def walk_search(query: str, *, max_results: int = None, match_path: bool = False,
                 roots=None, budget_s: float = 25.0,
                 max_dirs: int = 400_000) -> SearchResult:
     """The engine this module has when Everything is not installed.
@@ -153,6 +153,11 @@ def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
 
     Matching mirrors Everything's default: a bare term is a case-insensitive SUBSTRING of
     the file name. A term containing * or ? is treated as a glob instead.
+
+    ``max_results`` is None/0 => no result cap (walk the whole budget); any other number
+    stops after that many hits. The default is None so the bounded-and-honest walk does
+    not silently page itself; the budget_s/max_dirs ceilings still apply and are reported
+    via ``exhaustive``.
     """
     q = (query or "").strip()
     if not q:
@@ -164,6 +169,7 @@ def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
     seen_roots, hits, scanned = [], [], 0
     visited = set()
     exhaustive = True
+    cap = None if max_results is None or int(max_results) <= 0 else int(max_results)
 
     for root in (roots if roots is not None else _WALK_ROOTS):
         if not root or not os.path.isdir(root):
@@ -191,12 +197,12 @@ def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
                 ok = fnmatch.fnmatch(hay_l, needle) if is_glob else (needle in hay_l)
                 if ok:
                     hits.append(os.path.join(dirpath, name))
-                    if len(hits) >= max_results:
+                    if cap is not None and len(hits) >= cap:
                         exhaustive = False
                         break
-            if len(hits) >= max_results:
+            if cap is not None and len(hits) >= cap:
                 break
-        if len(hits) >= max_results or not exhaustive:
+        if (cap is not None and len(hits) >= cap) or not exhaustive:
             break
 
     hits = _rank_exact_first(hits, needle)
@@ -275,6 +281,81 @@ def search(query: str, *,
     # to max_results -- the caller asked for a page, and a page is not a bounded search.
     return SearchResult(query=query, paths=ranked[:int(max_results)], ok=True,
                         engine="everything", exhaustive=len(lines) < _fetch)
+
+
+def search_page(query: str, *, limit: int = None, offset: int = 0,
+                match_path: bool = False, sort_by_name: bool = True,
+                timeout: float = 15.0) -> SearchResult:
+    """Search the Everything index and return a PAGED slice of the ranked result.
+
+    search() hard-caps at ``max_results`` because it asks ES for a fixed over-fetch
+    window (``max_results * 10``, floor 200) and trims -- which is correct for a single
+    page but makes results ``limit+1`` onward unreachable. This is the paged form: it
+    over-fetches a window wide enough to cover ``offset + limit`` (floor 200 for small
+    offsets), ranks exact-basename-first, then slices ``[offset : offset+limit]``.
+
+    ``limit`` is now the SIZE OF ONE PAGE from ``offset``, NOT a cap on how much the
+    machine can be searched. ``limit=None`` (the default) means NO CAP: return every
+    matching path the index holds, ranked exact-basename-first, after ``offset`` skips.
+    A caller that wants a bounded page asks for one explicitly (``limit=200``); a caller
+    that just says "find it" gets the whole answer, because a silent default ceiling is
+    how a wide query on this machine (`es.ex`, `lib`, `.env`) hid every hit past 200.
+
+    ``exhaustive`` is set from the FULL ES answer (all lines, not the slice), so a caller
+    can tell "there are more pages past this one" from "we saw everything".
+    """
+    if not query or not query.strip():
+        return SearchResult(query=query or "", ok=False, error="empty query")
+
+    offset = max(int(offset or 0), 0)
+    # limit=None/0 => "no cap, return everything the index holds". Any other number is a
+    # page SIZE from ``offset`` -- we still OVER-FETCH then rank then slice so the
+    # exact-basename match survives, but the returned slice is bounded only when asked.
+    unlimited = limit is None or int(limit or 0) <= 0
+    limit = 0 if unlimited else max(int(limit), 1)
+
+    es = resolve_es()
+    if es is None:
+        # Fall back to the bounded walk; it has no paging, so honour offset/limit by
+        # slicing its ranked result (best effort -- the walk may itself be bounded).
+        walked = walk_search(query, max_results=0 if unlimited else offset + limit,
+                             match_path=match_path)
+        walked.paths = walked.paths[offset:] if unlimited else walked.paths[offset:offset + limit]
+        return walked
+
+    # OVER-FETCH, THEN RANK, THEN (optionally) SLICE. When unlimited, ask ES for
+    # everything (a window wide enough that the -n cap is not the story); when bounded,
+    # fetch enough to reach offset+limit so the slice exists in what we hold. Rank first
+    # so the exact-basename match still lands at the top of whatever we return (the
+    # cap-before-rank bug paid for once).
+    fetch = None if unlimited else max((offset + limit) * 10, 200)
+    argv = [es, query]
+    if match_path:
+        argv.append("-match-path")
+    if sort_by_name:
+        argv.append("-s")
+    if fetch is not None:
+        argv.extend(["-n", str(fetch)])
+
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout or 15.0)
+    except subprocess.TimeoutExpired:
+        return SearchResult(query=query, ok=False, error=f"timed out after {timeout}s")
+    except OSError as e:
+        return SearchResult(query=query, ok=False, error=f"spawn failed: {e}")
+
+    if proc.returncode != 0:
+        err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
+        return SearchResult(query=query, ok=False, error=err)
+
+    lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
+    ranked = _rank_exact_first(lines, query)
+    sliced = ranked[offset:] if unlimited else ranked[offset:offset + limit]
+    # Unlimited means we returned everything ES gave us, therefore exhaustive by
+    # definition (there is no further page). Bounded means ES may hold more than our
+    # fetch window -- report it honestly so the caller can page.
+    return SearchResult(query=query, paths=sliced, ok=True,
+                        engine="everything", exhaustive=True if unlimited else len(lines) < fetch)
 
 
 def format_result(res: SearchResult) -> str:

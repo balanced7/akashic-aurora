@@ -293,7 +293,7 @@ TOOLS = [
         "answered ([engine: Everything index] vs [engine: walk]) and a bounded miss says so loudly "
         "instead of a bare zero.",
         {"query": {"type": "string", "description": "name substring to find (case-insensitive)"},
-         "limit": {"type": "integer", "description": "max results (default 200)"},
+         "limit": {"type": "integer", "description": "max results; omit/0 = no cap (return every match; the default is a full search)"},
          "path": {"type": "boolean", "description": "match full path, not just the name"},
          "no_sort": {"type": "boolean", "description": "skip name sort"},
          "timeout": {"type": "number", "description": "seconds before giving up (default 15)"}},
@@ -593,7 +593,7 @@ class ToolBox:
     def eye_zoom(self, session):
         return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
 
-    def find(self, query, limit=200, offset=0, path=False, no_sort=False, timeout=15.0):
+    def find(self, query, limit=None, offset=0, path=False, no_sort=False, timeout=15.0):
         r"""Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a
         bounded-walk fallback when Everything's CLI is absent. This is the ONE read door not
         scoped to the project root: read_file/search_files/list_directory all stop at
@@ -602,9 +602,13 @@ class ToolBox:
         answered ([engine: everything index] vs [engine: walk]) and a bounded miss says so
         loudly rather than printing a bare zero -- an unsearched space is not an empty one.
 
-        offset pages PAST the 200-result cap: fetch offset+limit, rank, then slice, so a
-        wide query (es.ex, lib, .env) stops silently hiding hits 201+."""
-        args = ["find", str(query), "--limit", str(int(limit))]
+        FULL SEARCH BY DEFAULT: ``limit=None``/``0`` means no cap -- return every matching
+        path the index holds. A caller that wants a page asks for one explicitly
+        (``limit=200``). ``offset`` pages a ranked result only when a ``limit`` is set; with
+        no limit the whole answer comes back."""
+        args = ["find", str(query)]
+        if limit is not None and int(limit or 0) > 0:
+            args += ["--limit", str(int(limit))]
         if int(offset or 0):
             args += ["--offset", str(int(offset))]
         if bool(path):

@@ -383,7 +383,7 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 
 
 @mcp.tool()
-async def find(query: str, limit: int = 200, path: bool = False,
+async def find(query: str, limit: int = None, offset: int = 0, path: bool = False,
                no_sort: bool = False, timeout: float = 15.0) -> str:
     """Find a file BY NAME anywhere on the machine via Search Everything (es.exe).
 
@@ -394,11 +394,13 @@ async def find(query: str, limit: int = 200, path: bool = False,
     null is a SCOPE limitation, not proof the file is absent).
 
     query: a bare word matches any filename substring, case-insensitive.
-    limit: max results (default 200). path=True matches the full path, not just the
-    name. no_sort=True skips name sort. FAIL-SOFT: if Everything is not installed it
-    SAYS so -- it never fakes an empty "no results"."""
+    limit: max results; None or 0 = NO CAP (return every matching path). Pass a number
+    to bound to one page. offset: skip this many ranked results first (paging past a
+    limit). path=True matches the full path, not just the name. no_sort=True skips name
+    sort. FAIL-SOFT: if Everything is not installed it SAYS so -- it never fakes an empty
+    "no results"."""
     return await _athread(_run, agent_cli.cmd_find, query=query, limit=limit,
-                          path=path, no_sort=no_sort, timeout=timeout)
+                          offset=offset, path=path, no_sort=no_sort, timeout=timeout)
 
 
 @mcp.tool()
