@@ -204,6 +204,11 @@ def test_m2_4_all_the_doors_accept_what_all_the_doors_print():
 
     it = mbx.declare_intent(NS, "claude", shown, "act", incarnation="pin-m2", client=client)
     assert it.get("ok"), f"--intent refused a printed id: {it.get('reason')!r}"
+    # The receipt must name the entry the declaration LANDED ON, not the id the caller typed.
+    # Echoing the input back is how a reader ends up believing a prefix is an identity.
+    assert it.get("sha") == sha, (
+        f"the intent receipt echoed {it.get('sha')!r}, not the resolved {sha!r}"
+    )
 
     # The declaration must land on the FULL sha. Stored under the prefix it would sit under a key
     # nothing else queries, which is indistinguishable from never having declared at all.
