@@ -226,3 +226,15 @@ research/reviewed/outside-review-*
 # The practice and its why ship publicly: charters/OPERATOR_GUIDE.md + the README stub.
 charters/daniel/*
 !charters/daniel/README.md
+
+# Root-level scratch probes (2026-09-24). Seven of these accumulated at the repo root between
+# 2026-08-21 and today -- _tmp_greet_simon.py, _probe_feed.py ("scratch probe -- superseded by
+# tests/..."), _probe_es_live.py and friends -- each one a real debugging aid that outlived its
+# question and then sat in `git status` as noise every seat had to re-triage.
+#
+# ROOT-ANCHORED AND PREFIX-NARROW on purpose. 422 tracked files have _-prefixed names and
+# agent/harness/hooks/_activity.py is real source, so a blanket `_*` would be destructive.
+# Verified before adding: no tracked file matches ^_(tmp|probe|measure)_.
+/_tmp_*.py
+/_probe_*.py
+/_measure_*.py
