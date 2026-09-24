@@ -831,7 +831,11 @@ def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: s
     if prior:
         client.hset(k["intent"], f"{sha}|superseded|{time.time()}", prior)
     client.hset(k["intent"], str(sha), json.dumps(rec))
-    return {"ok": True, **rec}
+    # Return the RESOLVED sha. Without it the CLI receipt echoed whatever the caller typed, so a
+    # 10-char prefix came back as "[mailbox-intent] e62c8c5809 -> act" and the reader never saw
+    # which entry the declaration actually landed on -- the same echo-the-input-as-identity
+    # defect this arc exists to end, surviving one layer up from its own fix.
+    return {"ok": True, "sha": str(sha), **rec}
 
 
 def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
