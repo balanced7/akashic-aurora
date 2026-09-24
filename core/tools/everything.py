@@ -218,7 +218,7 @@ def search(query: str, *,
     full syntax; we keep it boring: pass it through verbatim, no injection risk
     because we use a list argv, never a shell string.
 
-    max_results caps output (default 200). match_path adds ``-path`` so the query is
+    max_results caps output (default 200). match_path adds ``-match-path`` so the query is
     matched against the full path, not just the name. sort_by_name adds ``-s``, which ES sorts by FULL PATH (the
     parameter name predates the flag's documented meaning). A zero-timeout is not permitted (empty -> default).
     """
