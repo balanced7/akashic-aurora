@@ -235,6 +235,10 @@ _ARG_DEFAULTS = dict(
     # contract for every delegated cmd_* even when today's tool supplies these.
     glance_projection="program", max_items=64, brief=False, compact=False,
     ledger_path=None,
+    # find (Search Everything seam). cmd_find reads args.query / args.limit /
+    # args.path / args.no_sort / args.timeout -- query/limit/path are already
+    # covered above; these two are the new reads.
+    no_sort=False, timeout=15.0,
 )
 
 
@@ -376,6 +380,25 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
     silent when nothing is relevant. Pass `path` OR `command`."""
     return await _athread(_run, agent_cli.cmd_recall_at, path=path or None,
                           command=command or None, agent_id=agent or None, limit=limit)
+
+
+@mcp.tool()
+async def find(query: str, limit: int = 200, path: bool = False,
+               no_sort: bool = False, timeout: float = 15.0) -> str:
+    """Find a file BY NAME anywhere on the machine via Search Everything (es.exe).
+
+    This is the verb that answers "where is this file REALLY" when a file or
+    attachment landed OUTSIDE the project root -- a stale worktree, AppData, a temp
+    dir. Everything indexes the whole user profile; one name lookup returns full
+    paths in milliseconds. Use it when read_file/search_files come up empty (that
+    null is a SCOPE limitation, not proof the file is absent).
+
+    query: a bare word matches any filename substring, case-insensitive.
+    limit: max results (default 200). path=True matches the full path, not just the
+    name. no_sort=True skips name sort. FAIL-SOFT: if Everything is not installed it
+    SAYS so -- it never fakes an empty "no results"."""
+    return await _athread(_run, agent_cli.cmd_find, query=query, limit=limit,
+                          path=path, no_sort=no_sort, timeout=timeout)
 
 
 @mcp.tool()
@@ -968,11 +991,17 @@ async def ingest(json: bool = False) -> str:
 
 
 @mcp.tool()
-async def find(query: str, who: str = "", kind: str = "", session: str = "",
-               as_of: str = "", limit: int = 0, json: bool = False) -> str:
+async def eye_find(query: str, who: str = "", kind: str = "", session: str = "",
+                   as_of: str = "", limit: int = 0, json: bool = False) -> str:
     """[eye find] The grammar door: facets AND together -- query (text), who (voice),
     kind (event type), session, as_of (YYYY-MM-DD). Returns full-hit counts with tokens,
-    degraded flags, and drill pointers -- never silent-empty."""
+    degraded flags, and drill pointers -- never silent-empty.
+
+    Renamed from `find` to `eye_find` on the MCP door (2026-09-24): a second `find`
+    tool was added for the Search-Everything WHOLE-MACHINE FILE locator (cmd_find), and
+    the later definition was silently shadowing this one, so no MCP seat could reach
+    the file finder at all and this corpus search was the only surviving `find`. One
+    spelling, two meanings -- they must not share a door name."""
     return await _athread(_run, agent_cli.cmd_eye, eye_cmd="find", query=query or None,
                           who=who or None, kind=kind or None, session=session or None,
                           as_of=as_of or None, limit=limit, json=bool(json))
