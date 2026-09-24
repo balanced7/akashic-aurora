@@ -42,6 +42,10 @@ from typing import List, Optional
 #: es.exe lives next to Everything.exe; if the user installed to a non-default dir
 #: we still accept it via $PATH or the ES_EXE override.
 _EVERYTHING_ROOTS = (
+    # %LOCALAPPDATA%\Everything FIRST: es.exe is a SEPARATE voidtools download from the
+    # Everything app, so it does not appear beside Everything.exe unless someone put it there.
+    # Installing it here needs no admin and leaves the vendor's Program Files directory alone.
+    os.path.join(os.environ.get("LOCALAPPDATA", ""), "Everything"),
     r"C:\Program Files\Everything",
     r"C:\Program Files (x86)\Everything",
     r"C:\Tools\Everything",
@@ -117,6 +121,25 @@ _WALK_SKIP = frozenset({
 })
 
 
+
+def _rank_exact_first(paths, needle):
+    """Exact basename matches first, for EVERY engine.
+
+    Substring matching is Everything's own default and we keep it -- dropping it would lose
+    real hits -- but unranked it buries the answer. Searching `es.exe` on this machine returns
+    Cities.exe, WhoUses.exe, SetupAsusServices.exe and RemoveLicenses.exe, each of which
+    genuinely contains the literal "es.exe". A reader skimming the first line of that list
+    learns the opposite of the truth.
+
+    This lives OUTSIDE walk_search on purpose. The first version of it was inside, so the
+    bounded walk was ranked and the indexed path -- the one people will actually use -- was
+    not. Fixing the instance and leaving the class open is the recurring defect of this
+    session; a shared helper is the version that cannot drift apart.
+    """
+    base = os.path.basename(str(needle or "").strip().lower())
+    return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
+
+
 def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
                 roots=None, budget_s: float = 25.0,
                 max_dirs: int = 400_000) -> SearchResult:
@@ -176,13 +199,7 @@ def walk_search(query: str, *, max_results: int = 200, match_path: bool = False,
         if len(hits) >= max_results or not exhaustive:
             break
 
-    # EXACT BASENAME FIRST. Substring matching is Everything's own default and we keep it --
-    # dropping it would lose real hits -- but unranked it buries the answer. Searching
-    # `es.exe` on this machine returned WhoUses.exe, yes.exe and RemoveLicenses.exe above
-    # nothing, because each contains the literal "es.exe". A reader skimming the first line
-    # of that list learns the opposite of the truth.
-    needle_base = os.path.basename(needle)
-    hits.sort(key=lambda p: (os.path.basename(p).lower() != needle_base, len(p)))
+    hits = _rank_exact_first(hits, needle)
 
     return SearchResult(query=q, paths=hits, ok=True, engine="walk",
                         exhaustive=exhaustive, scanned_dirs=scanned,
@@ -202,8 +219,8 @@ def search(query: str, *,
     because we use a list argv, never a shell string.
 
     max_results caps output (default 200). match_path adds ``-path`` so the query is
-    matched against the full path, not just the name. sort_by_name adds ``-s`` to
-    sort by name. A zero-timeout is not permitted (empty -> default).
+    matched against the full path, not just the name. sort_by_name adds ``-s``, which ES sorts by FULL PATH (the
+    parameter name predates the flag's documented meaning). A zero-timeout is not permitted (empty -> default).
     """
     if not query or not query.strip():
         return SearchResult(query=query or "", ok=False, error="empty query")
@@ -216,12 +233,25 @@ def search(query: str, *,
         # for anybody. A bounded answer that admits its bounds beats no answer.
         return walk_search(query, max_results=max_results, match_path=match_path)
 
+    # ES FLAG SHAPES, verified against es.exe 1.1.0.38 -h rather than assumed. Two of the three
+    # flags this function used were wrong, and only one of them failed loudly:
+    #   -n200   REJECTED -- "Error 6: Unknown switch". `-n` takes a SEPARATE argument.
+    #   -path   ACCEPTED, WRONG MEANING. In ES, `-path <path>` restricts the search to a
+    #           directory; matching the query against the full path is `-p`/`-match-path`.
+    #           So match_path=True quietly searched for a folder named after the query.
+    #   -s      correct, but it sorts by FULL PATH, not by name as the parameter implies.
     argv = [es, query]
     if match_path:
-        argv.append("-path")
+        argv.append("-match-path")
     if sort_by_name:
         argv.append("-s")
-    argv.append(f"-n{int(max_results)}")
+    # OVER-FETCH, THEN RANK, THEN TRUNCATE. es.exe applies `-n` with ITS OWN sort order, so
+    # asking for exactly max_results lets the cap discard the exact-basename match before we
+    # ever see it -- ranking afterwards can only reorder what survived. Measured: `es.exe`
+    # with -n 4 returned WhoUses.exe / SetupAsusServices.exe / FindPackages.exe / Cities.exe
+    # and the actual es.exe was not among them. Pull a wider window, rank, then cut.
+    _fetch = max(int(max_results) * 10, 200)
+    argv.extend(["-n", str(_fetch)])
 
     try:
         proc = subprocess.run(
@@ -240,8 +270,11 @@ def search(query: str, *,
         return SearchResult(query=query, ok=False, error=err)
 
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
-    return SearchResult(query=query, paths=lines, ok=True, engine="everything",
-                        exhaustive=True)
+    ranked = _rank_exact_first(lines, query)
+    # `exhaustive` reports whether ES had MORE than our fetch window, not whether we trimmed
+    # to max_results -- the caller asked for a page, and a page is not a bounded search.
+    return SearchResult(query=query, paths=ranked[:int(max_results)], ok=True,
+                        engine="everything", exhaustive=len(lines) < _fetch)
 
 
 def format_result(res: SearchResult) -> str:
