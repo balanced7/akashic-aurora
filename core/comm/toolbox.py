@@ -593,15 +593,20 @@ class ToolBox:
     def eye_zoom(self, session):
         return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
 
-    def find(self, query, limit=200, path=False, no_sort=False, timeout=15.0):
+    def find(self, query, limit=200, offset=0, path=False, no_sort=False, timeout=15.0):
         r"""Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a
         bounded-walk fallback when Everything's CLI is absent. This is the ONE read door not
         scoped to the project root: read_file/search_files/list_directory all stop at
         E:\AI-Setup, so an attachment or binary that landed in AppData, a stale worktree, or
         a temp dir is invisible to every tool but this one. The render NAMES which engine
         answered ([engine: everything index] vs [engine: walk]) and a bounded miss says so
-        loudly rather than printing a bare zero -- an unsearched space is not an empty one."""
+        loudly rather than printing a bare zero -- an unsearched space is not an empty one.
+
+        offset pages PAST the 200-result cap: fetch offset+limit, rank, then slice, so a
+        wide query (es.ex, lib, .env) stops silently hiding hits 201+."""
         args = ["find", str(query), "--limit", str(int(limit))]
+        if int(offset or 0):
+            args += ["--offset", str(int(offset))]
         if bool(path):
             args.append("--path")
         if bool(no_sort):
@@ -1357,7 +1362,28 @@ class ToolBox:
         # a live admin seat must be able to SEE the fleet and DRIVE recovery from inside a
         # session -- roster (who's up, code state), mailbox (who's emailing, undrained lane),
         # bench (own triage), verbs (the registry itself), help. All pure reads; none mutate.
-        "roster", "bench", "mailbox", "verbs", "help"})
+        "roster", "bench", "mailbox", "verbs", "help",
+        # OBSERVATION VERBS (Daniil 2026-09-24: "full access to all the verbs"). Before this,
+        # 32 of 132 verbs were reachable, so a seat could not SEE most of the house from inside
+        # a session. Each verb below was checked by reading its cmd_* handler for write calls
+        # (write_text/write_bytes/open(w|a)/hset/zadd/xadd/delete/rename/mkdir/shutil/json.dump/
+        # git add|commit|push) and only the clean ones were added.
+        #
+        # THE CHECK EARNED ITS KEEP: `sift` looked read-only by name and has two write calls, so
+        # it stayed OUT. Twelve more (arc, calibration, fetch, freq, get, overview, program,
+        # roles, show, standing, trace, zoom) dispatch under a different name than cmd_<verb>
+        # and were left out rather than guessed at -- widen them later with the same check, not
+        # by assumption.
+        #
+        # HONEST BOUND ON THAT EVIDENCE: "no write call in the handler" is not proof of purity --
+        # a handler can call a helper that writes. It is a real check, not a theorem. Two things
+        # still stand behind it: _AGENT_CLI_MUTATING_FLAGS refuses --commit/--consume/--apply/
+        # --fold/--capture/--promote on ANY verb here, and these are observation surfaces by
+        # design. Revert = delete this block.
+        "audit", "college", "compare", "console-log", "episode", "eye", "find", "fleet",
+        "forecast", "friction", "glance", "ground", "packet-stats", "packet-trace", "reentry",
+        "resident", "scout", "season-score", "seat-identity", "shadow", "sweep", "tally",
+        "timeline", "kit"})
     _AGENT_CLI_MUTATING_FLAGS = frozenset({
         "--commit", "--consume", "--apply", "--fold", "--capture", "--promote"})
     _SHELL_META = frozenset(";|&><`$()\n\r")
@@ -1387,10 +1413,24 @@ class ToolBox:
         if (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
                 and os.path.basename(argv[1]) == "agent_cli.py"):
             verb = argv[2]
+            # --help IS ALWAYS A READ, on every verb. Without this a seat cannot even LEARN
+            # that 100 of the 132 verbs exist -- the door refuses to describe what it is
+            # refusing, which is how a capability that exists reads as a capability that does
+            # not. Verified inert before allowing it: argparse's help action prints and exits
+            # before any cmd_* handler runs, measured against `learn --help` and `wish --help`
+            # with the working tree unchanged either side (350 entries before and after).
+            #
+            # NOT a general "--help is safe" rule: `mirror.py --help` committed a shared index
+            # on 2026-08-02 and stays refused in its own family. This clause is scoped to
+            # agent_cli.py, whose argparse never reaches a handler.
+            if any(a in ("--help", "-h") for a in argv[3:]):
+                return argv, {"AKASHIC_SEAT_DOOR": "toolbox"}, None
             if verb not in self._AGENT_CLI_READ_VERBS:
                 return None, None, (f"agent_cli verb {verb!r} is not in the unattended READ "
                                     f"allowlist -- mutations (note/learn/wrap/bifrost-send/"
-                                    f"lock/...) go through your dedicated ACL'd tools")
+                                    f"lock/...) go through your dedicated ACL'd tools. "
+                                    f"`py agent_cli.py {verb} --help` IS allowed, so you can "
+                                    f"always read what a verb does even when you may not run it.")
             bad = [a for a in argv[3:] if a in self._AGENT_CLI_MUTATING_FLAGS]
             if bad:
                 return None, None, (f"flag(s) {bad} mutate state -- the unattended READ "

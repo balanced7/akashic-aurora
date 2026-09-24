@@ -33,5 +33,22 @@ def test_unattended_mirror_is_refused_in_the_real_repo(monkeypatch):
     for command in ('py scripts/mirror.py "deepseek_chat: kill the 8788 UI-port ghost" scripts/deepseek_chat.py',
                     "py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py"):
         out = box.run_command(command, timeout=60)
-        assert "PUBLISH door" in out and "[exit 3]" in out, out
-        assert "Nothing was staged, committed or pushed" in out, out
+        # deepseek is commit-authorized (2026-09-24), so positional args alone are a SAFE
+        # dry run (exit 2) -- the D1 guard: no intent flag means nothing is staged, committed
+        # or pushed. The plan prints, and nothing mutates.
+        assert "[exit 2]" in out or "DRY RUN" in out, out
+        assert "Nothing was staged, committed or pushed" not in out, out
+    # The PUBLISH leg stays refused: --push through the toolbox door as deepseek is exit 3.
+    out = box.run_command('py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py --push --yes', timeout=60)
+    # REFUSED IS THE CLAIM; WHICH LAYER REFUSES IS NOT. This used to require mirror.py's own
+    # banner ("PUBLISH door", exit 3), but the IR-4 family gate now refuses --push/--yes
+    # UPSTREAM -- before mirror.py is even spawned. That is strictly safer (the publish door
+    # is never reached) and it made this pin red. Accept either layer; require only that the
+    # publish leg does not open.
+    flat = " ".join((out or "").split())
+    refused_by_mirror = "PUBLISH door" in flat and "Nothing was staged, committed or pushed" in flat
+    refused_by_family = "refused" in flat.lower() and "mirror flag" in flat.lower()
+    assert refused_by_mirror or refused_by_family, (
+        "the publish leg OPENED -- neither mirror's own door nor the IR-4 family gate "
+        f"refused --push/--yes through the toolbox door: {out}"
+    )
