@@ -130,7 +130,7 @@ def test_d2_help_commits_nothing(pub_repo):
 
     r = _mirror(work, "--help")
 
-    assert r.returncode == 0 and "PUBLISH door" in r.stdout
+    assert r.returncode == 0 and "PUBLISH door" in _flat(r.stdout)
     assert _head(work) == head
 
 
@@ -146,6 +146,23 @@ def test_c1_commit_flag_commits_locally_and_never_pushes(pub_repo):
     assert _published(work, bare) == published
 
 
+
+def _flat(text):
+    """Collapse whitespace before matching prose.
+
+    These pins assert on the refusal BANNER, which is hand-wrapped prose. The banner wraps as
+    "It does\\n  not count lines", so a literal `"does not count lines" in stdout` is False
+    while the sentence is plainly present -- the pin failed on a line break, not on behaviour.
+    Four parametrised cases failed that way on 2026-09-24 while the guard itself was working
+    perfectly (exit 3, nothing staged, committed or pushed -- all still asserted below).
+
+    Matching the MEANING rather than the byte layout also means a future rewording of the
+    banner's line breaks cannot silently turn this pin red and cost someone an hour proving
+    the door still works.
+    """
+    return " ".join((text or "").split())
+
+
 @pytest.mark.parametrize("seat,door", [("deepseek", None), ("kimi", None),
                                        ("claude", "toolbox"), (None, "toolbox")])
 def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
@@ -154,13 +171,30 @@ def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     (work / "stale.patch").write_text("diff --git a/x b/x\n")
     head, published = _head(work), _published(work, bare)
 
-    for argv in (["count-plus-lines", "stale.patch"],
-                 ["count-plus-lines", "stale.patch", "--push", "--yes", "--include-others"]):
-        r = _mirror(work, *argv, seat=seat, door=door)
-        assert r.returncode == 3, r.stdout + r.stderr
-        assert "PUBLISH door" in r.stdout and "does not count lines" in r.stdout
-        assert "Nothing was staged, committed or pushed" in r.stdout
-        assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+    # The PUBLISH leg is unchanged: --push is refused for every seat but claude and for
+    # any process inside the toolbox door (exit 3), before git is touched. (The plain
+    # positional-args dry-run leg for commit-authorized seats is covered by test_u1b.)
+    r = _mirror(work, "count-plus-lines", "stale.patch", "--push", "--yes", "--include-others",
+                seat=seat, door=door)
+    assert r.returncode == 3, r.stdout + r.stderr
+    flat = _flat(r.stdout)
+    assert "PUBLISH door" in flat and "does not count lines" in flat
+    assert "Nothing was staged, committed or pushed" in flat
+    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+
+
+def test_u1b_commit_authorized_seat_commits_dry_run_without_flag(pub_repo):
+    """The commit leg needs an intent flag. A commit-authorized seat (deepseek) running
+    POSITIONAL args only (the incident argv shape) must NOT commit -- the dry-run/usage
+    path returns exit 2, nothing staged/committed/pushed. This is the D1 guard, unchanged;
+    the amendment only opens the --commit flag for these seats."""
+    work, bare = pub_repo
+    _commit_as(work, "claude", "waiting.txt", "waiting")
+    (work / "stale.patch").write_text("diff --git a/x b/x\n")
+    head, published = _head(work), _published(work, bare)
+    r = _mirror(work, "count-plus-lines", "stale.patch", seat="deepseek", door=None)
+    assert r.returncode == 2, r.stdout + r.stderr   # usage/dry-run, not a commit
+    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
 
 
 def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
@@ -174,11 +208,23 @@ def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
     spec = importlib.util.spec_from_file_location("mirror_under_test", os.path.join(REPO, "scripts", "mirror.py"))
     mirror = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mirror)
-    # run_command forces AKASHIC_AGENT_ID to the verified caller; the console path may inherit claude
+
+    # COMMIT leg (push=False): a commit-authorized seat (deepseek) may commit locally even
+    # through the toolbox door (the verified-caller path). Daniel and claude always may.
+    # An UNKNOWN seat and the claude-inside-toolbox inherited-id case stay refused.
+    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "deepseek"}, push=False) is None
+    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "claude"}, push=False) is None
+    assert mirror.runner_refusal({}, push=False) is None, "Daniel at his own terminal"
+    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "claude"}, push=False) is not None, \
+        "a claude id inside the toolbox door is inherited from a launcher (2026-07-21) and refused"
+    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "unknown-seat"}, push=False) is not None
+
+    # PUSH leg (push=True): unchanged -- the toolbox door is refused for EVERYONE, and only
+    # claude (outside the door) or Daniel may publish.
     for seat in ("deepseek", "claude", ""):
-        assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": seat}) is not None
-    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "claude"}) is None
-    assert mirror.runner_refusal({}) is None, "Daniel at his own terminal"
+        assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": seat}, push=True) is not None
+    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "claude"}, push=True) is None
+    assert mirror.runner_refusal({}, push=True) is None, "Daniel at his own terminal"
 
 
 def test_p1_push_without_yes_off_a_terminal_is_refused_before_committing(pub_repo):
@@ -215,7 +261,8 @@ def test_p3_other_authors_block_the_push_unless_included(pub_repo):
     r = _mirror(work, "mine", "mine.txt", "--push", "--yes")
 
     assert r.returncode == 4, r.stdout + r.stderr
-    assert "sol's unpushed work" in r.stdout and "NOT YOURS" in r.stdout and "--include-others" in r.stdout
+    flat = _flat(r.stdout)
+    assert "sol's unpushed work" in flat and "NOT YOURS" in flat and "--include-others" in flat
     assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
 
     r = _mirror(work, "mine", "mine.txt", "--push", "--yes", "--include-others")

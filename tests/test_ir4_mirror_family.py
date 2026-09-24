@@ -66,8 +66,17 @@ def test_mirror_working_dir_override_refused():
 
 
 def test_raw_git_still_refused():
+    """`git commit` must be refused. Assert THAT, not which refusal message says so.
+
+    This pin used to require the literal word "families", which was the generic catch-all
+    refusal. A later change gave git its own family with a SPECIFIC message -- "git family is
+    READ-ONLY (status/diff/log/show) -- mutating verbs (add/commit/push/checkout/reset/...)
+    refuse" -- which is strictly more useful to a reader and made the pin red while the
+    behaviour got better. A pin on the messenger goes red when the guard improves.
+    """
     argv, _, why = _family("git commit -m x")
-    assert argv is None and "families" in why
+    assert argv is None, "git commit was ALLOWED -- that is the failure this pin exists for"
+    assert "refuse" in (why or "").lower(), f"refused, but the reason does not say so: {why!r}"
 
 
 def test_pytest_family_regression():

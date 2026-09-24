@@ -55,6 +55,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
 
 PUBLISHER_SEAT = "claude"
+# Seats authorized for the LOCAL-COMMIT leg only (--commit, no push). This list is the
+# 2026-09-24 amendment: Daniil authorized ("I authorize amending the mirror.py to allow you
+# to make commits") letting admin seats commit their own named paths locally, while the
+# PUSH/publish leg stays PUBLISHER_SEAT + Daniel only (a push to the public repo
+# balanced7/akashic-aurora cannot be taken back -- that is the 2026-09-15 incident's
+# dangerous leg, and it does not broaden). Revert = empty the set.
+COMMIT_SEATS = {"deepseek", "kimi", "navi", "heimdall", "sol", "sunshine", "rill"}
 EXIT_USAGE, EXIT_SEAT, EXIT_OTHERS, EXIT_UNCONFIRMED = 2, 3, 4, 5
 
 
@@ -67,8 +74,20 @@ def git(*args, check=True):
     return r
 
 
-def runner_refusal(environ=None):
+def runner_refusal(environ=None, push=False):
     """Why this process may not run the mirror at all, or None when it may.
+
+    Two legs are gated separately (2026-09-24 amendment, Daniil's authorization):
+
+      * LOCAL COMMIT (--commit, no push): a seat in COMMIT_SEATS may commit its own named
+        paths. The toolbox door is the VERIFIED-caller path for these seats -- AKASHIC_AGENT_ID
+        is stamped by the door, not inherited -- and the IR-4 audited family already confined
+        the command to canonical script + explicit relative paths + no flags + no trust surfaces.
+        A commit never leaves the machine, so it shares no property with the publish incident.
+
+      * PUSH/publish: unchanged. PUBLISHER_SEAT (claude) and Daniel only, and never through the
+        unattended toolbox door -- a push to the public repo balanced7/akashic-aurora cannot be
+        taken back, and that leg is what 97b85ecd and --help committed (the incidents).
 
     Uses the identity the doors already stamp: AKASHIC_AGENT_ID (the toolbox door overrides
     any inherited value with the verified caller) and AKASHIC_SEAT_DOOR=toolbox (stamped by
@@ -79,21 +98,41 @@ def runner_refusal(environ=None):
     env = os.environ if environ is None else environ
     seat = (env.get("AKASHIC_AGENT_ID") or "").strip()
     door = (env.get("AKASHIC_SEAT_DOOR") or "").strip().lower()
-    if door == "toolbox":
+
+    def _toolbox(why_seat):
         return (f"this process runs inside the unattended toolbox door (AKASHIC_SEAT_DOOR=toolbox, "
-                f"AKASHIC_AGENT_ID={seat or '(unset)'})")
-    if seat and seat != PUBLISHER_SEAT:
-        return f"this process is the {seat!r} seat (AKASHIC_AGENT_ID={seat})"
-    return None
+                f"AKASHIC_AGENT_ID={why_seat or '(unset)'})")
+
+    if push:
+        # The publish leg: no broadening. Refuse the toolbox door and every seat but the publisher.
+        if door == "toolbox":
+            return _toolbox(seat)
+        if seat and seat != PUBLISHER_SEAT:
+            return f"this process is the {seat!r} seat (AKASHIC_AGENT_ID={seat}); publishing is {PUBLISHER_SEAT}/Daniel's call"
+        return None
+
+    # LOCAL COMMIT leg.
+    if door == "toolbox":
+        # Verified caller inside the audited IR-4 door: allow a commit-authorized seat.
+        if seat in COMMIT_SEATS:
+            return None
+        return _toolbox(seat)
+    # Daniel at his own terminal (no seat id), or the publisher seat, always may commit.
+    if not seat or seat == PUBLISHER_SEAT:
+        return None
+    if seat in COMMIT_SEATS:
+        return None
+    return f"this process is the {seat!r} seat (AKASHIC_AGENT_ID={seat}) -- not commit-authorized"
 
 
 def _print_refusal(why):
-    print("[mirror] REFUSED: scripts/mirror.py is the PUBLISH door. It commits files and pushes them\n"
-          "  to the PUBLIC GitHub repo balanced7/akashic-aurora. It does not count lines, read files\n"
-          "  or inspect anything.\n"
-          f"  Only Daniel at his own terminal and the claude seat may run it; {why}.\n"
+    print("[mirror] REFUSED: scripts/mirror.py is the PUBLISH door. It commits files and, with\n"
+          "  --push, publishes them to the PUBLIC GitHub repo balanced7/akashic-aurora. It does\n"
+          "  not count lines, read files or inspect anything.\n"
+          f"  {why}.\n"
           "  Nothing was staged, committed or pushed.\n"
-          "  To get work committed: send Vandor (claude) the explicit paths and a commit message.\n"
+          "  To get work committed: commit your own named paths with --commit (no push), or\n"
+          "  send Vandor (claude) the explicit paths and a commit message to publish.\n"
           "  (2026-09-15: run as a line counter, it committed 'count-plus-lines' and published\n"
           "  every unpushed commit since 2026-09-13.)")
 
@@ -355,7 +394,10 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_intermixed_args(argv)
 
-    why = runner_refusal()
+    # Resolve --push-only before the refusal so the push leg is gated correctly.
+    if getattr(args, "push_only", False):
+        args.push = True
+    why = runner_refusal(push=bool(getattr(args, "push", False)))
     if why:
         _print_refusal(why)
         return EXIT_SEAT
