@@ -77,11 +77,18 @@ def _unread_count(agent_id: str) -> int:
     an alert that is routinely wrong teaches the reader to skip the line, and the habit
     carries into the turn when the number means real mail.
 
-    Reuses the SHARED skip set rather than inventing a third meaning of "unread" (the
-    T198 lesson, applied where it is safe to apply). FAILS TOWARD NAGGING, deliberately
-    and opposite to T198: unknown kinds count, and a truncated peek adds its unseen
-    remainder back, because under-reporting real mail is the worse error here while the
-    wake path -- where the worse error is deafness -- is untouched by this function.
+    Reused the SHARED skip set PENDING_SKIP_KINDS but that set drifted from the single
+    classification source T081-W4 mandated: it skips steer/note/status (NOT trace --
+    sig/work lanes) while MISSING thinking/tool/narration/hint (genuine trace-lane
+    display-only noise). The badge therefore both nagged on real coordination (note/
+    steer) and ignored real firehose (thinking/tool). Route through
+    packet_spec.is_trace_kind -- the ONE predicate the consume door (bifrost_pull)
+    and mailbox already share -- so the count cannot disagree with what its own
+    remediation would surface. FAILS TOWARD NAGGING, deliberately and opposite to
+    T198: unknown kinds are NOT trace (fail toward showing), and a truncated peek
+    adds its unseen remainder back, because under-reporting real mail is the worse
+    error here while the wake path -- where the worse error is deafness -- is
+    untouched by this function.
     """
     from agent.bifrost_pull import collect_boot_bifrost
     try:
@@ -93,11 +100,11 @@ def _unread_count(agent_id: str) -> int:
     if not isinstance(msgs, list):
         return pending                            # no rendered list -> cannot filter; say the raw truth
     try:
-        from core.comm.bifrost_api import PENDING_SKIP_KINDS as _SKIP
+        from core.comm.packet_spec import is_trace_kind
     except Exception:
         return pending
     actionable = sum(1 for m in msgs
-                     if str((m or {}).get("kind") or "") not in _SKIP)
+                     if not is_trace_kind((m or {}).get("kind")))
     # The peek is capped, so anything beyond it was never classified. Count it.
     return actionable + max(0, pending - len(msgs))
 
@@ -174,6 +181,49 @@ def _find_note(notes: list, title: str):
         if getattr(d, "title", "") == title and not getattr(d, "superseded", False):
             return d
     return None
+
+
+
+def _reach_line(agent_id: str) -> str:
+    """Is this seat REACHABLE, or only alive? Two different facts, and boot never said which.
+
+    THE INCIDENT that produced this, 2026-09-24: the operator sent a Discord message that
+    reached nobody. The seat was not down -- it was mid-turn and productive, in session all
+    morning. It had no armed watcher, because a watcher is a SEPARATE process and nobody had
+    asked for one. The message landed in the mailbox correctly, marked `unhandled`, and nothing
+    announced it. Storage was fine; NOTIFICATION was missing. Task T398 has 13 prior
+    recurrences of the same shape, all of them assumed to be "no session open" -- this one had
+    a session open the whole time, which is why the diagnosis kept missing.
+
+    WHY THIS REPORTS RATHER THAN ARMS, which is the part worth not losing. Arming from a hook
+    was the obvious fix and it is a trap: scripts/bifrost_wake.py delivers by PRINTING TO STDOUT
+    and exiting, so a wake only lands if something is reading that stream. A watcher spawned
+    detached by a hook prints into a void -- and any_armed() would then answer "armed". That is
+    a surface asserting presence where there is no reachability, which is strictly worse than
+    the silence it replaces, because "no watcher" at least reads as no watcher. The arming has
+    to happen on a channel the harness is watching, so boot hands over the command instead of
+    running it.
+
+    FOUR STATES, NOT TWO -- any_armed()'s own vocabulary, kept intact. "I could not tell" must
+    never render as "you are fine".
+    """
+    try:
+        from core.comm import wake_seat
+        state = wake_seat.any_armed(agent_id)
+    except Exception as exc:
+        return (f"reach: UNKNOWN -- could not read wake state ({type(exc).__name__}). "
+                f"That is not 'armed'; assume the operator cannot reach you until you check.")
+
+    arm = (f"arm it (must be harness-tracked -- a detached one fires into nothing): "
+           f"py scripts/bifrost_wake.py --agent {agent_id} --min-tier 0")
+    if state == "armed":
+        return "reach: watcher ARMED -- the operator can wake you; re-arm after it fires (firing consumes it)"
+    if state == "unarmed":
+        return f"reach: NO WATCHER ARMED -- you are UNREACHABLE from Discord (T398). {arm}"
+    if state == "dead-seat":
+        return (f"reach: seat file present but its process is DEAD -- nothing is listening, "
+                f"and the stale file makes it look otherwise. {arm}")
+    return (f"reach: wake state is {state!r} -- undetermined, which is NOT armed. {arm}")
 
 
 def _mailbox_line(agent_id: str) -> str:
@@ -311,6 +361,13 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
                                    f"py agent_cli.py delta {agent_id}"]))
     if themes is not None:
         sections.append(("themes", [_note_line("THEMES", themes, body_clip=120)]))
+    # REACHABILITY BEFORE MAIL, deliberately. Unread mail tells a seat what arrived; this tells
+    # it whether anything CAN arrive. A seat that reads "2 unread" and cannot be woken has the
+    # less useful of the two facts. Sections drop bottom-up under budget, so placing it here
+    # protects it above draft/funnel/boot.
+    reach = _reach_line(agent_id)
+    if reach:
+        sections.append(("reach", [reach]))
     if unread:
         # W8 (T081): Prometheus-style denominator label -- the whisper peek reads the LEGACY
         # cursor (all lanes during dual-write, first 8). Name what's counted so the operator
