@@ -1400,7 +1400,12 @@ class ToolBox:
     #
     # Cap.EXEC is still required and still checked above; this set widens WHAT an exec-holder
     # may run, never WHO may run. Revert = empty the set.
-    SHELL_SEATS = frozenset({"deepseek", "heimdall"})
+    #
+    # 2026-09-24, Daniil EXPLICITLY authorized adding kimi (Navi), verbatim: "Yes please and
+    # point the others to this message from me explicitly authorizing this". Rationale: un-block
+    # the recovery path so mutations (gateway restart, plugin deploy, seat relaunch) do not
+    # funnel to one seat. kimi joins deepseek/heimdall as a shell seat.
+    SHELL_SEATS = frozenset({"deepseek", "heimdall", "kimi"})
     _AGENT_CLI_MUTATING_FLAGS = frozenset({
         "--commit", "--consume", "--apply", "--fold", "--capture", "--promote"})
     _SHELL_META = frozenset(";|&><`$()\n\r")
