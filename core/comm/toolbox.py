@@ -1524,7 +1524,18 @@ class ToolBox:
         try:
             p = subprocess.run([sys.executable, str(script), query], cwd=str(self.root),
                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=45)
-            return (p.stdout or p.stderr or "(no results)")[:MAX_CMD_OUT]
+            # BOTH streams, joined -- never `stdout or stderr`. The engine-health report rides
+            # stderr while results ride stdout, so picking one drops exactly the half that says
+            # "these engines refused us" whenever a PARTIAL result comes back. And an empty pair
+            # is reported as an empty pair: fabricating "(no results)" here would reassert the
+            # very lie the script below it was just fixed to stop telling (2026-09-23 -- a seat
+            # searched a rare name, got "(no results)", and concluded the subject did not exist
+            # while every engine was CAPTCHA-blocked).
+            parts = [x.strip() for x in (p.stdout, p.stderr) if (x or "").strip()]
+            if not parts:
+                return (f"web_search returned NOTHING on either stream (exit {p.returncode}) -- "
+                        f"that is a broken tool, not an empty web. Do not report this as absence.")
+            return "\n".join(parts)[:MAX_CMD_OUT]
         except Exception as e:
             return f"ERROR: web_search failed: {e}"
 
