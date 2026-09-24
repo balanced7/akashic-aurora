@@ -163,7 +163,7 @@ def _flat(text):
     return " ".join((text or "").split())
 
 
-@pytest.mark.parametrize("seat,door", [("deepseek", None), ("kimi", None),
+@pytest.mark.parametrize("seat,door", [("kimi", None), ("sol", None),
                                        ("claude", "toolbox"), (None, "toolbox")])
 def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     work, bare = pub_repo
@@ -181,6 +181,35 @@ def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     assert "PUBLISH door" in flat and "does not count lines" in flat
     assert "Nothing was staged, committed or pushed" in flat
     assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+
+
+def test_u1c_heimdall_may_publish_but_the_inherited_claude_id_still_may_not():
+    """The 2026-09-24 amendment (Daniil: "I want heimdall to be able to push to the repo"),
+    and the guard it must not take with it.
+
+    Widening a set is the easy half. The half that bites is that PUBLISHER_SEAT was ALSO the
+    reason the toolbox door was refused outright on the publish leg -- the claude seat never
+    legitimately runs inside that door, so a claude id found there was inherited from a
+    launcher (the 2026-07-21 incident). The first draft of this amendment opened the door to
+    anyone in PUBLISH_SEATS, which silently re-admitted exactly that case. This pin holds both
+    ends: heimdall in, inherited-claude out.
+    """
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("mirror_amend", os.path.join(REPO, "scripts", "mirror.py"))
+    mirror = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mirror)
+    tb = {"AKASHIC_SEAT_DOOR": "toolbox"}
+
+    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, \
+        "heimdall/deepseek must be able to publish -- that is the amendment"
+    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, \
+        "...at its own terminal too"
+
+    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "claude"}, push=True) is not None, \
+        "an inherited claude id inside the toolbox door must STILL be refused (2026-07-21)"
+    for seat in ("kimi", "sol", "unknown-seat", ""):
+        assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": seat}, push=True) is not None, \
+            f"{seat!r} was not authorised to publish and must stay refused"
 
 
 def test_u1b_commit_authorized_seat_commits_dry_run_without_flag(pub_repo):
@@ -219,9 +248,11 @@ def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
         "a claude id inside the toolbox door is inherited from a launcher (2026-07-21) and refused"
     assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "unknown-seat"}, push=False) is not None
 
-    # PUSH leg (push=True): unchanged -- the toolbox door is refused for EVERYONE, and only
-    # claude (outside the door) or Daniel may publish.
-    for seat in ("deepseek", "claude", ""):
+    # PUSH leg (push=True), as amended 2026-09-24: an AUTHORISED runner seat may publish
+    # through the toolbox door; claude inside that door stays refused (inherited id), and so
+    # does any seat outside PUBLISH_SEATS.
+    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "deepseek"}, push=True) is None
+    for seat in ("claude", "kimi", ""):
         assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": seat}, push=True) is not None
     assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "claude"}, push=True) is None
     assert mirror.runner_refusal({}, push=True) is None, "Daniel at his own terminal"
