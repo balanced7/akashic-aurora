@@ -7213,11 +7213,18 @@ def cmd_find(args):
     FAIL-SOFT, not silent: if Everything is not installed, the command says so (it does
     NOT print an empty "no results" -- absence of the tool must never read as absence
     of the file)."""
-    from core.tools.everything import search, format_result
+    from core.tools.everything import search_page, format_result
     query = str(getattr(args, "query", "") or "")
-    res = search(
+    offset = int(getattr(args, "offset", 0) or 0)
+    # NO DEFAULT CAP. limit=None (the argparse default is 0, which search_page reads as
+    # "unlimited") returns every matching path the index holds. A caller that wants a
+    # bounded page asks for one explicitly (--limit 200). An explicit --offset pages a
+    # ranked result; without it, the whole answer comes back.
+    _limit = int(getattr(args, "limit", 0) or 0)
+    res = search_page(
         query,
-        max_results=int(getattr(args, "limit", 200) or 200),
+        limit=None if _limit <= 0 else _limit,
+        offset=offset,
         match_path=bool(getattr(args, "path", False)),
         sort_by_name=not bool(getattr(args, "no_sort", False)),
         timeout=float(getattr(args, "timeout", 15.0) or 15.0),
@@ -8744,7 +8751,8 @@ def build_parser():
     fnd = sub.add_parser("find",
                          help="find a file BY NAME anywhere on the machine (Search Everything / es.exe)")
     fnd.add_argument("query", help="Everything search term -- a bare word matches any filename substring, case-insensitive")
-    fnd.add_argument("--limit", type=int, default=200, help="max results (default 200)")
+    fnd.add_argument("--limit", type=int, default=0, help="max results (default 0 = no cap, return everything)")
+    fnd.add_argument("--offset", type=int, default=0, help="skip this many ranked results before returning (paging past --limit)")
     fnd.add_argument("--path", action="store_true", help="match against the full path, not just the name")
     fnd.add_argument("--no-sort", action="store_true", dest="no_sort", help="skip name sort (default sorts by name)")
     fnd.add_argument("--timeout", type=float, default=15.0, help="seconds before giving up on es.exe (default 15)")
