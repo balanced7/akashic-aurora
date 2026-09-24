@@ -41,8 +41,27 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+
+@pytest.fixture(autouse=True)
+def _never_touch_the_real_ledger(monkeypatch, tmp_path):
+    """EVERY test here gets a throwaway receipts ledger. Autouse on purpose.
+
+    The first draft redirected the ledger inside the one pin I was looking at, and the OTHER pin
+    that performs a real fetch went on appending rows named "test-seat" to
+    state/coord/web_fetch_receipts.jsonl. I caught it only because I re-counted the ledger after
+    "fixing" it -- the instance repaired, the class left open, in the same commit that names that
+    exact failure mode.
+
+    Structural beats vigilant: a future pin added to this file inherits the redirect without its
+    author knowing the hazard exists.
+    """
+    import core.web.door as real_door
+    monkeypatch.setattr(real_door, "RECEIPTS", tmp_path / "web_fetch_receipts.jsonl")
 
 
 def _toolbox(agent_id="test-seat"):
@@ -128,21 +147,29 @@ def test_the_range_survives_the_wrapper(monkeypatch):
     assert "offset=80" in out, "the wrapper said there was more but not how to reach it"
 
 
-def test_the_receipt_names_the_seat_that_fetched():
-    """The ledger's whole purpose. A fetch that receipts as 'unknown' rebuilds the blindness:
+def test_the_receipt_names_the_seat_that_fetched(tmp_path):
+    """The ledger's whole purpose. A fetch that receipts as "unknown" rebuilds the blindness:
     three weeks of receipts showed two seats because the others had no door, and a receipt that
-    cannot name its caller would have hidden the fix as well as the defect."""
-    tb = _toolbox(agent_id="pin-seat")
-    receipts = ROOT / "state" / "coord" / "web_fetch_receipts.jsonl"
-    before = receipts.read_text(encoding="utf-8").count("\n") if receipts.exists() else 0
+    cannot name its caller would have hidden the fix as well as the defect.
 
+    WRITES TO A TEMP LEDGER, and that is not fastidiousness. The first version of this pin
+    appended to state/coord/web_fetch_receipts.jsonl -- the REAL one -- so every run filed
+    synthetic rows from seats called "pin-seat" and "test-seat" into a production audit plane.
+    Seven had accumulated before I noticed, while reading that very ledger as evidence for who
+    could reach the web door. An audit trail that gains fabricated entries on every CI run stops
+    being usable as evidence, which is exactly what it was being used for.
+    """
+    ledger = tmp_path / "web_fetch_receipts.jsonl"   # the autouse fixture already points here
+    tb = _toolbox(agent_id="pin-seat")
     out = tb.web_fetch("https://this-host-does-not-exist.invalid")
     assert "FETCH FAILED" in out
 
-    lines = [l for l in receipts.read_text(encoding="utf-8").splitlines() if l.strip()]
-    assert len(lines) > before, "a failed fetch wrote NO receipt -- the error path is unaudited"
+    assert ledger.exists(), "a failed fetch wrote NO receipt -- the error path is unaudited"
+    lines = [l for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert lines, "receipt file created but empty"
     row = json.loads(lines[-1])
     assert row.get("seat") == "pin-seat", (
         f"the receipt names {row.get('seat')!r}, not the calling seat -- attribution is the "
         f"entire point of this ledger"
     )
+    assert row.get("cache") == "error", "a failed fetch must receipt AS a failure"
