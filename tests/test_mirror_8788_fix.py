@@ -39,6 +39,11 @@ def test_unattended_mirror_is_refused_in_the_real_repo(monkeypatch):
         assert "[exit 2]" in out or "DRY RUN" in out, out
         assert "Nothing was staged, committed or pushed" not in out, out
     # The PUBLISH leg stays refused: --push through the toolbox door as deepseek is exit 3.
+    # Re-pointed to KIMI 2026-09-24: deepseek/heimdall gained the publish leg by operator
+    # amendment, so it is no longer the right seat to prove the publish leg stays shut. The
+    # CLAIM is unchanged -- a seat without publish authority cannot push through this door.
+    box = tbmod.ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
+                        confirm=lambda _p: False, agent_id="kimi")
     out = box.run_command('py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py --push --yes', timeout=60)
     # REFUSED IS THE CLAIM; WHICH LAYER REFUSES IS NOT. This used to require mirror.py's own
     # banner ("PUBLISH door", exit 3), but the IR-4 family gate now refuses --push/--yes
