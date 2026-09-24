@@ -98,6 +98,19 @@ def test_navi_launches_with_her_OWN_runner_not_through_the_daemon():
     assert "--agent kimi" in joined, joined
 
 
+def test_navi_launches_TOOLED_not_a_readonly_bridge():
+    """hand_spawned_runner_narrows_the_door_below_the_acl: kimi's acl.json grant carries
+    read+write+exec (PHASE-2 graduation, path_scope ['*']), but a `!spawn navi` that omits
+    --agentic lands as a one-shot bridge and --agentic alone is still read-only. The
+    launch_flags entry is how a registry seat states its door posture; navi's must carry all
+    three so the capability acl.json grants actually reaches the spawned process."""
+    rec = sl.resolve_seat("navi")
+    argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
+    joined = " ".join(argv).replace("\\", "/")
+    for flag in ("--agentic", "--allow-exec", "--allow-write"):
+        assert flag in joined, f"navi spawned without {flag}: {joined}"
+
+
 def test_heimdall_goes_through_the_daemon_which_owns_its_runner_child():
     rec = sl.resolve_seat("heimdall")
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)

@@ -74,6 +74,16 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         "kind": "runner",
         "url": None,
         "drilled": "",   # safe-when-up only; raising it from the dead is NOT yet drilled
+        # hand_spawned_runner_narrows_the_door_below_the_acl: without --agentic the runner
+        # comes up as a one-shot bridge (read-only, no tools), and --agentic alone is still
+        # read-only -- --allow-exec/--allow-write are separate. kimi's acl.json grant
+        # (security/acl.json) carries read+write+exec since the 2026-07-19 PHASE-2 graduation
+        # ('same admin profile as deepseek', path_scope ["*"], expires_at null), so BOTH flags
+        # are authorized here -- unlike sol's launch_flags, where --allow-write was added only
+        # after Daniil's separate verbatim grant (2026-08-31). SHELL_SEATS (core/comm/
+        # toolbox.py:1408) already includes "kimi" as of commit 8204bf68; this line ensures a
+        # `!spawn navi` also carries the exec/write DOOR, not just the CLI-verb capability.
+        "launch_flags": ["--agentic", "--allow-exec", "--allow-write"],
     },
     "sunshine": {
         "seat": "sol",

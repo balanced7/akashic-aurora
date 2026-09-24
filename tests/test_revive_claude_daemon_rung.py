@@ -130,3 +130,37 @@ def test_deepseek_and_kimi_rungs_are_unchanged(monkeypatch):
     assert planned == ["kimi"], f"only the dead agent is planned, got {planned}"
     kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
     assert "--spawn-runner" in kimi_cmd and "--manage-listener" not in kimi_cmd
+
+
+def test_resurrected_kimi_daemon_carries_its_OWN_runner_script(monkeypatch):
+    """daemon_spawn_runner_hardcodes_deepseek_script: bifrost_daemon.py's
+    --runner-script default is bifrost_runner_deepseek.py, so a resurrected kimi
+    daemon that omitted it would hand Kimi the DEEPSEEK runner under her identity --
+    the cross-seat-script class the kimi runner's own hint already guards against
+    (test_9e1bc7ce78 P1). The necromancer must carry the per-agent script too."""
+    obs = _observe(monkeypatch, _table(
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
+    ))
+    plan = revive.decide(obs, target="daemon")
+    kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
+    assert "--runner-script" in kimi_cmd and "bifrost_runner_kimi.py" in kimi_cmd, (
+        f"a resurrected kimi daemon must name its own runner script, got {kimi_cmd}"
+    )
+
+
+def test_spawn_runner_agent_without_a_script_entry_refuses_to_plan(monkeypatch):
+    """A spawn-runner agent missing from RUNNER_SCRIPT is a defect, not a fallback:
+    planning it silently mis-scripted would resurrect a cross-seat runner."""
+    monkeypatch.setattr(revive, "RUNNER_SCRIPT", {"deepseek": "bifrost_runner_deepseek.py"})
+    obs = _observe(monkeypatch, _table(
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
+        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
+    ))
+    import pytest
+    with pytest.raises(ValueError):
+        revive.decide(obs, target="daemon")
