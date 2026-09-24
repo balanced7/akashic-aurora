@@ -55,6 +55,15 @@ DAEMON_MODE = {"deepseek": "--spawn-runner", "kimi": "--spawn-runner",
 # and count lines derive from THIS, never from DAEMON_AGENTS directly.
 RUNNER_AGENTS = tuple(a for a in DAEMON_AGENTS
                       if DAEMON_MODE.get(a) == "--spawn-runner")
+# the runner SCRIPT each spawn-runner daemon must supervise. bifrost_daemon.py's
+# --runner-script default is bifrost_runner_deepseek.py, so a resurrected daemon that
+# omitted it would spawn a DeepSeek runner under the WRONG seat's identity
+# (daemon_spawn_runner_hardcodes_deepseek_script). The kimi runner's own self-restart
+# path already carries os.path.basename(__file__) for this; the necromancer must do the
+# same per-agent, or raising kimi from the dead re-creates the cross-seat-script bug on
+# the recovery path.
+RUNNER_SCRIPT = {"deepseek": "bifrost_runner_deepseek.py",
+                 "kimi": "bifrost_runner_kimi.py"}
 # `app` is FIRST because it is the deepest layer and the one this ladder was blind to
 # until 2026-08-24: the MSIX package that HOSTS the conductor seat. On that day the
 # ladder began at redis, so a dead Claude Desktop was not merely unhealed -- it was
@@ -274,6 +283,16 @@ def decide(observed: Dict[str, Dict[str, Any]],
                     # work-lane config -- the insta-fire wake-loop class returns.
                     # The SunshineFleet task carries it; the necromancer must too.
                     cmd += ["--runner-consume-lane", "work"]
+                    # carry the CORRECT runner script so a resurrected daemon doesn't
+                    # fall back to bifrost_runner_deepseek.py under another seat's id
+                    # (daemon_spawn_runner_hardcodes_deepseek_script). RUNNER_SCRIPT is
+                    # keyed by agent; a spawn-runner agent without an entry is a defect
+                    # and should fail planning loudly rather than silently mis-script.
+                    if agent not in RUNNER_SCRIPT:
+                        raise ValueError(
+                            f"spawn-runner agent {agent!r} has no RUNNER_SCRIPT entry "
+                            f"-- refusing to plan a cross-seat-script resurrection")
+                    cmd += ["--runner-script", RUNNER_SCRIPT[agent]]
                 plan.append({"organ": "daemon", "cmd": cmd,
                              "kind": "detached-spawn", "agent": agent})
         elif organ == "gateway":
