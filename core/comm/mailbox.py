@@ -672,6 +672,89 @@ def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> D
                     "their transport entry is gone and no body was ever stored"}
 
 
+# ------------------------------------------------------------------ T095 M2: identifier resolution
+
+# The four states an id lookup can honestly be in. There is deliberately no `unknown` member:
+# Navi's ruling, and it is the whole point -- a tri-state with an escape hatch is where absence
+# goes to hide. Every one of these is earned by a lookup that actually ran.
+SHA_STATES = ("exact", "prefix", "ambiguous", "absent")
+
+
+def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
+    """Turn whatever id a reader is HOLDING into the sha the store is KEYED BY, and say which.
+
+    Why this exists, in one line: every id this system prints is a truncation (agent_cli prints
+    sha[:10] in listings and sha[:12] in receipts), and before this function every one of those
+    printed ids was refused by every door that takes one -- with a message that read as "your
+    mail is gone" rather than "your id is short".
+
+    Returns {how, sha, candidates, reason}. `how` is one of SHA_STATES. `sha` is the full,
+    store-keyed identity on exact/prefix and None otherwise -- an ambiguous id MUST NOT resolve
+    to a guess, because silently picking one of several messages is a worse failure than
+    refusing. `reason` carries the sentence a human should read; the states are distinguishable
+    in prose and not only in a dict field, or the reader at the terminal learns nothing.
+
+    Cost: the exact path is ONE key read, unchanged from before. Only a miss pays for the index
+    scan, and that scan reads the capped `z` sorted-set (short strings, bounded by the mailbox
+    cap) rather than SCANning the keyspace.
+    """
+    client = client or _connect()
+    s = str(sha or "").strip().lower()
+    k = _keys(ns, agent)
+
+    if not s:
+        return {"how": "absent", "sha": None, "candidates": [], "matched": 0,
+                "reason": "empty id -- nothing to look up"}
+
+    # Exact first, and it stays the cheap path.
+    if client.hgetall(k["msg"] + s):
+        return {"how": "exact", "sha": s, "candidates": [s], "matched": 1, "reason": ""}
+
+    # A miss might mean "short". Enumerate the index and find out, rather than guessing.
+    try:
+        known = [str(m) for m in (client.zrange(k["z"], 0, -1) or [])]
+    except Exception:
+        known = []
+    hits = [m for m in known if m.startswith(s)]
+
+    if len(hits) == 1:
+        return {"how": "prefix", "sha": hits[0], "candidates": [hits[0]], "matched": 1,
+                "reason": (f"{s} is a {len(s)}-char prefix of {hits[0]} -- resolved, because it "
+                           f"names exactly one entry")}
+    if len(hits) > 1:
+        # `matched` is the TRUE count; `candidates` is a capped SAMPLE of it. Carrying only
+        # the capped list lets a caller print "20 candidates" when 35 matched -- a surface
+        # misreporting its own completeness, which is this very defect one turn deeper.
+        return {"how": "ambiguous", "sha": None, "candidates": sorted(hits)[:20],
+                "matched": len(hits),
+                "reason": (f"{s} names {len(hits)} entries -- give more characters. NOT absent: "
+                           f"the mail is here, the id is too short to pick one")}
+    return {"how": "absent", "sha": None, "candidates": [], "matched": 0,
+            "reason": (f"no entry matches {s}, at any length -- {len(known)} entr(ies) were "
+                       f"checked. This is genuine absence, not a short id")}
+
+
+def _refusal(resolved: Dict[str, Any], asked: str) -> Dict[str, Any]:
+    """The refusal a door hands back when an id does not resolve.
+
+    Carries `how` as well as `reason` on purpose. Prose that distinguishes four states while code
+    can only tell them apart by grepping English reproduces the original defect one level up: a
+    caller branching on `"no mailbox entry" in reason` is coupled to wording, and the next honest
+    rewording silently breaks it. `how` is the state; `reason` is how a human reads it.
+    """
+    return {"ok": False, "how": resolved["how"], "asked": str(asked),
+            "candidates": resolved.get("candidates") or [],
+            "matched": resolved.get("matched", 0), "reason": resolved["reason"]}
+
+
+def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+    """(full_sha, refusal_dict) -- exactly one is None. The shared door preamble."""
+    r = resolve_sha(ns, agent, sha, client=client)
+    if r["sha"]:
+        return r["sha"], None
+    return None, _refusal(r, sha)
+
+
 def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dict[str, Any]:
     """Say SEEN, once, and hand back the full body. Writes exactly one receipt and nothing else.
 
@@ -683,9 +766,17 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dic
     Does NOT advance any cursor. The falsifier for that claim is a pin, not this sentence.
     """
     client = client or _connect()
+    asked = sha
+    sha, refusal = _resolve_or_refuse(ns, agent, sha, client)
+    if refusal:
+        return refusal
     entry = body_of(ns, agent, sha, client=client)
     if entry is None:
-        return {"ok": False, "reason": f"no mailbox entry for sha {sha}"}
+        # Indexed but the entry hash is gone. A FIFTH fact, and not the same as absent: the index
+        # still lists it, so "nothing here" would be a lie about a row we can see.
+        return {"ok": False, "how": "indexed-without-entry", "asked": str(asked), "candidates": [],
+                "reason": f"{sha} is indexed but its entry hash is gone -- "
+                          f"run `mailbox {agent} --rebuild`"}
     k = _keys(ns, agent)
     field = f"{sha}|{incarnation}"
     first = not (client.hgetall(k["seen"]) or {}).get(field)
@@ -723,8 +814,14 @@ def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: s
     if str(intent) == "delegate" and not to:
         return {"ok": False, "reason": "delegate requires `to` -- an unrouted delegation is a drop"}
     client = client or _connect()
+    asked = sha
+    sha, refusal = _resolve_or_refuse(ns, agent, sha, client)
+    if refusal:
+        return refusal
     if body_of(ns, agent, sha, client=client) is None:
-        return {"ok": False, "reason": f"no mailbox entry for sha {sha}"}
+        return {"ok": False, "how": "indexed-without-entry", "asked": str(asked), "candidates": [],
+                "reason": f"{sha} is indexed but its entry hash is gone -- "
+                          f"run `mailbox {agent} --rebuild`"}
     rec = {"intent": str(intent), "by": incarnation, "at": time.time(),
            "note": str(note)[:500], "to": str(to)}
     # Append-only in spirit: a later declaration supersedes rather than erases, and the prior one
@@ -784,7 +881,10 @@ def open_for_message(agent: str, msg: Any, *, incarnation: str, ns: Optional[str
         _ensure_indexed(client, ns, agent, msg, sha)
         opened = open(ns, agent, sha, incarnation=incarnation, client=client)
         if not opened.get("ok"):
-            return {"ok": False, "sha": sha, "identity_basis": basis,
+            # Pass the resolution state THROUGH. Re-deriving a narrower dict here is how the
+            # richer answer got lost before: the door knew which of the four states it was in and
+            # this wrapper kept only the prose, leaving every caller back to grepping English.
+            return {**opened, "sha": sha, "identity_basis": basis,
                     "reason": opened.get("reason", "open failed")}
         return {"ok": True, "sha": sha, "identity_basis": basis,
                 "first_open_by_this_incarnation": opened.get("first_open_by_this_incarnation")}
@@ -1037,9 +1137,25 @@ def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
     absence.
     """
     client = client or _connect()
+    resolved = resolve_sha(ns, agent, sha, client=client)
+    if not resolved["sha"]:
+        # Echo back the id AS GIVEN and say so. The prior version returned the caller's prefix in
+        # the `sha` field of a not-found answer, so a reader taking that field at face value got a
+        # fabricated identity for a message it had just been told did not exist.
+        # SPREAD the resolution rather than picking fields out of it. Naming them one by one is
+        # how `matched` got lost on the way to the terminal, which printed "10 of 20" when 35 had
+        # matched -- and it is the third wrapper in this module to narrow an answer it was handed.
+        # THAT is the recurring defect here, not the truncation: every hop re-derives a subset,
+        # and the reader gets the intersection of everything anyone thought to forward.
+        return {**resolved, "available": True, "found": False, "asked": str(sha)}
+    sha = resolved["sha"]
     entry = body_of(ns, agent, sha, client=client)
     if entry is None:
-        return {"available": True, "found": False, "sha": str(sha)}
+        return {"available": True, "found": False, "sha": None, "asked": str(sha),
+                "how": "indexed-without-entry",
+                "reason": f"{sha} is indexed but its entry hash is gone -- "
+                          f"run `mailbox {agent} --rebuild`",
+                "candidates": []}
     seen = seen_by(ns, agent, sha, client=client)
     raw = (client.hgetall(_keys(ns, agent)["intent"]) or {}).get(str(sha))
     try:

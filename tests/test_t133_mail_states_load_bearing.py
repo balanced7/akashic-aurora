@@ -661,7 +661,16 @@ def test_a_kind_the_mailbox_does_not_carry_is_refused_honestly():
     client = _fake()
     r = mbx.declare_for_message("claude", _Msg(kind="trace", content="tool call"), "act",
                                 incarnation="inc1", ns=NS, client=client)
-    assert r.get("ok") is False and "no mailbox entry" in str(r.get("reason", "")).lower()
+    assert r.get("ok") is False
+    # Assert the STATE, not the wording. This pin used to require the literal string "no mailbox
+    # entry", which coupled it to prose -- and T095 M2 then had to change that prose, because the
+    # one sentence was doing duty for four different facts (absent / prefix / ambiguous / exact)
+    # and a reader could not tell "your mail is gone" from "your id is short". `how` is the
+    # machine-readable state; the pin's actual claim was always that this case is ABSENT.
+    assert r.get("how") == "absent", (
+        f"a trace must be refused as genuinely absent, not as some other resolution state; "
+        f"got how={r.get('how')!r} reason={r.get('reason')!r}"
+    )
 
 
 # ---- non-destruction: the invariant the whole M1 layer is built on ------------------------------
