@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 402619e1. A bound you discover by collision is not awareness -- this sheet
+> Derived at a4fd74a2. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -240,7 +240,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py +1 |
+| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py +1 |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
