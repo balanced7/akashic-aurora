@@ -53,13 +53,20 @@ import json
 import time
 import threading
 import logging
+import contextlib
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
+from core.foundation import filelock
 
 logger = logging.getLogger("ledger")
+
+# How far back emit() reads to find the newest complete record (one chunk covers any sane
+# line), and how far it will scan past torn or foreign lines before a full read instead.
+_TAIL_CHUNK = 64 * 1024
+_TAIL_LIMIT = 4 * 1024 * 1024
 
 # An event as handed to/from callers, paired with its cursor id.
 Event = Tuple[str, Dict[str, Any]]
@@ -176,10 +183,25 @@ class FileLedger(Ledger):
 
     Semantic Relationship: FileLedger located_in File
 
-    Always available, survives restarts, needs no infrastructure. Thread-safe
-    via a reentrant lock; the durable record of every event. Cursor ids are a
-    monotonic per-stream integer (as a string) so they stay comparable even
-    after `maxlen` trimming.
+    Always available, survives restarts, needs no infrastructure; the durable record of
+    every event. Cursor ids are a monotonic per-stream integer (as a string) so they stay
+    comparable even after `maxlen` trimming.
+
+    CROSS-PROCESS (2026-09-24, L0 of the DuckDB synthesis). emit() appends ONE line while
+    holding an OS lock every process shares (core.foundation.filelock, a sidecar
+    `<stream>.jsonl.lock`), and reads only the file's tail to find the next id. It used to
+    read the whole file, rewrite it through one fixed tmp name and os.replace it, guarded by
+    a threading lock no other process could see: two writers read the same state, the later
+    replace won, and the other row vanished -- 410 of 18,170 recall outcomes, 09-10..24.
+    On Windows os.replace also fails while any reader holds the file open, and that failure
+    was swallowed after emit had already chosen an id. Pinned in
+    tests/test_ledger_cross_process.py.
+
+    `maxlen` trimming is amortized: a stream may run maxlen // 10 rows past its cap before
+    one rewrite trims it back to the newest `maxlen` (exact for small caps) -- the "roughly"
+    the Ledger contract always promised. A trim that cannot replace the file because a reader
+    holds it is skipped and retried by a later emit. The row was appended before the trim was
+    attempted, so a failed trim costs disk, never data.
     """
 
     def __init__(self, base_dir: Optional[str] = None):
@@ -214,26 +236,115 @@ class FileLedger(Ledger):
         return records
 
     def emit(self, stream, event, maxlen=None):
-        with self._lock:
-            records = self._read_records(stream)
-            next_seq = (max((int(r["id"]) for r in records), default=0) + 1)
-            record = {"id": str(next_seq), "event": event}
-            records.append(record)
-            if maxlen is not None and len(records) > maxlen:
-                records = records[-maxlen:]
-            self._write_records(stream, records)
-            return record["id"]
-
-    def _write_records(self, stream: str, records: List[Dict[str, Any]]) -> None:
         path = self._stream_path(stream)
-        tmp = path.with_suffix(path.suffix + ".tmp")
+        last_id = 0
+        with self._lock:
+            try:
+                with filelock.exclusive(path):
+                    last_id, torn = self._tail_state(path)
+                    record = {"id": str(last_id + 1), "event": event}
+                    line = json.dumps(record) + "\n"
+                    with open(path, "a", encoding="utf-8") as f:
+                        # A torn last line (power cut mid-write) gets its own line break, so
+                        # it cannot glue itself onto this record; readers skip it as before.
+                        f.write(("\n" + line) if torn else line)
+                    if maxlen is not None:
+                        self._maybe_trim(path, maxlen, last_id + 1)
+                    return record["id"]
+            except Exception as e:
+                # Loud, never raising: emit sits on hot paths in every seat. A lock timeout
+                # (10 s of contention) or a disk error loses this one event WITH a log line;
+                # the returned id is the newest one on disk, so no cursor goes backwards.
+                logger.error(f"FileLedger could not append to {path}: {e}")
+                return str(last_id)
+
+    @staticmethod
+    def _tail_state(path: Path) -> Tuple[int, bool]:
+        """(the id of the newest complete record, whether the file ends mid-line).
+
+        Reads backwards from the end in chunks, skipping torn or foreign lines. Falls back to
+        a full read only if nothing parses within _TAIL_LIMIT bytes.
+        """
+        try:
+            size = path.stat().st_size
+        except FileNotFoundError:
+            return 0, False
+        if size == 0:
+            return 0, False
+        with open(path, "rb") as f:
+            f.seek(size - 1)
+            torn = f.read(1) != b"\n"
+            pos, carry, scanned = size, b"", 0
+            while pos > 0 and scanned < _TAIL_LIMIT:
+                step = min(_TAIL_CHUNK, pos)
+                pos -= step
+                f.seek(pos)
+                pieces = (f.read(step) + carry).split(b"\n")
+                scanned += step
+                # pieces[0] may be the tail of a longer line unless we reached byte 0.
+                carry = pieces[0] if pos > 0 else b""
+                for raw in reversed(pieces if pos == 0 else pieces[1:]):
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    try:
+                        return int(json.loads(raw)["id"]), torn
+                    except (ValueError, KeyError, TypeError):
+                        continue
+        records = FileLedger._parse_file(path)
+        return max((int(r["id"]) for r in records if "id" in r), default=0), torn
+
+    @staticmethod
+    def _head_id(path: Path) -> Optional[int]:
+        """Id of the oldest complete record, from the first lines only; None if unknown."""
+        with contextlib.suppress(OSError):
+            with open(path, "rb") as f:
+                for _ in range(32):
+                    raw = f.readline(_TAIL_CHUNK * 16)
+                    if not raw:
+                        break
+                    with contextlib.suppress(ValueError, KeyError, TypeError):
+                        return int(json.loads(raw.strip())["id"])
+        return None
+
+    def _maybe_trim(self, path: Path, maxlen: int, newest_id: int) -> None:
+        """Trim to the newest `maxlen` once the stream is maxlen // 10 past its cap.
+
+        Runs under the caller's cross-process lock. Ids are contiguous under that lock, so
+        newest - oldest + 1 counts the rows without reading the file.
+        """
+        oldest = self._head_id(path)
+        count = (newest_id - oldest + 1) if oldest is not None else None
+        if count is not None and count <= maxlen + maxlen // 10:
+            return
+        records = self._parse_file(path)
+        if len(records) <= maxlen:
+            return
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         try:
             with open(tmp, "w", encoding="utf-8") as f:
-                for r in records:
+                for r in records[-maxlen:]:
                     f.write(json.dumps(r) + "\n")
             os.replace(tmp, path)
-        except Exception as e:
-            logger.error(f"FileLedger could not persist {path}: {e}")
+        except OSError as e:
+            logger.warning(f"FileLedger trim of {path.name} deferred to a later emit: {e}")
+            with contextlib.suppress(OSError):
+                tmp.unlink()
+
+    @staticmethod
+    def _parse_file(path: Path) -> List[Dict[str, Any]]:
+        records = []
+        with contextlib.suppress(FileNotFoundError):
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        records.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        return records
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):
         with self._lock:
