@@ -215,8 +215,8 @@ def test_underscore_html_pages_are_content_but_underscore_json_files_are_metadat
 
 def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
-    for i in range(3):
-        (corpus / f"d{i}.md").write_text(f"# D{i}\n\n## Gears\n\n" + "gear teeth mesh. " * 50, encoding="utf-8")
+    for i in range(3):   # distinct texts: identical passages are (correctly) returned once
+        (corpus / f"d{i}.md").write_text(f"# D{i}\n\n## Gears\n\n" + f"gear teeth mesh {i}. " * 50, encoding="utf-8")
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("g", corpus)
     res = sh.search("gear teeth", limit=3, max_chars=1300)

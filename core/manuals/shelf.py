@@ -280,7 +280,9 @@ class Shelf:
                    f"FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid "
                    f"WHERE chunks_fts MATCH ?" + (" AND c.shelf = ?" if shelf else "") +
                    " ORDER BY score LIMIT ?")
-            params = [match] + ([shelf] if shelf else []) + [max(1, int(limit))]
+            # Over-fetch so duplicates can be dropped without shortening the answer: sites repeat
+            # passages (One UI's landing page repeats its overview word for word).
+            params = [match] + ([shelf] if shelf else []) + [max(1, int(limit)) * 3]
             try:
                 rows = c.execute(sql, params).fetchall()
             except sqlite3.Error as e:
@@ -291,7 +293,15 @@ class Shelf:
         # the answer stops and says it was capped.
         budget = max(200, int(max_chars))
         used = 0
+        seen = set()
         for s, title, crumb, url, page, text, score in rows:
+            fingerprint = " ".join(text.split()).lower()
+            if fingerprint in seen:
+                continue
+            seen.add(fingerprint)
+            if len(res.hits) >= max(1, int(limit)):
+                res.truncated = True
+                break
             room = budget - used
             if res.hits and room < 200:
                 res.truncated = True
