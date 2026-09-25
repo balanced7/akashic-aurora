@@ -1,0 +1,194 @@
+"""Pins for the manuals shelf (2026-09-24), registered before the build.
+
+WHY. Daniil's Spectrum contact described "feeding manuals and reference pdfs into duckdb" so
+agents read a few relevant passages instead of a whole manual. The dive found no special
+parsing inside DuckDB: its own agent docs are pre-chunked sections (title, section,
+breadcrumb, url, version, text) searched with BM25. The house already has BM25 (SQLite FTS5,
+core/eye). The shelf adds the missing half: turning documents into clean, labelled chunks.
+research/reviewed/duckdb-deep-dive-synthesis-2026-09-24.md; his first manuals are Apple's
+Human Interface Guidelines and Samsung's One UI docs, kept out of this public repo.
+
+Every fixture here is invented text, never a vendor's.
+"""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.manuals import convert, chunk, shelf as shelf_mod  # noqa: E402
+
+
+# ---- conversion ------------------------------------------------------------------
+
+MD = """# Kettle Handbook
+
+Intro line about the kettle.
+
+## Filling
+
+Pour water up to the MAX mark. Never fill above it.
+
+### Cold water only
+
+Hot tap water can carry scale.
+
+## Descaling
+
+Use a vinegar rinse every month.
+"""
+
+
+def test_markdown_sections_carry_breadcrumbs(tmp_path):
+    p = tmp_path / "kettle.md"
+    p.write_text(MD, encoding="utf-8")
+    doc = convert.to_document(p)
+    assert doc.title == "Kettle Handbook"
+    paths = [s.path for s in doc.sections]
+    assert ("Kettle Handbook", "Filling", "Cold water only") in paths
+    cold = next(s for s in doc.sections if s.path[-1] == "Cold water only")
+    assert "scale" in cold.text
+
+
+DOCC = {
+    "metadata": {"title": "Switches", "role": "article"},
+    "abstract": [{"type": "text", "text": "A switch toggles one setting."}],
+    "primaryContentSections": [{"kind": "content", "content": [
+        {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Opening words."}]},
+        {"type": "heading", "level": 2, "text": "Best practices", "anchor": "Best-practices"},
+        {"type": "paragraph", "inlineContent": [
+            {"type": "text", "text": "Label it clearly. See "},
+            {"type": "reference", "identifier": "doc://x/toggles", "isActive": True},
+            {"type": "text", "text": "."}]},
+        {"type": "unorderedList", "items": [
+            {"content": [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Keep labels short."}]}]},
+            {"content": [{"type": "paragraph", "inlineContent": [
+                {"type": "emphasis", "inlineContent": [{"type": "text", "text": "Avoid"}]},
+                {"type": "text", "text": " double negatives."}]}]}]},
+        {"type": "aside", "style": "note", "name": "Note", "content": [
+            {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Switches act at once."}]}]},
+        {"type": "heading", "level": 3, "text": "Sizing", "anchor": "Sizing"},
+        {"type": "table", "header": "row", "rows": [
+            [[{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Platform"}]}],
+             [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Height"}]}]],
+            [[{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Phone"}]}],
+             [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "31 pt"}]}]]]},
+    ]}],
+    "references": {"doc://x/toggles": {"title": "Toggles", "url": "/design/toggles"}},
+}
+
+
+def test_docc_json_becomes_sections(tmp_path):
+    p = tmp_path / "switches.json"
+    p.write_text(json.dumps(DOCC), encoding="utf-8")
+    doc = convert.to_document(p, url="https://example.test/design/switches")
+    assert doc.title == "Switches"
+    best = next(s for s in doc.sections if s.path[-1] == "Best practices")
+    assert "See Toggles." in best.text                       # references resolve to titles
+    assert "- Keep labels short." in best.text               # lists survive as lists
+    assert "Note: Switches act at once." in best.text        # asides keep their label
+    assert best.anchor == "Best-practices"
+    sizing = next(s for s in doc.sections if s.path[-1] == "Sizing")
+    assert sizing.path == ("Switches", "Best practices", "Sizing")
+    assert "Phone" in sizing.text and "31 pt" in sizing.text  # tables keep their cells
+
+
+HTML = """<html><head><title>Lamp Guide | Site</title></head><body>
+<nav>Home Products Support Cookie settings</nav>
+<main><h1>Lamp Guide</h1><p>Welcome.</p>
+<h2>Bulbs</h2><p>Use a warm bulb under 9 watts.</p>
+<h2>Cleaning</h2><p>Unplug before wiping the shade.</p></main>
+<footer>Copyright notice Terms Privacy</footer></body></html>"""
+
+
+def test_html_keeps_the_content_and_drops_the_chrome(tmp_path):
+    p = tmp_path / "lamp.html"
+    p.write_text(HTML, encoding="utf-8")
+    doc = convert.to_document(p)
+    text = "\n".join(s.text for s in doc.sections)
+    assert "warm bulb" in text and "Unplug" in text
+    assert "Cookie settings" not in text and "Privacy" not in text
+    assert ("Lamp Guide", "Bulbs") in [s.path for s in doc.sections]
+
+
+# ---- chunking --------------------------------------------------------------------
+
+def test_chunker_merges_tiny_sections_and_splits_long_ones():
+    Section = convert.Section
+    doc = convert.Document(title="T", url=None, sections=[
+        Section(path=("T", "A"), text="short one."),
+        Section(path=("T", "A", "a1"), text="short two."),
+        Section(path=("T", "B"), text="\n\n".join(f"Paragraph {i} " + "word " * 60 for i in range(12))),
+    ])
+    chunks = chunk.chunk_document(doc, max_chars=1200, min_chars=200)
+    assert all(len(c.text) <= 1200 for c in chunks)
+    long_parts = [c for c in chunks if c.breadcrumb.endswith("B")]
+    assert len(long_parts) >= 2, "a long section must be split at paragraph boundaries"
+    merged = [c for c in chunks if "short one." in c.text]
+    assert len(merged) == 1 and "short two." in merged[0].text, "tiny siblings merge into one chunk"
+
+
+# ---- the shelf -------------------------------------------------------------------
+
+def _make_corpus(root: Path):
+    (root / "kettle.md").write_text(MD, encoding="utf-8")
+    (root / "lamp.html").write_text(HTML, encoding="utf-8")
+    (root / "switches.json").write_text(json.dumps(DOCC), encoding="utf-8")
+
+
+def test_ingest_is_idempotent_and_replaces_changed_documents(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    first = sh.ingest("home", corpus)
+    again = sh.ingest("home", corpus)
+    assert first.docs_added == 3 and again.docs_added == 0 and again.docs_unchanged == 3
+    n = sh.stats()["chunks"]
+    (corpus / "kettle.md").write_text(MD.replace("every month", "every week"), encoding="utf-8")
+    changed = sh.ingest("home", corpus)
+    assert changed.docs_replaced == 1
+    assert sh.stats()["chunks"] == n, "a replaced document must not leave its old chunks behind"
+    hit = sh.search("descaling vinegar", shelf="home").hits[0]
+    assert "every week" in hit.text
+
+
+def test_search_puts_the_answering_section_first(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("home", corpus)
+    res = sh.search("how many watts should the bulb be?")
+    assert res.hits and "Bulbs" in res.hits[0].breadcrumb
+    res = sh.search("what height is a switch on a phone")
+    assert "Sizing" in res.hits[0].breadcrumb
+    assert res.hits[0].url and res.hits[0].url.endswith("#Sizing")
+
+
+def test_questions_with_punctuation_never_break_the_query(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("home", corpus)
+    for q in ['"unbalanced', "AND OR NOT", "near(bulb)", "44x44 pt?", "col:umn*", "' ; drop table chunks; --"]:
+        sh.search(q)                                   # must not raise
+    assert sh.stats()["chunks"] > 0
+
+
+def test_zero_hits_say_what_was_searched(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("home", corpus)
+    res = sh.search("quantum chromodynamics")
+    assert res.hits == []
+    note = res.render()
+    assert "0 of" in note and "chunks" in note, f"a zero must name its denominator: {note}"
+
+
+def test_results_are_capped_by_size(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir()
+    for i in range(20):
+        (corpus / f"doc{i}.md").write_text(f"# Doc {i}\n\n## Widgets\n\n" + "widget " * 300, encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("bulk", corpus)
+    res = sh.search("widget", limit=20, max_chars=3000)
+    assert sum(len(h.text) for h in res.hits) <= 3000
+    assert res.truncated, "a capped answer must say it was capped"
