@@ -173,11 +173,134 @@ def _rank_exact_first(paths, needle):
 
 
 #: es.exe's -sort keys (verified against -h); the named flag surfaces these verbatim.
+#: Each key ALSO accepts a ``-descending`` suffix (es.exe's own inversion, verified live)
+#: so `recent`/`biggest` can mean most-recent / largest FIRST instead of forcing the reader
+#: to scan to the end of a long list -- which is how a "recent first" intent silently became
+#: "recent last" when the descending form was not representable.
 _SORT_KEYS = frozenset({
     "name", "path", "size", "extension", "date-created", "date-modified",
     "date-accessed", "attributes", "filelist-filename", "run-count",
     "date-recently-changed", "date-run",
 })
+
+
+def is_valid_sort_key(sort: str) -> bool:
+    """Whether ``sort`` names a real es.exe -sort key, with optional -descending suffix.
+
+    Kept beside _SORT_KEYS so the frozenset stays the raw verbatim list while this answers
+    the user-facing question ('can I say --sort date-modified-descending?'). Descending is
+    valid for every key es.exe knows, so the check is: strip a trailing '-descending' and
+    the remainder must be a base key (internal dashes optional, matching es.exe's laxness)."""
+    key = str(sort or "").strip().lower()
+    key = key.replace("-", "")
+    for suffix in ("descending", "ascending"):
+        if key.endswith(suffix):
+            key = key[: -len(suffix)]
+    base = {k.replace("-", "") for k in _SORT_KEYS}
+    return key in base
+
+
+#: INTENT PRESETS (Daniil 2026-09-25): a goal vocabulary a non-expert can reach for without
+#: knowing es.exe's -sort keys, plus the deep modes an expert wants one gesture away. Each
+#: value is the flat kwargs ``search_page`` understands; ``resolve_preset`` folds the chosen
+#: one in FIRST so an explicit flag always beats the preset (the preset is a default, not a
+#: lock). ``recent``/``biggest`` map to DESCENDING sorts so the most-relevant hit is FIRST.
+PRESETS = {
+    "recent":   {"sort": "date-modified-descending"},
+    "newest":   {"sort": "date-created-descending"},
+    "oldest":   {"sort": "date-created"},
+    "biggest":  {"sort": "size-descending"},
+    "smallest": {"sort": "size"},
+    # deep modes -- the capabilities the research pass found but a newcomer would never
+    # name (-get-result-count / -get-total-size / journal are es.exe internals, not goals):
+    "folders":  {"dirs_only": True},
+    "files":    {"files_only": True},
+    "recently-changed": {"sort": "date-recently-changed-descending"},
+}
+
+
+def resolve_preset(name: str):
+    """Return the flat kwargs for a preset, or None (caller renders the loud refusal).
+
+    Unknown -> None is deliberate: the CALLER owns the refusal text so the CLI, the MCP
+    twin and the ToolBox can each phrase it for their own reader rather than thrice-baking
+    one prose string into the seam. A preset is a DEFAULT: it must never lock out an
+    explicit flag -- the caller applies explicit kwargs AFTER these."""
+    return PRESETS.get(str(name or "").strip().lower())
+
+
+def _parse_csv_hits(text: str) -> List[Hit]:
+    """Parse es.exe -csv output into Hit records (the same shape _parse_json_hits yields).
+
+    es.exe -csv emits a header row then one row per hit; the path is the ``Filename``
+    column (full path) and the property columns vary with -add-columns. Tolerates BOTH a
+    header row and a headerless projection, and skips the header by column name rather than
+    by position so the parser survives a different -add-columns ordering. Fail-soft:
+    malformed rows are dropped, never a crash.
+    """
+    import csv as _csv
+    import io as _io
+    hits: List[Hit] = []
+    text = (text or "").strip()
+    if not text:
+        return hits
+    reader = _csv.reader(_io.StringIO(text))
+    rows = [r for r in reader if r]
+    if not rows:
+        return hits
+    # Header present when the first row's first cell names the path column case-insensitively.
+    header = None
+    first = [c.strip() for c in rows[0]]
+    if first and first[0].lower() in ("filename", "name", "full path", "path"):
+        header = {c.lower(): i for i, c in enumerate(first)}
+        rows = rows[1:]
+    col = {}
+    for key, idx in (header or {}).items():
+        key2 = key.replace(" ", "_")
+        col[key2] = idx
+    # es.exe's natural column names -> Hit fields.
+    name_of = {
+        "filename": "path", "name": "name",
+        "size": "size", "date_modified": "date_modified", "dm": "date_modified",
+        "date_created": "date_created", "dc": "date_created",
+        "date_accessed": "date_accessed", "da": "date_accessed",
+        "extension": "extension", "ext": "extension",
+        "attributes": "attributes", "attrib": "attributes",
+        "run_count": "run_count",
+    }
+    def field(row, fname):
+        idx = col.get(fname)
+        if idx is not None and idx < len(row):
+            return row[idx].strip()
+        return ""
+    for row in rows:
+        if header is None:
+            # headerless: first cell is the path (bare -csv emits 'filename' first by default)
+            path = row[0].strip()
+            rec = {"filename": path}
+        else:
+            rec = {r: field(row, i) for r, i in col.items()}
+        path = rec.get("filename") or field(row, "filename") or (row[0].strip() if len(row) else "")
+        if not path:
+            continue
+        h = Hit(path=path, name=os.path.basename(path))
+        for hdr, idx in (col or {}).items():
+            hf = name_of.get(hdr)
+            if not hf:
+                continue
+            v = field(row, hdr)
+            if hf == "size" and v.lstrip("-").isdigit():
+                h.size = int(v)
+            elif hf in ("date_modified", "date_created", "date_accessed"):
+                setattr(h, hf, v)
+            elif hf == "extension":
+                h.extension = v
+            elif hf == "attributes":
+                h.attributes = v
+            elif hf == "run_count" and v.lstrip("-").isdigit():
+                h.run_count = int(v)
+        hits.append(h)
+    return hits
 
 
 def _build_query_flags(*, regex=False, case=False, whole_word=False, dirs_only=False,
@@ -402,20 +525,20 @@ def search(query: str, *,
     if match_path:
         argv.append("-match-path")
     if sort:
-        if sort not in _SORT_KEYS:
+        if not is_valid_sort_key(sort):
             return SearchResult(query=query, ok=False,
-                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)})")
+                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)")
         argv.extend(["-sort", sort])
     elif sort_by_name:
         argv.append("-s")
     if columns:
         argv.extend(["-add-columns", ";".join(columns)])
-    if format == "json":
-        argv.append("-json")
+    if format in ("json", "csv"):
+        argv.append("-json" if format == "json" else "-csv")
         argv.extend(["-date-format", "1"])  # ISO-8601 dates, parseable
-        # -json alone emits ONLY `filename`; the metadata surface requires explicit columns.
-        # When the caller asked for json but no columns, request the full metadata set so
-        # the structured result is actually useful (the whole point of the surface).
+        # -json/-csv alone emit ONLY `filename`; the metadata surface requires explicit
+        # columns. When the caller asked for a structured format but no columns, request the
+        # full metadata set so the structured result is actually useful (the whole point).
         if not columns:
             argv.extend(["-add-columns",
                          "size;date-modified;date-created;date-accessed;extension;attributes"])
@@ -448,8 +571,8 @@ def search(query: str, *,
         err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
         return SearchResult(query=query, ok=False, error=err)
 
-    if format == "json":
-        parsed = _parse_json_hits(proc.stdout or "")
+    if format in ("json", "csv"):
+        parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
         base = os.path.basename(str(query or "").strip().lower())
         # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
         parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
@@ -532,16 +655,16 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
     if match_path:
         argv.append("-match-path")
     if sort:
-        if sort not in _SORT_KEYS:
+        if not is_valid_sort_key(sort):
             return SearchResult(query=query, ok=False,
-                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)})")
+                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)")
         argv.extend(["-sort", sort])
     elif sort_by_name:
         argv.append("-s")
     if columns:
         argv.extend(["-add-columns", ";".join(columns)])
-    if format == "json":
-        argv.append("-json")
+    if format in ("json", "csv"):
+        argv.append("-json" if format == "json" else "-csv")
         argv.extend(["-date-format", "1"])
         if not columns:
             argv.extend(["-add-columns",
@@ -565,8 +688,8 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
         err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
         return SearchResult(query=query, ok=False, error=err)
 
-    if format == "json":
-        parsed = _parse_json_hits(proc.stdout or "")
+    if format in ("json", "csv"):
+        parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
         base = os.path.basename(str(query or "").strip().lower())
         parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
         sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
@@ -615,26 +738,52 @@ def format_result(res: SearchResult) -> str:
 
 
 def format_hits(res: SearchResult) -> str:
-    """Human-readable render of the STRUCTURED (full-capability) result.
+    """Human-readable render of the STRUCTURED (full-capability) result -- the rich table.
 
-    One aligned line per Hit: mtime, size, then path — so `find --json` reads as a
-    sortable inventory, not a bare path list. mtime is the inventory combo's fuel:
-    "when was this file last modified" beside "where is it".
+    One aligned line per Hit: a rank marker, mtime, size, then path, so `find` reads as a
+    sortable inventory where the eye lands on the answer. The rank marker is the piece
+    _rank_exact_first already computed and used to discard: the exact-basename match gets a
+    ★ so a reader skimming 200 decoys still sees the ONE hit that is actually named what
+    they asked. mtime is the inventory combo's fuel: "when was this file last modified"
+    beside "where is it" -- recency is the tiebreaker that turns "42 paths" into "open this".
     """
     if not res.ok:
         return f"ERROR: {res.error or 'search unavailable'}"
     if not res.hits:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
 
+    base = os.path.basename(str(res.query or "").strip().lower())
     rows = []
     for h in res.hits:
-        mtime = h.date_modified or "?          "[:10]
+        is_exact = os.path.basename(h.path).lower() == base
+        mark = "★" if is_exact else " "
+        mtime = h.date_modified or ""
         size = "" if h.size is None else f"{h.size:>11}"
-        rows.append(f"{mtime[:19]:<19} {size}  {h.path}")
+        rows.append(f"{mark} {mtime[:19]:<19} {size}  {h.path}")
 
     header = (f"{len(res.hits)} match(es) for {res.query!r}  [engine: {res.engine}, "
-              f"structured; columns: mtime, size]:")
+              f"structured; ★ = exact basename; columns: mtime, size]:")
     return header + "\n" + "\n".join(rows)
+
+
+def format_csv(res: SearchResult) -> str:
+    """The machine-readable CSV projection of a structured result (es.exe's own format,
+    re-serialized so the agent door can hand a caller CSV even when the query ran as json).
+
+    A bare `find --csv` reaches es.exe's native -csv directly; this exists for the path
+    where a caller has a structured SearchResult in hand and wants it flattened to CSV --
+    one row per hit, the exact columns es.exe -add-columns would emit.
+    """
+    import csv as _csv
+    import io as _io
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(["Filename", "Size", "Date Modified", "Date Created", "Date Accessed",
+                "Extension", "Attributes", "Run Count"])
+    for h in res.hits:
+        w.writerow([h.path, h.size or "", h.date_modified, h.date_created,
+                    h.date_accessed, h.extension, h.attributes, h.run_count or ""])
+    return buf.getvalue().rstrip("\r\n")
 
 
 def format_result_json(res: SearchResult) -> str:
