@@ -296,7 +296,17 @@ TOOLS = [
          "limit": {"type": "integer", "description": "max results; omit/0 = no cap (return every match; the default is a full search)"},
          "path": {"type": "boolean", "description": "match full path, not just the name"},
          "no_sort": {"type": "boolean", "description": "skip name sort"},
-         "timeout": {"type": "number", "description": "seconds before giving up (default 15)"}},
+         "timeout": {"type": "number", "description": "seconds before giving up (default 15)"},
+         "sort": {"type": "string", "description": "sort key: name|path|size|extension|date-created|date-modified|date-accessed|attributes|run-count|date-run"},
+         "columns": {"type": "string", "description": "comma-separated property columns, e.g. 'size,date-modified'"},
+         "format": {"type": "string", "enum": ["", "json"], "description": "'json' returns per-hit records (path/mtime/size) instead of bare paths"},
+         "regex": {"type": "boolean", "description": "treat the term as a regular expression"},
+         "case": {"type": "boolean", "description": "match case"},
+         "word": {"type": "boolean", "description": "match whole words"},
+         "dirs": {"type": "boolean", "description": "folders only"},
+         "files": {"type": "boolean", "description": "files only"},
+         "scope": {"type": "string", "description": "restrict search to this directory"},
+         "attrs": {"type": "string", "description": "DIR attribute mask, e.g. R/H/S"}},
         ["query"]),
 ]
 
@@ -593,7 +603,9 @@ class ToolBox:
     def eye_zoom(self, session):
         return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
 
-    def find(self, query, limit=None, offset=0, path=False, no_sort=False, timeout=15.0):
+    def find(self, query, limit=None, offset=0, path=False, no_sort=False, timeout=15.0,
+             sort="", columns="", format="", regex=False, case=False, word=False,
+             dirs=False, files=False, scope="", attrs=""):
         r"""Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a
         bounded-walk fallback when Everything's CLI is absent. This is the ONE read door not
         scoped to the project root: read_file/search_files/list_directory all stop at
@@ -605,7 +617,11 @@ class ToolBox:
         FULL SEARCH BY DEFAULT: ``limit=None``/``0`` means no cap -- return every matching
         path the index holds. A caller that wants a page asks for one explicitly
         (``limit=200``). ``offset`` pages a ranked result only when a ``limit`` is set; with
-        no limit the whole answer comes back."""
+        no limit the whole answer comes back.
+
+        FULL CAPABILITY SURFACE (Daniil 2026-09-25): sort/columns/format/regex/case/word/
+        dirs/files/scope/attrs surface es.exe's metadata + query grammar. ``format='json'``
+        returns per-hit records with mtime/size -- the inventory/provenance join's fuel."""
         args = ["find", str(query)]
         if limit is not None and int(limit or 0) > 0:
             args += ["--limit", str(int(limit))]
@@ -616,6 +632,26 @@ class ToolBox:
         if bool(no_sort):
             args.append("--no-sort")
         args += ["--timeout", str(float(timeout))]
+        if sort:
+            args += ["--sort", str(sort)]
+        if columns:
+            args += ["--columns", str(columns)]
+        if format:
+            args += ["--format", str(format)]
+        if bool(regex):
+            args.append("--regex")
+        if bool(case):
+            args.append("--case")
+        if bool(word):
+            args.append("--word")
+        if bool(dirs):
+            args.append("--dirs")
+        if bool(files):
+            args.append("--files")
+        if scope:
+            args += ["--scope", str(scope)]
+        if attrs:
+            args += ["--attrs", str(attrs)]
         return self._agent_cli(args)
 
     def knowledge_recall(self, query, novelty=False):
@@ -1322,9 +1358,10 @@ class ToolBox:
         """The intent TAG (slice/project) this seat's active work covers `rel`, or "" when none.
         Reads core.coord.intent -- the same declaration surface `declare()`/`covers()` use -- so a
         seat that opens a slice by declaring intent has its file writes automatically tagged as part
-        of that project. `covers()` is the ONE owner of the prefix-match rule; we reuse it rather
-        than re-deriving it (a second matcher drifts). Best-effort and never raises: an intent
-        lookup must never touch the write path."""
+        of that project. The match rule lives in `_intent.scope_matches()`; `covers()` answers "does
+        ANY active intent match" over the set, this answers "WHICH one" per-intent, but both share the
+        one matcher so enforcement and provenance can never disagree. Best-effort and never raises:
+        an intent lookup must never touch the write path."""
         if not self.agent_id:
             return ""
         try:
@@ -1333,13 +1370,8 @@ class ToolBox:
                 scope = it.get("scope") or []
                 if not scope:
                     continue
-                # _intent.covers() prefixes against the whole active set, not per-intent; but the
-                # match rule is identical, so we check each scope string the same way covers() does.
-                p = rel.replace("\\", "/")
-                for s in scope:
-                    s = str(s).replace("\\", "/")
-                    if p == s or p.startswith(s.rstrip("/") + "/") or s in p:
-                        return str(it.get("intent", ""))
+                if any(_intent.scope_matches(s, rel) for s in scope):
+                    return str(it.get("intent", ""))
         except Exception:
             pass
         return ""

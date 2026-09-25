@@ -390,7 +390,10 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 
 @mcp.tool()
 async def find(query: str, limit: int = None, offset: int = 0, path: bool = False,
-               no_sort: bool = False, timeout: float = 15.0) -> str:
+               no_sort: bool = False, timeout: float = 15.0, sort: str = "",
+               columns: str = "", format: str = "", regex: bool = False,
+               case: bool = False, word: bool = False, dirs: bool = False,
+               files: bool = False, scope: str = "", attrs: str = "") -> str:
     """Find a file BY NAME anywhere on the machine via Search Everything (es.exe).
 
     This is the verb that answers "where is this file REALLY" when a file or
@@ -404,9 +407,16 @@ async def find(query: str, limit: int = None, offset: int = 0, path: bool = Fals
     to bound to one page. offset: skip this many ranked results first (paging past a
     limit). path=True matches the full path, not just the name. no_sort=True skips name
     sort. FAIL-SOFT: if Everything is not installed it SAYS so -- it never fakes an empty
-    "no results"."""
+    "no results".
+
+    FULL CAPABILITY SURFACE: sort (see -sort keys), columns ('size,date-modified'),
+    format='json' (structured per-hit path/mtime/size), regex/case/word/dirs/files/scope/
+    attrs (the query grammar). format='json' is the inventory/provenance join's fuel."""
     return await _athread(_run, agent_cli.cmd_find, query=query, limit=limit,
-                          offset=offset, path=path, no_sort=no_sort, timeout=timeout)
+                          offset=offset, path=path, no_sort=no_sort, timeout=timeout,
+                          sort=sort, columns=columns, format=format, regex=regex,
+                          case=case, word=word, dirs=dirs, files=files, scope=scope,
+                          attrs=attrs)
 
 
 @mcp.tool()
