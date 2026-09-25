@@ -39,7 +39,7 @@ from core.manuals import convert
 SCHEMA_VERSION = "manuals.shelf/1"
 # Folded into every document's fingerprint: bump it when conversion or chunking changes, and
 # the next ingest re-cuts every document instead of trusting passages cut by older code.
-PIPELINE_VERSION = "2026-09-24.2"
+PIPELINE_VERSION = "2026-09-24.3"
 BM25_WEIGHTS = (4.0, 2.0, 1.0)                # title, breadcrumb, text
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RRF_K = 60                                    # reciprocal rank fusion constant (the usual 60)
