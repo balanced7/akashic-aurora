@@ -191,11 +191,15 @@ def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
 def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
     refs = data.get("references") or {}
     title = (data.get("metadata") or {}).get("title") or "Untitled"
-    if url is None:
-        ident = (data.get("identifier") or {}).get("url") or ""
-        m = re.match(r"doc://[^/]+(/.*)", ident)
-        if m:
-            url = "https://developer.apple.com" + m.group(1)
+    # The page's own identifier names its human page, and it beats any url handed in: a
+    # crawler's manifest records the DATA url (.../tutorials/data/.../x.json), which is what
+    # made every Apple passage link to raw JSON in the first blind eval (2026-09-24).
+    ident = (data.get("identifier") or {}).get("url") or ""
+    m = re.match(r"doc://[^/]+(/.*)", ident)
+    if m:
+        url = "https://developer.apple.com" + m.group(1)
+    elif url and "/tutorials/data/" in url and url.endswith(".json"):
+        url = url.replace("/tutorials/data/", "/")[: -len(".json")]
     # The logical place of the page (e.g. Human Interface Guidelines > Components > Menus and
     # actions) comes from hierarchy.paths, resolved through the page's own references. Only
     # ancestors inside the page's own documentation bundle are kept; the catalogue root above
