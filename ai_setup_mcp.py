@@ -239,6 +239,10 @@ _ARG_DEFAULTS = dict(
     # args.path / args.no_sort / args.timeout -- query/limit/path are already
     # covered above; these two are the new reads.
     no_sort=False, timeout=15.0,
+    # find ergonomic surface (2026-09-25): cmd_find reads args.preset (intent goals)
+    # + args.bare (force the bare path list). Both must live here or the MCP twin
+    # raises AttributeError while the CLI works -- the C7-1 shape, already pinned.
+    preset="", bare=False,
     # manual (the manuals shelf, 2026-09-24): cmd_manual reads these five on top of the
     # shared query/limit/json.
     # mode stays None here: cmd_nudge also reads args.mode (default "interrupt"), so a shared
@@ -391,9 +395,10 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 @mcp.tool()
 async def find(query: str, limit: int = None, offset: int = 0, path: bool = False,
                no_sort: bool = False, timeout: float = 15.0, sort: str = "",
-               columns: str = "", format: str = "", regex: bool = False,
+               columns: str = "", format: str = "json", regex: bool = False,
                case: bool = False, word: bool = False, dirs: bool = False,
-               files: bool = False, scope: str = "", attrs: str = "") -> str:
+               files: bool = False, scope: str = "", attrs: str = "",
+               preset: str = "", bare: bool = False) -> str:
     """Find a file BY NAME anywhere on the machine via Search Everything (es.exe).
 
     This is the verb that answers "where is this file REALLY" when a file or
@@ -402,6 +407,13 @@ async def find(query: str, limit: int = None, offset: int = 0, path: bool = Fals
     paths in milliseconds. Use it when read_file/search_files come up empty (that
     null is a SCOPE limitation, not proof the file is absent).
 
+    FIELDS, NOT PROSE (the default): returns STRUCTURED JSON (per-hit path/size/mtime/
+    ctime/atime/extension/attributes) because the agent wants data to route to the next
+    tool call, not a rendered table. Pass format='csv' for CSV, format='' for the bare
+    path list. preset='recent'|'newest'|'oldest'|'biggest'|'smallest'|'folders'|'files'
+    |'recently-changed' reaches an intent goal without es.exe grammar (a DEFAULT, not a
+    lock -- an explicit flag still wins). bare=True opts into the rich human table.
+
     query: a bare word matches any filename substring, case-insensitive.
     limit: max results; None or 0 = NO CAP (return every matching path). Pass a number
     to bound to one page. offset: skip this many ranked results first (paging past a
@@ -409,14 +421,13 @@ async def find(query: str, limit: int = None, offset: int = 0, path: bool = Fals
     sort. FAIL-SOFT: if Everything is not installed it SAYS so -- it never fakes an empty
     "no results".
 
-    FULL CAPABILITY SURFACE: sort (see -sort keys), columns ('size,date-modified'),
-    format='json' (structured per-hit path/mtime/size), regex/case/word/dirs/files/scope/
-    attrs (the query grammar). format='json' is the inventory/provenance join's fuel."""
+    FULL CAPABILITY SURFACE: sort (see -sort keys, '-descending' ok), columns
+    ('size,date-modified'), regex/case/word/dirs/files/scope/attrs (the query grammar)."""
     return await _athread(_run, agent_cli.cmd_find, query=query, limit=limit,
                           offset=offset, path=path, no_sort=no_sort, timeout=timeout,
                           sort=sort, columns=columns, format=format, regex=regex,
                           case=case, word=word, dirs=dirs, files=files, scope=scope,
-                          attrs=attrs)
+                          attrs=attrs, preset=preset, bare=bare)
 
 
 @mcp.tool()

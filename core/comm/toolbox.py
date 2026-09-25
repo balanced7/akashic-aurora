@@ -604,8 +604,8 @@ class ToolBox:
         return self._agent_cli(["eye", "zoom", str(session)]) + self._eye_disclose("zoom", session)
 
     def find(self, query, limit=None, offset=0, path=False, no_sort=False, timeout=15.0,
-             sort="", columns="", format="", regex=False, case=False, word=False,
-             dirs=False, files=False, scope="", attrs=""):
+             sort="", columns="", format="json", regex=False, case=False, word=False,
+             dirs=False, files=False, scope="", attrs="", preset="", bare=False):
         r"""Find a file BY NAME anywhere on the machine (Search Everything / es.exe), with a
         bounded-walk fallback when Everything's CLI is absent. This is the ONE read door not
         scoped to the project root: read_file/search_files/list_directory all stop at
@@ -614,14 +614,20 @@ class ToolBox:
         answered ([engine: everything index] vs [engine: walk]) and a bounded miss says so
         loudly rather than printing a bare zero -- an unsearched space is not an empty one.
 
-        FULL SEARCH BY DEFAULT: ``limit=None``/``0`` means no cap -- return every matching
-        path the index holds. A caller that wants a page asks for one explicitly
-        (``limit=200``). ``offset`` pages a ranked result only when a ``limit`` is set; with
-        no limit the whole answer comes back.
+        FIELDS, NOT PROSE (agents like fields): this method DEFAULTs to ``format='json'`` --
+        the structured result (every hit's path/mtime/size/extension/attributes as fields)
+        -- because the agent door wants data it can route to the next tool call, not a
+        rendered table to eyeball. Pass ``format=''`` for the bare path list or ``bare=True``
+        for the rich human table.
 
-        FULL CAPABILITY SURFACE (Daniil 2026-09-25): sort/columns/format/regex/case/word/
-        dirs/files/scope/attrs surface es.exe's metadata + query grammar. ``format='json'``
-        returns per-hit records with mtime/size -- the inventory/provenance join's fuel."""
+        PRESETS (goal vocabulary, not es.exe grammar): ``preset='recent'`` -> newest-modified
+        first; 'newest'/'oldest' by date-created; 'biggest'/'smallest' by size; 'folders'/
+        'files' type filters; 'recently-changed'. A preset is a DEFAULT, never a lock -- an
+        explicit sort/format/dis flag still wins.
+
+        FULL CAPABILITY SURFACE: sort/columns/format/regex/case/word/dirs/files/scope/attrs
+        surface es.exe's metadata + query grammar. ``format='json'``/'csv' return per-hit
+        records with mtime/size -- the inventory/provenance join's fuel."""
         args = ["find", str(query)]
         if limit is not None and int(limit or 0) > 0:
             args += ["--limit", str(int(limit))]
@@ -636,6 +642,10 @@ class ToolBox:
             args += ["--sort", str(sort)]
         if columns:
             args += ["--columns", str(columns)]
+        if preset:
+            args += ["--preset", str(preset)]
+        if bare:
+            args.append("--bare")
         if format:
             args += ["--format", str(format)]
         if bool(regex):

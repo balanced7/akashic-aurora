@@ -7214,21 +7214,35 @@ def cmd_find(args):
     NOT print an empty "no results" -- absence of the tool must never read as absence
     of the file).
 
-    FULL CAPABILITY SURFACE (Daniil 2026-09-25): the flags below surface es.exe 1.1.0.38's
-    metadata + query grammar. --sort/--columns/--json expose per-hit fields (size, mtime,
-    ctime, atime, extension, attributes); --regex/--word/--case/--dirs/--files/--scope/
-    --attrs surface the search grammar; --json returns structured hits that feed the
-    inventory/provenance join (mtime ↔ file_edit events)."""
-    from core.tools.everything import search_page, format_result, format_hits, format_result_json
+    ERGONOMIC SURFACE (Daniil 2026-09-25): a goal vocabulary, not es.exe's flag grammar.
+    --preset/--recent/--biggest/--oldest/--smallest/@-shortcuts reach intent goals; the
+    DEFAULT render is the rich structured table (★ rank marker + mtime + size) so the
+    most-recent / exact-basename answer is visible, not buried under decoys. --json emits
+    the machine-readable fields (the agent door's default); --csv flattens to CSV; --bare
+    returns the plain path list. The full grammar (--sort/--regex/--dirs/--scope/...) stays
+    as the expert escape hatch."""
+    from core.tools.everything import (
+        search_page, format_result, format_hits, format_result_json, format_csv,
+        resolve_preset, PRESETS,
+    )
     query = str(getattr(args, "query", "") or "")
     offset = int(getattr(args, "offset", 0) or 0)
-    # NO DEFAULT CAP. limit=None (the argparse default is 0, which search_page reads as
-    # "unlimited") returns every matching path the index holds. A caller that wants a
-    # bounded page asks for one explicitly (--limit 200). An explicit --offset pages a
-    # ranked result; without it, the whole answer comes back.
     _limit = int(getattr(args, "limit", 0) or 0)
     _format = str(getattr(args, "format", "") or "")
     _columns = getattr(args, "columns", None) or None
+
+    # PRESET FOLD-IN (preset is a DEFAULT, never a lock): resolve the named intent goal to
+    # flat kwargs FIRST so every explicit flag below still wins. An unknown preset is a
+    # loud refusal (names itself + the valid set), never a silent bare-substring fallthrough.
+    preset = str(getattr(args, "preset", "") or "").strip().lower()
+    preset_kwargs = {}
+    if preset:
+        resolved = resolve_preset(preset)
+        if resolved is None:
+            print(f"ERROR: unknown preset {preset!r} -- allowed: {', '.join(sorted(PRESETS))}")
+            return 2
+        preset_kwargs = dict(resolved)
+
     res = search_page(
         query,
         limit=None if _limit <= 0 else _limit,
@@ -7236,21 +7250,26 @@ def cmd_find(args):
         match_path=bool(getattr(args, "path", False)),
         sort_by_name=not bool(getattr(args, "no_sort", False)),
         timeout=float(getattr(args, "timeout", 15.0) or 15.0),
-        sort=str(getattr(args, "sort", "") or ""),
+        sort=str(getattr(args, "sort", "") or "") or preset_kwargs.get("sort", ""),
         columns=_columns.split(",") if isinstance(_columns, str) and _columns else None,
         format=_format,
         regex=bool(getattr(args, "regex", False)),
         case=bool(getattr(args, "case", False)),
         whole_word=bool(getattr(args, "word", False)),
-        dirs_only=bool(getattr(args, "dirs", False)),
-        files_only=bool(getattr(args, "files", False)),
+        dirs_only=bool(getattr(args, "dirs", False)) or preset_kwargs.get("dirs_only", False),
+        files_only=bool(getattr(args, "files", False)) or preset_kwargs.get("files_only", False),
         scope=getattr(args, "scope", None) or None,
         attributes=getattr(args, "attrs", None) or None,
     )
+
+    # THE DEFAULT IS FIELDS. When the result carries structured hits (which the agent door
+    # and --json/--csv request), the human render is the rich table; --bare force-opts into
+    # the plain path list. --json/--csv are the machine forms.
     if _format == "json":
         print(format_result_json(res))
-    elif _format == "jsonl" or res.hits:
-        # structured hits present -> show the aligned inventory render (mtime + size)
+    elif _format == "csv":
+        print(format_csv(res))
+    elif res.hits and not bool(getattr(args, "bare", False)):
         print(format_hits(res))
     else:
         print(format_result(res))
@@ -8833,11 +8852,13 @@ def build_parser():
     fnd.add_argument("--no-sort", action="store_true", dest="no_sort", help="skip name sort (default sorts by name)")
     fnd.add_argument("--timeout", type=float, default=15.0, help="seconds before giving up on es.exe (default 15)")
     # FULL CAPABILITY SURFACE (Daniil 2026-09-25) -- metadata + query grammar:
-    fnd.add_argument("--sort", default="", help="sort key: name|path|size|extension|date-created|date-modified|date-accessed|attributes|run-count|date-run")
+    fnd.add_argument("--sort", default="", help="sort key: name|path|size|extension|date-created|date-modified|date-accessed|attributes|run-count|date-run (add -descending, e.g. size-descending)")
     fnd.add_argument("--columns", default="", help="comma-separated property columns, e.g. 'size,date-modified' (-> es -add-columns)")
-    fnd.add_argument("--format", default="", choices=["", "json"], help="structured output: 'json' returns per-hit mtime/size/path records")
+    fnd.add_argument("--format", default="", choices=["", "json", "csv"], help="machine output: 'json' fields / 'csv' rows (default: rich table)")
+    fnd.add_argument("--preset", default="", help="intent goal: recent|newest|oldest|biggest|smallest|folders|files|recently-changed")
+    fnd.add_argument("--bare", action="store_true", help="force the bare path list (skip the rich mtime/size/rank table)")
     fnd.add_argument("--regex", action="store_true", help="treat the term as a regular expression (-r)")
-    fnd.add_argument("--case", action="store_true", help="match case (-i)")
+    fnd.add_argument("--case", action="store_true", help="match case (-i; NOTE: es.exe -i means case-SENSITIVE)")
     fnd.add_argument("--word", action="store_true", help="match whole words (-w)")
     fnd.add_argument("--dirs", action="store_true", help="folders only (/ad)")
     fnd.add_argument("--files", action="store_true", help="files only (/a-d)")
