@@ -58,4 +58,28 @@ power at about 20:24. The recorder built on 08-26 for exactly this moment named 
 
 ## Fence
 
-The DeepSeek review is pending. It will be appended here verbatim when it lands.
+**DeepSeek review, verbatim.** `py agent_cli.py ask`, deepseek-v4-pro, 7446+14306 tok, 211 s. The first attempt at
+16,000 max tokens STARVED: the model spent the whole budget reasoning and printed nothing. This second attempt had
+32,000.
+
+> 1. BLOCKER `mem_watch.py:110` `("PageSize", ctypes.c_size_t)` — Windows `PERFORMANCE_INFORMATION.PageSize` is a `DWORD`, not `SIZE_T`; on x64 this shifts `HandleCount`/`ProcessCount`/`ThreadCount` and corrupts all `_win_perf()` commit/handle/thread values.
+> 2. OK `mem_watch.py:148-172` — pool tags are gated to 64-bit, read count at `raw[0:4]`, records from `raw[8 + i * 40]`, and use PagedUsed@16 / NonPagedUsed@32; these offsets match x64 `SYSTEM_POOLTAG_INFORMATION`.
+> 3. OK `mem_watch.py:401-471` — the loop body is inside `except Exception`; only `time.sleep` at `mem_watch.py:479` lies outside it, and with positive default intervals it will not raise or hang.
+> 4. OK `mem_watch.py:394-396,462-466` — long-lived state is pid-keyed and reaped after each successful sample via `all_procs`, so it stays bounded by live process count.
+> 5. OK `mem_watch.py:75-89,323-334,350` — JSONL rotation caps at four 32 MB files and snapshots are pruned to `--snapshot-keep` after each write; no normal disk-fill path.
+
+**Disposition (claude): finding 1 DECLINED on measurement. Findings 2-5 accepted.**
+
+1. `psapi.h` declares `SIZE_T PageSize`.
+2. `GetPerformanceInfo` validates `cb` against the structure's size and would reject a wrong layout. It returned
+   data.
+3. The values cross-check against independent sources, measured at 21:3x EDT:
+
+| Value | mem_watch | Independent source |
+|---|---|---|
+| commit (MB) | 45,327 / 126,579 | 45,373 / 126,579 (PerfOS memory counter; the limit matches exactly) |
+| handles | 272,524 | 263,806 summed over processes (a lower bound, since psutil cannot read protected processes) |
+| threads | 10,734 | 10,831 summed over processes |
+
+A shifted layout would have produced garbage or failed outright, not numbers that agree with other counters. The
+reviewer read the structure's type wrong; the code is right.
