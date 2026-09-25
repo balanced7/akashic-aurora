@@ -7249,15 +7249,17 @@ def cmd_manual(args):
     from core.manuals.shelf import Shelf
     cmd = str(getattr(args, "manual_cmd", "") or "")
     words = [str(w) for w in (getattr(args, "words", None) or [])]
-    shelf = Shelf()
+    shelf = Shelf(embedder="default")         # the cached MiniLM, loaded only if ingest/hybrid needs it
     if cmd == "search":
         question = " ".join(words).strip() or str(getattr(args, "query", "") or "").strip()
         if not question:
-            print("usage: py agent_cli.py manual search <question> [--shelf NAME] [--limit N] [--max-chars N]")
+            print("usage: py agent_cli.py manual search <question> [--shelf NAME] [--mode bm25|hybrid] "
+                  "[--limit N] [--max-chars N]")
             return 2
         res = shelf.search(question, shelf=(getattr(args, "shelf", "") or None),
                            limit=int(getattr(args, "limit", 8) or 8),
-                           max_chars=int(getattr(args, "max_chars", 6000) or 6000))
+                           max_chars=int(getattr(args, "max_chars", 6000) or 6000),
+                           mode=str(getattr(args, "mode", "bm25") or "bm25"))
         print(res.to_json() if getattr(args, "json", False) else res.render())
         return 1 if res.error else 0
     if cmd == "ingest":
@@ -8819,6 +8821,8 @@ def build_parser():
     man.add_argument("--max-chars", type=int, default=6000, dest="max_chars",
                      help="cap on the total passage text returned (default 6000)")
     man.add_argument("--selector", default="", help="ingest: CSS selector of the HTML content container")
+    man.add_argument("--mode", default="bm25", choices=["bm25", "hybrid"],
+                     help="search: bm25 (keywords) or hybrid (keywords + meaning, via the cached MiniLM)")
     man.add_argument("--json", action="store_true")
     man.set_defaults(fn=cmd_manual)
 
