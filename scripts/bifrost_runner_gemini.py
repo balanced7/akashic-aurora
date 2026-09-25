@@ -642,7 +642,7 @@ def main() -> int:
     args = build_parser().parse_args()
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
-    from core.comm.runner_lib import set_seat_agent
+    from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
     set_seat_agent(args.agent)
     if args.summary_file is None:
         args.summary_file = default_summary_path(args.agent)
@@ -755,6 +755,10 @@ def main() -> int:
     rate = control.RateLimiter()
 
     stop_hb = threading.Event()
+    # 8c881ab628: the seat id is derived ONCE (core/comm/runner_lib.seat_session_id) and
+    # shared by the beat below and the retraction in `finally` -- the card a clean exit
+    # retracts must be the card it wrote.
+    seat_sid = seat_session_id(args.agent, getattr(args, "session", None))
 
     def _heartbeat():
         beats = 0
@@ -768,15 +772,14 @@ def main() -> int:
                 # BARE one. Without this beat a live runner renders DEAD and reaper._provably_dead()
                 # agrees -- and roster.py:9 calls the roster "the reaper's only sensor".
                 roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent,
-                                 getattr(args, "session", None)
-                                 or os.environ.get("BIFROST_INCARNATION")
-                                 or f"{os.getpid()}-{args.agent}", phase="running")
+                                 seat_sid, phase="running")
                 if beats % 120 == 0:                       # ~10 min: balance reconciliation
                     METER.reconcile()
             except Exception:
                 pass
 
-    threading.Thread(target=_heartbeat, daemon=True).start()
+    hb_thread = threading.Thread(target=_heartbeat, daemon=True)
+    hb_thread.start()
 
     # ---- OUT-OF-BAND CONTROL (2026-07-26) ---------------------------------------------
     # Born from this runner wedging for 12+ hours: up, heartbeating, and UNCOMMANDABLE,
@@ -812,6 +815,10 @@ def main() -> int:
         # redelivers whatever was in flight and the daemon relaunches us.
         reason = arg or "control stand-down"
         print(f"[gemini-runner] STAND-DOWN via control channel: {reason}", flush=True)
+        # 8c881ab628: a commanded exit is a planned one -- retract the phase card before the
+        # hard exit, or it pages HARD WEDGE for 180s. Short join: the beat thread is NOT the
+        # wedged thread, and a beat that lands late re-creates a FRESH card that expires.
+        retire_seat(args.agent, seat_sid, stop_hb=stop_hb, hb_thread=hb_thread, hb_join_s=1.0)
         threading.Timer(0.25, lambda: os._exit(0)).start()   # let the reply flush first
         return f"standing down: {reason}"
 
@@ -928,7 +935,10 @@ def main() -> int:
     except (KeyboardInterrupt, EOFError):
         pass
     finally:
-        stop_hb.set()
+        # 8c881ab628: a CLEAN exit retracts its own phase card -- stop + JOIN the beat
+        # thread, then roster.go_offline (see core/comm/runner_lib.retire_seat). Without
+        # it the 'running' card outlives the process for 180s and pages HARD WEDGE.
+        retire_seat(args.agent, seat_sid, stop_hb=stop_hb, hb_thread=hb_thread)
         runner_lock.release(args.agent, lock_token)
         _write_exit_summary(args.summary_file, exit_code, session=session_n)
 

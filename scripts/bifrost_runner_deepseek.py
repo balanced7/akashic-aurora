@@ -1209,7 +1209,7 @@ def main() -> int:
     args = ap.parse_args()
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
-    from core.comm.runner_lib import set_seat_agent
+    from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
     set_seat_agent(args.agent)
 
     if not load_key():
@@ -1409,6 +1409,10 @@ def main() -> int:
     # work loop. Without this, a long reply (the loop is blocked inside responder()) would let presence
     # expire -- the agent vanishes from the roster though it's alive -- and even let the lock TTL lapse.
     stop_hb = threading.Event()
+    # 8c881ab628: the seat id is derived ONCE (core/comm/runner_lib.seat_session_id) and
+    # shared by the beat below and the retraction in `finally` -- the card a clean exit
+    # retracts must be the card it wrote.
+    seat_sid = seat_session_id(args.agent, getattr(args, "session", None))
 
     def _heartbeat():
         while not stop_hb.wait(5):
@@ -1420,12 +1424,11 @@ def main() -> int:
                 # BARE one. Without this beat a live runner renders DEAD and reaper._provably_dead()
                 # agrees -- and roster.py:9 calls the roster "the reaper's only sensor".
                 roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent,
-                                 getattr(args, "session", None)
-                                 or os.environ.get("BIFROST_INCARNATION")
-                                 or f"{os.getpid()}-{args.agent}", phase="running")
+                                 seat_sid, phase="running")
             except Exception:
                 pass
-    threading.Thread(target=_heartbeat, daemon=True).start()
+    hb_thread = threading.Thread(target=_heartbeat, daemon=True)
+    hb_thread.start()
     # T045 stage 2: the consume side rides the WORK LANE when flipped (per-process strangler
     # env gate BIFROST_CONSUME_LANE=work; unset = legacy path byte-identical).
     from core.comm.bifrost_api import BifrostAPI
@@ -1674,7 +1677,12 @@ def main() -> int:
     except (KeyboardInterrupt, EOFError):
         pass
     finally:
-        stop_hb.set()                                 # stop the heartbeat thread
+        # 8c881ab628: a CLEAN exit retracts its own phase card. Stops the heartbeat thread
+        # and JOINS it first (an in-flight beat after the delete would resurrect the card),
+        # then roster.go_offline deletes {ns}:worklive:{agent}#{sid8} and stamps the
+        # seatseen witness offline -- the roster renders OFFLINE (declared), and the doctor
+        # has no 'running' card left to page HARD WEDGE on for the next 180s.
+        retire_seat(args.agent, seat_sid, stop_hb=stop_hb, hb_thread=hb_thread)
         runner_lock.release(args.agent, lock_token)   # free the singleton lock for a clean successor
     # M1-delta: write exit summary for the daemon's summary-injection path
     _write_exit_summary(getattr(args, "summary_file", None), exit_code=0, verdict="ok")

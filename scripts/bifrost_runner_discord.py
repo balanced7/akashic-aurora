@@ -689,14 +689,20 @@ def main(argv=None) -> int:
 
         threading.Thread(target=_watch, name=f"spawn-watch-{pid}", daemon=True).start()
 
+    # 8c881ab628: the seat id is derived ONCE (core/comm/runner_lib.seat_session_id) and
+    # shared by the pulse and the retraction on exit; the pulse stops on an Event so the
+    # exit path can JOIN it before deleting the card it writes. This closes REJECT defect
+    # (3): the OLD code computed _inc INSIDE _pulse, so the card the retraction deleted and
+    # the card the pulse beat could diverge (two different key planes).
+    from core.comm.runner_lib import seat_session_id, retire_seat
+    _inc = seat_session_id(GATEWAY_AGENT_ID)
+    stop_pulse = threading.Event()
+
     def _pulse():
         """Keep the liveness record fresh so ABSENCE is detectable. A daemon thread: it must
         never be the reason the gateway outlives its usefulness."""
         from core.comm import roster
-        _inc = (os.environ.get("BIFROST_INCARNATION")
-                or f"{os.getpid()}-discord")
-        while True:
-            time.sleep(HEARTBEAT_S)
+        while not stop_pulse.wait(HEARTBEAT_S):
             beat(wl)
             # dc6200d491: refresh the singleton lock on the same tick as the worklive
             # beat -- a twin that raced in and lost acquire() must keep losing for as
@@ -710,11 +716,12 @@ def main(argv=None) -> int:
             # the reaper's only sensor (same defect, same fix as the kimi runner).
             try:
                 roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"),
-                                 "discord", _inc, phase="running")
+                                 GATEWAY_AGENT_ID, _inc, phase="running")
             except Exception:
                 pass                    # the beat must never kill the beater
 
-    threading.Thread(target=_pulse, name="discord-gateway-beat", daemon=True).start()
+    pulse_thread = threading.Thread(target=_pulse, name="discord-gateway-beat", daemon=True)
+    pulse_thread.start()
 
     intents = discord.Intents.none()
     intents.guilds = True
@@ -825,6 +832,35 @@ def main(argv=None) -> int:
     # posts them to the guest's own channel, attributed, never steering (control
     # kinds are refused in the tracker itself). In-process state: a gateway restart
     # drops in-flight tracking -- the same residual the ladder confesses.
+
+    # 2026-09-23: the drop is now VISIBLE. A reply whose link resolves to no tracked
+    # guest used to die on a bare `continue` with zero receipt -- Vandor could not
+    # tell "posted fine" from "swallowed silently", and Daniil read the silence as
+    # neglect. _drop_loud journals the drop once per reply id (stderr + durable
+    # event), so "zero errors anywhere" can only mean zero errors again. Visibility
+    # is not delivery: the next slice must also RE-HOME tracked ids across a gateway
+    # restart (the _tracked map is in-process only), or a post-restart reply still
+    # drops -- loud, finally, but still dropped.
+    def _drop_loud(drop: dict):
+        try:
+            print(f"[discord-in] guest reply DROPPED ({drop.get('reason', '?')}) "
+                  f"frm={drop.get('frm')} reply_to={drop.get('reply_to') or '(none)'} "
+                  f"kind={drop.get('kind')}", flush=True)
+        except Exception:                                     # noqa: BLE001
+            pass
+        try:
+            from core.events.event_log import capture_event
+            capture_event("discord_guest_reply_dropped",
+                          f"guest reply from {drop.get('frm')} dropped "
+                          f"({drop.get('reason')})",
+                          agent_id="discord", refs=[str(drop.get('id') or "")],
+                          detail={"reason": drop.get("reason"), "frm": drop.get("frm"),
+                                  "reply_to": drop.get("reply_to"),
+                                  "kind": drop.get("kind"),
+                                  "text": str(drop.get("text") or "")[:200]})
+        except Exception:                                     # noqa: BLE001
+            pass
+
     async def _guest_reply_loop():
         from core.comm.discord_guest_reply import GuestReplyTracker
         from core.comm.bus import Bus as _Bus
@@ -866,7 +902,7 @@ def main(argv=None) -> int:
                 batch.append({"id": sid, "frm": str(getattr(msg, "frm", "") or f.get("frm", "")),
                               "kind": str(f.get("kind") or ""), "meta": meta,
                               "text": str(text)})
-            for op in tracker.poll(batch):
+            for op in tracker.poll(batch, on_drop=_drop_loud):
                 try:
                     await op["channel_key"].channel.send(
                         f"[reply from {op['frm']}]\n{op['text']}")
@@ -1049,7 +1085,14 @@ def main(argv=None) -> int:
     _handler = _logging.StreamHandler(sys.stderr)
     _handler.setFormatter(_logging.Formatter(
         "[discord-lib] %(asctime)s %(levelname)s %(name)s: %(message)s"))
-    client.run(token, log_handler=_handler, log_level=_logging.INFO)
+    try:
+        client.run(token, log_handler=_handler, log_level=_logging.INFO)
+    finally:
+        # 8c881ab628: a CLEAN exit retracts its own phase card -- stop + JOIN the pulse,
+        # then roster.go_offline on {ns}:worklive:discord#{sid8}; the bare key rests at
+        # RESTING_PHASE. The daemon lock still releases via atexit (dc6200d491).
+        retire_seat(GATEWAY_AGENT_ID, _inc, stop_hb=stop_pulse, hb_thread=pulse_thread,
+                    bare_phase=RESTING_PHASE)
     return 0
 
 

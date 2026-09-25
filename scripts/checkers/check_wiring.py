@@ -220,18 +220,6 @@ EXCEPTIONS = {
             "door is gated on step 0. UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
-    "core/screenspace/station.py": {
-        "reason": "DEPRECATION SHIM, pending removal -- NOT built-ahead. It re-exports the canary "
-            "surface and carries its own deletion condition ('DELETE once engine.py is repointed'), "
-            "which is now MET: no production module imports it. It is excepted rather than deleted "
-            "because two PROBE files still import it (tests/test_probe_station_attrs.py and "
-            "tests/_probe_station_attrs.py), both artifacts of the same abandoned window-station "
-            "approach, so removing the shim means removing three files in kimi's lane. "
-            "UNWIRE-WHEN kimi retires the shim with its two probes -- this entry must die with it, "
-            "not be renewed. Owner: kimi. Short expiry on purpose: a deprecation shim that outlives "
-            "its transition is the duplication the §1 ruling exists to kill.",
-        "expires": "2026-10-01",
-    },
     # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
     "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from "
         "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
