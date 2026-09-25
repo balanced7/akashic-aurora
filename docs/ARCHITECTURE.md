@@ -139,6 +139,10 @@ Give the right agent the right context at the moment of action.
   `distiller.py` (compact to a token budget + source pointers), `faithfulness.py` (NO-LLM grounding gate —
   silence beats fabrication), `embedder.py`, `clusterer.py`, `consolidator.py`, `supersession.py`
   (newer record retires older).
+- **`core/manuals/`** — the manuals shelf (2026-09-24): reference documents (Markdown, DocC JSON such as
+  Apple's HIG, HTML, PDF) → `convert.py` titled sections → `chunk.py` bounded, breadcrumbed passages →
+  `shelf.py` SQLite FTS5 (BM25, heading path weighted above body, size-capped answers, zeros name their
+  denominator). Door: `manual search|ingest|list`. Vendor corpora live in `state/manuals/` (git-ignored).
 - **`core/eye/`** — THE EYE (T278): the sensorium over the transcript plane. `index.py` = S0 incremental
   indexer (every session JSONL → addressable events with conservative voice labels, coverage contract:
   a clipped index cannot claim wholeness) plus the S1 grammar door, S3 `freq` and S5 numerics;

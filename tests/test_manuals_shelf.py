@@ -117,9 +117,12 @@ def test_html_keeps_the_content_and_drops_the_chrome(tmp_path):
 
 def test_chunker_merges_tiny_sections_and_splits_long_ones():
     Section = convert.Section
+    # Siblings (same parent), as the assertion below says. The first draft used a parent and
+    # its child here, which contradicted test_search_puts_the_answering_section_first: a child
+    # merged into its parent loses its own breadcrumb and #anchor. Siblings-only keeps both.
     doc = convert.Document(title="T", url=None, sections=[
-        Section(path=("T", "A"), text="short one."),
-        Section(path=("T", "A", "a1"), text="short two."),
+        Section(path=("T", "A", "a1"), text="short one."),
+        Section(path=("T", "A", "a2"), text="short two."),
         Section(path=("T", "B"), text="\n\n".join(f"Paragraph {i} " + "word " * 60 for i in range(12))),
     ])
     chunks = chunk.chunk_document(doc, max_chars=1200, min_chars=200)

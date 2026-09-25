@@ -250,6 +250,11 @@
 - `reports.py` — Report shelf -- one read surface over every report the fleet has produced.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
+## core/manuals/  (3 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `chunk.py` — chunk -- Sections become bounded Chunks, each labelled with where it came from.
+- `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
+- `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
+
 ## core/screenspace/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `canary.py` — Screenspace UIA availability — POSITIVE CANARY READ, not a context inference.
 - `capture.py` — Screenspace capture substrate — mss one-shot -> ScreenFrame (T386 §1.3, §2, §4.3).

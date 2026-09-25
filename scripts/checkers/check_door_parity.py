@@ -185,6 +185,7 @@ MANIFEST = {
     # named later slice (rides the door-curation program, T289/G). Debt, not design.
     "eye": "shared", "find": "shared", "get": "shared", "ingest": "shared", "freq": "shared", "overview": "shared", "zoom": "shared",
     "trace": "shared",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
+    "manual": "shared",  # 2026-09-24 the manuals shelf (core/manuals): CLI + MCP twin in one slice
     "route": "shared",   # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
                       # and never classified -- this guard has been failing on it since, which is
                       # the ratchet working: it caught a verb its author forgot to declare.
@@ -500,6 +501,9 @@ TOOLBOX_EXEMPT = {
     #     ride TOOLBOX_ALIASES; the family members below are operator/conductor renders or
     #     authored-on-CLI surfaces, exempted with rationale until a runner needs them in-task.
     "eye": "the eye door's dispatcher; ToolBox covers the read primitives via the eye_* aliases",
+    "manual": ("the manuals shelf, slice 1 (2026-09-24): CLI + MCP only while the Apple HIG / One UI "
+               "eval proves the search worth routing; the runner ToolBox read (manual search) is the "
+               "named next slice, not a design exclusion"),
     "ingest": "index rebuild is operator/housekeeping, not an in-task tool",
     "overview": "region map is an operator render; boot carries the seat's orientation",
     "standing": "directive watcher is operator/curation; runner seats receive directives as bus traffic",

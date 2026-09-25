@@ -7233,6 +7233,56 @@ def cmd_find(args):
     return 0 if res.ok else 1
 
 
+def cmd_manual(args):
+    """The manuals shelf (2026-09-24): reference documents cut into labelled passages.
+
+    `manual search <question> [--shelf NAME]` returns the few passages that answer it, each
+    with its breadcrumb (Doc > Heading > Subheading) and source link, capped by --max-chars,
+    so a seat reads 3-8 relevant sections instead of a whole manual. `manual ingest SHELF PATH`
+    shelves a folder of Markdown, DocC JSON, HTML or PDF (incremental: unchanged files are
+    skipped). `manual list` shows what is shelved. Born from the DuckDB dive: DuckDB's own
+    agent docs are exactly this (pre-chunked sections plus BM25), and the house already had
+    BM25 in SQLite, so the shelf is core/manuals on SQLite FTS5, not a new database.
+    A zero names its denominator (how many chunks, which shelves) -- absence of a match is
+    not absence of the subject."""
+    import json as _json
+    from core.manuals.shelf import Shelf
+    cmd = str(getattr(args, "manual_cmd", "") or "")
+    words = [str(w) for w in (getattr(args, "words", None) or [])]
+    shelf = Shelf()
+    if cmd == "search":
+        question = " ".join(words).strip() or str(getattr(args, "query", "") or "").strip()
+        if not question:
+            print("usage: py agent_cli.py manual search <question> [--shelf NAME] [--limit N] [--max-chars N]")
+            return 2
+        res = shelf.search(question, shelf=(getattr(args, "shelf", "") or None),
+                           limit=int(getattr(args, "limit", 8) or 8),
+                           max_chars=int(getattr(args, "max_chars", 6000) or 6000))
+        print(res.to_json() if getattr(args, "json", False) else res.render())
+        return 1 if res.error else 0
+    if cmd == "ingest":
+        if len(words) < 2:
+            print("usage: py agent_cli.py manual ingest SHELF PATH [--selector CSS]")
+            return 2
+        rep = shelf.ingest(words[0], words[1], html_selector=(getattr(args, "selector", "") or None))
+        print(rep.render())
+        return 1 if rep.failed else 0
+    if cmd == "list":
+        st = shelf.stats()
+        if getattr(args, "json", False):
+            print(_json.dumps(st))
+            return 0
+        if not st["shelves"]:
+            print(f"manual list: the shelf is empty ({st['db']}). Add one: py agent_cli.py manual ingest NAME FOLDER")
+            return 0
+        print(f"manual list: {st['docs']} documents, {st['chunks']} passages ({st['db']})")
+        for name, n in st["shelves"].items():
+            print(f"  {name:<24} {n['docs']:>5} docs  {n['chunks']:>6} passages")
+        return 0
+    print("usage: py agent_cli.py manual search|ingest|list ...")
+    return 2
+
+
 def cmd_blob(args):
     """T113: fetch a spilled payload by its content-addressed ref.
 
@@ -8757,6 +8807,20 @@ def build_parser():
     fnd.add_argument("--no-sort", action="store_true", dest="no_sort", help="skip name sort (default sorts by name)")
     fnd.add_argument("--timeout", type=float, default=15.0, help="seconds before giving up on es.exe (default 15)")
     fnd.set_defaults(fn=cmd_find)
+
+    man = sub.add_parser("manual",
+                         help="the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as "
+                              "labelled passages; ingest a folder; list what is shelved")
+    man.add_argument("manual_cmd", choices=["search", "ingest", "list"],
+                     help="search <question> | ingest SHELF PATH | list")
+    man.add_argument("words", nargs="*", help="search: the question; ingest: SHELF PATH")
+    man.add_argument("--shelf", default="", help="search only this shelf (e.g. apple-hig, one-ui)")
+    man.add_argument("--limit", type=int, default=8, help="passages to return (default 8)")
+    man.add_argument("--max-chars", type=int, default=6000, dest="max_chars",
+                     help="cap on the total passage text returned (default 6000)")
+    man.add_argument("--selector", default="", help="ingest: CSS selector of the HTML content container")
+    man.add_argument("--json", action="store_true")
+    man.set_defaults(fn=cmd_manual)
 
     shp = sub.add_parser("shell-home",
                          help="where the shell is now + where fresh harness shells land (cwd-guard's other half)")
