@@ -446,6 +446,10 @@ def main() -> int:
 
             all_procs = snap.pop("_all")
             snap["alerts"] = alerts
+            # Row schema version. v2 = commit/pools/private bytes (2026-09-24); rows without
+            # "v" are v1. The same night's DuckDB census found three unmarked record shapes
+            # in one ledger directory, and a glob silently read the minority shape.
+            snap["v"] = 2
             _rotate(args.log)
             with open(args.log, "a", encoding="utf-8") as fh:
                 fh.write(json.dumps(snap) + "\n")
