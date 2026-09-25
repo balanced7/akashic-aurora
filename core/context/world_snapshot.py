@@ -378,6 +378,51 @@ def _uncheckable(blocked_by: str, reason: str) -> Dict[str, str]:
     return {"state": "UNCHECKABLE", "blocked_by": blocked_by, "reason": reason}
 
 
+_ARCS_REGISTER_PATH = Path(__file__).resolve().parents[2] / "data" / "arcs-register" / "register.json"
+
+
+def _read_arcs_register(path: Any, client: Any = None) -> Mapping[str, Any]:
+    """Read the machine-readable A1-A15 arc register (data, not code).
+
+    ``client`` exists for injected parity with the ledger reader. Returns the
+    raw mapping on success; raises on a missing/corrupt/mis-shaped register.
+    """
+    del client
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, Mapping) or not isinstance(data.get("arcs"), Mapping):
+        raise ValueError("arc register did not return {arcs: {...}} shape")
+    if not data["arcs"]:
+        raise ValueError("arc register is empty: no arcs declared")
+    return data
+
+
+def _arc_membership_capability(register: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Capability over the A1-A15 arc register.
+
+    SUPPORTED only when the register parses AND names at least one arc, with a
+    basis receipt naming the source and arc count. UNCHECKABLE otherwise, with
+    the precise failure reason so a broken register never reads as 'no arcs'.
+    """
+    if register is None:
+        return _uncheckable(
+            "estate-arc-register",
+            "arc register not read (missing, corrupt, or mis-shaped)",
+        )
+    arcs = register.get("arcs", {}) if isinstance(register, Mapping) else {}
+    arc_ids = sorted(str(a) for a in arcs)
+    if not arc_ids:
+        return _uncheckable("estate-arc-register", "arc register declares zero arcs")
+    revision = "sha256:" + hashlib.sha256(_canonical_bytes(arcs)).hexdigest()
+    return {
+        "state": "SUPPORTED",
+        "basis": [
+            f"source:data/arcs-register/register.json@{revision}",
+            f"arcs:{','.join(arc_ids)}",
+        ],
+    }
+
+
 def _read_task_ledger_file(path: str, client: Any = None) -> Mapping[str, Any]:
     """Read exactly the named file authority; ``client`` exists for injected parity."""
     del client
@@ -386,7 +431,10 @@ def _read_task_ledger_file(path: str, client: Any = None) -> Mapping[str, Any]:
 
 
 def _program_capabilities(
-    ledger_supported: bool, ledger_basis: str = "", ledger_error: str = ""
+    ledger_supported: bool,
+    ledger_basis: str = "",
+    ledger_error: str = "",
+    arcs_register: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     if ledger_supported:
         task_state = {"state": "SUPPORTED", "basis": [ledger_basis]}
@@ -403,10 +451,7 @@ def _program_capabilities(
     return {
         "task_state": task_state,
         "subject_attention": attention,
-        "arc_membership": _uncheckable(
-            "estate-arc-register",
-            "no authoritative machine-readable arc register is wired yet",
-        ),
+        "arc_membership": _arc_membership_capability(arcs_register),
         "operator_queue": _uncheckable(
             "A15-operator-contract",
             "operator ownership and queue semantics are not yet settled substrate",
@@ -444,6 +489,8 @@ def build_program_world_snapshot(
     subject: str = "akashic-aurora-program",
     ledger_path: Optional[str] = None,
     ledger_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
+    arcs_register_path: Optional[str] = None,
+    arcs_register_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
     checked_at: Optional[str] = None,
     generated_at: Optional[str] = None,
     max_items: int = 64,
@@ -459,12 +506,15 @@ def build_program_world_snapshot(
     source_checked_at = _text(checked_at) or one_clock
     path = ledger_path or task_ledger.LEDGER_PATH
     reader = ledger_reader or _read_task_ledger_file
+    arcs_path = arcs_register_path or str(_ARCS_REGISTER_PATH)
+    arcs_reader = arcs_register_reader or _read_arcs_register
     sources: List[Dict[str, Any]] = []
     items: List[Dict[str, Any]] = []
     ledger_supported = False
     ledger_basis = ""
     ledger_error = ""
     ledger: Optional[Mapping[str, Any]] = None
+    arcs_register: Optional[Mapping[str, Any]] = None
     try:
         candidate = _json_clone(reader(path, client=None))
         if not isinstance(candidate, Mapping) or not isinstance(candidate.get("tasks", []), list):
@@ -474,6 +524,16 @@ def build_program_world_snapshot(
         detail = _bounded_text(str(exc), 240)[0]
         ledger_error = f"{type(exc).__name__}: {detail}"
 
+    try:
+        candidate = _json_clone(arcs_reader(arcs_path, client=None))
+        if not isinstance(candidate, Mapping) or not isinstance(candidate.get("arcs", {}), Mapping):
+            raise ValueError("arc register did not return {arcs: {...}} shape")
+        if candidate.get("arcs"):
+            arcs_register = candidate
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError):
+        # A broken/absent register stays UNCHECKABLE (never 'zero arcs'); the
+        # capability carries the precise reason, not a silent empty.
+        arcs_register = None
     if ledger is not None:
         revision = "sha256:" + hashlib.sha256(_canonical_bytes(ledger)).hexdigest()
         ledger_basis = f"source:task-ledger-git@{revision}"
@@ -531,7 +591,9 @@ def build_program_world_snapshot(
         subject=subject,
         sources=sources,
         items=items,
-        capabilities=_program_capabilities(ledger_supported, ledger_basis, ledger_error),
+        capabilities=_program_capabilities(
+            ledger_supported, ledger_basis, ledger_error, arcs_register
+        ),
         generated_at=one_clock,
         max_items=max_items,
         projection_label="ledger projection",

@@ -1,0 +1,159 @@
+{
+  "_meta": {
+    "schema_version": 1,
+    "source_of_truth": "art_20260901_the-estate-program-fourteen-arcs_c432a7 + art_20260902_the-one-program-reconciliation_e1bbbc",
+    "source_sha": "83a8bc8d91f3 (fourteen-arcs) / 173e758fa8b2 (reconciliation)",
+    "status": "current",
+    "minted_by": "deepseek (Heimdall)",
+    "minted_at": "2026-09-25",
+    "amended_by_ruling": "art_20260901_estate-program-fence-round-one-reconcili_a8a750",
+    "retirement_rule": "This register retires when it is wired as the authoritative machine-readable arc source AND A7's weekly census diffs cleanly against it. Self-applied L11.",
+    "note": "Frozen against the ruled program, NOT a re-derivation. Ownership/dependency/gate text preserved verbatim from the source atoms. Do not hand-edit the arc vocabulary without a fence + ruling."
+  },
+  "arcs": {
+    "A1": {
+      "name": "Bedrock",
+      "owner": "claude (implicit; make explicit per reconciliation §2)",
+      "summary": "Reliability becomes machine-owned: wake-supervision ladder, canary, drills, gateway singleton, recovery-verb family.",
+      "depends_on": [],
+      "enables": ["A2", "A11"],
+      "gate": "Kill everything claude-side -> machine rebuilds to armed-and-toothed unaided; then 7 consecutive canary-green days.",
+      "mines": ["wake-supervision-ladder-wiring", "SLICE-D-REARM", "REVIVE-WAKE-RUNG", "WAKE-CANARY", "BEAT-FRESHNESS", "GATEWAY-SINGLETON", "GAP-BACKUP-01", "W25", "W26", "W27", "W28", "W29", "W30", "W31", "W32", "D3"]
+    },
+    "A2": {
+      "name": "Attention",
+      "owner": "claude (implicit)",
+      "summary": "The attention architecture (88 design atoms, dials 1-12, tiers 0/1/2) becomes wiring.",
+      "depends_on": ["A1"],
+      "enables": [],
+      "gate": "Operator sends one unaddressed message from a phone and the receipt ladder tells the whole truth; boredom-throttle demotes a noisy trigger unaided.",
+      "mines": ["AA-DIAL-1", "AA-DIAL-2", "AA-DIAL-3", "AA-DIAL-4", "AA-DIAL-5", "AA-DIAL-6", "AA-DIAL-7", "AA-DIAL-8", "AA-DIAL-9", "AA-DIAL-10", "AA-DIAL-11", "AA-DIAL-12", "AA-TIER-0", "AA-TIER-1", "AA-TIER-2", "AA-CLASSIFIER", "W23", "W27", "W139", "W171"]
+    },
+    "A3": {
+      "name": "Door Plane",
+      "owner": "deepseek (implicit)",
+      "summary": "The fleet gets hands: web-door landing, ToolBox third door, MCP completion, resolver registry, prose-transport family.",
+      "depends_on": ["A8"],
+      "enables": ["A4", "A5"],
+      "gate": "Heimdall's 16-pin contract green against the engine; a seat cites a source it fetched itself.",
+      "mines": ["web-door-red-fence", "wd-landing-package", "wire-web-door-heimdall-seat", "T362", "T137", "W17", "W20", "W63", "W75", "W189", "W190"]
+    },
+    "A4": {
+      "name": "Publication",
+      "owner": "claude (implicit)",
+      "summary": "akashiclabs.io grows into itself: citation audits, animation primitives, the site, the walks.",
+      "depends_on": ["A3"],
+      "enables": [],
+      "gate": "Lighthouse 100s held; every published claim traceable; one walk ships end-to-end through atoms->projection->site with zero manual steps.",
+      "mines": ["walk01-ref75-path-leak", "FWC-STEP1", "FWC-STEP2", "FWC-STEP3", "FWC-STEP4", "anim-latency-ladder", "CSF-RILL-SPEC"]
+    },
+    "A5": {
+      "name": "Mind",
+      "owner": "claude (implicit)",
+      "summary": "Recall evolves under measurement: volatility organ, shadow-shelf, PCR program, adaptive-recall rounds.",
+      "depends_on": ["A3"],
+      "enables": ["A11"],
+      "gate": "Every candidate enters through the exposure ladder; the funnel's value number moves and the movement is attributable.",
+      "mines": ["T370-shadow-shelf-build", "PCR-LAW3", "T369", "T370", "T279", "T377", "T378", "W136", "W183"]
+    },
+    "A6": {
+      "name": "Bridge",
+      "owner": "claude (implicit)",
+      "summary": "The two-house relationship matures: mirror contract, exports, guest tier, cross-house drills.",
+      "depends_on": [],
+      "enables": [],
+      "gate": "Both listeners daemonised both sides; one cross-house drill executed with receipts on both ledgers.",
+      "mines": ["export-part-iv-protocol", "export-wake-prior-art", "ask-compare-systems-q1q4", "ask-key1-rotation", "sync-confusion-drill"]
+    },
+    "A7": {
+      "name": "Ledger",
+      "owner": "claude (implicit)",
+      "summary": "The estate learns to know itself: the register, the standing census, WISHLIST/T-id hygiene, the crown piece (weekly diff against the Mine Map).",
+      "depends_on": [],
+      "enables": ["A1", "A2", "A3", "A4", "A5", "A6", "A8", "A9", "A10", "A11", "A12", "A13", "A14"],
+      "gate": "Two consecutive weekly censuses with zero unexplained drift.",
+      "mines": ["WISHLIST-META-1", "WISHLIST-META-2", "T271", "register:arcs-stale", "T096", "W140", "GAP-DOCS-01", "GAP-FORECAST-01", "T375", "GAP-DEFER-01"]
+    },
+    "A8": {
+      "name": "Treasury",
+      "owner": "claude (implicit)",
+      "summary": "The boring arc that unblocks everything, first: dirty-tree hygiene, CI green, fresh-clone-broken, worktrees, ledger archaeology. NO play.",
+      "depends_on": [],
+      "enables": ["A1", "A2", "A3", "A4", "A5", "A6", "A10", "A12"],
+      "gate": "Clean status on master, green (or honestly-baselined) suite, everything pushed, fresh clone boots.",
+      "mines": ["GAP-GIT-01", "GAP-GIT-02", "GAP-GIT-03", "GAP-GIT-04", "GAP-GIT-05", "GAP-GIT-06", "GAP-CI-01", "GAP-CI-02", "GAP-CI-03", "GAP-CI-04", "T180", "T192", "T238", "T230", "T298"]
+    },
+    "A9": {
+      "name": "Deep Knowledge",
+      "owner": "claude (implicit)",
+      "summary": "The parked layers unparked by dependency-value: spreading-activation recall, coordinator Phase A, spine V7-V9, replay.E2.",
+      "depends_on": [],
+      "enables": [],
+      "gate": "Per unpark: the original arc's own preregistered benchmark.",
+      "mines": ["persp.P4", "codex-C3", "codex-C4", "coord-Phase-A", "spine-V7", "spine-V8", "spine-V9", "replay.E2", "mem-store-B", "mem-store-C"]
+    },
+    "A10": {
+      "name": "Perimeter",
+      "owner": "claude (implicit)",
+      "summary": "Security debts before they become stories: 27 unrotatable secrets, credential readers, fail-open trust, grant audit.",
+      "depends_on": ["A8"],
+      "enables": [],
+      "gate": "A quarantine drill on a fake seat; rotation executed once with receipts.",
+      "mines": ["GAP-SEC-01", "T365", "acl-334", "acl-345", "defect-cf6fe59a4d", "GAP-SEC-03", "W113", "W60", "T164", "GAP-SEC-02"]
+    },
+    "A11": {
+      "name": "Second Machine",
+      "owner": "claude (implicit)",
+      "summary": "The laptop earns its callsign: off-machine deadman, SearXNG, shadow host, drill host, Tailscale.",
+      "depends_on": ["A1", "A3", "A5"],
+      "enables": [],
+      "gate": "The outer ring pages a dead desktop within five minutes, proven by pulling the desktop's plug.",
+      "mines": ["GAP-LAPTOP-01", "T371", "T229"]
+    },
+    "A12": {
+      "name": "Face",
+      "owner": "deepseek (implicit)",
+      "summary": "The Bifrost UI, the founder's first love, resumed with intent: reasoning visibility, status strip, engine-room, re-grounding.",
+      "depends_on": ["A8"],
+      "enables": [],
+      "gate": "The operator watches a full fleet round without touching a terminal.",
+      "mines": ["W24", "W105", "W181", "W121", "T079", "T033", "T002", "W99", "T003", "T005", "W100", "T098", "W161", "T373"]
+    },
+    "A13": {
+      "name": "Outside",
+      "owner": "claude (implicit)",
+      "summary": "World-facing value threads: Spectrum, differentiator watch, monetization ladder. Operator-word-gated.",
+      "depends_on": [],
+      "enables": [],
+      "gate": "Operator-set per thread; Spectrum moves only on his word.",
+      "mines": ["spectrum.arc", "GAP-IP-01", "T364", "T310"]
+    },
+    "A14": {
+      "name": "Playground",
+      "owner": "claude (implicit)",
+      "summary": "Joy as a first-class phase, standing: Season 1, games, Minister format, the wardrobe, save-point protocol.",
+      "depends_on": [],
+      "enables": [],
+      "gate": "None. That is the point.",
+      "mines": ["season1-rulings", "T148", "T154", "T185", "trader-P1", "W155", "W151"]
+    },
+    "A15": {
+      "name": "Operator",
+      "owner": "PROPOSED (unratified; reconciliation §5 routes through the fence)",
+      "summary": "The operator's intake, executive loop, and leverage become built organs: T126 chief-of-staff organ, four-intents door, BUFFER/ANSWER/INTERRUPT loop, operator-memory plane.",
+      "depends_on": [],
+      "enables": [],
+      "gate": "One week where every operator ask enters through the intake organ and none is lost or double-answered.",
+      "mines": ["T126", "T080", "operator-memory-plane", "thread-4-my-leverage"],
+      "status": "proposed"
+    }
+  },
+  "cluster_to_arc": {
+    "_source": "reconciliation §3 table, dated 2026-09-02; SPLIT = deliberately divided item-by-item at tag time",
+    "C1": "A1", "C2": "A1", "C3": "A5", "C4": {"split": ["A8", "A1"]}, "C5": {"split": ["A7", "A5"]},
+    "C6": "A7", "C7": "A7", "C8": "A12", "C9": {"split": ["A2", "A1"]}, "C10": "A10",
+    "C11": {"split": ["A9", "A7"]}, "C12": "A3", "C13": "A7", "C14": "A14", "C15": "A12",
+    "C16": "A3", "C17": "A8", "C18": "A4", "C19": "A15", "C20": "A8",
+    "orphan_T310": "A13", "orphan_T364": "A9"
+  }
+}
