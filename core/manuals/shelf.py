@@ -45,6 +45,10 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RRF_K = 60                                    # reciprocal rank fusion constant (the usual 60)
 CANDIDATES = 50                               # per ranking, before fusion
 VECTOR_FLOOR = 0.25                           # cosine a meaning-only match must reach
+# Bounded memory on any shelf size (DeepSeek fence on 603b351a): vectors are scored in
+# batches with a running top-N, and passages are embedded a batch at a time.
+VECTOR_BATCH = 4096
+EMBED_BATCH = 256
 
 
 DEFAULT_TAG = "all-MiniLM-L6-v2"
@@ -223,20 +227,24 @@ class Shelf:
     def _model_tag(self, fn) -> str:
         return getattr(fn, "model_name", None) or type(fn).__name__
 
-    def _embed_missing(self, c: sqlite3.Connection, fn, batch: int = 256) -> int:
-        """Embed every passage that has no vector from this model yet. Returns how many."""
+    def _embed_missing(self, c: sqlite3.Connection, fn) -> int:
+        """Embed every passage that has no vector from this model yet, EMBED_BATCH at a time
+        (only the ids are held in full). Returns how many."""
         import numpy as np
         tag = self._model_tag(fn)
-        todo = c.execute("SELECT c.chunk_id, c.breadcrumb, c.text FROM chunks c "
-                         "LEFT JOIN chunk_vecs v ON v.chunk_id = c.chunk_id AND v.model = ? "
-                         "WHERE v.chunk_id IS NULL", (tag,)).fetchall()
-        for i in range(0, len(todo), batch):
-            part = todo[i:i + batch]
+        ids = [r[0] for r in c.execute("SELECT c.chunk_id FROM chunks c "
+                                       "LEFT JOIN chunk_vecs v ON v.chunk_id = c.chunk_id AND v.model = ? "
+                                       "WHERE v.chunk_id IS NULL", (tag,))]
+        batch = max(1, int(EMBED_BATCH))
+        for i in range(0, len(ids), batch):
+            part_ids = ids[i:i + batch]
+            part = c.execute(f"SELECT chunk_id, breadcrumb, text FROM chunks "
+                             f"WHERE chunk_id IN ({','.join('?' * len(part_ids))})", part_ids).fetchall()
             vecs = np.asarray(fn([f"{crumb}\n{text}" for _, crumb, text in part]), dtype="float32")
             c.executemany("INSERT OR REPLACE INTO chunk_vecs(chunk_id, model, vec) VALUES (?,?,?)",
                           [(cid, tag, v.tobytes()) for (cid, _, _), v in zip(part, vecs)])
             c.commit()
-        return len(todo)
+        return len(ids)
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(str(self.path), timeout=30)
@@ -389,19 +397,31 @@ class Shelf:
 
     def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: Optional[str], n: int):
         """[(chunk_id, cosine)] best first, above VECTOR_FLOOR only; [] when nothing is embedded."""
+        import heapq
         import numpy as np
         tag = self._model_tag(fn)
-        rows = c.execute("SELECT v.chunk_id, v.vec FROM chunk_vecs v JOIN chunks c ON c.chunk_id = v.chunk_id "
-                         "WHERE v.model = ?" + (" AND c.shelf = ?" if shelf else ""),
-                         [tag] + ([shelf] if shelf else [])).fetchall()
-        if not rows:
-            return []
-        ids = np.array([r[0] for r in rows])
-        mat = np.frombuffer(b"".join(r[1] for r in rows), dtype="float32").reshape(len(rows), -1)
-        q = np.asarray(fn([query]), dtype="float32")[0]
-        sims = mat @ q
-        order = np.argsort(-sims)[:n]
-        return [(int(ids[i]), float(sims[i])) for i in order if sims[i] >= VECTOR_FLOOR]
+        cur = c.execute("SELECT v.chunk_id, v.vec FROM chunk_vecs v JOIN chunks c ON c.chunk_id = v.chunk_id "
+                        "WHERE v.model = ?" + (" AND c.shelf = ?" if shelf else ""),
+                        [tag] + ([shelf] if shelf else []))
+        q = None
+        best: List = []                                # min-heap of (cosine, chunk_id), at most n
+        while True:
+            rows = cur.fetchmany(max(1, int(VECTOR_BATCH)))
+            if not rows:
+                break
+            if q is None:
+                q = np.asarray(fn([query]), dtype="float32")[0]
+            sims = np.frombuffer(b"".join(r[1] for r in rows), dtype="float32").reshape(len(rows), -1) @ q
+            k = min(n, len(rows))
+            for i in np.argpartition(-sims, k - 1)[:k]:
+                s = float(sims[i])
+                if s < VECTOR_FLOOR:
+                    continue
+                if len(best) < n:
+                    heapq.heappush(best, (s, rows[i][0]))
+                elif s > best[0][0]:
+                    heapq.heapreplace(best, (s, rows[i][0]))
+        return [(cid, s) for s, cid in sorted(best, key=lambda t: (-t[0], t[1]))]
 
     def search(self, query: str, shelf: Optional[str] = None, limit: int = 8,
                max_chars: int = 6000, mode: str = "bm25") -> SearchResult:

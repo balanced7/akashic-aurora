@@ -39,10 +39,12 @@ def _split(text: str, max_chars: int) -> List[str]:
         sentences = re.split(r"(?<=[.!?])\s+", p)
         cur = ""
         for s in sentences:
-            while len(s) > max_chars:                    # a single run-on "sentence"
-                if cur:
-                    pieces.append(cur); cur = ""
-                pieces.append(s[:max_chars]); s = s[max_chars:]
+            if len(s) > max_chars:                       # a single run-on "sentence":
+                if cur:                                  # cut it by index, in one pass
+                    pieces.append(cur); cur = ""         # (slicing the remainder on every cut
+                pieces.extend(s[i:i + max_chars]         # was quadratic -- DeepSeek fence)
+                              for i in range(0, len(s), max_chars))
+                continue
             if cur and len(cur) + 1 + len(s) > max_chars:
                 pieces.append(cur); cur = s
             else:

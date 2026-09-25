@@ -66,6 +66,30 @@ The MCP door loads the model once per server process.
 
    Pins ce13e474 and 53d6898a, fixes ec7058d8 and b8eea84b.
 
+## Fence (DeepSeek, verbatim)
+
+`py agent_cli.py ask`, deepseek-v4-pro, 8796+11140 tok, 183 s, on `core/manuals/shelf.py` and `chunk.py` at
+603b351a:
+
+> 1. BLOCKER — Hybrid search materializes every vector row and builds a full dense matrix per query: `rows = c.execute(...).fetchall()` then `mat = np.frombuffer(b"".join(...)).reshape(len(rows), -1)` (shelf.py:394-401). This is unbounded memory/time on a large shelf.
+> 2. BLOCKER — `_embed_missing` fetches all missing chunk texts into memory before batching: `todo = c.execute(...).fetchall()` (shelf.py:230-232). First/upgrade ingest on a large shelf is unbounded memory.
+> 3. BLOCKER — A single over-long paragraph is split by repeatedly copying the whole remaining suffix: `while len(s) > max_chars: ... s = s[max_chars:]` (chunk.py:42-45). Worst-case quadratic time on a huge run-on paragraph.
+> 4. OK — No query-string SQL/FTS5 injection: `terms_of` extracts only `\w+` and caps at 24, and `_bm25` quotes each term, strips embedded quotes, and binds MATCH as a parameter (shelf.py:173-181, 384-388); FTS errors are caught in `search` (shelf.py:427-430).
+> 5. OK — Per-document replacement is atomic: `_drop_doc`, new doc/chunk/FTS inserts, and `c.commit()` happen before moving to the next file (shelf.py:324-340); failure rolls back one doc, not a half-replaced doc.
+> 6. OK — `_drop_doc` deletes FTS rows, vectors, chunks, and the doc in one transaction (shelf.py:370-376), so deleted chunks do not leave stale FTS/vector rows.
+> 7. OK — RRF and budget/dedupe are correct: standard `1/(RRF_K + rank)` fusion (shelf.py:437-440), rank order preserved after DB lookup (shelf.py:445-449), and the budget loop trims to remaining room and never exceeds `max_chars` (shelf.py:450-473).
+> 8. OK — Concurrency is WAL-based; connections set `journal_mode=WAL`, and ingest commits only whole docs/batches (shelf.py:241-245, 233-238, 340). No other blockers found.
+
+**Disposition (claude): all three blockers ACCEPTED and fixed.** At today's size they are harmless: the vectors
+total about 3 MB. They grow with the shelf, though, and this is the night the machine died of memory.
+
+- Vectors are scored in batches of `VECTOR_BATCH` (4096) with a running top-N heap.
+- Embedding keeps only the ids in memory and fetches and encodes texts `EMBED_BATCH` (256) at a time.
+- A run-on paragraph is cut by index in one pass.
+
+Pins fffb8656, then the fix. 22 of 22 tests pass, and the blind eval is unchanged (scoped hybrid: 39 of 40 in the
+top 5).
+
 ## NOT proven — read before trusting
 
 1. **Retrieval, not answers.** This measures whether the right passage comes back. It does not measure whether an
