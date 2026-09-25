@@ -92,3 +92,41 @@ def test_p4_capture_failure_does_not_break_write(tb):
     tb._provenance_fake.capture = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
     out = tb.write_file("notes/still_writes.md", "content")
     assert "wrote" in out and "ERROR" not in out, out
+
+
+# ---- slice-tagging: a seat with a declared intent covering the path gets its writes tagged ----
+
+def test_p5_write_under_declared_intent_is_tagged(tb, monkeypatch):
+    """A seat that declared an intent covering the path has its file_edit event carry that
+    intent tag in the detail -- the "toolcalls tagged as part of a project" half."""
+    monkeypatch.setattr(
+        "core.coord.intent.active",
+        lambda agent=None, client=None: [{"agent": "deepseek", "intent": "t385 recall trigger",
+                                          "scope": ["notes/"], "ts": "", "ttl": 900}])
+    out = tb.write_file("notes/tagged.md", "x")
+    assert "wrote" in out, out
+    evs = _captured(tb)
+    assert len(evs) == 1, evs
+    assert evs[0]["detail"].get("intent") == "t385 recall trigger"
+
+
+def test_p6_write_outside_any_intent_is_not_tagged(tb, monkeypatch):
+    """A write whose path no active intent covers carries NO intent tag -- attribution stays
+    truthful (no invented project), not universal."""
+    monkeypatch.setattr(
+        "core.coord.intent.active",
+        lambda agent=None, client=None: [{"agent": "deepseek", "intent": "t385 recall trigger",
+                                          "scope": ["other/"], "ts": "", "ttl": 900}])
+    out = tb.write_file("notes/untagged.md", "x")
+    assert "wrote" in out, out
+    evs = _captured(tb)
+    assert len(evs) == 1, evs
+    assert "intent" not in evs[0]["detail"]
+
+
+def test_p7_intent_lookup_failure_does_not_break_write(tb, monkeypatch):
+    """A broken intent lookup must not wedge a write -- the tag is best-effort, provenance is too."""
+    monkeypatch.setattr("core.coord.intent.active", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    out = tb.write_file("notes/safe.md", "x")
+    assert "wrote" in out and "ERROR" not in out, out
+

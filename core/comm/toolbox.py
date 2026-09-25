@@ -1318,10 +1318,38 @@ class ToolBox:
                       f"{self.agent_id} {p}")
         return len(paths)
 
+    def _active_intent_for(self, rel: str) -> str:
+        """The intent TAG (slice/project) this seat's active work covers `rel`, or "" when none.
+        Reads core.coord.intent -- the same declaration surface `declare()`/`covers()` use -- so a
+        seat that opens a slice by declaring intent has its file writes automatically tagged as part
+        of that project. `covers()` is the ONE owner of the prefix-match rule; we reuse it rather
+        than re-deriving it (a second matcher drifts). Best-effort and never raises: an intent
+        lookup must never touch the write path."""
+        if not self.agent_id:
+            return ""
+        try:
+            from core.coord import intent as _intent
+            for it in _intent.active(agent=self.agent_id):
+                scope = it.get("scope") or []
+                if not scope:
+                    continue
+                # _intent.covers() prefixes against the whole active set, not per-intent; but the
+                # match rule is identical, so we check each scope string the same way covers() does.
+                p = rel.replace("\\", "/")
+                for s in scope:
+                    s = str(s).replace("\\", "/")
+                    if p == s or p.startswith(s.rstrip("/") + "/") or s in p:
+                        return str(it.get("intent", ""))
+        except Exception:
+            pass
+        return ""
+
     def _record_file_provenance(self, path, action):
         """Best-effort: append a `file_edit` raw event naming THIS seat as the author of a just-written
         file, keyed by `file:<rel_path>` so "who produced this still-uncommitted file" is answerable from
         the event log instead of being an unanswerable question (Move 2 of the dirty-tree house work).
+        Also stamps the active INTENT tag (slice/project) into the detail when the seat declared one
+        covering the path -- so a write rolls up under its project, not just its author.
 
         Reuses the OPEN `file_edit` kind (core/events/event_log.py EVENT_KINDS) with agent_id = the
         seat, so attribution is by construction, not inferred. Same ref shape as
@@ -1331,10 +1359,14 @@ class ToolBox:
         try:
             from core.events.event_log import get_event_log
             rel = path.relative_to(self.root).as_posix()
+            detail = {"path": rel, "action": action}
+            tag = self._active_intent_for(rel)
+            if tag:
+                detail["intent"] = tag
             get_event_log().capture(
                 "file_edit", f"{self.agent_id or 'unknown'} {action} {rel}",
                 agent_id=self.agent_id, refs=[f"file:{rel}"],
-                detail={"path": rel, "action": action})
+                detail=detail)
         except Exception:
             pass
 
