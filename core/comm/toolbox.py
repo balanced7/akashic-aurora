@@ -1318,6 +1318,26 @@ class ToolBox:
                       f"{self.agent_id} {p}")
         return len(paths)
 
+    def _record_file_provenance(self, path, action):
+        """Best-effort: append a `file_edit` raw event naming THIS seat as the author of a just-written
+        file, keyed by `file:<rel_path>` so "who produced this still-uncommitted file" is answerable from
+        the event log instead of being an unanswerable question (Move 2 of the dirty-tree house work).
+
+        Reuses the OPEN `file_edit` kind (core/events/event_log.py EVENT_KINDS) with agent_id = the
+        seat, so attribution is by construction, not inferred. Same ref shape as
+        core.comm.promoter.promote_drop's `file:<path>` so write-provenance and console-drops are
+        queryable together. Swallows everything: provenance must never wedge a write.
+        """
+        try:
+            from core.events.event_log import get_event_log
+            rel = path.relative_to(self.root).as_posix()
+            get_event_log().capture(
+                "file_edit", f"{self.agent_id or 'unknown'} {action} {rel}",
+                agent_id=self.agent_id, refs=[f"file:{rel}"],
+                detail={"path": rel, "action": action})
+        except Exception:
+            pass
+
     def write_file(self, path, content):
         """Create or OVERWRITE a file. Guarded: --allow-write, path-scoped, secret-blocked, git-tracked."""
         p, err = self._prewrite(path)
@@ -1329,6 +1349,7 @@ class ToolBox:
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(data, encoding="utf-8")
+            self._record_file_provenance(p, "write")
             return (f"wrote {path} ({len(data)} chars). It is git-tracked, so reversible. "
                     "If it's a running service (e.g. the UI), it must be restarted to load the change.")
         except Exception as e:
@@ -1350,6 +1371,7 @@ class ToolBox:
             if n > 1:
                 return f"ERROR: old_string matches {n} places; add surrounding context to make it unique."
             p.write_text(text.replace(old_string, new_string, 1), encoding="utf-8")
+            self._record_file_provenance(p, "edit")
             return f"edited {path} (1 replacement). git-tracked, reversible. Restart the service if it's running."
         except Exception as e:
             return f"ERROR: edit failed: {type(e).__name__}: {e}"
