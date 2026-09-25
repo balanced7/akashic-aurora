@@ -241,7 +241,10 @@ _ARG_DEFAULTS = dict(
     no_sort=False, timeout=15.0,
     # manual (the manuals shelf, 2026-09-24): cmd_manual reads these five on top of the
     # shared query/limit/json.
-    manual_cmd="", words=None, shelf="", max_chars=6000, selector="", mode="bm25",
+    # mode stays None here: cmd_nudge also reads args.mode (default "interrupt"), so a shared
+    # default of "bm25" would leak the shelf's vocabulary into the nudge twin. Each cmd_*
+    # supplies its own default for None.
+    manual_cmd="", words=None, shelf="", max_chars=6000, selector="", mode=None,
 )
 
 
@@ -990,7 +993,7 @@ async def eye(eye_cmd: str, addr: str = "", seat: str = "", from_seat: str = "",
 @mcp.tool()
 async def manual(manual_cmd: str, query: str = "", shelf: str = "", path: str = "",
                  limit: int = 8, max_chars: int = 6000, selector: str = "",
-                 mode: str = "bm25", json: bool = False) -> str:
+                 mode: str = "hybrid", json: bool = False) -> str:
     """The manuals shelf: reference manuals (Apple's Human Interface Guidelines, Samsung One UI,
     anything shelved) cut into labelled passages. manual_cmd = search (query, optional shelf,
     mode bm25|hybrid) | ingest (shelf + path: a folder of Markdown / DocC JSON / HTML / PDF) | list.
@@ -1006,7 +1009,7 @@ async def manual(manual_cmd: str, query: str = "", shelf: str = "", path: str = 
                           manual_cmd=manual_cmd, words=words, query=query,
                           shelf=shelf if manual_cmd == "search" else "", limit=int(limit or 8),
                           max_chars=int(max_chars or 6000), selector=selector,
-                          mode=mode or "bm25", json=bool(json))
+                          mode=mode or "hybrid", json=bool(json))
 
 
 @mcp.tool()

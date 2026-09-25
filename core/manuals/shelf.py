@@ -61,12 +61,15 @@ def load_default_embedder():
 
 
 def _load_minilm():
+    import warnings
     try:
-        from sentence_transformers import SentenceTransformer
-        try:
-            model = SentenceTransformer(EMBED_MODEL, device="cpu", local_files_only=True)
-        except TypeError:                     # older sentence-transformers: no local_files_only
-            model = SentenceTransformer(EMBED_MODEL, device="cpu")
+        with warnings.catch_warnings():       # transformers' tokenizer FutureWarning is noise here
+            warnings.simplefilter("ignore", FutureWarning)
+            from sentence_transformers import SentenceTransformer
+            try:
+                model = SentenceTransformer(EMBED_MODEL, device="cpu", local_files_only=True)
+            except TypeError:                 # older sentence-transformers: no local_files_only
+                model = SentenceTransformer(EMBED_MODEL, device="cpu")
     except Exception:
         return None
 
