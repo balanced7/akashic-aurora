@@ -224,6 +224,22 @@ def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
     assert sum(len(h.text) for h in res.hits) <= 1300 + 8 and res.truncated
 
 
+def test_a_docc_page_links_to_its_human_page_not_its_raw_data(tmp_path):
+    """Found in the blind eval (2026-09-24): Apple's crawler manifest records each page's DATA
+    url (.../tutorials/data/.../x.json), and the shelf trusted it over the page's own identifier,
+    so every Apple passage linked to raw JSON instead of the guideline page."""
+    corpus = tmp_path / "hig"; corpus.mkdir()
+    page = dict(DOCC, identifier={"url": "doc://com.example.Guide/design/guide/switches"})
+    (corpus / "switches.json").write_text(json.dumps(page), encoding="utf-8")
+    (corpus / "_manifest.json").write_text(json.dumps([{
+        "path": "switches.json", "url": "https://example.com/tutorials/data/design/guide/switches.json"}]),
+        encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("hig", corpus)
+    hit = sh.search("phone height sizing").hits[0]
+    assert hit.url.startswith("https://developer.apple.com/design/guide/switches#"), hit.url
+
+
 def test_the_same_passage_is_returned_once(tmp_path):
     """One UI's landing page repeats its overview, so one passage came back twice and spent
     half the answer budget on a copy."""
