@@ -27,6 +27,9 @@ from core.manuals import chunk as chunk_mod
 from core.manuals import convert
 
 SCHEMA_VERSION = "manuals.shelf/1"
+# Folded into every document's fingerprint: bump it when conversion or chunking changes, and
+# the next ingest re-cuts every document instead of trusting passages cut by older code.
+PIPELINE_VERSION = "2026-09-24.2"
 BM25_WEIGHTS = (4.0, 2.0, 1.0)                # title, breadcrumb, text
 
 _STOP = set("""a an and are as at be but by can could do does did for from had has have how i if in
@@ -149,30 +152,45 @@ class Shelf:
 
     @staticmethod
     def _load_manifest(root: Path) -> Dict[str, str]:
-        """file name -> source url, from a fetcher's _manifest.json when one is present."""
-        urls: Dict[str, str] = {}
+        """file name -> source url, from a fetcher's _manifest.json when one is present.
+
+        Only names that occur ONCE are kept: One UI has several intro.html pages in different
+        folders, and a name shared by two pages cannot say which url is whose. Those pages get
+        their url from the mirror layout instead (see _mirror_url)."""
         mf = root / "_manifest.json"
         if not mf.exists():
-            return urls
+            return {}
         try:
             entries = json.loads(mf.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return urls
+            return {}
         if isinstance(entries, dict):
             entries = entries.get("pages") or entries.get("files") or list(entries.values())
+        pairs = []
         for e in entries if isinstance(entries, list) else []:
             if not isinstance(e, dict) or not e.get("url"):
                 continue
-            for key in ("file", "filename", "local_path", "saved_as", "local_file"):
-                if e.get(key):
-                    urls[Path(str(e[key])).name] = e["url"]
-                    break
-            else:
-                if e.get("path"):
-                    stem = str(e["path"]).strip("/").replace("/", "__")
-                    for ext in (".json", ".html", ".htm", ".md", ".pdf"):
-                        urls[stem + ext] = e["url"]
-        return urls
+            name = next((Path(str(e[k])).name for k in ("file", "filename", "local_path", "saved_as", "local_file")
+                         if e.get(k)), None)
+            if name is None and e.get("path"):
+                raw_path = str(e["path"]).strip("/")
+                name = (Path(raw_path).name if Path(raw_path).suffix.lower() in convert.SUPPORTED
+                        else raw_path.replace("/", "__") + ".json")
+            if name:
+                pairs.append((name, e["url"]))
+        counts: Dict[str, int] = {}
+        for name, _ in pairs:
+            counts[name] = counts.get(name, 0) + 1
+        return {name: url for name, url in pairs if counts[name] == 1}
+
+    @staticmethod
+    def _mirror_url(root: Path, p: Path) -> Optional[str]:
+        """A page saved under a host-named folder (docs.example.com/guide/x.html) gets that url."""
+        parts = [root.name] + list(p.relative_to(root).parts)
+        for i, part in enumerate(parts[:-1]):
+            if re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+", part.lower()):
+                return "https://" + "/".join(parts[i:])
+        return None
 
     def ingest(self, shelf: str, root, html_selector: Optional[str] = None,
                max_chars: int = 1800, prune: bool = True) -> IngestReport:
@@ -185,20 +203,24 @@ class Shelf:
             except (OSError, json.JSONDecodeError):
                 pass
         urls = self._load_manifest(root)
+        # "_manifest.json", "_index.json" and friends are a fetcher's metadata; an HTML page
+        # that happens to start with "_" (One UI's _root.html) is content.
         files = sorted(p for p in root.rglob("*") if p.is_file()
-                       and p.suffix.lower() in convert.SUPPORTED and not p.name.startswith("_"))
+                       and p.suffix.lower() in convert.SUPPORTED
+                       and not (p.name.startswith("_") and p.suffix.lower() == ".json"))
         seen_sources = set()
         with self._conn() as c:
             for p in files:
                 source = str(p.resolve())
                 seen_sources.add(source)
-                sha = hashlib.sha256(p.read_bytes()).hexdigest()
+                sha = hashlib.sha256(p.read_bytes() + f"|{PIPELINE_VERSION}|{max_chars}|{html_selector}".encode()).hexdigest()
                 row = c.execute("SELECT doc_id, sha256 FROM docs WHERE source = ?", (source,)).fetchone()
                 if row and row[1] == sha:
                     rep.docs_unchanged += 1
                     continue
                 try:
-                    doc = convert.to_document(p, url=urls.get(p.name), html_selector=html_selector)
+                    doc = convert.to_document(p, url=self._mirror_url(root, p) or urls.get(p.name),
+                                              html_selector=html_selector)
                     chunks = chunk_mod.chunk_document(doc, max_chars=max_chars, source_uri=p.resolve().as_uri())
                 except Exception as e:                     # one bad file never sinks the shelf
                     rep.failed.append(f"{p.name}: {type(e).__name__}: {e}"[:300])
@@ -264,16 +286,22 @@ class Shelf:
             except sqlite3.Error as e:
                 res.error = f"{type(e).__name__}: {e}"
                 return res
+        # Fill the budget in rank order. A passage that does not fit whole is trimmed to the
+        # room left, as long as that room can hold a useful few lines (200 chars); below that
+        # the answer stops and says it was capped.
         budget = max(200, int(max_chars))
+        used = 0
         for s, title, crumb, url, page, text, score in rows:
-            room = budget - sum(len(h.text) for h in res.hits)
-            if len(text) > room:
+            room = budget - used
+            if res.hits and room < 200:
                 res.truncated = True
-                if res.hits:
-                    break
-                text = text[:room].rstrip() + " ..."
+                break
+            if len(text) > room:
+                text = text[:max(0, room - 4)].rstrip() + " ..."
+                res.truncated = True
             res.hits.append(Hit(shelf=s, title=title, breadcrumb=crumb, url=url, page=page,
                                 score=round(float(score), 3), text=text))
+            used += len(text)
         if len(rows) > len(res.hits):
             res.truncated = True
         return res
