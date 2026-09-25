@@ -8,8 +8,14 @@ THE MEASURED DEFECT, 2026-09-24:
 
 Every root the indexer reads is a Claude Code transcript plane. Rill (dsh_agent) writes to
 `<home>/.dsh/sessions/<session-dir>/session.jsonl.zstd`, and NONE of it is in the corpus. The
-live DSH session alone spans 2026-08-26 -> 2026-09-24 and carries 1,431 operator messages --
-Daniel's words, absent from the organ built to keep his directives from evaporating.
+live session alone spans 2026-08-26 -> 2026-09-24; across the plane there are 2,522
+user/message records, and 360 of them carry `source.kind == "user"` -- Daniel actually
+speaking, absent from the organ built to keep his directives from evaporating.
+
+(That 360 is a corrected number. The first draft of this file said "1,431 operator messages",
+counting RECORDS on his record type. Most of them are the harness. Counting the container
+instead of the contents is the same error one plane up from the one these pins exist to
+catch, and it was caught by measuring rather than by re-reading.)
 
 WHY THIS IS WORSE THAN A MISSING FOLDER. On 2026-09-24 Rill designed the USN "machine diary"
 with Daniel, then used THE EYE to check for prior art and reported: `eye find "USN journal"` = 0
@@ -43,11 +49,41 @@ from pathlib import Path
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# One real record of each DSH shape, copied from
+# Real record shapes, copied VERBATIM from
 # C:/Users/L5/.dsh/sessions/--E-AI-Setup--/session-4cd06dad-.../session.jsonl.zstd
+#
+# These fixtures were WRONG on the first pass and the mistake is worth keeping visible: the
+# first version used {"data": {"text": ...}}, invented from what the reader happened to accept.
+# Every pin passed on the first try and the live ingest then indexed ZERO of 1,431 operator
+# records, because the real contract is a content BLOCK LIST plus a source stamp. A double
+# written from the code instead of from the contract is a mirror -- it can only agree.
 DSH_OPERATOR = {
-    "type": "user/message", "seq": 1250509, "time": 1790300029000,
-    "data": {"text": "Hey Rill! Check out the new find verb that we just built!"},
+    "type": "user/message", "seq": 1250509, "time": 1790300029000, "surfaceOp": "append",
+    "data": {
+        "content": [{"type": "text",
+                     "text": "Hey Rill! Check out the new find verb that we just built!"}],
+        "source": {"kind": "user", "rpcId": "ae33fa47"},
+        "role": "user", "id": "f67606c5-e55a-49f9-bec6-a0940ad4f7cc",
+    },
+}
+# The harness speaking through his record type. 2,096 of 2,522 user/message records are this.
+DSH_PLUGIN = {
+    "type": "user/message", "seq": 14, "time": 1787726777481,
+    "data": {
+        "content": [{"type": "text", "text": "Current runtime context. This snapshot "
+                                             "supersedes earlier runtime-context snapshots."}],
+        "source": {"kind": "plugin", "plugin": "dsh-akashic-recall"},
+        "role": "user", "id": "a1",
+    },
+}
+# The one that defeats marker-sniffing: no <system-reminder>, no known preamble, pure prose.
+DSH_GOAL = {
+    "type": "user/message", "seq": 99, "time": 1787726777999,
+    "data": {
+        "content": [{"type": "text", "text": "<goal_round>\nObjective: \"Long-horizon night "
+                                             "run with Heimdall: build auto-handoff.\""}],
+        "source": {"kind": "goal"}, "role": "user", "id": "a2",
+    },
 }
 DSH_AGENT = {
     "type": "assistant/message", "seq": 1250922, "time": 1790300100000,
@@ -201,7 +237,29 @@ def test_dsh_operator_message_is_operator_voice():
     assert ev is not None, \
         "a DSH user/message produced no event -- _event_from only knows Claude Code's shapes"
     assert ev["voice"] == "operator", f"expected operator voice, got {ev['voice']!r}"
-    assert "find verb" in ev["text"], f"text not extracted from data.text: {ev['text'][:80]!r}"
+    assert "find verb" in ev["text"], \
+        f"text not extracted from the content block list: {ev['text'][:80]!r}"
+
+
+def test_the_harness_speaking_is_not_the_operator():
+    """The contamination guard, and the reason this needs PROVENANCE rather than markers.
+
+    Measured across all 25 DSH sessions: 2,522 user/message records, of which only 360 are
+    kind="user". The other 2,162 are the harness -- recall injections, runtime snapshots,
+    goal rounds, subagent reports -- arriving on the SAME record type as his speech.
+
+    DSH_GOAL is the case that settles the design argument. It carries no <system-reminder>,
+    no known preamble, nothing a marker list could match, and it is pure directive-shaped
+    prose. Classified by text it reads as a standing directive from Daniel. Classified by
+    data.source.kind it is what it is. This is the 419-of-523 dispatch-brief contamination
+    with a different harness on the label, and the source stamp makes it unfalsifiable."""
+    from core.eye.index import _event_from
+    for label, rec in (("plugin", DSH_PLUGIN), ("goal", DSH_GOAL)):
+        ev = _event_from(rec)
+        assert ev is not None, f"the {label} record produced no event at all"
+        assert ev["voice"] == "system", (
+            f"a {label}-sourced record read as {ev['voice']!r}. data.source.kind says who "
+            f"wrote it; only kind=='user' is Daniel.")
 
 
 def test_dsh_agent_message_keeps_speech_and_drops_reasoning():

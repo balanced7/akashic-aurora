@@ -53,6 +53,29 @@ _SYSTEM_MARKERS = (
 
 _TRANSCRIPT_GLOB = "*.jsonl"
 
+# T406, the DSH plane. Its transcripts are zstd-compressed and live one-per-directory under a
+# CONSTANT filename, which is why they need their own glob and why session identity cannot be
+# the file stem (see session_id_for).
+_DSH_GLOB = "session.jsonl*"
+_COMPRESSED_SUFFIXES = (".zstd", ".zst")
+
+# A DSH `user/message` is not always Daniel. The DSH harness injects recall blocks, runtime
+# snapshots and compaction checkpoints through the SAME record type his words arrive on --
+# the identical false-positive class _SYSTEM_MARKERS exists to fight, one harness over.
+#
+# Kept SEPARATE from _SYSTEM_MARKERS on purpose. Two of these strings ("Plan-time recall",
+# "Recall-at-action") also appear in Claude Code user records, where the hook PREPENDS them to
+# text the operator really did write. Folding them into the shared tuple would silently
+# reclassify existing operator events across 44k indexed rows and move every freq verdict that
+# reads them -- widening a corpus must not restate its history.
+_DSH_SYSTEM_MARKERS = (
+    "Recall-at-action (Akashic)",
+    "Plan-time recall (Akashic)",
+    "Current runtime context.",
+    "This is an automatically generated checkpoint",
+    "<system-reminder>",
+)
+
 # T313: the archive roots come from ONE declaration shared with the tool that writes them.
 # Imported defensively: the indexer must still work if config is unavailable, but a missing
 # constant is a shrunken corpus, so it is reported by corpus_coverage() rather than swallowed.
@@ -63,6 +86,10 @@ try:
     from config import TRANSCRIPT_ARCHIVE_ROOTS
 except Exception:                                    # pragma: no cover - config is a leaf module
     TRANSCRIPT_ARCHIVE_ROOTS = []
+try:
+    from config import DSH_SESSION_ROOTS
+except Exception:                                    # pragma: no cover - config is a leaf module
+    DSH_SESSION_ROOTS = []
 
 # Subagent transcripts are INDEXED (their findings are real) but counted separately, because
 # ~5x more of them exist than operator-bearing sessions and an unlabelled mix makes a terse
@@ -122,6 +149,67 @@ def utterance_key(session: str, text: str) -> Tuple[str, str]:
     return (session, " ".join((text or "").split()))
 
 
+# Basenames that identify a FILE but not a SESSION. A harness that writes one directory per
+# session under a constant filename puts the session's identity in the DIRECTORY, and reading
+# the stem instead collapses every session onto one id.
+_GENERIC_TRANSCRIPT_STEMS = {"session", "transcript", "conversation", "chat"}
+
+
+def session_id_for(path: Any) -> str:
+    """What SESSION does this transcript belong to? The one declaration.
+
+    This was inlined in ingest() as `f.stem`, which is correct for Claude Code (the file is
+    named for its session) and silently wrong for DSH, where all 25 transcripts are named
+    `session.jsonl.zstd` and `.stem` is the constant "session.jsonl" for every one of them.
+
+    The damage of getting this wrong is not a missing session, it is LOST EVENTS: event_id is
+    "<session>:<line>", so colliding ids make line 12 of one session and line 12 of another
+    the same row, and ingest's `INSERT OR IGNORE` drops the loser without raising, without
+    logging, and without moving any counter the report prints.
+
+    Claude Code ids are unchanged by construction -- their stems are not generic -- so the
+    44,525 rows already indexed keep resolving."""
+    p = Path(path)
+    name = p.name
+    for suffix in _COMPRESSED_SUFFIXES:
+        if name.lower().endswith(suffix):
+            name = name[: -len(suffix)]
+            break
+    stem = name[:-6] if name.lower().endswith(".jsonl") else Path(name).stem
+    if stem.lower() in _GENERIC_TRANSCRIPT_STEMS:
+        # The filename names the file; the directory names the session.
+        return p.parent.name or stem
+    return stem
+
+
+def open_transcript(path: Any):
+    """Open a transcript for line-reading, decompressing when the harness compresses.
+
+    Fail-soft here means fail LOUDLY. ingest() opens with errors='replace', so handing it
+    zstd bytes does not raise -- it yields mojibake that fails json.loads and increments
+    `lines_unparsed`, a counter no reader watches. A whole harness would read as indexed.
+    So a compressed transcript we cannot decompress raises OSError, which ingest already
+    records in files_failed, which flips manifest_complete. An absence becomes a number."""
+    p = Path(path)
+    if not str(p).lower().endswith(_COMPRESSED_SUFFIXES):
+        return open(p, encoding="utf-8", errors="replace")
+    try:
+        import zstandard
+    except ImportError as e:                         # pragma: no cover - depends on the host
+        raise OSError(
+            f"cannot read compressed transcript {p.name}: the zstandard package is not "
+            f"installed, so this session is unreadable rather than absent ({e})") from e
+    import io
+    dctx = zstandard.ZstdDecompressor()
+    fh = p.open("rb")
+    try:
+        reader = dctx.stream_reader(fh)
+    except Exception as e:
+        fh.close()
+        raise OSError(f"cannot open zstd stream for {p.name}: {e}") from e
+    return io.TextIOWrapper(reader, encoding="utf-8", errors="replace")
+
+
 def default_corpus() -> List[Path]:
     """The transcript manifest: every session JSONL the harness still holds, PLUS the
     rescued archive.
@@ -160,8 +248,18 @@ def _corpus_roots() -> List[Any]:
     seen: set = set()
 
     def _take(label: str, base: Path, files) -> None:
-        picked = [p for p in sorted(files) if p.name not in seen]
-        seen.update(p.name for p in picked)
+        # T406: dedup by SESSION, not by filename. The intent was always "the live copy of a
+        # session shadows its archived copy"; basename was a proxy that happened to hold while
+        # every plane named its files after their session. DSH names all 25 of its transcripts
+        # `session.jsonl.zstd`, so the proxy would have discarded 24 sessions as duplicates of
+        # each other -- silently, and reported as a healthy corpus.
+        picked = []
+        for p in sorted(files):
+            sid = session_id_for(p)
+            if sid in seen:
+                continue
+            seen.add(sid)
+            picked.append(p)
         roots.append((label, str(base), picked))
 
     live = Path.home() / ".claude" / "projects"
@@ -174,6 +272,13 @@ def _corpus_roots() -> List[Any]:
     rescued = _REPO_ROOT / "state" / "eye" / "recovered"
     if rescued.is_dir():
         _take("rescued", rescued, rescued.glob(_TRANSCRIPT_GLOB))
+    # T406: the DSH plane -- one directory per session, its own glob because the transcripts
+    # are compressed. Taken LAST so a Claude Code session of the same id keeps precedence,
+    # matching the live > archive > rescued rule this function already states.
+    for base in DSH_SESSION_ROOTS:
+        b = Path(base)
+        if b.is_dir():
+            _take("dsh", b, b.rglob(_DSH_GLOB))
     return [(lbl, base, files) for lbl, base, files in roots]
 
 
@@ -266,12 +371,63 @@ def _texts_from_content(content: Any) -> str:
 
 
 def _parse_ts(raw: Any) -> Optional[float]:
+    """ISO strings (Claude Code) and numeric epochs (DSH) both resolve to seconds.
+
+    A None here is not an error and never raises -- it becomes TIME-FOG, the share every
+    as_of query is blind to. That is fine for one odd record and wrong for a whole harness,
+    which is what DSH's epoch-millisecond stamps would have been."""
     if not raw:
         return None
+    if isinstance(raw, bool):                         # bool is an int; never a timestamp
+        return None
+    if isinstance(raw, (int, float)):
+        # Milliseconds vs seconds: 1e11 seconds is the year 5138, so anything above it is ms.
+        # Written as a threshold rather than a digit count because the latter breaks in 2286.
+        return float(raw) / 1000.0 if abs(raw) > 1e11 else float(raw)
     try:
         return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).timestamp()
     except Exception:
         return None
+
+
+def _dsh_event(obj: Dict[str, Any], typ: str) -> Tuple[str, str]:
+    """(text, voice) for a DSH record, or ("", _) when it carries no utterance.
+
+    Only two of DSH's eighteen record types are speech. The live session holds 58,889
+    `reasoning-chunks` against 943 assistant messages, so indexing deliberation as though it
+    were speech would make one seat louder than the entire operator axis -- and would put
+    private thinking into the plane Daniel searches for what was SAID."""
+    data = obj.get("data")
+    if typ == "user/message":
+        if isinstance(data, str):
+            return data, "operator"
+        if not isinstance(data, dict):
+            return "", "system"
+        text = _texts_from_content(data.get("content"))
+        # PROVENANCE, NOT GUESSWORK. DSH stamps every user/message with data.source.kind, and
+        # measured over all 25 sessions it is present on 2,522 of 2,522 records. Only 360 of
+        # those are kind="user" -- the rest are the harness talking through his record type:
+        #   plugin 2,096 (recall injections, runtime snapshots, compaction), agent-instructions
+        #   26, skill-catalog 24, goal 11, subagent-settled 4, subagent-report 1.
+        # Sniffing markers instead would have passed `goal`, `subagent-report` and `tool-jobs`
+        # text onto the operator axis -- the same contamination measured on 2026-08-16, where
+        # 419 of 523 operator-voice sessions turned out to be dispatch briefs. When the source
+        # declares the author, never infer it from the prose.
+        src = data.get("source")
+        kind = str(src.get("kind")) if isinstance(src, dict) else ""
+        if kind == "user":
+            return text, "operator"
+        if kind:
+            return text, "system"
+        # No source stamp: fall back to the marker list rather than assume he spoke.
+        return text, ("system" if any(m in text for m in _DSH_SYSTEM_MARKERS) else "operator")
+    if typ == "assistant/message":
+        msg = (data or {}).get("message") if isinstance(data, dict) else None
+        content = msg.get("content") if isinstance(msg, dict) else None
+        # _texts_from_content already keeps only type == "text", which is exactly the
+        # spoken reply: it drops "reasoning" and "tool-call" blocks by construction.
+        return _texts_from_content(content), "agent"
+    return "", "system"
 
 
 def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -303,6 +459,10 @@ def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         msg = obj.get("message") or {}
         text = _texts_from_content(msg.get("content"))
         voice = "agent"
+    elif "/" in typ:
+        # T406: the DSH plane names its records "<noun>/<verb>" -- a namespace Claude Code
+        # never uses, so the two dialects cannot collide on a type string.
+        text, voice = _dsh_event(obj, typ)
     else:
         v = obj.get("content")
         text = v if isinstance(v, str) else _texts_from_content(v)
@@ -311,7 +471,7 @@ def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     text = (text or "").strip()
     if not text:
         return None
-    return {"ts": _parse_ts(obj.get("timestamp")), "voice": voice, "type": typ,
+    return {"ts": _parse_ts(obj.get("timestamp") or obj.get("time")), "voice": voice, "type": typ,
             "text": text, "cwd": str(obj.get("cwd") or ""),
             "branch": str(obj.get("gitBranch") or ""),
             # The harness's own causal chain. Present on user/assistant/system/attachment
@@ -337,7 +497,7 @@ def ingest(paths: Optional[List[Path]] = None,
         for f in manifest:
             try:
                 st = f.stat()
-                session = f.stem
+                session = session_id_for(f)
                 # authorship fix a5afd360: the flag is a property of the SOURCE PATH, not
                 # of any record, so it
                 # is stamped for every file in the manifest -- BEFORE the unchanged-skip
@@ -358,7 +518,7 @@ def ingest(paths: Optional[List[Path]] = None,
                         # impossible (append changes mtime), so skip is safe
                         continue
                 n_line = 0
-                with open(f, encoding="utf-8", errors="replace") as fh:
+                with open_transcript(f) as fh:
                     for n_line, raw in enumerate(fh, start=1):
                         if n_line <= done_lines:
                             continue
