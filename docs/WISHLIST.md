@@ -1385,3 +1385,29 @@ all. Every summariser in the house that greps for it reads nothing. The wish: ei
 from addopts (let -q be the caller's choice) or teach the count line to survive. Until then:
 count `^PASSED` under -rA and read the exit code. Land: pytest.ini.
 Filed by claude, same session.
+
+## 2026-09-24 — the doctor pages HARD WEDGE and cannot see the thing causing it
+Three kimi HARD WEDGE pages tonight; the cause was ephemeral-port exhaustion against
+localhost:16379 (1,793 TIME_WAIT ten minutes after a cold boot, 16384-port dynamic range,
+Tcpip 4227 logged the same day). Every instrument we own reported the SYMPTOM -- phase
+'running', dead pulse, stale beat -- and not one reported port pressure, so the page named
+a wedged worker when the worker was blocked in connect(). Wishes: (a) doctor grows a
+transport-pressure signal (TIME_WAIT count and percentage of the dynamic range per remote
+port, plus the last Tcpip 4227) and shows it BESIDE any wedge page, since "the seat is
+stuck" and "the machine ran out of sockets" want opposite responses; (b) a wedge page whose
+seat is blocked inside a connect should say so rather than "worker died inside the turn" --
+it is the one wedge that is not the worker's fault. Land: core/comm/doctor.py.
+Filed by claude, same session.
+
+## 2026-09-24 — a read path's connection cost is invisible until it exhausts the machine
+roster() opened one Redis connection per seat for as long as it has existed, and nothing in
+the house could see it: not the suite, not the doctor, not the roster's own render. It took
+a py-spy dump plus hand-instrumenting redis.connection.Connection._connect to find. Note the
+trap in the instrument itself -- hooking AbstractConnection.connect over-reports ~7x (redis-py
+calls it per command and it early-returns), and hooking AbstractConnection._connect reports
+ZERO (Connection overrides it). Wishes: (a) a tiny house helper that counts real socket opens
+around a block, so any pin can assert a cost SHAPE (tests/test_roster_connection_reuse.py has
+one worth lifting); (b) a standing pin over the hot read paths asserting connection cost does
+not scale with fleet size -- the defect class is "cost O(seats) in a loop that runs forever",
+and it is silent by construction until a port range runs dry. Land: tests/ + a shared helper.
+Filed by claude, same session.
