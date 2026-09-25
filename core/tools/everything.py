@@ -31,6 +31,7 @@ file") — the distinction a silent empty list would destroy.
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 import shutil
 import subprocess
@@ -53,11 +54,42 @@ _EVERYTHING_ROOTS = (
 
 
 @dataclass
+class Hit:
+    """One structured search hit: the full capability of es.exe per match.
+
+    Surfacing the WHOLE tool (Daniil 2026-09-25): es.exe exposes per-hit properties
+    (-size, -date-modified, -date-created, -date-accessed, -extension, -attributes,
+    -run-count) that the bare-path wrapper was discarding. This record carries them so
+    the `find` verb can answer "where is the file AND how old is it AND how big", which
+    is the fuel for the inventory/provenance join (mtime ↔ file_edit events).
+    """
+    path: str
+    name: str = ""
+    size: Optional[int] = None
+    date_modified: str = ""
+    date_created: str = ""
+    date_accessed: str = ""
+    extension: str = ""
+    attributes: str = ""
+    run_count: Optional[int] = None
+    raw: Optional[dict] = None
+
+    @property
+    def mtime(self) -> str:
+        """Alias so the inventory combo reads 'mtime', not es.exe's 'date-modified'."""
+        return self.date_modified
+
+
+@dataclass
 class SearchResult:
     query: str
     paths: List[str] = field(default_factory=list)
     ok: bool = False
     error: Optional[str] = None
+    #: Structured per-hit records (the full capability surface). Populated when
+    #: format='json' is requested; `paths` remains the bare-path projection for
+    #: backward-compatible callers and rendering.
+    hits: List[Hit] = field(default_factory=list)
     #: WHICH ENGINE ANSWERED. "everything" is the indexed whole-machine answer;
     #: "walk" is the bounded fallback. A caller that cannot tell them apart will read a
     #: bounded miss as machine-wide absence, which is the failure this whole module exists
@@ -140,6 +172,110 @@ def _rank_exact_first(paths, needle):
     return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
 
 
+#: es.exe's -sort keys (verified against -h); the named flag surfaces these verbatim.
+_SORT_KEYS = frozenset({
+    "name", "path", "size", "extension", "date-created", "date-modified",
+    "date-accessed", "attributes", "filelist-filename", "run-count",
+    "date-recently-changed", "date-run",
+})
+
+
+def _build_query_flags(*, regex=False, case=False, whole_word=False, dirs_only=False,
+                       files_only=False, scope=None, attributes=None):
+    """Map the clean named query flags to es.exe argv (module-level so it is pinnable).
+
+    The grammar is es.exe's own (verified 1.1.0.38 -h): regex -> -r, case -> -i,
+    whole-word -> -w, dirs-only -> /ad, files-only -> /a-d, scope -> -path <dir>,
+    attributes -> /a<mask>. Returns a list of argv tokens, never a shell string (list
+    argv means no injection surface).
+    """
+    argv = []
+    if regex:
+        argv.append("-r")
+    if case:
+        argv.append("-i")
+    if whole_word:
+        argv.append("-w")
+    if dirs_only:
+        argv.append("/ad")
+    if files_only:
+        argv.append("/a-d")
+    if scope:
+        argv.append("-path")
+        argv.append(str(scope))
+    if attributes:
+        argv.append("/a" + str(attributes))
+    return argv
+
+
+def _parse_json_hits(text: str) -> List[Hit]:
+    """Parse es.exe -json output into structured Hit records.
+
+    es.exe -json emits a SINGLE JSON ARRAY (verified live against 1.1.0.38), each
+    element a dict with `filename` (the full path) plus whatever columns were requested
+    via -add-columns / the property flags (size, date_modified, date_created,
+    date_accessed, extension, attributes, run_count). Fail-soft: malformed input yields
+    an empty list, never a crash -- a bad record must not sink the structured result.
+
+    Tolerates BOTH the array form and line-delimited JSON (defensive: different es.exe
+    builds have emitted both; the array form is authoritative for 1.1.0.38).
+    """
+    hits: List[Hit] = []
+    text = (text or "").strip()
+    if not text:
+        return hits
+
+    # Primary: one JSON array (the documented 1.1.0.38 shape).
+    try:
+        decoded = json.loads(text)
+        if isinstance(decoded, list):
+            for rec in decoded:
+                if isinstance(rec, dict) and _record_path(rec):
+                    hits.append(_hit_from_record(rec))
+            return hits
+        if isinstance(decoded, dict) and _record_path(decoded):
+            hits.append(_hit_from_record(decoded))
+            return hits
+    except (ValueError, TypeError):
+        pass  # not a single JSON value -> fall through to line-delimited
+
+    # Fallback: line-delimited JSON objects (older/newer es.exe or hand-shaped output).
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(rec, dict) and _record_path(rec):
+            hits.append(_hit_from_record(rec))
+    return hits
+
+
+def _record_path(rec: dict) -> str:
+    """The path field of an es.exe JSON record (key is `filename`, the only field -json
+    emits unless columns are requested; tolerate the obvious aliases)."""
+    return (rec.get("filename") or rec.get("full_path") or rec.get("path")
+            or rec.get("name") or "")
+
+
+def _hit_from_record(rec: dict) -> Hit:
+    path = _record_path(rec)
+    return Hit(
+        path=path,
+        name=rec.get("name") or os.path.basename(path),
+        size=rec.get("size"),
+        date_modified=rec.get("date_modified") or rec.get("dm") or "",
+        date_created=rec.get("date_created") or rec.get("dc") or "",
+        date_accessed=rec.get("date_accessed") or rec.get("da") or "",
+        extension=rec.get("extension") or rec.get("ext") or "",
+        attributes=rec.get("attributes") or rec.get("attrib") or "",
+        run_count=rec.get("run_count") or rec.get("run-count"),
+        raw=rec,
+    )
+
+
 def walk_search(query: str, *, max_results: int = None, match_path: bool = False,
                 roots=None, budget_s: float = 25.0,
                 max_dirs: int = 400_000) -> SearchResult:
@@ -216,7 +352,17 @@ def search(query: str, *,
            max_results: int = 200,
            match_path: bool = False,
            sort_by_name: bool = True,
-           timeout: float = 15.0) -> SearchResult:
+           timeout: float = 15.0,
+           sort: str = "",
+           columns: Optional[List[str]] = None,
+           format: str = "",
+           regex: bool = False,
+           case: bool = False,
+           whole_word: bool = False,
+           dirs_only: bool = False,
+           files_only: bool = False,
+           scope: Optional[str] = None,
+           attributes: Optional[str] = None) -> SearchResult:
     """Search the Everything index for ``query`` and return full paths.
 
     ``query`` is an Everything search — a bare word matches any substring of a file
@@ -227,6 +373,12 @@ def search(query: str, *,
     max_results caps output (default 200). match_path adds ``-match-path`` so the query is
     matched against the full path, not just the name. sort_by_name adds ``-s``, which ES sorts by FULL PATH (the
     parameter name predates the flag's documented meaning). A zero-timeout is not permitted (empty -> default).
+
+    FULL CAPABILITY SURFACE (Daniil 2026-09-25) — the named params that map to es.exe:
+      sort:       one of _SORT_KEYS, passed to -sort (replaces -s when set)
+      columns:    list of property names -> -add-columns 'p;p;...'
+      format:     'json' -> -json (structured per-hit records land in result.hits)
+      regex/case/whole_word/dirs_only/files_only/scope/attributes -> the query grammar.
     """
     if not query or not query.strip():
         return SearchResult(query=query or "", ok=False, error="empty query")
@@ -249,8 +401,29 @@ def search(query: str, *,
     argv = [es, query]
     if match_path:
         argv.append("-match-path")
-    if sort_by_name:
+    if sort:
+        if sort not in _SORT_KEYS:
+            return SearchResult(query=query, ok=False,
+                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)})")
+        argv.extend(["-sort", sort])
+    elif sort_by_name:
         argv.append("-s")
+    if columns:
+        argv.extend(["-add-columns", ";".join(columns)])
+    if format == "json":
+        argv.append("-json")
+        argv.extend(["-date-format", "1"])  # ISO-8601 dates, parseable
+        # -json alone emits ONLY `filename`; the metadata surface requires explicit columns.
+        # When the caller asked for json but no columns, request the full metadata set so
+        # the structured result is actually useful (the whole point of the surface).
+        if not columns:
+            argv.extend(["-add-columns",
+                         "size;date-modified;date-created;date-accessed;extension;attributes"])
+    argv.extend(_build_query_flags(
+        regex=regex, case=case, whole_word=whole_word,
+        dirs_only=dirs_only, files_only=files_only,
+        scope=scope, attributes=attributes,
+    ))
     # OVER-FETCH, THEN RANK, THEN TRUNCATE. es.exe applies `-n` with ITS OWN sort order, so
     # asking for exactly max_results lets the cap discard the exact-basename match before we
     # ever see it -- ranking afterwards can only reorder what survived. Measured: `es.exe`
@@ -275,6 +448,17 @@ def search(query: str, *,
         err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
         return SearchResult(query=query, ok=False, error=err)
 
+    if format == "json":
+        parsed = _parse_json_hits(proc.stdout or "")
+        base = os.path.basename(str(query or "").strip().lower())
+        # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
+        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        sliced = parsed[:int(max_results)]
+        return SearchResult(
+            query=query, paths=[h.path for h in sliced], hits=sliced,
+            ok=True, engine="everything", exhaustive=len(parsed) < _fetch,
+        )
+
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
     # `exhaustive` reports whether ES had MORE than our fetch window, not whether we trimmed
@@ -285,7 +469,17 @@ def search(query: str, *,
 
 def search_page(query: str, *, limit: int = None, offset: int = 0,
                 match_path: bool = False, sort_by_name: bool = True,
-                timeout: float = 15.0) -> SearchResult:
+                timeout: float = 15.0,
+                sort: str = "",
+                columns: Optional[List[str]] = None,
+                format: str = "",
+                regex: bool = False,
+                case: bool = False,
+                whole_word: bool = False,
+                dirs_only: bool = False,
+                files_only: bool = False,
+                scope: Optional[str] = None,
+                attributes: Optional[str] = None) -> SearchResult:
     """Search the Everything index and return a PAGED slice of the ranked result.
 
     search() hard-caps at ``max_results`` because it asks ES for a fixed over-fetch
@@ -303,6 +497,11 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
 
     ``exhaustive`` is set from the FULL ES answer (all lines, not the slice), so a caller
     can tell "there are more pages past this one" from "we saw everything".
+
+    The full-capability params (sort/columns/format/regex/case/whole_word/dirs_only/
+    files_only/scope/attributes) pass through to search(), which owns argv construction.
+    ``format='json'`` returns structured Hit records in ``result.hits`` (and a bare-path
+    projection in ``result.paths``), sliced to the same offset/limit window.
     """
     if not query or not query.strip():
         return SearchResult(query=query or "", ok=False, error="empty query")
@@ -332,8 +531,26 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
     argv = [es, query]
     if match_path:
         argv.append("-match-path")
-    if sort_by_name:
+    if sort:
+        if sort not in _SORT_KEYS:
+            return SearchResult(query=query, ok=False,
+                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)})")
+        argv.extend(["-sort", sort])
+    elif sort_by_name:
         argv.append("-s")
+    if columns:
+        argv.extend(["-add-columns", ";".join(columns)])
+    if format == "json":
+        argv.append("-json")
+        argv.extend(["-date-format", "1"])
+        if not columns:
+            argv.extend(["-add-columns",
+                         "size;date-modified;date-created;date-accessed;extension;attributes"])
+    argv.extend(_build_query_flags(
+        regex=regex, case=case, whole_word=whole_word,
+        dirs_only=dirs_only, files_only=files_only,
+        scope=scope, attributes=attributes,
+    ))
     if fetch is not None:
         argv.extend(["-n", str(fetch)])
 
@@ -347,6 +564,17 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
     if proc.returncode != 0:
         err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
         return SearchResult(query=query, ok=False, error=err)
+
+    if format == "json":
+        parsed = _parse_json_hits(proc.stdout or "")
+        base = os.path.basename(str(query or "").strip().lower())
+        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
+        return SearchResult(
+            query=query, paths=[h.path for h in sliced], hits=sliced,
+            ok=True, engine="everything",
+            exhaustive=True if unlimited else len(parsed) < fetch,
+        )
 
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
@@ -384,3 +612,46 @@ def format_result(res: SearchResult) -> str:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
     header = f"{res.count} match(es) for {res.query!r}  [engine: Everything index]:"
     return header + "\n" + "\n".join(res.paths)
+
+
+def format_hits(res: SearchResult) -> str:
+    """Human-readable render of the STRUCTURED (full-capability) result.
+
+    One aligned line per Hit: mtime, size, then path — so `find --json` reads as a
+    sortable inventory, not a bare path list. mtime is the inventory combo's fuel:
+    "when was this file last modified" beside "where is it".
+    """
+    if not res.ok:
+        return f"ERROR: {res.error or 'search unavailable'}"
+    if not res.hits:
+        return f"(no matches for {res.query!r} — Everything answered, nothing found)"
+
+    rows = []
+    for h in res.hits:
+        mtime = h.date_modified or "?          "[:10]
+        size = "" if h.size is None else f"{h.size:>11}"
+        rows.append(f"{mtime[:19]:<19} {size}  {h.path}")
+
+    header = (f"{len(res.hits)} match(es) for {res.query!r}  [engine: {res.engine}, "
+              f"structured; columns: mtime, size]:")
+    return header + "\n" + "\n".join(rows)
+
+
+def format_result_json(res: SearchResult) -> str:
+    """Serialize the full result (paths + structured hits) as JSON for callers that
+    want machine-readable output rather than the human render."""
+    import dataclasses
+    def _hit(h):
+        d = dataclasses.asdict(h)
+        d.pop("raw", None)
+        return d
+    return json.dumps({
+        "query": res.query,
+        "ok": res.ok,
+        "error": res.error,
+        "engine": res.engine,
+        "exhaustive": res.exhaustive,
+        "count": res.count,
+        "paths": res.paths,
+        "hits": [_hit(h) for h in res.hits],
+    }, ensure_ascii=False, indent=2)
