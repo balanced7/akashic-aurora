@@ -259,10 +259,13 @@ class _StubEmbedder:
 
 
 def _sizing_corpus(root: Path):
+    # Each section is longer than the chunker's 300-char floor, so none merge with a sibling:
+    # these pins are about ranking, and a merged "Touch areas + Colors" passage would blur that.
     (root / "controls.md").write_text(
-        "# Controls\n\n## Touch areas\n\nMake each control at least 44 points square so fingers land on it.\n\n"
-        "## Colors\n\nUse the system palette for tint.\n", encoding="utf-8")
-    (root / "sound.md").write_text("# Sound\n\n## Volume\n\nKeep alerts quiet at night.\n", encoding="utf-8")
+        "# Controls\n\n## Touch areas\n\n" + "Make each control at least 44 points square so fingers land on it. " * 5 +
+        "\n\n## Colors\n\n" + "Use the system palette for tint. " * 11 + "\n", encoding="utf-8")
+    (root / "sound.md").write_text("# Sound\n\n## Volume\n\n" + "Keep alerts quiet at night. " * 13 + "\n",
+                                   encoding="utf-8")
 
 
 def test_hybrid_finds_a_paraphrase_that_shares_no_words(tmp_path):
@@ -297,8 +300,9 @@ def test_passages_are_embedded_once(tmp_path):
 
 def test_results_are_capped_by_size(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
-    for i in range(20):
-        (corpus / f"doc{i}.md").write_text(f"# Doc {i}\n\n## Widgets\n\n" + "widget " * 300, encoding="utf-8")
+    for i in range(20):   # distinct texts: identical passages are (correctly) returned once
+        (corpus / f"doc{i}.md").write_text(f"# Doc {i}\n\n## Widgets\n\n" + f"widget{i} widget " * 150,
+                                           encoding="utf-8")
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("bulk", corpus)
     res = sh.search("widget", limit=20, max_chars=3000)

@@ -241,7 +241,7 @@ _ARG_DEFAULTS = dict(
     no_sort=False, timeout=15.0,
     # manual (the manuals shelf, 2026-09-24): cmd_manual reads these five on top of the
     # shared query/limit/json.
-    manual_cmd="", words=None, shelf="", max_chars=6000, selector="",
+    manual_cmd="", words=None, shelf="", max_chars=6000, selector="", mode="bm25",
 )
 
 
@@ -990,10 +990,10 @@ async def eye(eye_cmd: str, addr: str = "", seat: str = "", from_seat: str = "",
 @mcp.tool()
 async def manual(manual_cmd: str, query: str = "", shelf: str = "", path: str = "",
                  limit: int = 8, max_chars: int = 6000, selector: str = "",
-                 json: bool = False) -> str:
+                 mode: str = "bm25", json: bool = False) -> str:
     """The manuals shelf: reference manuals (Apple's Human Interface Guidelines, Samsung One UI,
-    anything shelved) cut into labelled passages. manual_cmd = search (query, optional shelf)
-    | ingest (shelf + path: a folder of Markdown / DocC JSON / HTML / PDF) | list.
+    anything shelved) cut into labelled passages. manual_cmd = search (query, optional shelf,
+    mode bm25|hybrid) | ingest (shelf + path: a folder of Markdown / DocC JSON / HTML / PDF) | list.
     search returns the few passages that answer a question, each with its breadcrumb and
     source link, capped by max_chars; a zero names how many passages were searched."""
     if manual_cmd == "ingest":
@@ -1005,7 +1005,8 @@ async def manual(manual_cmd: str, query: str = "", shelf: str = "", path: str = 
     return await _athread(_run, agent_cli.cmd_manual, lock=(manual_cmd == "ingest"),
                           manual_cmd=manual_cmd, words=words, query=query,
                           shelf=shelf if manual_cmd == "search" else "", limit=int(limit or 8),
-                          max_chars=int(max_chars or 6000), selector=selector, json=bool(json))
+                          max_chars=int(max_chars or 6000), selector=selector,
+                          mode=mode or "bm25", json=bool(json))
 
 
 @mcp.tool()
