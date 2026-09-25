@@ -268,7 +268,10 @@ def test_program_adapter_reads_git_ledger_plane_without_redis_or_mutation(tmp_pa
     assert ledger_path.read_bytes() == before
     assert snapshot["sources"][0]["plane"] == "durable-ledger"
     assert snapshot["items"][0]["data"]["arc"] == "UNCLASSIFIED"
-    assert snapshot["capabilities"]["arc_membership"]["state"] == "UNCHECKABLE"
+    assert snapshot["capabilities"]["arc_membership"]["state"] == "SUPPORTED"
+    arcs_basis = snapshot["capabilities"]["arc_membership"]["basis"]
+    assert any(b.startswith("source:data/arcs-register/register.json@sha256:") for b in arcs_basis)
+    assert any(b.startswith("arcs:") for b in arcs_basis)
     assert snapshot["capabilities"]["mail_state"]["state"] == "UNCHECKABLE"
     assert snapshot["capabilities"]["runtime_attention"]["state"] == "UNCHECKABLE"
     assert snapshot["capabilities"]["settlement"]["blocked_by"] == "T116"
