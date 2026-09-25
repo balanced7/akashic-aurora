@@ -208,6 +208,16 @@ DSH_SESSION_ROOTS = [
     Path.home() / ".dsh" / "sessions",
 ]
 
+# T407: the seat planes. A member seat running its own Claude-shaped harness profile keeps
+# transcripts here, one directory per project, exactly like the operator's own ~/.claude.
+# Keyed BY SEAT because the key is the answer: these transcripts are indistinguishable from
+# his at the record level (measured -- `userType` reads "external" on both planes), so the
+# only thing that can say whose session this is, is the path it was found under.
+SEAT_TRANSCRIPT_ROOTS = {
+    "kimi": BASE_DIR / ".kimi-claude-home" / "projects",
+    "deepseek": BASE_DIR / ".deepseek-claude-home" / "projects",
+}
+
 # Canonical agent-agnostic session log (Redis Stream on WSL master)
 SESSION_EVENTS_STREAM = "session:events"
 SESSION_NOTE_SCHEMA_VERSION = "1"

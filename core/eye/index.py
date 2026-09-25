@@ -90,6 +90,10 @@ try:
     from config import DSH_SESSION_ROOTS
 except Exception:                                    # pragma: no cover - config is a leaf module
     DSH_SESSION_ROOTS = []
+try:
+    from config import SEAT_TRANSCRIPT_ROOTS
+except Exception:                                    # pragma: no cover - config is a leaf module
+    SEAT_TRANSCRIPT_ROOTS = {}
 
 # Subagent transcripts are INDEXED (their findings are real) but counted separately, because
 # ~5x more of them exist than operator-bearing sessions and an unlabelled mix makes a terse
@@ -128,7 +132,7 @@ def is_subagent_path(path: Any) -> bool:
 # So migrations ADD, never DROP. Derived tables (pyramid, edges) are genuinely disposable
 # and may be rebuilt freely; `events` may not. Rows whose source file is gone keep NULL in
 # any column added later, and that NULL is reported as unevaluable rather than as absence.
-_SCHEMA_VERSION = 5
+_SCHEMA_VERSION = 6
 
 
 def utterance_key(session: str, text: str) -> Tuple[str, str]:
@@ -180,6 +184,29 @@ def session_id_for(path: Any) -> str:
         # The filename names the file; the directory names the session.
         return p.parent.name or stem
     return stem
+
+
+def seat_for_path(path: Any) -> Optional[str]:
+    """Whose session is this? Returns a seat id, or None for the operator's own plane.
+
+    T407, and the answer to a question the records themselves cannot settle. A member seat
+    running its own Claude-shaped harness writes transcripts BYTE-IDENTICAL in shape to his:
+    measured across both planes, every `user` record carries userType "external", so no field
+    distinguishes a seat's session from the operator's. Only the path does -- which is why the
+    2026-08-19 pin demanded provenance stamped from the SOURCE, the same shape is_subagent
+    already uses, rather than a file drop into the live root.
+
+    What is at stake if this returns None wrongly: a seat's `user` records are DISPATCH BRIEFS
+    written by another agent, not speech. Sampled from the 19 transcripts on disk they read
+    "FIRST BUILDER ROUND", "SECOND BUILDER ROUND", "You are kimi (kimi-k3), phase-1 member
+    seat" -- our own prompts. Counting those as his voice is the a5afd360 contamination, where
+    419 of 523 operator-voice sessions turned out to be briefs."""
+    p = str(Path(path)).replace("\\", "/").lower()
+    for seat, base in (SEAT_TRANSCRIPT_ROOTS or {}).items():
+        root = str(Path(base)).replace("\\", "/").lower().rstrip("/")
+        if root and p.startswith(root + "/"):
+            return seat
+    return None
 
 
 def open_transcript(path: Any):
@@ -279,6 +306,13 @@ def _corpus_roots() -> List[Any]:
         b = Path(base)
         if b.is_dir():
             _take("dsh", b, b.rglob(_DSH_GLOB))
+    # T407: the seat planes, labelled by seat so coverage can say WHOSE sessions it reached.
+    # Taken after the operator's roots for the same precedence reason: if a session somehow
+    # appears on both, his copy is the one that keeps the id.
+    for seat, base in sorted((SEAT_TRANSCRIPT_ROOTS or {}).items()):
+        b = Path(base)
+        if b.is_dir():
+            _take(f"seat:{seat}", b, b.rglob(_TRANSCRIPT_GLOB))
     return [(lbl, base, files) for lbl, base, files in roots]
 
 
@@ -297,7 +331,13 @@ def corpus_coverage() -> Dict[str, Any]:
         "total": total,
         "subagent_transcripts": subagent,
         "operator_bearing": total - subagent,
-        "dedup": "by filename; precedence live > archive > rescued",
+        # Restated for T406/T407: this line said "by filename" while the code deduped by
+        # session, and a coverage contract that misdescribes its own rule is the same defect
+        # class it exists to catch. `seat_transcripts` is counted separately for the reason
+        # subagent_transcripts is: an unlabelled mix lets our own briefs read as his voice.
+        "dedup": "by session id; precedence live > archive > rescued > dsh > seat",
+        "seat_transcripts": sum(len(files) for lbl, _b, files in rows
+                                if str(lbl).startswith("seat:")),
     }
 
 
@@ -341,6 +381,14 @@ def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
             # contamination, dropping it risks losing his voice from the twenty rescued
             # sessions that exist nowhere else, and this organ exists to stop exactly that.
             con.execute("ALTER TABLE events ADD COLUMN is_subagent INTEGER")
+        if "seat" not in cols:
+            # T407 provenance, stamped from the source PATH at ingest -- the is_subagent shape,
+            # one plane over. NULL means the operator's own transcript OR a row that predates
+            # this column; the two are distinguishable only by whether its source still exists,
+            # so readers must not treat NULL as a positive claim of "his". Every row written
+            # after this migration carries the real answer, because DELETE FROM ingest_state
+            # below re-reads every file still on disk.
+            con.execute("ALTER TABLE events ADD COLUMN seat TEXT")
         if "indexed_at" not in cols:
             # known_at, in the grammar's sense (sec 1): WHEN THIS BECAME KNOWABLE, which is
             # not when it happened. A transcript written last week and ingested today is new
@@ -430,8 +478,12 @@ def _dsh_event(obj: Dict[str, Any], typ: str) -> Tuple[str, str]:
     return "", "system"
 
 
-def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """One JSONL record -> one event dict (or None when it carries no text)."""
+def _event_from(obj: Dict[str, Any], seat: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """One JSONL record -> one event dict (or None when it carries no text).
+
+    `seat` is the provenance stamp from the source path (T407): None for the operator's own
+    plane, a seat id for a member seat's harness home. It is a parameter rather than a lookup
+    because the record cannot answer the question -- see seat_for_path."""
     typ = str(obj.get("type") or "")
     text, voice = "", "system"
 
@@ -468,10 +520,23 @@ def _event_from(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         text = v if isinstance(v, str) else _texts_from_content(v)
         voice = "system"
 
+    # T407, ONE clamp rather than a branch per lane. There is no operator on a seat plane:
+    # a `user` record there is the brief we dispatched, and a queue-operation is the same
+    # brief arriving on the other lane -- both would otherwise read as his voice. Clamping
+    # once at the end means a lane added later cannot quietly reopen the hole.
+    #
+    # Nothing of his is lost by this. A directive that reached a seat came through the bus,
+    # and the bus records it with correct authorship on its own durable plane; what lands in
+    # a seat transcript is our RESTATEMENT of it, which is the same class as a compaction
+    # summary replaying his words at the wrong timestamp in someone else's voice.
+    if seat and voice == "operator":
+        voice = "agent"
+
     text = (text or "").strip()
     if not text:
         return None
-    return {"ts": _parse_ts(obj.get("timestamp") or obj.get("time")), "voice": voice, "type": typ,
+    return {"seat": seat,
+            "ts": _parse_ts(obj.get("timestamp") or obj.get("time")), "voice": voice, "type": typ,
             "text": text, "cwd": str(obj.get("cwd") or ""),
             "branch": str(obj.get("gitBranch") or ""),
             # The harness's own causal chain. Present on user/assistant/system/attachment
@@ -504,6 +569,7 @@ def ingest(paths: Optional[List[Path]] = None,
                 # below, whose rows are exactly the ones that predate the column and would
                 # otherwise never be reached again.
                 sub_flag = 1 if is_subagent_path(f) else 0
+                seat = seat_for_path(f)
                 con.execute(
                     "UPDATE events SET is_subagent=? WHERE session=? AND is_subagent IS NULL",
                     (sub_flag, session))
@@ -540,17 +606,18 @@ def ingest(paths: Optional[List[Path]] = None,
                                 "VALUES(?,?,?)",
                                 (session, str(obj["uuid"]),
                                  str(obj.get("parentUuid") or "") or None))
-                        ev = _event_from(obj)
+                        ev = _event_from(obj, seat=seat)
                         if ev is None:
                             continue
                         eid = f"{session}:{n_line}"
                         got = con.execute(
                             "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
                             "voice, type, text, cwd, branch, tokens, uuid, parent_uuid, "
-                            "indexed_at, is_subagent) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            "indexed_at, is_subagent, seat) "
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             (eid, session, n_line, ev["ts"], ev["voice"], ev["type"],
                              ev["text"], ev["cwd"], ev["branch"], ev["tokens"],
-                             ev["uuid"], ev["parent_uuid"], run_started, sub_flag))
+                             ev["uuid"], ev["parent_uuid"], run_started, sub_flag, seat))
                         if got.rowcount:
                             con.execute(
                                 "INSERT INTO events_fts(text, event_id) VALUES(?,?)",
