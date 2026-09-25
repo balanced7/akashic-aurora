@@ -314,6 +314,49 @@ def test_passages_are_embedded_once(tmp_path):
     assert sh.stats()["embedded"] == sh.stats()["chunks"]
 
 
+# ---- scale (DeepSeek fence on 603b351a: three unbounded paths) ----------------------------
+
+def test_a_huge_run_on_paragraph_splits_in_linear_time():
+    """chunk._split sliced the remaining suffix on every cut: quadratic copying on one giant
+    paragraph with no sentence breaks (a PDF page of glued text, a minified file)."""
+    import time as _t
+    Section = convert.Section
+    doc = convert.Document(title="T", url=None, sections=[Section(path=("T", "Blob"), text="x" * 8_000_000)])
+    t0 = _t.perf_counter()
+    chunks = chunk.chunk_document(doc, max_chars=1800)
+    assert _t.perf_counter() - t0 < 2.0, "splitting 8 MB took too long (quadratic copy?)"
+    assert all(len(c.text) <= 1800 for c in chunks)
+    assert sum(len(c.text) for c in chunks) == 8_000_000
+
+
+def test_meaning_search_streams_vectors_in_bounded_batches(tmp_path, monkeypatch):
+    """_by_meaning materialised every vector of the shelf per query."""
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=_StubEmbedder())
+    sh.ingest("ui", corpus)
+    whole = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
+    monkeypatch.setattr(shelf_mod, "VECTOR_BATCH", 1)
+    streamed = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
+    assert streamed == whole and whole
+
+
+def test_embedding_runs_in_bounded_batches(tmp_path, monkeypatch):
+    """_embed_missing loaded every missing passage's text before batching."""
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    sizes = []
+
+    class Recording(_StubEmbedder):
+        def __call__(self, texts):
+            sizes.append(len(texts))
+            return super().__call__(texts)
+
+    monkeypatch.setattr(shelf_mod, "EMBED_BATCH", 1)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=Recording())
+    sh.ingest("ui", corpus)
+    assert sizes and max(sizes) == 1
+    assert sh.stats()["embedded"] == sh.stats()["chunks"]
+
+
 def test_results_are_capped_by_size(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
     for i in range(20):   # distinct texts: identical passages are (correctly) returned once
