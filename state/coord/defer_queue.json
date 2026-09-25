@@ -481,9 +481,9 @@
    "needs": "write",
    "why": "keeps every seat able to commit after 09-15; the codex entry (tests/test_codex_hook_contract.py) expires 09-21 with the same effect",
    "filed_at": "2026-09-09T00:17:50.605018+00:00",
-   "done_by": "",
-   "done_at": "",
-   "receipt": ""
+   "done_by": "claude",
+   "done_at": "2026-09-17T00:15:31.022840+00:00",
+   "receipt": "renewed to 2026-09-30 in f3aa28f8; atom side of the root fix (d14d0f4209) landed in c2703f79 (doc arc door + SA-1 relabel); d14d0f4209 stays open for the ARCS/SHELVES regen and the entry's removal"
   },
   {
    "id": "a1738d32f1",
