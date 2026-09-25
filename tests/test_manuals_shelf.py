@@ -237,6 +237,64 @@ def test_the_same_passage_is_returned_once(tmp_path):
     assert len(hits) == 1, [h.breadcrumb for h in hits]
 
 
+# ---- hybrid (keywords + meaning) ---------------------------------------------------------
+
+class _StubEmbedder:
+    """Maps texts about touch sizing to one direction and everything else to another, so a
+    question that shares NO words with its answer can still land on it. Counts its calls."""
+    SIZING = ("tappable", "touch", "finger", "fingers", "hit")
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, texts):
+        import numpy as np
+        self.calls += 1
+        out = []
+        for t in texts:
+            low = t.lower()
+            v = np.array([1.0, 0.1, 0.0]) if any(w in low for w in self.SIZING) else np.array([0.0, 0.1, 1.0])
+            out.append(v / np.linalg.norm(v))
+        return np.array(out, dtype="float32")
+
+
+def _sizing_corpus(root: Path):
+    (root / "controls.md").write_text(
+        "# Controls\n\n## Touch areas\n\nMake each control at least 44 points square so fingers land on it.\n\n"
+        "## Colors\n\nUse the system palette for tint.\n", encoding="utf-8")
+    (root / "sound.md").write_text("# Sound\n\n## Volume\n\nKeep alerts quiet at night.\n", encoding="utf-8")
+
+
+def test_hybrid_finds_a_paraphrase_that_shares_no_words(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=_StubEmbedder())
+    sh.ingest("ui", corpus)
+    question = "how big should tappable things be"
+    assert sh.search(question, mode="bm25").hits == [], "keywords alone cannot bridge this wording gap"
+    hits = sh.search(question, mode="hybrid").hits
+    assert hits and "Touch areas" in hits[0].breadcrumb, [h.breadcrumb for h in hits]
+
+
+def test_hybrid_without_an_embedder_falls_back_to_keywords_and_says_so(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=False)
+    sh.ingest("ui", corpus)
+    res = sh.search("system palette tint", mode="hybrid")
+    assert res.hits and "Colors" in res.hits[0].breadcrumb
+    assert "keyword" in res.render().lower(), "a silent downgrade reads as a hybrid answer"
+
+
+def test_passages_are_embedded_once(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    stub = _StubEmbedder()
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=stub)
+    sh.ingest("ui", corpus)
+    after_first = stub.calls
+    sh.ingest("ui", corpus)                       # nothing changed: nothing to embed
+    assert stub.calls == after_first
+    assert sh.stats()["embedded"] == sh.stats()["chunks"]
+
+
 def test_results_are_capped_by_size(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
     for i in range(20):
