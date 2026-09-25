@@ -186,6 +186,44 @@ def test_zero_hits_say_what_was_searched(tmp_path):
     assert "0 of" in note and "chunks" in note, f"a zero must name its denominator: {note}"
 
 
+def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
+    """Found shelving Samsung's One UI site (2026-09-24): several pages are named intro.html in
+    different folders, so a url map keyed by file name gave some passages another page's link."""
+    mirror = tmp_path / "docs.example.com"
+    for topic in ("layout", "motion"):
+        d = mirror / "guide" / topic
+        d.mkdir(parents=True)
+        (d / "intro.html").write_text(
+            f"<main><h1>{topic.title()}</h1><h2>Basics</h2><p>{topic} rules apply.</p></main>", encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("mirror", mirror)
+    urls = {h.title: h.url for h in sh.search("rules basics", limit=10).hits}
+    assert urls["Layout"].startswith("https://docs.example.com/guide/layout/intro.html"), urls
+    assert urls["Motion"].startswith("https://docs.example.com/guide/motion/intro.html"), urls
+
+
+def test_underscore_html_pages_are_content_but_underscore_json_files_are_metadata(tmp_path):
+    """Samsung's landing page was saved as _root.html and silently skipped."""
+    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    (corpus / "_root.html").write_text("<main><h1>Root</h1><p>Landing words zebra.</p></main>", encoding="utf-8")
+    (corpus / "_manifest.json").write_text("[]", encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    rep = sh.ingest("home", corpus)
+    assert rep.docs_added == 4 and not rep.failed, rep.render()
+    assert sh.search("zebra").hits, "the underscore-named HTML page must be shelved"
+
+
+def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
+    corpus = tmp_path / "corpus"; corpus.mkdir()
+    for i in range(3):
+        (corpus / f"d{i}.md").write_text(f"# D{i}\n\n## Gears\n\n" + "gear teeth mesh. " * 50, encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("g", corpus)
+    res = sh.search("gear teeth", limit=3, max_chars=1300)
+    assert len(res.hits) >= 2, "room for a trimmed second passage must be used"
+    assert sum(len(h.text) for h in res.hits) <= 1300 + 8 and res.truncated
+
+
 def test_results_are_capped_by_size(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
     for i in range(20):
