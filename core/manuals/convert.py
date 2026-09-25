@@ -170,8 +170,18 @@ def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
                          for tab in b.get("tabs", []))
     if t == "row":
         return "\n".join(_blocks(col.get("content", []), refs) for col in b.get("columns", []))
-    if t == "links":
-        return "\n".join(f"- {(refs.get(i, {}) or {}).get('title', i)}" for i in b.get("items", []))
+    if t == "links":                           # a hub page's card grid: title plus its summary
+        lines = []
+        for ident in b.get("items", []):
+            ref = refs.get(ident, {}) or {}
+            summary = _inline(ref.get("abstract") or [], refs)
+            lines.append(f"- {ref.get('title', ident)}" + (f": {summary}" if summary else ""))
+        return "\n".join(lines)
+    if t in ("image", "video"):
+        alt = (refs.get(b.get("identifier", ""), {}) or {}).get("alt")
+        return f"[{t.title()}: {alt}]" if alt else ""
+    if isinstance(b.get("inlineContent"), list):   # small print and other inline-bearing blocks
+        return _inline(b["inlineContent"], refs)
     for key in ("content", "items"):           # unknown containers: keep their text
         if isinstance(b.get(key), list):
             return _blocks(b[key], refs)
@@ -186,6 +196,18 @@ def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
         m = re.match(r"doc://[^/]+(/.*)", ident)
         if m:
             url = "https://developer.apple.com" + m.group(1)
+    # The logical place of the page (e.g. Human Interface Guidelines > Components > Menus and
+    # actions) comes from hierarchy.paths, resolved through the page's own references. Only
+    # ancestors inside the page's own documentation bundle are kept; the catalogue root above
+    # it ("Technologies") names nothing an agent would search for.
+    own_bundle = ((data.get("identifier") or {}).get("url") or "").split("/", 3)[:3]
+    ancestors: List[str] = []
+    for ident in ((data.get("hierarchy") or {}).get("paths") or [[]])[0]:
+        if ident.split("/", 3)[:3] != own_bundle:
+            continue
+        name = (refs.get(ident) or {}).get("title")
+        if name and name != title:
+            ancestors.append(name)
     sections: List[Section] = []
     stack: List[Tuple[int, str]] = [(1, title)]
     buf: List[str] = []
@@ -194,7 +216,8 @@ def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
     def flush():
         body = "\n".join(x for x in buf if x.strip()).strip()
         if body:
-            sections.append(Section(path=tuple(h for _, h in stack), text=body, anchor=anchor))
+            sections.append(Section(path=tuple(ancestors) + tuple(h for _, h in stack),
+                                    text=body, anchor=anchor))
         buf.clear()
 
     abstract = _inline(data.get("abstract") or [], refs)
@@ -238,7 +261,8 @@ def from_html(html: str, url: Optional[str] = None, fallback_title: str = "Untit
     for tag in root.find_all(chrome):
         tag.decompose()
     for img in root.find_all("img"):
-        img.replace_with(f"[{img.get('alt')}]" if img.get("alt") else "")
+        alt = (img.get("alt") or "").strip()
+        img.replace_with(f"[{alt}]" if alt and alt.lower() not in ("undefined", "null", "image") else "")
     md = markdownify(str(root), heading_style="ATX", strip=["a"])
     md = re.sub(r"\n{3,}", "\n\n", md)
     return from_markdown(md, url=url, fallback_title=page_title or fallback_title)
