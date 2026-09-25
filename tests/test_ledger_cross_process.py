@@ -123,6 +123,26 @@ def test_a_torn_last_line_does_not_swallow_the_next_record(tmp_path):
     assert int(new_id) > 3, "id must stay above every complete record"
 
 
+def test_a_lock_timeout_returns_the_newest_id_not_zero(tmp_path, monkeypatch):
+    """Found by the DeepSeek fence on de217307: a LockTimeout before the tail read returned
+    "0", which a caller would use as a cursor and replay the whole stream from."""
+    import contextlib
+    from core.foundation import filelock, ledger as ledger_mod
+    led = FileLedger(str(tmp_path))
+    for i in range(3):
+        led.emit("busy", {"i": i})
+
+    @contextlib.contextmanager
+    def always_busy(target, *, timeout=10.0):
+        raise filelock.LockTimeout("held elsewhere")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(ledger_mod.filelock, "exclusive", always_busy)
+    returned = led.emit("busy", {"i": 3})
+    assert returned == "3", f"a failed emit must hand back the newest id on disk, got {returned!r}"
+    assert [e["i"] for _id, e in led.consume("busy", after_id="0")] == [0, 1, 2]
+
+
 def test_emit_survives_a_reader_holding_the_file_open(tmp_path):
     """On Windows os.replace fails while another handle is open; an append must not."""
     led = FileLedger(str(tmp_path))

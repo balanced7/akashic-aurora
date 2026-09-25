@@ -237,7 +237,7 @@ class FileLedger(Ledger):
 
     def emit(self, stream, event, maxlen=None):
         path = self._stream_path(stream)
-        last_id = 0
+        new_id = None
         with self._lock:
             try:
                 with filelock.exclusive(path):
@@ -248,15 +248,23 @@ class FileLedger(Ledger):
                         # A torn last line (power cut mid-write) gets its own line break, so
                         # it cannot glue itself onto this record; readers skip it as before.
                         f.write(("\n" + line) if torn else line)
+                    new_id = record["id"]
                     if maxlen is not None:
                         self._maybe_trim(path, maxlen, last_id + 1)
-                    return record["id"]
+                    return new_id
             except Exception as e:
+                if new_id is not None:      # the row is on disk; only the trim step failed
+                    logger.warning(f"FileLedger appended {path.name}#{new_id} but could not trim: {e}")
+                    return new_id
                 # Loud, never raising: emit sits on hot paths in every seat. A lock timeout
-                # (10 s of contention) or a disk error loses this one event WITH a log line;
-                # the returned id is the newest one on disk, so no cursor goes backwards.
+                # (10 s of contention) or a disk error loses this one event WITH a log line.
+                # Return the newest id already on disk, read without the lock -- never "0",
+                # which a caller would take as a cursor and replay the whole stream from.
                 logger.error(f"FileLedger could not append to {path}: {e}")
-                return str(last_id)
+                try:
+                    return str(self._tail_state(path)[0])
+                except Exception:
+                    return "0"
 
     @staticmethod
     def _tail_state(path: Path) -> Tuple[int, bool]:
