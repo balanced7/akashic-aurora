@@ -155,24 +155,74 @@ def test_roster_cost_does_not_grow_when_the_fleet_grows(seeded):
     )
 
 
-def test_conductor_gate_pass_cost_is_bounded(seeded):
+def test_conductor_gate_pass_cost_does_not_grow_with_the_fleet():
     """P3: the END-TO-END law, at the call site the py-spy stack actually captured.
 
     evaluate_succession -> _attendance -> attendance -> roster. Pinning only roster()
-    would let a future refactor reintroduce the cost one layer up (attendance already
-    accepts a `roster_rows` snapshot for exactly this reason and the gate never passes
-    one). The budget is generous on purpose: this pin is about ORDERS OF MAGNITUDE.
+    would let a future refactor reintroduce the cost one layer up: `attendance` has
+    accepted a `roster_rows` snapshot for batch observers all along, and the gate was the
+    batch observer that never passed one.
+
+    WHY THIS MEASURES A RATIO AND NOT A BUDGET. The first draft asserted an absolute
+    ceiling and failed at 10 with the fix in place, which looked like the fix falling
+    short. It was not: under pytest `_AISETUP_TEST_ISOLATED` makes `bus.get_bus()` return
+    a FRESH Bus per call instead of its cached one, so `liveness._client` and
+    `runner_lock._client` each open a socket every time they are consulted. In production
+    that cache holds and the same pass costs 2. An absolute budget here would have been
+    measuring the test harness, so the pin measures the gate against ITSELF at two fleet
+    sizes -- the harness's constant cancels, and only the SHAPE is asserted.
+
+    It also exercises the branch that matters most. With live seats the roster probe
+    returns ATTENDED immediately and the deeper probes never run; it is when seats go dark
+    -- the exact condition succession exists for -- that every probe fires. The gate must
+    not get more expensive precisely when the fleet is in trouble.
     """
-    from core.comm import conductor_gate
+    import time as _time
+    from core.comm import conductor_gate, roster
+    from core.comm.liveness import _ns
 
-    conductor_gate.evaluate_succession(agent_self="kimi")  # warm
+    client = _client()
+    if client is None:
+        pytest.skip("no live Redis on the world endpoint")
 
-    with _SocketCounter() as c:
-        conductor_gate.evaluate_succession(agent_self="kimi")
-    opened = c.n
+    ns = _ns()
+    stale = _time.time() - 100_000.0     # old beats: forces the full probe ladder
+    planted = []
 
-    assert opened <= 8, (
-        f"one conductor-gate pass opened {opened} Redis connections. The gate runs every "
-        f"60s in every runner; at the measured 113 it exhausts the 16384-port ephemeral "
-        f"range into TIME_WAIT and the connects themselves begin to block."
-    )
+    def _plant(n, tag):
+        for i in range(n):
+            agent = f"gatecost{tag}{i:02d}"
+            sid = uuid.uuid4().hex
+            roster.heartbeat(ns, agent, sid, phase="idle", client=client, _beat_ts=stale)
+            planted.append((agent, sid))
+
+    try:
+        _plant(10, "a")
+        conductor_gate.evaluate_succession(agent_self="kimi")          # warm
+        with _SocketCounter() as c:
+            conductor_gate.evaluate_succession(agent_self="kimi")
+        before = c.n
+        n_before = len(roster.roster(ns, client=client))
+
+        _plant(10, "b")
+        with _SocketCounter() as c:
+            conductor_gate.evaluate_succession(agent_self="kimi")
+        after = c.n
+        n_after = len(roster.roster(ns, client=client))
+
+        assert n_after > n_before, "fixture failed to grow the fleet"
+        assert after <= before + 1, (
+            f"one conductor-gate pass cost {before} connections at {n_before} seats and "
+            f"{after} at {n_after}. The gate runs every 60s in every runner; while this "
+            f"scaled with the fleet it reached 113 sockets and 3.3s per pass at 55 seats, "
+            f"exhausted the 16384-port ephemeral range into TIME_WAIT, and parked the "
+            f"runner's MainThread inside a blocking connect."
+        )
+    finally:
+        for agent, sid in planted:
+            try:
+                roster.go_offline(ns, agent, sid, client=client)
+            except Exception:
+                pass
+            for k in client.keys(f"{ns}:*{agent}*"):
+                client.delete(k)

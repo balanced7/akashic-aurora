@@ -183,15 +183,41 @@ def go_offline(ns: str, agent: str, session_id: str, *, client=None,
         return {"ok": False}
 
 
-def _have_summary(client, ns: str, agent: str, sid8: str) -> Dict[str, Any]:
+def _have_summary(client, ns: str, agent: str, sid8: str,
+                  *, bus_cache: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """T3 (torrent bitfield): the seat's consumed-through positions -- inventory POINTERS,
     never payload (T5). kimi F2: keys are DERIVED THROUGH THE BUS DOOR (the organ that owns
     the formats), never a parallel hardcoded f-string; the shared legacy cursor is labeled
-    so a successor knows which pointer a twin could have advanced (advisory, not proof)."""
+    so a successor knows which pointer a twin could have advanced (advisory, not proof).
+
+    CONNECTION DISCIPLINE (2026-09-24, the kimi HARD WEDGE). This used to build a NAKED
+    `Bus(agent)` per row, and `Bus.__init__` opens its own Redis connection when handed no
+    client -- so a 55-seat roster cost 55 fresh sockets, every read, in every runner. Two
+    changes, neither of which touches kimi F2's law above (keys still come from the Bus):
+
+      1. the Bus is handed THE CLIENT THIS FUNCTION ALREADY HAS. It was always a parameter;
+         the call site simply never passed it.
+      2. one Bus per AGENT per roster read, via `bus_cache`, instead of one per ROW. The
+         Bus is agent-scoped (`_seat_cursor_key` reads `self.agent_id`/`self.ns`), so seats
+         of one agent share it correctly -- and 17 dead kimi seats now cost one Bus, not 17.
+         This also collapses `_rehydrate_reasm`'s construction-time HGETALL by the same
+         factor; that is a round trip saved per row, on top of the socket.
+
+    `bus_cache` is a plain dict owned by the CALLER and scoped to a single roster read, so
+    no Bus outlives the observation instant it was built for -- a module-level cache here
+    would be a frozen instrument in a long-lived runner. None means "no sharing", which is
+    still correct, just as expensive as before.
+    """
     have: Dict[str, Any] = {}
     try:
         from core.comm.bus import Bus
-        b = Bus(str(agent), namespace=(None if ns == "bifrost" else ns))
+        cache_key = f"{ns}\x00{agent}"
+        b = None if bus_cache is None else bus_cache.get(cache_key)
+        if b is None:
+            b = Bus(str(agent), client=client,
+                    namespace=(None if ns == "bifrost" else ns))
+            if bus_cache is not None:
+                bus_cache[cache_key] = b
         try:
             have["legacy_inbox_shared"] = str(b._read_cursor().get("inbox", "0"))
         except Exception:
@@ -316,6 +342,9 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
     client = client or _connect()
     now = float(now if now is not None else time.time())
     rows: List[Dict[str, Any]] = []
+    # One Bus per agent for THIS read only (see _have_summary). Scoped to the call so the
+    # roster stays a projection of one observation instant and holds nothing between reads.
+    bus_cache: Dict[str, Any] = {}
     try:
         live_keys = {str(k) for k in client.keys(f"{ns}:worklive:*")}
         seen_keys = {str(k) for k in client.keys(f"{ns}:seatseen:*")}
@@ -360,7 +389,7 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
             "beat_ts": beat, "beat_age_s": (round(age, 1) if age is not None else None),
             "seq": int(doc.get("seq") or 0),
             "state": state,
-            "have": _have_summary(client, ns, agent, sid8),
+            "have": _have_summary(client, ns, agent, sid8, bus_cache=bus_cache),
             "code_sha": str(doc.get("code_sha") or ""),
             "code_state": code_state(doc.get("code_sha")),
             # DSH bridge rich fields (Lane 2): passed through defensively so the UI card can
