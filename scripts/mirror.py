@@ -160,13 +160,26 @@ def _print_refusal(why):
 
 
 def _seat_author_env():
-    """Author the commit as the seat, the way qm.py and core/comm/seat_identity.git_identity_env
-    do, so pre_commit.py's t384 identity check passes and the push check sees the commit as
-    the seat's own. Inline rather than imported: tests run a copy of this file in a temp repo."""
+    """Author the commit as the seat, so pre_commit.py's t384 identity check passes and the
+    push check sees the commit as the seat's own.
+
+    Delegates to core.comm.seat_identity.git_identity_env -- the ONE place the name/email
+    rule lives -- rather than re-deriving it inline. The prior inline copy duplicated the
+    rule (same string, but no id validation and a hardcoded domain), and a second
+    implementation of a rule drifts; the house already pays for that class elsewhere.
+    seat_identity imports nothing outward, so it is import-safe even in the temp-repo tests
+    that copy this file."""
     seat = (os.environ.get("AKASHIC_AGENT_ID") or "").strip()
     if seat and not os.environ.get("GIT_AUTHOR_NAME"):
-        ENV["GIT_AUTHOR_NAME"] = seat
-        ENV["GIT_AUTHOR_EMAIL"] = f"{seat}@akashic-aurora.local"
+        try:
+            sys.path.insert(0, ROOT)
+            from core.comm.seat_identity import git_identity_env
+            env = git_identity_env(seat)
+        except Exception:
+            env = {}   # a missing authority must not wedge a commit; pre_commit still gates
+        if env:
+            ENV["GIT_AUTHOR_NAME"] = env["GIT_AUTHOR_NAME"]
+            ENV["GIT_AUTHOR_EMAIL"] = env["GIT_AUTHOR_EMAIL"]
 
 
 _OPERATOR = []   # [(user.name, user.email)] once read
