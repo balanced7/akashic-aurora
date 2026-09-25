@@ -1,5 +1,6 @@
 {
-  "seq": 387,
+  "seq": 408,
+  "rev": 425,
   "tasks": [
     {
       "id": "T001",
@@ -3098,11 +3099,11 @@
       "deps": [],
       "files": [],
       "acceptance": "",
-      "status": "approved",
+      "status": "in_progress",
       "commit": null,
       "verified_by": null,
       "created": "2026-07-15T21:17:19+00:00",
-      "updated": "2026-07-18T14:29:58+00:00",
+      "updated": "2026-09-02T23:41:07+00:00",
       "history": [
         {
           "to": "proposed",
@@ -3123,6 +3124,16 @@
           "to": "approved",
           "by": "claude",
           "at": "2026-07-18T14:29:58+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "sol",
+          "at": "2026-09-02T23:41:04+00:00"
+        },
+        {
+          "to": "in_progress",
+          "by": "sol",
+          "at": "2026-09-02T23:41:07+00:00"
         }
       ]
     },
@@ -14226,7 +14237,7 @@
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-26T13:20:28+00:00",
-      "updated": "2026-09-02T13:33:34+00:00",
+      "updated": "2026-09-05T04:23:54+00:00",
       "history": [
         {
           "to": "proposed",
@@ -14247,6 +14258,18 @@
           "to": "in_progress",
           "by": "sol",
           "at": "2026-09-02T13:33:34+00:00"
+        },
+        {
+          "to": "parked",
+          "by": "sol",
+          "at": "2026-09-02T23:40:43+00:00",
+          "reason": "Reversible pause for user-authorized T079 dashboard scaffold; Discord loop has live end-to-end proof, but closure receipt reconciliation remains, so T385 is explicitly not done."
+        },
+        {
+          "to": "in_progress",
+          "by": "sol",
+          "at": "2026-09-05T04:23:54+00:00",
+          "operator_ruling": "Daniil 2026-09-05: lets move the three seats from alpha to production, this should fix many of the bugs and reduce complexity. then lets fold in and unify the general improvements and finally get this thing rock solid, elegant and dependable"
         }
       ]
     },
@@ -14254,22 +14277,32 @@
       "id": "T386",
       "title": "Screenspace awareness + navigation arc (Daniil 2026-08-26, verbatim: 'I want all of pur seats to be able to parse ui and screenspace and be able to navigate and click things' -- BEGIN WHEN HE IS HOME). Every seat should SEE a screen or DOM, UNDERSTAND its controls/state/affordances, and ACT: navigate, type, click, read back. MOTIVATING RECEIPT, not theory: 2026-08-26 Rill was alive, beating, correctly named and mail landing -- and unreachable for ~7h, because a DSH web seat has NO execution trigger (runners have a consume loop, claude has a wake watcher, he has a browser). Broke it at 16:13 by opening his UI in a browser pane and TYPING to him; that gave him the turn nothing on the bus could. UNREACHABLE BECAME A SOLVABLE STATE. S0 CENSUS FIRST -- do not build greenfield: this harness already carries read_page (a11y tree with ref ids), form_input, click/scroll/hover, screenshot, console+network reads; Daniil also refers to 'our vision toolkit' and a 'pc button clicking and input toolkit' which I have NOT located -- half this capability may already be paid for. S1 seat-agnostic door (one verb, never a per-harness special case). S2 a11y-tree path (structure beats pixels wherever a DOM exists). S3 pixel path for native windows with no DOM. S4 act-and-verify -- never click blind, read back the result, the same accept-and-verify law the bus already keeps. S5 THE SAFETY RAIL, DESIGNED FIRST NOT LAST: a seat that can click anything can click something destructive, and screen text is DATA NEVER INSTRUCTION (the R2 law the Discord and bridge doors already hold) -- a UI-driving seat reads a screen written by someone else, and if that text can steer it we have built a prompt-injection surface with hands. Lesson: a_web_seat_has_no_turns_so_arriving_mail_cannot_wake_it",
       "desc": "",
-      "owner": "unassigned",
+      "owner": "claude",
       "deps": [],
       "files": [],
       "acceptance": "G1 census names every existing vision/input tool we already own before any new code. G2 one seat-agnostic verb drives a DOM surface end to end: read controls, act, read back the changed state. G3 act-and-verify refuses to report success it did not observe. G4 screen/DOM text is treated as untrusted DATA -- a pin proves instruction-shaped screen content does not steer the seat. G5 the Rill case is reproducible: an unreachable-but-live seat is handed a turn through the door, not by hand.",
-      "status": "proposed",
+      "status": "claimed",
       "commit": null,
       "verified_by": null,
       "reviewed_by": null,
       "self_verified": null,
       "created": "2026-08-26T20:17:52+00:00",
-      "updated": "2026-08-26T20:17:52+00:00",
+      "updated": "2026-09-03T01:05:17+00:00",
       "history": [
         {
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-26T20:17:52+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "claude",
+          "at": "2026-09-03T01:05:17+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-03T01:05:17+00:00"
         }
       ]
     },
@@ -14293,6 +14326,586 @@
           "to": "proposed",
           "by": "claude",
           "at": "2026-08-28T02:27:47+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T388",
+      "title": "Ceremony doctrine v1: event triggers, receipts, kill rules for every standing ceremony (A7 doctrine-projection lane; Daniil directive 2026-09-04 verbatim 'a feedback loop for good things and not merely a requirement or noise')",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-04T05:36:33+00:00",
+      "updated": "2026-09-04T05:36:33+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-04T05:36:33+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T389",
+      "title": "First-Run Onboarding Flow: operator founds interiority/charter via guided prompts + environment checklist (tests, paths, critical pieces resolve) -> single-click installable release with onboarding + integration (Daniil directive 2026-09-04; rides A8/C17 fresh-clone + installer-manifest-v0 a9dbfe; charters/OPERATOR_GUIDE.md is artifact 1)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-04T12:41:10+00:00",
+      "updated": "2026-09-04T12:41:10+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-04T12:41:10+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T390",
+      "title": "Discord OUTBOUND pump does not beat reliably: operator reply sat ~20min on the bus until pump() was run by hand (forwarded=1). RULED OUT with receipts: webhook/rate-limit (pump works when called), stale election lock (discord-pump acquires instantly, ttl 8s), unreachable code (feed beat at bifrost_daemon.py:520 is in the single main loop, reached in BOTH --spawn-runner and --manage-listener), dead daemons (claude/kimi/deepseek/sol all fresh 09-04). NO root cause proven yet -- next probe: instrument the beat (log every pump_if_owner outcome incl. not-owner-this-beat) since the call site swallows all exceptions blanket. Class sibling: the 09-01/09-02 unreachability incident. Daniil-facing impact: he sees a reaction and no answer, which reads as the fleet ignoring him.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-04T18:10:23+00:00",
+      "updated": "2026-09-04T18:10:23+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-04T18:10:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T391",
+      "title": "Test-env pollution: something in a full pytest run leaves BIFROST_CONSUME_LANE=work in the process env, so lane-sensitive pins pass or fail by test ORDER. Exposed by T198 (wake lane now follows consume lane): three test_wake_detect cases silently exercised the LANE watcher while asserting legacy-path behaviour. Ruled out as sources: test_t045_{wake,runner}_cutover + test_bifrost_wake (all monkeypatch correctly), test_a1_stale_self_restart (had a raw os.environ write, FIXED 2026-09-04). Reproduce: remove the _legacy_wake_plane autouse fixture from tests/test_wake_detect.py and run -k 'wake or bifrost_api or t045'. Next probe: a conftest autouse that snapshots os.environ per test and fails the polluter by name -- cheaper than bisecting.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-04T23:40:02+00:00",
+      "updated": "2026-09-04T23:40:02+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-04T23:40:02+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T392",
+      "title": "High-stakes precision + reliability marriage (Daniil directive 2026-09-05, from the Clarke and Dawe policy-gland question: 'what are the things we find ourselves doing under pressure and how can we manage that so we can stay in our optimum flow states'). Four-arm research round: our own corpus first (do not re-derive), procedural-rigor lineage (aviation/medicine/nuclear), fast-adaptive lineage (Klein RPD/OODA/wildfire/avalanche), reliability engineering (HRO/ETTO/Safety-II/SRE). Evidence base already in hand: repeat --report shows 23 recorded repeats, 7 of them RECALL-FIRED (a reading failure, not a memory failure), 3 gate_caught, worst elapsed 1.8h from learning to violation. Forecast registered BEFORE the evidence: fc-highstakes-marriage-20260905.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-05T04:35:14+00:00",
+      "updated": "2026-09-05T04:35:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-05T04:35:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T393",
+      "title": "Discord gateway: a bus client that is None at service start stays None forever -- readiness gate + reconnect + refuse-loud. PROD OUTAGE 2026-09-07 17:36 -> 09-09 09:01 (worktree sunshine-discord-split, --world prod): Redis was not up when the gateway started (09-08 08:01:19 logon; the 09-07 17:36 start the same), core.comm.bus._connect() fail-fast returned None and nothing ever retried; 57,250 owner-beat + 57,250 guest-reply failures (114K log lines) while the presence heartbeat beat green on a SEPARATE client, so revive --observe, gateway status and doctor liveness all read ALIVE; 4 operator messages were 'heard' with bus id None and LOST (09-08 09:17, 15:12 x2; 09-09 01:41). Closes the root cause of T390.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pins first: (a) a Bus built while Redis refuses must retry with backoff and rebuild _client on the next beat, never hold None; (b) any beat that meets _client None counts a failure streak that pages at N and attempts reconnect; (c) an inbound operator message with no bus is spooled to disk (state/coord/discord_inbound_spool.jsonl) and replayed, and the log line says SPOOLED, never 'heard ... bus id None'; (d) run_aurora_service waits for PING (bounded) before runpy. Drill with a dated receipt: stop Redis, start the gateway task, start Redis; within 2 minutes the feed pumps and a test message lands on the bus.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:11+00:00",
+      "updated": "2026-09-09T13:04:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T394",
+      "title": "Seat scheduled tasks die silently when Redis is not ready at logon: codex_bifrost_wake.py exits 2 on bus._client None (line 140/218), Task Scheduler never retries a nonzero EXIT (RestartOnFailure covers failed starts only), and no watchdog nudges the seat tasks -- SunshineFleet / SunshineDiscord / GptNewDiscord ran once at 2026-09-08 08:01:19, result=2, next run empty; Sunshine and Neo were dead until 09-09 09:01 (Daniel's 09-06 'Test Neo room' / 'Are you reachable Neo' were already unattended). Fix: readiness wait in run_aurora_service + one periodic watchdog per seat task in the EarWatchdog shape + a doctor finding that reads LastTaskResult and NextRunTime of every AkashicAurora-* task.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "Drill with a dated receipt in state/drills/: stop Redis, /Run the three seat tasks (they exit 2), start Redis; within 2 minutes all three seats are on the roster without a human. Doctor prints one line per AkashicAurora task with last result and next run; a task with result != 0 and no next run is a FINDING, not silence.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:12+00:00",
+      "updated": "2026-09-09T13:04:12+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T395",
+      "title": "Alive is not working, and remotely that is the whole game: the gateway's liveness beat rides a different Redis client than its feed and guest-reply path, so a dead bus read green in revive --observe ('1 gateway process'), gateway status ('LIVE') and the Failsafe-Deadman for 40 hours; doctor alone said 'ALIVE is proven, WORKING is not' and nobody remote reads doctor. Fix: the liveness record carries a WORK pulse (last successful feed beat, last bus write) and revive treats 'alive, no work pulse for > X' as a rung; the page path must not ride the dead Discord pump (off-machine dead-man, T371).",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "Drill: null the bus client inside a running gateway (or stop Redis under it); revive --observe reports the rung, doctor pages, and the off-machine channel receives the alarm within 10 minutes; dated receipt. Pin: liveness.heartbeat for the discord seat refuses to render ALIVE without a work pulse younger than the TTL.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:12+00:00",
+      "updated": "2026-09-09T13:04:12+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:12+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T396",
+      "title": "gateway status counts any process whose command line CONTAINS 'bifrost_runner_discord' as a live gateway: this session's Git Bash shells (their -c string quoted the name) read as 4 LIVE gateways on 2026-09-09. Match the script as an argv token of a python process -- the bridge_status class (6a3ddf38/9cac6e64: select the PROCESS, never a substring).",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "RED pin: a fake process table with a bash -c line mentioning the script name yields NOT RUNNING; a python argv with the script path yields LIVE with its pid. revive.py's cmds.count() gets the same predicate.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:13+00:00",
+      "updated": "2026-09-09T13:04:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T397",
+      "title": "A failing beat logged 114,605 identical lines in five days (owner beat failed / guest-reply read failed, one pair every 5s): rate-limit repeated failures -- log the first, then every Nth with a running count -- and escalate a streak to a page instead of a log line nobody reads.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "Pin: 1000 consecutive identical beat failures produce <= 12 log lines and one page with the streak length and the first-seen timestamp.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:13+00:00",
+      "updated": "2026-09-09T13:04:13+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:13+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T398",
+      "title": "Vandor unreachable from Discord whenever no Claude Code session is open: 13 UNATTENDED RECIPIENT for claude since 2026-09-04; the wake listener only re-arms from a live session's .alive marker (c27cc25c), so with no session there is no listener; Daniel 09-04 verbatim 'Can we make the rearm automatic please?' and 09-06 'I tried reaching Vandor via discord but he wasn't reachable'. FORK for Daniel's ruling: (A) daemon-tick wake with no session (the claude daemon spawns a --headless Vandor on an unattended claude message under the reachability ruling 1b3e6bc5), (B) an OS-task wake, or (C) both as layers.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "Whichever arm is ruled: a Discord message to the claude channel with NO session open is answered on Discord within 3 minutes; the drill runs from a cold state with a dated receipt; the spawn receipt asserts the child LIVED (T366), not that it started.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-09T13:04:14+00:00",
+      "updated": "2026-09-09T13:04:14+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-09T13:04:14+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T399",
+      "title": "Media arsenal: contract fence (time, types, pipelines, registry, deployment) for Daniel's mpv and MilkDrop media suite",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "fences/media-arsenal-contract/"
+      ],
+      "acceptance": "fences/media-arsenal-contract holds sealed blind halves (Heimdall half_a, Navi half_b), extra voices filed verbatim (Sunshine; Neo and Rill if Daniel invites them), Vandor's sha256-committed prior revealed, and a reconciliation that Daniel approves as the contract the first walking-skeleton pipeline is built against",
+      "status": "done",
+      "commit": "ebaf59f0",
+      "verified_by": "pytest",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-13T16:15:13+00:00",
+      "updated": "2026-09-13T19:22:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-13T16:15:13+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "daniel",
+          "at": "2026-09-13T16:16:14+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-13T19:21:45+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-13T19:22:34+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-13T19:22:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T400",
+      "title": "Blob store split per worktree: spilled bus messages dangle between the prod worktree and E:/AI-Setup seats",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/comm/blobs.py"
+      ],
+      "acceptance": "A blob put by a seat running from any checkout (the prod worktree or E:/AI-Setup) is gettable by a seat running from any other: one machine-level blob dir chosen by an explicit env var and defaulting outside any checkout, existing per-worktree blobs migrated or read through, a pin proving a cross-root put then get, and Daniel plus Sunshine approving the prod change. Receipt: lesson spilled_message_blobs_split_per_worktree_so_refs_dangle_across_trees (blob:47450c48481dcc0ba491c66a lived only in the prod worktree's blobs dir).",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-13T16:26:45+00:00",
+      "updated": "2026-09-13T16:26:45+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-13T16:26:45+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T401",
+      "title": "check_liveness_predicate_claims: a manifest gate for predicates whose NAME asserts existence while their CALLER gates on action. Tonight five rungs of the wake path each committed this and cost four unread operator messages; the law has been filed as a lesson at least twice (T347 alive-is-not-working, the_messengers_death_is_not_the_services_verdict which already counted five instances in one week) and recurred anyway. Lessons are advice and advice does not block. Follow the proven pattern in this repo: check_door_parity and check_kind_policy both work because a NEW member must be classified in a MANIFEST before it can ship -- check_door_parity blocked my wish-curate commit tonight and forced an honest classification. Shape: every bool-returning predicate whose name matches is_*_live|*_exists|any_*|*_running declares in a manifest WHAT IT PROVES (presence | readiness | function) and callers gating on action may only consult readiness/function. LAND IT REPORT-ONLY FIRST: an untested blocking gate on a shared repo blocks the whole fleet if it misfires, so it should surface for a week before it refuses. Deliberately NOT built at 04:30 unsupervised for that reason.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/checkers/check_liveness_predicate_claims.py"
+      ],
+      "acceptance": "the five known instances from art_20260923_five-rungs are all flagged by the checker in report mode; a newly added unclassified liveness predicate is flagged; a classified one is not; the checker does not block until promoted",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-23T07:25:03+00:00",
+      "updated": "2026-09-23T07:25:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-23T07:25:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T402",
+      "title": "PreCompact should block ONCE and make the seat write its own judgment handoff. THE SIGNAL ALREADY EXISTS: PreCompact is registered with matcher '*' and claude_sessionend.py's own docstring calls it 'the high-value one -- it fires right before context is compacted away, the main lost-where-we-are moment'. It already distills commits+lessons+notes into chronicles/last-session-draft.md and boot surfaces a pointer. So state capture is BUILT and RUNNING. What is missing is that the hook can write ACTIVITY but never JUDGMENT, because by the time it fires the model is not consulted -- it can record that I committed 1f5b9cb4, it cannot record that I would take a fresh seat because my errors were retrieval-shaped, or what an experiment should control for. On 2026-09-23 the Sonnet experiment design existed ONLY in chat and would have died in compaction; I wrote it out by hand because the operator happened to ask. SHAPE, and it is a proven pattern in this repo rather than an invention: the Stop hook already BLOCKS and tells the model to re-arm. A PreCompact hook that blocks ONCE and says 'write your handoff before you lose this' is the same shape applied to compaction instead of shutdown -- it makes the seat write its own succession note at the one moment it still holds the context to write it. Must block at most once per session (latch like _nag_latch_path), must never block twice, and must degrade to pass-through if the handoff verb is unreachable. SECOND SLICE, separable: auto-succession (spawn a fresh seat, hand over, stand down) -- the spawn machinery exists but that is wiring and the judgment-handoff half is the part that actually loses information today.",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/hooks/claude_precompact.py",
+        "agent/harness/hooks/claude_sessionend.py"
+      ],
+      "acceptance": "a session driven past the compaction threshold is blocked exactly once with a message naming the handoff verb; a second compaction in the same session passes through; with the handoff verb unavailable the hook passes through and says so; the existing last-session-draft behaviour is unchanged",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-23T12:29:11+00:00",
+      "updated": "2026-09-23T12:29:11+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-23T12:29:11+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T403",
+      "title": "Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process plugin timer, non-consuming detect, inbox append('next-turn') doorbell, claimed-gated WOKE",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-23T13:13:01+00:00",
+      "updated": "2026-09-23T13:13:01+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "dsh_agent",
+          "at": "2026-09-23T13:13:01+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T404",
+      "title": "wake-enumerator-expected-up-roster",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "abandoned",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-23T18:18:31+00:00",
+      "updated": "2026-09-23T18:18:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-23T18:18:31+00:00"
+        },
+        {
+          "to": "abandoned",
+          "by": "deepseek",
+          "at": "2026-09-23T18:18:44+00:00",
+          "reason": "superseded by T405 with full doctrine citation"
+        }
+      ]
+    },
+    {
+      "id": "T405",
+      "title": "Wake enumerator: out-of-band expected-up roster that mints rearm triggers for the daemon",
+      "desc": "",
+      "owner": "claude",
+      "deps": [
+        "art_20260905_the-wake-doctrine-reliable-seat-wake-fro_4589be"
+      ],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-23T18:18:40+00:00",
+      "updated": "2026-09-23T18:18:40+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "deepseek",
+          "at": "2026-09-23T18:18:40+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T406",
+      "title": "Eye corpus: index the DSH plane so Rill's sessions are history too",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "afe326ad",
+      "verified_by": "pytest",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-25T03:36:10+00:00",
+      "updated": "2026-09-25T03:54:07+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-25T03:36:10+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-25T03:53:34+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-25T03:53:46+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-25T03:54:06+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-25T03:54:07+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T407",
+      "title": "Eye capture door: seat provenance at ingest, so Navi is history too (the 2026-08-19 pin)",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "43b52aa7",
+      "verified_by": "pytest",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-25T03:59:35+00:00",
+      "updated": "2026-09-25T04:13:34+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-25T03:59:35+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-25T04:13:32+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-25T04:13:33+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-25T04:13:33+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-25T04:13:34+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T408",
+      "title": "Durability sweep: one checker for what the house believes is landed and is not",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "done",
+      "commit": "4a1887fd",
+      "verified_by": "pytest",
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-25T04:14:55+00:00",
+      "updated": "2026-09-25T04:19:23+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-25T04:14:55+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-25T04:19:21+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-25T04:19:22+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-25T04:19:22+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-25T04:19:23+00:00"
         }
       ]
     }
