@@ -295,11 +295,37 @@ def _conductor_two_factor(agent: str = CONDUCTOR,
         return "unknown"                # any probe error -> not provably dead (K8)
 
 
-def _attendance(agent: str) -> str:
-    """The roster's DEAD/STALE ladder (attendance) as a three-state string."""
+def _roster_snapshot():
+    """ONE fleet census for a whole gate pass, or None if it could not be read.
+
+    2026-09-24: every `_attendance` call used to rebuild the census from scratch, and each
+    rebuild opened a Redis connection per seat. A gate pass evaluates the conductor plus
+    every successor, so the cost was (successors + 1) x seats sockets, every 60s, in every
+    runner -- 113 of them at the 55 seats standing that night.
+
+    None is the honest answer when the read fails: `attendance` treats None as "no snapshot
+    supplied" and falls back to its own reader, which then fails the same way and lands on
+    UNKNOWN. That is the K8 direction -- a probe error must read as "not provably dead".
+    """
+    try:
+        from core.comm import roster as _roster
+        from core.comm.liveness import _ns
+        return _roster.roster(_ns())
+    except Exception:
+        return None
+
+
+def _attendance(agent: str, roster_rows=None) -> str:
+    """The roster's DEAD/STALE ladder (attendance) as a three-state string.
+
+    `roster_rows` is the caller's census snapshot (see `_roster_snapshot`). Passing it
+    keeps every seat in ONE observation instant, which is what a succession decision
+    actually wants: judging the conductor from a 22:18 census and its successor from a
+    22:19 one can, in principle, see a fleet state that never existed.
+    """
     try:
         from core.comm.liveness import attendance
-        return attendance(agent).state
+        return attendance(agent, roster_rows=roster_rows).state
     except Exception:
         return "UNKNOWN"
 
@@ -374,9 +400,14 @@ def evaluate_succession(*, agent_self: Optional[str] = None,
     order = succession_order()
     self_id = agent_self or os.environ.get("BIFROST_AGENT_ID") or SUCCESSION_ORDER[0]
 
+    # ONE census for this whole pass -- read before CONDITION 1 and reused by every
+    # attendance call below. Skipped entirely when a test injects `att_fn`, so no pin pays
+    # for a Redis read it does not use.
+    rows = None if att_fn else _roster_snapshot()
+
     # CONDITION 1: conductor provably dead, TWO-FACTOR.
     watcher = reap_fn(CONDUCTOR) if reap_fn else _conductor_two_factor(CONDUCTOR)
-    att = att_fn(CONDUCTOR) if att_fn else _attendance(CONDUCTOR)
+    att = att_fn(CONDUCTOR) if att_fn else _attendance(CONDUCTOR, rows)
     conductor_provably_dead = watcher.startswith("orphan") and att == "UNATTENDED"
     conductor_state = att
 
@@ -385,7 +416,7 @@ def evaluate_succession(*, agent_self: Optional[str] = None,
     others = [a for a in order if a != self_id]
     successors_alive = [
         a for a in others
-        if (att_fn(a) if att_fn else _attendance(a)) == "ATTENDED"
+        if (att_fn(a) if att_fn else _attendance(a, rows)) == "ATTENDED"
     ]
 
     # CONDITION 3: operator present -> stand down. present here means RECENT inbound evidence.

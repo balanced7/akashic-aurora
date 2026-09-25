@@ -349,11 +349,25 @@ def attendance(agent: str, *, namespace: str = None, client=None,
     probed_anything = False
     youngest = None
 
-    for candidate in _id_forms(name):
+    # ONE roster read per call, hoisted out of the candidate loop (2026-09-24). It used to
+    # sit INSIDE the loop, so an id carrying a session suffix -- which is most of them --
+    # rebuilt the entire fleet census twice for one verdict. Reading it once is also the
+    # honest shape: `_id_forms` asks the same question under two spellings, and both
+    # spellings deserve the same observation instant, exactly as `roster_rows` already
+    # promises batch observers. None still means "nobody handed me a snapshot, read it
+    # myself"; an explicit empty list still means "read succeeded, fleet was empty".
+    observed_rows = roster_rows
+    if observed_rows is None:
         try:
             from core.comm import roster as _roster
-            observed_rows = (_roster.roster(namespace or _ns(), client=client)
-                             if roster_rows is None else roster_rows)
+            observed_rows = _roster.roster(namespace or _ns(), client=client)
+        except Exception:
+            observed_rows = None
+
+    for candidate in _id_forms(name):
+        try:
+            if observed_rows is None:
+                raise RuntimeError("roster unreadable")
             rows = [r for r in observed_rows
                     if str(r.get("agent") or "").split("#")[0] == candidate]
             ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
