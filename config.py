@@ -199,6 +199,15 @@ TRANSCRIPT_ARCHIVE_ROOTS = [
     Path(r"F:\Akashic Aurora\transcripts\rolling"),
 ]
 
+# T406: the DSH plane. Rill (dsh_agent) runs on the DSH/cordis harness, which keeps its
+# transcripts here -- one directory per session, each holding a zstd-compressed session.jsonl.
+# Declared beside the Claude Code roots on purpose: THE EYE's three original roots were all
+# Claude Code planes, so an entire harness was outside the corpus and nothing in the codebase
+# named where it lived. A seat whose conversations are not history is a guest, not a member.
+DSH_SESSION_ROOTS = [
+    Path.home() / ".dsh" / "sessions",
+]
+
 # Canonical agent-agnostic session log (Redis Stream on WSL master)
 SESSION_EVENTS_STREAM = "session:events"
 SESSION_NOTE_SCHEMA_VERSION = "1"
