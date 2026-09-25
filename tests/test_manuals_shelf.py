@@ -224,6 +224,19 @@ def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
     assert sum(len(h.text) for h in res.hits) <= 1300 + 8 and res.truncated
 
 
+def test_the_same_passage_is_returned_once(tmp_path):
+    """One UI's landing page repeats its overview, so one passage came back twice and spent
+    half the answer budget on a copy."""
+    corpus = tmp_path / "corpus"; corpus.mkdir()
+    body = "# Overview\n\n## Reach\n\nPut primary actions low on the screen for thumbs.\n"
+    (corpus / "index.md").write_text(body, encoding="utf-8")
+    (corpus / "landing.md").write_text(body, encoding="utf-8")
+    sh = shelf_mod.Shelf(tmp_path / "manuals.db")
+    sh.ingest("dup", corpus)
+    hits = sh.search("primary actions thumbs", limit=5).hits
+    assert len(hits) == 1, [h.breadcrumb for h in hits]
+
+
 def test_results_are_capped_by_size(tmp_path):
     corpus = tmp_path / "corpus"; corpus.mkdir()
     for i in range(20):
