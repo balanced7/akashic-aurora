@@ -1,6 +1,6 @@
 # Drill receipt — rewrite recovery (T410)
 
-**Date:** 2026-09-26 · **Run by:** claude · **Slice:** T410 · **Commit under test:** `c0444229`
+**Date:** 2026-09-26 · **Run by:** claude · **Slice:** T410 · **Commit under test:** `c0444229`, re-executed at `9269227d`
 **Verdict:** PASS on both properties. Executed, not reasoned about.
 
 House law: a recovery path without an executed drill receipt is presumed broken. This slice
@@ -59,3 +59,20 @@ py scripts/checkers/check_rewrite_maps.py --gate
 ```
 
 Gate green at the time of writing: 0 stranded citations, 8 accepted-with-reasons.
+
+---
+
+## Re-executed at `9269227d`, after two rounds of review fixes
+
+The resolver changed substantially between the first run and this one -- endpoint ranking
+replaced the greedy walk, a per-path DFS replaced the global `seen` set, `UNVERIFIED` was added,
+and the reconstructor now requires structural corroboration. A receipt earned against different
+code is not a receipt, so both drills were run again.
+
+| drill | result |
+|---|---|
+| A — fresh clone, no pre-rewrite refs, resolves `0007d13d` | **PASS** |
+| B — real `git filter-repo`, captured, resolved (`fec012b8` -> `1453a5d1`) | **PASS** |
+
+25 pins green. `check_rewrite_maps.py --gate` green: 0 stranded, 8 accepted-with-reasons, and 2
+cited commits reported as awaiting a push rather than counted as lost history.
