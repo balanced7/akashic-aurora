@@ -122,6 +122,29 @@ def cmd_rekey(args):
     for sha, _an, _ae, at, subj, _ce in history():
         live.setdefault((at, subj), []).append(sha)
 
+    # PRECONDITION, stated loudly because getting it wrong produces a very convincing wrong
+    # number. Run before the rewrite lands, every row's map target is absent from this repo while
+    # the stable key still finds the OLD commit -- so the two routes disagree on almost every row
+    # and the report reads as 593 corrupt rows instead of "you ran this too early". Measured
+    # exactly that on the first attempt.
+    # Sample the NEWEST rows, not the oldest. The oldest chains terminate on identity rows -- a
+    # rewrite leaves a commit alone when its identities were already the operator's -- so a
+    # head-of-file sample sees no absent targets and the precondition silently fails to fire,
+    # which is exactly what happened on the first attempt.
+    sample = rows[-40:]
+    hits = 0
+    for row in sample:
+        res = r.resolve(row["sha"], check_remote=False)
+        if res.ok and res.sha and res.sha not in {s for v in live.values() for s in v}:
+            hits += 1
+    if sample and hits > len(sample) * 0.5:
+        print(f"REFUSING: {hits} of {len(sample)} sampled map targets do not exist in this "
+              f"repository.\n"
+              f"  The maps describe a rewrite that has NOT been applied here yet, so every\n"
+              f"  comparison would disagree and the output would look like mass corruption.\n"
+              f"  Apply the rewrite first, then run rekey. Nothing was changed.")
+        return 1
+
     moved = kept = refused = lost = 0
     for row in rows:
         res = r.resolve(row["sha"], check_remote=False)
