@@ -60,6 +60,28 @@ reconciliation can diff you against the other half claim-for-claim.
 7. **WHAT YOU COULD NOT CHECK.** Anything you assumed, inferred, or ran out of reach for. An
    honest UNKNOWN is a contribution; a confident guess is a liability the reconciler must catch.
 
+### Verdict lines — the seal checker's exact format
+
+The fence door's checker (`_VERDICT_RE` / `_TAG_RE`) is strict and will reject a well-written half
+on formatting alone. Head your document with your load-bearing claims as **flat lines starting at
+column 0**, in this exact shape:
+
+```
+V1. The session_id field has no writer, so the event plane cannot be joined to the Eye. [CERTAIN]
+V2. Extending ground's target vocabulary is cheaper than a new resolver. [DESIGN]
+```
+
+- The tag goes at the END, and must be one of **`[CERTAIN]` `[DESIGN]` `[INFERRED]` `[UNCERTAIN]`**.
+- Do NOT bullet them — `- **V1.` fails the regex.
+- Do NOT reuse the `OBSERVED / INFERRED / COULD-NOT-CHECK` labels from the evidence pack in section
+  3; those are my labels for measurements, and the checker does not know them. Map yours:
+  observed → `[CERTAIN]`, reasoned-from-code → `[INFERRED]`, a design choice → `[DESIGN]`,
+  genuinely unsure → `[UNCERTAIN]`.
+
+If you hit a checker refusal you believe is a false positive, **say so in your document and flag it
+to me** rather than mutilating a correct section until the gate goes green — a gate whose only
+failures are false ones trains exactly that, and this house has paid for it before.
+
 ### How to work (process, not posture)
 
 - **Reason from the records, not the docs.** Docs in this repo rot and several are auto-generated
@@ -211,6 +233,20 @@ keyed both by SHA and by `(author-date, subject)` so it survives a history rewri
 make a commit SHA a durable citation across history rewrites.
 
 ---
+
+### 3.9 EVIDENCE ANNEX B — pending, and you will be told when it lands
+
+A seven-lane measurement workflow is running in parallel with this dispatch, each lane measured
+then independently re-run by a second agent, plus a completeness critic. It covers: every
+capture() call site and whether a session id was reachable-but-unpassed; session_id fill over the
+WHOLE corpus rather than a 3,000 sample; a plane-by-plane id and foreign-key census; a count of
+live edges per trace edge-type and what writes each; the Eye's real ingest lag; prior art across
+the ledger, fences/, research/ and worktrees; and every plane that carries or reads a commit SHA.
+
+It is ADDITIVE, not corrective — nothing in sections 3.1–3.8 is expected to be overturned by it,
+though if it is, that correction will be sent to you explicitly. Start now. I will send you the
+annex path when it lands; re-read before you finalise, and say in your document whether it changed
+anything. If it arrives after you have sealed, say that too.
 
 ## 4. House laws that bound the design space
 
