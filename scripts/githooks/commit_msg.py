@@ -107,6 +107,21 @@ def main(argv=None, root=None):
              "Commit allowed; the gate is not protecting you.\n" % (type(exc).__name__, exc))
         return 0
     if not findings:
+        # The message passed. Only now credit the operator as co-author -- appending to a
+        # message that is about to be REFUSED would mutate a file the next attempt reuses.
+        # Fail-open by construction (returns None on any error); a credit line must never
+        # be able to refuse a good commit.
+        try:
+            from scripts.githooks.coauthor import ensure_operator_coauthor
+        except Exception:
+            try:
+                from coauthor import ensure_operator_coauthor   # hook runs from its own dir
+            except Exception:
+                ensure_operator_coauthor = None
+        if ensure_operator_coauthor is not None:
+            note = ensure_operator_coauthor(argv[1])
+            if note:
+                _say(note + "\n")
         return 0
     _say(refusal(findings))
     return 1
