@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c0444229. A bound you discover by collision is not awareness -- this sheet
+> Derived at 62565710. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -276,7 +276,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (321 numeric constants)
+## Mechanical bounds (322 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -591,6 +591,7 @@ Class: reference
 | `_MIN_SUFFIX_CHARS` | 200 | core/library/legacy_map.py |  |
 | `_NOTE_WINDOW_DAYS` | 60 | agent/harness/context.py | one store pull feeds every note-derived section |
 | `_OUTCOME_MAX_BYTES` | 4,000,000 | core/recall/at_action.py | ~4MB ring; oldest half dropped on overflow |
+| `_PROBE_LIMIT` | 3 | core/git/rewrite_map.py | retries before this Resolver gives up asking git |
 | `_PUMP_LOCK_TTL` | 8 | core/comm/discord_feed.py |  |
 | `_RATE_LIMIT_MAX_RETRIES` | 3 | core/comm/discord_bridge.py |  |
 | `_REASK_WINDOW_S` | 1,800 | core/comm/bus.py | 30 min; BIFROST_REASK_WINDOW_S overrides |

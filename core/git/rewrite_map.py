@@ -37,6 +37,11 @@ TRANSLATED = "translated"
 DROPPED = "dropped"
 AMBIGUOUS = "ambiguous"
 UNKNOWN = "unknown"
+# The chain ended somewhere, but the clone-visible probe could not run, so nothing
+# confirms the endpoint is fetchable. NOT ok: an unverified claim must never wear a
+# success label.
+UNVERIFIED = "unverified"
+_PROBE_LIMIT = 3          # retries before this Resolver gives up asking git
 
 
 @dataclass
@@ -161,6 +166,9 @@ class Resolution:
             via = " -> ".join(f"{new[:12]} [{label}]" for _, new, label in self.hops)
             tail = f"  ({self.note})" if self.note else ""
             return f"{self.cited}  TRANSLATED  {via}{tail}"
+        if self.status == UNVERIFIED:
+            via = " -> ".join(f"{new[:12]} [{label}]" for _, new, label in self.hops)
+            return f"{self.cited}  UNVERIFIED  {via}  ({self.note})"
         return f"{self.cited}  {self.status.upper()}  {self.note}".rstrip()
 
 
@@ -173,27 +181,44 @@ class Resolver:
         # `remote` is a test seam: the clone-visible set, supplied instead of shelling out.
         # Passing an EMPTY set deliberately means "could not check", matching the live failure.
         self._remote = None if remote is None else set(remote)
+        self._probe_failures = 0
 
     # --- reachability -------------------------------------------------------------------
     def remote_set(self):
-        """Commits a fresh clone would receive. Computed once, on demand.
+        """Commits a fresh clone would receive, or None when the probe could not run.
 
         This is the whole difference between "resolves" and "resolves for anyone else":
         without it, all 877 of our broken citations look healthy from this machine.
+
+        NONE AND AN EMPTY SET ARE DIFFERENT OBSERVATIONS and this returns them differently --
+        an empty set means checked, nothing is pushed; None means we could not look. The first
+        draft collapsed both into an empty set AND cached it, so a single transient git failure
+        silently turned every later answer into an unverified claim wearing a success label:
+        the exact defect this module's own docstring lectures about, committed inside it.
+        Found by Heimdall's review, 2026-09-26. A failure is therefore not cached, so a
+        transient one cannot poison the instance -- bounded by _PROBE_LIMIT so a permanently
+        broken repo does not re-shell on every lookup.
         """
-        if self._remote is None:
-            try:
-                out = subprocess.run(["git", "-C", str(self.repo), "rev-list", "--remotes"],
-                                     capture_output=True, text=True, timeout=180).stdout
-                self._remote = set((out or "").split())
-            except Exception:
-                self._remote = set()
+        if self._remote is not None:
+            return self._remote
+        if self._probe_failures >= _PROBE_LIMIT:
+            return None
+        try:
+            p = subprocess.run(["git", "-C", str(self.repo), "rev-list", "--remotes"],
+                               capture_output=True, text=True, timeout=180)
+            if p.returncode != 0:
+                self._probe_failures += 1
+                return None
+            self._remote = set((p.stdout or "").split())
+        except Exception:
+            self._probe_failures += 1
+            return None
         return self._remote
 
     def visible(self, sha):
         """True when a clone can see this commit; None when we could not check at all."""
         rs = self.remote_set()
-        if not rs:
+        if rs is None:
             return None
         if len(sha) == 40:
             return sha in rs
@@ -252,14 +277,17 @@ class Resolver:
             # The longest chain went as far as the maps allow; report where it stopped and why,
             # rather than presenting a SHA nobody can fetch as a successful translation.
             cur, hops = max(dead, key=lambda t: len(t[1]))
-            if check_remote and not self.remote_set():
-                note = "could not read the clone-visible set, so this endpoint is unverified"
-            else:
-                note = "chain ends on a commit no clone can fetch -- a later rewrite moved it " \
-                       "and left no map (try: rewrite_recover.py reconstruct)"
-            return Resolution(sha, TRANSLATED, sha=cur, hops=hops, note=note)
+            if check_remote and self.remote_set() is None:
+                return Resolution(sha, UNVERIFIED, sha=cur, hops=hops,
+                                  note="the chain ends here, but the clone-visible set could "
+                                       "not be read, so nothing confirms this commit is "
+                                       "fetchable -- could not check, NOT clean")
+            return Resolution(sha, TRANSLATED, sha=cur, hops=hops,
+                              note="chain ends on a commit no clone can fetch -- a later "
+                                   "rewrite moved it and left no map (try: "
+                                   "rewrite_recover.py reconstruct)")
 
-        if check_remote and not self.remote_set():
+        if check_remote and self.remote_set() is None:
             return Resolution(sha, UNKNOWN,
                               note="no map covers it, and the clone-visible set could not be "
                                    "read -- this is 'could not check', not 'clean'")

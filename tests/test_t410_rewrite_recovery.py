@@ -102,11 +102,47 @@ def test_a_dropped_commit_is_a_real_answer(tmp_path):
 
 
 def test_could_not_check_is_not_clean(tmp_path):
-    """An empty clone-visible set means the probe failed, not that nothing is visible. Reporting
-    it as a clean UNKNOWN is the absence-reads-as-success defect this house keeps paying for."""
-    res = rm.Resolver(maps=[], repo=tmp_path, remote=set()).resolve(A)
+    """tmp_path is not a git repo, so the clone-visible probe genuinely FAILS -- the real path,
+    not a simulated one. An unknown answer must say it could not look."""
+    res = rm.Resolver(maps=[], repo=tmp_path).resolve(A)
     assert res.status == rm.UNKNOWN
     assert "could not" in res.note.lower(), res.note
+
+
+def test_a_chain_we_cannot_verify_is_not_reported_as_translated(tmp_path):
+    """HEIMDALL'S FINDING, 2026-09-26. The dead-end fallthrough used to return TRANSLATED with
+    ok=True when the visibility probe had failed, distinguished only by a note string -- so any
+    caller testing `res.ok` was handed an unverified claim wearing a success label. That is the
+    absence-reads-as-success defect this module's own docstring lectures about, committed
+    inside it."""
+    m = _map(tmp_path, "one", [(A, B)])
+    res = rm.Resolver(maps=[m], repo=tmp_path).resolve(A)   # not a repo: the probe fails
+    assert res.status == rm.UNVERIFIED, res
+    assert res.ok is False, "an unverified endpoint must never read as ok"
+    assert res.sha == B, "the candidate is still worth reporting -- just not as a success"
+
+
+def test_an_empty_remote_set_is_not_a_failed_probe(tmp_path):
+    """The two were collapsed. A repo with no remotes legitimately has nothing clone-visible,
+    which is a MEASUREMENT; a probe that could not run is an ABSENCE of one. Only the second
+    may produce UNVERIFIED."""
+    m = _map(tmp_path, "one", [(A, B)])
+    res = rm.Resolver(maps=[m], remote=set()).resolve(A)    # checked; nothing is pushed
+    assert res.status == rm.TRANSLATED, res
+    assert "no clone can fetch" in res.note, res.note
+
+
+def test_a_failed_probe_is_not_cached_as_empty(tmp_path):
+    """A transient git failure must not poison every later answer from the same Resolver. The
+    first draft cached the failure as an empty set, and `self._remote is None` was then False
+    forever, so one blip silently downgraded the rest of the session."""
+    r = rm.Resolver(maps=[], repo=tmp_path)
+    assert r.remote_set() is None
+    assert r._remote is None, "a failure was cached, so no retry can ever happen"
+    assert r._probe_failures == 1, "failures must be counted, or the retry is unbounded"
+
+
+
 
 
 def test_an_inferred_hop_never_reads_as_a_record(tmp_path):
@@ -182,6 +218,47 @@ def test_every_accepted_waiver_states_a_reason():
         assert isinstance(why, str) and len(why.strip()) > 30, f"{sha[:12]} has no real reason"
         assert _git("cat-file", "-t", sha).strip() == "commit", \
             f"{sha[:12]} does not name a commit in this repo -- a guessed hash waives nothing"
+
+
+def test_a_bad_waiver_key_is_caught_at_the_GATE_not_only_here(tmp_path):
+    """HEIMDALL'S FINDING, 2026-09-26. The length + cat-file guard lived only in this file, and
+    a pin does not run at the gate -- so the runtime checker accepted any key with a non-empty
+    reason, which is exactly the bug that let two invented hash tails through. The guard now
+    lives on the runtime path; this pin proves the runtime path rejects them."""
+    import json
+    import scripts.checkers.check_rewrite_maps as chk
+
+    bad = {"unresolvable": {
+        "b18ff3870b71": "a 12-char prefix -- the shape that actually slipped through",
+        "z" * 40: "forty characters, but not hex",
+        "0" * 40: "well-formed and names no commit in this repo",
+    }}
+    path = tmp_path / "accepted_unresolvable.json"
+    path.write_text(json.dumps(bad), encoding="utf-8")
+    orig = chk.ACCEPTED
+    try:
+        chk.ACCEPTED = path
+        waived, problems = chk.accepted()
+    finally:
+        chk.ACCEPTED = orig
+    assert waived == {}, f"a malformed key was accepted: {waived}"
+    assert len(problems) == 3, problems
+
+
+def test_unpushed_work_is_not_confused_with_lost_history():
+    """Cited-and-unfetchable has two causes needing opposite fixes: lost history needs a map,
+    unpushed work needs a push. The subtle part is the exclusion -- pre-rewrite-backup IS a
+    local branch, so a naive 'reachable from a local branch' test would relabel every rewrite
+    orphan as merely unpushed and the gate would go quiet on the whole defect class."""
+    import scripts.checkers.check_rewrite_maps as chk
+
+    local = chk.awaiting_push()
+    assert local, "no local commits at all -- the helper cannot be exercised here"
+    backup = _git("rev-parse", "--verify", "-q", "refs/heads/pre-rewrite-backup").strip()
+    if backup:
+        assert backup not in local,             "pre-rewrite-backup's tip counts as unpushed work, so rewrite orphans would be "             "silently reclassified and the gate would stop reporting them"
+    head = _git("rev-parse", "HEAD").strip()
+    assert head in local, "HEAD is not reachable from a local branch -- the helper is broken"
 
 
 def test_the_verb_exists_on_all_three_doors():

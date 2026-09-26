@@ -100,6 +100,23 @@ def rewrite_refs():
     return out
 
 
+def awaiting_push():
+    """Commits reachable from an ordinary local branch but not yet pushed.
+
+    Cited-and-unfetchable has TWO causes and only one is this checker's business: lost history
+    needs a map, unpushed work needs a push. They are trivially separable -- unpushed work is
+    still reachable from a normal branch -- and conflating them fires the gate on every slice
+    whose own receipt names its own commit, which is how a gate earns the right to be ignored.
+    The rewrite-fingerprint refs are excluded deliberately: pre-rewrite-backup IS a local
+    branch, so including it would relabel every rewrite orphan as merely unpushed.
+    """
+    refs = [r for r in git("for-each-ref", "--format=%(refname)", "refs/heads/").split()
+            if not any(pat in r for pat in REWRITE_REF_PATTERNS)]
+    if not refs:
+        return set()
+    return set(git("rev-list", *refs).split())
+
+
 def accepted():
     """{sha: why} for residue we have decided is genuinely unrecoverable.
 
@@ -114,10 +131,23 @@ def accepted():
         return {}, [f"{ACCEPTED.name} is unreadable ({exc}); treating nothing as accepted"]
     ok, bad = {}, []
     for sha, why in (raw.get("unresolvable") or {}).items():
+        key = str(sha).strip().lower()
+        # THE KEY IS AS LOAD-BEARING AS THE REASON. Two entries here were first written from
+        # 12-character prefixes with invented tails; a waiver keyed on a hash that names no
+        # commit silently waives nothing, and the only thing that caught it was a pin -- which
+        # does not run at the gate. Heimdall's review called that patching the instance rather
+        # than the class, correctly, so the guard now lives on the runtime path too.
+        if len(key) != 40 or any(ch not in "0123456789abcdef" for ch in key):
+            bad.append(f"{sha[:14]!r} is not a full 40-character oid")
+            continue
+        if git("cat-file", "-t", key).strip() != "commit":
+            bad.append(f"{key[:12]} names no commit in this repository -- a guessed or stale "
+                       f"hash waives nothing")
+            continue
         if isinstance(why, str) and why.strip():
-            ok[sha.lower()] = why
+            ok[key] = why
         else:
-            bad.append(f"{sha[:12]} is allow-listed with no reason")
+            bad.append(f"{key[:12]} is allow-listed with no reason")
     return ok, bad
 
 
@@ -143,7 +173,7 @@ def unmapped_rewrites(resolver, waived):
 
 
 # ------------------------------------------------------------------ 3. stranded citations
-def stranded_citations(resolver, waived):
+def stranded_citations(resolver, waived, local=frozenset()):
     """Cited SHAs for which no map reaches a commit a clone can fetch."""
     cand = {}
     for rel in git("ls-files", "--", *CORPUS).splitlines():
@@ -161,7 +191,13 @@ def stranded_citations(resolver, waived):
                          capture_output=True, text=True).stdout.splitlines()
     real = [sha for line, sha in zip(out, cand) if " commit " in line]
 
-    stranded, waived_hits = [], 0
+    full = {}
+    for line, sha in zip(out, cand):
+        q = line.split()
+        if len(q) == 3 and q[1] == "commit":
+            full[sha] = q[0]
+
+    stranded, waived_hits, unpushed = [], 0, []
     for sha in real:
         res = resolver.resolve(sha)
         if res.ok and (res.status == "current" or resolver.visible(res.sha)):
@@ -169,10 +205,13 @@ def stranded_citations(resolver, waived):
         if sha.lower() in waived or any(w.startswith(sha.lower()) for w in waived):
             waived_hits += 1
             continue
+        if full.get(sha) in local:
+            unpushed.append({"sha": sha, "files": sorted(cand[sha])[:2]})
+            continue
         stranded.append({"sha": sha, "status": res.status,
                          "files": sorted(cand[sha])[:2]})
     return {"checked": True, "commits": len(real), "stranded": stranded,
-            "waived": waived_hits}
+            "waived": waived_hits, "unpushed": unpushed}
 
 
 def report(gate=False, freeze=False):
@@ -184,7 +223,7 @@ def report(gate=False, freeze=False):
                      "method": m.method} for m in r.maps]}
     out["unarchived"] = unarchived_map(r.maps)
     out["unmapped"] = unmapped_rewrites(r, waived)
-    out["citations"] = stranded_citations(r, waived)
+    out["citations"] = stranded_citations(r, waived, local=awaiting_push())
 
     print("[rewrite-maps] maps this checkout carries:")
     if not r.maps:
@@ -229,6 +268,12 @@ def report(gate=False, freeze=False):
     else:
         n = len(cit["stranded"])
         print(f"\n  citations: {cit['commits']:,} commit SHAs cited, {n:,} stranded")
+        up = cit.get("unpushed") or []
+        if up:
+            print(f"  {len(up)} cited commit(s) exist locally and are NOT PUSHED --")
+            print("  a push problem, not lost history, so not counted as stranded:")
+            for u in up[:5]:
+                print(f"    {u['sha'][:14]}  {', '.join(u['files'])}")
         for s in cit["stranded"][:8]:
             print(f"    {s['sha'][:14]}  {s['status']:<10} {', '.join(s['files'])}")
         if n > 8:
