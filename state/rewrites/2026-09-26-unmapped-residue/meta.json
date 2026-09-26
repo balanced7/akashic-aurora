@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-26",
+  "tool": "unknown -- this rewrite left no map",
+  "why": "Residue from one or more rewrites that left no map, recovered 2026-09-26. Field-level evidence on the 116 recovered pairs: 104 changed author AND committer email from 'you@email.com' to Daniel's GitHub-linked noreply address -- an attribution-fixing rewrite we ran before and kept no record of, which is the same operation now queued again. 43 also changed trees (redaction residue), and 11 changed nothing at all, their SHA moving only because a parent moved. Two orphans matched nothing; one removed personal assessments from the public tree, so it was most likely deleted rather than rewritten. 43 of these rows EXTEND a chain the 08-12 map starts and cannot finish: its recorded targets for them are no longer clone-visible, and one (65ba8152cc36) no longer exists in the repository at all.",
+  "remaps": 116,
+  "dropped": 0,
+  "method": "reconstructed",
+  "reconstructed_from": [
+    "refs/original/refs/heads/master",
+    "refs/heads/pre-rewrite-backup"
+  ],
+  "reconstructed_against": [
+    "--remotes"
+  ],
+  "key": "(author-date, subject)",
+  "tree_hash_agrees": 73,
+  "refused_ambiguous": 0,
+  "unmatched": 2,
+  "map_archived": "2026-09-26",
+  "archived_by": "claude",
+  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design."
+}

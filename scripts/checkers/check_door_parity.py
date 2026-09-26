@@ -179,6 +179,7 @@ MANIFEST = {
     # seat that most needs it is the MCP-attached conductor. Debt, not design.
     "compare": "shared",
     "timeline": "shared",
+    "sha": "shared",  # T410: resolve a pre-rewrite commit SHA across every rewrite
     # T278 S0 (2026-08-11): THE EYE's door -- eye ingest|find|get (the subparser names
     # surface as verbs to this census). Same class and same argument as compare/timeline:
     # READ verbs whose deepest value is to an MCP-attached conductor; the MCP twin is a

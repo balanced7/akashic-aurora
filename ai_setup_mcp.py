@@ -1156,6 +1156,17 @@ async def timeline(hours: float = 0, limit: int = 0, json: bool = False) -> str:
 
 
 @mcp.tool()
+async def sha(sha: str = "", maps: bool = False, verbose: bool = False,
+              no_remote: bool = False) -> str:
+    """T410: resolve a pre-rewrite commit SHA to the commit it became. Three history
+    rewrites have moved ours, and 61% of the commit SHAs this corpus cites once resolved
+    only on the authoring machine. Answers CURRENT / TRANSLATED / DROPPED / AMBIGUOUS /
+    UNKNOWN -- never a guess. Pass maps=True to list the maps this checkout carries."""
+    return await _athread(_run, agent_cli.cmd_sha, sha=[s for s in str(sha or "").split() if s],
+                          maps=bool(maps), verbose=bool(verbose), no_remote=bool(no_remote))
+
+
+@mcp.tool()
 async def compare(a: str = "", b: str = "", list_domains: bool = False,
                   limit: int = 0, json: bool = False) -> str:
     """T213: what does one domain have that another does not -- the set difference four

@@ -1,0 +1,16 @@
+{
+  "date": "2026-07-23",
+  "tool": "git filter-repo",
+  "method": "recorded",
+  "why": "Remove the Apple/Samsung design-inspiration reference material (refs/design-inspiration/ -- Apple HIG and Samsung OneUI extractions, images, raw text) from all history. Copyright hygiene on a public repo. Local copies were deliberately kept on disk; only git history and the remote were scrubbed.",
+  "remaps": 1125,
+  "dropped": 1,
+  "force_pushed": "edfe184..a579a93",
+  "backup_bundle": "backups/pre-scrub-20260723.bundle (15MB, gitignored)",
+  "map_recovered_from": ".git/filter-repo/commit-map",
+  "map_archived": "2026-09-26",
+  "archived_by": "claude (T410)",
+  "note": "THIS MAP WAS ONE COMMAND FROM BEING LOST. filter-repo writes its map to .git/filter-repo/commit-map and OVERWRITES it on the next run, and this map is the FIRST link in our rewrite chain -- without it a pre-07-23 SHA cannot be chased at all, and recovery of our broken citations drops from 806 to 86. Nothing had ever read it in the 65 days it sat there.",
+  "the_assumption_that_aged_badly": "The session that ran this rewrite closed by noting 'every commit SHA in the repo changed -- that's clean for a solo repo like this one, but a clone elsewhere would need a fresh clone rather than a pull'. Correct at the time. What falsified it was our own corpus later learning to cite SHAs: the chronicle, the task ledger, lessons and fence reconciliations now name commits by hash, so the repo became its own downstream clone.",
+  "evidence": "eye 037dac55-bb9f-4980-aeda-26486369e69c:1602"
+}

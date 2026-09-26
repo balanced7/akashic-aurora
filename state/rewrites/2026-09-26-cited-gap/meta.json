@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-26",
+  "tool": "unknown -- this rewrite left no map",
+  "why": "One citation that no other map could take to a live commit, recovered 2026-09-26 by matching (author-date, subject) against the clone-visible lineage. Found by taking the OLD population from commits our corpus CITES rather than from refs: this commit sits on no branch at all, so every ref-based sweep missed it and a single git gc would have deleted it. The other 744 matches were dropped as redundant -- the recorded maps plus a breadth-first chase already reach them.",
+  "remaps": 1,
+  "dropped": 0,
+  "method": "reconstructed",
+  "reconstructed_from": [],
+  "reconstructed_against": [
+    "--remotes"
+  ],
+  "key": "(author-date, subject)",
+  "tree_hash_agrees": 63,
+  "refused_ambiguous": 0,
+  "unmatched": 28,
+  "map_archived": "2026-09-26",
+  "archived_by": "claude",
+  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design."
+}

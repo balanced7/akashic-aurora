@@ -1,0 +1,204 @@
+"""T410 pins -- a pre-rewrite SHA must be followable, or our own chronicle cites nothing.
+
+MEASURED 2026-09-26. This repo has rewritten its history three times. 877 of the 1,436 commit
+SHAs our tracked corpus cites -- 61% -- resolved on the authoring machine ONLY, because two
+local refs (pre-rewrite-backup, refs/original) pinned the pre-rewrite lineage and a clone never
+receives them. chronicles/story.md was the worst-affected file in the repository.
+
+    2026-07-23  reference purge     map left only in .git/filter-repo/, overwritten by the next
+                                    run, unread for 65 days, and the FIRST link in the chain
+    2026-08-12  PII redaction       map archived off-repo to two drives; invisible to clones
+    post-08-16  attribution rewrite NO MAP -- 104 commits moved from 'you@email.com' to the
+                                    operator's GitHub address, found only via a stray ref
+
+After this slice: 0 stranded citations, 8 accepted-with-reasons.
+
+These pins hold the properties that make recovery trustworthy rather than merely present.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from core.git import rewrite_map as rm  # noqa: E402
+
+A = "a" * 40          # original
+B = "b" * 40          # after rewrite one
+C = "c" * 40          # after rewrite two -- the live commit
+D = "d" * 40
+
+
+def _map(tmp_path, name, rows, durable=True, method="recorded"):
+    p = tmp_path / name
+    p.write_text("".join(f"{o} {n}\n" for o, n in rows), encoding="utf-8")
+    return rm._parse(p, label=name, durable=durable, method=method)
+
+
+def test_a_pre_rewrite_sha_resolves_to_its_successor(tmp_path):
+    """The whole point. Without this every SHA in the chronicle is a dead end."""
+    r = rm.Resolver(maps=[_map(tmp_path, "one", [(A, B)])], remote={B})
+    res = r.resolve(A)
+    assert res.status == rm.TRANSLATED, res
+    assert res.sha == B
+    assert res.ok
+
+
+def test_chains_compose_across_rewrites(tmp_path):
+    """Our maps chain: 07-23's outputs are 08-12's inputs. A citation older than the first
+    rewrite needs BOTH applied, which is why keeping only the latest map is not enough --
+    measured, one map recovered 86 citations and both recovered 806."""
+    maps = [_map(tmp_path, "one", [(A, B)]), _map(tmp_path, "two", [(B, C)])]
+    res = rm.Resolver(maps=maps, remote={C}).resolve(A)
+    assert res.sha == C, res
+    assert len(res.hops) == 2, res.hops
+
+
+def test_it_prefers_a_live_endpoint_over_a_dead_end(tmp_path):
+    """THE BUG THIS SLICE FOUND. Walking maps greedily in order takes the first hop offered and
+    stops. Live case: f94c1368 chased 07-23 then 08-12 and halted at 65ba8152cc36 -- a commit
+    that no longer exists in the repository at all -- while a third map held the live
+    continuation. A resolver must SEARCH and prefer a chain that ends somewhere fetchable."""
+    maps = [
+        _map(tmp_path, "dead", [(A, D)]),      # offered first, and D is gone
+        _map(tmp_path, "live", [(A, C)]),      # the answer
+    ]
+    res = rm.Resolver(maps=maps, remote={C}).resolve(A)
+    assert res.sha == C, f"took the dead branch: {res}"
+
+
+def test_a_dead_end_is_reported_as_one_not_as_success(tmp_path):
+    """When every chain ends somewhere unfetchable, saying TRANSLATED with no caveat would hand
+    back a SHA nobody can check out. The note must say so."""
+    res = rm.Resolver(maps=[_map(tmp_path, "one", [(A, D)])], remote={C}).resolve(A)
+    assert res.status == rm.TRANSLATED
+    assert "no clone can fetch" in res.note, res.note
+
+
+def test_an_ambiguous_abbreviation_refuses(tmp_path):
+    """34 keys in our own history are shared by 68 commits. A wrong successor rewrites history a
+    second time, so refusing beats guessing."""
+    # They must SHARE the queried prefix; the index buckets on the first 7 characters, so two
+    # SHAs differing inside those 7 are not ambiguous at all -- the first draft of this fixture
+    # tested nothing for exactly that reason.
+    m = _map(tmp_path, "one", [("abc1234" + "0" * 33, B), ("abc1234" + "1" * 33, C)])
+    res = rm.Resolver(maps=[m], remote={B, C}).resolve("abc1234")
+    assert res.status == rm.AMBIGUOUS, res
+    assert not res.ok
+    assert "cite more characters" in res.note
+
+
+def test_a_dropped_commit_is_a_real_answer(tmp_path):
+    """filter-repo writes <old> 0000..0 for a commit it removed. 'Deliberately deleted' is an
+    answer; collapsing it into UNKNOWN throws away the only thing the reader wanted."""
+    res = rm.Resolver(maps=[_map(tmp_path, "one", [(A, "0" * 40)])], remote={C}).resolve(A)
+    assert res.status == rm.DROPPED, res
+    assert "removed from history" in res.note
+
+
+def test_could_not_check_is_not_clean(tmp_path):
+    """An empty clone-visible set means the probe failed, not that nothing is visible. Reporting
+    it as a clean UNKNOWN is the absence-reads-as-success defect this house keeps paying for."""
+    res = rm.Resolver(maps=[], repo=tmp_path, remote=set()).resolve(A)
+    assert res.status == rm.UNKNOWN
+    assert "could not" in res.note.lower(), res.note
+
+
+def test_an_inferred_hop_never_reads_as_a_record(tmp_path):
+    """A reconstructed map is a deduction. A caller deserves to know which kind of claim it is
+    looking at, so the provenance rides the hop label, not only the meta file."""
+    m = _map(tmp_path, "guess", [(A, C)], method="reconstructed")
+    res = rm.Resolver(maps=[m], remote={C}).resolve(A)
+    assert "inferred" in res.line(), res.line()
+
+
+def test_a_map_only_in_dotgit_is_marked_volatile(tmp_path):
+    """The 07-23 map lived in .git/filter-repo/commit-map for 65 days. That file is overwritten
+    by the next filter-repo run and never reaches a clone, so it must not be mistaken for a
+    durable one -- the distinction is what makes the checker able to demand capture."""
+    (tmp_path / ".git" / "filter-repo").mkdir(parents=True)
+    (tmp_path / ".git" / "filter-repo" / "commit-map").write_text(f"{A} {B}\n", encoding="utf-8")
+    maps = rm.load_maps(tmp_path)
+    assert len(maps) == 1 and maps[0].durable is False, maps
+
+
+def test_an_archived_map_is_preferred_and_not_duplicated(tmp_path):
+    """Once captured, the .git copy is redundant. Loading both would double every hop."""
+    d = tmp_path / "state" / "rewrites" / "2026-01-01"
+    d.mkdir(parents=True)
+    (d / "commit-map").write_text(f"{A} {B}\n", encoding="utf-8")
+    (tmp_path / ".git" / "filter-repo").mkdir(parents=True)
+    (tmp_path / ".git" / "filter-repo" / "commit-map").write_text(f"{A} {B}\n", encoding="utf-8")
+    maps = rm.load_maps(tmp_path)
+    assert [m.durable for m in maps] == [True], [(m.label, m.durable) for m in maps]
+
+
+# ----------------------------------------------------------- the durability property itself
+def _git(*a):
+    return subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True,
+                          encoding="utf-8", errors="replace").stdout or ""
+
+
+def test_the_maps_are_actually_IN_git():
+    """The defect in one line: a map on an ignored path is invisible to every clone, so no clone
+    can resolve any citation. state/ is ignored wholesale here, so this needs an explicit
+    negation -- and a resolver whose maps are untracked is theatre. Same argument as the
+    state/drills negation, one plane over."""
+    tracked = set(_git("ls-files", "state/rewrites/").split())
+    on_disk = {p.relative_to(ROOT).as_posix()
+               for p in (ROOT / "state" / "rewrites").rglob("*") if p.is_file()}
+    assert on_disk, "no maps on disk at all"
+    missing = sorted(on_disk - tracked)
+    assert not missing, f"rewrite artifacts exist but git cannot see them: {missing}"
+
+
+def test_every_map_declares_its_provenance():
+    """A map with no meta.json is a puzzle: nobody can tell whether it was recorded by the tool
+    that did the rewrite or deduced afterwards, and those carry different weight."""
+    for d in sorted((ROOT / "state" / "rewrites").iterdir()):
+        if not d.is_dir():
+            continue
+        meta = d / "meta.json"
+        assert meta.is_file(), f"{d.name} has a map and no meta.json"
+        m = json.loads(meta.read_text(encoding="utf-8"))
+        assert m.get("method") in ("recorded", "reconstructed"), f"{d.name}: {m.get('method')}"
+        assert (m.get("why") or "").strip(), f"{d.name} does not say what the rewrite was for"
+
+
+def test_every_accepted_waiver_states_a_reason():
+    """An allow-list entry without a reason is indistinguishable from a defect someone got tired
+    of. This also caught a real error: two entries were first keyed on 12-char prefixes with
+    invented tails, and a waiver keyed on a guessed hash silently waives nothing."""
+    p = ROOT / "state" / "rewrites" / "accepted_unresolvable.json"
+    if not p.is_file():
+        return
+    for sha, why in json.loads(p.read_text(encoding="utf-8"))["unresolvable"].items():
+        assert len(sha) == 40, f"{sha} is not a full oid"
+        assert isinstance(why, str) and len(why.strip()) > 30, f"{sha[:12]} has no real reason"
+        assert _git("cat-file", "-t", sha).strip() == "commit", \
+            f"{sha[:12]} does not name a commit in this repo -- a guessed hash waives nothing"
+
+
+def test_the_verb_exists_on_all_three_doors():
+    """A capability reachable only by knowing a script path is not a capability. And a ToolBox
+    METHOD without a TOOLS schema entry is not model-reachable, so check both halves: the
+    door-parity checker reads the class, the model reads the schema."""
+    import agent_cli
+    from core.comm.toolbox import TOOLS, ToolBox
+
+    assert callable(getattr(agent_cli, "cmd_sha", None)), "no CLI handler"
+    names = [t.get("function", t).get("name") for t in TOOLS]
+    assert "sha" in names, "on the ToolBox class but absent from TOOLS -- not reachable"
+    assert callable(getattr(ToolBox, "sha", None)), "in TOOLS but not implemented"
+    mcp = Path(ROOT, "ai_setup_mcp.py").read_text(encoding="utf-8")
+    assert "async def sha(" in mcp, "no MCP tool"
+
+
+if __name__ == "__main__":
+    import pytest
+    raise SystemExit(pytest.main([__file__, "-q"]))

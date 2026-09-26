@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 79ca4233. A bound you discover by collision is not awareness -- this sheet
+> Derived at 62de6286. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +33 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +34 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -105,7 +105,7 @@ Class: reference
 | `AKASHIC_RELEVANCE_BUDGET` | `"1"` | core/context/learning_loader.py, research/in-flight/t342/dead-modules/context__learning_loader.py |
 | `AKASHIC_RELEVANCE_BUDGET_CHARS` | `""` | core/context/relevance_budget.py, research/in-flight/t342/dead-modules/context__relevance_budget.py |
 | `AKASHIC_REMOTE_BRIDGE_PEER_URL` | `` | core/comm/remote_relay.py |
-| `AKASHIC_REPO` | `` | agent/harness/dsh_plugin/bridge.py |
+| `AKASHIC_REPO` | `` | agent/harness/dsh_plugin/bridge.py, core/git/rewrite_map.py, scripts/rewrite_recover.py |
 | `AKASHIC_RESTORE_PROD` | `` | scripts/ops/snapshot_knowledge.py |
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_AT` | `"3"` | core/comm/roster.py |
@@ -276,7 +276,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (320 numeric constants)
+## Mechanical bounds (321 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -428,6 +428,7 @@ Class: reference
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
+| `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
 | `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |

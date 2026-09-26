@@ -240,6 +240,9 @@
 - `pyramid.py` — THE EYE S2 -- the pyramid: LOD as regenerable projection, fidelity by construction.
 - `routes.py` — T323 s1 -- the route record: the string through the forest, as a thing you can hold.
 
+## core/git/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `rewrite_map.py` — Turn a pre-rewrite commit SHA back into the commit it became.
+
 ## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
@@ -348,6 +351,7 @@
 - `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
+- `rewrite_recover.py` — Survive a history rewrite: capture its map, rebuild a map we lost, measure the damage.
 - `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).

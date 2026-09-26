@@ -145,6 +145,11 @@ TOOLS = [
                        "description": "maximum task rows in the source snapshot (default 64)"},
          "brief": {"type": "boolean",
                    "description": "return the compact operational-orientation packet (default true)"}}),
+    _fn("sha", "T410: resolve a pre-rewrite commit SHA to the commit it became. This repo has rewritten its history three times, so a SHA cited in the chronicle, a lesson or the task ledger may name a commit no clone can fetch. Chains every archived rewrite map and answers CURRENT / TRANSLATED / DROPPED / AMBIGUOUS / UNKNOWN with the hops -- never a guess. Read-only.",
+        {"sha": {"type": "string",
+                 "description": "one or more commit SHAs (7-40 hex chars), space separated"},
+         "maps": {"type": "boolean",
+                  "description": "instead list the rewrite maps this checkout carries (default false)"}}),
     _fn("orient", "Renderer-neutral VR/GPS scene over native read verbs: awareness, a typed focus, nearby landmarks, honest peripheral contours, and a return tether. Never guesses a destination or performs effects.",
         {"target": {"type": "string", "description": "optional typed target: verb:<name>, seat:<your-id>, or thread:<ref>"},
          "density": {"type": "string", "enum": ["compact", "standard", "wide"],
@@ -856,6 +861,29 @@ class ToolBox:
             payload, ensure_ascii=False, separators=(",", ":"), default=str
         )
 
+    def sha(self, sha="", maps=False):
+        """T410: resolve a pre-rewrite commit SHA to the commit it became.
+
+        A seat reading the chronicle or the task ledger hits stale SHAs constantly: three
+        history rewrites have moved ours, and 61% of the commit SHAs this corpus cites once
+        resolved only on the machine that wrote them. Read-only, and it never guesses --
+        CURRENT / TRANSLATED / DROPPED / AMBIGUOUS / UNKNOWN, with the hops that got there.
+        """
+        import json
+        from core.git.rewrite_map import Resolver
+
+        r = Resolver(repo=str(self.root))
+        if bool(maps):
+            return json.dumps([{"label": m.label, "rows": len(m.rows), "durable": m.durable,
+                                "method": m.method} for m in r.maps], ensure_ascii=False)
+        out = []
+        for one in [t for t in str(sha or "").split() if t]:
+            res = r.resolve(one)
+            out.append({"cited": res.cited, "status": res.status, "sha": res.sha,
+                        "hops": [{"from": a, "to": b, "via": v} for a, b, v in res.hops],
+                        "note": res.note})
+        return json.dumps(out, ensure_ascii=False)
+
     def orient(self, target="", density="compact", depth="surface", per_stream=1000):
         """Compose native structured reads for this ToolBox's bound identity."""
         import json
@@ -1482,7 +1510,7 @@ class ToolBox:
         # design. Revert = delete this block.
         "audit", "college", "compare", "console-log", "episode", "eye", "find", "fleet",
         "forecast", "friction", "glance", "ground", "packet-stats", "packet-trace", "reentry",
-        "resident", "scout", "season-score", "seat-identity", "shadow", "sweep", "tally",
+        "resident", "scout", "season-score", "seat-identity", "sha", "shadow", "sweep", "tally",
         "timeline", "kit"})
     # SHELL SEATS (Daniil 2026-09-24, verbatim: "I want heimdall to be able to push to the repo
     # and have shell"). A seat listed here SKIPS the T067-2 family allowlist entirely and runs

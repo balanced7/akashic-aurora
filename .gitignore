@@ -238,3 +238,13 @@ charters/daniel/*
 /_tmp_*.py
 /_probe_*.py
 /_measure_*.py
+
+# EXCEPTION (2026-09-26): a commit-map from a history rewrite is the only artifact that can
+# turn a pre-rewrite SHA in our own chronicle back into a commit. Measured today: 877 of the
+# 1,436 commit SHAs our corpus cites resolve on THIS MACHINE only -- pinned by local refs
+# (pre-rewrite-backup, refs/original) that a clone never receives -- and 806 of those are
+# curable by chaining the two maps below. The 07-23 map lived in .git/filter-repo/commit-map,
+# which the next `git filter-repo` run overwrites, and it is the FIRST link in the chain:
+# losing it drops recovery from 806 to 86. Same argument as state/drills above -- a map on an
+# ignored path is invisible to every clone, so no clone can resolve any citation.
+!state/rewrites/

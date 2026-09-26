@@ -528,6 +528,44 @@ def cmd_delta(args):
     return 0
 
 
+# ---------------------------------------------------------------------------- sha
+def cmd_sha(args):
+    """Resolve a commit SHA across every history rewrite this repo has run (T410).
+
+    Three rewrites have moved our SHAs -- the 2026-07-23 reference purge, the 2026-08-12 PII
+    redaction, and an attribution rewrite that left no map and had to be reconstructed. 61% of
+    the commit SHAs our own corpus cites resolve on the authoring machine only, because two
+    local refs pin the pre-rewrite lineage and a clone never receives them. This verb is how a
+    citation stops being a dead end.
+
+    Exit 1 when any SHA could not be followed, so a checker can use it as a gate.
+    """
+    from core.git.rewrite_map import Resolver
+    r = Resolver()
+    if getattr(args, "maps", False):
+        if not r.maps:
+            print("no rewrite maps found under state/rewrites/ -- if a rewrite has run, its "
+                  "map is unarchived:\n  py scripts/rewrite_recover.py capture --label <slug>")
+            return 1
+        for m in r.maps:
+            flag = "" if m.durable else "   VOLATILE: .git only, the next rewrite overwrites it"
+            print(f"  {m.label:<34} {len(m.rows):5,} remaps  {len(m.dropped)} dropped"
+                  f"  [{m.method}]{flag}")
+        return 0
+    if not args.sha:
+        print("usage: py agent_cli.py sha <commit-sha> [...]   |   --maps to list the maps")
+        return 2
+    bad = 0
+    for one in args.sha:
+        res = r.resolve(one, check_remote=not getattr(args, "no_remote", False))
+        print("  " + res.line())
+        if getattr(args, "verbose", False):
+            for old, new, label in res.hops:
+                print(f"      {old[:12]} -> {new[:12]}   via {label}")
+        bad += 0 if res.ok else 1
+    return 1 if bad else 0
+
+
 # -------------------------------------------------------------------------- learn
 def cmd_learn(args):
     from core.learning.learning_store import get_learning_store
@@ -8343,6 +8381,17 @@ def build_parser():
     gr.add_argument("--json", action="store_true")
     gr.set_defaults(fn=cmd_graduate)
 
+    sh = sub.add_parser("sha", help="resolve a pre-rewrite commit SHA to the commit it "
+                                    "became -- three rewrites have moved ours (T410)")
+    sh.add_argument("sha", nargs="*", help="one or more commit SHAs, 7-40 hex characters")
+    sh.add_argument("--maps", action="store_true",
+                    help="list the rewrite maps this checkout carries, and flag any that live "
+                         "only in .git (where the next rewrite overwrites them)")
+    sh.add_argument("--verbose", action="store_true", help="show each hop of the chase")
+    sh.add_argument("--no-remote", action="store_true",
+                    help="skip the clone-visibility check (offline; every answer becomes a "
+                         "statement about THIS checkout only)")
+    sh.set_defaults(fn=cmd_sha)
     nt = sub.add_parser("note", help="record a durable project note (write-once; re-note same title to update)")
     nt.add_argument("agent_id")
     nt.add_argument("--title", default="", help="short stable title (re-noting it supersedes the prior; "

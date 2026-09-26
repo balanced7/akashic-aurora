@@ -1,0 +1,15 @@
+{
+  "date": "2026-08-12",
+  "tool": "git filter-repo",
+  "method": "recorded",
+  "why": "Redact third-party personal information from the tracked tree and from history. Privacy hygiene on a public repo; followed by two corrective passes the same day ('a real name missed, a heading wrongly removed') and a switch to box characters instead of [REDACTED] markers.",
+  "remaps": 1979,
+  "dropped": 0,
+  "map_recovered_from": "E:/Akashic Aurora/rewrite-maps/commit-map-20260812 (also mirrored to F:/)",
+  "map_archived": "2026-09-26",
+  "archived_by": "claude (T410)",
+  "composes_with": "2026-07-23",
+  "composition": "This map's OLD keys are the 07-23 map's NEW values -- 1,125 of its 1,979 rows. So the chain runs original -> 07-23 -> 08-12 -> today, and a pre-07-23 citation needs BOTH maps applied in order. Measured: the 08-12 map alone recovers 86 of our 877 broken citations; chained with 07-23 it recovers 806. This is the whole argument for keeping every map rather than the latest one.",
+  "note": "This map was archived off-repo to two drives at the time -- better than the 07-23 one, and still invisible to every clone and to every search plane anyone in this house uses. state/rewrites/ is now the canonical home precisely because it travels.",
+  "visible_artifact": "Duplicate commit subjects at different SHAs are the pre/post pairs of this rewrite, both reachable locally: 4ba27aa6/d866532a, ac27846a/a043efd9, 3fe10a32/068792a0."
+}
