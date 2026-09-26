@@ -308,6 +308,7 @@
 - `ask_kimi.py` — ask_kimi -- a thin bridge so an agent (or you) can get Kimi's take from the CLI.
 - `ask_panel.py` — ask_panel -- fan ONE question out to the frontier-model panel (Gemini + GPT + DeepSeek) and print
 - `ask_vision.py` — ask_vision -- ONE targeted question about ONE frame, with retries, provenance and a cache.
+- `authorship_ledger.py` — Which seat built which commit -- a plane that survives the author field being overwritten.
 - `bifrost_child.py` — bifrost_child -- managed subprocess + daemon singleton lock (T075 M1-delta).
 - `bifrost_console.py` — Bifrost Console -- a live chat window onto the Bifrost bus.
 - `bifrost_daemon.py` — bifrost.daemon -- the agent's continuous-presence body (T075 M1-alpha + M1-delta).

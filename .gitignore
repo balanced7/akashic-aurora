@@ -248,3 +248,16 @@ charters/daniel/*
 # losing it drops recovery from 806 to 86. Same argument as state/drills above -- a map on an
 # ignored path is invisible to every clone, so no clone can resolve any citation.
 !state/rewrites/
+
+# EXCEPTION (2026-09-26): the authorship ledger. Daniel's ruling -- the commits must display
+# HIS name on GitHub, and which seat built what moves to its own plane. For 537 of the 598
+# seat-authored commits the committer was already him, so the git AUTHOR field was the only
+# record of the seat; the rewrite that puts his name on them overwrites exactly that field.
+# This ledger is therefore the prerequisite for the rewrite, not its follow-up, and a ledger
+# on an ignored path is invisible to every clone -- the same argument as state/drills and
+# state/rewrites above, for the third time tonight.
+!state/authorship/
+# The blanket `*.jsonl` on line 60 is a FILE-level match, so re-including the directory
+# above is not enough -- the ledger needs its own negation or it stays invisible. This
+# is the third distinct way tonight that a durable record nearly ended up untracked.
+!state/authorship/*.jsonl
