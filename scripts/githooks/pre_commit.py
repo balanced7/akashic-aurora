@@ -82,19 +82,29 @@ def _comprehensibility_fast():
 # --------------------------------------------------------------------------- ATTRIBUTION GATE
 
 def check_author_matches_seat(agent, author_ident):
-    """t384 RULING 2: in a SEAT context, git's author must be that seat.
+    """T411: in a SEAT context, git must record the OPERATOR as both author and committer.
 
-    The stamp itself lives in the launcher (core/comm/seat_identity.git_identity_env);
-    this is the guard that makes its ABSENCE loud. Without it the stamp could silently
-    stop working -- a launcher spawned without the env, a hand-relaunch that omits it --
-    and every commit would quietly re-attribute a seat's work to the machine owner, which
-    is exactly the defect measured at b66e6f67 and exactly the kind of silence this house
-    has paid for twice (a stale plugin generation, a door narrower than its grant).
+    REWRITTEN IN PLACE rather than deleted, because the rule was RULED ON, not abandoned --
+    Daniel, 2026-09-26: "I want my name on it", then "my name shows up in the commiter field and
+    author field ... I want to restore the green boxes". The superseded rule is stated here so a
+    later reader sees a decision rather than a silent reversal.
 
-    Silent outside seat context: a human at their own terminal has no AKASHIC_AGENT_ID and
-    is never touched -- the goal is attribution TRUTH, not universal stamping.
-    Fails OPEN when git reports no author: a guard that bricks every commit is worse than
-    the drift it watches for (same policy as the comprehensibility backstop below).
+    THE OLD RULE WAS "git's author must be that seat" (t384 ruling 2). It fixed a real defect
+    measured at b66e6f67 -- a seat's work recorded against the machine owner -- and put the fix in
+    the field GitHub renders and counts, so 598 commits ended up displaying an address belonging
+    to no account. Attribution now lives on an internal plane
+    (state/authorship/seats.jsonl, scripts/authorship_ledger.py) and the git identity fields name
+    the person whose project it is.
+
+    THE GUARD'S JOB IS UNCHANGED: make the launcher stamp's ABSENCE loud. Without it the stamp
+    could silently stop working -- a launcher spawned without the env, a hand-relaunch that omits
+    it -- and commits would drift back to whatever git config happened to be lying around. That is
+    not hypothetical: 30 commits in this history were authored by "you@email.com", an unconfigured
+    git crediting nobody, for five months.
+
+    Silent outside seat context: a human at their own terminal has no AKASHIC_AGENT_ID and is
+    never touched. Fails OPEN when git reports no identity: a guard that bricks every commit is
+    worse than the drift it watches for (same policy as the comprehensibility backstop below).
     """
     if not agent:
         return True, ""                      # not a seat context -- the human's own commit
@@ -109,23 +119,49 @@ def check_author_matches_seat(agent, author_ident):
     if not want:
         return True, ""                      # malformed id: nothing to assert against
     expected = f"{want['GIT_AUTHOR_NAME']} <{want['GIT_AUTHOR_EMAIL']}>"
-    if str(author_ident).startswith(expected):
-        return True, ""
-    return False, (
-        f"pre-commit BLOCKED: AKASHIC_AGENT_ID is '{agent}' but git will record this commit as\n"
-        f"    {author_ident}\n"
-        f"so a seat's work would be attributed to someone else in git history (t384).\n"
-        f"Expected: {expected}\n"
-        f"Fix -- stamp the seat identity in the LAUNCHER that spawned this process, or for a\n"
-        f"one-off: GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
-        f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} git commit ...\n"
-        f"(COMMITTER stays the machine owner on purpose -- author wrote it, committer applied it.)")
+    fix = (f"Fix -- stamp the identity in the LAUNCHER that spawned this process, or for a\n"
+           f"one-off:\n"
+           f"  GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
+           f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} \\\n"
+           f"  GIT_COMMITTER_NAME={want['GIT_COMMITTER_NAME']} "
+           f"GIT_COMMITTER_EMAIL={want['GIT_COMMITTER_EMAIL']} git commit ...\n"
+           f"(Which seat did the work is recorded in state/authorship/seats.jsonl -- "
+           f"`py scripts/authorship_ledger.py who <sha>`.)")
+    if not str(author_ident).startswith(expected):
+        return False, (
+            f"pre-commit BLOCKED: AKASHIC_AGENT_ID is '{agent}' but git will record the AUTHOR "
+            f"as\n    {author_ident}\n"
+            f"and the author field is what GitHub displays and counts, so this commit would not "
+            f"carry the operator's name (T411).\nExpected: {expected}\n" + fix)
+
+    # BOTH FIELDS, because GitHub renders and credits the committer too -- a correct author beside
+    # a drifted committer still prints a foreign name on the project page and still costs a green
+    # box. This half exists because the first pass at T411 put the seat here and that was refused.
+    committer_ident = _git_committer_ident()
+    if committer_ident and not str(committer_ident).startswith(expected):
+        return False, (
+            f"pre-commit BLOCKED: the AUTHOR is right but git will record the COMMITTER as\n"
+            f"    {committer_ident}\n"
+            f"which GitHub also renders and credits, so the commit would still not read as the "
+            f"operator's (T411).\nExpected: {expected}\n" + fix)
+    return True, ""
 
 
 def _git_author_ident():
     """What git WILL record as author for this commit (env, else config)."""
+    return _git_var("GIT_AUTHOR_IDENT")
+
+
+def _git_committer_ident():
+    """What git WILL record as committer. Checked separately from the author because the two can
+    be set independently, and T411 needs BOTH to be the operator -- a correct author beside a
+    drifted committer is exactly the half-fix that was refused."""
+    return _git_var("GIT_COMMITTER_IDENT")
+
+
+def _git_var(name):
     try:
-        r = subprocess.run(["git", "var", "GIT_AUTHOR_IDENT"],
+        r = subprocess.run(["git", "var", name],
                            capture_output=True, text=True, timeout=10, cwd=ROOT)
         return (r.stdout or "").strip()
     except Exception:

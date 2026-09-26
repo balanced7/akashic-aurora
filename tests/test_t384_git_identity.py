@@ -1,23 +1,29 @@
-"""RED-first pins for the t384 git-author attribution slice.
+"""Pins for git identity attribution -- t384's slice, SUPERSEDED IN PLACE by T411.
 
-The defect these close (measured 2026-08-24): commit b66e6f67 was authored by a seat
-(dsh_agent, per the bus and the ledger) but git recorded
-`author=balanced7 <61030820+balanced7@users.noreply.github.com>` -- the machine owner --
-because seats commit through exec using the human's git config. Git history is the one
-plane where, contrary to house doctrine, the costume beat the id.
+WHAT t384 PINNED, AND WHY IT IS GONE. The defect t384 closed (measured 2026-08-24) was real:
+commit b66e6f67 was authored by a seat per the bus and the ledger, while git recorded the machine
+owner, because seats commit through exec using the human's git config. t384's answer was to make
+the SEAT the git author and leave the human as committer -- git's own who-wrote-it vs who-applied-it
+distinction, on a non-routable `@akashic-aurora.local` address so a seat could never be mistaken
+for a real account.
 
-The sealed design (fences/t384-acl-instance-split/reconciliation.md, RULING 2):
-  - the seam is the LAUNCHER, not a commit hook: git resolves authorship when it builds
-    the commit object, so a prepare-commit-msg hook (half_a's proposal) cannot change the
-    author of the commit already in flight;
-  - AUTHOR becomes the seat, COMMITTER stays the human -- that is exactly git's own
-    semantics (who wrote it vs who applied it) and it keeps the human's identity where it
-    genuinely belongs;
-  - the address is NON-ROUTABLE (`@akashic-aurora.local`) so a seat identity can never
-    collide with, or be mistaken for, a real GitHub account;
-  - a pre-commit guard REFUSES a seat-context commit whose author does not match, so the
-    stamp cannot silently stop working (absence would otherwise be invisible -- the same
-    class as the stale-plugin-generation lie caught the same night).
+It was half right. git's author field is not only "who wrote this": it is what GitHub DISPLAYS on
+every commit and what its contribution graph counts. One field was carrying two jobs, so the
+attribution won and the operator's name lost -- 598 commits, 388 of them in his biggest month,
+showing an address belonging to no account, and a contribution graph that went dark in the month
+he worked hardest.
+
+T411, DANIEL'S RULING 2026-09-26: "I want my name on it", and then, when a first pass left the
+seat in the committer field: "How do we make it that my name shows up in the commiter field and
+author field for the commits. our tracking for who does what is internal and if someone wants
+that they can scrape for it. I want to restore the green boxes."
+
+So BOTH fields are the operator, and attribution moved to an internal plane that is strictly
+better at the job: state/authorship/seats.jsonl (scripts/authorship_ledger.py), keyed so it
+survives a history rewrite. These pins are rewritten, not deleted, so that a later reader finds a
+recorded decision rather than a silent reversal -- and so the t384 half that is STILL TRUE (fail
+closed on an unknown id, shell safety, silence outside seat context, fail open on an unreadable
+identity) keeps its coverage.
 
 Run: py -m pytest tests/test_t384_git_identity.py -q
 """
@@ -26,71 +32,105 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+OPERATOR = "balanced7"
+OPERATOR_EMAIL = "61030820+balanced7@users.noreply.github.com"
+
 
 # ---------------------------------------------------------------- the derivation
 
-def test_identity_derives_from_agent_id():
+def test_both_identity_fields_are_the_operator():
+    """THE T411 RULE. GitHub renders and credits BOTH fields, so a seat in either one costs a
+    green box and prints a foreign name on the project page."""
     from core.comm.seat_identity import git_identity_env
     env = git_identity_env("dsh_agent")
-    assert env["GIT_AUTHOR_NAME"] == "dsh_agent"
-    assert env["GIT_AUTHOR_EMAIL"] == "dsh_agent@akashic-aurora.local"
+    assert env["GIT_AUTHOR_NAME"] == OPERATOR
+    assert env["GIT_AUTHOR_EMAIL"] == OPERATOR_EMAIL
+    assert env["GIT_COMMITTER_NAME"] == OPERATOR
+    assert env["GIT_COMMITTER_EMAIL"] == OPERATOR_EMAIL
 
 
-def test_committer_is_never_stamped():
-    """AUTHOR is the seat; COMMITTER stays whoever's machine applied it. Stamping the
-    committer too would erase the human from history entirely -- the opposite error."""
+def test_the_seat_never_reaches_a_git_identity_field():
+    """SUPERSEDES test_identity_derives_from_agent_id and test_address_is_non_routable, which
+    asserted the opposite. The seat id must not appear in any identity value for ANY seat --
+    including the committer, which was the refused half-measure."""
     from core.comm.seat_identity import git_identity_env
-    env = git_identity_env("claude")
-    assert not any(k.startswith("GIT_COMMITTER") for k in env)
+    for agent in ("claude", "deepseek", "kimi", "dsh_agent", "sol"):
+        env = git_identity_env(agent)
+        assert env, f"{agent} produced no stamp at all"
+        for key, value in env.items():
+            assert agent not in value, f"{key} still carries the seat id: {value}"
+            assert "akashic-aurora.local" not in value, f"{key} still carries a seat address"
 
 
-def test_address_is_non_routable():
-    """A real address could collide with a GitHub account and mis-attribute to a person."""
-    from core.comm.seat_identity import git_identity_env
-    for agent in ("claude", "deepseek", "kimi", "dsh_agent"):
-        assert git_identity_env(agent)["GIT_AUTHOR_EMAIL"].endswith("@akashic-aurora.local")
+def test_the_seat_is_recorded_somewhere_though():
+    """Attribution is RELOCATED, not discarded -- the whole premise of the ruling. If the ledger
+    plane ever disappears, this rule has quietly become 'erase who did the work'."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    ledger = root / "state" / "authorship" / "seats.jsonl"
+    assert ledger.is_file(), "no authorship ledger: the seat record has nowhere to live"
+    assert ledger.stat().st_size > 0, "the authorship ledger is empty"
+    assert (root / "scripts" / "authorship_ledger.py").is_file(), "no door onto the ledger"
 
 
 def test_empty_agent_id_yields_no_stamp():
-    """Fail-closed: an unidentified process must NOT get a fabricated seat identity --
-    it falls through to the human's git config, which is honest about not knowing."""
+    """STILL TRUE FROM t384. Fail-closed: an unidentified process must NOT get a fabricated
+    identity -- it falls through to the human's git config, which is honest about not knowing."""
     from core.comm.seat_identity import git_identity_env
     assert git_identity_env("") == {}
     assert git_identity_env(None) == {}
 
 
 def test_identity_is_shell_safe():
-    """The value rides an env dict into a subprocess; a hostile or sloppy id must not be
-    able to smuggle shell/format characters into git's author field."""
+    """STILL TRUE FROM t384, and now trivially so since the values are constants rather than
+    interpolated ids -- which is worth pinning precisely because it would be easy to reintroduce
+    an id into a value later and not notice the injection surface came back."""
     from core.comm.seat_identity import git_identity_env
     env = git_identity_env("weird id;rm -rf<>\n")
-    if env:  # either refuse, or sanitize -- never pass the raw string through
-        assert not any(c in env["GIT_AUTHOR_NAME"] for c in ";<>\n")
-        assert not any(c in env["GIT_AUTHOR_EMAIL"] for c in ";<>\n")
+    if env:
+        for value in env.values():
+            assert not any(c in value for c in ";<>\n")
 
 
 # ---------------------------------------------------------------- the guard
 
-def test_guard_passes_when_author_matches_seat():
-    from scripts.githooks.pre_commit import check_author_matches_seat
-    ok, msg = check_author_matches_seat("dsh_agent", "dsh_agent <dsh_agent@akashic-aurora.local>")
+def test_guard_passes_when_both_fields_are_the_operator(monkeypatch):
+    from scripts.githooks import pre_commit
+    monkeypatch.setattr(pre_commit, "_git_committer_ident",
+                        lambda: f"{OPERATOR} <{OPERATOR_EMAIL}>")
+    ok, msg = pre_commit.check_author_matches_seat(
+        "dsh_agent", f"{OPERATOR} <{OPERATOR_EMAIL}>")
     assert ok, msg
 
 
-def test_guard_refuses_human_author_in_seat_context():
-    """THE MEASURED DEFECT: agent id says a seat, git author says the machine owner."""
-    from scripts.githooks.pre_commit import check_author_matches_seat
-    ok, msg = check_author_matches_seat(
-        "dsh_agent", "balanced7 <61030820+balanced7@users.noreply.github.com>")
+def test_guard_refuses_a_seat_author(monkeypatch):
+    """The inversion of the old test_guard_refuses_human_author_in_seat_context. What used to be
+    the required state is now the refused one."""
+    from scripts.githooks import pre_commit
+    monkeypatch.setattr(pre_commit, "_git_committer_ident",
+                        lambda: f"{OPERATOR} <{OPERATOR_EMAIL}>")
+    ok, msg = pre_commit.check_author_matches_seat(
+        "dsh_agent", "dsh_agent <dsh_agent@akashic-aurora.local>")
     assert not ok
-    assert "dsh_agent" in msg          # names who it SHOULD be
-    assert "balanced7" in msg          # names who it actually is
-    assert "GIT_AUTHOR_NAME" in msg    # names the remedy, not just the drift
+    assert "dsh_agent" in msg              # names what it actually is
+    assert OPERATOR in msg                 # names who it should be
+    assert "GIT_AUTHOR_NAME" in msg        # names the remedy, not just the drift
+
+
+def test_guard_refuses_a_drifted_COMMITTER_even_when_the_author_is_right(monkeypatch):
+    """The half-measure that was refused. GitHub renders and credits the committer too, so a
+    correct author beside a seat committer still prints a foreign name and still costs a box."""
+    from scripts.githooks import pre_commit
+    monkeypatch.setattr(pre_commit, "_git_committer_ident",
+                        lambda: "claude <claude@akashic-aurora.local>")
+    ok, msg = pre_commit.check_author_matches_seat("claude", f"{OPERATOR} <{OPERATOR_EMAIL}>")
+    assert not ok, "a drifted committer passed"
+    assert "COMMITTER" in msg
 
 
 def test_guard_is_silent_outside_seat_context():
-    """A human committing at their own terminal has no AKASHIC_AGENT_ID; the guard must
-    not touch them. Attribution truth is the goal, not universal stamping."""
+    """STILL TRUE FROM t384. A human committing at their own terminal has no AKASHIC_AGENT_ID;
+    the guard must not touch them."""
     from scripts.githooks.pre_commit import check_author_matches_seat
     ok, _ = check_author_matches_seat("", "balanced7 <bal@example.com>")
     assert ok
@@ -99,11 +139,19 @@ def test_guard_is_silent_outside_seat_context():
 
 
 def test_guard_fails_open_on_unreadable_author():
-    """If git cannot report an author, the guard must not brick every commit -- a broken
-    guard that blocks all work is worse than the drift it watches for (the house's own
-    fail-open policy for commit-time guards)."""
+    """STILL TRUE FROM t384. A broken guard that blocks all work is worse than the drift it
+    watches for."""
     from scripts.githooks.pre_commit import check_author_matches_seat
     ok, _ = check_author_matches_seat("claude", "")
+    assert ok
+
+
+def test_guard_fails_open_on_unreadable_committer(monkeypatch):
+    """New surface, same policy: the committer probe is a second shell-out and it can fail on its
+    own. An empty answer means 'could not read', which must not refuse a good commit."""
+    from scripts.githooks import pre_commit
+    monkeypatch.setattr(pre_commit, "_git_committer_ident", lambda: "")
+    ok, _ = pre_commit.check_author_matches_seat("claude", f"{OPERATOR} <{OPERATOR_EMAIL}>")
     assert ok
 
 
