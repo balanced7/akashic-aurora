@@ -1,0 +1,11 @@
+{
+  "date": "2026-09-26",
+  "tool": "git filter-repo",
+  "why": "T411, Daniel's ruling: every commit must display HIS name on GitHub in both the author and committer field, and the contribution graph must count them. 600 of 2,725 commits on master showed a seat address resolving to no GitHub account, or 'you@email.com' from an unconfigured git -- 446 in September alone, his heaviest month, which is why the graph went dark exactly when he worked hardest. Attribution relocated to state/authorship/seats.jsonl. Verified in a throwaway mirror before pushing: identical trees, identical author dates, identical commit counts and messages across all four branches; docfix-clean and orphan-recovery-2026-07-22 needed no change at all. Pushed 62de6286..35eb523a.",
+  "remaps": 4748,
+  "dropped": 0,
+  "method": "recorded",
+  "map_recovered_from": "C:\\Users\\L5\\AppData\\Local\\Temp\\t411-final\\filter-repo\\commit-map",
+  "map_archived": "2026-09-26",
+  "archived_by": "claude"
+}

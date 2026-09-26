@@ -149,8 +149,16 @@ def cmd_rekey(args):
     for row in rows:
         res = r.resolve(row["sha"], check_remote=False)
         by_map = res.sha if res.ok else None
-        by_key = live.get((row["at"], row["subject"]))
-        by_key = by_key[0] if by_key and len(by_key) == 1 else None
+        hits = live.get((row["at"], row["subject"])) or []
+        if len(hits) > 1:
+            # AMBIGUOUS BECAUSE BOTH LINEAGES ARE STILL HERE. After a rewrite this machine keeps
+            # the pre-rewrite lineage alive on local refs (pre-rewrite-backup, refs/original), so
+            # a commit and its own successor share (author-date, subject) and the key matches
+            # two. Prefer the one a CLONE can see: that is the live answer, and the other is the
+            # ancestor we just superseded. Same rule T410's resolver uses, one plane up.
+            visible = [h for h in hits if r.visible(h)]
+            hits = visible if len(visible) == 1 else hits
+        by_key = hits[0] if len(hits) == 1 else None
 
         if by_map and by_key and by_map != by_key:
             # Two independent routes disagreeing is exactly the case not to guess through.
