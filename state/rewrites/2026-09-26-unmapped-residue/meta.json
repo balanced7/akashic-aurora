@@ -18,5 +18,8 @@
   "unmatched": 2,
   "map_archived": "2026-09-26",
   "archived_by": "claude",
-  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design."
+  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design.",
+  "corroboration": "VERIFIED 2026-09-26 after Heimdall's review: all 116 rows are backed by an independent structural signal, not by the (author-date, subject) name alone -- 114 by parent-structure agreement (a rewrite invariant) and 73 by tree-hash agreement. 0 rows rest on the name alone. The reconstructor now refuses a name-only row by default.",
+  "parent_structure_agrees": 114,
+  "dropped_name_only": 0
 }

@@ -42,6 +42,7 @@ UNKNOWN = "unknown"
 # success label.
 UNVERIFIED = "unverified"
 _PROBE_LIMIT = 3          # retries before this Resolver gives up asking git
+_VISIT_BUDGET = 4096      # DFS node visits; a pathological map graph must not hang a verb
 
 
 @dataclass
@@ -224,14 +225,45 @@ class Resolver:
             return sha in rs
         return any(o.startswith(sha) for o in rs)
 
+    def live_matches(self, sha):
+        """How many clone-visible commits a (possibly abbreviated) citation names.
+
+        `visible()` answers a boolean, so it cannot say "several" -- and a short citation that
+        names two live commits would read as CURRENT, a confident wrong status. Counting is the
+        only way to tell an unambiguous hit from a collision. Heimdall's review, 2026-09-26.
+        """
+        rs = self.remote_set()
+        if rs is None:
+            return None
+        if len(sha) == 40:
+            return 1 if sha in rs else 0
+        n = 0
+        for o in rs:
+            if o.startswith(sha):
+                n += 1
+                if n > 1:
+                    break
+        return n
+
     # --- the walk -----------------------------------------------------------------------
     def resolve(self, sha, check_remote=True):
         sha = (sha or "").strip().lower()
         if not sha or any(c not in "0123456789abcdef" for c in sha) or not 7 <= len(sha) <= 40:
             return Resolution(sha, UNKNOWN, note="not a commit SHA (need 7-40 hex characters)")
 
-        if check_remote and self.visible(sha):
-            return Resolution(sha, CURRENT, sha=sha, note="a clone can see this commit")
+        if check_remote:
+            # COUNT, do not assert. An abbreviation that names two live commits is AMBIGUOUS,
+            # and answering CURRENT there is a confident wrong status -- the caller would stop
+            # looking. live_matches() exists for exactly this and must be CALLED, not merely
+            # defined: the wiring checker caught the first version of this fix, where the
+            # function was added and the decision below still used the boolean.
+            hits = self.live_matches(sha)
+            if hits and hits > 1:
+                return Resolution(sha, AMBIGUOUS,
+                                  note="this abbreviation names more than one commit a clone "
+                                       "can see; cite more characters")
+            if hits == 1:
+                return Resolution(sha, CURRENT, sha=sha, note="a clone can see this commit")
 
         # A definitive answer about the CITED sha beats any chase. Ambiguity can only arise
         # here, because every map target is a full 40-char oid.
@@ -245,53 +277,78 @@ class Resolver:
                                   note=f"the abbreviation matches several successors in "
                                        f"{m.shown}; cite more characters")
 
-        # SEARCH, NOT A GREEDY WALK. Taking the first map that offers a hop reaches a dead end
-        # whenever an earlier rewrite's recorded successor was itself moved by a later one whose
-        # map we hold separately: f94c1368 chased 07-23 -> 08-12 and stopped at 65ba8152cc36, a
-        # commit that no longer exists, while the reconstructed map held the live continuation.
-        # So explore every chain and prefer one that ENDS somewhere a clone can fetch.
-        from collections import deque
+        ends, truncated = self._endpoints(sha)
+        if not ends:
+            if check_remote and self.remote_set() is None:
+                return Resolution(sha, UNKNOWN,
+                                  note="no map covers it, and the clone-visible set could not "
+                                       "be read -- this is 'could not check', not 'clean'")
+            return Resolution(sha, UNKNOWN, note="no map covers it")
 
-        q = deque([(sha, [])])
-        seen, dead = {sha}, []
-        while q:
-            cur, hops = q.popleft()
-            if len(hops) >= MAX_HOPS:
-                continue
-            moved = False
+        # RANK THE ENDPOINTS; DO NOT TAKE THE FIRST VISIBLE ONE. Returning on the first visible
+        # target makes MAP ORDER decide the answer, and map order is by date ascending -- so an
+        # EARLIER rewrite's target wins even when a LATER rewrite moved it again. Measured here:
+        # 43 old SHAs get different targets from different maps. None of them currently has two
+        # clone-visible targets, so this was latent rather than live -- but it becomes live
+        # during exactly the operation this module exists for, because a rewrite's superseded
+        # targets stay visible locally until the remote is updated. Heimdall's review, 2026-09-26.
+        #
+        # Preference order: reachable by a clone, then the FARTHEST forward (later rewrites sit
+        # deeper in the chain), then the fewest inferred hops -- a record beats a deduction.
+        def rank(end):
+            tip, path, inferred = end
+            return (1 if (check_remote and self.visible(tip)) else 0, len(path), -inferred)
+
+        tip, path, inferred = max(ends, key=rank)
+        vis = self.visible(tip) if check_remote else None
+        if check_remote and vis is None:
+            return Resolution(sha, UNVERIFIED, sha=tip, hops=path,
+                              note="the chain ends here, but the clone-visible set could not be "
+                                   "read, so nothing confirms this commit is fetchable -- could "
+                                   "not check, NOT clean")
+        note = ""
+        if check_remote and not vis:
+            note = ("chain ends on a commit no clone can fetch -- a later rewrite moved it and "
+                    "left no map (try: rewrite_recover.py reconstruct)")
+        elif truncated:
+            note = "search budget reached; a longer chain may exist"
+        return Resolution(sha, TRANSLATED, sha=tip, hops=path, note=note)
+
+    def _endpoints(self, start):
+        """Every terminal SHA reachable by chaining maps, as (tip, hops, inferred_count).
+
+        DFS with a PER-PATH visited set. A single global `seen` set pruned any node a second
+        chain reached later, so a re-convergent history was collapsed onto the FIRST route that
+        touched it -- which made the old code's "the longest chain went as far as the maps
+        allow" comment false, and truncated the hops any auditor would read. Per-path is safe
+        here because fan-out is bounded by the number of maps; _VISIT_BUDGET stops a pathological
+        graph regardless, and the caller is told when it bit.
+        """
+        out, stack, visits = [], [(start, [], frozenset((start,)), 0)], 0
+        while stack and visits < _VISIT_BUDGET:
+            cur, path, seen, inferred = stack.pop()
+            visits += 1
+            nxt = []
             for m in self.maps:
                 new, status = m.lookup(cur)
-                if status != TRANSLATED or not new or new == cur:
-                    continue
-                moved = True
-                chain = hops + [(cur, new, m.shown)]
-                if check_remote and self.visible(new):
-                    return Resolution(sha, TRANSLATED, sha=new, hops=chain)
-                if new not in seen:
-                    seen.add(new)
-                    q.append((new, chain))
-            if hops and not moved:
-                dead.append((cur, hops))
+                if status == TRANSLATED and new and new != cur and new not in seen:
+                    nxt.append((new, m))
+            if not nxt or len(path) >= MAX_HOPS:
+                if path:
+                    out.append((cur, path, inferred))
+                continue
+            for new, m in nxt:
+                # An IDENTITY row reached through an abbreviation is an EXPANSION, not a
+                # rewrite: "f94c1368 -> f94c1368dbe2" reads as though the 07-23 purge moved
+                # that commit when all it did was leave it alone. Continue from the full oid
+                # without recording a hop, so the chain shows only real rewrites -- and so a
+                # spurious hop cannot inflate a path's length in the ranking.
+                expansion = len(cur) < 40 and new.startswith(cur)
+                stack.append((new, path if expansion else path + [(cur, new, m.shown)],
+                              seen | {new},
+                              inferred + (0 if expansion or m.method == "recorded" else 1)))
+        return out, visits >= _VISIT_BUDGET
 
-        if dead:
-            # The longest chain went as far as the maps allow; report where it stopped and why,
-            # rather than presenting a SHA nobody can fetch as a successful translation.
-            cur, hops = max(dead, key=lambda t: len(t[1]))
-            if check_remote and self.remote_set() is None:
-                return Resolution(sha, UNVERIFIED, sha=cur, hops=hops,
-                                  note="the chain ends here, but the clone-visible set could "
-                                       "not be read, so nothing confirms this commit is "
-                                       "fetchable -- could not check, NOT clean")
-            return Resolution(sha, TRANSLATED, sha=cur, hops=hops,
-                              note="chain ends on a commit no clone can fetch -- a later "
-                                   "rewrite moved it and left no map (try: "
-                                   "rewrite_recover.py reconstruct)")
-
-        if check_remote and self.remote_set() is None:
-            return Resolution(sha, UNKNOWN,
-                              note="no map covers it, and the clone-visible set could not be "
-                                   "read -- this is 'could not check', not 'clean'")
-        return Resolution(sha, UNKNOWN, note="no map covers it")
 
 
 def resolve(sha, repo=None, check_remote=True):

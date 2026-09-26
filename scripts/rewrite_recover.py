@@ -56,6 +56,72 @@ def git(root, *a, check=False):
     return p.stdout or ""
 
 
+def parents_of(root, *revs):
+    """oid -> tuple(parent oids). A rewrite preserves parent STRUCTURE by definition, which is
+    what makes this the strongest corroboration available and the cheapest: one git call."""
+    out = {}
+    for ln in git(root, "log", "--format=%H %P", *revs).splitlines():
+        parts = ln.split()
+        if parts:
+            out[parts[0]] = tuple(parts[1:])
+    return out
+
+
+def parents_for(root, oids):
+    """Parents for every named oid, including commits on NO branch.
+
+    `log --all` walks refs, so a commit sitting on no branch -- the case a git gc would delete,
+    and the case our worst citation was in -- has no entry and the parent check silently cannot
+    fire. Ask for those by name.
+    """
+    out = parents_of(root, "--all")
+    missing = [o for o in oids if o not in out]
+    for i in range(0, len(missing), 200):          # keep the argv well inside Windows' limit
+        out.update(parents_of(root, "--no-walk", *missing[i:i + 200]))
+    return out
+
+
+def corroborate(old, new, parents, matched, resolve_parent=None, key_of=None):
+    """Which independent structural signals agree that `old` became `new`?
+
+    (author-date, subject) is a NAME match. These are CONTENT and SHAPE matches, and they fail
+    independently of it -- a date/subject coincidence has no reason to also agree here.
+
+      tree    the rewrite preserved content, so the tree hash is unchanged. Necessary for any
+              tree-preserving rewrite (an author/message rewrite); silent on a redaction.
+      parent  the parent count matches and the first parent corresponds -- either it is itself
+              a matched pair, or the two carry the same (author-date, subject). A rewrite
+              preserves this by construction; a coincidence has no reason to.
+
+    Returns the set of signals that AGREE. An empty set means the row rests on the name alone.
+    """
+    agree = set()
+    if old[0] and old[0] == new[0]:
+        agree.add("tree")
+    po, pn = parents.get(old[4]), parents.get(new[4])
+    if po is not None and pn is not None and len(po) == len(pn):
+        if not po:
+            agree.add("parent")        # both roots: structurally consistent
+        else:
+            a, b = po[0], pn[0]
+            hit = matched.get(a) == b or a == b
+            if not hit and resolve_parent is not None:
+                # An EXISTING map may already carry the parent's remap, which is stronger
+                # evidence than this run's own inferences and was being thrown away.
+                hit = resolve_parent(a) == b
+            if hit:
+                agree.add("parent")
+            elif key_of is not None and key_of(a) and key_of(a) == key_of(b):
+                # WEAKER TIER, kept separate so the report never overstates it: the two parents
+                # carry the same (author-date, subject). That is the same name heuristic one
+                # generation up, so it is not independent of the METHOD -- but it IS independent
+                # of THIS commit, and requiring a second name coincidence in a parent-child
+                # relationship is far stronger than one alone. It is what corroborates a
+                # redaction-rewritten parent, whose tree necessarily changed.
+                agree.add("parent-key")
+    return agree
+
+
 def commit_rows(root, *revs):
     """oid -> (tree, author-date-unix, author-email, subject) for a rev set."""
     out = git(root, "log", "--format=%H" + SEP + "%T" + SEP + "%at" + SEP + "%ae" + SEP + "%s",
@@ -64,7 +130,9 @@ def commit_rows(root, *revs):
     for ln in out.splitlines():
         p = ln.split(SEP)
         if len(p) >= 5:
-            rows[p[0]] = (p[1], p[2], p[3], SEP.join(p[4:]))
+            # (tree, author-date, author-email, subject, oid) -- the oid rides along so a
+            # corroboration check can reach the commit graph without a second lookup table.
+            rows[p[0]] = (p[1], p[2], p[3], SEP.join(p[4:]), p[0])
     return rows
 
 
@@ -160,12 +228,49 @@ def cmd_reconstruct(args):
         else:
             unmatched.append(oid)
 
-    tree_agree = sum(1 for o, n in matched.items() if old[o][0] == new[n][0])
+    # CORROBORATE EVERY ROW. A row resting only on (author-date, subject) is a NAME match with
+    # nothing independent behind it; 34 keys in this history are shared by 68 commits, so the
+    # name alone is not enough to license a row a resolver will treat as an answer.
+    parents = parents_for(root, list(matched) + list(matched.values()))
+    from core.git.rewrite_map import Resolver as _R
+    _res = _R(repo=root)
+
+    def _parent(sha):
+        r = _res.resolve(sha, check_remote=False)
+        return r.sha if r.ok else None
+
+    # The parents are usually in NEITHER matched population, so a key lookup built from those
+    # two dicts alone returns None for every parent and the tier can never fire. Fetch the
+    # parents by name -- including any on no branch, which `log --all` cannot see.
+    _keys = dict(old)
+    _keys.update(new)
+    _want = [q for ps in parents.values() for q in ps if q not in _keys]
+    for i in range(0, len(_want), 200):
+        _keys.update(commit_rows(root, "--no-walk", *_want[i:i + 200]))
+
+    def _key(sha):
+        row = _keys.get(sha)
+        return (row[1], row[3]) if row else None
+
+    signals = {o: corroborate(old[o], new[n], parents, matched, resolve_parent=_parent,
+                              key_of=_key)
+               for o, n in matched.items()}
+    tree_agree = sum(1 for v in signals.values() if "tree" in v)
+    parent_agree = sum(1 for v in signals.values() if "parent" in v)
+    pkey_agree = sum(1 for v in signals.values() if "parent-key" in v)
+    uncorroborated = sorted(o for o, v in signals.items() if not v)
     print(f"old lineage ({', '.join(args.from_ref)}) : {len(old):,} commits")
     print(f"  orphaned (absent from {' '.join(args.to)}) : {len(orphans):,}")
     print(f"target lineage                             : {len(new):,} commits\n")
     print(f"matched on (author-date, subject) : {len(matched):,}")
-    print(f"  of those, tree hash agrees too  : {tree_agree:,}   (a tree-preserving rewrite)")
+    print(f"  corroborated by the tree hash   : {tree_agree:,}   (a tree-preserving rewrite)")
+    print(f"  corroborated by parent structure: {parent_agree:,}   (a rewrite invariant)")
+    print(f"  parent matches by key only      : {pkey_agree:,}   (weaker: a second name "
+          f"coincidence)")
+    print(f"  NAME ONLY, no structural support: {len(uncorroborated):,}"
+          f"{'' if not uncorroborated else '   <- dropped unless --uncorroborated'}")
+    for o in uncorroborated[:4]:
+        print(f"      {o[:12]}  {old[o][3][:62]}")
     print(f"AMBIGUOUS -- refused, not guessed : {len(ambiguous):,}")
     print(f"no match at all                   : {len(unmatched):,}")
     for oid in unmatched[:5]:
@@ -210,6 +315,10 @@ def cmd_reconstruct(args):
     # Most inferred rows only restate a chain the resolver already walks. Keeping them would
     # grow the inferred surface for no gain, so by default keep ONLY the rows that fill a gap:
     # an old SHA the existing maps cannot already take to a commit a clone can fetch.
+    if uncorroborated and not args.uncorroborated:
+        for o in uncorroborated:
+            matched.pop(o, None)
+
     if not args.all_rows:
         gaps = {}
         for old, new in matched.items():
@@ -252,7 +361,12 @@ def cmd_reconstruct(args):
         "reconstructed_from": list(args.from_ref),
         "reconstructed_against": list(args.to),
         "key": "(author-date, subject)",
+        "corroboration": "every row is backed by tree-hash agreement or parent-structure "
+                         "agreement; a name-only match is dropped unless --uncorroborated",
         "tree_hash_agrees": tree_agree,
+        "parent_structure_agrees": parent_agree,
+        "parent_key_only_agrees": pkey_agree,
+        "dropped_name_only": len(uncorroborated),
         "refused_ambiguous": len(ambiguous),
         "unmatched": len(unmatched),
         "map_archived": date.today().isoformat(),
@@ -365,6 +479,9 @@ def main(argv=None):
     r.add_argument("--label")
     r.add_argument("--why")
     r.add_argument("--date")
+    r.add_argument("--uncorroborated", action="store_true",
+                   help="keep rows that match on (author-date, subject) alone, with neither "
+                        "tree nor parent-structure agreement behind them")
     r.add_argument("--all-rows", action="store_true",
                    help="keep every matched row, not only the ones that fill a gap")
     r.add_argument("--write", action="store_true")

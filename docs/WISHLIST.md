@@ -1068,6 +1068,38 @@ Proposed fix: before paging, the pager should check whether the keyed PID is sti
 - [ ] W217 (09-24, claude) — boot inlines the handoff NOTE's opening paragraph and hides the handoff's TASK field -- but the task field is the numbered, ordered 'do this next' list, and it is clipped to a spill file. So boot shows the story and hides the orders. Invert it: inline the task, link the story. Trigger: the ordered next-steps list was the LAST thing I found, six hops in. Land: agent/harness/context.py.
 - [ ] W218 (09-24, claude) — eye freq with a multi-term pattern family returns a confident UNHEARD instead of matching or refusing. Measured tonight: freq 'journal' = STANDING-DIRECTIVE, 109 operator events across 104 sessions; freq 'journal | diary | timeline | provenance | change-log' = UNHEARD, 0 across 0. Also zero with no spaces and with commas, while the --help advertises 'a pattern family (phrasings OR'd, deduped)'. Rill relied on exactly this form to conclude an idea had no prior art in this house. A door that promises OR and silently answers zero is zero_is_not_no inside the instrument that measures it. Trigger: a false UNHEARD was cited as evidence in a design decision. Land: core/eye/index.py freq().
 - [ ] W219 (09-24, claude) — Nothing in the house can see an untracked pin. Measured: 42 untracked tests/test_*.py against 722 tracked (5.5%), largest cluster 20 test_screenspace_* all dated 2026-09-23. Two were verified load-bearing tonight -- one pinned shipped code, one was the spec of an unbuilt slice carrying Daniel's verbatim ask, untracked for 36 days. M3 already scores pins that land LATE (14/20); nothing scores a pin that never lands, because every checker we own reads tracked files. The wish: a guardrail counting untracked tests/test_*.py, reported beside the M3 score. Trigger: rebuilt a third of an already-specified slice; its spec was untracked. Land: scripts/checkers/.
+- [ ] W220 (09-26, claude) — A peer's answer must survive the door it came through. Tonight an adversarial review of T410
+arrived, was 82 seconds of real reasoning that found two genuine defects, and I received only
+its last two paragraphs -- 665 characters -- because `ask --peer <seat> --bg` writes the answer
+to stdout and stdout is all the background capture keeps. The two findings I most needed were in
+the part that fell off, and they were the expensive half: whether the resolver can return a
+WRONG successor, and whether one rewrite's worth of validation licenses writing inferred rows.
+
+Three separate defects, in the order they bit:
+
+1. NO DURABLE COPY. A `--peer` ask leaves nothing on disk. A `--fan` ask writes
+   state/asks/<handle>.{json,out}, so the machinery already exists one path over -- the peer
+   path just does not use it. Every `ask` should persist its answer verbatim before printing a
+   single character of it, because printing is the lossy step.
+
+2. THE HANDLE THE DOOR PRINTS IS NOT A HANDLE THE DOOR ACCEPTS. It closed with
+   `ask 1790440969965-0` and `ask --get 1790440969965-0` answered "no ask by that handle",
+   while `--list` showed only 8-char ids belonging to other asks. An id that cannot be passed
+   back to the tool that issued it is not an id.
+
+3. STATUS CONTRADICTED A COMPLETED RUN. After the ask printed `CLOSED.ANSWERED | 82.2s`,
+   `ask --status` reported the same ask as `OPEN.DISPATCHED ... nothing observable says the peer
+   saw it yet`. Two doors onto one fact disagreeing is worse than either being wrong, because it
+   costs a seat the time to work out which to believe -- I spent four tool calls on it.
+
+The dedup window behaved WELL and deserves saying so: my re-ask was collapsed with "a repeat
+send costs deepseek a full turn", which is the right instinct. But it collapsed a re-ask I only
+needed because the first answer had been lost, so the saving was spent covering for defect 1.
+
+House laws this sits under: research_full_fidelity_preservation says persist a frontier agent's
+FULL report before synthesising -- unreachable here, since the door never gave me the full
+report; and subagent_reports_live_only_in_their_final_message already named this class for
+subagents, so this is the same lesson one door over. Trigger: an 82-second adversarial review arrived as 665 characters: --peer --bg keeps only stdout, and the two findings I most needed fell off. Land: ask door: persist every answer to state/asks/<handle>.out before printing; make the printed handle accept-able by --get/--status; reconcile --status with a completed run.
 
 ## Folded (exemplars — the loop works)
 

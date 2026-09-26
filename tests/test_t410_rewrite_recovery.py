@@ -93,6 +93,19 @@ def test_an_ambiguous_abbreviation_refuses(tmp_path):
     assert "cite more characters" in res.note
 
 
+def test_an_abbreviation_naming_two_LIVE_commits_is_ambiguous(tmp_path):
+    """HEIMDALL'S Q1(d). visible() answered a boolean, so a short citation matching two
+    clone-visible commits read as CURRENT -- a confident wrong status that stops the caller
+    looking. The first version of this fix added live_matches() and never called it; the wiring
+    checker caught that, so this pin exercises the DECISION, not the helper."""
+    live = {"abc1234" + "0" * 33, "abc1234" + "1" * 33}
+    res = rm.Resolver(maps=[], remote=live).resolve("abc1234")
+    assert res.status == rm.AMBIGUOUS, res
+    assert not res.ok
+    one = rm.Resolver(maps=[], remote={"abc1234" + "0" * 33}).resolve("abc1234")
+    assert one.status == rm.CURRENT, one
+
+
 def test_a_dropped_commit_is_a_real_answer(tmp_path):
     """filter-repo writes <old> 0000..0 for a commit it removed. 'Deliberately deleted' is an
     answer; collapsing it into UNKNOWN throws away the only thing the reader wanted."""
@@ -172,6 +185,101 @@ def test_an_archived_map_is_preferred_and_not_duplicated(tmp_path):
     (tmp_path / ".git" / "filter-repo" / "commit-map").write_text(f"{A} {B}\n", encoding="utf-8")
     maps = rm.load_maps(tmp_path)
     assert [m.durable for m in maps] == [True], [(m.label, m.durable) for m in maps]
+
+
+# ------------------------------------------------- reconstruction must be corroborated
+def _rr():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_rr", str(Path(ROOT, "scripts", "rewrite_recover.py")))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_a_name_only_match_is_not_corroborated():
+    """HEIMDALL'S Q2, 2026-09-26. (author-date, subject) is a NAME match; 34 keys in this
+    history are shared by 68 commits, so the name alone must not license a row a resolver will
+    treat as an answer. tree_agree used to be computed, printed, and thrown away."""
+    rr = _rr()
+    # (tree, author-date, author-email, subject, oid)
+    o = ("t1", "100", "a@x", "same subject", "o1")
+    n = ("t2", "100", "b@x", "same subject", "n1")
+    parents = {"o1": ("po",), "n1": ("pn",)}          # parents correspond to nothing
+    assert rr.corroborate(o, n, parents, {}) == set(), "a bare name match claimed support"
+
+
+def test_tree_agreement_corroborates():
+    """A tree-preserving rewrite (author or message only) leaves the tree hash untouched, so
+    equality there is real evidence independent of the name."""
+    rr = _rr()
+    o = ("SAME", "100", "a@x", "s", "o1")
+    n = ("SAME", "100", "b@x", "s", "n1")
+    assert "tree" in rr.corroborate(o, n, {}, {})
+
+
+def test_parent_structure_corroborates_and_outranks_the_key_tier():
+    """A rewrite preserves parent structure by definition, so a matched parent is the strongest
+    signal. The key-only tier is reported SEPARATELY because it is the same name heuristic one
+    generation up -- independent of this commit, but not of the method."""
+    rr = _rr()
+    o = ("t1", "100", "a@x", "s", "o1")
+    n = ("t2", "100", "b@x", "s", "n1")
+    parents = {"o1": ("po",), "n1": ("pn",)}
+
+    strong = rr.corroborate(o, n, parents, {"po": "pn"})
+    assert strong == {"parent"}, strong
+
+    keys = {"po": ("55", "parent subject"), "pn": ("55", "parent subject")}
+    weak = rr.corroborate(o, n, parents, {}, key_of=lambda sha: keys.get(sha))
+    assert weak == {"parent-key"}, weak
+    assert "parent" not in weak, "the weaker tier must not be reported as the strong one"
+
+
+def test_a_differing_parent_count_corroborates_nothing():
+    """A squash or a merge collapse changes the parent count; that is not the same commit's
+    shape, so it must not count as agreement."""
+    rr = _rr()
+    o = ("t1", "100", "a@x", "s", "o1")
+    n = ("t1", "100", "a@x", "s", "n1")
+    sig = rr.corroborate(o, n, {"o1": ("p1", "p2"), "n1": ("p1",)}, {})
+    assert sig == {"tree"}, sig            # the tree still agrees; the parents must not
+
+
+def test_every_committed_inferred_row_is_corroborated():
+    """The live property, not a synthetic one. A reconstructed map in state/rewrites/ whose rows
+    rest on the name alone would be exactly the debt this rule exists to refuse -- and the
+    one-row cited-gap map WAS name-only until the parent lookup learned to see commits that sit
+    on no branch, which is the case a git gc deletes."""
+    import json
+    rr = _rr()
+    for d in sorted((ROOT / "state" / "rewrites").iterdir()):
+        if not d.is_dir():
+            continue
+        meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
+        if meta.get("method") != "reconstructed":
+            continue
+        rows = [l.split() for l in (d / "commit-map").read_text(encoding="utf-8").splitlines()]
+        pairs = [(a, b) for a, b in (r for r in rows if len(r) == 2)]
+        assert pairs, f"{d.name} is an empty reconstructed map"
+        info = rr.commit_rows(ROOT, "--all")
+        want = [s for pair in pairs for s in pair if s not in info]
+        for i in range(0, len(want), 200):
+            info.update(rr.commit_rows(ROOT, "--no-walk", *want[i:i + 200]))
+        parents = rr.parents_for(ROOT, [s for pair in pairs for s in pair])
+        keys = {k: (v[1], v[3]) for k, v in info.items()}
+        pwant = [q for ps in parents.values() for q in ps if q not in keys]
+        for i in range(0, len(pwant), 200):
+            for k, v in rr.commit_rows(ROOT, "--no-walk", *pwant[i:i + 200]).items():
+                keys[k] = (v[1], v[3])
+        bad = []
+        for a, b in pairs:
+            if a not in info or b not in info:
+                continue                       # an unreadable side cannot be judged here
+            if not rr.corroborate(info[a], info[b], parents, dict(pairs),
+                                  key_of=lambda sha: keys.get(sha)):
+                bad.append(a[:12])
+        assert not bad, f"{d.name} holds name-only rows: {bad}"
 
 
 # ----------------------------------------------------------- the durability property itself

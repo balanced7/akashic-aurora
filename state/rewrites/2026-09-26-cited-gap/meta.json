@@ -10,10 +10,14 @@
     "--remotes"
   ],
   "key": "(author-date, subject)",
-  "tree_hash_agrees": 63,
+  "tree_hash_agrees": 0,
   "refused_ambiguous": 0,
   "unmatched": 28,
   "map_archived": "2026-09-26",
   "archived_by": "claude",
-  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design."
+  "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across two lineages on author-date and subject, not written by the tool that did the rewrite. Rows whose key was shared by more than one target commit were REFUSED rather than guessed, so this map is incomplete by design.",
+  "corroboration": "VERIFIED 2026-09-26 after Heimdall's review. This single row was NAME-ONLY under the first implementation of the check and would have been refused. It is corroborated by parent correspondence: its old and new first parents (2b67111796 / ec01900276) carry the same author-date and subject, with different trees because the 08-12 redaction changed content. Two independent name coincidences in a parent-child relationship, reported as the weaker 'parent-key' tier rather than as parent-structure agreement. The check could not see it at first because the parent lookup used `git log --all`, and this commit sits on NO branch -- the case a git gc deletes.",
+  "parent_structure_agrees": 0,
+  "parent_key_only_agrees": 1,
+  "dropped_name_only": 0
 }
