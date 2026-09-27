@@ -344,6 +344,8 @@
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- the PUBLISH door: commit named paths and push them to the PUBLIC GitHub repo.
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
+- `piano_roll_pack.py` — roll/1 -- the compact, renderable, analyzable projection of a performance session.
+- `piano_roll_render.py` — Render a recorded performance session as a piano-roll scroll -- SVG and PNG.
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
 - `remote_bridge_fetch.py` — Follow a blob ref across the bridge and write the bytes to disk.
 - `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
