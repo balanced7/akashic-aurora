@@ -1499,8 +1499,26 @@ def _boot_world_line() -> str:
     try:
         import redis as _redis
         from core.world_seed import read_manifest
+        from core.foundation.redis_connection import probe_redis_reachable
+        # PREFLIGHT, or this line costs 48 SECONDS against a stopped world. Measured 2026-09-27,
+        # right after alpha and beta were retired.
+        #
+        # DO NOT "FIX" THIS WITH A CONNECT TIMEOUT -- it was tried and MEASURED, and it does not
+        # work on this host. redis-py retries across the resolved addresses (::1 then 127.0.0.1),
+        # so the OS SYN retransmission is paid per address and the kwarg barely moves it:
+        #     socket_timeout=2                             -> 49.39s
+        #     socket_timeout=2, socket_connect_timeout=2   -> 47.95s
+        #     socket_connect_timeout=1                     -> 26.13s
+        #     probe_redis_reachable()                      ->  1.02s
+        # Only the probe bounds it. redis_connection.py:8-12 documents the OS behaviour in advance.
+        #
+        # The suite CONCEALED this: tests/test_w156_world_resolution.py was green at exit 0 while
+        # paying 97.4s + 97.2s + 48.6s in three tests against 0.01s for the prod case -- 243 of its
+        # 246 seconds. A green suite is not evidence of a fast one.
+        if not probe_redis_reachable("localhost", w.redis_port):
+            raise ConnectionError(f"world {w.name!r} store at {w.redis_port} is not reachable")
         _c = _redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db,
-                          socket_timeout=2)
+                          socket_timeout=2, socket_connect_timeout=2)
         m = read_manifest(_c)
         if m:
             lineage = (f"memory SEEDED from {m.get('source_world')} at "

@@ -74,8 +74,14 @@ def main() -> int:
     try:
         import redis
         from core.world_seed import read_manifest
-        m = read_manifest(redis.Redis(host="localhost", port=w.redis_port,
-                                      db=w.redis_db, socket_timeout=2))
+        from core.foundation.redis_connection import probe_redis_reachable
+        # Same 48s trap as agent_cli._boot_world_line(). A connect timeout does NOT fix it --
+        # measured 2026-09-27: socket_connect_timeout=2 still cost 47.95s and =1 cost 26.13s,
+        # because redis-py retries per resolved address. Only the probe bounds it, at 1.02s.
+        if not probe_redis_reachable("localhost", w.redis_port):
+            raise ConnectionError(f"world {w.name!r} store at {w.redis_port} is not reachable")
+        m = read_manifest(redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db,
+                                      socket_timeout=2, socket_connect_timeout=2))
         seeded_from = (m or {}).get("source_world")
     except Exception:
         seeded_from = None

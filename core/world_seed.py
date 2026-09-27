@@ -186,18 +186,32 @@ def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> di
 
 
 def read_manifest(client) -> Optional[dict]:
-    """What this world inherited, or None if its memory is all its own."""
+    """What this world inherited, or None if its memory is all its own.
+
+    ZERO IS NOT NO -- AND THAT IS WHY A CONNECTION FAILURE PROPAGATES HERE.
+
+    This function used to catch every exception and return None, so None meant BOTH "I read the
+    store and there is no manifest" and "I could not reach the store at all". Measured 2026-09-27,
+    right after alpha and beta were retired: the caller in agent_cli._boot_world_line() has an
+    honest branch -- "origin unknown -- the seed manifest could not be read" -- and it was
+    UNREACHABLE, because the error never escaped this function. So the boot line fell through to
+    its default and asserted the positive instead: "origin unrecorded -- no seed manifest, so this
+    memory is either native or was copied in by hand." A claim about provenance, stated as fact,
+    after 48 seconds of not reaching the store.
+
+    A genuinely absent manifest still returns None, which is a real answer. An unreachable store
+    now raises, which is also a real answer -- a different one. Every caller already wraps this in
+    a try/except (agent_cli.py:1505, scripts/world_fidelity.py:79, scripts/world_diff.py:102), so
+    the distinction costs them nothing and buys them the ability to tell the two apart.
+    """
     import json
-    try:
-        raw = client.get(MANIFEST_KEY)
-    except Exception:
-        return None
+    raw = client.get(MANIFEST_KEY)      # deliberately unguarded: unreachable != absent
     if not raw:
-        return None
+        return None                     # reached the store, no manifest -- a real "no"
     try:
         return json.loads(raw.decode() if isinstance(raw, bytes) else raw)
     except Exception:
-        return None
+        return None                     # present but unparseable; the caller sees "no manifest"
 
 
 def copy_prefix(src, dst, prefix: str, apply: bool = False, batch: int = 500) -> int:
