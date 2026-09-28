@@ -1,0 +1,6 @@
+#!/bin/sh
+# post-commit -- record WHICH SEAT made this commit (scripts/githooks/post_commit.py).
+# Git can no longer say: T411 inverted author AND committer to the operator, so the seat
+# exists only in the environment at the moment of the commit. Fail-open by design -- a
+# commit that already happened must never be undone by its own bookkeeping.
+exec py scripts/githooks/post_commit.py
