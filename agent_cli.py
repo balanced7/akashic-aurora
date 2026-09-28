@@ -7496,6 +7496,60 @@ def _fetch_bus_body(mid: str, agent: str = ""):
         return None
 
 
+def cmd_focus(args):
+    """Check in / out: which task THIS session's tool calls belong to.
+
+    The missing primitive under T056. task_costs attributes to "the ONE task owned by this agent
+    in in_progress or verifying" and refuses on 0 or >1 -- and measured 2026-09-27, NINE tasks are
+    active under `claude`, so it refused every time and 172 done tasks carry zero cost data. Owner
+    matching cannot disambiguate nine open tasks; a session saying which one it is on can.
+    """
+    from core.coord import session_focus as SF
+    sid = getattr(args, "session", "") or SF.this_session()
+    if getattr(args, "health", False):
+        print(json.dumps(SF.health(), indent=2)); return 0
+    if not sid:
+        print("ERROR: no session id (CLAUDE_CODE_SESSION_ID unset). Pass --session <id>.")
+        return 2
+    if getattr(args, "clear", False):
+        out = SF.clear_focus(sid)
+        if out.get("was"):
+            print(f"# checked out of {out['was']} -- {out.get('calls',0)} tool call(s) attributed "
+                  f"({out.get('hits',0)} on its files, {out.get('misses',0)} elsewhere)")
+        else:
+            print("# this session had no focus")
+        return 0
+    if getattr(args, "dismiss", False):
+        st = SF.dismiss(sid)
+        left = max(0, SF.DISMISS_QUIET - int(st.get("dismissed", 0) or 0))
+        print(f"# noted. {'Drift notes now silent for this session.' if left <= 0 else f'{left} more dismissal(s) and it stops asking by itself.'}")
+        return 0
+    if getattr(args, "quiet", False):
+        SF.quiet(sid); print("# drift notes silenced for this session; attribution continues"); return 0
+    if getattr(args, "set", ""):
+        r = SF.set_focus(sid, args.set, agent=args.agent_id or "")
+        if not r.get("ok"):
+            print(f"ERROR: {r.get('error')}"); return 2
+        print(f"# focused {r['task']} ({r.get('status')}) -- {r.get('title','')[:70]}")
+        if r.get("files"):
+            print(f"#   drift watched against: {', '.join(r['files'][:4])}"
+                  f"{' ...' if len(r['files']) > 4 else ''}")
+        if r.get("note"):
+            print(f"#   note: {r['note']}")
+        return 0
+    st = SF.current(sid)
+    if args.json:
+        print(json.dumps(st or {}, indent=2)); return 0
+    if not st:
+        print("# no focus. Set one: py agent_cli.py focus --set T###"); return 0
+    print(f"# focus {st['task']}: {st.get('calls',0)} call(s) attributed "
+          f"({st.get('hits',0)} on its files, {st.get('misses',0)} elsewhere, "
+          f"streak {st.get('streak',0)})")
+    if st.get("nudges"):
+        print(f"#   drift notes: {st['nudges']} sent, {st.get('dismissed',0)} dismissed")
+    return 0
+
+
 def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
     from core.comm.locks import LockManager
@@ -8861,6 +8915,18 @@ def build_parser():
     ul = sub.add_parser("unlock", help="release your advisory path-lock")
     ul.add_argument("agent_id"); ul.add_argument("path")
     ul.set_defaults(fn=cmd_unlock)
+
+    fcs = sub.add_parser("focus", help="check in/out: attribute THIS session's tool calls to a task")
+    fcs.add_argument("agent_id", nargs="?", default="")
+    fcs.add_argument("--set", default="", metavar="T###", help="check in: focus this task")
+    fcs.add_argument("--clear", action="store_true", help="check out, and report what was attributed")
+    fcs.add_argument("--dismiss", action="store_true",
+                     help="wave off one drift note (two of these and it stops asking by itself)")
+    fcs.add_argument("--quiet", action="store_true", help="silence drift notes here; keep attributing")
+    fcs.add_argument("--health", action="store_true", help="is the drift nudge earning its keep?")
+    fcs.add_argument("--session", default="", help="override the session id (default: this session)")
+    fcs.add_argument("--json", action="store_true")
+    fcs.set_defaults(fn=cmd_focus)
 
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")

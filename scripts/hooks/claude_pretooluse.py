@@ -288,6 +288,18 @@ def main() -> int:
         fact = id_facts_for_path((_ti.get("file_path") or "") if isinstance(_ti, dict) else "")
         if fact:
             ctx = (fact + "\n" + ctx) if ctx else fact
+    # Task-focus drift (2026-09-27), appended LAST on purpose. The cwd drift and the id fact
+    # above are about the action in hand; this is about the session's bookkeeping, so it must
+    # never push an operationally urgent line further down. Fires only after a run of consecutive
+    # calls that touched none of the focused task's declared files, is silenced by
+    # `focus --quiet`, and goes quiet on its own after two dismissals.
+    try:
+        from core.coord.session_focus import drift_note
+        note = drift_note(data.get("session_id") or "")
+        if note:
+            ctx = (ctx + chr(10) + note) if ctx else note
+    except Exception:
+        pass        # bookkeeping must never cost a tool call
     if ctx:
         _emit_context(ctx)
     return 0

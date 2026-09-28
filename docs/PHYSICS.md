@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 03b44e2b. A bound you discover by collision is not awareness -- this sheet
+> Derived at 26d11068. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (262 names)
+## Configuration flags (263 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -119,6 +119,7 @@ Class: reference
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
+| `AKASHIC_SESSION_ID` | `` | core/coord/session_focus.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHIFT_LOOP` | `"1"` | core/comm/shift_turn.py |
@@ -164,7 +165,7 @@ Class: reference
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py, scripts/bifrost_runner_deepseek.py |
-| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +35 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +36 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
 | `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
@@ -176,7 +177,7 @@ Class: reference
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +5 |
+| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +6 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `COMPUTERNAME` | `` | arsenal/lanes/gst_d3d12_soak.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |

@@ -115,6 +115,11 @@ MANIFEST = {
     # design v1; W162 wants a bus path so no-exec seats can bet without a proxy
     # (F004 was proxy-registered for exactly this reason) -- that slice flips this
     # to shared when it lands.
+    # focus binds THIS session's tool calls to a task, and its session identity comes from the
+    # harness environment (CLAUDE_CODE_SESSION_ID) that the CLI shares with the PreToolUse and
+    # PostToolUse hooks. An MCP call runs in a different process with a different session, so an
+    # mcp door would address a record nothing writes to. CLI-only by the shape of the problem.
+    "focus": "cli_only",
     "forecast": "cli_only",
     # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
     # restart the discord gateway?"): status/restart for the ear, detached relaunch

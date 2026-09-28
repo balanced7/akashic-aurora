@@ -319,6 +319,19 @@ def main() -> int:
         report("thinking", "", data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass
+    # Attribute this SUCCESSFUL call to the session's focused task. Placed above the recall kill
+    # switch for the same reason liveness and presence are: a seat that turns recall off must
+    # still have its work counted. Claude Code fires PostToolUse only for successful calls (see
+    # the payload ground truth above), which is exactly the honesty wanted here -- a denied or
+    # failed call is not work done. Writes land on task_costs' own accumulator, so the existing
+    # DONE transition finalizes them; this adds an input, not a second ledger.
+    try:
+        from core.coord.session_focus import record_call
+        _ti = data.get("tool_input") if isinstance(data.get("tool_input"), dict) else {}
+        record_call(data.get("session_id") or "", data.get("tool_name") or "",
+                    str(_ti.get("file_path") or _ti.get("command") or _ti.get("pattern") or ""))
+    except Exception:
+        pass
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
         return 0
     if not data:

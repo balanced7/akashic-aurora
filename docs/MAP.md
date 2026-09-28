@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 200 modules lack both pin and paper by name)
+## GAP queue (46 of 201 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -167,7 +167,7 @@ Class: reference
 | `wake_tiers.py` | wake tiers -- the priority dimension the wake decision was missing. | tests/test_wake_tiers.py | GAP |  |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (30 modules)
+## core/coord/  (31 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -191,6 +191,7 @@ Class: reference
 | `observations.py` | Shared schema for bounded, subject-explicit observations. | GAP | GAP |  |
 | `orient.py` | Renderer-neutral orientation scene over Aurora's native read verbs. | tests/test_boot_orientation.py | docs/bifrost-new-seat-orientation.md |  |
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
+| `session_focus.py` | Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift. | tests/test_t056b_session_focus.py | GAP | `AKASHIC_SESSION_ID`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
 | `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_t217_sift.py | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_w34_suite_baseline.py | GAP |  |

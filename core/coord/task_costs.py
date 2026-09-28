@@ -105,7 +105,13 @@ def finalize(tid: str, task: Dict[str, Any]) -> Dict[str, Any]:
         key = _acc_key(str(tid))
         acc = c.hgetall(key) or {}
         c.delete(key)
-        if not acc or int(acc.get("turns", 0) or 0) <= 0:
+        # ANY recorded field counts as "something happened". This gate used to require turns>0,
+        # which silently discarded -- and deleted -- an accumulator fed only by
+        # session_focus.record_call, which attributes per TOOL CALL rather than per turn (the
+        # per-call path exists because owner-matching cannot disambiguate nine simultaneously
+        # active tasks; see core/coord/session_focus.py). An all-zero accumulator still returns
+        # {}, so K3's missing-accumulator honesty and K7's absent honesty are unchanged.
+        if not acc or not any(int(acc.get(f, 0) or 0) > 0 for f in FIELDS):
             return {}
         stamped = {
             "cost_turns": int(acc.get("turns", 0) or 0),
@@ -138,14 +144,17 @@ def cost_line(task: Dict[str, Any]) -> str:
         if str(task.get("status")) != "done":
             return ""
         turns = task.get("cost_turns")
-        if not turns:
+        tools = task.get("cost_tool_calls")
+        # A task attributed per tool call carries tools and no turn count. That used to render as
+        # nothing at all -- the confident-zero shape this module exists to avoid. Turns still lead
+        # when present (K6); tool calls lead only when they are all there is.
+        if not turns and not tools:
             return ""
-        parts = [f"cost: {int(turns)} turn(s)"]
+        parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools)} tool call(s)"]
         dur = task.get("cost_duration_s")
         if dur:
             parts.append(f"{int(round(float(dur)))}s")
-        tools = task.get("cost_tool_calls")
-        if tools:
+        if tools and turns:
             parts.append(f"{int(tools)} tools")
         toks = task.get("cost_tokens")
         if toks:
