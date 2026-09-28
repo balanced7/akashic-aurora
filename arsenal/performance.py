@@ -33,7 +33,7 @@ DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "state" / "arsenal" / "perf
 SESSION_PATTERN = r"\d{8}-\d{6}-[0-9a-f]{8}"
 _SESSION_RE = re.compile(rf"^{SESSION_PATTERN}$")
 _CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
-KINDS = ("on", "off", "pedal", "chord", "sound_end")
+KINDS = ("on", "off", "pedal", "chord", "sound_end", "metro")
 SOUND_END_BY = ("release", "pedal", "repeat", "all-off")
 CHORD_TEXT_FIELDS = ("bass", "nns", "nns_key", "key_conf", "detect_kind")  # optional on chord events: a string or null
 
@@ -134,6 +134,17 @@ def validate_event(event, i: int = 0) -> None:
                 raise BadEvent(f"{where} (on) needs vel, an integer 1..127 (got {vel!r})")
         if kind == "sound_end" and event.get("by") not in SOUND_END_BY:
             raise BadEvent(f"{where} (sound_end) needs by, one of {', '.join(SOUND_END_BY)} (got {event.get('by')!r})")
+    elif kind == "metro":
+        # An EXTERNAL beat: the click the player played to, not anything inferred from the notes.
+        # One event per beat (subdivision clicks are not beats and are not logged). t_ms is the
+        # AUDIBLE time -- the scheduled time plus the device's output latency, which rides along in
+        # latency_ms so the raw value stays recoverable.
+        bpm = event.get("bpm")
+        if not isinstance(bpm, (int, float)) or isinstance(bpm, bool) or not 20 <= float(bpm) <= 300:
+            raise BadEvent(f"{where} (metro) needs bpm, a number 20..300 (got {bpm!r})")
+        beat = event.get("beat")
+        if not _is_int(beat) or beat < 0:
+            raise BadEvent(f"{where} (metro) needs beat, a non-negative integer (got {beat!r})")
     elif kind == "pedal":
         if not isinstance(event.get("down"), bool):
             raise BadEvent(f"{where} (pedal) needs down, a boolean (got {event.get('down')!r})")

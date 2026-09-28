@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/web/piano/deck.css" />
 <!-- The Studio drawer: practice exercises and saved looks (piano/studio/studio.js). Outside the canvas, so never recorded. -->
 <link rel="stylesheet" href="/web/piano/studio/studio.css" />
+<link rel="stylesheet" href="/web/piano/workbench.css" />
 <!-- three.js r186, pinned. Both files were HEAD-checked on jsDelivr on 2026-09-13. -->
 <script type="importmap">
 {
@@ -99,6 +100,38 @@
         <span class="field-label sig-control">Practice log</span>
         <button type="button" class="btn" id="btn-log" aria-pressed="true">On</button>
         <span class="log-status" id="log-status" data-state="idle" role="status">idle</span>
+      </div>
+      <!-- The metronome. Its beats go into the practice log as `metro` events, which is the whole
+           point of it: the score lane's own tracker snaps its beats onto the notes it is measuring
+           (beat.js phaseGain 0.8), so only a click the player followed can say whether he was ahead
+           of the beat. score_cli picks these up automatically; --no-metro forces the inferred rung. -->
+      <div class="group" id="metro-group">
+        <span class="field-label sig-control">Metronome</span>
+        <button type="button" class="btn" id="btn-metro" aria-pressed="false">Off</button>
+        <button type="button" class="btn" id="btn-metro-tap" title="Tap the tempo (or press T four times)">Tap</button>
+        <label class="field" for="metro-bpm">
+          <span class="field-label sig-video">BPM</span>
+          <input type="number" id="metro-bpm" min="20" max="300" step="1" value="100" aria-label="Metronome tempo">
+        </label>
+        <label class="field" for="metro-meter">
+          <span class="field-label sig-video">Beats</span>
+          <input type="number" id="metro-meter" min="1" max="16" step="1" value="4" aria-label="Beats per bar">
+        </label>
+        <label class="field" for="metro-feel">
+          <span class="field-label sig-video">Feel</span>
+          <select id="metro-feel" aria-label="Metronome subdivision"></select>
+        </label>
+        <label class="field" for="metro-sound">
+          <span class="field-label sig-video">Sound</span>
+          <select id="metro-sound" aria-label="Metronome sound"></select>
+        </label>
+        <label class="field" for="metro-vol">
+          <span class="field-label sig-video">Vol</span>
+          <input type="range" id="metro-vol" min="0" max="100" step="1" value="60" aria-label="Metronome volume">
+        </label>
+        <button type="button" class="btn" id="btn-metro-sample" title="Play your own sample instead of a preset">Sample</button>
+        <input type="file" id="metro-file" accept="audio/*" hidden>
+        <span class="log-status" id="metro-status" data-state="idle" role="status">off</span>
       </div>
       <div class="group" id="cue-group">
         <span class="field-label sig-control">Claude</span>

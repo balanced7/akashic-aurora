@@ -94,7 +94,19 @@ export function takeOptions(flags = {}) {
     taps = Array.isArray(j) ? j : Array.isArray(j.taps_ms) ? j.taps_ms : Array.isArray(j.taps_s) ? j.taps_s.map((x) => x * 1000) : null;
     if (!taps || !taps.every(Number.isFinite)) throw new Error("--taps: a JSON array of ms, or { taps_ms } or { taps_s }");
   }
-  return { span, meter, feel, one, bpm, taps, beats: null };
+  let beats = null;
+  if (flags.beats) {
+    const j = JSON.parse(fs.readFileSync(path.resolve(String(flags.beats)), "utf8"));
+    beats = Array.isArray(j) ? j : Array.isArray(j.beats_ms) ? j.beats_ms : null;
+    if (!beats || !beats.every(Number.isFinite)) throw new Error("--beats: a JSON array of ms, or { beats_ms }");
+    if (beats.length < 3) throw new Error("--beats needs at least 3 beats (score/index.js:102 refuses fewer)");
+  }
+  // The metronome's own beats, logged as `metro` events, are used when the session has them and
+  // nothing was supplied by hand. This is the external reference the lane has never had: beat.js
+  // snaps its inferred beats onto the player's own onsets, so a grid derived from the notes cannot
+  // say whether he was ahead of the beat. --no-metro forces the inferred rung for comparison.
+  const metro = flags["no-metro"] ? false : true;
+  return { span, meter, feel, one, bpm, taps, beats, metro };
 }
 export function takeName(o, flags = {}) {
   if (flags.take != null) {
@@ -189,6 +201,12 @@ export function pageSpeller({ minor = "tonic" } = {}) {
 // export view, the three files and their stats
 export function buildTake({ events, keyAreas = null, options: o, spell = null, title = null, params = {} }) {
   const log = events.filter((e) => LOG_KINDS.has(e.kind));
+  // Fixed beats, in order of authority: supplied by hand, else the click he actually played to.
+  if (!o.beats && o.metro !== false) {
+    const clicks = events.filter((e) => e.kind === "metro" && Number.isFinite(e.t_ms))
+                         .sort((a, b) => a.t_ms - b.t_ms).map((e) => e.t_ms);
+    if (clicks.length >= 3) o = { ...o, beats: clicks, beatSource: "metro" };
+  }
   const spanEvents = o.span ? log.filter((e) => e.t_ms >= o.span.from_ms && e.t_ms <= o.span.to_ms) : log;
   const opts = { span: o.span, meter: o.meter, feel: o.feel, one: o.one, taps: o.taps || [], beats: o.beats || null, bpm: o.bpm, spell, keyAreas: clipAreas(keyAreas, o.span), params };
   const t = performance.now();

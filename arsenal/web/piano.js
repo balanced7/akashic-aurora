@@ -17,6 +17,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createPerformanceLog } from "./piano/log.js";
+import { createMetronome, FEELS, SOUND_NAMES } from "./piano/metronome.js";
 import { createKeyTracker, nashville, parseChord, parseKey, spellInKey } from "./piano/nashville.js";
 import { createCueClient, createCuePlayer, createClaudeVoice } from "./piano/cues.js";
 import { createJamApi, createRestDetector, createTransport } from "./piano/transport.js";
@@ -28,6 +29,8 @@ import { formatNumber } from "./piano/nashville.js";
 import { installReader, parseSuffix } from "./piano/chordread.js";
 import { keyContext, spellChord, spellNote } from "./piano/spell.js";
 import { createKeySignatureModel, signaturePlaces, staffAccidental } from "./piano/keysig.js";
+import { createGalleryCamera } from "./piano/gallery-camera.js";
+import { mountWorkbench } from "./piano/workbench.js";
 
 // ===== THEORY BEGIN (pure: no DOM, no three.js; the node tests extract this block) =====
 const Theory = (() => {
@@ -408,8 +411,9 @@ const FRAMINGS = {
   "9:16": { id: "9:16", w: 1080, h: 1920, fov: 31, minSpan: 16, follow: true },
   "16:9": { id: "16:9", w: 1920, h: 1080, fov: 23, minSpan: 56, follow: false },
 };
-let framing = FRAMINGS[safeGet("arsenal.piano.framing")] || FRAMINGS["9:16"];
+let framing = FRAMINGS[safeGet("arsenal.piano.framing")] || FRAMINGS["16:9"];
 let renderScale = 1, spectacle = null;
+let galleryCamera = null, workbench = null, ornamentalMotion = true;
 
 // ------------------------------------------------------------ key geometry --
 // One world unit = one white-key pitch (23.5 mm on a real piano). A0 at the left edge x=-26.
@@ -1123,6 +1127,8 @@ function easeCamera(c, lo, hi, dt, snap) {
   c.span = snap ? targetSpan : damp(c.span, targetSpan, lerp(1.6, CAM.hurry, hurry), dt);
 }
 function updateCamera(dt, t, snap = false) {
+  if (galleryCamera?.active()) return;
+  camera.fov = framing.fov;
   const dan = { lo: Infinity, hi: -Infinity }, cue = { lo: Infinity, hi: -Infinity }, ahead = { lo: Infinity, hi: -Infinity };
   let sounds = false, danLast = -Infinity;
   for (const [m, st] of sounding) {  // a key Daniel holds keeps his hands in the frame, however old the strike
@@ -1237,6 +1243,9 @@ const INSTRUMENTS = [
   { id: "suitcase-ep", name: "Suitcase EP" },
   { id: "vintage-synth", name: "Vintage synth" },
   { id: "glass-piano", name: "Crystal grand" },
+  { id: "aether", name: "Aether" },
+  { id: "solstice", name: "Solstice" },
+  { id: "nocturne", name: "Nocturne" },
   { id: "light-kimi-aurora", name: "Aurora Harp" },
   { id: "light-deepseek-orrery", name: "Orrery of Light" },
   { id: "light-vandor-ornithopter", name: "Ornithopter" },
@@ -1297,7 +1306,7 @@ function instrumentCtx() {
             blackTop: KEY.blackTop, keyFront: KEY.back + KEY.whiteL, keyBack: KEY.back, bedTop: -0.8, floorY: PAGE_LOOK.floorY,
             mmPerUnit: 1225.7 / 52 },
     fonts: { display: FONT.display },
-    options: {},
+    options: {}, envMap, ornamentalMotion: () => ornamentalMotion,
   };
 }
 function lookList(kind) {
@@ -1606,6 +1615,8 @@ function fillLookSelect(select, list, L) {
 function syncLooksUi() {
   fillLookSelect($("scheme-select"), lookList("scheme"), looks.scheme);
   fillLookSelect($("instrument-select"), lookList("instrument"), looks.instrument);
+  workbench?.sync();
+  if (renderPaused) requestRender();
 }
 // The bake-off seats still to land are fetched only when the Scheme menu is reached for (or a stored pick names one), so a
 // page load never asks for a file that is not there.
@@ -1623,7 +1634,7 @@ function probeLooks() {
 }
 function startLooks() {  // boot, after spectacle: the stored scheme and instrument
   syncLooksUi();
-  const scheme = safeGet(LOOK_KEYS.scheme), instrument = safeGet(LOOK_KEYS.instrument);
+  const scheme = safeGet(LOOK_KEYS.scheme), instrument = safeGet(LOOK_KEYS.instrument) || 'aether';
   (async () => {
     try {
       if (SCHEMES.some((s) => s.id === scheme && s.probe)) await probeLooks();
@@ -3692,6 +3703,7 @@ function pickMime(withAudio) {
 async function startRecording() {
   if (rec.state !== "idle") return;
   if (typeof MediaRecorder === "undefined") { toast("MediaRecorder is unavailable in this browser", true); return; }
+  if (renderPaused) setRenderPaused(false);
   rec.error = "";
   // Jam view: in "auto" Claude's keys, ghosts and chip leave the canvas before the recorder can see a frame (one clean
   // frame is drawn now; see cueOnStage and tickCueStage), and Claude stops steering the camera. Claude's voice is never
@@ -3864,6 +3876,7 @@ function applyFraming(id, persist = true) {
   $("btn-169").setAttribute("aria-pressed", String(framing.id === "16:9"));
   updateCamera(0, clock(), true);
   fitCanvas();
+  galleryCamera?.resize();
   return true;
 }
 function toggleHud() { $("hud").hidden = !$("hud").hidden; }
@@ -4196,6 +4209,111 @@ function wireUi() {
   }
   keySelect.addEventListener("change", () => { setKeyChoice(keySelect.value); keySelect.blur(); });
   setKeyChoice(theoryUi.key, false);
+  // ---------------------------------------------------------------- metronome --
+  // A click to play to, and the score lane's first external time reference. Every BEAT it sounds
+  // goes into the practice log as a `metro` event; subdivision clicks do not, because they are not
+  // beats. score_cli picks those events up and hands them to score/index.js:102 as a fixed grid,
+  // which bypasses beat.js entirely -- and that matters because beat.js snaps its inferred beats
+  // 80% onto the player's own onsets (phaseGain, beat.js:74), so a grid derived from the notes
+  // cannot answer "was I ahead of the beat": it is cut from the thing being measured.
+  // The time logged is the AUDIBLE click (scheduled time + this device's output latency, frozen
+  // once per run). Human anticipation is NOT corrected out: landing 20-50 ms ahead of a click is
+  // what a drummer does, and it is the signal, not an error.
+  const METRO_PREF = "arsenal.piano.metro";
+  let metro = null;
+  const metroEls = {
+    btn: $("btn-metro"), tap: $("btn-metro-tap"), bpm: $("metro-bpm"), meter: $("metro-meter"),
+    feel: $("metro-feel"), sound: $("metro-sound"), vol: $("metro-vol"),
+    sample: $("btn-metro-sample"), file: $("metro-file"), status: $("metro-status"),
+  };
+  if (metroEls.btn) {
+    for (const [name, f] of Object.entries(FEELS)) {
+      const o = document.createElement("option"); o.value = name; o.textContent = f.label;
+      metroEls.feel.appendChild(o);
+    }
+    for (const name of SOUND_NAMES) {
+      const o = document.createElement("option"); o.value = name;
+      o.textContent = name[0].toUpperCase() + name.slice(1); metroEls.sound.appendChild(o);
+    }
+    try {
+      const saved = JSON.parse(safeGet(METRO_PREF) || "null");
+      if (saved) {
+        if (saved.bpm) metroEls.bpm.value = saved.bpm;
+        if (saved.meter) metroEls.meter.value = saved.meter;
+        if (saved.feel && FEELS[saved.feel]) metroEls.feel.value = saved.feel;
+        if (saved.sound) metroEls.sound.value = saved.sound;
+        if (saved.vol != null) metroEls.vol.value = saved.vol;
+      }
+    } catch { /* a corrupt pref must not cost him the metronome */ }
+    const saveMetroPref = () => safeSet(METRO_PREF, JSON.stringify({
+      bpm: +metroEls.bpm.value, meter: +metroEls.meter.value, feel: metroEls.feel.value,
+      sound: metroEls.sound.value, vol: +metroEls.vol.value }));
+    const metroStatus = () => {
+      if (!metroEls.status) return;
+      const st = metro && metro.state();
+      metroEls.status.textContent = !st || !st.running ? "off"
+        : `${Math.round(st.bpm)} bpm - ${st.beats} beat${st.beats === 1 ? "" : "s"}`;
+      metroEls.status.dataset.state = st && st.running ? "live" : "idle";
+    };
+    const ensureMetro = () => {
+      if (metro) return metro;
+      audioIn.ctx = audioIn.ctx || new AudioContext();   // shared with the page's other audio
+      metro = createMetronome({ ctx: audioIn.ctx, onClick: (ev) => {
+        if (!ev.isBeat) return;                          // only beats are beats
+        if (perfLog) perfLog.metro({ bpm: ev.bpm, beat: Math.round(ev.n), bar: ev.bar,
+                                     meter: +metroEls.meter.value, feel: metroEls.feel.value,
+                                     latency_ms: ev.latency_ms }, ev.page_ms / 1000);
+      } });
+      metro.setBpm(+metroEls.bpm.value); metro.setMeter(+metroEls.meter.value);
+      metro.setFeel(metroEls.feel.value); metro.setSound(metroEls.sound.value);
+      metro.setVolume(+metroEls.vol.value / 100);
+      return metro;
+    };
+    metroEls.btn.addEventListener("click", () => {
+      const m = ensureMetro();
+      const on = !m.state().running;
+      if (on) m.start(); else m.stop();
+      metroEls.btn.textContent = on ? "On" : "Off";
+      metroEls.btn.setAttribute("aria-pressed", String(on));
+      metroStatus();
+    });
+    const doTap = () => {
+      const r = ensureMetro().tap(performance.now());
+      if (r.set) { metroEls.bpm.value = Math.round(r.bpm); saveMetroPref(); }
+      metroStatus();
+    };
+    metroEls.tap.addEventListener("click", doTap);
+    metroEls.bpm.addEventListener("input", () => { if (metro) metro.setBpm(+metroEls.bpm.value); saveMetroPref(); });
+    metroEls.meter.addEventListener("input", () => { if (metro) metro.setMeter(+metroEls.meter.value); saveMetroPref(); });
+    metroEls.feel.addEventListener("change", () => { if (metro) metro.setFeel(metroEls.feel.value); saveMetroPref(); });
+    metroEls.sound.addEventListener("change", () => { if (metro) metro.setSound(metroEls.sound.value); saveMetroPref(); });
+    metroEls.vol.addEventListener("input", () => { if (metro) metro.setVolume(+metroEls.vol.value / 100); saveMetroPref(); });
+    metroEls.sample.addEventListener("click", () => metroEls.file.click());
+    metroEls.file.addEventListener("change", async () => {
+      const f = metroEls.file.files && metroEls.file.files[0];
+      if (!f) return;
+      try {
+        const info = await ensureMetro().loadSample(await f.arrayBuffer(), f.name);
+        metroEls.sample.textContent = f.name.slice(0, 14);
+        metroEls.sample.title = `${info.duration.toFixed(2)}s, ${info.channels}ch @ ${info.rate}Hz - click to pick another`;
+      } catch (err) {
+        // A file the browser cannot decode must say so, not leave him on the old sound silently.
+        metroEls.sample.textContent = "Sample?";
+        metroEls.sample.title = `could not decode ${f.name}: ${errText(err)}`;
+      }
+    });
+    // T taps the tempo from the keyboard, so he can set it without letting go of the piano.
+    addEventListener("keydown", (e) => {
+      if (e.key !== "t" && e.key !== "T") return;
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA")) return;
+      e.preventDefault(); doTap();
+    });
+    setInterval(metroStatus, 500);
+    metroStatus();
+  }
+
   $("btn-log").addEventListener("click", () => {
     const onNow = safeGet(LOG_PREF) === "off";
     safeSet(LOG_PREF, onNow ? "on" : "off");
@@ -4335,12 +4453,14 @@ function renderFrame() {
   tickMeter(dt);
   spectacle?.update(dt, t, info, audioIn.stream ? audioIn.level : 0);
   updateLooks(dt, t, info);  // the scheme and the instrument, after spectacle (its camera drift) and before the composer
-  const theoryDisplay = spectacle?.settings.enabled ? spectacle.settings.labels : "full";
+  galleryCamera?.update(dt, t);
+  const theoryDisplay = spectacle?.settings.labels || "full";
   // with a scheme over spectacle's Atmosphere chord view its note labels are hidden, so the page's own chord label shows
   const ownsTheory = spectacle?.settings.enabled && spectacle?.ownsTheory?.() && !schemeOwnsNotes();
   overlay.label.mesh.visible = !ownsTheory && theoryDisplay !== "off";
   overlay.staff.mesh.visible = overlay.nns.mesh.visible = theoryDisplay === "full";
   composer.render(dt);
+  canvas.dataset.frames = String(++renderFrames);
   renderer.autoClear = false;
   renderer.render(overlayScene, overlayCam);
   renderer.autoClear = true;
@@ -4372,23 +4492,46 @@ function renderFrame() {
   if (t - logUiAt > 0.5) { logUiAt = t; syncLogReadout(); }
   if (cueUiDirty && t - cueUiAt > 0.1) { cueUiAt = t; syncCueUi(); }
 }
-let loopError = null;
+let loopError = null, renderRaf = 0, renderPaused = false, renderFrames = 0;
+let refreshMode = safeGet('arsenal.piano.refresh') === '60' ? '60' : 'native';
+function requestRender() {
+  if (!renderRaf && !document.hidden) renderRaf = requestAnimationFrame(loop);
+}
+function setRenderPaused(value) {
+  if (rec.state !== 'idle' || rec.arming) { toast('Stop recording before pausing the render', true); return false; }
+  renderPaused = !!value; cancelAnimationFrame(renderRaf); renderRaf = 0;
+  if (!renderPaused) { lastT = clock(); requestRender(); }
+  workbench?.sync(); return true;
+}
 function loop() {
-  requestAnimationFrame(loop);
+  renderRaf = 0;
+  if (document.hidden) return;
+  if (!renderPaused) requestRender();
   // Leave GPU time for canvas capture/encoding on high-refresh monitors.
   // MIDI and cue scheduling retain their independent event/worker clocks.
-  if (spectacle?.settings.enabled && clock() - lastT < 1 / 60 - .001) return;
+  if (!renderPaused && (refreshMode === '60' || rec.state === 'recording') && clock() - lastT < 1 / 60 - .001) return;
   try {
     renderFrame();
   } catch (e) {
     if (!loopError) { loopError = e; console.error("[piano] frame failed:", e); toast("Render error: " + errText(e), true); }
   }
 }
+document.addEventListener('visibilitychange', () => {
+  cancelAnimationFrame(renderRaf); renderRaf=0;
+  if (!document.hidden && !renderPaused) { lastT=clock();requestRender(); }
+});
 
 // --------------------------------------------------------------- debug/boot --
 // window.__piano is for the CDP receipt and for poking at the page from DevTools.
 window.__piano = {
   ready: false,
+  rendering: () => ({ paused:renderPaused, refresh:refreshMode, width:canvas.width, height:canvas.height, frames:renderFrames }),
+  setRenderPaused,
+  setRefreshMode(value) { if (!['native','60'].includes(value)) return false; refreshMode=value;safeSet('arsenal.piano.refresh',value);return true; },
+  get galleryCamera() { return galleryCamera; },
+  get ornamentalMotion() { return ornamentalMotion; },
+  setOrnamentalMotion(value) { ornamentalMotion=!!value;requestRender(); },
+  requestRender,
   get spectacle() { return spectacle; },
   // Scheme and Instrument (the "looks" section): looks({ geometry, render }) reports; select*() resolve true once shown;
   // registerScheme(module) joins a module object without a file for this page load (scheme development)
@@ -4705,6 +4848,8 @@ function boot() {
       // Turning the atmosphere off restores the keys' colours, so an instrument's black keys are painted again after it.
       classic: (on) => { atmosphereLook = !on; applyClassicLook(); if (looks.instrument.hints) queueMicrotask(paintBlackKeys); } });
   } catch (e) { console.error("[piano] atmosphere unavailable:", e); toast("Atmosphere unavailable: " + errText(e), true); }
+  galleryCamera = createGalleryCamera({THREE,scene,camera,canvas,getInstrument:()=>looks.instrument.active?.handle,invalidate:()=>{if(renderPaused)requestRender();}});
+  workbench = mountWorkbench(window.__piano);
   startLooks();  // the stored Scheme and Instrument, after spectacle has taken the page's own materials
   syncDemoButton();
   syncRecButton();
@@ -4722,6 +4867,6 @@ function boot() {
   listAudioInputs().catch(() => {});
   $("boot").hidden = true;
   window.__piano.ready = true;
-  requestAnimationFrame(loop);
+  requestRender();
 }
 boot();

@@ -604,6 +604,25 @@ export function createPerformanceLog({
         if (cur) push({ t_ms: tms(clock(t)), kind: "pedal", down: lastPedal.down, value: lastPedal.value });
       });
     },
+    // The metronome's beat: an EXTERNAL time reference, the one thing the score lane has never had.
+    // beat.js snaps its inferred beats onto the player's own onsets (phaseGain 0.8), so a grid
+    // derived from the notes cannot answer "was he ahead of the beat" -- it is cut from the thing it
+    // measures. These beats come from the click instead and are independent of what was played.
+    // Only true beats are logged; subdivision clicks are not beats. t is the AUDIBLE click.
+    metro(info, t) {
+      guard(() => {
+        if (!recording() || !cur || !info) return;
+        const bpm = Number(info.bpm);
+        if (!(bpm >= 20 && bpm <= 300)) return;          // the analyzer would refuse it; drop it here
+        const ev = { t_ms: tms(clock(t)), kind: "metro", bpm: Math.round(bpm * 100) / 100,
+                     beat: clampInt(info.beat, 0, 1e9) };
+        if (info.bar != null) ev.bar = clampInt(info.bar, 0, 1e9);
+        if (info.meter != null) ev.meter = clampInt(info.meter, 1, 16);
+        if (typeof info.feel === "string") ev.feel = info.feel.slice(0, 24);
+        if (Number.isFinite(info.latency_ms)) ev.latency_ms = Math.round(info.latency_ms * 100) / 100;
+        push(ev);
+      });
+    },
     // by: "release" (finger up, no pedal), "pedal" (the lift ended it), "repeat" (re-struck), "all-off".
     soundEnd(m, by, t) {
       guard(() => {

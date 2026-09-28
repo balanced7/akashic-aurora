@@ -1039,7 +1039,11 @@ def test_a_failed_close_writes_nothing_so_a_retry_stores_the_final_events_once(t
 
     monkeypatch.undo()
     doc = store.close(session, [_off(500, 60)])
-    assert doc["event_counts"] == {"on": 1, "off": 1, "pedal": 0, "chord": 0, "sound_end": 0}
+    # "metro" joined KINDS on 2026-09-27 (the metronome's beats: an external time reference the
+    # score lane had never had). Every kind is counted whether or not it occurred, so a new kind
+    # shows up here as a zero -- an additive change to the summary, asserted rather than assumed.
+    assert doc["event_counts"] == {"on": 1, "off": 1, "pedal": 0, "chord": 0, "sound_end": 0,
+                                   "metro": 0}
     assert len(store.events(session)) == 2 and store.info(session)["event_count"] == 2
     with pytest.raises(perf.BadEvent):  # a malformed final batch is refused before anything is written
         store.close(store.open(), [{"t_ms": 0, "kind": "on", "note": 60}])
