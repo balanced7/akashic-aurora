@@ -202,12 +202,41 @@ def stdin_is_terminal():
         return False
 
 
-def _is_own(name, email):
+def _seat_owns(sha, seat):
+    """Does the INTERNAL attribution plane say this commit is that seat's?
+
+    T411 (2026-09-27) inverted every commit's author AND committer to the operator so GitHub
+    credits Daniel, with the stated trade that seat attribution moves to an internal plane.
+    That erased the only fact the git-side check below could read: after the inversion NO
+    commit is authored by a seat, so the seat branch of _is_own can never match and this door
+    refuses every push a seat makes -- measured 2026-09-28, all 17 unpushed commits flagged
+    NOT YOURS. The guard did not fail open or closed, it failed BLIND, and waving it through
+    with --include-others would have converted a real check into a formality permanently.
+    So the seat branch asks the plane the attribution actually moved to.
+
+    Absence is a REFUSAL, not a pass: a commit with no ledger row is not yours as far as
+    anything checkable goes, and --include-others remains the only way past that.
+    """
+    try:
+        sys.path.insert(0, str(ROOT))
+        from scripts.authorship_ledger import seat_for
+        # seat_for returns the ROW, not a name, and the ledger keys on a 12-char sha while
+        # unpushed() yields the full 40. Both were wrong in the first cut of this function.
+        row = seat_for(str(sha)[:12])
+        return bool(row) and (row.get("seat") or "") == seat
+    except Exception:
+        return False        # the plane could not answer -> not proven yours
+
+
+def _is_own(name, email, sha=""):
     """Was a commit authored by whoever is invoking the mirror? A seat matches its seat id
-    (name, or the local part of seat@akashic-aurora.local); Daniel matches his git config."""
+    (name, or the local part of seat@akashic-aurora.local) OR the internal authorship plane;
+    Daniel matches his git config."""
     seat = (os.environ.get("AKASHIC_AGENT_ID") or "").strip()
     if seat:
-        return name == seat or email.split("@", 1)[0] == seat
+        if name == seat or email.split("@", 1)[0] == seat:
+            return True
+        return bool(sha) and _seat_owns(sha, seat)
     if not _OPERATOR:
         _OPERATOR.append((git("config", "user.name", check=False).stdout.strip(),
                           git("config", "user.email", check=False).stdout.strip()))
@@ -231,12 +260,12 @@ def _print_publish_list(rows, branch):
     url = git("remote", "get-url", "origin", check=False).stdout.strip() or "(no origin remote)"
     print(f"[mirror] {len(rows)} commit(s) would be published to origin/{branch} ({url}):")
     for sha, name, email, subject in rows:
-        mark = "" if _is_own(name, email) else "   <- NOT YOURS"
+        mark = "" if _is_own(name, email, sha) else "   <- NOT YOURS"
         print(f"    {sha[:10]}  {name:<12} {subject[:90]}{mark}")
 
 
 def _foreign(rows):
-    return [r for r in rows if not _is_own(r[1], r[2])]
+    return [r for r in rows if not _is_own(r[1], r[2], r[0])]
 
 
 def _refuse_foreign(foreign, committed_locally=False):
