@@ -34,6 +34,12 @@ def build_plan(args):
         steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/checkers/check_comprehensibility.py"]))
         steps.append(("guard: door parity (no new verb-surface drift)", [PY, "scripts/checkers/check_door_parity.py"]))
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/checkers/check_wiring.py"]))
+        # A dead organ passes every guard above: it imports, it is wired, its door matches its
+        # parity table, and it returns nothing. This is the only guard that asks an organ a
+        # question whose answer we already know. Ratcheted against
+        # state/ci/organ_canary_baseline.json, so it fails on a NEW death, not the recorded ones.
+        steps.append(("guard: organ canaries (no NEWLY dead organ)",
+                      [PY, "scripts/checkers/check_organ_canaries.py", "--gate"]))
         steps.append(("guard: reconciliation gate (substrate ships cite their spec, M1)",
                       [PY, "scripts/checkers/check_reconciliation_gate.py", args.message, *args.paths]))
         steps.append(("guard: pre-registration (pins never born with impl, M3)",

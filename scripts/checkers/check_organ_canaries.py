@@ -272,6 +272,23 @@ CANARIES = {
 }
 
 
+NL = chr(10)
+BASELINE = "state/ci/organ_canary_baseline.json"
+
+
+def _baseline():
+    """The organs already known to be dead, as {name: reason}. A missing or unreadable baseline
+    returns EMPTY, which makes the gate stricter rather than looser -- absence must never read
+    as permission."""
+    import json as _json
+    try:
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                         *BASELINE.split("/"))
+        return dict((_json.load(open(p, encoding="utf-8")) or {}).get("dead") or {})
+    except Exception:
+        return {}
+
+
 def report(gate=False, only=None):
     print("[organ-canaries] does each organ still answer a question whose answer we know?\n")
     dead, unchecked, alive = [], [], []
@@ -292,14 +309,37 @@ def report(gate=False, only=None):
         print("  wired, its door matches its parity table, and it returns nothing. That is the")
         print("  gap this checker exists to close.")
     if gate:
-        if dead:
-            print(f"\n[organ-canaries] GATE FAIL -- {len(dead)} organ(s) do not answer.")
+        # A RATCHET, not an absolute. Five organs were already dead when this checker was
+        # written; gating on them would have made the gate red on day one, which is exactly
+        # how a gate stops carrying information (state/ci/guardrail_baseline.json, _why). A
+        # RECORDED death is tolerated; a NEW one fails. The debt is frozen, not forgiven.
+        known = _baseline()
+        fresh = [n for n in dead if n not in known]
+        revived = [n for n in known if n in alive]
+        if revived:
+            print(NL + f"[organ-canaries] {len(revived)} organ(s) came BACK: {chr(44).join(revived)}")
+            print("  Remove them from state/ci/organ_canary_baseline.json to bank the paydown.")
+        if fresh:
+            print(NL + f"[organ-canaries] GATE FAIL -- {len(fresh)} NEWLY dead organ(s):")
+            for n in fresh:
+                print(f"    {n}")
+            print("  Revive it, or record it in state/ci/organ_canary_baseline.json WITH A")
+            print("  REASON in the same commit, so the death is a decision and not a drift.")
             return 1
+        if dead:
+            print(NL + f"[organ-canaries] {len(dead)} organ(s) dead, all RECORDED -- no new debt.")
         if unchecked:
             print(f"\n[organ-canaries] GATE FAIL -- {len(unchecked)} canary could not run; an "
                   f"unrunnable canary is an unwatched organ.")
             return 1
-        print("\n[organ-canaries] gate ok -- every organ answered.")
+        # Say what actually happened. 'every organ answered' while five do not is the same
+        # confident-zero this checker exists to catch, and a gate that misreports its own
+        # verdict is worse than no gate at all.
+        if dead:
+            print(NL + f"[organ-canaries] gate ok -- no NEW debt "
+                       f"({len(alive)} alive, {len(dead)} dead and recorded).")
+        else:
+            print(NL + f"[organ-canaries] gate ok -- all {len(alive)} organ(s) answered.")
     return 0
 
 

@@ -128,3 +128,54 @@ def test_it_runs_against_the_live_system_and_reports_something():
 if __name__ == "__main__":
     import pytest
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+def test_the_gate_ratchets_on_new_deaths_not_recorded_ones():
+    """The gate must freeze the debt, not forgive it, and not paint itself red on day one.
+
+    Five organs were already dead when the canaries were written. Gating on them absolutely
+    would have made the gate red immediately, which is how a gate stops carrying information --
+    the failure state/ci/guardrail_baseline.json exists to end ("red became the normal state, so
+    a NEW red carried no information and nobody looked"). A RECORDED death passes; an
+    UNRECORDED one fails.
+
+    This asserts the DIFFERENTIAL, not an absolute exit code, and that is deliberate: under the
+    isolated test store one canary cannot run at all, and the gate correctly fails on an
+    unrunnable canary ("an unwatched organ"). An absolute assertion would be testing which Redis
+    db the suite points at rather than whether the ratchet works.
+    """
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+
+    bl = os.path.join(ROOT, "state", "ci", "organ_canary_baseline.json")
+    assert os.path.exists(bl), "the ratchet has no baseline; the gate would fail on known debt"
+    keep = open(bl, encoding="utf-8").read()
+    recorded = (_json.loads(keep) or {}).get("dead") or {}
+    assert recorded, "an empty baseline makes the gate stricter, not looser -- but records nothing"
+    for name, reason in recorded.items():
+        assert str(reason).strip(), f"{name} is recorded dead with no reason -- a silent zero"
+
+    def _gate():
+        r = _sp.run([_sys.executable, "-X", "utf8",
+                     os.path.join(ROOT, "scripts", "checkers", "check_organ_canaries.py"),
+                     "--gate"], capture_output=True, text=True, cwd=ROOT)
+        return (r.stdout or "") + (r.stderr or "")
+
+    with_all = _gate()
+    assert "NEWLY" not in with_all, (
+        "a death recorded in the baseline still reads as NEW debt: " + with_all[-500:])
+
+    victim = next(iter(recorded))
+    try:
+        d = _json.loads(keep)
+        d["dead"].pop(victim)
+        open(bl, "w", encoding="utf-8", newline=chr(10)).write(_json.dumps(d, indent=2) + chr(10))
+        without = _gate()
+    finally:
+        open(bl, "w", encoding="utf-8", newline=chr(10)).write(keep)
+
+    assert "NEWLY" in without, (
+        "un-recording a dead organ did not raise NEW debt -- the ratchet is decorative: "
+        + without[-500:])
+    assert victim in without, (
+        "the gate must NAME the newly dead organ; an unattributed failure cannot be acted on")
