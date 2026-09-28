@@ -152,6 +152,10 @@ state/coord/discord_seat_channels.json
 !state/ci/
 state/ci/*
 !state/ci/guardrail_baseline.json
+# The organ-canary ratchet, same class as guardrail_baseline.json: without it in a fresh
+# clone the gate reads an EMPTY baseline, treats all five recorded deaths as new debt, and
+# goes red on checkout -- the failure both baselines exist to prevent.
+!state/ci/organ_canary_baseline.json
 research/sources-cache/
 state/spill/
 

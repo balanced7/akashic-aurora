@@ -1,0 +1,11 @@
+{
+  "_why": "Organ-canary ratchet (2026-09-28). The canaries reported five dead organs and exited 0 unless asked to gate, so nothing ran them and nothing could. Gating outright would paint the gate red on day one -- the exact failure state/ci/guardrail_baseline.json exists to prevent ('red became the normal state, so a NEW red carried no information'). These five are RECORDED as known-dead so a SIXTH is caught the day it appears, and so each death carries an owner-visible reason instead of a silent zero.",
+  "_how_to_pay_down": "Revive the organ, then DELETE its entry here in the same commit. The gate notices a baselined organ that has come back to life and asks for the entry to be removed -- it never fails you for fixing something.",
+  "dead": {
+    "lookback answers a known question": "returned nothing for a question whose answer is in lessons, docs, state/drills/ AND commit messages (T412)",
+    "events --kind actually filters": "--kind boot returned 18 of 25 rows of other kinds (fail) -- the filter does not filter (T413)",
+    "the connectome holds edges": "0 edges beside 48,702 indexed events -- the typed connectome is empty, so `eye trace` cannot walk and 5 of its 8 edge kinds have no writer at all",
+    "done rows name reachable code": "81 of 172 done rows name a commit that is not reachable from HEAD (placeholders, literal HEAD, or orphaned by a history rewrite) -- e.g. T001:b852847, T008:7223308, T009:0aa69f9, T010:ff069ab",
+    "approved rows are visibly ageing": "38 of 38 NEXT rows carry NO age_days while 110/110 proposed rows do -- staleness is computed only for PROPOSED (task_ledger.py:699), so a ratified intention is rendered to every seat's boot as indistinguishable from fresh work"
+  }
+}
