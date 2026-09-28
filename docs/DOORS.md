@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (106 verbs)
+## CLI door -- `py agent_cli.py <verb>` (107 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -50,6 +50,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `fleet` | local-model dispatch: roster (list) + capability select + direct one-shot call | `<action> {list,select,call}` `--capability` `--status` `--probe` `--max-vram` `--min-context` `--model` `--prompt` `--system` `--max-tokens` `--temperature` `--json-out` `--json` |
 | `flightdeck` | W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat | `--agent` `--json` |
 | `flow` | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) | `<agent>` `--window` `--limit` `--json` |
+| `focus` | check in/out: attribute THIS session's tool calls to a task | `<agent_id>` `--set` `--clear` `--dismiss` `--quiet` `--health` `--session` `--json` |
 | `followup` | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat | `<agent_id>*` `--on*` `--to*` `--ask*` `--needs` `--json` |
 | `forecast` | T375 engineering forecast registry -- register bets at gates, score at review, render calibration | `<action>* {register,score,list}` `<id_pos>` `--id` `--task` `--by` `--statement` `--metric` `--target` `--horizon` `--mechanism` `--dies-when` `--observed` `--evidence` `--verdict` `--calibration` |
 | `friction` | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only | `<agent_id>*` `--window-h` `--json` |
