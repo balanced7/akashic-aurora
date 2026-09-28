@@ -1022,6 +1022,41 @@ def test_close_with_final_events_in_one_millisecond_under_the_pedal(server):
     assert len((folder / "events.jsonl").read_text(encoding="utf-8").splitlines()) == len(final)
 
 
+def test_close_writes_a_roll_projection_beside_the_summary(tmp_path):
+    """roll/1 is WIRED, not merely callable.
+
+    The format spent its first hours importable and uncalled: the 69 existing roll.txt files were
+    a one-off backfill, so every new session was written without one -- built != wired, in a
+    projection whose whole purpose is that the 2.4 MB events.jsonl does not have to be read. This
+    pin fails if close() ever stops writing it.
+    """
+    from arsenal.roll import unpack
+    store = perf.PerformanceStore(tmp_path)
+    session = store.open()
+    store.append(session, [_on(0, 60), _off(400, 60)])
+    store.close(session, [_on(500, 64), _off(900, 64)])
+    roll = tmp_path / session / "roll.txt"
+    assert roll.exists(), "close() wrote no roll.txt -- the projection is unwired again"
+    meta, notes, pedal, chords = unpack(roll.read_text(encoding="utf-8"))
+    assert meta.get("session") == session
+    assert [(n[1], n[2]) for n in notes] == [(60, 400), (64, 400)],         "the projection must carry the notes and their durations, not just exist"
+    assert roll.stat().st_size < (tmp_path / session / "events.jsonl").stat().st_size,         "a projection larger than its source is not a projection"
+
+
+def test_a_roll_failure_never_costs_the_session(tmp_path, monkeypatch):
+    """The summary is the contract; the roll is a convenience. A bug in the projection must not
+    take the close down with it -- events.jsonl is the atom and a roll can be rebuilt any time."""
+    import arsenal.roll as R
+    monkeypatch.setattr(R, "pack_events", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    store = perf.PerformanceStore(tmp_path)
+    session = store.open()
+    store.append(session, [_on(0, 60), _off(400, 60)])
+    doc = store.close(session)
+    assert doc["session"] == session, "a broken projection must not fail the close"
+    assert (tmp_path / session / "summary.json").exists(), "the summary is still the contract"
+    assert not (tmp_path / session / "roll.txt").exists(), "and no half-written projection is left"
+
+
 def test_a_failed_close_writes_nothing_so_a_retry_stores_the_final_events_once(tmp_path, monkeypatch):
     store = perf.PerformanceStore(tmp_path)
     session = store.open()

@@ -326,7 +326,21 @@ class PerformanceStore:
             if seq is not None and seq <= _last_seq(info):
                 final = []
             validate_events(final)
-            summary = summarize(self._events_locked(session) + list(final))
+            all_events = self._events_locked(session) + list(final)
+            summary = summarize(all_events)
+            # roll/1: the compact projection (arsenal/roll.py). Computed HERE, in the
+            # content-dependent block, so it obeys this method's contract -- but tolerated if it
+            # fails, because it is a PROJECTION and a bug in it must never cost a player the
+            # session it is derived from. A None simply means no roll.txt this time; events.jsonl
+            # is the atom and scripts/piano_roll_pack.py can always rebuild one.
+            # Wired 2026-09-28 after the format spent its first hours callable but uncalled: the
+            # 69 existing roll.txt files were a one-off backfill, so every new session was being
+            # written without one.
+            try:
+                from arsenal.roll import pack_events
+                roll_text = pack_events(all_events, session=session)
+            except Exception:
+                roll_text = None
             closed_at = _now_iso()
             doc = {"session": session, "opened_at": info.get("opened_at"), "closed_at": closed_at,
                    "meta": info.get("meta") or {}, **summary}
@@ -340,6 +354,8 @@ class PerformanceStore:
                 info["last_seq"] = seq
             self._write_text(path / "summary.json", summary_json)
             self._write_text(path / "summary.md", summary_md)
+            if roll_text is not None:
+                self._write_text(path / "roll.txt", roll_text)
             info.update(closed=True, closed_at=closed_at, duration_s=summary["duration_s"])
             self._write(session, info)
             return doc
