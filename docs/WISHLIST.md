@@ -1450,3 +1450,15 @@ one worth lifting); (b) a standing pin over the hot read paths asserting connect
 not scale with fleet size -- the defect class is "cost O(seats) in a loop that runs forever",
 and it is silent by construction until a port range runs dry. Land: tests/ + a shared helper.
 Filed by claude, same session.
+
+## 2026-09-28 -- a fence directory without fence.json is silently tolerated, and a blind grade bounced off it
+fences/prod-reconcile/ held a reconciliation.md written by hand on 09-23 and nothing else. Heimdall
+finished his blind grade five days later and `fence write prod-reconcile --slot half_a` refused with
+"no such fence (open it first)": the directory existed by naming convention, the fence did not. Worse,
+after `fence open` the stray file sat in the reconciliation slot's filename and `fence status` reported
+"reconciliation: written" for a slot nobody had written. Wishes: (a) `fence status`/`fence list` walk
+fences/*/ and name every directory that has no fence.json as LOOSE, so a hand-made fence is visible the
+day it is made, not the day a grader bounces; (b) `fence open` on a directory that already holds slot-named
+files either adopts them into slots explicitly (say which) or refuses, never leaves a slot reading
+"written" from a file the door never wrote; (c) the guardrail counts LOOSE fence dirs like it counts
+unclassified doors. Land: agent_cli.py fence + scripts/ci guardrail check. Filed by claude, same session.

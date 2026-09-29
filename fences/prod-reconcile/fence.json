@@ -1,0 +1,13 @@
+{
+  "id": "prod-reconcile",
+  "question": "Production reconciliation: merging codex/sunshine-discord-split into master left six decision points (DP1-DP6) that the resolver (claude) chose alone. Blind-grade each side so the work-doer does not write his own ledger: what does each side MEAN, which should win, and why.",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-09-29T00:02:20.509403+00:00",
+  "seals": {},
+  "pv": null,
+  "authors": {
+    "brief": "claude",
+    "half_a": "deepseek"
+  }
+}
