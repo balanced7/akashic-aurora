@@ -1,0 +1,128 @@
+{
+  "id": "present.slides-html",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "status": "exists",
+  "inputs": [
+    {
+      "port": "scene",
+      "type": "scene.deck",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "project",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "allow_warnings",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 200
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "atoms": {
+    "headline": {
+      "preserves": "full, at its role's size from the tokens"
+    },
+    "label": {
+      "preserves": "full: the eyebrow (mono, capitals, letter-spaced, accent)"
+    },
+    "statement": {
+      "preserves": "full; marks strong/em/accent/muted keep their meaning",
+      "degrades": "the code mark renders as strong (the page allows no font on a span)"
+    },
+    "quote": {
+      "preserves": "full in a statement template's stack: text at quote role, attribution and ref on one mono line",
+      "degrades": "outside that stack (a content kicker or body, a closing stack, a card) the text renders at body role in italics, so it fits the region"
+    },
+    "number": {
+      "preserves": "full: hero at number role, inline at number_inline, caption beneath",
+      "degrades": "a ghost tone renders in the accent colour like accent (a line of text cannot be dashed)"
+    },
+    "list": {
+      "preserves": "full: one level, ordered or not"
+    },
+    "table": {
+      "preserves": "full up to 4 columns at caption role; shares become column widths; rows banded on the card colour",
+      "degrades": "cell runs flatten to plain text (the subset's cells hold plain text: no strong, em, accent or muted inside a cell)"
+    },
+    "code": {
+      "preserves": "full: one mono card, lines joined by breaks, marked lines in their tone",
+      "degrades": "runs of spaces collapse to one (white-space normal); column alignment is lost; a ghost-marked line renders muted italic (text cannot be dashed)"
+    },
+    "bars": {
+      "preserves": "full: one shared scale, tracks proportional to value/max, tones kept"
+    },
+    "diagram": {
+      "preserves": "full: lanes as bands with eyebrow titles, nodes as painted paragraphs, edges as x-connectors from box edge midpoints, buses as drop + bar + stubs (the Rows recipe, mirrored when the children sit beside the parent), paths as one svg with aria_label and no text, labels as paragraphs; ghost = dashed accent on tint",
+      "degrades": "a label's for is not rendered (the page pins by coordinates); a straight edge whose endpoints do not align draws as the diagonal the scene asked for; aria_label rides the paths' svg, so a diagram with no paths has no svg on the page and its aria_label is dropped"
+    },
+    "timeline": {
+      "preserves": "full: one card per beat, eyebrow `at`, ghost beats dashed"
+    },
+    "comparison": {
+      "preserves": "full: two cards; verdict side takes the accent border"
+    },
+    "group": {
+      "preserves": "full: row = equal flex cards, column = stack, grid = repeat(N,1fr)"
+    },
+    "receipt": {
+      "preserves": "full: the footer band, one mono row at bottom 64"
+    },
+    "note": {
+      "preserves": "full: the slide's speaker notes (aside, last child)",
+      "drops": "cues (the page has no per-atom notes)"
+    }
+  },
+  "deck": {
+    "order": "full",
+    "sections": "full: data-section on each section's start slide",
+    "transition": "fade and push full; magic only where ids match on both slides (this renderer emits no element ids, so magic degrades to fade)",
+    "duration_s": "dropped: the page has no clock",
+    "title": "dropped: a slide's title is viewer metadata (deck.json v4 has no per-slide title and the page shows no HUD)"
+  },
+  "receipts": [
+    {
+      "at": "2026-09-28",
+      "by": "claude (Vandor)",
+      "kind": "pin",
+      "what": "tests/test_present_family.py renders the Mail-and-Wake scene (22 slides, 7 sections, 14 atom kinds) to deck.json v4 + slides/<id>.html and pins: every slide id present, every font-size >= 24px, no class=, no margin:, no script, no svg text, no em/rem/vw/vh, no var(), padding 128px, the aside last, <= 24 pinned children per host, LF bytes, data-section on section starts",
+      "measured": {
+        "slides": 22,
+        "files": 23
+      },
+      "how": "py -m pytest tests/test_present_family.py -q from E:/AI-Setup; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
+    },
+    {
+      "at": "2026-09-29",
+      "by": "claude (Vandor), verifying",
+      "kind": "audit",
+      "what": "22 slides audited mechanically against format.md: 0 problems after one fix (line-height had been set on <table>, which the subset lists for text elements only -- an `unsupported:` build error; removed). Pinned children per host measured 14-24 (ladder and scene sit at the cap of 24). Elements per slide 6-40 (cap 200). The pre-commit gate's checks passed over the new files (ratchet: boundaries 2<=3, kind_policy 6<=7; comprehensibility PASS).",
+      "measured": {
+        "slides": 22,
+        "subset_problems": 0,
+        "max_pinned_in_a_host": 24,
+        "max_elements_on_a_slide": 40
+      },
+      "how": "verify pass 2026-09-29: py -m arsenal.present render <scene> --to <target>; a mechanical audit of every written slide against the artifact type's format.md (tags, every style property per element class, the 24 floor, aside last, background, the 200-element and 24-pinned caps, svg without text); the pre-commit gate's check functions run over the new files (scripts/githooks/pre_commit.py)"
+    }
+  ],
+  "notes": "Built 2026-09-28: arsenal/present/targets/slides_html.py. Output: <out>/deck.json (v4: order, sections, faces) plus <out>/slides/<id>.html inside the closed subset of format.md. The section builder is shared with present.ui-element and present.pdf in browser mode. Not verified: no build through the artifact type's own validator has been run against this output; the pins are the subset rules as this renderer reads them. Latency: 22 slides in about 10 ms on this machine (a take records each run). Verify pass 2026-09-29: the only subset violation the audit found was line-height on <table> (fixed); the audit is the verifier's reading of format.md, still not the artifact type's own build."
+}

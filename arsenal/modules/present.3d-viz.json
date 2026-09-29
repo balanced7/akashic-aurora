@@ -1,0 +1,95 @@
+{
+  "id": "present.3d-viz",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "status": "designed",
+  "inputs": [
+    {
+      "port": "scene",
+      "type": "scene.deck",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "space",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "plane_depth",
+      "unit": "logical-units",
+      "range": [
+        1,
+        2000
+      ]
+    }
+  ],
+  "isolation": "browser-tab",
+  "licence": "Apache-2.0 AND MIT",
+  "latency_ms": {
+    "base": 17
+  },
+  "degradation": {
+    "on_failure": "black"
+  },
+  "atoms": {
+    "headline": {
+      "degrades": "billboard text above the slide's objects"
+    },
+    "label": {
+      "degrades": "billboard text"
+    },
+    "statement": {
+      "degrades": "billboard text"
+    },
+    "quote": {
+      "degrades": "billboard text with the attribution beneath"
+    },
+    "number": {
+      "degrades": "a billboard number with its caption"
+    },
+    "list": {
+      "degrades": "one billboard per item, stacked"
+    },
+    "table": {
+      "degrades": "a flat card: a table has no third axis"
+    },
+    "code": {
+      "drops": "not drawn: code has no spatial reading"
+    },
+    "bars": {
+      "preserves": "columns on one floor, height = value/max"
+    },
+    "diagram": {
+      "preserves": "lanes as literal planes stacked in z, nodes as blocks on their plane, edges/buses/paths as tubes, labels as billboards attached by `for`, ghost as wireframe, muted as dimmed (never wireframe)"
+    },
+    "timeline": {
+      "preserves": "a track with one marker per beat; ghost beats wireframe"
+    },
+    "comparison": {
+      "preserves": "two shelves side by side; the verdict shelf lit"
+    },
+    "group": {
+      "preserves": "a row becomes a shelf; a grid a wall"
+    },
+    "receipt": {
+      "drops": "not drawn"
+    },
+    "note": {
+      "degrades": "a HUD caption; cues highlight the named object"
+    }
+  },
+  "deck": {
+    "order": "full: slides along the camera path",
+    "sections": "degrades: spacing between slide groups",
+    "transition": "dropped",
+    "duration_s": "dropped"
+  },
+  "receipts": [],
+  "notes": "Not a slide at all: the scene's geometry becomes objects in a three.js space, so the three-planes diagram becomes three literal planes. Diagrams, bars, timelines and groups are what this target is for; text kinds degrade to billboards and code and receipts are dropped, declared here so a plan refuses a deck that needs them kept. three.js permitted by the media-suite ruling; never open in the Claude app's built-in browser pane. Latency declared, not measured."
+}

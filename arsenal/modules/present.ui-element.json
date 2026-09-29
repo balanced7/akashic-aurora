@@ -1,0 +1,136 @@
+{
+  "id": "present.ui-element",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "status": "exists",
+  "inputs": [
+    {
+      "port": "slide",
+      "type": "scene.slide",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "panel",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "reflow_width",
+      "unit": "css-px",
+      "range": [
+        200,
+        1920
+      ]
+    }
+  ],
+  "isolation": "browser-tab",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 50
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "atoms": {
+    "headline": {
+      "preserves": "full: the slide's own markup inside a transform wrapper scaled to the panel width",
+      "degrades": "type scales with the panel: a 64 role at 1920 is 13 CSS px at 400 (legible zoomed, not at a glance)"
+    },
+    "label": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel (5 CSS px at 400 for a 24 role)"
+    },
+    "statement": {
+      "preserves": "full, scaled; marks kept",
+      "degrades": "type scales with the panel; the code mark renders as strong, as on the page (the same section builder)"
+    },
+    "quote": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel; outside a statement template's stack the text is body role in italics, as on the page"
+    },
+    "number": {
+      "preserves": "full, scaled (a hero number is 33 CSS px at 400)",
+      "degrades": "type scales with the panel; a ghost tone renders in the accent colour, as on the page"
+    },
+    "list": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel"
+    },
+    "table": {
+      "preserves": "full, scaled: all columns, all rows, at every width",
+      "degrades": "type scales with the panel (5 CSS px at 400 for caption role); cell runs flatten to plain text, as on the page"
+    },
+    "code": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel; runs of spaces collapse and a ghost line is muted italic, as on the page"
+    },
+    "bars": {
+      "preserves": "full, scaled: the columns keep their ratios at any width"
+    },
+    "diagram": {
+      "preserves": "full, scaled: lanes, nodes, edges, buses, paths and labels, drawn in the diagram's own svg (a plain browser draws no x-connector)",
+      "degrades": "node text scales with the panel; a label's for is not rendered (nothing reflows); the svg that carries aria_label exists only when the diagram has paths, edges or buses"
+    },
+    "timeline": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel"
+    },
+    "comparison": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel"
+    },
+    "group": {
+      "preserves": "full, scaled",
+      "degrades": "type scales with the panel"
+    },
+    "receipt": {
+      "preserves": "full, scaled: the footer band stays at the bottom",
+      "degrades": "type scales with the panel"
+    },
+    "note": {
+      "degrades": "the script is the panel's title attribute (a hover tooltip); each cue is a title on the atom, node, lane or label it names",
+      "drops": "nothing of the note is visible without hovering"
+    }
+  },
+  "deck": {
+    "order": "dropped: one slide per panel (a render writes one file per slide, or one with slide=<id>)",
+    "sections": "dropped",
+    "transition": "dropped",
+    "duration_s": "dropped",
+    "title": "dropped: a panel shows no HUD"
+  },
+  "receipts": [
+    {
+      "at": "2026-09-28",
+      "by": "claude (Vandor)",
+      "kind": "pin",
+      "what": "tests/test_present_family.py renders every slide of the Mail-and-Wake scene as a fragment at 400 and pins: transform: scale( present (0.208333 at 400, 0.625 at 1200), the 1920x1080 layout inside identical at both widths, no script, the note as the wrapper's title, every cue as a title on its atom, one file per slide or one slide with slide=<id>",
+      "measured": {
+        "slides": 22,
+        "widths_pinned": [
+          400,
+          1200
+        ]
+      },
+      "how": "py -m pytest tests/test_present_family.py -q from E:/AI-Setup; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
+    },
+    {
+      "at": "2026-09-29",
+      "by": "claude (Vandor), verifying",
+      "kind": "audit",
+      "what": "The fragment carried no font link, so a panel opened alone (or on a host page without the deck's fonts) fell back to Verdana / Courier New -- an undeclared degrade; the Google Fonts <link> now travels with the fragment. The page's own degrades (code mark as strong, quote in italics, ghost as accent, table cells plain, code spaces collapsed) reach the panel through the shared section builder and were undeclared here; declared now.",
+      "measured": {
+        "slides": 22,
+        "fragment_has_font_link": true
+      },
+      "how": "verify pass 2026-09-29: py -m arsenal.present render <scene> --to <target>; a mechanical audit of every written slide against the artifact type's format.md (tags, every style property per element class, the 24 floor, aside last, background, the 200-element and 24-pinned caps, svg without text); the pre-commit gate's check functions run over the new files (scripts/githooks/pre_commit.py)"
+    }
+  ],
+  "notes": "Built 2026-09-28: arsenal/present/targets/ui_element.py. One slide as an embeddable fragment: the 1920x1080 section markup (browser mode: box-sizing and margin resets in one style element scoped to the panel's id, connectors in the svg) inside a wrapper scaled by width/1920, so the layout survives unchanged at 400 or 1200 wide. This REPLACES the earlier reflow design (stacked records, row-to-column, dropped edges): nothing reflows and nothing is dropped; the cost is that type scales with the panel. The reflow_width param is the panel width in CSS pixels. Verify pass 2026-09-29: the fragment now carries the Google Fonts link; every degrade the shared section builder brings from the page is declared in this table too."
+}

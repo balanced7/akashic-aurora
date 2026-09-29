@@ -1,0 +1,130 @@
+{
+  "id": "present.pdf",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "status": "exists",
+  "inputs": [
+    {
+      "port": "scene",
+      "type": "scene.deck",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "document",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "notes_as_footnotes",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ],
+  "isolation": "browser-tab",
+  "licence": "NOASSERTION",
+  "latency_ms": {
+    "base": 3000
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "atoms": {
+    "headline": {
+      "preserves": "full, as vector text"
+    },
+    "label": {
+      "preserves": "full"
+    },
+    "statement": {
+      "preserves": "full",
+      "degrades": "the code mark prints as strong"
+    },
+    "quote": {
+      "preserves": "full",
+      "degrades": "as on the page: body role in italics outside a statement template's stack"
+    },
+    "number": {
+      "preserves": "full",
+      "degrades": "a ghost tone prints in the accent colour, as on the page"
+    },
+    "list": {
+      "preserves": "full"
+    },
+    "table": {
+      "preserves": "full",
+      "degrades": "cell runs flatten to plain text, as on the page"
+    },
+    "code": {
+      "preserves": "full",
+      "degrades": "column alignment lost, as on the page; ghost lines muted italic"
+    },
+    "bars": {
+      "preserves": "full, as vector rectangles"
+    },
+    "diagram": {
+      "preserves": "full, as vector geometry in the page's own svg (edges, buses and paths; a plain browser draws no x-connector, so the print page draws them itself); ghost dashing survives as dashed print; aria_label is the figure's alt text",
+      "degrades": "a label's for is not rendered (nothing reflows); the svg that carries aria_label exists only when the diagram has paths, edges or buses, so lanes-and-nodes alone drop it"
+    },
+    "timeline": {
+      "preserves": "full"
+    },
+    "comparison": {
+      "preserves": "full"
+    },
+    "group": {
+      "preserves": "full"
+    },
+    "receipt": {
+      "preserves": "full: the footer band on the page"
+    },
+    "note": {
+      "degrades": "a per-page footnote at caption role in two columns under the slide (notes_as_footnotes=1, the default); the slide is scaled by one factor for the whole deck (0.5-0.85, chosen from the longest note by the family's line-fit estimate) to make room; a note the 0.5 floor cannot hold REFUSES the render naming the slide (it is never clipped quietly)",
+      "drops": "cues (the footnote carries the script and the section line only); with notes_as_footnotes=0 the page is full-bleed and the whole note is dropped"
+    }
+  },
+  "deck": {
+    "order": "full: one page per slide, break-after: page",
+    "sections": "degrades: the section description is the first line of the footnote on the section's first page (uppercase mono); dropped with footnotes off",
+    "transition": "dropped: print has no motion",
+    "duration_s": "dropped",
+    "title": "dropped: the print page shows no HUD"
+  },
+  "receipts": [
+    {
+      "at": "2026-09-28",
+      "by": "claude (Vandor)",
+      "kind": "pin",
+      "what": "tests/test_present_family.py renders the Mail-and-Wake scene to print.html and pins: one page div and one footnote per slide (22), @page size 1920px 1080px margin 0, break-after: page, every slide id present, no script, the full-bleed variant with footnotes off, and the docstring saying the PDF is the browser's print and no browser is launched",
+      "measured": {
+        "slides": 22,
+        "pages": 22,
+        "scale_for_this_deck": 0.594
+      },
+      "how": "py -m pytest tests/test_present_family.py -q from E:/AI-Setup; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
+    },
+    {
+      "at": "2026-09-29",
+      "by": "claude (Vandor), verifying",
+      "kind": "audit",
+      "what": "The scale floor was 0.6 and bound silently: the longest note (build, 1208 characters, 20 estimated lines) needs 0.594, so at 0.6 the footnote box (overflow hidden) would have clipped its last lines with nothing said. Floor lowered to 0.5; a note the floor still cannot hold now refuses the render. Cues were never in the footnote: declared as a drop.",
+      "measured": {
+        "longest_note_chars": 1208,
+        "longest_note_slide": "build",
+        "scale_for_this_deck": 0.594,
+        "old_floor": 0.6,
+        "new_floor": 0.5
+      },
+      "how": "verify pass 2026-09-29: py -m arsenal.present render <scene> --to <target>; a mechanical audit of every written slide against the artifact type's format.md (tags, every style property per element class, the 24 floor, aside last, background, the 200-element and 24-pinned caps, svg without text); the pre-commit gate's check functions run over the new files (scripts/githooks/pre_commit.py)"
+    }
+  ],
+  "notes": "Built 2026-09-28: arsenal/present/targets/print_html.py writes <out>/print.html; the PDF is the browser's print of it (Chrome or Edge, margins none, background graphics on). The module never launches a browser and never shells out. No PDF has been printed and measured yet: the receipt covers the paged HTML, not a PDF file. The engine stays browser because a browser makes the PDF; the licence is not asserted for the same reason. Verify pass 2026-09-29: scale floor 0.6 -> 0.5 and a refusal past it (the old floor clipped this deck's longest note by its own arithmetic); cues declared dropped. Still no PDF printed and measured."
+}

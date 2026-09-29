@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at fd34e158. A bound you discover by collision is not awareness -- this sheet
+> Derived at 19f77bdb. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -277,7 +277,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (323 numeric constants)
+## Mechanical bounds (325 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -440,6 +440,7 @@ Class: reference
 | `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
+| `MAX_PINNED` | 24 | arsenal/present/scene.py |  |
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
 | `MAX_PRESETS` | 100 | arsenal/pianolooks.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
@@ -533,6 +534,7 @@ Class: reference
 | `SIGNIFICANCE_THRESHOLD` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py |  |
 | `SILENCE_SPLIT_MS` | 700 | arsenal/practice.py | silence at least this long always ends a window |
 | `SILENCE_THRESHOLD_MINUTES` | 5 | research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py | Consider silent if no log entries in this time |
+| `SIZE_LIMIT` | 200,000 | arsenal/present/targets/three_js.py |  |
 | `SKEW_WINDOW_S` | 300 | core/comm/bridge_seal.py | the window the direct link already uses |
 | `SKEW_WINDOW_S` | 300 | core/comm/remote_relay.py |  |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py |  |

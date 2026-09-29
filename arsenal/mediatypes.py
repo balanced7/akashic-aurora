@@ -15,6 +15,8 @@ PORT_TYPES = (
     "analysis.features",
     "asset.reference",
     "timeline.sequence",
+    "scene.deck",    # a whole present.scene.v1 document: tokens, order, sections, slides (arsenal/present)
+    "scene.slide",   # one slide of a present.scene.v1 deck, carried with the deck's tokens (arsenal/present)
 )
 
 #: Types that carry media payloads: moving these between engines is a copy.

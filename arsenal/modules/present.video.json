@@ -1,0 +1,110 @@
+{
+  "id": "present.video",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "status": "designed",
+  "inputs": [
+    {
+      "port": "sequence",
+      "type": "timeline.sequence"
+    },
+    {
+      "port": "frames",
+      "type": "media.video_frame",
+      "caps": {
+        "memory": "cpu"
+      }
+    },
+    {
+      "port": "cues",
+      "type": "media.subtitle_cue"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "video",
+      "type": "stream.video",
+      "caps": {
+        "memory": "encoded"
+      }
+    }
+  ],
+  "params": [
+    {
+      "name": "fps",
+      "unit": "Hz",
+      "range": [
+        1,
+        60
+      ]
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0 AND LicenseRef-FFmpeg-unverified",
+  "latency_ms": {
+    "base": 0
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "atoms": {
+    "headline": {
+      "preserves": "rasterised at 1920x1080, held for the slide's clip"
+    },
+    "label": {
+      "preserves": "rasterised"
+    },
+    "statement": {
+      "preserves": "rasterised"
+    },
+    "quote": {
+      "preserves": "rasterised"
+    },
+    "number": {
+      "preserves": "rasterised"
+    },
+    "list": {
+      "preserves": "rasterised",
+      "drops": "per-item build (the frame is static)"
+    },
+    "table": {
+      "preserves": "rasterised",
+      "drops": "per-row build"
+    },
+    "code": {
+      "preserves": "rasterised"
+    },
+    "bars": {
+      "preserves": "rasterised",
+      "drops": "the bars do not grow in"
+    },
+    "diagram": {
+      "preserves": "rasterised",
+      "drops": "per-edge build; paths do not animate"
+    },
+    "timeline": {
+      "preserves": "rasterised"
+    },
+    "comparison": {
+      "preserves": "rasterised"
+    },
+    "group": {
+      "preserves": "rasterised"
+    },
+    "receipt": {
+      "preserves": "rasterised, on-frame"
+    },
+    "note": {
+      "preserves": "full: the narration cue, as a subtitle track (from present.sequence)"
+    }
+  },
+  "deck": {
+    "order": "full (from the sequence)",
+    "sections": "degrades: chapter markers in the container",
+    "transition": "full: fade and push rendered between clips; magic renders as fade",
+    "duration_s": "full (from the sequence)"
+  },
+  "receipts": [],
+  "notes": "Encodes one frame per slide (held for its clip) plus the subtitle track into a video. The honest gap: nothing in the arsenal produces media.video_frame from a scene.slide today; that rasteriser (a headless print of present.slides-html) is the missing module, and this manifest names it as the `frames` input rather than pretending to own it. The bundled FFmpeg's build configuration is unverified, so its licence is not asserted."
+}

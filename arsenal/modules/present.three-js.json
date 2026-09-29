@@ -1,0 +1,149 @@
+{
+  "id": "present.three-js",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "browser",
+  "status": "exists",
+  "inputs": [
+    {
+      "port": "scene",
+      "type": "scene.deck",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "space",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "autoplay",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "plane_gap",
+      "unit": "logical-units",
+      "range": [
+        0,
+        4000
+      ]
+    }
+  ],
+  "isolation": "browser-tab",
+  "licence": "Apache-2.0 AND MIT",
+  "latency_ms": {
+    "base": 17
+  },
+  "degradation": {
+    "on_failure": "black"
+  },
+  "atoms": {
+    "headline": {
+      "preserves": "as pixels of the slide's texture (drawn on a 1920x1080 canvas at its role's size, weight, face and letter-spacing)",
+      "drops": "selectable text"
+    },
+    "label": {
+      "preserves": "as pixels of the slide's texture",
+      "drops": "selectable text"
+    },
+    "statement": {
+      "preserves": "as pixels of the slide's texture; marks kept (strong bold, em italic, accent and muted coloured, code in the mono face)",
+      "drops": "selectable text"
+    },
+    "quote": {
+      "preserves": "as pixels of the slide's texture",
+      "drops": "selectable text"
+    },
+    "number": {
+      "preserves": "as pixels of the slide's texture",
+      "drops": "selectable text"
+    },
+    "list": {
+      "preserves": "as pixels of the slide's texture (bullets or numbers, one level)",
+      "drops": "selectable text"
+    },
+    "table": {
+      "preserves": "as pixels of the slide's texture: header row, banded rows, rules, shares as column widths",
+      "drops": "selectable text",
+      "degrades": "cell runs flatten to plain text (the draw list carries a cell as one plain run)"
+    },
+    "code": {
+      "preserves": "as pixels of the slide's texture, one mono line per source line, marks coloured, leading spaces kept (only a line the wrap opens drops the space it wrapped on)",
+      "drops": "selectable text"
+    },
+    "bars": {
+      "preserves": "as pixels of the slide's texture: tracks on one floor, values, labels, captions",
+      "drops": "selectable text"
+    },
+    "diagram": {
+      "preserves": "as pixels of the slide's texture: lanes and nodes as rectangles, edges and buses as lines with arrowheads from box edge midpoints, paths as polylines, labels as text (for geometry in space, use present.3d-viz)",
+      "drops": "aria_label (a texture carries no alt text) and a label's for"
+    },
+    "timeline": {
+      "preserves": "as pixels of the slide's texture: one card per beat, ghost beats dashed",
+      "drops": "selectable text"
+    },
+    "comparison": {
+      "preserves": "as pixels of the slide's texture: two cards, verdict side in accent",
+      "drops": "selectable text"
+    },
+    "group": {
+      "preserves": "as pixels of the slide's texture",
+      "degrades": "vertical placement is the family's line-fit ESTIMATE (0.6 x size per character), not the page's flex flow, so a block may sit a few lines higher or lower than on the page",
+      "drops": "selectable text"
+    },
+    "receipt": {
+      "preserves": "as pixels of the slide's texture, on the footer band",
+      "drops": "selectable text"
+    },
+    "note": {
+      "degrades": "a HUD caption bar under the current plane (the whole script)",
+      "drops": "cues"
+    }
+  },
+  "deck": {
+    "order": "full: one 16x9 textured plane per slide along a gentle arc, in order",
+    "sections": "degrades: a wider gap before each section's first plane; the section description in the HUD",
+    "transition": "degrades: a camera flight between planes (fade and magic dolly out and in, push trucks along the arc)",
+    "duration_s": "kept only with autoplay (a render option or ?autoplay=1); otherwise dropped (the viewer advances)",
+    "title": "full: the HUD names the slide"
+  },
+  "receipts": [
+    {
+      "at": "2026-09-28",
+      "by": "claude (Vandor)",
+      "kind": "pin",
+      "what": "tests/test_present_family.py renders the Mail-and-Wake scene to index.html and pins: exactly one external script and it is cdnjs three.js r128 three.min.js (HEAD 200 on 2026-09-28; jsdelivr three@0.128.0 is the verified fallback), page under 200 KB (91 KB for 22 slides, 441 draw ops), every slide id in the deck data, every text op >= 24 units, ArrowRight/ArrowLeft, CanvasTexture and the caption bar present; node --check passes on the page script",
+      "measured": {
+        "slides": 22,
+        "bytes": 91260,
+        "ops": 441,
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+      },
+      "how": "py -m pytest tests/test_present_family.py -q from E:/AI-Setup; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
+    },
+    {
+      "at": "2026-09-29",
+      "by": "claude (Vandor), verifying",
+      "kind": "audit",
+      "what": "HEAD on the one external script answered 200 (cdnjs r128; the jsdelivr 0.128.0 fallback also 200). The text routine dropped every whitespace token at the start of a line, so a code line's indentation vanished from the texture (the refusal slide has 4 indented lines): fixed -- a line that begins on purpose keeps its leading spaces; only a wrapped line drops the space it wrapped on; pinned in node. Undeclared before this pass: table cells flatten to plain text, aria_label and a label's for are dropped, every text kind drops selectable text.",
+      "measured": {
+        "cdnjs_head": 200,
+        "jsdelivr_head": 200,
+        "indented_code_lines_in_deck": 4,
+        "bytes_after_verify": 91606,
+        "ops": 441
+      },
+      "how": "verify pass 2026-09-29: py -m arsenal.present render <scene> --to <target>; a mechanical audit of every written slide against the artifact type's format.md (tags, every style property per element class, the 24 floor, aside last, background, the 200-element and 24-pinned caps, svg without text); the pre-commit gate's check functions run over the new files (scripts/githooks/pre_commit.py); node runs the page's drawText against a stub 2d context (tests/test_present_family.py)"
+    }
+  ],
+  "notes": "Built 2026-09-28: arsenal/present/targets/three_js.py (+ _paint.py, the draw-list estimator). Every slide's atoms are drawn to an offscreen canvas in logical units and become a CanvasTexture on a plane; textures are built lazily for the current plane and its neighbours. This does NOT rasterise the slides-html projection (no headless browser); it paints from the scene with the family's own layout estimate, so it is a sibling projection, not a dependent one. three.js is permitted by the media-suite ruling (best / most stable / most reliable wins). Never open it in the Claude app's built-in browser pane (WebGL crashed the app on 2026-08-12); test in Chrome. No frame of the WebGL page has been measured. Verify pass 2026-09-29: leading spaces on a fresh line are drawn (code indentation was lost); table cells, aria_label, for, cues and selectable text declared. Still no frame measured in GPU-backed Chrome."
+}

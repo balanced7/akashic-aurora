@@ -1,0 +1,99 @@
+{
+  "id": "present.sequence",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "status": "designed",
+  "inputs": [
+    {
+      "port": "scene",
+      "type": "scene.deck",
+      "caps": {
+        "memory": "cpu"
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "port": "sequence",
+      "type": "timeline.sequence"
+    },
+    {
+      "port": "cues",
+      "type": "media.subtitle_cue"
+    }
+  ],
+  "params": [
+    {
+      "name": "words_per_second",
+      "unit": "words/s",
+      "range": [
+        1,
+        5
+      ]
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 0
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "atoms": {
+    "headline": {
+      "drops": "not rendered here: the sequence carries order, duration and transition, not pixels"
+    },
+    "label": {
+      "drops": "not rendered here"
+    },
+    "statement": {
+      "drops": "not rendered here"
+    },
+    "quote": {
+      "drops": "not rendered here"
+    },
+    "number": {
+      "drops": "not rendered here"
+    },
+    "list": {
+      "drops": "not rendered here"
+    },
+    "table": {
+      "drops": "not rendered here"
+    },
+    "code": {
+      "drops": "not rendered here"
+    },
+    "bars": {
+      "drops": "not rendered here"
+    },
+    "diagram": {
+      "drops": "not rendered here"
+    },
+    "timeline": {
+      "drops": "not rendered here"
+    },
+    "comparison": {
+      "drops": "not rendered here"
+    },
+    "group": {
+      "drops": "not rendered here"
+    },
+    "receipt": {
+      "drops": "not rendered here"
+    },
+    "note": {
+      "preserves": "full: the script becomes one media.subtitle_cue per slide, spanning the slide's clip"
+    }
+  },
+  "deck": {
+    "order": "full: one clip per slide, in order",
+    "sections": "degrades: chapter markers on the sequence",
+    "transition": "full: carried on each clip boundary",
+    "duration_s": "full; a slide without one gets max(8, words(note) / words_per_second)"
+  },
+  "receipts": [],
+  "notes": "A deck as a video IS a timeline.sequence (one clip per slide) plus subtitle cues; this module only sequences and renders no frame, so nothing visual is lost and nothing visual is produced. present.video consumes its output."
+}
