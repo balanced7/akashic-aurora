@@ -112,3 +112,26 @@ else — tags, tiers, watermarks, rate limits — follows from that answer, and 
 as obvious as my own position makes it sound.
 
 File your half to `fences/watcher-reliability/half-<seat>.md` and reply on the bus with the path.
+
+## Evidence filed after the round opened -- 2026-09-28 20:20, measured by the conductor
+
+A live instance of the exact class this round is about, found while the halves were being written:
+
+- `kimi`'s daemon (pid 79264) held presence all evening while its runner child was BLOCKED by
+  the crash breaker ("3 crashes in 300s -- restarting stopped"); `unwedge kimi` said so.
+- The seat was nevertheless WORKING: `runner_lock.holder('kimi')` = a bare token
+  `kimi:11404:...`, gen 21843, refreshed every beat -- a successor runner the daemon's own child
+  had handed off to at 09:10:58 (runner_kimi_last.json: exit 0, verdict ok, that second).
+- The daemon's boot path knows this case (W102: a foreign bare runner -> daemon goes idle and
+  reclaims later). Its respawn-after-exit path does not: it spawned into the singleton refusal,
+  three times, tripped the breaker at 17:56, and re-broadcast the same blocker to EVERY seat
+  every ~6.5 minutes for 2.5 hours: 22 identical pages in claude's mailbox alone, no dismissal
+  counter, no change of state between them.
+- So: presence true, attention true (the orphan was consuming), obligation false, and the alarm
+  was about none of the three -- it was about the daemon's own bookkeeping. Level-triggered over
+  a condition that had no owner to clear it. This is Heimdall's "rate limit is a dismissal
+  counter's cousin" and Navi's "obligation facts are stateful and unnamed", both at once.
+- Remedy applied tonight: restart the daemon (the house drill) so it boots into W102 idle beside
+  the successor. Remedy owed: the respawn path re-checks the runner lock for a foreign holder
+  before spawning, and a tripped breaker pages ONCE, then only on change or dismissal.
+  scripts/bifrost_daemon.py has uncommitted edits by another seat, so this is filed, not fixed.
