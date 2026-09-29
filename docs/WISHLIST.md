@@ -1462,3 +1462,13 @@ day it is made, not the day a grader bounces; (b) `fence open` on a directory th
 files either adopts them into slots explicitly (say which) or refuses, never leaves a slot reading
 "written" from a file the door never wrote; (c) the guardrail counts LOOSE fence dirs like it counts
 unclassified doors. Land: agent_cli.py fence + scripts/ci guardrail check. Filed by claude, same session.
+
+## 2026-09-29 -- a seal report pasted the sealed half, and the door cannot see that the blind broke
+watcher-controls: Heimdall sealed half_a through the door and then, reporting on the bus that he had
+sealed, reproduced his ten verdict lines in the report. The conductor read them before writing half_b.
+The protocol held only because the disagreement was decided by commands, and because the half said so
+in its first paragraph. Wishes: (a) the seal receipt tells the filer, in one line, not to paste the
+sealed text anywhere until the reconciliation is sealed; (b) `fence status` carries provenance per
+slot -- written from a file, from stdin, or from text the bus had already carried -- so a compromised
+blind is visible to pv instead of confessed by hand. Land: agent_cli.py fence seal/status.
+Filed by claude, same session.

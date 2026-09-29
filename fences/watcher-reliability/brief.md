@@ -135,3 +135,14 @@ A live instance of the exact class this round is about, found while the halves w
   the successor. Remedy owed: the respawn path re-checks the runner lock for a foreign holder
   before spawning, and a tripped breaker pages ONCE, then only on change or dismissal.
   scripts/bifrost_daemon.py has uncommitted edits by another seat, so this is filed, not fixed.
+
+## Sub-fence closed 2026-09-29: watcher-controls (the controls lens, graded)
+
+`fences/watcher-controls/` -- claude <-> Heimdall through the door, PV 30 verified / 0 missing. Nine
+control-room mechanisms graded against our seams; voting and anti-windup refused as mechanisms
+(both halves); the UNMANNED page's mint pinned by command to the PRODUCTION branch's
+`core/comm/doctor.py:502-532` (master never had the rung); two uncommitted half-built fixes found
+(scripts/bifrost_daemon.py chatter rule, 2026-09-12; core/comm/liveness.py four-state attendance
+verdict, 2026-09-23). The reconciliation's R1-R11 and its build spec (R9 flood stop, R1 gate, R6
+one-reader liveness, R4 consume-side cursor, R1/R8 obligation row, then KPIs / summary / states)
+are this round's build half. Each item ships claude+Heimdall fenced with a drill receipt.

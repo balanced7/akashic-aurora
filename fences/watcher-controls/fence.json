@@ -1,0 +1,35 @@
+{
+  "id": "watcher-controls",
+  "question": "Which control-room mechanisms (ISA-18.2 alarm states/rationalization/KPIs, PLC edge-from-level and seal-in, SIS voting and quality, CIP heartbeat, PackML seat states, permit-to-work, anti-windup) map onto a seam we actually have in mail/wake, what does each cost, in what order do we build them, and which would teach something false?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-09-29T04:11:21.563855+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-29T04:11:22.254951+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-09-29T04:13:31.514272+00:00"
+    },
+    "half_b": {
+      "by": "claude",
+      "at": "2026-09-29T04:17:38.241365+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-09-29T04:21:16.030825+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-09-29T04:21:15.644776+00:00",
+    "missing_count": 0
+  },
+  "authors": {
+    "brief": "claude",
+    "half_a": "deepseek",
+    "half_b": "claude",
+    "reconciliation": "claude"
+  }
+}
