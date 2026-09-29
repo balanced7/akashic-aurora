@@ -119,10 +119,13 @@ function showChord(chord) {
   $("chord-name").textContent = chord?.label || "Between chords";
   $("chord-time").textContent = chord ? `${clock(clip.start_ms + chord.start_ms)}–${clock(clip.start_ms + chord.end_ms)}` : "";
   const names = chord?.info?.notes?.map(n => `${pretty(n.name)}${n.octave}`) || chord?.notes.map(noteName) || [];
-  $("chord-notes").textContent = names.join(" · ") || "Hover a chord to see its notes; click to hear it.";
+  const faded = (chord?.faded || []).map(noteName);  // heard by the analysis, too decayed to play
+  $("chord-notes").textContent = (names.join(" · ") + (faded.length ? `   ·   faded: ${faded.join(" ")}` : ""))
+    || "Hover a chord to see its notes; click to hear it.";
   $("chord-detail").textContent = chord ? (chord.texture === "line" || chord.texture === "bass line"
-    ? "Moving notes in this window; click to hear them together."
-    : "Harmony reading from ringing notes, including sustain. Click to hear the voicing together.") : "";
+    ? "Moving notes in this window; click to hear them together, each as loud as it still was."
+    : "Harmony reading from ringing notes, including sustain. Click to hear it as it sounded when this chord began: "
+      + "each note at the loudness it had left; faded notes stay silent.") : "";
   if (!chord) return;
   const low = Math.floor(Math.min(...chord.notes) / 12) * 12, high = Math.ceil((Math.max(...chord.notes) + 1) / 12) * 12 - 1;
   const whites = [];

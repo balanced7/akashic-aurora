@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 from .performance import PerformanceError, PerformanceStore
-from .pianocue import build_replay_cue, clock_text, parse_clock, validate_cue, _utf8_streams
+from .pianocue import build_replay_cue, clock_text, parse_clock, validate_cue, _utf8_streams, _note_spans
 from .replay_harmony import harmony, theory_module
 
 DEFAULT_PORT = 8796
@@ -29,6 +29,20 @@ ASSETS = {
     "/web/piano/conversation.js": ("piano/conversation.js", "text/javascript; charset=utf-8"),
     "/web/piano/conversation.css": ("piano/conversation.css", "text/css; charset=utf-8"),
 }
+
+
+def carried_at(events, start_ms):
+    """Notes struck before start_ms and still sounding at it: {note: {"age_ms": how long before, "vel": its
+    strike velocity}}; a note struck more than once keeps its latest strike. The cue opens these at 0 ms with one
+    mean velocity; the audition needs their real age to play them as quietly as they had become."""
+    out = {}
+    for span in _note_spans(events):
+        if span["t_ms"] < start_ms < span["end_ms"]:
+            age = start_ms - span["t_ms"]
+            prev = out.get(span["note"])
+            if prev is None or age < prev["age_ms"]:
+                out[span["note"]] = {"age_ms": age, "vel": max(1, min(127, span["vel"]))}
+    return out
 
 
 def excerpt(store, session, at, seconds=8.0, speed=1.0):
@@ -51,7 +65,7 @@ def excerpt(store, session, at, seconds=8.0, speed=1.0):
     lifts = sorted(e["t_ms"] - start for e in events
                    if e.get("kind") == "pedal" and not e.get("down") and start <= e["t_ms"] <= end)
     return {"session": session, "start_ms": start, "end_ms": end, "seconds": seconds, "speed": speed,
-            "cue": cue, "lifts_ms": lifts,
+            "cue": cue, "lifts_ms": lifts, "carried": carried_at(events, start),
             "sound": "MIDI reconstruction with the built-in keys voice; not recorded piano audio"}
 
 
@@ -139,7 +153,8 @@ class Handler(BaseHTTPRequestHandler):
                                  float(get("seconds", "8")), float(get("speed", "1")))
                 boundary = "pedal" if get("boundary") == "pedal" else "notes"
                 return self._send(200, {**result, "boundary": boundary,
-                                        "chords": harmony(result["cue"], result["speed"], result["lifts_ms"], boundary)})
+                                        "chords": harmony(result["cue"], result["speed"], result["lifts_ms"], boundary,
+                                                          result["carried"])})
             except PerformanceError as exc:
                 return self._send(getattr(exc, "status", 404), {"error": str(exc)})
             except (ValueError, OSError) as exc:
