@@ -227,9 +227,8 @@ _ARG_DEFAULTS = dict(
     # (T256 lens work) and cmd_learn grew repeat_of (the twin's morning `repeat` verb,
     # e2b722f1) -- both CLI-only args the MCP twins would AttributeError on.
     lens_file=None, repeat_of="",
-    # 2026-09-01 parity-pin catch (sixth time, Vandor's flag): cmd_web's search branch reads
-    # args.count (agent_cli.py:3041); it was never a key here, so the MCP web/search twin
-    # would AttributeError while the CLI worked -- the C7-1 shape. One line to close.
+    # cmd_web's search branch reads args.count; keep every delegated cmd_* field in this
+    # membrane or the MCP twin AttributeErrors (C7-1 shape, catch #6; check_door_parity pins it).
     count=None,
     # T079/T060 WorldSnapshot read twin. _run's Namespace is the membrane
     # contract for every delegated cmd_* even when today's tool supplies these.

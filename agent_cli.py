@@ -3446,9 +3446,12 @@ def cmd_gateway(args):
     # worktree under `run_aurora_service.py --world prod`. Killing it and relaunching
     # THIS repo's runner would resuscitate a different branch into a different world --
     # discord_persistent_services_must_pin_one_runtime_world. Refuse and name the owner.
+    # No override flag: a foreign-root restart is the exact accident this guard exists to
+    # refuse, and a `--force-foreign` read that the parser never defined (3b73ce52) was a
+    # control the operator appeared to hold and did not -- prod-reconcile DP3, deleted.
     foreign = [(p, _runner_root(snap, p)) for p in live
                if _runner_root(snap, p) not in (None, _ROOT)]
-    if foreign and not getattr(args, "force_foreign", False):
+    if foreign:
         print("[gateway] REFUSING restart: the live gateway is not ours to relaunch.")
         for pid, root in foreign:
             print(f"    pid {pid} runs from {root}")

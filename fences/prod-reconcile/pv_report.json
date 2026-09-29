@@ -1,0 +1,11 @@
+{
+  "ran_at": "2026-09-29T00:11:02.440768+00:00",
+  "verified": [
+    "half_b: core/comm/toolbox.py",
+    "half_b: scripts/bifrost_runner_discord.py",
+    "half_b: scripts/revive.py",
+    "half_b: security/acl.json",
+    "half_b: tests/test_codex_hook_contract.py"
+  ],
+  "missing": []
+}

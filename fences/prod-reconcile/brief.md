@@ -121,3 +121,33 @@ Resolving the two `cmd_gateway` hunks independently let git splice one side's op
 the other side's body — `NameError: _runner_root is not defined`. It compiled. Only the
 test found it. Resolving hunks in isolation can produce a function that is neither
 branch's.
+
+## THE QUESTION
+
+For each of the six decision points above: what does each side MEAN, which side should win,
+and why -- graded blind, against the live trees, without the resolver's choices in view.
+
+## OUTPUT CONTRACT
+
+One verdict per decision point, one physical line each, `V<n>. [CERTAIN|DESIGN|INFERRED|UNCERTAIN] <side> -- <why>`.
+The reconciliation diffs half_a against half_b; every disagreement re-opens the hunk with a
+command that decides it, and the fence closes on `fence pv`, never on agreement alone.
+
+## CHARTER
+
+Close the production fork honestly: the merge 4c31e1bf resolved six conflicts by one seat's
+judgment, and this fence exists so that seat does not grade its own ledger. The grader sees the
+sides, not the choices; the resolver's choices are half_b, filed from the merge commit as written.
+
+## INPUTS
+
+- fences/prod-reconcile/brief.md (this document: DP1-DP6, both sides, resolutions stripped)
+- the three trees: master, codex/sunshine-discord-split, and the merge 4c31e1bf on
+  reconcile/prod-into-master (worktree AkashicAurora/worktrees/reconcile-20260923)
+- the merged tree's suite state: 490 passed / 4 failed, classified above
+
+## RULES OF ENGAGEMENT
+
+Blind: half_a is written without half_b in view and vice versa. A disagreement re-opens the hunk
+with a command that decides it; nobody defends a choice. Findings outside the six points are
+recorded as acknowledged-and-out-of-scope, never silently dropped. The gate closes on `fence pv`.

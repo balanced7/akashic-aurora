@@ -4,10 +4,32 @@
   "tier": "full",
   "opened_by": "claude",
   "opened_at": "2026-09-29T00:02:20.509403+00:00",
-  "seals": {},
-  "pv": null,
+  "seals": {
+    "half_b": {
+      "by": "claude",
+      "at": "2026-09-29T00:06:04.930072+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-09-29T00:07:25.173351+00:00"
+    },
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-29T00:07:55.773280+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-09-29T00:11:27.304809+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-09-29T00:11:02.440768+00:00",
+    "missing_count": 0
+  },
   "authors": {
     "brief": "claude",
-    "half_a": "deepseek"
+    "half_a": "deepseek",
+    "half_b": "claude",
+    "reconciliation": "claude"
   }
 }
