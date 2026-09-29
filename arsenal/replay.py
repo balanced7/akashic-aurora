@@ -47,11 +47,17 @@ def excerpt(store, session, at, seconds=8.0, speed=1.0):
     if end > recorded_end:
         raise ValueError(f"excerpt ends beyond the logged take ({clock_text(recorded_end)}); shorten --seconds")
     cue = validate_cue(build_replay_cue(events, start, seconds, speed, at_text=at, session=session))
+    # The pedal lifts inside the excerpt, in ms from its start: the chord strip cuts at them in pedal mode.
+    lifts = sorted(e["t_ms"] - start for e in events
+                   if e.get("kind") == "pedal" and not e.get("down") and start <= e["t_ms"] <= end)
     return {"session": session, "start_ms": start, "end_ms": end, "seconds": seconds, "speed": speed,
-            "cue": cue, "sound": "MIDI reconstruction with the built-in keys voice; not recorded piano audio"}
+            "cue": cue, "lifts_ms": lifts,
+            "sound": "MIDI reconstruction with the built-in keys voice; not recorded piano audio"}
 
 
-def link(session, at, seconds=8.0, speed=1.0, label=None, port=DEFAULT_PORT, root=None):
+def link(session, at, seconds=8.0, speed=1.0, label=None, port=DEFAULT_PORT, root=None, boundary="notes"):
+    if boundary not in ("notes", "pedal"):
+        raise ValueError("boundary must be notes or pedal")
     if not 1 <= port <= 65535:
         raise ValueError("port must be between 1 and 65535")
     data = excerpt(PerformanceStore(root), session, at, seconds, speed)
@@ -59,7 +65,7 @@ def link(session, at, seconds=8.0, speed=1.0, label=None, port=DEFAULT_PORT, roo
     if not label or len(label) > 160 or any(ord(c) < 32 for c in label):
         raise ValueError("label must be 1-160 characters on one line")
     query = urlencode({"session": data["session"], "at": at, "seconds": f"{seconds:g}",
-                       "speed": f"{speed:g}", "label": label})
+                       "speed": f"{speed:g}", "label": label, **({"boundary": "pedal"} if boundary == "pedal" else {})})
     url = f"http://127.0.0.1:{port}/web/replay.html?{query}"
     title = f"{label} · {clock_text(data['start_ms'])}–{clock_text(data['end_ms'])}"
     escaped = title.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
@@ -77,12 +83,15 @@ def add_verb(subparsers):
     p.add_argument("--label", help="what to listen for")
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help="replay server port (default 8796)")
     p.add_argument("--root", help="practice sessions directory")
+    p.add_argument("--boundary", choices=("notes", "pedal"), default="notes",
+                   help="what ends a chord in the strip: the notes changing (default) or a pedal lift")
     p.add_argument("--json", action="store_true")
 
 
 def run_link(args, out):
     try:
-        result = link(args.session, args.at, args.seconds, args.speed, args.label, args.port, args.root)
+        result = link(args.session, args.at, args.seconds, args.speed, args.label, args.port, args.root,
+                      getattr(args, "boundary", "notes"))
     except (ValueError, PerformanceError, OSError) as exc:
         print(f"cannot make replay link: {exc}", file=out)
         return 2
@@ -128,7 +137,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 result = excerpt(self.server.performance, get("session"), get("at"),
                                  float(get("seconds", "8")), float(get("speed", "1")))
-                return self._send(200, {**result, "chords": harmony(result["cue"], result["speed"])})
+                boundary = "pedal" if get("boundary") == "pedal" else "notes"
+                return self._send(200, {**result, "boundary": boundary,
+                                        "chords": harmony(result["cue"], result["speed"], result["lifts_ms"], boundary)})
             except PerformanceError as exc:
                 return self._send(getattr(exc, "status", 404), {"error": str(exc)})
             except (ValueError, OSError) as exc:

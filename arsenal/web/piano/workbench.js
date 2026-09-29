@@ -25,7 +25,7 @@ function silhouette(id) {
 
 export function mountWorkbench(page) {
   const $ = id => document.getElementById(id), app=$('app'), stage=$('stage');
-  const ids=['btn-midi','midi-select','btn-demo','btn-916','btn-169','color-select','scheme-select','instrument-select','audio-select','audio-meter','btn-rec','btn-full','nns-select','minor-select','key-select','btn-log','log-status','btn-metro','btn-metro-tap','metro-bpm','metro-meter','metro-feel','metro-sound','metro-vol','btn-metro-sample','metro-file','metro-status','btn-cue-voice','cue-volume','btn-cue-lift','cue-midi-select','cue-view-select','cue-status','btn-atmosphere','btn-conversation'];
+  const ids=['btn-midi','midi-select','btn-demo','btn-916','btn-169','color-select','scheme-select','instrument-select','audio-select','audio-meter','btn-rec','btn-full','nns-select','minor-select','key-select','boundary-select','btn-log','log-status','btn-metro','btn-metro-tap','metro-bpm','metro-meter','metro-feel','metro-sound','metro-vol','btn-metro-sample','metro-file','metro-status','btn-cue-voice','cue-volume','btn-cue-lift','cue-midi-select','cue-view-select','cue-status','btn-atmosphere','btn-conversation'];
   const original=Object.fromEntries(ids.map(id=>[id,$(id)]));
   document.body.classList.add('piano-workbench');
   document.querySelector('.brand').innerHTML='<span class="workbench-mark">♮</span><span class="brand-mark">Piano<span class="brand-sub">THE LIGHT STUDIO</span></span>';
@@ -50,7 +50,7 @@ export function mountWorkbench(page) {
   const inspector=workspace.querySelector('.studio-inspector');
   const move=(id,parent,field=true)=>{const node=original[id];if(node)$(parent).append(field?(node.closest('.field')||node):node);};
   move('instrument-select','instrument-menu');move('scheme-select','scene-look-controls');move('color-select','scene-look-controls');
-  move('midi-select','input-controls');for(const id of ['nns-select','minor-select','key-select'])move(id,'theory-controls');
+  move('midi-select','input-controls');for(const id of ['nns-select','minor-select','key-select','boundary-select'])move(id,'theory-controls');
   move('btn-log','log-controls',false);move('log-status','log-controls',false);
   for(const id of ['btn-metro','btn-metro-tap','metro-bpm','metro-meter','metro-feel','metro-sound','metro-vol','btn-metro-sample','metro-status'])move(id,'metro-controls');
   if(original['metro-file'])$('metro-controls').append(original['metro-file']);

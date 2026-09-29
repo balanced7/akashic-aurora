@@ -87,6 +87,11 @@ GROWTH_STABLE_MS = 500       # gaining pitch classes this close to its end, is t
 WINDOW_PENALTY_MS = 600      # the cost of one more window, in pitch-class-milliseconds
 PEDAL_DISCOUNT = 0.5         # ...times this when the pedal is lifted near the window's first attack
 PEDAL_NEAR_MS = (-200, 400)  # "near": a lift from 200 ms before to 400 ms after the attack
+BOUNDARIES = ("notes", "pedal")  # what ends a chord window: any change of what sounds, or a pedal lift (Daniel,
+BOUNDARY_DEFAULT = "notes"        # 2026-09-29: "when I let go of the sustain pedal ... signify a note change");
+                                  # --boundary sets it for a run; library callers pass it. pedal: every window ends
+                                  # at a lift, the heard-extension stops at the first lift after an onset, and no
+                                  # merge joins windows across a lift. notes: the engine as it was.
 MIN_WINDOW_MS = 400          # shorter windows are transients
 SHORT_PENALTY_MS = 50000     # (a soft wall: shorter windows exist only as whole phrases)
 MAX_WINDOW_MS = 90000        # the segmenter looks back this far
@@ -492,7 +497,7 @@ def _phrases(notes: List[dict]) -> List[dict]:
     return phrases
 
 
-def _heard(notes: List[dict]) -> Tuple[List[List[list]], List[list]]:
+def _heard(notes: List[dict], lifts: Optional[List[int]] = None) -> Tuple[List[List[list]], List[list]]:
     """Per pitch class, when it is heard: while it sounds, and for at least HEARD_MIN_MS after its onset, but never past
     the end of the sound of its phrase (a broken chord is heard as a chord; silence is silence). This decides where
     windows start and end and what the key evidence hears; which pitch classes a held chord holds is decided on their
@@ -500,10 +505,16 @@ def _heard(notes: List[dict]) -> Tuple[List[List[list]], List[list]]:
     the window) into a chord it does not sound in."""
     phrases = _phrases(notes)
     starts = [p["start_ms"] for p in phrases]
+    lifts = sorted(lifts) if lifts else []  # pedal boundary: the extension never crosses the first lift after the onset
     per_pc: List[list] = [[] for _ in range(12)]
     for n in notes:
         p = phrases[bisect_right(starts, n["on_ms"]) - 1]
-        per_pc[n["note"] % 12].append((n["on_ms"], max(n["end_ms"], min(n["on_ms"] + HEARD_MIN_MS, p["end_ms"]))))
+        cap = min(n["on_ms"] + HEARD_MIN_MS, p["end_ms"])
+        if lifts:
+            k = bisect_right(lifts, n["on_ms"])  # a lift at the very instant of the attack belongs to the chord before
+            if k < len(lifts):
+                cap = min(cap, lifts[k])
+        per_pc[n["note"] % 12].append((n["on_ms"], max(n["end_ms"], cap)))
     heard_pc = [_union(iv) for iv in per_pc]
     heard_any = _union([tuple(x) for iv in heard_pc for x in iv])
     return heard_pc, heard_any
@@ -541,13 +552,31 @@ def _segment_phrase(bounds: List[int], cum: List[List[float]], penalty: List[flo
     return sorted(starts)
 
 
-def harmonic_windows(snd: dict) -> dict:
-    """{windows: [{start_ms, end_ms, heard_ms, share[12]}], transients: {count, ms}} (step 2 of the module docstring)."""
+def _cut_at_lifts(ph: dict, lifts: List[int]) -> List[dict]:
+    """A phrase split at every pedal lift strictly inside it: each piece starts where the previous ended (the lift is
+    the first bound of the next piece, so a window can start there) and keeps the onset groups that fall in it."""
+    cuts = [t for t in lifts if ph["start_ms"] < t < ph["end_ms"]]
+    if not cuts:
+        return [ph]
+    edges = [ph["start_ms"]] + cuts + [ph["end_ms"]]
+    pieces = []
+    for a, b in zip(edges, edges[1:]):
+        groups = [g for g in ph["groups"] if a < g < b]
+        pieces.append({"start_ms": a, "end_ms": b, "groups": [a] + groups})
+    return pieces
+
+
+def harmonic_windows(snd: dict, boundary: str = BOUNDARY_DEFAULT) -> dict:
+    """{windows: [{start_ms, end_ms, heard_ms, share[12]}], transients: {count, ms}} (step 2 of the module docstring).
+    boundary="pedal": a pedal lift always ends a window and the heard-extension stops at it (_cut_at_lifts, _heard)."""
+    if boundary not in BOUNDARIES:
+        raise ValueError(f"boundary must be one of {', '.join(BOUNDARIES)} (got {boundary!r})")
     notes = snd["notes"]
-    heard_pc, heard_any = _heard(notes)
     lifts = sorted(p["up_ms"] for p in snd["pedal"])
+    heard_pc, heard_any = _heard(notes, lifts if boundary == "pedal" else None)
     windows, transients = [], {"count": 0, "ms": 0}
-    for ph in _phrases(notes):
+    phrases = [piece for ph in _phrases(notes) for piece in (_cut_at_lifts(ph, lifts) if boundary == "pedal" else [ph])]
+    for ph in phrases:
         if ph["end_ms"] - ph["start_ms"] < MIN_WINDOW_MS:
             transients["count"] += 1
             transients["ms"] += ph["end_ms"] - ph["start_ms"]
@@ -570,7 +599,7 @@ def harmonic_windows(snd: dict) -> dict:
     return {"windows": windows, "transients": transients}
 
 
-def _context(snd: dict, evs: List[dict]) -> dict:
+def _context(snd: dict, evs: List[dict], boundary: str = BOUNDARY_DEFAULT) -> dict:
     notes = snd["notes"]
     on_times = sorted((n["on_ms"], i) for i, n in enumerate(notes))
     chord_events = [e for e in evs if e.get("kind") == "chord"]
@@ -585,7 +614,13 @@ def _context(snd: dict, evs: List[dict]) -> dict:
             "poly": (poly_t, poly_v), "pcpoly": _pc_count_timeline(notes),
             "pedal": [[p["down_ms"], p["up_ms"]] for p in snd["pedal"]],
             "lifts": sorted(p["up_ms"] for p in snd["pedal"]),
+            "boundary": boundary if boundary in BOUNDARIES else BOUNDARY_DEFAULT,
             "chords": chord_events, "live_t": [e["t_ms"] for e in chord_events], "longest": longest}
+
+
+def _lift_boundary(ctx: dict, t: float) -> bool:
+    """In pedal mode a window ending exactly at a lift ends the chord; nothing may merge across it."""
+    return ctx.get("boundary") == "pedal" and t in ctx.get("lift_set", ())
 
 
 def _lift_near(lifts: List[int], t: float) -> bool:
@@ -730,13 +765,15 @@ def merge_bass_walks(windows: List[dict], ctx: dict) -> List[dict]:
     same few notes above it, are one bass line under those notes when they make one (Eb1 Bb0 Ab1 B0 under a repeated
     Bb-Eb): joined, and kept joined only if the joined window reads as a bass line."""
     out: List[dict] = []
+    ctx.setdefault("lift_set", set(ctx.get("lifts", ())))
     i = 0
     while i < len(windows):
         up = set(windows[i].get("upper_pcs") or ())
         j = i
         while j + 1 < len(windows):
             w, nxt = windows[j], windows[j + 1]
-            if not (w["end_ms"] == nxt["start_ms"] and w["low_bass"] and nxt["low_bass"] and up and
+            if not (not _lift_boundary(ctx, w["end_ms"]) and
+                    w["end_ms"] == nxt["start_ms"] and w["low_bass"] and nxt["low_bass"] and up and
                     len(up) <= BASS_LINE_MAX_UPPER and set(nxt.get("upper_pcs") or ()) == up and
                     _walk_short(w) and _walk_short(nxt) and w["bass"] % 12 != nxt["bass"] % 12):
                 break
@@ -826,11 +863,13 @@ def merge_growth(windows: List[dict], ctx: dict) -> List[dict]:
     that next window, is the next window's beginning: an arpeggio unfolding, not a chord of its own. Across a pedal lift
     it must also share the next window's bass. A held sus2 before its add9 is stable, so it stays its own window."""
     ws = list(windows)
+    ctx.setdefault("lift_set", set(ctx.get("lifts", ())))
     k = 0
     while k < len(ws) - 1:
         w, nxt = ws[k], ws[k + 1]
         same_bass =w["bass"] is not None and nxt["bass"] is not None and w["bass"] % 12 == nxt["bass"] % 12
-        if w["end_ms"] - w["start_ms"] < GROWTH_MS and w["end_ms"] == nxt["start_ms"] and \
+        if not _lift_boundary(ctx, w["end_ms"]) and \
+                w["end_ms"] - w["start_ms"] < GROWTH_MS and w["end_ms"] == nxt["start_ms"] and \
                 set(w["pcs"]) <= set(nxt["pcs"]) and (same_bass or not _lift_near(ctx["lifts"], w["end_ms"])) and \
                 _stable_ms(w, ctx) < GROWTH_STABLE_MS:
             merged = _combine(w, nxt)
@@ -1770,15 +1809,20 @@ def classify(pcs: List[int], root_pc: Optional[int], key: dict, next_root_pc: Op
 
 
 # ============================================================================================== analysis
-def analyze(events, theory_source=None, node: Optional[str] = None, end_ms: Optional[float] = None) -> dict:
+def analyze(events, theory_source=None, node: Optional[str] = None, end_ms: Optional[float] = None,
+            boundary: Optional[str] = None) -> dict:
     """The whole engine over one session's events. Pure apart from one node call (the page's Theory.detect). end_ms:
-    when notes still sounding at the end of the log stop (an open session's 'now'); by default the last event."""
+    when notes still sounding at the end of the log stop (an open session's 'now'); by default the last event.
+    boundary: what ends a chord window, BOUNDARIES; None = BOUNDARY_DEFAULT (the run's --boundary, else notes)."""
+    boundary = boundary or BOUNDARY_DEFAULT
+    if boundary not in BOUNDARIES:
+        raise ValueError(f"boundary must be one of {', '.join(BOUNDARIES)} (got {boundary!r})")
     NUMBERING.update(fallbacks=0, errors=0)
     evs, impossible = plausible_events(events)
     evs.sort(key=lambda e: e["t_ms"])
     snd = sounding(evs, end_ms)
-    ctx = _context(snd, evs)
-    seg = harmonic_windows(snd)
+    ctx = _context(snd, evs, boundary)
+    seg = harmonic_windows(snd, boundary)
     windows = seg["windows"]
     raw_windows = len(windows)
     for w in windows:
@@ -1848,6 +1892,7 @@ def analyze(events, theory_source=None, node: Optional[str] = None, end_ms: Opti
         "duration_s": _r(snd["duration_ms"] / 1000),
         "notes": len(snd["notes"]),
         "sound_ends": "logged" if snd["explicit_ends"] else "inferred from releases and pedal lifts",
+        "boundary": boundary,
         "held_at_end": snd["held_at_end"],
         "impossible_events": impossible,
         "naming": {"source": "piano.js THEORY block via node (arsenal/practice_theory.mjs)" if answer
@@ -3046,7 +3091,8 @@ def read_events(store: PerformanceStore, session: str) -> Tuple[List[dict], List
     return events, problems
 
 
-def load_session(store: PerformanceStore, session: str, theory_source=None, node: Optional[str] = None) -> dict:
+def load_session(store: PerformanceStore, session: str, theory_source=None, node: Optional[str] = None,
+                 boundary: Optional[str] = None) -> dict:
     """{session, info, start, closed, events, problems, end_ms, snd, doc}: one session read and analysed. Every failure
     is a PerformanceError that names the session."""
     try:
@@ -3062,7 +3108,7 @@ def load_session(store: PerformanceStore, session: str, theory_source=None, node
         if elapsed > last:
             end_ms = min(elapsed, last + OPEN_TAIL_MS)
     try:
-        doc = analyze(events, theory_source, node, end_ms)
+        doc = analyze(events, theory_source, node, end_ms, boundary)
     except (KeyError, TypeError, ValueError, IndexError) as exc:
         raise PerformanceError(f"session {session} could not be analysed ({type(exc).__name__}: {exc})") from exc
     return {"session": session, "info": info, "start": start, "closed": closed, "events": events,
@@ -5105,6 +5151,8 @@ def main(argv=None) -> int:
             p.add_argument("--root", help="the sessions directory (default: state/arsenal/performance)")
         p.add_argument("--json", action="store_true", help="print JSON instead of text")
         p.add_argument("--out", help="also write the output to this file")
+        p.add_argument("--boundary", choices=BOUNDARIES, default=BOUNDARY_DEFAULT,
+                       help="what ends a chord: notes (any change of what sounds; default) or pedal (a pedal lift)")
         return p
     sub.add_parser("list", help="session ids, newest first (no analysis)").add_argument("--root")
     add("sessions", "sessions: local start time, length, notes, home key, key areas", session=False).add_argument(
@@ -5144,6 +5192,8 @@ def main(argv=None) -> int:
             except (AttributeError, ValueError, OSError):
                 pass
     try:
+        global BOUNDARY_DEFAULT
+        BOUNDARY_DEFAULT = getattr(args, "boundary", None) or BOUNDARY_DEFAULT
         if getattr(args, "out", None) and Path(args.out).is_dir():
             raise ValueError(f"--out {args.out} is a directory; give a file path")
         if getattr(args, "root", None) and Path(args.root).exists() and not Path(args.root).is_dir():

@@ -246,7 +246,8 @@ async function load() {
   }
   $("speed").value = String(speed);
   const query = new URLSearchParams({ session: params.get("session"), at: params.get("at"),
-                                     seconds: params.get("seconds") || "8", speed: "1" });
+                                     seconds: params.get("seconds") || "8", speed: "1",
+                                     boundary: params.get("boundary") === "pedal" ? "pedal" : "notes" });
   const resource = responseId ? `/api/conversation/replay/${encodeURIComponent(responseId)}` : `/api/piano/replay?${query}`;
   const response = await fetch(resource, { cache: "no-store", signal: AbortSignal.timeout(10000) });
   const data = await response.json();

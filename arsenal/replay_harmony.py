@@ -6,7 +6,11 @@ The browser names each voicing with the live piano's pure THEORY block.
 from . import practice
 
 
-def harmony(cue, speed=1):
+def harmony(cue, speed=1, lifts_ms=None, boundary="notes"):
+    """lifts_ms: the session's pedal lifts inside the excerpt, in ms from its start (unscaled). With
+    boundary="pedal" the segmenter cuts every window at them (practice.harmonic_windows). The cue itself
+    carries no pedal (its hold_ms already includes the sustain), so lifts arrive as pedal events that only
+    mark time: with explicit sound_end events, practice.sounding never ends a note at a pedal event."""
     # Cue time may be scaled by the link verb. UI windows always use source time.
     events = []
     for step in cue["steps"]:
@@ -20,10 +24,17 @@ def harmony(cue, speed=1):
             ])
     # Ends precede re-strikes at the same instant. Key release is deliberately not
     # used: a replay's hold_ms already includes the original sustain pedal.
+    down_at = 0
+    for lift in sorted(set(int(round(t * speed)) for t in (lifts_ms or []) if t >= 0)):
+        if lift <= down_at:
+            continue
+        events.append({"kind": "pedal", "t_ms": down_at, "down": True, "value": 100})
+        events.append({"kind": "pedal", "t_ms": lift, "down": False, "value": 0})
+        down_at = lift + 1
     events.sort(key=lambda e: (e["t_ms"], e["kind"] == "on"))
     snd = practice.sounding(events)
-    ctx = practice._context(snd, events)
-    windows = practice.harmonic_windows(snd)["windows"]
+    ctx = practice._context(snd, events, boundary)
+    windows = practice.harmonic_windows(snd, boundary)["windows"]
     for window in windows:
         practice._facts(window, ctx)
     windows = practice.merge_growth(windows, ctx)

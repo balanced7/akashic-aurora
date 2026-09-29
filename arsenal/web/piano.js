@@ -17,6 +17,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createPerformanceLog } from "./piano/log.js";
+import { createBoundaryGate, BOUNDARY_MODES } from "./piano/boundary.js";
 import { createMetronome, FEELS, SOUND_NAMES } from "./piano/metronome.js";
 import { createKeyTracker, nashville, parseChord, parseKey, spellInKey } from "./piano/nashville.js";
 import { createCueClient, createCuePlayer, createClaudeVoice } from "./piano/cues.js";
@@ -2417,11 +2418,17 @@ const KEY_NAMES = [
   ...["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"].map((k) => `${k} major`),
   ...["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"].map((k) => `${k} minor`),
 ];
+// ?chords=notes|pedal picks the chord boundary for this load (a receipt; not stored); the Studio select stores it.
+const boundaryQuery = new URLSearchParams(location.search).get("chords");
 const theoryUi = {
   nns: NNS_MODES.includes(safeGet("arsenal.piano.nns")) ? safeGet("arsenal.piano.nns") : "chord",
   minor: safeGet("arsenal.piano.minor") === "relative" ? "relative" : "tonic",  // A minor's Am: 1m, or 6m
+  // what ends a chord: "notes" (any change of what sounds) or "pedal" (a pedal lift; piano/boundary.js)
+  boundary: BOUNDARY_MODES.includes(boundaryQuery) ? boundaryQuery
+    : BOUNDARY_MODES.includes(safeGet("arsenal.piano.chordBoundary")) ? safeGet("arsenal.piano.chordBoundary") : "notes",
   key: KEY_NAMES.includes(safeGet("arsenal.piano.key")) ? safeGet("arsenal.piano.key") : "auto",
 };
+const boundaryGate = createBoundaryGate();  // pedal mode: holds the label through a legato pedal change
 const KEY_TICK = 0.1;
 const DIM_HOLD = 0.8;  // "unsure" must hold this long before the numbers dim, and "fair" as long before they brighten
 const keyTracker = createKeyTracker();
@@ -2625,12 +2632,18 @@ function logChord(t) {
   logged((log) => log.chord(info && {
     name: info.name, kind: info.kind, notes: info.notes, bass: info.bass, key: key && key.name,
     nns: lastNns ? lastNns.text : null, nns_key: key && key.name, key_conf: key ? keyView.confidence : null, locked: keyView.locked,
+    boundary: theoryUi.boundary,  // which rule ends a chord (log.js -> the analyzer)
   }, pageSec(t)));
 }
 
 // ----------------------------------------------------------- notes engine --
 // A note sounds while its key is held, or after release while the pedal (CC64) is down.
 const sounding = new Map();  // midi -> { held, vel, t0, tRelease, strike, trail }
+// Is any note other than `except` sounding only because the pedal holds it? (the notes a lift would clear)
+function hasRinging(except = -1) {
+  for (const [m, st] of sounding) if (m !== except && !st.held) return true;
+  return false;
+}
 const strikeCount = new Uint32Array(128);  // per key, ++ on every note on: two strikes inside one frame share a t0, not this
 let sustain = false;
 let detectDirty = true;
@@ -2663,6 +2676,7 @@ function noteOn(m, vel) {
   logged((log) => log.noteOn(m, vel, pageSec(t)));
   const inRange = m >= KEY.first && m <= KEY.last;
   sounding.set(m, { held: true, vel, t0: t, tRelease: 0, strike: ++strikeCount[m], trail: inRange ? trails.start(m, vel, t) : null });
+  if (theoryUi.boundary === "pedal" && sustain) boundaryGate.attack(t, hasRinging(m));
   if (inRange) {
     const k = keys.get(m);
     k.target = 0.17 + 0.27 * (vel / 127);  // velocity-scaled key depth (world units at the key front)
@@ -2713,6 +2727,7 @@ function setSustain(on, value = on ? 127 : 0) {
   if (!demo.running) jamRest.sustain(on);
   logged((log) => log.pedal(on, value, pageSec(t)));
   if (!on) {
+    boundaryGate.lift();  // the chord boundary: the next read sees the new chord alone
     // The pedal is Daniel's: cue notes ignore it, and this loop touches only his notes and his glow fields.
     for (const [m, st] of sounding) {
       if (st.held) continue;
@@ -2779,6 +2794,7 @@ function readSounding(key, trusted, own) {
 // reads and draws exactly what a page with no band would.
 function currentInfo(t = clock()) {
   if (!detectDirty && !jamDirty) return lastInfo;
+  if (theoryUi.boundary === "pedal" && boundaryGate.holds(t, sustain)) return lastInfo;  // legato: read after the lift
   // the jam key's reading first, so it borrows the reader's prior as Daniel's own reading finds it
   const jamRead = keyView.jam && sounding.size ? readSounding(keyView.key, true, false) : null;
   if (detectDirty) {
@@ -4196,6 +4212,17 @@ function wireUi() {
     detectDirty = true;
     minorSelect.blur();
   });
+  const boundarySelect = $("boundary-select");
+  if (boundarySelect) {
+    boundarySelect.value = theoryUi.boundary;
+    boundarySelect.addEventListener("change", () => {
+      theoryUi.boundary = BOUNDARY_MODES.includes(boundarySelect.value) ? boundarySelect.value : "notes";
+      safeSet("arsenal.piano.chordBoundary", theoryUi.boundary);
+      boundaryGate.reset();
+      detectDirty = true;
+      boundarySelect.blur();
+    });
+  }
   for (const mode of ["major", "minor"]) {
     const group = document.createElement("optgroup");
     group.label = mode;

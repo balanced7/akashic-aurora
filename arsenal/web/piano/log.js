@@ -650,6 +650,7 @@ export function createPerformanceLog({
           if (nnsKey !== undefined) event.nns_key = spellText(nnsKey);
           if (keyConf !== undefined) event.key_conf = spellText(keyConf);
           if (info.locked !== undefined) event.locked = !!info.locked;
+          if (typeof info.boundary === "string") event.boundary = info.boundary;  // "notes" | "pedal": what ends a chord
           const detectKind = info.detect_kind !== undefined ? info.detect_kind : info.kind;
           if (typeof detectKind === "string") event.detect_kind = detectKind;  // the event's own kind is "chord"
         }
