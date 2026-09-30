@@ -14,12 +14,13 @@ Python standard library alone** and degrades gracefully when optional infrastruc
 
 - **Python 3.11+** (developed on 3.11.9).
 - **git**.
-- *Optional:* **Redis** — only for cross-process / multi-agent sharing and speed. Without it the system
-  uses local files automatically.
+- **No Redis server needed.** If one is running the system uses it; if not, the bus runs on an
+  embedded, SQLite-persisted Redis that starts itself (§5).
 - *Optional:* **Claude Code** (or Cursor) — if you want the agent-facing features (recall-at-action, the
   coordination guards).
 
-No third-party Python packages are required for a first run.
+Memory (boot / learn / recall) runs on the standard library alone. The bus, the MCP door, the runners
+and the test suite need the packages in `requirements.txt` / `pyproject.toml` — Python packages only.
 
 ## 2. Quick start
 
@@ -27,11 +28,12 @@ No third-party Python packages are required for a first run.
 git clone https://github.com/balanced7/akashic-aurora.git
 cd akashic-aurora
 
-# (optional but recommended) an isolated environment
+# Easiest, any OS: uv creates the environment and installs everything on first use
+uv run agent_cli.py status
+
+# Or with pip (the Windows `py` setup):
 py -m venv .venv
 # Windows:  .venv\Scripts\activate     macOS/Linux:  source .venv/bin/activate
-
-# (optional) install Redis client + pytest; the core works without this
 py -m pip install -r requirements.txt
 ```
 
@@ -61,11 +63,21 @@ py agent_cli.py story                                             # the chronicl
 
 Read [`AGENTS.md`](../AGENTS.md) for the full agent contract and [`bootstrap.md`](../bootstrap.md) to orient.
 
-## 5. Redis (optional)
+## 5. Redis (nothing to install)
 
-Redis unlocks cross-process sharing (multiple agents) and is faster than the file fallback. The system
-probes its configured endpoint at startup and **silently falls back to local files** if none is reachable
-— so this step is entirely optional.
+Every process talks Redis protocol to the store and the Bifrost bus (mail, wake listeners, handoffs,
+presence). You do not need to install Redis:
+
+- **No Redis server on this machine:** the first process that needs one starts an **embedded Redis**
+  — a pure-Python server (fakeredis, with Lua via lupa) on the same port, persisting every change to
+  `state/redis-embedded/<port>.sqlite3` within a fraction of a second. It is started detached and keeps
+  running for every later process. `py -m core.foundation.embedded_redis --status` shows who serves
+  each world port.
+- **A real Redis server:** used as-is. The first answer is recorded (`state/redis-backend`), so a real
+  Redis that is briefly down is never replaced by an embedded one that would split the bus in two.
+- **Choose explicitly:** `AKASHIC_REDIS_BACKEND=embedded` or `=external`.
+
+To use a real Redis instead:
 
 - **Default endpoint:** `localhost:16379` (declared in `config.py`), overridable with the `REDIS_HOST` /
   `REDIS_PORT` environment variables.
@@ -199,7 +211,8 @@ places as before.
 ## 9. Troubleshooting
 
 - **`python` not found (Windows):** use `py`, not `python`.
-- **Redis warnings / "backend: File":** expected when no Redis is reachable — the system is using files. Harmless.
+- **Which Redis am I on?** `py -m core.foundation.embedded_redis --status` (`embedded`, `redis`, or `down`).
+  The embedded server logs to `state/redis-embedded/<port>.log`.
 - **A command erred:** it prints `ERROR: …` with a one-line reason and a usage example, and exits non-zero.
 - **Back up / restore knowledge:** `py scripts/ops/snapshot_knowledge.py snapshot` (data is intentionally not in git).
 
