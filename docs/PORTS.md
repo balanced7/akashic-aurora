@@ -40,8 +40,8 @@ this repo would ever have found it.
 | **3000** | external | container | human chat front-end over the same ollama; no live repo refs | `ai-open-webui` |
 | **5000** | external | container | voice service; no live repo refs | `ai-voice` |
 | **5001** | external | container | voice service (second port) | `ai-voice` |
-| **8790** | beta | app | beta console (was: sandbox) | `E:/AI-Setup-Beta scripts/bifrost_ui.py` |
-| **8800** | alpha | app | alpha console | `E:/AI-Setup-Alpha scripts/bifrost_ui.py` |
+| **8790** | beta | app | beta console (was: sandbox) | `<beta checkout>/scripts/bifrost_ui.py` |
+| **8800** | alpha | app | alpha console | `<alpha checkout>/scripts/bifrost_ui.py` |
 | **16380** | beta | container | beta Redis, isolated from prod and alpha | `akashic-redis-beta` |
 | **16381** | alpha | container | alpha Redis, isolated from prod and beta | `akashic-redis-alpha` |
 
