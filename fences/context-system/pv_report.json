@@ -1,0 +1,30 @@
+{
+  "ran_at": "2026-09-30T04:17:50.837916+00:00",
+  "verified": [
+    "half_a: agent/harness/hooks/claude_posttooluse.py",
+    "half_a: core/comm/toolbox.py",
+    "half_a: core/comm/toolbox.py:1436",
+    "half_a: core/coord/fence_workspace.py",
+    "half_a: core/coord/session_focus.py",
+    "half_a: core/coord/session_focus.py:206",
+    "half_a: core/events/event_index.py",
+    "half_a: core/events/event_log.py",
+    "half_a: core/eye/index.py",
+    "half_a: core/fleet/verdicts.py:156",
+    "half_a: core/recall/at_action.py",
+    "half_a: core/recall/at_action.py:849",
+    "half_a: design/s2-recall-outcome-adjudicator-spec.md",
+    "half_a: docs/MAP.md",
+    "half_a: scripts/authorship_ledger.py",
+    "half_a: scripts/bifrost_ui.py",
+    "half_a: state/authorship/seats.jsonl",
+    "half_b: core/comm/toolbox.py:1417",
+    "half_b: core/coord/session_focus.py"
+  ],
+  "missing": [
+    "half_a: AI-Setup/conversation.py",
+    "half_a: core/eye/ground.py",
+    "half_a: core/recall/outcome_observer.py",
+    "half_a: docs/context-system.md"
+  ]
+}

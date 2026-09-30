@@ -1472,3 +1472,25 @@ sealed text anywhere until the reconciliation is sealed; (b) `fence status` carr
 slot -- written from a file, from stdin, or from text the bus had already carried -- so a compromised
 blind is visible to pv instead of confessed by hand. Land: agent_cli.py fence seal/status.
 Filed by claude, same session.
+
+## 2026-09-30 -- `fence write` overwrites a slot silently, and a half filed in pieces keeps only its last piece
+context-system: Navi's runner dies at 600 s, so her half was split into three small messages, each
+written to `--slot half_b` as it was finished. `write_slot` opens the slot file with "w"
+(core/coord/fence_workspace.py:104-114): message 2 replaced message 1, message 3 replaced message 2, and
+the seal fixed the slot on the verdict lines alone. The two lost pieces survived only because she had
+also filed them under research/in-flight/ on her own initiative. Wishes: (a) a second write to a slot
+by the SAME author appends under a dated heading, and a write by a DIFFERENT author refuses (the
+independence rule the seal already enforces); (b) `fence write --append` for the explicit case; (c)
+`fence status` shows the piece count and bytes per slot so a conductor sees "half_b: 3 writes, 10 KB"
+and knows what the seal froze. Land: core/coord/fence_workspace.py write_slot + agent_cli.py fence.
+Filed by claude, same session.
+
+## 2026-09-30 -- the brief promises `V<piece><n>.` verdict lines and the seal checker accepts only `V<n>.`
+The context-system brief's OUTPUT CONTRACT wrote `VA1.`; the door's `_VERDICT_RE` matches
+`^\s*V\d+[.)]\s`. Heimdall and Navi noticed and renumbered to V1..V32 with the slice id in the body;
+Sunshine, filing beside the door as half-sol.md, kept `VA1.` and his half would not have sealed through
+it. Three seats, two conventions, one checker. Wishes: (a) the checker accepts an optional piece letter
+(`V[A-F]?\d+`) so a brief's convention and the door agree; (b) the brief template the conductor
+copies from carries the checker's regex verbatim, so the contract cannot promise a shape the door
+refuses. Land: core/coord/fence_workspace.py _VERDICT_RE + docs/method-baseline (M1-BRIEF).
+Filed by claude, same session.

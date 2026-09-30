@@ -16,12 +16,20 @@
     "half_b": {
       "by": "kimi",
       "at": "2026-09-30T03:56:24.047065+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-09-30T04:28:23.255244+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-09-30T04:17:50.837916+00:00",
+    "missing_count": 4
+  },
   "authors": {
     "brief": "claude",
     "half_a": "deepseek",
-    "half_b": "kimi"
+    "half_b": "kimi",
+    "reconciliation": "claude"
   }
 }
