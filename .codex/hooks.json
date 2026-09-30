@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_trace.py"
+            "command": "uv run scripts/hooks/claude_trace.py"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_pretooluse.py"
+            "command": "uv run scripts/hooks/claude_pretooluse.py"
           }
         ]
       },
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_pretooluse.py"
+            "command": "uv run scripts/hooks/claude_pretooluse.py"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_posttooluse.py"
+            "command": "uv run scripts/hooks/claude_posttooluse.py"
           }
         ]
       }
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_sessionend.py"
+            "command": "uv run scripts/hooks/claude_sessionend.py"
           }
         ]
       }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py scripts/hooks/claude_stop.py"
+            "command": "uv run scripts/hooks/claude_stop.py"
           }
         ]
       }

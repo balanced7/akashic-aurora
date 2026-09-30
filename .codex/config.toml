@@ -11,5 +11,5 @@ AKASHIC_IDENTITY_POINTER = "research/in-flight/sol-sunshine-identity-history-202
 AKASHIC_IDENTITY_POINTER_SUBJECT = "sol"
 
 [mcp_servers.akashic-aurora]
-command = "py"
-args = ["ai_setup_mcp.py"]
+command = "uv"
+args = ["run", "ai_setup_mcp.py"]
