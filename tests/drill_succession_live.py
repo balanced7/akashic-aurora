@@ -12,8 +12,8 @@ Cleanup is part of the drill: the mandate grant minted here is revoked at the en
 the drill asserts the revocation landed. A drill that leaves authority behind is a breach,
 not a receipt.
 """
-import sys, time, json, io
-sys.path.insert(0, r"E:\AI-Setup")
+import sys, time, json, io, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.comm.conductor_gate as cg
 from core.trust import registry
