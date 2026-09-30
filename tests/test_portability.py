@@ -164,3 +164,37 @@ def test_p5_doctor_reports_deploy_readiness():
     out = (r.stdout or "") + (r.stderr or "")
     assert "repo root" in out.lower(), (
         "doctor --deploy does not report the resolved repo root:\n" + out[:600])
+
+
+# ---- machine-specific locations come from the environment (2026-10-01) ----------------------
+# Some paths cannot be derived -- which physical disks hold the transcript archive is a fact
+# about one machine. Those live in env vars read by core.paths.env_paths, and a drive letter
+# from another OS must never be resolved against the cwd.
+
+def test_p6_env_paths_keeps_absolute_and_drops_relative(monkeypatch, tmp_path):
+    from core.paths import env_paths
+    a, b = tmp_path / "one", tmp_path / "two"
+    monkeypatch.setenv("AKASHIC_TEST_PATHS", os.pathsep.join([str(a), "relative/dir", "", str(b)]))
+    assert env_paths("AKASHIC_TEST_PATHS") == [a, b]
+    monkeypatch.delenv("AKASHIC_TEST_PATHS")
+    assert env_paths("AKASHIC_TEST_PATHS") == []
+
+
+def test_p7_archiver_refuses_no_destinations_instead_of_reporting_ok(tmp_path):
+    from scripts.ops import archive_transcripts as arch
+    src = tmp_path / "s.jsonl"
+    src.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        arch.archive([src], [], receipt_dir=tmp_path / "r")
+
+
+def test_p8_archiver_refuses_a_relative_destination(tmp_path, monkeypatch):
+    from pathlib import Path
+    from scripts.ops import archive_transcripts as arch
+    monkeypatch.chdir(tmp_path)
+    src = tmp_path / "s.jsonl"
+    src.write_text("{}\n", encoding="utf-8")
+    rec = arch._archive_one_dest([src], Path("not-absolute-archive"), verify=False)
+    assert not rec["reachable"] and rec["failed"]
+    assert not (tmp_path / "not-absolute-archive").exists(), "a relative destination was created"
+

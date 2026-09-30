@@ -32,14 +32,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_config_declares_the_archive_roots_once():
-    """One home for the constant. Two literals in two modules IS the defect."""
+    """One home for the constant. Two literals in two modules IS the defect.
+
+    The VALUES are machine-specific (which physical disks), so since 2026-10-01 they come from
+    AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS rather than drive literals; the single declaration is what
+    this pins, and an unset machine declares an empty list rather than someone else's disks."""
     import config
     roots = getattr(config, "TRANSCRIPT_ARCHIVE_ROOTS", None)
-    assert roots, ("config.TRANSCRIPT_ARCHIVE_ROOTS does not exist -- the archive roots are still "
-                   "a literal inside scripts/ops/archive_transcripts.py, which is why the indexer "
-                   "could point somewhere else and nobody noticed")
-    assert any("rolling" in str(r).lower() for r in roots), \
-        f"the rolling archive must be among the declared roots, got {roots}"
+    assert isinstance(roots, list), (
+        "config.TRANSCRIPT_ARCHIVE_ROOTS does not exist -- the archive roots are still "
+        "a literal inside scripts/ops/archive_transcripts.py, which is why the indexer "
+        "could point somewhere else and nobody noticed")
+    assert all(Path(r).is_absolute() for r in roots), f"relative archive root declared: {roots}"
 
 
 def test_archiver_and_indexer_read_the_same_constant():

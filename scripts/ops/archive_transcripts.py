@@ -39,6 +39,7 @@ import argparse
 import hashlib
 import json
 import os
+import tempfile
 import shutil
 import sys
 import time
@@ -120,6 +121,11 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
     rec: Dict[str, Any] = {"path": str(dest), "reachable": False, "copied": 0,
                            "skipped": 0, "repaired": 0, "deleted": 0, "bytes_copied": 0,
                            "refused": [], "failed": [], "present_total": 0}
+    if not dest.is_absolute():
+        # A drive letter from another OS is a RELATIVE path here; mkdir would plant the
+        # archive (unredacted transcripts) inside whatever the cwd is -- often the repo.
+        rec["failed"].append(f"destination is not an absolute path on this OS: {dest}")
+        return rec
     try:
         dest.mkdir(parents=True, exist_ok=True)
         rec["reachable"] = True
@@ -187,6 +193,11 @@ def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
     Destinations are independent: two drives exist so that one can die, so an unreachable
     one is recorded and stepped over, never allowed to abort the copy to the live one."""
     dests = list(dests if dests is not None else DEFAULT_DESTS)
+    if not dests:
+        # all([]) is True: with no destinations the report below would read OK having copied
+        # nothing anywhere. Refuse instead -- the exact failure this tool exists to prevent.
+        raise ValueError("no archive destinations configured -- set "
+                         "AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS or pass --dest")
     started = time.time()
     per_dest = [_archive_one_dest(sources, Path(d), verify, rel_root) for d in dests]
     ok = all(d["reachable"] and not d["refused"] and not d["failed"] for d in per_dest)
@@ -206,7 +217,7 @@ def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
         # `--status` -- the operator's only window onto whether the backup is healthy --
         # reported a pytest fixture as the last real run. A monitoring surface showing test
         # data as production is worse than one that shows nothing.
-        rdir = Path(os.getenv("TEMP", ".")) / "akashic-archive-receipts-test"
+        rdir = Path(tempfile.gettempdir()) / "akashic-archive-receipts-test"
     try:
         rdir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -247,7 +258,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--source-dir", default="", help="transcript root (default: the "
                                                      "harness projects dir)")
     ap.add_argument("--dest", action="append", default=[],
-                    help="destination (repeatable; default: E: and F: archives)")
+                    help="destination (repeatable; default: AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS)")
     ap.add_argument("--receipt-dir", default="", help="where receipts land")
     ap.add_argument("--verify", action="store_true",
                     help="hash every archived copy, not just the size-changed ones "
@@ -278,6 +289,10 @@ def main(argv: Optional[List[str]] = None) -> int:
               "empty source (an empty backup that reports OK is the failure mode this "
               "tool exists to prevent)", file=sys.stderr)
         return 1
+    if not (a.dest or DEFAULT_DESTS):
+        print("[archive] NO DESTINATIONS -- set AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS (absolute paths, "
+              f"'{os.pathsep}'-separated; separate physical disks) or pass --dest", file=sys.stderr)
+        return 2
     rep = archive(sources, [Path(d) for d in a.dest] or None,
                   verify=a.verify, receipt_dir=rdir, excluded=excluded)
     _render(rep)
