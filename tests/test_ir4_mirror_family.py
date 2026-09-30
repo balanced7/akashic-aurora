@@ -25,7 +25,9 @@ def _family(cmd):
 
 def test_mirror_happy_path_allowed():
     argv, env, why = _family('py scripts/mirror.py "T086-S5 daemon slice" core/comm/daemon_state.py tests/test_s5.py')
-    assert why is None and argv[:2] == ["py", "scripts/mirror.py"]
+    # `py` on Windows; elsewhere the running interpreter (py does not exist there).
+    from core.comm.toolbox import _is_python
+    assert why is None and _is_python(argv[0]) and argv[1] == "scripts/mirror.py"
 
 
 def test_mirror_without_paths_refused():
