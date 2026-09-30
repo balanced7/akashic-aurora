@@ -124,7 +124,29 @@ Two agents (e.g. Claude + Cursor) can share one substrate. Give each a distinct 
 shared Redis (§5), and they coordinate via advisory path-locks and the message bus. See
 [`docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md`](concurrency-design.md).
 
-## 8. Troubleshooting
+## 8. Machine-specific paths (environment variables)
+
+Nothing in the code names a drive or a user folder. The repo root is derived from where the code
+lives, and the sibling world checkouts (`<name>-Beta`, `<name>-Alpha`) from the repo root. Paths
+that are genuinely a fact about one machine come from these variables. Lists are absolute paths
+separated by `;` on Windows and `:` elsewhere; relative entries are ignored with a warning.
+
+| Variable | What it sets | When unset |
+|---|---|---|
+| `AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS` | Where `scripts/ops/archive_transcripts.py` copies transcripts, and where the transcript index reads them. Unredacted — keep these **outside the repo**, ideally on separate physical disks. | The archiver refuses to run. |
+| `AKASHIC_EPHEMERAL_ARCHIVE_ROOTS` | Where `scripts/ops/archive_ephemeral.py` archives bus exports and state. | The archiver refuses to run. |
+| `AKASHIC_SEARCH_ROOTS` | Folders the file search walks when Everything isn't installed. | Windows: `%LOCALAPPDATA%`, `%APPDATA%`, `%USERPROFILE%`, Program Files. Elsewhere: `~/.local`, `~/bin`, `/usr/local`, `/opt`, `/Applications`, then `~`. |
+| `ES_EXE` | Path to Everything's `es.exe` (Windows). | Found on `PATH` or in the standard install folders. |
+| `AKASHIC_CHECKOUT_<WORLD>` | A world's checkout (`PROD`, `BETA`, `ALPHA`) when it isn't a sibling folder. | Derived from the repo root. |
+| `AI_SETUP` | Overrides where instance data lives (see `core/paths.py`). | Data lives in the repo. |
+
+Example (Linux, archives on two mounted disks):
+
+```bash
+export AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS="/mnt/disk1/aurora/transcripts:/mnt/disk2/aurora/transcripts"
+```
+
+## 9. Troubleshooting
 
 - **`python` not found (Windows):** use `py`, not `python`.
 - **Redis warnings / "backend: File":** expected when no Redis is reachable — the system is using files. Harmless.
