@@ -194,10 +194,13 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 #
 # Deliberately OUTSIDE the repo: these are UNREDACTED transcripts and the repo is public. Separate
 # PHYSICAL disks on purpose -- two copies on one drive is one failure domain wearing a disguise.
-TRANSCRIPT_ARCHIVE_ROOTS = [
-    Path(r"E:\Akashic Aurora\transcripts\rolling"),
-    Path(r"F:\Akashic Aurora\transcripts\rolling"),
-]
+# Which disks those are is a fact about ONE machine, so it lives in the environment, not here:
+#   AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS   absolute paths, ';'-separated on Windows, ':' elsewhere
+# Unset -> [] and the archiver REFUSES to run (a backup with nowhere to go is not a clean run).
+# These were drive-letter literals; on Linux a literal like that is a RELATIVE path, so the
+# archiver would have mkdir'd it inside the cwd -- unredacted transcripts in the public repo.
+from core.paths import env_paths as _env_paths  # noqa: E402
+TRANSCRIPT_ARCHIVE_ROOTS = _env_paths("AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS")
 
 # T406: the DSH plane. Rill (dsh_agent) runs on the DSH/cordis harness, which keeps its
 # transcripts here -- one directory per session, each holding a zstd-compressed session.jsonl.
