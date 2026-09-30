@@ -314,3 +314,32 @@ def test_s8_resolution_reports_its_own_provenance(tmp_path):
         w = W.resolve(root=root, env=env)
         assert w.source == src
         assert w.why, "a resolution with no reason is a response, not an answer"
+
+
+# ---- checkout_of: where a SIBLING world lives, derived from this checkout (2026-10-01) ----
+# world_diff/world_fidelity pinned the three checkouts to one machine's drive letter. The
+# layout is siblings sharing a base name, so it is computable from wherever you stand.
+
+def test_s9_checkout_of_derives_siblings_from_a_prod_root(tmp_path):
+    root = tmp_path / "aurora"
+    assert W.checkout_of("prod", root=root, env={}) == root
+    assert W.checkout_of("beta", root=root, env={}) == tmp_path / "aurora-Beta"
+    assert W.checkout_of("alpha", root=root, env={}) == tmp_path / "aurora-Alpha"
+
+
+def test_s9b_checkout_of_strips_this_checkouts_own_world_suffix(tmp_path):
+    root = tmp_path / "AI-Setup-Alpha"
+    assert W.checkout_of("prod", root=root, env={}) == tmp_path / "AI-Setup"
+    assert W.checkout_of("beta", root=root, env={}) == tmp_path / "AI-Setup-Beta"
+    assert W.checkout_of("sandbox", root=root, env={}) == tmp_path / "AI-Setup-Beta"  # alias
+
+
+def test_s9c_an_existing_lowercase_sibling_is_found_not_invented(tmp_path):
+    (tmp_path / "aurora-alpha").mkdir()
+    got = W.checkout_of("alpha", root=tmp_path / "aurora", env={})
+    assert got.name.lower() == "aurora-alpha" and got.is_dir()
+
+
+def test_s9d_env_override_wins_for_a_non_sibling_layout(tmp_path):
+    env = {"AKASHIC_CHECKOUT_BETA": str(tmp_path / "elsewhere" / "beta")}
+    assert W.checkout_of("beta", root=tmp_path / "aurora", env=env) == tmp_path / "elsewhere" / "beta"
