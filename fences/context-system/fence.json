@@ -1,0 +1,17 @@
+{
+  "id": "context-system",
+  "question": "One door that answers, for any anchor, what is relevant to this code, who touched it last, on what task, what knowledge was accessed, and the scope of time across all related items: which write-side changes make the six existing planes joinable (the touch), and which read-side door and scene present the join at four levels, from every harness, in one place?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-09-30T02:37:23.822664+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-30T02:37:24.843505+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
