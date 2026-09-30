@@ -325,6 +325,12 @@ def verify_recovered(full_name: str, *, settle_s: float = 20.0,
 def observe_app(name: str = PACKAGE_NAME) -> Dict[str, Any]:
     """The revive-ladder observation for this rung. Cheap: status only, no hashing --
     the 629 MB verification is part of the HEAL, not the every-few-minutes probe."""
+    import os
+    if os.name != "nt":
+        # MSIX packaging is Windows-only: there is no package to be broken here, and a rung
+        # that reports "cannot prove healthy" forever on another OS is noise, not caution.
+        return {"healthy": True, "repairable": False, "pkg": None,
+                "detail": "not applicable on this OS (MSIX packages are Windows-only)"}
     pkg = query_package(name)
     if not pkg:
         return {"healthy": False, "repairable": False, "pkg": None,
