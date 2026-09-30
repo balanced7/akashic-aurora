@@ -32,6 +32,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "generators"))  # T104-M1
 import gen_arch_index as gen  # reuse the same module survey (single source of truth)
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 STALE_DAYS = 14
 
 # Repo roots a doc/docstring reference is checked against. A path token is only treated as a
@@ -343,7 +352,7 @@ def _subpackages_in_arch(arch, subs=None):
 
 def _index_current():
     return ([] if _read("docs/MODULE_INDEX.md").strip() == gen.render().strip()
-            else ["docs/MODULE_INDEX.md is stale -> run `py scripts/generators/gen_arch_index.py`"])
+            else [f"docs/MODULE_INDEX.md is stale -> run `{_pyl()} scripts/generators/gen_arch_index.py`"])
 
 
 def _derived_docs_current():
@@ -356,19 +365,19 @@ def _derived_docs_current():
         import gen_physics_sheet as phys
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
-            out.append("docs/PHYSICS.md is stale -> run `py scripts/generators/gen_physics_sheet.py`")
+            out.append(f"docs/PHYSICS.md is stale -> run `{_pyl()} scripts/generators/gen_physics_sheet.py`")
     except Exception as e:
         out.append(f"docs/PHYSICS.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_master_map as mapgen
         if _read("docs/MAP.md") != mapgen.render(mapgen.build()):
-            out.append("docs/MAP.md is stale -> run `py scripts/generators/gen_master_map.py`")
+            out.append(f"docs/MAP.md is stale -> run `{_pyl()} scripts/generators/gen_master_map.py`")
     except Exception as e:
         out.append(f"docs/MAP.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_doors
         if _read("docs/DOORS.md") != gen_doors.render(gen_doors.cli_verbs()):
-            out.append("docs/DOORS.md is stale -> run `py scripts/generators/gen_doors.py`")
+            out.append(f"docs/DOORS.md is stale -> run `{_pyl()} scripts/generators/gen_doors.py`")
     except Exception as e:
         out.append(f"docs/DOORS.md check could not run ({type(e).__name__}: {e})")
     try:
@@ -382,7 +391,7 @@ def _derived_docs_current():
         import gen_prior_art_register as pa
         if _read("docs/PRIOR_ART.md") != pa.render(pa.build()):
             out.append("docs/PRIOR_ART.md is stale -> run "
-                       "`py scripts/generators/gen_prior_art_register.py`")
+                       f"`{_pyl()} scripts/generators/gen_prior_art_register.py`")
     except Exception as e:
         out.append(f"docs/PRIOR_ART.md check could not run ({type(e).__name__}: {e})")
     return out

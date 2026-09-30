@@ -18,6 +18,15 @@ import json
 import os
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # agent_cli derived the scripts/ dir from its OWN location, which worked because it sits at
 # repo root. This file sits two levels down, so the root is named explicitly -- same target,
 # honest derivation. (parents[2]: surface.py -> recall -> core -> REPO)
@@ -75,7 +84,7 @@ def cmd_recall_curate(args):
         exp = args.forge_check
         if not getattr(args, "draft", None):
             print("ERROR: --forge-check needs --draft FILE (the proposed recommendation text).")
-            print(f'Example: py agent_cli.py recall-curate --forge-check {exp} --draft new_text.md')
+            print(f'Example: {_pyl()} agent_cli.py recall-curate --forge-check {exp} --draft new_text.md')
             return 2
         try:
             with open(args.draft, encoding="utf-8") as fh:
@@ -109,11 +118,11 @@ def cmd_recall_curate(args):
             else:
                 print("[forge-apply] FAILED -- record not updated (store down or record missing).")
         elif rep["verdict"] == "PASS":
-            print(f"  (gate PASS -- apply with: py agent_cli.py recall-curate --forge-check {exp} "
+            print(f"  (gate PASS -- apply with: {_pyl()} agent_cli.py recall-curate --forge-check {exp} "
                   f"--draft {args.draft} --apply)")
         elif rep["verdict"] == "UNMEASURABLE" and getattr(args, "apply", False):
             print("  (the gate ABSTAINS -- it will not apply what it cannot adjudicate. The unaided "
-                  "human path is an ordinary re-record: py agent_cli.py learn <you> --experiment "
+                  f"human path is an ordinary re-record: {_pyl()} agent_cli.py learn <you> --experiment "
                   f"{exp} ... which bypasses the Forge and is visible in history.)")
         return 0 if rep["verdict"] == "PASS" else 1
     if getattr(args, "forge_propose", False):
@@ -151,7 +160,7 @@ def cmd_recall_curate(args):
                 print(f"    optimizer rationale: {r['rationale']}")
             for reason in r.get("reasons", []):
                 print(f"    - {reason}")
-        print("  review queue: py agent_cli.py recall-curate --forge-proposals")
+        print(f"  review queue: {_pyl()} agent_cli.py recall-curate --forge-proposals")
         return 0
     if getattr(args, "forge_proposals", False):
         from core.recall.forge_optimizer import pending_proposals
@@ -170,7 +179,7 @@ def cmd_recall_curate(args):
             if p.get("rationale"):
                 print(f"    rationale: {p['rationale']}")
             print(f"    draft: {p['draft'][:220]}")
-            print(f"    apply: write draft to a file, then py agent_cli.py recall-curate "
+            print(f"    apply: write draft to a file, then {_pyl()} agent_cli.py recall-curate "
                   f"--forge-check {p['experiment']} --draft FILE --apply")
         return 0
     if getattr(args, "forge_audit", False):
@@ -221,7 +230,7 @@ def cmd_recall_curate(args):
     if not args.apply:
         if rep["bench"] or rep["unbench"] or rep["ghost_prune_count"] \
                 or rep.get("forge_rollback") or rep.get("forge_confirm") or rep.get("forge_expire"):
-            print("  (report only -- apply with: py agent_cli.py recall-curate --apply)")
+            print(f"  (report only -- apply with: {_pyl()} agent_cli.py recall-curate --apply)")
         return 0
     out = apply_curation(rep)
     print(f"[recall-curate] APPLIED: benched {len(out['benched'])}, unbenched {len(out['unbenched'])}, "

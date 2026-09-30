@@ -33,6 +33,15 @@ from typing import Any, Dict, Optional
 
 from core.foundation.timeutil import now_iso
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
 # pending) -----------------------------------------------------------------------------------------
 # The pause/halt/narration/activity keys FOLLOW BIFROST_NAMESPACE (exactly like Bus.ns) instead of
@@ -195,9 +204,9 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         return (f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
                 f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
                 f"the message in hand, then hold; in-flight work is NOT abandoned; "
-                f"resume: py agent_cli.py bifrost-resume")
+                f"resume: {_pyl()} agent_cli.py bifrost-resume")
     return (f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
-            f"{age} old) -- auto-responders frozen; resume: py agent_cli.py bifrost-resume")
+            f"{age} old) -- auto-responders frozen; resume: {_pyl()} agent_cli.py bifrost-resume")
 
 
 def resume(targets=None) -> bool:

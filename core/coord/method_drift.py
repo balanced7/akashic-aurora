@@ -32,6 +32,15 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Below this, boot speaks. 80% is deliberately not 100%: a single legitimately-bundled commit
@@ -68,4 +77,4 @@ def boot_line(threshold: float = DEFAULT_THRESHOLD, window: int = WINDOW) -> str
     clean = int(s.get("clean") or 0)
     return (f"method drift: M3 pre-registration {clean}/{total} clean ({pct:.0f}%) -- pins are "
             f"landing WITH their implementation, so git holds no evidence the acceptance came "
-            f"first. Commit the RED pin alone, then the fix. (py scripts/arc_scorecard.py)")
+            f"first. Commit the RED pin alone, then the fix. ({_pyl()} scripts/arc_scorecard.py)")

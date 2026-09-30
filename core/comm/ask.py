@@ -40,6 +40,15 @@ from typing import Optional
 
 from core.outcome import BoundaryOutcome
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 DEFAULT_MODEL = os.getenv("AKASHIC_ASK_MODEL", "deepseek-v4-pro")
 # 0 == UNLIMITED: omit max_tokens from the request entirely and let the model run to its
 # own ceiling. Daniil 2026-08-06: "make an unlimited version and we can figure out scaling
@@ -506,7 +515,7 @@ def ask(prompt: str, *, system: Optional[str] = None, model: Optional[str] = Non
         if not resident_meta.get("resident"):
             return BoundaryOutcome.failed(
                 f"'{as_resident}' is not a resident (no ratified designation), so it cannot "
-                f"answer at the resident tier. Run the ceremony first: py agent_cli.py "
+                f"answer at the resident tier. Run the ceremony first: {_pyl()} agent_cli.py "
                 f"resident nominate {as_resident} --callsign <name> --receipt <their lesson> "
                 f"--by <peer>")
         system = (system or DEFAULT_SYSTEM) + "\n\n" + pack
@@ -897,7 +906,7 @@ def ask_peer(sender, peer, prompt, *, wait_s: float = 120.0, poll_s: float = 2.0
         "redrives": st.get("redrives"),
         "peer_at_ask": peer_state, "peer_at_ask_why": peer_why,
         "launched": launched,
-        "how_to_check": f"py agent_cli.py ask --status {mid} --as {sender}",
+        "how_to_check": f"{_pyl()} agent_cli.py ask --status {mid} --as {sender}",
     }
     # T202: when it did NOT settle, name WHICH failure this is and what to do -- the
     # caller used to work that out by hand thirty minutes later. Computed only on the
@@ -1261,7 +1270,7 @@ def ask_many(prompts, *, system: Optional[str] = None, model: Optional[str] = No
             detail.setdefault("warnings", []).append(
                 f"LENS LEDGER: {len(_recorded)} branch(es) recorded as UNVERIFIED (fan "
                 f"{_fan_id}). They count toward no hit-rate until something checks them: "
-                f"py scripts/lens_ledger.py record --fan {_fan_id} --lens <name> "
+                f"{_pyl()} scripts/lens_ledger.py record --fan {_fan_id} --lens <name> "
                 f"--outcome confirmed|refuted --note '<the evidence>'")
     except Exception:
         pass

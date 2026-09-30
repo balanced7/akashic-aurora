@@ -19,6 +19,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # 15+ runs (see scripts/generators/_tracked.py).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _tracked import tracked_py, is_tracked_dir  # noqa: E402
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
 OUT = os.path.join(ROOT, "docs", "MODULE_INDEX.md")
 
 # Areas surveyed, in reading order. Kept in sync with the layers in ARCHITECTURE.md.
@@ -49,7 +58,7 @@ def render():
     lines = [
         "# Module Index (auto-generated)",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_arch_index.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_arch_index.py`.",
         "> The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,",
         "> each module's line-1 docstring = its single responsibility.",
         "",
@@ -84,7 +93,7 @@ def main():
     if "--check" in sys.argv:
         current = open(OUT, encoding="utf-8").read() if os.path.exists(OUT) else ""
         if current.strip() != body.strip():
-            print("STALE: docs/MODULE_INDEX.md is out of date -- run `py scripts/generators/gen_arch_index.py`")
+            print(f"STALE: docs/MODULE_INDEX.md is out of date -- run `{_pyl()} scripts/generators/gen_arch_index.py`")
             return 1
         print("PASS: docs/MODULE_INDEX.md is current.")
         return 0

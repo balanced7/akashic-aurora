@@ -19,6 +19,15 @@ import os
 import subprocess
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable or "py"
 
@@ -106,7 +115,7 @@ def main():
 
     if not args.paths:
         print("ERROR: name the EXPLICIT paths you're shipping (ship never `git add -A` in a shared tree).")
-        print('Example: py scripts/ship.py "fix X" core/foo.py tests/test_foo.py')
+        print(f'Example: {_pyl()} scripts/ship.py "fix X" core/foo.py tests/test_foo.py')
         return 2
     from mirror import stdin_is_terminal   # scripts/ is sys.path[0]; NUL reads as a tty on Windows
     if not args.dry_run and not args.yes and not stdin_is_terminal():

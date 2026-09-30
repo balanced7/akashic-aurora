@@ -25,6 +25,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.paths import data_root  # noqa: E402
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 BASE = data_root()
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 JSONL = BASE / "session_logs" / "learnings.jsonl"
@@ -177,7 +186,7 @@ def phase_rebuild():
             "(2026-06-20). It deletes every non-canonical key and rewrites the live lesson "
             "index from a hardcoded 6-record set. Re-running it destroys the corpus.\n"
             "If you genuinely intend that, set AKASHIC_ALLOW_HARMONIZE=1 and take a snapshot "
-            "first (py scripts/snapshot_knowledge.py)."
+            f"first ({_pyl()} scripts/snapshot_knowledge.py)."
         )
     if not (BACKUP_DIR / "redis_16379_dump.json").exists():
         sys.exit("REFUSING: run `backup` first (no snapshot found).")

@@ -27,6 +27,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gen_arch_index import CORE_ORDER, first_doc          # noqa: E402
 from gen_physics_sheet import scan as physics_scan        # noqa: E402
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 AREAS = [f"core/{a}" for a in CORE_ORDER] + ["agent/harness", "agent"]
 
 
@@ -115,7 +124,7 @@ def render(rows):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_master_map.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_master_map.py`.",
         "> Columns: line-1 docstring (the module's own spec) | name-matched pin file |",
         "> name-matched design/reference doc (v0 HEURISTIC -- ranks the M3 backfill queue,",
         "> does not certify coverage) | env flags read (physics scan). GAP = neither a",
@@ -150,7 +159,7 @@ def main():
         except OSError:
             print("MAP.md missing -- regenerate"); return 1
         if old != text:
-            print("MAP.md STALE vs code -- regenerate (py scripts/generators/gen_master_map.py)"); return 1
+            print(f"MAP.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_master_map.py)"); return 1
         print("MAP.md current"); return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)

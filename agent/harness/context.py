@@ -35,6 +35,15 @@ from typing import Dict, List, Optional
 
 from agent.harness.scope import repo_root, session_in_scope
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _DRAFT_FRESH_SECS = 2 * 86400
 _STALE_DAYS = 7                      # W5: note-derived lines gain [STALE] at this age
 _THEMES_MAX_DAYS = 30                # R2: themes older than this stay off the whisper
@@ -215,7 +224,7 @@ def _reach_line(agent_id: str) -> str:
                 f"That is not 'armed'; assume the operator cannot reach you until you check.")
 
     arm = (f"arm it (must be harness-tracked -- a detached one fires into nothing): "
-           f"py scripts/bifrost_wake.py --agent {agent_id} --min-tier 0")
+           f"{_pyl()} scripts/bifrost_wake.py --agent {agent_id} --min-tier 0")
     if state == "armed":
         return "reach: watcher ARMED -- the operator can wake you; re-arm after it fires (firing consumes it)"
     if state == "unarmed":
@@ -256,7 +265,7 @@ def _mailbox_line(agent_id: str) -> str:
         # the cost this rewrite removed. It is reported per-message by --open/--state instead.
         # Omitting a field is honest; asserting one cheaply and wrongly would not be.
         return (f"mailbox: {unopened} unopened | {undeclared} read-but-undeclared -> "
-                f"py agent_cli.py mailbox {agent_id} --state <sha> | --open <sha>")
+                f"{_pyl()} agent_cli.py mailbox {agent_id} --state <sha> | --open <sha>")
     except Exception:
         return ""
 
@@ -294,7 +303,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         if fresh_draft:
             bits.append("a fresh last-session draft")
         return (f"[akashic] {' and '.join(bits)} waiting -- "
-                f"py agent_cli.py boot {agent_id} --task \"...\"  (repo: {repo_root()})")
+                f"{_pyl()} agent_cli.py boot {agent_id} --task \"...\"  (repo: {repo_root()})")
 
     notes: list = []
     try:
@@ -335,7 +344,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     if directive is not None:
         d_line = _note_line("DIRECTIVE", directive, body_clip=110)
     else:
-        d_line = "DIRECTIVE: none active -- check the ledger: py agent_cli.py task list"
+        d_line = f"DIRECTIVE: none active -- check the ledger: {_pyl()} agent_cli.py task list"
     sections.append(("directive", [d_line]))
 
     if where is not None:
@@ -347,7 +356,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
             w_lines.append("  " + _clip(rest, _LINE_CLAMP))
     else:
         w_lines = ["WHERE: (no where-we-are note yet -- record one: "
-                   f"py agent_cli.py note {agent_id} --title where-we-are)"]
+                   f"{_pyl()} agent_cli.py note {agent_id} --title where-we-are)"]
     sections.append(("where", w_lines))
 
     try:
@@ -358,7 +367,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
 
     if delta_n:
         sections.append(("delta", [f"delta: {delta_n} source(s) moved since your last boot -> "
-                                   f"py agent_cli.py delta {agent_id}"]))
+                                   f"{_pyl()} agent_cli.py delta {agent_id}"]))
     if themes is not None:
         sections.append(("themes", [_note_line("THEMES", themes, body_clip=120)]))
     # REACHABILITY BEFORE MAIL, deliberately. Unread mail tells a seat what arrived; this tells
@@ -378,7 +387,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         except Exception:
             scope = "legacy peek"
         sections.append(("mail", [f"mail: {unread} unread ({scope}) -> "
-                                  f"py agent_cli.py bifrost-sync {agent_id}"]))
+                                  f"{_pyl()} agent_cli.py bifrost-sync {agent_id}"]))
     # T095-M1: the mailbox becomes INHABITED here. The verbs shipped wired to a door, but a door
     # nobody walks through is not a mailbox -- a seat only benefits if the state reaches the place
     # it already looks. `read_but_undeclared` is the load-bearing count: mail a PRIOR incarnation
@@ -389,10 +398,10 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         sections.append(("mailbox", [mbx_line]))
     if fresh_draft:
         sections.append(("draft", ["draft: chronicles/last-session-draft.md -> review; promote with "
-                                   "`py agent_cli.py wrap --commit`"]))
+                                   f"`{_pyl()} agent_cli.py wrap --commit`"]))
     if funnel:
         sections.append(("funnel", [funnel]))
-    sections.append(("boot", [f"boot: py agent_cli.py boot {agent_id} --task \"<this slice>\"  "
+    sections.append(("boot", [f"boot: {_pyl()} agent_cli.py boot {agent_id} --task \"<this slice>\"  "
                               "(full context, one hop)"]))
 
     # ---- budget: drop bottom-up, orienting core last (W6) -------------------------

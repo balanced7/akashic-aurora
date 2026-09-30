@@ -30,6 +30,15 @@ import json
 import os
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "data", "corpus-digests")
 OUT = os.environ.get("AKASHIC_DIGESTS_FILE") or os.path.join(OUT_DIR, "digests.jsonl")
@@ -360,7 +369,7 @@ def main(argv=None):
     if any([args.themes, args.theme, args.grep, args.orphans, args.stale, args.gold,
             args.directives, args.show, args.chapter_of, args.in_chapter]):
         if not rows:
-            print(f"[digests] no digests at {OUT} -- land them first: py scripts/corpus_digests.py")
+            print(f"[digests] no digests at {OUT} -- land them first: {_pyl()} scripts/corpus_digests.py")
             return 2
         rc = _query(rows, args)
         return 0 if rc is None else rc

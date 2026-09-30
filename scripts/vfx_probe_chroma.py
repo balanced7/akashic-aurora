@@ -18,6 +18,15 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # Use Pillow -- the hand-rolled PNG decoder in the original probe handled only filter 0
 # and every canvas.toDataURL image here is filter 2 (Up) on every row. Pillow was installed
 # the whole time. The lesson is filed; we use Pillow.
@@ -25,7 +34,7 @@ try:
     from PIL import Image
     import numpy as np
 except ImportError:
-    print("Pillow + numpy required: py -m pip install Pillow numpy", file=sys.stderr)
+    print(f"Pillow + numpy required: {_pyl()} -m pip install Pillow numpy", file=sys.stderr)
     sys.exit(1)
 
 REPO = Path(__file__).resolve().parent.parent

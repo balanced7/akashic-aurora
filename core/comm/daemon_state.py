@@ -35,6 +35,15 @@ import tempfile
 import time
 from typing import Any, Callable, Dict, List, Optional
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 MARKER_MAX_AGE_S = 24 * 3600         # ruling R1: age gate
 REARM_SUFFIX = ".rearm"
 
@@ -101,7 +110,7 @@ def relaunch_hint(agent: str, runner_script: Optional[str] = None) -> str:
     daemon_spawn_runner_hardcodes_deepseek_script), so any other runner names its own; the
     lane flag rides along because a resurrected daemon without it spawns runners whose cursors
     diverge from the drilled work-lane config (revive.py, page-proven)."""
-    cmd = f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"
+    cmd = f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner"
     script = str(runner_script or "").strip()
     if script and script != "bifrost_runner_deepseek.py":
         cmd += f" --runner-script {script}"
@@ -401,7 +410,7 @@ def stop_hook_wake_verdict(agent: str, session_id: str, c=None,
             # --manage-listener (bifrost_daemon.py gates it on manage_listener); a flagless
             # launch is alpha mode, which answers no .rearm trigger and retires nothing.
             "line": ("[stop-hook] daemon not running -- start it once: "
-                     f"py scripts/bifrost_daemon.py --agent {agent} --manage-listener "
+                     f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --manage-listener "
                      "(retires the arm chore; ONLY the listener-manager mode answers .rearm "
                      "triggers -- a flagless launch is alpha mode and retires nothing)")
             if nag else ""}
