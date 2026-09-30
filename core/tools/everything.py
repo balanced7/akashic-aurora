@@ -39,17 +39,17 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-#: Everything's own suggested install roots (checked when it is not on PATH).
+#: Everything's own suggested install roots (checked when it is not on PATH), built from the
+#: OS's own env vars rather than drive literals -- unset (any non-Windows box) means skipped.
 #: es.exe lives next to Everything.exe; if the user installed to a non-default dir
 #: we still accept it via $PATH or the ES_EXE override.
-_EVERYTHING_ROOTS = (
+_EVERYTHING_ROOTS = tuple(
+    os.path.join(os.environ[var], "Everything")
     # %LOCALAPPDATA%\Everything FIRST: es.exe is a SEPARATE voidtools download from the
     # Everything app, so it does not appear beside Everything.exe unless someone put it there.
     # Installing it here needs no admin and leaves the vendor's Program Files directory alone.
-    os.path.join(os.environ.get("LOCALAPPDATA", ""), "Everything"),
-    r"C:\Program Files\Everything",
-    r"C:\Program Files (x86)\Everything",
-    r"C:\Tools\Everything",
+    for var in ("LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)")
+    if os.environ.get(var)
 )
 
 
@@ -132,18 +132,28 @@ def resolve_es() -> Optional[str]:
 
 
 
-#: Roots the fallback walks, in order. Deliberately NOT bare ``C:\\``: a full-volume walk
-#: on Windows spends its entire budget in WinSxS and package caches and never reaches the
-#: places software actually installs to.
-_WALK_ROOTS = (
-    os.environ.get("LOCALAPPDATA") or r"C:\Users\Default\AppData\Local",
-    os.environ.get("APPDATA") or "",
-    os.environ.get("USERPROFILE") or "",
-    os.environ.get("ProgramFiles") or r"C:\Program Files",
-    os.environ.get("ProgramFiles(x86)") or r"C:\Program Files (x86)",
-    r"C:\Tools",
-    r"C:\ffmpeg",
-)
+def _default_walk_roots() -> tuple:
+    """Roots the fallback walks, in order. AKASHIC_SEARCH_ROOTS (absolute paths, os.pathsep-
+    separated) replaces the defaults -- that is where a machine's own tool dirs belong (the
+    original box added its C-drive Tools and ffmpeg folders here as literals). Deliberately
+    NOT a bare volume root: a full-volume walk spends its entire budget in WinSxS / package
+    caches and never reaches the places software actually installs to."""
+    from core.paths import env_paths
+    configured = env_paths("AKASHIC_SEARCH_ROOTS")
+    if configured:
+        return tuple(str(p) for p in configured)
+    if os.name == "nt":
+        return tuple(os.environ.get(v, "") for v in
+                     ("LOCALAPPDATA", "APPDATA", "USERPROFILE", "ProgramFiles", "ProgramFiles(x86)"))
+    # POSIX: per-user install dirs first (the ~/.local analogue of %LOCALAPPDATA%), then the
+    # system's, then the rest of home LAST -- home is the budget sink (caches, projects), and
+    # the walk's visited-set means the dirs already covered are not walked twice.
+    home = os.path.expanduser("~")
+    return (os.path.join(home, ".local"), os.path.join(home, "bin"), "/usr/local", "/opt",
+            "/Applications", home)
+
+
+_WALK_ROOTS = _default_walk_roots()
 
 #: Directories with enormous fan-out and near-zero chance of holding a program a human
 #: installed. Skipped by name at any depth. Each one is a budget sink, not a hiding place.
