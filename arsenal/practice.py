@@ -562,7 +562,12 @@ def _cut_at_lifts(ph: dict, lifts: List[int]) -> List[dict]:
     pieces = []
     for a, b in zip(edges, edges[1:]):
         groups = [g for g in ph["groups"] if a < g < b]
-        pieces.append({"start_ms": a, "end_ms": b, "groups": [a] + groups})
+        # attacked: a note was struck inside this piece (at its lift or after it). Such a piece is the whole of what
+        # was played between two lifts, however short, and harmonic_windows never files it as a transient: Heimdall
+        # measured 8 real chords of 350-396 ms, struck and released between two lifts, dropped that way (2026-09-29).
+        # A piece with no attack of its own (the pedal pumped over ringing notes) is residue and stays a transient.
+        attacked = any(a <= g < b for g in ph["groups"])
+        pieces.append({"start_ms": a, "end_ms": b, "groups": [a] + groups, "cut": True, "attacked": attacked})
     return pieces
 
 
@@ -577,7 +582,7 @@ def harmonic_windows(snd: dict, boundary: str = BOUNDARY_DEFAULT) -> dict:
     windows, transients = [], {"count": 0, "ms": 0}
     phrases = [piece for ph in _phrases(notes) for piece in (_cut_at_lifts(ph, lifts) if boundary == "pedal" else [ph])]
     for ph in phrases:
-        if ph["end_ms"] - ph["start_ms"] < MIN_WINDOW_MS:
+        if ph["end_ms"] - ph["start_ms"] < MIN_WINDOW_MS and not (ph.get("cut") and ph.get("attacked")):
             transients["count"] += 1
             transients["ms"] += ph["end_ms"] - ph["start_ms"]
             continue
@@ -619,8 +624,14 @@ def _context(snd: dict, evs: List[dict], boundary: str = BOUNDARY_DEFAULT) -> di
 
 
 def _lift_boundary(ctx: dict, t: float) -> bool:
-    """In pedal mode a window ending exactly at a lift ends the chord; nothing may merge across it."""
-    return ctx.get("boundary") == "pedal" and t in ctx.get("lift_set", ())
+    """In pedal mode a window ending exactly at a lift ends the chord; nothing may merge across it -- not the growth
+    and bass-walk merges before naming, and not the built and same-chord merges after it (unguarded, the late merges
+    leaked 9 lift-spanning windows into an otherwise clean pedal-mode analysis; Heimdall, 2026-09-29)."""
+    if ctx.get("boundary") != "pedal":
+        return False
+    if "lift_set" not in ctx:
+        ctx["lift_set"] = set(ctx.get("lifts", ()))
+    return t in ctx["lift_set"]
 
 
 def _lift_near(lifts: List[int], t: float) -> bool:
@@ -805,6 +816,8 @@ def _building(w: dict, nxt: dict, ctx: dict) -> bool:
     D A C#) completes the chord."""
     a, b = w["start_ms"], nxt["start_ms"]
     pw, pn = set(w["pcs"]), set(nxt["pcs"])
+    if _lift_boundary(ctx, b):
+        return False  # a quick lift-and-repress passes the pedal-continuity test below when w is short; the lift rules
     if w["end_ms"] != b or b - a >= BUILD_MAX_MS or not pw < pn or w["bass"] is None or nxt["bass"] is None or \
             w["bass"] % 12 != nxt["bass"] % 12:
         return False
@@ -1785,7 +1798,8 @@ def merge_same(windows: List[dict], ctx: dict) -> List[dict]:
     out: List[dict] = []
     for w in windows:
         prev = out[-1] if out else None
-        if prev and prev["end_ms"] == w["start_ms"] and prev["info"] and w["info"] and _identity(prev) == _identity(w):
+        if (prev and prev["end_ms"] == w["start_ms"] and not _lift_boundary(ctx, w["start_ms"])
+                and prev["info"] and w["info"] and _identity(prev) == _identity(w)):
             merged = _combine(prev, w)
             _facts(merged, ctx)
             longer = prev if prev["end_ms"] - prev["start_ms"] >= w["end_ms"] - w["start_ms"] else w
