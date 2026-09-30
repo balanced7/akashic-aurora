@@ -37,14 +37,33 @@ def _mcp_path(repo=None):
     return Path(repo) / "ai_setup_mcp.py"
 
 
+def _launch(repo=None):
+    """The interpreter prefix for the MCP server: the `py` launcher on Windows (as always);
+    elsewhere `py` does not exist, so uv -- by ABSOLUTE path, since an MCP host started from a
+    desktop app may not share the shell's PATH -- running inside the repo's project so the
+    server's dependencies come with it. No uv: the interpreter running this script."""
+    if os.name == "nt":
+        return ["py"]
+    import shutil
+    repo = Path(repo) if repo else Path(__file__).resolve().parent.parent
+    uv = shutil.which("uv")
+    if uv and (repo / "pyproject.toml").exists():
+        return [uv, "run", "--project", str(repo)]
+    return [sys.executable]
+
+
 def registration_command(repo=None):
     """The exact `claude mcp add` one-liner, with an ABSOLUTE script path (user-scoped)."""
-    return f'claude mcp add --scope user {MCP_NAME} -- py "{_mcp_path(repo)}"'
+    import shlex
+    launch = " ".join(shlex.quote(a) for a in _launch(repo))
+    return f'claude mcp add --scope user {MCP_NAME} -- {launch} "{_mcp_path(repo)}"'
 
 
 def registration_json(repo=None):
     """The equivalent mcpServers snippet, for manual config editing if preferred."""
-    return {"mcpServers": {MCP_NAME: {"command": "py", "args": [str(_mcp_path(repo))], "env": {}}}}
+    launch = _launch(repo)
+    return {"mcpServers": {MCP_NAME: {"command": launch[0],
+                                      "args": [*launch[1:], str(_mcp_path(repo))], "env": {}}}}
 
 
 def main(argv=None):
