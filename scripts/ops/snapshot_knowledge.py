@@ -111,6 +111,15 @@ except Exception:
         REDIS_HOST, REDIS_PORT = "localhost", 16379
 
 
+def _alpha_checkout() -> str:
+    """The alpha twin's checkout, derived from this one (core.world.checkout_of)."""
+    try:
+        from core.world import checkout_of
+        return str(checkout_of("alpha"))
+    except Exception:
+        return "<alpha checkout>"
+
+
 def _assert_restore_is_consented(target_world: str):
     """A restore FLUSHES db0. Against prod that needs a human saying so, out loud.
 
@@ -142,7 +151,7 @@ def _assert_restore_is_consented(target_world: str):
         "  If prod is genuinely what you mean:\n"
         "      AKASHIC_RESTORE_PROD=yes-flush-production py scripts/ops/snapshot_knowledge.py restore <name>\n"
         "  To rehearse it safely, restore into a twin instead -- that is what they are for:\n"
-        "      cd E:/AI-Setup-Alpha && py scripts/ops/snapshot_knowledge.py restore <name>")
+        f"      cd {_alpha_checkout()} && py scripts/ops/snapshot_knowledge.py restore <name>")
 
 
 def _assert_planes_agree():
