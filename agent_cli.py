@@ -1363,8 +1363,8 @@ def project_notes(memory=None, chronicle_dir=None):
     items = [Consolidator.item(text=f"{d.title}: {d.decision}", source=f"mem:decision:{d.id}",
                                importance=4, timestamp=d.created_at) for d in decs]
     dist = Consolidator().consolidate(items, instruction="durable project notes")
-    base = Path(chronicle_dir) if chronicle_dir else \
-        Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles"
+    from core.paths import data_root
+    base = Path(chronicle_dir) if chronicle_dir else data_root() / "chronicles"
     base.mkdir(parents=True, exist_ok=True)
     path = base / "memory.md"
     header = ("# Project memory (auto-generated from notes — do not hand-edit)\n\n"
@@ -1654,7 +1654,7 @@ def _transport_line(door=None, detail=None) -> str:
     return ("# door: CLI-shell -- this PROCESS carries no door stamp, so it cannot tell "
             "whether your SEAT has akashic tools; a shell-out from an MCP seat looks "
             "identical here. If yours are attached, ignore this line" + paren
-            + ". If not: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
+            + f". If not: user-scoped MCP w/ absolute paths [T081-W2] or cd {_repo_root_str()} && restart")
 
 
 DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age at boot
@@ -4220,7 +4220,7 @@ def _human_flip_target(target):
     if s.startswith("p:"):
         p = s[2:]
         try:
-            rel = os.path.relpath(p, os.getenv("AI_SETUP", "E:\\AI-Setup"))
+            rel = os.path.relpath(p, _repo_root_str())
             if not rel.startswith(".."):
                 p = rel.replace("\\", "/")
         except Exception:
@@ -4302,7 +4302,7 @@ def _recent_commits(hours=12, limit=12):
     import subprocess
     try:
         r = subprocess.run(["git", "log", f"--since={hours} hours ago", "--pretty=%h\t%s"],
-                           cwd=os.getenv("AI_SETUP", "E:\\AI-Setup"), capture_output=True, text=True, timeout=10)
+                           cwd=_repo_root_str(), capture_output=True, text=True, timeout=10)
         out = []
         for line in (r.stdout or "").splitlines()[:limit]:
             if "\t" in line:
@@ -4752,8 +4752,14 @@ def cmd_stats(args):
 LAST_SESSION_DRAFT = "last-session-draft.md"   # under chronicles/; auto-captured by the SessionEnd/PreCompact hook
 
 
+def _repo_root_str() -> str:
+    from core.paths import repo_root
+    return str(repo_root())
+
+
 def last_session_draft_path():
-    return str(Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles" / LAST_SESSION_DRAFT)
+    from core.paths import data_root
+    return str(data_root() / "chronicles" / LAST_SESSION_DRAFT)
 
 
 def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=None, injections=None):
