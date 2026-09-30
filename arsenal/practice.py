@@ -1718,6 +1718,37 @@ def _identity(w: dict) -> tuple:
     return ("chord", w["root_pc"], w["suffix"], third)
 
 
+def merge_early(windows: List[dict], ctx: dict) -> List[dict]:
+    """The window pipeline before naming: facts, then growth and bass-walk merges. ONE function, so the replay
+    strip (replay_harmony) and the practice verbs (analyze) never segment differently -- Heimdall measured the
+    replay running one merge of analyze's four (2026-09-29)."""
+    for w in windows:
+        _facts(w, ctx)
+    return merge_bass_walks(merge_growth(windows, ctx), ctx)
+
+
+def name_windows(windows: List[dict], theory_source=None, node: Optional[str] = None,
+                 bias_for=None) -> Optional[str]:
+    """Name every window through the page's own THEORY block (run_theory) and settle the readings; the
+    step analyze() performs between merge_early and merge_late, made callable by the replay. bias_for(w) gives
+    the spelling bias (analyze: the key area's; the replay: 0, the browser respells in the page's key).
+    Returns the naming error text, or None."""
+    if not windows:
+        return None
+    items = [{"notes": w["detect_notes"], "bias": (bias_for(w) if bias_for else 0)} for w in windows]
+    answer, naming_error = run_theory(items, theory_source, node)
+    templates = answer["templates"] if answer else []
+    for w, info in zip(windows, answer["results"] if answer else [None] * len(windows)):
+        _analyse(w, info, templates)
+    resolve_over_third(windows)
+    return naming_error
+
+
+def merge_late(windows: List[dict], ctx: dict) -> List[dict]:
+    """The window pipeline after naming: a chord built note by note, then touching same-chord windows."""
+    return merge_same(merge_built(windows, ctx), ctx)
+
+
 def merge_built(windows: List[dict], ctx: dict) -> List[dict]:
     """A chord built note by note under one pedal (_building, window to window) is one window, named as it stands
     complete, when the complete chord keeps the root of the first window (F A C, then Eb, then G: one F11). A build that
@@ -1825,9 +1856,7 @@ def analyze(events, theory_source=None, node: Optional[str] = None, end_ms: Opti
     seg = harmonic_windows(snd, boundary)
     windows = seg["windows"]
     raw_windows = len(windows)
-    for w in windows:
-        _facts(w, ctx)
-    windows = merge_bass_walks(merge_growth(windows, ctx), ctx)
+    windows = merge_early(windows, ctx)
     sections = sections_of(snd) or [[0, snd["duration_ms"]]]
     sound_spans = _union([(n["on_ms"], n["end_ms"]) for n in snd["notes"]])
     frames = key_frames(snd, sections)
@@ -1857,7 +1886,7 @@ def analyze(events, theory_source=None, node: Optional[str] = None, end_ms: Opti
         _analyse(w, info, templates)
     resolve_over_third(windows)
     grown_windows = len(windows)
-    windows = merge_same(merge_built(windows, ctx), ctx)
+    windows = merge_late(windows, ctx)
 
     heard_pc, _ = _heard(snd["notes"])
     areas_raw, absorbed = consolidate_areas(provisional, windows, heard_pc)
