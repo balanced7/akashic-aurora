@@ -33,6 +33,36 @@ from pathlib import Path
 from core.comm import packet_spec
 
 
+def _is_python(arg0: str) -> bool:
+    """argv[0] names a Python interpreter: the Windows `py` launcher, python/python3, or a path
+    to one (what _normalize_launcher substitutes for `uv run`)."""
+    base = os.path.basename(str(arg0)).lower()
+    if base.endswith(".exe"):
+        base = base[:-4]
+    return base in ("py", "python", "python3") or bool(re.fullmatch(r"python3(\.\d+)?", base))
+
+
+def _normalize_launcher(argv: list) -> list:
+    """Map the launcher an agent was told to use (core.paths.python_launcher) onto the
+    interpreter that runs this process -- which has Aurora's dependencies installed.
+
+    `uv run [-p V] [--project P] X ...` -> [sys.executable, X, ...] on every OS. Outside
+    Windows a bare `py`/`python`/`python3` is mapped too: `py` does not exist there, and a
+    system python3 usually lacks the dependencies. Windows keeps `py`/`python` untouched.
+    """
+    import sys as _sys
+    if len(argv) >= 2 and os.path.basename(argv[0]).lower() in ("uv", "uv.exe") and argv[1] == "run":
+        rest = argv[2:]
+        while rest and rest[0] in ("-p", "--python", "--project", "--with"):
+            rest = rest[2:]
+        while rest and rest[0].startswith("--") and "=" in rest[0]:
+            rest = rest[1:]
+        return [_sys.executable, *rest]
+    if argv and os.name != "nt" and argv[0] in ("py", "python", "python3"):
+        return [_sys.executable, *argv[1:]]
+    return argv
+
+
 def _loud(msg: str) -> None:
     """Report a swallowed-class failure without ever raising (T108-S0).
 
@@ -78,10 +108,10 @@ def recall_tool_request(name, args=None) -> bool:
     if any(c in command for c in ";&|><`$\n\r"):
         return False
     try:
-        argv = shlex.split(command)
+        argv = _normalize_launcher(shlex.split(command))
     except ValueError:
         return False
-    return (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+    return (len(argv) >= 3 and _is_python(argv[0])
             and os.path.basename(argv[1]) == "agent_cli.py" and argv[2] in RECALL_CLI_VERBS)
 
 
@@ -1545,18 +1575,18 @@ class ToolBox:
             return None, None, ("shell metacharacters are REFUSED under unattended exec "
                                 "(no pipes/redirects/substitution; one plain command)")
         try:
-            argv = shlex.split(cmd)
+            argv = _normalize_launcher(shlex.split(cmd))
         except ValueError as e:
             return None, None, f"unparseable command ({e})"
         if not argv:
             return None, None, "empty command"
         # family: pytest -- `pytest ...` | `py -m pytest ...` | `python -m pytest ...`
         is_pytest = (argv[0] == "pytest"
-                     or (argv[0] in ("py", "python", "python3") and argv[1:3] == ["-m", "pytest"]))
+                     or (_is_python(argv[0]) and argv[1:3] == ["-m", "pytest"]))
         if is_pytest:
             return argv, {"_AISETUP_TEST_ISOLATED": "1"}, None
         # family: agent_cli READ verbs -- `py agent_cli.py <verb> ...`
-        if (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+        if (len(argv) >= 3 and _is_python(argv[0])
                 and os.path.basename(argv[1]) == "agent_cli.py"):
             verb = argv[2]
             # --help IS ALWAYS A READ, on every verb. Without this a seat cannot even LEARN
@@ -1584,7 +1614,7 @@ class ToolBox:
             return argv, {}, None
         # family: play-<agent> — sandboxed play-tool runs (T099 · tool tier).
         # py core/toolbelt/play_sandbox.py <agent>/<tool> [args]
-        if (len(argv) >= 4 and argv[0] in ("py", "python", "python3")
+        if (len(argv) >= 4 and _is_python(argv[0])
                 and os.path.normpath(argv[1]).replace("\\", "/") == "core/toolbelt/play_sandbox.py"):
             ref = argv[2]
             if "/" not in ref or ".." in ref or "\\" in ref:
@@ -1601,7 +1631,7 @@ class ToolBox:
         # script path only, explicit repo-relative paths, no flags/sweeps, and the trust
         # surfaces (security/, .claude/) stay super-admin-gated until T086-S7 lands
         # caller verification. Revert = remove this family (acl.json reason documents it).
-        if (len(argv) >= 3 and argv[0] in ("py", "python", "python3")
+        if (len(argv) >= 3 and _is_python(argv[0])
                 and os.path.normpath(argv[1]).replace("\\", "/") == "scripts/mirror.py"):
             flags = [a for a in argv[2:] if a.startswith("-")]
             if flags:
@@ -1706,7 +1736,7 @@ class ToolBox:
             # timeout-capped -- what is lifted is the FAMILY allowlist, not the process bounds.
             import shlex as _shlex
             try:
-                argv = _shlex.split(command, posix=False)
+                argv = _normalize_launcher(_shlex.split(command, posix=False))
             except ValueError as e:
                 return f"REFUSED: could not parse the command ({e})"
             if not argv:
@@ -1747,7 +1777,7 @@ class ToolBox:
             # Only the already-authorized family argv can opt out of generic output
             # clipping. No shell-text guessing or bypass of the gates above.
             recall = (argv is not None and len(argv) >= 3
-                      and argv[0] in ("py", "python", "python3")
+                      and _is_python(argv[0])
                       and os.path.basename(argv[1]) == "agent_cli.py"
                       and argv[2] in RECALL_CLI_VERBS)
             out = body or "(no output)"
