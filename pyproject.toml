@@ -1,0 +1,67 @@
+# Lets `uv run` resolve Aurora's dependencies with nothing installed beforehand:
+#   uv run -p 3.12 agent_cli.py boot me --task "..."
+# The same list lives in requirements.txt for `pip install -r requirements.txt` (the Windows
+# `py` setup). Keep the two in step.
+#
+# Nothing here needs a separately installed service: the Bifrost bus runs on an embedded,
+# SQLite-persisted Redis (core/foundation/embedded_redis.py) when no Redis server is present.
+[project]
+name = "akashic-aurora"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    # the store and the bus
+    "redis>=5,<9",
+    "fakeredis>=2.30",
+    "lupa>=2",
+    # fleet health, tests
+    "psutil>=5",
+    "pytest>=8",
+    # the MCP door (ai_setup_mcp.py)
+    "mcp>=1,<2",          # ai_setup_mcp.py uses the 1.x FastMCP API (renamed in 2.x)
+    "anyio>=4",
+    # model runners and helper doors (DeepSeek / OpenAI-compatible, Gemini, Discord)
+    "openai>=1",
+    "httpx>=0.27",
+    "requests>=2.31",
+    "google-genai>=1",
+    "discord.py>=2.3",
+    "pynacl>=1.5",
+    # the web and manuals doors
+    "beautifulsoup4>=4.12",
+    "markdownify>=0.12",
+    "pypdf>=4",
+    "pymupdf>=1.24",
+    "trafilatura>=1.8",
+    # arsenal (media analysis), screen space, transcripts
+    "numpy>=1.26",
+    "av>=12",
+    "pillow>=10",
+    "mss>=9",
+    "imageio-ffmpeg>=0.5",
+    "zstandard>=0.22",
+    # the console
+    "rich>=13",
+    "prompt_toolkit>=3",
+    # git hooks
+    "pre-commit>=3",
+    # Windows-only UI automation (core/screenspace); absent elsewhere by design
+    "uiautomation>=2; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+# Semantic embeddings and punctuation restoration pull in PyTorch (gigabytes); both features are
+# OFF by default and fall back to the deterministic pipeline. `uv sync --group ml` to enable.
+ml = [
+    "sentence-transformers>=3",
+    "deepmultilingualpunctuation>=1.0",
+]
+# Browser automation for the Gemini web door; also needs `playwright install chromium`.
+browser = [
+    "playwright>=1.44",
+    "patchright>=1.44",
+    "playwright-stealth>=1.0",
+]
+
+[tool.uv]
+package = false
