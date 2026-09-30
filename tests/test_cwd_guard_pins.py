@@ -47,8 +47,15 @@ if ROOT not in sys.path:
 
 LIVE_HOOK = os.path.join(ROOT, "scripts", "hooks", "claude_pretooluse.py")
 SENTINEL = "SENTINEL-RECALL-AT-ACTION"
-DRIFTED = "E:\\"            # where the harness shell lands after a rebuild
-REPO = "E:\\AI-Setup"       # the production topology the guard is written against
+# Derived from THIS checkout, never one machine's drive: on the original box REPO is
+# E:\\AI-Setup and DRIFTED is E:\\ (where the harness shell lands after a rebuild); anywhere
+# else they are the real checkout and its parent, so every case means the same thing.
+REPO = ROOT
+DRIFTED = os.path.dirname(ROOT)
+ELSEWHERE = os.path.join(DRIFTED, "someone-else")   # any other non-repo cwd
+# How the guard spells the remedy (git-bash /e/AI-Setup on a Windows drive, else the path).
+CD = (lambda f: f"/{f[0].lower()}{f[2:]}" if len(f) > 1 and f[1] == ":" else f)(
+    ROOT.replace("\\", "/").rstrip("/"))
 
 
 @pytest.fixture(scope="module")
@@ -119,22 +126,22 @@ def _context(out: str) -> str:
     ("Bash", DRIFTED, "grep -rn foo scripts/ core/"),               # false-clean class (b095caa5)
     ("Bash", DRIFTED, "py agent_cli.py boot claude"),                # in scope by text (5b65b7ab)
     ("PowerShell", DRIFTED, "py agent_cli.py status"),               # the PRIMARY shell on Windows
-    ("Bash", "C:\\Users\\someone", "py -m pytest tests/test_x.py"),  # any non-repo cwd, not only E:\
+    ("Bash", ELSEWHERE, "py -m pytest tests/test_x.py"),             # any non-repo cwd, not only DRIFTED
 ], ids=["grep-false-clean", "agent_cli-in-scope-by-text", "powershell", "home-cwd"])
 def test_drift_speaks(hook, tool, cwd, cmd):
     line = hook._cwd_drift({"tool_name": tool, "tool_input": {"command": cmd}, "cwd": cwd})
     assert line.startswith("[cwd-guard]"), line
-    assert cwd in line and "cd /e/AI-Setup" in line     # names the drift AND the remedy
+    assert cwd in line and f"cd {CD}" in line           # names the drift AND the remedy
     assert "\n" not in line                              # ONE loud line
 
 
 @pytest.mark.parametrize("tool, cwd, cmd", [
-    ("Bash", DRIFTED, "cd /e/AI-Setup && grep -rn foo scripts/"),               # anchored, git-bash
-    ("Bash", DRIFTED, "py E:/AI-Setup/agent_cli.py status"),                    # anchored, absolute
-    ("PowerShell", DRIFTED, "Set-Location E:\\AI-Setup; py agent_cli.py status"),  # anchored, win
+    ("Bash", DRIFTED, f"cd {CD} && grep -rn foo scripts/"),                     # anchored, remedy form
+    ("Bash", DRIFTED, "py " + ROOT.replace("\\", "/") + "/agent_cli.py status"),  # anchored, absolute
+    ("PowerShell", DRIFTED, f"Set-Location {ROOT}; py agent_cli.py status"),     # anchored, native
     ("Bash", REPO, "grep -rn foo scripts/"),                                     # cwd IS the repo
-    ("Bash", "e:/ai-setup/", "grep -rn foo scripts/"),                           # ... any spelling
-    ("Bash", REPO + "\\tests", "py agent_cli.py status"),                        # ... or inside it
+    ("Bash", os.path.normcase(REPO).replace("\\", "/") + "/", "grep -rn foo scripts/"),  # ... any spelling
+    ("Bash", os.path.join(REPO, "tests"), "py agent_cli.py status"),             # ... or inside it
     ("Bash", DRIFTED, "ls"),                                                     # non-repo work
     ("Edit", DRIFTED, "grep -rn foo scripts/"),                                  # file tools: by path
 ], ids=["anchored-cd", "anchored-abs-path", "anchored-powershell", "in-repo", "in-repo-spelling",
@@ -178,7 +185,7 @@ def test_drift_speaks_on_the_in_scope_by_text_branch(hook, quiet_recall):
 def test_anchored_command_stays_guard_quiet(hook, quiet_recall):
     """Case 3: the remedy the guard prescribes must not trip the guard. Anchored -> in scope by
     text -> recall exactly as before, and the context carries NO drift line."""
-    rc, out = _run(hook, _payload("cd /e/AI-Setup && grep -rn foo scripts/", DRIFTED))
+    rc, out = _run(hook, _payload(f"cd {CD} && grep -rn foo scripts/", DRIFTED))
     assert rc == 0
     assert _context(out) == SENTINEL
 
