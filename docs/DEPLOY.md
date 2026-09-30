@@ -146,6 +146,56 @@ Example (Linux, archives on two mounted disks):
 export AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS="/mnt/disk1/aurora/transcripts:/mnt/disk2/aurora/transcripts"
 ```
 
+### Keeping the original Windows machine (`E:\AI-Setup`) working
+
+These variables replaced literals that were written for that machine. After it pulls the
+2026-10-01 portability commits, do the following there, or its backups stop.
+
+**Required. Without these, both archivers exit with code 2 and copy nothing.** Set them as
+persistent *user* variables. Scheduled tasks only see the new values after you sign out and back
+in, or reboot.
+
+```powershell
+setx AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS "E:\Akashic Aurora\transcripts\rolling;F:\Akashic Aurora\transcripts\rolling"
+setx AKASHIC_EPHEMERAL_ARCHIVE_ROOTS  "E:\Akashic Aurora\ephemeral;F:\Akashic Aurora\ephemeral"
+```
+
+The transcript index (`core/eye/index.py`) reads the transcript archive through the same
+variable. If the variable is unset, the index sees no archive.
+
+**Only needed to keep the old file-search coverage.** Without Everything, the fallback walk used
+to include `C:\Tools` and `C:\ffmpeg`, and it looked for `es.exe` in `C:\Tools\Everything`. The
+new defaults leave all three out. Setting `AKASHIC_SEARCH_ROOTS` replaces the default list rather
+than adding to it, so list every folder you want walked:
+
+```powershell
+setx AKASHIC_SEARCH_ROOTS "%LOCALAPPDATA%;%APPDATA%;%USERPROFILE%;C:\Program Files;C:\Program Files (x86);C:\Tools;C:\ffmpeg"
+setx ES_EXE "C:\Tools\Everything\es.exe"   # only if es.exe lives there and is not on PATH
+```
+
+**Check these after pulling:**
+
+- **Claude Code hooks** (`.claude/settings.json`). The trace, post-tool-use and stop hooks used to
+  run `pyw <script>`. They now run a bash-syntax `uvw`/`uv run -p 3.12 --gui-script` command.
+  That needs `uv` on `PATH` (`uvw.exe` ships with uv on Windows) and a shell that understands
+  `$(...)` and `VAR=value cmd`. Run one session and confirm the trace hook still writes. If it
+  doesn't, point the three commands back at `pyw` in a machine-local
+  `.claude/settings.local.json`.
+- **Codex identity pointer** (`.codex/config.toml`). `AKASHIC_IDENTITY_POINTER` is now
+  repo-relative. Check that Sunshine's boot still finds the identity history file. If it
+  doesn't, set it back to the absolute `E:/AI-Setup/...` path in a local override.
+- **Re-running `scripts/install_sunshine_discord_tasks.ps1`**. `-PythonExe` now defaults to the
+  first `python.exe` on `PATH`, not `C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe`.
+  Tasks that are already registered keep the path they were registered with. If you re-install and a
+  different Python comes first on `PATH`, pass `-PythonExe` explicitly.
+- **MCP templates** (`scripts/static/mcp/*.json`). These now contain `/abs/path/to/...`
+  placeholders and use `uv`. The configs already installed on the machine are unchanged. If you
+  copy a template again, fill in `E:\\AI-Setup`.
+
+**Nothing to do:** `E:\AI-Setup-Beta` and `E:\AI-Setup-Alpha` are still found as siblings of the
+checkout. The repo and data roots, and the recall state directory (`%TEMP%`), resolve to the same
+places as before.
+
 ## 9. Troubleshooting
 
 - **`python` not found (Windows):** use `py`, not `python`.
