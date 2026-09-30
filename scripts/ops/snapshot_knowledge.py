@@ -171,6 +171,8 @@ def _assert_planes_agree():
 def _redis():
     try:
         import redis
+        from core.foundation.redis_connection import ensure_redis_server
+        ensure_redis_server(REDIS_HOST, REDIS_PORT)   # starts the embedded server if that is ours
         c = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0,
                         decode_responses=True, socket_connect_timeout=1.0)
         c.ping()
