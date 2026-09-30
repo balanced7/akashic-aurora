@@ -39,7 +39,7 @@ try:
     from core.paths import repo_root as _rr
     ROOT = _rr()
 except Exception:
-    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
+    ROOT = Path(__file__).resolve().parents[2]
 
 # The ONLY *.md files allowed at the repo root -- the agent's designated entry points.
 ALLOWED_ROOT_MD = {"README.md", "AGENTS.md", "bootstrap.md", "CONTRIBUTING.md"}
