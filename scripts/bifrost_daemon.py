@@ -270,6 +270,31 @@ def managed_runner_argv(
     return command
 
 
+def foreign_holder_after_exit(agent: str, exited_pid) -> "Optional[dict]":
+    """R9 (watcher-controls, 2026-09-29): the runner child has just exited. If the runner lock is now held by a
+    runner this daemon did not spawn -- a bare token, i.e. the child's own stale-code successor after a push, or a
+    hand-launched runner -- the seat is manned and a respawn would only fail the lock, count as a crash, trip the
+    breaker and page on every re-arm (2026-09-30 00:14-00:33: four pages beside Navi's working successor). Returns
+    that holder so the caller goes idle and lets the W102 reclaim probe spawn when the lock frees; None when the
+    lock is free, held by a daemon token, or held by the pid that just exited (its key has not expired yet). Never
+    raises: an unreadable lock reads as "no foreign holder", the same as before this gate existed."""
+    try:
+        from core.comm import runner_lock
+        h = runner_lock.holder(agent)
+    except Exception:
+        return None
+    if not h:
+        return None
+    if str(h.get("token", "")).startswith("daemon:"):
+        return None
+    try:
+        if exited_pid is not None and int(h.get("pid") or 0) == int(exited_pid):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return h
+
+
 def managed_runner_env(
     agent: str,
     *,
@@ -589,7 +614,19 @@ def main(argv=None) -> int:
 
             # ---- child poll -------------------------------------------------------
             if child is not None:
-                child.poll()
+                exited_pid = child.pid
+                if child.poll() is not None:
+                    # R9: the child is gone. If a foreign runner already holds the seat (its stale-code
+                    # successor, or a bare runner), do NOT respawn beside it -- that is the crash-breaker-page
+                    # loop. Go idle; the W102 reclaim probe below spawns the moment the lock frees.
+                    fh = foreign_holder_after_exit(agent, exited_pid)
+                    if fh is not None:
+                        _say(f"[daemon] handover agent={agent}: runner lock held by foreign pid={fh.get('pid')} "
+                             f"token={str(fh.get('token', ''))[:24]} -- cause not cleared, no respawn; "
+                             f"idle-watch (W102) reclaims when it frees")
+                        child = None
+                        idle_mode = True
+                        runner_down_since = None
             for _sid, lch in list(listeners.items()):
                 lch.poll()
 
@@ -702,13 +739,21 @@ def main(argv=None) -> int:
                     if runner_state == "down" and down_s >= RE_ESCALATION_S \
                             and (now - runner_last_escalation) >= RE_ESCALATION_S:
                         try:
-                            bus.broadcast("blocker",
-                                          f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
-                                          f"daemon presence held. Check: py agent_cli.py doctor {agent}",
-                                          meta={"via": f"{agent}-daemon", "kind": "blocker"})
+                            # First edge only mints a wake-worthy mid. Recounts refresh the
+                            # pager (stable key `{agent}:runner_down`) so doctor/PAGE stay
+                            # current without a 10-minute wake metronome. Admit-side
+                            # (bifrost_wake.outage_key) is the belt; this is the braces.
+                            if runner_last_escalation == 0.0:
+                                bus.broadcast("blocker",
+                                              f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
+                                              f"daemon presence held. Check: py agent_cli.py doctor {agent}",
+                                              meta={"via": f"{agent}-daemon", "kind": "blocker"})
+                                _say(f"[daemon] re-escalation broadcast agent={agent}: "
+                                     f"runner down {int(down_s/60)}min")
+                            else:
+                                _say(f"[daemon] re-escalation page-only agent={agent}: "
+                                     f"runner down {int(down_s/60)}min (no new wake mid)")
                             runner_last_escalation = now
-                            _say(f"[daemon] re-escalation broadcast agent={agent}: "
-                                 f"runner down {int(down_s/60)}min")
                             try:   # T078-W4: page-grade -> the pager surface (a live
                                 #    seat relays via PushNotification; hook injects [PAGE])
                                 from core.comm import pager
