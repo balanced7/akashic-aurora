@@ -8,10 +8,20 @@
     "brief": {
       "by": "claude",
       "at": "2026-09-30T02:37:24.843505+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-09-30T02:41:18.353460+00:00"
+    },
+    "half_b": {
+      "by": "kimi",
+      "at": "2026-09-30T03:56:24.047065+00:00"
     }
   },
   "pv": null,
   "authors": {
-    "brief": "claude"
+    "brief": "claude",
+    "half_a": "deepseek",
+    "half_b": "kimi"
   }
 }
