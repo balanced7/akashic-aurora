@@ -49,7 +49,7 @@ def test_shell_scope_cwd_or_command():
     elsewhere = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
     assert scope.shell_in_scope(scope.repo_root(), "echo hi")
     assert scope.shell_in_scope(elsewhere, "py agent_cli.py list"), "the command names the repo's door"
-    assert scope.shell_in_scope(elsewhere, "cd E:/AI-Setup && ls")
+    assert scope.shell_in_scope(elsewhere, f"cd {scope.repo_root()} && ls"), "the command names the checkout"
     assert not scope.shell_in_scope(elsewhere, "echo hi")
 
 
