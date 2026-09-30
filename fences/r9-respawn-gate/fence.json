@@ -1,0 +1,17 @@
+{
+  "id": "r9-respawn-gate",
+  "question": "Does the daemon, after the respawn gate (32e91090), satisfy Heimdall's three R9 assertions -- beside a foreign runner it pages once then never; a re-arm with the lock held logs cause-not-cleared and spawns nothing; the runner-down re-escalation re-pages only on a genuine clear-then-re-activate -- and if the third fails, what is the smallest state-change test that makes it hold without silencing a real fresh runner-down?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-09-30T04:40:17.764759+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-09-30T04:40:18.516751+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
