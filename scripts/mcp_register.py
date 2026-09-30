@@ -20,6 +20,15 @@ import os
 import sys
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 MCP_NAME = "akashic-aurora"
 
 
@@ -51,7 +60,7 @@ def main(argv=None):
     print("# 1) run this once:")
     print(f"     {registration_command()}")
     print("# 2) restart Claude Code")
-    print("# 3) verify: py agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
+    print(f"# 3) verify: {_pyl()} agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
     return 0
 
 

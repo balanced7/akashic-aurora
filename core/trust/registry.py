@@ -20,6 +20,15 @@ from typing import Optional
 
 from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _DEFAULT_ACL = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
 # T163: overridable so the grant WRITER can be exercised against a copy. Before this there was no
 # writer at all, so nothing ever needed to point elsewhere -- and a test that must edit the real
@@ -135,7 +144,7 @@ def _floor_notice(agent_id: str) -> None:
               f"security/acl.json > security/acl.json); on a fresh instance copy "
               f"security/acl.example.json AND add your own root/super_admin record by hand -- "
               f"an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included, "
-              f"and is narrower than this floor; then py agent_cli.py grant --bootstrap", file=sys.stderr)
+              f"and is narrower than this floor; then {_pyl()} agent_cli.py grant --bootstrap", file=sys.stderr)
     except Exception:
         pass
 

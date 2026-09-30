@@ -10,8 +10,17 @@ import sys
 from pathlib import Path
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="py -m arsenal", description="Daniel's modular media suite")
+    ap = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal", description="Daniel's modular media suite")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("serve", help="run the local First Light server on 127.0.0.1")
@@ -102,12 +111,12 @@ def main(argv=None) -> int:
                     "a copy that starts or ends in the middle of a note fades in or out, and the copy\n"
                     "is named '<name> tiktok 28-52-end.mp4' so it sits beside the other copies.",
         epilog="examples:\n"
-               "  py -m arsenal tiktok \"E:\\Video Output E\\my take.mp4\"\n"
+               f"  {_pyl()} -m arsenal tiktok \"E:\\Video Output E\\my take.mp4\"\n"
                "      makes \"my take tiktok.mp4\" beside it\n"
-               "  py -m arsenal tiktok --latest --dry-run --preview\n"
+               f"  {_pyl()} -m arsenal tiktok --latest --dry-run --preview\n"
                "      checks the newest recording: prints the box, the trim and the ffmpeg command,\n"
                "      saves a preview picture, and encodes nothing\n"
-               "  py -m arsenal tiktok --latest --from 28:52\n"
+               f"  {_pyl()} -m arsenal tiktok --latest --from 28:52\n"
                "      the newest recording from 28:52 to its end (the keeper at the end of a long take),\n"
                "      saved as \"<name> tiktok 28-52-end.mp4\"; add --to 31:00 to stop there\n\n"
                "Tip: drag videos onto arsenal\\tools\\tiktok-ready.cmd to do the same without typing.")
@@ -115,7 +124,7 @@ def main(argv=None) -> int:
     tk.add_argument("--latest", action="store_true",
                     help="use the newest recording in --folder instead of naming one")
     tk.add_argument("--folder", metavar="DIR",
-                    help="where --latest looks (default: the library folder 'py -m arsenal serve' uses)")
+                    help=f"where --latest looks (default: the library folder '{_pyl()} -m arsenal serve' uses)")
     tk.add_argument("--from", dest="start", metavar="TIME",
                     help="start the copy here instead of at the start of the recording; TIME is seconds "
                          "(1732 or 1731.6), m:ss (28:52 or 28:52.5) or h:mm:ss (1:05:03.2)")
@@ -195,7 +204,7 @@ def main(argv=None) -> int:
         try:
             print(json.dumps(registry.get(args.module), indent=2))
         except KeyError:
-            print(f"no module {args.module!r}; try: py -m arsenal inspect", file=sys.stderr)
+            print(f"no module {args.module!r}; try: {_pyl()} -m arsenal inspect", file=sys.stderr)
             return 2
         return 0
 
@@ -456,7 +465,7 @@ def main(argv=None) -> int:
         try:
             text = store.markdown(session)
         except PerformanceError as exc:
-            print(f"{exc}; try: py -m arsenal performance list", file=sys.stderr)
+            print(f"{exc}; try: {_pyl()} -m arsenal performance list", file=sys.stderr)
             return 2
         # summary.md has arrows and note names; write UTF-8 even when stdout is a cp1252 pipe.
         stream = getattr(sys.stdout, "buffer", None)

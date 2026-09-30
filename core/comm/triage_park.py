@@ -24,6 +24,15 @@ from typing import Any, Dict, List, Optional
 from core.foundation.timeutil import now_iso
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 def _ns() -> str:
     return os.environ.get("BIFROST_NAMESPACE", "bifrost")
 
@@ -54,7 +63,7 @@ def park(agent: str, msg: Dict[str, Any], *, reason: str, by: str) -> Dict[str, 
             Bus(agent).send(frm, "note",
                             f"[triage] your {msg.get('kind', 'ask')} ({msg.get('id', '?')}) to "
                             f"{agent} was PARKED ({reason}) -- bottomed, not dropped. "
-                            f"Re-raise if still live, or drill: py agent_cli.py bench {agent}",
+                            f"Re-raise if still live, or drill: {_pyl()} agent_cli.py bench {agent}",
                             meta={"via": "triage-park", "display_only": True})
         except Exception:
             pass                                   # notify is best-effort; the bench is truth
@@ -109,5 +118,5 @@ def render(agent: str) -> str:
         rows.append(f"  {e['parked_id']}  [{m.get('kind', '?')}] from {m.get('frm', '?')} "
                     f"({e.get('reason', '?')}, parked {e.get('parked_at', '?')})")
         rows.append(f"      {str(m.get('content', ''))[:110]}")
-    rows.append(f"  return one: py agent_cli.py bench {agent} unpark <parked_id>")
+    rows.append(f"  return one: {_pyl()} agent_cli.py bench {agent} unpark <parked_id>")
     return "\n".join(rows)

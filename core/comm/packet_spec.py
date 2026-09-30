@@ -38,6 +38,15 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 SPEC_VERSION = 2
 DEFAULT_MAX_MESSAGE_BYTES = 65536
 DEFAULT_FRAG_REASSEMBLY_TTL = 300
@@ -542,7 +551,7 @@ def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Di
 
     note = (f"\n\n[spilled: {full_len} chars total, first {{keep}} shown. "
             f"The FULL text is stored at {ref} -- fetch it, do NOT ask for a resend. "
-            f"Retrieve with: py agent_cli.py bifrost-fetch --get {ref}]")
+            f"Retrieve with: {_pyl()} agent_cli.py bifrost-fetch --get {ref}]")
     keep = max(0, limit - len(note.format(keep=full_len)) - 8)
     return text[:keep] + note.format(keep=keep), {
         "spilled": True, "spill_ref": ref, "spill_len": full_len, "spill_kept": keep}

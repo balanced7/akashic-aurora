@@ -51,6 +51,15 @@ if str(REPO) not in sys.path:
 
 from core.comm import remote_relay as RR  # noqa: E402
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 #: Loopback. THE DEFAULT IS THE POLICY — nobody reads flag docs before the first run, and this
 #: machine runs with Defender disabled and Windows Update blocked by choice, so an
 #: all-interfaces default is one absent-minded launch from an open door on an unpatched box.
@@ -328,7 +337,7 @@ def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *,
         # everything is the exact shape of "green receipt over a broken path" this house spent
         # a 2h44m outage learning to hate.
         print("WARNING: no inbound secret found — this listener is INERT and will refuse "
-              "every message. Drop remote_bridge_inbound.key into .secrets/ (py agent_cli.py "
+              f"every message. Drop remote_bridge_inbound.key into .secrets/ ({_pyl()} agent_cli.py "
               "secret) and restart.", file=sys.stderr)
 
     _Handler.peer_name = peer

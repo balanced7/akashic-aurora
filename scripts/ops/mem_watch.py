@@ -46,10 +46,19 @@ import sys
 import time
 from datetime import datetime, timezone
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 try:
     import psutil
 except ImportError:  # pragma: no cover - environment guard
-    print("mem_watch: psutil is required (py -m pip install psutil)", file=sys.stderr)
+    print(f"mem_watch: psutil is required ({_pyl()} -m pip install psutil)", file=sys.stderr)
     raise SystemExit(2)
 
 DEFAULT_LOG = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

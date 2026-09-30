@@ -61,6 +61,15 @@ from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _STOP = {"flag": False, "reason": ""}
 
 
@@ -746,7 +755,7 @@ def main(argv=None) -> int:
                             if runner_last_escalation == 0.0:
                                 bus.broadcast("blocker",
                                               f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
-                                              f"daemon presence held. Check: py agent_cli.py doctor {agent}",
+                                              f"daemon presence held. Check: {_pyl()} agent_cli.py doctor {agent}",
                                               meta={"via": f"{agent}-daemon", "kind": "blocker"})
                                 _say(f"[daemon] re-escalation broadcast agent={agent}: "
                                      f"runner down {int(down_s/60)}min")

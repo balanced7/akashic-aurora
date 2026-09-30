@@ -46,6 +46,15 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 # generic tokens that carry no recall signal (tooling/noise) — never used as query terms.
 _STOP = {"core", "self", "true", "false", "none", "null", "test", "tests", "json",
@@ -1299,7 +1308,7 @@ def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
     # Trigger-phrased recommendation placeholder (field-survey C5): "Use when <symptom>..."
     # descriptions are what make a lesson FIRE at the right moment -- the template models it
     # so the phrasing costs one edit instead of authorship.
-    return (f'py agent_cli.py learn {agent} --experiment {_slug_from_target(target)} '
+    return (f'{_pyl()} agent_cli.py learn {agent} --experiment {_slug_from_target(target)} '
             f'--tried "<what failed>" --result "<what fixed it>" '
             f'--recommend "Use when <symptom>, before <action>: <advice>"')
 
@@ -1934,7 +1943,7 @@ def render(result: Dict[str, Any], *,
         if hint_style == "tool":
             lines.append(f"[verb] the door already has a `{v.get('verb')}` verb — {p}")
         else:
-            lines.append(f"[verb] `py agent_cli.py {v.get('verb')}` — {p}")
+            lines.append(f"[verb] `{_pyl()} agent_cli.py {v.get('verb')}` — {p}")
     if not lines:
         return ""
     shown, total = len(result.get("lessons", [])), result.get("total", 0)

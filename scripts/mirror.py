@@ -51,6 +51,15 @@ import subprocess
 import sys
 from datetime import datetime
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
 
@@ -391,7 +400,7 @@ def _commit(args):
                     print(r13.stdout.strip())
                 if r13.returncode != 0:
                     print("[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
-                          "py agent_cli.py doc new (or --draft), or fix the path.")
+                          f"{_pyl()} agent_cli.py doc new (or --draft), or fix the path.")
                     return 1
     if staged:
         if paths and not add_all:
@@ -408,7 +417,7 @@ def _commit(args):
         # refuse to silently do nothing on a dirty tree -- teach the agent
         print("[mirror] nothing staged -- refusing to blanket-commit a shared tree.")
         print("  Name what's YOURS:")
-        print('    py scripts/mirror.py "msg" path1 path2 --commit   (stage + commit those)')
+        print(f'    {_pyl()} scripts/mirror.py "msg" path1 path2 --commit   (stage + commit those)')
         print("  or stage first (git add <path>), or --all --commit to sweep everything.")
         print("  Dirty files:")
         print(dirty)
@@ -480,7 +489,7 @@ def main(argv=None):
         return 0 if args.dry_run else EXIT_USAGE
 
     if args.commit and not args.message:
-        parser.error('--commit needs a message: py scripts/mirror.py "msg" <paths> --commit')
+        parser.error(f'--commit needs a message: {_pyl()} scripts/mirror.py "msg" <paths> --commit')
     if (args.all or args.paths) and not args.message:
         parser.error("paths and --all need a commit message")
     if args.push:

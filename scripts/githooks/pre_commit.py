@@ -18,6 +18,15 @@ import re
 import subprocess
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 
@@ -126,7 +135,7 @@ def check_author_matches_seat(agent, author_ident):
            f"  GIT_COMMITTER_NAME={want['GIT_COMMITTER_NAME']} "
            f"GIT_COMMITTER_EMAIL={want['GIT_COMMITTER_EMAIL']} git commit ...\n"
            f"(Which seat did the work is recorded in state/authorship/seats.jsonl -- "
-           f"`py scripts/authorship_ledger.py who <sha>`.)")
+           f"`{_pyl()} scripts/authorship_ledger.py who <sha>`.)")
     if not str(author_ident).startswith(expected):
         return False, (
             f"pre-commit BLOCKED: AKASHIC_AGENT_ID is '{agent}' but git will record the AUTHOR "

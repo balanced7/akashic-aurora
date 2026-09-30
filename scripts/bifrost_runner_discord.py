@@ -67,6 +67,15 @@ from core.comm.discord_inbound import (EarConfigError, build_config,
                                       spawn_credential_refusal,
                                       spawn_stillborn_reason)
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _ROOT = Path(__file__).resolve().parents[1]
 # How long a fresh seat must keep breathing before its sprout is proven honest.
 # MEASURED, not guessed: an expired-OAuth death takes 15.8-16.9s (n=3, all exit 1) --
@@ -511,11 +520,11 @@ def main(argv=None) -> int:
         # sunshine?") got done and wrapped in total silence. The instruction below is the
         # fix: explicit, not hoped-for.
         prompt = (f"You were spawned by the operator's !spawn from Discord. First run: "
-                  f"py agent_cli.py boot claude --task \"{task[:200]}\" -- then do the "
+                  f"{_pyl()} agent_cli.py boot claude --task \"{task[:200]}\" -- then do the "
                   f"task. IMPORTANT: a `wrap` alone never reaches him -- it distills THIS "
                   f"session for the next one and sends nothing to Discord. Before you "
                   f"wrap, reply to him directly on the bus so your words actually land in "
-                  f"his channel: `py agent_cli.py bifrost-send claude \"<your reply>\" "
+                  f"his channel: `{_pyl()} agent_cli.py bifrost-send claude \"<your reply>\" "
                   f"--to daniil --kind chat` (use --text-file for anything long or "
                   f"flag-bearing). Do this even if the ask read as a task rather than a "
                   f"question -- a silent completion is indistinguishable from no reply at "

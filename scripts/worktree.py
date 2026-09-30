@@ -27,6 +27,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = Path(__file__).resolve().parent.parent
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
 DEFAULT_BRANCH = "master"
@@ -69,9 +78,9 @@ def setup(agent: str, root=ROOT, base=None) -> Path:
         _git(root, "worktree", "add", "-b", br, str(wt), DEFAULT_BRANCH)
     print(f"[worktree] {agent}: {wt}  (branch {br})")
     print(f"  -> Open THIS dir in your IDE: {wt}")
-    print(f"  -> Commit to {br}; publish with `py scripts/mirror.py \"msg\" <paths> --push --yes` "
+    print(f"  -> Commit to {br}; publish with `{_pyl()} scripts/mirror.py \"msg\" <paths> --push --yes` "
           "(claude seat or Daniel only).")
-    print(f"  -> When a slice is green: py scripts/worktree.py integrate {slugify(agent)}")
+    print(f"  -> When a slice is green: {_pyl()} scripts/worktree.py integrate {slugify(agent)}")
     return wt
 
 
