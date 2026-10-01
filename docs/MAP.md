@@ -161,7 +161,7 @@ Class: reference
 | `storm_detect.py` | storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery). | GAP | GAP | `STORM_DEPTH_THRESHOLD`, `STORM_DEPTH_WINDOW`, `STORM_REPEAT_THRESHOLD` |
 | `thread_capture.py` | Subject-bound, non-consuming Bifrost thread capture (T084 S2). | GAP | GAP |  |
 | `timescale.py` | Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking. | GAP | GAP | `AKASHIC_TIMEOUT_MULTIPLIER` |
-| `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
+| `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `CLAUDE_CODE_SESSION_ID`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
 | `triage_park.py` | Triage park (S0-alpha) -- the scry-to-bottom bench. | tests/test_s0_triage_park.py | GAP | `BIFROST_NAMESPACE` |
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `AKASHIC_WAKE_RECEIPTS_DIR`, `BIFROST_NAMESPACE`, `PYTEST_CURRENT_TEST` |

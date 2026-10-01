@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 5c7a9a0c. A bound you discover by collision is not awareness -- this sheet
+> Derived at 0bc82be2. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (269 names)
+## Configuration flags (270 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -112,6 +112,7 @@ Class: reference
 | `AKASHIC_ROSTER_CHURN_WINDOW_S` | `"3600"` | core/comm/roster.py |
 | `AKASHIC_ROUTE_JOURNAL` | `""` | core/comm/ask.py |
 | `AKASHIC_RUN_EXPECTATION` | `` | core/comm/failsafe.py |
+| `AKASHIC_SEAT_BINDING_DIR` | `` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py, scripts/hooks/claude_posttooluse.py +1 |
@@ -183,7 +184,7 @@ Class: reference
 | `BIFROST_WAKE_SETTLE_S` | `"15"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +6 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +7 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `COMPUTERNAME` | `` | arsenal/lanes/gst_d3d12_soak.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |
