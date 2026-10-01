@@ -70,3 +70,12 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   the byte changed after checkout: a host memory/storage fault. Since c37c1d10 every oracle
   run tree is rehashed against its commit and refused on any mismatch. Operator was told to
   check the host's RAM/disk health.
+- **D-G3-1 (G3 zero set).** Measured at G2 HEAD 1a38090b with the plan's target set: 29,769
+  findings in 1,312 files (safe fix 9,079, unsafe fix 7,497, no fix 13,048), and T4 room for
+  ~320 new suppressions (607 exist, budget 927). PTH, BLE, T20 and S cannot reach zero inside
+  T4 (S603/S607/S310 need ~550 suppressions alone), and N802 on test names cannot be fixed
+  without changing pytest node ids (O1). The operator chose (2026-10-02) to move PTH, BLE,
+  T20, S and N into the stretch ratchet with D, ANN, ARG, FBT, TRY, PL (IC-0003). The zero
+  set is the rest of the target set. RUF100 keeps the ratchet families' existing `noqa`s via
+  `lint.external`.
+

@@ -27,3 +27,39 @@ key = "windows-only:python_launcher"
 reason = "Windows text names `uv run` instead of `py` when uv is installed (plan G1.P5)"
 goal = "G1"
 ```
+
+## IC-0002: PEP 585/604 annotation spelling in annotation-sensitive modules (G3.P1, UP wave)
+
+The `UP` wave rewrites `List[str]` to `list[str]` and `Optional[X]` to `X | None` (UP006,
+UP045, target py311). In the 89 annotation-sensitive modules O5 records the full signature
+text, so the spelling change shows as `annot:<module>.<name>` items. The types are the same
+objects at runtime for every consumer that reads them (typing.get_type_hints, pydantic, the MCP
+SDK's schema builder); the proof of that is O4c (the MCP tool list with full input schemas),
+which must stay EQUAL, and O5's `bare` signatures (names, kinds, defaults), which must not
+change. Covers annotation-text items only, never `sig:` or `name:` items.
+
+```toml
+id = "IC-0002"
+component = "O5"
+key = "annot:*"
+reason = "PEP 585/604 spelling of the same annotation types (ruff UP006/UP045, plan G3.P1); O4c stays EQUAL"
+goal = "G3"
+```
+
+## IC-0003: five rule families moved from G3's zero set to the stretch ratchet (D-G3-1)
+
+Plan G3 Fallback: a demoted family carries an entry here. PTH (5,158 findings), BLE (2,423),
+T20 (3,968 outside scripts/), S (1,700) and N (808) have no autofix for ~13k of their findings,
+and zeroing them would need either more suppressions than T4 allows (S603/S607/S310 alone ~550
+against ~320 of room) or test renames that change pytest node ids (N802; O1 must keep every
+id). The operator chose on 2026-10-02 to ratchet them instead (counts in
+tooling-upgrade/ratchet.json may never rise). No runtime behaviour changes; no toml block, so
+this entry can mask no oracle diff.
+
+## IC-0004: bare `except:` becomes `except Exception:` (G3.P3, E722)
+
+A bare `except:` also catches `KeyboardInterrupt`, `SystemExit` and `GeneratorExit`;
+`except Exception:` does not, so Ctrl-C and `sys.exit()` inside those `try` bodies now
+propagate instead of being swallowed. Plan G3.P3 policy. Each converted site is checked for a
+code path that relies on catching those three (listed in the G3.P3 ledger row). Not visible to
+the oracle (no toml block).

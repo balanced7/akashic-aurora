@@ -365,6 +365,24 @@ extend-exclude = [
     "research/in-flight/t342/dead-modules/window_monitor.py",
 ]
 
+[tool.ruff.lint]
+# Plan G3 target set, minus five families moved to the stretch ratchet by decision D-G3-1
+# (PTH, BLE, T20, S, N: ~13k findings with no autofix, beyond the T4 suppression budget).
+# Those five, with the plan's stretch set (D, ANN, ARG, FBT, TRY, PL), are counted in
+# tooling-upgrade/ratchet.json and may never rise (certify.py assert-ratchet).
+select = [
+    "E", "W", "F", "I", "UP", "B", "C4", "SIM", "PIE", "PERF", "RUF", "T10", "ASYNC", "LOG", "G",
+    "A", "PT", "RET", "TC", "ERA", "PGH", "FLY", "ISC", "ICN", "Q",
+]
+# E501: the formatter owns line length. ISC001, Q000-Q003, COM812: conflict with the formatter.
+ignore = ["E501", "ISC001", "Q000", "Q001", "Q002", "Q003", "COM812"]
+# The ratchet families' `# noqa` comments still matter to their counts: RUF100 keeps them.
+external = ["PTH", "BLE", "T20", "S", "N"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # pytest asserts are the point
+"scripts/**" = ["T20"]  # scripts print to their user by design
+
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true

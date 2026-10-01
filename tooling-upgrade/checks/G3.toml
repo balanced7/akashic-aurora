@@ -45,3 +45,74 @@ id = "G3.head-has-two-suite-runs"
 phase = "G3.P4"
 cmd = ["{python}", "tooling-upgrade/oracle.py", "verify-snapshot", "head", "--suite-runs", "2"]
 expect = 0
+
+# ---- added at the start of G3 (plan section 9 PRE-REGISTER), before any G3 change ----
+# Zero set = the plan's target set minus PTH, BLE, T20, S, N (decision D-G3-1, operator choice
+# 2026-10-02); those five join the stretch ratchet in tooling-upgrade/ratchet.json.
+
+# P1: after the safe waves, no safe fix of a wave family is left to apply (ruff --diff exits 1
+# when it would change a file). RUF100 is enabled in P4, not by the RUF wave.
+[[check]]
+id = "G3.P1.no-safe-fix-left"
+phase = "G3.P1"
+cmd = ["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--select", "I,UP,F401,C4,PIE,RUF,SIM,PT,RET,ISC,FLY", "--ignore", "RUF100", "--diff"]
+expect = 0
+
+# A guardrail that scans source text keeps its coverage through every rewrite (G2.P2 lesson).
+[[check]]
+id = "G3.P1.advertised-tools-coverage"
+phase = "G3.P1"
+cmd = ["{python}", "scripts/checkers/check_advertised_tools.py"]
+expect = 0
+expect_stdout = "\\(103 tools, 9 namespace"
+
+[[check]]
+id = "G3.P1.fmt-check"
+phase = "G3.P1"
+cmd = ["uv", "run", "--frozen", "poe", "fmt-check"]
+expect = 0
+
+# P2: no unsafe fix of the zero set is left to apply either.
+[[check]]
+id = "G3.P2.no-unsafe-fix-left"
+phase = "G3.P2"
+cmd = ["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--ignore", "RUF100", "--unsafe-fixes", "--diff"]
+expect = 0
+
+# P3: the zero set is clean apart from RUF100 (enabled in P4).
+[[check]]
+id = "G3.P3.zero-set-clean"
+phase = "G3.P3"
+cmd = ["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--ignore", "RUF100"]
+expect = 0
+
+[[check]]
+id = "G3.P3.stretch-ratchet"
+phase = "G3.P3"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ratchet", "G3"]
+expect = 0
+
+[[check]]
+id = "G3.P4.statistics-empty"
+phase = "G3.P4"
+cmd = ["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--statistics"]
+expect = 0
+
+[[check]]
+id = "G3.P4.gate-members"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-gate", "fmt-check", "lock-check", "deps", "guardrails", "lint-check", "test-fast"]
+expect = 0
+
+[[check]]
+id = "G3.P4.tamper"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "G3", "--tamper-only"]
+expect = 0
+
+[[check]]
+id = "G3.P4.fresh-clone-gate"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "fresh-clone", "--gate"]
+expect = 0
+timeout_s = 7200
