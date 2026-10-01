@@ -106,6 +106,30 @@ def run(cmd, cwd=ROOT, env=None, timeout=None, check=False, capture=True):
     return r
 
 
+def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
+    """run() for long steps: output goes to `log` AS IT IS PRODUCED (stdout+stderr merged), so
+    the log's tail shows a suite moving -- a stuck run and a slow one are told apart by watching
+    it grow. Returns a CompletedProcess whose stdout is the whole log."""
+    log.parent.mkdir(parents=True, exist_ok=True)
+    progress("step started: %s  (tail -f %s)" % (" ".join(map(str, cmd))[:120], log))
+    with open(log, "w", encoding="utf-8") as fh:
+        p = subprocess.Popen([str(c) for c in cmd], cwd=str(cwd), env=env,
+                             stdin=subprocess.DEVNULL, stdout=fh, stderr=subprocess.STDOUT)
+        try:
+            rc = p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait()
+            raise
+    text = log.read_text(encoding="utf-8", errors="replace")
+    progress("step finished: exit %d, %d log lines" % (rc, text.count("\n")))
+    return subprocess.CompletedProcess(cmd, rc, text, "")
+
+
+def progress(msg: str) -> None:
+    print("[%s] %s" % (time.strftime("%H:%M:%S"), msg), flush=True)
+
+
 def git(*args, cwd=ROOT, check=True):
     return run(["git", *args], cwd=cwd, check=check).stdout
 
@@ -795,11 +819,12 @@ def _final_outcome(rec: dict) -> str:
     return rec.get("call") or rec.get("setup") or "unknown"
 
 
-def _pytest(tree: Path, args, out_json: Path, timeout):
+def _pytest(tree: Path, args, out_json: Path, timeout, log: Path | None = None):
     env = oracle_env({"PYTHONPATH": str(PLUGIN_DIR), "AURORA_ORACLE_OUT": str(out_json)})
     cmd = [venv_python(tree), "-m", "pytest", *args, "-p", "aurora_oracle_plugin"]
     t0 = time.time()
-    r = run(cmd, cwd=tree, env=env, timeout=timeout)
+    r = run_logged(cmd, log, cwd=tree, env=env, timeout=timeout) if log else \
+        run(cmd, cwd=tree, env=env, timeout=timeout)
     data = load_json(out_json) if out_json.exists() else {"results": {}, "collect_errors": [],
                                                           "exitstatus": r.returncode}
     data["duration_s"] = round(time.time() - t0, 1)
@@ -811,11 +836,11 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
     for i in range(1, runs + 1):
         out = raw / ("O1-run%d.json" % i)
         before = git_status_set(tree)
+        progress("O1 suite run %d/%d" % (i, runs))
         r, data = _pytest(tree, ["-q", "-rfE", "-p", "no:cacheprovider",
                                  "--continue-on-collection-errors",
                                  "--junitxml=%s" % (raw / ("O1-run%d.xml" % i)), *select],
-                          out, SUITE_TIMEOUT_S)
-        (raw / ("O1-run%d.log" % i)).write_text(r.stdout + r.stderr, encoding="utf-8")
+                          out, SUITE_TIMEOUT_S, log=raw / ("O1-run%d.log" % i))
         run_data.append(data)
         # what the suite does to the checkout it runs in (informational; never compared)
         side_effects.append(sorted(x[3:] for x in git_status_set(tree) - before))
@@ -825,9 +850,13 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
             tests.setdefault(nid, {"outcomes": [None] * runs})["outcomes"][i] = _final_outcome(rec)
     # Every id that did not pass somewhere is rerun alone, twice, so "fails reproducibly" is a
     # measured fact rather than a single-run accident.
-    for nid, t in sorted(tests.items()):
-        if all(o in ("passed", "skipped", "xfailed") for o in t["outcomes"] if o):
-            continue
+    todo = [n for n, t in tests.items()
+            if not all(o in ("passed", "skipped", "xfailed") for o in t["outcomes"] if o)]
+    progress("O1 isolated reruns: %d ids x %d" % (len(todo), reruns))
+    for k, nid in enumerate(sorted(todo)):
+        t = tests[nid]
+        if k % 10 == 0:
+            progress("  rerun %d/%d" % (k + 1, len(todo)))
         t["reruns"] = []
         for k in range(reruns):
             out = raw / "rerun" / ("%s-%d.json" % (sha256_bytes(nid.encode())[:16], k))
@@ -1147,6 +1176,7 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
             res = {"status": "timeout"}
         return key, f, res, static, tree_ast
 
+    progress("O3/O5 probing %d modules" % len(targets))
     with ThreadPoolExecutor(max_workers=min(12, (os.cpu_count() or 4))) as pool:
         results = list(pool.map(one, targets))
     o3, o5 = {}, {}
@@ -1294,7 +1324,10 @@ def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
 def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
     helps, verbs = {}, {}
     before = git_status_set(tree)
-    for f in inv["entry_points"]["argparse_cli"]:
+    clis = inv["entry_points"]["argparse_cli"]
+    for k, f in enumerate(clis):
+        if k % 25 == 0:
+            progress("O4 --help %d/%d" % (k + 1, len(clis)))
         try:
             r = run([venv_python(tree), f, "--help"], cwd=tree, env=oracle_env(),
                     timeout=HELP_TIMEOUT_S)
@@ -1355,6 +1388,7 @@ def surface_o6(tree: Path, raw: Path) -> dict:
     for p in sorted((tree / "scripts" / "checkers").glob("*.py")):
         if p.name.startswith("_"):
             continue
+        progress("O6 %s" % p.stem)
         try:
             r = run([venv_python(tree), p.relative_to(tree).as_posix()], cwd=tree,
                     env=oracle_env(), timeout=CHECKER_TIMEOUT_S)
@@ -1502,8 +1536,7 @@ def surface_o10(tree: Path, raw: Path, select=()) -> dict:
            "coverage", "run", "--branch", "--source=" + ",".join(COVERAGE_SOURCES),
            "--data-file=" + str(data), "-m", "pytest", "-q", "-p", "no:cacheprovider",
            "--continue-on-collection-errors", *select]
-    r = run(cmd, cwd=tree, env=env, timeout=SUITE_TIMEOUT_S)
-    (raw / "O10-run.log").write_text(r.stdout + r.stderr, encoding="utf-8")
+    r = run_logged(cmd, raw / "O10-run.log", cwd=tree, env=env, timeout=SUITE_TIMEOUT_S)
     js = raw / "coverage.json"
     run(["uv", "run", "--frozen", "--with", "coverage==" + COVERAGE_VERSION, "python", "-m",
          "coverage", "json", "--data-file=" + str(data), "-o", str(js)], cwd=tree, env=env,
@@ -1552,7 +1585,7 @@ def snapshot(label: str, ref: str = "HEAD", runs: int = 3, reruns: int = 2, comp
         def put(comp, data):
             data["_meta"] = dict(common, partial_modules=sorted(modules) if modules else None)
             dump_json(dest / (comp + ".json"), data)
-            print("  %s captured" % comp, flush=True)
+            progress("%s captured" % comp)
 
         if "O8" in components:
             put("O8", surface_o8(commit))
