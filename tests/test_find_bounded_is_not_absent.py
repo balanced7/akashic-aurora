@@ -43,7 +43,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.tools import everything as ev  # noqa: E402
+from core.tools import everything as ev
 
 
 def test_the_verb_has_an_engine_even_without_search_everything(monkeypatch, tmp_path):

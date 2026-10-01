@@ -35,7 +35,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import compare as CMP  # noqa: E402
+from core.coord import compare as CMP
 
 
 def _ks(name, keys, key_type="verb", complete=True, failed=None):

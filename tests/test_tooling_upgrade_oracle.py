@@ -12,7 +12,7 @@ import textwrap
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tooling-upgrade"))
-import oracle as O  # noqa: E402
+import oracle as O
 
 
 def _o1(outcomes_by_id, reruns=None, skipped=0, collect_errors=()):

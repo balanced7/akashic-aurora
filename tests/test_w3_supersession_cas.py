@@ -27,8 +27,8 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from core.foundation.store import DictStore  # noqa: E402
-    from core.learning.agent_memory import (  # noqa: E402
+    from core.foundation.store import DictStore
+    from core.learning.agent_memory import (
         HEAD_KEY_PREFIX,
         AgentMemory,
         SupersedeRaceError,

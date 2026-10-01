@@ -60,7 +60,7 @@ def test_m2_model_punctuates_when_available():
     try:
         out = punctuate_model("this is a sentence and another one")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
+        assert "deepmultilingualpunctuation" in str(e)  # optional model: the error is the skip path
         pytest.skip("model challenger offline (honest contract)")
     assert out
     assert "." in out
@@ -70,7 +70,7 @@ def test_h1_hybrid_capitalizes_and_punctuates():
     try:
         out = punctuate_hybrid("this is a sentence and another one")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
+        assert "deepmultilingualpunctuation" in str(e)  # optional model: the error is the skip path
         pytest.skip("hybrid offline (model absent -- honest contract)")
     assert out[0].isupper()
     assert out.rstrip()[-1] in ".!?"
@@ -82,7 +82,7 @@ def test_h2_hybrid_has_no_lowercase_sentence_openings():
     try:
         out = punctuate_hybrid("this is a sentence and another one. and then some more")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
+        assert "deepmultilingualpunctuation" in str(e)  # optional model: the error is the skip path
         pytest.skip("hybrid offline (model absent -- honest contract)")
     assert re.search(r"(^|[.!?] )[a-z]", out) is None
 

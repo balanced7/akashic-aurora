@@ -15,7 +15,7 @@ import os
 import sys
 import tempfile
 
-import isolate_canonical  # noqa: F401  (side-effect: isolate + flush db15)
+import isolate_canonical
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

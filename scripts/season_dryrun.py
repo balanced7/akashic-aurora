@@ -287,7 +287,7 @@ def main() -> int:
     if a.player == "llm":
         from scripts.season_llm_player import llm_player
 
-        def player(shadow):  # noqa: F811
+        def player(shadow):
             return llm_player(shadow, batch_size=a.batch_size, workers=a.workers)
 
     res = run(

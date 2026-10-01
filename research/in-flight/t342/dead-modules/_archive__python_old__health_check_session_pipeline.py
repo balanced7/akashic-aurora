@@ -20,9 +20,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import redis  # noqa: E402
+import redis
 
-from config import (  # noqa: E402
+from config import (
     BASE_DIR,
     CANONICAL_EVENTS_JSONL,
     SESSION_EVENTS_STREAM,

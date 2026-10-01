@@ -133,7 +133,7 @@ def assert_clean(host):
         assert off["host_tick"] >= on["host_tick"]
 
 
-def stamp_write(path, content, _n=[0]):  # noqa: B006  # deliberate: a call counter that persists across calls
+def stamp_write(path, content, _n=[0]):  # deliberate: a call counter that persists across calls
     path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
     _n[0] += 1
     t = 1_700_000_000_000_000_000 + _n[0] * 1_000_000_000

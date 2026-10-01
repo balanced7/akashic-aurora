@@ -21,9 +21,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import world_fidelity as F  # noqa: E402
-from core.paths import repo_root  # noqa: E402
-from core.world import checkout_of, current  # noqa: E402
+from core.coord import world_fidelity as F
+from core.paths import repo_root
+from core.world import checkout_of, current
 
 ROOT = repo_root()
 #: Where each world's checkout lives, so the CODE plane can compare against its source.

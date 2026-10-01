@@ -48,7 +48,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from scripts.bifrost_child import _RING_LINES, ManagedChild  # noqa: E402
+from scripts.bifrost_child import _RING_LINES, ManagedChild
 
 
 def _stamp() -> str:

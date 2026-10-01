@@ -30,7 +30,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall import staleness as S  # noqa: E402
+from core.recall import staleness as S
 
 
 # ---------------------------------------------------------------- P1: it finds the shape

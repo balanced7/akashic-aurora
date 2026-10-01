@@ -9,7 +9,7 @@ import tempfile
 import types
 from contextlib import redirect_stdout
 
-import isolate_canonical  # noqa: F401 -- isolate file store + Redis db BEFORE foundation import
+import isolate_canonical
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

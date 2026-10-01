@@ -22,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import dawe_census as D  # noqa: E402
-from core.paths import repo_root  # noqa: E402
+from core.coord import dawe_census as D
+from core.paths import repo_root
 
 
 def main() -> int:

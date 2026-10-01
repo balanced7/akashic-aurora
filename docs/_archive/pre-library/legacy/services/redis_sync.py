@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 
 try:
-    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
+    import redis  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:

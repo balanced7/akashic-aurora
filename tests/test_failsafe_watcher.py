@@ -34,9 +34,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts" / "ops"))
 
-import failsafe_watcher as W  # noqa: E402
+import failsafe_watcher as W
 
-from core.comm import failsafe as F  # noqa: E402
+from core.comm import failsafe as F
 
 NOW = 1_787_240_000.0
 LIVE = {

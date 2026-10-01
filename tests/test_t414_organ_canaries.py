@@ -26,7 +26,7 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import scripts.checkers.check_organ_canaries as oc  # noqa: E402
+import scripts.checkers.check_organ_canaries as oc
 
 
 def test_every_canary_declares_what_would_retire_it():

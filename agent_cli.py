@@ -48,12 +48,12 @@ for _stream in (sys.stdout, sys.stderr):
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
 # its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
 # the defect class. Imported module-level: several commands render times.
-from core.foundation.timeutil import render_iso  # noqa: E402  # after sys.path bootstrap and UTF-8 stream setup
+from core.foundation.timeutil import render_iso  # after sys.path bootstrap and UTF-8 stream setup
 
 # W169 slice 1: the three recall verbs that owe agent_cli nothing live in core/recall/surface.py.
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
-from core.recall.surface import (  # noqa: E402  # after sys.path bootstrap and UTF-8 stream setup
+from core.recall.surface import (  # after sys.path bootstrap and UTF-8 stream setup
     cmd_recall_at,
     cmd_recall_curate,
     cmd_recall_feedback,
@@ -1421,7 +1421,7 @@ def cmd_compare(args):
     # Domains that register themselves on import must actually BE imported, or they are
     # invisible at the door -- the built-not-wired class that blocked two commits
     # tonight. Imported here rather than from compare.py, which terms.py imports.
-    from core.coord import terms as _terms_domain  # noqa: F401  (registers on import)
+    from core.coord import terms as _terms_domain
 
     if getattr(args, "list", False) or not args.a:
         print("# comparable domains (only like key-types may be diffed)")
@@ -2065,7 +2065,9 @@ def _continuity_drift(notes=None) -> str:
         from datetime import datetime as _dt
 
         if notes is None:
-            notes = get_agent_memory().get_decisions(days=90)  # noqa: F821  # LATENT ADV-033: `get_agent_memory` is undefined here; fixed with a regression test in G4.P2
+            notes = get_agent_memory().get_decisions(
+                days=90
+            )  # LATENT ADV-033: `get_agent_memory` is undefined here; fixed with a regression test in G4.P2
         stale = []
         for title in ("where-we-are", "next-focus", "grounding-pointer"):
             n = next((d for d in notes if d.title == title and not d.superseded), None)
@@ -2577,7 +2579,7 @@ def cmd_wish_curate(args):
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     with contextlib.suppress(Exception):
-        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
+        capture_event(  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
             "wish",
             f"{args.agent_id} curated {args.wish_id}: {action}",
             agent_id=args.agent_id,
@@ -2644,7 +2646,7 @@ def cmd_wish(args):
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
     with contextlib.suppress(Exception):
-        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
+        capture_event(  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
             "wish",
             f"{args.agent_id} filed W{n:02d}: {body[:120]}",
             agent_id=args.agent_id,
@@ -6741,7 +6743,9 @@ def cmd_season_score(args):
 
     claims, verifications, uptime, fixed = [], [], {}, set()
     if args.round_file:
-        doc = json.loads(io.open(args.round_file, encoding="utf-8").read())  # noqa: F821  # LATENT ADV-033: `io` is undefined here; fixed with a regression test in G4.P2
+        doc = json.loads(
+            io.open(args.round_file, encoding="utf-8").read()
+        )  # LATENT ADV-033: `io` is undefined here; fixed with a regression test in G4.P2
         claims = doc.get("claims", [])
         verifications = doc.get("verifications", [])
         uptime = doc.get("uptime", {}) or {}
@@ -8625,7 +8629,9 @@ def cmd_locks(args):
         try:
             from core.foundation.timeutil import to_epoch
 
-            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))  # noqa: F821  # LATENT ADV-033: `time` is undefined here; fixed with a regression test in G4.P2
+            secs = max(
+                0, int(time.time() - to_epoch(lk.get("ts")))
+            )  # LATENT ADV-033: `time` is undefined here; fixed with a regression test in G4.P2
             ttl = int(lk.get("ttl") or 0)
             age = f"  [{secs}s old, ttl {ttl}s]"
         except Exception:
@@ -11708,7 +11714,9 @@ def cmd_tool_run(args):
         print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
         import subprocess as sp
 
-        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)  # noqa: F821  # LATENT ADV-033: `REPO` is undefined here; fixed with a regression test in G4.P2
+        r = sp.run(
+            [sys.executable, path] + (args.args or []), cwd=REPO
+        )  # LATENT ADV-033: `REPO` is undefined here; fixed with a regression test in G4.P2
         print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
         return r.returncode
     rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)

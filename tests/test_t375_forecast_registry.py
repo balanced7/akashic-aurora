@@ -39,7 +39,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord.forecast_registry import (  # noqa: E402
+from core.coord.forecast_registry import (
     VERDICTS,
     ForecastRegistry,
     RegistryRefusal,

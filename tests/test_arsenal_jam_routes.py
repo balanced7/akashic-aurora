@@ -19,11 +19,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.jam import runs as RUNS  # noqa: E402
-from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.jam.runs import LEASE_MS, PENDING_EXPIRE_MS, JamApi  # noqa: E402
-from arsenal.pianocue import CueHub  # noqa: E402
-from arsenal.serve import App, Server  # noqa: E402
+from arsenal.jam import runs as RUNS
+from arsenal.jam import schemas as S
+from arsenal.jam.runs import LEASE_MS, PENDING_EXPIRE_MS, JamApi
+from arsenal.pianocue import CueHub
+from arsenal.serve import App, Server
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 T0 = 1893456000000

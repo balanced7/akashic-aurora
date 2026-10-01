@@ -57,7 +57,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_advertised_tools as cat  # noqa: E402
+import check_advertised_tools as cat
 
 
 def _doc(tmp_path, text, name="D.md"):

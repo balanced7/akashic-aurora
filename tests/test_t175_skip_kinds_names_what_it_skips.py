@@ -31,7 +31,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as KP  # noqa: E402
+from scripts.checkers import check_kind_policy as KP
 
 
 def test_k1_no_identifier_means_two_things_in_this_tree():

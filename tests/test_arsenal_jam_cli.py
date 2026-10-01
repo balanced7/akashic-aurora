@@ -19,10 +19,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import pianocue  # noqa: E402
-from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.pianocue import CueHub  # noqa: E402
-from arsenal.serve import App, Server  # noqa: E402
+from arsenal import pianocue
+from arsenal.jam import schemas as S
+from arsenal.pianocue import CueHub
+from arsenal.serve import App, Server
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="the voicing bridge needs node")

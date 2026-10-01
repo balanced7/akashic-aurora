@@ -55,7 +55,9 @@ class StreamingLLM:
 
         # Check Ollama
         try:
-            resp = requests.get(f"{self.config.base_url}/api/tags", timeout=5)  # noqa: ASYNC210  # archived code: the blocking call stays (no behaviour change)
+            resp = requests.get(
+                f"{self.config.base_url}/api/tags", timeout=5
+            )  # archived code: the blocking call stays (no behaviour change)
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
                 print(f"[LLM] Ollama ready with {len(models)} models")
@@ -99,7 +101,7 @@ class StreamingLLM:
             async with asyncio.TaskGroup():
 
                 async def generate():
-                    response = requests.post(  # noqa: ASYNC210  # archived code: the blocking call stays (no behaviour change)
+                    response = requests.post(  # archived code: the blocking call stays (no behaviour change)
                         f"{self.config.base_url}/api/generate", json=payload, stream=True, timeout=120
                     )
 

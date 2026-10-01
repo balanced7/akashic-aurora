@@ -202,7 +202,7 @@ def deploy_direct(model: str, port: int = API_PORT) -> int:
     return subprocess.run(cmd).returncode
 
 
-def test_connection(port: int = API_PORT) -> bool:  # noqa: PT028  # not a pytest test: a helper named test_*
+def test_connection(port: int = API_PORT) -> bool:  # not a pytest test: a helper named test_*
     """Test if vLLM server is responding"""
     import json
     import urllib.request

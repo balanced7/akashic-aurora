@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 
-from arsenal import practice as pr  # noqa: E402
+from arsenal import practice as pr
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is needed to run piano.js Theory.detect")
@@ -130,7 +130,7 @@ def test_sounding_without_sound_end_events_is_inferred_the_same_way():
     with_ends = pr.sounding(events)
     without = pr.sounding([e for e in events if e["kind"] != "sound_end"])
     assert without["explicit_ends"] is False
-    strip = lambda s: [(x["note"], x["on_ms"], x["end_ms"], x["by"]) for x in s["notes"]]  # noqa: E731
+    strip = lambda s: [(x["note"], x["on_ms"], x["end_ms"], x["by"]) for x in s["notes"]]
     assert strip(with_ends) == strip(without)
     assert (60, 0, 500, "repeat") in strip(without)
 

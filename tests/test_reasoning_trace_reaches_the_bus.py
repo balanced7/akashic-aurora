@@ -39,7 +39,7 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import scripts.deepseek_chat as dc  # noqa: E402
+import scripts.deepseek_chat as dc
 
 
 def _chunk(*, content=None, reasoning=None):

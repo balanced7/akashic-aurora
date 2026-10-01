@@ -30,7 +30,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import ask as A  # noqa: E402
+from core.comm import ask as A
 
 
 class _Resp:

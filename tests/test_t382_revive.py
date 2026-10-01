@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import contextlib
 
-from scripts.revive import ReviveLocked, converge, decide  # noqa: E402
+from scripts.revive import ReviveLocked, converge, decide
 
 
 def _obs(redis=True, daemon=True, runners=True, gateway=True):

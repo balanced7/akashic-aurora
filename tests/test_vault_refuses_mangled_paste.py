@@ -27,7 +27,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm.secret_intake import IntakeError, save_secret  # noqa: E402
+from core.comm.secret_intake import IntakeError, save_secret
 
 # the real shape of the defect, reconstructed without the real secret
 HEAD, TAIL = "sk-ant-oat01-" + "A" * 66, "B" * 29

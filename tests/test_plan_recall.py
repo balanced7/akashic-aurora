@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness.hooks import claude_userpromptsubmit as hook
-from core.paths import python_launcher as _python_launcher  # noqa: E402
+from core.paths import python_launcher as _python_launcher
 
 _PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 

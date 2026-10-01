@@ -542,7 +542,7 @@ def search(
     timeout: float = 15.0,
     sort: str = "",
     columns: list[str] | None = None,
-    format: str = "",  # noqa: A002  # public API name
+    format: str = "",  # public API name
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,
@@ -676,7 +676,7 @@ def search_page(
     timeout: float = 15.0,
     sort: str = "",
     columns: list[str] | None = None,
-    format: str = "",  # noqa: A002  # public API name
+    format: str = "",  # public API name
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,

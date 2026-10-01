@@ -37,12 +37,12 @@ import os
 import subprocess
 import sys
 
-import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
+import isolate_canonical
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
+import pytest
 
 
 def run(*args, timeout=120):

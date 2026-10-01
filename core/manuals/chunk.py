@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from core.manuals.convert import (  # noqa: TC001  # runtime-evaluated annotations (annotation_sensitive module)
+from core.manuals.convert import (  # runtime-evaluated annotations (annotation_sensitive module)
     Document,
     Section,
 )

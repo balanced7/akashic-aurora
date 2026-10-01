@@ -23,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import revive  # noqa: E402
+from scripts import revive
 
 
 def _table(*lines: str) -> str:

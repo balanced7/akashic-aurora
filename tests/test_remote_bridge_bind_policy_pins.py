@@ -36,7 +36,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from scripts import remote_bridge_listener as L  # noqa: E402
+from scripts import remote_bridge_listener as L
 
 
 # ------------------------------------------------------------------ the three categories

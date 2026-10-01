@@ -39,7 +39,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus
 
 
 def _mailbox():
@@ -103,7 +103,7 @@ class _FakeRedis:
         self.streams.setdefault(str(key), []).append((sid, dict(fields)))
         return sid
 
-    def xrange(self, key, min="-", max="+", count=None):  # noqa: A002  # mirrors redis-py xrange(min=, max=)
+    def xrange(self, key, min="-", max="+", count=None):  # mirrors redis-py xrange(min=, max=)
         entries = list(self.streams.get(str(key), []))
         out = []
         for sid, fields in entries:

@@ -60,7 +60,7 @@ BUS_EXPORT_DIR = _REPO_ROOT / "state" / "bus-export"
 DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
 # Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
-from core.paths import env_paths as _env_paths  # noqa: E402
+from core.paths import env_paths as _env_paths
 
 DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 

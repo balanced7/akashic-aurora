@@ -17,7 +17,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import discord_feed as F  # noqa: E402
+from core.comm import discord_feed as F
 
 
 class _FakeClient:
@@ -42,7 +42,7 @@ class _FakeClient:
         s = self.streams.get(key, [])
         return list(reversed(s))[:count]
 
-    def xrange(self, key, min="-", count=100):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
+    def xrange(self, key, min="-", count=100):  # mirrors the redis-py xrange(min=, max=) keyword API
         s = self.streams.get(key, [])
         if min.startswith("("):
             floor = min[1:]

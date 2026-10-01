@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from core.paths import python_launcher as _python_launcher  # noqa: E402
+from core.paths import python_launcher as _python_launcher
 
 _PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 

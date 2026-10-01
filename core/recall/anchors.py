@@ -57,7 +57,7 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
+from pathlib import Path  # runtime-evaluated annotations (annotation_sensitive module)
 from typing import Any
 
 from core.paths import repo_root

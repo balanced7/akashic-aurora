@@ -28,7 +28,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:  # noqa: E402  (RED if absent)
+try:
     from core.recall.shadow_shelf import (
         CategoryContract,
         JudgmentStore,

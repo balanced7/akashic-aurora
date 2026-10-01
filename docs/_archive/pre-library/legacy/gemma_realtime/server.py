@@ -81,7 +81,7 @@ async def set_voice(engine: str = Form("kokoro"), voice: str = Form("af_heart"),
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):  # noqa: B008  # FastAPI parameter marker, evaluated once by design
+async def upload_file(file: UploadFile = File(...)):  # FastAPI parameter marker, evaluated once by design
     """Upload and analyze a file"""
     content = await file.read()
 
@@ -90,7 +90,9 @@ async def upload_file(file: UploadFile = File(...)):  # noqa: B008  # FastAPI pa
 
 
 @app.post("/chat")
-async def chat_message(message: str = Form(...), files: list[UploadFile] = File(None)):  # noqa: B008  # FastAPI parameter marker, evaluated once by design
+async def chat_message(
+    message: str = Form(...), files: list[UploadFile] = File(None)
+):  # FastAPI parameter marker, evaluated once by design
     """Text chat (non-voice)"""
     files_data = []
 

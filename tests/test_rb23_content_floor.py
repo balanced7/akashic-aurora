@@ -24,7 +24,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from scripts.bifrost_runner_deepseek import (  # noqa: E402
+from scripts.bifrost_runner_deepseek import (
     FLOOR_CHARS,
     MARKER_PATTERN,
     content_floor_check,

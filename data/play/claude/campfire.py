@@ -65,7 +65,7 @@ def gather():
         with open(os.path.join(ROOT, "docs", "WISHLIST.md"), encoding="utf-8") as f:
             text = f.read()
         wishes.extend(
-            ln.strip("- [ ]").strip()  # noqa: B005  # strips the char set "- []" by design
+            ln.strip("- [ ]").strip()  # strips the char set "- []" by design
             for ln in text.splitlines()
             if today() in ln or "2026-07-20" in ln
         )

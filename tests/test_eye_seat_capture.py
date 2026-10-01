@@ -56,7 +56,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import index as EYE  # noqa: E402
+from core.eye import index as EYE
 
 # The seat-harness homes, in the same shape the eye's live root already uses
 # (Path.home()/".claude"/"projects"). One per seat that runs its own harness profile.

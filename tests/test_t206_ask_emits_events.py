@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask_bg  # noqa: E402
+from core.comm import ask_bg
 
 
 @pytest.fixture

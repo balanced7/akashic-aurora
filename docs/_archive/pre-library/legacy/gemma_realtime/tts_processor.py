@@ -119,7 +119,9 @@ class EspeakTTS:
     async def load(self):
         """Check espeak availability"""
         try:
-            result = subprocess.run(["espeak-ng", "--version"], capture_output=True, timeout=5)  # noqa: ASYNC221  # archived code: the blocking call stays (no behaviour change)
+            result = subprocess.run(
+                ["espeak-ng", "--version"], capture_output=True, timeout=5
+            )  # archived code: the blocking call stays (no behaviour change)
             if result.returncode == 0:
                 self._loaded = True
                 print("[TTS] Espeak-ng available")
@@ -148,7 +150,9 @@ class EspeakTTS:
             await proc.communicate()
 
             # Read the WAV file
-            with open("/tmp/espeak_output.wav", "rb") as f:  # noqa: ASYNC230  # archived code: the blocking call stays (no behaviour change)
+            with open(
+                "/tmp/espeak_output.wav", "rb"
+            ) as f:  # archived code: the blocking call stays (no behaviour change)
                 return f.read()
         except Exception as e:
             print(f"[TTS] Espeak error: {e}")

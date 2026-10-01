@@ -17,9 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from test_arsenal_practice import n, perform  # noqa: E402  (the synthetic-session helpers)
+from test_arsenal_practice import n, perform
 
-from arsenal import practice as pr  # noqa: E402
+from arsenal import practice as pr
 
 C_MAJOR = ["C3", "E4", "G4"]
 F_MAJOR = ["F3", "A4", "C5"]

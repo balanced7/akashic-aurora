@@ -60,7 +60,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # as long as nobody compared the two lists. One declaration, one pin asserting they agree.
 sys.path.insert(0, str(_REPO_ROOT))
 
-from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402
+from config import TRANSCRIPT_ARCHIVE_ROOTS
 
 DEFAULT_DESTS: list[Path] = list(TRANSCRIPT_ARCHIVE_ROOTS)
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts"

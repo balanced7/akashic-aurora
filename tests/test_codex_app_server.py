@@ -582,7 +582,7 @@ class ExactRedis:
         self.fields = fields
         self.calls = []
 
-    def xrange(self, key, min, max, count=None):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
+    def xrange(self, key, min, max, count=None):  # mirrors the redis-py xrange(min=, max=) keyword API
         self.calls.append((key, min, max, count))
         return [(self.mid, self.fields)] if min == self.mid and max == self.mid else []
 

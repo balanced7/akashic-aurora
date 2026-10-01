@@ -50,7 +50,7 @@ for _stream in (sys.stdout, sys.stderr):
     with contextlib.suppress(Exception):  # older/odd streams: keep going, the bus is the record
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-from core.comm.discord_inbound import (  # noqa: E402  # streams are forced to UTF-8 before the import
+from core.comm.discord_inbound import (  # streams are forced to UTF-8 before the import
     EarConfigError,
     build_config,
     credential_horizon_days,

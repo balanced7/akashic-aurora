@@ -14,9 +14,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import performance as perf  # noqa: E402
-from arsenal.__main__ import main  # noqa: E402
-from arsenal.serve import App, Server  # noqa: E402
+from arsenal import performance as perf
+from arsenal.__main__ import main
+from arsenal.serve import App, Server
 
 C, G, AM, F = [48, 52, 55, 60], [43, 50, 55, 59], [45, 52, 57, 60], [41, 48, 53, 57]
 NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]

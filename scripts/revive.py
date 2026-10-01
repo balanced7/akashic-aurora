@@ -534,7 +534,7 @@ def _drop_lock() -> None:
 
 
 def converge(target: str | None = None, observe_only: bool = False) -> dict[str, Any]:
-    say = lambda s: print(s, flush=True)  # noqa: E731
+    say = lambda s: print(s, flush=True)
     observed = observe()
     for organ in ("app", "redis", "daemon", "runners", "gateway"):
         row = observed.get(organ) or {}

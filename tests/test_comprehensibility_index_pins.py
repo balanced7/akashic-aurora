@@ -42,9 +42,9 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_ROOT, "scripts", "checkers"))
 sys.path.insert(0, os.path.join(_ROOT, "scripts", "generators"))
 
-import _tracked  # noqa: E402
-import check_comprehensibility as cm  # noqa: E402
-import gen_master_map as mapgen  # noqa: E402
+import _tracked
+import check_comprehensibility as cm
+import gen_master_map as mapgen
 
 
 # ------------------------------------------------ 2. git can be asked about MANY paths at once

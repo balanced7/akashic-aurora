@@ -22,9 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 WRAPPER = ROOT / "arsenal" / "tools" / "tiktok-ready.cmd"
 
-from arsenal import tiktok  # noqa: E402
-from arsenal.__main__ import main  # noqa: E402
-from arsenal.tiktok import Box, Trim  # noqa: E402
+from arsenal import tiktok
+from arsenal.__main__ import main
+from arsenal.tiktok import Box, Trim
 
 try:
     FFMPEG = tiktok.find_ffmpeg()

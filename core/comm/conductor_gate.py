@@ -62,7 +62,7 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
+from collections.abc import Callable  # runtime-evaluated annotations (annotation_sensitive module)
 from dataclasses import dataclass, field
 from datetime import UTC
 

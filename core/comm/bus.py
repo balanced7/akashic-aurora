@@ -74,7 +74,7 @@ def _loads(s: Any) -> Any:
 # least 8 chars follows it: 'seat-0001' (4 hex) and '<pid>-<agent>' (digits first) are left
 # alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
 # the derivation must never discard entropy, so the negative lookahead keeps it.
-from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
+from core.comm.seat_identity import sid8
 
 # lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
 # every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).
@@ -857,7 +857,7 @@ class Bus:
             self._ring_bell(to, first_legacy_mid, str(kind))
         return first_legacy_mid
 
-    _unmapped_loud_seen: set = set()  # noqa: RUF012  # annotation_sensitive module; class-level throttle shared on purpose
+    _unmapped_loud_seen: set = set()  # annotation_sensitive module; class-level throttle shared on purpose
 
     def _lane_write(self, env: dict[str, Any], *, to: str, kind: str) -> None:
         """DEPRECATED by C6-7: _emit() is now lane-first -- the lane write happens in _emit()

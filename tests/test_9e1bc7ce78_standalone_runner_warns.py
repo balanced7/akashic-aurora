@@ -43,7 +43,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import daemon_state as ds  # noqa: E402
+from core.comm import daemon_state as ds
 
 
 class FakeRedis:

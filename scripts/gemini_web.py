@@ -202,13 +202,13 @@ def _prompt_from_args(args) -> str:
 
 def _needs_playwright() -> bool:
     try:
-        import playwright  # noqa: F401
+        import playwright
 
         return True
     except ImportError:
         pass
     try:
-        import patchright  # noqa: F401
+        import patchright
 
         return True
     except ImportError:

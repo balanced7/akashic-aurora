@@ -15,7 +15,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-import arc_thread  # noqa: E402
+import arc_thread
 
 
 def test_a1_library_schema_arc_finds_its_law():

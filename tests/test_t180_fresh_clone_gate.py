@@ -33,7 +33,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.check_fresh_clone import clone_verdict, scan_static  # noqa: E402
+from scripts.check_fresh_clone import clone_verdict, scan_static
 
 
 def _git(cwd, *args):

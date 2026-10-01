@@ -214,7 +214,7 @@ async def api_restart_service(name: str):
             _run_wsl(stop_cmd, timeout=10)
         else:
             _run_ps(stop_cmd, timeout=10)
-        time.sleep(1)  # noqa: ASYNC251  # archived code: the blocking call stays (no behaviour change)
+        time.sleep(1)  # archived code: the blocking call stays (no behaviour change)
     routes_tbl.update_status(name, "restarting")
     launch_service(name, cfg)
     healthy = wait_for_healthy(name, cfg, routes_tbl)

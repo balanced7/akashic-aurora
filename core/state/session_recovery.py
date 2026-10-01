@@ -27,7 +27,7 @@ from datetime import datetime
 
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.
-from core.paths import repo_root as _repo_root  # noqa: E402
+from core.paths import repo_root as _repo_root
 
 BASE_DIR = _repo_root()
 SESSION_LOGS_DIR = BASE_DIR / "session_logs"

@@ -95,7 +95,7 @@ def _marker() -> Path:
 def available() -> bool:
     """True when the pure-Python server can run here (fakeredis installed)."""
     try:
-        import fakeredis  # noqa: F401
+        import fakeredis
 
         return True
     except Exception:

@@ -39,7 +39,7 @@ from datetime import datetime
 sys.path.insert(0, r"E:\AI-Setup")
 
 try:
-    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
+    import redis  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:

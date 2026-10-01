@@ -8,7 +8,7 @@ import os
 import sys
 import tempfile
 
-import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
+import isolate_canonical
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

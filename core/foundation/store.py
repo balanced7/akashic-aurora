@@ -148,7 +148,7 @@ class Store(ABC):
     def sadd(self, key: str, *members: str) -> int: ...
 
     @abstractmethod
-    def smembers(self, key: str) -> set: ...  # noqa: A003  # annotation value must not change (Store.set is public API)
+    def smembers(self, key: str) -> set: ...  # annotation value must not change (Store.set is public API)
 
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...

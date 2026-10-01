@@ -41,7 +41,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import discord_feed as F  # noqa: E402
+from core.comm import discord_feed as F
 
 
 class _SilentClient:
@@ -68,7 +68,7 @@ class _SilentClient:
         s = self.streams.get(key, [])
         return list(reversed(s))[:count]
 
-    def xrange(self, key, min="-", count=100):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
+    def xrange(self, key, min="-", count=100):  # mirrors the redis-py xrange(min=, max=) keyword API
         s = self.streams.get(key, [])
         if min.startswith("("):
             floor = min[1:]
@@ -117,7 +117,7 @@ def test_s1_a_stream_beat_failure_must_confess_not_vanish(silent_wired, monkeypa
 
     orig_xrange = client.xrange
 
-    def _boom(key, min="-", count=100):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
+    def _boom(key, min="-", count=100):  # mirrors the redis-py xrange(min=, max=) keyword API
         if key == "bifrost:inbox:claude":
             raise RuntimeError("mid-beat corpse")
         return orig_xrange(key, min=min, count=count)

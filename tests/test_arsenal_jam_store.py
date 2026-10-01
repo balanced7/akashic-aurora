@@ -18,11 +18,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import nashville  # noqa: E402
-from arsenal.jam import align as A  # noqa: E402
-from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402
-from arsenal.jam.resolve import (  # noqa: E402
+from arsenal import nashville
+from arsenal.jam import align as A
+from arsenal.jam import schemas as S
+from arsenal.jam.cards import DeckError, DeckStore, merge_patch
+from arsenal.jam.resolve import (
     STUB_WARNING,
     ResolveError,
     Resolver,
@@ -36,8 +36,8 @@ from arsenal.jam.resolve import (  # noqa: E402
     suffix_tones,
     transpose_key,
 )
-from arsenal.jam.runs import RunError, RunStore  # noqa: E402
-from arsenal.performance import PerformanceStore  # noqa: E402
+from arsenal.jam.runs import RunError, RunStore
+from arsenal.performance import PerformanceStore
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="the voicing bridge needs node")

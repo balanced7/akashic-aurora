@@ -35,7 +35,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.trust import registry as REG  # noqa: E402
+from core.trust import registry as REG
 
 VALID = {
     "_comment": "test acl (cf6fe59a4d pin)",

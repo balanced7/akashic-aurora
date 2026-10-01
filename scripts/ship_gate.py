@@ -42,7 +42,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import suite_baseline as sb  # noqa: E402
+from core.coord import suite_baseline as sb
 
 
 def _pyl() -> str:

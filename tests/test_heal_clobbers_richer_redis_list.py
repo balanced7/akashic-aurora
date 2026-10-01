@@ -56,7 +56,7 @@ os.environ.setdefault("REDIS_DB", "15")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from core.foundation.store import FileStore, HybridStore, RedisStore  # noqa: E402
+from core.foundation.store import FileStore, HybridStore, RedisStore
 
 
 def test_heal_must_not_clobber_a_richer_redis_list():

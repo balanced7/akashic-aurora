@@ -46,7 +46,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR
 
 #: Kinds this relay will put on a live bus. NARROWER than BRIDGE_KINDS on purpose: the gate
 #: decides what may CROSS a fleet boundary, this decides what may be SPOKEN to your seats,
