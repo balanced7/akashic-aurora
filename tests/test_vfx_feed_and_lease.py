@@ -20,6 +20,7 @@ clock is stepped by ageing the lease directly so the TTL case is deterministic.
 
 Run: py -m pytest tests/test_vfx_feed_and_lease.py -q
 """
+
 import os
 import sys
 
@@ -50,9 +51,10 @@ def _age(seconds):
 
 # ---- the lease -------------------------------------------------------------------------------
 
+
 def test_first_worker_takes_the_farm_and_keeps_it():
     assert B._vfx_lease("wA", True) is True
-    assert B._vfx_lease("wA", True) is True          # renewal is not a takeover
+    assert B._vfx_lease("wA", True) is True  # renewal is not a takeover
     assert B._vfx_lease_state()["worker"] == "wA"
 
 
@@ -122,6 +124,7 @@ def test_a_hidden_tab_cannot_steal_from_a_visible_legacy_page():
 
 # ---- the feed --------------------------------------------------------------------------------
 
+
 def test_every_finished_job_posts_its_picture_and_its_reason():
     B._vfx_job_add("thumb", {"chunk": "swirl", "say": "the reference, before I touch gap"})
     B._vfx_job_next("wA", True)
@@ -145,7 +148,7 @@ def test_a_failed_render_posts_too():
 def test_thumbs_and_snaps_resolve_to_their_own_routes():
     assert B._vfx_feed_url("design/vfx-snaps/a.png") == "/vfx/snap/a.png"
     assert B._vfx_feed_url("design/vfx-thumbs/b.png") == "/vfx/thumb/b.png"
-    assert B._vfx_feed_url("design\\vfx-snaps\\c.png") == "/vfx/snap/c.png"   # Windows path
+    assert B._vfx_feed_url("design\\vfx-snaps\\c.png") == "/vfx/snap/c.png"  # Windows path
     assert B._vfx_feed_url("") == "" and B._vfx_feed_url("notes.txt") == ""
 
 
@@ -170,6 +173,7 @@ def test_a_fresh_page_catches_up_without_replaying_the_day():
 # Daniil: "If I refresh the page your buffered demo gets lost." The bench had no notion of a current
 # subject, so a reload always came back to the default avatar and threw away whatever claude had
 # loaded. This is that notion, and it is durable because a server restart must not lose it either.
+
 
 @pytest.fixture
 def bench(tmp_path, monkeypatch):

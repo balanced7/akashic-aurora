@@ -28,6 +28,7 @@ snapshot stays current forever, which is what the previous docstring claimed.
     py -m core.foundation.migrate_to_sqlite             # shadow-build + swap + verify
     py -m core.foundation.migrate_to_sqlite --verify    # re-compare both stores
 """
+
 from __future__ import annotations
 
 import argparse
@@ -40,6 +41,7 @@ from typing import Dict, List, Tuple
 
 from core.foundation.sqlite_store import SqliteStore
 
+
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
 
@@ -50,6 +52,7 @@ def _repo_root_str() -> str:
     """
     from core.paths import root_str
     import os as _os
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -99,8 +102,7 @@ def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, i
     data = load_json(json_path)
     dead = _expired_keys(data, now)
 
-    live: Dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead}
-                  for b in _BUCKETS}
+    live: Dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead} for b in _BUCKETS}
     src = census(live)
     skipped = {b: len((data.get(b) or {})) - len(live[b]) for b in _BUCKETS}
 
@@ -138,19 +140,21 @@ def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, i
             if remaining > 0 and store.exists(k):
                 store.expire(k, max(1, int(remaining)))
 
-        written = {b: _count(store, t) for b, t in
-                   zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"))}
+        written = {b: _count(store, t) for b, t in zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"))}
 
         if written != src:
-            raise SystemExit(f"[migrate] CENSUS VIOLATION -- source(live) {src} != "
-                             f"written {written}; shadow deleted, target untouched")
+            raise SystemExit(
+                f"[migrate] CENSUS VIOLATION -- source(live) {src} != "
+                f"written {written}; shadow deleted, target untouched"
+            )
 
         # Quiesce assert (codex: counts moved during the live census probe): if the
         # source advanced while the shadow was building, the shadow is already stale.
         recheck = load_json(json_path)
         if recheck != data:
-            raise SystemExit("[migrate] SOURCE MOVED during shadow build -- quiesce "
-                             "writers first; shadow deleted, target untouched")
+            raise SystemExit(
+                "[migrate] SOURCE MOVED during shadow build -- quiesce writers first; shadow deleted, target untouched"
+            )
     except BaseException:
         store.close()
         if shadow_path.exists():
@@ -233,8 +237,7 @@ def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
             for k in snap[bucket]:
                 if k not in src_keys:
                     problems.append(f"{bucket}[{k}]: target-only (source does not hold it)")
-        live_expiry = {k for k, ts in (data.get("__expiry__") or {}).items()
-                       if k not in dead and float(ts) > now}
+        live_expiry = {k for k, ts in (data.get("__expiry__") or {}).items() if k not in dead and float(ts) > now}
         for k in snap["expiry"]:
             if k not in live_expiry:
                 problems.append(f"expiry[{k}]: target-only expiry row")
@@ -265,16 +268,20 @@ def main(argv=None) -> int:
         data = load_json(json_path)
         c = census(data)
         dead = len(_expired_keys(data, time.time()))
-        print(f"[migrate] would shadow-build: {c}  (total keys {sum(c.values())}, "
-              f"of which {dead} expired tombstone(s) will be dropped)")
+        print(
+            f"[migrate] would shadow-build: {c}  (total keys {sum(c.values())}, "
+            f"of which {dead} expired tombstone(s) will be dropped)"
+        )
         print("[migrate] --check writes nothing; the source is never modified by any mode")
         return 0
 
     if a.verify:
         ok, problems = verify(json_path, db_path)
         if ok:
-            print("[migrate] VERIFY OK -- bidirectional: every live JSON value present in "
-                  "SQLite, nothing in SQLite the JSON does not claim")
+            print(
+                "[migrate] VERIFY OK -- bidirectional: every live JSON value present in "
+                "SQLite, nothing in SQLite the JSON does not claim"
+            )
             return 0
         print(f"[migrate] VERIFY FAILED -- {len(problems)} divergence(s):")
         for p in problems[:20]:
@@ -292,9 +299,11 @@ def main(argv=None) -> int:
         for p in problems[:20]:
             print(f"  {p}")
         return 1
-    print("[migrate] OK -- shadow-built, swapped, verified bidirectionally. The JSON "
-          "source is untouched; the sqlite era echoes state back to it on close, and "
-          "check_dual_authority watches the twins.")
+    print(
+        "[migrate] OK -- shadow-built, swapped, verified bidirectionally. The JSON "
+        "source is untouched; the sqlite era echoes state back to it on close, and "
+        "check_dual_authority watches the twins."
+    )
     return 0
 
 

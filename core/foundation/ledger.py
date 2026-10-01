@@ -95,8 +95,7 @@ class Ledger(ABC):
         ...
 
     @abstractmethod
-    def consume(self, stream: str, after_id: str = "0", count: int = 100,
-                block_ms: int = 0) -> List[Event]:
+    def consume(self, stream: str, after_id: str = "0", count: int = 100, block_ms: int = 0) -> List[Event]:
         """
         Replay events appended after `after_id`, oldest first.
 
@@ -135,9 +134,15 @@ class RedisLedger(Ledger):
         self._client = client
 
     @classmethod
-    def connect(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                timeout_seconds: float = 2.0, db: int = DEFAULT_REDIS_DB) -> "RedisLedger":
+    def connect(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "RedisLedger":
         from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+
         client = connect_to_redis_with_fail_fast(
             host=host, port=port, timeout_seconds=timeout_seconds, decode_responses=True, db=db
         )
@@ -205,8 +210,7 @@ class FileLedger(Ledger):
     """
 
     def __init__(self, base_dir: Optional[str] = None):
-        base = Path(base_dir) if base_dir else \
-            data_root() / "session_logs" / "ledger"
+        base = Path(base_dir) if base_dir else data_root() / "session_logs" / "ledger"
         base.mkdir(parents=True, exist_ok=True)
         self._base = base
         self._lock = threading.RLock()
@@ -253,7 +257,7 @@ class FileLedger(Ledger):
                         self._maybe_trim(path, maxlen, last_id + 1)
                     return new_id
             except Exception as e:
-                if new_id is not None:      # the row is on disk; only the trim step failed
+                if new_id is not None:  # the row is on disk; only the trim step failed
                     logger.warning(f"FileLedger appended {path.name}#{new_id} but could not trim: {e}")
                     return new_id
                 # Loud, never raising: emit sits on hot paths in every seat. A lock timeout
@@ -398,9 +402,14 @@ class HybridLedger(Ledger):
         self._file = file_ledger
 
     @classmethod
-    def create(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-               timeout_seconds: float = 2.0, base_dir: Optional[str] = None,
-               db: int = DEFAULT_REDIS_DB) -> "HybridLedger":
+    def create(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        base_dir: Optional[str] = None,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "HybridLedger":
         rj = RedisLedger.connect(host=host, port=port, timeout_seconds=timeout_seconds, db=db)
         return cls(rj if rj.is_available() else None, FileLedger(base_dir))
 
@@ -441,6 +450,7 @@ class HybridLedger(Ledger):
         HybridLedger._backfilled.add(stream)
         try:
             from core.foundation.embedded_redis import configured_backend
+
             if configured_backend() != "embedded":
                 return
             client = self._redis._client
@@ -466,9 +476,14 @@ class HybridLedger(Ledger):
 # =====================================================================
 # Factory
 # =====================================================================
-def create_ledger(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                   timeout_seconds: float = 2.0, base_dir: Optional[str] = None,
-                   db: int = DEFAULT_REDIS_DB) -> Ledger:
+def create_ledger(
+    prefer_redis: bool = True,
+    host: str = DEFAULT_REDIS_HOST,
+    port: int = DEFAULT_REDIS_PORT,
+    timeout_seconds: float = 2.0,
+    base_dir: Optional[str] = None,
+    db: int = DEFAULT_REDIS_DB,
+) -> Ledger:
     """
     Create the default Ledger for the system.
 
@@ -481,5 +496,4 @@ def create_ledger(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, por
     """
     if not prefer_redis:
         return FileLedger(base_dir)
-    return HybridLedger.create(host=host, port=port, timeout_seconds=timeout_seconds,
-                                base_dir=base_dir, db=db)
+    return HybridLedger.create(host=host, port=port, timeout_seconds=timeout_seconds, base_dir=base_dir, db=db)

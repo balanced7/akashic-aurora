@@ -9,6 +9,7 @@ MAGNITUDE (too much / too little / too long).
 
 Seed + method are stated inline so the draw is reproducible.
 """
+
 import random
 
 import pytest

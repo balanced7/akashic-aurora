@@ -6,6 +6,7 @@ consolidation/merge pass the warning points at had nothing durable to act on. Th
 edge landing on the new record as `related_to` JSON (+ `related_stamped`), one-directional
 new -> existing.
 """
+
 import json
 import os
 import sys
@@ -23,16 +24,22 @@ def _store():
 
 def test_mark_related_stamps_edge():
     ls = _store()
-    base = {"experiment_name": "seam_fix_a", "what_tried": "moved the consolidator seam",
-            "actual_outcome": "faithfulness gate now fires", "success": "yes",
-            "recommendation": "route every source through the one consolidator seam",
-            "agent_id": "t", "category": "architecture"}
+    base = {
+        "experiment_name": "seam_fix_a",
+        "what_tried": "moved the consolidator seam",
+        "actual_outcome": "faithfulness gate now fires",
+        "success": "yes",
+        "recommendation": "route every source through the one consolidator seam",
+        "agent_id": "t",
+        "category": "architecture",
+    }
     ls.persist_learning_derived_from_experiment(base)
     twin = dict(base, experiment_name="seam_fix_b")
     ls.persist_learning_derived_from_experiment(twin)
     related = find_related(twin, ls.load_all_learnings_from_store(), exclude_name="seam_fix_b")
-    assert related and related[0]["experiment_name"] == "seam_fix_a", \
+    assert related and related[0]["experiment_name"] == "seam_fix_a", (
         f"the twin must be found before it can be stamped, got {related}"
+    )
     assert ls.mark_related("seam_fix_b", related) is True
     rec = ls._load_experiment("seam_fix_b")
     edges = json.loads(rec.get("related_to") or "[]")
@@ -43,11 +50,19 @@ def test_mark_related_stamps_edge():
 
 def test_mark_related_noops_safely():
     ls = _store()
-    assert ls.mark_related("ghost", [{"experiment_name": "x", "dims": 4, "matched": []}]) is False, \
+    assert ls.mark_related("ghost", [{"experiment_name": "x", "dims": 4, "matched": []}]) is False, (
         "unknown record -> no write, no raise"
-    ls.persist_learning_derived_from_experiment({
-        "experiment_name": "solo", "what_tried": "x", "actual_outcome": "y",
-        "success": "yes", "recommendation": "z", "agent_id": "t"})
+    )
+    ls.persist_learning_derived_from_experiment(
+        {
+            "experiment_name": "solo",
+            "what_tried": "x",
+            "actual_outcome": "y",
+            "success": "yes",
+            "recommendation": "z",
+            "agent_id": "t",
+        }
+    )
     assert ls.mark_related("solo", []) is False, "no edges -> no write"
     assert not (ls._load_experiment("solo") or {}).get("related_to")
     print("--- no-op safety ---\n  ghost record / empty edges -> False, record untouched OK")

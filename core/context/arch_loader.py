@@ -16,6 +16,7 @@ Design (same discipline as recall-at-action):
 
 See docs/library/report/20260707_renew-strand-e-cold-resume-fidelity-empi_890e10.md.
 """
+
 from __future__ import annotations
 
 import os
@@ -31,7 +32,9 @@ _PATH_RE = re.compile(r"`([\w./-]+/)`")
 
 def _repo_docs_dir() -> str:
     # this file: <repo>/context/arch_loader.py -> <repo>/docs
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "docs")  # depth: core/context/ (T104-M3 move, class-6 fix)
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "docs"
+    )  # depth: core/context/ (T104-M3 move, class-6 fix)
 
 
 def _parse_sections(md_path: str) -> List[Dict[str, str]]:
@@ -59,8 +62,14 @@ def _parse_sections(md_path: str) -> List[Dict[str, str]]:
     return out
 
 
-def load_arch_slice(task: str, *, top_k: int = 3, min_relevance: float = 0.2,
-                    now: Optional[float] = None, docs_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_arch_slice(
+    task: str,
+    *,
+    top_k: int = 3,
+    min_relevance: float = 0.2,
+    now: Optional[float] = None,
+    docs_dir: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """The few architecture subsystems most relevant to `task`, each with its code path.
 
     Returns a small list of {heading, path, source}, best-first. Empty task, no parseable sections, or
@@ -80,15 +89,16 @@ def load_arch_slice(task: str, *, top_k: int = 3, min_relevance: float = 0.2,
         from core.primitives.ranker import Ranker
     except Exception:
         return []
-    items = [{"text": s["heading"] + "\n" + s["body"], "importance": 3,
-              "heading": s["heading"], "path": s["path"]} for s in subsystems]
+    items = [
+        {"text": s["heading"] + "\n" + s["body"], "importance": 3, "heading": s["heading"], "path": s["path"]}
+        for s in subsystems
+    ]
     out: List[Dict[str, Any]] = []
     for sc in Ranker().rank(items, query=task, now=now):
         if sc.components.get("relevance", 0.0) < min_relevance:
-            continue   # show-nothing floor: the section must actually match THIS task
+            continue  # show-nothing floor: the section must actually match THIS task
         it = sc.item
-        out.append({"heading": it["heading"], "path": it.get("path", ""),
-                    "source": "docs/ARCHITECTURE.md"})
+        out.append({"heading": it["heading"], "path": it.get("path", ""), "source": "docs/ARCHITECTURE.md"})
         if len(out) >= top_k:
             break
     return out

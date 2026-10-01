@@ -20,6 +20,7 @@ Fixtures are SYNTHETIC (tests/fixtures/eye/) -- pins never read the live corpus.
 
 Run: py -m pytest tests/test_t278_s0_eye_indexer.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -72,8 +73,10 @@ def test_p3_incremental_ingests_only_the_appended_line(tmp_path):
     r2 = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     assert r2["events_new"] == 0, "unchanged files re-ingest nothing"
     with open(corpus / "session_beta.jsonl", "a", encoding="utf-8") as f:
-        f.write('{"type":"user","isMeta":false,"timestamp":"2026-08-02T10:00:00.000Z",'
-                '"message":{"role":"user","content":"appended fixture line about the sword"}}\n')
+        f.write(
+            '{"type":"user","isMeta":false,"timestamp":"2026-08-02T10:00:00.000Z",'
+            '"message":{"role":"user","content":"appended fixture line about the sword"}}\n'
+        )
     r3 = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     assert r3["events_new"] == 1, "only the appended line ingests"
     assert r3["events_total"] == r1["events_total"] + 1
@@ -81,12 +84,12 @@ def test_p3_incremental_ingests_only_the_appended_line(tmp_path):
 
 def test_p4_coverage_names_the_gap(tmp_path):
     corpus, db = _fresh(tmp_path)
-    ghost = corpus / "session_ghost.jsonl"          # named in the manifest, not on disk
+    ghost = corpus / "session_ghost.jsonl"  # named in the manifest, not on disk
     rep = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")) + [ghost], db_path=db)
     assert rep["manifest_complete"] is False, (
-        "P4 THE COVERAGE PIN: one unreadable file and the index may not claim wholeness")
-    assert any("session_ghost" in f["path"] for f in rep["files_failed"]), (
-        "the gap is NAMED, never a bare count")
+        "P4 THE COVERAGE PIN: one unreadable file and the index may not claim wholeness"
+    )
+    assert any("session_ghost" in f["path"] for f in rep["files_failed"]), "the gap is NAMED, never a bare count"
     assert rep["files_indexed"] == 2
 
 
@@ -106,12 +109,13 @@ def test_p6_voice_labels_are_conservative(tmp_path):
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     caveat = EYE.find(q="command-name", db_path=db)["results"]
     assert caveat and caveat[0]["voice"] == "system", (
-        "a command-caveat block inside a user record is SYSTEM -- the false-positive class "
-        "the sweep paid for")
+        "a command-caveat block inside a user record is SYSTEM -- the false-positive class the sweep paid for"
+    )
     qnoise = EYE.find(q="fixture noise", db_path=db)["results"]
     assert qnoise and qnoise[0]["voice"] == "system", (
         "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
-        "these polluting the operator axis; the law has a marker exception on every lane")
+        "these polluting the operator axis; the law has a marker exception on every lane"
+    )
     meta = EYE.find(q="meta housekeeping", db_path=db)["results"]
     assert meta and meta[0]["voice"] == "system", "isMeta user records are never operator"
     real = EYE.find(q="sharper every week", db_path=db)["results"]

@@ -25,6 +25,7 @@ Pins B1-B3 (tools), D1-D4 (guard), Q1-Q3 (boot fold) per design Part (e).
 
 Run: py -m pytest tests/test_t067_1_toolbox_parity.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -45,12 +46,14 @@ def _runner():
     # Lazy, like test_t068_r3_preflight: the runner module wires liveness at import;
     # only the Q pins pay that cost, never bare collection.
     import scripts.bifrost_runner_deepseek as runner
+
     return runner
 
 
 def _toolbox(agent_id="testseek"):
-    return dc.ToolBox(Path(ROOT), allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda _p: False, agent_id=agent_id)
+    return dc.ToolBox(
+        Path(ROOT), allow_exec=False, trust=False, allow_secrets=False, confirm=lambda _p: False, agent_id=agent_id
+    )
 
 
 def _schema_names():
@@ -64,8 +67,9 @@ def test_b1_knowledge_map_returns_graph():
     tb._agent_cli = lambda args, timeout=90: seen.setdefault("args", list(args)) and "ok" or "ok"
     out = tb.knowledge_map("lanes")
     assert out == "ok"
-    assert seen["args"] == ["knowledge-map", "lanes", "--per-layer", "6", "--json"], \
+    assert seen["args"] == ["knowledge-map", "lanes", "--per-layer", "6", "--json"], (
         f"must ride the REAL knowledge-map parser (positional + --per-layer), got {seen['args']}"
+    )
     assert "knowledge_map" in _schema_names(), "the model never sees a tool without a TOOLS schema entry"
 
 
@@ -77,6 +81,7 @@ def test_b2_ack_marks_handled(monkeypatch):
         return calls.pop("_refuse", False) is False
 
     import core.comm.promoter as promoter
+
     monkeypatch.setattr(promoter, "ack", fake_ack)
     tb = _toolbox()
     out = tb.bifrost_ack("1784082287759-0")
@@ -96,8 +101,9 @@ def test_b3_delta_returns_changes():
     tb._agent_cli = lambda args, timeout=90: seen.setdefault("args", list(args)) and "ok" or "ok"
     out = tb.delta()
     assert out == "ok"
-    assert seen["args"] == ["delta", "testseek"], \
+    assert seen["args"] == ["delta", "testseek"], (
         f"delta rides the REAL parser (positional agent, no --json/--ack), got {seen['args']}"
+    )
     seen.clear()
     tb.delta(agent="claude")
     assert seen["args"] == ["delta", "claude"]
@@ -107,8 +113,9 @@ def test_b3_delta_returns_changes():
 # ------------------------------------------------------- D1-D4: the third-door guard
 def test_d1_toolbox_enumerated_and_reality_passes():
     tv = set(cdp.toolbox_verbs())
-    assert {"read_file", "bifrost_send", "memory_recall", "knowledge_map",
-            "bifrost_ack", "delta"} <= tv, f"enumeration missed core tools: {sorted(tv)}"
+    assert {"read_file", "bifrost_send", "memory_recall", "knowledge_map", "bifrost_ack", "delta"} <= tv, (
+        f"enumeration missed core tools: {sorted(tv)}"
+    )
     assert len(tv) >= 26, f"design floor is 26+ verbs, got {len(tv)}"
     fails, _gaps, _cli, _mcp = cdp.check()
     assert not fails, f"the guard must PASS on current reality (ship/CI gate): {fails}"
@@ -118,22 +125,31 @@ def test_d2_shared_missing_from_toolbox_fails(monkeypatch):
     real = set(cdp.toolbox_verbs())
     monkeypatch.setattr(cdp, "toolbox_verbs", lambda: sorted(real - {"knowledge_map"}))
     fails, _g, _c, _m = cdp.check()
-    assert any("knowledge_map" in f and "ToolBox" in f and "third-door regression" in f
-               for f in fails), f"the knowledge_map class must FAIL loud, got {fails}"
+    assert any("knowledge_map" in f and "ToolBox" in f and "third-door regression" in f for f in fails), (
+        f"the knowledge_map class must FAIL loud, got {fails}"
+    )
 
 
 def test_d3_unclassified_toolbox_verb_fails(monkeypatch):
     real = set(cdp.toolbox_verbs())
     monkeypatch.setattr(cdp, "toolbox_verbs", lambda: sorted(real | {"zz_phantom_tool"}))
     fails, _g, _c, _m = cdp.check()
-    assert any("zz_phantom_tool" in f and "unclassified" in f for f in fails), \
+    assert any("zz_phantom_tool" in f and "unclassified" in f for f in fails), (
         f"a new ToolBox verb must hit the ratchet, got {fails}"
+    )
 
 
 def test_d4_report_includes_toolbox():
     env = dict(os.environ, PYTHONUTF8="1")  # Windows child defaults to cp1252; pin the pipe encoding
-    p = subprocess.run([sys.executable, os.path.join("scripts", "checkers", "check_door_parity.py"), "--report"],
-                       cwd=ROOT, capture_output=True, text=True, encoding="utf-8", timeout=60, env=env)
+    p = subprocess.run(
+        [sys.executable, os.path.join("scripts", "checkers", "check_door_parity.py"), "--report"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+        env=env,
+    )
     assert p.returncode == 0, f"--report must exit 0 on reality:\n{p.stdout}\n{p.stderr}"
     assert "ToolBox (" in p.stdout, "the report must print the third door's surface"
     assert "toolbox_only" in p.stdout, "the report must show the toolbox_only stats"
@@ -142,6 +158,7 @@ def test_d4_report_includes_toolbox():
 # ------------------------------------------------- Q1-Q3: private notes ride the boot
 def _fake_memory(monkeypatch, notes):
     import core.learning.agent_memory as am
+
     fake = SimpleNamespace(get_decisions=lambda days=365: notes)
     monkeypatch.setattr(am, "get_agent_memory", lambda: fake)
 
@@ -151,11 +168,14 @@ def _note(title, body, superseded=False):
 
 
 def test_q1_private_notes_in_boot(monkeypatch):
-    _fake_memory(monkeypatch, [
-        _note("scratch:pintest:alpha", "remember the seam"),
-        _note("scratch:pintest:old", "gone", superseded=True),
-        _note("scratch:otherseat:beta", "not mine"),
-    ])
+    _fake_memory(
+        monkeypatch,
+        [
+            _note("scratch:pintest:alpha", "remember the seam"),
+            _note("scratch:pintest:old", "gone", superseded=True),
+            _note("scratch:otherseat:beta", "not mine"),
+        ],
+    )
     out = _runner().fold_private_notes("SYSBASE", "pintest")
     assert out.startswith("SYSBASE"), "the fold appends; it never rewrites the system text"
     assert "YOUR PRIVATE NOTES" in out

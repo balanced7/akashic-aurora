@@ -42,11 +42,11 @@ NS = f"connreuse{uuid.uuid4().hex[:6]}"
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
     return connect_to_redis_with_fail_fast(
-        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-        timeout_seconds=3, decode_responses=True)
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
 
 
 class _SocketCounter:
@@ -60,6 +60,7 @@ class _SocketCounter:
 
     def __init__(self):
         import redis.connection as rc
+
         self._rc = rc
         self.n = 0
 
@@ -84,6 +85,7 @@ class _SocketCounter:
 def seeded():
     """A private namespace holding a small fleet and a larger one."""
     from core.comm import roster
+
     client = _client()
     if client is None:
         pytest.skip("no live Redis on the world endpoint")
@@ -98,6 +100,7 @@ def seeded():
 def test_roster_connection_cost_is_flat_in_fleet_size(seeded):
     """P1: connections opened by roster() must NOT scale with the number of rows."""
     from core.comm import roster
+
     client, _small, _large = seeded
 
     # Warm every lazy import/singleton first, so the measurement sees steady state and
@@ -128,6 +131,7 @@ def test_roster_cost_does_not_grow_when_the_fleet_grows(seeded):
     house later decides a small constant number of connections is acceptable.
     """
     from core.comm import roster
+
     client, _small, _large = seeded
 
     roster.roster(NS, client=client)  # warm
@@ -186,7 +190,7 @@ def test_conductor_gate_pass_cost_does_not_grow_with_the_fleet():
         pytest.skip("no live Redis on the world endpoint")
 
     ns = _ns()
-    stale = _time.time() - 100_000.0     # old beats: forces the full probe ladder
+    stale = _time.time() - 100_000.0  # old beats: forces the full probe ladder
     planted = []
 
     def _plant(n, tag):
@@ -198,7 +202,7 @@ def test_conductor_gate_pass_cost_does_not_grow_with_the_fleet():
 
     try:
         _plant(10, "a")
-        conductor_gate.evaluate_succession(agent_self="kimi")          # warm
+        conductor_gate.evaluate_succession(agent_self="kimi")  # warm
         with _SocketCounter() as c:
             conductor_gate.evaluate_succession(agent_self="kimi")
         before = c.n

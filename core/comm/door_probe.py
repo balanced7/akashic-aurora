@@ -38,6 +38,7 @@ and hard-exits if even that overruns. Corollary, and it is a rule not a preferen
 probe is for the pre-push gate and on-demand runs. It must NEVER be called inline from the
 SessionStart whisper -- that path uses the cheap staleness check instead.
 """
+
 from __future__ import annotations
 
 import json
@@ -55,9 +56,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SERVER = ROOT / "ai_setup_mcp.py"
@@ -91,9 +94,14 @@ def _now_iso() -> str:
 
 def _head_sha() -> str:
     try:
-        r = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
-                           stdin=subprocess.DEVNULL, close_fds=True,
-                           capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         return (r.stdout or "").strip()
     except Exception:
         return ""
@@ -119,18 +127,25 @@ def _probe_env(probe_home: str) -> dict:
     P6 has always run with this flag and still caught the real hang, which is the
     evidence that isolation does not mask the defect the probe exists to find.
     """
-    return {**os.environ,
-            "AI_SETUP": probe_home,
-            "_AISETUP_TEST_ISOLATED": "1",
-            "REDIS_DB": "15",
-            "AKASHIC_RECALL_STATE_DIR": str(Path(probe_home) / "recall")}
+    return {
+        **os.environ,
+        "AI_SETUP": probe_home,
+        "_AISETUP_TEST_ISOLATED": "1",
+        "REDIS_DB": "15",
+        "AKASHIC_RECALL_STATE_DIR": str(Path(probe_home) / "recall"),
+    }
 
 
 def _verdict(verdict, stage, elapsed, cause, detail="", recovery="") -> dict:
     return {
-        "verdict": verdict, "stage": stage, "elapsed_s": round(elapsed, 2),
-        "cause": cause, "detail": detail[:600], "recovery": recovery,
-        "sha": _head_sha(), "at": _now_iso(),
+        "verdict": verdict,
+        "stage": stage,
+        "elapsed_s": round(elapsed, 2),
+        "cause": cause,
+        "detail": detail[:600],
+        "recovery": recovery,
+        "sha": _head_sha(),
+        "at": _now_iso(),
     }
 
 
@@ -158,7 +173,7 @@ def _append_gate_journal(v: dict) -> None:
             "verdict": v.get("verdict"),
             "stage": v.get("stage"),
             "elapsed_s": v.get("elapsed_s"),
-            "budget_s": SLOW_BUDGET_S,   # a verdict is meaningless without its threshold
+            "budget_s": SLOW_BUDGET_S,  # a verdict is meaningless without its threshold
             "cause": v.get("cause", ""),
             "sha": v.get("sha"),
             "at": v.get("at"),
@@ -175,10 +190,10 @@ def write_verdict(v: dict) -> None:
         CACHE.parent.mkdir(parents=True, exist_ok=True)
         tmp = CACHE.with_suffix(".tmp")
         tmp.write_text(json.dumps(v, indent=2), encoding="utf-8")
-        tmp.replace(CACHE)          # atomic: a reader never sees a half-written verdict
+        tmp.replace(CACHE)  # atomic: a reader never sees a half-written verdict
     except Exception:
-        pass                        # a cache miss must never break the caller
-    _append_gate_journal(v)         # additive: the clobber above is unchanged
+        pass  # a cache miss must never break the caller
+    _append_gate_journal(v)  # additive: the clobber above is unchanged
 
 
 def read_verdict() -> dict | None:
@@ -204,8 +219,7 @@ def _child_flow(timeout_s: float) -> dict:
 
         probe_home = tempfile.mkdtemp(prefix="door-probe-")
         env = _probe_env(probe_home)
-        params = StdioServerParameters(command=sys.executable, args=[str(SERVER)],
-                                       cwd=str(ROOT), env=env)
+        params = StdioServerParameters(command=sys.executable, args=[str(SERVER)], cwd=str(ROOT), env=env)
         t0 = time.time()
         stage = "spawn"
         try:
@@ -220,61 +234,85 @@ def _child_flow(timeout_s: float) -> dict:
                     missing = [v for v in CORE_VERBS if v not in names]
                     if missing:
                         return _verdict(
-                            RED, stage, time.time() - t0, "roster_drift",
+                            RED,
+                            stage,
+                            time.time() - t0,
+                            "roster_drift",
                             f"tools/list is missing: {', '.join(missing)}",
                             "The server answers but its verb roster drifted. Check the "
-                            "@mcp.tool() registrations in ai_setup_mcp.py and .mcp.json.")
+                            "@mcp.tool() registrations in ai_setup_mcp.py and .mcp.json.",
+                        )
 
                     # The one that matters: a verb whose body spawns a child.
                     stage = "boot"
                     out = await asyncio.wait_for(
-                        s.call_tool("boot", {"agent": "door-probe",
-                                             "task": "door probe -- single-frame response check"}),
-                        timeout=timeout_s)
+                        s.call_tool(
+                            "boot", {"agent": "door-probe", "task": "door probe -- single-frame response check"}
+                        ),
+                        timeout=timeout_s,
+                    )
                     text = "".join(getattr(c, "text", "") for c in out.content)
                     if "# CONTEXT for door-probe" not in text:
                         return _verdict(
-                            RED, stage, time.time() - t0, "boot_render_broken",
+                            RED,
+                            stage,
+                            time.time() - t0,
+                            "boot_render_broken",
                             f"boot returned {len(text)} chars without its CONTEXT header",
                             "The door answered but boot's render is wrong. Compare against "
-                            f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.")
+                            f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.",
+                        )
 
                     el = time.time() - t0
                     if el > SLOW_BUDGET_S:
                         return _verdict(
-                            RED, stage, el, "response_path_slow",
+                            RED,
+                            stage,
+                            el,
+                            "response_path_slow",
                             f"boot answered, but in {el:.1f}s against a ~1.3s healthy "
                             f"baseline (budget {SLOW_BUDGET_S}s)",
                             "The door ANSWERS but is parked -- this is C7-4 in its bounded "
                             "form, where a reply waits behind some child's own timeout "
                             "rather than forever. Treat it as red: run "
                             "tests/test_subprocess_stdin_sever.py (S3 names the offending "
-                            "file:line). If it passes, your server is stale -- restart it.")
-                    return _verdict(GREEN, "complete", el, "",
-                                    f"boot returned {len(text)} chars",
-                                    "MCP path healthy.")
+                            "file:line). If it passes, your server is stale -- restart it.",
+                        )
+                    return _verdict(GREEN, "complete", el, "", f"boot returned {len(text)} chars", "MCP path healthy.")
         except asyncio.TimeoutError:
             el = time.time() - t0
             if stage == "boot":
                 # The signature of C7-4: handshake fine, work runs, reply never returns.
                 return _verdict(
-                    RED, stage, el, "response_path_hang",
+                    RED,
+                    stage,
+                    el,
+                    "response_path_hang",
                     f"handshake succeeded; boot did not answer within {timeout_s}s",
                     f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. This is the "
                     "C7-4 class (a tool's reply parked behind an inherited handle). Run "
                     "tests/test_subprocess_stdin_sever.py -- S3 names the offending "
                     "file:line. If it passes, your SERVER IS STALE: restart it, because an "
-                    "MCP server loads its modules at spawn.")
+                    "MCP server loads its modules at spawn.",
+                )
             return _verdict(
-                RED, stage, el, f"{stage}_timeout",
+                RED,
+                stage,
+                el,
+                f"{stage}_timeout",
                 f"the door did not get past {stage} within {timeout_s}s",
-                "Start the server by hand to see what it is waiting on: "
-                f"py {SERVER.name}")
+                f"Start the server by hand to see what it is waiting on: py {SERVER.name}",
+            )
         except Exception as e:
             return _verdict(
-                UNKNOWN, stage, time.time() - t0, f"{type(e).__name__}", str(e),
+                UNKNOWN,
+                stage,
+                time.time() - t0,
+                f"{type(e).__name__}",
+                str(e),
                 "The probe itself failed -- this is NOT a verdict about the door. "
-                f"Reproduce with: {_pyl()} -m core.comm.door_probe --json")
+                f"Reproduce with: {_pyl()} -m core.comm.door_probe --json",
+            )
 
     return asyncio.new_event_loop().run_until_complete(flow())
 
@@ -290,35 +328,64 @@ def probe(timeout_s: float = DEFAULT_TIMEOUT_S, cache: bool = True) -> dict:
     t0 = time.time()
     bail = threading.Timer(
         timeout_s * WATCHDOG_MULTIPLIER,
-        lambda: (write_verdict(_verdict(
-            UNKNOWN, "watchdog", time.time() - t0, "prober_wedged",
-            f"the prober itself did not return within {timeout_s * WATCHDOG_MULTIPLIER}s",
-            "The probe could not be completed, so the door's state is UNKNOWN -- do not "
-            "read this as red. Retry; if it repeats, a child process is refusing to die.")),
-            os._exit(2)))
+        lambda: (
+            write_verdict(
+                _verdict(
+                    UNKNOWN,
+                    "watchdog",
+                    time.time() - t0,
+                    "prober_wedged",
+                    f"the prober itself did not return within {timeout_s * WATCHDOG_MULTIPLIER}s",
+                    "The probe could not be completed, so the door's state is UNKNOWN -- do not "
+                    "read this as red. Retry; if it repeats, a child process is refusing to die.",
+                )
+            ),
+            os._exit(2),
+        ),
+    )
     bail.daemon = True
     bail.start()
     try:
         r = subprocess.run(
             [sys.executable, str(Path(__file__).resolve()), "--child", "--timeout", str(timeout_s)],
-            stdin=subprocess.DEVNULL, close_fds=True,
-            capture_output=True, text=True, cwd=str(ROOT), timeout=timeout_s * 1.5)
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+            capture_output=True,
+            text=True,
+            cwd=str(ROOT),
+            timeout=timeout_s * 1.5,
+        )
         try:
             v = json.loads((r.stdout or "").strip().splitlines()[-1])
         except Exception:
-            v = _verdict(UNKNOWN, "child", time.time() - t0, "unreadable_child_output",
-                         (r.stderr or r.stdout or "")[-400:],
-                         "The probe child produced no verdict. Run it directly: "
-                         f"{_pyl()} -m core.comm.door_probe --child")
+            v = _verdict(
+                UNKNOWN,
+                "child",
+                time.time() - t0,
+                "unreadable_child_output",
+                (r.stderr or r.stdout or "")[-400:],
+                f"The probe child produced no verdict. Run it directly: {_pyl()} -m core.comm.door_probe --child",
+            )
     except subprocess.TimeoutExpired:
-        v = _verdict(RED, "boot", time.time() - t0, "response_path_hang",
-                     f"the probe child had to be killed at {timeout_s * 1.5:.0f}s",
-                     f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. Then run "
-                     "tests/test_subprocess_stdin_sever.py; if it passes, restart your "
-                     "server -- it is running pre-fix code.")
+        v = _verdict(
+            RED,
+            "boot",
+            time.time() - t0,
+            "response_path_hang",
+            f"the probe child had to be killed at {timeout_s * 1.5:.0f}s",
+            f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. Then run "
+            "tests/test_subprocess_stdin_sever.py; if it passes, restart your "
+            "server -- it is running pre-fix code.",
+        )
     except Exception as e:
-        v = _verdict(UNKNOWN, "spawn", time.time() - t0, type(e).__name__, str(e),
-                     "The probe could not be started; the door's state is UNKNOWN.")
+        v = _verdict(
+            UNKNOWN,
+            "spawn",
+            time.time() - t0,
+            type(e).__name__,
+            str(e),
+            "The probe could not be started; the door's state is UNKNOWN.",
+        )
     finally:
         bail.cancel()
     if cache:

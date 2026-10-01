@@ -9,6 +9,7 @@ guard froze, because it printed before it sent).
 
 Run: py -m pytest tests/test_launcher_drain.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -23,13 +24,16 @@ SPAM = "import sys\nfor i in range(3000):\n    print('x' * 200)\nprint('DRAIN-DO
 def test_chatty_child_exits_and_tail_captures_final_line():
     handle = subprocess.Popen(
         [sys.executable, "-c", SPAM],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, encoding="utf-8", errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     proc = AgentProcess(agent_id="drain-test", pid=handle.pid, handle=handle, status="running")
     proc.drainers = _start_drainers(handle, proc)
     try:
-        code = handle.wait(timeout=15)   # without drainers this deadlocks at ~1 pipe buffer
+        code = handle.wait(timeout=15)  # without drainers this deadlocks at ~1 pipe buffer
     finally:
         if handle.poll() is None:
             handle.kill()
@@ -43,8 +47,11 @@ def test_chatty_child_exits_and_tail_captures_final_line():
 def test_quiet_child_unaffected():
     handle = subprocess.Popen(
         [sys.executable, "-c", "print('hello')"],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, encoding="utf-8", errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     proc = AgentProcess(agent_id="drain-test-2", pid=handle.pid, handle=handle, status="running")
     proc.drainers = _start_drainers(handle, proc)

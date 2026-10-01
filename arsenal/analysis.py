@@ -5,6 +5,7 @@ Kernel API v0. See arsenal/FIRST-LIGHT-SPEC.md, section "analysis.py (PyAV)".
 This module is standalone: it does not import any other arsenal.* module, so it works
 whether or not arsenal/__init__.py exists yet.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -37,8 +38,18 @@ _COLOR_UNSPECIFIED = 2  # shared by primaries, transfer (trc) and matrix (colors
 # (av_hwdevice_get_type_name-adjacent). Any other format PyAV reports (yuv420p, nv12 that
 # was downloaded to system memory, ...) means the decode is software.
 _HW_PIX_FMTS = {
-    "d3d11", "d3d12", "cuda", "vaapi", "dxva2_vld", "qsv",
-    "videotoolbox", "vulkan", "drm_prime", "mediacodec", "opencl", "vdpau",
+    "d3d11",
+    "d3d12",
+    "cuda",
+    "vaapi",
+    "dxva2_vld",
+    "qsv",
+    "videotoolbox",
+    "vulkan",
+    "drm_prime",
+    "mediacodec",
+    "opencl",
+    "vdpau",
 }
 
 HOP_TICKS = 480
@@ -75,6 +86,7 @@ def _computed_with() -> dict:
 # ---------------------------------------------------------------------------
 # probe
 # ---------------------------------------------------------------------------
+
 
 def probe(path: str) -> dict:
     """Read container/stream/codec metadata with PyAV's real attributes.
@@ -137,6 +149,7 @@ def probe(path: str) -> dict:
 # hw_decode_evidence
 # ---------------------------------------------------------------------------
 
+
 def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 30) -> dict:
     """Decode a few frames per device with PyAV 17's real hwaccel API and report the frame
     format PyAV actually returns. Never raises: each device's failure is recorded on its
@@ -182,6 +195,7 @@ def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 
 # audio_features
 # ---------------------------------------------------------------------------
 
+
 def _cache_path(abspath: str, size: int, mtime_ns: int) -> Path:
     key = hashlib.sha1(f"{abspath}|{size}|{mtime_ns}".encode("utf-8")).hexdigest()
     return CACHE_DIR / f"{key}.json"
@@ -208,8 +222,12 @@ def _no_audio_result(abspath: str, size: int, mtime_ns: int) -> dict:
         "no_audio": True,
         "normalization": "per-band p5..p99 of dB mapped to 0..1, clipped",
         "source": {
-            "path": abspath, "size": size, "mtime": mtime_ns,
-            "audio_stream": None, "sample_rate_in": None, "channels_in": None,
+            "path": abspath,
+            "size": size,
+            "mtime": mtime_ns,
+            "audio_stream": None,
+            "sample_rate_in": None,
+            "channels_in": None,
         },
         "computed_with": _computed_with(),
     }
@@ -254,9 +272,7 @@ def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = N
         astream = container.streams.audio[0]
         sample_rate_in = astream.codec_context.rate
         channels_in = astream.codec_context.channels
-        total_duration_s = (
-            float(Fraction(container.duration, av.time_base)) if container.duration else None
-        )
+        total_duration_s = float(Fraction(container.duration, av.time_base)) if container.duration else None
 
         resampler = av.AudioResampler(format="flt", layout="mono", rate=FEATURE_SAMPLE_RATE)
 
@@ -301,9 +317,12 @@ def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = N
             "frames": rows,
             "normalization": "per-band p5..p99 of dB mapped to 0..1, clipped",
             "source": {
-                "path": abspath, "size": size, "mtime": mtime_ns,
+                "path": abspath,
+                "size": size,
+                "mtime": mtime_ns,
                 "audio_stream": astream.index,
-                "sample_rate_in": sample_rate_in, "channels_in": channels_in,
+                "sample_rate_in": sample_rate_in,
+                "channels_in": channels_in,
             },
             "computed_with": _computed_with(),
         }

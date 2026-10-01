@@ -18,6 +18,7 @@ in-memory fake, so no canonical firehose and no Redis.
       never happened (a 2-match edit refuses after prewrite, so nothing should be recorded)
   P4  provenance is best-effort: a capture that raises must not break the write
 """
+
 import sys
 from pathlib import Path
 
@@ -28,26 +29,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 class _FakeLog:
     """Minimal stand-in for EventLog with an in-memory list; no Redis, no file."""
+
     def __init__(self):
         self.events = []
 
-    def capture(self, kind, summary, *, detail=None, agent_id=None, session_id="",
-                refs=None, track=None, at=None):
-        self.events.append({"kind": kind, "summary": summary, "detail": detail or {},
-                            "agent_id": agent_id, "refs": refs or []})
+    def capture(self, kind, summary, *, detail=None, agent_id=None, session_id="", refs=None, track=None, at=None):
+        self.events.append(
+            {"kind": kind, "summary": summary, "detail": detail or {}, "agent_id": agent_id, "refs": refs or []}
+        )
         return None
 
 
 @pytest.fixture()
 def tb(monkeypatch, tmp_path):
     from core.comm import toolbox as tbmod
+
     fake = _FakeLog()
     monkeypatch.setattr("core.events.event_log.get_event_log", lambda ledger=None: fake)
     # Root = the temp dir, so `_prewrite`'s in-root path-scope passes and the write stays
     # fully hermetic (never touches the real tree). Import of event_log is lazy inside
     # _record_file_provenance, so the patch is picked up at capture time.
-    box = tbmod.ToolBox(tmp_path, allow_write=True, allow_exec=False, trust=True,
-                        allow_secrets=False, confirm=lambda p: False, agent_id="deepseek")
+    box = tbmod.ToolBox(
+        tmp_path,
+        allow_write=True,
+        allow_exec=False,
+        trust=True,
+        allow_secrets=False,
+        confirm=lambda p: False,
+        agent_id="deepseek",
+    )
     box._provenance_fake = fake  # test-only reach-in; not part of the contract
     return box
 
@@ -83,7 +93,7 @@ def test_p2_edit_file_emits_seat_file_edit(tb):
 def test_p3_failed_write_emits_nothing(tb):
     tb.write_file("notes/fail_me.md", "xx xx")
     _captured(tb).clear()
-    out = tb.edit_file("notes/fail_me.md", "xx", "yy")   # matches 2 places -> refuses AFTER prewrite
+    out = tb.edit_file("notes/fail_me.md", "xx", "yy")  # matches 2 places -> refuses AFTER prewrite
     assert "ERROR" in out, out
     assert _captured(tb) == []
 
@@ -96,13 +106,16 @@ def test_p4_capture_failure_does_not_break_write(tb):
 
 # ---- slice-tagging: a seat with a declared intent covering the path gets its writes tagged ----
 
+
 def test_p5_write_under_declared_intent_is_tagged(tb, monkeypatch):
     """A seat that declared an intent covering the path has its file_edit event carry that
     intent tag in the detail -- the "toolcalls tagged as part of a project" half."""
     monkeypatch.setattr(
         "core.coord.intent.active",
-        lambda agent=None, client=None: [{"agent": "deepseek", "intent": "t385 recall trigger",
-                                          "scope": ["notes/"], "ts": "", "ttl": 900}])
+        lambda agent=None, client=None: [
+            {"agent": "deepseek", "intent": "t385 recall trigger", "scope": ["notes/"], "ts": "", "ttl": 900}
+        ],
+    )
     out = tb.write_file("notes/tagged.md", "x")
     assert "wrote" in out, out
     evs = _captured(tb)
@@ -115,8 +128,10 @@ def test_p6_write_outside_any_intent_is_not_tagged(tb, monkeypatch):
     truthful (no invented project), not universal."""
     monkeypatch.setattr(
         "core.coord.intent.active",
-        lambda agent=None, client=None: [{"agent": "deepseek", "intent": "t385 recall trigger",
-                                          "scope": ["other/"], "ts": "", "ttl": 900}])
+        lambda agent=None, client=None: [
+            {"agent": "deepseek", "intent": "t385 recall trigger", "scope": ["other/"], "ts": "", "ttl": 900}
+        ],
+    )
     out = tb.write_file("notes/untagged.md", "x")
     assert "wrote" in out, out
     evs = _captured(tb)
@@ -129,4 +144,3 @@ def test_p7_intent_lookup_failure_does_not_break_write(tb, monkeypatch):
     monkeypatch.setattr("core.coord.intent.active", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     out = tb.write_file("notes/safe.md", "x")
     assert "wrote" in out and "ERROR" not in out, out
-

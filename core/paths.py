@@ -34,6 +34,7 @@ instance-state default silently ignore the bare temp dir tests/isolate_canonical
 the FILE half of test isolation was a no-op for two weeks, and live lessons bled into
 "empty" test stores while every reader believed the store was isolated.
 """
+
 from __future__ import annotations
 
 import os
@@ -163,6 +164,7 @@ def env_paths(name: str) -> "list[Path]":
     inside the repo. Unset or empty -> [] (the caller decides what "not configured" means).
     """
     import sys
+
     out = []
     for part in (os.environ.get(name) or "").split(os.pathsep):
         part = part.strip().strip('"')
@@ -172,8 +174,7 @@ def env_paths(name: str) -> "list[Path]":
         if p.is_absolute():
             out.append(p)
         else:
-            print(f"[paths] {name}: ignoring {part!r} -- not an absolute path on this OS",
-                  file=sys.stderr)
+            print(f"[paths] {name}: ignoring {part!r} -- not an absolute path on this OS", file=sys.stderr)
     return out
 
 
@@ -190,6 +191,7 @@ def python_launcher() -> str:
     if override:
         return override
     import shutil
+
     if shutil.which("uv") and (repo_root() / "pyproject.toml").exists():
         return "uv run"
     if os.name == "nt":

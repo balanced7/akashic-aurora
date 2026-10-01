@@ -30,6 +30,7 @@ enough for a log to be watchable, without the per-character write storm of full 
 
 Run: py -m pytest tests/test_t150_runner_streams_are_watchable.py -q
 """
+
 import io
 import os
 import re
@@ -42,8 +43,7 @@ RUNNER_DIR = os.path.join(ROOT, "scripts")
 
 
 def _runners():
-    return sorted(f for f in os.listdir(RUNNER_DIR)
-                  if f.startswith("bifrost_runner_") and f.endswith(".py"))
+    return sorted(f for f in os.listdir(RUNNER_DIR) if f.startswith("bifrost_runner_") and f.endswith(".py"))
 
 
 def _src(f):
@@ -54,7 +54,8 @@ def test_o1_every_runner_is_line_buffered():
     missing = [f for f in _runners() if not re.search(r"line_buffering\s*=\s*True", _src(f))]
     assert not missing, (
         f"{len(missing)} runner(s) block-buffer stdout, so an orchestrator watching them sees "
-        f"nothing until exit: {missing}")
+        f"nothing until exit: {missing}"
+    )
 
 
 def test_o2_every_runner_pins_utf8_with_replace():
@@ -64,11 +65,12 @@ def test_o2_every_runner_pins_utf8_with_replace():
         m = re.search(r"sys\.stdout\.reconfigure\s*\(([^)]*)\)", s)
         # scoped to the reconfigure CALL: "utf-8" appears all over these files for file reads,
         # so a whole-file grep would pass without the fix -- a weak pin that proves nothing.
-        if not m or 'utf-8' not in m.group(1) or 'replace' not in m.group(1):
+        if not m or "utf-8" not in m.group(1) or "replace" not in m.group(1):
             bad.append(f)
     assert not bad, (
         f"runner(s) leave stream encoding to the platform default -- a check-mark in a trace "
-        f"raises UnicodeEncodeError under cp1252: {bad}")
+        f"raises UnicodeEncodeError under cp1252: {bad}"
+    )
 
 
 def test_o3_stderr_is_reconfigured_too():
@@ -86,7 +88,7 @@ def test_o4_the_reconfigure_is_guarded():
         s = _src(f)
         m = re.search(r"sys\.stdout\.reconfigure", s)
         assert m, f"{f}: no stdout reconfigure to check"
-        window = s[max(0, m.start() - 400):m.start() + 400]
+        window = s[max(0, m.start() - 400) : m.start() + 400]
         if "try:" not in window or "except" not in window:
             bad.append(f)
     assert not bad, f"unguarded reconfigure -- an unsupported stream would kill the runner: {bad}"
@@ -95,6 +97,7 @@ def test_o4_the_reconfigure_is_guarded():
 def test_o5_the_guard_actually_survives_a_hostile_stream():
     """Behavioural, not textual: the same call shape against a stream with no reconfigure() must
     not raise. A structural pin alone cannot prove this (T147's lesson)."""
+
     class NoReconfigure(io.StringIO):
         pass
 
@@ -102,7 +105,7 @@ def test_o5_the_guard_actually_survives_a_hostile_stream():
     try:
         s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
-        pass          # exactly what the runner's guard must do
+        pass  # exactly what the runner's guard must do
     else:
         pass
     assert True

@@ -22,6 +22,7 @@ EXPORT step -- a Redis stream is not a file until someone writes it down.
 
 Run: py -m pytest tests/test_ops_archive_ephemeral.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -56,8 +57,7 @@ class FakeRedis:
         rows = self._s.get(k, [])
         if min != "-":
             floor = min[1:] if min.startswith("(") else min
-            rows = [r for r in rows if r[0] > floor] if min.startswith("(") else \
-                   [r for r in rows if r[0] >= floor]
+            rows = [r for r in rows if r[0] > floor] if min.startswith("(") else [r for r in rows if r[0] >= floor]
         return rows[:count] if count else rows
 
     def trim_to(self, k, keep_last):
@@ -69,11 +69,15 @@ class FakeRedis:
 
 @pytest.fixture()
 def rig(tmp_path):
-    r = FakeRedis({
-        "bifrost:broadcast": [("1000-0", {"frm": "kimi", "kind": "chat", "content": "alpha"}),
-                              ("1001-0", {"frm": "deepseek", "kind": "fyi", "content": "beta"})],
-        "bifrost:trace": [("1000-0", {"frm": "claude", "kind": "trace", "content": "t1"})],
-    })
+    r = FakeRedis(
+        {
+            "bifrost:broadcast": [
+                ("1000-0", {"frm": "kimi", "kind": "chat", "content": "alpha"}),
+                ("1001-0", {"frm": "deepseek", "kind": "fyi", "content": "beta"}),
+            ],
+            "bifrost:trace": [("1000-0", {"frm": "claude", "kind": "trace", "content": "t1"})],
+        }
+    )
     return {"r": r, "out": tmp_path / "bus", "cursor": tmp_path / "cursors.json"}
 
 
@@ -95,8 +99,7 @@ def test_p2_export_resumes_from_its_cursor_and_never_duplicates(rig):
     rig["r"].append("bifrost:broadcast", "1002-0", {"frm": "kimi", "content": "gamma"})
     rep = EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
 
-    rows = [json.loads(l) for l in
-            (rig["out"] / "bifrost_broadcast.jsonl").read_text(encoding="utf-8").splitlines()]
+    rows = [json.loads(l) for l in (rig["out"] / "bifrost_broadcast.jsonl").read_text(encoding="utf-8").splitlines()]
     assert [r["id"] for r in rows] == ["1000-0", "1001-0", "1002-0"], "appended, not rewritten"
     assert rep["entries_written"] == 1, "only the new entry"
 
@@ -106,7 +109,7 @@ def test_p3_trimmed_entries_survive_in_the_export(rig):
     """The bus is bounded transport. Once exported, a trimmed message is still readable --
     this is the entire reason the tool exists."""
     EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
-    rig["r"].trim_to("bifrost:broadcast", 1)            # the bus forgets 'alpha'
+    rig["r"].trim_to("bifrost:broadcast", 1)  # the bus forgets 'alpha'
     assert rig["r"].xlen("bifrost:broadcast") == 1
 
     EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
@@ -134,6 +137,7 @@ def test_p4_the_export_is_queryable_by_who_kind_and_phrase(rig):
 def test_p5_state_archiving_reuses_the_proven_engine_not_a_second_copy_of_it(tmp_path):
     """A second implementation of a safety law is a second thing that can be wrong."""
     from scripts.ops import archive_transcripts as ARC
+
     assert EPH.archive is ARC.archive, "same engine: additive-only, refuse-shrink, verify"
 
     src = tmp_path / "spill"
@@ -143,7 +147,7 @@ def test_p5_state_archiving_reuses_the_proven_engine_not_a_second_copy_of_it(tmp
     rep = EPH.archive([src / "note-1.txt"], [d], receipt_dir=tmp_path / "r")
     assert rep["ok"] and (d / "note-1.txt").exists()
 
-    (src / "note-1.txt").unlink()                       # the source is cleaned up
+    (src / "note-1.txt").unlink()  # the source is cleaned up
     EPH.archive([], [d], receipt_dir=tmp_path / "r")
     assert (d / "note-1.txt").exists(), "additive-only carries over unchanged"
 
@@ -163,4 +167,5 @@ def test_p6_collect_names_every_plane_and_states_what_it_skipped(tmp_path):
     assert "scratch.tmp" not in names, "temp files are not the record"
     assert planes["state/spill"] == 1 and planes["session_logs"] == 1, (
         "per-plane counts ride the report -- an archive that cannot say WHAT it covered "
-        "is how a plane goes quietly uncovered")
+        "is how a plane goes quietly uncovered"
+    )

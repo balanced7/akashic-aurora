@@ -7,6 +7,7 @@ freezes the fleet until human hands. Pins:
   P2  cmd passes ttl through to control.pause
   P3  no --ttl -> ttl=None (legacy byte-identical)
 """
+
 import os
 import sys
 

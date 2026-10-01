@@ -21,6 +21,7 @@ Contract:
 - A stamp is a claim of PROGRESS, not of health: phase transitions moving = alive;
   a frozen young stamp means nothing yet; a frozen OLD stamp is exactly the RB-27 signal.
 """
+
 from __future__ import annotations
 
 import json
@@ -28,11 +29,12 @@ import time
 from typing import Any, Dict, Optional
 
 _KEY_PREFIX = "progress:"
-_TTL_S = 2 * 60 * 60   # stamps expire; a vanished key reads as "no stamp", never stale truth
+_TTL_S = 2 * 60 * 60  # stamps expire; a vanished key reads as "no stamp", never stale truth
 
 
 def _client():
-    from core.comm.bus import Bus   # lazy: import-cheap for non-runner callers
+    from core.comm.bus import Bus  # lazy: import-cheap for non-runner callers
+
     return Bus()._client
 
 

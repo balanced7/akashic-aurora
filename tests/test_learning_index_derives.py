@@ -25,6 +25,7 @@ and ours is provably unreliable.
 
 Run: py -m pytest tests/test_learning_index_derives.py -q
 """
+
 import os
 import sys
 import time
@@ -39,9 +40,9 @@ INDEX = "learn:experiments:all"
 def _fresh_store():
     from core.foundation.store import FileStore
     import tempfile
+
     d = tempfile.mkdtemp(prefix="lidx-")
-    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames \
-        else FileStore()
+    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()
 
 
 @pytest.fixture()
@@ -50,6 +51,7 @@ def ls(monkeypatch, tmp_path):
     monkeypatch.setenv("AI_SETUP", str(tmp_path))
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     store = FileStore()
     s = LearningStore(store=store)
     try:
@@ -60,8 +62,14 @@ def ls(monkeypatch, tmp_path):
 
 
 def _record(s, name, **over):
-    sig = {"experiment_name": name, "what_tried": "t", "actual_outcome": "a",
-           "success": "yes", "recommendation": "r", "agent_id": "claude"}
+    sig = {
+        "experiment_name": name,
+        "what_tried": "t",
+        "actual_outcome": "a",
+        "success": "yes",
+        "recommendation": "r",
+        "agent_id": "claude",
+    }
     sig.update(over)
     s.persist_learning_derived_from_experiment(sig)
 
@@ -73,16 +81,18 @@ def test_p1_an_orphaned_hash_returns_on_the_next_write():
     pytest.importorskip("core.learning.learning_store")
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     s = LearningStore(store=FileStore())
     for n in ("orphan_a", "orphan_b", "orphan_c"):
         _record(s, n)
-    s.store.delete(INDEX)                      # the harmonize-shaped truncation
-    _record(s, "written_after_the_loss")       # ANY write must restore membership
+    s.store.delete(INDEX)  # the harmonize-shaped truncation
+    _record(s, "written_after_the_loss")  # ANY write must restore membership
     idx = set(s.store.lrange(INDEX, 0, -1))
     for n in ("orphan_a", "orphan_b", "orphan_c"):
         assert n in idx, (
             f"{n} has a record but never returned to the index -- the write path is still "
-            "self-sealing (is_new keyed on hash existence, not index membership)")
+            "self-sealing (is_new keyed on hash existence, not index membership)"
+        )
 
 
 def test_p2_membership_equals_the_hash_plane():
@@ -91,15 +101,16 @@ def test_p2_membership_equals_the_hash_plane():
     to the surface (the settled claude/deepseek synthesis, round 2)."""
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     s = LearningStore(store=FileStore())
     for n in ("m_one", "m_two", "m_three"):
         _record(s, n)
     s.store.delete(INDEX)
     _record(s, "m_four")
     idx = set(s.store.lrange(INDEX, 0, -1))
-    discovered = {k.split("learn:experiment:", 1)[1]
-                  for k in s.store.keys("learn:experiment:*")
-                  if "learn:experiment:" in k}
+    discovered = {
+        k.split("learn:experiment:", 1)[1] for k in s.store.keys("learn:experiment:*") if "learn:experiment:" in k
+    }
     assert discovered - idx == set(), f"records missing from the index: {discovered - idx}"
 
 
@@ -109,6 +120,7 @@ def test_p3_order_is_newest_first_by_record_timestamp():
     loses ordering it silently changes what every ranked read returns first."""
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     s = LearningStore(store=FileStore())
     _record(s, "older", timestamp="2026-01-01T00:00:00")
     _record(s, "newer", timestamp="2026-06-01T00:00:00")
@@ -123,6 +135,7 @@ def test_p4_a_record_the_rebuild_cannot_see_is_kept_not_dropped():
     undiscoverable must survive the rebuild."""
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     s = LearningStore(store=FileStore())
     _record(s, "has_a_record")
     s.store.rpush(INDEX, "ghost_with_no_record")
@@ -130,7 +143,8 @@ def test_p4_a_record_the_rebuild_cannot_see_is_kept_not_dropped():
     idx = s.store.lrange(INDEX, 0, -1)
     assert "ghost_with_no_record" in idx, (
         "the rebuild dropped an index entry it could not resolve to a record -- union-only "
-        "is the guarantee that makes an automatic rebuild safe to run unattended")
+        "is the guarantee that makes an automatic rebuild safe to run unattended"
+    )
 
 
 def test_p5_no_reader_sees_a_partial_index_during_rebuild():
@@ -139,6 +153,7 @@ def test_p5_no_reader_sees_a_partial_index_during_rebuild():
     reader landing mid-rebuild gets zero lessons and silently recalls nothing."""
     from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+
     s = LearningStore(store=FileStore())
     for i in range(5):
         _record(s, f"stable_{i}")
@@ -169,7 +184,8 @@ def test_p6_the_detector_is_wired_to_a_gate():
     src = open(hook, encoding="utf-8").read()
     assert "repair_learning_index" in src, (
         "the lesson-index detector is not wired to the blocking gate -- this defect has "
-        "already recurred once behind an unwired --check")
+        "already recurred once behind an unwired --check"
+    )
 
 
 def test_p7_the_one_time_migration_cannot_run_by_accident():
@@ -185,4 +201,5 @@ def test_p7_the_one_time_migration_cannot_run_by_accident():
     src = open(p, encoding="utf-8").read()
     assert "AKASHIC_ALLOW_HARMONIZE" in src, (
         "a destructive one-time migration that rewrites the live lesson index from a "
-        "hardcoded 6-record set is still runnable without an explicit override")
+        "hardcoded 6-record set is still runnable without an explicit override"
+    )

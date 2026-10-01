@@ -20,6 +20,7 @@ Fixture: session_gamma / session_delta / session_epsilon (see the S4 pins for th
 
 Run: py -m pytest tests/test_t278_s6_eye_position.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -66,7 +67,8 @@ def test_p1_two_incarnations_hold_independent_positions(db):
 
     POS.go("claude#aaaaaaaa", f"{G}:6", db_path=db)
     assert POS.where("claude#bbbbbbbb", db_path=db)["addr"] == f"{D}:1", (
-        "one seat moving must not drag its twin -- this is the whole pin")
+        "one seat moving must not drag its twin -- this is the whole pin"
+    )
 
 
 def test_p1b_a_virgin_seat_has_no_position_and_says_so(db):
@@ -106,7 +108,8 @@ def test_p4_look_renders_the_standpoint_with_numeric_heat(db):
     assert isinstance(v["heat"]["staleness_s"], (int, float))
     assert v["heat"]["credit"] is None, (
         "the transcript plane has no funnel credit -- UNKNOWN, not 0 "
-        "(an unpopulated counter rendering as a measured zero is a named hazard here)")
+        "(an unpopulated counter rendering as a measured zero is a named hazard here)"
+    )
     # neighbours are SILHOUETTES: one line each, never full bodies
     assert v["exits"], "a node in a connectome has edges out; they are the exits"
     for n in v["neighbors"]:
@@ -150,8 +153,7 @@ def test_p6_succession_is_explicit_and_recorded(db):
     is an ACT, and the inheritor can tell that it inherited."""
     POS.go("claude#aaaaaaaa", f"{G}:6", db_path=db)
 
-    assert POS.where("claude#dddddddd", db_path=db) is None, (
-        "a successor is virgin until it says otherwise")
+    assert POS.where("claude#dddddddd", db_path=db) is None, "a successor is virgin until it says otherwise"
 
     got = POS.inherit("claude#dddddddd", "claude#aaaaaaaa", db_path=db)
     assert got["addr"] == f"{G}:6"
@@ -175,4 +177,5 @@ def test_p7_go_to_a_bad_address_refuses_with_the_shape(db):
     msg = str(e.value)
     assert "session:line" in msg, "the refusal states the expected shape"
     assert POS.where("claude#aaaaaaaa", db_path=db) is None, (
-        "a refused move leaves the seat where it was -- never half-moved")
+        "a refused move leaves the seat where it was -- never half-moved"
+    )

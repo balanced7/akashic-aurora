@@ -9,6 +9,7 @@ grammar -> kata REFUSES the upgrade and names the bad step. Honesty made climbab
 Pre-registered RED before cmd_kata/_kata_check exist.
 Run: py -m pytest tests/test_t099_v01_kata.py -q
 """
+
 import os
 import sys
 
@@ -18,7 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def test_kata_levels_up_parseable_alias(tmp_path):
     import agent_cli
     from core.toolbelt.registry import Toolbelt
-    tb = Toolbelt("t-kata", root=str(tmp_path))          # real door grammar (default known_verbs)
+
+    tb = Toolbelt("t-kata", root=str(tmp_path))  # real door grammar (default known_verbs)
     tb.mint("peek", [["discover"]])
     assert tb.get("peek")["evidence"] == "GUESS"
     ok, results = agent_cli._kata_check(tb.resolve("peek"))
@@ -53,8 +55,9 @@ def test_kata_level_up_preserves_authored_family(tmp_path):
 def test_kata_refuses_bad_grammar_and_names_the_step(tmp_path):
     import agent_cli
     from core.toolbelt.registry import Toolbelt
+
     tb = Toolbelt("t-kata", root=str(tmp_path))
-    tb.mint("broken", [["discover"], ["bifrost-skip-to-now"]])   # skip-to-now REQUIRES agent + --by + --reason
+    tb.mint("broken", [["discover"], ["bifrost-skip-to-now"]])  # skip-to-now REQUIRES agent + --by + --reason
     ok, results = agent_cli._kata_check(tb.resolve("broken"))
     assert not ok, "a step failing the door's grammar must fail the kata"
     assert results[0][0] is True and results[1][0] is False, "the failing step is NAMED"
@@ -66,8 +69,9 @@ def test_kata_handles_macros_with_dummy_args(tmp_path):
     resolve() demands args. Law: kata grammar-checks macros with dummy substitutions."""
     import agent_cli
     from core.toolbelt.registry import Toolbelt
+
     tb = Toolbelt("t-kata", root=str(tmp_path))
-    tb.mint("greet", [["discover"]])                       # warm the roster cache path
+    tb.mint("greet", [["discover"]])  # warm the roster cache path
     tb.mint("ask", [["bifrost-nudge", "t-kata", "--to", "$1", "--mode", "inform", "hello $2"]])
     e = tb.get("ask")
     steps = tb.resolve("ask", args=["KATA"] * e["params"])

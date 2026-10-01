@@ -15,6 +15,7 @@ The reconciled laws under test (fences/c-map-design/reconciliation.md):
 
 Run: py -m pytest tests/test_t381_map_m1.py -q
 """
+
 import os
 import sys
 
@@ -29,29 +30,23 @@ def _data(page_grades=0):
     return {
         "generated_ts": "2026-08-23T13:00:00+00:00",
         "head_sha": "abc1234",
-        "cursors": {"ledger_seq": 381, "forecasts": 5,
-                    "newest_event": "1787490000000-0"},
+        "cursors": {"ledger_seq": 381, "forecasts": 5, "newest_event": "1787490000000-0"},
         "page_grades": page_grades,
         "dashboard_count": 17,
         "overdue": [{"id": "F009", "registered_by": "example"}],
         "landmarks": [
-            {"id": "T381", "kind": "task", "status": "claimed", "by": "claude",
-             "title": "Map v1"},
-            {"id": "c-map-design", "kind": "fence", "status": "sealed",
-             "title": "the map fence"},
-            {"id": "F005", "kind": "bet", "status": "OPEN", "by": "claude",
-             "title": "return-visit bet"},
+            {"id": "T381", "kind": "task", "status": "claimed", "by": "claude", "title": "Map v1"},
+            {"id": "c-map-design", "kind": "fence", "status": "sealed", "title": "the map fence"},
+            {"id": "F005", "kind": "bet", "status": "OPEN", "by": "claude", "title": "return-visit bet"},
         ],
-        "badges": [{"family": "inbox:claude", "count": 123,
-                    "last_ts": "2026-08-23T12:59:00+00:00"}],
+        "badges": [{"family": "inbox:claude", "count": 123, "last_ts": "2026-08-23T12:59:00+00:00"}],
         "trails": {"routes": 12, "last24h": 7},
     }
 
 
 def test_p1_stamp_block_or_refusal():
     html = build_map(_data())
-    for needle in ("abc1234", "2026-08-23T13:00:00+00:00", "ledger_seq",
-                   "1787490000000-0"):
+    for needle in ("abc1234", "2026-08-23T13:00:00+00:00", "ledger_seq", "1787490000000-0"):
         assert needle in html, f"stamp ingredient {needle!r} missing from render"
     for missing in ("head_sha", "generated_ts", "cursors"):
         broken = _data()
@@ -61,13 +56,12 @@ def test_p1_stamp_block_or_refusal():
 
 
 def test_p2_red_takes_the_banner():
-    banner = 'class="map-alarm"'          # the rendered DIV, not the stylesheet
+    banner = 'class="map-alarm"'  # the rendered DIV, not the stylesheet
     quiet = build_map(_data(page_grades=0))
     assert banner not in quiet, "no page-grades must mean no banner"
     loud = build_map(_data(page_grades=2))
     assert banner in loud
-    assert loud.index(banner) < loud.index("T381"), (
-        "the alarm banner must render ABOVE every landmark")
+    assert loud.index(banner) < loud.index("T381"), "the alarm banner must render ABOVE every landmark"
 
 
 def test_p3_deck_terrain_and_overdue_kernel():

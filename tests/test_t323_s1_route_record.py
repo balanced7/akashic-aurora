@@ -21,6 +21,7 @@ applies at the projection; journal appends are the durable write.
 
 Run: py -m pytest tests/test_t323_s1_route_record.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -37,18 +38,33 @@ from core.eye import routes as RT  # noqa: E402
 
 
 STEPS = [
-    {"type": "anchor", "target": "sess-a:100", "receipt": "sess-a:100",
-     "note": "the handoff that opened the day"},
-    {"type": "observation", "target": "sess-a:210", "receipt": "sess-a:210",
-     "note": "watcher top hits are subagent briefs"},
-    {"type": "discriminating-test", "target": "sess-a:340", "receipt": "sess-a:340",
-     "note": "voice audit: 419/523 operator-voice sessions are briefs",
-     "outcome": {"contaminated": "s4", "clean": "END"}},
-    {"type": "dead-end", "target": "sess-a:400", "receipt": "sess-a:400",
-     "note": "inverse link pairs do NOT fix the type confusion",
-     "is_not": ["inverse-pairs-fix-types"]},
-    {"type": "decision", "target": "sess-a:520", "receipt": "sess-a:520",
-     "note": "filter at the data layer, not per-consumer"},
+    {"type": "anchor", "target": "sess-a:100", "receipt": "sess-a:100", "note": "the handoff that opened the day"},
+    {
+        "type": "observation",
+        "target": "sess-a:210",
+        "receipt": "sess-a:210",
+        "note": "watcher top hits are subagent briefs",
+    },
+    {
+        "type": "discriminating-test",
+        "target": "sess-a:340",
+        "receipt": "sess-a:340",
+        "note": "voice audit: 419/523 operator-voice sessions are briefs",
+        "outcome": {"contaminated": "s4", "clean": "END"},
+    },
+    {
+        "type": "dead-end",
+        "target": "sess-a:400",
+        "receipt": "sess-a:400",
+        "note": "inverse link pairs do NOT fix the type confusion",
+        "is_not": ["inverse-pairs-fix-types"],
+    },
+    {
+        "type": "decision",
+        "target": "sess-a:520",
+        "receipt": "sess-a:520",
+        "note": "filter at the data layer, not per-consumer",
+    },
 ]
 
 
@@ -75,8 +91,7 @@ def test_p1_save_writes_journal_and_projection(env):
     assert any(l.get("route_id") == rid for l in lines), "journal holds the authored truth"
 
     con = sqlite3.connect(str(db))
-    row = con.execute("SELECT name, status, walk_count FROM routes WHERE route_id=?",
-                      (rid,)).fetchone()
+    row = con.execute("SELECT name, status, walk_count FROM routes WHERE route_id=?", (rid,)).fetchone()
     con.close()
     assert row == ("first-string", "active", 0)
 
@@ -102,8 +117,9 @@ def test_p3_walk_returns_steps_in_order_with_receipts(env):
     walk = RT.walk("first-string")
     assert walk["name"] == "first-string"
     assert [s["type"] for s in walk["steps"]] == [s["type"] for s in STEPS]
-    assert all(s.get("receipt") for s in walk["steps"]), \
+    assert all(s.get("receipt") for s in walk["steps"]), (
         "a step without a receipt is an unfalsifiable claim about the past"
+    )
 
 
 # ------------------------------------------------- P4: dead ends are first-class
@@ -130,7 +146,8 @@ def test_p5_projection_wipe_loses_nothing_authored(env):
     con = sqlite3.connect(str(db))
     con.execute("DELETE FROM routes")
     con.execute("DELETE FROM route_steps")
-    con.commit(); con.close()
+    con.commit()
+    con.close()
 
     RT.rebuild()
     walk = RT.walk("first-string")
@@ -144,8 +161,9 @@ def test_p6_unresolvable_step_is_dangling_named_and_walkable_past(env):
     whose target cannot be resolved is marked dangling WITH its last-known address, and the
     walk continues -- degraded, named, never aborted."""
     journal, db = env
-    steps = STEPS + [{"type": "anchor", "target": "gone-session:999",
-                      "receipt": "gone-session:999", "note": "rotated away"}]
+    steps = STEPS + [
+        {"type": "anchor", "target": "gone-session:999", "receipt": "gone-session:999", "note": "rotated away"}
+    ]
     RT.save("degraded-string", steps, by="claude")
     walk = RT.walk("degraded-string", resolve=True)
     last = walk["steps"][-1]

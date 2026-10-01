@@ -24,6 +24,7 @@ and a library importing a script inverts the dependency. The format therefore li
 store that writes it, and scripts/piano_roll_pack.py is a thin door onto this module. One copy:
 two implementations of a format drift, which is a lesson this repo has paid for elsewhere.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List, Tuple
@@ -31,8 +32,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 API = "roll/1"
 
 
-def pack_events(events: Iterable[Dict[str, Any]], session: str = "",
-                keep_chords: bool = False) -> str:
+def pack_events(events: Iterable[Dict[str, Any]], session: str = "", keep_chords: bool = False) -> str:
     """Note/pedal events -> roll/1 text. Pure: takes the events, returns the document."""
     ons: Dict[int, List[Tuple[int, int]]] = {}
     notes: List[Tuple[int, int, int, int]] = []
@@ -58,23 +58,26 @@ def pack_events(events: Iterable[Dict[str, Any]], session: str = "",
             if e.get("down") and pdown is None:
                 pdown = t
             elif not e.get("down") and pdown is not None:
-                pedal.append((pdown, t)); pdown = None
+                pedal.append((pdown, t))
+                pdown = None
         elif kind == "chord" and keep_chords and e.get("chord"):
             if not chords or chords[-1][1] != e["chord"]:
                 chords.append((t, str(e["chord"]), str(e.get("key") or "")))
-    for n, rest in ons.items():                 # held at session end -- real, not dropped
+    for n, rest in ons.items():  # held at session end -- real, not dropped
         for t0, v in rest:
             notes.append((t0, int(n), max(tmax - t0, 1), v))
     if pdown is not None:
         pedal.append((pdown, tmax))
     notes.sort()
 
-    out = [f"#{API} session={session} dur_ms={tmax} notes={len(notes)} pedal={len(pedal)}"
-           f" src=events.jsonl",
-           "#n dt note dur vel   (dt=ms since previous onset)"]
+    out = [
+        f"#{API} session={session} dur_ms={tmax} notes={len(notes)} pedal={len(pedal)} src=events.jsonl",
+        "#n dt note dur vel   (dt=ms since previous onset)",
+    ]
     prev = 0
     for t0, n, dur, vel in notes:
-        out.append(f"{t0 - prev} {n} {dur} {vel}"); prev = t0
+        out.append(f"{t0 - prev} {n} {dur} {vel}")
+        prev = t0
     if pedal:
         out.append("#p t0 dur")
         for a, b in pedal:
@@ -97,7 +100,8 @@ def unpack(text: str):
         if line.startswith(f"#{API}"):
             for kv in line.split()[1:]:
                 if "=" in kv:
-                    k, v = kv.split("=", 1); meta[k] = v
+                    k, v = kv.split("=", 1)
+                    meta[k] = v
         elif line.startswith("#n"):
             sec = "n"
         elif line.startswith("#p"):
@@ -111,7 +115,8 @@ def unpack(text: str):
             t0 = (notes[-1][0] + dt) if notes else dt
             notes.append((t0, n, dur, vel))
         elif sec == "p":
-            a, d = (int(x) for x in line.split()); pedal.append((a, a + d))
+            a, d = (int(x) for x in line.split())
+            pedal.append((a, a + d))
         elif sec == "c":
             p = line.split(None, 2)
             chords.append((int(p[0]), p[1], p[2] if len(p) > 2 else ""))

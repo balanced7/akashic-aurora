@@ -32,6 +32,7 @@ Also a small CLI for offline rehearsal:
       [--gaps 1,4,2 | --gaps buffer:512] [--dropout Rare|Often --dropout-seed N] [--clock "Follow song position"]
       [--loop-ticks N]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -48,12 +49,32 @@ HERE = Path(__file__).resolve().parent
 BAND_SCRIPT = HERE / "arsenal_band.py"
 PATTERN_MODULE = "arsenal_patterns"
 
-VOICE_DEFAULTS = {"note": 60.0, "finePitch": 0.0, "velocity": 100 / 127, "pan": 0.0, "length": 0, "output": 0,
-                  "fcut": 0.0, "fres": 0.0, "color": 0, "releaseVelocity": 0.5}
+VOICE_DEFAULTS = {
+    "note": 60.0,
+    "finePitch": 0.0,
+    "velocity": 100 / 127,
+    "pan": 0.0,
+    "length": 0,
+    "output": 0,
+    "fcut": 0.0,
+    "fres": 0.0,
+    "color": 0,
+    "releaseVelocity": 0.5,
+}
 FLVFX_NAMES = ("context", "Voice", "ScriptDialog", "addOutputController", "setOutputController")
 CONTEXT_NAMES = ("ticks", "PPQ", "isPlaying", "tempo", "voices", "form")
-FORM_NAMES = ("addGroup", "endGroup", "addInputKnob", "addInputKnobInt", "addInputCheckbox", "addInputCombo",
-              "addInputText", "addInputSurface", "getInputValue", "setNormalizedValue")
+FORM_NAMES = (
+    "addGroup",
+    "endGroup",
+    "addInputKnob",
+    "addInputKnobInt",
+    "addInputCheckbox",
+    "addInputCombo",
+    "addInputText",
+    "addInputSurface",
+    "getInputValue",
+    "setNormalizedValue",
+)
 
 _ids = itertools.count(1)
 _ABSENT = object()
@@ -194,6 +215,7 @@ class Context:
 
 class VoiceView:
     """A wrapper FL might hand back from vfx.context.voices: the same voice underneath, a new object on every read."""
+
     __slots__ = ("_host", "_voice")
 
     def __init__(self, host, voice):
@@ -264,9 +286,25 @@ def make_flvfx(host):
 class Host:
     """FL's side of a VFX Script: the transport, the tick loop and the voices, recorded as note events."""
 
-    def __init__(self, script=BAND_SCRIPT, *, ppq=96, bpm=120.0, first_tick=0, auto_release="after",
-                 patterns=_ABSENT, patterns_dir=None, loop_ticks=None, tick_step=1, gaps=None,
-                 buffer_samples=None, sample_rate=44100, voice_views=False, knob_store="float", knob_read="round"):
+    def __init__(
+        self,
+        script=BAND_SCRIPT,
+        *,
+        ppq=96,
+        bpm=120.0,
+        first_tick=0,
+        auto_release="after",
+        patterns=_ABSENT,
+        patterns_dir=None,
+        loop_ticks=None,
+        tick_step=1,
+        gaps=None,
+        buffer_samples=None,
+        sample_rate=44100,
+        voice_views=False,
+        knob_store="float",
+        knob_read="round",
+    ):
         if auto_release not in ("before", "after"):
             raise ValueError("auto_release is 'before' or 'after'")
         if not isinstance(tick_step, int) or tick_step < 1:
@@ -286,7 +324,7 @@ class Host:
         self.voice_views = voice_views
         self.knob_store = knob_store
         self.knob_read = knob_read
-        self.call_log = []        # (host_tick, ticks FL reported, playing) for every onTick
+        self.call_log = []  # (host_tick, ticks FL reported, playing) for every onTick
         self.play_host_tick = None
         self._carry = 0.0
         self.script = Path(script)
@@ -389,9 +427,20 @@ class Host:
             self.anomalies.append(("output outside 0..15", self.host_tick, v.output))
         self.active.append(v)
         self.triggered.append(v)  # held so id(v) stays unique for the whole take
-        self.events.append({"kind": "on", "host_tick": self.host_tick, "tick": self.position, "seconds": self.seconds,
-                            "note": v.note, "velocity": v.velocity, "output": v.output, "length": v.length,
-                            "voice": id(v), "auto": False})
+        self.events.append(
+            {
+                "kind": "on",
+                "host_tick": self.host_tick,
+                "tick": self.position,
+                "seconds": self.seconds,
+                "note": v.note,
+                "velocity": v.velocity,
+                "output": v.output,
+                "length": v.length,
+                "voice": id(v),
+                "auto": False,
+            }
+        )
         if isinstance(v.length, int) and v.length > 0:
             self._auto.setdefault(self.host_tick + v.length, []).append(v)
 
@@ -403,9 +452,20 @@ class Host:
                 self.anomalies.append(("release of a silent voice", self.host_tick, v.note))
             return
         self.active = [x for x in self.active if x is not v]
-        self.events.append({"kind": "off", "host_tick": self.host_tick, "tick": self.position, "seconds": self.seconds,
-                            "note": v.note, "velocity": v.velocity, "output": v.output, "length": v.length,
-                            "voice": id(v), "auto": auto})
+        self.events.append(
+            {
+                "kind": "off",
+                "host_tick": self.host_tick,
+                "tick": self.position,
+                "seconds": self.seconds,
+                "note": v.note,
+                "velocity": v.velocity,
+                "output": v.output,
+                "length": v.length,
+                "voice": id(v),
+                "auto": auto,
+            }
+        )
 
     def _auto_release(self):
         if self.tick_step == 1 and self.regular:
@@ -519,6 +579,7 @@ class Host:
 
 # -- CLI --------------------------------------------------------------------------------------------------------
 
+
 def load_band_parsers():
     """arsenal_band.py loaded outside FL (no flvfx): its parse functions only."""
     saved = sys.modules.pop("flvfx", _ABSENT)
@@ -590,9 +651,24 @@ def parse_gaps(text):
     return {"gaps": [int(g) for g in text.split(",")]}
 
 
-def simulate(path, *, bars=4, bpm=120.0, ppq=96, pattern=0, lane="All lanes on outputs 1-4", drum_map="GM",
-             swing=0.0, humanize=0.0, gaps=None, dropout="Off", dropout_seed=0, clock="Keep counting", loop_ticks=None,
-             out=print):
+def simulate(
+    path,
+    *,
+    bars=4,
+    bpm=120.0,
+    ppq=96,
+    pattern=0,
+    lane="All lanes on outputs 1-4",
+    drum_map="GM",
+    swing=0.0,
+    humanize=0.0,
+    gaps=None,
+    dropout="Off",
+    dropout_seed=0,
+    clock="Keep counting",
+    loop_ticks=None,
+    out=print,
+):
     module = load_patterns_module(path)
     with Host(ppq=ppq, bpm=bpm, patterns=module, loop_ticks=loop_ticks, **parse_gaps(gaps)) as host:
         host.set("Band: Pattern", pattern)
@@ -612,15 +688,28 @@ def simulate(path, *, bars=4, bpm=120.0, ppq=96, pattern=0, lane="All lanes on o
         for e in host.events:
             bar, rest = divmod(e["tick"], bar_ticks)
             beat, tick = divmod(rest, ppq)
-            out("%3d.%d.%03d  %-3s  out %d  note %3d  vel %3d%s" % (bar + 1, beat + 1, tick, e["kind"], e["output"], e["note"],
-                                                                     round(e["velocity"] * 127), "  (FL length)" if e["auto"] else ""))
+            out(
+                "%3d.%d.%03d  %-3s  out %d  note %3d  vel %3d%s"
+                % (
+                    bar + 1,
+                    beat + 1,
+                    tick,
+                    e["kind"],
+                    e["output"],
+                    e["note"],
+                    round(e["velocity"] * 127),
+                    "  (FL length)" if e["auto"] else "",
+                )
+            )
         for a in host.anomalies:
             out("ANOMALY: %r" % (a,))
         return 1 if host.anomalies else 0
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="flvfx_mock", description="Rehearse the arsenal band VFX Script without FL Studio.")
+    ap = argparse.ArgumentParser(
+        prog="flvfx_mock", description="Rehearse the arsenal band VFX Script without FL Studio."
+    )
     sub = ap.add_subparsers(dest="verb", required=True)
     c = sub.add_parser("check", help="validate a patterns module (.py) or a live playlist (.json)")
     c.add_argument("path")
@@ -645,9 +734,21 @@ def main(argv=None):
         parse_gaps(args.gaps)
     except ValueError:
         ap.error('--gaps reads like "1,4,2" or "buffer:512"')
-    return simulate(args.path, bars=args.bars, bpm=args.bpm, ppq=args.ppq, pattern=args.pattern,
-                    drum_map=args.drum_map, swing=args.swing, humanize=args.humanize, gaps=args.gaps,
-                    dropout=args.dropout, dropout_seed=args.dropout_seed, clock=args.clock, loop_ticks=args.loop_ticks)
+    return simulate(
+        args.path,
+        bars=args.bars,
+        bpm=args.bpm,
+        ppq=args.ppq,
+        pattern=args.pattern,
+        drum_map=args.drum_map,
+        swing=args.swing,
+        humanize=args.humanize,
+        gaps=args.gaps,
+        dropout=args.dropout,
+        dropout_seed=args.dropout_seed,
+        clock=args.clock,
+        loop_ticks=args.loop_ticks,
+    )
 
 
 if __name__ == "__main__":

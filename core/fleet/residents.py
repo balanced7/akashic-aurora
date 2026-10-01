@@ -49,6 +49,7 @@ events (a resident's JOB at a timestamp is a separate append-only stream), and a
 persistence improves correctness. kimi's standing objection -- that persistence has never been
 isolated as the cause of a win -- is unresolved, and this module buys LEGIBILITY only.
 """
+
 from __future__ import annotations
 
 import json
@@ -62,9 +63,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 #: One list per resident, oldest-first. Every nomination and ratification appends; nothing is
 #: ever rewritten in place, so `formerly:` is derivable rather than maintained.
@@ -110,9 +113,12 @@ def _corrupt_row(where: str, index: int, raw: str) -> None:
     cannot hide the rest.
     """
     import sys as _sys
-    print(f"[residents] CORRUPT ROW at {where}[{index}] -- unreadable and SKIPPED "
-          f"({str(raw)[:60]!r}). The remaining rows are intact; this one is lost.",
-          file=_sys.stderr)
+
+    print(
+        f"[residents] CORRUPT ROW at {where}[{index}] -- unreadable and SKIPPED "
+        f"({str(raw)[:60]!r}). The remaining rows are intact; this one is lost.",
+        file=_sys.stderr,
+    )
 
 
 def _receipt_author(experiment: str) -> Optional[str]:
@@ -125,6 +131,7 @@ def _receipt_author(experiment: str) -> Optional[str]:
     """
     try:
         from core.learning.learning_store import get_learning_store
+
         # _load_experiment is the only exact-key read the store offers; every public accessor
         # searches. Noted as owed ergonomics rather than worked around silently.
         rec = get_learning_store()._load_experiment(experiment)
@@ -146,7 +153,7 @@ def _records(agent_id: str) -> List[Dict[str, Any]]:
         try:
             out.append(json.loads(r))
         except Exception:
-            _corrupt_row(key, i, r)       # loud: a lost row must never be invisible (T262)
+            _corrupt_row(key, i, r)  # loud: a lost row must never be invisible (T262)
     return out
 
 
@@ -157,7 +164,7 @@ def _append(agent_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
         if agent_id not in (st.lrange(_INDEX_KEY, 0, -1) or []):
             st.rpush(_INDEX_KEY, agent_id)
     except Exception:
-        pass                              # the index is a convenience; the log is the truth
+        pass  # the index is a convenience; the log is the truth
     # A nomination introduces a real agent id; a ratification changes the reverse callsign
     # map. Either must be visible to a router already alive in this process immediately,
     # not after the 120-second cache TTL.
@@ -165,9 +172,18 @@ def _append(agent_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
     return record
 
 
-def nominate(*, nominee: str, callsign: str, receipts: List[str], by: str,
-             vendor: str = "", family: str = "", team: str = "",
-             number: Optional[int] = None, note: str = "") -> Dict[str, Any]:
+def nominate(
+    *,
+    nominee: str,
+    callsign: str,
+    receipts: List[str],
+    by: str,
+    vendor: str = "",
+    family: str = "",
+    team: str = "",
+    number: Optional[int] = None,
+    note: str = "",
+) -> Dict[str, Any]:
     """Record a nomination. Raises ValueError when a ceremony rule is broken.
 
     Refusals are LOUD and NAMED -- they say which rule, which party, and which receipt, because
@@ -219,11 +235,22 @@ def nominate(*, nominee: str, callsign: str, receipts: List[str], by: str,
                 f"the [M]-tag error: it must mean 'I have the receipt', never 'I remember'."
             )
 
-    return _append(nominee, {
-        "state": NOMINATED, "agent_id": nominee, "callsign": callsign,
-        "receipts": list(receipts), "by": by, "at": time.time(),
-        "vendor": vendor, "family": family, "team": team, "number": number, "note": note,
-    })
+    return _append(
+        nominee,
+        {
+            "state": NOMINATED,
+            "agent_id": nominee,
+            "callsign": callsign,
+            "receipts": list(receipts),
+            "by": by,
+            "at": time.time(),
+            "vendor": vendor,
+            "family": family,
+            "team": team,
+            "number": number,
+            "note": note,
+        },
+    )
 
 
 def ratify(*, nominee: str, callsign: str, by: str) -> Dict[str, Any]:
@@ -245,14 +272,12 @@ def ratify(*, nominee: str, callsign: str, by: str) -> Dict[str, Any]:
     draft = None
     for rec in records:
         if rec.get("state") == NOMINATED and rec.get("callsign") == callsign:
-            draft = rec                   # last match wins -- the newest draft is the live one
+            draft = rec  # last match wins -- the newest draft is the live one
     if draft is None:
         # Distinguish "never nominated at all" from "nominated under a different name" -- a
         # refusal that names the open drafts saves the ratifier a lookup (review point 4).
-        open_drafts = sorted({r.get("callsign") for r in records if r.get("state") == NOMINATED
-                              and r.get("callsign")})
-        hint = (f" Open draft(s) for '{nominee}': {', '.join(open_drafts)}."
-                if open_drafts else "")
+        open_drafts = sorted({r.get("callsign") for r in records if r.get("state") == NOMINATED and r.get("callsign")})
+        hint = f" Open draft(s) for '{nominee}': {', '.join(open_drafts)}." if open_drafts else ""
         raise ValueError(
             f"refused: '{callsign}' was never nominated for '{nominee}'. Ratification confirms "
             f"a draft; it does not author one.{hint}"
@@ -319,11 +344,11 @@ def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:
     try:
         keys = _store().keys(prefix + "*") or []
     except Exception:
-        return _ALIAS_CACHE                      # last good map beats no map
+        return _ALIAS_CACHE  # last good map beats no map
     alias: Dict[str, str] = {}
     ids = set()
     for k in keys:
-        agent_id = str(k)[len(prefix):]
+        agent_id = str(k)[len(prefix) :]
         if not agent_id:
             continue
         ids.add(agent_id.lower())
@@ -339,7 +364,7 @@ def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:
         # A retired name must still route. `formerly:` is derived from the append-only log,
         # so mail addressed to a name someone used to carry reaches the person who carried
         # it rather than a mailbox nobody serves.
-        for old in (rec.get("formerly") or []):
+        for old in rec.get("formerly") or []:
             o = str(old).strip().lower()
             if o and o not in alias:
                 alias[o] = agent_id
@@ -374,7 +399,7 @@ def resolve_agent(name: str) -> str:
     idx = _alias_index()
     low = n.lower()
     if low in idx["ids"]:
-        return n                                 # a real seat: never shadowed by a callsign
+        return n  # a real seat: never shadowed by a callsign
     return idx["alias"].get(low, n)
 
 
@@ -396,8 +421,9 @@ def designation(agent_id: str) -> str:
     return " | ".join(parts)
 
 
-def place(*, agent: str, family: str = "", team: str = "", number: Optional[int] = None,
-          vendor: str = "", by: str = "") -> Dict[str, Any]:
+def place(
+    *, agent: str, family: str = "", team: str = "", number: Optional[int] = None, vendor: str = "", by: str = ""
+) -> Dict[str, Any]:
     """Post a resident to a family, a team and a number. NOT a re-naming.
 
     Naming and posting are different acts. Ceremony rule 1 forbids naming yourself; it says
@@ -434,11 +460,19 @@ def place(*, agent: str, family: str = "", team: str = "", number: Optional[int]
     # substrate change instead of orphaning the archive -- but until now it could only be set at
     # NOMINATION, which meant re-homing a resident required re-naming it. Found by a pin of this
     # slice failing for the "wrong" reason: the gap was real and the pin was right by accident.
-    return _append(agent, {
-        "state": PLACED, "agent_id": agent, "family": str(family or "").strip(),
-        "team": str(team or "").strip(), "number": number,
-        "vendor": str(vendor or "").strip(), "by": by, "at": time.time(),
-    })
+    return _append(
+        agent,
+        {
+            "state": PLACED,
+            "agent_id": agent,
+            "family": str(family or "").strip(),
+            "team": str(team or "").strip(),
+            "number": number,
+            "vendor": str(vendor or "").strip(),
+            "by": by,
+            "at": time.time(),
+        },
+    )
 
 
 def placement_history(agent_id: str) -> List[Dict[str, Any]]:
@@ -464,7 +498,7 @@ def family_members(family: str) -> List[str]:
         return []
     out = []
     try:
-        for agent in (_store().lrange(_INDEX_KEY, 0, -1) or []):
+        for agent in _store().lrange(_INDEX_KEY, 0, -1) or []:
             cur = current_placement(agent)
             if cur and str(cur.get("family") or "").strip().lower() == want:
                 out.append(agent)
@@ -481,7 +515,7 @@ def team_members(team: str) -> List[str]:
         return []
     out = []
     try:
-        for agent in (_store().lrange(_INDEX_KEY, 0, -1) or []):
+        for agent in _store().lrange(_INDEX_KEY, 0, -1) or []:
             cur = current_placement(agent)
             if cur and str(cur.get("team") or "").strip().lower() == want:
                 out.append(agent)
@@ -508,7 +542,8 @@ def catchup_pack(agent_id: str, topic: str, k: int = 6):
     ids = []
     try:
         from core.learning.learning_store import get_learning_store
-        hits = get_learning_store().search_learnings_by_keyword(topic, agent=agent_id)[:max(0, int(k))]
+
+        hits = get_learning_store().search_learnings_by_keyword(topic, agent=agent_id)[: max(0, int(k))]
         if hits:
             lines.append("# WHAT YOU ALREADY KNOW (your own archive, most relevant first):")
             for h in hits:
@@ -523,8 +558,7 @@ def catchup_pack(agent_id: str, topic: str, k: int = 6):
     return "\n".join(lines), {"resident": True, "catchup": ids}
 
 
-def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
-           by: str = "") -> Dict[str, Any]:
+def assign(*, agent: str, role: str, side: str = "", exercise: str = "", by: str = "") -> Dict[str, Any]:
     """Record that a resident is OPERATING AS `role` -- an event, never a field.
 
     Identity is permanent; the job is situational. Rook stays Rook while operating as Jester
@@ -553,8 +587,12 @@ def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
             f"nominate {agent} --callsign <name> --receipt <their lesson> --by <peer>"
         )
     rec = {
-        "agent_id": agent, "role": role, "side": str(side or "").strip(),
-        "exercise": str(exercise or "").strip(), "by": by, "at": time.time(),
+        "agent_id": agent,
+        "role": role,
+        "side": str(side or "").strip(),
+        "exercise": str(exercise or "").strip(),
+        "by": by,
+        "at": time.time(),
         "provenance": "self-declared" if by.lower() == agent.lower() else "assigned",
     }
     _store().rpush(_ROLES_KEY, json.dumps(rec, ensure_ascii=False))
@@ -568,13 +606,18 @@ def _role_records() -> List[Dict[str, Any]]:
         try:
             out.append(json.loads(r))
         except Exception:
-            _corrupt_row(_ROLES_KEY, i, r)   # loud: a lost assignment is a lost timeline (T262)
+            _corrupt_row(_ROLES_KEY, i, r)  # loud: a lost assignment is a lost timeline (T262)
     return out
 
 
-def roles(*, agent: Optional[str] = None, role: Optional[str] = None,
-          side: Optional[str] = None, exercise: Optional[str] = None,
-          provenance: Optional[str] = None) -> List[Dict[str, Any]]:
+def roles(
+    *,
+    agent: Optional[str] = None,
+    role: Optional[str] = None,
+    side: Optional[str] = None,
+    exercise: Optional[str] = None,
+    provenance: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """The projection: every assignment matching every given filter, oldest first.
 
     "All Jesters on Red of exercise 7" is roles(role="Jester", side="Red", exercise="E7").
@@ -614,6 +657,7 @@ def _default_lesson_lookup(slug: str) -> Dict[str, Any]:
     attribute is live (tests fake the store by patching learning_store); ANY failure
     is the caller's cue to render the bare slug -- never a boot cost."""
     import core.learning.learning_store as _ls
+
     return _ls.get_learning_store_instance()._load_experiment(slug) or {}
 
 
@@ -643,9 +687,10 @@ def boot_block(agent_id: str, lesson_lookup=None) -> str:
                 tip = " ".join(str(rec_l.get("recommendation") or "").split())
                 if tip:
                     from core.primitives.distiller import _clip_words
+
                     line += " -- " + _clip_words(tip, 130)
             except Exception:
-                pass                       # slug alone; one bad slug breaks nothing
+                pass  # slug alone; one bad slug breaks nothing
             lines.append(line)
         lines.append(f"#   (drill any of them: {_pyl()} agent_cli.py recall --full learn:experiment:<name>)")
     if rec.get("formerly"):
@@ -660,8 +705,9 @@ def boot_block(agent_id: str, lesson_lookup=None) -> str:
         if job:
             where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
             tag = "" if job.get("provenance") == "assigned" else " [self-declared]"
-            lines.append(f"#   operating as: {job['role']}" + (f" ({where})" if where else "") +
-                         f" -- by {job.get('by')}{tag}")
+            lines.append(
+                f"#   operating as: {job['role']}" + (f" ({where})" if where else "") + f" -- by {job.get('by')}{tag}"
+            )
     except Exception:
-        pass                               # role line absent; the sheet still renders
+        pass  # role line absent; the sheet still renders
     return "\n".join(lines)

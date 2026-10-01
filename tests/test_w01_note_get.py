@@ -10,6 +10,7 @@ archaeology, labeled); then normalized-title match among ACTIVE notes (the head)
   P5  no match = loud error, rc 1
   P6  --json emits the full record
 """
+
 import json
 import os
 import sys
@@ -29,9 +30,18 @@ class Ns:
 
 
 def _dec(id, title, body, superseded=False, at="2026-07-21T01:00:00"):
-    return Decision(id=id, title=title, status="decided", context="ctx-" + id,
-                    decision=body, rationale=[], alternatives=[], consequences={},
-                    created_at=at, superseded=superseded)
+    return Decision(
+        id=id,
+        title=title,
+        status="decided",
+        context="ctx-" + id,
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={},
+        created_at=at,
+        superseded=superseded,
+    )
 
 
 class FakeMem:
@@ -42,11 +52,13 @@ class FakeMem:
         return [d for d in self._d if include_superseded or not d.superseded]
 
 
-MEM = FakeMem([
-    _dec("ADR_new", "where-we-are", "the CURRENT state", at="2026-07-21T02:00:00"),
-    _dec("ADR_old", "where-we-are", "the OLD state", superseded=True),
-    _dec("ADR_ghost", "dead-arc", "retired arc", superseded=True),
-])
+MEM = FakeMem(
+    [
+        _dec("ADR_new", "where-we-are", "the CURRENT state", at="2026-07-21T02:00:00"),
+        _dec("ADR_old", "where-we-are", "the OLD state", superseded=True),
+        _dec("ADR_ghost", "dead-arc", "retired arc", superseded=True),
+    ]
+)
 
 
 def test_p1_parser_accepts_get():

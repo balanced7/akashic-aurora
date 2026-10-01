@@ -42,10 +42,7 @@ from core.paths import data_root
 log_dir = data_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[SESSION_STATE] [%(asctime)s] %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="[SESSION_STATE] [%(asctime)s] %(message)s")
 logger = logging.getLogger("session_state")
 
 
@@ -71,13 +68,15 @@ class SessionState:
         self._current_state = self._load_state_from_checkpoint_file()
         self.logger = logger
 
-    def create_checkpoint_version_of_current_state(self,
-                       task: Optional[str] = None,
-                       progress: int = 0,
-                       blockers: Optional[List[str]] = None,
-                       decisions_made: int = 0,
-                       outputs: Optional[Dict[str, Any]] = None,
-                       notes: Optional[str] = None) -> bool:
+    def create_checkpoint_version_of_current_state(
+        self,
+        task: Optional[str] = None,
+        progress: int = 0,
+        blockers: Optional[List[str]] = None,
+        decisions_made: int = 0,
+        outputs: Optional[Dict[str, Any]] = None,
+        notes: Optional[str] = None,
+    ) -> bool:
         """
         Create a checkpoint version of current agent state.
 
@@ -117,13 +116,13 @@ class SessionState:
 
         try:
             # Save as current state
-            with open(self.state_file, 'w', encoding='utf-8') as f:
+            with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(checkpoint, f, indent=2)
 
             # Also save as timestamped checkpoint
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             checkpoint_file = self.checkpoint_dir / f"checkpoint_{timestamp}.json"
-            with open(checkpoint_file, 'w', encoding='utf-8') as f:
+            with open(checkpoint_file, "w", encoding="utf-8") as f:
                 json.dump(checkpoint, f, indent=2)
 
             self._current_state = checkpoint
@@ -139,17 +138,17 @@ class SessionState:
             return False
 
     # Backward compatibility alias
-    def save_checkpoint(self,
-                       task: Optional[str] = None,
-                       progress: int = 0,
-                       blockers: Optional[List[str]] = None,
-                       decisions_made: int = 0,
-                       outputs: Optional[Dict[str, Any]] = None,
-                       notes: Optional[str] = None) -> bool:
+    def save_checkpoint(
+        self,
+        task: Optional[str] = None,
+        progress: int = 0,
+        blockers: Optional[List[str]] = None,
+        decisions_made: int = 0,
+        outputs: Optional[Dict[str, Any]] = None,
+        notes: Optional[str] = None,
+    ) -> bool:
         """Deprecated: Use create_checkpoint_version_of_current_state() instead"""
-        return self.create_checkpoint_version_of_current_state(
-            task, progress, blockers, decisions_made, outputs, notes
-        )
+        return self.create_checkpoint_version_of_current_state(task, progress, blockers, decisions_made, outputs, notes)
 
     def load_checkpoint_created_after_crash(self) -> Optional[Dict[str, Any]]:
         """
@@ -253,7 +252,7 @@ class SessionState:
         if self.checkpoint_dir.exists():
             for checkpoint_file in sorted(self.checkpoint_dir.glob("checkpoint_*.json")):
                 try:
-                    with open(checkpoint_file, 'r', encoding='utf-8') as f:
+                    with open(checkpoint_file, "r", encoding="utf-8") as f:
                         checkpoints.append(json.load(f))
                 except Exception as e:
                     self.logger.warning(f"Could not load checkpoint {checkpoint_file}: {e}")
@@ -303,27 +302,27 @@ class SessionState:
             print(f"\nNo checkpoint for {self.agent_id}")
             return
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"SESSION RECOVERY INFO - {self.agent_id}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         print(f"Last Activity: {state.get('timestamp', 'unknown')}")
         print(f"Task: {state.get('task', 'none')}")
         print(f"Progress: {state.get('progress', 0)}%")
 
-        blockers = state.get('blockers', [])
+        blockers = state.get("blockers", [])
         if blockers:
             print(f"Blockers: {blockers}")
 
         print(f"Decisions Made: {state.get('decisions_made', 0)}")
 
-        notes = state.get('notes')
+        notes = state.get("notes")
         if notes:
             print(f"Notes: {notes}")
 
         print(f"\nRecovery: Run initialize() to reload context")
         print(f"         Then resume from {state.get('progress', 0)}%\n")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     # Backward compatibility alias
     def print_recovery_info(self) -> None:
@@ -338,7 +337,7 @@ class SessionState:
         """
         try:
             if self.state_file.exists():
-                with open(self.state_file, 'r', encoding='utf-8') as f:
+                with open(self.state_file, "r", encoding="utf-8") as f:
                     return json.load(f)
         except Exception as e:
             self.logger.warning(f"Could not load state: {e}")
@@ -414,15 +413,15 @@ class CheckpointRecovery:
             print(f"No recovery needed for {agent_id}")
             return
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"RECOVERY NEEDED - {agent_id}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         print(f"Task: {recovery_plan['task']}")
         print(f"Resume from: {recovery_plan['resume_from_progress']}% complete")
         print(f"Previous work: {recovery_plan['previous_decisions']} decisions made")
 
-        if recovery_plan['blockers_to_address']:
+        if recovery_plan["blockers_to_address"]:
             print(f"Blockers to address: {recovery_plan['blockers_to_address']}")
 
         print(f"\nTo resume:")
@@ -430,7 +429,7 @@ class CheckpointRecovery:
         print(f"  2. context = api.load_context_derived_from_startup_sources()")
         print(f"  3. state = SessionState('{agent_id}').load_checkpoint_created_after_crash()")
         print(f"  4. Resume from progress: {recovery_plan['resume_from_progress']}%\n")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     @staticmethod
     def print_recovery_summary(agent_id: str) -> None:

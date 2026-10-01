@@ -35,6 +35,7 @@ Pins:
 
 Run: py -m pytest tests/test_t290_verdict_fileback.py -q
 """
+
 import os
 import sys
 import subprocess
@@ -52,8 +53,9 @@ from core.fleet import verdicts as V  # noqa: E402
 def run(*args, timeout=120):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
@@ -65,8 +67,9 @@ def _operators(monkeypatch):
 
 # ---------------------------------------------------------------- P1: filing
 def test_p1_file_verdict_appends_and_teaches_vocabulary():
-    rec = V.file_verdict(agent="deepseek", ask_id="a1", question_shape="descriptive",
-                         gist="cursor families disagree at bus.py:412")
+    rec = V.file_verdict(
+        agent="deepseek", ask_id="a1", question_shape="descriptive", gist="cursor families disagree at bus.py:412"
+    )
     assert rec["agent_id"] == "deepseek" and rec["ask_id"] == "a1"
     assert rec["question_shape"] == "descriptive"
     rows = V.verdicts(agent="deepseek")
@@ -77,12 +80,14 @@ def test_p1_file_verdict_appends_and_teaches_vocabulary():
     for shape in V.SHAPES:
         assert shape in str(e.value), (
             "P1: an unknown shape must refuse WITH the vocabulary -- 422-with-vocabulary, "
-            "the grammar law the ask door already obeys")
+            "the grammar law the ask door already obeys"
+        )
 
     rec2 = V.file_verdict(agent="deepseek", ask_id="a3", question_shape="", gist="y")
     assert rec2["question_shape"] == "undeclared", (
         "P1: absence is stored VISIBLY -- an undeclared shape is its own bucket, never a "
-        "silent drop and never a guess (T228 declared-not-derived)")
+        "silent drop and never a guess (T228 declared-not-derived)"
+    )
 
 
 # ---------------------------------------------------------------- P2: idempotency
@@ -101,7 +106,8 @@ def test_p3_adjudication_refusals():
         V.adjudicate(ask_id="j1", outcome="confirmed", by="deepseek")
     assert "adjudicat" in str(e.value).lower() and "deepseek" in str(e.value), (
         "P3: a resident outside the operator set is refused BY NAME -- H-C1, operator-only "
-        "is the default, not the fallback")
+        "is the default, not the fallback"
+    )
 
     with pytest.raises(ValueError):
         V.adjudicate(ask_id="j1", outcome="confirmed", by="nobody_at_all")
@@ -111,13 +117,15 @@ def test_p3_adjudication_refusals():
     with pytest.raises(ValueError) as e2:
         V.adjudicate(ask_id="j2", outcome="confirmed", by="conductor_x")
     assert "own" in str(e2.value).lower() or "self" in str(e2.value).lower(), (
-        "P3: author==adjudicator refused even inside the operator set")
+        "P3: author==adjudicator refused even inside the operator set"
+    )
 
     with pytest.raises(ValueError) as e3:
         V.adjudicate(ask_id="never_filed", outcome="confirmed", by="daniil")
     assert "never_filed" in str(e3.value), (
         "P3: an adjudication with no verdict to join is a record about nothing -- refused, "
-        "and the refusal names the missing ask_id")
+        "and the refusal names the missing ask_id"
+    )
 
 
 # ---------------------------------------------------------------- P4: the join
@@ -129,7 +137,8 @@ def test_p4_operator_adjudication_lands():
     with pytest.raises(ValueError) as e:
         V.adjudicate(ask_id="k1", outcome="maybe", by="daniil")
     assert "confirmed" in str(e.value) and "refuted" in str(e.value), (
-        "P4: outcome vocabulary refused WITH the vocabulary")
+        "P4: outcome vocabulary refused WITH the vocabulary"
+    )
 
 
 # ---------------------------------------------------------------- P5: counts, never rates
@@ -143,7 +152,8 @@ def test_p5_calibration_counts_absence_honestly():
     cal = V.calibration(resident="p5_deep")
     cell = cal["cells"][("descriptive", "p5_deep")]
     assert cell["filed"] == 2 and cell["adjudicated"] == 0 and cell["confirmed"] == 0, (
-        "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)")
+        "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)"
+    )
 
     V.adjudicate(ask_id="c1", outcome="confirmed", by="daniil")
     cal2 = V.calibration(resident="p5_deep")
@@ -153,40 +163,49 @@ def test_p5_calibration_counts_absence_honestly():
     pooled = cal2["shapes"]["descriptive"]
     assert pooled["filed"] >= 2 and pooled["adjudicated"] >= 1, (
         "P5: per-shape pooling exists alongside cells -- the fence's convergent counter "
-        "(H-C2 + N-C2): shape-level is the primary axis at our n")
+        "(H-C2 + N-C2): shape-level is the primary axis at our n"
+    )
     assert not any(k.endswith("rate") for cell in cal2["cells"].values() for k in cell), (
-        "P5: RC1 returns COUNTS only; rates belong to RC2's render with its n-floors")
+        "P5: RC1 returns COUNTS only; rates belong to RC2's render with its n-floors"
+    )
 
 
 # ---------------------------------------------------------------- P6: the back door
 def test_p6_lessons_never_adjudicate():
     V.file_verdict(agent="p6_deep", ask_id="bd1", question_shape="descriptive", gist="claim")
-    rc, out, err = run("learn", "p6_deep", "--experiment", "t290_backdoor_probe",
-                       "--tried", "confirming my own answer for ask bd1",
-                       "--result", "bd1 confirmed correct, adjudicated")
+    rc, out, err = run(
+        "learn",
+        "p6_deep",
+        "--experiment",
+        "t290_backdoor_probe",
+        "--tried",
+        "confirming my own answer for ask bd1",
+        "--result",
+        "bd1 confirmed correct, adjudicated",
+    )
     assert rc == 0, f"seeding the probe lesson failed: {err or out}"
     cal = V.calibration(resident="p6_deep")
     cell = cal["cells"][("descriptive", "p6_deep")]
     assert cell["adjudicated"] == 0, (
         "P6: a lesson CITING an ask_id moves nothing -- adjudication is ONLY the "
-        "adjudication record type (Heimdall's BLIND, accepted whole)")
+        "adjudication record type (Heimdall's BLIND, accepted whole)"
+    )
 
 
 # ---------------------------------------------------------------- P7: matched pairs
 def test_p7_cold_twin_recorded_and_filterable():
     V.file_verdict(agent="deepseek", ask_id="w1", question_shape="generative", gist="warm")
-    V.file_verdict(agent="blind", ask_id="w1-cold", question_shape="generative", gist="cold",
-                   cold_twin_of="w1")
+    V.file_verdict(agent="blind", ask_id="w1-cold", question_shape="generative", gist="cold", cold_twin_of="w1")
     twins = V.verdicts(cold_twin_of="w1")
     assert len(twins) == 1 and twins[0]["ask_id"] == "w1-cold", (
         "P7: the pairing the pre-registered claim needs (>=20 adjudicated pairs/shape) is "
-        "enumerable from the log, not reconstructed from timestamps")
+        "enumerable from the log, not reconstructed from timestamps"
+    )
 
 
 # ---------------------------------------------------------------- P8: the door
 def test_p8_cli_refuses_and_renders():
-    rc, out, err = run("resident", "adjudicate", "cli1", "--outcome", "confirmed",
-                       "--by", "some_rando")
+    rc, out, err = run("resident", "adjudicate", "cli1", "--outcome", "confirmed", "--by", "some_rando")
     # rc==1, matching the resident door's ceremony-refusal convention (nominate/ratify/
     # place all return 1) -- amended from 2 pre-implementation; 2 is the ASK door's
     # usage-error register, and one door speaking two registers is the T174 class.
@@ -196,4 +215,5 @@ def test_p8_cli_refuses_and_renders():
     rc2, out2, err2 = run("resident", "calibration")
     assert rc2 == 0, f"P8: empty calibration renders, never crashes: {err2 or out2}"
     assert "no " in (out2 or "").lower() or "0" in (out2 or ""), (
-        "P8: an empty store says so -- absence rendered, not a blank page")
+        "P8: an empty store says so -- absence rendered, not a blank page"
+    )

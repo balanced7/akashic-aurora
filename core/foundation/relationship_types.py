@@ -29,6 +29,7 @@ from dataclasses import dataclass
 @dataclass
 class RelationshipTypeDefinition:
     """Formal definition of a relationship type"""
+
     formal_name: str  # OBO/Dublin Core formal name
     short_name: str  # Short identifier
     inverse: str  # Inverse relationship
@@ -51,7 +52,7 @@ class RelationshipType(Enum):
         inverse="has_part",
         description="Subject is a part or component of the object",
         domain="structural",
-        examples=["Engine part_of Car", "Chapter part_of Book", "Class part_of Module"]
+        examples=["Engine part_of Car", "Chapter part_of Book", "Class part_of Module"],
     )
 
     HAS_PART = RelationshipTypeDefinition(
@@ -60,7 +61,7 @@ class RelationshipType(Enum):
         inverse="part_of",
         description="Subject has the object as a part or component",
         domain="structural",
-        examples=["Car has_part Engine", "Book has_part Chapter", "Module has_part Class"]
+        examples=["Car has_part Engine", "Book has_part Chapter", "Module has_part Class"],
     )
 
     COMPONENT_OF = RelationshipTypeDefinition(
@@ -69,7 +70,7 @@ class RelationshipType(Enum):
         inverse="has_component",
         description="Subject is a functional component of object (stricter than part_of)",
         domain="structural",
-        examples=["CPU component_of Computer", "Wheel component_of Bicycle"]
+        examples=["CPU component_of Computer", "Wheel component_of Bicycle"],
     )
 
     HAS_COMPONENT = RelationshipTypeDefinition(
@@ -78,7 +79,7 @@ class RelationshipType(Enum):
         inverse="component_of",
         description="Subject has object as a functional component",
         domain="structural",
-        examples=["Computer has_component CPU", "Bicycle has_component Wheel"]
+        examples=["Computer has_component CPU", "Bicycle has_component Wheel"],
     )
 
     MEMBER_OF = RelationshipTypeDefinition(
@@ -87,7 +88,7 @@ class RelationshipType(Enum):
         inverse="has_member",
         description="Subject is a member of a collection or group",
         domain="structural",
-        examples=["Student member_of Class", "City member_of Country"]
+        examples=["Student member_of Class", "City member_of Country"],
     )
 
     HAS_MEMBER = RelationshipTypeDefinition(
@@ -96,7 +97,7 @@ class RelationshipType(Enum):
         inverse="member_of",
         description="Subject is a collection containing the object as a member",
         domain="structural",
-        examples=["Class has_member Student", "Country has_member City"]
+        examples=["Class has_member Student", "Country has_member City"],
     )
 
     CONTAINED_IN = RelationshipTypeDefinition(
@@ -105,7 +106,7 @@ class RelationshipType(Enum):
         inverse="contains",
         description="Subject is physically or logically contained in object",
         domain="structural",
-        examples=["Water contained_in Cup", "File contained_in Directory"]
+        examples=["Water contained_in Cup", "File contained_in Directory"],
     )
 
     CONTAINS = RelationshipTypeDefinition(
@@ -114,7 +115,7 @@ class RelationshipType(Enum):
         inverse="contained_in",
         description="Subject physically or logically contains object",
         domain="structural",
-        examples=["Cup contains Water", "Directory contains File"]
+        examples=["Cup contains Water", "Directory contains File"],
     )
 
     # ============================================================================
@@ -128,7 +129,7 @@ class RelationshipType(Enum):
         inverse="has_subclass",
         description="Subject is a class or type of the object (specialization)",
         domain="hierarchical",
-        examples=["Dog is_a Animal", "Circle is_a Shape", "Python is_a Programming_Language"]
+        examples=["Dog is_a Animal", "Circle is_a Shape", "Python is_a Programming_Language"],
     )
 
     HAS_SUBCLASS = RelationshipTypeDefinition(
@@ -137,7 +138,7 @@ class RelationshipType(Enum):
         inverse="is_a",
         description="Subject is a superclass of object",
         domain="hierarchical",
-        examples=["Animal has_subclass Dog", "Shape has_subclass Circle"]
+        examples=["Animal has_subclass Dog", "Shape has_subclass Circle"],
     )
 
     INSTANCE_OF = RelationshipTypeDefinition(
@@ -146,7 +147,7 @@ class RelationshipType(Enum):
         inverse="has_instance",
         description="Subject is an instance of the class object",
         domain="hierarchical",
-        examples=["Fido instance_of Dog", "Socrates instance_of Philosopher"]
+        examples=["Fido instance_of Dog", "Socrates instance_of Philosopher"],
     )
 
     HAS_INSTANCE = RelationshipTypeDefinition(
@@ -155,7 +156,7 @@ class RelationshipType(Enum):
         inverse="instance_of",
         description="Subject is a class that has object as an instance",
         domain="hierarchical",
-        examples=["Dog has_instance Fido", "Philosopher has_instance Socrates"]
+        examples=["Dog has_instance Fido", "Philosopher has_instance Socrates"],
     )
 
     # ============================================================================
@@ -169,7 +170,7 @@ class RelationshipType(Enum):
         inverse="caused_by",
         description="Subject is the cause of the object (direct causation)",
         domain="causal",
-        examples=["Heat causes Melting", "Rain causes Flooding", "Exercise causes Fitness"]
+        examples=["Heat causes Melting", "Rain causes Flooding", "Exercise causes Fitness"],
     )
 
     CAUSED_BY = RelationshipTypeDefinition(
@@ -178,7 +179,7 @@ class RelationshipType(Enum):
         inverse="causes",
         description="Subject is caused by the object",
         domain="causal",
-        examples=["Melting caused_by Heat", "Flooding caused_by Rain"]
+        examples=["Melting caused_by Heat", "Flooding caused_by Rain"],
     )
 
     DERIVES_FROM = RelationshipTypeDefinition(
@@ -187,7 +188,7 @@ class RelationshipType(Enum):
         inverse="derives_into",
         description="Subject is derived from or originates from object (transformation/evolution)",
         domain="causal",
-        examples=["Butter derives_from Milk", "Adult derives_from Child", "Code derives_from Specification"]
+        examples=["Butter derives_from Milk", "Adult derives_from Child", "Code derives_from Specification"],
     )
 
     DERIVES_INTO = RelationshipTypeDefinition(
@@ -196,7 +197,7 @@ class RelationshipType(Enum):
         inverse="derives_from",
         description="Subject transforms into or gives rise to object",
         domain="causal",
-        examples=["Milk derives_into Butter", "Child derives_into Adult"]
+        examples=["Milk derives_into Butter", "Child derives_into Adult"],
     )
 
     DEVELOPS_FROM = RelationshipTypeDefinition(
@@ -205,7 +206,7 @@ class RelationshipType(Enum):
         inverse="develops_into",
         description="Subject develops or emerges from object (biological/developmental)",
         domain="causal",
-        examples=["Adult develops_from Embryo", "Organ develops_from Tissue"]
+        examples=["Adult develops_from Embryo", "Organ develops_from Tissue"],
     )
 
     DEVELOPS_INTO = RelationshipTypeDefinition(
@@ -214,7 +215,7 @@ class RelationshipType(Enum):
         inverse="develops_from",
         description="Subject develops into object",
         domain="causal",
-        examples=["Embryo develops_into Adult", "Tissue develops_into Organ"]
+        examples=["Embryo develops_into Adult", "Tissue develops_into Organ"],
     )
 
     INFLUENCES = RelationshipTypeDefinition(
@@ -223,7 +224,7 @@ class RelationshipType(Enum):
         inverse="influenced_by",
         description="Subject has a modifying or determining effect on object (weaker than causes)",
         domain="causal",
-        examples=["Culture influences Art", "Weather influences Mood", "History influences Politics"]
+        examples=["Culture influences Art", "Weather influences Mood", "History influences Politics"],
     )
 
     INFLUENCED_BY = RelationshipTypeDefinition(
@@ -232,7 +233,7 @@ class RelationshipType(Enum):
         inverse="influences",
         description="Subject is influenced by object",
         domain="causal",
-        examples=["Art influenced_by Culture", "Politics influenced_by History"]
+        examples=["Art influenced_by Culture", "Politics influenced_by History"],
     )
 
     PREVENTS = RelationshipTypeDefinition(
@@ -241,7 +242,7 @@ class RelationshipType(Enum):
         inverse="prevented_by",
         description="Subject prevents or stops the occurrence of object",
         domain="causal",
-        examples=["Medicine prevents Disease", "Barrier prevents Entry"]
+        examples=["Medicine prevents Disease", "Barrier prevents Entry"],
     )
 
     PREVENTED_BY = RelationshipTypeDefinition(
@@ -250,7 +251,7 @@ class RelationshipType(Enum):
         inverse="prevents",
         description="Subject is prevented by object",
         domain="causal",
-        examples=["Disease prevented_by Medicine"]
+        examples=["Disease prevented_by Medicine"],
     )
 
     # ============================================================================
@@ -264,7 +265,7 @@ class RelationshipType(Enum):
         inverse="equivalent_to",
         description="Subject is equivalent to or the same as object",
         domain="semantic",
-        examples=["Automobile equivalent_to Car", "Heartbeat equivalent_to Pulse"]
+        examples=["Automobile equivalent_to Car", "Heartbeat equivalent_to Pulse"],
     )
 
     SIMILAR_TO = RelationshipTypeDefinition(
@@ -273,7 +274,7 @@ class RelationshipType(Enum):
         inverse="similar_to",
         description="Subject is similar to object (weaker equivalence)",
         domain="semantic",
-        examples=["Python similar_to Ruby", "House similar_to Mansion"]
+        examples=["Python similar_to Ruby", "House similar_to Mansion"],
     )
 
     SYNONYM_OF = RelationshipTypeDefinition(
@@ -282,7 +283,7 @@ class RelationshipType(Enum):
         inverse="synonym_of",
         description="Subject is a synonym of object (terms have same meaning)",
         domain="semantic",
-        examples=["Automobile synonym_of Car", "Physician synonym_of Doctor"]
+        examples=["Automobile synonym_of Car", "Physician synonym_of Doctor"],
     )
 
     OPPOSITE_OF = RelationshipTypeDefinition(
@@ -291,7 +292,7 @@ class RelationshipType(Enum):
         inverse="opposite_of",
         description="Subject is opposite or antonym of object",
         domain="semantic",
-        examples=["Hot opposite_of Cold", "Begin opposite_of End"]
+        examples=["Hot opposite_of Cold", "Begin opposite_of End"],
     )
 
     RELATED_TO = RelationshipTypeDefinition(
@@ -300,7 +301,7 @@ class RelationshipType(Enum):
         inverse="related_to",
         description="Subject is related to object (general semantic relationship)",
         domain="semantic",
-        examples=["Apple related_to Orange", "Python related_to Programming"]
+        examples=["Apple related_to Orange", "Python related_to Programming"],
     )
 
     # ============================================================================
@@ -314,7 +315,7 @@ class RelationshipType(Enum):
         inverse="preceded_by",
         description="Subject occurs before object in time",
         domain="temporal",
-        examples=["Birth precedes Death", "Spring precedes Summer"]
+        examples=["Birth precedes Death", "Spring precedes Summer"],
     )
 
     PRECEDED_BY = RelationshipTypeDefinition(
@@ -323,7 +324,7 @@ class RelationshipType(Enum):
         inverse="precedes",
         description="Subject is preceded by object in time",
         domain="temporal",
-        examples=["Death preceded_by Birth", "Summer preceded_by Spring"]
+        examples=["Death preceded_by Birth", "Summer preceded_by Spring"],
     )
 
     FOLLOWS = RelationshipTypeDefinition(
@@ -332,7 +333,7 @@ class RelationshipType(Enum):
         inverse="followed_by",
         description="Subject occurs after object in time",
         domain="temporal",
-        examples=["Death follows Birth", "Summer follows Spring"]
+        examples=["Death follows Birth", "Summer follows Spring"],
     )
 
     FOLLOWED_BY = RelationshipTypeDefinition(
@@ -341,7 +342,7 @@ class RelationshipType(Enum):
         inverse="follows",
         description="Subject is followed by object in time",
         domain="temporal",
-        examples=["Birth followed_by Death", "Spring followed_by Summer"]
+        examples=["Birth followed_by Death", "Spring followed_by Summer"],
     )
 
     OCCURS_DURING = RelationshipTypeDefinition(
@@ -350,7 +351,7 @@ class RelationshipType(Enum):
         inverse="has_event",
         description="Subject occurs during the time period object",
         domain="temporal",
-        examples=["Meeting occurs_during Tuesday", "Event occurs_during Renaissance"]
+        examples=["Meeting occurs_during Tuesday", "Event occurs_during Renaissance"],
     )
 
     HAS_EVENT = RelationshipTypeDefinition(
@@ -359,7 +360,7 @@ class RelationshipType(Enum):
         inverse="occurs_during",
         description="Subject is a time period that contains event object",
         domain="temporal",
-        examples=["Tuesday has_event Meeting", "Renaissance has_event Discovery"]
+        examples=["Tuesday has_event Meeting", "Renaissance has_event Discovery"],
     )
 
     CONTEMPORARY_WITH = RelationshipTypeDefinition(
@@ -368,7 +369,7 @@ class RelationshipType(Enum):
         inverse="contemporary_with",
         description="Subject and object occur at the same time",
         domain="temporal",
-        examples=["WW2 contemporary_with Holocaust"]
+        examples=["WW2 contemporary_with Holocaust"],
     )
 
     # ============================================================================
@@ -382,7 +383,7 @@ class RelationshipType(Enum):
         inverse="authored",
         description="Subject was created/written by object (person or organization)",
         domain="agent",
-        examples=["Book authored_by Author", "Code authored_by Developer"]
+        examples=["Book authored_by Author", "Code authored_by Developer"],
     )
 
     AUTHORED = RelationshipTypeDefinition(
@@ -391,7 +392,7 @@ class RelationshipType(Enum):
         inverse="authored_by",
         description="Subject authored the object",
         domain="agent",
-        examples=["Author authored Book", "Developer authored Code"]
+        examples=["Author authored Book", "Developer authored Code"],
     )
 
     CREATED_BY = RelationshipTypeDefinition(
@@ -400,7 +401,7 @@ class RelationshipType(Enum):
         inverse="created",
         description="Subject was created by object (agent, process, or action)",
         domain="agent",
-        examples=["Product created_by Process", "Discovery created_by Research"]
+        examples=["Product created_by Process", "Discovery created_by Research"],
     )
 
     CREATED = RelationshipTypeDefinition(
@@ -409,7 +410,7 @@ class RelationshipType(Enum):
         inverse="created_by",
         description="Subject created the object",
         domain="agent",
-        examples=["Process created Product", "Research created Discovery"]
+        examples=["Process created Product", "Research created Discovery"],
     )
 
     ATTRIBUTED_TO = RelationshipTypeDefinition(
@@ -418,7 +419,7 @@ class RelationshipType(Enum):
         inverse="attributed",
         description="Subject's existence or properties are attributed to object",
         domain="agent",
-        examples=["Success attributed_to Effort", "Theory attributed_to Scientist"]
+        examples=["Success attributed_to Effort", "Theory attributed_to Scientist"],
     )
 
     ATTRIBUTED = RelationshipTypeDefinition(
@@ -427,7 +428,7 @@ class RelationshipType(Enum):
         inverse="attributed_to",
         description="Subject attributes object to someone/something",
         domain="agent",
-        examples=["Scientist attributed Theory"]
+        examples=["Scientist attributed Theory"],
     )
 
     PERFORMED_BY = RelationshipTypeDefinition(
@@ -436,7 +437,7 @@ class RelationshipType(Enum):
         inverse="performed",
         description="Subject (action/task) is performed by object (agent)",
         domain="agent",
-        examples=["Task performed_by Person", "Surgery performed_by Doctor"]
+        examples=["Task performed_by Person", "Surgery performed_by Doctor"],
     )
 
     PERFORMED = RelationshipTypeDefinition(
@@ -445,7 +446,7 @@ class RelationshipType(Enum):
         inverse="performed_by",
         description="Subject performs the object (action/task)",
         domain="agent",
-        examples=["Person performed Task", "Doctor performed Surgery"]
+        examples=["Person performed Task", "Doctor performed Surgery"],
     )
 
     # ============================================================================
@@ -459,7 +460,7 @@ class RelationshipType(Enum):
         inverse="has_location",
         description="Subject is located or situated in object",
         domain="spatial",
-        examples=["City located_in Country", "Building located_in City"]
+        examples=["City located_in Country", "Building located_in City"],
     )
 
     HAS_LOCATION = RelationshipTypeDefinition(
@@ -468,7 +469,7 @@ class RelationshipType(Enum):
         inverse="located_in",
         description="Subject is a location containing object",
         domain="spatial",
-        examples=["Country has_location City", "City has_location Building"]
+        examples=["Country has_location City", "City has_location Building"],
     )
 
     ADJACENT_TO = RelationshipTypeDefinition(
@@ -477,7 +478,7 @@ class RelationshipType(Enum):
         inverse="adjacent_to",
         description="Subject is next to or bordered by object",
         domain="spatial",
-        examples=["France adjacent_to Germany", "Room adjacent_to Corridor"]
+        examples=["France adjacent_to Germany", "Room adjacent_to Corridor"],
     )
 
     OVERLAPS_WITH = RelationshipTypeDefinition(
@@ -486,7 +487,7 @@ class RelationshipType(Enum):
         inverse="overlaps_with",
         description="Subject partially overlaps or intersects with object",
         domain="spatial",
-        examples=["Territory overlaps_with Boundary"]
+        examples=["Territory overlaps_with Boundary"],
     )
 
     # ============================================================================
@@ -500,7 +501,7 @@ class RelationshipType(Enum):
         inverse="referenced_by",
         description="Subject cites or mentions object",
         domain="documentation",
-        examples=["Paper references Study", "Code references Documentation"]
+        examples=["Paper references Study", "Code references Documentation"],
     )
 
     REFERENCED_BY = RelationshipTypeDefinition(
@@ -509,7 +510,7 @@ class RelationshipType(Enum):
         inverse="references",
         description="Subject is cited or mentioned by object",
         domain="documentation",
-        examples=["Study referenced_by Paper", "Documentation referenced_by Code"]
+        examples=["Study referenced_by Paper", "Documentation referenced_by Code"],
     )
 
     DOCUMENTS = RelationshipTypeDefinition(
@@ -518,7 +519,7 @@ class RelationshipType(Enum):
         inverse="documented_by",
         description="Subject provides documentation or description of object",
         domain="documentation",
-        examples=["Manual documents Device", "Guide documents Process"]
+        examples=["Manual documents Device", "Guide documents Process"],
     )
 
     DOCUMENTED_BY = RelationshipTypeDefinition(
@@ -527,7 +528,7 @@ class RelationshipType(Enum):
         inverse="documents",
         description="Subject is documented by object",
         domain="documentation",
-        examples=["Device documented_by Manual", "Process documented_by Guide"]
+        examples=["Device documented_by Manual", "Process documented_by Guide"],
     )
 
     BASED_ON = RelationshipTypeDefinition(
@@ -536,7 +537,7 @@ class RelationshipType(Enum):
         inverse="basis_for",
         description="Subject is based on or derived from object",
         domain="documentation",
-        examples=["Implementation based_on Specification", "Variation based_on Original"]
+        examples=["Implementation based_on Specification", "Variation based_on Original"],
     )
 
     BASIS_FOR = RelationshipTypeDefinition(
@@ -545,7 +546,7 @@ class RelationshipType(Enum):
         inverse="based_on",
         description="Subject is the basis for object",
         domain="documentation",
-        examples=["Specification basis_for Implementation", "Theory basis_for Application"]
+        examples=["Specification basis_for Implementation", "Theory basis_for Application"],
     )
 
     # ============================================================================
@@ -559,7 +560,7 @@ class RelationshipType(Enum):
         inverse="has_version",
         description="Subject is a version of object",
         domain="versioning",
-        examples=["Version2 is_version_of Software", "Draft is_version_of Document"]
+        examples=["Version2 is_version_of Software", "Draft is_version_of Document"],
     )
 
     HAS_VERSION = RelationshipTypeDefinition(
@@ -568,7 +569,7 @@ class RelationshipType(Enum):
         inverse="is_version_of",
         description="Subject has object as a version",
         domain="versioning",
-        examples=["Software has_version Version2", "Document has_version Draft"]
+        examples=["Software has_version Version2", "Document has_version Draft"],
     )
 
     REPLACES = RelationshipTypeDefinition(
@@ -577,7 +578,7 @@ class RelationshipType(Enum):
         inverse="replaced_by",
         description="Subject replaces or supersedes object",
         domain="versioning",
-        examples=["NewVersion replaces OldVersion", "UpdatedPolicy replaces OldPolicy"]
+        examples=["NewVersion replaces OldVersion", "UpdatedPolicy replaces OldPolicy"],
     )
 
     REPLACED_BY = RelationshipTypeDefinition(
@@ -586,7 +587,7 @@ class RelationshipType(Enum):
         inverse="replaces",
         description="Subject is replaced or superseded by object",
         domain="versioning",
-        examples=["OldVersion replaced_by NewVersion", "OldPolicy replaced_by UpdatedPolicy"]
+        examples=["OldVersion replaced_by NewVersion", "OldPolicy replaced_by UpdatedPolicy"],
     )
 
     # ============================================================================
@@ -599,7 +600,7 @@ class RelationshipType(Enum):
         inverse="associated_with",
         description="Subject is associated with object (general connection)",
         domain="associative",
-        examples=["Concept associated_with Domain", "Person associated_with Organization"]
+        examples=["Concept associated_with Domain", "Person associated_with Organization"],
     )
 
     DEPENDS_ON = RelationshipTypeDefinition(
@@ -608,7 +609,7 @@ class RelationshipType(Enum):
         inverse="dependency_of",
         description="Subject depends on or requires object to function",
         domain="associative",
-        examples=["Software depends_on Library", "Project depends_on Resource"]
+        examples=["Software depends_on Library", "Project depends_on Resource"],
     )
 
     DEPENDENCY_OF = RelationshipTypeDefinition(
@@ -617,7 +618,7 @@ class RelationshipType(Enum):
         inverse="depends_on",
         description="Subject is a dependency required by object",
         domain="associative",
-        examples=["Library dependency_of Software", "Resource dependency_of Project"]
+        examples=["Library dependency_of Software", "Resource dependency_of Project"],
     )
 
     REQUIRES = RelationshipTypeDefinition(
@@ -626,7 +627,7 @@ class RelationshipType(Enum):
         inverse="required_by",
         description="Subject requires object (same as depends_on, more active)",
         domain="associative",
-        examples=["Course requires Prerequisite", "Job requires Skill"]
+        examples=["Course requires Prerequisite", "Job requires Skill"],
     )
 
     REQUIRED_BY = RelationshipTypeDefinition(
@@ -635,7 +636,7 @@ class RelationshipType(Enum):
         inverse="requires",
         description="Subject is required by object",
         domain="associative",
-        examples=["Prerequisite required_by Course", "Skill required_by Job"]
+        examples=["Prerequisite required_by Course", "Skill required_by Job"],
     )
 
     SUPPORTS = RelationshipTypeDefinition(
@@ -644,7 +645,7 @@ class RelationshipType(Enum):
         inverse="supported_by",
         description="Subject supports or helps object",
         domain="associative",
-        examples=["Argument supports Claim", "Infrastructure supports Service"]
+        examples=["Argument supports Claim", "Infrastructure supports Service"],
     )
 
     SUPPORTED_BY = RelationshipTypeDefinition(
@@ -653,7 +654,7 @@ class RelationshipType(Enum):
         inverse="supports",
         description="Subject is supported by object",
         domain="associative",
-        examples=["Claim supported_by Argument", "Service supported_by Infrastructure"]
+        examples=["Claim supported_by Argument", "Service supported_by Infrastructure"],
     )
 
     COMPLEMENTS = RelationshipTypeDefinition(
@@ -662,7 +663,7 @@ class RelationshipType(Enum):
         inverse="complemented_by",
         description="Subject complements or goes well with object",
         domain="associative",
-        examples=["Wine complements Cheese", "Feature complements Functionality"]
+        examples=["Wine complements Cheese", "Feature complements Functionality"],
     )
 
     COMPLEMENTED_BY = RelationshipTypeDefinition(
@@ -671,7 +672,7 @@ class RelationshipType(Enum):
         inverse="complements",
         description="Subject is complemented by object",
         domain="associative",
-        examples=["Cheese complemented_by Wine", "Functionality complemented_by Feature"]
+        examples=["Cheese complemented_by Wine", "Functionality complemented_by Feature"],
     )
 
     CONFLICTS_WITH = RelationshipTypeDefinition(
@@ -680,7 +681,7 @@ class RelationshipType(Enum):
         inverse="conflicts_with",
         description="Subject conflicts with or contradicts object",
         domain="associative",
-        examples=["Policy conflicts_with Law", "Theory conflicts_with Evidence"]
+        examples=["Policy conflicts_with Law", "Theory conflicts_with Evidence"],
     )
 
 
@@ -689,9 +690,11 @@ def get_relationship_by_name(name: str) -> Optional[RelationshipTypeDefinition]:
     name_lower = name.lower().replace(" ", "_")
 
     for rel in RelationshipType:
-        if (rel.value.short_name.lower() == name_lower or
-            rel.value.formal_name.lower().replace(" ", "_") == name_lower or
-            rel.name.lower() == name_lower):
+        if (
+            rel.value.short_name.lower() == name_lower
+            or rel.value.formal_name.lower().replace(" ", "_") == name_lower
+            or rel.name.lower() == name_lower
+        ):
             return rel.value
 
     return None

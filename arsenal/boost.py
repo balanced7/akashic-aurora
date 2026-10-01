@@ -20,6 +20,7 @@ numpy over luma, reproducible and free.
 
 Standalone-ish: depends on arsenal.floors (which is numpy+av only), adds no new dependency.
 """
+
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
@@ -61,8 +62,7 @@ def annuli(rgb: np.ndarray, bands: int = 6, center: Optional[Tuple[float, float]
     return out
 
 
-def radial_summary(rgb: np.ndarray, bands: int = 6,
-                   center: Optional[Tuple[float, float]] = None) -> dict:
+def radial_summary(rgb: np.ndarray, bands: int = 6, center: Optional[Tuple[float, float]] = None) -> dict:
     """The verdict with the numbers beside it. `banded` is True when brightness RISES away from the
     centre before falling -- the signature of a ring, a mandala or an iris, as opposed to a glow
     (monotone fall) or a flat field. The reason is a sentence, never a bare flag."""

@@ -36,6 +36,7 @@ CORPUS COVERAGE (confirmation-by-omission, made a number)
     only be as good as the dissent that exists. This is the metric Slice 2 (write-side nudge)
     must move; here we just establish the honest starting line.
 """
+
 from __future__ import annotations
 
 import os
@@ -55,17 +56,85 @@ Detector = Callable[[Dict[str, Any], List[Dict[str, Any]]], Tuple[bool, List[str
 # (lowercase alnum, length>3, no stemming) ON PURPOSE: the eval must reproduce recall's real
 # lexical limits, not paper over them. Kept local so the yardstick doesn't move when recall does.
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
-_STOP = {"the", "and", "for", "with", "this", "that", "use", "using", "via", "from", "into",
-         "every", "each", "should", "must", "than", "them", "they", "not", "but", "keep",
-         "gave", "only", "onto", "over", "under", "same", "make", "made", "here", "there",
-         # generic English/dev words that create spurious token collisions on a real corpus
-         # (verified: 'also'/'still'/'gate' matched wholly unrelated lessons). NB: no stoplist can
-         # fix DOMAIN-token collisions ('store'/'test'/'path' shared by unrelated lessons) -- that
-         # residual is the point: lexical overlap != genuine opposition (see module docstring).
-         "also", "still", "like", "added", "adds", "whole", "real", "account", "need", "needs",
-         "next", "done", "work", "works", "just", "then", "when", "what", "will", "been", "have",
-         "does", "both", "else", "such", "more", "most", "very", "able", "gate", "gated", "agent",
-         "agents", "sets", "gets", "runs", "ways", "new", "old", "now", "per", "add"}
+_STOP = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "use",
+    "using",
+    "via",
+    "from",
+    "into",
+    "every",
+    "each",
+    "should",
+    "must",
+    "than",
+    "them",
+    "they",
+    "not",
+    "but",
+    "keep",
+    "gave",
+    "only",
+    "onto",
+    "over",
+    "under",
+    "same",
+    "make",
+    "made",
+    "here",
+    "there",
+    # generic English/dev words that create spurious token collisions on a real corpus
+    # (verified: 'also'/'still'/'gate' matched wholly unrelated lessons). NB: no stoplist can
+    # fix DOMAIN-token collisions ('store'/'test'/'path' shared by unrelated lessons) -- that
+    # residual is the point: lexical overlap != genuine opposition (see module docstring).
+    "also",
+    "still",
+    "like",
+    "added",
+    "adds",
+    "whole",
+    "real",
+    "account",
+    "need",
+    "needs",
+    "next",
+    "done",
+    "work",
+    "works",
+    "just",
+    "then",
+    "when",
+    "what",
+    "will",
+    "been",
+    "have",
+    "does",
+    "both",
+    "else",
+    "such",
+    "more",
+    "most",
+    "very",
+    "able",
+    "gate",
+    "gated",
+    "agent",
+    "agents",
+    "sets",
+    "gets",
+    "runs",
+    "ways",
+    "new",
+    "old",
+    "now",
+    "per",
+    "add",
+}
 
 
 def salient_tokens(text: str) -> set:
@@ -90,8 +159,7 @@ def null_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tuple
     return False, []
 
 
-def naive_reference_detector(thesis: Dict[str, Any],
-                             corpus: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+def naive_reference_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
     """A simple, honest floor (NOT the Slice 1 design). Flags a corpus record as a counter when it
     shares >=2 salient tokens with the thesis AND either (a) reports the opposite outcome or
     (b) carries a populated anti_pattern. Cannot see conflicting recommendations between two
@@ -119,9 +187,12 @@ def dissent_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tu
     from core.recall.dissent import find_counter
 
     def adapt(r: Dict[str, Any]) -> Dict[str, Any]:
-        return {**r, "source": r.get("source") or r.get("experiment_name"),
-                "text": r.get("text") or r.get("recommendation") or r.get("actual")
-                or r.get("what_tried") or ""}
+        return {
+            **r,
+            "source": r.get("source") or r.get("experiment_name"),
+            "text": r.get("text") or r.get("recommendation") or r.get("actual") or r.get("what_tried") or "",
+        }
+
     c = find_counter(adapt(thesis), [adapt(r) for r in corpus])
     return (c is not None, [c["source"]] if c else [])
 
@@ -130,9 +201,9 @@ def dissent_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tu
 def evaluate(cases: List[Dict[str, Any]], detector: Detector) -> Dict[str, Any]:
     """Score a detector against the gold cases. Recall is over cases (did it find a real counter
     when one existed); precision is over surface events (of what it surfaced, how much was real)."""
-    tp = fn = tn = fp = 0                     # fp = false-balance (surfaced when it shouldn't have)
+    tp = fn = tn = fp = 0  # fp = false-balance (surfaced when it shouldn't have)
     surface_events = surface_hits = 0
-    per_kind: Dict[str, List[int]] = {}       # kind -> [hits, total]
+    per_kind: Dict[str, List[int]] = {}  # kind -> [hits, total]
     rows: List[Dict[str, Any]] = []
     for c in cases:
         surfaced, srcs = detector(c["thesis"], c["corpus"])
@@ -150,25 +221,34 @@ def evaluate(cases: List[Dict[str, Any]], detector: Detector) -> Dict[str, Any]:
                 tp += 1
                 per_kind[k][0] += 1
             else:
-                fn += 1                       # missed the real counter (silent, or surfaced junk)
+                fn += 1  # missed the real counter (silent, or surfaced junk)
         else:
             if surfaced:
-                fp += 1                       # manufactured a counter where none exists
+                fp += 1  # manufactured a counter where none exists
             else:
                 tn += 1
-        rows.append({"id": c["id"], "expected": c["counter_exists"], "surfaced": surfaced,
-                     "hit": hit, "srcs": srcs})
+        rows.append({"id": c["id"], "expected": c["counter_exists"], "surfaced": surfaced, "hit": hit, "srcs": srcs})
     n_has = tp + fn
     n_no = tn + fp
     recall = tp / n_has if n_has else 0.0
     silence = tn / n_no if n_no else 0.0
     precision = surface_hits / surface_events if surface_events else 0.0
     f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
-    return {"counter_recall": recall, "silence_accuracy": silence, "counter_precision": precision,
-            "f1": f1, "tp": tp, "fn": fn, "tn": tn, "fp": fp, "n_has": n_has, "n_no": n_no,
-            "n_surfaced": surface_events, "per_kind": {k: (h / t if t else 0.0)
-                                                       for k, (h, t) in per_kind.items()},
-            "rows": rows}
+    return {
+        "counter_recall": recall,
+        "silence_accuracy": silence,
+        "counter_precision": precision,
+        "f1": f1,
+        "tp": tp,
+        "fn": fn,
+        "tn": tn,
+        "fp": fp,
+        "n_has": n_has,
+        "n_no": n_no,
+        "n_surfaced": surface_events,
+        "per_kind": {k: (h / t if t else 0.0) for k, (h, t) in per_kind.items()},
+        "rows": rows,
+    }
 
 
 def counter_density(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -183,8 +263,12 @@ def counter_density(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         if surfaced:
             with_counter += 1
     n = len(successes)
-    return {"density": (with_counter / n if n else 0.0), "n_success": n,
-            "n_with_counter": with_counter, "n_total": len(records)}
+    return {
+        "density": (with_counter / n if n else 0.0),
+        "n_success": n,
+        "n_with_counter": with_counter,
+        "n_total": len(records),
+    }
 
 
 # ----------------------------------------------------------------------------- pretty report
@@ -195,34 +279,40 @@ def _bar(label: str, value: float, ok: bool) -> str:
 def format_report() -> str:
     cases = gold_cases()
     n_has = sum(1 for c in cases if c["counter_exists"])
-    lines = ["=" * 64,
-             f"COUNTER-RETRIEVAL EVAL (Slice 0) — {len(cases)} cases "
-             f"({n_has} with a real counter, {len(cases) - n_has} silence controls)",
-             "=" * 64]
-    for name, det in (("null (= today's recall)", null_detector),
-                      ("naive reference floor", naive_reference_detector),
-                      ("dissent (Slice 1)", dissent_detector)):
+    lines = [
+        "=" * 64,
+        f"COUNTER-RETRIEVAL EVAL (Slice 0) — {len(cases)} cases "
+        f"({n_has} with a real counter, {len(cases) - n_has} silence controls)",
+        "=" * 64,
+    ]
+    for name, det in (
+        ("null (= today's recall)", null_detector),
+        ("naive reference floor", naive_reference_detector),
+        ("dissent (Slice 1)", dissent_detector),
+    ):
         m = evaluate(cases, det)
         lines.append(f"\n[{name}]")
         lines.append(_bar("counter_recall", m["counter_recall"], m["counter_recall"] > 0))
         lines.append(_bar("silence_accuracy", m["silence_accuracy"], m["silence_accuracy"] >= 0.9))
         lines.append(_bar("counter_precision", m["counter_precision"], m["counter_precision"] >= 0.9))
         lines.append(_bar("F1", m["f1"], m["f1"] > 0))
-        lines.append(f"       (tp={m['tp']} fn={m['fn']} tn={m['tn']} fp={m['fp']} "
-                     f"surfaced={m['n_surfaced']})")
+        lines.append(f"       (tp={m['tp']} fn={m['fn']} tn={m['tn']} fp={m['fp']} surfaced={m['n_surfaced']})")
         if m["per_kind"]:
-            lines.append("       recall by kind: " +
-                         ", ".join(f"{k}={v:.2f}" for k, v in sorted(m["per_kind"].items())))
+            lines.append(
+                "       recall by kind: " + ", ".join(f"{k}={v:.2f}" for k, v in sorted(m["per_kind"].items()))
+            )
     # coverage / confirmation-by-omission (curated sample = trustworthy; live caveat in __main__)
     cov = counter_density(sample_corpus())
-    lines += ["\n" + "-" * 64,
-              "CORPUS COVERAGE — confirmation-by-omission (curated real-skew sample)",
-              f"  naive-flagged counter rate = {cov['density']:.3f}  "
-              f"({cov['n_with_counter']}/{cov['n_success']} successes; {cov['n_total']} records)",
-              "  Genuine counters are scarce by construction: the store is ~95% self-reported",
-              "  successes with 0 anti-patterns, so a dissent-surfacer can only be as good as the",
-              "  dissent that exists -> Slice 2 (write-side nudge) must grow this. NB this rate is",
-              "  DETECTOR-RELATIVE and precision-poor at scale — see the live-store caveat below."]
+    lines += [
+        "\n" + "-" * 64,
+        "CORPUS COVERAGE — confirmation-by-omission (curated real-skew sample)",
+        f"  naive-flagged counter rate = {cov['density']:.3f}  "
+        f"({cov['n_with_counter']}/{cov['n_success']} successes; {cov['n_total']} records)",
+        "  Genuine counters are scarce by construction: the store is ~95% self-reported",
+        "  successes with 0 anti-patterns, so a dissent-surfacer can only be as good as the",
+        "  dissent that exists -> Slice 2 (write-side nudge) must grow this. NB this rate is",
+        "  DETECTOR-RELATIVE and precision-poor at scale — see the live-store caveat below.",
+    ]
     return "\n".join(lines)
 
 
@@ -238,14 +328,17 @@ def test_dataset_integrity():
         names = {r["experiment_name"] for r in c["corpus"]}
         assert c["thesis"]["experiment_name"] in names, f"{c['id']}: thesis must be in its corpus"
         assert set(c["counter_sources"]) <= names, f"{c['id']}: gold counters must exist in corpus"
-        assert c["thesis"]["experiment_name"] not in c["counter_sources"], \
+        assert c["thesis"]["experiment_name"] not in c["counter_sources"], (
             f"{c['id']}: the thesis cannot be its own counter"
+        )
         if c["counter_exists"]:
             assert c["counter_sources"] and c["kind"], f"{c['id']}: has-counter case needs sources+kind"
         else:
             assert not c["counter_sources"], f"{c['id']}: no-counter case must have empty counter_sources"
-    print(f"--- dataset integrity ---\n  {len(cases)} cases, {n_has} with counters, ids unique, "
-          f"all gold sources resolve OK")
+    print(
+        f"--- dataset integrity ---\n  {len(cases)} cases, {n_has} with counters, ids unique, "
+        f"all gold sources resolve OK"
+    )
 
 
 def test_null_baseline_characterizes_todays_blindness():
@@ -254,8 +347,10 @@ def test_null_baseline_characterizes_todays_blindness():
     assert m["n_surfaced"] == 0, "null detector must never surface"
     assert m["counter_recall"] == 0.0, "today's recall catches 0% of existing counters"
     assert m["silence_accuracy"] == 1.0, "...while being trivially 100% 'silent' (the cheap illusion)"
-    print("--- null baseline ---\n  recall=0.000 silence=1.000 -> today's recall is blind to "
-          "every existing counter (the starting line)")
+    print(
+        "--- null baseline ---\n  recall=0.000 silence=1.000 -> today's recall is blind to "
+        "every existing counter (the starting line)"
+    )
 
 
 def test_naive_reference_manufactures_false_balance():
@@ -267,17 +362,22 @@ def test_naive_reference_manufactures_false_balance():
     assert m["counter_recall"] > 0.0, "naive still catches some genuine counters"
     assert m["counter_precision"] < 1.0, "naive manufactures false balance on the agrees-distractors"
     assert m["silence_accuracy"] < 1.0, "naive fires on an on-topic anti-pattern the thesis agrees with"
-    assert m["per_kind"].get("conflicting_recommendation", 0.0) == 0.0, \
+    assert m["per_kind"].get("conflicting_recommendation", 0.0) == 0.0, (
         "keyword+outcome structurally can't catch same-success conflicts (needs stance)"
-    print(f"--- naive false balance ---\n  precision={m['counter_precision']:.3f} "
-          f"silence={m['silence_accuracy']:.3f} -- naive surfaces agreements as counters (the bug to avoid)")
+    )
+    print(
+        f"--- naive false balance ---\n  precision={m['counter_precision']:.3f} "
+        f"silence={m['silence_accuracy']:.3f} -- naive surfaces agreements as counters (the bug to avoid)"
+    )
 
 
 def test_counter_density_metric_is_correct():
     # hand-checkable: A(yes) has a real counter B(no, shared tokens); C(yes) is off-topic.
-    tiny = [L("A", "yes", "use the widget cache layer for speed"),
-            L("B", "no", "the widget cache layer corrupted data on crash"),
-            L("C", "yes", "unrelated gitignore comment placement rule")]
+    tiny = [
+        L("A", "yes", "use the widget cache layer for speed"),
+        L("B", "no", "the widget cache layer corrupted data on crash"),
+        L("C", "yes", "unrelated gitignore comment placement rule"),
+    ]
     cov = counter_density(tiny)
     assert cov["n_success"] == 2 and cov["n_with_counter"] == 1, cov
     assert abs(cov["density"] - 0.5) < 1e-9, f"1 of 2 successes has a counter -> 0.5, got {cov['density']}"
@@ -292,11 +392,15 @@ def test_curated_sample_is_counter_starved():
     live caveat), which is why the curated sample, not the raw corpus, is the yardstick here."""
     cov = counter_density(sample_corpus())
     assert 0.0 <= cov["density"] <= 1.0
-    assert cov["density"] < 0.20, ("curated sample should start counter-starved (that's the "
-                                   f"finding); got {cov['density']:.3f} — update this monitor once "
-                                   "the write-side nudge has landed")
-    print(f"--- curated sample coverage ---\n  naive-flagged rate={cov['density']:.3f} over "
-          f"{cov['n_success']} successes -> confirmation-by-omission is the current state")
+    assert cov["density"] < 0.20, (
+        "curated sample should start counter-starved (that's the "
+        f"finding); got {cov['density']:.3f} — update this monitor once "
+        "the write-side nudge has landed"
+    )
+    print(
+        f"--- curated sample coverage ---\n  naive-flagged rate={cov['density']:.3f} over "
+        f"{cov['n_success']} successes -> confirmation-by-omission is the current state"
+    )
 
 
 def test_dissent_fires_only_on_explicit_contradiction():
@@ -305,23 +409,39 @@ def test_dissent_fires_only_on_explicit_contradiction():
     produced only false counters on the real corpus. The one reliable deterministic trigger is an
     author-declared contradicts link; everything else waits for the semantic tier."""
     from core.recall.dissent import find_counter
-    thesis = {"source": "t", "text": "expose the new capability on the door agents already use",
-              "success": "yes"}
+
+    thesis = {"source": "t", "text": "expose the new capability on the door agents already use", "success": "yes"}
     # opposite outcome alone -> silent
-    assert find_counter(thesis, [{"source": "o", "success": "no",
-        "text": "we skipped exposing the capability on the door and it failed"}]) is None
+    assert (
+        find_counter(
+            thesis,
+            [{"source": "o", "success": "no", "text": "we skipped exposing the capability on the door and it failed"}],
+        )
+        is None
+    )
     # an ON-TOPIC anti_pattern the thesis AGREES with -> silent (the exact bug Slice 3 fixed)
-    ap = {"source": "a", "success": "no", "anti_pattern": "capability_without_a_door",
-          "text": "shipped a capability but never exposed it on any door"}
+    ap = {
+        "source": "a",
+        "success": "no",
+        "anti_pattern": "capability_without_a_door",
+        "text": "shipped a capability but never exposed it on any door",
+    }
     assert find_counter(thesis, [ap]) is None, "an on-topic anti_pattern the thesis agrees with must NOT be a counter"
     # an explicit contradicts link -> fires (the one reliable signal)
-    link = {"source": "c", "success": "yes", "relationship_type": "contradicts",
-            "text": "never expose internal capabilities on the shared door agents use"}
+    link = {
+        "source": "c",
+        "success": "yes",
+        "relationship_type": "contradicts",
+        "text": "never expose internal capabilities on the shared door agents use",
+    }
     got = find_counter(thesis, [link])
-    assert got and got["source"] == "c" and got["kind"] == "explicit_link", \
+    assert got and got["source"] == "c" and got["kind"] == "explicit_link", (
         f"an explicit contradicts link should fire, got {got}"
-    print("--- dissent explicit-only ---\n  opposite-outcome + on-topic anti_pattern -> silent; "
-          "explicit contradicts link -> counter OK")
+    )
+    print(
+        "--- dissent explicit-only ---\n  opposite-outcome + on-topic anti_pattern -> silent; "
+        "explicit contradicts link -> counter OK"
+    )
 
 
 def test_dissent_precision_first_after_slice3():
@@ -338,8 +458,10 @@ def test_dissent_precision_first_after_slice3():
     agrees = next(c for c in gold_cases() if c["id"] == "syn-antipattern-agrees")
     surfaced, _ = dissent_detector(agrees["thesis"], agrees["corpus"])
     assert surfaced is False, "the on-topic anti-pattern the thesis agrees with must stay silent (the Slice 3 fix)"
-    print("--- dissent precision-first (Slice 3) ---\n  surfaces nothing it can't verify; agrees-distractor "
-          "silent where naive trips; recall deferred to the semantic tier")
+    print(
+        "--- dissent precision-first (Slice 3) ---\n  surfaces nothing it can't verify; agrees-distractor "
+        "silent where naive trips; recall deferred to the semantic tier"
+    )
 
 
 if __name__ == "__main__":
@@ -350,10 +472,13 @@ if __name__ == "__main__":
     print("LIVE STORE (dogfood — best-effort)")
     try:
         from core.learning.learning_store import get_learning_store
+
         recs = get_learning_store().load_all_learnings_from_store()
         cov = counter_density(recs)
-        print(f"  {cov['n_total']} real lessons; naive-flagged rate={cov['density']:.3f} "
-              f"({cov['n_with_counter']}/{cov['n_success']} successes flagged) — NOT a real density:")
+        print(
+            f"  {cov['n_total']} real lessons; naive-flagged rate={cov['density']:.3f} "
+            f"({cov['n_with_counter']}/{cov['n_success']} successes flagged) — NOT a real density:"
+        )
         # show WHY: the matches are token collisions with the few failure lessons, not real counters
         for r in recs:
             if str(r.get("success", "")).lower() in ("yes", "true"):
@@ -361,8 +486,10 @@ if __name__ == "__main__":
                 if surfaced:
                     fr = next(x for x in recs if x.get("experiment_name") == srcs[0])
                     shared = sorted(salient_tokens(_text(r)) & salient_tokens(_text(fr)))
-                    print(f"    e.g. '{r['experiment_name']}' flagged vs '{srcs[0]}' "
-                          f"(success={fr.get('success')}) only on {shared}")
+                    print(
+                        f"    e.g. '{r['experiment_name']}' flagged vs '{srcs[0]}' "
+                        f"(success={fr.get('success')}) only on {shared}"
+                    )
                     break
         print("    ^ spurious topic overlap, not a genuine contradiction. Keyword matching can")
         print("      neither FIND nor MEASURE real counters at scale — that is precisely the gap")
@@ -370,15 +497,23 @@ if __name__ == "__main__":
         # The Slice 1 finder on the SAME corpus: it requires an explicit stance signal, so it refuses
         # those collisions. With 0 anti-patterns in the corpus it surfaces ~0 — the HONEST result.
         from core.recall.dissent import find_counter, document_frequencies, _idf
-        adapted = [{**r, "source": r.get("experiment_name"),
-                    "text": (r.get("recommendation") or r.get("actual") or r.get("what_tried") or "")}
-                   for r in recs]
+
+        adapted = [
+            {
+                **r,
+                "source": r.get("experiment_name"),
+                "text": (r.get("recommendation") or r.get("actual") or r.get("what_tried") or ""),
+            }
+            for r in recs
+        ]
         idfm = _idf(document_frequencies(adapted), len(adapted))
         fired = [t["source"] for t in adapted if find_counter(t, adapted, idf=idfm, n_docs=len(adapted))]
-        print(f"  dissent finder on the same corpus: {len(fired)} counters surfaced "
-              f"(Slice 3: a populated anti_pattern no longer triggers a counter -- it is an "
-              f"action-warning, not a contradiction; only explicit contradicts-links fire, and there "
-              f"are none yet -> correctly silent until the semantic tier lands).")
+        print(
+            f"  dissent finder on the same corpus: {len(fired)} counters surfaced "
+            f"(Slice 3: a populated anti_pattern no longer triggers a counter -- it is an "
+            f"action-warning, not a contradiction; only explicit contradicts-links fire, and there "
+            f"are none yet -> correctly silent until the semantic tier lands)."
+        )
     except Exception as e:
         print(f"  (live store unavailable: {type(e).__name__})")
     print("\nOK — run `py -m pytest tests/test_counter_eval.py -q` for the asserts.")

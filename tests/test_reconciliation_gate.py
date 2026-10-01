@@ -11,6 +11,7 @@ checker exists.
 
 Run: py -m pytest tests/test_reconciliation_gate.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -23,17 +24,21 @@ CHECKER = os.path.join(REPO, "scripts", "checkers", "check_reconciliation_gate.p
 
 
 def _run(message, paths, root):
-    env = dict(os.environ, AKASHIC_GATE_NO_CEILING="1")   # hermetic: keep subprocess pins
-    return subprocess.run(                                # off the production firehose
+    env = dict(os.environ, AKASHIC_GATE_NO_CEILING="1")  # hermetic: keep subprocess pins
+    return subprocess.run(  # off the production firehose
         [sys.executable, CHECKER, "--root", str(root), message, *paths],
-        capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace",
-        env=env)
+        capture_output=True,
+        text=True,
+        timeout=60,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
 
 
 def _spec_root(tmp_path, marker="GATE GREEN by convergence"):
     (tmp_path / "docs").mkdir(exist_ok=True)
-    (tmp_path / "docs" / "some-tier.md").write_text(
-        f"# spec\n\nreconciled BUILD SPEC -- {marker}\n", encoding="utf-8")
+    (tmp_path / "docs" / "some-tier.md").write_text(f"# spec\n\nreconciled BUILD SPEC -- {marker}\n", encoding="utf-8")
     (tmp_path / "docs" / "unrelated.md").write_text("just prose\n", encoding="utf-8")
     return tmp_path
 
@@ -50,8 +55,7 @@ def test_protected_path_without_citation_fails(tmp_path):
 
 
 def test_protected_path_with_valid_citation_passes(tmp_path):
-    p = _run("L9 built per docs/some-tier.md (GATE GREEN)", ["core/comm/bus.py"],
-             _spec_root(tmp_path))
+    p = _run("L9 built per docs/some-tier.md (GATE GREEN)", ["core/comm/bus.py"], _spec_root(tmp_path))
     assert p.returncode == 0, p.stdout + p.stderr
 
 
@@ -67,8 +71,7 @@ def test_citation_without_reconciliation_marker_fails(tmp_path):
 
 
 def test_ungated_escape_hatch_is_loud_not_silent(tmp_path):
-    p = _run("hotfix [ungated: prod runner down, revert-clean one-liner]",
-             ["core/comm/bus.py"], _spec_root(tmp_path))
+    p = _run("hotfix [ungated: prod runner down, revert-clean one-liner]", ["core/comm/bus.py"], _spec_root(tmp_path))
     assert p.returncode == 0
     assert "UNGATED" in p.stdout, "the hatch prints an audit line the wrap scorecard reads"
     # an empty reason is not a reason
@@ -79,11 +82,9 @@ def test_ungated_escape_hatch_is_loud_not_silent(tmp_path):
 def test_runner_scripts_are_substrate(tmp_path):
     """Deepseek verify catch: the runner IS the consume->outcome pipeline; it cannot
     fall outside the prefix net just because it lives under scripts/."""
-    p = _run("tweak the fold logic", ["scripts/bifrost_runner_deepseek.py"],
-             _spec_root(tmp_path))
+    p = _run("tweak the fold logic", ["scripts/bifrost_runner_deepseek.py"], _spec_root(tmp_path))
     assert p.returncode == 1, "runner scripts are substrate"
-    p2 = _run("per docs/some-tier.md (GATE GREEN)",
-              ["scripts/bifrost_runner_deepseek.py"], _spec_root(tmp_path))
+    p2 = _run("per docs/some-tier.md (GATE GREEN)", ["scripts/bifrost_runner_deepseek.py"], _spec_root(tmp_path))
     assert p2.returncode == 0
 
 
@@ -91,6 +92,7 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
     """Deepseek verify: the hatch gets a rate ceiling -- ONE per arc window; the second
     holds until a wrap ruling. In-process with a fake event layer (hermetic)."""
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("recon_gate", CHECKER)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -103,12 +105,11 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
 
     import core.events.event_query as eq_mod
     import core.events.event_log as el_mod
+
     monkeypatch.setattr(eq_mod, "get_event_query", lambda: FakeEQ())
-    monkeypatch.setattr(el_mod, "capture_event",
-                        lambda *a, **k: events.append(k) or None)
+    monkeypatch.setattr(el_mod, "capture_event", lambda *a, **k: events.append(k) or None)
     monkeypatch.delenv("AKASHIC_GATE_NO_CEILING", raising=False)
-    argv = ["prog", "--root", str(tmp_path), "fix [ungated: first exception]",
-            "core/comm/bus.py"]
+    argv = ["prog", "--root", str(tmp_path), "fix [ungated: first exception]", "core/comm/bus.py"]
     monkeypatch.setattr(sys, "argv", argv)
     assert mod.main() == 0, "first hatch use passes and consumes the ceiling"
     assert len(events) == 1, "the use is captured durably for the wrap scorecard"
@@ -118,14 +119,24 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
 def test_ship_plan_wires_the_gate_before_tests():
     from argparse import Namespace
     import ship
-    args = Namespace(message="m", paths=["core/comm/bus.py"], agent="claude",
-                     learn_exp=None, tried="", result="", recommend="", anti_pattern="",
-                     no_test=False, no_snapshot=False, dry_run=False)
+
+    args = Namespace(
+        message="m",
+        paths=["core/comm/bus.py"],
+        agent="claude",
+        learn_exp=None,
+        tried="",
+        result="",
+        recommend="",
+        anti_pattern="",
+        no_test=False,
+        no_snapshot=False,
+        dry_run=False,
+    )
     plan = ship.build_plan(args)
     labels = [l for l, _ in plan]
     gate = next((l for l in labels if "reconciliation" in l), None)
     assert gate and "guard" in gate, f"gate step present as a guard: {labels}"
     assert labels.index(gate) < labels.index("tests (full suite)"), "gate runs BEFORE the suite"
     argv = dict(plan)[gate]
-    assert "m" in argv and "core/comm/bus.py" in argv, \
-        "the gate sees the ship's message and staged paths"
+    assert "m" in argv and "core/comm/bus.py" in argv, "the gate sees the ship's message and staged paths"

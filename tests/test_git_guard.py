@@ -5,6 +5,7 @@ work (FM1). One rulebook (agent/policy/git_guard) consulted by both hooks.
 
 Run: py -m pytest tests/test_git_guard.py -q
 """
+
 import io
 import json
 import os
@@ -20,39 +21,45 @@ from agent.harness.hooks import claude_pretooluse, cursor_beforeshell
 
 
 # --------------------------------------------------------------- policy: blocked
-@pytest.mark.parametrize("cmd", [
-    "git add -A",
-    "git add .",
-    "git add --all",
-    "git add -A .",
-    "git add :/",
-    "cd subdir && git add -A",
-    "git status && git add . && git commit -m x",
-    "git commit -am 'wip'",
-    "git commit -a",
-    "git commit -a -m 'wip'",
-])
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "git add -A",
+        "git add .",
+        "git add --all",
+        "git add -A .",
+        "git add :/",
+        "cd subdir && git add -A",
+        "git status && git add . && git commit -m x",
+        "git commit -am 'wip'",
+        "git commit -a",
+        "git commit -a -m 'wip'",
+    ],
+)
 def test_blocks_blanket_staging(cmd):
     allowed, reason = check_git_command(cmd)
     assert allowed is False
     assert "BLOCKED" in reason
-    assert "mirror.py" in reason          # tells the agent the correct next action
+    assert "mirror.py" in reason  # tells the agent the correct next action
 
 
 # --------------------------------------------------------------- policy: allowed
-@pytest.mark.parametrize("cmd", [
-    "git add foo.py",
-    "git add path/to/file.py tests/test_x.py",
-    "git add -p",                         # interactive patch is selective, not blanket
-    "git commit -m 'msg'",
-    "git commit -m 'msg with a in it'",   # -m, not -a
-    "git status",
-    "git diff --cached",
-    "git push origin master",
-    "py scripts/mirror.py 'msg' a.py",
-    "ls && echo add -A",                  # not a git command
-    "",
-])
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "git add foo.py",
+        "git add path/to/file.py tests/test_x.py",
+        "git add -p",  # interactive patch is selective, not blanket
+        "git commit -m 'msg'",
+        "git commit -m 'msg with a in it'",  # -m, not -a
+        "git status",
+        "git diff --cached",
+        "git push origin master",
+        "py scripts/mirror.py 'msg' a.py",
+        "ls && echo add -A",  # not a git command
+        "",
+    ],
+)
 def test_allows_safe_commands(cmd):
     allowed, reason = check_git_command(cmd)
     assert allowed is True
@@ -80,7 +87,7 @@ def _run_claude(payload):
 
 def test_claude_hook_denies_blanket_add():
     rc, out = _run_claude({"tool_name": "Bash", "tool_input": {"command": "git add -A"}})
-    assert rc == 0                         # exit 0 + JSON, NOT exit 1 (footgun)
+    assert rc == 0  # exit 0 + JSON, NOT exit 1 (footgun)
     decision = json.loads(out)["hookSpecificOutput"]
     assert decision["permissionDecision"] == "deny"
     assert "BLOCKED" in decision["permissionDecisionReason"]
@@ -89,7 +96,7 @@ def test_claude_hook_denies_blanket_add():
 def test_claude_hook_allows_pathspec_add():
     rc, out = _run_claude({"tool_name": "Bash", "tool_input": {"command": "git add foo.py"}})
     assert rc == 0
-    assert out.strip() == ""               # silent allow
+    assert out.strip() == ""  # silent allow
 
 
 def test_claude_hook_guards_powershell_like_bash():
@@ -121,7 +128,7 @@ def test_claude_hook_fails_open_on_bad_input():
             rc = claude_pretooluse.main()
     finally:
         sys.stdin = real
-    assert rc == 0 and out.getvalue().strip() == ""   # unparseable -> allow, never block by accident
+    assert rc == 0 and out.getvalue().strip() == ""  # unparseable -> allow, never block by accident
 
 
 # --------------------------------------------------------- Cursor hook adapter

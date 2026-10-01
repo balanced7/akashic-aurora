@@ -9,6 +9,7 @@ coordinates belong to the renderer), and the byte writer (write_text would CRLF 
 Nothing here knows what a <section>, a print page or a three.js plane is; those live in the
 target modules.
 """
+
 from __future__ import annotations
 
 import html
@@ -21,37 +22,76 @@ from .. import scene as sc
 
 # ---------------------------------------------------------------- the family's defaults by role
 DEFAULT_PALETTE: Dict[str, str] = {
-    "dark": "#13202B", "light": "#F6F7F5", "accent": "#C8762E", "accent_deep": "#9C5A1E",
-    "secondary": "#3E7CA6", "muted": "#5A6B78", "muted_on_dark": "#9FB3C0", "card": "#FFFFFF",
-    "card_on_dark": "#1C2E3D", "line": "#DDE2E1", "line_on_dark": "#2C4356", "tint": "#FBF3EA",
+    "dark": "#13202B",
+    "light": "#F6F7F5",
+    "accent": "#C8762E",
+    "accent_deep": "#9C5A1E",
+    "secondary": "#3E7CA6",
+    "muted": "#5A6B78",
+    "muted_on_dark": "#9FB3C0",
+    "card": "#FFFFFF",
+    "card_on_dark": "#1C2E3D",
+    "line": "#DDE2E1",
+    "line_on_dark": "#2C4356",
+    "tint": "#FBF3EA",
 }
 DEFAULT_TYPE: Dict[str, int] = {
-    "display": 160, "h1": 80, "h2": 64, "h3": 32, "body": 32, "lede": 32, "kicker": 32, "quote": 64,
-    "number": 160, "number_inline": 80, "caption": 24, "eyebrow": 24, "code": 24, "receipt": 24,
-    "node": 24, "label": 24,
+    "display": 160,
+    "h1": 80,
+    "h2": 64,
+    "h3": 32,
+    "body": 32,
+    "lede": 32,
+    "kicker": 32,
+    "quote": 64,
+    "number": 160,
+    "number_inline": 80,
+    "caption": 24,
+    "eyebrow": 24,
+    "code": 24,
+    "receipt": 24,
+    "node": 24,
+    "label": 24,
 }
 DEFAULT_FONTS: Dict[str, Any] = {
     "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600"
-            "&family=JetBrains+Mono:wght@400;500&display=swap",
+    "&family=JetBrains+Mono:wght@400;500&display=swap",
     "families": ["IBM Plex Sans", "JetBrains Mono"],
 }
 #: per type role: (weight, line-height, face, letter-spacing in logical units)
 TYPE_STYLE: Dict[str, Tuple[int, float, str, int]] = {
-    "display": (600, 1.0, "sans", -4), "h1": (600, 1.1, "sans", -2), "h2": (600, 1.1, "sans", -1),
-    "h3": (600, 1.2, "sans", 0), "body": (400, 1.45, "sans", 0), "lede": (400, 1.4, "sans", 0),
-    "kicker": (400, 1.45, "sans", 0), "quote": (400, 1.2, "sans", 0), "number": (600, 1.0, "mono", 0),
-    "number_inline": (600, 1.0, "mono", 0), "caption": (400, 1.4, "sans", 0),
-    "eyebrow": (500, 1.2, "mono", 2), "code": (400, 1.55, "mono", 0), "receipt": (400, 1.4, "mono", 0),
-    "node": (500, 1.2, "sans", 0), "label": (400, 1.4, "sans", 0),
+    "display": (600, 1.0, "sans", -4),
+    "h1": (600, 1.1, "sans", -2),
+    "h2": (600, 1.1, "sans", -1),
+    "h3": (600, 1.2, "sans", 0),
+    "body": (400, 1.45, "sans", 0),
+    "lede": (400, 1.4, "sans", 0),
+    "kicker": (400, 1.45, "sans", 0),
+    "quote": (400, 1.2, "sans", 0),
+    "number": (600, 1.0, "mono", 0),
+    "number_inline": (600, 1.0, "mono", 0),
+    "caption": (400, 1.4, "sans", 0),
+    "eyebrow": (500, 1.2, "mono", 2),
+    "code": (400, 1.55, "mono", 0),
+    "receipt": (400, 1.4, "mono", 0),
+    "node": (500, 1.2, "sans", 0),
+    "label": (400, 1.4, "sans", 0),
 }
-GAP = 32                       # the flow gap between blocks on every template
-DIAGRAM_GAP = 16               # 70 + 16 + 700 = 786 of the 792 budget (diagrams.md)
+GAP = 32  # the flow gap between blocks on every template
+DIAGRAM_GAP = 16  # 70 + 16 + 700 = 786 of the 792 budget (diagrams.md)
 STACK_TEMPLATES = ("cover", "section", "statement", "closing")
 HEADLINE_TAG = {"display": "h1", "h1": "h1", "h2": "h2", "h3": "h3"}
-DEFAULT_HEADLINE_ROLE = {"cover": "display", "section": "h1", "statement": "h1", "closing": "h1",
-                         "content": "h2", "diagram": "h2", "comparison": "h2"}
-BUS_OFFSET = 24                # diagram-recipes.md: the bus bar sits 24 before the children's edge
-HEAD_SHORTEN = 3               # diagrams.md: end a headed line 2-3 short of the target edge
+DEFAULT_HEADLINE_ROLE = {
+    "cover": "display",
+    "section": "h1",
+    "statement": "h1",
+    "closing": "h1",
+    "content": "h2",
+    "diagram": "h2",
+    "comparison": "h2",
+}
+BUS_OFFSET = 24  # diagram-recipes.md: the bus bar sits 24 before the children's edge
+HEAD_SHORTEN = 3  # diagrams.md: end a headed line 2-3 short of the target edge
 
 
 def esc(text: Any) -> str:
@@ -85,16 +125,43 @@ def tokens(scene: dict) -> dict:
 def surface(background: str, palette: Dict[str, str]) -> Dict[str, str]:
     """What each role means on this background (projection idiom: colours by surface)."""
     p = palette
-    common = {"accent": p["accent"], "secondary": p["secondary"], "tint": p["tint"],
-              "tint_text": p["dark"], "tint_muted": p["muted"], "name": background}
+    common = {
+        "accent": p["accent"],
+        "secondary": p["secondary"],
+        "tint": p["tint"],
+        "tint_text": p["dark"],
+        "tint_muted": p["muted"],
+        "name": background,
+    }
     if background == "dark":
-        return {**common, "background": p["dark"], "text": p["light"], "muted": p["muted_on_dark"],
-                "card": p["card_on_dark"], "line": p["line_on_dark"], "eyebrow": p["accent"]}
+        return {
+            **common,
+            "background": p["dark"],
+            "text": p["light"],
+            "muted": p["muted_on_dark"],
+            "card": p["card_on_dark"],
+            "line": p["line_on_dark"],
+            "eyebrow": p["accent"],
+        }
     if background == "accent":
-        return {**common, "background": p["accent"], "text": p["dark"], "muted": p["dark"],
-                "card": p["tint"], "line": p["accent_deep"], "eyebrow": p["dark"]}
-    return {**common, "background": p["light"], "text": p["dark"], "muted": p["muted"],
-            "card": p["card"], "line": p["line"], "eyebrow": p["accent_deep"]}
+        return {
+            **common,
+            "background": p["accent"],
+            "text": p["dark"],
+            "muted": p["dark"],
+            "card": p["tint"],
+            "line": p["accent_deep"],
+            "eyebrow": p["dark"],
+        }
+    return {
+        **common,
+        "background": p["light"],
+        "text": p["dark"],
+        "muted": p["muted"],
+        "card": p["card"],
+        "line": p["line"],
+        "eyebrow": p["accent_deep"],
+    }
 
 
 def tone_colour(tone: Optional[str], surf: Dict[str, str], default: Optional[str] = None) -> str:
@@ -202,8 +269,9 @@ def _box(n: dict) -> Tuple[float, float, float, float]:
 
 def _mid(n: dict, side: str) -> Tuple[float, float]:
     x, y, w, h = _box(n)
-    return {"left": (x, y + h / 2), "right": (x + w, y + h / 2),
-            "top": (x + w / 2, y), "bottom": (x + w / 2, y + h)}[side]
+    return {"left": (x, y + h / 2), "right": (x + w, y + h / 2), "top": (x + w / 2, y), "bottom": (x + w / 2, y + h)}[
+        side
+    ]
 
 
 def _overlap_x(a: dict, b: dict) -> bool:
@@ -299,8 +367,17 @@ def shorten(points: Sequence[Tuple[float, float]], head: str, by: float = HEAD_S
 
 
 def _conn(x1, y1, x2, y2, *, head="end", route="straight", dashed=False, tone=None, kind="edge") -> dict:
-    return {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "head": head, "route": route,
-            "dashed": bool(dashed), "tone": tone, "kind": kind}
+    return {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "head": head,
+        "route": route,
+        "dashed": bool(dashed),
+        "tone": tone,
+        "kind": kind,
+    }
 
 
 def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
@@ -334,8 +411,7 @@ def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
 
     def stub_kw(sink: dict) -> dict:
         s = stubs.get(sink.get("id")) or {}
-        return {"head": s.get("head") or head, "dashed": bool(s.get("dashed", dashed)),
-                "tone": s.get("tone") or tone}
+        return {"head": s.get("head") or head, "dashed": bool(s.get("dashed", dashed)), "tone": s.get("tone") or tone}
 
     if below or above:
         p_edge = max(y + h for _, y, _, h in s_boxes) if below else min(y for _, y, _, _ in s_boxes)
@@ -382,20 +458,42 @@ def diagram_geometry(diagram: dict) -> dict:
             continue
         route = e.get("route") or "straight"
         x1, y1, x2, y2 = edge_points(nodes[e["from"]], nodes[e["to"]], route)
-        connectors.append(_conn(x1, y1, x2, y2, head=e.get("head") or "end", route=route,
-                                dashed=bool(e.get("dashed")), tone=e.get("tone"), kind="edge"))
+        connectors.append(
+            _conn(
+                x1,
+                y1,
+                x2,
+                y2,
+                head=e.get("head") or "end",
+                route=route,
+                dashed=bool(e.get("dashed")),
+                tone=e.get("tone"),
+                kind="edge",
+            )
+        )
     for b in diagram.get("buses") or []:
         if isinstance(b, dict):
             connectors.extend(bus_parts(b, nodes))
     paths = []
     for p in diagram.get("paths") or []:
         if isinstance(p, dict) and isinstance(p.get("points"), list):
-            paths.append({"id": p.get("id"), "points": [(float(x), float(y)) for x, y in p["points"]],
-                          "head": p.get("head") or "none", "dashed": bool(p.get("dashed")), "tone": p.get("tone")})
-    return {"lanes": [l for l in diagram.get("lanes") or [] if isinstance(l, dict)],
-            "nodes": list(nodes.values()), "connectors": connectors, "paths": paths,
-            "labels": [l for l in diagram.get("labels") or [] if isinstance(l, dict)],
-            "aria_label": diagram.get("aria_label")}
+            paths.append(
+                {
+                    "id": p.get("id"),
+                    "points": [(float(x), float(y)) for x, y in p["points"]],
+                    "head": p.get("head") or "none",
+                    "dashed": bool(p.get("dashed")),
+                    "tone": p.get("tone"),
+                }
+            )
+    return {
+        "lanes": [l for l in diagram.get("lanes") or [] if isinstance(l, dict)],
+        "nodes": list(nodes.values()),
+        "connectors": connectors,
+        "paths": paths,
+        "labels": [l for l in diagram.get("labels") or [] if isinstance(l, dict)],
+        "aria_label": diagram.get("aria_label"),
+    }
 
 
 def fmt(n: float) -> str:

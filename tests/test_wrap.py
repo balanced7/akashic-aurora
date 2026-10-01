@@ -3,6 +3,7 @@
 
 Run: py tests/test_wrap.py   (or via pytest)
 """
+
 import os
 import sys
 from types import SimpleNamespace
@@ -37,6 +38,7 @@ def test_caps_per_section():
 
 def test_write_last_session_draft_to_file():
     import tempfile
+
     d = tempfile.mkdtemp()
     path = os.path.join(d, "chronicles", "last-session-draft.md")
     commits = [("abc123", "ship: gated slice")]

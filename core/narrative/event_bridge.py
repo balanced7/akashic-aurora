@@ -12,6 +12,7 @@ Layering: this is System 4. It may import BOTH the narrative schema (same layer)
 domain EventQuery (lower) -- which is exactly why span->events resolution lives HERE and
 not in core/events (a domain primitive must not depend upward on the narrative).
 """
+
 import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
@@ -20,7 +21,7 @@ from core.foundation.store import Store, create_store
 from core.foundation.timeutil import now_iso
 from core.events.event_query import EventQuery, get_event_query
 
-DEFAULT_WINDOW_SECONDS = 1800   # +/- 30 min around a point (Beat / timestamp)
+DEFAULT_WINDOW_SECONDS = 1800  # +/- 30 min around a point (Beat / timestamp)
 
 
 def _parse_iso(s) -> Optional[datetime]:
@@ -44,8 +45,7 @@ def parse_window(spec, default: int = DEFAULT_WINDOW_SECONDS) -> int:
         return default
 
 
-def resolve_span(ref: str, *, store: Store,
-                 window_seconds: int = DEFAULT_WINDOW_SECONDS) -> Optional[Tuple[str, str]]:
+def resolve_span(ref: str, *, store: Store, window_seconds: int = DEFAULT_WINDOW_SECONDS) -> Optional[Tuple[str, str]]:
     """Resolve a chapter id / beat id / ISO timestamp to an (start_iso, end_iso) span.
 
     - chapter id -> its [span_start, span_end] (open chapter -> end = now)
@@ -60,7 +60,7 @@ def resolve_span(ref: str, *, store: Store,
         try:
             ch = Chapter.from_dict(json.loads(raw))
             if ch.span_start:
-                return ch.span_start, (ch.span_end or now_iso())   # T119: aware UTC
+                return ch.span_start, (ch.span_end or now_iso())  # T119: aware UTC
         except (ValueError, TypeError, KeyError):
             pass
 
@@ -81,15 +81,20 @@ def resolve_span(ref: str, *, store: Store,
 
 
 def _around(t: datetime, window_seconds: int) -> Tuple[str, str]:
-    return ((t - timedelta(seconds=window_seconds)).isoformat(),
-            (t + timedelta(seconds=window_seconds)).isoformat())
+    return ((t - timedelta(seconds=window_seconds)).isoformat(), (t + timedelta(seconds=window_seconds)).isoformat())
 
 
-def events_around(ref: str, *, store: Optional[Store] = None,
-                  window_seconds: int = DEFAULT_WINDOW_SECONDS,
-                  kind: Optional[str] = None, agent: Optional[str] = None,
-                  track: Optional[str] = None, limit: Optional[int] = None,
-                  event_query: Optional[EventQuery] = None) -> Dict[str, Any]:
+def events_around(
+    ref: str,
+    *,
+    store: Optional[Store] = None,
+    window_seconds: int = DEFAULT_WINDOW_SECONDS,
+    kind: Optional[str] = None,
+    agent: Optional[str] = None,
+    track: Optional[str] = None,
+    limit: Optional[int] = None,
+    event_query: Optional[EventQuery] = None,
+) -> Dict[str, Any]:
     """The raw events under a chapter / beat / timestamp. Returns {span, events}. Never raises."""
     try:
         store = store if store is not None else create_store()
@@ -104,9 +109,13 @@ def events_around(ref: str, *, store: Optional[Store] = None,
         return {"span": None, "events": []}
 
 
-def raw_for_beat(beat_id: str, *, store: Optional[Store] = None,
-                 window_seconds: int = DEFAULT_WINDOW_SECONDS,
-                 event_query: Optional[EventQuery] = None) -> Dict[str, Any]:
+def raw_for_beat(
+    beat_id: str,
+    *,
+    store: Optional[Store] = None,
+    window_seconds: int = DEFAULT_WINDOW_SECONDS,
+    event_query: Optional[EventQuery] = None,
+) -> Dict[str, Any]:
     """A Beat's own raw atom (if its `source` is an event: pointer) PLUS the raw events
     around its time. Returns {atom, span, events}. Never raises."""
     try:
@@ -114,6 +123,7 @@ def raw_for_beat(beat_id: str, *, store: Optional[Store] = None,
         eq = event_query if event_query is not None else get_event_query()
         atom = None
         from core.narrative.schema import Beat, beat_key
+
         raw = store.get(beat_key(beat_id))
         if raw:
             try:

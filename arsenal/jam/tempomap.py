@@ -27,6 +27,7 @@ functions read). `defs` is one def, used for every def_version, or a mapping def
 
 Pure: nothing here reads a clock. Page time is perf = epoch - offset; session time is t_ms = perf - log.t0_perf_ms.
 """
+
 from __future__ import annotations
 
 import math
@@ -34,7 +35,7 @@ from typing import Dict, List, Mapping, Optional, Sequence
 
 EPS_BEATS = 1e-5
 EPS_MS = 1e-3
-CHANGE_LEAD_MS = 250.0     # a change lands on the first line at least 1 beat + 250 ms after the server has it (9.4, C3)
+CHANGE_LEAD_MS = 250.0  # a change lands on the first line at least 1 beat + 250 ms after the server has it (9.4, C3)
 HANDOFF_MARGIN_MS = 150.0  # the page hands bar n to the player 1 beat + 150 ms before it (9.3)
 AT_LINES = ("now", "beat", "bar", "pass")
 _MAX_STEPS = 100000
@@ -165,18 +166,38 @@ def position(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float, defs
     slots = d.get("slots") or []
     slot = None if counting_in else slot_at(slots, cb)
     rest = True if slot is None else cb + EPS_BEATS >= slots[slot]["at_beat"] + slots[slot]["beats"]
-    return {"bar": bar, "beat": beat, "pass": p, "cycle_beat": cb, "slot": slot, "rest": rest,
-            "counting_in": counting_in, "def_version": s["def_version"], "bpm": s["bpm"]}
+    return {
+        "bar": bar,
+        "beat": beat,
+        "pass": p,
+        "cycle_beat": cb,
+        "slot": slot,
+        "rest": rest,
+        "counting_in": counting_in,
+        "def_version": s["def_version"],
+        "bpm": s["bpm"],
+    }
 
 
 def first_segment(start_epoch_ms: float, bpm: float, count_in: int = 1, def_version: int = 1) -> Dict:
     """A run's first segment: the count-in starts at start_epoch_ms, so bar 0 is count_in bars later (9.2)."""
-    return {"from_bar": -count_in, "bpm": bpm, "epoch_ms": start_epoch_ms, "def_version": def_version,
-            "def_from_bar": 0}
+    return {
+        "from_bar": -count_in,
+        "bpm": bpm,
+        "epoch_ms": start_epoch_ms,
+        "def_version": def_version,
+        "def_from_bar": 0,
+    }
 
 
-def add_segment(segments: Sequence[dict], beats_per_bar: int, bar: int, bpm: Optional[float] = None,
-                def_version: Optional[int] = None, def_from_bar: Optional[int] = None) -> List[dict]:
+def add_segment(
+    segments: Sequence[dict],
+    beats_per_bar: int,
+    bar: int,
+    bpm: Optional[float] = None,
+    def_version: Optional[int] = None,
+    def_from_bar: Optional[int] = None,
+) -> List[dict]:
     """A new list with a change at bar `bar`: its epoch is t_epoch(bar) under the segment in effect there. Fields left
     None keep the last segment's; a new def_version starts its cycle at `bar` unless def_from_bar says otherwise. A
     change on the last segment's own bar replaces that segment (same epoch). The input list is not modified."""
@@ -187,8 +208,13 @@ def add_segment(segments: Sequence[dict], beats_per_bar: int, bar: int, bpm: Opt
     version = last["def_version"] if def_version is None else def_version
     if def_from_bar is None:
         def_from_bar = last["def_from_bar"] if version == last["def_version"] else bar
-    new = {"from_bar": bar, "bpm": last["bpm"] if bpm is None else bpm,
-           "epoch_ms": t_epoch(segments, beats_per_bar, bar), "def_version": version, "def_from_bar": def_from_bar}
+    new = {
+        "from_bar": bar,
+        "bpm": last["bpm"] if bpm is None else bpm,
+        "epoch_ms": t_epoch(segments, beats_per_bar, bar),
+        "def_version": version,
+        "def_from_bar": def_from_bar,
+    }
     out = [dict(s) for s in segments]
     if bar == last["from_bar"]:
         out[-1] = new
@@ -205,8 +231,14 @@ def _pass_top(segments: Sequence[dict], beats_per_bar: int, bar: int, defs) -> b
     return ((bar - s["def_from_bar"]) * beats_per_bar) % c == 0
 
 
-def next_line(segments: Sequence[dict], beats_per_bar: int, received_epoch_ms: float, at: str = "bar", defs=None,
-              lead_ms: float = CHANGE_LEAD_MS) -> Dict:
+def next_line(
+    segments: Sequence[dict],
+    beats_per_bar: int,
+    received_epoch_ms: float,
+    at: str = "bar",
+    defs=None,
+    lead_ms: float = CHANGE_LEAD_MS,
+) -> Dict:
     """The landing rule (C3, 9.4): {bar, beat, epoch_ms} where a change the server received at received_epoch_ms
     takes effect. `now`: at once. `beat`, `bar`, `pass`: the first beat line, bar line or pass top (needs defs) at least
     one beat, at the tempo sounding on receipt, plus lead_ms after it."""
@@ -232,14 +264,17 @@ def next_line(segments: Sequence[dict], beats_per_bar: int, received_epoch_ms: f
     else:
         for _ in range(_MAX_STEPS):
             e = t_epoch(segments, beats_per_bar, bar)
-            if e - received_epoch_ms >= need - EPS_MS and (at == "bar" or _pass_top(segments, beats_per_bar, bar, defs)):
+            if e - received_epoch_ms >= need - EPS_MS and (
+                at == "bar" or _pass_top(segments, beats_per_bar, bar, defs)
+            ):
                 return {"bar": bar, "beat": 0, "epoch_ms": e}
             bar += 1
     raise TempoMapError(f"no {at} line within {_MAX_STEPS} steps")
 
 
-def handoff_epoch(segments: Sequence[dict], beats_per_bar: int, bar: int,
-                  margin_ms: float = HANDOFF_MARGIN_MS) -> float:
+def handoff_epoch(
+    segments: Sequence[dict], beats_per_bar: int, bar: int, margin_ms: float = HANDOFF_MARGIN_MS
+) -> float:
     """H(n) (9.3): when bar n, with its pickups on bar n-1's last beat, goes to the player. One beat is measured at bar
     n-1's tempo, where the pickups sit, so a tempo change at bar n still leaves margin_ms before the first pickup."""
     return t_epoch(segments, beats_per_bar, bar) - (60000 / segment_at(segments, bar - 1)["bpm"] + margin_ms)
@@ -249,7 +284,11 @@ def session_t_ms(segments: Sequence[dict], beats_per_bar: int, bar: int, beat: f
     """Session t_ms of a bar position from one clock pair, extended by the map (11.2). At L1 the anchor is the ack:
     {bar_epoch_ms, perf_ms, t0_perf_ms: ack.log.t0_perf_ms}; at L2 t0_perf_ms comes from the session meta; at L3/L4
     pass {bar_epoch_ms: 0, perf_ms: 0, t0_perf_ms: the session's open time in epoch ms}."""
-    return anchor["perf_ms"] - anchor["t0_perf_ms"] + (t_epoch(segments, beats_per_bar, bar, beat) - anchor["bar_epoch_ms"])
+    return (
+        anchor["perf_ms"]
+        - anchor["t0_perf_ms"]
+        + (t_epoch(segments, beats_per_bar, bar, beat) - anchor["bar_epoch_ms"])
+    )
 
 
 def perf_of(epoch_ms: float, offset_ms: float) -> float:

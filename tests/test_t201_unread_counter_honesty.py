@@ -33,6 +33,7 @@ unseen remainder back rather than hiding it.
 
 Run: py -m pytest tests/test_t201_unread_counter_honesty.py -q
 """
+
 import os
 import sys
 
@@ -50,10 +51,13 @@ def _m(kind, frm="conductor", content="x"):
 @pytest.fixture
 def fake_collect(monkeypatch):
     """Swap the bus read so the counter is tested on constructed evidence, never live."""
+
     def _install(pending, messages):
         def fake(agent_id, limit=8):
             return {"pending": pending, "messages": messages}
+
         monkeypatch.setattr("agent.bifrost_pull.collect_boot_bifrost", fake)
+
     return _install
 
 
@@ -66,14 +70,12 @@ def test_control_plane_echoes_do_not_count(fake_collect):
 
 
 def test_real_mail_still_counts(fake_collect):
-    fake_collect(3, [_m("request", frm="daniil"), _m("handoff", frm="deepseek"),
-                     _m("ledger_update")])
+    fake_collect(3, [_m("request", frm="daniil"), _m("handoff", frm="deepseek"), _m("ledger_update")])
     assert ctx._unread_count("claude") == 2
 
 
 def test_mixed_counts_only_the_actionable(fake_collect):
-    fake_collect(4, [_m("reply", frm="deepseek"), _m("trace"), _m("resolved"),
-                     _m("ledger_update")])
+    fake_collect(4, [_m("reply", frm="deepseek"), _m("trace"), _m("resolved"), _m("ledger_update")])
     assert ctx._unread_count("claude") == 1
 
 
@@ -97,10 +99,11 @@ def test_no_third_filter_is_invented():
     """One definition, three surfaces. A local literal set here would drift from the
     watcher and the consume door -- exactly the divergence T198 documents."""
     import inspect
+
     src = inspect.getsource(ctx._unread_count)
     assert "PENDING_SKIP_KINDS" in src, (
-        "reuse the shared constant; a hand-written kind set here becomes the third "
-        "meaning of 'unread'")
+        "reuse the shared constant; a hand-written kind set here becomes the third meaning of 'unread'"
+    )
     for literal in ('"ledger_update"', "'ledger_update'", '"resolved"', "'resolved'"):
         assert literal not in src, "no inline kind literals -- that is a new filter"
 
@@ -108,8 +111,10 @@ def test_no_third_filter_is_invented():
 def test_counter_never_raises_into_the_hook(fake_collect, monkeypatch):
     """The whisper is fail-soft by contract: an unreachable bus means no line, never a
     broken turn."""
+
     def boom(agent_id, limit=8):
         raise RuntimeError("bus down")
+
     monkeypatch.setattr("agent.bifrost_pull.collect_boot_bifrost", boom)
     assert ctx._unread_count("claude") == 0
 
@@ -117,9 +122,12 @@ def test_counter_never_raises_into_the_hook(fake_collect, monkeypatch):
 def test_missing_messages_key_falls_back_to_pending(fake_collect):
     """An older/partial payload without a rendered list must not silently report 0 --
     absence of the list is not evidence of absence of mail."""
+
     def fake(agent_id, limit=8):
         return {"pending": 5}
+
     import agent.bifrost_pull as bp
+
     orig = bp.collect_boot_bifrost
     bp.collect_boot_bifrost = fake
     try:

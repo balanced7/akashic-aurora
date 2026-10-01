@@ -3,6 +3,7 @@ generated chronicles/memory.md digest is a derived projection (never hand-edited
 
 Run: py tests/test_notes.py   (or via pytest)
 """
+
 import os
 import sys
 import tempfile
@@ -33,7 +34,7 @@ def test_note_records_and_supersedes():
 def test_project_notes_renders_active_only():
     mem = _mem()
     a = mem.decide(title="alpha", decision="first state")
-    mem.decide(title="alpha", decision="second state", supersedes=a)   # supersede first
+    mem.decide(title="alpha", decision="second state", supersedes=a)  # supersede first
     mem.decide(title="beta", decision="another note")
     path = agent_cli.project_notes(memory=mem, chronicle_dir=tempfile.mkdtemp())
     text = open(path, encoding="utf-8").read()

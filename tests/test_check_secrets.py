@@ -21,6 +21,7 @@ content is NOT recorded. That entry stays visible, with its reason attached.
 
 Run: py -m pytest tests/test_check_secrets.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -41,8 +42,7 @@ FAKE_GH = "ghp_" + "0123456789abcdefghijABCDEFGHIJ0123456789"[:36]
 
 
 def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True,
-                          text=True).stdout
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True).stdout
 
 
 @pytest.fixture()
@@ -110,7 +110,7 @@ def test_p4_an_allowlist_entry_carries_its_reason(repo):
     assert rep["allowlist_reasons"][0], "and it carries the reason forward into the report"
 
     with pytest.raises(ValueError):
-        CS.scan_tracked(repo, allowlist={"canary.py": ""})   # bare path, no reason
+        CS.scan_tracked(repo, allowlist={"canary.py": ""})  # bare path, no reason
 
 
 # ---------------------------------------------------------------- P5: deletion does not help
@@ -156,10 +156,12 @@ def test_p8_the_pre_push_gate_actually_runs_this_scanner():
     by-name spot-check passed the whole time. A detector no gate runs is decoration.
 
     Asserts the hook INVOKES the scanner, not merely that both files exist."""
-    hook = (Path(__file__).resolve().parents[1] / "scripts" / "githooks" / "pre-push")
+    hook = Path(__file__).resolve().parents[1] / "scripts" / "githooks" / "pre-push"
     body = hook.read_text(encoding="utf-8", errors="replace")
     assert "check_secrets.py" in body, "the pre-push gate does not run the secret scanner"
     assert "if ! pyrun scripts/checkers/check_secrets.py" in body, (
-        "present but not GATING -- it must block the push, not merely be mentioned")
+        "present but not GATING -- it must block the push, not merely be mentioned"
+    )
     assert "exit 1" in body.split("check_secrets.py", 1)[1][:600], (
-        "the scanner runs but its failure does not stop the push")
+        "the scanner runs but its failure does not stop the push"
+    )

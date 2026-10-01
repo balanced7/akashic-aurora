@@ -16,6 +16,7 @@ Exit codes (what the scheduler's LastTaskResult means): 0 = silent-and-correct O
 delivered; 1 = an alarm was DUE and the webhook POST failed -- 0x1 in Task Scheduler is
 always "the deadman tried to speak and could not", never a healthy path.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,8 +36,9 @@ def _webhook() -> str:
     post to a real Discord surface because of one."""
     try:
         from core.comm.secret_intake import secrets_dir
+
         return (secrets_dir() / "discord_webhook.url").read_text(encoding="utf-8").strip()
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return ""
 
 
@@ -47,12 +49,14 @@ def _post(text: str) -> bool:
     try:
         body = json.dumps({"content": text[:1900]}).encode("utf-8")
         # Discord's Cloudflare front 403s (error 1010) the default Python-urllib signature.
-        req = urllib.request.Request(url, data=body,
-                                     headers={"Content-Type": "application/json",
-                                              "User-Agent": "AkashicFailsafe/1 (deadman watcher)"})
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json", "User-Agent": "AkashicFailsafe/1 (deadman watcher)"},
+        )
         with urllib.request.urlopen(req, timeout=20) as resp:
             return 200 <= resp.status < 300
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -70,8 +74,11 @@ def main() -> int:
         # Silence is the overwhelmingly common outcome and it is CORRECT. Say so only on --dry,
         # so the scheduled run leaves no noise behind.
         if args.dry:
-            state = "no expectation on disk" if doc is None else (
-                "stood down" if not doc.get("active") else "checkpoint fresh")
+            state = (
+                "no expectation on disk"
+                if doc is None
+                else ("stood down" if not doc.get("active") else "checkpoint fresh")
+            )
             print(f"[failsafe] silent -- {state}")
         return 0
 
@@ -81,7 +88,7 @@ def main() -> int:
 
     posted = _post(alarm)
     if posted:
-        F.mark_alarmed(path)             # start the cooldown only once it actually went out
+        F.mark_alarmed(path)  # start the cooldown only once it actually went out
     print(f"[failsafe] {'posted' if posted else 'POST FAILED'}: {alarm}")
     return 0 if posted else 1
 

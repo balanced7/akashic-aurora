@@ -17,20 +17,21 @@ a boulder is not more hammers.
 
 Run: py -m pytest tests/test_bifrost_send_sender_guard.py -q
 """
+
 import pytest
 
 from core.comm import sender_guard as SG
 
 
 def test_a_normal_seat_id_passes():
-    for ok in ("claude", "deepseek", "kimi", "sol", "dsh_agent", "codex_root",
-               "opus-engineer", "gpt-new"):
+    for ok in ("claude", "deepseek", "kimi", "sol", "dsh_agent", "codex_root", "opus-engineer", "gpt-new"):
         assert SG.check_sender(ok) is None, f"{ok!r} is a real seat id and must pass"
 
 
 def test_a_sentence_as_sender_is_refused_and_names_the_fix():
-    msg = SG.check_sender("Found it, and it was MY bug -- every reply I sent you was "
-                          "malformed because the ordering bit me")
+    msg = SG.check_sender(
+        "Found it, and it was MY bug -- every reply I sent you was malformed because the ordering bit me"
+    )
     assert msg, "prose as a sender id must refuse, not send"
     assert "--text-file" in msg, "the refusal must name the rule that prevents it"
     assert "sender" in msg.lower()
@@ -39,8 +40,10 @@ def test_a_sentence_as_sender_is_refused_and_names_the_fix():
 def test_the_exact_shape_that_cost_the_hour():
     # The real payload: options, then a long body, then the seat name. argparse binds the
     # body to agent_id. This is the case the gate exists for.
-    body = ("WHERE WE ARE (and this message is itself the receipt -- it went out the "
-            "normal bus path, no hand-pumping): your 20 agents broke NOTHING. " * 6)
+    body = (
+        "WHERE WE ARE (and this message is itself the receipt -- it went out the "
+        "normal bus path, no hand-pumping): your 20 agents broke NOTHING. " * 6
+    )
     assert SG.check_sender(body), "the 1000-char sender must never reach the webhook"
 
 

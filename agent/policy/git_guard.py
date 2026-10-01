@@ -11,6 +11,7 @@ and agent/harness/hooks/cursor_beforeshell.py -- call check_git_command() so the
 cannot drift between Claude and Cursor. Enforcement lives in the harness (the hook),
 not in the agent's memory, because agents skip docs.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,9 +23,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 # args to `git add` that stage indiscriminately
 _ADD_BLANKET = {"-A", "--all", ".", ":/", ":"}
@@ -35,7 +38,7 @@ _REASON = (
     "(the FM1 failure, 2026-06-28). Stage what is YOURS explicitly:\n"
     "  git add <path...>   then commit\n"
     f'  or  {_pyl()} scripts/mirror.py "msg" <path...> --commit   (claude seat or Daniel)\n'
-    f"Need to sweep everything anyway? `{_pyl()} scripts/mirror.py \"msg\" --all --commit` is the "
+    f'Need to sweep everything anyway? `{_pyl()} scripts/mirror.py "msg" --all --commit` is the '
     "explicit opt-in. See docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md (Layer 2 / C0)."
 )
 
@@ -65,7 +68,7 @@ def check_git_command(command: str) -> Tuple[bool, str]:
             toks = _tokens(seg)
             if "git" not in toks:
                 continue
-            rest = toks[toks.index("git") + 1:]   # tolerate env-var prefixes before `git`
+            rest = toks[toks.index("git") + 1 :]  # tolerate env-var prefixes before `git`
             if len(rest) < 1:
                 continue
             sub, args = rest[0], rest[1:]
@@ -78,5 +81,5 @@ def check_git_command(command: str) -> Tuple[bool, str]:
                     if a.startswith("-") and not a.startswith("--") and "a" in a[1:]:
                         return False, _REASON.format(hit="git commit " + a)
     except Exception:
-        return True, ""   # a guard must never brick the agent -> fail open
+        return True, ""  # a guard must never brick the agent -> fail open
     return True, ""

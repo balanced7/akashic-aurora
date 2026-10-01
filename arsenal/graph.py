@@ -3,6 +3,7 @@
 JSON is the canonical form. parse_text() reads the one-line-per-statement text form and returns
 that same JSON. Validation refuses at connect time and says why in words a person can act on.
 """
+
 from __future__ import annotations
 
 import copy
@@ -50,9 +51,13 @@ class Graph:
 
     def to_json(self) -> dict:
         return {
-            "api": self.api, "name": self.name, "mode": self.mode,
-            "assets": copy.deepcopy(self.assets), "nodes": copy.deepcopy(self.nodes),
-            "edges": [list(e) for e in self.edges], "bindings": copy.deepcopy(self.bindings),
+            "api": self.api,
+            "name": self.name,
+            "mode": self.mode,
+            "assets": copy.deepcopy(self.assets),
+            "nodes": copy.deepcopy(self.nodes),
+            "edges": [list(e) for e in self.edges],
+            "bindings": copy.deepcopy(self.bindings),
         }
 
     def module_of(self, node: str) -> Optional[str]:
@@ -89,8 +94,10 @@ class Graph:
                 continue
             feeds.setdefault(dst, []).append(src)
             if out_port["type"] != in_port["type"]:
-                problems.append(f"edge {src} -> {dst}: type mismatch: {src} gives {out_port['type']} "
-                                f"but {dst} needs {in_port['type']}")
+                problems.append(
+                    f"edge {src} -> {dst}: type mismatch: {src} gives {out_port['type']} "
+                    f"but {dst} needs {in_port['type']}"
+                )
                 continue
             for reason in check_caps(out_port.get("caps"), in_port.get("caps")):
                 problems.append(f"edge {src} -> {dst}: caps {reason}")
@@ -141,8 +148,11 @@ class Graph:
         src, dst = binding.get("from"), binding.get("to")
         label = f"binding {src} -> {dst}"
         smooth = binding.get("smooth")
-        if smooth is not None and not (isinstance(smooth, dict) and set(smooth) == {"attack_ms", "release_ms"}
-                                       and all(_is_int(v) and v >= 0 for v in smooth.values())):
+        if smooth is not None and not (
+            isinstance(smooth, dict)
+            and set(smooth) == {"attack_ms", "release_ms"}
+            and all(_is_int(v) and v >= 0 for v in smooth.values())
+        ):
             problems.append(f"{label}: smooth must be {{attack_ms, release_ms}} in whole milliseconds")
         if "precedence" in binding and not _is_int(binding["precedence"]):
             problems.append(f"{label}: precedence must be a whole number")
@@ -180,8 +190,11 @@ class Graph:
         if rng is None:
             return
         lo_p, hi_p = param["range"]
-        if not (isinstance(rng, (list, tuple)) and len(rng) == 2
-                and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in rng)):
+        if not (
+            isinstance(rng, (list, tuple))
+            and len(rng) == 2
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in rng)
+        ):
             problems.append(f"{label}: range must be [lo, hi]")
         elif rng[0] > rng[1]:
             problems.append(f"{label}: range {rng} runs backwards")
@@ -201,7 +214,7 @@ class Graph:
             stack.append(n)
             for m in succ[n]:
                 if state.get(m) == 1:
-                    return stack[stack.index(m):] + [m]
+                    return stack[stack.index(m) :] + [m]
                 if m not in state:
                     found = visit(m)
                     if found:
@@ -245,9 +258,15 @@ def load_graph(obj) -> Graph:
         bindings = []
     if problems:
         raise GraphError(problems)
-    return Graph(api=obj["api"], name=str(obj.get("name") or ""), mode=str(obj.get("mode") or "live_audio"),
-                 assets=copy.deepcopy(obj.get("assets") or {}), nodes=copy.deepcopy(nodes),
-                 edges=edges, bindings=copy.deepcopy(bindings))
+    return Graph(
+        api=obj["api"],
+        name=str(obj.get("name") or ""),
+        mode=str(obj.get("mode") or "live_audio"),
+        assets=copy.deepcopy(obj.get("assets") or {}),
+        nodes=copy.deepcopy(nodes),
+        edges=edges,
+        bindings=copy.deepcopy(bindings),
+    )
 
 
 # -------------------------------------------------------------------- text form
@@ -299,8 +318,7 @@ def _map_options(body: Optional[str], lineno: int) -> dict:
 def parse_text(src: str, registry: Optional[Registry] = None) -> dict:
     """The text form -> canonical graph JSON. See FIRST-LIGHT-SPEC.md for the grammar."""
     registry = registry or load_registry()
-    graph = {"api": GRAPH_API, "name": "", "mode": "live_audio", "assets": {}, "nodes": {},
-             "edges": [], "bindings": []}
+    graph = {"api": GRAPH_API, "name": "", "mode": "live_audio", "assets": {}, "nodes": {}, "edges": [], "bindings": []}
     for lineno, raw in enumerate(str(src).splitlines(), start=1):
         line = raw.split("#", 1)[0].strip()
         if not line:

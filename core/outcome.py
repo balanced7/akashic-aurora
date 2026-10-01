@@ -34,6 +34,7 @@ Season 1 scoreboard, retry policy, doctor rows and the canary oracle each need a
 per subsystem today. Given one vocabulary they read everything, and a twentieth seat or a new
 scoring axis costs nothing.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -50,6 +51,7 @@ class BoundaryOutcome:
     partial -- the thing happened INCOMPLETELY; `why` says what is missing
     detail  -- optional structured extras; never load-bearing for the verdict
     """
+
     ok: bool
     why: str = ""
     ref: Optional[str] = None
@@ -63,7 +65,8 @@ class BoundaryOutcome:
             raise ValueError(
                 "BoundaryOutcome(ok=False) and BoundaryOutcome(partial=True) require a `why`. A boundary that "
                 "fails silently is the T170 defect: the caller cannot tell 'did not happen' from "
-                "'happened and had nothing to say'.")
+                "'happened and had nothing to say'."
+            )
 
     def __bool__(self) -> bool:
         """Truthy iff it fully happened. `if send(...)` stays readable, and a PARTIAL is falsy --
@@ -91,9 +94,12 @@ class BoundaryOutcome:
         Fail-open is correct: a bad spawn must not kill the daemon loop. Silent fail-open is what
         turned a one-line arity typo into a permanent invisible no-op for weeks (T167).
         """
-        return cls(ok=False, ref=ref,
-                   why=f"{where + ': ' if where else ''}{type(exc).__name__}: {exc}",
-                   detail={"exception": type(exc).__name__})
+        return cls(
+            ok=False,
+            ref=ref,
+            why=f"{where + ': ' if where else ''}{type(exc).__name__}: {exc}",
+            detail={"exception": type(exc).__name__},
+        )
 
     def line(self) -> str:
         """One render, so every surface reports a boundary the same way."""

@@ -6,6 +6,7 @@
 Prints the JSON envelope, ascii-safe. Every call writes a receipt to
 state/coord/web_fetch_receipts.jsonl. Served text is fenced UNTRUSTED.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,8 +38,7 @@ def main() -> int:
 
     a = ap.parse_args()
     if a.cmd == "fetch":
-        env = door.fetch(a.url, offset=a.offset, limit=a.limit,
-                         want_raw=a.raw, pdf_full=a.pdf_full)
+        env = door.fetch(a.url, offset=a.offset, limit=a.limit, want_raw=a.raw, pdf_full=a.pdf_full)
     else:
         env = door.search(" ".join(a.query), count=a.count)
     print(json.dumps(env, ensure_ascii=True, indent=1))

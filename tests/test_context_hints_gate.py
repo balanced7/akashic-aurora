@@ -7,6 +7,7 @@ never on sender-populated meta.
 
 Run: py -m pytest tests/test_context_hints_gate.py -q
 """
+
 import os
 import sys
 
@@ -40,8 +41,9 @@ def test_hint_from_deepseek_folds():
 
 
 def test_hint_with_default_sender_is_dropped():
-    assert not context_hints.push("deepseek", "k", "v"), \
+    assert not context_hints.push("deepseek", "k", "v"), (
         "no sender identity -> quarantined -> refused (deny-by-default)"
+    )
 
 
 def test_member_consultant_cannot_inject_hints():
@@ -58,6 +60,7 @@ def test_member_consultant_cannot_inject_hints():
 # within the key namespace) or surface "N hints dropped" on overflow.
 # Authored by deepseek (tier-2 fenced handoff, bus reply 1783688456583-0);
 # materialized + reviewed by claude.
+
 
 def test_ring_evicts_oldest_under_flood():
     """HINT_MAX_PER_AGENT=8: the 9th hint evicts the oldest. Pin the bound IS 8."""
@@ -78,8 +81,7 @@ def test_ring_eviction_is_silent():
         context_hints.push("silent", f"k{i}", f"v{i}", from_agent="claude")
     hints = context_hints.drain("silent")
     assert len(hints) == 8
-    assert all(int(h["key"][1:]) >= 8 for h in hints), \
-        "first 8 hints silently evicted -- R8 ring-overflow loss"
+    assert all(int(h["key"][1:]) >= 8 for h in hints), "first 8 hints silently evicted -- R8 ring-overflow loss"
 
 
 def test_ring_overflow_does_not_grow_unbounded():
@@ -87,8 +89,7 @@ def test_ring_overflow_does_not_grow_unbounded():
     bounded under sustained pressure (no unbounded growth)."""
     for i in range(1000):
         context_hints.push("sustained", f"k{i % 20}", f"v{i}", from_agent="claude")
-    assert context_hints.pending_count("sustained") <= 8, \
-        "ring stays bounded even under 1000 pushes"
+    assert context_hints.pending_count("sustained") <= 8, "ring stays bounded even under 1000 pushes"
 
 
 def test_hint_sender_trust_gate_still_works_under_flood():

@@ -38,6 +38,7 @@ The adjudication is the reader's, and a fan-out's precision was measured at ~20%
 hand-checked: 2 genuine, 4 false positives, 4 pedantic-but-true). Anything here that reads
 like a conclusion is a bug in the prompt, not a finding.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -53,7 +54,7 @@ from core.outcome import BoundaryOutcome
 #: compare_dossiers. The prior seat's own correction: "use L3 to trigger a triage sample,
 #: never to discard a result", because the 408-way audit's implausible 37% was partly real.
 IMPLAUSIBLE_DISSENT_RATE = 0.40
-IMPLAUSIBLE_MIN_N = 5          # below this, a high rate is small-n noise, not an alarm
+IMPLAUSIBLE_MIN_N = 5  # below this, a high rate is small-n noise, not an alarm
 
 DEFAULT_MAX_OCCURRENCES = 120
 
@@ -75,8 +76,8 @@ _CODE_SUFFIXES = (".py", ".md")
 #: every occurrence rather than resolved silently at scan time.
 PLANES: Dict[str, Tuple[str, ...]] = {
     "source": ("core", "scripts", "agent", "security", "mcp_servers"),
-    "test":   ("tests",),
-    "doc":    ("docs", "charters", "design"),
+    "test": ("tests",),
+    "doc": ("docs", "charters", "design"),
 }
 
 #: Vendored/foreign trees, named rather than pattern-matched so an addition is a decision.
@@ -86,11 +87,34 @@ _VENDOR_DIRS = {"ComfyUI-Zluda", "dockerized-ai", "models", "build", "dist", "no
 #: Records of the past and machine spill. Every term's HISTORY lives here, so including
 #: them makes everything look forked.
 _NOISE_DIRS = {
-    ".git", "__pycache__", ".pytest_cache", ".venv", "venv", "state", "chronicles",
-    "research", "data", "logs", "sessions", "session_logs", "session_snapshots",
-    "session_screenshots", "backups", "backup_wsl_migration", "temp", "scratch", "blobs",
-    "artifacts", "store", "coordinator_logs", "blackboard_data", "dropbox", "refs",
-    "requirements", "assets", "__pycache__",
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".venv",
+    "venv",
+    "state",
+    "chronicles",
+    "research",
+    "data",
+    "logs",
+    "sessions",
+    "session_logs",
+    "session_snapshots",
+    "session_screenshots",
+    "backups",
+    "backup_wsl_migration",
+    "temp",
+    "scratch",
+    "blobs",
+    "artifacts",
+    "store",
+    "coordinator_logs",
+    "blackboard_data",
+    "dropbox",
+    "refs",
+    "requirements",
+    "assets",
+    "__pycache__",
 }
 
 
@@ -119,6 +143,7 @@ class EvidencePack:
     list, not the term. Two curators with the same sha provably saw the same bytes, which
     is the only thing that makes a flip rate mean anything.
     """
+
     term: str
     occurrences: List[Dict[str, Any]] = field(default_factory=list)
     blob: str = ""
@@ -149,10 +174,14 @@ def _iter_repo_files(root: str) -> Iterable[str]:
                 yield os.path.join(dirpath, fn)
 
 
-def evidence_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
-                  root: Optional[str] = None,
-                  planes: Sequence[str] = ("source",),
-                  max_occurrences: int = DEFAULT_MAX_OCCURRENCES) -> EvidencePack:
+def evidence_pack(
+    term: str,
+    *,
+    corpus: Optional[Dict[str, str]] = None,
+    root: Optional[str] = None,
+    planes: Sequence[str] = ("source",),
+    max_occurrences: int = DEFAULT_MAX_OCCURRENCES,
+) -> EvidencePack:
     """Gather word-boundary occurrences of `term` and address them by content.
 
     `corpus` (path -> text) is for tests and for feeding a pre-filtered set; omit it and
@@ -169,8 +198,7 @@ def evidence_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
     if corpus is None:
         root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         root = os.path.dirname(root) if os.path.basename(root) == "core" else root
-        files: Iterable[Tuple[str, str]] = (
-            (p, _read(p)) for p in _iter_repo_files(root))
+        files: Iterable[Tuple[str, str]] = ((p, _read(p)) for p in _iter_repo_files(root))
         rel_to = root
     else:
         files = list(corpus.items())
@@ -198,7 +226,8 @@ def evidence_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
                 continue
             total += 1
             per_file.setdefault(shown, []).append(
-                {"file": shown, "line": i, "plane": plane, "text": line.strip()[:400]})
+                {"file": shown, "line": i, "plane": plane, "text": line.strip()[:400]}
+            )
 
     if total <= max_occurrences:
         for f in sorted(per_file):
@@ -231,26 +260,30 @@ def evidence_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
         "code shape rather than in a line containing the token is invisible here",
         "comments, docstrings and code are not distinguished within a plane -- a term "
         "discussed in a comment ranks the same as one executed",
-        "case-insensitive matching, so a deliberate Type/value casing distinction reads as "
-        "one term here",
+        "case-insensitive matching, so a deliberate Type/value casing distinction reads as one term here",
     ]
     if off_plane:
         detail = ", ".join(f"{k}={v}" for k, v in sorted(off_plane.items()))
-        blind.insert(1, f"EXCLUDED BY PLANE, not absent: {detail}. Vendored trees "
-                        f"(ComfyUI-Zluda et al) are a different project's vocabulary; "
-                        f"history/research record the past. Counted here so the exclusion "
-                        f"is a stated decision rather than a silent one")
+        blind.insert(
+            1,
+            f"EXCLUDED BY PLANE, not absent: {detail}. Vendored trees "
+            f"(ComfyUI-Zluda et al) are a different project's vocabulary; "
+            f"history/research record the past. Counted here so the exclusion "
+            f"is a stated decision rather than a silent one",
+        )
     if truncated:
         dropped = total - len(occ)
         n_files = len({o["file"] for o in occ})
-        blind.insert(0, f"CAPPED: showing {len(occ)} of {total} occurrences -- {dropped} "
-                        f"dropped. SAMPLED round-robin across files, so all {n_files} of "
-                        f"{len(per_file)} files with a usage are represented rather than "
-                        f"the first few alphabetically; but per-file DEPTH is clipped, so a "
-                        f"sense that only appears in one file's 12th usage is invisible. "
-                        f"Any rate from this pack is a rate over the sample")
-    return EvidencePack(term=term, occurrences=occ, blob=blob, sha=_sha(blob),
-                        truncated=truncated, blind=blind)
+        blind.insert(
+            0,
+            f"CAPPED: showing {len(occ)} of {total} occurrences -- {dropped} "
+            f"dropped. SAMPLED round-robin across files, so all {n_files} of "
+            f"{len(per_file)} files with a usage are represented rather than "
+            f"the first few alphabetically; but per-file DEPTH is clipped, so a "
+            f"sense that only appears in one file's 12th usage is invisible. "
+            f"Any rate from this pack is a rate over the sample",
+        )
+    return EvidencePack(term=term, occurrences=occ, blob=blob, sha=_sha(blob), truncated=truncated, blind=blind)
 
 
 def _read(path: str) -> str:
@@ -287,6 +320,7 @@ class JunctionPack:
     merging them under one name would be this repo's dominant bug class committed inside
     the tool built to find it.
     """
+
     term: str
     junctions: List[Dict[str, Any]] = field(default_factory=list)
     blob: str = ""
@@ -296,19 +330,19 @@ class JunctionPack:
 
 #: A term is WRITTEN when it is assigned, stored under a key, or returned as a field.
 _WRITE_PATTERNS = (
-    r"\[[\"']{t}[\"']\]\s*=",          # out["drained"] = ...
-    r"\b{t}\s*=(?!=)",                  # drained = ...
-    r"[\"']{t}[\"']\s*:",              # {"drained": ...}
-    r"\bdef\s+{t}\b",                   # def drained(...)
-    r"\bself\.{t}\s*=(?!=)",           # self.drained = ...
+    r"\[[\"']{t}[\"']\]\s*=",  # out["drained"] = ...
+    r"\b{t}\s*=(?!=)",  # drained = ...
+    r"[\"']{t}[\"']\s*:",  # {"drained": ...}
+    r"\bdef\s+{t}\b",  # def drained(...)
+    r"\bself\.{t}\s*=(?!=)",  # self.drained = ...
 )
 #: A term is READ when its value is consumed in a condition, an access, or an argument.
 _READ_PATTERNS = (
-    r"\[[\"']{t}[\"']\]\s*(?!=)",      # rep["drained"] > 0
-    r"\.get\(\s*[\"']{t}[\"']",        # d.get("drained")
-    r"\bif\s+.*\b{t}\b",                # if drained ...
+    r"\[[\"']{t}[\"']\]\s*(?!=)",  # rep["drained"] > 0
+    r"\.get\(\s*[\"']{t}[\"']",  # d.get("drained")
+    r"\bif\s+.*\b{t}\b",  # if drained ...
     r"\breturn\s+.*\b{t}\b",
-    r"\b{t}\s*[<>!=]=",                 # drained == ...
+    r"\b{t}\s*[<>!=]=",  # drained == ...
 )
 
 
@@ -337,10 +371,16 @@ def _matches(patterns: Sequence[str], term: str, line: str) -> bool:
     return any(re.search(p.format(t=t), code) for p in patterns)
 
 
-def junction_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
-                  root: Optional[str] = None, planes: Sequence[str] = ("source",),
-                  context: int = 2, max_sites: int = 40,
-                  exclude_self: bool = True) -> JunctionPack:
+def junction_pack(
+    term: str,
+    *,
+    corpus: Optional[Dict[str, str]] = None,
+    root: Optional[str] = None,
+    planes: Sequence[str] = ("source",),
+    context: int = 2,
+    max_sites: int = 40,
+    exclude_self: bool = True,
+) -> JunctionPack:
     """Pair write-sites with read-sites, carrying surrounding lines.
 
     WHY THIS SHAPE. The first live sift round handed every hat a one-line-per-file breadth
@@ -366,9 +406,12 @@ def junction_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
     for shown, text in files:
         lines = text.splitlines()
         for i, line in enumerate(lines, start=1):
-            rec = {"file": shown, "line": i, "text": line.strip()[:300],
-                   "context": [l.strip()[:200]
-                               for l in lines[max(0, i - 1 - context): i + context]]}
+            rec = {
+                "file": shown,
+                "line": i,
+                "text": line.strip()[:300],
+                "context": [l.strip()[:200] for l in lines[max(0, i - 1 - context) : i + context]],
+            }
             if _matches(_WRITE_PATTERNS, term, line):
                 writes.append(rec)
             elif _matches(_READ_PATTERNS, term, line):
@@ -389,11 +432,14 @@ def junction_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
             for rf in sorted(by_rfile):
                 if len(junctions) >= max_sites:
                     break
-                junctions.append({
-                    "writes": by_wfile[wf][:3], "reads": by_rfile[rf][:3],
-                    "same_file": wf == rf,
-                    "crossing": f"{wf} -> {rf}",
-                })
+                junctions.append(
+                    {
+                        "writes": by_wfile[wf][:3],
+                        "reads": by_rfile[rf][:3],
+                        "same_file": wf == rf,
+                        "crossing": f"{wf} -> {rf}",
+                    }
+                )
 
     blob = _render_junction_blob(term, junctions)
     blind = [
@@ -406,16 +452,20 @@ def junction_pack(term: str, *, corpus: Optional[Dict[str, str]] = None,
         f"that travels only as a bare positional argument matches neither",
     ]
     if not junctions:
-        why = ("no writer/reader pair found -- NO JUNCTION in this evidence. That is not "
-               "proof of absence: the pairing is lexical (see above), so this reads as "
-               "UNKNOWN rather than as 'the senses never meet'")
+        why = (
+            "no writer/reader pair found -- NO JUNCTION in this evidence. That is not "
+            "proof of absence: the pairing is lexical (see above), so this reads as "
+            "UNKNOWN rather than as 'the senses never meet'"
+        )
         blind.insert(0, why)
     elif not any(not j["same_file"] for j in junctions):
-        blind.insert(0, "every junction found is SAME-FILE: one author holding one meaning, "
-                        "which is the shape that does NOT fork. Cross-file crossings are the "
-                        "ones worth reading")
-    return JunctionPack(term=term, junctions=junctions, blob=blob, sha=_sha(blob),
-                        blind=blind)
+        blind.insert(
+            0,
+            "every junction found is SAME-FILE: one author holding one meaning, "
+            "which is the shape that does NOT fork. Cross-file crossings are the "
+            "ones worth reading",
+        )
+    return JunctionPack(term=term, junctions=junctions, blob=blob, sha=_sha(blob), blind=blind)
 
 
 def _collect(corpus, root, planes) -> List[Tuple[str, str]]:
@@ -459,32 +509,38 @@ DEFAULT_HATS: Dict[str, str] = {
         "You have no knowledge of this project. Using ONLY the evidence given, list what "
         "distinct THINGS this word refers to. Group the lines by the thing they describe. "
         "If two groups are actually the same thing described differently, say so. If you "
-        "cannot tell, say UNCLEAR and name what you would need."),
+        "cannot tell, say UNCLEAR and name what you would need."
+    ),
     "junction": (
         "Find the places where two different uses of this word MEET: a value produced "
         "under one use and consumed under another, a shared dict key or Redis key, a "
         "comparison, an argument crossing a module boundary. For each, cite both file:line "
-        "sites. If the uses never meet in this evidence, say NO JUNCTION FOUND."),
+        "sites. If the uses never meet in this evidence, say NO JUNCTION FOUND."
+    ),
     "linguist": (
         "For each occurrence, classify the word's part of speech and sense: ordinary "
         "English polysemy (the same word doing normal verb/noun duty) versus a SPECIALISED "
         "sense that carries project-specific meaning. Report the count in each class and "
-        "quote one line per sense."),
+        "quote one line per sense."
+    ),
     "historian": (
         "Order the occurrences by what they suggest about arrival: which uses look like an "
         "older layer and which look newer (naming style, adjacent vocabulary, comment "
         "references to task ids). State what in the evidence supports each guess. Do not "
-        "guess dates you cannot support."),
+        "guess dates you cannot support."
+    ),
     "adversary": (
         "Argue that this word has exactly ONE coherent meaning here. Construct the "
         "strongest single-sense reading that accounts for every line. Then state which "
         "specific lines your reading fails to explain, if any. Your job is to make the "
-        "fork claim work for its money."),
+        "fork claim work for its money."
+    ),
     "jester": (
         "What is the dumbest possible misreading of this word by someone new, and would "
         "the code survive it? Then argue -- seriously -- that the multiple meanings are a "
         "FEATURE worth keeping. A defence that collapses under its own evidence is the "
-        "strongest confirmation available; a defence that holds is a finding of its own."),
+        "strongest confirmation available; a defence that holds is a finding of its own."
+    ),
 }
 
 #: RETIRED 2026-08-07 by ablation (pre-registered 93edb7c, result 7fc9d35), kept as a record
@@ -504,7 +560,7 @@ DEFAULT_HATS: Dict[str, str] = {
 #: framing is what made it a confabulation engine.
 RETIRED_HATS = {
     "economist": "1/3 precision, 0 marginal contribution, generated both false positives "
-                 "in the cost-blind sample (ablation 2026-08-07)",
+    "in the cost-blind sample (ablation 2026-08-07)",
 }
 
 _ANSWER_CONTRACT = (
@@ -524,8 +580,7 @@ def hat_prompt(hat: str, pack: EvidencePack) -> str:
     file) so the blob the helper reads is exactly the blob we hashed."""
     if hat not in DEFAULT_HATS:
         raise KeyError(f"unknown hat {hat!r}; known: {sorted(DEFAULT_HATS)}")
-    return (f"The word under examination is: {pack.term!r}\n\n"
-            f"{DEFAULT_HATS[hat]}{_ANSWER_CONTRACT}")
+    return f"The word under examination is: {pack.term!r}\n\n{DEFAULT_HATS[hat]}{_ANSWER_CONTRACT}"
 
 
 # ====================================================================== tier 2: curators
@@ -643,8 +698,7 @@ def parse_verdict(answer: str) -> str:
     return v if v in {"FORK", "NO_FORK", "UNCLEAR"} else "UNCLEAR"
 
 
-def curator_pairs(term: str, hats: Sequence[str],
-                  evidence_sha: str = "") -> List[Tuple[Dict, Dict]]:
+def curator_pairs(term: str, hats: Sequence[str], evidence_sha: str = "") -> List[Tuple[Dict, Dict]]:
     """Pair hats WITHIN one term.
 
     claude#42d00626's point 2, and it is a computability constraint rather than a
@@ -691,11 +745,15 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     if diverged:
         return {
             "flip_rate": None,
-            "refused": ("evidence identity failed -- these curators did not read the same "
-                        "bytes, so any disagreement between them measures INPUT DIVERGENCE, "
-                        "not curation. Diverging hashes: " + "; ".join(diverged)),
-            "dissents": [], "agreements": [],
-            "triage_required": False, "triage_reason": "",
+            "refused": (
+                "evidence identity failed -- these curators did not read the same "
+                "bytes, so any disagreement between them measures INPUT DIVERGENCE, "
+                "not curation. Diverging hashes: " + "; ".join(diverged)
+            ),
+            "dissents": [],
+            "agreements": [],
+            "triage_required": False,
+            "triage_reason": "",
             "render_order": ["refused"],
             "blind": ["no comparison was performed; nothing here is a finding"],
         }
@@ -705,11 +763,13 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     undecided: List[Dict[str, Any]] = []
     for term, ds in sorted(by_term.items()):
         verdicts = {str(d.get("verdict", "")).upper() for d in ds}
-        row = {"term": term,
-               "verdicts": sorted(verdicts),
-               "hats": sorted(str(d.get("hat", "")) for d in ds),
-               "evidence_sha": str(ds[0].get("evidence_sha", "")),
-               "dossiers": ds}
+        row = {
+            "term": term,
+            "verdicts": sorted(verdicts),
+            "hats": sorted(str(d.get("hat", "")) for d in ds),
+            "evidence_sha": str(ds[0].get("evidence_sha", "")),
+            "dossiers": ds,
+        }
         # A term where EVERY curator abstained is neither agreement nor dissent -- nobody
         # decided anything. Counting it as agreement (which this did until the T221 hedging
         # sweep) is the same lie as reading UNKNOWN as a negative, and it let an abstention
@@ -728,8 +788,7 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     rate = (len(dissents) / n_deciding) if n_deciding else None
 
     n_pairs = n_deciding
-    triage = (rate is not None and n_pairs >= IMPLAUSIBLE_MIN_N
-              and rate >= IMPLAUSIBLE_DISSENT_RATE)
+    triage = rate is not None and n_pairs >= IMPLAUSIBLE_MIN_N and rate >= IMPLAUSIBLE_DISSENT_RATE
     reason = ""
     if triage:
         reason = (
@@ -751,10 +810,13 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "triage_reason": reason,
         "render_order": ["dissents", "triage", "agreements", "undecided"],
         "blind": [
-            (f"{len(undecided)} term(s) UNDECIDED -- every curator abstained, so they are in "
-             f"NEITHER the agreement list nor the flip-rate denominator. Two people saying "
-             f"'I do not know' is a shared blind spot, not consensus"
-             if undecided else "no term was left undecided by every curator"),
+            (
+                f"{len(undecided)} term(s) UNDECIDED -- every curator abstained, so they are in "
+                f"NEITHER the agreement list nor the flip-rate denominator. Two people saying "
+                f"'I do not know' is a shared blind spot, not consensus"
+                if undecided
+                else "no term was left undecided by every curator"
+            ),
             "a shared blind spot produces AGREEMENT, so agreement here is weaker evidence "
             "than disagreement -- two curators can be identically wrong",
             "verdict equality is compared as a STRING: two dossiers can agree on FORK while "
@@ -766,8 +828,7 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 # ========================================================================== the aggregate
-def summarise(*, n: int, n_ok: int, blind: Sequence[str],
-              ref: Optional[str] = None, **detail) -> BoundaryOutcome:
+def summarise(*, n: int, n_ok: int, blind: Sequence[str], ref: Optional[str] = None, **detail) -> BoundaryOutcome:
     """Three states, never two.
 
     ask_many's docstring bought this line: "a binary fan verdict discards the partial
@@ -775,13 +836,17 @@ def summarise(*, n: int, n_ok: int, blind: Sequence[str],
     two findings." Callers must branch failed -> partial -> done in that order, because
     .ok includes partials -- a trap that struck twice in one hour on 2026-08-05.
     """
-    d = dict(detail); d.update(n=n, n_ok=n_ok, blind=list(blind))
+    d = dict(detail)
+    d.update(n=n, n_ok=n_ok, blind=list(blind))
     if n_ok <= 0:
         return BoundaryOutcome.failed(
             f"every one of {n} branches failed -- that is a configuration state to check, "
-            f"not {n} independent model failures", ref=ref, **d)
+            f"not {n} independent model failures",
+            ref=ref,
+            **d,
+        )
     if n_ok < n:
         return BoundaryOutcome.partially(
-            f"{n_ok} of {n} branches landed; the {n - n_ok} missing are UNKNOWN, not "
-            f"negative", ref=ref, **d)
+            f"{n_ok} of {n} branches landed; the {n - n_ok} missing are UNKNOWN, not negative", ref=ref, **d
+        )
     return BoundaryOutcome.done(ref=ref, **d)

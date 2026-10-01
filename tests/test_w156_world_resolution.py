@@ -36,6 +36,7 @@ decision (readers: config.py, check_ports.py, gen_ports.py, test_port_registry.p
 which either define it, render it to docs, or validate its schema). It is documentation
 wearing the costume of configuration. These pins make `world` answer.
 """
+
 import os
 
 import pytest
@@ -46,6 +47,7 @@ from core import world as W
 # --------------------------------------------------------------------------
 # S1 -- the world is DERIVED from where you stand, with nothing to remember
 # --------------------------------------------------------------------------
+
 
 def test_s1_prod_root_resolves_prod(tmp_path):
     w = W.resolve(root=tmp_path / "AI-Setup", env={})
@@ -75,6 +77,7 @@ def test_s1d_suffix_match_is_case_insensitive_and_ignores_separator(tmp_path):
 # --------------------------------------------------------------------------
 # S2 -- THE CRITICAL PIN: an unrecognised root must NEVER become prod
 # --------------------------------------------------------------------------
+
 
 def test_s2_unknown_root_is_unknown_not_prod(tmp_path):
     """The whole point. A stray clone that silently answers "prod" is how a
@@ -107,13 +110,14 @@ def test_s2c_the_refusal_teaches_the_one_command_that_fixes_it(tmp_path):
     with pytest.raises(W.WorldRefusal) as e:
         w.assert_may_write()
     msg = str(e.value)
-    assert ".aurora-world" in msg          # names the marker
+    assert ".aurora-world" in msg  # names the marker
     assert "alpha" in msg and "prod" in msg  # names the legal values
 
 
 # --------------------------------------------------------------------------
 # S3 -- the marker file wins, and it is UNTRACKED so refresh cannot break it
 # --------------------------------------------------------------------------
+
 
 def test_s3_marker_file_beats_the_directory_heuristic(tmp_path):
     """The portable declaration. A checkout named anything at all can say what it
@@ -132,6 +136,7 @@ def test_s3b_marker_is_gitignored_so_isolation_never_rides_a_merge(tmp_path):
     put its isolation in tracked config.py and could never be refreshed. The marker
     must be ignored by git, or we have rebuilt the same trap with a new filename."""
     from core.paths import repo_root
+
     gitignore = (repo_root() / ".gitignore").read_text(encoding="utf-8", errors="replace")
     assert ".aurora-world" in gitignore
 
@@ -142,12 +147,13 @@ def test_s3c_a_malformed_marker_is_unknown_never_a_guess(tmp_path):
     (root / ".aurora-world").write_text("prodd\n", encoding="utf-8")
     w = W.resolve(root=root, env={})
     assert w.name == "unknown"
-    assert "prodd" in w.why      # says what it found, not just that it failed
+    assert "prodd" in w.why  # says what it found, not just that it failed
 
 
 # --------------------------------------------------------------------------
 # S4 -- env override exists, and is never REQUIRED (the core/paths.py doctrine)
 # --------------------------------------------------------------------------
+
 
 def test_s4_env_override_wins_over_everything(tmp_path):
     root = tmp_path / "AI-Setup-Alpha"
@@ -170,22 +176,24 @@ def test_s4b_a_bogus_override_refuses_rather_than_falling_through(tmp_path):
 # S5 -- each world resolves DISTINCT endpoints (the isolation, as data)
 # --------------------------------------------------------------------------
 
+
 def test_s5_every_world_has_a_distinct_redis_port():
     ports = {n: W.WORLDS[n].redis_port for n in ("prod", "beta", "alpha")}
     assert len(set(ports.values())) == 3, ports
-    assert ports["prod"] == 16379      # the live master, unchanged forever
+    assert ports["prod"] == 16379  # the live master, unchanged forever
 
 
 def test_s5b_every_world_has_a_distinct_ui_port():
     ui = {n: W.WORLDS[n].ui_port for n in ("prod", "beta", "alpha")}
     assert len(set(ui.values())) == 3, ui
-    assert ui["prod"] == 8787          # the canonical console, per the 8787/8788 arc
+    assert ui["prod"] == 8787  # the canonical console, per the 8787/8788 arc
 
 
 def test_s5c_ui_ports_stay_inside_their_declared_bands():
     """config.PORT_BANDS is the house law for what a port's digits mean. A world
     whose console escapes its band makes the digits lie."""
     import config
+
     for name in ("prod", "beta", "alpha"):
         port = W.WORLDS[name].ui_port
         band = next((w for lo, hi, w in config.PORT_BANDS if lo <= port <= hi), None)
@@ -205,6 +213,7 @@ def test_s5d_unknown_world_has_no_endpoint_at_all(tmp_path):
 # S6 -- the cross-world guard (belt; the separate Redis INSTANCE is the firewall)
 # --------------------------------------------------------------------------
 
+
 def test_s6_guard_refuses_a_foreign_worlds_port(tmp_path):
     """deepseek's fence, 2026-08-14: this guard is belt-and-suspenders, NOT the
     primary defense -- the firewall is a physically separate Redis instance. The
@@ -219,7 +228,7 @@ def test_s6_guard_refuses_a_foreign_worlds_port(tmp_path):
 
 def test_s6b_guard_allows_its_own_port(tmp_path):
     alpha = W.resolve(root=tmp_path / "AI-Setup-Alpha", env={})
-    alpha.assert_owns_port(16381)      # must not raise
+    alpha.assert_owns_port(16381)  # must not raise
 
 
 def test_s6c_guard_names_the_port_owner_not_just_no(tmp_path):
@@ -234,6 +243,7 @@ def test_s6c_guard_names_the_port_owner_not_just_no(tmp_path):
 # --------------------------------------------------------------------------
 # S7 -- byte-identical config.py, different world (the refresh property)
 # --------------------------------------------------------------------------
+
 
 def test_s7_isolation_survives_a_byte_identical_config(tmp_path):
     """THE PROPERTY THAT MAKES REFRESH FREE. The July sandbox could not have passed
@@ -252,9 +262,11 @@ def test_s7_isolation_survives_a_byte_identical_config(tmp_path):
 # S9 -- the boot line: silent in prod, loud in a twin
 # --------------------------------------------------------------------------
 
+
 def _world_line(monkeypatch, world):
     import agent_cli
     from core import world as _w
+
     monkeypatch.setenv("AKASHIC_WORLD", world)
     monkeypatch.setattr(_w, "_cached", None, raising=False)
     return agent_cli._boot_world_line()
@@ -319,6 +331,7 @@ def test_s8_resolution_reports_its_own_provenance(tmp_path):
 # ---- checkout_of: where a SIBLING world lives, derived from this checkout (2026-10-01) ----
 # world_diff/world_fidelity pinned the three checkouts to one machine's drive letter. The
 # layout is siblings sharing a base name, so it is computable from wherever you stand.
+
 
 def test_s9_checkout_of_derives_siblings_from_a_prod_root(tmp_path):
     root = tmp_path / "aurora"

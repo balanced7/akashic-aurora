@@ -13,6 +13,7 @@ verb has two implementations using genuinely different algorithms:
 Same contract, different algorithm, different side effects. That is exactly the shape the
 differential harness was built to catch.
 """
+
 import tempfile
 from pathlib import Path
 
@@ -64,11 +65,14 @@ def test_prefix_boundary_agrees(pair):
     FileStore as str.startswith. Range scans and startswith are not obviously the same thing
     at the boundary, which is precisely where a hand-rolled range gets it wrong.
     """
-    _both(pair, [
-        ("hset", ("learn:experiment:x",), {"mapping": {"k": "1"}}),
-        ("hset", ("learn:experimentX",), {"mapping": {"k": "2"}}),
-        ("hset", ("learn:experiment",), {"mapping": {"k": "3"}}),
-    ])
+    _both(
+        pair,
+        [
+            ("hset", ("learn:experiment:x",), {"mapping": {"k": "1"}}),
+            ("hset", ("learn:experimentX",), {"mapping": {"k": "2"}}),
+            ("hset", ("learn:experiment",), {"mapping": {"k": "3"}}),
+        ],
+    )
     a, b = pair
     ra, rb = a.hgetall_prefix("learn:experiment:"), b.hgetall_prefix("learn:experiment:")
     assert ra == rb, f"boundary divergence: file={ra} sqlite={rb}"
@@ -78,11 +82,14 @@ def test_prefix_boundary_agrees(pair):
 def test_unicode_and_high_codepoints_agree(pair):
     """SqliteStore's range scan uses '\\uffff' as its upper bound. A key CONTAINING a high
     codepoint is the case where that sentinel could wrongly exclude a real record."""
-    _both(pair, [
-        ("hset", ("learn:experiment:emoji_\U0001F600",), {"mapping": {"k": "1"}}),
-        ("hset", ("learn:experiment:hi_￮",), {"mapping": {"k": "2"}}),
-        ("hset", ("learn:experiment:plain",), {"mapping": {"k": "3"}}),
-    ])
+    _both(
+        pair,
+        [
+            ("hset", ("learn:experiment:emoji_\U0001f600",), {"mapping": {"k": "1"}}),
+            ("hset", ("learn:experiment:hi_￮",), {"mapping": {"k": "2"}}),
+            ("hset", ("learn:experiment:plain",), {"mapping": {"k": "3"}}),
+        ],
+    )
     a, b = pair
     ra, rb = a.hgetall_prefix("learn:experiment:"), b.hgetall_prefix("learn:experiment:")
     assert ra == rb, f"unicode divergence: file={ra} sqlite={rb}"
@@ -91,11 +98,14 @@ def test_unicode_and_high_codepoints_agree(pair):
 
 def test_expired_keys_are_excluded_identically(pair):
     """The algorithms differ MOST here: per-key lazy eviction versus one bulk expiry query."""
-    _both(pair, [
-        ("hset", ("learn:experiment:keep",), {"mapping": {"k": "1"}}),
-        ("hset", ("learn:experiment:gone",), {"mapping": {"k": "2"}}),
-        ("expire", ("learn:experiment:gone", -1), {}),
-    ])
+    _both(
+        pair,
+        [
+            ("hset", ("learn:experiment:keep",), {"mapping": {"k": "1"}}),
+            ("hset", ("learn:experiment:gone",), {"mapping": {"k": "2"}}),
+            ("expire", ("learn:experiment:gone", -1), {}),
+        ],
+    )
     a, b = pair
     ra, rb = a.hgetall_prefix("learn:experiment:"), b.hgetall_prefix("learn:experiment:")
     assert ra == rb, f"expiry divergence: file={ra} sqlite={rb}"
@@ -107,17 +117,18 @@ def test_read_does_not_change_the_answer_on_a_second_call(pair):
     """FileStore's per-key eviction MUTATES during a read. If that mutation changes what a
     second identical read returns, then hgetall_prefix is not idempotent and two consecutive
     recall queries could legitimately disagree."""
-    _both(pair, [
-        ("hset", ("learn:experiment:a",), {"mapping": {"k": "1"}}),
-        ("hset", ("learn:experiment:b",), {"mapping": {"k": "2"}}),
-        ("expire", ("learn:experiment:b", -1), {}),
-    ])
+    _both(
+        pair,
+        [
+            ("hset", ("learn:experiment:a",), {"mapping": {"k": "1"}}),
+            ("hset", ("learn:experiment:b",), {"mapping": {"k": "2"}}),
+            ("expire", ("learn:experiment:b", -1), {}),
+        ],
+    )
     for s in pair:
         first = s.hgetall_prefix("learn:experiment:")
         second = s.hgetall_prefix("learn:experiment:")
-        assert first == second, (
-            f"{type(s).__name__}.hgetall_prefix is not idempotent: {first} then {second}"
-        )
+        assert first == second, f"{type(s).__name__}.hgetall_prefix is not idempotent: {first} then {second}"
 
 
 def test_agrees_with_the_naive_loop_it_replaced(pair):
@@ -127,11 +138,14 @@ def test_agrees_with_the_naive_loop_it_replaced(pair):
     Without this, the optimisation could be fast and silently wrong -- and every caller would
     inherit the wrongness.
     """
-    _both(pair, [
-        ("hset", ("learn:experiment:one",), {"mapping": {"tried": "a", "result": "b"}}),
-        ("hset", ("learn:experiment:two",), {"mapping": {"tried": "c"}}),
-        ("hset", ("learn:experiment:three",), {"mapping": {"x": "y"}}),
-    ])
+    _both(
+        pair,
+        [
+            ("hset", ("learn:experiment:one",), {"mapping": {"tried": "a", "result": "b"}}),
+            ("hset", ("learn:experiment:two",), {"mapping": {"tried": "c"}}),
+            ("hset", ("learn:experiment:three",), {"mapping": {"x": "y"}}),
+        ],
+    )
     for s in pair:
         naive = {}
         for k in s.keys("learn:experiment:*"):

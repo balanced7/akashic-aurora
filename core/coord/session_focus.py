@@ -30,6 +30,7 @@ every nudge and every dismissal is counted (`nudges`, `dismissed`). If dismissal
 DISMISS_RETIRE of nudges across real use, the detector is noise and should be turned off -- the
 counters exist so that is a measurement rather than an argument.
 """
+
 from __future__ import annotations
 
 import os
@@ -41,9 +42,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 #: consecutive misses before the first nudge, and between repeats. Generous on purpose: reading
 #: around a problem legitimately wanders, and a detector that fires during exploration is noise.
@@ -52,7 +55,7 @@ MISS_BEFORE_NUDGE = 14
 DISMISS_QUIET = 2
 #: the share of nudges dismissed at which the whole detector should be retired (see module docstring).
 DISMISS_RETIRE = 0.5
-FOCUS_TTL_S = 36 * 3600          # a focus outlives a long session but never a forgotten week
+FOCUS_TTL_S = 36 * 3600  # a focus outlives a long session but never a forgotten week
 
 
 def _ns() -> str:
@@ -76,9 +79,7 @@ def this_session() -> str:
     the CLI would be writing to a session nobody reads. AKASHIC_SESSION_ID overrides for a harness
     that exports neither (a runner lane, a test).
     """
-    return (os.environ.get("AKASHIC_SESSION_ID")
-            or os.environ.get("CLAUDE_CODE_SESSION_ID")
-            or "")
+    return os.environ.get("AKASHIC_SESSION_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
 
 
 def _client():
@@ -93,10 +94,14 @@ def _client():
     """
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+            connect_to_redis_with_fail_fast,
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+        )
+
         return connect_to_redis_with_fail_fast(
-            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-            timeout_seconds=2, decode_responses=True)
+            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=2, decode_responses=True
+        )
     except Exception:
         return None
 
@@ -104,6 +109,7 @@ def _client():
 def _ledger():
     try:
         from core.coord.task_ledger import TaskLedger
+
         return TaskLedger()
     except Exception:
         return None
@@ -121,6 +127,7 @@ def _task(task_id: str) -> Optional[Dict[str, Any]]:
 
 # --------------------------------------------------------------------------- the pointer ---
 
+
 def set_focus(session_id: str, task_id: str, agent: str = "") -> Dict[str, Any]:
     """Point this session at a task. Refuses an id the ledger does not know, because a focus on a
     typo would silently attribute a day's work to nothing."""
@@ -134,16 +141,34 @@ def set_focus(session_id: str, task_id: str, agent: str = "") -> Dict[str, Any]:
     k = _key(session_id)
     try:
         c.delete(k)
-        c.hset(k, mapping={"task": tid, "agent": str(agent or ""), "set_at": str(int(time.time())),
-                           "calls": "0", "hits": "0", "misses": "0", "streak": "0",
-                           "nudges": "0", "dismissed": "0", "quiet": "0"})
+        c.hset(
+            k,
+            mapping={
+                "task": tid,
+                "agent": str(agent or ""),
+                "set_at": str(int(time.time())),
+                "calls": "0",
+                "hits": "0",
+                "misses": "0",
+                "streak": "0",
+                "nudges": "0",
+                "dismissed": "0",
+                "quiet": "0",
+            },
+        )
         c.expire(k, FOCUS_TTL_S)
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-    return {"ok": True, "task": tid, "title": t.get("title", ""), "status": t.get("status"),
-            "files": list(t.get("files") or []),
-            "note": ("this task declares no files, so drift cannot be detected -- "
-                     "attribution still works") if not (t.get("files") or []) else ""}
+    return {
+        "ok": True,
+        "task": tid,
+        "title": t.get("title", ""),
+        "status": t.get("status"),
+        "files": list(t.get("files") or []),
+        "note": ("this task declares no files, so drift cannot be detected -- attribution still works")
+        if not (t.get("files") or [])
+        else "",
+    }
 
 
 def clear_focus(session_id: str) -> Dict[str, Any]:
@@ -155,8 +180,13 @@ def clear_focus(session_id: str) -> Dict[str, Any]:
             c.delete(_key(session_id))
         except Exception:
             pass
-    return {"ok": True, "was": st.get("task"), "calls": st.get("calls", 0),
-            "hits": st.get("hits", 0), "misses": st.get("misses", 0)}
+    return {
+        "ok": True,
+        "was": st.get("task"),
+        "calls": st.get("calls", 0),
+        "hits": st.get("hits", 0),
+        "misses": st.get("misses", 0),
+    }
 
 
 def current(session_id: str) -> Optional[Dict[str, Any]]:
@@ -169,7 +199,7 @@ def current(session_id: str) -> Optional[Dict[str, Any]]:
         return None
     if not h:
         return None
-    g = lambda k, d="": (h.get(k.encode()) or h.get(k) or d)
+    g = lambda k, d="": h.get(k.encode()) or h.get(k) or d
     dec = lambda v: v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
     out = {"task": dec(g("task")), "agent": dec(g("agent")), "set_at": int(dec(g("set_at", "0")) or 0)}
     for f in ("calls", "hits", "misses", "streak", "nudges", "dismissed", "quiet"):
@@ -182,10 +212,11 @@ def current(session_id: str) -> Optional[Dict[str, Any]]:
 
 # ------------------------------------------------------------------------- attribution ---
 
+
 def _declared(task_id: str) -> List[str]:
     t = _task(task_id) or {}
     out = []
-    for f in (t.get("files") or []):
+    for f in t.get("files") or []:
         s = str(f).replace("\\", "/").strip().lstrip("./")
         if s:
             out.append(s.lower())
@@ -228,6 +259,7 @@ def record_call(session_id: str, tool: str = "", target: str = "") -> Optional[s
         if c is None:
             return None
         from core.coord.task_costs import _acc_key
+
         c.hincrby(_acc_key(tid), "tool_calls", 1)
         k = _key(session_id)
         c.hincrby(k, "calls", 1)
@@ -244,6 +276,7 @@ def record_call(session_id: str, tool: str = "", target: str = "") -> Optional[s
 
 
 # ------------------------------------------------------------------------------ the nudge ---
+
 
 def drift_note(session_id: str) -> Optional[str]:
     """One line when this session's calls have stopped touching the focused task, else None.
@@ -263,18 +296,20 @@ def drift_note(session_id: str) -> Optional[str]:
         t = _task(tid) or {}
         declared = _declared(tid)
         if not declared:
-            return None                       # nothing to drift from; never nag on no evidence
+            return None  # nothing to drift from; never nag on no evidence
         c = _client()
         if c is not None:
             c.hincrby(_key(session_id), "nudges", 1)
-            c.hset(_key(session_id), "streak", "0")     # earn the next one
+            c.hset(_key(session_id), "streak", "0")  # earn the next one
         age_d = max(0, int((time.time() - int(st.get("set_at") or 0)) / 86400))
-        return (f"[focus] {st['streak']} calls in a row have not touched {tid}'s files "
-                f"({', '.join(declared[:3])}{'...' if len(declared) > 3 else ''}). "
-                f"{tid} \"{str(t.get('title',''))[:60]}\" was focused {age_d}d ago. "
-                f"If you have moved on: `{_pyl()} agent_cli.py focus --clear` (or --set T###). "
-                f"If this is still the task: `{_pyl()} agent_cli.py focus --quiet`, "
-                f"or `--dismiss` to wave this one off.")
+        return (
+            f"[focus] {st['streak']} calls in a row have not touched {tid}'s files "
+            f"({', '.join(declared[:3])}{'...' if len(declared) > 3 else ''}). "
+            f'{tid} "{str(t.get("title", ""))[:60]}" was focused {age_d}d ago. '
+            f"If you have moved on: `{_pyl()} agent_cli.py focus --clear` (or --set T###). "
+            f"If this is still the task: `{_pyl()} agent_cli.py focus --quiet`, "
+            f"or `--dismiss` to wave this one off."
+        )
     except Exception:
         return None
 
@@ -314,10 +349,17 @@ def health() -> Dict[str, Any]:
             s += 1
             h = c.hgetall(k)
             get = lambda f: int((h.get(f.encode()) or b"0").decode() or 0)
-            n += get("nudges"); d += get("dismissed")
+            n += get("nudges")
+            d += get("dismissed")
     except Exception:
         pass
     rate = (d / n) if n else 0.0
-    return {"sessions": s, "nudges": n, "dismissed": d, "dismiss_rate": round(rate, 3),
-            "verdict": "retire the drift nudge" if n >= 10 and rate >= DISMISS_RETIRE
-                       else ("earning its keep" if n else "no data yet")}
+    return {
+        "sessions": s,
+        "nudges": n,
+        "dismissed": d,
+        "dismiss_rate": round(rate, 3),
+        "verdict": "retire the drift nudge"
+        if n >= 10 and rate >= DISMISS_RETIRE
+        else ("earning its keep" if n else "no data yet"),
+    }

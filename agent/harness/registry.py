@@ -23,9 +23,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 
@@ -39,7 +41,7 @@ HARNESSES = {
             "T2": "yes -- SessionStart additionalContext (light whisper, tiered by cwd)",
             "T3": "yes, AT the action -- PreToolUse can inject on allow",
             "T4": "yes -- transcript-synthesized FAIL (PostToolUse never fires on failure) "
-                  "+ PostToolUseFailure fast path; conservative _is_success",
+            "+ PostToolUseFailure fast path; conservative _is_success",
             "T5": "yes -- UserPromptSubmit injects plan-time recall + unread-bus line",
             "T6": "yes -- SessionEnd/PreCompact -> chronicles/last-session-draft.md",
         },
@@ -47,32 +49,32 @@ HARNESSES = {
     "deepseek-harness": {
         "default_agent_id": "dsh_agent",
         "adapters": "out-of-tree dsh-posttool (cordis) plugin -> "
-                    "core/recall/actions.py::recall_context (importable contract)",
+        "core/recall/actions.py::recall_context (importable contract)",
         "tiers": {
             "T0": f"yes -- exec proven: the dsh seat drives the house CLI ({_pyl()} agent_cli.py) "
-                  "and messages peers over the Bifrost bus",
+            "and messages peers over the Bifrost bus",
             "T1": "yes -- $DSH_HOME/.env user-env layer (dsh-launch-environment) stamps "
-                  "AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: "
-                  "child processes inherit the stamp across a host restart",
+            "AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: "
+            "child processes inherit the stamp across a host restart",
             "T2": "pending -- session/created -> boot-whisper listener wired; first live "
-                  "observation rides the next fresh session (plugin mounted mid-session "
-                  "2026-08-24)",
+            "observation rides the next fresh session (plugin mounted mid-session "
+            "2026-08-24)",
             "T3": "one-beat-late -- post-execute recall attaches via decision.additionalContexts "
-                  "(the harness contract, pinned in tests/test_dsh_contract.py); recall-at "
-                  "contexts observed arriving at the next step in live sessions 2026-08-24 "
-                  "(they ride the loop's active batch, same shape as cursor's tier)",
+            "(the harness contract, pinned in tests/test_dsh_contract.py); recall-at "
+            "contexts observed arriving at the next step in live sessions 2026-08-24 "
+            "(they ride the loop's active batch, same shape as cursor's tier)",
             "T4": "yes -- tools/post-execute carries a direct fail signal; outcome-credit "
-                  "wired. The stale-generation doubt is RETIRED: post-reboot 2026-08-24 the "
-                  "plugin writes c:-normalized targets (stage file evidence), so the V27 "
-                  "join keys surface and resolve identically; the first real flip-credit is "
-                  "the remaining unobserved event",
+            "wired. The stale-generation doubt is RETIRED: post-reboot 2026-08-24 the "
+            "plugin writes c:-normalized targets (stage file evidence), so the V27 "
+            "join keys surface and resolve identically; the first real flip-credit is "
+            "the remaining unobserved event",
             "T5": "pending -- trigger observed live 2026-08-24 (user/message captured, "
-                  "planPending set post-mount) and the plan-recall door verified end-to-end; "
-                  "the assemble-time injection itself is still unobserved",
+            "planPending set post-mount) and the plan-recall door verified end-to-end; "
+            "the assemble-time injection itself is still unobserved",
             "T6": "yes -- session/disposed+flush fire presence-offline + the DSH-native "
-                  "session-end shim (zstd log -> last-session-draft + session_signals); "
-                  "shim dogfooded end-to-end 2026-08-24, first live fire rides the next "
-                  "session close",
+            "session-end shim (zstd log -> last-session-draft + session_signals); "
+            "shim dogfooded end-to-end 2026-08-24, first live fire rides the next "
+            "session close",
         },
     },
     "cursor": {
@@ -80,19 +82,17 @@ HARNESSES = {
         "adapters": "agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)",
         "tiers": {
             "T0": "yes -- Shell tool + mcp_global/cursor.mcp.json",
-            "T1": "yes -- sessionStart hook returns env (propagates all session hooks) "
-                  "+ MCP config env",
+            "T1": "yes -- sessionStart hook returns env (propagates all session hooks) + MCP config env",
             "T2": "yes -- sessionStart additional_context",
             "T3": "one-beat-late -- preToolUse is deny-only (cannot inject on allow); "
-                  "recall rides postToolUse/postToolUseFailure additional_context",
-            "T4": "yes, DIRECT -- postToolUseFailure is a real fail event "
-                  "(no transcript synthesis needed)",
+            "recall rides postToolUse/postToolUseFailure additional_context",
+            "T4": "yes, DIRECT -- postToolUseFailure is a real fail event (no transcript synthesis needed)",
             "T5": "unavailable -- beforeSubmitPrompt cannot inject context",
             "T6": "yes -- sessionEnd -> chronicles/last-session-draft.md",
         },
     },
     "bare-cli": {
-        "default_agent_id": None,   # any agent id; set AKASHIC_AGENT_ID yourself
+        "default_agent_id": None,  # any agent id; set AKASHIC_AGENT_ID yourself
         "adapters": "none -- the AGENTS.md contract, followed manually",
         "tiers": {
             "T0": f"yes -- {_pyl()} agent_cli.py (the one door)",

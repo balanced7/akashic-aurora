@@ -50,8 +50,10 @@ from collections import defaultdict
 # instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
 try:
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from core.paths import repo_root as _rr
+
     ROOT = _rr()
 except Exception:
     ROOT = Path(os.getenv("AI_SETUP") or ".").resolve()
@@ -61,36 +63,58 @@ PROTECTED = ["core"]  # dirs whose boundaries we enforce (add context/ etc. late
 ALLOWLIST = {
     # fast_cache.py DELETED 2026-07-07 (arch-triage P2: dead, zero live consumers) -> its 3 debt
     # entries + the SessionRecovery dup (resolved: checkpoint's class renamed CheckpointRecovery) are gone.
-    ("no-duplicate-module-basename", "schema.py"):
-        "intentional per-package convention: core/{codex,narrative,perspectives}/schema.py are always "
-        "imported via the full package path (never `from core import schema`), so no shadowing hazard",
+    (
+        "no-duplicate-module-basename",
+        "schema.py",
+    ): "intentional per-package convention: core/{codex,narrative,perspectives}/schema.py are always "
+    "imported via the full package path (never `from core import schema`), so no shadowing hazard",
     # T069 census (deepseek Part c): injection-path isolation -- get_x(store=...) IS the
     # isolated path; the canonical singleton is a lazy stateless wrapper. Tracked, not silent.
-    ("singleton-honors-isolation", "core/comm/blobs.py"):
-        "BlobStore binds the AI_SETUP dir (already temp under isolation); injection path exists",
-    ("singleton-honors-isolation", "core/primitives/embedder.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/primitives/clusterer.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/primitives/consolidator.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/narrative/tag_audit.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/narrative/tag_governance.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/narrative/theme_assigner.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/narrative/theme_discovery.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
-    ("singleton-honors-isolation", "core/narrative/track_router.py"):
-        "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/comm/blobs.py",
+    ): "BlobStore binds the AI_SETUP dir (already temp under isolation); injection path exists",
+    (
+        "singleton-honors-isolation",
+        "core/primitives/embedder.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/primitives/clusterer.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/primitives/consolidator.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/narrative/tag_audit.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/narrative/tag_governance.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/narrative/theme_assigner.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/narrative/theme_discovery.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
+    (
+        "singleton-honors-isolation",
+        "core/narrative/track_router.py",
+    ): "store= injection path is the isolation (deepseek T069 census)",
     # T099 V0 (2026-07-20) added core/toolbelt/registry.py; core/trust/registry.py predates
     # it. Both are ALWAYS imported by full package path (core.toolbelt.registry /
     # core.trust.registry), never `from core import registry` -- same no-shadowing-hazard
     # rationale as the schema.py allowlist above.
-    ("no-duplicate-module-basename", "registry.py"):
-        "two registries by deliberate design (toolbelt verb-registry vs trust ACL-registry); "
-        "always imported by full package path, never `from core import registry`",
+    (
+        "no-duplicate-module-basename",
+        "registry.py",
+    ): "two registries by deliberate design (toolbelt verb-registry vs trust ACL-registry); "
+    "always imported by full package path, never `from core import registry`",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
@@ -98,10 +122,22 @@ REDIS_CONNECTOR = "core/foundation/redis_connection.py"
 # W38 rule-7: durable Store families -- legitimately Redis-only-plus-File, classified by
 # the heal's File-family check at RUNTIME, never in EPHEMERAL_PREFIXES. A new durable
 # family goes HERE (a conscious "this persists" decision), an ephemeral one in the roster.
-DURABLE_FAMILIES = frozenset({
-    "events", "learn", "narr", "mem", "codex", "resource", "atom", "chronicle",
-    "coord", "reinforce", "skill", "settings",
-})
+DURABLE_FAMILIES = frozenset(
+    {
+        "events",
+        "learn",
+        "narr",
+        "mem",
+        "codex",
+        "resource",
+        "atom",
+        "chronicle",
+        "coord",
+        "reinforce",
+        "skill",
+        "settings",
+    }
+)
 # Families that appear in ns-key POSITION but are not live Redis families (probes/docs).
 _FAMILY_ALLOWLIST = frozenset({"NAMESPACE"})
 _NS_KEY_RE = re.compile(r"\{[\w.]*_?ns(?:\(\))?\}:([a-z_]+)")
@@ -141,8 +177,8 @@ def _rel(p: Path) -> str:
 
 
 def check() -> int:
-    violations = []          # (rule, location, detail)
-    allowed_hits = []        # (rule, location) that matched the allowlist
+    violations = []  # (rule, location, detail)
+    allowed_hits = []  # (rule, location) that matched the allowlist
     class_defs = defaultdict(list)  # class name -> [files]
     module_basenames = defaultdict(set)  # basename -> {dirs} (import-shadowing hazard)
 
@@ -151,8 +187,7 @@ def check() -> int:
     use_redis = re.compile(r"\bredis\.(Redis|StrictRedis|ConnectionPool)\(")
     syspath = re.compile(r"\bsys\.path\.insert\b")
     classdef = re.compile(r"^class\s+([A-Za-z_]\w*)")
-    singleton_decl = re.compile(
-        r"^_INSTANCES?\s*[:=]|^_[a-z_]+\s*:\s*Optional\[[A-Za-z_.\[\]]+\]\s*=\s*None")
+    singleton_decl = re.compile(r"^_INSTANCES?\s*[:=]|^_[a-z_]+\s*:\s*Optional\[[A-Za-z_.\[\]]+\]\s*=\s*None")
 
     def record(rule, location, detail):
         if (rule, location) in ALLOWLIST:
@@ -165,21 +200,25 @@ def check() -> int:
         if p.name != "__init__.py":
             module_basenames[p.name].add(p.parent.as_posix())
         text = p.read_text(encoding="utf-8", errors="replace")
-        singleton_line = next((i for i, ln in enumerate(text.splitlines(), 1)
-                               if singleton_decl.match(ln)), None)
+        singleton_line = next((i for i, ln in enumerate(text.splitlines(), 1) if singleton_decl.match(ln)), None)
         if singleton_line and "_AISETUP_TEST_ISOLATED" not in text:
-            record("singleton-honors-isolation", rel,
-                   f"{rel}:{singleton_line} module-level singleton cache without an "
-                   f"_AISETUP_TEST_ISOLATED branch (T069)")
+            record(
+                "singleton-honors-isolation",
+                rel,
+                f"{rel}:{singleton_line} module-level singleton cache without an _AISETUP_TEST_ISOLATED branch (T069)",
+            )
         # W38 rule-7 (register-at-ship-time): a core/comm module minting a new Redis key
         # family must classify it (ephemeral roster or DURABLE_FAMILIES) -- else it grows
         # a mailbox-style UNKNOWN heal wall. Scoped to the transport keyspace.
         if rel.startswith("core/comm/"):
             for fam in sorted(_unregistered_families(text)):
-                record("redis-family-registered", f"{rel}:{fam}",
-                       f"{rel} constructs `{{ns}}:{fam}:...` but '{fam}' is not in "
-                       f"packet_spec.EPHEMERAL_PREFIXES nor DURABLE_FAMILIES -- register it "
-                       f"(ephemeral-by-design -> roster; persisted -> durable allowlist)")
+                record(
+                    "redis-family-registered",
+                    f"{rel}:{fam}",
+                    f"{rel} constructs `{{ns}}:{fam}:...` but '{fam}' is not in "
+                    f"packet_spec.EPHEMERAL_PREFIXES nor DURABLE_FAMILIES -- register it "
+                    f"(ephemeral-by-design -> roster; persisted -> durable allowlist)",
+                )
         # The no-syspath-insert rule targets IMPORT-TIME path mutation: a library module
         # that rewrites sys.path for every consumer that imports it. Inside a
         # `if __name__ == "__main__":` block the same call is ordinary Python -- it runs
@@ -206,13 +245,15 @@ def check() -> int:
 
     for name, files in class_defs.items():
         if len(set(files)) > 1:
-            record("no-duplicate-class-names", name,
-                   f"class {name} defined in: {', '.join(sorted(set(files)))}")
+            record("no-duplicate-class-names", name, f"class {name} defined in: {', '.join(sorted(set(files)))}")
 
     for base, dirs in module_basenames.items():
         if len(dirs) > 1:
-            record("no-duplicate-module-basename", base,
-                   f"module '{base}' in {len(dirs)} packages: {', '.join(sorted(dirs))}")
+            record(
+                "no-duplicate-module-basename",
+                base,
+                f"module '{base}' in {len(dirs)} packages: {', '.join(sorted(dirs))}",
+            )
 
     # ---- report ----
     print("=" * 60)

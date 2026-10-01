@@ -11,6 +11,7 @@ lock: the exact versions `uv sync` installs, for every platform (environment mar
 Run:  uv run poe lock                                     # uv lock, then rewrite both files
       uv run python scripts/generators/gen_requirements.py --check   # exit 1 if either is stale
 """
+
 import os
 import shutil
 import subprocess
@@ -30,11 +31,12 @@ def render(extra):
     if uv is None:
         raise SystemExit("gen_requirements: uv is not on PATH (https://docs.astral.sh/uv/)")
     cmd = ["uv", *EXPORT, *extra]
-    body = subprocess.run([uv, *cmd[1:]], cwd=ROOT, check=True, capture_output=True, text=True,
-                          encoding="utf-8").stdout
-    header = ("# GENERATED — do not edit. Source: pyproject.toml + uv.lock.\n"
-              "# Regenerate: uv run poe lock   (runs: %s)\n"
-              "# pip consumers: pip install -r <this file>. uv users: uv sync.\n" % " ".join(cmd))
+    body = subprocess.run([uv, *cmd[1:]], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8").stdout
+    header = (
+        "# GENERATED — do not edit. Source: pyproject.toml + uv.lock.\n"
+        "# Regenerate: uv run poe lock   (runs: %s)\n"
+        "# pip consumers: pip install -r <this file>. uv users: uv sync.\n" % " ".join(cmd)
+    )
     return header + body
 
 
@@ -59,8 +61,7 @@ def main(argv):
             fh.write(want)
         print("wrote %s" % rel)
     if stale:
-        print("STALE (hand-edited or not regenerated after uv lock): %s -- run: uv run poe lock"
-              % ", ".join(stale))
+        print("STALE (hand-edited or not regenerated after uv lock): %s -- run: uv run poe lock" % ", ".join(stale))
         return 1
     if check:
         print("requirement files match uv.lock")

@@ -28,6 +28,7 @@ declared here rather than silently allowed, so "planned" is a claim someone made
 the record instead of a hole the checker cannot see -- the same discipline as
 check_door_parity's known-gaps list.
 """
+
 from __future__ import annotations
 
 import ast
@@ -43,7 +44,7 @@ SKIP_DIRS = {"__pycache__", ".git", "node_modules"}
 # verb -> why it is named before it exists. An entry here is a promise on the record.
 PLANNED = {
     "session": "core/comm/session_state.py module docstring: the snapshot/resume door "
-               "is designed (T086 lineage), not yet a CLI verb",
+    "is designed (T086 lineage), not yet a CLI verb",
     # "grant" -- ENTRY REMOVED 2026-08-04 (T163). It was here because grants were hand-edited in
     # security/acl.json with no CLI door; that door now exists (agent_cli.py cmd_grant, backed by
     # core/trust/grant_writer.py). A promise list that never shrinks when a promise is KEPT has
@@ -57,10 +58,16 @@ def registered_verbs() -> set:
     """The subcommands argparse actually knows -- read from the AST, so the checker
     cannot drift from the parser it is checking."""
     tree = ast.parse(io.open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read())
-    return {n.args[0].value for n in ast.walk(tree)
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-            and n.func.attr == "add_parser" and n.args
-            and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)}
+    return {
+        n.args[0].value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "add_parser"
+        and n.args
+        and isinstance(n.args[0], ast.Constant)
+        and isinstance(n.args[0].value, str)
+    }
 
 
 def _files():
@@ -106,8 +113,7 @@ def main() -> int:
 
     print(f"# advertised-verb check -- {len(verbs)} registered verb(s)")
     if PLANNED:
-        print(f"PLANNED (named in docstrings, not built, {len(PLANNED)}): "
-              f"{', '.join(sorted(PLANNED))}")
+        print(f"PLANNED (named in docstrings, not built, {len(PLANNED)}): {', '.join(sorted(PLANNED))}")
         print("  ^ declared promises, not silent holes; build them or drop the reference.")
     if stale_plans:
         # The list must not outlive its reason, or it becomes the thing it guards against.
@@ -117,9 +123,11 @@ def main() -> int:
         for rel, line, verb, text in bad:
             print(f"FAIL: {rel}:{line} advertises `agent_cli.py {verb}` -- no such verb")
             print(f"      {text}")
-        print(f"\n{len(bad)} dead instruction(s). A remedy that does not resolve is worse "
-              f"than no remedy: it looks actionable, gets followed, and costs the reader "
-              f"trust in the finding that raised it.")
+        print(
+            f"\n{len(bad)} dead instruction(s). A remedy that does not resolve is worse "
+            f"than no remedy: it looks actionable, gets followed, and costs the reader "
+            f"trust in the finding that raised it."
+        )
         return 1
     print("PASS: every command live code tells you to run exists.")
     return 0

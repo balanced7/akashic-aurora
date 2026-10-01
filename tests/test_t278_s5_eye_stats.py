@@ -7,6 +7,7 @@ spans). Numbers before prose; fog stated, never hidden (the degraded law made am
 
 Run: py -m pytest tests/test_t278_s5_eye_stats.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -33,7 +34,8 @@ def db(tmp_path):
     (corpus / "session_gamma.jsonl").write_text(
         '{"type":"user","isMeta":false,"timestamp":"not-a-real-time",'
         '"message":{"role":"user","content":"timeless gamma utterance"}}\n',
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     dbp = tmp_path / "eye.db"
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=dbp)
     return dbp
@@ -56,7 +58,8 @@ def test_p2_time_fog_is_a_number(db):
     s = EYE.stats(db_path=db)
     assert s["ts_missing"] == 1, "the timeless gamma event"
     assert 0 < s["time_fog"] < 0.15 and abs(s["time_fog"] - 1 / 12) < 1e-9, (
-        "fog is a FRACTION, stated -- every as_of query is blind to exactly this share")
+        "fog is a FRACTION, stated -- every as_of query is blind to exactly this share"
+    )
 
 
 def test_p3_overview_lists_sessions_with_spans(db):
@@ -66,5 +69,6 @@ def test_p3_overview_lists_sessions_with_spans(db):
     assert per["session_alpha"]["events"] == 7
     assert per["session_alpha"]["first_ts"] is not None
     assert per["session_gamma"]["first_ts"] is None, (
-        "a session with only timeless events has no span -- shown as such, not faked")
+        "a session with only timeless events has no span -- shown as such, not faked"
+    )
     assert per["session_alpha"]["operator_events"] == 3

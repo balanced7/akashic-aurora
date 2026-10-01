@@ -35,6 +35,7 @@ invisible no-op. That is the same trap this session hit three times in guards of
 
 Run: py -m pytest tests/test_t167_rearm_autopilot_actually_spawns.py -q
 """
+
 import os
 import re
 import sys
@@ -54,12 +55,13 @@ def test_a1_the_daemon_spawn_callable_matches_the_definition():
     assert d, "no _spawn_listener definition found"
     params = [p for p in (x.strip() for x in d.group(1).split(",")) if p and p != "self"]
     required = [p for p in params if "=" not in p and not p.startswith("*")]
-    call = re.search(r"_spawn_listener\((?!sid: str)([^)]*)\)", src[d.end():])
+    call = re.search(r"_spawn_listener\((?!sid: str)([^)]*)\)", src[d.end() :])
     assert call, "no _spawn_listener CALL site found"
     passed = [a for a in (x.strip() for x in call.group(1).split(",")) if a]
     assert len(passed) >= len(required) and len(passed) <= len(params), (
         f"the daemon calls _spawn_listener with {len(passed)} arg(s) but it accepts "
-        f"{len(required)}..{len(params)} -- every rearm raises TypeError and is swallowed")
+        f"{len(required)}..{len(params)} -- every rearm raises TypeError and is swallowed"
+    )
 
 
 def test_a2_a_successful_spawn_clears_the_trigger(tmp_path):
@@ -91,8 +93,8 @@ def test_a4_a_raising_spawn_is_reported_not_silently_swallowed(capsys, tmp_path)
     said = capsys.readouterr()
     blob = (said.out or "") + (said.err or "")
     assert "TypeError" in blob or "rearm" in blob.lower(), (
-        "a raising spawn produced NO output -- this is exactly how the wake autopilot stayed "
-        "broken and silent")
+        "a raising spawn produced NO output -- this is exactly how the wake autopilot stayed broken and silent"
+    )
 
 
 def test_a5_the_loop_still_fails_open_on_a_raising_spawn(tmp_path):
@@ -102,6 +104,6 @@ def test_a5_the_loop_still_fails_open_on_a_raising_spawn(tmp_path):
     def _boom(sid):
         raise RuntimeError("nope")
 
-    n = DS.consume_rearms("claude", _boom, tmp=str(tmp_path))   # must not raise
+    n = DS.consume_rearms("claude", _boom, tmp=str(tmp_path))  # must not raise
     assert n == 0
     assert os.path.exists(DS.rearm_path("claude", "sidraise1", tmp=str(tmp_path)))

@@ -16,6 +16,7 @@ off the branch, a checks entry was removed or changed after registration, or no 
 is current for HEAD (the "suite record postdates the newest *.py/pyproject/uv.lock commit"
 rule, implemented as digest equality: oracle.relevant_digest).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,10 +43,16 @@ GOALS = tuple("G%d" % i for i in range(8))
 # in G1, Ruff arrives in G2/G3, basedpyright in G4). Before that a rule is measured and reported,
 # never silently treated as passing.
 T_ACTIVE_FROM = {"T1": 1, "T2": 2, "T3": 3, "T4": 3, "T5": 3, "T6": 1, "T7": 0}
-FORBIDDEN_CONFIGS = ("ruff.toml", ".ruff.toml", "pyrightconfig.json", "setup.cfg", "tox.ini",
-                     "pytest.ini", ".coveragerc")
-GATE_TASKS = ("fmt-check", "lint-check", "types", "lock-check", "deps", "ci-lint", "guardrails",
-              "test-fast", "gate")
+FORBIDDEN_CONFIGS = (
+    "ruff.toml",
+    ".ruff.toml",
+    "pyrightconfig.json",
+    "setup.cfg",
+    "tox.ini",
+    "pytest.ini",
+    ".coveragerc",
+)
+GATE_TASKS = ("fmt-check", "lint-check", "types", "lock-check", "deps", "ci-lint", "guardrails", "test-fast", "gate")
 GATE_FORBIDDEN = ("--fix", "--exit-zero", "|| true", "--skip")
 
 
@@ -62,6 +69,7 @@ def goal_num(goal: str) -> int:
 
 
 # ----------------------------------------------------------------------------- checks files
+
 
 def load_checks(goal: str, ref: str | None = None) -> dict:
     rel = "tooling-upgrade/checks/%s.toml" % goal
@@ -119,8 +127,7 @@ def checks_history_problems() -> list:
 
 def cmd_assert_checks_files(args) -> int:
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
-    problems = ["%s not committed" % g for g in GOALS
-                if "tooling-upgrade/checks/%s.toml" % g not in tracked]
+    problems = ["%s not committed" % g for g in GOALS if "tooling-upgrade/checks/%s.toml" % g not in tracked]
     for g in GOALS:
         try:
             data = load_checks(g)
@@ -136,6 +143,7 @@ def cmd_assert_checks_files(args) -> int:
 
 
 # ----------------------------------------------------------------------------- repo state
+
 
 def worktree_clean() -> bool:
     return git("status", "--porcelain", "--untracked-files=all") == ""
@@ -158,26 +166,34 @@ def pushed() -> bool:
 
 def cmd_assert_branch(args) -> int:
     ok = on_branch() and is_linked_worktree()
-    print("BRANCH: %s (on %s: %s, linked worktree: %s, path %s)" % (
-        "PASS" if ok else "FAIL", BRANCH, on_branch(), is_linked_worktree(), ROOT))
+    print(
+        "BRANCH: %s (on %s: %s, linked worktree: %s, path %s)"
+        % ("PASS" if ok else "FAIL", BRANCH, on_branch(), is_linked_worktree(), ROOT)
+    )
     return 0 if ok else 1
 
 
 def current_snapshot(require_o1=True):
     """The snapshot whose recorded digest equals HEAD's relevant digest (g0 first)."""
     head = oracle.relevant_digest(git("rev-parse", "HEAD").strip())
-    cands = sorted((p for p in oracle.SNAPSHOTS.iterdir() if (p / "meta.json").exists()),
-                   key=lambda p: (p.name != "g0", p.name)) if oracle.SNAPSHOTS.exists() else []
+    cands = (
+        sorted(
+            (p for p in oracle.SNAPSHOTS.iterdir() if (p / "meta.json").exists()),
+            key=lambda p: (p.name != "g0", p.name),
+        )
+        if oracle.SNAPSHOTS.exists()
+        else []
+    )
     for d in cands:
         meta = oracle.load_json(d / "meta.json")
-        if meta.get("digest") == head and not meta.get("dirty") and (
-                not require_o1 or (d / "O1.json").exists()):
+        if meta.get("digest") == head and not meta.get("dirty") and (not require_o1 or (d / "O1.json").exists()):
             if not oracle.verify_snapshot(d.name, 1):
                 return d
     return None
 
 
 # ----------------------------------------------------------------------------- T1-T7
+
 
 def pyproject() -> dict:
     try:
@@ -216,12 +232,14 @@ def t2():
     inv = oracle.load_json(oracle.INVENTORY)
     must = {f for f in inv["in_scope"] if (ROOT / f).exists()}
     allowed = in_scope_py()
-    r = run(["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml",
-             "--show-files"])
+    r = run(["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--show-files"])
     if r.returncode != 0 and "Failed to spawn" in r.stderr:
         return False, "ruff not installed"
-    shown = {Path(line.strip()).resolve().relative_to(ROOT.resolve()).as_posix()
-             for line in r.stdout.splitlines() if line.strip().endswith(".py")}
+    shown = {
+        Path(line.strip()).resolve().relative_to(ROOT.resolve()).as_posix()
+        for line in r.stdout.splitlines()
+        if line.strip().endswith(".py")
+    }
     missing, extra = must - shown, shown - allowed
     msg = []
     if missing:
@@ -239,9 +257,12 @@ def t2():
     return not msg, "; ".join(msg) or "scope equals inventory"
 
 
-_SUPP = re.compile(r"#\s*(noqa(?::\s*[A-Z0-9, ]+)?|type:\s*ignore(?:\[[^\]]*\])?|"
-                   r"pyright:\s*ignore(?:\[[^\]]*\])?|ruff:\s*noqa[^\n]*|pyright:\s*[a-zA-Z]+[^\n]*|"
-                   r"fmt:\s*(?:off|skip))", re.I)
+_SUPP = re.compile(
+    r"#\s*(noqa(?::\s*[A-Z0-9, ]+)?|type:\s*ignore(?:\[[^\]]*\])?|"
+    r"pyright:\s*ignore(?:\[[^\]]*\])?|ruff:\s*noqa[^\n]*|pyright:\s*[a-zA-Z]+[^\n]*|"
+    r"fmt:\s*(?:off|skip))",
+    re.I,
+)
 
 
 def suppressions() -> list:
@@ -256,7 +277,7 @@ def suppressions() -> list:
             if "#" not in line:
                 continue
             for m in _SUPP.finditer(line):
-                rest = line[m.end():]
+                rest = line[m.end() :]
                 reason = rest.split("#", 1)[1].strip() if "#" in rest else ""
                 out.append((f, i, m.group(1).strip(), reason))
     return out
@@ -264,8 +285,12 @@ def suppressions() -> list:
 
 def blanket(form: str) -> bool:
     f = form.lower().replace(" ", "")
-    return (f == "noqa" or f.startswith("ruff:noqa") or f == "type:ignore"
-            or (f.startswith("pyright:") and not f.startswith(("pyright:ignore[", "pyright:strict"))))
+    return (
+        f == "noqa"
+        or f.startswith("ruff:noqa")
+        or f == "type:ignore"
+        or (f.startswith("pyright:") and not f.startswith(("pyright:ignore[", "pyright:strict")))
+    )
 
 
 def t3(goal: int):
@@ -279,18 +304,25 @@ def t3(goal: int):
             bad.append("%s:%d blanket %r" % (f, i, form))
         elif not reason and not low.startswith("pyright:strict"):
             bad.append("%s:%d %r without a reason" % (f, i, form))
-    return not bad, ("%d violations, e.g. %s" % (len(bad), bad[0])) if bad else "every suppression has a rule and a reason"
+    return not bad, (
+        "%d violations, e.g. %s" % (len(bad), bad[0])
+    ) if bad else "every suppression has a rule and a reason"
 
 
 def t4():
     sup = [s for s in suppressions() if not s[2].lower().startswith(("fmt:", "pyright:strict"))]
     loc = sum(len((ROOT / f).read_bytes().splitlines()) for f in in_scope_py() if (ROOT / f).exists())
     budget = loc // 400
-    report_ok = (HERE / "SUPPRESSIONS.md").exists() and \
-        (HERE / "SUPPRESSIONS.md").read_text(encoding="utf-8") == render_suppressions()
+    report_ok = (HERE / "SUPPRESSIONS.md").exists() and (HERE / "SUPPRESSIONS.md").read_text(
+        encoding="utf-8"
+    ) == render_suppressions()
     ok = len(sup) <= budget and report_ok
     return ok, "%d suppressions / budget %d (%d LOC); SUPPRESSIONS.md %s" % (
-        len(sup), budget, loc, "current" if report_ok else "STALE or missing")
+        len(sup),
+        budget,
+        loc,
+        "current" if report_ok else "STALE or missing",
+    )
 
 
 ALLOWED_PER_FILE = {"tests/**": {"S101", "PLR2004"}, "scripts/**": {"T20", "T201"}}
@@ -340,8 +372,7 @@ def t7():
 def tamper(goal: str):
     n = goal_num(goal)
     results = {}
-    for t, fn in (("T1", t1), ("T2", t2), ("T3", lambda: t3(n)), ("T4", t4), ("T5", t5),
-                  ("T6", t6), ("T7", t7)):
+    for t, fn in (("T1", t1), ("T2", t2), ("T3", lambda: t3(n)), ("T4", t4), ("T5", t5), ("T6", t6), ("T7", t7)):
         try:
             ok, msg = fn()
         except Exception as e:  # a crashing rule is a failing rule, never a passing one
@@ -352,10 +383,15 @@ def tamper(goal: str):
 
 
 def render_suppressions() -> str:
-    rows = ["# Suppressions in in-scope code (generated by certify.py suppressions --write)", "",
-            "| File | Line | Suppression | Reason |", "|---|---|---|---|"]
-    rows += ["| %s | %d | `%s` | %s |" % (f, i, form, reason.replace("|", "\\|"))
-             for f, i, form, reason in suppressions()]
+    rows = [
+        "# Suppressions in in-scope code (generated by certify.py suppressions --write)",
+        "",
+        "| File | Line | Suppression | Reason |",
+        "|---|---|---|---|",
+    ]
+    rows += [
+        "| %s | %d | `%s` | %s |" % (f, i, form, reason.replace("|", "\\|")) for f, i, form, reason in suppressions()
+    ]
     return "\n".join(rows) + "\n"
 
 
@@ -476,42 +512,76 @@ def _gate_d13(t):
 
 DRILLS = {
     # id: (description, fault(tree), gate argv | callable(tree)->rc, presence argv | callable)
-    "D01": ("mis-formatted in-scope file", lambda t: _write(t, "core/_drill_fmt.py", MISFORMATTED),
-            _poe("fmt-check"), _poe_present("fmt-check")),
-    "D02": ("unused import F401", lambda t: _write(t, "core/_drill_f401.py", "import os\n"),
-            _poe("lint-check"), _poe_present("lint-check")),
-    "D03": ("bare except", lambda t: _write(t, "core/_drill_bare.py",
-                                            "try:\n    pass\nexcept:\n    pass\n"),
-            _poe("lint-check"), _poe_present("lint-check")),
-    "D04": ("type error under core/", lambda t: _write(t, "core/_drill_types.py", 'x: int = "s"\n'),
-            _poe("types"), _poe_present("types")),
-    "D05": ("ruff.toml excluding core/ + mis-formatted core file", _fault_d05,
-            _poe("gate"), _poe_present("gate")),
-    "D06": ("file-level ruff: noqa", lambda t: _write(t, "core/_drill_noqa.py",
-                                                     "# ruff: noqa\nimport os\n"),
-            _poe("gate"), _poe_present("gate")),
+    "D01": (
+        "mis-formatted in-scope file",
+        lambda t: _write(t, "core/_drill_fmt.py", MISFORMATTED),
+        _poe("fmt-check"),
+        _poe_present("fmt-check"),
+    ),
+    "D02": (
+        "unused import F401",
+        lambda t: _write(t, "core/_drill_f401.py", "import os\n"),
+        _poe("lint-check"),
+        _poe_present("lint-check"),
+    ),
+    "D03": (
+        "bare except",
+        lambda t: _write(t, "core/_drill_bare.py", "try:\n    pass\nexcept:\n    pass\n"),
+        _poe("lint-check"),
+        _poe_present("lint-check"),
+    ),
+    "D04": (
+        "type error under core/",
+        lambda t: _write(t, "core/_drill_types.py", 'x: int = "s"\n'),
+        _poe("types"),
+        _poe_present("types"),
+    ),
+    "D05": ("ruff.toml excluding core/ + mis-formatted core file", _fault_d05, _poe("gate"), _poe_present("gate")),
+    "D06": (
+        "file-level ruff: noqa",
+        lambda t: _write(t, "core/_drill_noqa.py", "# ruff: noqa\nimport os\n"),
+        _poe("gate"),
+        _poe_present("gate"),
+    ),
     "D07": ("pyright: basic header on a core file", _fault_d07, _poe("gate"), _poe_present("gate")),
-    "D08": ("dependency added without relock", _fault_d08, _poe("lock-check"),
-            _poe_present("lock-check")),
-    "D09": ("hand edit to a generated requirements file", _fault_d09, _poe("lock-check"),
-            _poe_present("lock-check")),
-    "D10": ("tag-pinned action", lambda t: _write(t, ".github/workflows/_drill.yml",
-                                                  "on: push\npermissions: {}\njobs:\n  d:\n    runs-on: ubuntu-latest\n"
-                                                  "    steps:\n      - uses: actions/checkout@v4\n"),
-            _poe("ci-lint"), _poe_present("ci-lint")),
-    "D11": ("permissions: write-all", lambda t: _write(t, ".github/workflows/_drill.yml",
-                                                       "on: push\npermissions: write-all\njobs:\n  d:\n    runs-on: ubuntu-latest\n"
-                                                       "    steps:\n      - run: echo hi\n"),
-            _poe("ci-lint"), _poe_present("ci-lint")),
-    "D12": ("failing test in a new test file", lambda t: _write(t, "tests/test__drill_fail.py",
-                                                                "def test_drill():\n    assert False\n"),
-            _poe("test-fast"), _poe_present("test-fast")),
+    "D08": ("dependency added without relock", _fault_d08, _poe("lock-check"), _poe_present("lock-check")),
+    "D09": ("hand edit to a generated requirements file", _fault_d09, _poe("lock-check"), _poe_present("lock-check")),
+    "D10": (
+        "tag-pinned action",
+        lambda t: _write(
+            t,
+            ".github/workflows/_drill.yml",
+            "on: push\npermissions: {}\njobs:\n  d:\n    runs-on: ubuntu-latest\n"
+            "    steps:\n      - uses: actions/checkout@v4\n",
+        ),
+        _poe("ci-lint"),
+        _poe_present("ci-lint"),
+    ),
+    "D11": (
+        "permissions: write-all",
+        lambda t: _write(
+            t,
+            ".github/workflows/_drill.yml",
+            "on: push\npermissions: write-all\njobs:\n  d:\n    runs-on: ubuntu-latest\n"
+            "    steps:\n      - run: echo hi\n",
+        ),
+        _poe("ci-lint"),
+        _poe_present("ci-lint"),
+    ),
+    "D12": (
+        "failing test in a new test file",
+        lambda t: _write(t, "tests/test__drill_fail.py", "def test_drill():\n    assert False\n"),
+        _poe("test-fast"),
+        _poe_present("test-fast"),
+    ),
     "D13": ("mis-formatted staged file + git commit", lambda t: None, _gate_d13, _hooks_present),
-    "D14": ("public function removed from a core module", _fault_d14, _gate_d14,
-            _poe_present("oracle")),
-    "D15": ("poe gate task edited to add || true", _fault_d15,
-            ["{python}", "tooling-upgrade/certify.py", "{goal}", "--tamper-only"],
-            _poe_present("gate")),
+    "D14": ("public function removed from a core module", _fault_d14, _gate_d14, _poe_present("oracle")),
+    "D15": (
+        "poe gate task edited to add || true",
+        _fault_d15,
+        ["{python}", "tooling-upgrade/certify.py", "{goal}", "--tamper-only"],
+        _poe_present("gate"),
+    ),
 }
 
 
@@ -528,7 +598,7 @@ def drill_tree():
 
 
 def _exec(spec, t, goal):
-    if isinstance(spec, int):   # a presence probe that already answered with an exit code
+    if isinstance(spec, int):  # a presence probe that already answered with an exit code
         return spec
     if callable(spec):
         return spec(t)
@@ -578,18 +648,20 @@ def cmd_drills(args) -> int:
 
 # ----------------------------------------------------------------------------- fresh clone
 
+
 def cmd_fresh_clone(args) -> int:
     base = Path(tempfile.mkdtemp(prefix="aurora-clone-"))
     clone = base / "aurora-clone"
     try:
-        steps = [["git", "clone", "--no-hardlinks", "--quiet", str(ROOT), str(clone)],
-                 ["git", "-C", str(clone), "checkout", "--quiet", git("rev-parse", "HEAD").strip()],
-                 ["uv", "sync", "--locked"]]
+        steps = [
+            ["git", "clone", "--no-hardlinks", "--quiet", str(ROOT), str(clone)],
+            ["git", "-C", str(clone), "checkout", "--quiet", git("rev-parse", "HEAD").strip()],
+            ["uv", "sync", "--locked"],
+        ]
         if args.gate:
             steps.append(["uv", "run", "poe", "gate"])
         for cmd in steps:
-            r = run(cmd, cwd=clone if cmd[0] == "uv" else base, env=oracle.oracle_env(),
-                    timeout=7200)
+            r = run(cmd, cwd=clone if cmd[0] == "uv" else base, env=oracle.oracle_env(), timeout=7200)
             tail = "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:])
             print("$ %s\n%s\n[exit %d]" % (" ".join(cmd), tail, r.returncode))
             if r.returncode != 0:
@@ -602,6 +674,7 @@ def cmd_fresh_clone(args) -> int:
 
 
 # ----------------------------------------------------------------------------- goal-specific asserts
+
 
 def _report(name, problems) -> int:
     for p in problems[:30]:
@@ -623,6 +696,7 @@ def cmd_assert_mechanical_commits(args) -> int:
     """Every commit with a `Replay:` line reproduces exactly from its parent (class B/C), and
     every class-B (`style:`) commit is AST-equal to its parent (O2)."""
     import shlex
+
     problems, n = [], 0
     for sha, subject, body in commits_since_base():
         m = re.search(r"(?m)^Replay:\s*(.+)$", body)
@@ -656,8 +730,7 @@ def cmd_assert_blame_ignore_revs(args) -> int:
     if not p.exists():
         return _report("BLAME-IGNORE-REVS", [".git-blame-ignore-revs missing"])
     problems = []
-    shas = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines()
-            if ln.strip() and not ln.startswith("#")]
+    shas = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
     for sha in shas:
         subj = git("log", "-1", "--format=%s", sha, check=False).strip()
         if not subj.startswith("style:"):
@@ -688,8 +761,9 @@ def cmd_assert_python_agrees(args) -> int:
                 continue
             for m in pat.finditer(text):
                 if m.group(1) != pin_mm:
-                    problems.append("%s says %s, .python-version says %s" % (
-                        f.relative_to(ROOT).as_posix(), m.group(1), pin_mm))
+                    problems.append(
+                        "%s says %s, .python-version says %s" % (f.relative_to(ROOT).as_posix(), m.group(1), pin_mm)
+                    )
     rp = pyproject().get("project", {}).get("requires-python", "")
     floor = re.search(r">=\s*(3\.\d+)", rp)
     if not floor or tuple(map(int, floor.group(1).split("."))) > tuple(map(int, pin_mm.split("."))):
@@ -721,8 +795,18 @@ def cmd_assert_no_bare_py(args) -> int:
     return _report("NO BARE PY", problems)
 
 
-DEV_GROUP = ("ruff", "basedpyright", "ty", "pytest", "pytest-cov", "pytest-xdist", "pytest-randomly",
-             "poethepoet", "prek", "deptry")    # plan G1.P1, exactly
+DEV_GROUP = (
+    "ruff",
+    "basedpyright",
+    "ty",
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "pytest-randomly",
+    "poethepoet",
+    "prek",
+    "deptry",
+)  # plan G1.P1, exactly
 
 
 def _req_name(spec: str) -> str:
@@ -736,9 +820,11 @@ def dev_group_problems(pp: dict) -> list:
     problems += ["dev has %s (not in the plan's list)" % n for n in sorted(dev - set(DEV_GROUP))]
     runtime = {_req_name(s) for s in pp.get("project", {}).get("dependencies", [])}
     problems += ["[project].dependencies still has tool %s" % n for n in sorted(runtime & set(DEV_GROUP))]
-    problems += ["pre-commit is still declared (replaced by prek)" for g in
-                 [runtime] + [{_req_name(s) for s in v if isinstance(s, str)} for v in groups.values()]
-                 if "pre-commit" in g]
+    problems += [
+        "pre-commit is still declared (replaced by prek)"
+        for g in [runtime] + [{_req_name(s) for s in v if isinstance(s, str)} for v in groups.values()]
+        if "pre-commit" in g
+    ]
     for g in ("ml", "browser"):
         if g not in groups:
             problems.append("optional group %s missing" % g)
@@ -756,8 +842,7 @@ def uv_settings_problems(pp: dict) -> list:
         problems.append("tool.uv.package is not false")
     m = re.fullmatch(r">=\s*0\.(\d+)(\.\d+)?", str(uv.get("required-version", "")))
     if not m or int(m.group(1)) < 12:
-        problems.append("tool.uv.required-version %r is not >=0.12 (the G0 uv minor)"
-                        % uv.get("required-version"))
+        problems.append("tool.uv.required-version %r is not >=0.12 (the G0 uv minor)" % uv.get("required-version"))
     if uv.get("exclude-newer") != "7 days":
         problems.append("tool.uv.exclude-newer %r != '7 days'" % uv.get("exclude-newer"))
     if uv.get("default-groups") != ["dev"]:
@@ -805,8 +890,9 @@ def sha_pin_problems(root: Path) -> list:
                 continue
             ref = m.group(1).rpartition("@")[2] if "@" in m.group(1) else ""
             if not re.fullmatch(r"[0-9a-f]{40}", ref):
-                problems.append("%s:%d %s is not pinned to a commit SHA" % (
-                    wf.relative_to(root).as_posix(), i, m.group(1)))
+                problems.append(
+                    "%s:%d %s is not pinned to a commit SHA" % (wf.relative_to(root).as_posix(), i, m.group(1))
+                )
     return problems
 
 
@@ -821,8 +907,22 @@ def cmd_assert_ratchet(args) -> int:
     if not p.exists():
         return _report("RATCHET", ["tooling-upgrade/ratchet.json missing"])
     limits = oracle.load_json(p)
-    r = run(["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml", "--exit-zero",
-             "--select", ",".join(sorted(limits)), "--output-format", "json"])
+    r = run(
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "ruff",
+            "check",
+            "--config",
+            "pyproject.toml",
+            "--exit-zero",
+            "--select",
+            ",".join(sorted(limits)),
+            "--output-format",
+            "json",
+        ]
+    )
     try:
         found = json.loads(r.stdout or "[]")
     except ValueError:
@@ -833,8 +933,7 @@ def cmd_assert_ratchet(args) -> int:
         fam = max((f for f in limits if code.startswith(f)), key=len, default=None)
         if fam:
             counts[fam] += 1
-    problems = ["%s: %d > ratchet %d" % (f, counts[f], limits[f]) for f in sorted(limits)
-                if counts[f] > limits[f]]
+    problems = ["%s: %d > ratchet %d" % (f, counts[f], limits[f]) for f in sorted(limits) if counts[f] > limits[f]]
     print("counts: %s" % counts)
     return _report("RATCHET", problems)
 
@@ -858,11 +957,16 @@ def cmd_assert_latent_regressions(args) -> int:
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     dst.write_bytes(src.read_bytes())
                 env = oracle.oracle_env({"UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"), "UV_NO_SYNC": "1"})
-                r = run(["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider",
-                         e["regression_test"]], cwd=t, env=env, timeout=1800)
+                r = run(
+                    ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", e["regression_test"]],
+                    cwd=t,
+                    env=env,
+                    timeout=1800,
+                )
                 if (r.returncode != 0) != want_fail:
-                    problems.append("%s: %s %s on %s" % (e["id"], e["regression_test"],
-                                                         "passed" if want_fail else "failed", ref))
+                    problems.append(
+                        "%s: %s %s on %s" % (e["id"], e["regression_test"], "passed" if want_fail else "failed", ref)
+                    )
             finally:
                 oracle._rmtree(base)
                 git("worktree", "prune", check=False)
@@ -895,12 +999,15 @@ def cmd_assert_docs_uv(args) -> int:
 
 
 def cmd_assert_ci_replay(args) -> int:
-    print("NOT IMPLEMENTED: the local replay of every CI job's run steps is built in G5.P3 "
-          "(it needs a workflow parser); until then this check cannot pass.")
+    print(
+        "NOT IMPLEMENTED: the local replay of every CI job's run steps is built in G5.P3 "
+        "(it needs a workflow parser); until then this check cannot pass."
+    )
     return 3
 
 
 # ----------------------------------------------------------------------------- certificate
+
 
 def prior_goal_certified(n: int) -> bool:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8") if (HERE / "LEDGER.md").exists() else ""
@@ -923,8 +1030,10 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         # Goals run in order: a later goal's checks, tamper rules and oracle comparison are not
         # executed before its predecessor is certified (they would only measure work that does
         # not exist yet). Drills still run -- that is the G0.P5 self-test `certify.py G7 --drills`.
-        print("CHECKS skipped: G%d is not CERTIFIED in tooling-upgrade/LEDGER.md, so %s has not "
-              "started; only the drills run." % (n - 1, goal))
+        print(
+            "CHECKS skipped: G%d is not CERTIFIED in tooling-upgrade/LEDGER.md, so %s has not "
+            "started; only the drills run." % (n - 1, goal)
+        )
         if drills:
             res = run_drills(goal)
             missed = sum(1 for v in res.values() if v.startswith("MISSED"))
@@ -943,15 +1052,23 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     if phase:
         # Phase self-check (plan 9: "certify.py G<n> --phase <id>"): that phase's pre-registered
         # checks only. T1-T7, the drills and the oracle belong to the goal-end certificate.
-        print("PHASE %s: %d/%d PASS (worktree clean: %s, branch ok: %s)" % (
-            phase, passed, len(checks), "yes" if worktree_clean() else "no",
-            "yes" if on_branch() else "no"))
+        print(
+            "PHASE %s: %d/%d PASS (worktree clean: %s, branch ok: %s)"
+            % (phase, passed, len(checks), "yes" if worktree_clean() else "no", "yes" if on_branch() else "no")
+        )
         return 0 if checks and passed == len(checks) and worktree_clean() and on_branch() else 1
     res = tamper(goal)
     t_fail = [t for t, (active, ok, _m) in res.items() if active and not ok]
     for t, (active, ok, msg) in res.items():
-        print("%s %s%s -- %s" % (t, "PASS" if ok else "FAIL", "" if active else
-                                 " (not yet active: binds from G%d)" % T_ACTIVE_FROM[t], msg))
+        print(
+            "%s %s%s -- %s"
+            % (
+                t,
+                "PASS" if ok else "FAIL",
+                "" if active else " (not yet active: binds from G%d)" % T_ACTIVE_FROM[t],
+                msg,
+            )
+        )
     pending = [t for t, (active, _ok, _m) in res.items() if not active]
 
     required = data.get("required_drills", [])
@@ -989,20 +1106,34 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
 
     head = git("rev-parse", "HEAD").strip()
     print("=== CERTIFICATE %s%s ===" % (goal, (" " + phase) if phase else ""))
-    print("HEAD %s | branch %s | worktree clean: %s | pushed: %s" % (
-        head[:12], git("rev-parse", "--abbrev-ref", "HEAD").strip(),
-        "yes" if worktree_clean() else "no", "yes" if pushed() else "no"))
+    print(
+        "HEAD %s | branch %s | worktree clean: %s | pushed: %s"
+        % (
+            head[:12],
+            git("rev-parse", "--abbrev-ref", "HEAD").strip(),
+            "yes" if worktree_clean() else "no",
+            "yes" if pushed() else "no",
+        )
+    )
     print("CHECKS %d/%d PASS" % (passed, len(checks)))
-    print("TAMPER T1-T7 %s%s" % ("PASS" if not t_fail else "FAIL (%s)" % ", ".join(t_fail),
-                                 " (binding: %s; not yet active: %s)" % (
-                                     ", ".join(t for t in res if t not in pending),
-                                     ", ".join(pending)) if pending else ""))
+    print(
+        "TAMPER T1-T7 %s%s"
+        % (
+            "PASS" if not t_fail else "FAIL (%s)" % ", ".join(t_fail),
+            " (binding: %s; not yet active: %s)" % (", ".join(t for t in res if t not in pending), ", ".join(pending))
+            if pending
+            else "",
+        )
+    )
     print("DRILLS %d/%d BIT" % (bit_count, len(required)))
     print("ORACLE %d/10 EQUAL" % k)
-    failure = (first_fail or (("tamper " + t_fail[0]) if t_fail else None)
-               or ("drills %d/%d BIT" % (bit_count, len(required)) if bit_count < len(required) else None)
-               or (None if oracle_ok else "oracle %d/10 EQUAL" % k)
-               or (refusals[0] if refusals else None))
+    failure = (
+        first_fail
+        or (("tamper " + t_fail[0]) if t_fail else None)
+        or ("drills %d/%d BIT" % (bit_count, len(required)) if bit_count < len(required) else None)
+        or (None if oracle_ok else "oracle %d/10 EQUAL" % k)
+        or (refusals[0] if refusals else None)
+    )
     print("RESULT: %s %s" % (goal, "CERTIFIED" if failure is None else "NOT CERTIFIED: " + failure))
     print("=== END CERTIFICATE ===")
     return 0 if failure is None else 1
@@ -1046,18 +1177,26 @@ def main(argv=None) -> int:
     sub.add_parser("assert-docs-uv", help="docs present uv as the primary path")
     sub.add_parser("assert-ci-replay", help="local replay of CI run steps (built in G5)")
     a = p.parse_args(argv)
-    return {"assert-branch": cmd_assert_branch, "assert-checks-files": cmd_assert_checks_files,
-            "suppressions": cmd_suppressions, "fresh-clone": cmd_fresh_clone,
-            "drills": cmd_drills,
-            "assert-mechanical-commits": cmd_assert_mechanical_commits,
-            "assert-blame-ignore-revs": cmd_assert_blame_ignore_revs,
-            "assert-python-agrees": cmd_assert_python_agrees,
-            "assert-no-bare-py": cmd_assert_no_bare_py, "assert-ratchet": cmd_assert_ratchet,
-            "assert-dev-group": cmd_assert_dev_group, "assert-uv-settings": cmd_assert_uv_settings,
-            "assert-gate": cmd_assert_gate, "assert-sha-pins": cmd_assert_sha_pins,
-            "assert-latent-regressions": cmd_assert_latent_regressions,
-            "assert-ledger-entry": cmd_assert_ledger_entry, "assert-docs-uv": cmd_assert_docs_uv,
-            "assert-ci-replay": cmd_assert_ci_replay}[a.cmd](a)
+    return {
+        "assert-branch": cmd_assert_branch,
+        "assert-checks-files": cmd_assert_checks_files,
+        "suppressions": cmd_suppressions,
+        "fresh-clone": cmd_fresh_clone,
+        "drills": cmd_drills,
+        "assert-mechanical-commits": cmd_assert_mechanical_commits,
+        "assert-blame-ignore-revs": cmd_assert_blame_ignore_revs,
+        "assert-python-agrees": cmd_assert_python_agrees,
+        "assert-no-bare-py": cmd_assert_no_bare_py,
+        "assert-ratchet": cmd_assert_ratchet,
+        "assert-dev-group": cmd_assert_dev_group,
+        "assert-uv-settings": cmd_assert_uv_settings,
+        "assert-gate": cmd_assert_gate,
+        "assert-sha-pins": cmd_assert_sha_pins,
+        "assert-latent-regressions": cmd_assert_latent_regressions,
+        "assert-ledger-entry": cmd_assert_ledger_entry,
+        "assert-docs-uv": cmd_assert_docs_uv,
+        "assert-ci-replay": cmd_assert_ci_replay,
+    }[a.cmd](a)
 
 
 if __name__ == "__main__":

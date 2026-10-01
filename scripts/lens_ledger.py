@@ -10,6 +10,7 @@ records whether its branches were WORTH running -- the half Daniil asked for on 
 that never got built. See core/coord/lens_ledger.py for why abstentions are not misses and
 unverified findings are never wins.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,13 +19,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import lens_ledger as L                       # noqa: E402
-from core.paths import repo_root                              # noqa: E402
+from core.coord import lens_ledger as L  # noqa: E402
+from core.paths import repo_root  # noqa: E402
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show")
     r = sub.add_parser("record")
@@ -39,8 +39,7 @@ def main() -> int:
 
     if a.cmd == "record":
         try:
-            run = L.LensRun(lens=a.lens, geometry=a.geometry, outcome=a.outcome,
-                            fan_id=a.fan, note=a.note)
+            run = L.LensRun(lens=a.lens, geometry=a.geometry, outcome=a.outcome, fan_id=a.fan, note=a.note)
         except ValueError as e:
             print(f"REFUSED: {e}")
             return 2

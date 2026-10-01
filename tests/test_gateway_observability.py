@@ -43,8 +43,7 @@ sys.path.insert(0, str(REPO))
 
 def _gateway():
     """Load the runner shell by path -- it is a script, not a package member."""
-    spec = importlib.util.spec_from_file_location(
-        "_gw", REPO / "scripts" / "bifrost_runner_discord.py")
+    spec = importlib.util.spec_from_file_location("_gw", REPO / "scripts" / "bifrost_runner_discord.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -55,10 +54,12 @@ def test_heartbeat_interval_derives_from_the_ttl_it_must_not_outlive():
     """One number in charge of one behaviour. If someone retunes WORKLIVE_TTL, the gateway's
     cadence follows instead of silently letting the record flap."""
     from core.comm.liveness import WORKLIVE_TTL
+
     gw = _gateway()
     assert gw.HEARTBEAT_S * 3 <= WORKLIVE_TTL, (
         f"a {gw.HEARTBEAT_S}s beat under a {WORKLIVE_TTL}s TTL leaves too little margin -- "
-        "a live gateway would intermittently read as dead")
+        "a live gateway would intermittently read as dead"
+    )
     assert gw.HEARTBEAT_S >= 1, "a sub-second beat spends more on saying it is alive than on work"
 
 
@@ -68,7 +69,8 @@ def test_the_gateway_has_a_stable_liveness_identity():
     assert isinstance(gw.GATEWAY_AGENT_ID, str) and gw.GATEWAY_AGENT_ID.strip()
     assert gw.GATEWAY_AGENT_ID != "daniil", (
         "the gateway SPEAKS as the operator on the bus (R3) but it must not claim his liveness "
-        "identity -- that would report the operator as alive whenever the socket is up")
+        "identity -- that would report the operator as alive whenever the socket is up"
+    )
 
 
 def test_the_beat_is_fail_open():
@@ -83,7 +85,7 @@ def test_the_beat_is_fail_open():
         def set(self, *a, **k):
             raise RuntimeError("redis is having a night")
 
-    gw.beat(_Broken(), phase="online")          # must not raise
+    gw.beat(_Broken(), phase="online")  # must not raise
 
 
 # ------------------------------------------------------------------ the durable log
@@ -103,10 +105,10 @@ def test_the_log_survives_the_emoji_this_file_already_prints(tmp_path):
     gw = _gateway()
     dest = tmp_path / "gw.log"
     tee = gw.Tee(sys.stdout, dest)
-    tee.write("[discord-in] \U0001F331 spawned pid 1 -- ⚠️ never lived\n")
+    tee.write("[discord-in] \U0001f331 spawned pid 1 -- ⚠️ never lived\n")
     tee.flush()
     body = dest.read_text(encoding="utf-8")
-    assert "\U0001F331" in body and "⚠" in body
+    assert "\U0001f331" in body and "⚠" in body
 
 
 def test_the_tee_never_swallows_the_original_stream(tmp_path):
@@ -131,7 +133,7 @@ def test_a_broken_log_never_takes_the_gateway_down(tmp_path):
     keep the bridge. The inverse would be an observability feature causing an outage."""
     gw = _gateway()
     tee = gw.Tee(sys.stdout, tmp_path / "no-such-dir" / "nested" / "gw.log")
-    tee.write("still fine\n")        # must not raise even if the path is unopenable
+    tee.write("still fine\n")  # must not raise even if the path is unopenable
     tee.flush()
 
 

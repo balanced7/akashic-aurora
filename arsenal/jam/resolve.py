@@ -23,6 +23,7 @@ How a line becomes slots (DATA 2.6, C6, C7):
 Cache (4.2): keyed (id, rev, key, variant, backing, play voicing, slot) plus whether the bridge has the band style, so
 a bridge that gains it re-voices. A warm resolve is a JSON decode of the cached answer.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,18 +47,58 @@ CACHE_SIZE = 512
 MAJOR_STEPS = (0, 2, 4, 5, 7, 9, 11)
 PC_FLAT = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
 PC_SHARP = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
-EXACT_LOW, EXACT_HIGH = 28, 103          # E1..G7 after the octave folds (DATA 2.6)
+EXACT_LOW, EXACT_HIGH = 28, 103  # E1..G7 after the octave folds (DATA 2.6)
 STUB_WARNING = "the band voicings come from a stand-in voicer until the bridge's band style lands"
-ROLE_SEMIS = {"1": 0, "b3": 3, "3": 4, "4": 5, "#4": 6, "5": 7, "b6": 8, "6": 9, "b7": 10, "7": 11, "b9": 1, "9": 2,
-              "#9": 3, "11": 5, "#11": 6, "b13": 8, "13": 9}
-ROLE_STEPS = {"1": 0, "b3": 2, "3": 2, "4": 3, "#4": 3, "5": 4, "b6": 5, "6": 5, "b7": 6, "7": 6, "b9": 1, "9": 1,
-              "#9": 1, "11": 3, "#11": 3, "b13": 5, "13": 5}  # letters above the root (or bass) a role sits
+ROLE_SEMIS = {
+    "1": 0,
+    "b3": 3,
+    "3": 4,
+    "4": 5,
+    "#4": 6,
+    "5": 7,
+    "b6": 8,
+    "6": 9,
+    "b7": 10,
+    "7": 11,
+    "b9": 1,
+    "9": 2,
+    "#9": 3,
+    "11": 5,
+    "#11": 6,
+    "b13": 8,
+    "13": 9,
+}
+ROLE_STEPS = {
+    "1": 0,
+    "b3": 2,
+    "3": 2,
+    "4": 3,
+    "#4": 3,
+    "5": 4,
+    "b6": 5,
+    "6": 5,
+    "b7": 6,
+    "7": 6,
+    "b9": 1,
+    "9": 1,
+    "#9": 1,
+    "11": 3,
+    "#11": 3,
+    "b13": 5,
+    "13": 5,
+}  # letters above the root (or bass) a role sits
 
 # Section scales on the tonic, in MUSIC 9.5's order, and every scale a slot can be named by (semitones above its root).
-SECTION_SCALES = (("major", (0, 2, 4, 5, 7, 9, 11)), ("natural minor", (0, 2, 3, 5, 7, 8, 10)),
-                  ("harmonic minor", (0, 2, 3, 5, 7, 8, 11)), ("melodic minor", (0, 2, 3, 5, 7, 9, 11)),
-                  ("Dorian", (0, 2, 3, 5, 7, 9, 10)), ("Mixolydian", (0, 2, 4, 5, 7, 9, 10)),
-                  ("Lydian", (0, 2, 4, 6, 7, 9, 11)), ("Phrygian", (0, 1, 3, 5, 7, 8, 10)))
+SECTION_SCALES = (
+    ("major", (0, 2, 4, 5, 7, 9, 11)),
+    ("natural minor", (0, 2, 3, 5, 7, 8, 10)),
+    ("harmonic minor", (0, 2, 3, 5, 7, 8, 11)),
+    ("melodic minor", (0, 2, 3, 5, 7, 9, 11)),
+    ("Dorian", (0, 2, 3, 5, 7, 9, 10)),
+    ("Mixolydian", (0, 2, 4, 5, 7, 9, 10)),
+    ("Lydian", (0, 2, 4, 6, 7, 9, 11)),
+    ("Phrygian", (0, 1, 3, 5, 7, 8, 10)),
+)
 SCALE_OF = dict(SECTION_SCALES)
 PHRYGIAN_DOMINANT = (0, 1, 4, 5, 7, 8, 10)
 LYDIAN_DOMINANT = (0, 2, 4, 6, 7, 9, 10)
@@ -75,12 +116,18 @@ def _rotations(steps, names):
 
 
 SCALE_NAMES: Dict[frozenset, str] = {}
-SCALE_NAMES.update(_rotations(SCALE_OF["major"], ("major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian",
-                                                  "Locrian")))
-SCALE_NAMES.update(_rotations(SCALE_OF["harmonic minor"], ("harmonic minor", None, None, None, "Phrygian dominant",
-                                                           None, None)))
-SCALE_NAMES.update(_rotations(SCALE_OF["melodic minor"], ("melodic minor", None, None, "Lydian dominant", None,
-                                                          "Locrian natural 9", "altered")))
+SCALE_NAMES.update(
+    _rotations(SCALE_OF["major"], ("major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian"))
+)
+SCALE_NAMES.update(
+    _rotations(SCALE_OF["harmonic minor"], ("harmonic minor", None, None, None, "Phrygian dominant", None, None))
+)
+SCALE_NAMES.update(
+    _rotations(
+        SCALE_OF["melodic minor"],
+        ("melodic minor", None, None, "Lydian dominant", None, "Locrian natural 9", "altered"),
+    )
+)
 SCALE_NAMES[frozenset(WHOLE_HALF)] = "whole-half diminished"
 SCALE_NAMES[frozenset(WHOLE_TONE)] = "whole tone"
 
@@ -103,8 +150,14 @@ def run_bridge(request: dict) -> List[dict]:
     if not node:
         raise BridgeUnavailable("the voicing bridge is unavailable (node not on PATH)")
     try:
-        proc = subprocess.run([node, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True,
-                              encoding="utf-8", timeout=BRIDGE_TIMEOUT_S)
+        proc = subprocess.run(
+            [node, str(BRIDGE)],
+            input=json.dumps(request),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=BRIDGE_TIMEOUT_S,
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BridgeUnavailable(f"the voicing bridge did not answer ({type(exc).__name__}: {exc})")
     try:
@@ -249,8 +302,11 @@ def note_midi(token: str) -> int:
         if not m:
             raise ValueError(f"not a note: {token!r} (use names with octaves like Ab2, or MIDI numbers)")
         acc = m.group(2) or ""
-        n = (int(m.group(3)) + 1) * 12 + nashville.LETTER_PC[nashville.LETTERS.index(m.group(1).upper())] + \
-            (len(acc) if acc.startswith("#") else -len(acc))
+        n = (
+            (int(m.group(3)) + 1) * 12
+            + nashville.LETTER_PC[nashville.LETTERS.index(m.group(1).upper())]
+            + (len(acc) if acc.startswith("#") else -len(acc))
+        )
     if not S.NOTE_MIN <= n <= S.NOTE_MAX:
         raise ValueError(f"{token} is off the keyboard (MIDI {S.NOTE_MIN}..{S.NOTE_MAX})")
     return n
@@ -311,8 +367,19 @@ def line_text(items: Sequence[dict]) -> str:
 
 
 # ============================================================================================ chord tones
-_SUFFIX_ALIASES = (("Δ", "maj"), ("M7", "maj7"), ("min", "m"), ("°7", "dim7"), ("°", "dim"), ("ø7", "m7b5"),
-                   ("ø", "m7b5"), ("^", ""), ("(", ""), (")", ""), (",", ""))
+_SUFFIX_ALIASES = (
+    ("Δ", "maj"),
+    ("M7", "maj7"),
+    ("min", "m"),
+    ("°7", "dim7"),
+    ("°", "dim"),
+    ("ø7", "m7b5"),
+    ("ø", "m7b5"),
+    ("^", ""),
+    ("(", ""),
+    (")", ""),
+    (",", ""),
+)
 
 
 def suffix_tones(suffix: str) -> Dict[str, int]:
@@ -335,7 +402,7 @@ def suffix_tones(suffix: str) -> Dict[str, int]:
         major7, s = True, s[3:]
     m = re.match(r"6/9|69|13|11|9|7|6|5", s)
     ext = m.group(0) if m else ""
-    s = s[len(ext):]
+    s = s[len(ext) :]
     seven = 11 if major7 else (9 if dim else 10)
     if ext in ("6/9", "69"):
         sixth, ninth = 9, 2
@@ -354,11 +421,14 @@ def suffix_tones(suffix: str) -> Dict[str, int]:
     elif major7:
         seventh = 11
     while s:
-        mm = re.match(r"sus4|sus2|sus|add9|add11|add13|add2|add4|add6|b5|#5|b9|#9|#11|b13|13|11|9|alt|no3|no5|omit3|"
-                      r"omit5", s)
+        mm = re.match(
+            r"sus4|sus2|sus|add9|add11|add13|add2|add4|add6|b5|#5|b9|#9|#11|b13|13|11|9|alt|no3|no5|omit3|"
+            r"omit5",
+            s,
+        )
         if not mm:
             raise ValueError(f"cannot read the chord suffix {suffix!r}")
-        tok, s = mm.group(0), s[len(mm.group(0)):]
+        tok, s = mm.group(0), s[len(mm.group(0)) :]
         if tok in ("sus4", "sus", "add4"):
             if tok == "add4":
                 eleventh = 5
@@ -424,13 +494,30 @@ def chord_facts(name: Optional[str]) -> Optional[dict]:
         return None
     root = nashville._pc(parsed["root"])
     bass = nashville._pc(parsed["bass"]) if parsed["bass"] else root
-    return {"root_pc": root, "bass_pc": bass, "semis": semis, "suffix": parsed["suffix"],
-            "tones_pc": {role: (root + v) % 12 for role, v in semis.items()}}
+    return {
+        "root_pc": root,
+        "bass_pc": bass,
+        "semis": semis,
+        "suffix": parsed["suffix"],
+        "tones_pc": {role: (root + v) % 12 for role, v in semis.items()},
+    }
 
 
 def _interval_role(iv: int) -> str:
-    return {0: "root", 1: "ninth", 2: "ninth", 3: "third", 4: "third", 5: "eleventh", 6: "eleventh", 7: "fifth",
-            8: "thirteenth", 9: "thirteenth", 10: "seventh", 11: "seventh"}[iv % 12]
+    return {
+        0: "root",
+        1: "ninth",
+        2: "ninth",
+        3: "third",
+        4: "third",
+        5: "eleventh",
+        6: "eleventh",
+        7: "fifth",
+        8: "thirteenth",
+        9: "thirteenth",
+        10: "seventh",
+        11: "seventh",
+    }[iv % 12]
 
 
 # ================================================================================================ scales
@@ -442,10 +529,17 @@ def _is_dominant(semis: Dict[str, int]) -> bool:
     return semis.get("third") == 4 and semis.get("seventh") == 10
 
 
-def slot_scale(slot_pcs: Sequence[int], root: int, semis: Dict[str, int], section: dict, section_scale: str,
-               next_root: Optional[int]) -> Tuple[List[int], str]:
+def slot_scale(
+    slot_pcs: Sequence[int],
+    root: int,
+    semis: Dict[str, int],
+    section: dict,
+    section_scale: str,
+    next_root: Optional[int],
+) -> Tuple[List[int], str]:
     """(scale pcs as a set-like list, class) for one slot in its section (MUSIC 9.5)."""
     from arsenal.practice import classify  # the practice verbs' own rules; imported late (it is a large module)
+
     tonic, mode = section["tonic"], section["mode"]
     own = "major" if mode == "major" else "natural minor"
     rel = _rel(slot_pcs, tonic)
@@ -528,9 +622,17 @@ def _upper_order(semis: Dict[str, int], slash: bool) -> Tuple[List[str], List[st
     """(full roles, comp roles) in the order MUSIC 4.2 requires them."""
     third = "third" if "third" in semis else ("sus" if "sus" in semis else None)
     seventh = "seventh" if "seventh" in semis else ("sixth" if "sixth" in semis else None)
-    altered = [r for r in ("ninth", "eleventh", "thirteenth", "fifth")
-               if r in semis and ((r == "ninth" and semis[r] in (1, 3)) or (r == "eleventh" and semis[r] == 6) or
-                                  (r == "thirteenth" and semis[r] == 8) or (r == "fifth" and semis[r] in (6, 8)))]
+    altered = [
+        r
+        for r in ("ninth", "eleventh", "thirteenth", "fifth")
+        if r in semis
+        and (
+            (r == "ninth" and semis[r] in (1, 3))
+            or (r == "eleventh" and semis[r] == 6)
+            or (r == "thirteenth" and semis[r] == 8)
+            or (r == "fifth" and semis[r] in (6, 8))
+        )
+    ]
     named = [r for r in ("ninth", "eleventh", "thirteenth") if r in semis and r not in altered]
     full = [r for r in [third, seventh] + altered + named if r]
     comp = [r for r in [third, seventh] + altered[:1] if r]
@@ -560,13 +662,21 @@ def stub_band(facts: Sequence[dict]) -> List[dict]:
         # (MUSIC 1.3: without F, Bbm11/Gb reads Ab11/Gb)
         held = i + 1 < len(facts) and bool(facts[i + 1].get("upper_same"))
         if f.get("upper_same") and prev is not None:
-            ceiling = min([prev["full"][1] if len(prev["full"]) > 1 else 51,
-                           prev["comp"][1] if len(prev["comp"]) > 1 else 51, 51])
+            ceiling = min(
+                [prev["full"][1] if len(prev["full"]) > 1 else 51, prev["comp"][1] if len(prev["comp"]) > 1 else 51, 51]
+            )
             options = [p for p in range(S.BASS_RANGE[0], S.BASS_RANGE[1] + 1) if p % 12 == bass_pc and p < ceiling]
             bass = min(options, key=lambda p: (abs(p - prev["bass"]), p)) if options else 36 + bass_pc
-            v = {"bass": bass, "full": [bass] + prev["full"][1:], "comp": [bass] + prev["comp"][1:],
-                 "roles": {"full": ["bass"] + prev["roles"]["full"][1:], "comp": ["bass"] + prev["roles"]["comp"][1:],
-                           "bass": ["bass"]}}
+            v = {
+                "bass": bass,
+                "full": [bass] + prev["full"][1:],
+                "comp": [bass] + prev["comp"][1:],
+                "roles": {
+                    "full": ["bass"] + prev["roles"]["full"][1:],
+                    "comp": ["bass"] + prev["roles"]["comp"][1:],
+                    "bass": ["bass"],
+                },
+            }
             out.append(v)
             prev = v
             continue
@@ -601,8 +711,12 @@ def stub_band(facts: Sequence[dict]) -> List[dict]:
             comp = full[:3]
         fn, fr = _place(full, 53)
         cn, cr = _place(comp, 52)
-        v = {"bass": bass, "full": [bass] + fn, "comp": [bass] + cn,
-             "roles": {"full": ["bass"] + fr, "comp": ["bass"] + cr, "bass": ["bass"]}}
+        v = {
+            "bass": bass,
+            "full": [bass] + fn,
+            "comp": [bass] + cn,
+            "roles": {"full": ["bass"] + fr, "comp": ["bass"] + cr, "bass": ["bass"]},
+        }
         out.append(v)
         prev = v
     return out
@@ -610,8 +724,12 @@ def stub_band(facts: Sequence[dict]) -> List[dict]:
 
 # ============================================================================================== resolver
 class Resolver:
-    def __init__(self, bridge: Callable[[dict], List[dict]] = run_bridge, band: Optional[bool] = None,
-                 cache_size: int = CACHE_SIZE):
+    def __init__(
+        self,
+        bridge: Callable[[dict], List[dict]] = run_bridge,
+        band: Optional[bool] = None,
+        cache_size: int = CACHE_SIZE,
+    ):
         """bridge: a callable taking a bridge request and returning its results (tests pass a fake). band: True or
         False forces the bridge's band style on or off; None asks the bridge file (bridge_has_band)."""
         self._bridge = bridge
@@ -622,23 +740,54 @@ class Resolver:
         self.stats = {"hits": 0, "misses": 0}
 
     # ------------------------------------------------------------------------------------------ public
-    def resolve(self, card: dict, key: Optional[str] = None, variant: Optional[str] = None,
-                backing: Optional[str] = None, voicing: Optional[str] = None, slot: Optional[int] = None) -> dict:
+    def resolve(
+        self,
+        card: dict,
+        key: Optional[str] = None,
+        variant: Optional[str] = None,
+        backing: Optional[str] = None,
+        voicing: Optional[str] = None,
+        slot: Optional[int] = None,
+    ) -> dict:
         band = self._band_on()
-        ck = ("card", card.get("id"), card.get("rev"), card.get("updated_at"), key, variant, backing, voicing, slot,
-              band, json.dumps(card, sort_keys=True) if card.get("rev") is None else None)
+        ck = (
+            "card",
+            card.get("id"),
+            card.get("rev"),
+            card.get("updated_at"),
+            key,
+            variant,
+            backing,
+            voicing,
+            slot,
+            band,
+            json.dumps(card, sort_keys=True) if card.get("rev") is None else None,
+        )
         return self._cached(ck, lambda: self._build(card, key, variant, backing, voicing, slot, band, True))
 
-    def resolve_chords(self, items: List[dict], key: str, meter: int = 4, backing: str = "comp",
-                       voicing: str = "spread", slot: Optional[int] = None, title: Optional[str] = None) -> dict:
+    def resolve_chords(
+        self,
+        items: List[dict],
+        key: str,
+        meter: int = 4,
+        backing: str = "comp",
+        voicing: str = "spread",
+        slot: Optional[int] = None,
+        title: Optional[str] = None,
+    ) -> dict:
         try:
             S._chord_line(items, "chords")
         except S.JamSchemaError as exc:
-            raise ResolveError(exc.field, str(exc)[len(exc.field):].strip())
+            raise ResolveError(exc.field, str(exc)[len(exc.field) :].strip())
         if backing not in S.BACKINGS:
             raise ResolveError("backing", f"must be one of {', '.join(S.BACKINGS)} (got {backing!r})")
-        pseudo = {"key": key_of(key)["name"], "chords": items, "tempo": {"bpm": 66, "beats_per_bar": meter},
-                  "voicing": {"style": voicing}, "backing": backing}
+        pseudo = {
+            "key": key_of(key)["name"],
+            "chords": items,
+            "tempo": {"bpm": 66, "beats_per_bar": meter},
+            "voicing": {"style": voicing},
+            "backing": backing,
+        }
         band = self._band_on()
         ck = ("chords", json.dumps(items, sort_keys=True), key, meter, backing, voicing, slot, band)
         return self._cached(ck, lambda: self._build(pseudo, None, None, backing, voicing, slot, band, False))
@@ -653,10 +802,16 @@ class Resolver:
             items = _line_items(card, variant)
             chords = [it for it in items if "key" not in it and "rest" not in it]
             for sl, it in zip(d["slots"], chords):
-                entry = {"variant": variant, "slot": sl["i"], "key": sl["key"],
-                         "voicing": "notes" if sl["exact"] else (it.get("voicing") or style),
-                         "notes": sl["voicings"]["play"], "name": sl["page_reads"]["name"],
-                         "number": sl["page_reads"]["number"], "match": sl["page_reads"]["match"]}
+                entry = {
+                    "variant": variant,
+                    "slot": sl["i"],
+                    "key": sl["key"],
+                    "voicing": "notes" if sl["exact"] else (it.get("voicing") or style),
+                    "notes": sl["voicings"]["play"],
+                    "name": sl["page_reads"]["name"],
+                    "number": sl["page_reads"]["number"],
+                    "match": sl["page_reads"]["match"],
+                }
                 if sl["page_reads"]["match"] not in ("exact", "enharmonic", "notes") and sl["page_reads"]["name"]:
                     entry["note"] = f"your screen calls this {sl['page_reads']['name']}: the same notes"
                 out.append(entry)
@@ -693,8 +848,17 @@ class Resolver:
             raise ResolveError(field, str(exc)) from None
 
     # ------------------------------------------------------------------------------------------ build
-    def _build(self, card: dict, key: Optional[str], variant: Optional[str], backing: Optional[str],
-               voicing: Optional[str], slot: Optional[int], band: bool, is_card: bool) -> dict:
+    def _build(
+        self,
+        card: dict,
+        key: Optional[str],
+        variant: Optional[str],
+        backing: Optional[str],
+        voicing: Optional[str],
+        slot: Optional[int],
+        band: bool,
+        is_card: bool,
+    ) -> dict:
         settings = S.card_settings(card)
         k_name, warnings = transpose_key(card["key"], key)
         card_key = key_of(card["key"])["name"]
@@ -722,8 +886,9 @@ class Resolver:
             elif "rest" in it:
                 beat += it["rest"]
             else:
-                raw.append({"item": it, "at": at, "at_beat": beat, "beats": it.get("beats", 4),
-                            "section": len(sections) - 1})
+                raw.append(
+                    {"item": it, "at": at, "at_beat": beat, "beats": it.get("beats", 4), "section": len(sections) - 1}
+                )
                 beat += it.get("beats", 4)
         total = beat
         if slot is not None:
@@ -736,8 +901,7 @@ class Resolver:
         bars = card.get("bars") if (is_card and used_variant is None and slot is None and card.get("bars")) else None
         bars = bars or max(1, math.ceil(total / meter))
         cycle = int(bars * meter)
-        sections = [sec for sec in sections if sec["from_beat"] < cycle and
-                    any(r["section"] == sec["i"] for r in raw)]
+        sections = [sec for sec in sections if sec["from_beat"] < cycle and any(r["section"] == sec["i"] for r in raw)]
         renumber = {sec["i"]: i for i, sec in enumerate(sections)}
         for i, sec in enumerate(sections):
             sec["i"] = i
@@ -765,12 +929,23 @@ class Resolver:
         futures = {}
         for (kind, sec, st), idxs in jobs.items():
             if kind == "n":
-                req = {"items": [raw[i]["item"]["n"] for i in idxs], "key": sections[sec]["key"], "voicing": st,
-                       "octave": octave, "voice_lead": voice_lead, "minor": "tonic"}
+                req = {
+                    "items": [raw[i]["item"]["n"] for i in idxs],
+                    "key": sections[sec]["key"],
+                    "voicing": st,
+                    "octave": octave,
+                    "voice_lead": voice_lead,
+                    "minor": "tonic",
+                }
             else:
-                req = {"items": [" ".join(str(n) for n in raw[i]["exact_notes"]) for i in idxs],
-                       "key": sections[sec]["key"], "voicing": "close", "octave": None, "voice_lead": False,
-                       "minor": "tonic"}
+                req = {
+                    "items": [" ".join(str(n) for n in raw[i]["exact_notes"]) for i in idxs],
+                    "key": sections[sec]["key"],
+                    "voicing": "close",
+                    "octave": None,
+                    "voice_lead": False,
+                    "minor": "tonic",
+                }
             futures[(kind, sec, st)] = _pool().submit(self._call, req, raw[idxs[0]]["at"])
         # the band request needs only numbers, keys and exact notes, so it runs beside the calls above
         band_future = _pool().submit(self._bridge, self._band_request(raw, sections)) if band else None
@@ -792,8 +967,12 @@ class Resolver:
             facts = None
             if num and isinstance(num.get("tones_pc"), dict) and isinstance(num.get("bass_pc"), int):
                 facts = chord_facts(num["name"]) or {"root_pc": num["bass_pc"], "semis": {}}
-                facts = dict(facts, tones_pc=num["tones_pc"], bass_pc=num["bass_pc"],
-                             root_pc=num["tones_pc"].get("root", facts["root_pc"]))
+                facts = dict(
+                    facts,
+                    tones_pc=num["tones_pc"],
+                    bass_pc=num["bass_pc"],
+                    root_pc=num["tones_pc"].get("root", facts["root_pc"]),
+                )
             elif num:
                 facts = chord_facts(num["name"])
             play = r.get("exact_notes") or (num or {}).get("notes")
@@ -806,10 +985,17 @@ class Resolver:
             r["play"] = sorted(play)
 
         # band voicings
-        facts_list = [{"bass_pc": r["facts"]["bass_pc"], "root_pc": r["facts"]["root_pc"],
-                       "semis": r["facts"].get("semis") or {}, "tones_pc": r["facts"].get("tones_pc") or {},
-                       "upper_same": r["item"].get("upper") == "same" and i > 0, "note_pcs": r.get("note_pcs")}
-                      for i, r in enumerate(raw)]
+        facts_list = [
+            {
+                "bass_pc": r["facts"]["bass_pc"],
+                "root_pc": r["facts"]["root_pc"],
+                "semis": r["facts"].get("semis") or {},
+                "tones_pc": r["facts"].get("tones_pc") or {},
+                "upper_same": r["item"].get("upper") == "same" and i > 0,
+                "note_pcs": r.get("note_pcs"),
+            }
+            for i, r in enumerate(raw)
+        ]
         voiced = self._band_parse(band_future, facts_list) if band_future is not None else None
         from_bridge = voiced is not None
         if voiced is None:
@@ -824,11 +1010,14 @@ class Resolver:
             sec["_k"] = {"name": k["name"], "tonic": k["tonic"], "mode": k["mode"]}
             members = [r for r in raw if r["section"] == sec["i"]]
             own = "major" if k["mode"] == "major" else "natural minor"
-            counts = {nm: sum(1 for r in members if _rel(_chord_pcs(r), k["tonic"]) <= set(steps))
-                      for nm, steps in SECTION_SCALES}
+            counts = {
+                nm: sum(1 for r in members if _rel(_chord_pcs(r), k["tonic"]) <= set(steps))
+                for nm, steps in SECTION_SCALES
+            }
             best = max(counts.values())
-            sec_scale[sec["i"]] = own if counts[own] == best else next(nm for nm, _ in SECTION_SCALES
-                                                                      if counts[nm] == best)
+            sec_scale[sec["i"]] = (
+                own if counts[own] == best else next(nm for nm, _ in SECTION_SCALES if counts[nm] == best)
+            )
 
         pb = settings["playback"]
         for i, r in enumerate(raw):
@@ -836,8 +1025,14 @@ class Resolver:
             sec = sections[r["section"]]
             chord_pcs = _chord_pcs(r)
             nxt = raw[i + 1] if i + 1 < len(raw) and raw[i + 1]["section"] == r["section"] else None
-            scale, klass = slot_scale(chord_pcs, facts["root_pc"], facts.get("semis") or {}, sec["_k"],
-                                      sec_scale[sec["i"]], nxt["facts"]["root_pc"] if nxt else None)
+            scale, klass = slot_scale(
+                chord_pcs,
+                facts["root_pc"],
+                facts.get("semis") or {},
+                sec["_k"],
+                sec_scale[sec["i"]],
+                nxt["facts"]["root_pc"] if nxt else None,
+            )
             scale = _complete_scale(scale, chord_pcs, facts["root_pc"], facts.get("semis") or {})
             scale = sorted(scale, key=lambda p: (p - facts["root_pc"]) % 12)
             root_text = _root_text(r["name"], facts["root_pc"], sec["_k"])
@@ -852,23 +1047,43 @@ class Resolver:
             exact = bool(it.get("notes"))
             if exact:
                 pr = _exact_reads(r)
-                omits = [role for role, pc in (facts.get("tones_pc") or {}).items()
-                         if pc not in {n % 12 for n in r["play"]}]
+                omits = [
+                    role for role, pc in (facts.get("tones_pc") or {}).items() if pc not in {n % 12 for n in r["play"]}
+                ]
             else:
                 rt = r["num"].get("roundtrip") or {}
-                pr = {"name": rt.get("page_name") or rt.get("detected"), "number": rt.get("page_number"),
-                      "match": rt.get("match") or "unnamed"}
+                pr = {
+                    "name": rt.get("page_name") or rt.get("detected"),
+                    "number": rt.get("page_number"),
+                    "match": rt.get("match") or "unnamed",
+                }
                 omits = list(rt.get("omits") or [])
-            entry = {"i": i, "section": r["section"], "at_beat": _num(float(r["at_beat"])),
-                     "beats": _num(float(r["beats"])), "n": it.get("n"), "name": (r["name"] or "")[:60] or None,
-                     "key": sec["key"], "tones_pc": facts.get("tones_pc") or {}, "bass_pc": facts["bass_pc"],
-                     "chord_pcs": chord_pcs, "scale": scale,
-                     "scale_name": scale_name(scale, facts["root_pc"], root_text, sec["_k"])[:40], "class": klass,
-                     "voicings": {"play": r["play"], "full": v["full"], "comp": v["comp"], "bass": [v["bass"]]},
-                     "roles": v["roles"], "exact": exact, "upper_same": facts_list[i]["upper_same"],
-                     "vel": it.get("vel", pb["velocity"]), "arp_ms": it.get("arp_ms", pb["arpeggio_ms"]),
-                     "say": it.get("say"), "page_reads": pr, "warnings": slot_warnings,
-                     "hold": it.get("hold", pb["hold"]), "omits": [o for o in omits if o in S.TONE_ROLES]}
+            entry = {
+                "i": i,
+                "section": r["section"],
+                "at_beat": _num(float(r["at_beat"])),
+                "beats": _num(float(r["beats"])),
+                "n": it.get("n"),
+                "name": (r["name"] or "")[:60] or None,
+                "key": sec["key"],
+                "tones_pc": facts.get("tones_pc") or {},
+                "bass_pc": facts["bass_pc"],
+                "chord_pcs": chord_pcs,
+                "scale": scale,
+                "scale_name": scale_name(scale, facts["root_pc"], root_text, sec["_k"])[:40],
+                "class": klass,
+                "voicings": {"play": r["play"], "full": v["full"], "comp": v["comp"], "bass": [v["bass"]]},
+                "roles": v["roles"],
+                "exact": exact,
+                "upper_same": facts_list[i]["upper_same"],
+                "vel": it.get("vel", pb["velocity"]),
+                "arp_ms": it.get("arp_ms", pb["arpeggio_ms"]),
+                "say": it.get("say"),
+                "page_reads": pr,
+                "warnings": slot_warnings,
+                "hold": it.get("hold", pb["hold"]),
+                "omits": [o for o in omits if o in S.TONE_ROLES],
+            }
             if v.get("reads_as"):
                 entry["reads_as"] = str(v["reads_as"])[:60]
             band_warnings = [w for w in v.get("warnings") or [] if w not in entry["warnings"]]
@@ -878,20 +1093,41 @@ class Resolver:
         for sec in sections:
             sec.pop("_k", None)
 
-        d = {"api": DEF_API,
-             "card": ({"id": card["id"], "rev": card["rev"] if card.get("rev") else 1, "title": card["title"],
-                       "variant": used_variant} if is_card else None),
-             "key": k_name, "beats_per_bar": meter, "cycle_beats": cycle, "backing": backing,
-             "sections": sections, "slots": slots, "warnings": list(dict.fromkeys(warnings))}
+        d = {
+            "api": DEF_API,
+            "card": (
+                {
+                    "id": card["id"],
+                    "rev": card["rev"] if card.get("rev") else 1,
+                    "title": card["title"],
+                    "variant": used_variant,
+                }
+                if is_card
+                else None
+            ),
+            "key": k_name,
+            "beats_per_bar": meter,
+            "cycle_beats": cycle,
+            "backing": backing,
+            "sections": sections,
+            "slots": slots,
+            "warnings": list(dict.fromkeys(warnings)),
+        }
         landing = card.get("landing") if is_card else None
         if landing and landing.get("variant") == used_variant and slot is None:
             li = landing.get("slot", len(slots) - 1)
             if 0 <= li < len(slots):
                 sl = slots[li]
-                base = sl["bass_pc"] if landing.get("relative_to") == "bass" else \
-                    sl["tones_pc"].get("root", sl["bass_pc"])
-                d["landing"] = {"slot": li, "role": landing["role"], "relative_to": landing.get("relative_to", "root"),
-                                "pc": (base + ROLE_SEMIS[landing["role"]]) % 12, "pull": landing["pull"]}
+                base = (
+                    sl["bass_pc"] if landing.get("relative_to") == "bass" else sl["tones_pc"].get("root", sl["bass_pc"])
+                )
+                d["landing"] = {
+                    "slot": li,
+                    "role": landing["role"],
+                    "relative_to": landing.get("relative_to", "root"),
+                    "pc": (base + ROLE_SEMIS[landing["role"]]) % 12,
+                    "pull": landing["pull"],
+                }
                 note = tone_name(sl, landing["role"], d["landing"]["relative_to"])
                 if note:
                     d["landing"]["note"] = note  # spelled from the chord's own tones: the deck and the riff name it so
@@ -927,8 +1163,15 @@ class Resolver:
             if r["item"].get("upper") == "same" and i > 0:
                 item["upper"] = "same"
             items.append(item)
-        return {"items": items, "key": None, "voicing": "band", "octave": None, "voice_lead": False,
-                "minor": "tonic", "line": "ring"}
+        return {
+            "items": items,
+            "key": None,
+            "voicing": "band",
+            "octave": None,
+            "voice_lead": False,
+            "minor": "tonic",
+            "line": "ring",
+        }
 
     @staticmethod
     def _band_parse(future, facts: List[dict]) -> Optional[List[dict]]:
@@ -942,9 +1185,14 @@ class Resolver:
                     return None
                 b = res["band"]
                 full, comp, bass = b["full"], b["comp"], b["bass"]
-                v = {"bass": bass["notes"][0], "full": sorted(full["notes"]), "comp": sorted(comp["notes"]),
-                     "roles": {"full": list(full["roles"]), "comp": list(comp["roles"]), "bass": ["bass"]},
-                     "reads_as": res.get("reads_as"), "warnings": list(res.get("warnings") or [])}
+                v = {
+                    "bass": bass["notes"][0],
+                    "full": sorted(full["notes"]),
+                    "comp": sorted(comp["notes"]),
+                    "roles": {"full": list(full["roles"]), "comp": list(comp["roles"]), "bass": ["bass"]},
+                    "reads_as": res.get("reads_as"),
+                    "warnings": list(res.get("warnings") or []),
+                }
                 if v["full"][0] % 12 != f["bass_pc"] or len(v["roles"]["full"]) != len(v["full"]):
                     return None
                 out.append(v)
@@ -985,8 +1233,13 @@ def _exact_reads(r: dict) -> dict:
         match = "exact"
     else:
         a, b = chord_facts(page_name), chord_facts(chord["name"])
-        same = a and b and a["root_pc"] == b["root_pc"] and a["bass_pc"] == b["bass_pc"] and \
-            set(a["tones_pc"].values()) == set(b["tones_pc"].values())
+        same = (
+            a
+            and b
+            and a["root_pc"] == b["root_pc"]
+            and a["bass_pc"] == b["bass_pc"]
+            and set(a["tones_pc"].values()) == set(b["tones_pc"].values())
+        )
         match = "enharmonic" if same else "equivalent"
     return {"name": page_name, "number": page_number, "match": match}
 
@@ -1032,7 +1285,8 @@ def _pick_line(card: dict, variant: Optional[str], settings: dict):
         if v["id"] == variant:
             vmeter = (v.get("tempo") or {}).get("beats_per_bar", meter)
             items = ([{"key": v["key"]}] if v.get("key") else []) + list(v["chords"])
-            where = ([f"variants[{vi}].key"] if v.get("key") else []) + \
-                [f"variants[{vi}].chords[{ci}]" for ci in range(len(v["chords"]))]
+            where = ([f"variants[{vi}].key"] if v.get("key") else []) + [
+                f"variants[{vi}].chords[{ci}]" for ci in range(len(v["chords"]))
+            ]
             return items, vmeter, where, variant
     raise ResolveError("variant", f"names variant {variant!r}, which the card does not have")

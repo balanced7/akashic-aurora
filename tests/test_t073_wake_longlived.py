@@ -14,6 +14,7 @@ BUILD REFINEMENTS (flagged, T073's own precedent):
   R19  Arm time clears any stale trigger for this seat (the re-arm it requested has
        happened).
 """
+
 import json
 import os
 import subprocess
@@ -80,8 +81,9 @@ def test_p7_watcher_survives_past_the_old_thirty_minute_deadline(tmp_path, monke
     rc = bw.watch("claude", 14400, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")
     out = capsys.readouterr().out
     assert rc == 0
-    assert "BIFROST WAKE -- messages" in out, \
+    assert "BIFROST WAKE -- messages" in out, (
         "P7: a 4h watcher must still be LISTENING at t+40min (old default would have died at 30)"
+    )
 
 
 # ---------------------------------------------------------------- P8 self-cycle trigger
@@ -90,15 +92,16 @@ def test_p8_near_deadline_exit_writes_rearm_trigger(tmp_path, monkeypatch, capsy
     monkeypatch.setattr(bw.time, "time", clock.time)
     monkeypatch.setattr(bw.tempfile, "gettempdir", lambda: str(tmp_path))
     seat = _seat(tmp_path)
-    api = FakeApi(clock, chunk_s=120)                      # never any mail
+    api = FakeApi(clock, chunk_s=120)  # never any mail
     rc = bw.watch("claude", 300, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")
     out = capsys.readouterr().out
     assert rc == 0, "a deadline self-cycle is a BENIGN ending (exit 0, Wave-2 contract)"
     trig = bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))
     assert os.path.exists(trig), "P8: the near-deadline exit must write the re-arm trigger"
     body = open(trig, encoding="utf-8").read()
-    assert "re-arm" in body.lower() and "bifrost_wake" in body, \
+    assert "re-arm" in body.lower() and "bifrost_wake" in body, (
         "the trigger carries the instruction, not just a timestamp"
+    )
     assert "self-cycle" in out.lower()
 
 
@@ -109,20 +112,22 @@ def test_r18_mail_exit_writes_no_trigger(tmp_path, monkeypatch):
     seat = _seat(tmp_path)
     api = FakeApi(clock, chunk_s=120, mail_at=clock.now + 240, mail=[_msg()])
     bw.watch("claude", 14400, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")
-    assert not os.path.exists(bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))), \
+    assert not os.path.exists(bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))), (
         "R18: waking FOR MAIL is not a deadline cycle -- no trigger"
+    )
 
 
 def test_r18_stand_down_writes_no_trigger(tmp_path, monkeypatch):
     clock = FakeClock()
     monkeypatch.setattr(bw.time, "time", clock.time)
     monkeypatch.setattr(bw.tempfile, "gettempdir", lambda: str(tmp_path))
-    seat = _seat(tmp_path, pid=9999)                       # someone ELSE owns the seat
+    seat = _seat(tmp_path, pid=9999)  # someone ELSE owns the seat
     api = FakeApi(clock, chunk_s=120)
     rc = bw.watch("claude", 14400, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")
     assert rc == 0
-    assert not os.path.exists(bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))), \
+    assert not os.path.exists(bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))), (
         "R18: a displaced watcher stands down silently -- the seat owner re-arms via backstop"
+    )
 
 
 # ---------------------------------------------------------------- R17 deadline resolution
@@ -150,15 +155,22 @@ def test_r19_arm_time_clears_stale_trigger(tmp_path, monkeypatch):
 # ---------------------------------------------------------------- P9 backstop reword
 def test_p9_dead_watcher_still_blocks_with_backstop_wording(tmp_path):
     env = dict(os.environ)
-    env["AKASHIC_AGENT_ID"] = "p9probe"                    # namespaced guard files, no seat
+    env["AKASHIC_AGENT_ID"] = "p9probe"  # namespaced guard files, no seat
     payload = json.dumps({"session_id": f"p9-{real_time.time():.0f}", "transcript_path": ""})
-    r = subprocess.run([sys.executable, os.path.join("agent", "harness", "hooks", "claude_stop.py")],
-                       input=payload, capture_output=True, text=True, timeout=60,
-                       cwd=REPO, env=env)
+    r = subprocess.run(
+        [sys.executable, os.path.join("agent", "harness", "hooks", "claude_stop.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO,
+        env=env,
+    )
     out = r.stdout.strip()
     assert out, "P9: an unarmed session's stop MUST still block (the backstop lives)"
     data = json.loads(out.splitlines()[-1])
     assert data.get("decision") == "block"
     reason = data.get("reason", "").lower()
-    assert "once" in reason and ("died" in reason or "cycled" in reason), \
+    assert "once" in reason and ("died" in reason or "cycled" in reason), (
         f"P9: the block message carries re-launch-ONCE backstop semantics, got: {reason[:200]}"
+    )

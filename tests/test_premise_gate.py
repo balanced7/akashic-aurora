@@ -14,6 +14,7 @@ Laws:
   (W04's directive cross-check now rides the same helper -- its own pins re-run
    with this suite as the refactor guard.)
 """
+
 import os
 import sys
 
@@ -28,11 +29,15 @@ TWO_H = 2 * 3600 * 1000
 
 @pytest.fixture()
 def ledger(monkeypatch):
-    monkeypatch.setattr(tl, "state_view", lambda *a, **k: {
-        "done": [{"id": "T075", "status": "done"}],
-        "parked": [{"id": "T080", "status": "parked"}],
-        "active": [{"id": "T099", "status": "claimed"}],
-    })
+    monkeypatch.setattr(
+        tl,
+        "state_view",
+        lambda *a, **k: {
+            "done": [{"id": "T075", "status": "done"}],
+            "parked": [{"id": "T080", "status": "parked"}],
+            "active": [{"id": "T099", "status": "claimed"}],
+        },
+    )
 
 
 def test_g1_partition(ledger):
@@ -45,24 +50,28 @@ def test_g1_partition(ledger):
 
 def test_g2_verdict_fires_only_on_stale_all_settled(ledger):
     old, fresh = TWO_H + 60_000, 60_000
-    assert tl.premise_settled("question", old, "approve T075 and T080",
-                              min_age_ms=TWO_H) == ["T075 DONE", "T080 PARKED"]
-    assert tl.premise_settled("question", old, "T075 vs T099?", min_age_ms=TWO_H) == [], \
+    assert tl.premise_settled("question", old, "approve T075 and T080", min_age_ms=TWO_H) == [
+        "T075 DONE",
+        "T080 PARKED",
+    ]
+    assert tl.premise_settled("question", old, "T075 vs T099?", min_age_ms=TWO_H) == [], (
         "one live named task -> answer normally"
-    assert tl.premise_settled("question", fresh, "approve T075", min_age_ms=TWO_H) == [], \
+    )
+    assert tl.premise_settled("question", fresh, "approve T075", min_age_ms=TWO_H) == [], (
         "a FRESH ask about closed work is deliberate -- answer it"
-    assert tl.premise_settled("inform", old, "T075", min_age_ms=TWO_H) == [], \
-        "non-ask kinds never gate"
-    assert tl.premise_settled("question", old, "T075", min_age_ms=0) == [], \
-        "min_age 0 disables the gate"
-    assert tl.premise_settled("question", None, "T075", min_age_ms=TWO_H) == [], \
+    )
+    assert tl.premise_settled("inform", old, "T075", min_age_ms=TWO_H) == [], "non-ask kinds never gate"
+    assert tl.premise_settled("question", old, "T075", min_age_ms=0) == [], "min_age 0 disables the gate"
+    assert tl.premise_settled("question", None, "T075", min_age_ms=TWO_H) == [], (
         "unknowable age reads FRESH (fail toward answering)"
+    )
     assert tl.premise_settled("question", old, "no tasks named", min_age_ms=TWO_H) == []
 
 
 def test_g3_ledger_down_fails_open(monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("redis down")
+
     monkeypatch.setattr(tl, "state_view", boom)
     assert tl.settled_tasks("T075") == ([], [])
     assert tl.premise_settled("question", TWO_H * 2, "T075", min_age_ms=TWO_H) == []

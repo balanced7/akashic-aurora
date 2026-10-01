@@ -28,7 +28,14 @@ from core.library import taxonomy as tx
 # Doc-plane types only (LIBRARY.md canon); machine/file-plane kinds (skill, pin,
 # receipt, machine:*) stay files. `fossil` is a STATUS here, not a type.
 DOC_TYPES: tuple[str, ...] = (
-    "contract", "map", "design", "brief", "report", "chronicle", "ledger", "ruling",
+    "contract",
+    "map",
+    "design",
+    "brief",
+    "report",
+    "chronicle",
+    "ledger",
+    "ruling",
 )
 STATUSES: tuple[str, ...] = ("current", "draft", "superseded", "fossil")
 
@@ -40,7 +47,7 @@ SCHEMA_VERSION = 1
 SCHEMA_KNOWN_MAX = 1
 
 KEY_PREFIX = "artifact:"
-IDX_ALL = "artifact:index:all"           # zset id -> created_ts
+IDX_ALL = "artifact:index:all"  # zset id -> created_ts
 DEFAULT_JSONL_DIR = os.path.join("store", "docs")
 
 
@@ -70,14 +77,24 @@ class AtomFamily:
 
     def __init__(self, store: Any, jsonl_dir: str = DEFAULT_JSONL_DIR, repo_root: str = ""):
         self.store = store
-        self.jsonl_dir = jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root or str(_repo_root()), jsonl_dir)
+        self.jsonl_dir = (
+            jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root or str(_repo_root()), jsonl_dir)
+        )
 
     # ---------- validation ----------
 
-    def _validate(self, type_: str, title: str, categories: List[str],
-                  citations: List[Dict[str, str]], origin: str, settled: str,
-                  status: str, body_type: str = "markdown",
-                  body_type_source: str = "unstated") -> List[str]:
+    def _validate(
+        self,
+        type_: str,
+        title: str,
+        categories: List[str],
+        citations: List[Dict[str, str]],
+        origin: str,
+        settled: str,
+        status: str,
+        body_type: str = "markdown",
+        body_type_source: str = "unstated",
+    ) -> List[str]:
         if type_ not in DOC_TYPES:
             raise AtomError(f"type '{type_}' not in DOC_TYPES {DOC_TYPES} -- machine/file kinds stay files")
         if not (title or "").strip():
@@ -89,7 +106,9 @@ class AtomFamily:
         if settled not in tx.SETTLED_STATES:
             raise AtomError(f"settled '{settled}' not in {tx.SETTLED_STATES}")
         if body_type not in tx.BODY_TYPES:
-            raise AtomError(f"body_type '{body_type}' not in {tx.BODY_TYPES} (T034 roster; segments-v2 lifts this enum)")
+            raise AtomError(
+                f"body_type '{body_type}' not in {tx.BODY_TYPES} (T034 roster; segments-v2 lifts this enum)"
+            )
         if body_type_source not in tx.BODY_TYPE_SOURCES:
             raise AtomError(f"body_type_source '{body_type_source}' not in {tx.BODY_TYPE_SOURCES}")
         resolved: List[str] = []
@@ -100,13 +119,17 @@ class AtomFamily:
             if r not in resolved:
                 resolved.append(r)
         if len(resolved) > tx.CATEGORY_CAP_PER_ATOM:
-            raise AtomError(f"max {tx.CATEGORY_CAP_PER_ATOM} categories (PRIMARY first); needing more means split the artifact")
+            raise AtomError(
+                f"max {tx.CATEGORY_CAP_PER_ATOM} categories (PRIMARY first); needing more means split the artifact"
+            )
         for c in citations or []:
             # v1.1: rel names resolve through the fold table (legacy 'cites' -> 'discusses');
             # the STORED value is always roster-true. Unknown rels refuse loud.
             r = tx.resolve_rel(c.get("rel"))
             if r is None:
-                raise AtomError(f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)")
+                raise AtomError(
+                    f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)"
+                )
             c["rel"] = r
             if not c.get("target"):
                 raise AtomError("citation needs a target atom id")
@@ -148,16 +171,31 @@ class AtomFamily:
 
     # ---------- operations ----------
 
-    def mint(self, type_: str, title: str, body: str, *, arc: Optional[str] = None,
-             seats: Optional[List[str]] = None, categories: Optional[List[str]] = None,
-             citations: Optional[List[Dict[str, str]]] = None, status: str = "current",
-             origin: str = "authored", speakers: Optional[List[str]] = None,
-             source_thread: Optional[str] = None, settled: str = "settled",
-             tenant: str = "solo", visibility: str = "fleet",
-             body_type: Optional[str] = None, body_type_source: str = "unstated",
-             supersedes: Optional[str] = None, date: Optional[str] = None,
-             gist: Optional[str] = None, category_sources: Optional[List[str]] = None,
-             now: Optional[float] = None) -> Dict[str, Any]:
+    def mint(
+        self,
+        type_: str,
+        title: str,
+        body: str,
+        *,
+        arc: Optional[str] = None,
+        seats: Optional[List[str]] = None,
+        categories: Optional[List[str]] = None,
+        citations: Optional[List[Dict[str, str]]] = None,
+        status: str = "current",
+        origin: str = "authored",
+        speakers: Optional[List[str]] = None,
+        source_thread: Optional[str] = None,
+        settled: str = "settled",
+        tenant: str = "solo",
+        visibility: str = "fleet",
+        body_type: Optional[str] = None,
+        body_type_source: str = "unstated",
+        supersedes: Optional[str] = None,
+        date: Optional[str] = None,
+        gist: Optional[str] = None,
+        category_sources: Optional[List[str]] = None,
+        now: Optional[float] = None,
+    ) -> Dict[str, Any]:
         # v1.1: absent body_type auto-detects (source stamped 'auto' so a wrong stamp
         # is VISIBLE -- kimi hardening); an explicit value should arrive with source
         # 'flag'. tenant is accepted for compat but NO LONGER STORED (demoted to a
@@ -166,11 +204,12 @@ class AtomFamily:
             body_type = tx.detect_body_type(body or "")
             if body_type_source == "unstated":
                 body_type_source = "auto"
-        cats = self._validate(type_, title, categories or [], citations or [], origin,
-                              settled, status, body_type, body_type_source)
+        cats = self._validate(
+            type_, title, categories or [], citations or [], origin, settled, status, body_type, body_type_source
+        )
         # kimi (fence round 1): inference provenance is PERSISTED, not just printed --
         # the library lint reads recorded [flag|auto] sources instead of re-deriving.
-        srcs = list(category_sources or [])[:len(cats)]
+        srcs = list(category_sources or [])[: len(cats)]
         srcs += ["unstated"] * (len(cats) - len(srcs))
         ts = float(now if now is not None else time.time())
         day = date or time.strftime("%Y-%m-%d", time.localtime(ts))
@@ -180,9 +219,15 @@ class AtomFamily:
             "id": atom_id,
             "schema_version": SCHEMA_VERSION,
             "header": {
-                "status": status, "type": type_, "arc": arc, "seats": seats or [],
-                "date": day, "title": title.strip(), "category": cats,
-                "visibility": visibility, "body_type": body_type,
+                "status": status,
+                "type": type_,
+                "arc": arc,
+                "seats": seats or [],
+                "date": day,
+                "title": title.strip(),
+                "category": cats,
+                "visibility": visibility,
+                "body_type": body_type,
                 # kimi R3: recall surfaces are capped and silent-when-empty -- a doc
                 # that cannot render in one line gets dropped, so the gist is born-with.
                 "gist": (gist or re.sub(r"\s+", " ", (body or "")).strip()[:140]),
@@ -192,12 +237,16 @@ class AtomFamily:
             "body_sha": _sha12(body or ""),
             "category_sources": srcs,
             "citations_out": citations or [],
-            "supersedes": supersedes, "superseded": None,
-            "origin": origin, "speakers": speakers or [],
+            "supersedes": supersedes,
+            "superseded": None,
+            "origin": origin,
+            "speakers": speakers or [],
             "captured_at": ts if origin == "conversation" else None,
             "source_thread": source_thread,
             "settled": settled,
-            "version": 1, "created_ts": ts, "updated_ts": ts,
+            "version": 1,
+            "created_ts": ts,
+            "updated_ts": ts,
         }
         self.store.set(KEY_PREFIX + atom_id, json.dumps(atom, ensure_ascii=False, sort_keys=True))
         self._index(atom)
@@ -214,12 +263,15 @@ class AtomFamily:
         # than a refusal (the migrate_schema door is the sanctioned path forward).
         v = int(atom.get("schema_version", 1))
         if v > SCHEMA_KNOWN_MAX:
-            raise AtomError(f"atom {atom_id} is schema v{v}; this reader knows <= v{SCHEMA_KNOWN_MAX} "
-                            f"-- upgrade the reader (or run the migrate_schema door), never guess-render")
+            raise AtomError(
+                f"atom {atom_id} is schema v{v}; this reader knows <= v{SCHEMA_KNOWN_MAX} "
+                f"-- upgrade the reader (or run the migrate_schema door), never guess-render"
+            )
         return atom
 
-    def supersede(self, old_id: str, *, title: Optional[str] = None, body: str,
-                  now: Optional[float] = None, **mint_kwargs: Any) -> Dict[str, Any]:
+    def supersede(
+        self, old_id: str, *, title: Optional[str] = None, body: str, now: Optional[float] = None, **mint_kwargs: Any
+    ) -> Dict[str, Any]:
         """Mint the successor, then CAS-flip the ancestor (append-only everywhere).
 
         Known window (deepseek fence, round 1): the successor exists BEFORE the ancestor
@@ -237,8 +289,7 @@ class AtomFamily:
             arc=mint_kwargs.pop("arc", h["arc"]),
             categories=mint_kwargs.pop("categories", list(h.get("category", []))),
             body_type=mint_kwargs.pop("body_type", h.get("body_type")),
-            body_type_source=mint_kwargs.pop("body_type_source",
-                                             old.get("body_type_source", "unstated")),
+            body_type_source=mint_kwargs.pop("body_type_source", old.get("body_type_source", "unstated")),
             supersedes=old_id,
             now=now,
             **mint_kwargs,
@@ -294,8 +345,14 @@ class AtomFamily:
         self._append_jsonl(atom)
         return atom
 
-    def find(self, *, type_: Optional[str] = None, arc: Optional[str] = None,
-             category: Optional[str] = None, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def find(
+        self,
+        *,
+        type_: Optional[str] = None,
+        arc: Optional[str] = None,
+        category: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """Index-intersection find; newest first. Facets are ANDed."""
         sets: List[set] = []
         if type_:
@@ -334,9 +391,14 @@ class AtomFamily:
                         if key in seen:
                             continue
                         seen.add(key)
-                        out.append({"source": atom["id"], "target": aid,
-                                    "rel": tx.resolve_rel(c.get("rel")) or c.get("rel"),
-                                    "status": atom["header"]["status"]})
+                        out.append(
+                            {
+                                "source": atom["id"],
+                                "target": aid,
+                                "rel": tx.resolve_rel(c.get("rel")) or c.get("rel"),
+                                "status": atom["header"]["status"],
+                            }
+                        )
         return out
 
     def backlinks_scan(self, atom_id: str) -> List[Dict[str, Any]]:
@@ -346,8 +408,7 @@ class AtomFamily:
         for atom in self.find():
             for c in atom.get("citations_out", []):
                 if c.get("target") == atom_id:
-                    out.append({"source": atom["id"], "rel": c.get("rel"),
-                                "status": atom["header"]["status"]})
+                    out.append({"source": atom["id"], "rel": c.get("rel"), "status": atom["header"]["status"]})
         return out
 
     def verify_backlink_index(self) -> List[str]:
@@ -447,6 +508,8 @@ class AtomFamily:
                 if st != h["status"]:
                     self.store.srem(_idx_key("status", st), atom["id"])
         if parked:
-            print(f"[rebuild] PARKED {len(parked)} newer-than-v{SCHEMA_KNOWN_MAX} atom line(s) "
-                  f"(schema gate; migrate_schema is the door): " + ", ".join(sorted(set(parked))[:5]))
+            print(
+                f"[rebuild] PARKED {len(parked)} newer-than-v{SCHEMA_KNOWN_MAX} atom line(s) "
+                f"(schema gate; migrate_schema is the door): " + ", ".join(sorted(set(parked))[:5])
+            )
         return len(latest)

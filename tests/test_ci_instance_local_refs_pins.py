@@ -22,6 +22,7 @@ So: git decides. A missing ref that git deliberately ignores is reported as a WA
 
 Run: py -m pytest tests/test_ci_instance_local_refs_pins.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -54,14 +55,15 @@ def test_gitignored_is_empty_for_no_input():
 
 # ------------------------------------------------------------------- the pure partition
 def test_partition_routes_ignored_to_warn_and_the_rest_to_fail():
-    missing = [("docs/MAP.md", "security/acl.json"),
-               ("docs/MAP.md", "core/totally_invented.py")]
+    missing = [("docs/MAP.md", "security/acl.json"), ("docs/MAP.md", "core/totally_invented.py")]
     drift, instance_local = cm.partition_missing(missing, {"security/acl.json"})
 
     assert drift == [("docs/MAP.md", "core/totally_invented.py")], (
-        "a ref missing for no declared reason must still FAIL")
+        "a ref missing for no declared reason must still FAIL"
+    )
     assert instance_local == [("docs/MAP.md", "security/acl.json")], (
-        "a deliberately-ignored ref is absent by design -- WARN, not FAIL")
+        "a deliberately-ignored ref is absent by design -- WARN, not FAIL"
+    )
 
 
 # --------------------------------------------- the CI condition, reproduced on this box
@@ -82,15 +84,13 @@ def test_absent_gitignored_ref_does_not_fail_the_build(acl_looks_absent):
     """THE REGRESSION. This is precisely what reddened CI 8 times."""
     fails = cm._stale_refs()
     offenders = [f for f in fails if "security/acl.json" in f]
-    assert offenders == [], (
-        f"a gitignored path must not FAIL as drift; got {len(offenders)}: {offenders[:2]}")
+    assert offenders == [], f"a gitignored path must not FAIL as drift; got {len(offenders)}: {offenders[:2]}"
 
 
 def test_absent_gitignored_ref_is_still_reported_as_a_warning(acl_looks_absent):
     """Excused is not invisible -- the guard must not go quiet about it."""
     warns = cm._instance_local_refs()
-    assert any("security/acl.json" in w for w in warns), (
-        f"expected an instance-local WARN naming the ref, got {warns}")
+    assert any("security/acl.json" in w for w in warns), f"expected an instance-local WARN naming the ref, got {warns}"
 
 
 def test_the_build_is_green_under_the_ci_condition(acl_looks_absent):

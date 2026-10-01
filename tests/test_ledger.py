@@ -110,7 +110,8 @@ def test_agent_signal_ledger():
 
 def test_redisledger_if_available():
     from redis_test_helpers import fresh_test_ledger
-    rl = fresh_test_ledger()   # isolated test DB (15), flushed clean; never canonical db 0
+
+    rl = fresh_test_ledger()  # isolated test DB (15), flushed clean; never canonical db 0
     if rl is None:
         print("\n--- RedisLedger ---\n  SKIPPED (Redis not running)")
         return
@@ -121,7 +122,7 @@ def test_redisledger_if_available():
     assert [e["n"] for _id, e in events] == [1, 2], f"live replay wrong: {events}"
     after = rl.consume(stream, after_id=id1)
     assert [e["n"] for _id, e in after] == [2]
-    rl._client.flushdb()   # leave the test DB clean
+    rl._client.flushdb()  # leave the test DB clean
     print("\n--- RedisLedger (live) ---\n  live append+replay+cursor OK")
 
 

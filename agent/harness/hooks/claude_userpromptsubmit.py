@@ -30,6 +30,7 @@ may be silently skipped):
   {"hooks":{"UserPromptSubmit":[{"matcher":"*","hooks":[
     {"type":"command","command":"py E:/AI-Setup/agent/harness/hooks/claude_userpromptsubmit.py"}]}]}}
 """
+
 import json
 import os
 import sys
@@ -39,12 +40,13 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 
 def _seat(session_id: str = "") -> str:
@@ -57,15 +59,19 @@ def _seat(session_id: str = "") -> str:
     """
     try:
         from core.comm.seat_identity import resolve
+
         return resolve(session_id)
     except Exception:
         import os as _os
+
         return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
+
 
 def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     """The plan-altitude context block for this prompt, or "" for silence.
     Rule of three fired (t383): the sequence lives in agent/harness/actions.py."""
     from agent.harness.actions import plan_block
+
     return plan_block(prompt, session_id, session_id, agent_id=agent_id)
 
 
@@ -74,6 +80,7 @@ def build_bus_line(agent_id: str) -> str:
     unreachable bus means no line, never a broken hook."""
     try:
         from agent.harness.context import _unread_count
+
         n = _unread_count(agent_id)
     except Exception:
         return ""
@@ -88,6 +95,7 @@ def build_page_lines() -> list:
     Daniel may be away, then ack. Silent when no pages. Fail-soft."""
     try:
         from core.comm import pager
+
         return pager.hook_lines()
     except Exception:
         return []
@@ -101,21 +109,29 @@ def main() -> int:
         return 0
     try:
         from agent.harness.scope import session_in_scope
+
         cwd = data.get("cwd") or os.getcwd()
         if not session_in_scope(cwd):
             if os.getenv("AKASHIC_DEBUG"):
                 print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
-            return 0   # unrelated project -> full silence
+            return 0  # unrelated project -> full silence
         agent_id = _seat(str(data.get("session_id") or ""))
-        pieces = [build_plan_recall(data.get("prompt") or "",
-                                    data.get("session_id") or "", agent_id),
-                  build_bus_line(agent_id)] + build_page_lines()
+        pieces = [
+            build_plan_recall(data.get("prompt") or "", data.get("session_id") or "", agent_id),
+            build_bus_line(agent_id),
+        ] + build_page_lines()
         ctx = "\n".join(p for p in pieces if p)
         if ctx:
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "UserPromptSubmit",
-                "additionalContext": ctx,
-            }}))
+            print(
+                json.dumps(
+                    {
+                        "hookSpecificOutput": {
+                            "hookEventName": "UserPromptSubmit",
+                            "additionalContext": ctx,
+                        }
+                    }
+                )
+            )
     except Exception as e:
         # fail-OPEN for the agent, but never SILENT for the operator: a swallowed error here
         # cost a debugging session on 2026-07-02. stderr is invisible to the model.

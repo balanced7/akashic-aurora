@@ -30,6 +30,7 @@ Flagged binds for deepseek's verify (T073 precedent):
 
 Run: py -m pytest tests/test_t071_r1_relevance_budget.py -q   (no Redis needed)
 """
+
 import os
 import sys
 import time
@@ -45,14 +46,19 @@ except ImportError:
 
 
 def _built():
-    assert rb is not None, \
-        "T071-R1 build target context/relevance_budget.py does not exist yet (RED until built)"
+    assert rb is not None, "T071-R1 build target context/relevance_budget.py does not exist yet (RED until built)"
 
 
 def _lesson(name, rec, category="general", ts=None, tried=""):
-    return {"experiment_name": name, "recommendation": rec, "what_tried": tried,
-            "category": category, "confidence": "medium", "success": "yes",
-            "timestamp": ts if ts is not None else time.time()}
+    return {
+        "experiment_name": name,
+        "recommendation": rec,
+        "what_tried": tried,
+        "category": category,
+        "confidence": "medium",
+        "success": "yes",
+        "timestamp": ts if ts is not None else time.time(),
+    }
 
 
 class FakeStore:
@@ -69,45 +75,49 @@ TASK = "T077 harden the wake listener seat files in scripts/bifrost_wake.py (com
 
 def _select(lessons, task=TASK, credit=None, cap=2000):
     return rb.select_within_budget(
-        FakeStore(lessons), task, cap_chars=cap, now=NOW,
-        credit_fn=(credit or (lambda source: {})))
+        FakeStore(lessons), task, cap_chars=cap, now=NOW, credit_fn=(credit or (lambda source: {}))
+    )
 
 
 # --------------------------------------------------------------- R1-P1 task-id beats all
 def test_p1_task_id_match_outranks_everything():
     _built()
-    old_hit = _lesson("hit", "Use when touching T077 seat logic: check K7 first.",
-                      category="unrelated", ts=NOW - 86400 * 30)
+    old_hit = _lesson(
+        "hit", "Use when touching T077 seat logic: check K7 first.", category="unrelated", ts=NOW - 86400 * 30
+    )
     fresh_cat = _lesson("cat", "General comm advice.", category="comm robustness", ts=NOW)
     picked = _select([fresh_cat, old_hit])
-    assert picked and picked[0]["source"] == "hit", \
-        "P1: an exact task-id mention must outrank a fresher category match"
+    assert picked and picked[0]["source"] == "hit", "P1: an exact task-id mention must outrank a fresher category match"
     assert picked[0]["score"] >= 1.0
 
 
 # --------------------------------------------------------------- R1-P2 constraint tier
 def test_p2_constraint_beats_file_path():
     _built()
-    constraint = _lesson("rb26", "RB-26 crash-redelivery: consumers stay idempotent on the wake listener.",
-                         category="constraint", ts=NOW - 86400 * 10)
-    filehit = _lesson("filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.",
-                      category="general", ts=NOW)
+    constraint = _lesson(
+        "rb26",
+        "RB-26 crash-redelivery: consumers stay idempotent on the wake listener.",
+        category="constraint",
+        ts=NOW - 86400 * 10,
+    )
+    filehit = _lesson(
+        "filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.", category="general", ts=NOW
+    )
     picked = _select([filehit, constraint])
     srcs = [p["source"] for p in picked]
-    assert srcs.index("rb26") < srcs.index("filehit"), \
-        "P2: a keyword-overlapping constraint outranks a file-path match"
+    assert srcs.index("rb26") < srcs.index("filehit"), "P2: a keyword-overlapping constraint outranks a file-path match"
 
 
 # --------------------------------------------------------------- R1-P3 file-path beats category
 def test_p3_file_path_beats_category():
     _built()
-    filehit = _lesson("filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.",
-                      category="general", ts=NOW - 86400 * 20)
+    filehit = _lesson(
+        "filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.", category="general", ts=NOW - 86400 * 20
+    )
     cat = _lesson("cat", "Comm systems reward idempotency.", category="comm robustness", ts=NOW)
     picked = _select([cat, filehit])
     srcs = [p["source"] for p in picked]
-    assert srcs.index("filehit") < srcs.index("cat"), \
-        "P3: naming the exact file under edit outranks same-domain advice"
+    assert srcs.index("filehit") < srcs.index("cat"), "P3: naming the exact file under edit outranks same-domain advice"
 
 
 # --------------------------------------------------------------- R1-P4 recency tiebreak
@@ -123,10 +133,12 @@ def test_p4_recency_breaks_ties():
 # --------------------------------------------------------------- R1-P5 the FIXED cap (the noise regression)
 def test_p5_fixed_cap_junk_cannot_crowd_a_real_hit():
     _built()
-    junk = [_lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i)
-            for i in range(100)]   # the 'r'/'use it'/'attempt 3' shape
-    hit = _lesson("hit", "Use when touching T077 seat logic: check K7 first.",
-                  category="unrelated", ts=NOW - 86400 * 60)
+    junk = [
+        _lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i) for i in range(100)
+    ]  # the 'r'/'use it'/'attempt 3' shape
+    hit = _lesson(
+        "hit", "Use when touching T077 seat logic: check K7 first.", category="unrelated", ts=NOW - 86400 * 60
+    )
     picked = _select(junk + [hit])
     assert picked[0]["source"] == "hit", "P5: the task-id hit must survive 100 junk lessons"
     total = sum(len(rb.render_entry(p)) for p in picked)
@@ -141,33 +153,35 @@ def test_p6_funnel_credit_boosts_cited_over_ignored():
     credit = lambda src: {"helped": 3, "surfaced": 3} if src == "cited" else {"surfaced": 9}
     picked = _select([b, a], credit=credit)
     srcs = [p["source"] for p in picked]
-    assert srcs.index("cited") < srcs.index("ignored"), \
+    assert srcs.index("cited") < srcs.index("ignored"), (
         "P6: proven-useful (funnel helped>0) must beat surfaced-and-ignored at equal tier"
+    )
 
 
 # --------------------------------------------------------------- R1-P7 top hit guaranteed + clip confessed
 def test_p7_top_hit_always_included_and_clip_is_said():
     _built()
-    long_hit = _lesson("hit", "Use when touching T077: " + "detail " * 600,
-                       category="general", ts=NOW)
+    long_hit = _lesson("hit", "Use when touching T077: " + "detail " * 600, category="general", ts=NOW)
     picked = _select([long_hit], cap=300)
     assert picked and picked[0]["source"] == "hit", "P7: the top hit must ALWAYS be included"
     line = rb.render_entry(picked[0])
-    assert len(line) <= 300 and "[budget]" in line, \
+    assert len(line) <= 300 and "[budget]" in line, (
         "P7: an over-budget top entry is clipped WITH an explicit marker (packet law)"
+    )
 
 
 # --------------------------------------------------------------- R1-P8 zero-relevance floor
 def test_p8_irrelevant_lessons_never_ride_when_a_relevant_one_exists():
     _built()
-    junk = [_lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i)
-            for i in range(8)]
-    hit = _lesson("filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.",
-                  category="general", ts=NOW - 86400 * 20)
+    junk = [_lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i) for i in range(8)]
+    hit = _lesson(
+        "filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.", category="general", ts=NOW - 86400 * 20
+    )
     picked = _select(junk + [hit])
-    assert [p["source"] for p in picked] == ["filehit"], \
+    assert [p["source"] for p in picked] == ["filehit"], (
         "P8: zero-base lessons must not take boot space while a relevant one exists"
-    floor = _select(junk)   # fully irrelevant corpus -> small floor, never the flood
+    )
+    floor = _select(junk)  # fully irrelevant corpus -> small floor, never the flood
     assert 0 < len(floor) <= 3, "P8: irrelevant-corpus floor is at most 3 entries"
 
 
@@ -175,8 +189,10 @@ def test_p8_irrelevant_lessons_never_ride_when_a_relevant_one_exists():
 def test_kill_switch_falls_back_to_legacy(monkeypatch):
     _built()
     from core.context import learning_loader as ll
+
     monkeypatch.setenv("AKASHIC_RELEVANCE_BUDGET", "0")
     store = FakeStore([_lesson("only", "anything", ts=NOW)])
     out = ll.load_learnings_for_boot(TASK, learning_store=store, now=NOW)
-    assert out and out[0]["source"] == "only", \
+    assert out and out[0]["source"] == "only", (
         "R1-d: kill switch must serve the legacy loader shape, not an empty section"
+    )

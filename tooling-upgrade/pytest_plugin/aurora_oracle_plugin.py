@@ -3,6 +3,7 @@
 Records every test's per-phase outcome by node id, and every collection error, to the JSON file
 named by $AURORA_ORACLE_OUT. Observation only: it changes no outcome.
 """
+
 import json
 import os
 
@@ -28,5 +29,6 @@ def pytest_sessionfinish(session, exitstatus):
     if not out:
         return
     with open(out, "w", encoding="utf-8") as fh:
-        json.dump({"results": _results, "collect_errors": sorted(set(_collect_errors)),
-                   "exitstatus": int(exitstatus)}, fh)
+        json.dump(
+            {"results": _results, "collect_errors": sorted(set(_collect_errors)), "exitstatus": int(exitstatus)}, fh
+        )

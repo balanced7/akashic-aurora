@@ -5,6 +5,7 @@ The sweep's contract: dry-run by default and writes NOTHING; --apply deletes ONL
 pattern-matched keys AND first writes every doomed key's full value to an audit
 file -- so even the deletion is reversible from its own receipt.
 """
+
 import json
 
 from core.foundation.store import FileStore
@@ -65,8 +66,7 @@ def test_dry_run_deletes_nothing_and_names_the_doomed(tmp_path):
 
     doomed = sweep(r, audit_path=tmp_path / "audit.json", apply=False)
 
-    assert sorted(doomed) == ["census_test", "t-s0b-deadbeef:probe",
-                              "t056_cafe:task_cost:T900"]
+    assert sorted(doomed) == ["census_test", "t-s0b-deadbeef:probe", "t056_cafe:task_cost:T900"]
     assert r.get("t-s0b-deadbeef:probe") == "drill crumb"
     assert not (tmp_path / "audit.json").exists(), "dry-run writes nothing"
 
@@ -86,8 +86,7 @@ def test_apply_deletes_only_matches_and_audits_full_values(tmp_path):
     )
     rec = json.loads(audit.read_text(encoding="utf-8"))
     assert rec["t-s0b-deadbeef:probe"]["value"] == "drill crumb", (
-        "the audit holds full values BEFORE deletion -- the sweep is reversible "
-        "from its own receipt"
+        "the audit holds full values BEFORE deletion -- the sweep is reversible from its own receipt"
     )
     assert rec["t056_cafe:task_cost:T900"]["value"] == {"cost": "1"}
 

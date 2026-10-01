@@ -38,6 +38,7 @@ Subcommands:
                  transcripts; this path is DSH-native (callId pairing via
                  message.source.callId, failure via data.error).
 """
+
 import argparse
 import json
 import os
@@ -57,8 +58,9 @@ def _repo() -> str:
         if parent == d:
             break
         d = parent
-    raise RuntimeError("AkashicRepoNotFound: set AKASHIC_REPO in $DSH_HOME/.env "
-                       "(scripts/install_dsh_plugin.py stamps it)")
+    raise RuntimeError(
+        "AkashicRepoNotFound: set AKASHIC_REPO in $DSH_HOME/.env (scripts/install_dsh_plugin.py stamps it)"
+    )
 
 
 def _emit(obj) -> int:
@@ -70,6 +72,7 @@ def _import_actions():
     """The shared orchestration module. Raises until claude lands it."""
     sys.path.insert(0, _repo())
     from agent.harness.actions import recall_block, outcome_block, plan_block  # noqa: F401
+
     return recall_block, outcome_block, plan_block
 
 
@@ -77,15 +80,18 @@ def cmd_presence(a) -> int:
     try:
         sys.path.insert(0, _repo())
         from core.comm.roster import go_offline, heartbeat
+
         ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
         agent = os.environ.get("AKASHIC_AGENT_ID", "dsh_agent")
         if str(a.phase).lower() == "offline":
             rep = go_offline(ns, agent, a.session_id or "")
-            return _emit({"ok": bool(rep and rep.get("ok")), "phase": a.phase,
-                          "offline_ts": (rep or {}).get("offline_ts")})
+            return _emit(
+                {"ok": bool(rep and rep.get("ok")), "phase": a.phase, "offline_ts": (rep or {}).get("offline_ts")}
+            )
         rep = heartbeat(ns, agent, a.session_id or "", phase=a.phase)
-        return _emit({"ok": bool(rep and rep.get("ok")), "phase": a.phase,
-                      "resumed_after_s": (rep or {}).get("resumed_after_s")})
+        return _emit(
+            {"ok": bool(rep and rep.get("ok")), "phase": a.phase, "resumed_after_s": (rep or {}).get("resumed_after_s")}
+        )
     except Exception as e:
         return _emit({"ok": False, "error": type(e).__name__, "error_detail": str(e)[:200]})
 
@@ -94,6 +100,7 @@ def cmd_boot_whisper(a) -> int:
     try:
         sys.path.insert(0, _repo())
         from agent.harness.context import build_autoboot_context
+
         text = build_autoboot_context(a.cwd, a.agent_id, a.session_id)
         return _emit({"text": text or ""})
     except Exception as e:
@@ -104,8 +111,7 @@ def cmd_action_recall(a) -> int:
     try:
         recall_block, _, _ = _import_actions()
         # identity thread on ALL doors (t383 review F1): explicit beats inherited env
-        text = recall_block(a.session_key, a.seen_key, a.path, a.command,
-                            agent_id=a.session_key)
+        text = recall_block(a.session_key, a.seen_key, a.path, a.command, agent_id=a.session_key)
         return _emit({"text": text or ""})
     except Exception as e:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
@@ -118,6 +124,7 @@ def derive_target(path=None, command=None, target=None) -> str:
     already-normalized override. Pinned by tests/test_dsh_contract.py."""
     if path or command:
         from core.recall.at_action import normalize_target
+
         return normalize_target(path or None, command or None)
     return target or ""
 
@@ -130,8 +137,7 @@ def cmd_outcome_credit(a) -> int:
         # p:<abspath>/c:<lowercased command> -- the join evaporated and flips could never
         # credit. The JS now sends --path/--command; the bridge does the single derivation.
         target = derive_target(a.path, a.command, a.target)
-        text = outcome_block(a.session_key, a.seen_key, target, bool(a.success),
-                             agent_id=a.session_key)
+        text = outcome_block(a.session_key, a.seen_key, target, bool(a.success), agent_id=a.session_key)
         return _emit({"text": text or ""})
     except Exception as e:
         return _emit({"text": "", "error": type(e).__name__, "error_detail": str(e)[:200]})
@@ -165,6 +171,7 @@ def cmd_wake_check(a) -> int:
         os.chdir(repo)
         from core.comm.bus import Bus
         from scripts.bifrost_wake import WAKE_WORTHY_KINDS
+
         agent = os.environ.get("AKASHIC_AGENT_ID", "dsh_agent")
         bus = Bus(agent)
 
@@ -199,13 +206,15 @@ def cmd_wake_check(a) -> int:
                 pass
 
         wake = [m for m in msgs if str(m.kind) in WAKE_WORTHY_KINDS]
-        return _emit({
-            "agent": agent,
-            "count": len(wake),
-            "has_wake_worthy": bool(wake),
-            "kinds": sorted({str(m.kind) for m in wake}),
-            "senders": sorted({str(m.frm) for m in wake}),
-        })
+        return _emit(
+            {
+                "agent": agent,
+                "count": len(wake),
+                "has_wake_worthy": bool(wake),
+                "kinds": sorted({str(m.kind) for m in wake}),
+                "senders": sorted({str(m.frm) for m in wake}),
+            }
+        )
     except Exception as e:
         return _emit({"count": 0, "error": type(e).__name__, "error_detail": str(e)[:200]})
 
@@ -216,6 +225,7 @@ def _read_dsh_lines(transcript_path: str, max_bytes: int = 16 * 1024 * 1024):
     try:
         if str(transcript_path).endswith(".zstd"):
             import zstandard
+
             dctx = zstandard.ZstdDecompressor()
             with open(transcript_path, "rb") as f:
                 reader = dctx.stream_reader(f)
@@ -235,7 +245,7 @@ def _read_dsh_lines(transcript_path: str, max_bytes: int = 16 * 1024 * 1024):
     if truncated:
         text = text[-max_bytes:]
         nl = text.find("\n")
-        text = text[nl + 1:] if nl >= 0 else ""
+        text = text[nl + 1 :] if nl >= 0 else ""
     return text.splitlines(), truncated
 
 
@@ -251,10 +261,11 @@ def parse_dsh_calls(transcript_path: str, max_bytes: int = 16 * 1024 * 1024):
     data.error. Targets normalize like the surface (p: files / c: commands) so the
     correlation join stays exact. Pinned by tests/test_dsh_contract.py."""
     from core.recall.at_action import normalize_target
+
     lines, truncated = _read_dsh_lines(transcript_path, max_bytes)
     order, uses, results = [], {}, {}
     for line in lines:
-        line = line.lstrip("\ufeff")   # tolerate a BOM on the first record
+        line = line.lstrip("\ufeff")  # tolerate a BOM on the first record
         try:
             rec = json.loads(line)
         except Exception:
@@ -309,17 +320,25 @@ def _gather_draft(trigger: str) -> None:
     flips -> chronicles/last-session-draft.md. Raises on failure; callers wrap it."""
     import agent_cli
     from core.learning.agent_memory import get_agent_memory
+
     commits = agent_cli._recent_commits(24)
     lessons = agent_cli._recent_lessons(8)
     notes = get_agent_memory().get_decisions(days=1)
     try:
         from core.recall.at_action import recent_flips, recent_injections
+
         flips, injections = recent_flips(24), recent_injections(24)
     except Exception:
         flips, injections = [], []
     agent_cli.write_last_session_draft(
-        agent_cli.last_session_draft_path(), commits, lessons, notes,
-        trigger=trigger, flips=flips, injections=injections)
+        agent_cli.last_session_draft_path(),
+        commits,
+        lessons,
+        notes,
+        trigger=trigger,
+        flips=flips,
+        injections=injections,
+    )
 
 
 def _keepalive_run() -> dict:
@@ -341,9 +360,8 @@ def _keepalive_run() -> dict:
                 os.chdir(old)
 
         return draft_keepalive.refresh(agent_cli.last_session_draft_path(), write=_write)
-    except Exception as e:                                              # noqa: BLE001
-        return {"wrote": False,
-                "reason": f"keepalive failed ({type(e).__name__}: {str(e)[:80]})"}
+    except Exception as e:  # noqa: BLE001
+        return {"wrote": False, "reason": f"keepalive failed ({type(e).__name__}: {str(e)[:80]})"}
 
 
 def cmd_draft_keepalive(a) -> int:
@@ -373,8 +391,8 @@ def cmd_session_end(a) -> int:
     # throughout: an auto-handoff must never block a session from ending.
     try:
         repo = _repo()
-        sys.path.insert(0, repo)   # imports (agent_cli, core.*) resolve against the repo
-        os.chdir(repo)   # git-based calls resolve against the repo, not the server cwd
+        sys.path.insert(0, repo)  # imports (agent_cli, core.*) resolve against the repo
+        os.chdir(repo)  # git-based calls resolve against the repo, not the server cwd
         sid = a.session_id or ""
         home = os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh")
         transcript = a.transcript_path or locate_dsh_session_log(home, sid)
@@ -388,37 +406,47 @@ def cmd_session_end(a) -> int:
         if os.getenv("AKASHIC_SESSION_SIGNALS", "1") != "0" and transcript and os.path.exists(transcript):
             calls, truncated = parse_dsh_calls(transcript)
             if calls:
-                from agent.harness.hooks.claude_sessionend import (
-                    _already_emitted_calls, _mark_emitted)
+                from agent.harness.hooks.claude_sessionend import _already_emitted_calls, _mark_emitted
+
                 if len(calls) > _already_emitted_calls(sid):
                     from core.renew.session_signals import fold_signals
+
                     signals = fold_signals(calls)
                     signals["window_truncated"] = truncated
                     from core.events.event_log import capture_event
+
                     capture_event(
                         "session_signals",
                         f"SESSION SIGNALS: {signals['total_calls']} calls, "
                         f"{signals['fail_count']} fails, {signals['progress_count']} progress",
                         agent_id=os.environ.get("AKASHIC_AGENT_ID") or "dsh_agent",
-                        session_id=sid, detail=signals)
+                        session_id=sid,
+                        detail=signals,
+                    )
                     _mark_emitted(sid, len(calls))
                     signals_done = True
 
         # episode close + clean-death trio (event guard requires the literal SessionEnd)
         try:
             from core.narrative.episode import close_open_episode_for_session_end
+
             close_open_episode_for_session_end()
         except Exception:
             pass
         try:
             from core.comm.session_exit import clean_death
-            clean_death(os.environ.get("AKASHIC_AGENT_ID") or "dsh_agent", sid,
-                        event="SessionEnd")
+
+            clean_death(os.environ.get("AKASHIC_AGENT_ID") or "dsh_agent", sid, event="SessionEnd")
         except Exception:
             pass
-        return _emit({"ran": True, "draft": "chronicles/last-session-draft.md",
-                      "signals": signals_done,
-                      "transcript": bool(transcript and os.path.exists(transcript))})
+        return _emit(
+            {
+                "ran": True,
+                "draft": "chronicles/last-session-draft.md",
+                "signals": signals_done,
+                "transcript": bool(transcript and os.path.exists(transcript)),
+            }
+        )
     except Exception as e:
         return _emit({"ran": False, "error": type(e).__name__, "error_detail": str(e)[:200]})
 

@@ -12,6 +12,7 @@ This pin is PURE (no Redis) -- it checks the prefix FUNCTIONS directly, which al
 the env PER-CALL (not baked at import): the modules import at collection time, the test sets the env
 after, and a correctly-converted module still returns the scoped prefix.
 """
+
 import pytest
 
 from core.comm import expectations, runner_lock, liveness, nudge, doctor, turn_metrics
@@ -21,11 +22,11 @@ from core.coord import intent, task_ledger
 # The authoritative allowlist of modules whose bifrost:* keys are DELIBERATELY global (cross-namespace
 # resources). Anything else writing a hardcoded bifrost:* coordination key is a regression.
 GLOBAL_MODULES = {
-    "locks",      # advisory path locks -> shared FILESYSTEM
-    "promoter",   # bifrost:<msg_id> -> event-log ref convention (durable cross-ns ledger)
-    "launcher",   # auto_revive -> one launcher spawns/revives for ALL namespaces
-    "task_ledger", # git-durable governed task roster; one source of truth across namespaces
-    "bus",        # NS is a fallback default only; Bus reads the env per-instance
+    "locks",  # advisory path locks -> shared FILESYSTEM
+    "promoter",  # bifrost:<msg_id> -> event-log ref convention (durable cross-ns ledger)
+    "launcher",  # auto_revive -> one launcher spawns/revives for ALL namespaces
+    "task_ledger",  # git-durable governed task roster; one source of truth across namespaces
+    "bus",  # NS is a fallback default only; Bus reads the env per-instance
 }
 
 # Every SCOPED module's namespace-forming prefix function.

@@ -17,6 +17,7 @@ intent covers. Fuzzy scope-overlap matching is a deliberate LATER refinement, no
 Fail-open on any Redis error (never wedge a local agent). Redis-backed and TTL'd -- a crashed agent's
 intent auto-expires, exactly like presence and locks.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,17 +37,20 @@ def _ns() -> str:
 
 def _intent_prefix() -> str:
     return f"{_ns()}:intent:"
-DEFAULT_TTL = 900          # 15 min -- long enough for a slice, self-heals a crash (mirrors locks)
+
+
+DEFAULT_TTL = 900  # 15 min -- long enough for a slice, self-heals a crash (mirrors locks)
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
     """Shared bus Redis client via the sanctioned connector. None when unreachable -> fail open."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("intent")._client
     except Exception:
         return None
@@ -78,7 +82,7 @@ def active(agent: Optional[str] = None, client: Any = None) -> List[Dict[str, An
     out: List[Dict[str, Any]] = []
     try:
         pattern = f"{_intent_prefix()}{agent}:*" if agent else f"{_intent_prefix()}*"
-        for k in (c.keys(pattern) or []):
+        for k in c.keys(pattern) or []:
             raw = c.get(k)
             if raw:
                 try:
@@ -94,8 +98,7 @@ def conflicts(agent: str, intent: str, client: Any = None) -> List[Dict[str, Any
     """Active intents that collide with (agent, intent): the SAME normalized tag held by a PEER.
     Same agent re-declaring is NOT a conflict (re-entrant refresh)."""
     tag = slug(intent)
-    return [i for i in active(client=client)
-            if slug(i.get("intent", "")) == tag and i.get("agent") != agent]
+    return [i for i in active(client=client) if slug(i.get("intent", "")) == tag and i.get("agent") != agent]
 
 
 def declare(agent: str, intent: str, scope=None, ttl: int = DEFAULT_TTL, client: Any = None) -> Dict[str, Any]:
@@ -108,15 +111,22 @@ def declare(agent: str, intent: str, scope=None, ttl: int = DEFAULT_TTL, client:
     peers = conflicts(agent, intent, client=c)
     if peers:
         who = ", ".join(sorted({p.get("agent", "?") for p in peers}))
-        return {"ok": False, "conflicts": peers, "reason": (
-            f"intent '{slug(intent)}' is already declared by {who} -- coordinate or defer "
-            f"(duplicate work). Different intents on the same files are fine; this is the SAME intent.")}
+        return {
+            "ok": False,
+            "conflicts": peers,
+            "reason": (
+                f"intent '{slug(intent)}' is already declared by {who} -- coordinate or defer "
+                f"(duplicate work). Different intents on the same files are fine; this is the SAME intent."
+            ),
+        }
     try:
-        c.set(_key(agent, intent),
-              json.dumps({"agent": agent, "intent": str(intent), "scope": _norm_scope(scope), "ts": _now(), "ttl": ttl}),
-              ex=ttl)
+        c.set(
+            _key(agent, intent),
+            json.dumps({"agent": agent, "intent": str(intent), "scope": _norm_scope(scope), "ts": _now(), "ttl": ttl}),
+            ex=ttl,
+        )
     except Exception:
-        pass                                     # advisory: never block a local agent on a Redis error
+        pass  # advisory: never block a local agent on a Redis error
     return {"ok": True, "conflicts": [], "reason": ""}
 
 
@@ -134,10 +144,14 @@ def release(agent: str, intent: str, client: Any = None) -> bool:
 
 # --- negotiation round: brief window after user input where agents declare plans ---
 
-PROPOSAL_TIMEOUT = 8.0          # seconds agents have to respond before the round auto-closes
+PROPOSAL_TIMEOUT = 8.0  # seconds agents have to respond before the round auto-closes
+
+
 def _proposal_ns() -> str:
     return f"{_ns()}:proposal"
-PROPOSAL_TTL = 60               # proposal records auto-expire after a minute
+
+
+PROPOSAL_TTL = 60  # proposal records auto-expire after a minute
 
 
 def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
@@ -152,9 +166,12 @@ def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, A
         return {"ok": True, "offline": True, "round": {}}
     key = f"{_proposal_ns()}:{_round_id()}:{agent}"
     payload = {
-        "agent": agent, "what": str(plan.get("what", "")), "intent": slug(plan.get("intent") or plan.get("what", "")),
+        "agent": agent,
+        "what": str(plan.get("what", "")),
+        "intent": slug(plan.get("intent") or plan.get("what", "")),
         "scope": _norm_scope(plan.get("scope")),
-        "estimate": str(plan.get("estimate", "")), "ts": _now(),
+        "estimate": str(plan.get("estimate", "")),
+        "ts": _now(),
     }
     try:
         c.set(key, json.dumps(payload), ex=PROPOSAL_TTL)
@@ -179,7 +196,7 @@ def _round_state(c) -> Dict[str, Any]:
     rid = _round_id()
     proposals: List[Dict[str, Any]] = []
     try:
-        for k in (c.keys(f"{_proposal_ns()}:{rid}:*") or []):
+        for k in c.keys(f"{_proposal_ns()}:{rid}:*") or []:
             raw = c.get(k)
             if raw:
                 try:
@@ -205,8 +222,12 @@ def _round_state(c) -> Dict[str, Any]:
         verdict = "green"
         reason = "no scope conflicts"
     return {
-        "proposals": proposals, "conflicts": conflicts, "verdict": verdict,
-        "reason": reason, "agents": agents, "round": rid,
+        "proposals": proposals,
+        "conflicts": conflicts,
+        "verdict": verdict,
+        "reason": reason,
+        "agents": agents,
+        "round": rid,
     }
 
 
@@ -227,10 +248,13 @@ def _scope_conflicts(proposals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             agents = [c["agent"] for c in claimers]
             # Prefer explicit intent tag, fall back to slug(what) for backward compat
             intent_tags = [slug(c.get("intent", "") or c.get("what", "")) for c in claimers]
-            out.append({
-                "file": f, "agents": agents,
-                "same_intent": len(set(intent_tags)) < len(intent_tags),  # any duplicate tags?
-            })
+            out.append(
+                {
+                    "file": f,
+                    "agents": agents,
+                    "same_intent": len(set(intent_tags)) < len(intent_tags),  # any duplicate tags?
+                }
+            )
     return out
 
 
@@ -242,7 +266,7 @@ def clear_round(client: Any = None) -> int:
     rid = _round_id()
     count = 0
     try:
-        for k in (c.keys(f"{_proposal_ns()}:{rid}:*") or []):
+        for k in c.keys(f"{_proposal_ns()}:{rid}:*") or []:
             c.delete(k)
             count += 1
     except Exception:
@@ -255,7 +279,7 @@ def covers(agent: str, path: str, client: Any = None) -> bool:
     backstop asks this: an agent writing a file it declared no intent for is acting outside its plan."""
     p = str(path).replace("\\", "/")
     for i in active(agent=agent, client=client):
-        for s in (i.get("scope") or []):
+        for s in i.get("scope") or []:
             s = str(s).replace("\\", "/")
             if p == s or p.startswith(s.rstrip("/") + "/") or s in p:
                 return True

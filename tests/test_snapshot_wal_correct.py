@@ -8,6 +8,7 @@ the worst possible place to discover it.
 
 These two tests pin the properties a file copy does not have.
 """
+
 import importlib.util
 import sqlite3
 import shutil
@@ -130,7 +131,7 @@ def test_restore_refuses_loudly_when_the_store_is_in_use(tmp_path):
     c.close()
 
     dst = tmp_path / "store_state.db"
-    holder = _live_db_with_uncheckpointed_writes(dst)   # deliberately left open
+    holder = _live_db_with_uncheckpointed_writes(dst)  # deliberately left open
     try:
         ok = snap._restore_sqlite(src, dst)
         if ok:

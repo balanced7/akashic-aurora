@@ -50,10 +50,10 @@ class _SilentClient:
     `content` arrives as a Python LIST (not a str), so _decode's `json.loads` on a
     non-string raises TypeError — the exact shape of a malformed envelope field a
     downstream producer could write, and the shape the outer except swallows."""
+
     def __init__(self):
         self.streams = {
-            "bifrost:broadcast": [("100-0", {"frm": "daniil", "kind": "chat",
-                                             "content": "old history"})],
+            "bifrost:broadcast": [("100-0", {"frm": "daniil", "kind": "chat", "content": "old history"})],
             "bifrost:inbox:claude": [],
         }
         self.hash = {}
@@ -78,10 +78,13 @@ class _SilentClient:
 
 class _Bus:
     ns = "bifrost"
+
     def __init__(self, client):
         self._client = client
+
     def known_agents(self):
         return ["claude"]
+
     def _inbox_key(self, agent):
         return f"bifrost:inbox:{agent}"
 
@@ -110,8 +113,7 @@ def test_s1_a_stream_beat_failure_must_confess_not_vanish(silent_wired, monkeypa
     containing it (other streams keep beating)."""
     bus, client = silent_wired
     F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)  # tail-init
-    client.streams["bifrost:broadcast"].append(
-        ("101-0", {"frm": "claude", "kind": "chat", "content": '"survives"'}))
+    client.streams["bifrost:broadcast"].append(("101-0", {"frm": "claude", "kind": "chat", "content": '"survives"'}))
 
     orig_xrange = client.xrange
 
@@ -127,10 +129,12 @@ def test_s1_a_stream_beat_failure_must_confess_not_vanish(silent_wired, monkeypa
     # leg 1 -- the confession: the swallowed exception must NAME itself on stderr.
     assert "BEAT FAILED" in err or "POST FAILED" in err, (
         "a mid-beat exception was contained with no stderr line -- the outer "
-        "except must journal the failure, not absorb it")
+        "except must journal the failure, not absorb it"
+    )
     # leg 2 -- the containment: the healthy stream still forwarded this beat.
     assert "forwarded=1" in str(getattr(out, "ref", "") or out), (
-        "containment broke: one bad stream starved the rest of the beat")
+        "containment broke: one bad stream starved the rest of the beat"
+    )
 
 
 def test_s2_global_failure_increments_the_failed_counter(silent_wired, monkeypatch, capsys):
@@ -145,21 +149,22 @@ def test_s2_global_failure_increments_the_failed_counter(silent_wired, monkeypat
 
     def _dead(*a, **k):
         raise RuntimeError("webhook corpse")
+
     # global path posts through ROOMS._default_post via _forward_global; kill it.
     # Deliberately do NOT inject `post`/`room_post` callables -- the production feed
     # calls _forward_global + post_to_room, and THIS pin must exercise the real path.
     monkeypatch.setattr(F.ROOMS, "_default_post", _dead)
-    client.streams["bifrost:broadcast"].append(
-        ("101-0", {"frm": "claude", "kind": "chat", "content": '"a line"'}))
+    client.streams["bifrost:broadcast"].append(("101-0", {"frm": "claude", "kind": "chat", "content": '"a line"'}))
     out = F.pump(bus)
     ref = str(getattr(out, "ref", "") or out)
     err = capsys.readouterr().err
     # HALF 1 (holds today): the global path confesses loud, same as the seat-lane path.
     assert "POST FAILED" in err, (
-        "the global path must be loud -- the seat-lane path is, and a dead global "
-        "webhook is the same wound")
+        "the global path must be loud -- the seat-lane path is, and a dead global webhook is the same wound"
+    )
     # HALF 2 (RED today): the pump's receipt must agree with the confession, not
     # report a dead post as forwarded.
     assert "failed=1" in ref and "forwarded=0" in ref, (
         f"a global post died but the pump's own ref says {ref!r} -- the receipt "
-        f"claims a delivery that stderr says did not happen (T220/T149, global surface)")
+        f"claims a delivery that stderr says did not happen (T220/T149, global surface)"
+    )

@@ -20,6 +20,7 @@ to_epoch as their `_epoch` (S5), with already-stored scores re-aligned by
 scripts/migrate_time_scores.py. This module is now the one clock end to end: now_iso()
 writes stamps, to_epoch() compares them, render_iso() is the single display door.
 """
+
 from datetime import datetime, timezone
 from typing import Any
 
@@ -32,7 +33,7 @@ def to_epoch(iso: Any) -> float:
     improvement that ONLY changes behavior when tz-aware timestamps are actually present.
     """
     if isinstance(iso, (int, float)):
-        return float(iso)            # already an epoch -> pass through (drop-in for prior _epoch copies)
+        return float(iso)  # already an epoch -> pass through (drop-in for prior _epoch copies)
     try:
         dt = datetime.fromisoformat(str(iso))
     except (ValueError, TypeError):
@@ -71,15 +72,15 @@ def render_iso(value: Any, *, tz: str = "local") -> str:
         else:
             dt = datetime.fromisoformat(str(value).strip())
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)          # naive == UTC: one law, one door
+            dt = dt.replace(tzinfo=timezone.utc)  # naive == UTC: one law, one door
         if str(tz).strip().lower() == "utc":
             return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        local = dt.astimezone()                            # machine-local zone
+        local = dt.astimezone()  # machine-local zone
         label = local.strftime("%Z")
-        if label and " " in label:                         # "Eastern Daylight Time" -> "EDT"
+        if label and " " in label:  # "Eastern Daylight Time" -> "EDT"
             label = "".join(w[0] for w in label.split() if w[:1].isalpha()).upper()
-        if not label:                                      # nameless zone -> explicit offset
-            off = local.strftime("%z")                     # e.g. "-0400"
+        if not label:  # nameless zone -> explicit offset
+            off = local.strftime("%z")  # e.g. "-0400"
             label = f"UTC{off[:3]}:{off[3:]}" if len(off) == 5 else "UTC"
         return local.strftime("%Y-%m-%dT%H:%M:%S") + f" {label}"
     except (ValueError, TypeError, OverflowError, OSError):

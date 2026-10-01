@@ -25,6 +25,7 @@ Safety invariants enforced here:
   I3 append-only -- every opinion is appended; nothing is overwritten.
   I4 reversibility -- rollback re-asserts a prior value by appending (history preserved).
 """
+
 import json
 from typing import Optional, Tuple
 
@@ -33,7 +34,7 @@ from core.narrative.schema import Beat, Track, beat_key, track_key
 from core.narrative.tagging import TagHistory
 
 
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class TagGovernor:
@@ -56,13 +57,21 @@ class TagGovernor:
         after = hist.current_value(default=before or "unknown")
         beat.tag_history = hist.to_list()
         beat.track = after
-        self.store.set(beat_key(beat.id), json.dumps(beat.to_dict()))   # opinion update only
+        self.store.set(beat_key(beat.id), json.dumps(beat.to_dict()))  # opinion update only
         if after != before:
             self._move_index(beat.id, before, after, _epoch(at))
         return (after != before, after)
 
-    def record(self, beat_id: str, value: str, *, source: str = "unknown", at: str,
-               confidence: Optional[float] = None, confirmed: bool = False) -> Tuple[bool, Optional[str]]:
+    def record(
+        self,
+        beat_id: str,
+        value: str,
+        *,
+        source: str = "unknown",
+        at: str,
+        confidence: Optional[float] = None,
+        confirmed: bool = False,
+    ) -> Tuple[bool, Optional[str]]:
         """Append a tag opinion (append-only). `current` changes ONLY if this opinion wins
         the survivorship max -- so a low-confidence record can't override a high/confirmed
         one. Returns (changed, current_value)."""
@@ -93,17 +102,17 @@ class TagGovernor:
             return None
         return TagHistory.from_list(beat.tag_history).current_value(default=beat.track or "unknown")
 
-    def _move_index(self, beat_id: str, old_track: Optional[str], new_track: Optional[str],
-                    score: float) -> None:
+    def _move_index(self, beat_id: str, old_track: Optional[str], new_track: Optional[str], score: float) -> None:
         """Move the beat between per-track indexes. NEVER deletes the beat itself (I1)."""
         if old_track:
             self.store.zrem(f"narr:track:{old_track}:beats", beat_id)
         if new_track:
             self.store.zadd(f"narr:track:{new_track}:beats", {beat_id: score})
             if not self.store.get(track_key(new_track)):
-                self.store.set(track_key(new_track), json.dumps(
-                    Track(id=new_track, title=new_track.replace("-", " ").title(),
-                          created_at="").to_dict()))
+                self.store.set(
+                    track_key(new_track),
+                    json.dumps(Track(id=new_track, title=new_track.replace("-", " ").title(), created_at="").to_dict()),
+                )
 
 
 _INSTANCE: Optional[TagGovernor] = None

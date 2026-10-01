@@ -33,6 +33,7 @@ FLOOR RATCHET: the floor is a tracked constant, deliberately edited upward as th
 suite grows (4954 collectable on 2026-09-02). Lowering it is a deliberate, visible,
 reviewable act -- never an ambient drift.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -115,10 +116,7 @@ def scan_static(root: str) -> list[dict]:
     tracked = [_posix(p) for p in _git_lines(root, "ls-files")]
     tracked_py = [p for p in tracked if p.endswith(".py")]
     tracked_set = set(tracked)
-    untracked = {
-        _posix(p)
-        for p in _git_lines(root, "ls-files", "--others", "--exclude-standard")
-    }
+    untracked = {_posix(p) for p in _git_lines(root, "ls-files", "--others", "--exclude-standard")}
 
     violations: list[dict] = []
     seen: set[tuple[str, str]] = set()
@@ -142,25 +140,24 @@ def scan_static(root: str) -> list[dict]:
                     continue
                 seen.add(key)
                 violations.append(
-                    {"importer": rel, "module": cand.rsplit("/", 1)[-1][:-3],
-                     "file": cand,
-                     "law": "tracked code imports a present-but-untracked file"}
+                    {
+                        "importer": rel,
+                        "module": cand.rsplit("/", 1)[-1][:-3],
+                        "file": cand,
+                        "law": "tracked code imports a present-but-untracked file",
+                    }
                 )
     return violations
 
 
 # ------------------------------------------------------------------ clone drill
-def clone_verdict(returncode: int, collected: int, errors: int,
-                  floor: int = FLOOR) -> dict:
+def clone_verdict(returncode: int, collected: int, errors: int, floor: int = FLOOR) -> dict:
     """Pure judgment on a collection run. Empty is never success."""
     reasons: list[str] = []
     if errors > 0:
         reasons.append(f"{errors} collection error(s) -- the exact T180 interrupt shape")
     if collected == 0 or returncode == 5:
-        reasons.append(
-            "zero tests collected -- an empty suite is the poison itself, "
-            "never success (T180)"
-        )
+        reasons.append("zero tests collected -- an empty suite is the poison itself, never success (T180)")
     elif returncode not in (0,):
         reasons.append(f"pytest exit {returncode}")
     if collected and collected < floor:
@@ -173,21 +170,21 @@ def _rm_readonly(func, path, _exc):
     func(path)
 
 
-def run_clone_drill(root: str, floor: int = FLOOR, tmp_base: str | None = None,
-                    keep: bool = False) -> dict:
+def run_clone_drill(root: str, floor: int = FLOOR, tmp_base: str | None = None, keep: bool = False) -> dict:
     """Clone HEAD to temp, collect the suite there, judge, clean up, return receipt."""
     sha = _git_lines(root, "rev-parse", "--short", "HEAD")[0]
     tmp = tempfile.mkdtemp(prefix="t180-fresh-clone-", dir=tmp_base)
     clone = os.path.join(tmp, "clone")
     try:
-        subprocess.run(["git", "clone", "--quiet", root, clone],
-                       capture_output=True, text=True, check=True)
+        subprocess.run(["git", "clone", "--quiet", root, clone], capture_output=True, text=True, check=True)
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-            cwd=clone, capture_output=True, text=True, timeout=900,
+            cwd=clone,
+            capture_output=True,
+            text=True,
+            timeout=900,
         )
-        counts = [int(m.group(1)) for m in
-                  (_PER_FILE.match(ln) for ln in proc.stdout.splitlines()) if m]
+        counts = [int(m.group(1)) for m in (_PER_FILE.match(ln) for ln in proc.stdout.splitlines()) if m]
         collected = sum(counts)
         errors = len(re.findall(r"^ERROR\b", proc.stdout, re.M))
         verdict = clone_verdict(proc.returncode, collected, errors, floor)
@@ -214,8 +211,7 @@ def run_clone_drill(root: str, floor: int = FLOOR, tmp_base: str | None = None,
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
-    ap.add_argument("--clone", action="store_true",
-                    help="also clone HEAD and collect the suite there (the drill)")
+    ap.add_argument("--clone", action="store_true", help="also clone HEAD and collect the suite there (the drill)")
     ap.add_argument("--floor", type=int, default=FLOOR)
     ap.add_argument("--receipt", help="write the drill receipt JSON here (tracked path!)")
     ap.add_argument("--tmp", help="temp base for the clone (e.g. a ramdisk)")
@@ -227,25 +223,25 @@ def main(argv: list[str] | None = None) -> int:
     if violations:
         failed = True
         for v in violations:
-            print(f"VIOLATION: tracked {v['importer']} imports {v['module']} "
-                  f"-> untracked {v['file']}")
+            print(f"VIOLATION: tracked {v['importer']} imports {v['module']} -> untracked {v['file']}")
         print(f"static law: {len(violations)} works-here-breaks-there import(s)")
     else:
         print("static law: clean -- no tracked import resolves to an untracked file")
 
     if args.clone:
         receipt = run_clone_drill(args.root, floor=args.floor, tmp_base=args.tmp)
-        line = (f"drill law: clone @{receipt['sha']} collected {receipt['collected']} "
-                f"tests / {receipt['files']} files, {receipt['errors']} error(s), "
-                f"floor {receipt['floor']}")
+        line = (
+            f"drill law: clone @{receipt['sha']} collected {receipt['collected']} "
+            f"tests / {receipt['files']} files, {receipt['errors']} error(s), "
+            f"floor {receipt['floor']}"
+        )
         print(line)
         if not receipt["ok"]:
             failed = True
             for r in receipt["reasons"]:
                 print(f"  FAIL: {r}")
         if args.receipt:
-            path = os.path.join(args.root, args.receipt) \
-                if not os.path.isabs(args.receipt) else args.receipt
+            path = os.path.join(args.root, args.receipt) if not os.path.isabs(args.receipt) else args.receipt
             with open(path, "w", encoding="utf-8") as fh:
                 json.dump(receipt, fh, indent=1)
                 fh.write("\n")

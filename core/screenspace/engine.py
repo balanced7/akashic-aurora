@@ -40,6 +40,7 @@ from core.screenspace.foreground import ForegroundTracker
 
 # --------------------------------------------------------------------------- result types
 
+
 @dataclass
 class ScreenResult:
     """The peek() digest: §2 ladder content + verdict fields.
@@ -129,6 +130,7 @@ class TextResult:
 
 # --------------------------------------------------------------------------- gen clock
 
+
 class ObservationStream:
     """A monotone gen clock: the see-side currency (refs+gen). Pure, testable.
 
@@ -138,12 +140,11 @@ class ObservationStream:
 
     def __init__(self) -> None:
         self.gen = 0
-        self.focus_trail: List[dict] = []   # {"gen": n, "focus": name, "ts_ms": t}
+        self.focus_trail: List[dict] = []  # {"gen": n, "focus": name, "ts_ms": t}
 
     def observe(self, focus: Optional[str]) -> int:
         self.gen += 1
-        self.focus_trail.append({"gen": self.gen, "focus": focus,
-                                 "ts_ms": int(time.time() * 1000)})
+        self.focus_trail.append({"gen": self.gen, "focus": focus, "ts_ms": int(time.time() * 1000)})
         return self.gen
 
     def delta_since(self, since_gen: int) -> ScreenDelta:
@@ -214,6 +215,7 @@ def _redact_text(text: str) -> str:
 
 # --------------------------------------------------------------------------- verbs
 
+
 def _current_focus() -> Optional[str]:
     """Cache-first foreground window name from the shared ForegroundTracker (fail-soft).
 
@@ -271,7 +273,7 @@ def peek(level: str = "L0", scope=None, budget=None) -> ScreenResult:
         window=focus,
         focus=focus,
         gen=gen,
-        stale_ms=0,          # gen just observed -> current
+        stale_ms=0,  # gen just observed -> current
         elevated=elevated,
         act_available=False,  # observe-only; act is gated on step 0
         uia_unavailable=uia_unavailable,

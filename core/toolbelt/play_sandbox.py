@@ -19,6 +19,7 @@ The play tier's law (docs/library/design/20260701_self-tooling-arc-reconciled-de
 Usage: py core/toolbelt/play_sandbox.py <agent>/<tool> [args...]
   This is the subprocess the families gate launches — one thin runner, audited.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,14 +34,16 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
 
+
 HERE = os.path.dirname
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLAY = os.path.join(ROOT, "data", "play")
-MAX_OUTPUT_BYTES = int(os.getenv("AKASHIC_PLAY_OUTPUT_MAX", "65536"))   # 64KB
+MAX_OUTPUT_BYTES = int(os.getenv("AKASHIC_PLAY_OUTPUT_MAX", "65536"))  # 64KB
 DEFAULT_TIMEOUT_S = float(os.getenv("AKASHIC_PLAY_TIMEOUT_S", "30"))
 NETWORK_ENABLED = os.getenv("AKASHIC_PLAY_NETWORK", "0") == "1"
 
@@ -61,19 +64,31 @@ def find_tool(ref: str) -> tuple[str, str, str]:
     return agent, tool, path
 
 
-def sandboxed_run(agent: str, tool: str, path: str,
-                  args: list[str] | None = None,
-                  timeout_s: float = DEFAULT_TIMEOUT_S,
-                  max_output: int = MAX_OUTPUT_BYTES,
-                  network: bool = NETWORK_ENABLED) -> dict:
+def sandboxed_run(
+    agent: str,
+    tool: str,
+    path: str,
+    args: list[str] | None = None,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+    max_output: int = MAX_OUTPUT_BYTES,
+    network: bool = NETWORK_ENABLED,
+) -> dict:
     """Run one play tool in a bounded subprocess. Returns a RECEIPT dict.
     Sandbox violations are caught and logged — the receipt IS the evidence.
     Never raises — a crash inside the sandbox is a FAIL receipt, not a caller crash."""
     t0 = time.time()
-    receipt = {"tool": tool, "agent": agent, "rc": -1, "duration_s": 0.0,
-               "output_kb": 0, "crash": False, "violations": [],
-               "evidence": "GUESS", "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-               "argv": args or []}
+    receipt = {
+        "tool": tool,
+        "agent": agent,
+        "rc": -1,
+        "duration_s": 0.0,
+        "output_kb": 0,
+        "crash": False,
+        "violations": [],
+        "evidence": "GUESS",
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "argv": args or [],
+    }
     argv = [sys.executable, path] + list(args or [])
     out_dir = os.path.join(PLAY, agent, "out")
     os.makedirs(out_dir, exist_ok=True)
@@ -86,10 +101,16 @@ def sandboxed_run(agent: str, tool: str, path: str,
         env["AKASHIC_PLAY_OUT_DIR"] = out_dir
         if not network:
             env["AKASHIC_PLAY_NETWORK"] = "0"
-        r = subprocess.run(argv, capture_output=True, timeout=timeout_s,
-                           stdin=subprocess.DEVNULL, cwd=ROOT,   # one-level only (C7-4)
-                           env=env, close_fds=True,              # no grandchild spawns
-                           text=False)
+        r = subprocess.run(
+            argv,
+            capture_output=True,
+            timeout=timeout_s,
+            stdin=subprocess.DEVNULL,
+            cwd=ROOT,  # one-level only (C7-4)
+            env=env,
+            close_fds=True,  # no grandchild spawns
+            text=False,
+        )
         out = (r.stdout or b"") + (r.stderr or b"")
         receipt["rc"] = r.returncode
         receipt["duration_s"] = round(time.time() - t0, 3)
@@ -147,8 +168,7 @@ def list_seats() -> list[str]:
     """Return every agent with a play directory."""
     if not os.path.isdir(PLAY):
         return []
-    return sorted(d for d in os.listdir(PLAY)
-                  if os.path.isdir(os.path.join(PLAY, d)) and not d.startswith("."))
+    return sorted(d for d in os.listdir(PLAY) if os.path.isdir(os.path.join(PLAY, d)) and not d.startswith("."))
 
 
 def render_list(agent: str | None = None) -> str:
@@ -189,7 +209,6 @@ if __name__ == "__main__":
         sys.exit(1)
     receipt = sandboxed_run(agent, tool, path, args=tool_args)
     # Print receipt summary to stdout (the caller captures it)
-    print(json.dumps({k: v for k, v in receipt.items()
-                      if k not in ("argv",)}, indent=1, default=str))
+    print(json.dumps({k: v for k, v in receipt.items() if k not in ("argv",)}, indent=1, default=str))
     rc = receipt.get("rc", -1)
     sys.exit(0 if rc == 0 else 1)

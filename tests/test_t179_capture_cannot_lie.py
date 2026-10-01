@@ -25,6 +25,7 @@ the missing state is what forces the lie.
 
 Run: py -m pytest tests/test_t179_capture_cannot_lie.py -q
 """
+
 import os
 import sys
 
@@ -58,7 +59,7 @@ class _Index:
 
 
 def _log(ledger=None, index=None):
-    log = EL.EventLog.__new__(EL.EventLog)      # bypass __init__'s store wiring
+    log = EL.EventLog.__new__(EL.EventLog)  # bypass __init__'s store wiring
     log.ledger = ledger or _Ledger()
     log.index = index
     return log
@@ -108,11 +109,12 @@ def test_k5_capture_swallows_errors_but_not_the_operator():
     even KeyboardInterrupt was swallowed, which would mean Ctrl-C could not stop a hung capture.
     Swallowing the operator is worse than the bug being fixed. The real contract is: every
     Exception is absorbed and reported; BaseException (Ctrl-C, SystemExit) passes through."""
+
     class _Hostile:
         def emit(self, *a, **k):
             raise _Weird("unforeseeable")
 
-    o = _log(ledger=_Hostile()).capture("note", "hi")     # must not raise
+    o = _log(ledger=_Hostile()).capture("note", "hi")  # must not raise
     assert o.ok is False and "_Weird" in o.why
 
     class _Interrupted:
@@ -124,8 +126,9 @@ def test_k5_capture_swallows_errors_but_not_the_operator():
     except KeyboardInterrupt:
         pass
     else:
-        raise AssertionError("KeyboardInterrupt must PASS THROUGH -- a telemetry write that eats "
-                             "Ctrl-C makes a hung capture unkillable")
+        raise AssertionError(
+            "KeyboardInterrupt must PASS THROUGH -- a telemetry write that eats Ctrl-C makes a hung capture unkillable"
+        )
 
 
 def test_k6_the_hot_path_wrapper_returns_an_outcome_not_none(monkeypatch):
@@ -133,5 +136,6 @@ def test_k6_the_hot_path_wrapper_returns_an_outcome_not_none(monkeypatch):
     o = EL.capture_event("note", "hi")
     assert hasattr(o, "ok") and o.ok is False, (
         "capture_event returned a bare None on failure -- the same unrepresentable silence one "
-        "layer out from the function it wraps")
+        "layer out from the function it wraps"
+    )
     assert o.why, "and it must say why"

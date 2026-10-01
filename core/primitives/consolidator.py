@@ -18,6 +18,7 @@ lessons, and the Codex -- inherits it. One seam, not three.
 
 Semantic Relationship: Summary consolidated_from Items (ranked, distilled, pointer-traceable)
 """
+
 from typing import Any, Dict, List, Optional
 
 from core.primitives.ranker import Ranker
@@ -31,34 +32,56 @@ class Consolidator:
     DEFAULT_TOKEN_BUDGET = 4000
     DEFAULT_MAX_CHARS = 170
 
-    def __init__(self, ranker: Optional[Ranker] = None, distiller: Optional[Distiller] = None,
-                 token_budget: int = DEFAULT_TOKEN_BUDGET):
+    def __init__(
+        self,
+        ranker: Optional[Ranker] = None,
+        distiller: Optional[Distiller] = None,
+        token_budget: int = DEFAULT_TOKEN_BUDGET,
+    ):
         self.ranker = ranker or Ranker()
         # FAITH-1: every consumer (chronicle, lessons, future Codex Resources) inherits the
         # faithfulness gate here -- ONE seam. It's a no-op on the extractive heuristic writer
         # (which copies each item's source verbatim) and the forward gate for an LLM writer.
-        self.distiller = distiller or Distiller(max_chars_per_entry=self.DEFAULT_MAX_CHARS,
-                                                critic=faithfulness_critic)
+        self.distiller = distiller or Distiller(max_chars_per_entry=self.DEFAULT_MAX_CHARS, critic=faithfulness_critic)
         self.token_budget = token_budget
 
     @staticmethod
-    def item(*, text: Any, source: Any, importance: Any = 1, timestamp: Any = None,
-             relationship_type: Any = None, **extra: Any) -> Dict[str, Any]:
+    def item(
+        *,
+        text: Any,
+        source: Any,
+        importance: Any = 1,
+        timestamp: Any = None,
+        relationship_type: Any = None,
+        **extra: Any,
+    ) -> Dict[str, Any]:
         """The canonical item contract every caller projects its records into. The fields the
         Ranker + Distiller read (text/importance/timestamp/source/relationship_type), plus any
         caller-specific extras passed through verbatim."""
-        return {"text": text, "source": source, "importance": importance,
-                "timestamp": timestamp, "relationship_type": relationship_type, **extra}
+        return {
+            "text": text,
+            "source": source,
+            "importance": importance,
+            "timestamp": timestamp,
+            "relationship_type": relationship_type,
+            **extra,
+        }
 
-    def consolidate(self, items: List[Dict[str, Any]], *, instruction: str = "", kind: str = "",
-                    now: Optional[float] = None, query: str = "") -> Distillation:
+    def consolidate(
+        self,
+        items: List[Dict[str, Any]],
+        *,
+        instruction: str = "",
+        kind: str = "",
+        now: Optional[float] = None,
+        query: str = "",
+    ) -> Distillation:
         """items (best-first not required -- the Ranker orders them) -> a Distillation. `now` is a
         unix epoch for recency; `query` empty means relevance contributes 0 (recency/importance
         order). The result's `.skeleton` is the summary; `.critic_ok`/`.dropped_sources` carry the
         faithfulness + budget signals."""
         ranked = [s.item for s in self.ranker.rank(items, query=query, now=now)]
-        return self.distiller.distill(ranked, token_budget=self.token_budget,
-                                      instruction=instruction, kind=kind)
+        return self.distiller.distill(ranked, token_budget=self.token_budget, instruction=instruction, kind=kind)
 
 
 _INSTANCE: Optional[Consolidator] = None

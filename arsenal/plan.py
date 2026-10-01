@@ -3,6 +3,7 @@
 Nothing here is measured. Latency is what modules declare, and the plan says so; receipts carry
 measurements.
 """
+
 from __future__ import annotations
 
 import re
@@ -28,9 +29,15 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
     nodes: List[dict] = []
     for name, node in graph.nodes.items():
         manifest = registry.get(node["use"])
-        nodes.append({"name": name, "module": manifest["id"], "engine": manifest["engine"],
-                      "isolation": manifest.get("isolation", ""),
-                      "licence": manifest.get("licence") or "NOASSERTION"})
+        nodes.append(
+            {
+                "name": name,
+                "module": manifest["id"],
+                "engine": manifest["engine"],
+                "isolation": manifest.get("isolation", ""),
+                "licence": manifest.get("licence") or "NOASSERTION",
+            }
+        )
     engine = {n["name"]: n["engine"] for n in nodes}
 
     edges: List[dict] = []
@@ -58,7 +65,9 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
     profile = "arsenal-gpl" if any(_is_gpl(lic) for lic in licences) else "arsenal-core"
     for n in nodes:
         if n["licence"] == "NOASSERTION":
-            warnings.append(f"licence NOASSERTION for {n['name']} ({n['module']}, {n['engine']} engine): not asserted yet")
+            warnings.append(
+                f"licence NOASSERTION for {n['name']} ({n['module']}, {n['engine']} engine): not asserted yet"
+            )
         elif "unverified" in n["licence"].lower():
             warnings.append(f"licence unverified for {n['name']} ({n['module']}): {n['licence']}")
 
@@ -97,7 +106,11 @@ def _longest_path_ms(graph: Graph, registry: Registry) -> int:
 
 
 def render_plan(plan: dict) -> str:
-    lines = [f"PLAN {plan.get('graph') or '(unnamed)'}  ·  mode {plan['mode']}  ·  master clock: {plan.get('master_clock')}", "", "NODES"]
+    lines = [
+        f"PLAN {plan.get('graph') or '(unnamed)'}  ·  mode {plan['mode']}  ·  master clock: {plan.get('master_clock')}",
+        "",
+        "NODES",
+    ]
     width = max((len(n["name"]) for n in plan["nodes"]), default=4)
     for n in plan["nodes"]:
         lines.append(f"  {n['name']:<{width}}  {n['module']:<24} {n['engine']:<9} {n['isolation']:<12} {n['licence']}")
@@ -111,8 +124,11 @@ def render_plan(plan: dict) -> str:
             rng = b.get("range")
             suffix = f" {{range: {rng[0]}..{rng[1]}}}" if isinstance(rng, list) and len(rng) == 2 else ""
             lines.append(f"  map {b['from']} -> {b['to']}{suffix}")
-    lines += ["", f"LATENCY  {plan['latency_ms']} ms along the longest path ({plan['latency_basis']})",
-              f"LICENCES {plan['licence_profile']}: {', '.join(plan['licences'])}"]
+    lines += [
+        "",
+        f"LATENCY  {plan['latency_ms']} ms along the longest path ({plan['latency_basis']})",
+        f"LICENCES {plan['licence_profile']}: {', '.join(plan['licences'])}",
+    ]
     if plan["warnings"]:
         lines += ["", "WARNINGS"] + [f"  ! {w}" for w in plan["warnings"]]
     return "\n".join(lines)

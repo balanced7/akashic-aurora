@@ -17,6 +17,7 @@ every room in a single request, and ``ns=bifrost:inbox`` would silently widen th
 Refusal is LOUD (ValueError) and happens BEFORE Redis is touched -- sanitize-and-continue
 would hide the attempt, and a feed that quietly widens is worse than one that cannot open.
 """
+
 from __future__ import annotations
 
 import re
@@ -54,7 +55,8 @@ def streams_for(client, ns: str) -> List[str]:
         raise ValueError(
             f"refusing namespace {ns!r}: a room name is a bare token "
             r"([A-Za-z0-9][A-Za-z0-9_-]{0,63}) -- no ':', no globs, no whitespace. "
-            "An unvalidated namespace reaches Redis as a KEYS pattern.")
+            "An unvalidated namespace reaches Redis as a KEYS pattern."
+        )
     out: List[str] = []
     try:
         out.extend(str(k) for k in (client.keys(f"{ns}:{_INBOX_SUFFIX}:*") or []))
@@ -62,5 +64,5 @@ def streams_for(client, ns: str) -> List[str]:
         if client.keys(bc):
             out.append(bc)
     except Exception:
-        return []                      # a dead client is an empty feed, never a crash
+        return []  # a dead client is an empty feed, never a crash
     return out

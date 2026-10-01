@@ -6,6 +6,7 @@ routing decision (answer others' questions, never our own echoes, never 'reply' 
 
 Run: py -m pytest tests/test_bifrost_runner.py -q
 """
+
 import os
 import sys
 
@@ -19,9 +20,9 @@ def test_should_answer_routing():
     assert r.should_answer("chat", "cursor", "gemini") is True
     assert r.should_answer("request", "claude", "gemini") is True
     assert r.should_answer("handoff", "claude", "gemini") is True
-    assert r.should_answer("chat", "gemini", "gemini") is False     # our own echo
-    assert r.should_answer("note", "cursor", "gemini") is False     # not a question
-    assert r.should_answer("reply", "cursor", "gemini") is False    # never answer a reply (no loops)
+    assert r.should_answer("chat", "gemini", "gemini") is False  # our own echo
+    assert r.should_answer("note", "cursor", "gemini") is False  # not a question
+    assert r.should_answer("reply", "cursor", "gemini") is False  # never answer a reply (no loops)
 
 
 def test_card_is_api_runner():

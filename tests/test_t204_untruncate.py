@@ -31,6 +31,7 @@ clean `done` that hides a stitched-and-still-incomplete answer.
 
 Run: py -m pytest tests/test_t204_untruncate.py -q
 """
+
 import os
 import sys
 
@@ -45,8 +46,7 @@ class _Usage:
     def __init__(self, pt=10, ct=20, reasoning=None):
         self.prompt_tokens, self.completion_tokens = pt, ct
         if reasoning is not None:
-            self.completion_tokens_details = type(
-                "D", (), {"reasoning_tokens": reasoning})()
+            self.completion_tokens_details = type("D", (), {"reasoning_tokens": reasoning})()
 
 
 def _resp(content, finish, usage=None):
@@ -76,9 +76,9 @@ class ScriptedClient:
 # CUT: there is an answer, it just stopped. Continue it.
 # --------------------------------------------------------------------------------------
 
+
 def test_a_cut_answer_is_continued_and_stitched():
-    c = ScriptedClient(_resp("The first half", "length"),
-                       _resp(" and the second half.", "stop"))
+    c = ScriptedClient(_resp("The first half", "length"), _resp(" and the second half.", "stop"))
     o = ask_mod.ask("q", client=c, continue_on_cut=True)
     assert o.ok and not o.partial, "a fully continued answer is DONE"
     assert o.detail["answer"] == "The first half and the second half."
@@ -117,6 +117,7 @@ def test_continuation_is_opt_in():
 # --------------------------------------------------------------------------------------
 # STARVED: reasoning ate the budget. Continuation cannot help.
 # --------------------------------------------------------------------------------------
+
 
 def test_an_empty_length_answer_is_starved_not_cut():
     """THE CASE MEASURED TODAY. Nothing was emitted, so there is nothing to continue --

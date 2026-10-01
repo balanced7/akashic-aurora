@@ -41,6 +41,7 @@ OVERLAY; public tombstones are authoritative subtraction) and backup (snapshot m
 without writing private cleartext into an artifact). None of that is this slice. This slice
 makes the live hole un-reopenable while that gets built properly.
 """
+
 from __future__ import annotations
 
 import json
@@ -54,8 +55,26 @@ PLANE_DIRNAME = "private"
 # A marker must be distinctive enough that its appearance in a tracked file is evidence of a
 # leak rather than a coincidence. These are dropped even if they appear in the plane.
 _TOO_GENERIC = {
-    "the", "and", "for", "with", "from", "this", "that", "report", "notes", "note", "md",
-    "json", "jsonl", "txt", "atoms", "atom", "private", "assessments", "register", "daniil",
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "report",
+    "notes",
+    "note",
+    "md",
+    "json",
+    "jsonl",
+    "txt",
+    "atoms",
+    "atom",
+    "private",
+    "assessments",
+    "register",
+    "daniil",
     # W210 (2026-09-23): a private artifact whose filename is an ordinary English noun phrase
     # made that phrase a forbidden token in every tracked file. It froze store/docs/*.jsonl for
     # fifteen days with 24 atom lines stranded, refused a 2026-07-23 record that merely used the
@@ -67,7 +86,14 @@ _TOO_GENERIC = {
     # it is, and this one was never conferring much. Better long-term fix, Daniel's call because
     # private/ is his: rename that artifact to something distinctive.
     "".join(("best-", "practices")),
-    "claude", "kimi", "deepseek", "codex", "session", "2026", "docs", "library",
+    "claude",
+    "kimi",
+    "deepseek",
+    "codex",
+    "session",
+    "2026",
+    "docs",
+    "library",
 }
 _MIN_MARKER = 6
 
@@ -119,7 +145,7 @@ def markers(root: Optional[Path] = None) -> Set[str]:
         if p.suffix.lower() in (".jsonl", ".json"):
             try:
                 text = p.read_text(encoding="utf-8", errors="replace")
-            except Exception:                                # pragma: no cover - io guard
+            except Exception:  # pragma: no cover - io guard
                 continue
             for line in text.splitlines():
                 try:
@@ -132,8 +158,7 @@ def markers(root: Optional[Path] = None) -> Set[str]:
                     v = str(rec.get(field) or "")
                     if v:
                         out |= _tokens_from_name(v)
-    return {m for m in out
-            if len(m) >= _MIN_MARKER and m.lower() not in _TOO_GENERIC}
+    return {m for m in out if len(m) >= _MIN_MARKER and m.lower() not in _TOO_GENERIC}
 
 
 def _inside_plane(path: Path, root: Optional[Path] = None) -> bool:
@@ -161,29 +186,31 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:                                    # pragma: no cover - io guard
+        except Exception:  # pragma: no cover - io guard
             continue
         low = text.lower()
         for m in sorted(marks):
             if m not in low:
                 continue
-            line_no = next((i for i, ln in enumerate(text.splitlines(), 1)
-                            if m in ln.lower()), 0)
-            findings.append({
-                "path": str(p),
-                "marker": m,
-                "line": line_no,
-                "remedy": (f"{p.name} carries {m!r}, which identifies private-plane content. "
-                           "Either regenerate it with the private records excluded, or move "
-                           "the artifact into private/. Do NOT hand-edit the marker out -- "
-                           "the generator will put it back on the next run."),
-            })
+            line_no = next((i for i, ln in enumerate(text.splitlines(), 1) if m in ln.lower()), 0)
+            findings.append(
+                {
+                    "path": str(p),
+                    "marker": m,
+                    "line": line_no,
+                    "remedy": (
+                        f"{p.name} carries {m!r}, which identifies private-plane content. "
+                        "Either regenerate it with the private records excluded, or move "
+                        "the artifact into private/. Do NOT hand-edit the marker out -- "
+                        "the generator will put it back on the next run."
+                    ),
+                }
+            )
             break
     return findings
 
 
-def scan_text(text: str, label: str = "text",
-              root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def scan_text(text: str, label: str = "text", root: Optional[Path] = None) -> List[Dict[str, Any]]:
     """Findings for a blob of prose that is about to become durable and public.
 
     ADDED 2026-08-16, AFTER THE MISS THAT PROVED IT NECESSARY. The first purge rewrote file
@@ -203,12 +230,18 @@ def scan_text(text: str, label: str = "text",
     out: List[Dict[str, Any]] = []
     for m in sorted(marks):
         if m in low:
-            out.append({
-                "path": label, "marker": m, "line": 0,
-                "remedy": (f"this {label} names {m!r}, which identifies private-plane "
-                           "content. Describe the work without naming the artifact -- "
-                           "existence metadata is a leak even when no body is published."),
-            })
+            out.append(
+                {
+                    "path": label,
+                    "marker": m,
+                    "line": 0,
+                    "remedy": (
+                        f"this {label} names {m!r}, which identifies private-plane "
+                        "content. Describe the work without naming the artifact -- "
+                        "existence metadata is a leak even when no body is published."
+                    ),
+                }
+            )
     return out
 
 
@@ -219,16 +252,27 @@ def report(paths: Iterable[str], root: Optional[Path] = None) -> Dict[str, Any]:
     paths = list(paths)
     if not marks:
         return {
-            "markers": 0, "scanned": 0, "findings": [],
-            "why": (f"no private plane at {plane_root(root)} -- nothing to protect, so this "
-                    "is NOT a clean bill, it is an empty subject"),
+            "markers": 0,
+            "scanned": 0,
+            "findings": [],
+            "why": (
+                f"no private plane at {plane_root(root)} -- nothing to protect, so this "
+                "is NOT a clean bill, it is an empty subject"
+            ),
             "scope": "derived markers from private/**; none found",
         }
     findings = scan(paths, root)
     return {
-        "markers": len(marks), "scanned": len(paths), "findings": findings,
-        "why": ("clean: no tracked path carries a private marker" if not findings
-                else f"{len(findings)} tracked path(s) carry private-plane identifiers"),
-        "scope": (f"{len(paths)} path(s) checked against {len(marks)} marker(s) derived "
-                  f"from {plane_root(root)}; files inside the plane are exempt by design"),
+        "markers": len(marks),
+        "scanned": len(paths),
+        "findings": findings,
+        "why": (
+            "clean: no tracked path carries a private marker"
+            if not findings
+            else f"{len(findings)} tracked path(s) carry private-plane identifiers"
+        ),
+        "scope": (
+            f"{len(paths)} path(s) checked against {len(marks)} marker(s) derived "
+            f"from {plane_root(root)}; files inside the plane are exempt by design"
+        ),
     }

@@ -21,6 +21,7 @@ failed BoundaryOutcome with no reason cannot be constructed. Silence is not a st
 
 Run: py -m pytest tests/test_t170_outcome_cannot_be_silent.py -q
 """
+
 import os
 import sys
 
@@ -89,6 +90,7 @@ def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():
     already means "fully happened" -- and the caller gains a REASON it can print. That is the T167
     fix falling out of the type instead of being hand-written per boundary.
     """
+
     def spawn_ok(sid):
         return BoundaryOutcome.done(ref=f"pid-{sid}")
 
@@ -101,5 +103,5 @@ def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():
     # the EXISTING consumer logic, verbatim in shape
     assert bool(spawn_ok("cdfb9126")) is True
     bad = spawn_broken("cdfb9126")
-    assert bool(bad) is False                      # trigger correctly left for the next tick
-    assert "TypeError" in bad.line()               # ...and the silence is gone, for free
+    assert bool(bad) is False  # trigger correctly left for the next tick
+    assert "TypeError" in bad.line()  # ...and the silence is gone, for free

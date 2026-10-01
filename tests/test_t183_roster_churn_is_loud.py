@@ -31,6 +31,7 @@ this states it.
 
 Run: py -m pytest tests/test_t183_roster_churn_is_loud.py -q
 """
+
 import os
 import sys
 
@@ -41,13 +42,24 @@ from core.comm.roster import by_agent  # noqa: E402
 
 
 def _row(agent, state, age, sid8="aaaa1111", seq=0):
-    return {"agent": agent, "state": state, "beat_age_s": age, "sid8": sid8,
-            "seat": f"{agent}#{sid8}", "phase": "sync", "seq": seq}
+    return {
+        "agent": agent,
+        "state": state,
+        "beat_age_s": age,
+        "sid8": sid8,
+        "seat": f"{agent}#{sid8}",
+        "phase": "sync",
+        "seq": seq,
+    }
 
 
 def test_k1_one_line_per_agent_and_nobody_vanishes():
-    rows = [_row("kimi", "DEAD", 500), _row("kimi", "LIVE", 2), _row("claude", "LIVE", 1),
-            _row("deepseek", "DEAD", 9000)]
+    rows = [
+        _row("kimi", "DEAD", 500),
+        _row("kimi", "LIVE", 2),
+        _row("claude", "LIVE", 1),
+        _row("deepseek", "DEAD", 9000),
+    ]
     got = by_agent(rows)
     assert {g["agent"] for g in got} == {"kimi", "claude", "deepseek"}
     assert len(got) == 3
@@ -62,8 +74,10 @@ def test_k2_best_state_wins_and_names_the_live_incarnation():
 
 
 def test_k3_recent_deaths_are_counted_apart_from_total_deaths():
-    rows = ([_row("kimi", "DEAD", 60)] * 3            # three inside the hour
-            + [_row("kimi", "DEAD", 80000)] * 10)     # ten ancient
+    rows = (
+        [_row("kimi", "DEAD", 60)] * 3  # three inside the hour
+        + [_row("kimi", "DEAD", 80000)] * 10
+    )  # ten ancient
     g = by_agent(rows, churn_window_s=3600)[0]
     assert g["n_dead"] == 13
     assert g["deaths_in_window"] == 3, "the rate is the signal; the total is only context"
@@ -72,28 +86,29 @@ def test_k3_recent_deaths_are_counted_apart_from_total_deaths():
 def test_k4_churning_fires_on_a_crash_loop_and_not_on_an_old_graveyard():
     """BRANCH 3'S SCENARIO, PINNED. An agent dying every four minutes must not render as a
     green dot. An agent with an old graveyard and a steady heartbeat must not cry wolf."""
-    crash_loop = [_row("canary", "LIVE", 2)] + [_row("canary", "DEAD", 240 * i)
-                                                for i in range(1, 7)]
+    crash_loop = [_row("canary", "LIVE", 2)] + [_row("canary", "DEAD", 240 * i) for i in range(1, 7)]
     g = by_agent(crash_loop, churn_window_s=3600, churn_at=3)[0]
     assert g["state"] == "LIVE", "it IS currently up -- that part of the green dot was true"
     assert g["churning"] is True, (
         "six deaths in the last hour is a death spiral; rendering it as one LIVE row is how "
-        "the on-call engineer goes back to bed")
+        "the on-call engineer goes back to bed"
+    )
     assert g["deaths_in_window"] == 6
 
-    settled = [_row("kimi", "LIVE", 2)] + [_row("kimi", "DEAD", 40000 + 100 * i)
-                                           for i in range(1, 15)]
+    settled = [_row("kimi", "LIVE", 2)] + [_row("kimi", "DEAD", 40000 + 100 * i) for i in range(1, 15)]
     q = by_agent(settled, churn_window_s=3600, churn_at=3)[0]
     assert q["churning"] is False, (
         "fourteen deaths from yesterday with a healthy beat today is not a spiral -- a flag "
-        "that fires on every long-lived agent is a flag nobody reads")
+        "that fires on every long-lived agent is a flag nobody reads"
+    )
 
 
 def test_k5_summarising_is_not_hiding():
     rows = [_row("kimi", "LIVE", 2)] + [_row("kimi", "DEAD", 50000)] * 14
     g = by_agent(rows)[0]
     assert g["n_total"] == 15 and g["n_dead"] == 14, (
-        "the graveyard size stays visible -- this view compresses the render, not the record")
+        "the graveyard size stays visible -- this view compresses the render, not the record"
+    )
 
 
 def test_k7_two_live_incarnations_of_one_agent_is_itself_the_signal():
@@ -103,9 +118,11 @@ def test_k7_two_live_incarnations_of_one_agent_is_itself_the_signal():
     seats on one agent id, directed and multi-part delivery splits between them
     (two_live_seats_split_chunked_bus_delivery). Silently naming one of them as THE address is
     worse than naming none."""
-    rows = [_row("claude", "LIVE", 1, sid8="aaaa0001"),
-            _row("claude", "LIVE", 2, sid8="bbbb0002"),
-            _row("claude", "DEAD", 90000)]
+    rows = [
+        _row("claude", "LIVE", 1, sid8="aaaa0001"),
+        _row("claude", "LIVE", 2, sid8="bbbb0002"),
+        _row("claude", "DEAD", 90000),
+    ]
     g = by_agent(rows)[0]
     assert g["n_live"] == 2
     assert g["split_brain"] is True, "two live seats on one id must be stated, not averaged away"

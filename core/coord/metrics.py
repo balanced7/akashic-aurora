@@ -16,6 +16,7 @@ solution paths it attempted. Across runs, we track:
 
 This is deterministic, like experiment.py: no randomness, pure structural measurement of the policy.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,6 +35,7 @@ def vector_from_run(actions: List[Tuple[str, str, str]]) -> ApproachVector:
 
 
 # --- entropy (pure function) ---
+
 
 def shannon_entropy(vectors: List[ApproachVector]) -> float:
     """Shannon entropy H(X) of the multiset of approach vectors. A single uniform vector = 0 bits
@@ -66,6 +68,7 @@ def uniqueness_ratio(vectors: List[ApproachVector]) -> float:
 
 # --- monotonicity detector ---
 
+
 def is_monotonic_decreasing(entropies: List[float]) -> bool:
     """True if entropy is strictly non-increasing run over run (e_n >= e_n+1 for all n).
     A single value is trivially monotonic; fewer than 2 values is not enough data."""
@@ -78,6 +81,7 @@ def is_monotonic_decreasing(entropies: List[float]) -> bool:
 
 
 # --- correctness (flat or rising?) ---
+
 
 def is_flat(values: List[float], epsilon: float = 0.001) -> bool:
     """True if all values are within epsilon of each other (neither clearly rising nor falling).
@@ -102,18 +106,19 @@ def is_rising(values: List[float]) -> bool:
 
 # --- the watchdog ---
 
+
 @dataclass
 class ShrinkageVerdict:
     """What the cross-run tracker found."""
 
     runs: int
-    run_diversities: List[float]                # diversity signal PER RUN (e.g. approach count)
-    cross_entropy: float                        # symbol entropy across all run-vectors (strategy variety)
-    uniqueness: float                           # overall uniqueness ratio
-    diversity_dropping: bool                    # monotonic decreasing PER-RUN diversity
-    correctness_flat: bool                      # task scores not improving
-    collapse: bool                              # THE verdict: dropping + flat = Goodhart
-    diagnosis: str                              # human-readable summary
+    run_diversities: List[float]  # diversity signal PER RUN (e.g. approach count)
+    cross_entropy: float  # symbol entropy across all run-vectors (strategy variety)
+    uniqueness: float  # overall uniqueness ratio
+    diversity_dropping: bool  # monotonic decreasing PER-RUN diversity
+    correctness_flat: bool  # task scores not improving
+    collapse: bool  # THE verdict: dropping + flat = Goodhart
+    diagnosis: str  # human-readable summary
 
 
 def _run_diversity(v: ApproachVector) -> float:
@@ -154,15 +159,18 @@ def assess(
         ValueError if len(run_vectors) != len(run_scores)
     """
     if len(run_vectors) != len(run_scores):
-        raise ValueError(
-            f"run_vectors ({len(run_vectors)}) and run_scores ({len(run_scores)}) must be same length"
-        )
+        raise ValueError(f"run_vectors ({len(run_vectors)}) and run_scores ({len(run_scores)}) must be same length")
 
     n = len(run_vectors)
     if n == 0:
         return ShrinkageVerdict(
-            runs=0, run_diversities=[], cross_entropy=0.0, uniqueness=0.0,
-            diversity_dropping=False, correctness_flat=False, collapse=False,
+            runs=0,
+            run_diversities=[],
+            cross_entropy=0.0,
+            uniqueness=0.0,
+            diversity_dropping=False,
+            correctness_flat=False,
+            collapse=False,
             diagnosis="No data: nothing to assess.",
         )
 

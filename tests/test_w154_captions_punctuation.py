@@ -8,6 +8,7 @@ behind --keep-vtt; these pins cover the DERIVED text).
 
 RED by construction until scripts.yt_captions.punctuate_captions exists.
 """
+
 import pytest
 
 from scripts.yt_captions import punctuate_captions

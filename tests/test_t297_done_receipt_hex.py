@@ -11,6 +11,7 @@ gate's meaning lives one function deep and every door must inherit it.
 
 Run: py -m pytest tests/test_t297_done_receipt_hex.py -q
 """
+
 import os
 import re
 import sys
@@ -25,8 +26,9 @@ sys.path.insert(0, ROOT)
 def run(*args, timeout=120):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
@@ -43,13 +45,12 @@ def _drill_task():
 def test_done_refuses_symbolic_refs_and_accepts_hex():
     tid = _drill_task()
 
-    rc, out, err = run("task", "done", tid, "--commit", "HEAD",
-                       "--verified-by", "t297 drill")
+    rc, out, err = run("task", "done", tid, "--commit", "HEAD", "--verified-by", "t297 drill")
     blob = (out or "") + (err or "")
     assert rc != 0, "the gate must refuse 'HEAD' -- a symbolic ref dangles when the ref moves"
     assert "hex" in blob.lower() and "rev-parse" in blob.lower(), (
-        "the refusal teaches: what a receipt is (hex) and how to get one (git rev-parse)")
+        "the refusal teaches: what a receipt is (hex) and how to get one (git rev-parse)"
+    )
 
-    rc2, out2, err2 = run("task", "done", tid, "--commit", "deadbee1",
-                          "--verified-by", "t297 drill")
+    rc2, out2, err2 = run("task", "done", tid, "--commit", "deadbee1", "--verified-by", "t297 drill")
     assert rc2 == 0, f"a real short SHA must close: {err2 or out2}"

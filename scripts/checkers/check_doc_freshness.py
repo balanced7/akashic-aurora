@@ -21,6 +21,7 @@ New design/plan docs belong in docs/; retired docs belong in _archive/. The root
 
 Run: py scripts/checkers/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
 """
+
 import os
 import sys
 from pathlib import Path
@@ -30,9 +31,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 # W161 (2026-08-14): DERIVED, not defaulted. This read the AI_SETUP env var with a hardcoded
 # fallback -- the exact pattern core/paths.py exists to delete, and whose docstring already
@@ -44,8 +47,10 @@ def _pyl() -> str:
 # instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
 try:
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from core.paths import repo_root as _rr
+
     ROOT = _rr()
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]

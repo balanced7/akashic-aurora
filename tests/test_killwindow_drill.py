@@ -15,6 +15,7 @@ pipeline is under test, not the model), unique agent ids per run (stream isolati
 SETUP -> EXECUTION (kill) -> CHECK (invariants) -> METRICS (seed line).
 Redis-backed + subprocess; skips offline. Run: py -m pytest tests/test_killwindow_drill.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -37,15 +38,19 @@ def _fresh(prefix):
     # Park the bc cursor at the live tail: a fresh id would otherwise drain the whole
     # SHARED broadcast backlog -- the drill runner would echo-answer days-old broadcast
     # chatter at real agents. Drills speak over DIRECT messages only.
-    b.advance_to(bc=b.tail()["bc"], generation=0)   # RB-21: guarded harness park
+    b.advance_to(bc=b.tail()["bc"], generation=0)  # RB-21: guarded harness park
     return b
 
 
 def _cleanup(*buses):
     for b in buses:
         try:
-            b._client.delete(b._cursor_key(), f"{b.ns}:generation:{b.agent_id}",
-                             f"{b.ns}:runner:{b.agent_id}", b._inbox_key(b.agent_id))
+            b._client.delete(
+                b._cursor_key(),
+                f"{b.ns}:generation:{b.agent_id}",
+                f"{b.ns}:runner:{b.agent_id}",
+                b._inbox_key(b.agent_id),
+            )
         except Exception:
             pass
 
@@ -57,8 +62,14 @@ def _run_runner(agent, killpoint=""):
         env["AKASHIC_KILLPOINT"] = killpoint
     return subprocess.run(
         [sys.executable, RUNNER, "--agent", agent, "--once"],
-        env=env, capture_output=True, text=True, timeout=60, cwd=REPO,
-        encoding="utf-8", errors="replace")
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def _reap_dead_lock(agent):
@@ -67,14 +78,14 @@ def _reap_dead_lock(agent):
     the successor refuses the seat until LOCK_TTL. clear_if_pid frees it ONLY when the
     holder pid is truly gone -- the drill kills its runner, so it always is."""
     from core.comm import runner_lock
+
     h = runner_lock.holder(agent)
     if h:
         runner_lock.clear_if_pid(agent, h.get("pid"))
 
 
 def _echo_replies(sender):
-    return [m for m in sender.inbox(limit=50, advance=False)
-            if m.kind == "reply" and "[drill-echo]" in str(m.content)]
+    return [m for m in sender.inbox(limit=50, advance=False) if m.kind == "reply" and "[drill-echo]" in str(m.content)]
 
 
 class ReferenceState:
@@ -85,9 +96,9 @@ class ReferenceState:
     single-inbox drill world (grows with L2, not before)."""
 
     def __init__(self):
-        self.replies = {}      # msg_id -> reply count
+        self.replies = {}  # msg_id -> reply count
         self.cursor = "0"
-        self.pending = []      # uncommitted msg ids, oldest first
+        self.pending = []  # uncommitted msg ids, oldest first
         self.sentinel = set()  # msg ids whose reply_sent sentinel was written
 
     def send(self, mid):
@@ -98,33 +109,31 @@ class ReferenceState:
         pipeline position. Redelivery falls out of `pending` naturally."""
         for mid in list(self.pending):
             if killpoint in ("post-consume-pre-process", "post-phase-flip-pre-send"):
-                return                              # died before any outcome for this msg
+                return  # died before any outcome for this msg
             if mid not in self.sentinel:
-                self.replies[mid] = self.replies.get(mid, 0) + 1   # answered (else: skip)
+                self.replies[mid] = self.replies.get(mid, 0) + 1  # answered (else: skip)
             if killpoint == "post-send-pre-sentinel":
-                return                              # died with reply out, sentinel unwritten
+                return  # died with reply out, sentinel unwritten
             self.sentinel.add(mid)
             if killpoint == "post-sentinel-pre-advance":
-                return                              # died before the cursor commit
+                return  # died before the cursor commit
             self.cursor = mid
             self.pending.remove(mid)
             if killpoint == "between-batch-messages":
-                return                              # died before the NEXT message
+                return  # died before the NEXT message
 
     def check(self, runner_bus, sender, tags):
         """CHECK phase: real terminal state must equal the model's. `tags` maps
         msg_id -> a content marker unique to that message's echo reply."""
         real_cursor = runner_bus.cursor()["inbox"]
-        assert real_cursor == self.cursor, \
-            f"ReferenceState divergence: cursor real={real_cursor} model={self.cursor}"
+        assert real_cursor == self.cursor, f"ReferenceState divergence: cursor real={real_cursor} model={self.cursor}"
         real = {}
         for m in _echo_replies(sender):
             for mid, tag in tags.items():
                 if tag in str(m.content):
                     real[mid] = real.get(mid, 0) + 1
         model = {k: v for k, v in self.replies.items() if v}
-        assert real == model, \
-            f"ReferenceState divergence: replies real={real} model={model}"
+        assert real == model, f"ReferenceState divergence: replies real={real} model={model}"
 
 
 def test_w1_death_after_consume_loses_nothing():
@@ -135,13 +144,15 @@ def test_w1_death_after_consume_loses_nothing():
     try:
         mid = sender.send(runner_bus.agent_id, "request", "w1 ping")
         assert mid
-        ref = ReferenceState(); ref.send(mid)
+        ref = ReferenceState()
+        ref.send(mid)
         # EXECUTION: armed run dies at the window
         p = _run_runner(runner_bus.agent_id, killpoint="post-consume-pre-process")
         ref.tenure("post-consume-pre-process")
         assert p.returncode == 137, f"must die AT the window, got {p.returncode}: {p.stdout[-400:]}"
-        assert runner_bus.cursor()["inbox"] == "0", \
+        assert runner_bus.cursor()["inbox"] == "0", (
             "commit-after-processing: death before handling leaves the cursor untouched"
+        )
         assert _echo_replies(sender) == [], "no reply was minted before death"
         # CHECK: unarmed successor redelivers and answers exactly once
         _reap_dead_lock(runner_bus.agent_id)
@@ -167,7 +178,8 @@ def test_w4_death_after_sentinel_never_double_replies():
     runner_bus, sender = _fresh("drill-w4"), _fresh("drill-snd")
     try:
         mid = sender.send(runner_bus.agent_id, "request", "w4 ping")
-        ref = ReferenceState(); ref.send(mid)
+        ref = ReferenceState()
+        ref.send(mid)
         p = _run_runner(runner_bus.agent_id, killpoint="post-sentinel-pre-advance")
         ref.tenure("post-sentinel-pre-advance")
         assert p.returncode == 137, p.stdout[-400:]
@@ -177,8 +189,7 @@ def test_w4_death_after_sentinel_never_double_replies():
         p2 = _run_runner(runner_bus.agent_id)
         ref.tenure()
         assert p2.returncode == 0, p2.stdout[-400:]
-        assert len(_echo_replies(sender)) == 1, \
-            "redelivery hit the sentinel: effectively-once, no duplicate reply"
+        assert len(_echo_replies(sender)) == 1, "redelivery hit the sentinel: effectively-once, no duplicate reply"
         assert "reply already sent" in p2.stdout, "the skip is loud, not silent"
         assert runner_bus.cursor()["inbox"] == mid, "successor committed past the message"
         ref.check(runner_bus, sender, {mid: "w4 ping"})
@@ -193,7 +204,8 @@ def test_w3_duplicate_reply_is_the_accepted_tolerance():
     runner_bus, sender = _fresh("drill-w3"), _fresh("drill-snd")
     try:
         mid = sender.send(runner_bus.agent_id, "request", "w3 ping")
-        ref = ReferenceState(); ref.send(mid)
+        ref = ReferenceState()
+        ref.send(mid)
         p = _run_runner(runner_bus.agent_id, killpoint="post-send-pre-sentinel")
         ref.tenure("post-send-pre-sentinel")
         assert p.returncode == 137, p.stdout[-400:]
@@ -202,8 +214,9 @@ def test_w3_duplicate_reply_is_the_accepted_tolerance():
         p2 = _run_runner(runner_bus.agent_id)
         ref.tenure()
         assert p2.returncode == 0
-        assert len(_echo_replies(sender)) == 2, \
+        assert len(_echo_replies(sender)) == 2, (
             "at-least-once: the duplicate is the named, accepted cost of this window"
+        )
         ref.check(runner_bus, sender, {mid: "w3 ping"})
     finally:
         _cleanup(runner_bus, sender)
@@ -215,7 +228,8 @@ def test_w2_death_before_send_answers_once_on_redelivery():
     runner_bus, sender = _fresh("drill-w2"), _fresh("drill-snd")
     try:
         mid = sender.send(runner_bus.agent_id, "request", "w2 ping")
-        ref = ReferenceState(); ref.send(mid)
+        ref = ReferenceState()
+        ref.send(mid)
         p = _run_runner(runner_bus.agent_id, killpoint="post-phase-flip-pre-send")
         ref.tenure("post-phase-flip-pre-send")
         assert p.returncode == 137, p.stdout[-400:]
@@ -238,7 +252,9 @@ def test_w5_mid_batch_death_loses_only_the_unhandled_tail():
     try:
         m1 = sender.send(runner_bus.agent_id, "request", "w5 first")
         m2 = sender.send(runner_bus.agent_id, "request", "w5 second")
-        ref = ReferenceState(); ref.send(m1); ref.send(m2)
+        ref = ReferenceState()
+        ref.send(m1)
+        ref.send(m2)
         p = _run_runner(runner_bus.agent_id, killpoint="between-batch-messages")
         ref.tenure("between-batch-messages")
         assert p.returncode == 137, p.stdout[-400:]
@@ -260,13 +276,22 @@ def test_timeout_multiplier_shrinks_the_lock_ttl():
     """BUGGIFY-style knob shrinking (FDB): with AKASHIC_TIMEOUT_MULTIPLIER the drill can
     reach timeout paths in seconds. Pins the seam end-to-end in a child process."""
     out = subprocess.run(
-        [sys.executable, "-c",
-         "from core.comm import runner_lock, liveness; import scripts.bifrost_runner_deepseek as r; "
-         "print(runner_lock.LOCK_TTL, liveness.WORKLIVE_TTL, r.REPLY_TIMEOUT_SEC)"],
+        [
+            sys.executable,
+            "-c",
+            "from core.comm import runner_lock, liveness; import scripts.bifrost_runner_deepseek as r; "
+            "print(runner_lock.LOCK_TTL, liveness.WORKLIVE_TTL, r.REPLY_TIMEOUT_SEC)",
+        ],
         env=dict(os.environ, AKASHIC_TIMEOUT_MULTIPLIER="0.05"),
-        capture_output=True, text=True, timeout=60, cwd=REPO,
-        encoding="utf-8", errors="replace")
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO,
+        encoding="utf-8",
+        errors="replace",
+    )
     assert out.returncode == 0, out.stderr[-400:]
     ttl, wl, reply = out.stdout.strip().split()[-3:]
-    assert (ttl, wl, reply) == ("1", "2", "30"), \
+    assert (ttl, wl, reply) == ("1", "2", "30"), (
         f"20s lock -> 1s, 45s worklive -> 2s, 600s reply guard -> 30s; got {ttl},{wl},{reply}"
+    )

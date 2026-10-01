@@ -9,11 +9,12 @@ Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slic
 
 Metric gates run on tests/fixtures/events_fixture.py (the local benchmark).
 """
+
 import os
 import sys
 import tempfile
 
-import isolate_canonical            # noqa: F401
+import isolate_canonical  # noqa: F401
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
@@ -42,6 +43,7 @@ def _precision_at_k(returned, relevant, k):
 
 # ----------------------------------------------------------------- metric gates
 
+
 def test_window_recall_is_100pct():
     eq, gold = _fixture()
     w = gold["window"]
@@ -65,12 +67,13 @@ def test_search_precision_at_5():
 
 def test_search_ranks_relevant_first():
     eq, gold = _fixture()
-    qa = gold["queries"][0]                       # stemroller vocab
+    qa = gold["queries"][0]  # stemroller vocab
     top = eq.search(qa["q"], top_k=3)
     assert all(e["summary"] in qa["relevant"] for e in top)
 
 
 # ----------------------------------------------------------------- filters (exact)
+
 
 def test_filter_by_kind():
     eq, gold = _fixture()
@@ -108,6 +111,7 @@ def test_window_with_kind_filter():
 
 # ----------------------------------------------------------------- robustness
 
+
 def test_get_resolves_ref_from_query():
     eq, _ = _fixture()
     hit = eq.search("demucs vocals", top_k=1)[0]
@@ -125,12 +129,12 @@ def test_empty_store_returns_empty():
 def test_bad_input_never_crashes():
     eq, _ = _fixture()
     assert isinstance(eq.events_in_window("garbage", "also-garbage"), list)
-    assert isinstance(eq.search(None), list)            # None query -> falls back, no crash
+    assert isinstance(eq.search(None), list)  # None query -> falls back, no crash
     assert eq.get("not-a-ref") is None
 
 
 def test_reversed_window_bounds_tolerated():
     eq, gold = _fixture()
     w = gold["window"]
-    got = {e["summary"] for e in eq.events_in_window(w["end"], w["start"])}   # swapped
+    got = {e["summary"] for e in eq.events_in_window(w["end"], w["start"])}  # swapped
     assert got == w["expected"]

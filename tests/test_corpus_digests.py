@@ -10,6 +10,7 @@ be able to tell what was searched, how much came back, and what was cut.
 
 Run: py -m pytest tests/test_corpus_digests.py -q
 """
+
 import json
 import os
 import subprocess
@@ -19,28 +20,51 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOL = os.path.join(REPO, "scripts", "corpus_digests.py")
 
 ROWS = [
-    {"run": "r1", "shard": "s1", "path": "docs/a.md", "gist": "alpha thing about recall",
-     "themes": ["recall", "memory"], "gold": "a forgotten mechanism",
-     "settled": ["alpha is settled"], "status_claimed": "current"},
-    {"run": "r1", "shard": "s1", "path": "docs/b.md", "gist": "beta thing",
-     "themes": ["recall"], "orphaned": "designed, never built",
-     "staleness_signal": "claims current but superseded by docs/a.md"},
-    {"run": "r1", "shard": "s2", "path": "utterance:s2:0:t.jsonl", "gist": "he wants a viewer",
-     "themes": ["DIRECTIVE"],
-     "daniil_directives": [{"quote": "I want a viewer", "date": "07-23"}]},
+    {
+        "run": "r1",
+        "shard": "s1",
+        "path": "docs/a.md",
+        "gist": "alpha thing about recall",
+        "themes": ["recall", "memory"],
+        "gold": "a forgotten mechanism",
+        "settled": ["alpha is settled"],
+        "status_claimed": "current",
+    },
+    {
+        "run": "r1",
+        "shard": "s1",
+        "path": "docs/b.md",
+        "gist": "beta thing",
+        "themes": ["recall"],
+        "orphaned": "designed, never built",
+        "staleness_signal": "claims current but superseded by docs/a.md",
+    },
+    {
+        "run": "r1",
+        "shard": "s2",
+        "path": "utterance:s2:0:t.jsonl",
+        "gist": "he wants a viewer",
+        "themes": ["DIRECTIVE"],
+        "daniil_directives": [{"quote": "I want a viewer", "date": "07-23"}],
+    },
     # Non-ASCII on purpose. The first fixture was pure ASCII, so the pins all passed while the
     # tool CRASHED on the real corpus: agents write check marks, arrows and em dashes, and a
     # Windows console is cp1252. A reading surface that dies on content it did not author is
     # not a reading surface. Degrade the glyph, never the record.
-    {"run": "r1", "shard": "s2", "path": "docs/unicode.md",
-     "gist": "verdict ✓ shipped → next — done",
-     "themes": ["recall"], "gold": "✓ a mechanism with a check mark",
-     "orphaned": "→ designed, never built", "staleness_signal": "— stale"},
+    {
+        "run": "r1",
+        "shard": "s2",
+        "path": "docs/unicode.md",
+        "gist": "verdict ✓ shipped → next — done",
+        "themes": ["recall"],
+        "gold": "✓ a mechanism with a check mark",
+        "orphaned": "→ designed, never built",
+        "staleness_signal": "— stale",
+    },
     # The substring trap (codex, 2026-08-01, reproduced live: menu said '95 recall', the hop
     # returned '137 of 137'). Menu counts EXACT labels; the hop matched SUBSTRINGS -- so the
     # two surfaces described different sets, and the hop claimed completeness while doing it.
-    {"run": "r1", "shard": "s1", "path": "docs/at.md", "gist": "the recall-at hook",
-     "themes": ["recall-at"]},
+    {"run": "r1", "shard": "s1", "path": "docs/at.md", "gist": "the recall-at hook", "themes": ["recall-at"]},
 ]
 
 
@@ -52,8 +76,7 @@ def _fixture(tmp_path):
 
 def _run(fx, *argv):
     env = {**os.environ, "AKASHIC_DIGESTS_FILE": str(fx)}
-    return subprocess.run([sys.executable, TOOL, *argv],
-                          capture_output=True, text=True, timeout=60, env=env, cwd=REPO)
+    return subprocess.run([sys.executable, TOOL, *argv], capture_output=True, text=True, timeout=60, env=env, cwd=REPO)
 
 
 def test_themes_lists_the_axes_available(tmp_path):
@@ -106,9 +129,7 @@ def test_truncation_is_announced_never_silent(tmp_path):
     r = _run(_fixture(tmp_path), "--theme", "recall", "--limit", "1")
     assert "docs/a.md" in r.stdout
     low = r.stdout.lower()
-    assert "1 of 2" in low or "more" in low or "truncat" in low, (
-        "rows were cut with no signal:\n" + r.stdout
-    )
+    assert "1 of 2" in low or "more" in low or "truncat" in low, "rows were cut with no signal:\n" + r.stdout
 
 
 def test_missing_dataset_teaches_instead_of_crashing(tmp_path):
@@ -119,11 +140,13 @@ def test_missing_dataset_teaches_instead_of_crashing(tmp_path):
 
 # --- codex's review corrections (2026-08-01) -------------------------------------------------
 
+
 def test_menu_and_hop_describe_the_same_set(tmp_path):
     """Menu cardinality MUST equal hop cardinality for the same label. Reproduced live: the
     menu said '95 recall' while --theme recall returned '137 of 137' via substring match --
     two surfaces describing different sets, one of them claiming completeness."""
     import re
+
     fx = _fixture(tmp_path)
     menu = _run(fx, "--themes").stdout
     m = re.search(r"^\s+(\d+)\s+recall\s*$", menu, re.M)
@@ -148,8 +171,7 @@ def test_contains_is_opt_in_and_says_so(tmp_path):
 def test_no_surface_prints_unbounded_by_default(tmp_path):
     """codex measured --directives at 284k tokens and --orphans at 95k: EVERY altitude needs a
     budget, not just the menu. Default cap + announced truncation + a continuation pointer."""
-    rows = [{"run": "r", "path": f"docs/x{i}.md", "gist": "g", "themes": ["bulk"]}
-            for i in range(55)]
+    rows = [{"run": "r", "path": f"docs/x{i}.md", "gist": "g", "themes": ["bulk"]} for i in range(55)]
     p = tmp_path / "digests.jsonl"
     p.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
     out = _run(p, "--theme", "bulk").stdout
@@ -176,10 +198,20 @@ def test_bands_are_labeled_claims_not_facts(tmp_path):
 # carries a date. That is a fact, not an inference -- no prose is interpreted to produce it.
 
 CHAPTERS = [
-    {"id": "chapter_aaa", "track": "ai-setup", "title": "The alpha arc",
-     "span_start": "2026-07-01T00:00:00-04:00", "span_end": "2026-07-10T00:00:00-04:00"},
-    {"id": "chapter_bbb", "track": "ai-setup", "title": "The beta arc",
-     "span_start": "2026-07-20T00:00:00-04:00", "span_end": "2026-07-30T00:00:00-04:00"},
+    {
+        "id": "chapter_aaa",
+        "track": "ai-setup",
+        "title": "The alpha arc",
+        "span_start": "2026-07-01T00:00:00-04:00",
+        "span_end": "2026-07-10T00:00:00-04:00",
+    },
+    {
+        "id": "chapter_bbb",
+        "track": "ai-setup",
+        "title": "The beta arc",
+        "span_start": "2026-07-20T00:00:00-04:00",
+        "span_end": "2026-07-30T00:00:00-04:00",
+    },
 ]
 
 DATED = [
@@ -199,8 +231,7 @@ def _joined(tmp_path):
 
 def _runj(fx, ch, *argv):
     env = {**os.environ, "AKASHIC_DIGESTS_FILE": str(fx), "AKASHIC_CHAPTERS_FILE": str(ch)}
-    return subprocess.run([sys.executable, TOOL, *argv],
-                          capture_output=True, text=True, timeout=60, env=env, cwd=REPO)
+    return subprocess.run([sys.executable, TOOL, *argv], capture_output=True, text=True, timeout=60, env=env, cwd=REPO)
 
 
 def test_artifact_resolves_to_its_chapter(tmp_path):

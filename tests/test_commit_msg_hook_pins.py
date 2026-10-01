@@ -29,6 +29,7 @@ bypass is unchanged.
 
 Run: py -m pytest tests/test_commit_msg_hook_pins.py -q -p no:cacheprovider
 """
+
 from __future__ import annotations
 
 import inspect
@@ -55,16 +56,17 @@ def plane(tmp_path):
     priv = tmp_path / "private" / "assessments"
     priv.mkdir(parents=True)
     (priv / f"20260101_{MARKER}_ff00aa.md").write_text(
-        f"# A synthetic dossier\n\nname: {MARKER}\nfixture body, no real content.\n",
-        encoding="utf-8")
+        f"# A synthetic dossier\n\nname: {MARKER}\nfixture body, no real content.\n", encoding="utf-8"
+    )
     (priv / "atoms-private.jsonl").write_text(
-        '{"id": "art_20260101_%s_ff00aa", "title": "%s"}\n' % (MARKER, MARKER),
-        encoding="utf-8")
+        '{"id": "art_20260101_%s_ff00aa", "title": "%s"}\n' % (MARKER, MARKER), encoding="utf-8"
+    )
     return tmp_path
 
 
 def _hook():
     from scripts.githooks import commit_msg
+
     return commit_msg
 
 
@@ -76,15 +78,13 @@ def _msgfile(tmp_path, text):
 
 # ---------------------------------------------------------------- P1: refuses, teaches
 def test_p1_a_message_naming_a_marker_is_refused_and_teaches(plane, tmp_path, capsys):
-    rc = _hook().main(["commit_msg.py", _msgfile(tmp_path, f"docs: index the {MARKER} atom\n")],
-                      root=plane)
+    rc = _hook().main(["commit_msg.py", _msgfile(tmp_path, f"docs: index the {MARKER} atom\n")], root=plane)
     err = capsys.readouterr().err
     assert rc == 1, "a marker-naming commit message must be refused at ITS OWN commit"
     assert "commit-msg BLOCKED" in err
     assert MARKER in err, "the refusal must name the marker it found"
     assert "commit message" in err, "the refusal must say WHERE the marker is (the message, not a file)"
-    assert "--no-verify" in err, (
-        "the sanctioned bypass is named, so it is used out loud rather than discovered")
+    assert "--no-verify" in err, "the sanctioned bypass is named, so it is used out loud rather than discovered"
 
 
 # ---------------------------------------------------------------- P2: clean passes
@@ -92,29 +92,31 @@ def test_p2_a_clean_message_passes_silently(plane, tmp_path, capsys, monkeypatch
     # Hermetic about WHO commits: authored by the operator, the co-author credit (its own pins)
     # has nothing to add -- otherwise this pin measured the machine's git identity, not the scan.
     from scripts.githooks import coauthor
+
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", coauthor.OPERATOR_EMAIL)
-    rc = _hook().main(
-        ["commit_msg.py", _msgfile(tmp_path, "fix: tighten the door probe timeout\n")],
-        root=plane)
+    rc = _hook().main(["commit_msg.py", _msgfile(tmp_path, "fix: tighten the door probe timeout\n")], root=plane)
     assert rc == 0
-    assert capsys.readouterr().err == "", (
-        "a clean commit must not be nagged -- noise is what trains --no-verify")
+    assert capsys.readouterr().err == "", "a clean commit must not be nagged -- noise is what trains --no-verify"
 
 
 def test_p2b_comment_lines_git_strips_are_not_scanned(plane, tmp_path):
     """git's status template lists branch names and paths under '#'. git removes those lines
     before the message is recorded, so they can never leak -- refusing on them would fire on
     healthy commits."""
-    text = (f"fix: a clean subject\n\n# On branch feature/{MARKER}\n"
-            f"# Changes to be committed:\n#\tmodified:   private/{MARKER}.md\n")
+    text = (
+        f"fix: a clean subject\n\n# On branch feature/{MARKER}\n"
+        f"# Changes to be committed:\n#\tmodified:   private/{MARKER}.md\n"
+    )
     assert _hook().main(["commit_msg.py", _msgfile(tmp_path, text)], root=plane) == 0
 
 
 def test_p2c_the_scissors_tail_is_not_scanned(plane, tmp_path):
     """`git commit -v` appends the staged diff below a scissors line; git discards it."""
-    text = ("fix: a clean subject\n"
-            "# ------------------------ >8 ------------------------\n"
-            f"+++ b/private/assessments/20260101_{MARKER}_ff00aa.md\n")
+    text = (
+        "fix: a clean subject\n"
+        "# ------------------------ >8 ------------------------\n"
+        f"+++ b/private/assessments/20260101_{MARKER}_ff00aa.md\n"
+    )
     assert _hook().main(["commit_msg.py", _msgfile(tmp_path, text)], root=plane) == 0
 
 
@@ -127,19 +129,19 @@ def test_p2d_a_marker_after_a_comment_line_is_still_caught(plane, tmp_path):
 # ---------------------------------------------------------------- P3: the stale read is gone
 def test_p3_pre_commit_no_longer_reads_the_message_file_git_has_not_written_yet():
     from scripts.githooks import pre_commit
+
     assert "COMMIT_EDITMSG" not in inspect.getsource(pre_commit), (
         "pre-commit reads git's message file before git writes it for THIS commit, so it "
         "scans the PREVIOUS commit's message (dd0c36b406); the message guard belongs to the "
-        "commit-msg stage, which is handed the live path")
+        "commit-msg stage, which is handed the live path"
+    )
 
 
 # ---------------------------------------------------------------- P4: real git stage order
 def _git(repo, *args, env, check=True):
-    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
-                       env=env, timeout=120)
+    r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, env=env, timeout=120)
     if check and r.returncode != 0:
-        raise AssertionError(
-            f"git {' '.join(args)} failed rc={r.returncode}\n{r.stdout}{r.stderr}")
+        raise AssertionError(f"git {' '.join(args)} failed rc={r.returncode}\n{r.stdout}{r.stderr}")
     return r
 
 
@@ -158,8 +160,7 @@ def _hermetic_repo(tmp_path, plane):
     absent: its generators and ratchet belong to the real repo, not to this one."""
     shim = HOOKS / "commit-msg"
     module = HOOKS / "commit_msg.py"
-    assert shim.is_file(), (
-        "scripts/githooks/commit-msg is missing: the message guard has no stage to run in")
+    assert shim.is_file(), "scripts/githooks/commit-msg is missing: the message guard has no stage to run in"
     assert module.is_file(), "scripts/githooks/commit_msg.py is missing"
     hooks = tmp_path / "hooks"
     hooks.mkdir()
@@ -170,15 +171,16 @@ def _hermetic_repo(tmp_path, plane):
 
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
     (tmp_path / "gitconfig-empty").write_text("", encoding="utf-8")
-    env.update({
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": str(tmp_path / "gitconfig-empty"),
-        # the copied module must still find core.trust.private_plane -- in THIS checkout
-        "PYTHONPATH": os.pathsep.join(
-            p for p in (str(ROOT), env.get("PYTHONPATH", "")) if p),
-        # and derive its markers from the synthetic plane, never this repo's real one
-        "AKASHIC_PRIVATE_PLANE_ROOT": str(plane),
-    })
+    env.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": str(tmp_path / "gitconfig-empty"),
+            # the copied module must still find core.trust.private_plane -- in THIS checkout
+            "PYTHONPATH": os.pathsep.join(p for p in (str(ROOT), env.get("PYTHONPATH", "")) if p),
+            # and derive its markers from the synthetic plane, never this repo's real one
+            "AKASHIC_PRIVATE_PLANE_ROOT": str(plane),
+        }
+    )
     _git(repo, "init", "-q", "-b", "main", env=env)
     _git(repo, "config", "user.name", "pin", env=env)
     _git(repo, "config", "user.email", "pin@example.invalid", env=env)
@@ -189,15 +191,14 @@ def _hermetic_repo(tmp_path, plane):
     return repo, env
 
 
-def test_p4_git_refuses_the_marker_at_its_own_commit_and_passes_the_clean_successor(
-        plane, tmp_path):
+def test_p4_git_refuses_the_marker_at_its_own_commit_and_passes_the_clean_successor(plane, tmp_path):
     repo, env = _hermetic_repo(tmp_path, plane)
 
-    a = _git(repo, "commit", "-q", "--allow-empty", "-m", f"note the {MARKER} atom",
-             env=env, check=False)
+    a = _git(repo, "commit", "-q", "--allow-empty", "-m", f"note the {MARKER} atom", env=env, check=False)
     assert a.returncode != 0, (
         "a marker-naming message must be refused AT ITS OWN commit -- at HEAD it passed, "
-        "because pre-commit scanned the previous one:\n" + a.stdout + a.stderr)
+        "because pre-commit scanned the previous one:\n" + a.stdout + a.stderr
+    )
     assert "commit-msg BLOCKED" in a.stderr and MARKER in a.stderr, a.stderr
     assert "Traceback" not in a.stderr, "refused by the guard, not by a crash"
     assert _subjects(repo, env) == ["root: hook module under test"], "nothing may land"
@@ -206,16 +207,19 @@ def test_p4_git_refuses_the_marker_at_its_own_commit_and_passes_the_clean_succes
     # bypass (a confession naming what it bypassed for is the live case); the clean commit
     # after it must pass. At HEAD it was refused, because pre-commit read the predecessor's
     # message and called it this commit's.
-    _git(repo, "commit", "-q", "--allow-empty", "--no-verify",
-         "-m", f"bypass: confessed, named {MARKER}", env=env)
-    b = _git(repo, "commit", "-q", "--allow-empty",
-             "-m", "clean follow-up: nothing private named", env=env, check=False)
+    _git(repo, "commit", "-q", "--allow-empty", "--no-verify", "-m", f"bypass: confessed, named {MARKER}", env=env)
+    b = _git(
+        repo, "commit", "-q", "--allow-empty", "-m", "clean follow-up: nothing private named", env=env, check=False
+    )
     assert b.returncode == 0, (
         "a clean message after a marker-naming predecessor was refused -- the guard is "
-        "reading the PREVIOUS message:\n" + b.stdout + b.stderr)
-    assert _subjects(repo, env) == ["clean follow-up: nothing private named",
-                                    f"bypass: confessed, named {MARKER}",
-                                    "root: hook module under test"]
+        "reading the PREVIOUS message:\n" + b.stdout + b.stderr
+    )
+    assert _subjects(repo, env) == [
+        "clean follow-up: nothing private named",
+        f"bypass: confessed, named {MARKER}",
+        "root: hook module under test",
+    ]
 
 
 def test_p4b_a_linked_worktree_hands_the_guard_a_path_it_can_open(plane, tmp_path):
@@ -225,8 +229,7 @@ def test_p4b_a_linked_worktree_hands_the_guard_a_path_it_can_open(plane, tmp_pat
     repo, env = _hermetic_repo(tmp_path, plane)
     wt = tmp_path / "wt"
     _git(repo, "worktree", "add", "-q", str(wt), "-b", "side", env=env)
-    a = _git(wt, "commit", "-q", "--allow-empty", "-m", f"wt: mentions {MARKER}",
-             env=env, check=False)
+    a = _git(wt, "commit", "-q", "--allow-empty", "-m", f"wt: mentions {MARKER}", env=env, check=False)
     assert a.returncode != 0, a.stdout + a.stderr
     assert "commit-msg BLOCKED" in a.stderr and "Traceback" not in a.stderr, a.stderr
     b = _git(wt, "commit", "-q", "--allow-empty", "-m", "wt: clean", env=env, check=False)
@@ -237,24 +240,24 @@ def test_p4b_a_linked_worktree_hands_the_guard_a_path_it_can_open(plane, tmp_pat
 # ---------------------------------------------------------------- P5: wired, not just built
 def test_p5_the_tracked_shim_delegates_the_live_message_path():
     shim = HOOKS / "commit-msg"
-    assert shim.is_file(), (
-        "no commit-msg hook is tracked: the message guard has no stage to run in")
+    assert shim.is_file(), "no commit-msg hook is tracked: the message guard has no stage to run in"
     # splitlines() tolerates the CRLF working copy core.autocrlf=true produces here
     lines = shim.read_text(encoding="utf-8", errors="replace").splitlines()
-    assert lines and lines[0] == "#!/bin/sh", (
-        "git runs hooks through sh; the sibling shims do the same")
+    assert lines and lines[0] == "#!/bin/sh", "git runs hooks through sh; the sibling shims do the same"
     body = "\n".join(lines)
     assert "scripts/githooks/commit_msg.py" in body and '"$1"' in body, (
-        "the shim must hand git's argv[1] -- the LIVE message path -- to the module")
+        "the shim must hand git's argv[1] -- the LIVE message path -- to the module"
+    )
 
 
 def test_p5b_the_installer_knows_every_stage(tmp_path):
     from scripts.githooks import install_git_hooks as ih
+
     assert "commit-msg" in ih.HOOKS
-    assert ih.missing_hooks() == [], (
-        "a hook the installer expects is absent from scripts/githooks")
+    assert ih.missing_hooks() == [], "a hook the installer expects is absent from scripts/githooks"
     assert ih.missing_hooks(str(tmp_path)) == list(ih.HOOKS), (
-        "an empty hooks dir must read as ALL missing, never as installed")
+        "an empty hooks dir must read as ALL missing, never as installed"
+    )
 
 
 # ---------------------------------------------------------------- P6: fail-open, loudly
@@ -270,11 +273,11 @@ def test_p6b_no_message_path_fails_open_loudly(capsys):
     assert rc == 0 and "WARNING" in capsys.readouterr().err
 
 
-def test_p6c_a_finding_fails_closed_even_when_the_refusal_cannot_be_printed(
-        plane, tmp_path, monkeypatch):
+def test_p6c_a_finding_fails_closed_even_when_the_refusal_cannot_be_printed(plane, tmp_path, monkeypatch):
     class _Dead:
         def write(self, *_a, **_k):
             raise OSError("stderr is gone")
+
     monkeypatch.setattr(sys, "stderr", _Dead())
     rc = _hook().main(["commit_msg.py", _msgfile(tmp_path, f"names {MARKER}\n")], root=plane)
     assert rc == 1, "the decision must not depend on the console: refuse first, explain if you can"

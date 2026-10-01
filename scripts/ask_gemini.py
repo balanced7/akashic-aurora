@@ -13,13 +13,14 @@ Prompt source: positional args, else --file <path>, else stdin.
 
 NOTE: the prompt is sent to Google's Gemini API. Don't pass anything you wouldn't share with Google.
 """
+
 import argparse
 import os
 import sys
 from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")   # free-tier-accessible; pro is 0-quota
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # free-tier-accessible; pro is 0-quota
 
 
 def load_key():
@@ -59,6 +60,7 @@ def main():
 
     from google import genai
     from google.genai import types
+
     client = genai.Client(api_key=key)
     cfg = types.GenerateContentConfig(system_instruction=args.system) if args.system else None
     try:
@@ -69,7 +71,7 @@ def main():
         print(f"GEMINI_ERROR ({args.model}): {type(e).__name__}: {e}", file=sys.stderr)
         try:
             names = [m.name for m in client.models.list()]
-            print("models available to this key:", ", ".join(n.split('/')[-1] for n in names[:25]), file=sys.stderr)
+            print("models available to this key:", ", ".join(n.split("/")[-1] for n in names[:25]), file=sys.stderr)
         except Exception:
             pass
         return 1

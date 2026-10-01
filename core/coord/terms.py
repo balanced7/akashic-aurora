@@ -28,6 +28,7 @@ wide tier of the pattern Daniil named: the index proposes, the fan disposes. Cla
 violation from spread alone would be the confident-inference failure this entire arc has
 been about.
 """
+
 from __future__ import annotations
 
 import ast
@@ -86,7 +87,8 @@ BLIND = [
 
 #: Words that are structure rather than vocabulary. Deliberately generous: a false drop
 #: costs one candidate, a false keep costs the reader's attention on every run.
-_STOP = frozenset("""
+_STOP = frozenset(
+    """
 the and for that this with from into onto upon which where when what whom whose have has
 had will would could should must been being were are was but not you your yours our ours
 its it's they them their then than there here also just very much more most some such
@@ -97,11 +99,22 @@ return returns returned value values none true false self args kwargs param para
 function method class module file files line lines code test tests string int bool list
 dict tuple object type types name names key keys item items data result results
 one two three first second next last new old same via per etc ie eg
-""".split())
+""".split()
+)
 
 _WORD = re.compile(r"[a-z][a-z_]{3,}")
-_SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".pytest_cache",
-              "artifacts", "docs", "research", "chronicles"}
+_SKIP_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    "artifacts",
+    "docs",
+    "research",
+    "chronicles",
+}
 
 
 def _prose_of(src: str) -> str:
@@ -116,8 +129,7 @@ def _prose_of(src: str) -> str:
     except SyntaxError:
         return " ".join(out)
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
-                             ast.ClassDef)):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             doc = ast.get_docstring(node)
             if doc:
                 out.append(doc)
@@ -140,13 +152,13 @@ def score(rec: Dict[str, Any], n_files: int) -> float:
         however often it appears.
     """
     import math
+
     files = max(1, int(rec.get("files", 1)))
     idf = math.log(max(2, n_files) / files)
     return round(idf * max(1, len(rec.get("dirs") or ())), 4)
 
 
-def extract(root: Optional[str] = None, min_files: int = 3,
-            subdir: str = "") -> Dict[str, Dict[str, Any]]:
+def extract(root: Optional[str] = None, min_files: int = 3, subdir: str = "") -> Dict[str, Dict[str, Any]]:
     """term -> {files, hits, dirs, where}. One unreadable file costs that file, never
     the scan."""
     base = os.path.join(root or _ROOT, subdir) if subdir else (root or _ROOT)
@@ -169,8 +181,7 @@ def extract(root: Optional[str] = None, min_files: int = 3,
             for w in set(_WORD.findall(prose.lower())):
                 if w in _STOP or w.endswith("_"):
                     continue
-                rec = seen.setdefault(w, {"files": 0, "hits": 0, "where": [],
-                                          "dirs": set()})
+                rec = seen.setdefault(w, {"files": 0, "hits": 0, "where": [], "dirs": set()})
                 rec["files"] += 1
                 rec["hits"] += prose.lower().count(w)
                 rec["dirs"].add(top)
@@ -195,9 +206,11 @@ def lexicon_terms(path: Optional[str] = None) -> Set[str]:
     except OSError:
         return set()
     out: Set[str] = set()
-    for pat in (r"^#{1,6}\s+`?([A-Za-z][\w .\-/]*)`?\s*$",
-                r"^\s*[-*]?\s*\*\*([A-Za-z][\w .\-/]*)\*\*",
-                r"^\s*[-*]\s+`([A-Za-z][\w.\-/]*)`"):
+    for pat in (
+        r"^#{1,6}\s+`?([A-Za-z][\w .\-/]*)`?\s*$",
+        r"^\s*[-*]?\s*\*\*([A-Za-z][\w .\-/]*)\*\*",
+        r"^\s*[-*]\s+`([A-Za-z][\w.\-/]*)`",
+    ):
         for m in re.findall(pat, text, re.M):
             for token in re.split(r"[ /]", str(m).strip()):
                 token = token.strip("`*_.-").lower()
@@ -219,6 +232,7 @@ def register() -> None:
     """Attach to the compare registry so vocabulary becomes diffable like any other
     domain: `compare terms:code terms:lexicon` is the W133 query."""
     from core.coord import compare as cmp_mod
+
     cmp_mod.DOMAINS.setdefault("terms:code", (_terms_code, "term"))
     cmp_mod.DOMAINS.setdefault("terms:lexicon", (_terms_lexicon, "term"))
 

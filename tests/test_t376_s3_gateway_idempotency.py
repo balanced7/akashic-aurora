@@ -18,6 +18,7 @@ no coordination between the racers.
 
 Run: py -m pytest tests/test_t376_s3_gateway_idempotency.py -q
 """
+
 import os
 import sys
 
@@ -34,20 +35,19 @@ class _Bus:
         self.sent = []
 
     def send(self, to, kind, content, meta=None):
-        self.sent.append({"to": to, "kind": kind, "content": content,
-                          "meta": dict(meta or {})})
+        self.sent.append({"to": to, "kind": kind, "content": content, "meta": dict(meta or {})})
         return f"m{len(self.sent)}-0"
 
     def broadcast(self, kind, content, meta=None):
-        self.sent.append({"to": "*", "kind": kind, "content": content,
-                          "meta": dict(meta or {})})
+        self.sent.append({"to": "*", "kind": kind, "content": content, "meta": dict(meta or {})})
         return f"m{len(self.sent)}-0"
 
 
 def _cfg():
-    return {"operator_id": "111222333444555666",
-            "people": {"111222333444555666": {"tier": "operator",
-                                              "agent": "daniil"}}}
+    return {
+        "operator_id": "111222333444555666",
+        "people": {"111222333444555666": {"tier": "operator", "agent": "daniil"}},
+    }
 
 
 def _call(bus, message_id=None, content="ping"):
@@ -55,9 +55,15 @@ def _call(bus, message_id=None, content="ping"):
     if message_id is not None:
         kwargs["message_id"] = message_id
     return discord_inbound.handle_message(
-        _cfg(), author_id="111222333444555666", author_name="d",
-        channel_id="c-unmapped", content=content, bus=bus,
-        react=lambda e: None, **kwargs)
+        _cfg(),
+        author_id="111222333444555666",
+        author_name="d",
+        channel_id="c-unmapped",
+        content=content,
+        bus=bus,
+        react=lambda e: None,
+        **kwargs,
+    )
 
 
 # ------------------------------------------------------------------ P1 stamp
@@ -68,15 +74,20 @@ def test_p1_operator_relay_carries_the_discord_idempotency_key():
     assert bus.sent, "the relay must reach the bus"
     meta = bus.sent[-1]["meta"]
     assert meta.get("idempotency_key") == "discord:555000111", (
-        f"every relay must self-identify by its Discord message id; got {meta}")
+        f"every relay must self-identify by its Discord message id; got {meta}"
+    )
 
 
 # ------------------------------------------------------------------ P2 identity
 def test_p2_same_key_resolves_to_one_identity():
-    fields_a = {"frm": "daniil", "to": "claude", "kind": "chat",
-                "content": "ping", "ts": "1"}
-    fields_b = {"frm": "daniil", "to": "claude", "kind": "chat",
-                "content": "ping (redelivered wording drift)", "ts": "2"}
+    fields_a = {"frm": "daniil", "to": "claude", "kind": "chat", "content": "ping", "ts": "1"}
+    fields_b = {
+        "frm": "daniil",
+        "to": "claude",
+        "kind": "chat",
+        "content": "ping (redelivered wording drift)",
+        "ts": "2",
+    }
     ida, basis_a = identity_of(fields_a, {"idempotency_key": "discord:555"})
     idb, basis_b = identity_of(fields_b, {"idempotency_key": "discord:555"})
     assert ida == idb, "one Discord message must be ONE identity at the door"
@@ -86,8 +97,7 @@ def test_p2_same_key_resolves_to_one_identity():
 # ------------------------------------------------------------------ P3 degrade
 def test_p3_no_message_id_degrades_to_no_stamp():
     bus = _Bus()
-    out = _call(bus)                       # legacy caller shape, no message_id
+    out = _call(bus)  # legacy caller shape, no message_id
     assert out.get("acted")
     meta = bus.sent[-1]["meta"]
-    assert "idempotency_key" not in meta, (
-        "no id means NO stamp -- a fabricated key would merge distinct messages")
+    assert "idempotency_key" not in meta, "no id means NO stamp -- a fabricated key would merge distinct messages"

@@ -5,6 +5,7 @@ These tests are the harness's own falsification checks: they assert the structur
 policies MUST exhibit, and -- per the review's discipline -- that metric C can actually FAIL (a metric
 that can't fail proves nothing). Pure/deterministic, no Redis. Run: py -m pytest tests/test_coord_experiment.py -q
 """
+
 import os
 import sys
 
@@ -26,7 +27,7 @@ def test_gates_cut_duplicate_waste():
     re-execution -- social pays it as W."""
     c = X.compare(X.collision_heavy(6))
     assert c["social"]["A_task"] == 1.0 and c["lock_gate"]["A_task"] == 1.0 and c["intent_gate"]["A_task"] == 1.0
-    assert c["social"]["W_waste"] == 5                     # 6 agents, same work -> 5 wasted
+    assert c["social"]["W_waste"] == 5  # 6 agents, same work -> 5 wasted
     assert c["lock_gate"]["W_waste"] == 0 and c["intent_gate"]["W_waste"] == 0
 
 
@@ -35,21 +36,23 @@ def test_lock_gate_exclusivity_bias():
     losing both task coverage (A) and exploration (C)."""
     c = X.compare(X.parallel_useful(6))
     assert c["intent_gate"]["A_task"] == 1.0 and c["intent_gate"]["C_explore"] == 1.0
-    assert c["lock_gate"]["A_task"] < c["intent_gate"]["A_task"]         # work lost to over-blocking
-    assert c["lock_gate"]["C_explore"] < c["intent_gate"]["C_explore"]   # exploration suppressed
+    assert c["lock_gate"]["A_task"] < c["intent_gate"]["A_task"]  # work lost to over-blocking
+    assert c["lock_gate"]["C_explore"] < c["intent_gate"]["C_explore"]  # exploration suppressed
 
 
 def test_metric_C_can_fail():
     """The Goodhart guard must be falsifiable: an exclusivity-biased policy scores LOW on C."""
     c = X.compare(X.parallel_useful(6))
-    assert c["lock_gate"]["C_explore"] < 0.5               # C genuinely drops -> it can fail
-    assert c["intent_gate"]["C_explore"] == 1.0            # ...and genuinely pass
+    assert c["lock_gate"]["C_explore"] < 0.5  # C genuinely drops -> it can fail
+    assert c["intent_gate"]["C_explore"] == 1.0  # ...and genuinely pass
 
 
 def test_intent_gate_is_best_overall_on_mixed():
     """On a realistic mix only intent_gate reaches full coverage AND full exploration AND zero waste;
     lock_gate loses a parallel-useful intent, social pays redundant waste."""
     c = X.compare(X.mixed())
-    assert c["intent_gate"]["A_task"] == 1.0 and c["intent_gate"]["C_explore"] == 1.0 and c["intent_gate"]["W_waste"] == 0
-    assert c["lock_gate"]["A_task"] < 1.0                  # exclusivity bias drops a real intent
-    assert c["social"]["W_waste"] > 0                      # no coordination -> duplicate waste
+    assert (
+        c["intent_gate"]["A_task"] == 1.0 and c["intent_gate"]["C_explore"] == 1.0 and c["intent_gate"]["W_waste"] == 0
+    )
+    assert c["lock_gate"]["A_task"] < 1.0  # exclusivity bias drops a real intent
+    assert c["social"]["W_waste"] > 0  # no coordination -> duplicate waste

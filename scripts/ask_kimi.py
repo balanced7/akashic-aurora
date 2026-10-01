@@ -16,6 +16,7 @@ NOTE: pay-as-you-go against the seat's $105 grant; every call is METERED into th
 spend ledger (state/kimi_spend.json) alongside the runner's spend. Thinking is always on and
 bills as output -- the default max-tokens leaves headroom (a skimpy cap returns EMPTY content).
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -35,8 +36,7 @@ def main():
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default="")
     ap.add_argument("--max-tokens", type=int, default=4000)
-    ap.add_argument("--show-thinking", action="store_true",
-                    help="print reasoning_content to stderr before the answer")
+    ap.add_argument("--show-thinking", action="store_true", help="print reasoning_content to stderr before the answer")
     args = ap.parse_args()
 
     if not load_key():
@@ -59,7 +59,8 @@ def main():
     meter = SpendMeter()
     try:
         resp = make_client().chat.completions.create(
-            model=args.model, messages=messages, max_completion_tokens=args.max_tokens)
+            model=args.model, messages=messages, max_completion_tokens=args.max_tokens
+        )
         cost = meter.record(getattr(resp, "usage", None), args.model)
         msg = resp.choices[0].message
         if args.show_thinking and getattr(msg, "reasoning_content", None):

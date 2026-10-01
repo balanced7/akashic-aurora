@@ -29,6 +29,7 @@ liveness. A soft pause that does not RENDER is that bug again, authored delibera
   P5  VISIBILITY: pause_status() reports WHICH kind is live, and format_pause_line()
       renders it. No new invisible state.
 """
+
 import os
 import sys
 import uuid
@@ -40,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-softpause").online
 
 
@@ -48,6 +50,7 @@ def ns(monkeypatch):
     n = f"t-soft-{uuid.uuid4().hex[:8]}"
     monkeypatch.setenv("BIFROST_NAMESPACE", n)
     from core.comm import control
+
     control.resume()
     yield n
     control.resume()
@@ -59,10 +62,12 @@ def test_p1_soft_pause_does_not_halt(ns):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control
+
     assert control.pause(reason="wind down", by="daniil", soft=True) is True
     assert control.is_halted("deepseek") is False, (
         "a SOFT pause must not halt: is_halted() is passed as the mid-turn interrupt, so "
-        "returning True here abandons the message the seat is holding")
+        "returning True here abandons the message the seat is holding"
+    )
 
 
 def test_p2_soft_pause_stops_new_work(ns):
@@ -70,10 +75,12 @@ def test_p2_soft_pause_stops_new_work(ns):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control
+
     control.pause(reason="wind down", by="daniil", soft=True)
     assert control.is_frozen("deepseek") is True, (
         "a soft pause must stop NEW work at the loop top even though it does not halt "
-        "mid-turn -- otherwise the nudge does nothing at all")
+        "mid-turn -- otherwise the nudge does nothing at all"
+    )
 
 
 def test_p3_resume_clears_soft(ns):
@@ -81,6 +88,7 @@ def test_p3_resume_clears_soft(ns):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control
+
     control.pause(reason="wind down", by="daniil", soft=True)
     control.resume()
     assert control.is_frozen("deepseek") is False, "resume() must clear a SOFT pause"
@@ -92,6 +100,7 @@ def test_p4_hard_pause_unchanged(ns):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control
+
     assert control.pause(reason="stop now", by="daniil") is True
     assert control.is_halted("deepseek") is True, "hard pause must still halt mid-turn"
     assert control.is_frozen("deepseek") is True, "hard pause must also stop new work"
@@ -103,6 +112,7 @@ def test_p5_soft_pause_is_visible(ns):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control
+
     control.pause(reason="wind down", by="daniil", soft=True)
     st = control.pause_status()
     assert st.get("paused") is True, "a soft pause is still a pause to any status reader"
@@ -110,4 +120,5 @@ def test_p5_soft_pause_is_visible(ns):
     line = control.format_pause_line(st)
     assert line, "a live soft pause must render, never render empty"
     assert "soft" in line.lower() or "wind" in line.lower() or "graceful" in line.lower(), (
-        f"the rendered line must distinguish a soft pause from a hard one. Got: {line!r}")
+        f"the rendered line must distinguish a soft pause from a hard one. Got: {line!r}"
+    )

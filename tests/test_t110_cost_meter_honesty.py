@@ -77,7 +77,8 @@ def test_p1_a_non_deepseek_model_is_never_deepseek_priced(tmp_path):
         f"exactly DeepSeek's v4-pro table (${deepseek_price:.3f}) applied to Moonshot's "
         f"tokens. This is the number on Daniel's dashboard today. Either price kimi-k3 at "
         f"a sourced kimi rate or report it UNPRICED -- but a confident wrong number is "
-        f"worse than a visible gap, because a router will believe it.")
+        f"worse than a visible gap, because a router will believe it."
+    )
 
 
 # --------------------------------------------------------------- P2 unpriced is loud
@@ -90,10 +91,12 @@ def test_p2_an_unpriced_model_is_loud_not_zero(tmp_path):
     assert d.get("unpriced_tokens", 0) == 1_100_000, (
         f"SILENT GAP: 1.1M tokens we cannot price must be COUNTED and REPORTED as "
         f"unpriced, not quietly dropped to a $0 line that reads as free usage. "
-        f"to_dict()={d}")
+        f"to_dict()={d}"
+    )
     assert "kimi-k3" in str(d.get("unpriced_models", "")), (
         f"UNNAMED GAP: the unpriced bucket must name WHICH model it could not price, "
-        f"or nobody can fill the rate in. to_dict()={d}")
+        f"or nobody can fill the rate in. to_dict()={d}"
+    )
 
 
 # --------------------------------------------------------------- P3 no fabricated model
@@ -101,11 +104,12 @@ def test_p3_the_model_name_is_never_fabricated(tmp_path):
     """`"model": self.model or "deepseek-v4-pro"` -- the meter asserted a vendor it
     was never told about. Unknown must render as unknown."""
     j = TokenJournal("sol", journal_dir=str(tmp_path))
-    j.add_turn(prompt=1000, completion=100)          # no model passed
+    j.add_turn(prompt=1000, completion=100)  # no model passed
     assert "deepseek" not in str(j.to_dict().get("model", "")).lower(), (
         f"FABRICATED MODEL: an unlabelled turn on agent 'sol' was reported as "
         f"model={j.to_dict().get('model')!r}. The meter invented a vendor. "
-        f"An unknown model must SAY unknown.")
+        f"An unknown model must SAY unknown."
+    )
 
 
 # --------------------------------------------------------------- P4 model switching
@@ -120,9 +124,11 @@ def test_p4_a_second_model_in_the_same_day_is_recorded(tmp_path):
     assert "deepseek-v4-flash" in models, (
         f"MODEL SWITCH SWALLOWED: the day ran two models and the journal reports "
         f"only the first. A cost meter that cannot see the cheap lane cannot show "
-        f"that routing to it worked. models={models}")
+        f"that routing to it worked. models={models}"
+    )
     assert models.get("deepseek-v4-flash", {}).get("prompt") == 1_000_000, (
-        f"per-model attribution must carry the tokens, not just the name: {models}")
+        f"per-model attribution must carry the tokens, not just the name: {models}"
+    )
 
 
 # --------------------------------------------------------------- P5 cache split
@@ -131,18 +137,17 @@ def test_p5_cached_prompt_tokens_cost_less_than_fresh(tmp_path):
     line before the ledger. Cached input is roughly a tenth the price; today the
     meter bills 104M mostly-cached prompt tokens at full fresh rate."""
     fresh = TokenJournal("deepseek", journal_dir=str(tmp_path / "a"))
-    fresh.add_turn(prompt=1_000_000, completion=0,
-                   model="deepseek-v4-pro", cached_prompt=0)
+    fresh.add_turn(prompt=1_000_000, completion=0, model="deepseek-v4-pro", cached_prompt=0)
 
     cached = TokenJournal("deepseek", journal_dir=str(tmp_path / "b"))
-    cached.add_turn(prompt=1_000_000, completion=0,
-                    model="deepseek-v4-pro", cached_prompt=1_000_000)
+    cached.add_turn(prompt=1_000_000, completion=0, model="deepseek-v4-pro", cached_prompt=1_000_000)
 
     assert cached.total_cost_est() < fresh.total_cost_est(), (
         f"CACHE BLINDNESS: 1M fully-cached prompt tokens (${cached.total_cost_est():.3f}) "
         f"must cost less than 1M fresh ones (${fresh.total_cost_est():.3f}). The split "
         f"is ALREADY MEASURED at the call site and discarded; today's 323:1 "
-        f"prompt:completion ratio is mostly re-read context billed as new.")
+        f"prompt:completion ratio is mostly re-read context billed as new."
+    )
 
 
 # --------------------------------------------------------------- P6 legacy on-disk shape
@@ -150,10 +155,16 @@ def test_p6_legacy_journals_on_disk_still_load(tmp_path):
     """The real files have the flat pre-T110 shape. A meter that forgets today's
     spend on upgrade is its own defect."""
     j = TokenJournal("deepseek", journal_dir=str(tmp_path))
-    legacy = {"agent": "deepseek", "date": j.today(), "turns": 128,
-              "prompt_tokens": 104_040_915, "completion_tokens": 321_757,
-              "total_tokens": 104_362_672, "model": "deepseek-v4-pro",
-              "cost_est": 57.927}
+    legacy = {
+        "agent": "deepseek",
+        "date": j.today(),
+        "turns": 128,
+        "prompt_tokens": 104_040_915,
+        "completion_tokens": 321_757,
+        "total_tokens": 104_362_672,
+        "model": "deepseek-v4-pro",
+        "cost_est": 57.927,
+    }
     with open(j._path, "w", encoding="utf-8") as f:
         json.dump(legacy, f)
 
@@ -162,7 +173,8 @@ def test_p6_legacy_journals_on_disk_still_load(tmp_path):
     assert reloaded.prompt_tokens == 104_040_915, "legacy prompt tokens lost"
     assert reloaded.total_cost_est() > 0, (
         "a legacy journal carrying a known model must still price -- upgrading the "
-        "meter must not blank the day it inherits")
+        "meter must not blank the day it inherits"
+    )
 
 
 # --------------------------------------------------------------- P7 narrow agent default
@@ -171,17 +183,19 @@ def test_p7_the_agent_default_is_explicit_and_narrow(tmp_path):
     stated metadata, not a guess). The SAME fallback must not reach kimi -- that
     is precisely the bug, one layer down."""
     ds = TokenJournal("deepseek", journal_dir=str(tmp_path / "d"))
-    ds.add_turn(prompt=500_000, completion=250_000)      # unlabelled, deepseek's own
+    ds.add_turn(prompt=500_000, completion=250_000)  # unlabelled, deepseek's own
     assert ds.total_cost_est() > 0.5, (
         "deepseek's unlabelled turns must still price via its EXPLICIT agent default "
-        "(this also keeps the pre-existing T078 W1 pin honest)")
+        "(this also keeps the pre-existing T078 W1 pin honest)"
+    )
 
     km = TokenJournal("kimi", journal_dir=str(tmp_path / "k"))
-    km.add_turn(prompt=500_000, completion=250_000)      # unlabelled, NOT deepseek's
+    km.add_turn(prompt=500_000, completion=250_000)  # unlabelled, NOT deepseek's
     assert km.to_dict().get("unpriced_tokens", 0) == 750_000, (
         f"FALLBACK TOO WIDE: kimi's unlabelled turns fell through to a priced default. "
         f"The agent default must be a per-agent statement of fact, never a catch-all -- "
-        f"a catch-all is how the original defect was written. to_dict()={km.to_dict()}")
+        f"a catch-all is how the original defect was written. to_dict()={km.to_dict()}"
+    )
 
 
 # --------------------------------------------------------------- P8 the render must say it
@@ -194,20 +208,32 @@ def test_p8_the_doctor_line_names_the_unpriced_tokens(tmp_path):
 
     today = __import__("time").strftime("%Y-%m-%d")
     with open(tmp_path / f"runner_kimi_{today}.json", "w", encoding="utf-8") as f:
-        json.dump({"agent": "kimi", "date": today, "turns": 66,
-                   "prompt_tokens": 15_960_666, "completion_tokens": 135_810,
-                   "total_tokens": 16_096_476, "model": "kimi-k3", "cost_est": 0.0,
-                   "unpriced_tokens": 16_096_476, "unpriced_models": ["kimi-k3"]}, f)
+        json.dump(
+            {
+                "agent": "kimi",
+                "date": today,
+                "turns": 66,
+                "prompt_tokens": 15_960_666,
+                "completion_tokens": 135_810,
+                "total_tokens": 16_096_476,
+                "model": "kimi-k3",
+                "cost_est": 0.0,
+                "unpriced_tokens": 16_096_476,
+                "unpriced_models": ["kimi-k3"],
+            },
+            f,
+        )
 
     finding = doctor._token_cost_line("kimi", journal_dir=str(tmp_path))
     line = str((finding or {}).get("line", ""))
     assert "unpriced" in line.lower(), (
         f"SILENT ZERO ON THE DASHBOARD: 16.1M unpriced kimi tokens rendered as "
         f"{line!r}. A $0.00 cost line reads as free usage. Say the word: the gap is "
-        f"only fillable if it is visible.")
+        f"only fillable if it is visible."
+    )
     assert "kimi-k3" in line, (
-        f"the line must NAME the model whose rate is missing, or nobody knows what "
-        f"to look up: {line!r}")
+        f"the line must NAME the model whose rate is missing, or nobody knows what to look up: {line!r}"
+    )
 
 
 # --------------------------------------------------------------- P9 the fix must reach the live file
@@ -225,16 +251,27 @@ def test_p9_the_doctor_recomputes_and_does_not_trust_a_stale_cost(tmp_path):
 
     today = __import__("time").strftime("%Y-%m-%d")
     with open(tmp_path / f"runner_kimi_{today}.json", "w", encoding="utf-8") as f:
-        json.dump({"agent": "kimi", "date": today, "turns": 66,
-                   "prompt_tokens": 15_960_666, "completion_tokens": 135_810,
-                   "total_tokens": 16_096_476, "model": "kimi-k3",
-                   "cost_est": 9.076}, f)        # <- the real file, verbatim
+        json.dump(
+            {
+                "agent": "kimi",
+                "date": today,
+                "turns": 66,
+                "prompt_tokens": 15_960_666,
+                "completion_tokens": 135_810,
+                "total_tokens": 16_096_476,
+                "model": "kimi-k3",
+                "cost_est": 9.076,
+            },
+            f,
+        )  # <- the real file, verbatim
 
     line = str((doctor._token_cost_line("kimi", journal_dir=str(tmp_path)) or {}).get("line", ""))
     assert "9.07" not in line and "9.08" not in line, (
         f"STALE LIE SERVED: the doctor re-published the old DeepSeek-priced $9.076 for "
         f"kimi straight from the file. Price at read time from PRICES, or every journal "
-        f"written before today keeps lying forever: {line!r}")
+        f"written before today keeps lying forever: {line!r}"
+    )
     assert "unpriced" in line.lower(), (
         f"and having refused the stale number, it must say WHY -- otherwise the line "
-        f"silently drops to $0.00, which is the same disease: {line!r}")
+        f"silently drops to $0.00, which is the same disease: {line!r}"
+    )

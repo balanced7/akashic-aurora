@@ -18,6 +18,7 @@ These pins hold the distinction that makes the difference reportable:
   B3  a healthy quiet shift is UNAFFECTED (no false positive on the thing we still want)
   B4  the probe never runs on the mail path (an arriving message is never taxed by it)
 """
+
 import os
 import sys
 from types import SimpleNamespace
@@ -90,8 +91,7 @@ def _watch(api, tmp_path, monkeypatch, clock, deadline_s=36_000):
     monkeypatch.setattr(bw.time, "time", clock.time)
     monkeypatch.setattr(bw.tempfile, "gettempdir", lambda: str(tmp_path))
     seat = _seat(tmp_path)
-    return bw.watch("claude", deadline_s, 120_000, api=api, hb_path=seat,
-                    my_pid=4242, session_id="s1")
+    return bw.watch("claude", deadline_s, 120_000, api=api, hb_path=seat, my_pid=4242, session_id="s1")
 
 
 # ------------------------------------------------------------------ B1 + B2
@@ -103,42 +103,45 @@ def test_b1_bus_dying_mid_shift_ends_the_watch_loudly(tmp_path, monkeypatch, cap
     rc = _watch(api, tmp_path, monkeypatch, clock, deadline_s=36_000)
     out = capsys.readouterr().out
 
-    assert rc == 2, ("B1: a mid-shift outage must exit with the OFFLINE code the arm-time probe "
-                     f"already uses, not a benign 0 -- got {rc}")
+    assert rc == 2, (
+        "B1: a mid-shift outage must exit with the OFFLINE code the arm-time probe "
+        f"already uses, not a benign 0 -- got {rc}"
+    )
     assert "OFFLINE mid-watch" in out, "B1: the outage must be named in the report"
 
     elapsed_min = (clock.now - 1_000_000.0) / 60.0
     assert elapsed_min < 60, (
         "B1: the watch must END at the outage, not run out a 600-minute clock while blind -- "
-        f"it kept going for {elapsed_min:.0f} min")
+        f"it kept going for {elapsed_min:.0f} min"
+    )
 
     # B2: the report must distinguish unobserved from absent. "nothing lost" is the sentence a
     # QUIET shift prints; a blind shift printing it is the entire defect.
-    assert "SHIFT TRUNCATED" in out and "unobserved, not absent" in out, \
+    assert "SHIFT TRUNCATED" in out and "unobserved, not absent" in out, (
         "B2: a truncated shift must say so, in the vocabulary of unobserved-vs-absent"
-    assert "nothing lost" not in out, \
-        "B2: a blind shift must never borrow the quiet shift's reassurance"
+    )
+    assert "nothing lost" not in out, "B2: a blind shift must never borrow the quiet shift's reassurance"
 
 
 # ------------------------------------------------------------------ B3 no false positive
 def test_b3_a_healthy_quiet_shift_is_unaffected(tmp_path, monkeypatch, capsys):
     """The thing we still want: a genuinely quiet watch on a live bus reports quiet, benignly."""
     clock = FakeClock()
-    api = FakeApi(clock, chunk_s=120, offline_after_s=None)   # never drops
+    api = FakeApi(clock, chunk_s=120, offline_after_s=None)  # never drops
     rc = _watch(api, tmp_path, monkeypatch, clock, deadline_s=3_600)
     out = capsys.readouterr().out
 
     assert rc == 0, f"B3: a quiet shift on a live bus is BENIGN -- got {rc}"
-    assert "OFFLINE mid-watch" not in out, \
+    assert "OFFLINE mid-watch" not in out, (
         "B3: a live bus must never be reported as an outage (the probe must not flap)"
+    )
 
 
 # ------------------------------------------------------------------ B4 mail path untaxed
 def test_b4_the_probe_never_runs_on_the_mail_path(tmp_path, monkeypatch, capsys):
     """An arriving message exits on mail; the liveness probe is for EMPTY returns only."""
     clock = FakeClock()
-    api = FakeApi(clock, chunk_s=120, offline_after_s=None,
-                  mail_at=clock.now + 120, mail=[_msg()])
+    api = FakeApi(clock, chunk_s=120, offline_after_s=None, mail_at=clock.now + 120, mail=[_msg()])
     probes_at_arm = None
 
     rc = _watch(api, tmp_path, monkeypatch, clock, deadline_s=36_000)
@@ -149,4 +152,5 @@ def test_b4_the_probe_never_runs_on_the_mail_path(tmp_path, monkeypatch, capsys)
     # that matters: the probe is not run per-message, so it cannot tax the delivery path.
     assert api.reach_probes <= 2, (
         "B4: the liveness probe must run only at arm and on EMPTY returns -- "
-        f"it ran {api.reach_probes} times, which means it is on the mail path")
+        f"it ran {api.reach_probes} times, which means it is on the mail path"
+    )

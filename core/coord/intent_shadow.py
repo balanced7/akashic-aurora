@@ -10,6 +10,7 @@ steer on the ToolBox door.  Other doors and actions refuse rather than inherit
 effects by name.  The existing ``core.coord.intent`` remains peer-work
 coordination; this module does not overload that separate authority region.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -35,8 +36,7 @@ def _parse_action(target: str) -> Tuple[str, str]:
     raw = str(target or "").strip()
     if ":" not in raw:
         raise ValueError("intent shadow action must be typed as toolbox:<verb>")
-    door, name = (part.strip().lower().replace("-", "_")
-                  for part in raw.split(":", 1))
+    door, name = (part.strip().lower().replace("-", "_") for part in raw.split(":", 1))
     if door != "toolbox":
         raise ValueError("intent shadow v1 supports only toolbox:<verb> actions")
     if name not in _SUPPORTED:
@@ -51,8 +51,7 @@ def _toolbox_contract(name: str) -> Tuple[Mapping[str, Any], Any]:
     """Ask the advertised ToolBox schema and callable; never copy their args."""
     from core.comm.toolbox import TOOLS, ToolBox
 
-    row = next((item.get("function", {}) for item in TOOLS
-                if item.get("function", {}).get("name") == name), None)
+    row = next((item.get("function", {}) for item in TOOLS if item.get("function", {}).get("name") == name), None)
     method = getattr(ToolBox, name, None)
     if not row or not callable(method):
         raise ValueError(f"unsupported ToolBox action {name!r}: schema or method is absent")
@@ -99,8 +98,7 @@ def _default_resolve_recipient(raw: str) -> str:
         return str(resolve_agent(raw) or raw)
     except Exception as exc:
         raise RuntimeError(
-            f"intent shadow could not resolve load-bearing target {raw!r}: "
-            f"{type(exc).__name__}: {exc}"
+            f"intent shadow could not resolve load-bearing target {raw!r}: {type(exc).__name__}: {exc}"
         ) from exc
 
 
@@ -115,8 +113,7 @@ def _content_view(text: Any) -> Dict[str, Any]:
 
 
 def _argument_view(arguments: Mapping[str, Any]) -> Dict[str, Any]:
-    return {key: (_content_view(value) if key == "text" else value)
-            for key, value in arguments.items()}
+    return {key: (_content_view(value) if key == "text" else value) for key, value in arguments.items()}
 
 
 def _effect(effect_id: str, certainty: str, claim: str, basis: str) -> Dict[str, str]:
@@ -125,24 +122,28 @@ def _effect(effect_id: str, certainty: str, claim: str, basis: str) -> Dict[str,
 
 def _action_profile(name: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
     delivery = [
-        _effect("bifrost.message.enqueue", "expected", "lane/legacy delivery is appended",
-                "core.comm.bus.Bus._emit"),
-        _effect("wake.bell.publish", "expected", "the recipient doorbell is rung",
-                "core.comm.bus.Bus._ring_bell"),
-        _effect("sender.presence.refresh", "expected", "sender presence is refreshed",
-                "core.comm.bus.Bus._touch"),
+        _effect("bifrost.message.enqueue", "expected", "lane/legacy delivery is appended", "core.comm.bus.Bus._emit"),
+        _effect("wake.bell.publish", "expected", "the recipient doorbell is rung", "core.comm.bus.Bus._ring_bell"),
+        _effect("sender.presence.refresh", "expected", "sender presence is refreshed", "core.comm.bus.Bus._touch"),
     ]
     if name == "bifrost_nudge":
         return {
             "fidelity": "interrupt",
             "planes": ["bifrost.delivery", "peer.control", "recipient.attention"],
             "effects": [
-                _effect("peer.control.interrupt_flag", "expected",
-                        "a TTL-bounded barge-in flag is set", "core.comm.nudge.nudge"),
+                _effect(
+                    "peer.control.interrupt_flag",
+                    "expected",
+                    "a TTL-bounded barge-in flag is set",
+                    "core.comm.nudge.nudge",
+                ),
                 *delivery,
-                _effect("recipient.turn.interrupt", "conditional",
-                        "a cooperating runner stops at its next round boundary",
-                        "core.comm.nudge.is_nudged"),
+                _effect(
+                    "recipient.turn.interrupt",
+                    "conditional",
+                    "a cooperating runner stops at its next round boundary",
+                    "core.comm.nudge.is_nudged",
+                ),
             ],
             "risk": "high",
             "risk_reason": "hard interrupt can displace a peer's current work",
@@ -152,12 +153,19 @@ def _action_profile(name: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
             "fidelity": "steer",
             "planes": ["bifrost.delivery", "peer.control", "recipient.attention"],
             "effects": [
-                _effect("peer.control.steer_queue", "expected",
-                        "a fact is queued between tool rounds", "core.comm.nudge.steer_push"),
+                _effect(
+                    "peer.control.steer_queue",
+                    "expected",
+                    "a fact is queued between tool rounds",
+                    "core.comm.nudge.steer_push",
+                ),
                 *delivery,
-                _effect("recipient.context.splice", "conditional",
-                        "a cooperating runner folds the fact into its current task",
-                        "core.comm.nudge.steer_drain"),
+                _effect(
+                    "recipient.context.splice",
+                    "conditional",
+                    "a cooperating runner folds the fact into its current task",
+                    "core.comm.nudge.steer_drain",
+                ),
             ],
             "risk": "elevated",
             "risk_reason": "soft steer changes a peer's live task context",
@@ -166,16 +174,22 @@ def _action_profile(name: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
     kind = str(arguments.get("kind") or "chat")
     effects = list(delivery)
     if kind == "handoff":
-        effects.append(_effect(
-            "bifrost.salient.project", "conditional",
-            "salient mail is projected to the durable event ledger",
-            "core.comm.promoter.promote",
-        ))
-    effects.append(_effect(
-        "recipient.turn.wake", "conditional",
-        "an armed watcher may spend a recipient model turn",
-        "scripts.bifrost_wake.watch",
-    ))
+        effects.append(
+            _effect(
+                "bifrost.salient.project",
+                "conditional",
+                "salient mail is projected to the durable event ledger",
+                "core.comm.promoter.promote",
+            )
+        )
+    effects.append(
+        _effect(
+            "recipient.turn.wake",
+            "conditional",
+            "an armed watcher may spend a recipient model turn",
+            "scripts.bifrost_wake.watch",
+        )
+    )
     return {
         "fidelity": f"message:{kind}",
         "planes": ["bifrost.delivery", "recipient.attention"],
@@ -189,13 +203,15 @@ def _epistemic(authority: Mapping[str, Any], name: str) -> Dict[str, Any]:
     sources = [str(item) for item in authority.get("source") or [] if str(item)]
     known = authority.get("state") in {"observed", "refused"} and bool(sources)
     risk = "blocked" if authority.get("allowed") is False else "attention_required"
-    return derive_epistemic_view({
-        "authority": {"value": "governed_source" if known else "unknown", "basis": sources},
-        "claim_kind": {"value": "proposed", "basis": [f"core.coord.intent_shadow:{name}"]},
-        "currency": {"value": "current", "basis": ["core.comm.toolbox:TOOLS+method"]},
-        "identity_state": {"value": "unknown", "basis": []},
-        "risk": {"value": risk, "basis": [f"core.coord.intent_shadow:{name}:risk"]},
-    }).to_dict()
+    return derive_epistemic_view(
+        {
+            "authority": {"value": "governed_source" if known else "unknown", "basis": sources},
+            "claim_kind": {"value": "proposed", "basis": [f"core.coord.intent_shadow:{name}"]},
+            "currency": {"value": "current", "basis": ["core.comm.toolbox:TOOLS+method"]},
+            "identity_state": {"value": "unknown", "basis": []},
+            "risk": {"value": risk, "basis": [f"core.coord.intent_shadow:{name}:risk"]},
+        }
+    ).to_dict()
 
 
 def build_intent_shadow(
@@ -230,6 +246,7 @@ def build_intent_shadow(
     authorizer = authorize
     if authorizer is None:
         from core.trust.action_authority import evaluate_toolbox_bus_action
+
         authorizer = evaluate_toolbox_bus_action
     authority = dict(authorizer(subject, name, normalized))
     # Execution needs its full teaching error; the shadow already carries the
@@ -289,11 +306,16 @@ def build_intent_shadow(
         # allowed to masquerade as things this read actually did.
         "effects": [],
     }
-    semantic = {key: value for key, value in out.items()
-                if key not in {"observed_at", "fingerprint"}}
-    out["fingerprint"] = hashlib.sha256(json.dumps(
-        semantic, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str,
-    ).encode("utf-8", "replace")).hexdigest()
+    semantic = {key: value for key, value in out.items() if key not in {"observed_at", "fingerprint"}}
+    out["fingerprint"] = hashlib.sha256(
+        json.dumps(
+            semantic,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        ).encode("utf-8", "replace")
+    ).hexdigest()
     return out
 
 
@@ -307,12 +329,9 @@ def render_intent_shadow(shadow: Mapping[str, Any]) -> str:
     lines = [
         f"# shadow subject={shadow.get('subject')} action={action.get('address')} "
         f"fingerprint={str(shadow.get('fingerprint') or '')[:12]}",
-        f"  target {target.get('kind')}:{target.get('resolved')} "
-        f"(addressed as {target.get('addressed_as')!r})",
-        f"  fidelity {shadow.get('fidelity')} | authority={auth.get('state')} "
-        f"allowed={auth.get('allowed')}",
-        f"  risk {(shadow.get('risk') or {}).get('level')} | "
-        f"commit={commit.get('state')}",
+        f"  target {target.get('kind')}:{target.get('resolved')} (addressed as {target.get('addressed_as')!r})",
+        f"  fidelity {shadow.get('fidelity')} | authority={auth.get('state')} allowed={auth.get('allowed')}",
+        f"  risk {(shadow.get('risk') or {}).get('level')} | commit={commit.get('state')}",
         f"  cost chars={cost.get('content_chars')} rough_tokens={cost.get('rough_content_tokens')} "
         f"recipient_turns={cost.get('recipient_model_turns', {}).get('range')}",
     ]

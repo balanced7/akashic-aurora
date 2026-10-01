@@ -23,6 +23,7 @@ writes them to state/arsenal/score/ls4-py-<date>.json.
   py tests/test_score_export.py              every export
   py -m pytest tests/test_score_export.py    the same as a test, skipped when there are no exports
 """
+
 from __future__ import annotations
 
 import datetime
@@ -59,9 +60,9 @@ def read_smf(data: bytes) -> dict:
     p = 8 + head_len
     tracks = []
     for _ in range(ntracks):
-        if data[p:p + 4] != b"MTrk":
+        if data[p : p + 4] != b"MTrk":
             raise ValueError("missing MTrk")
-        length = int.from_bytes(data[p + 4:p + 8], "big")
+        length = int.from_bytes(data[p + 4 : p + 8], "big")
         p += 8
         end, tick, status, events = p + length, 0, 0, []
         while p < end:
@@ -75,7 +76,7 @@ def read_smf(data: bytes) -> dict:
             if s == 0xFF:
                 kind = data[p]
                 n, p = _vlq(data, p + 1)
-                events.append(("meta", tick, kind, data[p:p + n]))
+                events.append(("meta", tick, kind, data[p : p + n]))
                 p += n
                 if kind == 0x2F:
                     break
@@ -99,10 +100,26 @@ def read_smf(data: bytes) -> dict:
 
 # ------------------------------------------------------------------------------------------- MusicXML ---
 def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -> tuple[dict, list[dict]]:
-    res = {"parsed": False, "error": None, "divisions": None, "measures": 0, "measures_match": False, "voices": 0,
-           "voice_sum_bad": 0, "negative_cursor": 0, "tie_unmatched_start": 0, "tie_unmatched_stop": 0,
-           "tie_notation_mismatch": 0, "sounding": 0, "pitch_diff": 0, "beams": 0, "beam_bad": 0, "time_bad": 0, "implicit_mid": 0,
-           "pedal": {"start": 0, "change": 0, "stop": 0, "bad_attrs": 0, "sequence_bad": 0}}
+    res = {
+        "parsed": False,
+        "error": None,
+        "divisions": None,
+        "measures": 0,
+        "measures_match": False,
+        "voices": 0,
+        "voice_sum_bad": 0,
+        "negative_cursor": 0,
+        "tie_unmatched_start": 0,
+        "tie_unmatched_stop": 0,
+        "tie_notation_mismatch": 0,
+        "sounding": 0,
+        "pitch_diff": 0,
+        "beams": 0,
+        "beam_bad": 0,
+        "time_bad": 0,
+        "implicit_mid": 0,
+        "pedal": {"start": 0, "change": 0, "stop": 0, "bad_attrs": 0, "sequence_bad": 0},
+    }
     try:
         root = ET.parse(path).getroot()
     except ET.ParseError as e:
@@ -186,7 +203,11 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                 if el.find("rest") is not None:
                     continue
                 pitch = el.find("pitch")
-                midi = (int(pitch.findtext("octave")) + 1) * 12 + STEP_PC[pitch.findtext("step")] + int(pitch.findtext("alter") or 0)
+                midi = (
+                    (int(pitch.findtext("octave")) + 1) * 12
+                    + STEP_PC[pitch.findtext("step")]
+                    + int(pitch.findtext("alter") or 0)
+                )
                 staff = el.findtext("staff") or "1"
                 ties = {t.get("type") for t in el.findall("tie")}
                 tied = {t.get("type") for t in el.iter("tied")}
@@ -259,14 +280,28 @@ def check_export(manifest_path: Path) -> dict:
     # LR9a
     xml, sounding = check_musicxml(d / "take.musicxml", manifest["measureTicks"], Counter(e["note"] for e in ons))
     lr9a = dict(xml, log_ons=len(ons))
-    lr9a["pass"] = (xml["parsed"] and xml["divisions"] == 24 and xml["measures_match"] and xml["voice_sum_bad"] == 0
-                    and xml["negative_cursor"] == 0 and xml["tie_unmatched_start"] == 0 and xml["tie_unmatched_stop"] == 0
-                    and xml["tie_notation_mismatch"] == 0 and xml["sounding"] == len(ons) and xml["pitch_diff"] == 0
-                    and xml["beam_bad"] == 0 and xml["time_bad"] == 0 and xml["implicit_mid"] == 0)
+    lr9a["pass"] = (
+        xml["parsed"]
+        and xml["divisions"] == 24
+        and xml["measures_match"]
+        and xml["voice_sum_bad"] == 0
+        and xml["negative_cursor"] == 0
+        and xml["tie_unmatched_start"] == 0
+        and xml["tie_unmatched_stop"] == 0
+        and xml["tie_notation_mismatch"] == 0
+        and xml["sounding"] == len(ons)
+        and xml["pitch_diff"] == 0
+        and xml["beam_bad"] == 0
+        and xml["time_bad"] == 0
+        and xml["implicit_mid"] == 0
+    )
 
     # LR9b
     want_on, want_off, want_cc, rounded, down = Counter(), Counter(), Counter(), 0, False
-    logged = sorted(((i, e) for i, e in enumerate(events) if e.get("kind") in ORDER), key=lambda x: (x[1]["t_ms"], ORDER[x[1]["kind"]], x[0]))
+    logged = sorted(
+        ((i, e) for i, e in enumerate(events) if e.get("kind") in ORDER),
+        key=lambda x: (x[1]["t_ms"], ORDER[x[1]["kind"]], x[0]),
+    )
     for _, e in logged:
         t = e["t_ms"] - t0
         if t != int(t):
@@ -295,26 +330,67 @@ def check_export(manifest_path: Path) -> dict:
         elif hi == 0xB0 and a == 64:
             got_cc[(tick, b)] += 1
     end_offs = ((manifest.get("stats") or {}).get("performance") or {}).get("endOffs", 0)
-    lr9b = {"format": perf["format"], "ntracks": perf["ntracks"], "ppq": perf["ppq"], "tempo": tempo,
-            "ons": sum(got_on.values()), "ons_diff": sum(((got_on - want_on) + (want_on - got_on)).values()),
-            "offs": sum(got_off.values()), "offs_missing": sum((want_off - got_off).values()), "offs_extra": sum((got_off - want_off).values()),
-            "end_offs": end_offs, "cc64": sum(got_cc.values()), "cc_diff": sum(((got_cc - want_cc) + (want_cc - got_cc)).values()),
-            "cc_bad_values": sum(n for (_, v), n in got_cc.items() if v not in (0, 127)), "rounded_times": rounded}
-    lr9b["pass"] = (perf["format"] == 0 and perf["ntracks"] == 1 and perf["ppq"] == 500 and tempo == 500000 and lr9b["ons_diff"] == 0
-                    and lr9b["offs_missing"] == 0 and lr9b["offs_extra"] == end_offs and lr9b["cc_diff"] == 0
-                    and lr9b["cc_bad_values"] == 0 and rounded == 0)
+    lr9b = {
+        "format": perf["format"],
+        "ntracks": perf["ntracks"],
+        "ppq": perf["ppq"],
+        "tempo": tempo,
+        "ons": sum(got_on.values()),
+        "ons_diff": sum(((got_on - want_on) + (want_on - got_on)).values()),
+        "offs": sum(got_off.values()),
+        "offs_missing": sum((want_off - got_off).values()),
+        "offs_extra": sum((got_off - want_off).values()),
+        "end_offs": end_offs,
+        "cc64": sum(got_cc.values()),
+        "cc_diff": sum(((got_cc - want_cc) + (want_cc - got_cc)).values()),
+        "cc_bad_values": sum(n for (_, v), n in got_cc.items() if v not in (0, 127)),
+        "rounded_times": rounded,
+    }
+    lr9b["pass"] = (
+        perf["format"] == 0
+        and perf["ntracks"] == 1
+        and perf["ppq"] == 500
+        and tempo == 500000
+        and lr9b["ons_diff"] == 0
+        and lr9b["offs_missing"] == 0
+        and lr9b["offs_extra"] == end_offs
+        and lr9b["cc_diff"] == 0
+        and lr9b["cc_bad_values"] == 0
+        and rounded == 0
+    )
 
     # LR9c
     quant = read_smf((d / "quantized.mid").read_bytes())
-    q_notes = [(ev[1], ev[3]) for tr in quant["tracks"][1:3] for ev in tr if ev[0] == "chan" and ev[2] == 0x90 and ev[4] > 0]
+    q_notes = [
+        (ev[1], ev[3]) for tr in quant["tracks"][1:3] for ev in tr if ev[0] == "chan" and ev[2] == 0x90 and ev[4] > 0
+    ]
     off_grid = sum(1 for t, _ in q_notes if t % 20)
     got_q = Counter((t // 20, a) for t, a in q_notes)
     want_q = Counter((c["tick"], c["midi"]) for c in sounding)
-    lr9c = {"format": quant["format"], "ntracks": quant["ntracks"], "ppq": quant["ppq"], "notes": len(q_notes), "sounding": len(sounding),
-            "off_grid": off_grid, "tick_pitch_diff": sum(((got_q - want_q) + (want_q - got_q)).values())}
-    lr9c["pass"] = (quant["format"] == 1 and quant["ntracks"] == 3 and quant["ppq"] == 480 and len(q_notes) == len(sounding)
-                    and off_grid == 0 and lr9c["tick_pitch_diff"] == 0)
-    return {"label": manifest.get("label"), "group": manifest.get("group") or "cli", "lr9a": lr9a, "lr9b": lr9b, "lr9c": lr9c}
+    lr9c = {
+        "format": quant["format"],
+        "ntracks": quant["ntracks"],
+        "ppq": quant["ppq"],
+        "notes": len(q_notes),
+        "sounding": len(sounding),
+        "off_grid": off_grid,
+        "tick_pitch_diff": sum(((got_q - want_q) + (want_q - got_q)).values()),
+    }
+    lr9c["pass"] = (
+        quant["format"] == 1
+        and quant["ntracks"] == 3
+        and quant["ppq"] == 480
+        and len(q_notes) == len(sounding)
+        and off_grid == 0
+        and lr9c["tick_pitch_diff"] == 0
+    )
+    return {
+        "label": manifest.get("label"),
+        "group": manifest.get("group") or "cli",
+        "lr9a": lr9a,
+        "lr9b": lr9b,
+        "lr9c": lr9c,
+    }
 
 
 def run(manifests: list[Path], write: bool = True) -> dict:
@@ -323,12 +399,30 @@ def run(manifests: list[Path], write: bool = True) -> dict:
         try:
             r = check_export(mp)
         except Exception as e:  # a missing or unreadable file fails all three receipts for that export
-            r = {"label": None, "group": "unreadable", "error": f"{type(e).__name__}: {e}",
-                 "lr9a": {"pass": False}, "lr9b": {"pass": False}, "lr9c": {"pass": False}}
-        g = groups.setdefault(r["group"], {"exports": 0, "failed": {"LR9a": [], "LR9b": [], "LR9c": []},
-                                           "sounding": 0, "log_ons": 0, "voices": 0, "ties_unmatched": 0,
-                                           "midi_ons": 0, "midi_offs": 0, "cc64": 0, "quantized_notes": 0,
-                                           "pedal": Counter()})
+            r = {
+                "label": None,
+                "group": "unreadable",
+                "error": f"{type(e).__name__}: {e}",
+                "lr9a": {"pass": False},
+                "lr9b": {"pass": False},
+                "lr9c": {"pass": False},
+            }
+        g = groups.setdefault(
+            r["group"],
+            {
+                "exports": 0,
+                "failed": {"LR9a": [], "LR9b": [], "LR9c": []},
+                "sounding": 0,
+                "log_ons": 0,
+                "voices": 0,
+                "ties_unmatched": 0,
+                "midi_ons": 0,
+                "midi_offs": 0,
+                "cc64": 0,
+                "quantized_notes": 0,
+                "pedal": Counter(),
+            },
+        )
         g["exports"] += 1
         for key, name in (("lr9a", "LR9a"), ("lr9b", "LR9b"), ("lr9c", "LR9c")):
             if not r[key].get("pass"):
@@ -346,10 +440,18 @@ def run(manifests: list[Path], write: bool = True) -> dict:
     for g in groups.values():
         g["pedal"] = dict(g["pedal"])
         for name in ("LR9a", "LR9b", "LR9c"):
-            g[name] = {"pass": not g["failed"][name], "failed": len(g["failed"][name]),
-                       "failed_labels": sorted(set(x for x in g["failed"][name] if x))}
+            g[name] = {
+                "pass": not g["failed"][name],
+                "failed": len(g["failed"][name]),
+                "failed_labels": sorted(set(x for x in g["failed"][name] if x)),
+            }
         del g["failed"]
-    summary = {"date": datetime.date.today().isoformat(), "slice": "LS4", "reader": "tests/test_score_export.py (Python stdlib)", "groups": groups}
+    summary = {
+        "date": datetime.date.today().isoformat(),
+        "slice": "LS4",
+        "reader": "tests/test_score_export.py (Python stdlib)",
+        "groups": groups,
+    }
     if write:
         SCORE.mkdir(parents=True, exist_ok=True)
         (SCORE / f"ls4-py-{summary['date']}.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
@@ -364,6 +466,7 @@ def test_lr9_exports():
     manifests = _manifests()
     if not manifests:
         import pytest
+
         pytest.skip("no exports under state/arsenal/score")
     summary = run(manifests, write=False)
     for name, g in summary["groups"].items():
@@ -373,17 +476,23 @@ def test_lr9_exports():
 def main() -> int:
     manifests = _manifests()
     if not manifests:
-        print("no exports under state/arsenal/score (run node arsenal/score_cli.mjs bench or node tests/score_export.test.mjs)")
+        print(
+            "no exports under state/arsenal/score (run node arsenal/score_cli.mjs bench or node tests/score_export.test.mjs)"
+        )
         return 0
     summary = run(manifests)
     ok = True
     for name, g in sorted(summary["groups"].items()):
         ok = ok and g["LR9a"]["pass"] and g["LR9b"]["pass"] and g["LR9c"]["pass"]
-        print(f"{name}: {g['exports']} exports; LR9a {'pass' if g['LR9a']['pass'] else 'FAIL'} ({g['LR9a']['failed']} failed {g['LR9a']['failed_labels']}), "
-              f"LR9b {'pass' if g['LR9b']['pass'] else 'FAIL'} ({g['LR9b']['failed']} failed {g['LR9b']['failed_labels']}), "
-              f"LR9c {'pass' if g['LR9c']['pass'] else 'FAIL'} ({g['LR9c']['failed']} failed {g['LR9c']['failed_labels']})")
-        print(f"  sounding {g['sounding']} = log note-ons {g['log_ons']}; voices checked {g['voices']}; unmatched ties {g['ties_unmatched']}; "
-              f"performance.mid ons {g['midi_ons']} offs {g['midi_offs']} cc64 {g['cc64']}; quantized notes {g['quantized_notes']}; pedal {g['pedal']}")
+        print(
+            f"{name}: {g['exports']} exports; LR9a {'pass' if g['LR9a']['pass'] else 'FAIL'} ({g['LR9a']['failed']} failed {g['LR9a']['failed_labels']}), "
+            f"LR9b {'pass' if g['LR9b']['pass'] else 'FAIL'} ({g['LR9b']['failed']} failed {g['LR9b']['failed_labels']}), "
+            f"LR9c {'pass' if g['LR9c']['pass'] else 'FAIL'} ({g['LR9c']['failed']} failed {g['LR9c']['failed_labels']})"
+        )
+        print(
+            f"  sounding {g['sounding']} = log note-ons {g['log_ons']}; voices checked {g['voices']}; unmatched ties {g['ties_unmatched']}; "
+            f"performance.mid ons {g['midi_ons']} offs {g['midi_offs']} cc64 {g['cc64']}; quantized notes {g['quantized_notes']}; pedal {g['pedal']}"
+        )
     print(f"written to state/arsenal/score/ls4-py-{summary['date']}.json")
     return 0 if ok else 1
 

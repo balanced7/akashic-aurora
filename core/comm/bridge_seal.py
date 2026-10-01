@@ -33,6 +33,7 @@ PURE BY CONSTRUCTION. seal/unseal take keys as arguments and read no config, no 
 no network, so every pin runs offline. Chain is the only half that touches disk, and it takes its
 path as an argument for the same reason.
 """
+
 from __future__ import annotations
 
 import base64
@@ -50,19 +51,31 @@ from typing import Any, Dict, List, Optional
 from nacl import public, signing
 from nacl.exceptions import BadSignatureError, CryptoError
 
-from core.comm.remote_relay import BRIDGE_KINDS          # ONE allowlist; a copy is a future drift
+from core.comm.remote_relay import BRIDGE_KINDS  # ONE allowlist; a copy is a future drift
 
 ALG = "x25519-xsalsa20poly1305/ed25519-v1"
 WIRE_V = 1
-SKEW_WINDOW_S = 300                                       # the window the direct link already uses
-RETIRE_AFTER_S = 30 * 24 * 3600                           # Daniil, 2026-09-17: "retire at 30 days"
-MAX_SEQ_JUMP = 10_000                                     # a further jump is refused, never materialised
+SKEW_WINDOW_S = 300  # the window the direct link already uses
+RETIRE_AFTER_S = 30 * 24 * 3600  # Daniil, 2026-09-17: "retire at 30 days"
+MAX_SEQ_JUMP = 10_000  # a further jump is refused, never materialised
 
 PAD_BUCKETS = (4096, 16384, 65536, 262144, 1048576)
-PAD_BUCKETS_CT = tuple(b + 16 for b in PAD_BUCKETS)       # Box adds a 16-byte Poly1305 tag
+PAD_BUCKETS_CT = tuple(b + 16 for b in PAD_BUCKETS)  # Box adds a 16-byte Poly1305 tag
 
-_HEADER_FIELDS = ("v", "id", "to", "from", "seq", "prev", "epoch",
-                  "created_at", "expires_at", "alg", "nonce", "seal_pub")
+_HEADER_FIELDS = (
+    "v",
+    "id",
+    "to",
+    "from",
+    "seq",
+    "prev",
+    "epoch",
+    "created_at",
+    "expires_at",
+    "alg",
+    "nonce",
+    "seal_pub",
+)
 _TOMB_FIELDS = ("v", "id", "to", "from", "seq", "prev", "epoch", "created_at", "expires_at")
 _ENVELOPE_KEYS = frozenset(_HEADER_FIELDS) | {"ct", "sig", "tsig"}
 _TOMB_KEYS = frozenset(_TOMB_FIELDS) | {"tsig", "retired"}
@@ -107,7 +120,7 @@ def _as_int(value: Any, *, what: str) -> int:
         if math.isnan(value) or math.isinf(value) or value != int(value):
             raise SealRefused(f"{what} is not a whole finite number")
         value = int(value)
-    if not (-(2 ** 62) < int(value) < 2 ** 62):
+    if not (-(2**62) < int(value) < 2**62):
         raise SealRefused(f"{what} is out of range")
     return int(value)
 
@@ -140,9 +153,11 @@ def public_half(identity: Dict[str, str]) -> Dict[str, str]:
     """What you hand the peer. Only `verify_public` must arrive intact out-of-band; `seal_public` is
     where they seal TO you."""
     try:
-        return {"alg": identity.get("alg", ALG),
-                "seal_public": identity["seal_public"],
-                "verify_public": identity["verify_public"]}
+        return {
+            "alg": identity.get("alg", ALG),
+            "seal_public": identity["seal_public"],
+            "verify_public": identity["verify_public"],
+        }
     except (KeyError, TypeError) as e:
         raise SealRefused("identity is missing its public half") from e
 
@@ -169,8 +184,9 @@ def _pad(plain: bytes) -> bytes:
     for bucket in PAD_BUCKETS:
         if len(body) <= bucket:
             return body + b"\x00" * (bucket - len(body))
-    raise SealRefused(f"body of {len(plain)} bytes exceeds the largest bucket ({PAD_BUCKETS[-1]}) — "
-                      f"send it as a blob, not as a body")
+    raise SealRefused(
+        f"body of {len(plain)} bytes exceeds the largest bucket ({PAD_BUCKETS[-1]}) — send it as a blob, not as a body"
+    )
 
 
 def _unpad(padded: bytes) -> bytes:
@@ -179,12 +195,22 @@ def _unpad(padded: bytes) -> bytes:
     (n,) = struct.unpack(">I", padded[:4])
     if n > len(padded) - 4:
         raise SealRefused("sealed body declares a length past its own end")
-    return padded[4:4 + n]
+    return padded[4 : 4 + n]
 
 
-def seal(inner: Dict[str, Any], *, sender: Dict[str, str], recipient_public: str,
-         to: str, frm: str, seq: int, prev: str = "", epoch: str = "",
-         created_at: Optional[int] = None, expires_at: Optional[int] = None) -> Dict[str, Any]:
+def seal(
+    inner: Dict[str, Any],
+    *,
+    sender: Dict[str, str],
+    recipient_public: str,
+    to: str,
+    frm: str,
+    seq: int,
+    prev: str = "",
+    epoch: str = "",
+    created_at: Optional[int] = None,
+    expires_at: Optional[int] = None,
+) -> Dict[str, Any]:
     """Seal one inner message into a cache envelope. Pure. Raises only SealRefused.
 
     The kind allowlist applies HERE: moving `kind` inside the ciphertext hides it from the midpoint,
@@ -196,8 +222,7 @@ def seal(inner: Dict[str, Any], *, sender: Dict[str, str], recipient_public: str
         raise SealRefused(f"kind is not on the bridge allowlist ({sorted(BRIDGE_KINDS)})")
 
     now = _as_int(created_at if created_at is not None else int(time.time()), what="created_at")
-    expiry = _as_int(expires_at if expires_at is not None else now + RETIRE_AFTER_S,
-                     what="expires_at")
+    expiry = _as_int(expires_at if expires_at is not None else now + RETIRE_AFTER_S, what="expires_at")
     seq_i = _as_int(seq, what="seq")
 
     try:
@@ -210,7 +235,7 @@ def seal(inner: Dict[str, Any], *, sender: Dict[str, str], recipient_public: str
     except (CryptoError, ValueError) as e:
         raise SealRefused(f"a key is unusable ({type(e).__name__})") from e
 
-    ephemeral = public.PrivateKey.generate()               # forward secrecy: per-message, never kept
+    ephemeral = public.PrivateKey.generate()  # forward secrecy: per-message, never kept
     nonce = os.urandom(public.Box.NONCE_SIZE)
     plain = _dumps(inner, what="inner message")
     try:
@@ -234,11 +259,13 @@ def seal(inner: Dict[str, Any], *, sender: Dict[str, str], recipient_public: str
         "nonce": _b64(nonce),
         "seal_pub": _b64(bytes(ephemeral.public_key)),
     }
-    return {**header,
-            "ct": _b64(ct),
-            "sig": _b64(signer.sign(_canon(header, _HEADER_FIELDS) + ct).signature),
-            # THE TOMBSTONE SIGNATURE: over the routing fields ALONE, so it survives retirement.
-            "tsig": _b64(signer.sign(_canon(header, _TOMB_FIELDS)).signature)}
+    return {
+        **header,
+        "ct": _b64(ct),
+        "sig": _b64(signer.sign(_canon(header, _HEADER_FIELDS) + ct).signature),
+        # THE TOMBSTONE SIGNATURE: over the routing fields ALONE, so it survives retirement.
+        "tsig": _b64(signer.sign(_canon(header, _TOMB_FIELDS)).signature),
+    }
 
 
 def _verify_schema(env: Dict[str, Any]) -> None:
@@ -259,8 +286,15 @@ def _verify_schema(env: Dict[str, Any]) -> None:
     _as_int(env.get("expires_at"), what="expires_at")
 
 
-def unseal(envelope: Dict[str, Any], *, recipient: Dict[str, str], sender_public: str,
-           me: str = "", now: Optional[int] = None, within_s: int = SKEW_WINDOW_S) -> Dict[str, Any]:
+def unseal(
+    envelope: Dict[str, Any],
+    *,
+    recipient: Dict[str, str],
+    sender_public: str,
+    me: str = "",
+    now: Optional[int] = None,
+    within_s: int = SKEW_WINDOW_S,
+) -> Dict[str, Any]:
     """Verify and open one envelope; return the inner message. Pure. Raises only SealRefused.
 
     `sender_public` is the peer's Ed25519 VERIFY key — the one thing that must arrive out-of-band.
@@ -296,14 +330,15 @@ def unseal(envelope: Dict[str, Any], *, recipient: Dict[str, str], sender_public
         raise SealRefused("envelope has expired — its body should have been retired")
 
     try:
-        box = public.Box(public.PrivateKey(_unb64(recipient["seal_secret"])),
-                         public.PublicKey(_unb64(envelope["seal_pub"])))
+        box = public.Box(
+            public.PrivateKey(_unb64(recipient["seal_secret"])), public.PublicKey(_unb64(envelope["seal_pub"]))
+        )
         plain = _unpad(box.decrypt(ct, _unb64(envelope["nonce"])))
     except SealRefused:
         raise
     except (KeyError, TypeError) as e:
         raise SealRefused("recipient identity is incomplete") from e
-    except Exception as e:                                       # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         raise SealRefused(f"sealed body did not open ({type(e).__name__})") from e
 
     try:
@@ -325,7 +360,8 @@ def is_retired(envelope: Dict[str, Any], *, now: Optional[int] = None) -> bool:
         return False
     try:
         return _as_int(envelope.get("expires_at"), what="expires_at") <= _as_int(
-            now if now is not None else int(time.time()), what="now")
+            now if now is not None else int(time.time()), what="now"
+        )
     except SealRefused:
         return False
 
@@ -336,8 +372,7 @@ def tombstone(envelope: Dict[str, Any]) -> Dict[str, Any]:
     still prove it was ours."""
     if not isinstance(envelope, dict) or "tsig" not in envelope:
         raise SealRefused("cannot retire an envelope that carries no tombstone signature")
-    return {**{k: envelope[k] for k in _TOMB_FIELDS if k in envelope},
-            "tsig": envelope["tsig"], "retired": True}
+    return {**{k: envelope[k] for k in _TOMB_FIELDS if k in envelope}, "tsig": envelope["tsig"], "retired": True}
 
 
 def verify_tombstone(tomb: Dict[str, Any], *, sender_public: str) -> Dict[str, Any]:
@@ -378,8 +413,16 @@ def verify_tombstone(tomb: Dict[str, Any], *, sender_public: str) -> Dict[str, A
 _HEAD_FIELDS = ("v", "kind", "to", "from", "epoch", "seq", "last_id", "created_at", "alg")
 
 
-def head(*, sender: Dict[str, str], to: str, frm: str, epoch: str, seq: Any,
-         last_id: str = "", created_at: Optional[int] = None) -> Dict[str, Any]:
+def head(
+    *,
+    sender: Dict[str, str],
+    to: str,
+    frm: str,
+    epoch: str,
+    seq: Any,
+    last_id: str = "",
+    created_at: Optional[int] = None,
+) -> Dict[str, Any]:
     """Sign a pointer to where this sender's chain has reached. Deposited beside the mailbox."""
     hdr = {
         "v": WIRE_V,
@@ -389,8 +432,7 @@ def head(*, sender: Dict[str, str], to: str, frm: str, epoch: str, seq: Any,
         "epoch": str(epoch or ""),
         "seq": _as_int(seq, what="seq"),
         "last_id": str(last_id or ""),
-        "created_at": _as_int(created_at if created_at is not None else int(time.time()),
-                              what="created_at"),
+        "created_at": _as_int(created_at if created_at is not None else int(time.time()), what="created_at"),
         "alg": ALG,
     }
     try:
@@ -402,8 +444,14 @@ def head(*, sender: Dict[str, str], to: str, frm: str, epoch: str, seq: Any,
     return {**hdr, "sig": _b64(signer.sign(_canon(hdr, _HEAD_FIELDS)).signature)}
 
 
-def verify_head(advert: Dict[str, Any], *, sender_public: str, me: str = "",
-                now: Optional[int] = None, max_age_s: Optional[int] = None) -> Dict[str, Any]:
+def verify_head(
+    advert: Dict[str, Any],
+    *,
+    sender_public: str,
+    me: str = "",
+    now: Optional[int] = None,
+    max_age_s: Optional[int] = None,
+) -> Dict[str, Any]:
     """Verify an advert. Raises SealRefused; returns the head. `max_age_s`, when given, refuses a
     head older than that — the caller's judgement, because only the caller knows whether this peer
     is expected to be chatty."""
@@ -413,8 +461,7 @@ def verify_head(advert: Dict[str, Any], *, sender_public: str, me: str = "",
     if str(advert.get("alg") or "") != ALG or str(advert.get("kind") or "") != "head":
         raise SealRefused("not a head advert of a known suite")
     try:
-        signing.VerifyKey(_unb64(sender_public)).verify(_canon(advert, _HEAD_FIELDS),
-                                                        _unb64(advert.get("sig", "")))
+        signing.VerifyKey(_unb64(sender_public)).verify(_canon(advert, _HEAD_FIELDS), _unb64(advert.get("sig", "")))
     except SealRefused:
         raise
     except (BadSignatureError, CryptoError, ValueError, TypeError) as e:
@@ -455,7 +502,7 @@ class _FileLock:
                 return self
             except FileExistsError:
                 if time.time() > deadline:
-                    try:                                  # a stale lock must not wedge the fleet
+                    try:  # a stale lock must not wedge the fleet
                         if time.time() - self.path.stat().st_mtime > self.timeout:
                             os.unlink(str(self.path))
                             continue
@@ -494,7 +541,7 @@ class Chain:
 
     def __init__(self, path):
         self.path = Path(path)
-        self._read()                                      # fail fast on a damaged file
+        self._read()  # fail fast on a damaged file
 
     # ---- persistence
     def _read(self) -> Dict[str, Any]:
@@ -507,10 +554,15 @@ class Chain:
         try:
             data = json.loads(raw)
         except ValueError as e:
-            raise ChainCorrupt("chain file is not valid JSON — refusing to start from a blank "
-                               "state, which would silently re-use sequence numbers") from e
-        if not isinstance(data, dict) or not isinstance(data.get("out", {}), dict) \
-                or not isinstance(data.get("in", {}), dict):
+            raise ChainCorrupt(
+                "chain file is not valid JSON — refusing to start from a blank "
+                "state, which would silently re-use sequence numbers"
+            ) from e
+        if (
+            not isinstance(data, dict)
+            or not isinstance(data.get("out", {}), dict)
+            or not isinstance(data.get("in", {}), dict)
+        ):
             raise ChainCorrupt("chain file has the wrong shape")
         data.setdefault("out", {})
         data.setdefault("in", {})
@@ -522,7 +574,7 @@ class Chain:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(state, fh, sort_keys=True, indent=1)
-            for attempt in range(50):                     # Windows: the target may be briefly open
+            for attempt in range(50):  # Windows: the target may be briefly open
                 try:
                     os.replace(tmp, self.path)
                     return
@@ -547,8 +599,7 @@ class Chain:
             row = state["out"].setdefault(str(peer), {"seq": 0, "last_id": "", "epoch": ""})
             row["seq"] = _as_int(row.get("seq") or 0, what="stored seq") + 1
             self._write(state)
-            return {"seq": row["seq"], "prev": str(row.get("last_id") or ""),
-                    "epoch": str(row.get("epoch") or "")}
+            return {"seq": row["seq"], "prev": str(row.get("last_id") or ""), "epoch": str(row.get("epoch") or "")}
 
     def sent(self, peer: str, mid: str) -> None:
         with _FileLock(self.path):
@@ -568,8 +619,9 @@ class Chain:
             self._write(state)
 
     # ---- inbound
-    def observe_in(self, peer: str, *, seq: Any, mid: str, prev: str = "", epoch: str = "",
-                   verified: bool = False) -> Dict[str, Any]:
+    def observe_in(
+        self, peer: str, *, seq: Any, mid: str, prev: str = "", epoch: str = "", verified: bool = False
+    ) -> Dict[str, Any]:
         """Record an arrival; report what it reveals.
 
         `verified` is REQUIRED to be true and defaults to False on purpose: the caller must have
@@ -581,19 +633,20 @@ class Chain:
         a gap rather than opening one.
         """
         if not verified:
-            raise SealRefused("refusing an unverified record: routing data must carry a signature "
-                              "that has already been checked before it reaches the chain")
+            raise SealRefused(
+                "refusing an unverified record: routing data must carry a signature "
+                "that has already been checked before it reaches the chain"
+            )
         seq_i = _as_int(seq, what="seq")
         if seq_i < 1:
             raise SealRefused("seq must be positive")
 
         with _FileLock(self.path):
             state = self._read()
-            row = state["in"].setdefault(str(peer),
-                                         {"high_water": 0, "holes": [], "last_id": "", "epoch": ""})
+            row = state["in"].setdefault(str(peer), {"high_water": 0, "holes": [], "last_id": "", "epoch": ""})
             known_epoch = str(row.get("epoch") or "")
             epoch_changed = bool(epoch) and bool(known_epoch) and str(epoch) != known_epoch
-            if epoch_changed:                              # a new chain: start clean, loudly
+            if epoch_changed:  # a new chain: start clean, loudly
                 row.update({"high_water": 0, "holes": [], "last_id": ""})
             row["epoch"] = str(epoch or known_epoch)
 
@@ -606,21 +659,21 @@ class Chain:
                 if seq_i - high > MAX_SEQ_JUMP:
                     raise SealRefused(
                         f"seq jumps {seq_i - high} past the high-water mark (cap {MAX_SEQ_JUMP}) — "
-                        f"refused rather than materialised as that many phantom gaps")
+                        f"refused rather than materialised as that many phantom gaps"
+                    )
                 newly_missing = list(range(high + 1, seq_i))
                 holes.update(newly_missing)
                 last = str(row.get("last_id") or "")
                 if last and not newly_missing and not epoch_changed and str(prev or "") != last:
-                    chain_broken = True                    # prev is CHECKED, not decoration
+                    chain_broken = True  # prev is CHECKED, not decoration
                 row["high_water"] = seq_i
                 row["last_id"] = str(mid)
             else:
-                holes.discard(seq_i)                       # a late arrival closes its own gap
+                holes.discard(seq_i)  # a late arrival closes its own gap
 
             row["holes"] = sorted(holes)
             self._write(state)
-            return {"missing": newly_missing, "chain_broken": chain_broken,
-                    "epoch_changed": epoch_changed}
+            return {"missing": newly_missing, "chain_broken": chain_broken, "epoch_changed": epoch_changed}
 
     def missing(self, peer: str) -> List[int]:
         """Everything below the high-water mark that has still never arrived. O(holes), not O(seq)."""
@@ -641,15 +694,15 @@ class Chain:
         known_epoch = str(row.get("epoch") or "")
         advert_epoch = str(advert.get("epoch") or "")
         if advert_epoch and known_epoch and advert_epoch != known_epoch:
-            return {"epoch_changed": True, "missing_tail": [], "behind_by": 0,
-                    "claimed_seq": claimed}
+            return {"epoch_changed": True, "missing_tail": [], "behind_by": 0, "claimed_seq": claimed}
         high = _as_int(row.get("high_water") or 0, what="stored high_water")
         tail = list(range(high + 1, claimed + 1)) if claimed > high else []
         if len(tail) > MAX_SEQ_JUMP:
-            raise SealRefused(f"advert claims {len(tail)} unseen messages, past the {MAX_SEQ_JUMP} "
-                              f"cap — refused rather than materialised")
-        return {"epoch_changed": False, "missing_tail": tail, "behind_by": len(tail),
-                "claimed_seq": claimed}
+            raise SealRefused(
+                f"advert claims {len(tail)} unseen messages, past the {MAX_SEQ_JUMP} "
+                f"cap — refused rather than materialised"
+            )
+        return {"epoch_changed": False, "missing_tail": tail, "behind_by": len(tail), "claimed_seq": claimed}
 
     def high_water(self, peer: str) -> int:
         row = self._read()["in"].get(str(peer)) or {}

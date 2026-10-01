@@ -10,6 +10,7 @@ ToolBox schemas introspectable as built) rather than half-derived here.
 Run:  py scripts/generators/gen_doors.py            # writes docs/DOORS.md
       py scripts/generators/gen_doors.py --check    # exit 1 if stale vs code (CI/pre-ship)
 """
+
 import argparse
 import os
 import sys
@@ -19,9 +20,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "DOORS.md")
@@ -33,6 +36,7 @@ def cli_verbs():
     Uses argparse's public-ish action tree (stable across 3.x); alias names collapse by parser
     identity so a verb with aliases lists once."""
     import agent_cli
+
     p = agent_cli.build_parser()
     subaction = next((a for a in p._actions if isinstance(a, argparse._SubParsersAction)), None)
     if subaction is None:
@@ -42,7 +46,11 @@ def cli_verbs():
     verbs = {}
     seen = set()
     for name, sub in subaction.choices.items():
-        if id(sub) in seen or name not in helps and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps):
+        if (
+            id(sub) in seen
+            or name not in helps
+            and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps)
+        ):
             # skip aliases: keep the name that carries a help entry
             if name not in helps:
                 continue
@@ -115,10 +123,12 @@ def main():
     if "--check" in sys.argv:
         try:
             if open(OUT, encoding="utf-8").read() == text:
-                print("DOORS.md current"); return 0
+                print("DOORS.md current")
+                return 0
         except OSError:
             pass
-        print(f"DOORS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_doors.py)"); return 1
+        print(f"DOORS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_doors.py)")
+        return 1
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     print(f"wrote docs/DOORS.md: {len(verbs)} CLI verbs")

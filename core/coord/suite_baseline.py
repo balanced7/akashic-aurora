@@ -17,6 +17,7 @@ Auto-classification is mechanical honesty: a failing node whose test file appear
 ACTIVE ledger task's own `files` list belongs to that lane; everything else stays
 unclassified rather than guessed.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,6 +45,7 @@ def _ledger_claims() -> Dict[str, str]:
     """{task_id: status} for non-done ledger tasks (fail-open {})."""
     try:
         from core.coord.task_ledger import state_view
+
         out: Dict[str, str] = {}
         for v in state_view().values():
             if isinstance(v, list):
@@ -59,6 +61,7 @@ def _task_files() -> Dict[str, List[str]]:
     """{task_id: files[]} for ledger tasks that declare files (fail-open {})."""
     try:
         from core.coord.task_ledger import state_view
+
         out: Dict[str, List[str]] = {}
         for v in state_view().values():
             if isinstance(v, list):
@@ -89,10 +92,14 @@ def classify(nodes: List[str]) -> Dict[str, str]:
 def record(nodes: List[str], *, seat: str, sha: str = "") -> Dict[str, Any]:
     """Snapshot the receipt: failures + lanes + claims-at-snapshot + provenance."""
     lanes = classify(nodes)
-    rec = {"v": 1, "sha": str(sha), "seat": str(seat),
-           "at": now_iso(),   # T119: the one clock (aware UTC)
-           "failures": [{"node": n, "lane": lanes.get(n, "")} for n in nodes],
-           "claims_at_snapshot": _ledger_claims()}
+    rec = {
+        "v": 1,
+        "sha": str(sha),
+        "seat": str(seat),
+        "at": now_iso(),  # T119: the one clock (aware UTC)
+        "failures": [{"node": n, "lane": lanes.get(n, "")} for n in nodes],
+        "claims_at_snapshot": _ledger_claims(),
+    }
     os.makedirs(os.path.dirname(BASELINE_PATH), exist_ok=True)
     tmp = f"{BASELINE_PATH}.tmp.{os.getpid()}.{uuid.uuid4().hex[:6]}"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -116,8 +123,7 @@ def delta(current_nodes: List[str]) -> Dict[str, List[str]]:
     rec = read()
     base = {f["node"] for f in (rec or {}).get("failures", [])}
     cur = set(current_nodes)
-    return {"new": sorted(cur - base), "fixed": sorted(base - cur),
-            "inherited": sorted(cur & base)}
+    return {"new": sorted(cur - base), "fixed": sorted(base - cur), "inherited": sorted(cur & base)}
 
 
 def head_sha() -> str:
@@ -129,11 +135,15 @@ def head_sha() -> str:
     """
     try:
         import subprocess
-        r = subprocess.run(["git", "rev-parse", "--short=7", "HEAD"],
-                           cwd=os.path.dirname(os.path.dirname(os.path.dirname(
-                               os.path.abspath(__file__)))),
-                           capture_output=True, text=True, timeout=10,
-                           stdin=subprocess.DEVNULL)
+
+        r = subprocess.run(
+            ["git", "rev-parse", "--short=7", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+        )
         return (r.stdout or "").strip() if r.returncode == 0 else ""
     except Exception:
         return ""
@@ -142,19 +152,18 @@ def head_sha() -> str:
 #: verdict -> what the reader should actually do about it.
 VERDICT_NEXT = {
     "YOURS": "this failure is not in the baseline and the baseline is CURRENT -- it "
-             "arrived with your change; investigate it",
+    "arrived with your change; investigate it",
     "INHERITED": "already failing at the baseline, which is current -- not yours, leave it",
     "LIKELY_INHERITED": "was failing when the baseline was taken, but that baseline is "
-                        "STALE -- probably not yours, though it could have been fixed and "
-                        "re-broken in the gap; re-record the baseline to be sure",
+    "STALE -- probably not yours, though it could have been fixed and "
+    "re-broken in the gap; re-record the baseline to be sure",
     "UNKNOWN": "cannot be attributed: the baseline is stale or absent, so this may have "
-               "arrived any time in the gap -- BISECT this one (stash or a worktree at "
-               "HEAD), or re-record the baseline first",
+    "arrived any time in the gap -- BISECT this one (stash or a worktree at "
+    "HEAD), or re-record the baseline first",
 }
 
 
-def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None,
-             full_suite: bool = False) -> Dict[str, Any]:
+def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None, full_suite: bool = False) -> Dict[str, Any]:
     """Per-node attribution: is this failure MINE? (T208)
 
     WHY THIS EXISTS, measured 2026-08-06. Four failures were hit while shipping T200 and
@@ -202,13 +211,18 @@ def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None,
     # Correct under one assumption, silently wrong under another: the same shape as
     # every other defect in this arc. A subset run reports them as not_evaluated.
     missing = sorted(base - set(current_nodes))
-    return {"by_node": by_node, "counts": counts,
-            "fixed": missing if full_suite else [],
-            "not_evaluated": [] if full_suite else missing,
-            "full_suite": bool(full_suite),
-            "stale": not fresh, "baseline_sha": b_sha or None,
-            "head_sha": h_sha or None, "baseline_at": (rec or {}).get("at"),
-            "has_baseline": bool(rec)}
+    return {
+        "by_node": by_node,
+        "counts": counts,
+        "fixed": missing if full_suite else [],
+        "not_evaluated": [] if full_suite else missing,
+        "full_suite": bool(full_suite),
+        "stale": not fresh,
+        "baseline_sha": b_sha or None,
+        "head_sha": h_sha or None,
+        "baseline_at": (rec or {}).get("at"),
+        "has_baseline": bool(rec),
+    }
 
 
 def render_boot_line() -> str:
@@ -223,20 +237,19 @@ def render_boot_line() -> str:
         dt = datetime.fromisoformat(at_s)
         # T119 dual-era read: one-clock stamps carry their offset; legacy naive rows
         # were LOCAL wall-clock and keep their historical meaning.
-        then = dt.timestamp() if dt.tzinfo is not None \
-            else time.mktime(time.strptime(at_s, "%Y-%m-%dT%H:%M:%S"))
+        then = dt.timestamp() if dt.tzinfo is not None else time.mktime(time.strptime(at_s, "%Y-%m-%dT%H:%M:%S"))
         age_h = max(0.0, (time.time() - then) / 3600.0)
     except Exception:
         age_h = -1.0
     n = len(rec.get("failures", []))
     lanes_then = {f["lane"] for f in rec.get("failures", []) if f.get("lane")}
     now = _ledger_claims()
-    closed = sorted(l for l in lanes_then
-                    if now.get(l, "").lower() in ("done", "abandoned"))
+    closed = sorted(l for l in lanes_then if now.get(l, "").lower() in ("done", "abandoned"))
     age_s = f"{age_h:.1f}h old" if age_h >= 0 else "age unknown"
-    line = (f"# suite baseline @{rec.get('sha', '?')[:7]} ({age_s}, by {rec.get('seat', '?')}): "
-            f"{n} known failure(s)")
+    line = f"# suite baseline @{rec.get('sha', '?')[:7]} ({age_s}, by {rec.get('seat', '?')}): {n} known failure(s)"
     if closed:
-        line += (f" -- {len(closed)} classified lane(s) since closed ({', '.join(closed)}): "
-                 "re-run advised (classification rots even when the receipt is young)")
+        line += (
+            f" -- {len(closed)} classified lane(s) since closed ({', '.join(closed)}): "
+            "re-run advised (classification rots even when the receipt is young)"
+        )
     return line

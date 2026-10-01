@@ -21,6 +21,7 @@ depending on which tree they run in.
 
 Run: py -m pytest tests/test_data_root_isolation.py -q -p no:cacheprovider
 """
+
 import json
 import os
 import sys
@@ -48,10 +49,20 @@ def _fake_code_root_with_legacy_corpus(tmp_path: Path) -> Path:
     (code / "agent_cli.py").write_text("", encoding="utf-8")
     (code / "session_logs").mkdir()
     (code / "session_logs" / "learnings.jsonl").write_text(
-        json.dumps({"experiment_name": "legacy_only", "category": "pin",
-                    "what_tried": "x", "expected_outcome": "y", "actual_outcome": "z",
-                    "success": "yes", "recommendation": "must never reach an isolated store"})
-        + "\n", encoding="utf-8")
+        json.dumps(
+            {
+                "experiment_name": "legacy_only",
+                "category": "pin",
+                "what_tried": "x",
+                "expected_outcome": "y",
+                "actual_outcome": "z",
+                "success": "yes",
+                "recommendation": "must never reach an isolated store",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return code
 
 
@@ -60,10 +71,12 @@ def test_p1_bare_ai_setup_redirects_the_default_file_store(tmp_path, monkeypatch
     bare = _bare_data_dir(tmp_path)
     monkeypatch.setenv("AI_SETUP", str(bare))
     from core.foundation.store import FileStore
+
     got = FileStore()._path
     assert _under(got, bare), (
         f"FileStore() ignored a bare AI_SETUP and resolved to {got} -- the CODE root's "
-        f"session_logs/store_state.json, i.e. the LIVE store when run in the live tree")
+        f"session_logs/store_state.json, i.e. the LIVE store when run in the live tree"
+    )
 
 
 def test_p2_bare_ai_setup_redirects_the_default_file_ledger(tmp_path, monkeypatch):
@@ -71,12 +84,12 @@ def test_p2_bare_ai_setup_redirects_the_default_file_ledger(tmp_path, monkeypatc
     bare = _bare_data_dir(tmp_path)
     monkeypatch.setenv("AI_SETUP", str(bare))
     from core.foundation.ledger import FileLedger
+
     got = FileLedger()._base
     assert _under(got, bare), f"FileLedger() ignored a bare AI_SETUP and resolved to {got}"
 
 
-def test_p3_legacy_learnings_jsonl_is_read_from_the_data_root_not_the_code_root(
-        tmp_path, monkeypatch):
+def test_p3_legacy_learnings_jsonl_is_read_from_the_data_root_not_the_code_root(tmp_path, monkeypatch):
     """The exact leak behind 951a9944f6, reproduced without depending on the live tree.
 
     Import the modules FIRST so only the construction under test sees the relocated root.
@@ -94,14 +107,14 @@ def test_p3_legacy_learnings_jsonl_is_read_from_the_data_root_not_the_code_root(
     monkeypatch.setenv("AI_SETUP", str(bare))
     monkeypatch.setattr(paths, "__file__", str(code / "core" / "paths.py"))
     monkeypatch.setattr(paths, "_cached", None)
-    assert paths.repo_root().resolve() == code.resolve(), \
-        "sanity: the derivation walk must land on the fake code root"
+    assert paths.repo_root().resolve() == code.resolve(), "sanity: the derivation walk must land on the fake code root"
 
     ls = LearningStore(store=FileStore(str(tmp_path / "empty.json")))
     names = sorted(rec.get("experiment_name") for rec in ls.load_all_learnings_from_store())
     assert names == [], (
         f"an isolated, explicitly-empty store came back holding {names}: the legacy "
-        f"session_logs/learnings.jsonl was read from the CODE root instead of the data root")
+        f"session_logs/learnings.jsonl was read from the CODE root instead of the data root"
+    )
 
 
 def test_p4_data_root_follows_ai_setup_while_repo_root_stays_derived(tmp_path, monkeypatch):
@@ -110,8 +123,10 @@ def test_p4_data_root_follows_ai_setup_while_repo_root_stays_derived(tmp_path, m
     bare = _bare_data_dir(tmp_path)
     monkeypatch.setenv("AI_SETUP", str(bare))
     from core.paths import data_root, repo_root
+
     assert data_root().resolve() == bare.resolve(), f"data_root() ignored AI_SETUP: {data_root()}"
-    assert (repo_root() / "agent_cli.py").exists(), \
+    assert (repo_root() / "agent_cli.py").exists(), (
         f"repo_root() must stay the CODE root under a bare AI_SETUP, got {repo_root()}"
+    )
     monkeypatch.delenv("AI_SETUP")
     assert data_root() == repo_root(), "with no override the data root IS the repo root"

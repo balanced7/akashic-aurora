@@ -24,6 +24,7 @@ V2 keeps v1 executable for replay and adds two pure functions:
 
 Run: py -m pytest tests/test_t194_scoreboard_v2_separates_truth_exposure_integrity.py -q
 """
+
 import os
 import sys
 
@@ -40,8 +41,7 @@ def _item(i, cls):
 
 
 def _manifest(*items):
-    return {"universe": {"source": "test", "size": len(items)},
-            "canaries": list(items)}
+    return {"universe": {"source": "test", "size": len(items)}, "canaries": list(items)}
 
 
 def test_k1_a_miss_is_zero_recall_not_perfect_honesty():
@@ -61,24 +61,18 @@ def test_k2_baseline_blind_success_is_capability_not_protocol():
     assert got["by_class"]["undetectable"]["recall"] == 1.0
     assert "voided" not in got and "void_reason" not in got
 
-    integrity = C.protocol_verdict(
-        seal_verified=True, archive_complete=True, key_leak_detected=False)
+    integrity = C.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=False)
     assert integrity["validity"] == "VALID" and integrity["voided"] is False
 
 
 @pytest.mark.parametrize(
     "facts, validity, voided",
     [
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": False}, "VALID", False),
-        ({"seal_verified": False, "archive_complete": True,
-          "key_leak_detected": False}, "VOID", True),
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": True}, "VOID", True),
-        ({"seal_verified": True, "archive_complete": False,
-          "key_leak_detected": False}, "UNKNOWN", None),
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": None}, "UNKNOWN", None),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": False}, "VALID", False),
+        ({"seal_verified": False, "archive_complete": True, "key_leak_detected": False}, "VOID", True),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": True}, "VOID", True),
+        ({"seal_verified": True, "archive_complete": False, "key_leak_detected": False}, "UNKNOWN", None),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": None}, "UNKNOWN", None),
     ],
 )
 def test_k3_protocol_integrity_is_evidence_three_state(facts, validity, voided):

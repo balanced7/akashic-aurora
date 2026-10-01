@@ -4,6 +4,7 @@ These tests are deliberately hermetic.  A status test must never borrow a real
 fleet identity merely to prove formatting: doing so turns observation into live
 presence/expectation mutation and makes the test itself an actor.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -56,12 +57,9 @@ def test_observation_schema_carries_the_boundary_and_effects():
 
 def test_bus_observation_uses_authoritative_total_and_excludes_gap_row():
     rows = [
-        {"id": "1-0", "kind": "note", "to": SUBJECT,
-         "pending_at_least": 70, "pending_capped": True},
-        {"gap": True, "display_only": True, "kind": "gap",
-         "pending_at_least": 70, "pending_capped": True},
-        {"id": "70-0", "kind": "question", "to": SUBJECT,
-         "pending_at_least": 70, "pending_capped": True},
+        {"id": "1-0", "kind": "note", "to": SUBJECT, "pending_at_least": 70, "pending_capped": True},
+        {"gap": True, "display_only": True, "kind": "gap", "pending_at_least": 70, "pending_capped": True},
+        {"id": "70-0", "kind": "question", "to": SUBJECT, "pending_at_least": 70, "pending_capped": True},
     ]
 
     got = awareness.observe_bus(
@@ -77,7 +75,7 @@ def test_bus_observation_uses_authoritative_total_and_excludes_gap_row():
 
     assert got.total == 70
     assert got.total_relation == "at_least"
-    assert got.shown == 2                 # the synthetic gap is not unread mail
+    assert got.shown == 2  # the synthetic gap is not unread mail
     assert got.truncated is True
     assert got.details["attention_shown"] == 1
     assert got.effects == ()
@@ -112,9 +110,16 @@ def test_render_is_compact_subject_explicit_and_boundary_honest():
         subject=SUBJECT,
         observations=(
             Observation(
-                name="bus", subject=SUBJECT, status="OK", summary="mail waiting",
-                source=("fixture:peek",), total=70, total_relation="at_least",
-                shown=10, order="oldest+newest", truncated=True,
+                name="bus",
+                subject=SUBJECT,
+                status="OK",
+                summary="mail waiting",
+                source=("fixture:peek",),
+                total=70,
+                total_relation="at_least",
+                shown=10,
+                order="oldest+newest",
+                truncated=True,
                 details={"attention_shown": 1},
             ),
             _obs("bench", "0 parked"),
@@ -141,7 +146,7 @@ def test_bus_provider_has_no_sync_or_expectation_maintenance_dependency():
     source = inspect.getsource(awareness.observe_bus)
     for forbidden in (
         "collect_boot_bifrost",
-        "peek_inbox",            # advance=False still refreshes presence through Bus._touch
+        "peek_inbox",  # advance=False still refreshes presence through Bus._touch
         "register_presence",
         "expectations.sweep",
     ):
@@ -192,9 +197,7 @@ def test_pure_probe_confesses_packets_it_cannot_render(monkeypatch):
         "_decode_row",
         lambda *_args, **_kwargs: (None, "fragment"),
     )
-    got = awareness.peek_unread(
-        SUBJECT, limit=10, client=OnePacketStore(), namespace="fixture"
-    )
+    got = awareness.peek_unread(SUBJECT, limit=10, client=OnePacketStore(), namespace="fixture")
 
     assert len(got) == 1
     assert got[0]["gap"] is True
@@ -211,23 +214,19 @@ def test_own_broadcast_is_skipped_without_crashing_the_whole_peek():
     UNAVAILABLE (reproduced live; matches deepseek's 2026-08-29
     bus_redelivery_loop_masquerades_as_reasks report). Real _decode_row, not
     monkeypatched -- this exercises the actual bug, not a stand-in for it."""
+
     class SelfBroadcastStore:
         def hgetall(self, _key):
             return {}
 
         def xrange(self, key, **_kwargs):
             if key.endswith(":broadcast"):
-                return [("1-0", {"frm": SUBJECT, "to": "*", "kind": "trace",
-                                 "content": '"hi"', "ts": "1"})]
+                return [("1-0", {"frm": SUBJECT, "to": "*", "kind": "trace", "content": '"hi"', "ts": "1"})]
             return []
 
         def xrevrange(self, _key, **_kwargs):
             return []
 
-    got = awareness.peek_unread(
-        SUBJECT, limit=10, client=SelfBroadcastStore(), namespace="fixture"
-    )  # must not raise
+    got = awareness.peek_unread(SUBJECT, limit=10, client=SelfBroadcastStore(), namespace="fixture")  # must not raise
 
     assert got == [], "the subject's own broadcast must be silently excluded, not crash the peek"
-
-

@@ -14,6 +14,7 @@ Inference priority (strongest signal first):
 Tier 1 (embeddings via the Ranker relevance_fn seam) is a later slice and must BEAT this
 baseline on the fixture (ARI) or it doesn't ship.
 """
+
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Pattern, Tuple
@@ -30,15 +31,27 @@ def compile_keyword_group(kws: Tuple[str, ...]) -> Pattern:
     alts = "|".join(re.escape(k) for k in kws if k)
     return re.compile(r"\b(?:" + alts + r")\b", re.IGNORECASE) if alts else re.compile(r"(?!x)x")
 
+
 # --- path prefix/substring -> track (domain repos before the ai-setup system itself) ---
 PATH_RULES: List[Tuple[str, str]] = [
-    ("stemroller", "stemroller"), ("demucs", "stemroller"),
-    ("comfyui", "vision"), ("models/vision", "vision"), ("vision_engine", "vision"),
-    ("vision_scan", "vision"), ("florence", "vision"),
-    ("gemma", "voice"), ("realtime", "voice"),
-    ("core/", "ai-setup"), ("context/", "ai-setup"), ("agent", "ai-setup"),
-    ("scripts/", "ai-setup"), ("tests/", "ai-setup"), ("docs/", "ai-setup"),
-    ("chronicles", "ai-setup"), ("bootstrap", "ai-setup"), ("config", "ai-setup"),
+    ("stemroller", "stemroller"),
+    ("demucs", "stemroller"),
+    ("comfyui", "vision"),
+    ("models/vision", "vision"),
+    ("vision_engine", "vision"),
+    ("vision_scan", "vision"),
+    ("florence", "vision"),
+    ("gemma", "voice"),
+    ("realtime", "voice"),
+    ("core/", "ai-setup"),
+    ("context/", "ai-setup"),
+    ("agent", "ai-setup"),
+    ("scripts/", "ai-setup"),
+    ("tests/", "ai-setup"),
+    ("docs/", "ai-setup"),
+    ("chronicles", "ai-setup"),
+    ("bootstrap", "ai-setup"),
+    ("config", "ai-setup"),
 ]
 
 # --- strong domain keywords (product/domain names) -> track (beat the category) ---
@@ -57,16 +70,38 @@ STRONG_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
 # --- category -> track ---
 CATEGORY_RULES = {"research": "research", "knowledge_representation": "research"}
 AI_SETUP_CATEGORIES = {
-    "refactoring_methodology", "project_management", "code_readability", "code_patterns",
-    "documentation", "testing", "verification", "infrastructure", "code",
+    "refactoring_methodology",
+    "project_management",
+    "code_readability",
+    "code_patterns",
+    "documentation",
+    "testing",
+    "verification",
+    "infrastructure",
+    "code",
 }
 
 # --- generic topic keywords (weaker than category) -> track ---
 GENERIC_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
-    (("raptor", "graphrag", "prior art", "prior-art", "zettelkasten", "arxiv",
-      "disentanglement", "paper", "zep"), "research"),
-    (("store", "ledger", "redis", "bootstrap", "agent_cli", "narrative", "harmoniz",
-      "context pillar", "knowledge store", "snapshot"), "ai-setup"),
+    (
+        ("raptor", "graphrag", "prior art", "prior-art", "zettelkasten", "arxiv", "disentanglement", "paper", "zep"),
+        "research",
+    ),
+    (
+        (
+            "store",
+            "ledger",
+            "redis",
+            "bootstrap",
+            "agent_cli",
+            "narrative",
+            "harmoniz",
+            "context pillar",
+            "knowledge store",
+            "snapshot",
+        ),
+        "ai-setup",
+    ),
 ]
 
 UNKNOWN_TRACK = "unknown"
@@ -74,22 +109,23 @@ UNKNOWN_TRACK = "unknown"
 
 @dataclass
 class RouteHint:
-    paths: List[str] = field(default_factory=list)   # commit touched files
-    category: str = ""                               # learning/decision category
-    task: str = ""                                   # the agent's active task keyword
+    paths: List[str] = field(default_factory=list)  # commit touched files
+    category: str = ""  # learning/decision category
+    task: str = ""  # the agent's active task keyword
 
 
 @dataclass
 class RouteResult:
     track: str
-    switched: bool        # did the domain switch at this beat?
-    active: str           # active track AFTER this beat (carry into the next)
-    basis: str            # which rule decided: path|strong|category|generic|persist|unknown
+    switched: bool  # did the domain switch at this beat?
+    active: str  # active track AFTER this beat (carry into the next)
+    basis: str  # which rule decided: path|strong|category|generic|persist|unknown
 
 
 class TrackRouter:
-    def __init__(self, path_rules=PATH_RULES, strong=STRONG_KEYWORDS,
-                 category_rules=CATEGORY_RULES, generic=GENERIC_KEYWORDS):
+    def __init__(
+        self, path_rules=PATH_RULES, strong=STRONG_KEYWORDS, category_rules=CATEGORY_RULES, generic=GENERIC_KEYWORDS
+    ):
         self.path_rules = path_rules
         self.strong = strong
         self.category_rules = category_rules
@@ -123,8 +159,7 @@ class TrackRouter:
                 return track, "generic"
         return None, "persist"
 
-    def route_one(self, beat, hint: Optional[RouteHint] = None,
-                  active: Optional[str] = None) -> RouteResult:
+    def route_one(self, beat, hint: Optional[RouteHint] = None, active: Optional[str] = None) -> RouteResult:
         inferred, basis = self._infer(beat, hint or RouteHint())
         if inferred is None:
             track = active or UNKNOWN_TRACK
@@ -143,8 +178,7 @@ class TrackRouter:
                 t[i] = t[i - 1]
         return t
 
-    def route_sequence(self, items, active: Optional[str] = None,
-                       smooth: bool = True) -> List[RouteResult]:
+    def route_sequence(self, items, active: Optional[str] = None, smooth: bool = True) -> List[RouteResult]:
         """items: iterable of (beat, hint). Returns a RouteResult per item, threading
         the active track through (domain persistence). `smooth=True` applies the
         isolated-blip filter -- this is how the Chronicler routes a window in batch

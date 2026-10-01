@@ -44,6 +44,7 @@ between a human noticing at hour 45 and the system noticing at hour 6. Both lose
 one loses 39 fewer hours of silence. True live recovery via ctypes shutdown(fd) is possible and
 was judged too fragile for v1.
 """
+
 from __future__ import annotations
 
 import os
@@ -79,7 +80,7 @@ def _default_base() -> int:
     control port as its local port -- measured: the test channel's port held in TIME_WAIT by a
     connection to 16379, refusing the bind. There the base moves below the range."""
     lo, hi = _ephemeral_range()
-    top = _WINDOWS_BASE + 10 * _PORT_SPAN            # tests use base+900.., leave headroom
+    top = _WINDOWS_BASE + 10 * _PORT_SPAN  # tests use base+900.., leave headroom
     return _LOW_BASE if (_WINDOWS_BASE <= hi and top >= lo) else _WINDOWS_BASE
 
 
@@ -150,19 +151,21 @@ class ControlChannel:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0 if os.name == "nt" else 1)
             s.bind((_HOST, self.port))
             s.listen(4)
-            s.settimeout(1.0)          # so stop() is responsive; accept still blocks, briefly
+            s.settimeout(1.0)  # so stop() is responsive; accept still blocks, briefly
             self._sock = s
         except OSError as e:
-            print(f"[control] {self.agent}: cannot bind {_HOST}:{self.port} -- {e}. "
-                  f"Another instance may already hold it.")
+            print(
+                f"[control] {self.agent}: cannot bind {_HOST}:{self.port} -- {e}. Another instance may already hold it."
+            )
             return False
 
         self.started_at = time.time()
-        self._thread = threading.Thread(target=self._serve, name=f"control-{self.agent}",
-                                        daemon=True)
+        self._thread = threading.Thread(target=self._serve, name=f"control-{self.agent}", daemon=True)
         self._thread.start()
-        print(f"[control] {self.agent}: out-of-band control on {_HOST}:{self.port} "
-              f"(verbs: {' '.join(sorted(self._handlers))})")
+        print(
+            f"[control] {self.agent}: out-of-band control on {_HOST}:{self.port} "
+            f"(verbs: {' '.join(sorted(self._handlers))})"
+        )
         return True
 
     def stop(self) -> None:
@@ -192,7 +195,7 @@ class ControlChannel:
             except socket.timeout:
                 continue
             except OSError:
-                break                                  # socket closed under us -> done
+                break  # socket closed under us -> done
             try:
                 conn.settimeout(5.0)
                 raw = conn.recv(4096).decode("utf-8", "replace").strip()
@@ -224,8 +227,7 @@ class ControlChannel:
 
 
 # -------------------------------------------------------------------- client
-def send(agent: str, command: str, *, timeout: float = 3.0,
-         port: Optional[int] = None) -> Optional[str]:
+def send(agent: str, command: str, *, timeout: float = 3.0, port: Optional[int] = None) -> Optional[str]:
     """Speak to an agent's control channel. None when nobody is listening.
 
     None is the honest answer for 'no control channel' and is NOT the same as an error reply --

@@ -45,6 +45,7 @@ the sample that condemned it is exactly the sample that was too small to trust -
 keeps an exploration floor, and it RECOMMENDS rather than enforces
 (instrument_proposes_never_self_ratifies).
 """
+
 from __future__ import annotations
 
 import json
@@ -74,8 +75,7 @@ class LensRun:
     def __post_init__(self):
         if self.outcome not in OUTCOMES:
             # Coercing to "unverified" would hide a caller bug as a coverage gap.
-            raise ValueError(
-                f"unknown outcome {self.outcome!r} -- legal: {', '.join(sorted(OUTCOMES))}")
+            raise ValueError(f"unknown outcome {self.outcome!r} -- legal: {', '.join(sorted(OUTCOMES))}")
 
 
 @dataclass(frozen=True)
@@ -86,7 +86,7 @@ class LensScore:
     abstained_n: int
     unverified_n: int
     hit_rate: Optional[float]
-    verdict: str            # RATED | UNRATED | UNSCORED | ABSTAINING
+    verdict: str  # RATED | UNRATED | UNSCORED | ABSTAINING
     why: str
 
     @property
@@ -110,7 +110,7 @@ def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, Le
     # authority; the fix is that the newest wins at READ time, exactly like the notes plane.
     latest: Dict[tuple, LensRun] = {}
     for r in runs:
-        latest[(r.fan_id, r.lens)] = r          # file order is chronological (append-only)
+        latest[(r.fan_id, r.lens)] = r  # file order is chronological (append-only)
 
     by: Dict[str, Dict[str, int]] = {}
     for r in latest.values():
@@ -129,36 +129,51 @@ def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, Le
         # abstention describes the PACK, and a verified outcome describes the LENS.
         if ver >= min_verified:
             rate = d["confirmed"] / ver
-            verdict, why = "RATED", (
-                f"{d['confirmed']}/{ver} verified findings survived")
+            verdict, why = "RATED", (f"{d['confirmed']}/{ver} verified findings survived")
         elif ver > 0:
             verdict, rate = "UNRATED", None
-            why = (f"only {ver} verified run(s), need {min_verified} -- too few to rate, and "
-                   f"a number here would be noise"
-                   + (f" ({d['abstained']} abstention(s) alongside, which describe the pack "
-                      f"rather than the lens)" if d["abstained"] else ""))
+            why = (
+                f"only {ver} verified run(s), need {min_verified} -- too few to rate, and "
+                f"a number here would be noise"
+                + (
+                    f" ({d['abstained']} abstention(s) alongside, which describe the pack rather than the lens)"
+                    if d["abstained"]
+                    else ""
+                )
+            )
         elif d["abstained"] and d["abstained"] >= max(1, total - ver):
             # Nothing verified AND mostly abstaining: the lens is reporting a bad PACK.
             verdict, rate = "ABSTAINING", None
-            why = (f"{d['abstained']} of {total} runs abstained for want of evidence -- that "
-                   f"is a finding about the PACK, not a miss by the lens")
+            why = (
+                f"{d['abstained']} of {total} runs abstained for want of evidence -- that "
+                f"is a finding about the PACK, not a miss by the lens"
+            )
         elif ver == 0:
             verdict, rate = "UNSCORED", None
-            why = (f"{total} run(s), none verified -- nobody checked whether these findings "
-                   f"held, so no rate can be earned. Verify some before trusting this lens")
+            why = (
+                f"{total} run(s), none verified -- nobody checked whether these findings "
+                f"held, so no rate can be earned. Verify some before trusting this lens"
+            )
         else:
             verdict, rate = "UNRATED", None
-            why = (f"only {ver} verified run(s), need {min_verified} -- too few to rate, and "
-                   f"a number here would be noise")
+            why = (
+                f"only {ver} verified run(s), need {min_verified} -- too few to rate, and a number here would be noise"
+            )
 
-        out[lens] = LensScore(lens=lens, confirmed_n=d["confirmed"], refuted_n=d["refuted"],
-                              abstained_n=d["abstained"], unverified_n=d["unverified"],
-                              hit_rate=rate, verdict=verdict, why=why)
+        out[lens] = LensScore(
+            lens=lens,
+            confirmed_n=d["confirmed"],
+            refuted_n=d["refuted"],
+            abstained_n=d["abstained"],
+            unverified_n=d["unverified"],
+            hit_rate=rate,
+            verdict=verdict,
+            why=why,
+        )
     return out
 
 
-def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR,
-         keep_above: float = 0.34) -> Dict[str, str]:
+def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_above: float = 0.34) -> Dict[str, str]:
     """Which lenses to run next time: run | explore | deprioritise. ADVISORY.
 
     Only a RATED lens can be moved off `run`, so a lens is never condemned by the sample
@@ -181,26 +196,33 @@ def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR,
 
 def render(scores: Dict[str, LensScore], plan: Dict[str, str]) -> str:
     if not scores:
-        return ("LENS LEDGER -- no runs recorded yet. Score a fan's branches with "
-                "record() and outcomes become verdicts once enough are verified.")
+        return (
+            "LENS LEDGER -- no runs recorded yet. Score a fan's branches with "
+            "record() and outcomes become verdicts once enough are verified."
+        )
     out = ["LENS LEDGER -- lenses scored by what SURVIVED, not by whether the model replied"]
     unver = sum(s.unverified_n for s in scores.values())
     total = sum(s.runs_n for s in scores.values())
     if unver:
         # Say "unverified", the outcome's own name, rather than a paraphrase -- the render
         # and the data must use one vocabulary or a reader cannot map one to the other.
-        out.append(f"  COVERAGE GAP: {unver} of {total} run(s) are unverified -- nobody "
-                   f"checked them, so they count toward no rate. Unscored claims would "
-                   f"otherwise dilute every refutation to zero (T254)")
-    for lens, s in sorted(scores.items(), key=lambda kv: (kv[1].hit_rate is None,
-                                                          kv[1].hit_rate or 0)):
+        out.append(
+            f"  COVERAGE GAP: {unver} of {total} run(s) are unverified -- nobody "
+            f"checked them, so they count toward no rate. Unscored claims would "
+            f"otherwise dilute every refutation to zero (T254)"
+        )
+    for lens, s in sorted(scores.items(), key=lambda kv: (kv[1].hit_rate is None, kv[1].hit_rate or 0)):
         rate = f"{s.hit_rate:.0%}" if s.hit_rate is not None else "  --"
-        out.append(f"  [{s.verdict:>10}] {rate:>5}  {lens:<34} "
-                   f"{s.confirmed_n}c/{s.refuted_n}r/{s.abstained_n}a/{s.unverified_n}u "
-                   f"-> {plan.get(lens, 'run')}")
+        out.append(
+            f"  [{s.verdict:>10}] {rate:>5}  {lens:<34} "
+            f"{s.confirmed_n}c/{s.refuted_n}r/{s.abstained_n}a/{s.unverified_n}u "
+            f"-> {plan.get(lens, 'run')}"
+        )
         out.append(f"               {s.why}")
-    out.append("  Gating is a RECOMMENDATION and is not enforced -- a structural scorer has "
-               "no business silencing a lens before a human has read its ledger.")
+    out.append(
+        "  Gating is a RECOMMENDATION and is not enforced -- a structural scorer has "
+        "no business silencing a lens before a human has read its ledger."
+    )
     return "\n".join(out)
 
 
@@ -234,14 +256,14 @@ def lens_identity(prompts: List[str], width: int = 60) -> List[str]:
 
     out: List[str] = []
     for k, p in enumerate(prompts):
-        delta = p[i:len(p) - j].strip()
+        delta = p[i : len(p) - j].strip()
         out.append(_slug(delta, width) if delta else f"indistinct-branch-{k}")
     return out
 
 
 def _slug(text: str, width: int) -> str:
     keep = []
-    for ch in str(text).lower()[:width * 3]:
+    for ch in str(text).lower()[: width * 3]:
         if ch.isalnum():
             keep.append(ch)
         elif keep and keep[-1] != "-":
@@ -250,6 +272,7 @@ def _slug(text: str, width: int) -> str:
 
 
 # ------------------------------------------------------------------ persistence
+
 
 def ledger_path(root: Path) -> Path:
     """Where the ledger lives. Honours AKASHIC_LENS_LEDGER, exactly like the route journal
@@ -262,6 +285,7 @@ def ledger_path(root: Path) -> Path:
     rows before anyone looked.
     """
     import os
+
     env = os.environ.get("AKASHIC_LENS_LEDGER", "")
     if env:
         return Path(env)
@@ -272,8 +296,9 @@ def record(path: Path, run: LensRun) -> None:
     """Append one run. Fail-open like the route journal it sits beside: a dead ledger must
     never wedge a fan."""
     import os
+
     if os.environ.get("_AISETUP_TEST_ISOLATED"):
-        return          # a test run must never write the live ledger
+        return  # a test run must never write the live ledger
     try:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -292,7 +317,7 @@ def read(path: Path) -> List[LensRun]:
             try:
                 out.append(LensRun(**json.loads(line)))
             except Exception:
-                continue          # a malformed line is skipped, never fatal
+                continue  # a malformed line is skipped, never fatal
     except Exception:
         return []
     return out

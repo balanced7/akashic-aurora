@@ -12,6 +12,7 @@ this and were waiting).
 
 Run: py -m pytest tests/test_media_inbound.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -24,8 +25,7 @@ ROOT_ID = "111222333444555666"
 
 
 def _cfg():
-    return {"operator_id": ROOT_ID,
-            "people": {ROOT_ID: {"agent": "daniil", "tier": "operator"}}}
+    return {"operator_id": ROOT_ID, "people": {ROOT_ID: {"agent": "daniil", "tier": "operator"}}}
 
 
 class _Bus:
@@ -33,13 +33,11 @@ class _Bus:
         self.sent = []
 
     def send(self, to, kind, content, meta=None, parts=None):
-        self.sent.append({"to": to, "kind": kind, "content": content,
-                          "meta": dict(meta or {}), "parts": parts})
+        self.sent.append({"to": to, "kind": kind, "content": content, "meta": dict(meta or {}), "parts": parts})
         return "m1-0"
 
     def broadcast(self, kind, content, meta=None, parts=None):
-        self.sent.append({"to": "*", "kind": kind, "content": content,
-                          "meta": dict(meta or {}), "parts": parts})
+        self.sent.append({"to": "*", "kind": kind, "content": content, "meta": dict(meta or {}), "parts": parts})
         return "m1-0"
 
 
@@ -53,9 +51,15 @@ def _tmp_png():
 def _call(content, attachments=None):
     bus = _Bus()
     out = discord_inbound.handle_message(
-        _cfg(), author_id=ROOT_ID, author_name="d", channel_id="c1",
-        content=content, bus=bus, react=lambda e: None,
-        attachments=attachments)
+        _cfg(),
+        author_id=ROOT_ID,
+        author_name="d",
+        channel_id="c1",
+        content=content,
+        bus=bus,
+        react=lambda e: None,
+        attachments=attachments,
+    )
     return out, bus
 
 

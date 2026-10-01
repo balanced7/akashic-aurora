@@ -30,7 +30,7 @@ def is_active(record: Dict[str, Any]) -> bool:
     Chapters/Resources). A record with neither field present is active (safe for legacy data)."""
     if record.get("superseded", False):
         return False
-    return not record.get("valid_to")        # open/absent valid_to = active; a closed interval = retired
+    return not record.get("valid_to")  # open/absent valid_to = active; a closed interval = retired
 
 
 def mark_supersedes(new_record: Dict[str, Any], old_id: Optional[str]) -> Dict[str, Any]:

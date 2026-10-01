@@ -21,6 +21,7 @@ a prompt template instead of a comment.
 
 Run:  py -m pytest tests/test_spawn_prompt_requires_a_reply.py -v
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,7 +45,8 @@ def test_the_prompt_names_wrap_as_insufficient():
     assert "wrap" in block.lower()
     assert "never reaches him" in block or "distills" in block, (
         "the prompt must say, in words, that wrap alone does not reach Daniil -- "
-        "otherwise a spawned seat has no reason not to repeat the silent-completion bug")
+        "otherwise a spawned seat has no reason not to repeat the silent-completion bug"
+    )
 
 
 def test_the_prompt_gives_the_exact_reply_command():

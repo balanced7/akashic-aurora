@@ -7,6 +7,7 @@ node (the latent Ranker bug, E4); a retired Resource ranks out.
 
 Run: py -m pytest tests/test_codex_resource.py -q
 """
+
 import json
 import os
 import sys
@@ -33,7 +34,7 @@ def test_schema_roundtrip_and_stable_id():
     r = new_resource(atom_ids=["a", "b"], title="t", summary="s")
     assert r.id.startswith("res_") and r.version_hash == version_hash(["a", "b"], "s")
     assert Resource.from_dict(r.to_dict()) == r
-    assert new_resource_id() != new_resource_id()                     # ids are unique
+    assert new_resource_id() != new_resource_id()  # ids are unique
     # version_hash tracks CONTENT, not identity
     assert version_hash(["a", "b"], "s") != version_hash(["a", "b", "c"], "s")
     assert version_hash(["a", "b"], "s") != version_hash(["a", "b"], "s2")
@@ -64,11 +65,11 @@ def test_supersede_forwards_links_and_keeps_old():
     new = new_resource(atom_ids=["a", "b", "c", "d"], summary="refined", id="res_new")
     lifecycle.supersede(store, old, new, resource_key, now="2026-02-01T00:00:00")
     so, sn = _load(store, "res_old"), _load(store, "res_new")
-    assert so.valid_to == "2026-02-01T00:00:00" and not lifecycle.is_active(so)   # retired, NOT deleted
-    assert lifecycle.is_active(sn)                                                # new active
-    assert any(e.type == "replaces" and e.target == "res_new" for e in so.relates)        # forwards
+    assert so.valid_to == "2026-02-01T00:00:00" and not lifecycle.is_active(so)  # retired, NOT deleted
+    assert lifecycle.is_active(sn)  # new active
+    assert any(e.type == "replaces" and e.target == "res_new" for e in so.relates)  # forwards
     assert any(e.type == "is_version_of" and e.target == "res_old" for e in sn.relates)
-    assert so.id == "res_old" and sn.id == "res_new"                             # stable, distinct ids
+    assert so.id == "res_old" and sn.id == "res_new"  # stable, distinct ids
 
 
 def test_merge_as_supersession_no_atom_orphaned():
@@ -101,24 +102,31 @@ def test_split_as_supersession_no_atom_lost():
 
 
 def test_e4_is_active_honors_valid_to():
-    assert ranker_is_active({}) is True                                  # legacy, neither field
-    assert ranker_is_active({"superseded": True}) is False               # simple field
+    assert ranker_is_active({}) is True  # legacy, neither field
+    assert ranker_is_active({"superseded": True}) is False  # simple field
     assert ranker_is_active({"valid_to": "2026-01-01T00:00:00"}) is False  # bi-temporal closed (the fix)
-    assert ranker_is_active({"valid_to": None}) is True                  # open
+    assert ranker_is_active({"valid_to": None}) is True  # open
     assert ranker_is_active({"superseded": True, "valid_to": "x"}) is False
 
 
 def test_ranker_excludes_retired_resource():
-    items = [{"text": "active resource", "valid_to": None, "importance": 3},
-             {"text": "retired resource", "valid_to": "2026-01-01T00:00:00", "importance": 5}]
+    items = [
+        {"text": "active resource", "valid_to": None, "importance": 3},
+        {"text": "retired resource", "valid_to": "2026-01-01T00:00:00", "importance": 5},
+    ]
     texts = [s.item["text"] for s in Ranker().rank(items, "")]
     assert "active resource" in texts and "retired resource" not in texts
 
 
 if __name__ == "__main__":
-    for fn in [test_schema_roundtrip_and_stable_id, test_regenerate_keeps_id_and_origin_idempotent,
-               test_supersede_forwards_links_and_keeps_old, test_merge_as_supersession_no_atom_orphaned,
-               test_split_as_supersession_no_atom_lost, test_e4_is_active_honors_valid_to,
-               test_ranker_excludes_retired_resource]:
+    for fn in [
+        test_schema_roundtrip_and_stable_id,
+        test_regenerate_keeps_id_and_origin_idempotent,
+        test_supersede_forwards_links_and_keeps_old,
+        test_merge_as_supersession_no_atom_orphaned,
+        test_split_as_supersession_no_atom_lost,
+        test_e4_is_active_honors_valid_to,
+        test_ranker_excludes_retired_resource,
+    ]:
         fn()
     print("ALL C2 RESOURCE/LIFECYCLE TESTS PASSED")

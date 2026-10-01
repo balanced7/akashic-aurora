@@ -1,4 +1,5 @@
 """The First Light server's routes, exercised without a browser: library, Range, plan, takes."""
+
 import json
 import sys
 import threading
@@ -40,8 +41,9 @@ def _get(url, headers=None):
 
 
 def _post(url, obj):
-    request = urllib.request.Request(url, data=json.dumps(obj).encode("utf-8"), method="POST",
-                                     headers={"Content-Type": "application/json"})
+    request = urllib.request.Request(
+        url, data=json.dumps(obj).encode("utf-8"), method="POST", headers={"Content-Type": "application/json"}
+    )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return response.status, json.loads(response.read() or b"null")
@@ -79,18 +81,23 @@ def test_plan_and_take_lifecycle(server):
     status, refused = _post(base + "/api/plan", dict(graph, edges=graph["edges"] + [["clip.media", "fx.video"]]))
     assert status == 400 and refused["problems"]
 
-    status, opened = _post(base + "/api/take/open", {"graph": graph, "clip_id": clip_id_for(clip), "meta": {"ua": "test"}})
+    status, opened = _post(
+        base + "/api/take/open", {"graph": graph, "clip_id": clip_id_for(clip), "meta": {"ua": "test"}}
+    )
     assert status == 200
     take_id = opened["take_id"]
 
     def t(epoch, ticks):
         return {"clock": "media", "epoch": epoch, "ticks": ticks, "timebase": "1/90000"}
 
-    status, ok = _post(f"{base}/api/take/{take_id}/events",
-                       {"events": [{"kind": "play", "t": t(0, 0)},
-                                   {"kind": "epoch", "epoch": 1, "reason": "seek", "t": t(1, 0)}]})
+    status, ok = _post(
+        f"{base}/api/take/{take_id}/events",
+        {"events": [{"kind": "play", "t": t(0, 0)}, {"kind": "epoch", "epoch": 1, "reason": "seek", "t": t(1, 0)}]},
+    )
     assert status == 200 and ok["accepted"] == 2
-    status, _ = _post(f"{base}/api/take/{take_id}/events", {"events": [{"kind": "midi", "t": t(0, 5), "cc": 74, "value": 9}]})
+    status, _ = _post(
+        f"{base}/api/take/{take_id}/events", {"events": [{"kind": "midi", "t": t(0, 5), "cc": 74, "value": 9}]}
+    )
     assert status == 409
     assert _post(f"{base}/api/take/{take_id}/close", {"summary": {"p95": 11}})[0] == 200
 
@@ -102,16 +109,21 @@ def test_plan_and_take_lifecycle(server):
 def test_recordings_are_saved_into_the_library(server):
     base, clip = server
     body = b"\x1aE\xdf\xa3" + bytes(2048)
-    upload = urllib.request.Request(base + "/api/recordings?name=piano%20take%21", data=body, method="POST",
-                                    headers={"Content-Type": "video/webm;codecs=vp9"})
+    upload = urllib.request.Request(
+        base + "/api/recordings?name=piano%20take%21",
+        data=body,
+        method="POST",
+        headers={"Content-Type": "video/webm;codecs=vp9"},
+    )
     with urllib.request.urlopen(upload, timeout=10) as response:
         saved = json.loads(response.read())
     path = Path(saved["path"])
     assert path.parent == (clip.parent / "arsenal-renders").resolve()
     assert path.name.endswith(" piano-take.webm") and path.read_bytes() == body and saved["bytes"] == len(body)
     assert saved["clip_id"] == clip_id_for(path)
-    refused = urllib.request.Request(base + "/api/recordings", data=b"x", method="POST",
-                                     headers={"Content-Type": "text/plain"})
+    refused = urllib.request.Request(
+        base + "/api/recordings", data=b"x", method="POST", headers={"Content-Type": "text/plain"}
+    )
     try:
         urllib.request.urlopen(refused, timeout=10)
         raise AssertionError("a text/plain upload should be refused")

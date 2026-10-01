@@ -35,14 +35,15 @@ from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_P
 
 class SignalType(Enum):
     """Types of signals agents can emit"""
-    ACTION = "action"           # Task started
-    DECISION = "decision"       # Key choice made
-    BLOCKER = "blocker"         # Obstacle encountered
-    HANDOFF = "handoff"         # Passing to another agent
-    COMPLETION = "completion"   # Task finished
-    LEARNING = "learning"       # Experiment outcome (new)
-    INSIGHT = "insight"         # Learning extracted
-    CONTEXT = "context"         # State snapshot
+
+    ACTION = "action"  # Task started
+    DECISION = "decision"  # Key choice made
+    BLOCKER = "blocker"  # Obstacle encountered
+    HANDOFF = "handoff"  # Passing to another agent
+    COMPLETION = "completion"  # Task finished
+    LEARNING = "learning"  # Experiment outcome (new)
+    INSIGHT = "insight"  # Learning extracted
+    CONTEXT = "context"  # State snapshot
 
 
 class SignalEmitter:
@@ -95,6 +96,7 @@ class SignalEmitter:
         # AND the signal layout (stream names + retention) -- so this module just
         # appends and never branches on "if redis else file".
         from core.signals.agent_signal_ledger import AgentSignalLedger
+
         self.signal_ledger = AgentSignalLedger(host=redis_host, port=redis_port)
         self.agent_stream = self.signal_ledger.stream_for_agent(self.agent_id)
 
@@ -104,10 +106,7 @@ class SignalEmitter:
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # Setup logging
-        logging.basicConfig(
-            level=logging.INFO,
-            format='[%(asctime)s] %(message)s'
-        )
+        logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(message)s")
         self.logger = logging.getLogger(f"coordinator_api.{self.agent_id}")
 
         # Startup context (loaded by initialize())
@@ -141,7 +140,7 @@ class SignalEmitter:
             "session_id": self.session_id,
             "signal_type": signal_type.value,
             "signal_number": self.signal_count,
-            **data
+            **data,
         }
 
         self.signal_count += 1
@@ -173,18 +172,11 @@ class SignalEmitter:
             action_name: Name of the action (e.g., "code_review", "analysis")
             details: Optional task details (file, parameters, etc.)
         """
-        data = {
-            "action_name": action_name,
-            "details": details or {}
-        }
+        data = {"action_name": action_name, "details": details or {}}
         self._emit_signal_causing_state_change(SignalType.ACTION, data)
 
     def emit_decision_referenced_by_agents(
-        self,
-        decision_name: str,
-        outcome: str,
-        reason: Optional[str] = None,
-        reasoning: Optional[str] = None
+        self, decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
     ) -> None:
         """
         Emit decision signal that future agents can reference.
@@ -205,12 +197,7 @@ class SignalEmitter:
             reason: Brief human-readable reason
             reasoning: Detailed reasoning for Coordinator synthesis
         """
-        data = {
-            "decision_name": decision_name,
-            "outcome": outcome,
-            "reason": reason,
-            "reasoning": reasoning
-        }
+        data = {"decision_name": decision_name, "outcome": outcome, "reason": reason, "reasoning": reasoning}
         self._emit_signal_causing_state_change(SignalType.DECISION, data)
 
     def emit_blocker_preventing_progress(
@@ -218,7 +205,7 @@ class SignalEmitter:
         blocker_name: str,
         severity: str = "medium",
         description: Optional[str] = None,
-        impact: Optional[str] = None
+        impact: Optional[str] = None,
     ) -> None:
         """
         Emit blocker signal indicating obstacle preventing progress.
@@ -238,12 +225,7 @@ class SignalEmitter:
             description: What happened
             impact: How it affects progress
         """
-        data = {
-            "blocker_name": blocker_name,
-            "severity": severity,
-            "description": description,
-            "impact": impact
-        }
+        data = {"blocker_name": blocker_name, "severity": severity, "description": description, "impact": impact}
         self._emit_signal_causing_state_change(SignalType.BLOCKER, data)
 
     def emit_handoff_to_target_agent(
@@ -251,7 +233,7 @@ class SignalEmitter:
         target_agent: str,
         task: str,
         context: Optional[Dict[str, Any]] = None,
-        blockers: Optional[List[str]] = None
+        blockers: Optional[List[str]] = None,
     ) -> None:
         """
         Emit handoff signal transferring work to another agent.
@@ -271,19 +253,11 @@ class SignalEmitter:
             context: Any context they need
             blockers: Blockers the next agent should know about
         """
-        data = {
-            "target_agent": target_agent,
-            "task": task,
-            "context": context or {},
-            "blockers": blockers or []
-        }
+        data = {"target_agent": target_agent, "task": task, "context": context or {}, "blockers": blockers or []}
         self._emit_signal_causing_state_change(SignalType.HANDOFF, data)
 
     def emit_completion_signal_concluding_work(
-        self,
-        success: bool,
-        output: Optional[Dict[str, Any]] = None,
-        learned: Optional[str] = None
+        self, success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None
     ) -> None:
         """
         Emit completion signal concluding work.
@@ -300,7 +274,7 @@ class SignalEmitter:
             "output": output or {},
             "learned": learned,
             "total_signals": self.signal_count,
-            "duration_seconds": time.time() - self.start_time
+            "duration_seconds": time.time() - self.start_time,
         }
         self._emit_signal_causing_state_change(SignalType.COMPLETION, data)
 
@@ -316,7 +290,7 @@ class SignalEmitter:
         root_cause: Optional[str] = None,
         recommendation: Optional[str] = None,
         anti_pattern: Optional[str] = None,
-        confidence: str = "medium"
+        confidence: str = "medium",
     ) -> None:
         """
         Derive learning from experiment and emit for future agents.
@@ -354,13 +328,14 @@ class SignalEmitter:
             "root_cause": root_cause,
             "recommendation": recommendation,
             "anti_pattern": anti_pattern,
-            "confidence": confidence
+            "confidence": confidence,
         }
         self._emit_signal_causing_state_change(SignalType.LEARNING, data)
 
         # Directly record to learning store (don't wait for coordinator service)
         try:
             from core.learning.learning_store import get_learning_store
+
             store = get_learning_store()
             learning_signal = {**data, "agent_id": self.agent_id, "timestamp": datetime.utcnow().isoformat()}
             store.record_learning(learning_signal)
@@ -444,7 +419,7 @@ class SignalEmitter:
                 "name": "Agent Coordination Framework",
                 "phase": "1.5",
                 "status": "Production Ready",
-                "purpose": "Multi-agent learning system with cross-agent decision/learning sharing"
+                "purpose": "Multi-agent learning system with cross-agent decision/learning sharing",
             },
             "signals": self._describe_signals(),
             "context": self._describe_context(),
@@ -452,10 +427,11 @@ class SignalEmitter:
             "capabilities": self._describe_capabilities(),
             "examples": {
                 "quick_start": self._get_quick_start_example(),
-                "all_methods": {method: self.get_method_example(method) for method in [
-                    "action", "decision", "blocker", "learning", "completion", "handoff"
-                ]}
-            }
+                "all_methods": {
+                    method: self.get_method_example(method)
+                    for method in ["action", "decision", "blocker", "learning", "completion", "handoff"]
+                },
+            },
         }
 
     def get_context_summary(self) -> Dict[str, Any]:
@@ -467,27 +443,27 @@ class SignalEmitter:
             "briefing": {
                 "available": self.startup_briefing is not None,
                 "content": self.startup_briefing if self.startup_briefing else "None (first run or no handoff)",
-                "purpose": "Instructions from previous agent"
+                "purpose": "Instructions from previous agent",
             },
             "decisions": {
                 "count": len(self.startup_decisions or []),
                 "items": self.startup_decisions or [],
-                "purpose": "Cached decisions to reuse (saves tokens)"
+                "purpose": "Cached decisions to reuse (saves tokens)",
             },
             "learnings": {
                 "count": len(self.startup_learnings or []),
                 "items": self.startup_learnings or [],
-                "purpose": "Lessons learned to apply (avoid rework)"
+                "purpose": "Lessons learned to apply (avoid rework)",
             },
             "checkpoint": {
-                "available": hasattr(self, 'checkpoint') and self.checkpoint is not None,
-                "purpose": "Resume point if crashed"
+                "available": hasattr(self, "checkpoint") and self.checkpoint is not None,
+                "purpose": "Resume point if crashed",
             },
             "summary": {
                 "total_context_items": len(self.startup_decisions or []) + len(self.startup_learnings or []),
                 "is_cold_start": self.startup_briefing is None and len(self.startup_decisions or []) == 0,
-                "recommendation": self._get_context_recommendation()
-            }
+                "recommendation": self._get_context_recommendation(),
+            },
         }
 
     def get_method_example(self, method_name: str) -> Dict[str, Any]:
@@ -502,8 +478,8 @@ class SignalEmitter:
 )""",
                 "parameters": {
                     "action_name": "str - Name of the action",
-                    "details": "dict - Additional details (optional)"
-                }
+                    "details": "dict - Additional details (optional)",
+                },
             },
             "decision": {
                 "method": "decision",
@@ -516,8 +492,8 @@ class SignalEmitter:
                 "parameters": {
                     "name": "str - Decision identifier",
                     "outcome": "str - yes|no|partial",
-                    "reason": "str - Why this choice"
-                }
+                    "reason": "str - Why this choice",
+                },
             },
             "learning": {
                 "method": "learning",
@@ -538,8 +514,8 @@ class SignalEmitter:
                     "actual_outcome": "str - Result",
                     "category": "str - performance|quality|cost|reliability",
                     "success": "str - yes|partial|no",
-                    "recommendation": "str - What next agent should do"
-                }
+                    "recommendation": "str - What next agent should do",
+                },
             },
             "blocker": {
                 "method": "blocker",
@@ -554,8 +530,8 @@ class SignalEmitter:
                     "blocker_name": "str - Name of blocker",
                     "severity": "str - high|medium|low",
                     "description": "str - What's blocked",
-                    "impact": "str - How it affects work"
-                }
+                    "impact": "str - How it affects work",
+                },
             },
             "completion": {
                 "method": "completion",
@@ -568,8 +544,8 @@ class SignalEmitter:
                 "parameters": {
                     "success": "bool - Did task succeed",
                     "output": "dict - Results",
-                    "learned": "str - Key learning from this work"
-                }
+                    "learned": "str - Key learning from this work",
+                },
             },
             "handoff": {
                 "method": "request_handoff",
@@ -584,9 +560,9 @@ class SignalEmitter:
                     "target_agent": "str - Agent to take over",
                     "task": "str - What they should do",
                     "context": "dict - Context for next agent",
-                    "blockers": "list - Any blockers to know about"
-                }
-            }
+                    "blockers": "list - Any blockers to know about",
+                },
+            },
         }
         return examples.get(method_name, {"error": f"Unknown method: {method_name}"})
 
@@ -598,19 +574,19 @@ class SignalEmitter:
             return {
                 "situation": "You were handed off a task",
                 "suggestion": "1. Read your briefing 2. Check cached decisions 3. Apply learnings 4. Start work",
-                "code": "briefing = api.get_startup_briefing()"
+                "code": "briefing = api.get_startup_briefing()",
             }
         elif context_size > 0:
             return {
                 "situation": f"You have {context_size} relevant decisions/learnings loaded",
                 "suggestion": "1. Review decisions to reuse (save tokens) 2. Apply learnings 3. Start work",
-                "code": "decisions = api.get_startup_decisions(); learnings = api.get_startup_learnings()"
+                "code": "decisions = api.get_startup_decisions(); learnings = api.get_startup_learnings()",
             }
         else:
             return {
                 "situation": "Cold start (no prior context)",
                 "suggestion": "1. Do your work 2. Record decisions 3. Record learnings 4. System learns for next agent",
-                "code": "api.decision(...); api.learning(...)"
+                "code": "api.decision(...); api.learning(...)",
             }
 
     # ===== Helper methods for Bootstrap API =====
@@ -621,33 +597,33 @@ class SignalEmitter:
             "DECISION": {
                 "description": "Key choice made during work",
                 "purpose": "Cached for next agent to reuse (saves tokens)",
-                "example": "api.decision('use_async', outcome='yes', reason='...')"
+                "example": "api.decision('use_async', outcome='yes', reason='...')",
             },
             "LEARNING": {
                 "description": "Experiment outcome or lesson learned",
                 "purpose": "Shared with next agent to improve decisions",
-                "example": "api.learning(experiment_name='...' what_tried='...', actual_outcome='...')"
+                "example": "api.learning(experiment_name='...' what_tried='...', actual_outcome='...')",
             },
             "ACTION": {
                 "description": "Work being performed",
                 "purpose": "Track progress and activity",
-                "example": "api.action('code_review', details={...})"
+                "example": "api.action('code_review', details={...})",
             },
             "BLOCKER": {
                 "description": "Obstacle encountered",
                 "purpose": "Alert next agent to problems",
-                "example": "api.blocker('redis_timeout', severity='high')"
+                "example": "api.blocker('redis_timeout', severity='high')",
             },
             "HANDOFF": {
                 "description": "Passing work to another agent",
                 "purpose": "Context transfer between agents",
-                "example": "api.request_handoff('agent_name', 'task', ...)"
+                "example": "api.request_handoff('agent_name', 'task', ...)",
             },
             "COMPLETION": {
                 "description": "Task finished",
                 "purpose": "Mark success/failure and document outcome",
-                "example": "api.completion(success=True, output={...})"
-            }
+                "example": "api.completion(success=True, output={...})",
+            },
         }
 
     def _describe_context(self) -> Dict[str, Dict[str, Any]]:
@@ -656,25 +632,25 @@ class SignalEmitter:
             "briefing": {
                 "description": "Instructions from previous agent",
                 "retrieval": "api.get_startup_briefing()",
-                "always_available": False
+                "always_available": False,
             },
             "decisions": {
                 "description": "Cached decisions relevant to your task",
                 "retrieval": "api.get_startup_decisions()",
                 "always_available": True,
-                "note": "Empty list if first run or no prior decisions"
+                "note": "Empty list if first run or no prior decisions",
             },
             "learnings": {
                 "description": "Lessons learned by previous agents",
                 "retrieval": "api.get_startup_learnings()",
                 "always_available": True,
-                "note": "Empty list if first run or no prior learnings"
+                "note": "Empty list if first run or no prior learnings",
             },
             "checkpoint": {
                 "description": "Resume point if you crashed before",
                 "retrieval": "state.load_checkpoint()",
-                "always_available": False
-            }
+                "always_available": False,
+            },
         }
 
     def _describe_methods(self) -> Dict[str, str]:
@@ -693,7 +669,7 @@ class SignalEmitter:
             "get_stats": "Get session statistics",
             "get_bootstrap_info": "Get this self-describing info",
             "get_context_summary": "See what context you have",
-            "get_method_example": "Get code example for any method"
+            "get_method_example": "Get code example for any method",
         }
 
     def _describe_capabilities(self) -> Dict[str, str]:
@@ -704,7 +680,7 @@ class SignalEmitter:
             "context_persistence": "Briefing, decisions, learnings persist across agents",
             "signal_logging": "All signals logged to file and optionally Redis",
             "zero_documentation_bootstrap": "Get all info via APIs, no docs needed",
-            "graceful_degradation": "Works with Redis (fast) or fallback to files"
+            "graceful_degradation": "Works with Redis (fast) or fallback to files",
         }
 
     def _get_quick_start_example(self) -> str:
@@ -752,11 +728,7 @@ api.completion(success=True, output={...})"""
         self.emit_action_triggering_work(action_name, details)
 
     def decision(
-        self,
-        decision_name: str,
-        outcome: str,
-        reason: Optional[str] = None,
-        reasoning: Optional[str] = None
+        self, decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
     ) -> None:
         """Deprecated: Use emit_decision_referenced_by_agents() instead"""
         self.emit_decision_referenced_by_agents(decision_name, outcome, reason, reasoning)
@@ -766,7 +738,7 @@ api.completion(success=True, output={...})"""
         blocker_name: str,
         severity: str = "medium",
         description: Optional[str] = None,
-        impact: Optional[str] = None
+        impact: Optional[str] = None,
     ) -> None:
         """Deprecated: Use emit_blocker_preventing_progress() instead"""
         self.emit_blocker_preventing_progress(blocker_name, severity, description, impact)
@@ -776,17 +748,12 @@ api.completion(success=True, output={...})"""
         target_agent: str,
         task: str,
         context: Optional[Dict[str, Any]] = None,
-        blockers: Optional[List[str]] = None
+        blockers: Optional[List[str]] = None,
     ) -> None:
         """Deprecated: Use emit_handoff_to_target_agent() instead"""
         self.emit_handoff_to_target_agent(target_agent, task, context, blockers)
 
-    def completion(
-        self,
-        success: bool,
-        output: Optional[Dict[str, Any]] = None,
-        learned: Optional[str] = None
-    ) -> None:
+    def completion(self, success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None) -> None:
         """Deprecated: Use emit_completion_signal_concluding_work() instead"""
         self.emit_completion_signal_concluding_work(success, output, learned)
 
@@ -802,12 +769,21 @@ api.completion(success=True, output={...})"""
         root_cause: Optional[str] = None,
         recommendation: Optional[str] = None,
         anti_pattern: Optional[str] = None,
-        confidence: str = "medium"
+        confidence: str = "medium",
     ) -> None:
         """Deprecated: Use derive_learning_from_experiment() instead"""
         self.derive_learning_from_experiment(
-            experiment_name, what_tried, expected_outcome, actual_outcome,
-            category, success, metrics, root_cause, recommendation, anti_pattern, confidence
+            experiment_name,
+            what_tried,
+            expected_outcome,
+            actual_outcome,
+            category,
+            success,
+            metrics,
+            root_cause,
+            recommendation,
+            anti_pattern,
+            confidence,
         )
 
     def get_startup_context(self) -> Optional[Dict[str, Any]]:
@@ -834,8 +810,13 @@ CoordinatorAPI = SignalEmitter
 _global_api: Optional[SignalEmitter] = None
 
 
-def initialize(agent_id: str, redis_host: str = DEFAULT_REDIS_HOST, redis_port: int = DEFAULT_REDIS_PORT,
-               task_keyword: Optional[str] = None, load_context: bool = True) -> SignalEmitter:
+def initialize(
+    agent_id: str,
+    redis_host: str = DEFAULT_REDIS_HOST,
+    redis_port: int = DEFAULT_REDIS_PORT,
+    task_keyword: Optional[str] = None,
+    load_context: bool = True,
+) -> SignalEmitter:
     """
     Initialize the global SignalEmitter instance.
 
@@ -860,6 +841,7 @@ def initialize(agent_id: str, redis_host: str = DEFAULT_REDIS_HOST, redis_port: 
         Initialized SignalEmitter instance with loaded context
     """
     import os as _os
+
     global _global_api
     api = CoordinatorAPI(agent_id, redis_host, redis_port)
     # T069 (reconciled spec): under _AISETUP_TEST_ISOLATED the fresh emitter is returned
@@ -877,7 +859,8 @@ def initialize(agent_id: str, redis_host: str = DEFAULT_REDIS_HOST, redis_port: 
     if load_context:
         api.logger.debug(
             "initialize(load_context=True) is deprecated and a no-op; context now "
-            "comes from the Context pillar (context.aggregator.assemble_context).")
+            "comes from the Context pillar (context.aggregator.assemble_context)."
+        )
 
     return api
 
@@ -905,27 +888,36 @@ def get_api() -> SignalEmitter:
 # ===== SEMANTIC CONVENIENCE FUNCTIONS (Module-level API) =====
 # These use the global SignalEmitter instance for easy access
 
+
 def emit_action_triggering_work(action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
     """Emit action signal (convenience function using global API)"""
     get_api().emit_action_triggering_work(action_name, details)
 
 
-def emit_decision_referenced_by_agents(decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None) -> None:
+def emit_decision_referenced_by_agents(
+    decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
+) -> None:
     """Emit decision signal (convenience function using global API)"""
     get_api().emit_decision_referenced_by_agents(decision_name, outcome, reason, reasoning)
 
 
-def emit_blocker_preventing_progress(blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None) -> None:
+def emit_blocker_preventing_progress(
+    blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None
+) -> None:
     """Emit blocker signal (convenience function using global API)"""
     get_api().emit_blocker_preventing_progress(blocker_name, severity, description, impact)
 
 
-def emit_handoff_to_target_agent(target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None) -> None:
+def emit_handoff_to_target_agent(
+    target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None
+) -> None:
     """Emit handoff signal (convenience function using global API)"""
     get_api().emit_handoff_to_target_agent(target_agent, task, context, blockers)
 
 
-def emit_completion_signal_concluding_work(success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None) -> None:
+def emit_completion_signal_concluding_work(
+    success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None
+) -> None:
     """Emit completion signal (convenience function using global API)"""
     get_api().emit_completion_signal_concluding_work(success, output, learned)
 
@@ -941,17 +933,27 @@ def derive_learning_from_experiment(
     root_cause: Optional[str] = None,
     recommendation: Optional[str] = None,
     anti_pattern: Optional[str] = None,
-    confidence: str = "medium"
+    confidence: str = "medium",
 ) -> None:
     """Derive and emit learning signal (convenience function using global API)"""
     get_api().derive_learning_from_experiment(
-        experiment_name, what_tried, expected_outcome, actual_outcome,
-        category, success, metrics, root_cause, recommendation, anti_pattern, confidence
+        experiment_name,
+        what_tried,
+        expected_outcome,
+        actual_outcome,
+        category,
+        success,
+        metrics,
+        root_cause,
+        recommendation,
+        anti_pattern,
+        confidence,
     )
 
 
 # ===== BACKWARD COMPATIBILITY CONVENIENCE FUNCTIONS =====
 # These are deprecated. Use semantic versions above instead.
+
 
 def action(action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
     """Deprecated: Use emit_action_triggering_work() instead"""
@@ -963,12 +965,16 @@ def decision(decision_name: str, outcome: str, reason: Optional[str] = None, rea
     get_api().decision(decision_name, outcome, reason, reasoning)
 
 
-def blocker(blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None) -> None:
+def blocker(
+    blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None
+) -> None:
     """Deprecated: Use emit_blocker_preventing_progress() instead"""
     get_api().blocker(blocker_name, severity, description, impact)
 
 
-def request_handoff(target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None) -> None:
+def request_handoff(
+    target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None
+) -> None:
     """Deprecated: Use emit_handoff_to_target_agent() instead"""
     get_api().request_handoff(target_agent, task, context, blockers)
 
@@ -989,10 +995,19 @@ def learning(
     root_cause: Optional[str] = None,
     recommendation: Optional[str] = None,
     anti_pattern: Optional[str] = None,
-    confidence: str = "medium"
+    confidence: str = "medium",
 ) -> None:
     """Deprecated: Use derive_learning_from_experiment() instead"""
     get_api().learning(
-        experiment_name, what_tried, expected_outcome, actual_outcome,
-        category, success, metrics, root_cause, recommendation, anti_pattern, confidence
+        experiment_name,
+        what_tried,
+        expected_outcome,
+        actual_outcome,
+        category,
+        success,
+        metrics,
+        root_cause,
+        recommendation,
+        anti_pattern,
+        confidence,
     )

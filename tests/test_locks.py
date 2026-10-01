@@ -7,6 +7,7 @@ and the hook's peer-lock veto for Edit/Write.
 
 Run: py -m pytest tests/test_locks.py -q
 """
+
 import fnmatch
 import json
 import os
@@ -20,17 +21,21 @@ from core.comm.locks import LockManager, path_conflict, normalize_path
 
 class FakeRedis:
     """Just enough Redis for LockManager, with a controllable clock for TTL tests."""
+
     def __init__(self):
         self.kv, self.exp, self.t = {}, {}, [1000.0]
 
     def _alive(self, k):
         if k in self.exp and self.t[0] >= self.exp[k]:
-            self.kv.pop(k, None); self.exp.pop(k, None)
+            self.kv.pop(k, None)
+            self.exp.pop(k, None)
         return k in self.kv
 
     def incr(self, k):
         v = (int(self.kv[k]) + 1) if self._alive(k) else 1
-        self.kv[k] = str(v); self.exp.pop(k, None); return v
+        self.kv[k] = str(v)
+        self.exp.pop(k, None)
+        return v
 
     def get(self, k):
         return self.kv[k] if self._alive(k) else None
@@ -46,7 +51,9 @@ class FakeRedis:
         return True
 
     def delete(self, k):
-        self.kv.pop(k, None); self.exp.pop(k, None); return 1
+        self.kv.pop(k, None)
+        self.exp.pop(k, None)
+        return 1
 
     def scan_iter(self, pattern):
         return [k for k in list(self.kv) if self._alive(k) and fnmatch.fnmatch(k, pattern)]
@@ -73,15 +80,15 @@ def test_reacquire_is_reentrant_same_token():
     _, claude, _ = _two()
     t1 = claude.acquire("a/b.py")["token"]
     again = claude.acquire("a/b.py")
-    assert again["ok"] and again["token"] == t1     # refresh, not a new token
+    assert again["ok"] and again["token"] == t1  # refresh, not a new token
 
 
 def test_release_only_by_holder():
     _, claude, cursor = _two()
     claude.acquire("f.py")
-    assert cursor.release("f.py") is False           # not yours
+    assert cursor.release("f.py") is False  # not yours
     assert claude.release("f.py") is True
-    assert cursor.acquire("f.py")["ok"] is True       # now free
+    assert cursor.acquire("f.py")["ok"] is True  # now free
 
 
 # ------------------------------------------------------------------- fencing token
@@ -89,10 +96,10 @@ def test_fencing_rejects_stale_token_after_steal():
     fake, claude, cursor = _two()
     a = claude.acquire("hot.py", ttl=10)
     assert claude.validate_token("hot.py", a["token"]) is True
-    fake.advance(11)                                  # claude's lock expires (paused/crashed)
-    b = cursor.acquire("hot.py")                      # cursor reclaims -> new, higher token
+    fake.advance(11)  # claude's lock expires (paused/crashed)
+    b = cursor.acquire("hot.py")  # cursor reclaims -> new, higher token
     assert b["ok"] and b["token"] > a["token"]
-    assert claude.validate_token("hot.py", a["token"]) is False   # stale holder rejected
+    assert claude.validate_token("hot.py", a["token"]) is False  # stale holder rejected
     assert cursor.validate_token("hot.py", b["token"]) is True
 
 
@@ -107,7 +114,8 @@ def test_ttl_makes_lock_reclaimable():
 
 def test_list_locks_shows_both_agents():
     _, claude, cursor = _two()
-    claude.acquire("p1.py"); cursor.acquire("p2.py")
+    claude.acquire("p1.py")
+    cursor.acquire("p2.py")
     held = claude.list_locks()
     assert {h["path"] for h in held} == {"p1.py", "p2.py"}
     assert {h["agent"] for h in held} == {"claude", "cursor"}
@@ -115,8 +123,8 @@ def test_list_locks_shows_both_agents():
 
 # ------------------------------------------------------------------- fail-soft
 def test_offline_is_failsoft(monkeypatch):
-    monkeypatch.setattr(L, "_connect", lambda: None)   # simulate Redis down
-    lm = LockManager("claude")                          # auto-connect -> None
+    monkeypatch.setattr(L, "_connect", lambda: None)  # simulate Redis down
+    lm = LockManager("claude")  # auto-connect -> None
     assert lm.online is False
     r = lm.acquire("x.py")
     assert r["ok"] is False and r["online"] is False
@@ -128,8 +136,8 @@ def test_path_conflict_detects_peer_only():
     fake, claude, _ = _two()
     claude.acquire("shared.py")
     assert path_conflict("shared.py", "cursor", client=fake)["conflict"] is True
-    assert path_conflict("shared.py", "claude", client=fake)["conflict"] is False   # your own
-    assert path_conflict("other.py", "cursor", client=fake)["conflict"] is False    # unlocked
+    assert path_conflict("shared.py", "claude", client=fake)["conflict"] is False  # your own
+    assert path_conflict("other.py", "cursor", client=fake)["conflict"] is False  # unlocked
 
 
 def test_normalize_path_folds_separators_and_case():
@@ -140,26 +148,35 @@ def test_normalize_path_folds_separators_and_case():
 # ------------------------------------------------------------------- hook veto
 def test_hook_blocks_edit_on_peer_locked_path(monkeypatch):
     from agent.harness.hooks import claude_pretooluse as hook
+
     monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda path, agent, client=None: {"conflict": True, "held_by": "cursor",
-                                                          "reason": "locked by cursor"})
+    monkeypatch.setattr(
+        L,
+        "path_conflict",
+        lambda path, agent, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
+    )
     reason = hook._check_write({"tool_input": {"file_path": "scripts/x.py"}})
     assert "locked by cursor" in reason
 
 
 def test_hook_allows_edit_when_no_agent_id_and_unlocked(monkeypatch):
     from agent.harness.hooks import claude_pretooluse as hook
+
     monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""})
+    monkeypatch.setattr(
+        L, "path_conflict", lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""}
+    )
     assert hook._check_write({"tool_input": {"file_path": "scripts/x.py"}}) == ""
 
 
 def test_hook_fails_closed_when_no_agent_id_and_path_locked(monkeypatch):
     from agent.harness.hooks import claude_pretooluse as hook
-    monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)   # RC-01 fix: unset id must not disable the guard
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"})
+
+    monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)  # RC-01 fix: unset id must not disable the guard
+    monkeypatch.setattr(
+        L,
+        "path_conflict",
+        lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
+    )
     reason = hook._check_write({"tool_input": {"file_path": "scripts/x.py"}})
     assert "AKASHIC_AGENT_ID" in reason and "cursor" in reason

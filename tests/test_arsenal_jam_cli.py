@@ -3,6 +3,7 @@
 The card and deck verbs write the files directly when no server answers; the loop verbs need a jam page (exit 3), a
 server (exit 4) and a run that has not moved underneath them (exit 5). Voicing needs node. Every card, session and
 page here is synthetic; the servers run on free ports and never touch 8793."""
+
 import http.server
 import json
 import shutil
@@ -83,14 +84,46 @@ class Page:
         self.sock.close()
 
 
-LAMENT = ["card", "add", "--id", "lament-test", "--title", "Walking bass under a held chord",
-          "--meaning", "Hold one chord and let the bass step down.", "--group", "moves", "--kind", "loop",
-          "--key", "Db major", "--chords", "6m11:4 | 6m11/5:4 | 6m11/4:4 | 6m11/3:4",
-          "--upper-same", "2", "--upper-same", "3", "--upper-same", "4",
-          "--notes-for", "1=Bb2 Bb3 Ab4 C5 Db5 Eb5 F5", "--bpm", "60", "--groove", "hold",
-          "--explain", "Your hands hold one chord; only the bass walks down.", "--why", "It is the old lament bass.",
-          "--try", "Play a slow melody on one note.", "--check", "slot=3 role=#11 relative_to=bass want=present "
-          "say=you found C over the Gb bass", "--tag", "bass"]
+LAMENT = [
+    "card",
+    "add",
+    "--id",
+    "lament-test",
+    "--title",
+    "Walking bass under a held chord",
+    "--meaning",
+    "Hold one chord and let the bass step down.",
+    "--group",
+    "moves",
+    "--kind",
+    "loop",
+    "--key",
+    "Db major",
+    "--chords",
+    "6m11:4 | 6m11/5:4 | 6m11/4:4 | 6m11/3:4",
+    "--upper-same",
+    "2",
+    "--upper-same",
+    "3",
+    "--upper-same",
+    "4",
+    "--notes-for",
+    "1=Bb2 Bb3 Ab4 C5 Db5 Eb5 F5",
+    "--bpm",
+    "60",
+    "--groove",
+    "hold",
+    "--explain",
+    "Your hands hold one chord; only the bass walks down.",
+    "--why",
+    "It is the old lament bass.",
+    "--try",
+    "Play a slow melody on one note.",
+    "--check",
+    "slot=3 role=#11 relative_to=bass want=present say=you found C over the Gb bass",
+    "--tag",
+    "bass",
+]
 
 
 @needs_node
@@ -127,13 +160,64 @@ def test_card_verbs_write_the_files_directly_with_no_server(tmp_path, capsys):
     missing = [a for i, a in enumerate(LAMENT) if a != "--meaning" and LAMENT[i - 1] != "--meaning"]
     code, _, err = run([*missing[:2], "--id", "no-meaning", *missing[4:]] + common, capsys)
     assert code == 2 and "--meaning" in err
-    code, _, err = run(["card", "add", "--id", "bad-line", "--title", "t", "--meaning", "m", "--kind", "loop",
-                        "--group", "try", "--key", "Eb major", "--chords", "1maj9:4 | ", "--explain", "x", "--why",
-                        "x", "--try", "x", "--names", "Ebmaj9"] + common, capsys)
+    code, _, err = run(
+        [
+            "card",
+            "add",
+            "--id",
+            "bad-line",
+            "--title",
+            "t",
+            "--meaning",
+            "m",
+            "--kind",
+            "loop",
+            "--group",
+            "try",
+            "--key",
+            "Eb major",
+            "--chords",
+            "1maj9:4 | ",
+            "--explain",
+            "x",
+            "--why",
+            "x",
+            "--try",
+            "x",
+            "--names",
+            "Ebmaj9",
+        ]
+        + common,
+        capsys,
+    )
     assert code == 2 and "--chords" in err and "--names" in err
-    code, out, _ = run(["card", "add", "--id", "dry", "--title", "t", "--meaning", "m", "--kind", "chord", "--key",
-                        "Eb major", "--names", "Abmaj7#11:8", "--explain", "x", "--why", "x", "--try", "x",
-                        "--dry-run"] + common, capsys)
+    code, out, _ = run(
+        [
+            "card",
+            "add",
+            "--id",
+            "dry",
+            "--title",
+            "t",
+            "--meaning",
+            "m",
+            "--kind",
+            "chord",
+            "--key",
+            "Eb major",
+            "--names",
+            "Abmaj7#11:8",
+            "--explain",
+            "x",
+            "--why",
+            "x",
+            "--try",
+            "x",
+            "--dry-run",
+        ]
+        + common,
+        capsys,
+    )
     assert code == 0 and json.loads(out)["card"]["chords"] == [{"n": "4maj7#11", "beats": 8}]
     assert not (root / "deck" / "cards" / "dry.json").exists()
 
@@ -160,8 +244,9 @@ def test_loop_verbs_need_a_jam_page_then_drive_the_run(srv, capsys):
         rid = out.split(":")[0].split()[1]
         code, _, err = run(["loop", "tempo", "+4", "--port", port], capsys)
         assert code == 5 and "waiting for Daniel's pause" in err
-        status, reply = srv.app.jam.handle("POST", f"/api/piano/jam/runs/{rid}/launch", {},
-                                           {"page_id": "p-test", "epoch_ms": time.time() * 1000 + 400})
+        status, reply = srv.app.jam.handle(
+            "POST", f"/api/piano/jam/runs/{rid}/launch", {}, {"page_id": "p-test", "epoch_ms": time.time() * 1000 + 400}
+        )
         assert status == 200, reply
         code, out, err = run(["loop", "tempo", "-4", "--port", port], capsys)
         assert code == 0 and "version 2: tempo -4 from bar" in out, err
@@ -199,8 +284,7 @@ def test_try_and_play_take_chord_lines_and_slots(srv, capsys):
         assert st["run"]["mode"] == "try" and st["run"]["settings"][0]["try_backing"] == "bass"
         assert st["run"]["settings"][0]["passes"] == 2 and st["run"]["state"] == "running"
         assert [s["name"] for s in st["def"]["slots"]] == ["Fmaj9", "Bbmaj7#11"]
-        code, out, err = run(["card", "play", "lament", "--slot", "3", "--vel", "40", "--now", "--port", port],
-                             capsys)
+        code, out, err = run(["card", "play", "lament", "--slot", "3", "--vel", "40", "--now", "--port", port], capsys)
         assert code == 0 and 'play "Walking bass under a held chord"' in out and "Bbm11/Gb" in out, err
         play = srv.app.jam.handle("GET", "/api/piano/jam", {}, None)[1]["play"]
         assert play["mode"] == "play" and play["slot"] == 2 and play["velocity"] == 40
@@ -289,10 +373,11 @@ def test_deck_seed_and_order_through_the_server(srv, tmp_path, capsys):
 @needs_node
 def test_template_save_from_moment_keeps_his_voicing(tmp_path, capsys):
     from arsenal.performance import PerformanceStore
+
     perf = PerformanceStore(tmp_path / "perf")
     session = perf.open({})
     held = [39, 51, 63, 65, 68, 70]  # Eb2 Eb3 Eb4 F4 Ab4 Bb4, a synthetic held sus chord
-    later = [44, 56, 60, 63, 67]      # Ab2 Ab3 C4 Eb4 G4
+    later = [44, 56, 60, 63, 67]  # Ab2 Ab3 C4 Eb4 G4
     events = [{"t_ms": 1000 + i * 5, "kind": "on", "note": n, "vel": 50} for i, n in enumerate(held)]
     events += [{"t_ms": 7000, "kind": "off", "note": n} for n in held]
     events += [{"t_ms": 8000 + i * 5, "kind": "on", "note": n, "vel": 50} for i, n in enumerate(later)]

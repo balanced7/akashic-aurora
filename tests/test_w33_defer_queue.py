@@ -16,6 +16,7 @@ to the render; ACL caps gate the render, the seat self-selects on its live doors
       agent sees one dim line
   P5  atomic write: the file is valid JSON after every operation
 """
+
 import json
 import os
 import sys
@@ -65,8 +66,9 @@ def test_p4_capability_aware_render(qfile):
     assert "cmd 0" in full and "+2 more" in full, "caps-holder sees the capped list"
     assert full.count("cmd") == 3, "capped at 3 lines (funnel discipline)"
     dim = dq.render_boot_section(agent_caps={"read"})
-    assert "cmd 0" not in dim and "not you" in dim and "5" in dim, \
+    assert "cmd 0" not in dim and "not you" in dim and "5" in dim, (
         "a read-only seat gets one dim line, never a shouted work list"
+    )
     assert dq.render_boot_section(agent_caps=set()) == dim
     empty = dq.render_boot_section(agent_caps={"exec"})
     # a queue with only-discharged items renders nothing for anyone

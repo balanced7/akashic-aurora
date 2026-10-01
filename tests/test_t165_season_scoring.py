@@ -37,6 +37,7 @@ where getting it wrong corrupts the season's evidence rather than merely mis-ran
 
 Run: py -m pytest tests/test_t165_season_scoring.py -q
 """
+
 import os
 import sys
 
@@ -49,34 +50,42 @@ sys.path.insert(0, ROOT)
 def _s():
     import importlib
     from core.season import scoring
+
     return importlib.reload(scoring)
 
 
 def _claim(**kw):
-    base = dict(player="p1", dedupe_key="k1", claim_class="needs-door", outcome="confirmed",
-                confidence="high", stream_id="1785850000000-0",
-                evidence=["core/comm/bus.py:120 no caller"])
+    base = dict(
+        player="p1",
+        dedupe_key="k1",
+        claim_class="needs-door",
+        outcome="confirmed",
+        confidence="high",
+        stream_id="1785850000000-0",
+        evidence=["core/comm/bus.py:120 no caller"],
+    )
     base.update(kw)
     return base
 
 
 # --------------------------------------------------------------------------- S1
 
+
 def test_s1_first_finder_is_ordered_by_stream_id_not_player_clock():
     s = _s()
-    early_stream_late_clock = _claim(player="honest", stream_id="1785850000000-0",
-                                     submitted_at="2099-01-01T00:00:00Z")
-    late_stream_early_clock = _claim(player="liar", stream_id="1785850000999-0",
-                                     submitted_at="1970-01-01T00:00:00Z")
+    early_stream_late_clock = _claim(player="honest", stream_id="1785850000000-0", submitted_at="2099-01-01T00:00:00Z")
+    late_stream_early_clock = _claim(player="liar", stream_id="1785850000999-0", submitted_at="1970-01-01T00:00:00Z")
     res = s.score_round([late_stream_early_clock, early_stream_late_clock])
     winner = [r for r in res["claims"] if r["first_finder"]]
     assert len(winner) == 1
     assert winner[0]["player"] == "honest", (
         "first-finder was decided by a player-supplied timestamp -- the competition is then won "
-        "by whoever lies best about their clock")
+        "by whoever lies best about their clock"
+    )
 
 
 # --------------------------------------------------------------------------- S2
+
 
 def test_s2_no_receipts_no_score_is_a_third_state():
     s = _s()
@@ -90,9 +99,11 @@ def test_s2_no_receipts_no_score_is_a_third_state():
 
 # --------------------------------------------------------------------------- S3
 
+
 def test_s3_score_is_evidence_never_a_key():
     """Structural: the scorer must not be able to reach the authority layer at all."""
     import ast
+
     src = open(os.path.join(ROOT, "core", "season", "scoring.py"), encoding="utf-8").read()
     tree = ast.parse(src)
     imported = set()
@@ -104,10 +115,12 @@ def test_s3_score_is_evidence_never_a_key():
     forbidden = [m for m in imported if "trust" in m or "acl" in m or "toolbox" in m]
     assert not forbidden, (
         f"the scorer imports the authority layer ({forbidden}) -- a score must never be readable "
-        f"as an access decision (Daniil, L4: score is evidence, never a key)")
+        f"as an access decision (Daniil, L4: score is evidence, never a key)"
+    )
 
 
 # --------------------------------------------------------------------------- S4 / S5
+
 
 def test_s4_an_honest_low_confidence_miss_is_floored_at_zero():
     s = _s()
@@ -125,18 +138,24 @@ def test_s5_already_known_is_zero_never_negative():
 
 # --------------------------------------------------------------------------- S6
 
+
 def test_s6_verification_pays():
     s = _s()
-    res = s.score_round([], verifications=[
-        {"player": "v1", "verdict": "confirmed", "upheld": False},
-        {"player": "v1", "verdict": "refuted", "upheld": True},
-    ])
+    res = s.score_round(
+        [],
+        verifications=[
+            {"player": "v1", "verdict": "confirmed", "upheld": False},
+            {"player": "v1", "verdict": "refuted", "upheld": True},
+        ],
+    )
     assert res["totals"]["v1"] > 0, (
         "verification scored nothing -- if verifying does not pay, nobody verifies and the "
-        "season collapses to unchecked volume")
+        "season collapses to unchecked volume"
+    )
 
 
 # --------------------------------------------------------------------------- S7
+
 
 def test_s7_the_policy_is_swappable_data():
     s = _s()
@@ -153,15 +172,14 @@ def test_s7_the_policy_is_swappable_data():
 
 # --------------------------------------------------------------------------- S8
 
+
 def test_s8_v1_reproduces_the_committed_table():
     """The design doc's section 1.6, executable. Drift becomes a test failure, not an argument."""
     s = _s()
-    table = {"false-positive": 5, "structural": 4, "needs-door": 3,
-             "needs-caller": 2, "dead": 1, "new-blind-spot": 6}
+    table = {"false-positive": 5, "structural": 4, "needs-door": 3, "needs-caller": 2, "dead": 1, "new-blind-spot": 6}
     for cls, mult in table.items():
         r = s.score_round([_claim(claim_class=cls)], policy="v1_doc")["claims"][0]
-        assert r["points"] == mult, (
-            f"v1_doc scores {cls} as {r['points']}, the committed table says {mult}")
+        assert r["points"] == mult, f"v1_doc scores {cls} as {r['points']}, the committed table says {mult}"
 
     ref = s.score_round([_claim(outcome="refuted", confidence="high")], policy="v1_doc")
     assert ref["claims"][0]["points"] == -2, "the doc's flat refuted penalty is -2"
@@ -171,16 +189,16 @@ def test_s8_v1_reproduces_the_committed_table():
 
 # --------------------------------------------------------------------------- S9
 
+
 def test_s9_scoring_is_deterministic_and_order_independent():
     s = _s()
     claims = [
         _claim(player="a", dedupe_key="k1", stream_id="1785850000001-0"),
         _claim(player="b", dedupe_key="k1", stream_id="1785850000002-0"),
-        _claim(player="c", dedupe_key="k2", stream_id="1785850000003-0",
-               claim_class="structural"),
+        _claim(player="c", dedupe_key="k2", stream_id="1785850000003-0", claim_class="structural"),
     ]
     first = s.score_round(claims)["totals"]
     again = s.score_round(list(reversed(claims)))["totals"]
     assert first == again, (
-        f"scoring depends on submission order -- the board cannot be replayed or audited: "
-        f"{first} vs {again}")
+        f"scoring depends on submission order -- the board cannot be replayed or audited: {first} vs {again}"
+    )

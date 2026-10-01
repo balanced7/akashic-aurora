@@ -31,6 +31,7 @@ The distinction this file enforces, because the two failure modes are not the sa
 
 Run: py -m pytest tests/test_scorecard_confesses_blindness.py -q
 """
+
 import os
 import sys
 
@@ -40,11 +41,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def test_p1_a_predicate_that_matches_nothing_is_unchecked(tmp_path):
     """The M10 case. A stale prefix must announce itself, not render as an empty world."""
     from scripts import arc_scorecard as sc
-    v = sc.detector_health("guards", lambda p: p.startswith("scripts/check_THAT_MOVED/"),
-                           root=str(tmp_path))
+
+    v = sc.detector_health("guards", lambda p: p.startswith("scripts/check_THAT_MOVED/"), root=str(tmp_path))
     assert v["status"] == "UNCHECKABLE", (
         "a detector whose predicate matches NOTHING in the tree reported a number -- that is "
-        "blindness rendering as absence, the exact shape that hid M10 for a whole refactor")
+        "blindness rendering as absence, the exact shape that hid M10 for a whole refactor"
+    )
     assert "matches nothing" in v["detail"].lower() or "no file" in v["detail"].lower()
 
 
@@ -52,17 +54,19 @@ def test_p2_a_live_predicate_with_an_empty_window_is_a_true_zero(tmp_path):
     (tmp_path / "scripts").mkdir(parents=True, exist_ok=True)
     (tmp_path / "scripts" / "check_thing.py").write_text("x = 1\n", encoding="utf-8")
     from scripts import arc_scorecard as sc
-    v = sc.detector_health("guards", lambda p: p.startswith("scripts/check_"),
-                           root=str(tmp_path))
+
+    v = sc.detector_health("guards", lambda p: p.startswith("scripts/check_"), root=str(tmp_path))
     assert v["status"] == "OK", (
         "the predicate matches real files, so a zero in the window means none were added -- "
-        "that zero is information and must not be downgraded to UNCHECKABLE")
+        "that zero is information and must not be downgraded to UNCHECKABLE"
+    )
 
 
 def test_p3_message_regex_detectors_are_labelled_self_report():
     """M4 and M5 count commits whose MESSAGE contains a word. They render green silence if we
     simply stop typing it -- the same trap M3 sat in until it was made to read git."""
     from scripts import arc_scorecard as sc
+
     assert "M4" in sc.SELF_REPORT and "M5" in sc.SELF_REPORT and "M1" in sc.SELF_REPORT
     assert "M3" not in sc.SELF_REPORT, "M3 reads git now -- it is measured, not self-reported"
     assert "M10" not in sc.SELF_REPORT

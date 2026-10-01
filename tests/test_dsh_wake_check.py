@@ -7,6 +7,7 @@
 
 Run: py -m pytest tests/test_dsh_wake_check.py -q
 """
+
 import json
 import os
 import sys
@@ -34,8 +35,7 @@ class _Bus:
     def cursor(self):
         return {"inbox": "5-5", "bc": "5-5"}
 
-    def wait(self, timeout_ms=0, limit=50, advance=False, since=None,
-             since_out=None, streams=None):
+    def wait(self, timeout_ms=0, limit=50, advance=False, since=None, since_out=None, streams=None):
         type(self).calls.append({"since": dict(since or {}), "advance": advance})
         if since_out is not None:
             since_out["inbox"] = "6-6"
@@ -46,8 +46,7 @@ class _Bus:
 @pytest.fixture()
 def patched(monkeypatch, tmp_path):
     _Bus.calls = []
-    _Bus.msgs = [_Msg("request", "deepseek"), _Msg("note", "kimi"),
-                 _Msg("trace", "claude"), _Msg("reply", "deepseek")]
+    _Bus.msgs = [_Msg("request", "deepseek"), _Msg("note", "kimi"), _Msg("trace", "claude"), _Msg("reply", "deepseek")]
     monkeypatch.setattr(bridge, "_repo", lambda: str(tmp_path))
     monkeypatch.setattr(bridge, "_wake_watermark_path", lambda: str(tmp_path / "wm.json"))
     monkeypatch.setattr("core.comm.bus.Bus", _Bus)
@@ -67,7 +66,8 @@ def test_p1_reports_wake_worthy_non_consuming(patched, capsys):
     assert out["senders"] == ["deepseek"]
     assert _Bus.calls[0]["advance"] is False, "the shared cursor must never be advanced"
     assert _Bus.calls[0]["since"] == {"inbox": "5-5", "bc": "5-5"}, (
-        "first arm seeds from the shared cursor so pre-existing mail never re-wakes")
+        "first arm seeds from the shared cursor so pre-existing mail never re-wakes"
+    )
 
 
 def test_p2_persists_local_watermark(patched, tmp_path, capsys):
@@ -81,16 +81,17 @@ def test_p3_non_wake_worthy_is_silent(patched, monkeypatch, capsys):
     _Bus.msgs = [_Msg("note", "kimi"), _Msg("trace", "claude"), _Msg("status", "claude")]
     rc, out = _run(capsys)
     assert rc == 0 and out["count"] == 0 and out["has_wake_worthy"] is False, (
-        "note/status/trace must never wake an idle seat -- silent-by-default ratchet")
+        "note/status/trace must never wake an idle seat -- silent-by-default ratchet"
+    )
 
 
 def test_p4_fails_open_on_bus_error(patched, monkeypatch, capsys):
     def boom(agent):
         raise RuntimeError("bus down")
+
     monkeypatch.setattr("core.comm.bus.Bus", boom)
     rc, out = _run(capsys)
-    assert rc == 0 and out.get("count") == 0 and "error" in out, (
-        "a dead bus is a fail-open shape, never a traceback")
+    assert rc == 0 and out.get("count") == 0 and "error" in out, "a dead bus is a fail-open shape, never a traceback"
 
 
 def test_p5_plugin_wake_organ_is_wired():
@@ -98,8 +99,10 @@ def test_p5_plugin_wake_organ_is_wired():
     non-consuming wake-check call, the inbox next-turn append (pointer, form snapshot),
     the loud seat-down capture, and arm/stop at session/created/disposed."""
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[1] / "agent" / "harness" / "dsh_plugin"
-           / "lib" / "index.js").read_text(encoding="utf-8")
+
+    src = (Path(__file__).resolve().parents[1] / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(
+        encoding="utf-8"
+    )
     assert "startWakeTimer" in src and "stopWakeTimer" in src
     assert "['wake-check']" in src, "the poll calls the non-consuming detect"
     assert "inbox.append('next-turn', doorbell)" in src, "the poke is the inbox append seam"

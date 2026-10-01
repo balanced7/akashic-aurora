@@ -3,6 +3,7 @@
 Reuses the practice segmenter without starting a second piano page or a Node process.
 The browser names each voicing with the live piano's pure THEORY block.
 """
+
 import math
 
 from . import practice
@@ -18,9 +19,9 @@ from . import practice
 # stated and then missed by 3-4x. The voice has no gate: its quietest strike still peaks at VOICE_LEVEL * 0.06,
 # so a note that has decayed below that plays at velocity 1 -- as quiet as the voice can say it -- and only a
 # note more than SILENT_DB below its strike is silent, and listed as faded.
-VOICE_LEVEL, VOICE_FLOOR, VOICE_GAIN, VOICE_EXP = 0.2, 0.06, 0.94, 1.6   # mirror of cues.js:1049 and :1455
-DECAY_T60_S = (20.0, 3.0)         # seconds to fall 60 dB, at MIDI 36 (C2) and MIDI 96 (C7)
-SILENT_DB = -40.0                 # below this, relative to the strike, the note is silent and faded
+VOICE_LEVEL, VOICE_FLOOR, VOICE_GAIN, VOICE_EXP = 0.2, 0.06, 0.94, 1.6  # mirror of cues.js:1049 and :1455
+DECAY_T60_S = (20.0, 3.0)  # seconds to fall 60 dB, at MIDI 36 (C2) and MIDI 96 (C7)
+SILENT_DB = -40.0  # below this, relative to the strike, the note is silent and faded
 
 
 def t60_s(midi):
@@ -38,7 +39,7 @@ def amplitude_at(age_ms, midi):
 def peak_of(velocity):
     """The voice's peak level for a velocity 1..127 (cues.js:1455)."""
     v = min(127, max(0, float(velocity))) / 127.0
-    return VOICE_LEVEL * (VOICE_FLOOR + VOICE_GAIN * v ** VOICE_EXP)
+    return VOICE_LEVEL * (VOICE_FLOOR + VOICE_GAIN * v**VOICE_EXP)
 
 
 def velocity_for_peak(peak):
@@ -79,11 +80,13 @@ def harmony(cue, speed=1, lifts_ms=None, boundary="notes", carried=None, theory_
         start = round(step["at_ms"] * speed)
         end = round((step["at_ms"] + step["hold_ms"]) * speed)
         for note in step["notes"]:
-            events.extend([
-                {"kind": "on", "t_ms": start, "note": note, "vel": step["velocity"]},
-                {"kind": "off", "t_ms": end, "note": note},
-                {"kind": "sound_end", "t_ms": end, "note": note, "by": "replay"},
-            ])
+            events.extend(
+                [
+                    {"kind": "on", "t_ms": start, "note": note, "vel": step["velocity"]},
+                    {"kind": "off", "t_ms": end, "note": note},
+                    {"kind": "sound_end", "t_ms": end, "note": note, "by": "replay"},
+                ]
+            )
     # Ends precede re-strikes at the same instant. Key release is deliberately not
     # used: a replay's hold_ms already includes the original sustain pedal.
     down_at = 0
@@ -144,9 +147,19 @@ def harmony(cue, speed=1, lifts_ms=None, boundary="notes", carried=None, theory_
         if not audible:
             continue  # everything the analysis heard here had faded: silent, as asked
         velocities = {n: velocity_for_peak(present_at[n]) for n in audible}
-        result.append({"start_ms": a, "end_ms": b, "at_ms": at, "notes": audible, "velocities": velocities,
-                       "db": db, "faded": faded,
-                       "texture": window["texture"], "grouped": window["merged"] > 1})
+        result.append(
+            {
+                "start_ms": a,
+                "end_ms": b,
+                "at_ms": at,
+                "notes": audible,
+                "velocities": velocities,
+                "db": db,
+                "faded": faded,
+                "texture": window["texture"],
+                "grouped": window["merged"] > 1,
+            }
+        )
     return result
 
 

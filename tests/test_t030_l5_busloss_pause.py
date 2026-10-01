@@ -21,6 +21,7 @@ the kill-Redis drill runs against the sandbox instance with deepseek [verify].
 
 Run: py -m pytest tests/test_t030_l5_busloss_pause.py -q
 """
+
 import os
 import sys
 import time
@@ -32,13 +33,13 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from core.comm import control, liveness
+
     _BUILT = hasattr(liveness, "BusLossGuard") and hasattr(control, "format_pause_line")
 except ImportError:
     control = liveness = None
     _BUILT = False
 
-pytestmark = pytest.mark.skipif(
-    not _BUILT, reason="L5 pins pre-registered; impl pending (assertions frozen)")
+pytestmark = pytest.mark.skipif(not _BUILT, reason="L5 pins pre-registered; impl pending (assertions frozen)")
 
 
 def _online() -> bool:
@@ -49,6 +50,7 @@ def _online() -> bool:
 
 
 # --- P1: a ttl'd pause self-heals; a plain pause persists (patched key, never live) ---
+
 
 def test_ttl_pause_self_heals(monkeypatch):
     if not _online():
@@ -71,18 +73,26 @@ def test_ttl_pause_self_heals(monkeypatch):
 
 # --- P2: the pause render line is pure, loud, and teaching ---
 
+
 def test_pause_line_pure_render():
     assert control.format_pause_line({"paused": False, "online": True}) == ""
     line = control.format_pause_line(
-        {"paused": True, "online": True, "by": "deepseek",
-         "reason": "deepseek hit reply rate limit", "ts": "2026-07-11T10:00:00"},
-        now=time.mktime(time.strptime("2026-07-11T10:30:00", "%Y-%m-%dT%H:%M:%S")))
+        {
+            "paused": True,
+            "online": True,
+            "by": "deepseek",
+            "reason": "deepseek hit reply rate limit",
+            "ts": "2026-07-11T10:00:00",
+        },
+        now=time.mktime(time.strptime("2026-07-11T10:30:00", "%Y-%m-%dT%H:%M:%S")),
+    )
     assert "PAUSED" in line and "deepseek" in line and "rate limit" in line
     assert "30m" in line, "age computed at render (clock-free store)"
     assert "bifrost-resume" in line, "the line TEACHES the resume verb"
 
 
 # --- P3: BusLossGuard -- degrade with capped growing backoff, stand down at max, reset ---
+
 
 def test_bus_loss_guard_sequence():
     g = liveness.BusLossGuard(max_dead=10)
@@ -102,6 +112,7 @@ def test_bus_loss_guard_sequence():
 
 # --- P4: the doors render the pause line (built != wired) ---
 
+
 def test_pause_line_wired_to_render_paths():
     pull = open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8").read()
     doctor = open(os.path.join(_ROOT, "core", "comm", "doctor.py"), encoding="utf-8").read()
@@ -111,11 +122,11 @@ def test_pause_line_wired_to_render_paths():
 
 # --- P5: the runner wires both halves (ttl'd auto-pause + the guard) ---
 
+
 def test_runner_wired():
-    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"),
-               encoding="utf-8").read()
+    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
     assert "BusLossGuard" in src, "the runner loop runs the dead-beat guard"
     lines = src.splitlines()
     idx = next(i for i, l in enumerate(lines) if "hit reply rate limit" in l)
-    stmt = " ".join(lines[max(0, idx - 1): idx + 2])
+    stmt = " ".join(lines[max(0, idx - 1) : idx + 2])
     assert "ttl=" in stmt, "the rate-limit auto-pause carries a ttl (self-healing backstop)"

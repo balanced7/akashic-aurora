@@ -29,6 +29,7 @@ Grounding (G1-G4): 'kit' is engineering vernacular (toolkit, kit-of-parts; G1). 
 first kit's name, 'recovery-kit', is what a newcomer googles into (G4). The culture
 layer can callsign it Operation TAHITI when the revive ceremony wants poetry (G3).
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
@@ -39,49 +40,63 @@ from typing import Any, Callable, Dict, List, Optional
 # Evidence labels are honest: only entries with a real kata pin claim VERIFIED.
 RECOVERY_KIT: Dict[str, Any] = {
     "name": "recovery-kit",
-    "version": 2,   # v2 2026-07-21: pause steps carry --ttl 120 (RB-30 self-heal) -- the
-                    # first install-dogfood caught v1 SILENTLY STRIPPING the TTL graduation
-                    # from an installed belt (deepseek's C1-8-genus find rode the belts but
-                    # not the kit; a kit must never regress the ceremony it distributes).
-    "why": ("the wake-loop/straggler/stall recovery floor, installable on any seat in "
-            "one call. Harvested cross-seat 2026-07-21: claude's standby-hard (30+ live "
-            "receipts), kimi's drain-decide (kata-VERIFIED), deepseek's vitals + "
-            "premise-check (the eyes). The kit's thesis: recovery is a LOADOUT, not a "
-            "memory -- a seat that has it installed never hand-types the ceremony."),
+    "version": 2,  # v2 2026-07-21: pause steps carry --ttl 120 (RB-30 self-heal) -- the
+    # first install-dogfood caught v1 SILENTLY STRIPPING the TTL graduation
+    # from an installed belt (deepseek's C1-8-genus find rode the belts but
+    # not the kit; a kit must never regress the ceremony it distributes).
+    "why": (
+        "the wake-loop/straggler/stall recovery floor, installable on any seat in "
+        "one call. Harvested cross-seat 2026-07-21: claude's standby-hard (30+ live "
+        "receipts), kimi's drain-decide (kata-VERIFIED), deepseek's vitals + "
+        "premise-check (the eyes). The kit's thesis: recovery is a LOADOUT, not a "
+        "memory -- a seat that has it installed never hand-types the ceremony."
+    ),
     "entries": [
-        {"name": "standby-hard",
-         "steps": [["bifrost-pause", "--reason", "kit-standby", "--by", "$SELF$",
-                    "--ttl", "120"],
-                   ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$",
-                    "--reason", "kit-standby-ceremony"],
-                   ["bifrost-resume"]],
-         "evidence": "VERIFIED",
-         "tested_against": "kata-20260721-020106",
-         "why": ("claude's, 30+ live receipts: pause+skip+resume, the wake-loop breaker. "
-                 "ttl 120 self-heals a mid-ceremony crash (deepseek find 2026-07-21)."),
-         "family": "ENGINEERS"},
-        {"name": "drain-decide",
-         "steps": [["bifrost-sync", "$SELF$", "--consume"],
-                   ["bifrost-pause", "--reason", "drain-decide", "--by", "$SELF$",
-                    "--ttl", "120"],
-                   ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$",
-                    "--reason", "straggler-triage"],
-                   ["bifrost-resume"]],
-         "evidence": "VERIFIED",
-         "tested_against": "kata-20260721-020107",
-         "why": ("kimi's, kata-VERIFIED: consume-then-skip, the straggler triage. "
-                 "ttl 120 self-heals (same graduation as standby-hard)."),
-         "family": "ENGINEERS"},
-        {"name": "vitals",
-         "steps": [["doctor"], ["bifrost_dashboard"]],
-         "evidence": "GUESS",
-         "why": "deepseek's: is anyone dying silently. The kit's eyes-before-hands law.",
-         "family": "LIFEWORKERS"},
-        {"name": "premise-check",
-         "steps": [["doctor"], ["delta", "$SELF$"], ["bifrost-inbox"]],
-         "evidence": "GUESS",
-         "why": "deepseek's: is the system's story about itself true. C9-1's killer.",
-         "family": "SENTINELS"},
+        {
+            "name": "standby-hard",
+            "steps": [
+                ["bifrost-pause", "--reason", "kit-standby", "--by", "$SELF$", "--ttl", "120"],
+                ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$", "--reason", "kit-standby-ceremony"],
+                ["bifrost-resume"],
+            ],
+            "evidence": "VERIFIED",
+            "tested_against": "kata-20260721-020106",
+            "why": (
+                "claude's, 30+ live receipts: pause+skip+resume, the wake-loop breaker. "
+                "ttl 120 self-heals a mid-ceremony crash (deepseek find 2026-07-21)."
+            ),
+            "family": "ENGINEERS",
+        },
+        {
+            "name": "drain-decide",
+            "steps": [
+                ["bifrost-sync", "$SELF$", "--consume"],
+                ["bifrost-pause", "--reason", "drain-decide", "--by", "$SELF$", "--ttl", "120"],
+                ["bifrost-skip-to-now", "$SELF$", "--by", "$SELF$", "--reason", "straggler-triage"],
+                ["bifrost-resume"],
+            ],
+            "evidence": "VERIFIED",
+            "tested_against": "kata-20260721-020107",
+            "why": (
+                "kimi's, kata-VERIFIED: consume-then-skip, the straggler triage. "
+                "ttl 120 self-heals (same graduation as standby-hard)."
+            ),
+            "family": "ENGINEERS",
+        },
+        {
+            "name": "vitals",
+            "steps": [["doctor"], ["bifrost_dashboard"]],
+            "evidence": "GUESS",
+            "why": "deepseek's: is anyone dying silently. The kit's eyes-before-hands law.",
+            "family": "LIFEWORKERS",
+        },
+        {
+            "name": "premise-check",
+            "steps": [["doctor"], ["delta", "$SELF$"], ["bifrost-inbox"]],
+            "evidence": "GUESS",
+            "why": "deepseek's: is the system's story about itself true. C9-1's killer.",
+            "family": "SENTINELS",
+        },
     ],
 }
 
@@ -99,8 +114,13 @@ def install(kit: Dict[str, Any], belt: Any, *, agent: Optional[str] = None) -> D
     belt = a core.toolbelt.registry.Toolbelt for the installing seat (INJECTED, so
     tests pass a recorder belt)."""
     seat = str(agent or getattr(belt, "agent", "?"))
-    report: Dict[str, Any] = {"kit": kit.get("name", "?"), "version": kit.get("version", 1),
-                              "seat": seat, "entries": [], "ok": True}
+    report: Dict[str, Any] = {
+        "kit": kit.get("name", "?"),
+        "version": kit.get("version", 1),
+        "seat": seat,
+        "entries": [],
+        "ok": True,
+    }
     for spec in kit.get("entries", []):
         name = str(spec.get("name", ""))
         row: Dict[str, Any] = {"name": name}
@@ -108,15 +128,18 @@ def install(kit: Dict[str, Any], belt: Any, *, agent: Optional[str] = None) -> D
             steps = _self_substitute(spec.get("steps", []), seat)
             prior = None
             try:
-                prior = belt.get(name)                     # active entry exists?
+                prior = belt.get(name)  # active entry exists?
             except Exception:
                 prior = None
-            entry = belt.mint(name, steps,
-                              kind=str(spec.get("kind", "alias")),
-                              evidence=str(spec.get("evidence", "GUESS")),
-                              tested_against=spec.get("tested_against"),
-                              why=str(spec.get("why", "")),
-                              family=str(spec.get("family", "UNSORTED")))
+            entry = belt.mint(
+                name,
+                steps,
+                kind=str(spec.get("kind", "alias")),
+                evidence=str(spec.get("evidence", "GUESS")),
+                tested_against=spec.get("tested_against"),
+                why=str(spec.get("why", "")),
+                family=str(spec.get("family", "UNSORTED")),
+            )
             if prior is not None and entry is prior:
                 row["result"] = "no-op (exact re-install)"
             elif prior is not None or int(entry.get("version", 1)) > 1:
@@ -135,7 +158,8 @@ def render_report(rep: Dict[str, Any]) -> str:
     rows = [f"# kit install: {rep['kit']} v{rep['version']} -> {rep['seat']}'s belt"]
     for e in rep["entries"]:
         mark = "ok" if not e["result"].startswith("REFUSED") else "REFUSED"
-        rows.append(f"  [{mark}] {e['name']:<18} {e['result']}"
-                    + (f"  [{e.get('evidence')}]" if e.get("evidence") else ""))
+        rows.append(
+            f"  [{mark}] {e['name']:<18} {e['result']}" + (f"  [{e.get('evidence')}]" if e.get("evidence") else "")
+        )
     rows.append("kit %s" % ("installed clean" if rep["ok"] else "installed with REFUSALS (see above)"))
     return "\n".join(rows)

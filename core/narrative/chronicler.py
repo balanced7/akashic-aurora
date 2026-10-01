@@ -22,6 +22,7 @@ Store namespace (written):
 
 Read-only on beat raw data. Best-effort: failures never raise into caller.
 """
+
 import hashlib
 import json
 import os
@@ -35,9 +36,20 @@ from core.foundation.store import Store, create_store
 from core.foundation.timeutil import to_epoch, hours_between, now_iso as _now_iso
 from core.narrative.beat_log import BeatLog, get_beat_log
 from core.narrative.schema import (
-    Beat, Chapter, Track, Theme, Atlas, Edge,
-    beat_key, chapter_key, track_key, theme_key, ATLAS_KEY,
-    validate_beat, STORY_FORMAT_VERSION, BOUNDARY_KINDS,
+    Beat,
+    Chapter,
+    Track,
+    Theme,
+    Atlas,
+    Edge,
+    beat_key,
+    chapter_key,
+    track_key,
+    theme_key,
+    ATLAS_KEY,
+    validate_beat,
+    STORY_FORMAT_VERSION,
+    BOUNDARY_KINDS,
 )
 from core.narrative.chapter_lifecycle import (
     persist_chapter_in_place,
@@ -97,7 +109,7 @@ class BoundaryDetector:
         """Would beat[i] start a new chapter given beat[i-1]?"""
         prev = beats[i - 1]
         curr = beats[i]
-        if curr.kind in BOUNDARY_KINDS:          # explicit mark_chapter — always cuts
+        if curr.kind in BOUNDARY_KINDS:  # explicit mark_chapter — always cuts
             return True
         if _hour_gap(prev.at, curr.at) >= self.min_gap_hours:
             return True
@@ -135,27 +147,18 @@ class Chronicler:
         self.beat_log = beat_log or get_beat_log()
         self.store = store or create_store()
         self.ranker = ranker or Ranker()
-        self.distiller = distiller or Distiller(
-            max_chars_per_entry=self.MAX_CHARS_PER_ENTRY
-        )
+        self.distiller = distiller or Distiller(max_chars_per_entry=self.MAX_CHARS_PER_ENTRY)
         self.boundary_detector = boundary_detector or BoundaryDetector()
         self.token_budget = token_budget
         # the shared rank->distill engine (S1) -- same one learning/consolidation and the Codex
         # Curator use, built from this Chronicler's (possibly injected) ranker/distiller/budget.
-        self.consolidator = Consolidator(ranker=self.ranker, distiller=self.distiller,
-                                         token_budget=self.token_budget)
-        base = (
-            Path(chronicle_dir)
-            if chronicle_dir
-            else data_root() / "chronicles"
-        )
+        self.consolidator = Consolidator(ranker=self.ranker, distiller=self.distiller, token_budget=self.token_budget)
+        base = Path(chronicle_dir) if chronicle_dir else data_root() / "chronicles"
         self.chronicle_dir = base
 
     # ---- public API ----
 
-    def chronicle_window(
-        self, start_iso: str, end_iso: str, now: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def chronicle_window(self, start_iso: str, end_iso: str, now: Optional[str] = None) -> Dict[str, Any]:
         """Chronicle all Beats in [start_iso, end_iso). Returns report dict."""
         beats = self.beat_log.in_window(start_iso, end_iso)
         return self._chronicle(beats, start_iso, end_iso, now=now)
@@ -176,13 +179,16 @@ class Chronicler:
     # ---- core pipeline ----
 
     def _chronicle(
-        self, beats: List[Beat], start_iso: str, end_iso: str,
+        self,
+        beats: List[Beat],
+        start_iso: str,
+        end_iso: str,
         now: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not beats:
             return self._empty_report()
 
-        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+        now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
         by_track: Dict[str, List[Beat]] = defaultdict(list)
         for b in beats:
@@ -193,15 +199,13 @@ class Chronicler:
             track_beats.sort(key=lambda x: to_epoch(x.at))
             cuts = self.boundary_detector.detect(track_beats)
             for seg_i in range(len(cuts) - 1):
-                seg = track_beats[cuts[seg_i]:cuts[seg_i + 1]]
+                seg = track_beats[cuts[seg_i] : cuts[seg_i + 1]]
                 if seg:
                     chapters.append(self._build_chapter(track, seg, seg_i, now=now_iso))
             if cuts:
-                seg = track_beats[cuts[-1]:]
+                seg = track_beats[cuts[-1] :]
                 if seg:
-                    chapters.append(
-                        self._build_chapter(track, seg, len(cuts) - 1, now=now_iso)
-                    )
+                    chapters.append(self._build_chapter(track, seg, len(cuts) - 1, now=now_iso))
 
         chapters.sort(key=lambda c: to_epoch(c.span_start))
 
@@ -224,7 +228,10 @@ class Chronicler:
         }
 
     def _build_chapter(
-        self, track: str, beats: List[Beat], seg_index: int,
+        self,
+        track: str,
+        beats: List[Beat],
+        seg_index: int,
         now: Optional[str] = None,
     ) -> Chapter:
         """Distill a segment of Beats into a Chapter (mid view).
@@ -234,14 +241,18 @@ class Chronicler:
         """
         items = [
             Consolidator.item(
-                text=b.summary, source=b.source, importance=b.weight, timestamp=b.at,
+                text=b.summary,
+                source=b.source,
+                importance=b.weight,
+                timestamp=b.at,
                 relationship_type=(b.relates[0].type if b.relates else None),
             )
             for b in beats
         ]
         now_ts = _epoch(now) if now else None
         distillation = self.consolidator.consolidate(
-            items, instruction=f"chapter summary for {track}", kind="beat", now=now_ts)
+            items, instruction=f"chapter summary for {track}", kind="beat", now=now_ts
+        )
 
         span_start = beats[0].at
         span_end = beats[-1].at
@@ -286,7 +297,10 @@ class Chronicler:
         return dict(by_track)
 
     def _build_atlas(
-        self, chapters: List[Chapter], start_iso: str, end_iso: str,
+        self,
+        chapters: List[Chapter],
+        start_iso: str,
+        end_iso: str,
         now: Optional[str] = None,
     ) -> Atlas:
         """The broad view across all Tracks over the window."""
@@ -321,7 +335,7 @@ class Chronicler:
                     if raw:
                         try:
                             b = Beat.from_dict(json.loads(raw))
-                            b.chapter = ch.id          # bidirectional back-link
+                            b.chapter = ch.id  # bidirectional back-link
                             self.store.set(beat_key(b.id), json.dumps(b.to_dict()))
                         except Exception:
                             pass
@@ -352,8 +366,7 @@ class Chronicler:
                         if th not in theme_cache:
                             existing = self.store.get(theme_key(th))
                             theme_cache[th] = (
-                                Theme.from_dict(json.loads(existing)) if existing
-                                else Theme(id=th, title=th, beats=[])
+                                Theme.from_dict(json.loads(existing)) if existing else Theme(id=th, title=th, beats=[])
                             )
                         t = theme_cache[th]
                         if bid not in t.beats:
@@ -374,15 +387,18 @@ class Chronicler:
     # ---- rendering ----
 
     def _render(
-        self, atlas: Atlas, chapters: List[Chapter],
-        storyline: Dict[str, List[str]], now: Optional[str] = None,
+        self,
+        atlas: Atlas,
+        chapters: List[Chapter],
+        storyline: Dict[str, List[str]],
+        now: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Write chronicles/story.md + chronicles/story.index.json.
 
         Returns dict with paths + faithfulness + coverage metrics.
         """
         self.chronicle_dir.mkdir(parents=True, exist_ok=True)
-        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+        now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
         chapters.sort(key=lambda c: to_epoch(c.span_start))
 
@@ -442,9 +458,7 @@ class Chronicler:
     # extracted whole, not truncated at its first ')' -- the latter false-flagged faithfulness.
     _SOURCE_RE = re.compile(r"\(source:\s*(.+)\)\s*$", re.M)
 
-    def _compute_metrics(
-        self, chapters: List[Chapter]
-    ) -> tuple:
+    def _compute_metrics(self, chapters: List[Chapter]) -> tuple:
         """Compute faithfulness and coverage -- the two real acceptance bars.
 
         Faithfulness (bar = 100%): EVERY `(source: X)` claim in a chapter summary

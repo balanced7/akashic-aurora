@@ -17,6 +17,7 @@ Contract frozen:
 
 Run: py -m pytest tests/test_rb25_drill2_heal.py -q
 """
+
 import os
 import tempfile
 
@@ -25,6 +26,7 @@ import pytest
 os.environ.setdefault("REDIS_DB", "15")
 
 import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import HybridStore
@@ -65,6 +67,7 @@ def _diverge(s):
 
 # --- H1: File-ahead divergence heals INTO Redis (the documented direction) ---
 
+
 def test_h1_file_ahead_backfills_redis(store):
     _diverge(store)
     assert store.check_drift()["missing_in_redis"] == ["rb25d2:file-ahead"]
@@ -75,16 +78,20 @@ def test_h1_file_ahead_backfills_redis(store):
 
 # --- H2b (contract half): the Redis-only orphan is surfaced, NEVER backfilled into File ---
 
+
 def test_h2b_redis_orphan_surfaced_and_file_untouched(store):
     _diverge(store)
     store.reconcile()
-    assert store._file.get("rb25d2:redis-only") is None, \
+    assert store._file.get("rb25d2:redis-only") is None, (
         "File is source of truth -- a Redis-only key is NEVER written into File"
-    assert store.check_drift()["missing_in_file"] == ["rb25d2:redis-only"], \
+    )
+    assert store.check_drift()["missing_in_file"] == ["rb25d2:redis-only"], (
         "the gap stays reported after heal -- surfaced honestly, not silently dropped"
+    )
 
 
 # --- H2 + H2b (render half): the operator-facing heal SAYS BOTH out loud ---
+
 
 @pytest.mark.skipif(not _HAS_REPORT, reason="H2b render pre-registered; heal_report pending")
 def test_h2_and_h2b_operator_report(store):
@@ -92,8 +99,9 @@ def test_h2_and_h2b_operator_report(store):
     lines = store.heal_report()
     blob = " ".join(lines).lower()
     assert any("backfill" in l.lower() for l in lines), "H2: the File->Redis heal is announced"
-    assert "rb25d2:redis-only" in blob or "missing_in_file" in blob or "orphan" in blob, \
+    assert "rb25d2:redis-only" in blob or "missing_in_file" in blob or "orphan" in blob, (
         "H2b: the Redis-only gap is LOUD to the operator, not silently healed-around"
+    )
 
 
 @pytest.mark.skipif(not _HAS_REPORT, reason="H2b render pre-registered; heal_report pending")
@@ -103,6 +111,7 @@ def test_heal_report_quiet_when_in_sync(store):
 
 
 # --- H4: the heal is idempotent (re-running after a heal is a safe no-op on the healed side) ---
+
 
 def test_h4_reconcile_idempotent(store):
     _diverge(store)

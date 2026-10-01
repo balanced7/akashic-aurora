@@ -15,6 +15,7 @@ Phases (run explicitly):
   py scripts/harmonize_knowledge.py rebuild    # Phases 3-5: clear junk, re-import 6 lessons richly, reconcile
   py scripts/harmonize_knowledge.py verify     # show final state of BOTH backends + assert equality
 """
+
 import json
 import os
 import shutil
@@ -30,9 +31,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 BASE = data_root()
 STORE_FILE = BASE / "session_logs" / "store_state.json"
@@ -69,7 +72,8 @@ TEST_STREAMS = ["agent:events", "agent:recon_test_agent:events"]
 def _redis():
     import redis
     from core.foundation.redis_connection import ensure_redis_server
-    ensure_redis_server("localhost", REDIS_PORT)   # starts the embedded server if that is ours
+
+    ensure_redis_server("localhost", REDIS_PORT)  # starts the embedded server if that is ours
     return redis.Redis(port=REDIS_PORT, decode_responses=True)
 
 
@@ -110,8 +114,7 @@ def phase_backup():
             dump[k] = {"type": t, "v": r.zrange(k, 0, -1, withscores=True)}
         elif t == "stream":
             dump[k] = {"type": t, "v": r.xrange(k)}
-    (BACKUP_DIR / "redis_16379_dump.json").write_text(
-        json.dumps(dump, indent=1, ensure_ascii=False), encoding="utf-8")
+    (BACKUP_DIR / "redis_16379_dump.json").write_text(json.dumps(dump, indent=1, ensure_ascii=False), encoding="utf-8")
     # 4. quarantine the test records verbatim (from file store + redis), before any removal
     d = json.loads(STORE_FILE.read_text(encoding="utf-8"))
     q = []
@@ -205,15 +208,20 @@ def phase_rebuild():
     removed = 0
     for k in r.keys("*"):
         if k not in canonical_keys:
-            r.delete(k); removed += 1
+            r.delete(k)
+            removed += 1
     for name in REAL:
         r.delete(f"learn:experiment:{name}")
         r.hset(f"learn:experiment:{name}", mapping=recs[name])
-    r.delete("learn:experiments:all"); r.rpush("learn:experiments:all", *REAL)
-    r.delete("learn:experiments:success"); r.zadd("learn:experiments:success", {n: 100.0 for n in REAL})
-    r.delete(f"learn:agent:{REAL_AGENT}"); r.rpush(f"learn:agent:{REAL_AGENT}", *REAL)
+    r.delete("learn:experiments:all")
+    r.rpush("learn:experiments:all", *REAL)
+    r.delete("learn:experiments:success")
+    r.zadd("learn:experiments:success", {n: 100.0 for n in REAL})
+    r.delete(f"learn:agent:{REAL_AGENT}")
+    r.rpush(f"learn:agent:{REAL_AGENT}", *REAL)
     for name in REAL:
-        r.delete(f"learn:category:{CATEGORY[name]}"); r.sadd(f"learn:category:{CATEGORY[name]}", name)
+        r.delete(f"learn:category:{CATEGORY[name]}")
+        r.sadd(f"learn:category:{CATEGORY[name]}", name)
 
     # ---- File store: write a FRESH skeleton holding ONLY the canonical learn:*.
     d = {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "__expiry__": {}}
@@ -226,8 +234,10 @@ def phase_rebuild():
     d["zset"]["learn:experiments:success"] = {n: 100.0 for n in REAL}
     STORE_FILE.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"[rebuild] wrote {len(REAL)} canonical lessons to BOTH backends; "
-          f"removed {removed} non-canonical Redis key(s); file reset to clean skeleton.")
+    print(
+        f"[rebuild] wrote {len(REAL)} canonical lessons to BOTH backends; "
+        f"removed {removed} non-canonical Redis key(s); file reset to clean skeleton."
+    )
 
 
 # ----------------------------------------------------------------------------- verify

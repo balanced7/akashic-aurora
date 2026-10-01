@@ -23,9 +23,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 # Use Pillow -- the hand-rolled PNG decoder in the original probe handled only filter 0
 # and every canvas.toDataURL image here is filter 2 (Up) on every row. Pillow was installed
@@ -60,13 +62,13 @@ def chroma_metrics(px):
     """Return {mean_hue_deg, mean_saturation, mean_chroma} for non-transparent pixels."""
     if px is None or px.size == 0:
         return {}
-    r, g, b, a = px[:,:,0].astype(float), px[:,:,1].astype(float), px[:,:,2].astype(float), px[:,:,3]
+    r, g, b, a = px[:, :, 0].astype(float), px[:, :, 1].astype(float), px[:, :, 2].astype(float), px[:, :, 3]
     mask = a > 64
     if mask.sum() < 100:
         return {}
     r, g, b = r[mask], g[mask], b[mask]
     # Perceptual chroma: C = sqrt((R-G)^2 + (G-B)^2 + (B-R)^2) / sqrt(2)
-    chroma = np.sqrt((r - g)**2 + (g - b)**2 + (b - r)**2) / np.sqrt(2)
+    chroma = np.sqrt((r - g) ** 2 + (g - b) ** 2 + (b - r) ** 2) / np.sqrt(2)
     # Hue: atan2 of (b - r) vs (r - 2g + b) -- the opponent-colour hue
     # Simpler: use the standard RGB-to-HSL hue approximation
     c_max = np.maximum(np.maximum(r, g), b)
@@ -106,7 +108,7 @@ def contrast_ratio(px):
     """Michelson contrast on 5th/95th percentiles, BT.601 luma."""
     if px is None:
         return None
-    r, g, b, a = px[:,:,0], px[:,:,1], px[:,:,2], px[:,:,3]
+    r, g, b, a = px[:, :, 0], px[:, :, 1], px[:, :, 2], px[:, :, 3]
     mask = a > 64
     if mask.sum() < 100:
         return None
@@ -122,7 +124,7 @@ def spatial_variance(px, w, h):
     """Mean abs diff between adjacent pixels, luma."""
     if px is None or w < 2:
         return None
-    r, g, b, a = px[:,:,0].astype(float), px[:,:,1].astype(float), px[:,:,2].astype(float), px[:,:,3]
+    r, g, b, a = px[:, :, 0].astype(float), px[:, :, 1].astype(float), px[:, :, 2].astype(float), px[:, :, 3]
     luma = 0.299 * r + 0.587 * g + 0.114 * b
     # right neighbors
     diffs = np.abs(luma[:, :-1] - luma[:, 1:])
@@ -137,7 +139,7 @@ def bloom_fraction(px, threshold=0.9):
     """Fraction of non-transparent pixels above threshold brightness."""
     if px is None:
         return None
-    r, g, b, a = px[:,:,0].astype(float), px[:,:,1].astype(float), px[:,:,2].astype(float), px[:,:,3]
+    r, g, b, a = px[:, :, 0].astype(float), px[:, :, 1].astype(float), px[:, :, 2].astype(float), px[:, :, 3]
     mask = a > 64
     if mask.sum() == 0:
         return None
@@ -149,7 +151,7 @@ def luminance_histogram(px, buckets=16):
     """16-bucket luminance histogram, normalised."""
     if px is None:
         return None
-    r, g, b, a = px[:,:,0].astype(float), px[:,:,1].astype(float), px[:,:,2].astype(float), px[:,:,3]
+    r, g, b, a = px[:, :, 0].astype(float), px[:, :, 1].astype(float), px[:, :, 2].astype(float), px[:, :, 3]
     mask = a > 64
     if mask.sum() == 0:
         return None
@@ -165,11 +167,11 @@ def chroma_histogram(px, buckets=16):
     """16-bucket chroma histogram (the axis the first probe was blind to)."""
     if px is None:
         return None
-    r, g, b, a = px[:,:,0].astype(float), px[:,:,1].astype(float), px[:,:,2].astype(float), px[:,:,3]
+    r, g, b, a = px[:, :, 0].astype(float), px[:, :, 1].astype(float), px[:, :, 2].astype(float), px[:, :, 3]
     mask = a > 64
     if mask.sum() == 0:
         return None
-    chroma = np.sqrt((r[mask] - g[mask])**2 + (g[mask] - b[mask])**2 + (b[mask] - r[mask])**2) / np.sqrt(2)
+    chroma = np.sqrt((r[mask] - g[mask]) ** 2 + (g[mask] - b[mask]) ** 2 + (b[mask] - r[mask]) ** 2) / np.sqrt(2)
     hist, _ = np.histogram(chroma, bins=buckets, range=(0, 255))
     total = hist.sum()
     if total == 0:
@@ -181,9 +183,13 @@ def pixel_delta(px_a, px_b, lum_threshold=10):
     """Fraction of non-transparent pixels differing by >lum_threshold luma points."""
     if px_a is None or px_b is None or px_a.shape != px_b.shape:
         return None
-    luma_a = 0.299 * px_a[:,:,0].astype(float) + 0.587 * px_a[:,:,1].astype(float) + 0.114 * px_a[:,:,2].astype(float)
-    luma_b = 0.299 * px_b[:,:,0].astype(float) + 0.587 * px_b[:,:,1].astype(float) + 0.114 * px_b[:,:,2].astype(float)
-    valid = (px_a[:,:,3] > 64) & (px_b[:,:,3] > 64)
+    luma_a = (
+        0.299 * px_a[:, :, 0].astype(float) + 0.587 * px_a[:, :, 1].astype(float) + 0.114 * px_a[:, :, 2].astype(float)
+    )
+    luma_b = (
+        0.299 * px_b[:, :, 0].astype(float) + 0.587 * px_b[:, :, 1].astype(float) + 0.114 * px_b[:, :, 2].astype(float)
+    )
+    valid = (px_a[:, :, 3] > 64) & (px_b[:, :, 3] > 64)
     if valid.sum() == 0:
         return None
     diff_count = (np.abs(luma_a - luma_b) > lum_threshold) & valid
@@ -194,10 +200,20 @@ def chroma_delta(px_a, px_b, chroma_threshold=5.0):
     """Fraction of non-transparent pixels whose CHROMA differs > chroma_threshold."""
     if px_a is None or px_b is None or px_a.shape != px_b.shape:
         return None
-    r_a, g_a, b_a, a_a = px_a[:,:,0].astype(float), px_a[:,:,1].astype(float), px_a[:,:,2].astype(float), px_a[:,:,3]
-    r_b, g_b, b_b, a_b = px_b[:,:,0].astype(float), px_b[:,:,1].astype(float), px_b[:,:,2].astype(float), px_b[:,:,3]
-    chroma_a = np.sqrt((r_a - g_a)**2 + (g_a - b_a)**2 + (b_a - r_a)**2) / np.sqrt(2)
-    chroma_b = np.sqrt((r_b - g_b)**2 + (g_b - b_b)**2 + (b_b - r_b)**2) / np.sqrt(2)
+    r_a, g_a, b_a, a_a = (
+        px_a[:, :, 0].astype(float),
+        px_a[:, :, 1].astype(float),
+        px_a[:, :, 2].astype(float),
+        px_a[:, :, 3],
+    )
+    r_b, g_b, b_b, a_b = (
+        px_b[:, :, 0].astype(float),
+        px_b[:, :, 1].astype(float),
+        px_b[:, :, 2].astype(float),
+        px_b[:, :, 3],
+    )
+    chroma_a = np.sqrt((r_a - g_a) ** 2 + (g_a - b_a) ** 2 + (b_a - r_a) ** 2) / np.sqrt(2)
+    chroma_b = np.sqrt((r_b - g_b) ** 2 + (g_b - b_b) ** 2 + (b_b - r_b) ** 2) / np.sqrt(2)
     valid = (a_a > 64) & (a_b > 64)
     if valid.sum() == 0:
         return None
@@ -262,15 +278,19 @@ def main():
     for p in triplet:
         r = compute(p)
         results.append(r)
-        print(f"  {p.name} ({r.get('dims','?')} / {os.path.getsize(p)} bytes):")
-        print(f"    luminance  contrast={r['contrast_michelson']}  "
-              f"spatial_var={r['spatial_variance']}  bloom={r['bloom_frac_0.9']}")
+        print(f"  {p.name} ({r.get('dims', '?')} / {os.path.getsize(p)} bytes):")
+        print(
+            f"    luminance  contrast={r['contrast_michelson']}  "
+            f"spatial_var={r['spatial_variance']}  bloom={r['bloom_frac_0.9']}"
+        )
         print(f"    lum_hist   {sparkline(r.get('luminance_histogram_16'))}")
         ch = r.get("chroma", {})
         if ch:
-            print(f"    CHROMA     hue={ch.get('circular_mean_hue_deg')}°  "
-                  f"sat={ch.get('mean_saturation')}  C={ch.get('mean_chroma')}  "
-                  f"σ={ch.get('chroma_std')}")
+            print(
+                f"    CHROMA     hue={ch.get('circular_mean_hue_deg')}°  "
+                f"sat={ch.get('mean_saturation')}  C={ch.get('mean_chroma')}  "
+                f"σ={ch.get('chroma_std')}"
+            )
             print(f"    chrom_hist {sparkline(r.get('chroma_histogram_16'))}")
         else:
             print(f"    CHROMA     (no signal -- <100 opaque pixels)")
@@ -283,7 +303,7 @@ def main():
     print()
 
     for i in range(len(results)):
-        for j in range(i+1, len(results)):
+        for j in range(i + 1, len(results)):
             a_path, b_path = triplet[i], triplet[j]
             _, _, px_a = load_png(a_path)
             _, _, px_b = load_png(b_path)
@@ -296,10 +316,10 @@ def main():
             lum_d = pixel_delta(px_a, px_b)
             chr_d = chroma_delta(px_a, px_b)
             print(f"  {names[i]} → {names[j]}:")
-            print(f"    luminance_delta = {lum_d}  ({lum_d*100:.1f}% pixels >10 luma diff)")
-            print(f"    chroma_delta    = {chr_d}  ({chr_d*100:.1f}% pixels >5 chroma diff)")
+            print(f"    luminance_delta = {lum_d}  ({lum_d * 100:.1f}% pixels >10 luma diff)")
+            print(f"    chroma_delta    = {chr_d}  ({chr_d * 100:.1f}% pixels >5 chroma diff)")
             if lum_d is not None and lum_d < 0.01 and chr_d is not None and chr_d > 0.01:
-                print(f"    ★ FINDING: luminance says 'no change', chroma says {chr_d*100:.1f}% changed.")
+                print(f"    ★ FINDING: luminance says 'no change', chroma says {chr_d * 100:.1f}% changed.")
                 print(f"      The first probe was blind to this. A chroma-aware probe is NOT.")
             print()
 
@@ -310,12 +330,16 @@ def main():
         print("SINGLE-RENDER TELEMETRY: feed-thinking.png")
         r = compute(feed)
         ch = r.get("chroma", {})
-        print(f"  contrast={r['contrast_michelson']}  bloom={r['bloom_frac_0.9']}  "
-              f"hue={ch.get('circular_mean_hue_deg')}°  sat={ch.get('mean_saturation')}")
+        print(
+            f"  contrast={r['contrast_michelson']}  bloom={r['bloom_frac_0.9']}  "
+            f"hue={ch.get('circular_mean_hue_deg')}°  sat={ch.get('mean_saturation')}"
+        )
         # Solid-colour detection (Proposal F)
-        if r['bloom_frac_0.9'] is not None and r['bloom_frac_0.9'] < 0.001:
-            print(f"  ★ WARNING: render appears nearly uniform (bloom < 0.1%). "
-                  f"Proposal F would flag this as a possible silent failure.")
+        if r["bloom_frac_0.9"] is not None and r["bloom_frac_0.9"] < 0.001:
+            print(
+                f"  ★ WARNING: render appears nearly uniform (bloom < 0.1%). "
+                f"Proposal F would flag this as a possible silent failure."
+            )
         print()
 
     # ---- Ingest contact sheets (multi-frame -- what do metrics say about MOTION?) ----
@@ -326,14 +350,13 @@ def main():
         if not p.exists():
             continue
         r = compute(p)
-        print(f"  {name} ({r.get('dims','?')}):")
+        print(f"  {name} ({r.get('dims', '?')}):")
         print(f"    spatial_var={r['spatial_variance']}  bloom={r['bloom_frac_0.9']}")
         # Contact sheets are tiled frames; high spatial variance = lots of edges between
         # frames, which is the quantitative signature of motion in a still image.
         ch = r.get("chroma", {})
         if ch:
-            print(f"    chroma mean_S={ch.get('mean_saturation')}  "
-                  f"σ_C={ch.get('chroma_std')}")
+            print(f"    chroma mean_S={ch.get('mean_saturation')}  σ_C={ch.get('chroma_std')}")
         print()
 
     # ---- Judgement ----
@@ -346,26 +369,28 @@ def main():
     lum_deltas = []
     chr_deltas = []
     for i in range(len(results)):
-        for j in range(i+1, len(results)):
+        for j in range(i + 1, len(results)):
             _, _, px_a = load_png(triplet[i])
             _, _, px_b = load_png(triplet[j])
             if px_a is not None and px_b is not None and px_a.shape == px_b.shape:
                 ld = pixel_delta(px_a, px_b)
                 cd = chroma_delta(px_a, px_b)
-                if ld is not None: lum_deltas.append(ld)
-                if cd is not None: chr_deltas.append(cd)
+                if ld is not None:
+                    lum_deltas.append(ld)
+                if cd is not None:
+                    chr_deltas.append(cd)
 
     if lum_deltas and chr_deltas:
-        avg_lum = sum(lum_deltas)/len(lum_deltas)
-        avg_chr = sum(chr_deltas)/len(chr_deltas)
-        print(f"  Average luminance delta across the triplet: {avg_lum:.4f} ({avg_lum*100:.1f}%)")
-        print(f"  Average chroma delta    across the triplet: {avg_chr:.4f} ({avg_chr*100:.1f}%)")
+        avg_lum = sum(lum_deltas) / len(lum_deltas)
+        avg_chr = sum(chr_deltas) / len(chr_deltas)
+        print(f"  Average luminance delta across the triplet: {avg_lum:.4f} ({avg_lum * 100:.1f}%)")
+        print(f"  Average chroma delta    across the triplet: {avg_chr:.4f} ({avg_chr * 100:.1f}%)")
         if avg_chr > avg_lum * 2:
-            print(f"  ★ Chroma delta is {avg_chr/avg_lum:.1f}x the luminance delta.")
+            print(f"  ★ Chroma delta is {avg_chr / avg_lum:.1f}x the luminance delta.")
             print(f"    Proposal A is validated: luminance-only metrics are BLIND to this change.")
             print(f"    The agent NEEDS chroma to answer 'did it change?' without a human.")
         elif avg_chr > avg_lum:
-            print(f"  Chroma delta is {avg_chr/avg_lum:.1f}x luminance. Mild validation.")
+            print(f"  Chroma delta is {avg_chr / avg_lum:.1f}x luminance. Mild validation.")
         else:
             print(f"  Luminance delta exceeds chroma. Huh -- unexpected. Look at the PNGs.")
     print()

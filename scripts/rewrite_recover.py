@@ -24,6 +24,7 @@ A reconstructed map is an INFERENCE, not a record. meta.json records which it is
 resolver reports it, because a caller deserves to know whether a successor was recorded by the
 tool that made it or deduced afterwards.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,9 +42,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -58,8 +61,7 @@ def repo(args):
 
 
 def git(root, *a, check=False):
-    p = subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    p = subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if check and p.returncode:
         raise SystemExit(f"git {' '.join(a)} failed:\n{p.stderr}")
     return p.stdout or ""
@@ -85,8 +87,8 @@ def parents_for(root, oids):
     """
     out = parents_of(root, "--all")
     missing = [o for o in oids if o not in out]
-    for i in range(0, len(missing), 200):          # keep the argv well inside Windows' limit
-        out.update(parents_of(root, "--no-walk", *missing[i:i + 200]))
+    for i in range(0, len(missing), 200):  # keep the argv well inside Windows' limit
+        out.update(parents_of(root, "--no-walk", *missing[i : i + 200]))
     return out
 
 
@@ -110,7 +112,7 @@ def corroborate(old, new, parents, matched, resolve_parent=None, key_of=None):
     po, pn = parents.get(old[4]), parents.get(new[4])
     if po is not None and pn is not None and len(po) == len(pn):
         if not po:
-            agree.add("parent")        # both roots: structurally consistent
+            agree.add("parent")  # both roots: structurally consistent
         else:
             a, b = po[0], pn[0]
             hit = matched.get(a) == b or a == b
@@ -133,8 +135,7 @@ def corroborate(old, new, parents, matched, resolve_parent=None, key_of=None):
 
 def commit_rows(root, *revs):
     """oid -> (tree, author-date-unix, author-email, subject) for a rev set."""
-    out = git(root, "log", "--format=%H" + SEP + "%T" + SEP + "%at" + SEP + "%ae" + SEP + "%s",
-              *revs)
+    out = git(root, "log", "--format=%H" + SEP + "%T" + SEP + "%at" + SEP + "%ae" + SEP + "%s", *revs)
     rows = {}
     for ln in out.splitlines():
         p = ln.split(SEP)
@@ -150,10 +151,12 @@ def cmd_capture(args):
     root = repo(args)
     src = Path(args.map or (root / ".git" / "filter-repo" / "commit-map"))
     if not src.is_file():
-        raise SystemExit(f"no map at {src}\n"
-                         f"  filter-repo writes one per run; filter-branch writes none at all.\n"
-                         f"  If the rewrite is already done and the map is gone, use:\n"
-                         f"    {_pyl()} scripts/rewrite_recover.py reconstruct --from-ref <old-ref>")
+        raise SystemExit(
+            f"no map at {src}\n"
+            f"  filter-repo writes one per run; filter-branch writes none at all.\n"
+            f"  If the rewrite is already done and the map is gone, use:\n"
+            f"    {_pyl()} scripts/rewrite_recover.py reconstruct --from-ref <old-ref>"
+        )
     dest = root / "state" / "rewrites" / f"{args.date or date.today().isoformat()}"
     if args.label:
         dest = dest.with_name(dest.name + "-" + args.label)
@@ -195,8 +198,9 @@ def cited_orphans(root, new):
     """
     cand = cited_shas(root)
     probe = "\n".join(f"{s}^{{commit}}" for s in cand) + "\n"
-    out = subprocess.run(["git", "-C", str(root), "cat-file", "--batch-check"], input=probe,
-                         capture_output=True, text=True).stdout.splitlines()
+    out = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
+    ).stdout.splitlines()
     oids = set()
     for line, _sha in zip(out, cand):
         p = line.split()
@@ -225,7 +229,7 @@ def cmd_reconstruct(args):
 
     idx = defaultdict(list)
     for oid, v in new.items():
-        idx[(v[1], v[3])].append(oid)          # (author-date, subject)
+        idx[(v[1], v[3])].append(oid)  # (author-date, subject)
 
     matched, ambiguous, unmatched = {}, {}, []
     for oid, v in orphans.items():
@@ -242,6 +246,7 @@ def cmd_reconstruct(args):
     # name alone is not enough to license a row a resolver will treat as an answer.
     parents = parents_for(root, list(matched) + list(matched.values()))
     from core.git.rewrite_map import Resolver as _R
+
     _res = _R(repo=root)
 
     def _parent(sha):
@@ -255,15 +260,16 @@ def cmd_reconstruct(args):
     _keys.update(new)
     _want = [q for ps in parents.values() for q in ps if q not in _keys]
     for i in range(0, len(_want), 200):
-        _keys.update(commit_rows(root, "--no-walk", *_want[i:i + 200]))
+        _keys.update(commit_rows(root, "--no-walk", *_want[i : i + 200]))
 
     def _key(sha):
         row = _keys.get(sha)
         return (row[1], row[3]) if row else None
 
-    signals = {o: corroborate(old[o], new[n], parents, matched, resolve_parent=_parent,
-                              key_of=_key)
-               for o, n in matched.items()}
+    signals = {
+        o: corroborate(old[o], new[n], parents, matched, resolve_parent=_parent, key_of=_key)
+        for o, n in matched.items()
+    }
     tree_agree = sum(1 for v in signals.values() if "tree" in v)
     parent_agree = sum(1 for v in signals.values() if "parent" in v)
     pkey_agree = sum(1 for v in signals.values() if "parent-key" in v)
@@ -274,10 +280,11 @@ def cmd_reconstruct(args):
     print(f"matched on (author-date, subject) : {len(matched):,}")
     print(f"  corroborated by the tree hash   : {tree_agree:,}   (a tree-preserving rewrite)")
     print(f"  corroborated by parent structure: {parent_agree:,}   (a rewrite invariant)")
-    print(f"  parent matches by key only      : {pkey_agree:,}   (weaker: a second name "
-          f"coincidence)")
-    print(f"  NAME ONLY, no structural support: {len(uncorroborated):,}"
-          f"{'' if not uncorroborated else '   <- dropped unless --uncorroborated'}")
+    print(f"  parent matches by key only      : {pkey_agree:,}   (weaker: a second name coincidence)")
+    print(
+        f"  NAME ONLY, no structural support: {len(uncorroborated):,}"
+        f"{'' if not uncorroborated else '   <- dropped unless --uncorroborated'}"
+    )
     for o in uncorroborated[:4]:
         print(f"      {o[:12]}  {old[o][3][:62]}")
     print(f"AMBIGUOUS -- refused, not guessed : {len(ambiguous):,}")
@@ -303,6 +310,7 @@ def cmd_reconstruct(args):
     # a recorded target that IS live and still disagrees -- two answers both claiming to be
     # current, which no amount of chaining can reconcile.
     from core.git.rewrite_map import Resolver, load_maps
+
     res = Resolver(repo=root)
     contradictions, extended = [], 0
     for m in load_maps(root):
@@ -317,9 +325,11 @@ def cmd_reconstruct(args):
             else:
                 extended += 1
     if extended:
-        print(f"\n{extended} inferred row(s) EXTEND a recorded chain whose middle link is no"
-              f"\n  longer clone-visible -- the record stops short, the inference reaches the"
-              f"\n  live commit. Not a conflict.")
+        print(
+            f"\n{extended} inferred row(s) EXTEND a recorded chain whose middle link is no"
+            f"\n  longer clone-visible -- the record stops short, the inference reaches the"
+            f"\n  live commit. Not a conflict."
+        )
 
     # Most inferred rows only restate a chain the resolver already walks. Keeping them would
     # grow the inferred surface for no gain, so by default keep ONLY the rows that fill a gap:
@@ -334,15 +344,16 @@ def cmd_reconstruct(args):
             cur = res.resolve(old)
             if not (cur.ok and (cur.status == "current" or res.visible(cur.sha))):
                 gaps[old] = new
-        print(f"\nof {len(matched):,} matched rows, {len(gaps):,} fill a GAP the existing maps"
-              f"\n  cannot already close (--all-rows keeps every row instead).")
+        print(
+            f"\nof {len(matched):,} matched rows, {len(gaps):,} fill a GAP the existing maps"
+            f"\n  cannot already close (--all-rows keeps every row instead)."
+        )
         matched = gaps
 
     if contradictions:
         print(f"\nREFUSING TO WRITE: {len(contradictions)} row(s) contradict a recorded map.")
         for old, recorded, inferred, label in contradictions[:5]:
-            print(f"  {old[:12]}  {label} recorded -> {recorded[:12]}, "
-                  f"inference -> {inferred[:12]}")
+            print(f"  {old[:12]}  {label} recorded -> {recorded[:12]}, inference -> {inferred[:12]}")
         print("  A record beats an inference. Investigate before writing anything.")
         return 1
 
@@ -371,7 +382,7 @@ def cmd_reconstruct(args):
         "reconstructed_against": list(args.to),
         "key": "(author-date, subject)",
         "corroboration": "every row is backed by tree-hash agreement or parent-structure "
-                         "agreement; a name-only match is dropped unless --uncorroborated",
+        "agreement; a name-only match is dropped unless --uncorroborated",
         "tree_hash_agrees": tree_agree,
         "parent_structure_agrees": parent_agree,
         "parent_key_only_agrees": pkey_agree,
@@ -381,9 +392,9 @@ def cmd_reconstruct(args):
         "map_archived": date.today().isoformat(),
         "archived_by": os.environ.get("AKASHIC_AGENT_ID", "unknown"),
         "caveat": "AN INFERENCE, NOT A RECORD. Rows were deduced by matching commits across "
-                  "two lineages on author-date and subject, not written by the tool that did "
-                  "the rewrite. Rows whose key was shared by more than one target commit were "
-                  "REFUSED rather than guessed, so this map is incomplete by design.",
+        "two lineages on author-date and subject, not written by the tool that did "
+        "the rewrite. Rows whose key was shared by more than one target commit were "
+        "REFUSED rather than guessed, so this map is incomplete by design.",
     }
     (dest / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {len(matched):,} reconstructed remaps -> {dest}")
@@ -410,8 +421,9 @@ def cmd_census(args):
     root = repo(args)
     cand = cited_shas(root)
     probe = "\n".join(f"{s}^{{commit}}" for s in cand) + "\n"
-    out = subprocess.run(["git", "-C", str(root), "cat-file", "--batch-check"], input=probe,
-                         capture_output=True, text=True).stdout.splitlines()
+    out = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
+    ).stdout.splitlines()
     real = {}
     for line, sha in zip(out, cand):
         p = line.split()
@@ -442,9 +454,11 @@ def cmd_census(args):
     print(f"  AMBIGUOUS    refused              : {len(buckets[AMBIGUOUS]):,}")
     print(f"  UNKNOWN      no map covers it     : {len(buckets['unknown']):,}")
     print()
-    print(f"citations broken for any clone : {len(broken):,} "
-          f"({len(broken) / max(len(real), 1):.0%}), of which "
-          f"{len(buckets[TRANSLATED]):,} genuinely resolve today")
+    print(
+        f"citations broken for any clone : {len(broken):,} "
+        f"({len(broken) / max(len(real), 1):.0%}), of which "
+        f"{len(buckets[TRANSLATED]):,} genuinely resolve today"
+    )
     stranded = buckets["unknown"] + buckets["translated-to-nowhere"] + buckets[AMBIGUOUS]
     if stranded:
         per = defaultdict(int)
@@ -455,9 +469,10 @@ def cmd_census(args):
         for f, n in sorted(per.items(), key=lambda kv: -kv[1])[:10]:
             print(f"  {n:4}  {f}")
     if args.json:
-        Path(args.json).write_text(json.dumps(
-            {k: len(v) for k, v in buckets.items()} | {"total": len(real)}, indent=2) + "\n",
-            encoding="utf-8")
+        Path(args.json).write_text(
+            json.dumps({k: len(v) for k, v in buckets.items()} | {"total": len(real)}, indent=2) + "\n",
+            encoding="utf-8",
+        )
         print(f"\nwrote {args.json}")
     return 0
 
@@ -477,22 +492,32 @@ def main(argv=None):
     c.set_defaults(fn=cmd_capture)
 
     r = sub.add_parser("reconstruct", help="rebuild a lost map from content identity")
-    r.add_argument("--from-ref", nargs="+", default=[],
-                   help="ref(s) holding the OLD lineage, e.g. refs/original/refs/heads/master")
-    r.add_argument("--from-citations", action="store_true",
-                   help="take the OLD population from commits our corpus CITES but a clone "
-                        "cannot see -- catches a commit on no branch at all, which a "
-                        "ref-based sweep misses entirely")
-    r.add_argument("--to", nargs="+", default=["--remotes"],
-                   help="ref(s) holding the NEW lineage (default --remotes: what a clone sees)")
+    r.add_argument(
+        "--from-ref", nargs="+", default=[], help="ref(s) holding the OLD lineage, e.g. refs/original/refs/heads/master"
+    )
+    r.add_argument(
+        "--from-citations",
+        action="store_true",
+        help="take the OLD population from commits our corpus CITES but a clone "
+        "cannot see -- catches a commit on no branch at all, which a "
+        "ref-based sweep misses entirely",
+    )
+    r.add_argument(
+        "--to",
+        nargs="+",
+        default=["--remotes"],
+        help="ref(s) holding the NEW lineage (default --remotes: what a clone sees)",
+    )
     r.add_argument("--label")
     r.add_argument("--why")
     r.add_argument("--date")
-    r.add_argument("--uncorroborated", action="store_true",
-                   help="keep rows that match on (author-date, subject) alone, with neither "
-                        "tree nor parent-structure agreement behind them")
-    r.add_argument("--all-rows", action="store_true",
-                   help="keep every matched row, not only the ones that fill a gap")
+    r.add_argument(
+        "--uncorroborated",
+        action="store_true",
+        help="keep rows that match on (author-date, subject) alone, with neither "
+        "tree nor parent-structure agreement behind them",
+    )
+    r.add_argument("--all-rows", action="store_true", help="keep every matched row, not only the ones that fill a gap")
     r.add_argument("--write", action="store_true")
     r.add_argument("--force", action="store_true")
     r.set_defaults(fn=cmd_reconstruct)

@@ -3,6 +3,7 @@
 The routes are listed in arsenal/FIRST-LIGHT-SPEC.md. Media is served only for clips found under
 the configured library roots, addressed by id, with HTTP Range support so the browser can seek.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -37,26 +38,43 @@ PACKAGE = Path(__file__).resolve().parent
 WEB = PACKAGE / "web"
 GRAPHS = PACKAGE / "graphs"
 DEFAULT_ROOTS = [r"E:\Video Output E"]
-MEDIA_TYPES = {".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime",
-               ".webm": "video/webm", ".mkv": "video/x-matroska"}
-STATIC_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-                ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-                ".json": "application/json", ".frag": "text/plain; charset=utf-8",
-                ".vert": "text/plain; charset=utf-8", ".glsl": "text/plain; charset=utf-8",
-                ".svg": "image/svg+xml", ".png": "image/png"}
+MEDIA_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+}
+STATIC_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json",
+    ".frag": "text/plain; charset=utf-8",
+    ".vert": "text/plain; charset=utf-8",
+    ".glsl": "text/plain; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+}
 MAX_CLIPS = 500
 MAX_BODY = 16 * 1024 * 1024
 CHUNK = 1024 * 1024
 RECORDINGS_DIR = "arsenal-renders"
 RECORDING_TYPES = {"video/webm": ".webm", "video/mp4": ".mp4", "video/x-matroska": ".mkv"}
-MAX_RECORDING = 4 * 1024 ** 3
+MAX_RECORDING = 4 * 1024**3
 _ID = r"[0-9a-f]{16}"
 _TAKE = r"\d{8}-\d{6}-[0-9a-f]{8}"
 
 
 def _is_jam_path(path: str) -> bool:
-    return path == "/api/piano/replay" or path == "/api/piano/deck" or path.startswith("/api/piano/deck/") or \
-        path == "/api/piano/jam" or path.startswith("/api/piano/jam/")
+    return (
+        path == "/api/piano/replay"
+        or path == "/api/piano/deck"
+        or path.startswith("/api/piano/deck/")
+        or path == "/api/piano/jam"
+        or path.startswith("/api/piano/jam/")
+    )
 
 
 def clip_id_for(path) -> str:
@@ -89,9 +107,16 @@ class Library:
                             st = path.stat()
                         except OSError:
                             continue
-                        found.append({"id": clip_id_for(path), "name": name, "path": str(path),
-                                      "size": st.st_size, "mtime": int(st.st_mtime),
-                                      "ext": path.suffix.lower().lstrip(".")})
+                        found.append(
+                            {
+                                "id": clip_id_for(path),
+                                "name": name,
+                                "path": str(path),
+                                "size": st.st_size,
+                                "mtime": int(st.st_mtime),
+                                "ext": path.suffix.lower().lstrip("."),
+                            }
+                        )
             found.sort(key=lambda c: c["mtime"], reverse=True)
             self._clips = {c["id"]: c for c in found[:MAX_CLIPS]}
             self._scanned = time.monotonic()
@@ -128,8 +153,7 @@ class Jobs:
             if job is None:
                 job = {"status": "computing", "progress": 0.0}
                 self._jobs[clip["id"]] = job
-                threading.Thread(target=self._run, args=(clip, job), daemon=True,
-                                 name=f"features-{clip['id']}").start()
+                threading.Thread(target=self._run, args=(clip, job), daemon=True, name=f"features-{clip['id']}").start()
             if job["status"] == "ready":
                 return 200, {"status": "ready", "features": job["features"]}
             if job["status"] == "error":
@@ -153,8 +177,16 @@ class Jobs:
 
 
 class App:
-    def __init__(self, roots: List[str], takes_root=None, presets_dir=None, performance_root=None,
-                 performance_log: bool = True, jam_root=None, looks_root=None):
+    def __init__(
+        self,
+        roots: List[str],
+        takes_root=None,
+        presets_dir=None,
+        performance_root=None,
+        performance_log: bool = True,
+        jam_root=None,
+        looks_root=None,
+    ):
         self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
@@ -293,12 +325,13 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/piano":
                     return self._static(WEB / "piano.html")
                 if path.startswith("/web/"):
-                    return self._static_under(unquote(path[len("/web/"):]))
+                    return self._static_under(unquote(path[len("/web/") :]))
                 if path == "/api/health":
                     return self._json(200, {"ok": True, "api": "arsenal.serve/v0", "version": __version__})
                 if path == "/api/library":
-                    return self._json(200, {"roots": [str(r) for r in self.app.library.roots],
-                                            "clips": self.app.library.clips()})
+                    return self._json(
+                        200, {"roots": [str(r) for r in self.app.library.roots], "clips": self.app.library.clips()}
+                    )
                 if path == "/api/resolve":
                     return self._resolve(query)
                 if path == "/api/takes":
@@ -316,11 +349,13 @@ class Handler(BaseHTTPRequestHandler):
                 logging = self.app.performance is not None
                 if path == "/api/performance" and logging:
                     return self._json(200, {"sessions": self.app.performance.list()})
-                routes = [(rf"/api/media/({_ID})", self._media),
-                          (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
-                          (rf"/api/analysis/({_ID})", self._analysis),
-                          (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
-                          (rf"/api/take/({_TAKE})", self._take_get)]
+                routes = [
+                    (rf"/api/media/({_ID})", self._media),
+                    (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
+                    (rf"/api/analysis/({_ID})", self._analysis),
+                    (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
+                    (rf"/api/take/({_TAKE})", self._take_get),
+                ]
                 if logging:
                     routes.append((rf"/api/performance/({SESSION_PATTERN})", self._performance_get))
                 for pattern, handler in routes:
@@ -436,8 +471,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": "resolve needs name and size"})
         clip = self.app.library.resolve(name, int(size))
         if not clip:
-            return self._json(404, {"error": "not in library roots",
-                                    "roots": [str(r) for r in self.app.library.roots]})
+            return self._json(404, {"error": "not in library roots", "roots": [str(r) for r in self.app.library.roots]})
         return self._json(200, {"clip": clip})
 
     def _probe(self, clip_id: str, query) -> None:
@@ -445,6 +479,7 @@ class Handler(BaseHTTPRequestHandler):
         if not clip:
             return self._json(404, {"error": "no such clip in the library roots"})
         from . import analysis
+
         want_hw = (query.get("hw") or ["0"])[0] == "1"
         key = f"{clip_id}:{clip['size']}:{clip['mtime']}:{int(want_hw)}"
         if key not in self.app.probes:
@@ -496,8 +531,13 @@ class Handler(BaseHTTPRequestHandler):
         clip_id = body.get("clip_id")
         clip = self.app.library.get(clip_id) if isinstance(clip_id, str) and re.fullmatch(_ID, clip_id) else None
         if clip:
-            meta.update(clip_id=clip["id"], clip_name=clip["name"], clip_path=clip["path"],
-                        clip_size=clip["size"], clip_mtime=clip["mtime"])
+            meta.update(
+                clip_id=clip["id"],
+                clip_name=clip["name"],
+                clip_path=clip["path"],
+                clip_size=clip["size"],
+                clip_mtime=clip["mtime"],
+            )
         elif clip_id:
             meta.update(clip_id=clip_id, clip_outside_library=True)
         return self._json(200, {"take_id": self.app.ledger.open(graph.to_json(), plan, meta)})
@@ -655,8 +695,9 @@ class Handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(length) if length > 0 else b""
             origin = self.headers.get("Origin")
             if origin is not None and urlsplit(origin).hostname not in ("127.0.0.1", "localhost"):
-                return self._json(403, {"error": f"jam requests are accepted from this machine's pages only, not "
-                                                 f"{origin}"})
+                return self._json(
+                    403, {"error": f"jam requests are accepted from this machine's pages only, not {origin}"}
+                )
             try:
                 body = json.loads(raw.decode("utf-8") or "null")
             except ValueError as exc:
@@ -714,8 +755,10 @@ class Handler(BaseHTTPRequestHandler):
         kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         ext = RECORDING_TYPES.get(kind)
         if not ext:
-            return self._json(415, {"error": f"a recording must be video/webm, video/mp4 or video/x-matroska, "
-                                             f"not {kind or 'untyped'}"})
+            return self._json(
+                415,
+                {"error": f"a recording must be video/webm, video/mp4 or video/x-matroska, not {kind or 'untyped'}"},
+            )
         length = int(self.headers.get("Content-Length") or 0)
         if not 0 < length <= MAX_RECORDING:
             return self._json(413 if length else 411, {"error": "a recording needs a Content-Length of at most 4 GB"})
@@ -754,8 +797,13 @@ class Server(ThreadingHTTPServer):
         self.app = app
 
 
-def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, performance_root=None,
-          performance_log: bool = True) -> None:
+def serve(
+    port: int = 8793,
+    roots: Optional[List[str]] = None,
+    takes_root=None,
+    performance_root=None,
+    performance_log: bool = True,
+) -> None:
     app = App(roots or DEFAULT_ROOTS, takes_root, performance_root=performance_root, performance_log=performance_log)
     server = Server(port, app)
     roots_text = ", ".join(str(r) for r in app.library.roots)
@@ -764,8 +812,11 @@ def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, 
     log_text = f"sessions in {app.performance.root}" if app.performance else "off (the routes answer 404)"
     print(f"[arsenal] practice log: {log_text}", flush=True)
     closed = app.jam.runs.close_unclosed()  # a run left open by an earlier server ends with server-restart
-    print(f"[arsenal] jam: deck and runs in {app.jam.root}"
-          + (f"; closed {len(closed)} run(s) an earlier server left open" if closed else ""), flush=True)
+    print(
+        f"[arsenal] jam: deck and runs in {app.jam.root}"
+        + (f"; closed {len(closed)} run(s) an earlier server left open" if closed else ""),
+        flush=True,
+    )
     ticking = threading.Event()
 
     def tick() -> None:  # passes that end by themselves, pending runs nobody launched

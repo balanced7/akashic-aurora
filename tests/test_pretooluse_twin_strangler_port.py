@@ -16,6 +16,7 @@ pin catches the MECHANISM: both twins must reach recall_block with the same argu
 same payload. The door is replaced with a recorder and the engine underneath is made inert, so
 an un-ported twin fails on the assertion and never on the environment (no Redis, no state).
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -28,8 +29,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-COPIES = {"scripts": os.path.join(ROOT, "scripts", "hooks", "claude_pretooluse.py"),
-          "agent_harness": os.path.join(ROOT, "agent", "harness", "hooks", "claude_pretooluse.py")}
+COPIES = {
+    "scripts": os.path.join(ROOT, "scripts", "hooks", "claude_pretooluse.py"),
+    "agent_harness": os.path.join(ROOT, "agent", "harness", "hooks", "claude_pretooluse.py"),
+}
 
 # SYNTHETIC session id -- never a real seat's (the r1/r2 lesson in test_seat_identity_resolver).
 SID = "testsid0-0000-0000-0000-000000000000"
@@ -53,6 +56,7 @@ def door_calls(monkeypatch, tmp_path):
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "1")
     monkeypatch.setenv("AKASHIC_RECALL_STATE_DIR", str(tmp_path))
     import agent.harness.actions as actions
+
     calls: list = []
 
     def fake_recall_block(session_key, seen_key, path, command, agent_id=None):
@@ -78,21 +82,27 @@ def test_live_scripts_twin_routes_recall_through_the_strangler_door(door_calls):
     pre-t383 behavior, per actions.py's TWO KEYS note) and no explicit agent_id (the door's
     _agent(None) resolves env -- the identity thread lives in ONE place)."""
     hook = _load("scripts")
-    out = hook._recall_context({"session_id": SID, "tool_name": "Bash",
-                                "tool_input": {"command": "py agent_cli.py status"}})
+    out = hook._recall_context(
+        {"session_id": SID, "tool_name": "Bash", "tool_input": {"command": "py agent_cli.py status"}}
+    )
     assert door_calls == [(SID, SID, None, "py agent_cli.py status", None)], (
         "scripts/hooks/claude_pretooluse.py::_recall_context did not go through "
         f"agent.harness.actions.recall_block -- it still carries the pre-t383 inline fork; "
-        f"door calls seen: {door_calls!r}")
+        f"door calls seen: {door_calls!r}"
+    )
     assert out == SENTINEL, f"door's rendering was not returned verbatim: {out!r}"
 
 
-@pytest.mark.parametrize("payload", [
-    {"session_id": SID, "tool_name": "Bash", "tool_input": {"command": "py agent_cli.py status"}},
-    {"session_id": SID, "tool_name": "Edit", "tool_input": {"file_path": "core/x.py"}},
-    {"session_id": SID, "tool_name": "Edit", "tool_input": {}},
-    {"session_id": "", "tool_name": "Bash", "tool_input": {"command": "git status"}},
-], ids=["command", "file_path", "empty-target", "no-session"])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"session_id": SID, "tool_name": "Bash", "tool_input": {"command": "py agent_cli.py status"}},
+        {"session_id": SID, "tool_name": "Edit", "tool_input": {"file_path": "core/x.py"}},
+        {"session_id": SID, "tool_name": "Edit", "tool_input": {}},
+        {"session_id": "", "tool_name": "Bash", "tool_input": {"command": "git status"}},
+    ],
+    ids=["command", "file_path", "empty-target", "no-session"],
+)
 @pytest.mark.parametrize("kill_switch", ["1", "0"], ids=["recall-on", "recall-off"])
 def test_both_twins_make_the_same_door_call(door_calls, monkeypatch, payload, kill_switch):
     """W3's shape: the twins may differ ONLY by sys.path depth. For every payload shape and
@@ -108,4 +118,5 @@ def test_both_twins_make_the_same_door_call(door_calls, monkeypatch, payload, ki
     assert seen["scripts"] == seen["agent_harness"], (
         "hook twins disagree on the recall door call -- one seat profile runs the strangler "
         f"and the other runs a private fork:\n  scripts/: {seen['scripts']!r}\n"
-        f"  agent/:   {seen['agent_harness']!r}")
+        f"  agent/:   {seen['agent_harness']!r}"
+    )

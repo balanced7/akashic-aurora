@@ -121,8 +121,8 @@ def test_proof_window_outlives_the_measured_death():
     all three of those a living seat. This pin holds the measurement so the next person
     to 'tidy' the constant has to argue with the stopwatch instead of their intuition."""
     import re
+
     src = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8")
-    m = re.search(r'_SPAWN_PROOF_SECONDS\s*=\s*float\(.*?or\s*([\d.]+)\s*\)', src)
+    m = re.search(r"_SPAWN_PROOF_SECONDS\s*=\s*float\(.*?or\s*([\d.]+)\s*\)", src)
     assert m, "the proof window is no longer a readable default -- re-pin it"
-    assert float(m.group(1)) >= 20.0, (
-        f"proof window {m.group(1)}s is inside the measured 15.8-16.9s death window")
+    assert float(m.group(1)) >= 20.0, f"proof window {m.group(1)}s is inside the measured 15.8-16.9s death window"

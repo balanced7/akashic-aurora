@@ -23,6 +23,7 @@ THE TWO CORRECTIONS THAT ARE PINNED, NOT ASSUMED
    the stage side is written by `_log_outcome_stage`, the repeat side by
    `LearningStore.record_repeat`. A hand-built dict would prove the seam, not the wire.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,6 +41,7 @@ VERDICTS = {"COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE"}
 def _isolated_stage(tmp_path, monkeypatch):
     """Point the stage dir at a temp tree so pins never read the live 6051 rows."""
     from core.recall import at_action as aa
+
     stage = tmp_path / "stage"
     stage.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(aa, "_STAGE_DIR", str(stage), raising=False)
@@ -49,8 +51,8 @@ def _isolated_stage(tmp_path, monkeypatch):
 def _write_stage_via_producer(session, target, *, ok, sources, flipped=False):
     """P8: construct the stage side through its REAL producer, never a hand-built dict."""
     from core.recall import at_action as aa
-    aa._log_outcome_stage(session, target, ok, surfaced_sources=sources,
-                          flipped=flipped, credited=0, agent_id="claude")
+
+    aa._log_outcome_stage(session, target, ok, surfaced_sources=sources, flipped=flipped, credited=0, agent_id="claude")
 
 
 # --------------------------------------------------------------------------- P1
@@ -62,9 +64,11 @@ def test_p1_join_refuses_an_unresolvable_lesson_pointer():
     whose source names a lesson the corpus does not have.
     """
     from core.recall import prevention
-    rows = prevention.observe(sources_resolver=lambda s: False)   # nothing resolves
-    assert rows == [] or all(r["verdict"] == "UNKNOWABLE" for r in rows), \
+
+    rows = prevention.observe(sources_resolver=lambda s: False)  # nothing resolves
+    assert rows == [] or all(r["verdict"] == "UNKNOWABLE" for r in rows), (
         "an unresolvable lesson pointer must never yield a settled verdict"
+    )
 
 
 # --------------------------------------------------------------------------- P2
@@ -75,12 +79,13 @@ def test_p2_absence_of_a_repeat_is_never_compliance():
     silence, the instrument has started lying in the one direction it must not.
     """
     from core.recall import prevention
-    _write_stage_via_producer("s-p2", "py agent_cli.py boot claude", ok=True,
-                              sources=["learn:experiment:alpha"])
-    rows = prevention.observe(repeats={})          # no repeats at all
+
+    _write_stage_via_producer("s-p2", "py agent_cli.py boot claude", ok=True, sources=["learn:experiment:alpha"])
+    rows = prevention.observe(repeats={})  # no repeats at all
     assert rows, "a prevention candidate should be observed"
-    assert not any(r["verdict"] == "COMPLIED" for r in rows), \
+    assert not any(r["verdict"] == "COMPLIED" for r in rows), (
         "absence of a repeat is not evidence of compliance -- must be UNKNOWABLE"
+    )
     assert all(r["verdict"] in VERDICTS for r in rows)
 
 
@@ -88,15 +93,17 @@ def test_p2_absence_of_a_repeat_is_never_compliance():
 def test_p3_violated_needs_positive_evidence_and_carries_its_citation():
     """VIOLATED is minted ONLY from a filed repeat, and the row must cite it."""
     from core.recall import prevention
-    _write_stage_via_producer("s-p3", "py scripts/mirror.py msg", ok=True,
-                              sources=["learn:experiment:beta"])
+
+    _write_stage_via_producer("s-p3", "py scripts/mirror.py msg", ok=True, sources=["learn:experiment:beta"])
     # The repeat must post-date the surfacing: real order is surface -> violate -> file.
     # (The first version of this pin dated the repeat BEFORE the surfacing, and the temporal
     # attribution rule correctly refused it -- the fixture was unrealistic, not the code.)
     import datetime as _dt
+
     later = _dt.datetime.fromtimestamp(time.time() + 60).isoformat()
-    repeats = {"learn:experiment:beta": [{"id": "beta:20260905T000000:abcd1234",
-                                          "recall_outcome": "fired", "at": later}]}
+    repeats = {
+        "learn:experiment:beta": [{"id": "beta:20260905T000000:abcd1234", "recall_outcome": "fired", "at": later}]
+    }
     rows = prevention.observe(repeats=repeats)
     viol = [r for r in rows if r["verdict"] == "VIOLATED"]
     assert viol, "a filed repeat against a surfaced lesson must yield VIOLATED"
@@ -107,6 +114,7 @@ def test_p3_violated_needs_positive_evidence_and_carries_its_citation():
 def test_p4_denominator_law_unknowable_never_enters_a_rate():
     """UNKNOWABLE is excluded from every rate and reported as coverage beside it."""
     from core.recall import prevention
+
     for i in range(3):
         _write_stage_via_producer(f"s-p4-{i}", "cmd", ok=True, sources=["learn:experiment:g"])
     rep = prevention.report(repeats={})
@@ -114,16 +122,16 @@ def test_p4_denominator_law_unknowable_never_enters_a_rate():
     for key, val in rep.get("rates", {}).items():
         assert 0.0 <= val <= 1.0
     settled = rep.get("settled", 0)
-    assert rep["rates"] == {} or settled > 0, \
-        "no rate may be published on a fully-unsettled sample"
+    assert rep["rates"] == {} or settled > 0, "no rate may be published on a fully-unsettled sample"
 
 
 # --------------------------------------------------------------------------- P5
 def test_p5_control_arm_is_computed_not_assumed():
     """The contrastive arm (success AND NOT surfaced) must be counted from the log."""
     from core.recall import prevention
+
     _write_stage_via_producer("s-p5", "cmd-a", ok=True, sources=["learn:experiment:h"])
-    _write_stage_via_producer("s-p5", "cmd-b", ok=True, sources=[])      # control arm
+    _write_stage_via_producer("s-p5", "cmd-b", ok=True, sources=[])  # control arm
     rep = prevention.report(repeats={})
     assert rep["control_arm"] >= 1, "success-without-surfaced rows are the control arm"
     assert rep["prevention_candidates"] >= 1
@@ -134,9 +142,9 @@ def test_p6_observer_writes_nothing_to_recall_or_the_corpus(monkeypatch):
     """Read-only: the observer must not record feedback or mutate lesson state."""
     from core.recall import at_action as aa
     from core.recall import prevention
+
     called = []
-    monkeypatch.setattr(aa, "record_feedback",
-                        lambda *a, **k: called.append(a) or True, raising=False)
+    monkeypatch.setattr(aa, "record_feedback", lambda *a, **k: called.append(a) or True, raising=False)
     _write_stage_via_producer("s-p6", "cmd", ok=True, sources=["learn:experiment:i"])
     prevention.observe(repeats={})
     assert not called, "the observer must never write credit -- observation, not adjudication"
@@ -146,9 +154,9 @@ def test_p6_observer_writes_nothing_to_recall_or_the_corpus(monkeypatch):
 def test_p7_determinism_same_input_same_output():
     """Seeded/ordered: same stage state + same repeats => byte-identical report."""
     from core.recall import prevention
+
     for i in range(4):
-        _write_stage_via_producer(f"s-p7-{i}", f"cmd{i}", ok=True,
-                                  sources=[f"learn:experiment:j{i%2}"])
+        _write_stage_via_producer(f"s-p7-{i}", f"cmd{i}", ok=True, sources=[f"learn:experiment:j{i % 2}"])
     a = json.dumps(prevention.report(repeats={}), sort_keys=True, default=str)
     b = json.dumps(prevention.report(repeats={}), sort_keys=True, default=str)
     assert a == b, "an unre-auditable number is not evidence"
@@ -163,6 +171,7 @@ def test_p8_confounds_are_named_in_the_output_itself():
     steer its docstring forbids.
     """
     from core.recall import prevention
+
     _write_stage_via_producer("s-p8", "cmd", ok=True, sources=["learn:experiment:k"])
     rep = prevention.report(repeats={})
     conf = " ".join(rep.get("confounds", [])).lower()
@@ -184,7 +193,7 @@ def test_p9_a_suspicious_empty_join_refuses_loudly():
 
     class _ShapeChanged:
         def repeat_report(self):
-            return {"count": 24, "some_new_key": [{"of": "x"}]}      # 'entries' gone
+            return {"count": 24, "some_new_key": [{"of": "x"}]}  # 'entries' gone
 
     with pytest.raises(RuntimeError, match="confident zero|REFUSING"):
         prevention.load_repeats(store=_ShapeChanged())

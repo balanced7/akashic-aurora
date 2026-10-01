@@ -84,6 +84,7 @@ def _valid_body():
 
 # ---------------------------------------------------------------- parse_preset: shape
 
+
 def test_parse_preset_valid_shape(tmp_path):
     p = _write_preset(tmp_path, "trails", _valid_body())
     got = presets.parse_preset(p)
@@ -106,10 +107,10 @@ def test_parse_preset_url_uses_file(tmp_path):
 
 # ---------------------------------------------------------------- line 1 / line 2
 
+
 def test_line1_must_be_exact_version(tmp_path):
     # anything before #version breaks line 1
-    p = _write_preset(tmp_path, "bad", "precision highp float;\n" + _valid_body(),
-                      header="#version 300 es\n//! 300\n")
+    p = _write_preset(tmp_path, "bad", "precision highp float;\n" + _valid_body(), header="#version 300 es\n//! 300\n")
     # replace first line entirely: a BOM or leading whitespace-free alternative is invalid;
     # here we test a body that does NOT start with #version as line 1
     bad = tmp_path / "bad.frag"
@@ -120,7 +121,7 @@ def test_line1_must_be_exact_version(tmp_path):
 
 def test_line2_must_be_json_header(tmp_path):
     bad = tmp_path / "bad.frag"
-    bad.write_text('#version 300 es\n//! not json\n' + _valid_body(), encoding="utf-8")
+    bad.write_text("#version 300 es\n//! not json\n" + _valid_body(), encoding="utf-8")
     got = presets.parse_preset(bad)
     assert got["problems"]
 
@@ -128,8 +129,7 @@ def test_line2_must_be_json_header(tmp_path):
 def test_id_must_equal_file_stem(tmp_path):
     # header id "other" does not match the file stem "mismatch"
     p = tmp_path / "mismatch.frag"
-    p.write_text('#version 300 es\n//! {"id": "other", "name": "X", "author": "A"}\n' + _valid_body(),
-                 encoding="utf-8")
+    p.write_text('#version 300 es\n//! {"id": "other", "name": "X", "author": "A"}\n' + _valid_body(), encoding="utf-8")
     got = presets.parse_preset(p)
     assert got["id"] == "mismatch"  # fallback: id is ALWAYS the file stem
     assert any("id" in pr.lower() or "stem" in pr.lower() or "mismatch" in pr for pr in got["problems"])
@@ -139,19 +139,23 @@ def test_id_matches_regex(tmp_path):
     # underscores and uppercase are not in [a-z0-9][a-z0-9-]*; a stem with them is fine as a fallback id
     # but the header id must be the (valid) stem. Test an invalid stem does not crash:
     p = tmp_path / "bad_stem.frag"
-    p.write_text('#version 300 es\n//! {"id": "bad_stem", "name": "X", "author": "A"}\n' + _valid_body(),
-                 encoding="utf-8")
+    p.write_text(
+        '#version 300 es\n//! {"id": "bad_stem", "name": "X", "author": "A"}\n' + _valid_body(), encoding="utf-8"
+    )
     got = presets.parse_preset(p)
     assert got["id"] == "bad_stem"
 
 
 # ---------------------------------------------------------------- params rules
 
+
 def test_params_defaults_and_bounds(tmp_path):
     # valid: k in 1..8, name 1..16, default 0..1
-    header = ('#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
-              '"params": [{"k": 1, "name": "a", "default": 0.0}, '
-              '{"k": 8, "name": "bb", "default": 1.0}]}\n')
+    header = (
+        '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
+        '"params": [{"k": 1, "name": "a", "default": 0.0}, '
+        '{"k": 8, "name": "bb", "default": 1.0}]}\n'
+    )
     p = tmp_path / "p.frag"
     p.write_text(header + _valid_body(), encoding="utf-8")
     got = presets.parse_preset(p)
@@ -162,7 +166,7 @@ def test_params_defaults_and_bounds(tmp_path):
 
 def test_params_at_most_8(tmp_path):
     params = [{"k": i, "name": f"k{i}", "default": 0.5} for i in range(1, 10)]  # 9 params
-    header = '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", "params": ' + json.dumps(params) + '}\n'
+    header = '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", "params": ' + json.dumps(params) + "}\n"
     p = tmp_path / "p.frag"
     p.write_text(header + _valid_body(), encoding="utf-8")
     got = presets.parse_preset(p)
@@ -171,24 +175,30 @@ def test_params_at_most_8(tmp_path):
 
 def test_params_k_must_be_whole_1_to_8(tmp_path):
     for bad_k in (0, 9):
-        header = ('#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
-                  f'"params": [{{"k": {bad_k}, "name": "a", "default": 0.5}}]}}\n')
+        header = (
+            '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
+            f'"params": [{{"k": {bad_k}, "name": "a", "default": 0.5}}]}}\n'
+        )
         p = tmp_path / "p.frag"
         p.write_text(header + _valid_body(), encoding="utf-8")
         assert presets.parse_preset(p)["problems"]
 
 
 def test_params_k_unique(tmp_path):
-    header = ('#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
-              '"params": [{"k": 1, "name": "a", "default": 0.5}, {"k": 1, "name": "b", "default": 0.5}]}\n')
+    header = (
+        '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
+        '"params": [{"k": 1, "name": "a", "default": 0.5}, {"k": 1, "name": "b", "default": 0.5}]}\n'
+    )
     p = tmp_path / "p.frag"
     p.write_text(header + _valid_body(), encoding="utf-8")
     assert presets.parse_preset(p)["problems"]
 
 
 def test_params_name_length(tmp_path):
-    header = ('#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
-              '"params": [{"k": 1, "name": "thisnameiswaytoolong", "default": 0.5}]}\n')
+    header = (
+        '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
+        '"params": [{"k": 1, "name": "thisnameiswaytoolong", "default": 0.5}]}\n'
+    )
     p = tmp_path / "p.frag"
     p.write_text(header + _valid_body(), encoding="utf-8")
     assert presets.parse_preset(p)["problems"]
@@ -196,8 +206,10 @@ def test_params_name_length(tmp_path):
 
 def test_params_default_range(tmp_path):
     for bad in (-0.1, 1.1):
-        header = ('#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
-                  f'"params": [{{"k": 1, "name": "a", "default": {bad}}}]}}\n')
+        header = (
+            '#version 300 es\n//! {"id": "p", "name": "P", "author": "A", '
+            f'"params": [{{"k": 1, "name": "a", "default": {bad}}}]}}\n'
+        )
         p = tmp_path / "p.frag"
         p.write_text(header + _valid_body(), encoding="utf-8")
         assert presets.parse_preset(p)["problems"]
@@ -212,6 +224,7 @@ def test_params_may_be_absent(tmp_path):
 
 
 # ---------------------------------------------------------------- uniforms
+
 
 def test_uniforms_only_from_v1_list(tmp_path):
     # an unknown uniform name must produce a problem
@@ -251,17 +264,13 @@ def test_in_and_out_declarations(tmp_path):
     p = _write_preset(tmp_path, "noin", body)
     assert presets.parse_preset(p)["problems"]
     # missing out vec4 outColor also a problem
-    body2 = (
-        "precision highp float;\n"
-        "in vec2 v_uv;\n"
-        "uniform sampler2D u_video;\n"
-        "void main() { }\n"
-    )
+    body2 = "precision highp float;\nin vec2 v_uv;\nuniform sampler2D u_video;\nvoid main() { }\n"
     p2 = _write_preset(tmp_path, "noout", body2)
     assert presets.parse_preset(p2)["problems"]
 
 
 # ---------------------------------------------------------------- craft floors
+
 
 def test_highp_only(tmp_path):
     # mediump is a problem
@@ -322,16 +331,20 @@ def test_fallback_name_author_tags(tmp_path):
 
 # ---------------------------------------------------------------- list_presets
 
+
 def test_list_presets_sorts_by_lower_name_then_id(tmp_path):
     dirpath = tmp_path / "presets"
     dirpath.mkdir()
     # names chosen so lowercased-name order != insertion order != id order
-    _write_preset(dirpath, "zeta", _valid_body(),
-                  header='#version 300 es\n//! {"id": "zeta", "name": "Alpha", "author": "A"}\n')
-    _write_preset(dirpath, "alpha", _valid_body(),
-                  header='#version 300 es\n//! {"id": "alpha", "name": "Beta", "author": "A"}\n')
-    _write_preset(dirpath, "mid", _valid_body(),
-                  header='#version 300 es\n//! {"id": "mid", "name": "alpha", "author": "A"}\n')
+    _write_preset(
+        dirpath, "zeta", _valid_body(), header='#version 300 es\n//! {"id": "zeta", "name": "Alpha", "author": "A"}\n'
+    )
+    _write_preset(
+        dirpath, "alpha", _valid_body(), header='#version 300 es\n//! {"id": "alpha", "name": "Beta", "author": "A"}\n'
+    )
+    _write_preset(
+        dirpath, "mid", _valid_body(), header='#version 300 es\n//! {"id": "mid", "name": "alpha", "author": "A"}\n'
+    )
     got = presets.list_presets(str(dirpath))
     names = [g["name"] for g in got]
     # sorted by lowercased name: alpha (from "mid"), Alpha (from zeta) tie -> then id mid < zeta
@@ -354,15 +367,19 @@ def test_list_presets_only_frag_files(tmp_path):
 
 # ---------------------------------------------------------------- GET /api/presets
 
+
 @pytest.fixture()
 def presets_server(tmp_path):
     from arsenal.serve import App, Server  # noqa: E402 (same pattern as test_arsenal_serve)
+
     pdir = tmp_path / "presets"
     pdir.mkdir()
-    _write_preset(pdir, "one", _valid_body(),
-                  header='#version 300 es\n//! {"id": "one", "name": "One", "author": "A"}\n')
-    _write_preset(pdir, "two", _valid_body(),
-                  header='#version 300 es\n//! {"id": "two", "name": "Two", "author": "A"}\n')
+    _write_preset(
+        pdir, "one", _valid_body(), header='#version 300 es\n//! {"id": "one", "name": "One", "author": "A"}\n'
+    )
+    _write_preset(
+        pdir, "two", _valid_body(), header='#version 300 es\n//! {"id": "two", "name": "Two", "author": "A"}\n'
+    )
     app = App([str(tmp_path / "lib")], presets_dir=str(pdir))
     srv = Server(0, app)
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
@@ -404,6 +421,7 @@ def test_api_presets_reports_broken(presets_server, tmp_path):
 
 
 # ---------------------------------------------------------------- sweep: every real preset parses clean
+
 
 def test_every_real_preset_parses_clean():
     presets_dir = ROOT / "arsenal" / "web" / "presets"

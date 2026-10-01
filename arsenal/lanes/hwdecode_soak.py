@@ -8,6 +8,7 @@ Picks the first device that actually yields hardware frames (or the requested on
 state/arsenal/receipts/hwdecode-<timestamp>.json. Ctrl+C stops cleanly and still writes
 whatever was accumulated so far.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,11 +36,10 @@ def _load_analysis():
     analysis.py directly by path so this script works either way."""
     try:
         from arsenal import analysis  # type: ignore
+
         return analysis
     except ImportError:
-        spec = importlib.util.spec_from_file_location(
-            "arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py"
-        )
+        spec = importlib.util.spec_from_file_location("arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)  # type: ignore[union-attr]
         return module
@@ -99,11 +99,13 @@ def run_soak(path: str, minutes: float, device_arg: str) -> dict:
 
                     now = time.monotonic()
                     if now - minute_start >= 60.0:
-                        per_minute.append({
-                            "minute": minute_index,
-                            "frames": minute_frames,
-                            "fps": minute_frames / (now - minute_start),
-                        })
+                        per_minute.append(
+                            {
+                                "minute": minute_index,
+                                "frames": minute_frames,
+                                "fps": minute_frames / (now - minute_start),
+                            }
+                        )
                         minute_index += 1
                         minute_start = now
                         minute_frames = 0
@@ -120,11 +122,13 @@ def run_soak(path: str, minutes: float, device_arg: str) -> dict:
     end = time.monotonic()
     if minute_frames > 0:
         span = end - minute_start
-        per_minute.append({
-            "minute": minute_index,
-            "frames": minute_frames,
-            "fps": (minute_frames / span) if span > 0 else 0.0,
-        })
+        per_minute.append(
+            {
+                "minute": minute_index,
+                "frames": minute_frames,
+                "fps": (minute_frames / span) if span > 0 else 0.0,
+            }
+        )
 
     elapsed = end - start
     stopped_reason = "interrupted" if interrupted else ("error" if errors else "completed")

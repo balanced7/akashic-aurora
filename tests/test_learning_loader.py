@@ -21,30 +21,56 @@ from core.context.learning_loader import load_learnings_ranked_by_relevance
 NOW = 1_750_000_000.0
 DAY = 86400.0
 import datetime as _dt
-def _iso(ts): return _dt.datetime.utcfromtimestamp(ts).isoformat()
+
+
+def _iso(ts):
+    return _dt.datetime.utcfromtimestamp(ts).isoformat()
 
 
 def _seeded_store():
     store = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "ll.json")))
     # relevant + high-confidence + recent -> should top the list
-    store.record_learning({"experiment_name": "comfyui_install", "category": "vision",
-        "what_tried": "install ComfyUI custom nodes", "recommendation": "use the manager",
-        "success": "yes", "confidence": "high", "timestamp": _iso(NOW)})
+    store.record_learning(
+        {
+            "experiment_name": "comfyui_install",
+            "category": "vision",
+            "what_tried": "install ComfyUI custom nodes",
+            "recommendation": "use the manager",
+            "success": "yes",
+            "confidence": "high",
+            "timestamp": _iso(NOW),
+        }
+    )
     # relevant but low-confidence + old
-    store.record_learning({"experiment_name": "comfyui_old", "category": "vision",
-        "what_tried": "manual ComfyUI node install", "recommendation": "avoid manual",
-        "success": "no", "confidence": "low", "timestamp": _iso(NOW - 90 * DAY)})
+    store.record_learning(
+        {
+            "experiment_name": "comfyui_old",
+            "category": "vision",
+            "what_tried": "manual ComfyUI node install",
+            "recommendation": "avoid manual",
+            "success": "no",
+            "confidence": "low",
+            "timestamp": _iso(NOW - 90 * DAY),
+        }
+    )
     # irrelevant (different topic)
-    store.record_learning({"experiment_name": "nginx_setup", "category": "infra",
-        "what_tried": "configure nginx", "recommendation": "use reverse proxy",
-        "success": "yes", "confidence": "high", "timestamp": _iso(NOW)})
+    store.record_learning(
+        {
+            "experiment_name": "nginx_setup",
+            "category": "infra",
+            "what_tried": "configure nginx",
+            "recommendation": "use reverse proxy",
+            "success": "yes",
+            "confidence": "high",
+            "timestamp": _iso(NOW),
+        }
+    )
     return store
 
 
 def test_surfaces_relevant_ranked():
     store = _seeded_store()
-    out = load_learnings_ranked_by_relevance("install comfyui", top_k=3,
-                                            learning_store=store, now=NOW)
+    out = load_learnings_ranked_by_relevance("install comfyui", top_k=3, learning_store=store, now=NOW)
     assert out, "should return ranked learnings"
     assert out[0]["source"] == "comfyui_install", f"most relevant+confident+recent first, got {out[0]}"
     # the irrelevant nginx learning should rank below the relevant comfyui ones

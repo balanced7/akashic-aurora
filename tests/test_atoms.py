@@ -72,8 +72,15 @@ def fam(tmp_path):
 
 
 def test_mint_roundtrip_and_indexes(fam):
-    a = fam.mint("design", "Substrate Atom Family", "body text", arc="library-schema",
-                 seats=["claude"], categories=["substrate", "library"], now=1000.0)
+    a = fam.mint(
+        "design",
+        "Substrate Atom Family",
+        "body text",
+        arc="library-schema",
+        seats=["claude"],
+        categories=["substrate", "library"],
+        now=1000.0,
+    )
     assert a["id"].startswith("art_") and a["body_sha"] == at._sha12("body text")
     got = fam.get(a["id"])
     assert got == a
@@ -146,14 +153,16 @@ def test_set_arc_relabels_in_place_as_a_version_event(fam):
 
 def test_doc_arc_door_relabels_and_rerenders_the_projection(tmp_path, capsys):
     import sys
+
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if root not in sys.path:
         sys.path.insert(0, root)
     import agent_cli
+
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "store"), repo_root=str(tmp_path))
     a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
     assert agent_cli._doc_arc(fam, a["id"], "SA-1", str(tmp_path)) == 0
-    proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_"):] + ".md")
+    proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_") :] + ".md")
     text = proj.read_text(encoding="utf-8")
     assert "\narc: SA-1\n" in text and "docs/gone.md" not in text
     assert fam.get(a["id"])["version"] == 2
@@ -172,18 +181,15 @@ def test_find_intersects_facets_newest_first(fam):
 
 def test_backlinks_are_derived_with_rel_and_status(fam):
     target = fam.mint("design", "the design", "b", now=1.0)
-    src = fam.mint("report", "counter", "b",
-                   citations=[{"target": target["id"], "rel": "contradicts"}], now=2.0)
+    src = fam.mint("report", "counter", "b", citations=[{"target": target["id"], "rel": "contradicts"}], now=2.0)
     bl = fam.backlinks(target["id"])
     # v1.1 disclosed shape update: rows gained 'target' (lineage-aggregated backlinks
     # must say WHICH chain member was cited); rel+status semantics unchanged.
-    assert bl == [{"source": src["id"], "target": target["id"],
-                   "rel": "contradicts", "status": "current"}]
+    assert bl == [{"source": src["id"], "target": target["id"], "rel": "contradicts", "status": "current"}]
 
 
 def test_category_sources_persisted_and_padded(fam):
-    a = fam.mint("design", "x", "b", categories=["bus", "ui"],
-                 category_sources=["flag"], now=1.0)
+    a = fam.mint("design", "x", "b", categories=["bus", "ui"], category_sources=["flag"], now=1.0)
     assert a["category_sources"] == ["flag", "unstated"]
 
 
@@ -196,9 +202,16 @@ def test_gist_born_with_and_capped(fam):
 
 
 def test_conversation_provenance_fields(fam):
-    a = fam.mint("chronicle", "thread capture", "deepseek: ...\nclaude: ...",
-                 origin="conversation", speakers=["deepseek", "claude"],
-                 source_thread="1784-0..1785-0", settled="live", now=5.0)
+    a = fam.mint(
+        "chronicle",
+        "thread capture",
+        "deepseek: ...\nclaude: ...",
+        origin="conversation",
+        speakers=["deepseek", "claude"],
+        source_thread="1784-0..1785-0",
+        settled="live",
+        now=5.0,
+    )
     assert a["origin"] == "conversation" and a["settled"] == "live"
     assert a["captured_at"] == 5.0 and a["speakers"] == ["deepseek", "claude"]
 

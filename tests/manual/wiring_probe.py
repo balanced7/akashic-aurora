@@ -1,6 +1,8 @@
 """Probe: the Built!=Wired gate PASSES on reality (known-standalone modules frozen) and FAILS on a
 NEW unwired core module. Membrane slice 2 proof."""
+
 import os, sys
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 import check_wiring as w

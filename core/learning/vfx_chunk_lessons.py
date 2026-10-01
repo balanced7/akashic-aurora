@@ -19,6 +19,7 @@ must not band, and so on. Those adopt with the anti_pattern field set, which is 
 dissent-finder reads. That flag has existed on the write door for months with zero uses; per this
 project's own finding, a field nothing fills stays empty until something depends on it.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -46,7 +47,7 @@ def _chunk_headers(chunk_dir: str) -> List[Dict[str, Any]]:
                 continue
             meta = json.loads(head[3:])
         except (OSError, ValueError):
-            continue                      # a malformed chunk must not stop the other thirty
+            continue  # a malformed chunk must not stop the other thirty
         if meta.get("name") and meta.get("note"):
             meta["_file"] = "design/vfx-chunks/" + fname
             out.append(meta)
@@ -79,8 +80,11 @@ def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
     # assumes a different authoring surface, and a projection has to bridge that rather than copy
     # text across. The clause is derived from the chunk's own declared metadata, so it states a
     # fact the header already carries -- it is a rendering, not an invention.
-    trigger = ("Use when adding or ordering the %s chunk (%s%s) in a composition, "
-               "before compiling: " % (name, kind, (", " + cat) if cat else ""))
+    trigger = "Use when adding or ordering the %s chunk (%s%s) in a composition, before compiling: " % (
+        name,
+        kind,
+        (", " + cat) if cat else "",
+    )
     return {
         "experiment_name": "vfx_chunk_" + name,
         "what_tried": tried,
@@ -90,7 +94,7 @@ def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
         "category": "vfx-chunk",
         "domain": "vfx",
         "success": "yes",
-        "confidence": "high",             # these are settled rules, not experiments in flight
+        "confidence": "high",  # these are settled rules, not experiments in flight
         "anti_pattern": ("vfx:" + name) if _is_warning(note) else "",
         # The pointer is the point: the projection says where its truth lives.
         "source": meta.get("_file", ""),
@@ -100,12 +104,11 @@ def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
 
 def _fingerprint(sig: Dict[str, Any]) -> str:
     return hashlib.sha1(
-        (sig["recommendation"] + "|" + sig["what_tried"] + "|" + sig["anti_pattern"])
-        .encode("utf-8")).hexdigest()[:12]
+        (sig["recommendation"] + "|" + sig["what_tried"] + "|" + sig["anti_pattern"]).encode("utf-8")
+    ).hexdigest()[:12]
 
 
-def adopt_chunk_lessons(learning_store, chunk_dir: str,
-                        force: bool = False) -> int:
+def adopt_chunk_lessons(learning_store, chunk_dir: str, force: bool = False) -> int:
     """Mint/refresh one lesson per chunk note. Returns how many chunks were adopted.
 
     Re-runnable by construction: a chunk whose note has not changed is skipped, so this can be
@@ -122,7 +125,7 @@ def adopt_chunk_lessons(learning_store, chunk_dir: str,
             except Exception:
                 existing = {}
             if existing.get("chunk_fingerprint") == fp:
-                continue                  # note unchanged: nothing to say
+                continue  # note unchanged: nothing to say
         sig["metrics"] = {"chunk_fingerprint": fp}
         learning_store.persist_learning_derived_from_experiment(sig)
         # Stored flat as well as in metrics so the skip-check above is one cheap hgetall.
@@ -155,10 +158,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     # a door.
     try:
         from core.recall.at_action import warm_cache
+
         print("recall cache rebuilt: %d item(s)" % warm_cache(learning_store=ls))
     except Exception as exc:
-        print("WARNING: adopted, but the recall cache did not rebuild (%s). "
-              "Run: py -c \"from core.recall.at_action import warm_cache; warm_cache()\"" % exc)
+        print(
+            "WARNING: adopted, but the recall cache did not rebuild (%s). "
+            'Run: py -c "from core.recall.at_action import warm_cache; warm_cache()"' % exc
+        )
     return 0
 
 

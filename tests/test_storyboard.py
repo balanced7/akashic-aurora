@@ -4,6 +4,7 @@ The synthetic clip is generated here (1.0 s of solid red, then 1.0 s of solid bl
 so the ground truth is exact: one hard cut at t=1.0 s whose transition is a single frame step.
 A detector that cannot find that has no business segmenting anything subtler.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -38,8 +39,8 @@ def test_synthetic_cut_is_found_at_the_right_time(tmp_path):
     assert transitions, f"no transition found in a hard cut: {m['segments']}"
     first = transitions[0]
     assert abs(first["start_s"] - 1.0) <= 0.25, first
-    assert first["duration_ms"] <= 300, first          # a hard cut is short, not a 2-second fade
-    assert m["settled"] >= 2                            # red run and blue run
+    assert first["duration_ms"] <= 300, first  # a hard cut is short, not a 2-second fade
+    assert m["settled"] >= 2  # red run and blue run
 
 
 def test_signature_and_score_pure_contracts():
@@ -68,14 +69,13 @@ def test_dedupe_merges_same_moment_and_keeps_a_different_palette():
     green = np.zeros((64, 64, 3), dtype=np.uint8)
     green[:, :, 1] = 180
     near_green = np.zeros((64, 64, 3), dtype=np.uint8)
-    near_green[:, :, 1] = 185                     # same moment, tiny exposure wobble
+    near_green[:, :, 1] = 185  # same moment, tiny exposure wobble
     blue = np.zeros((64, 64, 3), dtype=np.uint8)
     blue[:, :, 2] = 180
     hashes = {0: sb.dhash(green), 1: sb.dhash(near_green), 2: sb.dhash(blue)}
     palettes = {0: sb.palette(green), 1: sb.palette(near_green), 2: sb.palette(blue)}
     assert sb.hamming(hashes[0], hashes[2]) == 0, "flat frames share a gradient signature (the trap)"
-    picks = [{"frame_index": i, "t_s": i * 0.2, "kind": "settled", "score": 0.0, "segment_ms": 200}
-             for i in (0, 1, 2)]
+    picks = [{"frame_index": i, "t_s": i * 0.2, "kind": "settled", "score": 0.0, "segment_ms": 200} for i in (0, 1, 2)]
     kept = sb.dedupe(picks, hashes, palettes)
     assert [p["frame_index"] for p in kept] == [0, 2]
 

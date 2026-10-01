@@ -6,6 +6,7 @@ the benchmark metrics from the relevant research fields. Reused across slices.
   Segmentation:                  boundaries(), windowdiff(), pk(), boundary_f1()
   Multi-label (themes):          multilabel_prf(), jaccard_multilabel()
 """
+
 import math
 from collections import Counter, defaultdict
 from typing import Iterable, List, Sequence, Tuple
@@ -92,7 +93,7 @@ def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
     k = min(k, m)
     errors = count = 0
     for i in range(0, m - k + 1):
-        if sum(gold_b[i:i + k]) != sum(pred_b[i:i + k]):
+        if sum(gold_b[i : i + k]) != sum(pred_b[i : i + k]):
             errors += 1
         count += 1
     return errors / count if count else 0.0
@@ -100,6 +101,7 @@ def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
 
 def pk(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
     """Pk — probability two positions k apart are wrongly judged same/different segment."""
+
     def seg_ids(b):
         ids, cur = [0], 0
         for x in b:

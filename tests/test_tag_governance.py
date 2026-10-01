@@ -10,6 +10,7 @@ The worst-case scenarios are executable invariants here:
 
 Isolated: injects a temp FileStore. Run: py -m pytest tests/test_tag_governance.py -q
 """
+
 import os
 import random
 import sys
@@ -32,13 +33,18 @@ def _setup():
     log = BeatLog(store)
     gov = TagGovernor(store)
     # seed a beat; a commit touching core/ -> ai-setup at high (path) confidence
-    b = log.emit("commit", "Slice 0 schema", "git:abc", at="2026-01-01T00:00:00",
-                 hint=RouteHint(paths=["core/narrative/schema.py"]))
+    b = log.emit(
+        "commit",
+        "Slice 0 schema",
+        "git:abc",
+        at="2026-01-01T00:00:00",
+        hint=RouteHint(paths=["core/narrative/schema.py"]),
+    )
     return store, gov, b
 
 
 def test_higher_confidence_wins_lower_cannot():
-    store, gov, b = _setup()                       # seeded ai-setup @ path (0.95)
+    store, gov, b = _setup()  # seeded ai-setup @ path (0.95)
     changed, cur = gov.record(b.id, "stemroller", source="generic", at="2026-01-02T00:00:00")
     assert cur == "ai-setup" and changed is False, "I2: a generic (0.4) record can't beat path (0.95)"
     changed, cur = gov.record(b.id, "vision", source="path", at="2026-01-03T00:00:00")
@@ -61,6 +67,7 @@ def test_immutability_and_index_move():
     # I1: the beat still exists and the FACT is unchanged
     assert store.get(beat_key(b.id)) is not None
     from core.narrative.beat_log import BeatLog as _B
+
     again = _B(store)._load(b.id)
     assert again.source == "git:abc" and again.summary == "Slice 0 schema", "fact untouched"
     # the index MOVED (not duplicated, not the beat deleted)
@@ -85,8 +92,12 @@ def test_crdt_monotonicity_fuzz():
     gov.confirm(b.id, "ai-setup", at="2026-01-02T00:00:00")
     rng = random.Random(20260628)
     for i in range(1000):
-        gov.record(b.id, rng.choice(TRACKS), source=rng.choice(LOW),
-                   at=f"2026-{1 + i % 12:02d}-{1 + i % 27:02d}T{i % 24:02d}:00:00")
+        gov.record(
+            b.id,
+            rng.choice(TRACKS),
+            source=rng.choice(LOW),
+            at=f"2026-{1 + i % 12:02d}-{1 + i % 27:02d}T{i % 24:02d}:00:00",
+        )
     assert gov.current(b.id) == "ai-setup", "I2: no low-confidence storm degrades a confirmed tag"
     fact = BeatLog(store)._load(b.id)
     assert fact.source == "git:abc" and fact.summary == "Slice 0 schema", "I1: fact never changed"
@@ -97,12 +108,20 @@ def test_d3_tampered_nonfinite_confidence_cannot_degrade(monkeypatch=None):
     DIRECTLY into the stored beat (bypassing the sanitizing write path), reading current() drops
     it -- the confirmed real tag still wins, and the fact is untouched."""
     import json
+
     store, gov, b = _setup()
-    gov.confirm(b.id, "ai-setup", at="2026-01-02T00:00:00")     # the real, pinned tag
+    gov.confirm(b.id, "ai-setup", at="2026-01-02T00:00:00")  # the real, pinned tag
     raw = json.loads(store.get(beat_key(b.id)))
-    raw["tag_history"].append({"value": "stemroller", "confidence": float("inf"),
-                               "source": "tamper", "at": "2026-09-09T00:00:00", "confirmed": False})
-    store.set(beat_key(b.id), json.dumps(raw))                  # tamper the store directly
+    raw["tag_history"].append(
+        {
+            "value": "stemroller",
+            "confidence": float("inf"),
+            "source": "tamper",
+            "at": "2026-09-09T00:00:00",
+            "confirmed": False,
+        }
+    )
+    store.set(beat_key(b.id), json.dumps(raw))  # tamper the store directly
     assert gov.current(b.id) == "ai-setup", "an injected inf opinion must not hijack current()"
     # the FACT (the beat's source/summary) is untouched -- we only refused to count the bad vote
     fact = BeatLog(store)._load(b.id)
@@ -111,10 +130,12 @@ def test_d3_tampered_nonfinite_confidence_cannot_degrade(monkeypatch=None):
 
 def test_crdt_convergence_order_independent():
     """Same set of records in two different orders -> identical current (commutative)."""
-    records = [("research", "category", "2026-03-01T00:00:00"),
-               ("vision", "strong", "2026-03-02T00:00:00"),
-               ("ai-setup", "path", "2026-03-03T00:00:00"),
-               ("stemroller", "generic", "2026-03-04T00:00:00")]
+    records = [
+        ("research", "category", "2026-03-01T00:00:00"),
+        ("vision", "strong", "2026-03-02T00:00:00"),
+        ("ai-setup", "path", "2026-03-03T00:00:00"),
+        ("stemroller", "generic", "2026-03-04T00:00:00"),
+    ]
     finals = []
     for order in (records, list(reversed(records)), [records[2], records[0], records[3], records[1]]):
         store, gov, b = _setup()
@@ -126,8 +147,13 @@ def test_crdt_convergence_order_independent():
 
 
 if __name__ == "__main__":
-    for fn in [test_higher_confidence_wins_lower_cannot, test_confirmed_is_sticky,
-               test_immutability_and_index_move, test_append_only_and_rollback,
-               test_crdt_monotonicity_fuzz, test_crdt_convergence_order_independent]:
+    for fn in [
+        test_higher_confidence_wins_lower_cannot,
+        test_confirmed_is_sticky,
+        test_immutability_and_index_move,
+        test_append_only_and_rollback,
+        test_crdt_monotonicity_fuzz,
+        test_crdt_convergence_order_independent,
+    ]:
         fn()
     print("ALL TAG GOVERNANCE G1 TESTS PASSED")

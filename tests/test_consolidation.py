@@ -21,8 +21,9 @@ def _seeded_memory():
     mem = AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     mem.record(task="install comfyui", success=True, learnings=["use the node manager"])
     mem.record(task="configure redis", success=False, learnings=["filtered port hangs connect"])
-    mem.reflect(task="configure redis", what_went_wrong="48s hang",
-                what_would_help="probe reachability first", confidence=0.9)
+    mem.reflect(
+        task="configure redis", what_went_wrong="48s hang", what_would_help="probe reachability first", confidence=0.9
+    )
     return mem
 
 

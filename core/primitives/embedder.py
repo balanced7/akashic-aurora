@@ -22,6 +22,7 @@ Design (CPU-first, best-effort):
 Default model: all-MiniLM-L6-v2 (384-d, ~80MB, fast on CPU). Override via EMBED_MODEL. GPU is a
 later refinement (just a `device=` change); CPU is the simplicity-first baseline.
 """
+
 import hashlib
 import json
 import logging
@@ -43,15 +44,14 @@ def _hash(text: str) -> str:
 class Embedder:
     """Text -> vector, with a Store cache and a keyword fallback. Never raises into callers."""
 
-    def __init__(self, model_name: Optional[str] = None, store: Optional[Store] = None,
-                 *, cache: bool = True):
+    def __init__(self, model_name: Optional[str] = None, store: Optional[Store] = None, *, cache: bool = True):
         self.model_name = model_name or os.getenv("EMBED_MODEL", DEFAULT_MODEL)
         self.store = store if store is not None else (create_store() if cache else None)
         self._tag = self.model_name.split("/")[-1]
         self._model = None
-        self._tried = False                 # have we attempted to load the model?
+        self._tried = False  # have we attempted to load the model?
         self._available: Optional[bool] = None
-        self._mem: dict = {}                # in-process cache: hash -> vector
+        self._mem: dict = {}  # in-process cache: hash -> vector
 
     # ------------------------------------------------------------------ model
     @property
@@ -78,6 +78,7 @@ class Embedder:
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
             from sentence_transformers import SentenceTransformer
+
             self._model = SentenceTransformer(self.model_name, device="cpu")
             self._available = True
         except Exception as e:
@@ -94,7 +95,7 @@ class Embedder:
         (in one batch) and then cached. Returns a vector (or None on fallback) per input."""
         texts = [str(t or "") for t in texts]
         out: List[Optional[List[float]]] = [None] * len(texts)
-        misses = []                                    # (index, text, hash)
+        misses = []  # (index, text, hash)
         for i, t in enumerate(texts):
             h = _hash(t)
             if h in self._mem:
@@ -106,7 +107,7 @@ class Embedder:
                 out[i] = cached
                 continue
             misses.append((i, t, h))
-        if misses and self.available:                  # `available` triggers the lazy load
+        if misses and self.available:  # `available` triggers the lazy load
             try:
                 vecs = self._encode([t for _, t, _ in misses])
                 for (i, _t, h), v in zip(misses, vecs):

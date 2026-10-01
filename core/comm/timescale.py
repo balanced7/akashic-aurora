@@ -10,6 +10,7 @@ production never sets it -> 1.0). A drill at 0.05 turns the 20s lock TTL into 1s
 Import-time by design: the constants it feeds are module-level and the consumers are
 short-lived drill subprocesses; a live process never legitimately rescales itself.
 """
+
 import os
 
 

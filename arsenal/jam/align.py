@@ -15,6 +15,7 @@ Alignment = {session, method: L1|L2|L3|L4, error_ms, bar0_t_ms, anchor, page_id,
 A buffered session without opened_at_client is refused at L4: its server open time can be an hour late. Every
 anchor has the shape tempomap.session_t_ms takes, so one formula serves all four levels. Read only.
 """
+
 from __future__ import annotations
 
 import math
@@ -61,17 +62,35 @@ def run_window(run: dict, events: List[dict]) -> Tuple[Optional[float], Optional
 
 def _result(method: str, info: dict, run: dict, anchor: dict, **extra) -> dict:
     bar0 = tempomap.session_t_ms(run["segments"], run["beats_per_bar"], 0, 0, anchor)
-    out = {"session": info.get("session"), "run": run.get("run"), "method": method, "error_ms": ERROR_MS[method],
-           "bar0_t_ms": bar0, "anchor": anchor, "page_id": None, "approx": method == "L4", "refused": False,
-           "reason": None}
+    out = {
+        "session": info.get("session"),
+        "run": run.get("run"),
+        "method": method,
+        "error_ms": ERROR_MS[method],
+        "bar0_t_ms": bar0,
+        "anchor": anchor,
+        "page_id": None,
+        "approx": method == "L4",
+        "refused": False,
+        "reason": None,
+    }
     out.update(extra)
     return out
 
 
 def align_session(run: dict, events: List[dict], info: dict) -> dict:
     session = info.get("session")
-    base = {"session": session, "run": run.get("run"), "method": None, "error_ms": None, "bar0_t_ms": None,
-            "anchor": None, "page_id": None, "approx": False, "refused": True}
+    base = {
+        "session": session,
+        "run": run.get("run"),
+        "method": None,
+        "error_ms": None,
+        "bar0_t_ms": None,
+        "anchor": None,
+        "page_id": None,
+        "approx": False,
+        "refused": True,
+    }
     if not run.get("segments"):
         return dict(base, reason="the run never started (it has no bars)")
     meta = info.get("meta") or {}
@@ -91,8 +110,12 @@ def align_session(run: dict, events: List[dict], info: dict) -> dict:
     if client is not None:
         return _result("L3", info, run, {"bar_epoch_ms": 0.0, "perf_ms": 0.0, "t0_perf_ms": client})
     if meta.get("buffered"):
-        return dict(base, method="L4", reason="the session was buffered and has no opened_at_client, so its server "
-                                              "open time can be far from its first note")
+        return dict(
+            base,
+            method="L4",
+            reason="the session was buffered and has no opened_at_client, so its server "
+            "open time can be far from its first note",
+        )
     opened = epoch_ms_of(info.get("opened_at"))
     if opened is None:
         return dict(base, reason="the session has no open time")

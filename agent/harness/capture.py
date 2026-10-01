@@ -10,6 +10,7 @@ Bounded (newest _CAP_MAX files per dir), string-truncated (the SHAPE is the cont
 not the content), tempdir-only, fail-soft, kill switch AKASHIC_PAYLOAD_CAPTURE=0.
 Callers own their directory (one per harness) so per-harness pinning stays trivial.
 """
+
 import json
 import os
 import time
@@ -41,7 +42,7 @@ def capture(data, cap_dir: str, label: str = "unknown") -> None:
         name = "%d_%s_%s.json" % (int(time.time() * 1000), label, os.getpid())
         with open(os.path.join(cap_dir, name), "w", encoding="utf-8") as f:
             json.dump(truncated(data), f, indent=1)
-        stale = sorted(os.listdir(cap_dir))[:-_CAP_MAX]   # ms-epoch prefix -> lexical sort = oldest first
+        stale = sorted(os.listdir(cap_dir))[:-_CAP_MAX]  # ms-epoch prefix -> lexical sort = oldest first
         for n in stale:
             try:
                 os.remove(os.path.join(cap_dir, n))

@@ -4,6 +4,7 @@ Tests for the negotiation round (core/coord/negotiation.py + intent.py proposal 
 These are hermetically testable because intent.py uses an injectable Redis client.
 We test: proposal submission, round state, conflict detection, verdict logic.
 """
+
 import os
 import sys
 
@@ -20,6 +21,7 @@ class FakeRedis:
 
     def keys(self, pattern):
         import fnmatch
+
         return [k for k in self.store if fnmatch.fnmatch(k, pattern)]
 
     def get(self, key):
@@ -41,7 +43,9 @@ def client():
 
 # --- proposal submission ---
 def test_propose_submits_and_returns_round_state(client):
-    result = intent.propose("claude", {"what": "add rate limiting", "scope": ["api.py"], "estimate": "~5 min"}, client=client)
+    result = intent.propose(
+        "claude", {"what": "add rate limiting", "scope": ["api.py"], "estimate": "~5 min"}, client=client
+    )
     assert result["ok"] is True
     assert result["round"]["verdict"] == "green"
     assert len(result["round"]["proposals"]) == 1
@@ -72,8 +76,16 @@ def test_two_agents_same_file_different_intents_amber(client):
 def test_two_agents_same_file_same_intent_red(client):
     """Same file + same explicit intent tag = red (duplicate work). The 'what' text differs but the
     intent TAG is the coordination key — this is the whole point of tags over free-text slugging."""
-    intent.propose("claude", {"what": "restyle header", "intent": "restyle-header", "scope": ["ui.py"], "estimate": "1 slice"}, client=client)
-    intent.propose("deepseek", {"what": "restyle the header", "intent": "restyle-header", "scope": ["ui.py"], "estimate": "~5 min"}, client=client)
+    intent.propose(
+        "claude",
+        {"what": "restyle header", "intent": "restyle-header", "scope": ["ui.py"], "estimate": "1 slice"},
+        client=client,
+    )
+    intent.propose(
+        "deepseek",
+        {"what": "restyle the header", "intent": "restyle-header", "scope": ["ui.py"], "estimate": "~5 min"},
+        client=client,
+    )
     state = intent.round_state(client=client)
     assert state["verdict"] == "red"
     c = state["conflicts"][0]
@@ -81,10 +93,14 @@ def test_two_agents_same_file_same_intent_red(client):
 
 
 def test_scope_conflict_across_multiple_files(client):
-    intent.propose("claude", {"what": "refactor bus", "scope": ["bus.py", "locks.py"], "estimate": "2 slices"}, client=client)
-    intent.propose("deepseek", {"what": "add fencing", "scope": ["locks.py", "intent.py"], "estimate": "1 slice"}, client=client)
+    intent.propose(
+        "claude", {"what": "refactor bus", "scope": ["bus.py", "locks.py"], "estimate": "2 slices"}, client=client
+    )
+    intent.propose(
+        "deepseek", {"what": "add fencing", "scope": ["locks.py", "intent.py"], "estimate": "1 slice"}, client=client
+    )
     state = intent.round_state(client=client)
-    assert state["verdict"] == "amber"   # same file (locks.py) but different intents
+    assert state["verdict"] == "amber"  # same file (locks.py) but different intents
     assert len(state["conflicts"]) == 1
     assert state["conflicts"][0]["file"] == "locks.py"
 
@@ -120,10 +136,18 @@ def test_round_id_stable():
 
 def test_full_round_flow(client):
     """End-to-end: propose x2 (same file + same intent tag = red), check state, clear, verify empty."""
-    intent.propose("claude", {"what": "add tests", "intent": "add-tests", "scope": ["test_x.py"], "estimate": "1 slice"}, client=client)
+    intent.propose(
+        "claude",
+        {"what": "add tests", "intent": "add-tests", "scope": ["test_x.py"], "estimate": "1 slice"},
+        client=client,
+    )
     s1 = intent.round_state(client=client)
     assert s1["verdict"] == "green"
-    intent.propose("deepseek", {"what": "add tests", "intent": "add-tests", "scope": ["test_x.py"], "estimate": "~5 min"}, client=client)
+    intent.propose(
+        "deepseek",
+        {"what": "add tests", "intent": "add-tests", "scope": ["test_x.py"], "estimate": "~5 min"},
+        client=client,
+    )
     s2 = intent.round_state(client=client)
     assert s2["verdict"] == "red"  # same file + same intent tag
     intent.clear_round(client=client)

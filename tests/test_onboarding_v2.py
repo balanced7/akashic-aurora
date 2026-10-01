@@ -10,7 +10,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, '.')
+sys.path.insert(0, ".")
+
 
 class MetricsCollector:
     """Collects metrics during agent initialization and work"""
@@ -96,10 +97,10 @@ class MetricsCollector:
         """Print human-readable metrics report"""
         metrics = self.get_metrics()
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"TEST: {metrics['test_name']}")
         print(f"Agent: {metrics['agent_id']}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         print("STARTUP METRICS:")
         print(f"  Startup Time:           {metrics['startup_time_ms']:.1f}ms")
@@ -119,16 +120,16 @@ class MetricsCollector:
         print(f"  Tokens Saved:           {metrics['tokens_saved']}")
         print(f"  Token Efficiency:       {metrics['token_efficiency_pct']:.1f}%")
 
-        print(f"\n{'='*70}\n")
+        print(f"\n{'=' * 70}\n")
 
         return metrics
 
 
 def test_old_approach():
     """Test: Old approach (no context loading)"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: OLD APPROACH (No Context Loading)")
-    print("="*70)
+    print("=" * 70)
 
     collector = MetricsCollector("old_agent", "Old Approach - No Context")
 
@@ -136,7 +137,8 @@ def test_old_approach():
     start = time.time()
     try:
         from coordinator_api import CoordinatorAPI
-        api = CoordinatorAPI('old_agent')
+
+        api = CoordinatorAPI("old_agent")
         startup_ms = (time.time() - start) * 1000
         collector.record_startup_time(startup_ms)
     except Exception as e:
@@ -175,9 +177,9 @@ def test_old_approach():
 
 def test_new_approach():
     """Test: New approach (with full context loading)"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: NEW APPROACH (With Full Context Loading)")
-    print("="*70)
+    print("=" * 70)
 
     collector = MetricsCollector("new_agent", "New Approach - Full Context")
 
@@ -204,7 +206,7 @@ def test_new_approach():
             briefing=briefing is not None,
             decisions=len(decisions),
             learnings=len(learnings),
-            checkpoint=SessionState("new_agent").has_checkpoint()
+            checkpoint=SessionState("new_agent").has_checkpoint(),
         )
 
         print(f"  Briefing loaded: {briefing is not None}")
@@ -219,16 +221,16 @@ def test_new_approach():
     # Simulate agent doing work (some decisions reused, some new)
     print("\nAgent works on task with context...")
     decisions_sequence = [
-        ("use_redis", "reuse"),          # Found in cache from previous learning
+        ("use_redis", "reuse"),  # Found in cache from previous learning
         ("async_coordinator", "reuse"),  # From briefing
-        ("file_fallback", "new"),        # New situation
-        ("learning_system", "reuse"),    # In learnings
-        ("briefing_loader", "reuse"),    # In briefing
-        ("session_state", "new"),        # New requirement
-        ("error_handling", "new"),       # New situation
-        ("validation", "reuse"),         # From past decisions
-        ("testing", "new"),              # New context
-        ("deployment", "reuse"),         # From learnings
+        ("file_fallback", "new"),  # New situation
+        ("learning_system", "reuse"),  # In learnings
+        ("briefing_loader", "reuse"),  # In briefing
+        ("session_state", "new"),  # New requirement
+        ("error_handling", "new"),  # New situation
+        ("validation", "reuse"),  # From past decisions
+        ("testing", "new"),  # New context
+        ("deployment", "reuse"),  # From learnings
     ]
 
     for decision_name, decision_type in decisions_sequence:
@@ -250,16 +252,34 @@ def compare_results(old_metrics: dict, new_metrics: dict):
         print("\nCannot compare: missing metrics")
         return
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("COMPARISON: Old vs New Approach")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     comparisons = [
-        ("Startup Time", old_metrics['startup_time_ms'], new_metrics['startup_time_ms'], "ms", "lower is better"),
-        ("Context Availability", old_metrics['context_availability_pct'], new_metrics['context_availability_pct'], "%", "higher is better"),
-        ("Decision Reuse Rate", old_metrics['decision_reuse_rate_pct'], new_metrics['decision_reuse_rate_pct'], "%", "higher is better"),
-        ("Token Efficiency", old_metrics['token_efficiency_pct'], new_metrics['token_efficiency_pct'], "%", "higher is better"),
-        ("Tokens Saved", old_metrics['tokens_saved'], new_metrics['tokens_saved'], "tokens", "higher is better"),
+        ("Startup Time", old_metrics["startup_time_ms"], new_metrics["startup_time_ms"], "ms", "lower is better"),
+        (
+            "Context Availability",
+            old_metrics["context_availability_pct"],
+            new_metrics["context_availability_pct"],
+            "%",
+            "higher is better",
+        ),
+        (
+            "Decision Reuse Rate",
+            old_metrics["decision_reuse_rate_pct"],
+            new_metrics["decision_reuse_rate_pct"],
+            "%",
+            "higher is better",
+        ),
+        (
+            "Token Efficiency",
+            old_metrics["token_efficiency_pct"],
+            new_metrics["token_efficiency_pct"],
+            "%",
+            "higher is better",
+        ),
+        ("Tokens Saved", old_metrics["tokens_saved"], new_metrics["tokens_saved"], "tokens", "higher is better"),
     ]
 
     print(f"{'Metric':<25} {'Old':<15} {'New':<15} {'Change':<15} {'Impact':<20}")
@@ -280,16 +300,23 @@ def compare_results(old_metrics: dict, new_metrics: dict):
         old_str = f"{old_val:.1f} {unit}"
         new_str = f"{new_val:.1f} {unit}"
 
-        impact = "[IMPROVED]" if (direction == "higher is better" and new_val > old_val) or (direction == "lower is better" and new_val < old_val) else "[WORSE]" if change_str != "0.0%" else "[SAME]"
+        impact = (
+            "[IMPROVED]"
+            if (direction == "higher is better" and new_val > old_val)
+            or (direction == "lower is better" and new_val < old_val)
+            else "[WORSE]"
+            if change_str != "0.0%"
+            else "[SAME]"
+        )
 
         print(f"{metric_name:<25} {old_str:<15} {new_str:<15} {change_str:<15} {impact:<20}")
 
         if impact == "[IMPROVED]":
             improvements.append((metric_name, change_str))
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("SUMMARY")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     if improvements:
         print("IMPROVEMENTS WITH NEW APPROACH:")
@@ -297,8 +324,8 @@ def compare_results(old_metrics: dict, new_metrics: dict):
             print(f"  [+] {metric}: {change}")
 
         # Calculate overall effectiveness
-        avg_decision_reuse = new_metrics['decision_reuse_rate_pct']
-        avg_efficiency = new_metrics['token_efficiency_pct']
+        avg_decision_reuse = new_metrics["decision_reuse_rate_pct"]
+        avg_efficiency = new_metrics["token_efficiency_pct"]
 
         print(f"\nOVERALL EFFECTIVENESS:")
         print(f"  - Decision Reuse:        {avg_decision_reuse:.1f}% (target: 30-40%)")
@@ -314,7 +341,7 @@ def compare_results(old_metrics: dict, new_metrics: dict):
     else:
         print("No improvements detected. Check implementation.")
 
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
     # Save results for future comparison
     results_file = Path(__file__).resolve().parents[1] / "session_logs" / "test_onboarding_v2_results.json"
@@ -327,17 +354,17 @@ def compare_results(old_metrics: dict, new_metrics: dict):
         "improvements": dict(improvements),
     }
 
-    with open(results_file, 'w', encoding='utf-8') as f:
+    with open(results_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     print(f"Results saved to: {results_file}\n")
 
 
 def main():
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("ONBOARDING TEST V2: Old vs New Approach")
     print("Measuring: startup time, context loading, decision reuse, token efficiency")
-    print("="*70)
+    print("=" * 70)
 
     # Test old approach
     old_metrics = test_old_approach()

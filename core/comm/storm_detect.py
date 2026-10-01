@@ -22,6 +22,7 @@ Environment dials (read at construction):
   STORM_DEPTH_WINDOW     (default 3 consecutive samples)
   STORM_REPEAT_THRESHOLD (default 5 consecutive duplicate ids)
 """
+
 from __future__ import annotations
 
 import os
@@ -41,19 +42,18 @@ class StormDetector:
     feed() every consume loop iteration. Pure in-memory state, no Redis — a crash
     resets the window, which is safe (a fresh runner starts with clean windows)."""
 
-    def __init__(self, *,
-                 depth_threshold: Optional[int] = None,
-                 depth_window: Optional[int] = None,
-                 repeat_threshold: Optional[int] = None):
-        self.depth_threshold = (depth_threshold
-                                if depth_threshold is not None
-                                else _int_env("STORM_DEPTH_THRESHOLD", 50))
-        self.depth_window = (depth_window
-                             if depth_window is not None
-                             else _int_env("STORM_DEPTH_WINDOW", 3))
-        self.repeat_threshold = (repeat_threshold
-                                 if repeat_threshold is not None
-                                 else _int_env("STORM_REPEAT_THRESHOLD", 5))
+    def __init__(
+        self,
+        *,
+        depth_threshold: Optional[int] = None,
+        depth_window: Optional[int] = None,
+        repeat_threshold: Optional[int] = None,
+    ):
+        self.depth_threshold = depth_threshold if depth_threshold is not None else _int_env("STORM_DEPTH_THRESHOLD", 50)
+        self.depth_window = depth_window if depth_window is not None else _int_env("STORM_DEPTH_WINDOW", 3)
+        self.repeat_threshold = (
+            repeat_threshold if repeat_threshold is not None else _int_env("STORM_REPEAT_THRESHOLD", 5)
+        )
         self._depths: deque = deque(maxlen=self.depth_window)
         self._last_ids: deque = deque(maxlen=self.repeat_threshold)
 
@@ -68,13 +68,17 @@ class StormDetector:
         # PERSISTS despite consumption; a healthy boot-drain (300->250->200 under the
         # batch cap of 50) is depth that falls and must stay silent -- a guard that cries
         # wolf on every busy boot trains operators to disable it.
-        if (len(self._depths) == self.depth_window
-                and all(d >= self.depth_threshold for d in self._depths)
-                and self._depths[-1] >= self._depths[0]):
-            return {"kind": "lane_depth_spike",
-                    "depth": work_depth,
-                    "threshold": self.depth_threshold,
-                    "window": list(self._depths)}
+        if (
+            len(self._depths) == self.depth_window
+            and all(d >= self.depth_threshold for d in self._depths)
+            and self._depths[-1] >= self._depths[0]
+        ):
+            return {
+                "kind": "lane_depth_spike",
+                "depth": work_depth,
+                "threshold": self.depth_threshold,
+                "window": list(self._depths),
+            }
 
         # REPEAT-DELIVERY STORM: N consecutive same ids in the sliding id window.
         # Feed each id individually so cross-batch duplicates still accumulate.
@@ -82,11 +86,8 @@ class StormDetector:
             if not mid:
                 continue
             self._last_ids.append(mid)
-            if (len(self._last_ids) == self.repeat_threshold
-                    and len(set(self._last_ids)) == 1):
-                return {"kind": "repeat_delivery_storm",
-                        "id": str(mid),
-                        "count": self.repeat_threshold}
+            if len(self._last_ids) == self.repeat_threshold and len(set(self._last_ids)) == 1:
+                return {"kind": "repeat_delivery_storm", "id": str(mid), "count": self.repeat_threshold}
 
         return None
 

@@ -18,6 +18,7 @@ A stage file missing from the dir is a WIRING DEFECT and is reported as one: git
 whatever is there and says nothing about what is not, so absence would otherwise read as
 success.
 """
+
 import os
 import subprocess
 import sys
@@ -34,8 +35,9 @@ def missing_hooks(hooks_dir=None):
 
 
 def main():
-    r = subprocess.run(["git", "config", "core.hooksPath", "scripts/githooks"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = subprocess.run(
+        ["git", "config", "core.hooksPath", "scripts/githooks"], cwd=ROOT, capture_output=True, text=True
+    )
     if r.returncode != 0:
         sys.stderr.write(r.stdout + r.stderr)
         return r.returncode
@@ -44,9 +46,11 @@ def main():
     print("[hooks] core.hooksPath -> scripts/githooks  (active: %s)" % ", ".join(active))
     print("        set AKASHIC_AGENT_ID=<your agent> so it can check your peer locks.")
     if gone:
-        sys.stderr.write("[hooks] WIRING DEFECT: expected stage(s) missing from "
-                         "scripts/githooks: %s -- git runs what is there and is silent "
-                         "about what is not.\n" % ", ".join(gone))
+        sys.stderr.write(
+            "[hooks] WIRING DEFECT: expected stage(s) missing from "
+            "scripts/githooks: %s -- git runs what is there and is silent "
+            "about what is not.\n" % ", ".join(gone)
+        )
         return 1
     return 0
 

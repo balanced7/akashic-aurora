@@ -28,6 +28,7 @@ surface); it is REPORTED for visibility but not parity-enforced.
 Run:  py scripts/checkers/check_door_parity.py            # gate (exit 1 on unclassified/regressed verb)
       py scripts/checkers/check_door_parity.py --report   # print the four surfaces + the manifest
 """
+
 import ast
 import os
 import re
@@ -60,8 +61,7 @@ def bus_methods():
     out = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and "BifrostAPI" in node.name:
-            out += [m.name for m in node.body
-                    if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
+            out += [m.name for m in node.body if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
     return sorted(set(out))
 
 
@@ -85,13 +85,13 @@ def toolbox_verbs():
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == "ToolBox":
             found = True
-            out += [m.name for m in node.body
-                    if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
+            out += [m.name for m in node.body if isinstance(m, ast.FunctionDef) and not m.name.startswith("_")]
     if not found:
         raise RuntimeError(
             f"door-parity guard cannot find `class ToolBox` in {src} -- it has moved again. "
             "Fix the path; an empty verb list would silently pass or phantom-fail every "
-            "shared verb.")
+            "shared verb."
+        )
     return sorted(set(_norm(n) for n in out))
 
 
@@ -136,10 +136,22 @@ MANIFEST = {
     # since your last word" for Daniil at a terminal. Agent-facing twins would serve nobody.
     "reentry": "cli_only",
     # --- shared: the core verb surface, on both doors ---
-    "boot": "shared", "learn": "shared", "recall": "shared", "recall_at": "shared",
-    "recall_feedback": "shared", "stats": "shared", "status": "shared", "story": "shared",
-    "events": "shared", "log": "shared", "promoted": "shared", "graduate": "shared",
-    "injections": "shared", "handoff": "shared", "bifrost_send": "shared", "bifrost_sync": "shared",
+    "boot": "shared",
+    "learn": "shared",
+    "recall": "shared",
+    "recall_at": "shared",
+    "recall_feedback": "shared",
+    "stats": "shared",
+    "status": "shared",
+    "story": "shared",
+    "events": "shared",
+    "log": "shared",
+    "promoted": "shared",
+    "graduate": "shared",
+    "injections": "shared",
+    "handoff": "shared",
+    "bifrost_send": "shared",
+    "bifrost_sync": "shared",
     "sweep": "shared",  # T084: pure subject-bound awareness; native on all three agent doors
     "glance": "shared",  # T079/T060: bounded WorldSnapshot; CLI, MCP, ToolBox
     "orient": "shared",  # T084 VR/GPS: one native scene over sweep + typed focus
@@ -147,8 +159,13 @@ MANIFEST = {
     "college": "shared",  # T084: one source/voice/audit/teach-back/errata provider on every door
     "ground": "shared",  # T084 S1: typed evidence ladder, native on all three agent doors
     # slice 1b: note/notes + lock/unlock/locks + tag_anti_pattern + bifrost_nudge now have MCP twins
-    "note": "shared", "notes": "shared", "lock": "shared", "unlock": "shared", "locks": "shared",
-    "tag_anti_pattern": "shared", "bifrost_nudge": "shared",
+    "note": "shared",
+    "notes": "shared",
+    "lock": "shared",
+    "unlock": "shared",
+    "locks": "shared",
+    "tag_anti_pattern": "shared",
+    "bifrost_nudge": "shared",
     # T113: the retrieval half of the oversize-send spill. CLI verb `blob` and ToolBox
     # tool `bifrost_fetch` are the SAME door under two names -- a spill notice is read
     # by runners (ToolBox) and by operators (CLI), and a pointer either one cannot
@@ -156,9 +173,11 @@ MANIFEST = {
     "bifrost_fetch": "shared",
     # R8 (T059): knowledge_map walks the lesson/note/doc graph -- an agent-facing read verb
     # (B5's whole point: an agent OR Daniel walks the knowledge), so it ships on both doors.
-    "knowledge_map": "shared", "task": "shared",
+    "knowledge_map": "shared",
+    "task": "shared",
     # T060 N0: dry-run explanation + bounded observation counters are read-only on both doors.
-    "packet_trace": "shared", "packet_stats": "shared",
+    "packet_trace": "shared",
+    "packet_stats": "shared",
     # T171: `ask` SHOULD be shared and is recorded as debt, not as a design choice. Its whole
     # purpose is cutting the cost of asking for help, and the seat that needs it most is the
     # MCP-attached conductor -- so an MCP twin is the right end state. CLI-only is survivable
@@ -189,18 +208,26 @@ MANIFEST = {
     # surface as verbs to this census). Same class and same argument as compare/timeline:
     # READ verbs whose deepest value is to an MCP-attached conductor; the MCP twin is a
     # named later slice (rides the door-curation program, T289/G). Debt, not design.
-    "eye": "shared", "find": "shared", "get": "shared", "ingest": "shared", "freq": "shared", "overview": "shared", "zoom": "shared",
-    "trace": "shared",   # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
+    "eye": "shared",
+    "find": "shared",
+    "get": "shared",
+    "ingest": "shared",
+    "freq": "shared",
+    "overview": "shared",
+    "zoom": "shared",
+    "trace": "shared",  # T278 S4 connectome walk -- CLI first, MCP with the rest of the eye surface
     "manual": "shared",  # 2026-09-24 the manuals shelf (core/manuals): CLI + MCP twin in one slice
-    "route": "shared",   # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
-                      # and never classified -- this guard has been failing on it since, which is
-                      # the ratchet working: it caught a verb its author forgot to declare.
+    "route": "shared",  # T323 saved walkable strings (`eye route save|walk|ls`). Shipped 2026-08-16
+    # and never classified -- this guard has been failing on it since, which is
+    # the ratchet working: it caught a verb its author forgot to declare.
     # T290 (2026-08-12): the verdict planes' door -- resident subcommands surfacing as verbs
     # to this census (the eye precedent). Same argument as ask/timeline: `adjudicate` and
     # `calibration` belong to the OPERATOR and the MCP-attached conductor most of all, and
     # `verdict-file` gets its real caller when RC3 wires the ask door. Debt, not design --
     # pay down with the eye surface in the door-curation program.
-    "verdict_file": "shared", "adjudicate": "gap", "calibration": "shared",
+    "verdict_file": "shared",
+    "adjudicate": "gap",
+    "calibration": "shared",
     # T292: the scout verb -- same argument again (the conductor is the caller who needs
     # it most and is MCP-attached). Debt, not design; rides the same membrane slice.
     "scout": "shared",
@@ -244,27 +271,27 @@ MANIFEST = {
     # openai.key" appearing on Daniil's screen at an agent's initiative is a phishing
     # surface, not a convenience. Capture is operator-initiated or it is an attack.
     "secret": "cli_only",
-    "alias": "cli_only",           # toolbelt authoring: mint/list/retire verb aliases
-    "audit": "cli_only",           # belief-vs-state audit; operator diagnostic, writes nothing
-    "bench": "cli_only",           # S0 triage bench: operator mailbox management
-    "bifrost_drain": "cli_only",   # drain a PEER's lane -- operator intervention, not self-service
+    "alias": "cli_only",  # toolbelt authoring: mint/list/retire verb aliases
+    "audit": "cli_only",  # belief-vs-state audit; operator diagnostic, writes nothing
+    "bench": "cli_only",  # S0 triage bench: operator mailbox management
+    "bifrost_drain": "cli_only",  # drain a PEER's lane -- operator intervention, not self-service
     # T084 S2: the explicit --thread mode is native on all three doors. The legacy
     # single-ref/--persist CLI arms remain local extras; shared semantics are the
     # subject-bound collector + guarded draft-atom mint.
     "capture": "shared",
-    "clobber_scan": "cli_only",    # static scan for unconditional shared-key writes (W47)
+    "clobber_scan": "cli_only",  # static scan for unconditional shared-key writes (W47)
     # T163. DELIBERATELY NOT SHARED. `--by` is an unauthenticated string, so the door's honesty
     # depends on who can reach it: on the CLI a caller already needs shell access, and anyone with
     # shell access could edit security/acl.json anyway -- the verb takes nothing away. On MCP it
     # would become a tool any seat can call while naming itself the granter, which widens the
     # surface for exactly nothing, since the operator is the intended user. Administrative door,
     # operator-facing, stays here.
-    "grant": "cli_only",           # S-3 ACL write door: mint/revoke/list grants (atomic, audited)
+    "grant": "cli_only",  # S-3 ACL write door: mint/revoke/list grants (atomic, audited)
     # T165. Adjudicator-side, not player-side: a player must never be able to score its own round,
     # and putting this on MCP would hand every seat the scorer. Operator surface, CLI only.
-    "season_score": "cli_only",    # score a Season 1 round / diff the two rule sets
-    "defer": "cli_only",           # capability-gated standing queue (W33)
-    "doc": "cli_only",             # seed a new doc with the header contract; authoring door
+    "season_score": "cli_only",  # score a Season 1 round / diff the two rule sets
+    "defer": "cli_only",  # capability-gated standing queue (W33)
+    "doc": "cli_only",  # seed a new doc with the header contract; authoring door
     # "adopt" is doc's RESCUE subcommand: mint an already-written loose .md as an atom.
     # Classified GAP, not cli_only, on the evidence rather than by convenience. Since the P3
     # flip (2026-07-23) rule-13 refuses new loose research/*.md from commits, so a seat WITHOUT
@@ -279,10 +306,10 @@ MANIFEST = {
     # which is the honest reading and the reversible one.
     # PAY DOWN BY: exposing doc_adopt on the MCP door. Owner: whoever owns the doc door.
     "adopt": "shared",
-    "flightdeck": "cli_only",      # cockpit one-pager (W25); operator dashboard
-    "followup": "cli_only",        # charter question-back (W46)
-    "kata": "cli_only",            # grammar-prove a toolbelt alias against the door
-    "kit": "cli_only",             # install a kit bundle on a seat's belt (T099)
+    "flightdeck": "cli_only",  # cockpit one-pager (W25); operator dashboard
+    "followup": "cli_only",  # charter question-back (W46)
+    "kata": "cli_only",  # grammar-prove a toolbelt alias against the door
+    "kit": "cli_only",  # install a kit bundle on a seat's belt (T099)
     # deepseek classified this cli_only ("operator diagnostic, observation only") and the
     # guard refuted it TWICE, which is the guard working: first that mailbox is already on
     # the MCP door (so not cli_only), then that it is absent from the ToolBox (so not
@@ -290,16 +317,19 @@ MANIFEST = {
     # checker it was helping to fix. Recorded as a `gap` -- the honest label for a verb on
     # two doors and missing from the third. Gaps are REPORTED, never silenced, and this one
     # is tracked as a followup rather than left to live in a comment.
-    "mailbox": "shared",              # T095 M0 shadow mailbox: CLI+MCP twins both exist
-    "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
-    "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
-    "new": "cli_only",             # subcommand of `doc`
-    "arc": "cli_only",             # subcommand of `doc`: relabel an atom's arc in place (curation, like `new`)
+    "mailbox": "shared",  # T095 M0 shadow mailbox: CLI+MCP twins both exist
+    "roster": "shared",  # T108 S2 seat directory: CLI only; agents need an MCP read twin
+    "stand_down": "gap",  # T086 session yield: CLI only; no MCP lifecycle twin yet
+    "new": "cli_only",  # subcommand of `doc`
+    "arc": "cli_only",  # subcommand of `doc`: relabel an atom's arc in place (curation, like `new`)
     # ``college`` is the shared capability. These are its ergonomic argparse
     # subcommands; MCP/ToolBox carry the same operation in college(action=...),
     # so five duplicate top-level model tools would create surface, not parity.
-    "start": "cli_only", "source": "cli_only", "lecture": "cli_only",
-    "teachback": "cli_only", "erratum": "cli_only",
+    "start": "cli_only",
+    "source": "cli_only",
+    "lecture": "cli_only",
+    "teachback": "cli_only",
+    "erratum": "cli_only",
     "program": "cli_only",  # argparse subcommand of shared `glance`; MCP/ToolBox use an argument
     # T258 -- the callsign ceremony's three moves, classified by WHO each one belongs to rather
     # than by where it happens to live today.
@@ -312,7 +342,7 @@ MANIFEST = {
     # PAY DOWN BY: exposing resident_nominate + resident_show on the MCP/ToolBox door.
     "resident": "shared",
     "nominate": "shared",
-    "show": "shared",                 # a resident should be able to read its own designation
+    "show": "shared",  # a resident should be able to read its own designation
     # `ratify` is DELIBERATELY cli_only, and this is the one place the door surface encodes a
     # rule rather than an accident: rule 3 says a HUMAN ratifies. Putting ratify on the agent
     # door would let a seat confirm its own or a peer's callsign, which collapses rule 1 (peers
@@ -340,124 +370,138 @@ MANIFEST = {
     # Artifact tool, which is a harness surface rather than a fleet door. An MCP twin would
     # hand a runner a scaffold it has no way to publish, which is a door to nowhere.
     "report": "cli_only",
-    "pulse": "cli_only",           # LIFEWORKERS pressure map (W25)
-    "run": "cli_only",             # execute a toolbelt alias
+    "pulse": "cli_only",  # LIFEWORKERS pressure map (W25)
+    "run": "cli_only",  # execute a toolbelt alias
     "suite_baseline": "cli_only",  # record/compare the pytest baseline; needs shell
-    "tally": "cli_only",           # local counter roll-up
-    "repeat": "shared",               # T314: records that an EXISTING lesson was violated anyway.
-                                   # Classified gap, not cli_only, deliberately: runners break
-                                   # lessons too and a repeat only a human can file undercounts
-                                   # the very floor it measures. MCP twin owed.
+    "tally": "cli_only",  # local counter roll-up
+    "repeat": "shared",  # T314: records that an EXISTING lesson was violated anyway.
+    # Classified gap, not cli_only, deliberately: runners break
+    # lessons too and a repeat only a human can file undercounts
+    # the very floor it measures. MCP twin owed.
     # 2026-09-04: the operator-facing reply door. CLI-only ON PURPOSE -- an MCP seat
     # already answers him by returning text to its own caller; this verb exists for the
     # CLI shape where a body could land in a sender slot (core/comm/operator_reply.py).
     "reply": "cli_only",
-    "boop": "cli_only",            # play acknowledgement; one-way and intentionally local
-    "shell_home": "cli_only",      # 2026-09-01 drift night: shows/sets where HARNESS shells
-                                   # land (bashrc hook, CLAUDE_CODE_SESSION_ID-gated). A shell
-                                   # cwd verb has no meaning over MCP -- callers have no shell.
-    "captions": "cli_only",        # W154: youtube captions -> text on the operator's Desktop.
-                                   # Pre-existing unclassified drift, paid down here rather than
-                                   # left to block the next seat. Writes to a human's disk and
-                                   # takes a URL a human just watched; a runner asking for it
-                                   # would be odd. Reclassify if that turns out wrong.
-    "toast": "cli_only",           # peer credit; receipt verifies against the learning store
-    "tool": "cli_only",            # toolbelt introspection
-    "unwedge": "cli_only",         # operator recovery for a wedged seat
+    "boop": "cli_only",  # play acknowledgement; one-way and intentionally local
+    "shell_home": "cli_only",  # 2026-09-01 drift night: shows/sets where HARNESS shells
+    # land (bashrc hook, CLAUDE_CODE_SESSION_ID-gated). A shell
+    # cwd verb has no meaning over MCP -- callers have no shell.
+    "captions": "cli_only",  # W154: youtube captions -> text on the operator's Desktop.
+    # Pre-existing unclassified drift, paid down here rather than
+    # left to block the next seat. Writes to a human's disk and
+    # takes a URL a human just watched; a runner asking for it
+    # would be odd. Reclassify if that turns out wrong.
+    "toast": "cli_only",  # peer credit; receipt verifies against the learning store
+    "tool": "cli_only",  # toolbelt introspection
+    "unwedge": "cli_only",  # operator recovery for a wedged seat
     "seat_identity": "cli_only",  # declare THIS session's seat id; binds a per-session file
-                                  # and reads the local process env, so it is meaningless
-                                  # through a shared MCP door -- the session that needs to
-                                  # name itself is the one running the command.
-    "wish": "cli_only",            # append to WISHLIST.md -- author surface, needs the repo
-    "wish_curate": "cli_only",     # the CURATION half of the same ledger (fold/keep/decline).
-                                   # Matches `wish` deliberately: both mutate a git-tracked
-                                   # document in the working tree, which a shared MCP door
-                                   # cannot do honestly -- the seat holding the repo is the
-                                   # one that must write it. Classified the same way so the
-                                   # two halves of one charter cannot drift apart at the door.
-    "web": "cli_only",             # the house web door umbrella (W-slice 2026-09-01); cross-door name is web_fetch
-    "fetch": "cli_only",           # subcommand of `web` -- CLI spelling of web_fetch (cleaned+raw, receipts, fenced)
-    "search": "cli_only",          # subcommand of `web` -- Brave when keyed; ToolBox web_search serves seats meanwhile
-    "web_fetch": "mcp_only",       # MCP spelling of the fetch door. ToolBox wiring LANDED 2026-09-24
-                                   # (was designed 2026-09-01, lost when that write-blocked !spawn
-                                   # could not apply it; for 3 weeks no runner seat could fetch at all
-                                   # -- 171 receipts, only claude + dsh_agent). Stays mcp_only because
-                                   # this axis is CLI<->MCP parity; the CLI spells it `web fetch`.
+    # and reads the local process env, so it is meaningless
+    # through a shared MCP door -- the session that needs to
+    # name itself is the one running the command.
+    "wish": "cli_only",  # append to WISHLIST.md -- author surface, needs the repo
+    "wish_curate": "cli_only",  # the CURATION half of the same ledger (fold/keep/decline).
+    # Matches `wish` deliberately: both mutate a git-tracked
+    # document in the working tree, which a shared MCP door
+    # cannot do honestly -- the seat holding the repo is the
+    # one that must write it. Classified the same way so the
+    # two halves of one charter cannot drift apart at the door.
+    "web": "cli_only",  # the house web door umbrella (W-slice 2026-09-01); cross-door name is web_fetch
+    "fetch": "cli_only",  # subcommand of `web` -- CLI spelling of web_fetch (cleaned+raw, receipts, fenced)
+    "search": "cli_only",  # subcommand of `web` -- Brave when keyed; ToolBox web_search serves seats meanwhile
+    "web_fetch": "mcp_only",  # MCP spelling of the fetch door. ToolBox wiring LANDED 2026-09-24
+    # (was designed 2026-09-01, lost when that write-blocked !spawn
+    # could not apply it; for 3 weeks no runner seat could fetch at all
+    # -- 171 receipts, only claude + dsh_agent). Stays mcp_only because
+    # this axis is CLI<->MCP parity; the CLI spells it `web fetch`.
     "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---
-    "discover": "cli_only", "console_log": "cli_only", "harnesses": "cli_only",
-    "recall_counters": "cli_only", "triage": "cli_only", "wrap": "cli_only",
-    "bifrost_pause": "cli_only", "bifrost_resume": "cli_only",
-    "bifrost_skip_to_now": "cli_only", "bifrost_standby": "cli_only",
-    "list": "cli_only",   # CLI alias for `recall ""`; MCP's recall(query="") already lists all
+    "discover": "cli_only",
+    "console_log": "cli_only",
+    "harnesses": "cli_only",
+    "recall_counters": "cli_only",
+    "triage": "cli_only",
+    "wrap": "cli_only",
+    "bifrost_pause": "cli_only",
+    "bifrost_resume": "cli_only",
+    "bifrost_skip_to_now": "cli_only",
+    "bifrost_standby": "cli_only",
+    "list": "cli_only",  # CLI alias for `recall ""`; MCP's recall(query="") already lists all
     "fleet": "cli_only",  # local-model dispatch/roster — operator-oriented, not an agent verb
     "doctor": "cli_only",  # L2 fleet-liveness doctor (T030): operator diagnostic; agents get its
-                           # one-liner in every boot; an MCP twin lands with a real MCP-agent need
+    # one-liner in every boot; an MCP twin lands with a real MCP-agent need
     "episode": "cli_only",  # session bookends: consumed by the Bifrost UI via CLI --json (S1). An MCP
-                            # twin is deferred to the S3 agent-close/auto-suggest path (design doc §7).
+    # twin is deferred to the S3 agent-close/auto-suggest path (design doc §7).
     "bifrost_ack": "cli_only",  # P6 (T026): deliberate handled-it record. Runners auto-ack in-process
-                                # (promoter.ack direct); an MCP twin lands with the P7 lookback set if
-                                # MCP agents start handling salient asks themselves.
-    "lookback": "cli_only",     # P7 (T027): rationale-corpus query. MCP twin deferred until an MCP
-                                # agent needs WHY-lookback programmatically (same trigger as bifrost_ack).
+    # (promoter.ack direct); an MCP twin lands with the P7 lookback set if
+    # MCP agents start handling salient asks themselves.
+    "lookback": "cli_only",  # P7 (T027): rationale-corpus query. MCP twin deferred until an MCP
+    # agent needs WHY-lookback programmatically (same trigger as bifrost_ack).
     "recall_prevention": "cli_only",  # S2 (2026-09-05): the outcome stage log's contrastive
-                                     # record -- what recall PREVENTED, not just what it rescued.
-                                     # OPERATOR-READ ONLY on purpose: the stage log's own rule is
-                                     # "no automatic steer may ride this signal", and fence r2 H-C1
-                                     # reserves adjudication to operator identities. An MCP twin
-                                     # would put a steerable number in an in-task agent's hands.
+    # record -- what recall PREVENTED, not just what it rescued.
+    # OPERATOR-READ ONLY on purpose: the stage log's own rule is
+    # "no automatic steer may ride this signal", and fence r2 H-C1
+    # reserves adjudication to operator identities. An MCP twin
+    # would put a steerable number in an in-task agent's hands.
     "recall_curate": "cli_only",  # corpus curation (bench/unbench/ghost-prune) -- operator action at
-                                  # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
-                                  # prints the exact command. MCP twin if an agent ever self-curates.
+    # the wrap boundary (recall vNext loop 1, 2026-07-08); the wrap nudge
+    # prints the exact command. MCP twin if an agent ever self-curates.
     "fence": "cli_only",  # R2 (T053): fence workspace door. Fence participants today drive it via
-                          # CLI (claude) or the runner ToolBox (deepseek); an MCP twin lands when an
-                          # MCP-hosted agent takes a fence seat (same trigger family as lookback).
-    "flow": "cli_only",   # R3 (T054): flow-trace waterfall -- operator/agent diagnostic; MCP twin
-                          # rides the T067 ToolBox-parity wave with delta (same trigger family).
+    # CLI (claude) or the runner ToolBox (deepseek); an MCP twin lands when an
+    # MCP-hosted agent takes a fence seat (same trigger family as lookback).
+    "flow": "cli_only",  # R3 (T054): flow-trace waterfall -- operator/agent diagnostic; MCP twin
+    # rides the T067 ToolBox-parity wave with delta (same trigger family).
     # --- mcp_only: Gemini web consumers + bus conveniences the CLI already covers ---
-    "ask_gemini_web": "mcp_only", "ask_gemini_panel": "mcp_only", "gemini_web_login": "mcp_only",
+    "ask_gemini_web": "mcp_only",
+    "ask_gemini_panel": "mcp_only",
+    "gemini_web_login": "mcp_only",
     "bifrost_broadcast": "mcp_only",  # CLI path: bifrost-send --broadcast
-    "bifrost_inbox": "mcp_only",      # CLI path: bifrost-sync --consume (same read)
-    "bifrost_presence": "mcp_only",   # CLI path: bifrost-sync (refreshes + shows presence)
+    "bifrost_inbox": "mcp_only",  # CLI path: bifrost-sync --consume (same read)
+    "bifrost_presence": "mcp_only",  # CLI path: bifrost-sync (refreshes + shows presence)
     # --- gap: KNOWN CLI<->MCP debt to pay down ---
-    "delta": "shared",   # R1 delta door (T052): agent-facing "what moved since I was last here",
-                      # shipped CLI-only; an MCP twin is the natural next step (same trigger as
-                      # knowledge_map's agent-ergonomics intent). Flagged here, not silently
-                      # dropped. T067-1: the ToolBox now covers deepseek's need; the CLI<->MCP
-                      # debt itself stays open.
+    "delta": "shared",  # R1 delta door (T052): agent-facing "what moved since I was last here",
+    # shipped CLI-only; an MCP twin is the natural next step (same trigger as
+    # knowledge_map's agent-ergonomics intent). Flagged here, not silently
+    # dropped. T067-1: the ToolBox now covers deepseek's need; the CLI<->MCP
+    # debt itself stays open.
     # --- toolbox_only (T067-1): the third door's own verbs -- agentic-tool primitives and
     #     runner-internal machinery with no CLI/MCP twin by design. Ratcheted like the rest:
     #     a NEW public ToolBox method must be classified here or the guard fails. ---
-    "read_file": "toolbox_only", "list_directory": "toolbox_only", "find_files": "toolbox_only",
-    "search_files": "toolbox_only",                       # file I/O primitives
-    "git_log": "toolbox_only", "git_diff": "toolbox_only", "git_show": "toolbox_only",
-    "git_status": "toolbox_only",                         # git inspection primitives
+    "read_file": "toolbox_only",
+    "list_directory": "toolbox_only",
+    "find_files": "toolbox_only",
+    "search_files": "toolbox_only",  # file I/O primitives
+    "git_log": "toolbox_only",
+    "git_diff": "toolbox_only",
+    "git_show": "toolbox_only",
+    "git_status": "toolbox_only",  # git inspection primitives
     "knowledge_recall": "toolbox_only",  # ToolBox spelling of shared `recall` (alias below)
-    "knowledge_learn": "toolbox_only",   # ToolBox spelling of shared `learn` (alias below)
-    "knowledge_note": "toolbox_only",    # ToolBox spelling of shared `note` (alias below)
-    "knowledge_boot": "toolbox_only",    # ToolBox spelling of shared `boot` (alias below)
-    "knowledge_full": "toolbox_only",    # CLI reaches this as `recall --full`
+    "knowledge_learn": "toolbox_only",  # ToolBox spelling of shared `learn` (alias below)
+    "knowledge_note": "toolbox_only",  # ToolBox spelling of shared `note` (alias below)
+    "knowledge_boot": "toolbox_only",  # ToolBox spelling of shared `boot` (alias below)
+    "knowledge_full": "toolbox_only",  # CLI reaches this as `recall --full`
     # T336: the Eye at the peer door. ToolBox spellings of the CLI's `eye find|freq|get|zoom`,
     # added because the runner seats have exec=off and so could not reach the session corpus at
     # all -- they were grepping a 526-session archive that has a grammar and a frequency verdict.
     # Classified here rather than `gap` because the CLI twin already carries that debt under its
     # own names (eye/find/freq/get/zoom are in KNOWN GAPS); double-counting it would inflate the
     # backlog with one omission wearing two spellings.
-    "eye_freq": "toolbox_only",          # CLI reaches this as `eye freq`
-    "eye_find": "mcp_only",              # the MCP spelling of `eye find` (corpus search); ToolBox carries it as eye_find
-    "eye_get": "toolbox_only",           # CLI reaches this as `eye get`
-    "eye_zoom": "toolbox_only",          # CLI reaches this as `eye zoom`
-    "memory_note": "toolbox_only", "memory_recall": "toolbox_only",  # private scratchpad, no twin
-    "write_file": "toolbox_only", "edit_file": "toolbox_only",       # guarded write (T048/T050)
-    "run_command": "toolbox_only",       # gated shell
-    "web_search": "toolbox_only",        # local websearch bridge
-    "ask_clarification": "toolbox_only", # R7 (T058) mid-task human question, runner-internal
-    "reload_ui": "toolbox_only",         # exists-but-disabled for deepseek (UI is harness-owned)
-    "bifrost_steer": "toolbox_only",     # soft steer; CLI covers the family via bifrost-nudge
-    "bifrost_hint": "toolbox_only",      # compact context hint, ToolBox-only
-    "bifrost_dashboard": "toolbox_only", # T081-W7 text dashboard for the runner seat
-    "research_note": "toolbox_only",     # IR-6 category-specialized knowledge_learn wrapper
-    "execute": "toolbox_only",           # the dispatch door itself (runner plumbing)
+    "eye_freq": "toolbox_only",  # CLI reaches this as `eye freq`
+    "eye_find": "mcp_only",  # the MCP spelling of `eye find` (corpus search); ToolBox carries it as eye_find
+    "eye_get": "toolbox_only",  # CLI reaches this as `eye get`
+    "eye_zoom": "toolbox_only",  # CLI reaches this as `eye zoom`
+    "memory_note": "toolbox_only",
+    "memory_recall": "toolbox_only",  # private scratchpad, no twin
+    "write_file": "toolbox_only",
+    "edit_file": "toolbox_only",  # guarded write (T048/T050)
+    "run_command": "toolbox_only",  # gated shell
+    "web_search": "toolbox_only",  # local websearch bridge
+    "ask_clarification": "toolbox_only",  # R7 (T058) mid-task human question, runner-internal
+    "reload_ui": "toolbox_only",  # exists-but-disabled for deepseek (UI is harness-owned)
+    "bifrost_steer": "toolbox_only",  # soft steer; CLI covers the family via bifrost-nudge
+    "bifrost_hint": "toolbox_only",  # compact context hint, ToolBox-only
+    "bifrost_dashboard": "toolbox_only",  # T081-W7 text dashboard for the runner seat
+    "research_note": "toolbox_only",  # IR-6 category-specialized knowledge_learn wrapper
+    "execute": "toolbox_only",  # the dispatch door itself (runner plumbing)
     "release_written_locks": "toolbox_only",  # runner lifecycle: locks released at reply (T048)
 }
 
@@ -468,8 +512,8 @@ TOOLBOX_ALIASES = {
     "learn": "knowledge_learn",
     "note": "knowledge_note",
     "boot": "knowledge_boot",
-    "bifrost_sync": "bifrost_inbox",   # same read (peek unread); consume stays runner-owned
-    "handoff": "bifrost_send",         # ToolBox hands off via bifrost_send(kind='handoff')
+    "bifrost_sync": "bifrost_inbox",  # same read (peek unread); consume stays runner-owned
+    "handoff": "bifrost_send",  # ToolBox hands off via bifrost_send(kind='handoff')
     # NOTE (2026-09-24): "find" is now a NATIVE ToolBox method (the Search-Everything
     # whole-machine file locator, core/comm/toolbox.py), so it needs NO alias here. The
     # prior `"find": "eye_find"` entry silently mapped it onto the EYE's session-corpus
@@ -507,9 +551,11 @@ TOOLBOX_EXEMPT = {
     #     ride TOOLBOX_ALIASES; the family members below are operator/conductor renders or
     #     authored-on-CLI surfaces, exempted with rationale until a runner needs them in-task.
     "eye": "the eye door's dispatcher; ToolBox covers the read primitives via the eye_* aliases",
-    "manual": ("the manuals shelf, slice 1 (2026-09-24): CLI + MCP only while the Apple HIG / One UI "
-               "eval proves the search worth routing; the runner ToolBox read (manual search) is the "
-               "named next slice, not a design exclusion"),
+    "manual": (
+        "the manuals shelf, slice 1 (2026-09-24): CLI + MCP only while the Apple HIG / One UI "
+        "eval proves the search worth routing; the runner ToolBox read (manual search) is the "
+        "named next slice, not a design exclusion"
+    ),
     "ingest": "index rebuild is operator/housekeeping, not an in-task tool",
     "overview": "region map is an operator render; boot carries the seat's orientation",
     "standing": "directive watcher is operator/curation; runner seats receive directives as bus traffic",
@@ -545,8 +591,10 @@ def check():
     for v in sorted((cli | mcp | tb)):
         if v not in MANIFEST and v not in mcp_alias_targets:
             door = "CLI" if v in cli else ("MCP" if v in mcp else "ToolBox")
-            fails.append(f"unclassified verb '{v}' (on {door}) -> add it to MANIFEST in check_door_parity.py "
-                         f"(shared / cli_only / mcp_only / toolbox_only / gap)")
+            fails.append(
+                f"unclassified verb '{v}' (on {door}) -> add it to MANIFEST in check_door_parity.py "
+                f"(shared / cli_only / mcp_only / toolbox_only / gap)"
+            )
     # 1b. the alias/exempt maps must stay honest over time
     for cli_name, mcp_name in sorted(CLI_MCP_ALIASES.items()):
         if MANIFEST.get(cli_name) != "shared":
@@ -554,15 +602,21 @@ def check():
         if cli_name not in cli:
             fails.append(f"CLI_MCP_ALIASES points at CLI '{cli_name}' which is missing -> the alias covers nothing")
         if mcp_name not in mcp:
-            fails.append(f"CLI_MCP_ALIASES points '{cli_name}' at MCP '{mcp_name}' which is missing -> the alias covers nothing")
+            fails.append(
+                f"CLI_MCP_ALIASES points '{cli_name}' at MCP '{mcp_name}' which is missing -> the alias covers nothing"
+            )
         if mcp_name in MANIFEST:
-            fails.append(f"MCP alias target '{mcp_name}' is also in MANIFEST -> classify the capability once via '{cli_name}'")
+            fails.append(
+                f"MCP alias target '{mcp_name}' is also in MANIFEST -> classify the capability once via '{cli_name}'"
+            )
     for shared_v, tb_name in sorted(TOOLBOX_ALIASES.items()):
         if MANIFEST.get(shared_v) != "shared":
             fails.append(f"TOOLBOX_ALIASES maps '{shared_v}' but it is not a shared verb -> prune the alias")
         if tb_name not in tb:
-            fails.append(f"TOOLBOX_ALIASES points '{shared_v}' at '{tb_name}' which is NOT on the ToolBox "
-                         f"-> the alias covers nothing")
+            fails.append(
+                f"TOOLBOX_ALIASES points '{shared_v}' at '{tb_name}' which is NOT on the ToolBox "
+                f"-> the alias covers nothing"
+            )
     for shared_v in sorted(TOOLBOX_EXEMPT):
         if MANIFEST.get(shared_v) != "shared":
             fails.append(f"TOOLBOX_EXEMPT lists '{shared_v}' but it is not a shared verb -> prune the exemption")
@@ -576,15 +630,16 @@ def check():
                 fails.append(f"'{v}' is declared shared but is MISSING from {missing} (regression)")
             # T067-1: third-door coverage -- by name, by declared alias, or explicitly exempted.
             if not (on_tb or TOOLBOX_ALIASES.get(v) in tb or v in TOOLBOX_EXEMPT):
-                fails.append(f"'{v}' is declared shared but is MISSING from ToolBox (third-door regression) "
-                             f"-> wire it, alias it, or exempt it with a rationale")
+                fails.append(
+                    f"'{v}' is declared shared but is MISSING from ToolBox (third-door regression) "
+                    f"-> wire it, alias it, or exempt it with a rationale"
+                )
         elif cat == "cli_only" and on_mcp:
             fails.append(f"'{v}' is declared cli_only but appears on MCP -> reclassify")
         elif cat == "mcp_only" and on_cli:
             fails.append(f"'{v}' is declared mcp_only but appears on CLI -> reclassify")
         elif cat == "toolbox_only" and (on_cli or on_mcp):
-            fails.append(f"'{v}' is declared toolbox_only but appears on {'CLI' if on_cli else 'MCP'} "
-                         f"-> reclassify")
+            fails.append(f"'{v}' is declared toolbox_only but appears on {'CLI' if on_cli else 'MCP'} -> reclassify")
         elif cat == "gap":
             gaps.append(v)
         # a verb in the manifest that no longer exists on any door -> stale manifest entry
@@ -601,24 +656,28 @@ def main():
     if report:
         print(f"CLI ({len(cli)}): {', '.join(sorted(cli))}\n")
         print(f"MCP ({len(mcp)}): {', '.join(sorted(mcp))}\n")
-        print(f"ToolBox ({len(tb)}, the runner's third door -- enforced since T067-1): "
-              f"{', '.join(sorted(tb))}\n")
+        print(f"ToolBox ({len(tb)}, the runner's third door -- enforced since T067-1): {', '.join(sorted(tb))}\n")
         print(f"BUS ({len(bus)}, separate programmatic door -- not parity-enforced): {', '.join(bus)}\n")
         tb_only = sorted(v for v, c in MANIFEST.items() if c == "toolbox_only")
-        self_service = sorted(v for v, c in MANIFEST.items()
-                              if c in ("cli_only", "mcp_only") and v in tb)
-        covered = sorted(v for v, c in MANIFEST.items()
-                         if c == "shared" and (v in tb or TOOLBOX_ALIASES.get(v) in tb))
-        shared_live = sum(1 for v, c in MANIFEST.items()
-                          if c == "shared" and v in cli and CLI_MCP_ALIASES.get(v, v) in mcp)
+        self_service = sorted(v for v, c in MANIFEST.items() if c in ("cli_only", "mcp_only") and v in tb)
+        covered = sorted(v for v, c in MANIFEST.items() if c == "shared" and (v in tb or TOOLBOX_ALIASES.get(v) in tb))
+        shared_live = sum(
+            1 for v, c in MANIFEST.items() if c == "shared" and v in cli and CLI_MCP_ALIASES.get(v, v) in mcp
+        )
         alias_cli, alias_mcp = set(CLI_MCP_ALIASES), set(CLI_MCP_ALIASES.values())
-        print(f"shared: {shared_live}  |  cli-only: {len(cli - mcp - alias_cli)}  |  "
-              f"mcp-only: {len(mcp - cli - alias_mcp)}")
-        print(f"toolbox: {len(tb)} verbs | toolbox_only: {len(tb_only)} | shared covered on ToolBox "
-              f"(name or alias): {len(covered)} | shared exempt: {len(TOOLBOX_EXEMPT)}")
+        print(
+            f"shared: {shared_live}  |  cli-only: {len(cli - mcp - alias_cli)}  |  "
+            f"mcp-only: {len(mcp - cli - alias_mcp)}"
+        )
+        print(
+            f"toolbox: {len(tb)} verbs | toolbox_only: {len(tb_only)} | shared covered on ToolBox "
+            f"(name or alias): {len(covered)} | shared exempt: {len(TOOLBOX_EXEMPT)}"
+        )
         if self_service:
-            print(f"note: cli/mcp-only verbs also on the ToolBox (agent self-service, by design): "
-                  f"{', '.join(self_service)}")
+            print(
+                f"note: cli/mcp-only verbs also on the ToolBox (agent self-service, by design): "
+                f"{', '.join(self_service)}"
+            )
     if gaps:
         print(f"\nKNOWN GAPS (CLI<->MCP debt, {len(gaps)}): {', '.join(sorted(gaps))}")
         print("  ^ backlog for later membrane slices; not a failure.")

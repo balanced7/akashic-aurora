@@ -10,6 +10,7 @@ never run it. Fix: mutation moves behind an explicit --start-session flag.
 Offline: fake narrative modules are injected into sys.modules; the pins prove presence or
 absence of the mutation call, not narrative behavior itself.
 """
+
 import sys
 import types
 from pathlib import Path

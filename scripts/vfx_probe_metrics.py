@@ -62,19 +62,21 @@ def load_png(path):
             for y in range(height):
                 row_start = y * stride
                 filt = raw[row_start]
-                row_data = raw[row_start + 1:row_start + stride]
+                row_data = raw[row_start + 1 : row_start + stride]
                 # Only filter 0 (None) for simplicity — most PNGs use it
                 if filt != 0:
                     # Try unfiltering or just skip — we want a signal, not perfection
                     return width, height, None
                 for x in range(width):
                     off = x * 4
-                    rgba.append((
-                        row_data[off],
-                        row_data[off + 1],
-                        row_data[off + 2],
-                        row_data[off + 3],
-                    ))
+                    rgba.append(
+                        (
+                            row_data[off],
+                            row_data[off + 1],
+                            row_data[off + 2],
+                            row_data[off + 3],
+                        )
+                    )
             return width, height, rgba
         return width, height, None
 
@@ -218,7 +220,7 @@ def main():
     }
 
     for label, paths in groups.items():
-        print(f"\n{'='*72}")
+        print(f"\n{'=' * 72}")
         print(f"GROUP: {label}")
         results = []
         for p in paths:
@@ -248,15 +250,19 @@ def main():
                 if not px_a or not px_b:
                     continue
                 if len(px_a) != len(px_b):
-                    print(f"  delta {os.path.basename(a_path)} → {os.path.basename(b_path)}: "
-                          f"SKIP (different dimensions {w_a}x{h_a} vs {w_b}x{h_b})")
+                    print(
+                        f"  delta {os.path.basename(a_path)} → {os.path.basename(b_path)}: "
+                        f"SKIP (different dimensions {w_a}x{h_a} vs {w_b}x{h_b})"
+                    )
                     continue
                 d = pixel_delta(px_a, px_b)
-                print(f"  delta {os.path.basename(a_path)} → {os.path.basename(b_path)}: "
-                      f"{d} ({d*100:.1f}% of non-transparent pixels changed by >10 lum)")
+                print(
+                    f"  delta {os.path.basename(a_path)} → {os.path.basename(b_path)}: "
+                    f"{d} ({d * 100:.1f}% of non-transparent pixels changed by >10 lum)"
+                )
 
     # Summary: would any of these numbers have told the agent something the PNG did not?
-    print(f"\n{'='*72}")
+    print(f"\n{'=' * 72}")
     print("JUDGEMENT: did the numbers surface anything actionable?")
     print("(This is the self-test of Proposal A — read the PNGs yourself and decide.)")
     print("")

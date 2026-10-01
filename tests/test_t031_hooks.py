@@ -18,6 +18,7 @@ Hook 4  scripts/checkers/check_verbatim_citation.py  (M6): a ship message that c
 
 Run: py -m pytest tests/test_t031_hooks.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -35,12 +36,12 @@ _H4 = os.path.join(_ROOT, "scripts", "checkers", "check_verbatim_citation.py")
 _BUILT = all(os.path.isfile(p) for p in (_H2, _H3, _H4))
 
 pytestmark = pytest.mark.skipif(
-    not _BUILT, reason="T031 hooks 2-4 pins pre-registered; impl pending (assertions frozen)")
+    not _BUILT, reason="T031 hooks 2-4 pins pre-registered; impl pending (assertions frozen)"
+)
 
 
 def _run(script, *argv):
-    r = subprocess.run([_PY, script, *argv], capture_output=True, text=True,
-                       cwd=_ROOT, timeout=120)
+    r = subprocess.run([_PY, script, *argv], capture_output=True, text=True, cwd=_ROOT, timeout=120)
     return r.returncode, (r.stdout + r.stderr)
 
 
@@ -63,8 +64,7 @@ def fake_pin():
 
 def test_h2_new_pin_with_source_fails(fake_pin):
     rc, out = _run(_H2, "RB-99 impl + pins in one go", fake_pin, "core/comm/bus.py")
-    assert rc == 1 and "M3" in out, \
-        "a NEW pre-registered pin file shipping WITH source is the M3 violation"
+    assert rc == 1 and "M3" in out, "a NEW pre-registered pin file shipping WITH source is the M3 violation"
 
 
 def test_h2_registration_only_passes(fake_pin):
@@ -73,8 +73,9 @@ def test_h2_registration_only_passes(fake_pin):
 
 
 def test_h2_existing_pin_with_source_passes():
-    rc, out = _run(_H2, "RB-21 impl (harness-only pin fix)",
-                   "tests/test_rb21_consumer_seat.py", "core/comm/runner_lock.py")
+    rc, out = _run(
+        _H2, "RB-21 impl (harness-only pin fix)", "tests/test_rb21_consumer_seat.py", "core/comm/runner_lock.py"
+    )
     assert rc == 0, "an EXISTING pin file in an impl ship is fine (harness fixes)"
 
 
@@ -85,15 +86,19 @@ def test_h2_no_tests_staged_passes():
 
 # ---------------- Hook 4: verbatim-record linter (M6) ----------------
 
+
 def test_h4_gate_language_without_citation_fails():
     rc, out = _run(_H4, "RB-99 landed: deepseek GATE GREEN, all pins pass")
-    assert rc == 1 and "docs/library/report" in out, \
+    assert rc == 1 and "docs/library/report" in out, (
         "a GATE decision must cite its persisted verbatim record (M6; atom-era home post-P3)"
+    )
 
 
 def test_h4_gate_language_with_citation_passes():
-    rc, out = _run(_H4, "RB-99 landed: GATE GREEN per "
-                        "docs/library/report/20260711_rb-21-verify-gate-live-drill-deepseek-ve_0df0e2.md")
+    rc, out = _run(
+        _H4,
+        "RB-99 landed: GATE GREEN per docs/library/report/20260711_rb-21-verify-gate-live-drill-deepseek-ve_0df0e2.md",
+    )
     assert rc == 0
 
 
@@ -104,16 +109,19 @@ def test_h4_plain_message_passes():
 
 # ---------------- Hook 3: arc scorecard (wrap-time) ----------------
 
+
 def test_h3_scorecard_runs_and_reads_the_arc():
     rc, out = _run(_H3, "--days", "3")
     assert rc == 0
     for marker in ("M3", "M6", "M11"):
         assert marker in out, f"the scorecard reads {marker} deterministically"
-    assert "annotate" in out.lower() or "skipped" in out.lower(), \
+    assert "annotate" in out.lower() or "skipped" in out.lower(), (
         "zero-signal practices surface as annotate-me prompts, never silently absent"
+    )
 
 
 # ---------------- wiring (built != wired) ----------------
+
 
 def test_hooks_wired():
     ship = open(os.path.join(_ROOT, "scripts", "ship.py"), encoding="utf-8").read()

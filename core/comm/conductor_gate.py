@@ -57,6 +57,7 @@ RED PINS (must all pass before ANY activation is possible):
   P6  the acting conductor CANNOT grant admin.grant
   P7  the mandate expires by lapse without anyone revoking it
 """
+
 from __future__ import annotations
 
 import os
@@ -115,7 +116,8 @@ def operator_ids() -> frozenset:
 
 def _provenance_path() -> str:
     return os.environ.get(PROVENANCE_ENV) or os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "conductor_gate.provenance.log")
+        os.path.dirname(os.path.abspath(__file__)), "conductor_gate.provenance.log"
+    )
 
 
 #: How often a STAND-DOWN writes a heartbeat. The runners evaluate every 60s each, so a
@@ -171,6 +173,7 @@ def append_provenance(line: str, keep: int = 400) -> None:
             pass
     try:
         from core.comm.wake_seat import append_provenance as _wp
+
         _wp("conductor_gate", line, keep=keep)
         return
     except Exception:
@@ -201,7 +204,8 @@ def require_cap(agent_id: str, cap: Cap, *, action: str) -> registry.Grant:
     if not g.has(cap):
         raise PermissionError(
             f"'{agent_id}' (role={g.role}) lacks {cap.value} -- '{action}' is refused. "
-            f"This is a hard NEVER, enforced in code, not a convention.")
+            f"This is a hard NEVER, enforced in code, not a convention."
+        )
     return g
 
 
@@ -210,18 +214,18 @@ def require_cap(agent_id: str, cap: Cap, *, action: str) -> registry.Grant:
 class ConductorVerdict:
     """One evaluation of the three conditions. `activate` is the ONLY field that hands out
     authority; keep the evidence fields so activation is LOUD and refusal is explainable."""
+
     activate: bool
     reason: str
-    conductor_state: str = "unknown"     # ATTENDED / UNATTENDED / UNKNOWN (attendance)
-    conductor_watcher: str = "unknown"   # the two-factor orphanhood sub-verdict
+    conductor_state: str = "unknown"  # ATTENDED / UNATTENDED / UNKNOWN (attendance)
+    conductor_watcher: str = "unknown"  # the two-factor orphanhood sub-verdict
     successors_alive: List[str] = field(default_factory=list)
     operator_present: bool = False
-    successor: str = ""                   # who would carry the mandate (empty unless activate)
+    successor: str = ""  # who would carry the mandate (empty unless activate)
     mandate_hours: float = MANDATE_MAX_HOURS
 
 
-def _conductor_two_factor(agent: str = CONDUCTOR,
-                          reap_fn: Optional[Callable] = None) -> str:
+def _conductor_two_factor(agent: str = CONDUCTOR, reap_fn: Optional[Callable] = None) -> str:
     """The wake-watcher's two-factor orphanhood verdict for `agent`, consulted as EVIDENCE.
 
     K7/K8 live in core/comm/wake_seat.reap_decision: a seat is provably dead only when its
@@ -232,6 +236,7 @@ def _conductor_two_factor(agent: str = CONDUCTOR,
     """
     try:
         from core.comm import wake_seat as ws
+
         if reap_fn is not None:
             return reap_fn(agent)
         # The janitor's reap_decision is the detector; we re-express its outcome as a probe.
@@ -240,10 +245,10 @@ def _conductor_two_factor(agent: str = CONDUCTOR,
         seats = ws.iter_seats(agent)
         fresh = ws.fresh_minutes()
         if not seats:
-            return "no-seat"           # no watcher seat at all: cannot prove death, cannot prove life
+            return "no-seat"  # no watcher seat at all: cannot prove death, cannot prove life
         snapshot = ws.process_snapshot()
         if snapshot is None:
-            return "unknown"           # K8: cannot tell -> not provably dead
+            return "unknown"  # K8: cannot tell -> not provably dead
         # ONE CORPSE MUST NOT CONDEMN THE LIVING (2026-08-24). This loop used to
         # `return "orphan"` on the FIRST dead seat it met, never reading the rest --
         # so a single stale sibling marker overruled a seat that was demonstrably
@@ -280,19 +285,17 @@ def _conductor_two_factor(agent: str = CONDUCTOR,
             try:
                 chain_ok, evidence = ws.chain_alive(pid, snapshot)
             except Exception:
-                alive_seen = True           # K8: probe error -> alive
+                alive_seen = True  # K8: probe error -> alive
                 continue
             if chain_ok:
                 alive_seen = True
             elif orphan_evidence is None:
-                orphan_evidence = (f"orphan (marker "
-                                   f"{marker if marker is not None else 'missing'}, "
-                                   f"{evidence})")
+                orphan_evidence = f"orphan (marker {marker if marker is not None else 'missing'}, {evidence})"
         if alive_seen:
-            return "alive-or-unknown"       # a living seat vetoes every corpse
+            return "alive-or-unknown"  # a living seat vetoes every corpse
         return orphan_evidence or "alive"
     except Exception:
-        return "unknown"                # any probe error -> not provably dead (K8)
+        return "unknown"  # any probe error -> not provably dead (K8)
 
 
 def _roster_snapshot():
@@ -310,6 +313,7 @@ def _roster_snapshot():
     try:
         from core.comm import roster as _roster
         from core.comm.liveness import _ns
+
         return _roster.roster(_ns())
     except Exception:
         return None
@@ -325,13 +329,13 @@ def _attendance(agent: str, roster_rows=None) -> str:
     """
     try:
         from core.comm.liveness import attendance
+
         return attendance(agent, roster_rows=roster_rows).state
     except Exception:
         return "UNKNOWN"
 
 
-def _operator_recently_present(window_s: Optional[float] = None,
-                               bus=None) -> bool:
+def _operator_recently_present(window_s: Optional[float] = None, bus=None) -> bool:
     """Did the human leave recent inbound evidence? FAILS CLOSED (returns False) on any
     read error -- an unreadable bus must READ AS 'not present', which then behaves as 'do
     not activate', never as a false 'present' that hands out authority.
@@ -341,13 +345,15 @@ def _operator_recently_present(window_s: Optional[float] = None,
     operator vocabulary rather than inventing a parallel 'human heartbeat' that would go
     stale on its own and cry wolf.
     """
-    window = _env_float("AKASHIC_OPERATOR_PRESENT_WINDOW_S",
-                        OPERATOR_PRESENT_WINDOW_S if window_s is None else window_s)
+    window = _env_float(
+        "AKASHIC_OPERATOR_PRESENT_WINDOW_S", OPERATOR_PRESENT_WINDOW_S if window_s is None else window_s
+    )
     ids = operator_ids()
     try:
         b = bus
         if b is None:
             from core.comm.bus import Bus
+
             b = Bus("conductor_gate")
         if not b.online:
             return False
@@ -379,12 +385,15 @@ def _operator_recently_present(window_s: Optional[float] = None,
         return False
 
 
-def evaluate_succession(*, agent_self: Optional[str] = None,
-                        reap_fn: Optional[Callable] = None,
-                        att_fn: Optional[Callable] = None,
-                        op_present_fn: Optional[Callable] = None,
-                        bus=None,
-                        now: Optional[float] = None) -> ConductorVerdict:
+def evaluate_succession(
+    *,
+    agent_self: Optional[str] = None,
+    reap_fn: Optional[Callable] = None,
+    att_fn: Optional[Callable] = None,
+    op_present_fn: Optional[Callable] = None,
+    bus=None,
+    now: Optional[float] = None,
+) -> ConductorVerdict:
     """The three-condition decision, as a PURE function of injected probes.
 
     Every external signal arrives through an injected callable (or a lazily imported one), so
@@ -414,51 +423,56 @@ def evaluate_succession(*, agent_self: Optional[str] = None,
     # CONDITION 2: the absence is CONDUCTOR-SPECIFIC. If the other successors are ALSO dark,
     # it is (or may be) a fleet-wide outage and we must NOT hand authority to a survivor.
     others = [a for a in order if a != self_id]
-    successors_alive = [
-        a for a in others
-        if (att_fn(a) if att_fn else _attendance(a, rows)) == "ATTENDED"
-    ]
+    successors_alive = [a for a in others if (att_fn(a) if att_fn else _attendance(a, rows)) == "ATTENDED"]
 
     # CONDITION 3: operator present -> stand down. present here means RECENT inbound evidence.
     present = op_present_fn() if op_present_fn else _operator_recently_present()
 
     def _refuse(reason: str) -> ConductorVerdict:
         return ConductorVerdict(
-            activate=False, reason=reason,
-            conductor_state=conductor_state, conductor_watcher=watcher,
-            successors_alive=successors_alive, operator_present=present,
-            mandate_hours=_env_float("AKASHIC_CONDUCTOR_MANDATE_HOURS", MANDATE_MAX_HOURS))
+            activate=False,
+            reason=reason,
+            conductor_state=conductor_state,
+            conductor_watcher=watcher,
+            successors_alive=successors_alive,
+            operator_present=present,
+            mandate_hours=_env_float("AKASHIC_CONDUCTOR_MANDATE_HOURS", MANDATE_MAX_HOURS),
+        )
 
     if conductor_provably_dead is False:
         return _refuse(
-            f"conductor not provably dead (watcher={watcher!r}, attendance={att}); "
-            f"idle immunity holds (K7/K8)")
+            f"conductor not provably dead (watcher={watcher!r}, attendance={att}); idle immunity holds (K7/K8)"
+        )
     if not successors_alive:
         return _refuse(
             f"conductor absence is NOT conductor-specific: no other successor is ATTENDED "
-            f"(deepseek/kimi dark) -- refusing to hand authority to a possible next casualty")
+            f"(deepseek/kimi dark) -- refusing to hand authority to a possible next casualty"
+        )
     if present:
-        return _refuse("operator present (recent inbound evidence) -- the human's word is "
-                       f"the authority; succession stands down")
+        return _refuse(
+            f"operator present (recent inbound evidence) -- the human's word is the authority; succession stands down"
+        )
 
-    successor = successors_alive[0]   # first in order who is actually alive
+    successor = successors_alive[0]  # first in order who is actually alive
     return ConductorVerdict(
         activate=True,
         reason=f"conductor provably dead ({watcher!r}, {att}) + absence conductor-specific "
-               f"(survivors {','.join(successors_alive)}) + operator absent; "
-               f"succession vesting in {successor}",
-        conductor_state=conductor_state, conductor_watcher=watcher,
-        successors_alive=successors_alive, operator_present=False,
+        f"(survivors {','.join(successors_alive)}) + operator absent; "
+        f"succession vesting in {successor}",
+        conductor_state=conductor_state,
+        conductor_watcher=watcher,
+        successors_alive=successors_alive,
+        operator_present=False,
         successor=successor,
-        mandate_hours=_env_float("AKASHIC_CONDUCTOR_MANDATE_HOURS", MANDATE_MAX_HOURS))
+        mandate_hours=_env_float("AKASHIC_CONDUCTOR_MANDATE_HOURS", MANDATE_MAX_HOURS),
+    )
 
 
 # ---------------------------------------------------------------- the bounded mandate
 # The acting conductor's authority. Every entry point REFUSES at the door (require_cap) and
 # enforces the hard NEVERs IN CODE. The mandate is bounded in three axes: role ceiling,
 # path scope ceiling, and time.
-def grant_mandate_caps(successor_grant: registry.Grant, *, requested_caps,
-                       requested_scope) -> tuple:
+def grant_mandate_caps(successor_grant: registry.Grant, *, requested_caps, requested_scope) -> tuple:
     """The caps an acting conductor MAY grant: a subset of the member role template's caps,
     plus WRITE under a scope no wider than MANDATE_MAX_SCOPE. Returns (caps_set, scope_list).
     Raises PermissionError on any widening. This is the 'must never widen' door."""
@@ -469,22 +483,33 @@ def grant_mandate_caps(successor_grant: registry.Grant, *, requested_caps,
     if extra:
         raise PermissionError(
             f"acting conductor may grant only up to {MANDATE_MAX_ROLE}+scoped-write; "
-            f"refusing caps {sorted(extra)} (NO admin.grant, NO admin.approve)")
+            f"refusing caps {sorted(extra)} (NO admin.grant, NO admin.approve)"
+        )
     scope = list(requested_scope or [])
     if scope and "*" not in scope:
-        outside = [s for s in scope
-                   if not any(s.startswith(p) or p.endswith("/") and s.startswith(p)
-                              for p in MANDATE_MAX_SCOPE)]
+        outside = [
+            s
+            for s in scope
+            if not any(s.startswith(p) or p.endswith("/") and s.startswith(p) for p in MANDATE_MAX_SCOPE)
+        ]
         if outside:
             raise PermissionError(
-                f"acting conductor may grant path scope only within {MANDATE_MAX_SCOPE}; "
-                f"refusing {outside}")
+                f"acting conductor may grant path scope only within {MANDATE_MAX_SCOPE}; refusing {outside}"
+            )
     return eff, scope
 
 
-def acting_conduct_grant(*, successor: str, agent_id: str, role: str, reason: str,
-                         hours: float, caps=None, path_scope=None,
-                         request_ref: Optional[str] = None) -> dict:
+def acting_conduct_grant(
+    *,
+    successor: str,
+    agent_id: str,
+    role: str,
+    reason: str,
+    hours: float,
+    caps=None,
+    path_scope=None,
+    request_ref: Optional[str] = None,
+) -> dict:
     """The ONE minting path an acting conductor has. Bounded in every axis the design names.
 
     WHY THIS IS ITS OWN DOOR, not grant_writer.grant: grant_writer._granter refuses anyone
@@ -517,7 +542,8 @@ def acting_conduct_grant(*, successor: str, agent_id: str, role: str, reason: st
     if agent_id == successor:
         raise PermissionError(
             f"self-widening refused: the acting conductor {successor!r} may not mint to "
-            f"itself. This is the hard-NEVER the mandate exists to prevent.")
+            f"itself. This is the hard-NEVER the mandate exists to prevent."
+        )
 
     try:
         h = float(hours)
@@ -528,16 +554,17 @@ def acting_conduct_grant(*, successor: str, agent_id: str, role: str, reason: st
         raise PermissionError(
             f"acting-conductor grants are time-boxed, max {max_hours:.0f}h (refusing "
             f"{h:.1f}h); permanence is NOT available to a recovery mandate -- that is "
-            f"claude's (or the human root's) door, not a survivor's")
+            f"claude's (or the human root's) door, not a survivor's"
+        )
 
     if role != MANDATE_MAX_ROLE:
         raise PermissionError(
             f"acting conductor may mint only role '{MANDATE_MAX_ROLE}' (refusing {role!r}); "
-            f"higher roles are the permanent conductor's door")
+            f"higher roles are the permanent conductor's door"
+        )
 
     successor_grant = registry.resolve(successor, verified=True)
-    eff_caps, eff_scope = grant_mandate_caps(successor_grant, requested_caps=caps,
-                                             requested_scope=path_scope)
+    eff_caps, eff_scope = grant_mandate_caps(successor_grant, requested_caps=caps, requested_scope=path_scope)
 
     # Build the record exactly as grant_writer builds it, but write through OUR door so the
     # admin.grant requirement does not apply. Reuse grant_writer's atomic + validated write
@@ -551,13 +578,13 @@ def acting_conduct_grant(*, successor: str, agent_id: str, role: str, reason: st
         "path_scope": eff_scope,
         "granted_by": successor,
         "granted_at": _gw._now_iso(),
-        "expires_at": None,   # filled below -- time-boxed by construction
+        "expires_at": None,  # filled below -- time-boxed by construction
         "reason": str(reason).strip(),
-        "_acting_conductor": True,   # provenance: this mint was a recovery substitute
+        "_acting_conductor": True,  # provenance: this mint was a recovery substitute
     }
     from datetime import datetime, timedelta, timezone
-    rec["expires_at"] = (datetime.now(timezone.utc)
-                         + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    rec["expires_at"] = (datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
     if request_ref:
         rec["request_ref"] = request_ref
 
@@ -581,25 +608,36 @@ def acting_conductor_approve(*, successor: str, agent_id: str, reason: str) -> d
     if not str(reason or "").strip():
         raise ValueError("approval needs a reason")
     from core.events.event_log import capture_event
-    capture_event("conductor_approve", f"{successor} approved escalation for {agent_id}",
-                  agent_id=successor, detail={"for": agent_id, "reason": reason})
+
+    capture_event(
+        "conductor_approve",
+        f"{successor} approved escalation for {agent_id}",
+        agent_id=successor,
+        detail={"for": agent_id, "reason": reason},
+    )
     return {"approved_by": successor, "for": agent_id, "reason": reason}
 
 
 # ---------------------------------------------------------------- loud activation
-def decide_and_act(*, agent_self: Optional[str] = None, bus=None, dry_run: bool = False,
-                   reap_fn: Optional[Callable] = None,
-                   att_fn: Optional[Callable] = None,
-                   op_present_fn: Optional[Callable] = None,
-                   now: Optional[float] = None) -> ConductorVerdict:
+def decide_and_act(
+    *,
+    agent_self: Optional[str] = None,
+    bus=None,
+    dry_run: bool = False,
+    reap_fn: Optional[Callable] = None,
+    att_fn: Optional[Callable] = None,
+    op_present_fn: Optional[Callable] = None,
+    now: Optional[float] = None,
+) -> ConductorVerdict:
     """Evaluate, and if activation is warranted, make it LOUD: bus broadcast + ledger event +
     provenance append. Writes the mandate ONLY in the sense of announcing it -- the mandate's
     authority is enforced at the minting doors above, not by any flag this writes.
 
     `dry_run=True` (a RED pin runs in this mode) evaluates without emitting.
     """
-    v = evaluate_succession(agent_self=agent_self, reap_fn=reap_fn, att_fn=att_fn,
-                            op_present_fn=op_present_fn, bus=bus, now=now)
+    v = evaluate_succession(
+        agent_self=agent_self, reap_fn=reap_fn, att_fn=att_fn, op_present_fn=op_present_fn, bus=bus, now=now
+    )
     # A run with INJECTED probes (or a dry run) is a DRILL, and must never be readable
     # as a live incident. On 2026-08-24 the 09:46 drill activation sat in the same log,
     # in the same shape, as a real succession would -- and a reader three hours into an
@@ -609,33 +647,45 @@ def decide_and_act(*, agent_self: Optional[str] = None, bus=None, dry_run: bool 
         append_provenance(f"{tag}stand-down: {v.reason}")
         return v
 
-    line = (f"{tag}ACTIVATION: conductor {CONDUCTOR} provably dead {v.conductor_watcher!r} / "
-            f"{v.conductor_state}; absence conductor-specific ({','.join(v.successors_alive)}); "
-            f"operator absent. Acting conductor = {v.successor} for {v.mandate_hours:.0f}h "
-            f"(max role {MANDATE_MAX_ROLE}, scope {MANDATE_MAX_SCOPE}).")
+    line = (
+        f"{tag}ACTIVATION: conductor {CONDUCTOR} provably dead {v.conductor_watcher!r} / "
+        f"{v.conductor_state}; absence conductor-specific ({','.join(v.successors_alive)}); "
+        f"operator absent. Acting conductor = {v.successor} for {v.mandate_hours:.0f}h "
+        f"(max role {MANDATE_MAX_ROLE}, scope {MANDATE_MAX_SCOPE})."
+    )
 
     # LOUD: broadcast to every seat.
     try:
         b = bus
         if b is None:
             from core.comm.bus import Bus
+
             b = Bus(v.successor or "conductor_gate")
-        b.broadcast("note", "[conductor_gate] " + line,
-                    meta={"frm": v.successor or "conductor_gate", "kind_alt": "succession"})
+        b.broadcast(
+            "note", "[conductor_gate] " + line, meta={"frm": v.successor or "conductor_gate", "kind_alt": "succession"}
+        )
     except Exception:
         pass
 
     # LEDGER: one durable event, followable.
     try:
         from core.events.event_log import capture_event
-        capture_event("conductor_succession", line,
-                      agent_id=v.successor or "conductor_gate",
-                      detail={"successor": v.successor, "conductor": CONDUCTOR,
-                              "conductor_watcher": v.conductor_watcher,
-                              "conductor_state": v.conductor_state,
-                              "survivors": v.successors_alive,
-                              "mandate_hours": v.mandate_hours,
-                              "max_role": MANDATE_MAX_ROLE, "max_scope": MANDATE_MAX_SCOPE})
+
+        capture_event(
+            "conductor_succession",
+            line,
+            agent_id=v.successor or "conductor_gate",
+            detail={
+                "successor": v.successor,
+                "conductor": CONDUCTOR,
+                "conductor_watcher": v.conductor_watcher,
+                "conductor_state": v.conductor_state,
+                "survivors": v.successors_alive,
+                "mandate_hours": v.mandate_hours,
+                "max_role": MANDATE_MAX_ROLE,
+                "max_scope": MANDATE_MAX_SCOPE,
+            },
+        )
     except Exception:
         pass
 
@@ -657,8 +707,7 @@ def decide_and_act(*, agent_self: Optional[str] = None, bus=None, dry_run: bool 
 # It stays QUIET on stand-down (no ledger/broadcast spam per beat): only an ACTIVATION calls
 # decide_and_act, which is the loud path (broadcast + ledger event + provenance). The optional
 # `now` pins the evaluation for drills/tests.
-def notice_conductor_absence(*, agent_self: str, bus=None,
-                             now: Optional[float] = None) -> ConductorVerdict:
+def notice_conductor_absence(*, agent_self: str, bus=None, now: Optional[float] = None) -> ConductorVerdict:
     """Evaluate succession for `agent_self` and (only on activation) emit it loudly."""
     try:
         v = evaluate_succession(agent_self=agent_self, bus=bus, now=now)
@@ -678,10 +727,12 @@ def notice_conductor_absence(*, agent_self: str, bus=None,
         # Carry the MESSAGE, not just the class. The old line logged only the exception
         # type, so a real probe failure and a drill's RuntimeError("probe exploded")
         # rendered identically and neither said what actually broke.
-        append_provenance(f"[live] notice refused: probe error {type(e).__name__}: "
-                          f"{str(e)[:140]} -> stand-down")
+        append_provenance(f"[live] notice refused: probe error {type(e).__name__}: {str(e)[:140]} -> stand-down")
         return ConductorVerdict(
             activate=False,
             reason=f"notice refused on probe error {type(e).__name__} -> stand-down "
-                   f"(fail-closed: a turn boundary must never raise)",
-            conductor_state="UNKNOWN", conductor_watcher="unknown", operator_present=False)
+            f"(fail-closed: a turn boundary must never raise)",
+            conductor_state="UNKNOWN",
+            conductor_watcher="unknown",
+            operator_present=False,
+        )

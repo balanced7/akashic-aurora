@@ -5,6 +5,7 @@ direct inbox from a private, persisted baseline; it never advances the shared
 mailbox cursor and never scans messages older than the moment it was armed.
 Only an allowlisted peer and an explicit message class can spend a Codex turn.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -242,11 +243,7 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
             agent_id=subject,
             callsign=hint,
             status="registry-unavailable",
-            authority=(
-                "environment-hint;resident-registry-unavailable"
-                if hint
-                else "resident-registry-unavailable"
-            ),
+            authority=("environment-hint;resident-registry-unavailable" if hint else "resident-registry-unavailable"),
         )
 
     callsign = str((record or {}).get("callsign") or "").strip() or None
@@ -258,9 +255,7 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
             authority="resident-registry",
         )
     if hint:
-        status = "registry-mismatch" if hinted_status == "ratified" else (
-            hinted_status or "historical-unratified"
-        )
+        status = "registry-mismatch" if hinted_status == "ratified" else (hinted_status or "historical-unratified")
         return SubjectIdentity(
             agent_id=subject,
             callsign=hint,
@@ -391,9 +386,7 @@ class WakeState:
         if raw:
             stored_agent = str(raw.get("agent") or "")
             if stored_agent != str(agent):
-                raise WakeError(
-                    f"Wake state belongs to {stored_agent!r}, not requested agent {agent!r}: {target}"
-                )
+                raise WakeError(f"Wake state belongs to {stored_agent!r}, not requested agent {agent!r}: {target}")
             stored_thread_id = str(raw.get("thread_id") or "").strip() or None
             requested_thread_id = str(thread_id or "").strip() or None
             if stored_thread_id and requested_thread_id and stored_thread_id != requested_thread_id:
@@ -412,11 +405,7 @@ class WakeState:
                 )
             stored_binding = str(raw.get("binding_kind") or "").strip() or "unbound"
             requested_binding = str(binding_kind or "").strip() or None
-            if (
-                stored_binding != "unbound"
-                and requested_binding
-                and stored_binding != requested_binding
-            ):
+            if stored_binding != "unbound" and requested_binding and stored_binding != requested_binding:
                 raise WakeError(
                     "Wake state already records continuity binding "
                     f"{stored_binding!r}; refusing to replace it with {requested_binding!r}: "
@@ -454,10 +443,7 @@ class WakeState:
             last_seen=str(baseline or "0-0"),
             thread_id=requested_thread_id,
             source_thread_id=requested_source_id,
-            binding_kind=(
-                str(binding_kind or "").strip()
-                or ("explicit" if requested_thread_id else "unbound")
-            ),
+            binding_kind=(str(binding_kind or "").strip() or ("explicit" if requested_thread_id else "unbound")),
             bound_at=(_now() if requested_thread_id else None),
         )
         state._persist()
@@ -492,10 +478,7 @@ class WakeState:
         if not requested:
             raise WakeError("Cannot bind an empty continuity thread id")
         if self.thread_id and self.thread_id != requested:
-            raise WakeError(
-                f"Wake state already binds {self.thread_id!r}; refusing to replace it with "
-                f"{requested!r}"
-            )
+            raise WakeError(f"Wake state already binds {self.thread_id!r}; refusing to replace it with {requested!r}")
         requested_source = str(source_thread_id or "").strip() or None
         if self.source_thread_id and requested_source and self.source_thread_id != requested_source:
             raise WakeError(
@@ -548,9 +531,7 @@ def decode_exact_message(bus: Bus, mid: str) -> Optional[Message]:
     """Fetch one direct message by id.  No inbox/cursor door is called."""
     if bus._client is None:
         raise WakeError("Bifrost is offline")
-    rows = bus._client.xrange(
-        bus._inbox_key(bus.agent_id), min=str(mid), max=str(mid), count=1
-    )
+    rows = bus._client.xrange(bus._inbox_key(bus.agent_id), min=str(mid), max=str(mid), count=1)
     if not rows:
         return None
     found_mid, fields = rows[0]
@@ -761,10 +742,7 @@ class CodexBifrostWake:
             lines.append("  no active subject-authored combos")
         for row in rows:
             verdict = "ADMITTED" if row["admitted"] else "OMITTED"
-            lines.append(
-                f"  [{verdict}] {row['name']} [{row['evidence']}; {row['family']}] -- "
-                f"{row['reason']}"
-            )
+            lines.append(f"  [{verdict}] {row['name']} [{row['evidence']}; {row['family']}] -- {row['reason']}")
         body = "\n".join(lines)
         if len(body) > AURORA_COMBO_OUTPUT_CHARS:
             marker = "\n[combo catalog capped; remainder omitted]"
@@ -776,14 +754,11 @@ class CodexBifrostWake:
         rows, error = self._combo_admission_rows()
         if error is not None:
             return {}
-        return {
-            str(row["name"]): [list(step) for step in row["steps"]]
-            for row in rows
-            if row["admitted"]
-        }
+        return {str(row["name"]): [list(step) for step in row["steps"]] for row in rows if row["admitted"]}
 
     def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         """Execute one structured read verb through the bridge and ToolBox walls."""
+
         def response(success: bool, text: str) -> Dict[str, Any]:
             return {
                 "success": bool(success),
@@ -825,9 +800,7 @@ class CodexBifrostWake:
                 command = shlex.join(["py", "agent_cli.py", *argv])
                 output = self._toolbox.run_command(command, timeout=120)
                 rendered.append(f"[{name} {index}/{total}] {' '.join(argv)}\n{output}")
-                refused = output.startswith(
-                    ("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED")
-                )
+                refused = output.startswith(("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED"))
                 failed_exit = "\n[exit " in output
                 if refused or failed_exit:
                     return response(False, "\n\n".join(rendered)[:AURORA_COMBO_OUTPUT_CHARS])
@@ -910,9 +883,7 @@ class CodexBifrostWake:
         """Load the one bound conversation, or durably create and bind it exactly once."""
         if self._loaded_thread_id:
             if self.state.thread_id != self._loaded_thread_id:
-                raise WakeError(
-                    "Loaded App Server thread no longer matches the durable watcher binding"
-                )
+                raise WakeError("Loaded App Server thread no longer matches the durable watcher binding")
             return ThreadHandle(
                 self._loaded_thread_id,
                 {"thread": {"id": self._loaded_thread_id}, "source": "already-loaded"},
@@ -922,9 +893,7 @@ class CodexBifrostWake:
             "sandbox": "read-only",
             "cwd": self.cwd,
             "model": self.model,
-            "developer_instructions": wake_developer_instructions(
-                self.policy.agent, identity
-            ),
+            "developer_instructions": wake_developer_instructions(self.policy.agent, identity),
             "approval_policy": "never",
             "personality": "friendly",
             "dynamic_tools": self.dynamic_tools or None,
@@ -974,9 +943,7 @@ class CodexBifrostWake:
             )
             return {"mid": mid, "outcome": "ignored"}
 
-        exact_size = len(
-            json.dumps(message.content, ensure_ascii=False, default=str)
-        )
+        exact_size = len(json.dumps(message.content, ensure_ascii=False, default=str))
         if exact_size > self.max_message_chars:
             detail = (
                 f"exact content {exact_size} chars exceeds wake cap {self.max_message_chars}; "
@@ -1180,9 +1147,7 @@ class CodexBifrostWake:
         try:
             while not self._stop.is_set():
                 try:
-                    rows = blocking_client.xread(
-                        {inbox: self.state.last_seen}, count=10, block=self.block_ms
-                    )
+                    rows = blocking_client.xread({inbox: self.state.last_seen}, count=10, block=self.block_ms)
                 except Exception as exc:
                     try:
                         from redis.exceptions import ConnectionError as RedisConnectionError

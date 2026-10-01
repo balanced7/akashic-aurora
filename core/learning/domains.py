@@ -22,6 +22,7 @@ corpus. In-domain first; when in-domain retrieval is thin, other-domain hits are
 so they read as analogy rather than instruction; and a lesson credited useful in >=2 domains is
 promoted to domain-general. That is the existing funnel measured across a boundary.
 """
+
 from __future__ import annotations
 
 import re
@@ -38,21 +39,74 @@ DOMAINS: Dict[str, Dict[str, Any]] = {
         # never going to be hand-labelled. They are not the definition of the domain; the evidence
         # rule above is.
         "markers": [
-            "bifrost", "lane", "redis", "pytest", "hook", "commit", "git", "ledger", "store",
-            "handoff", "runner", "seat", "mailbox", "daemon", "cursor", "acl", "registry",
-            "powershell", "subprocess", "endpoint", "schema", "migration", "pin", "regression",
+            "bifrost",
+            "lane",
+            "redis",
+            "pytest",
+            "hook",
+            "commit",
+            "git",
+            "ledger",
+            "store",
+            "handoff",
+            "runner",
+            "seat",
+            "mailbox",
+            "daemon",
+            "cursor",
+            "acl",
+            "registry",
+            "powershell",
+            "subprocess",
+            "endpoint",
+            "schema",
+            "migration",
+            "pin",
+            "regression",
         ],
     },
     "vfx": {
-        "triggers": ["composition gesture (add chunk, set param, pick palette, compose)",
-                     "the bench's current subject"],
+        "triggers": [
+            "composition gesture (add chunk, set param, pick palette, compose)",
+            "the bench's current subject",
+        ],
         "keys": ["effect", "parameter range", "subject kind"],
         "evidence": "a render you looked at settles it",
         "markers": [
-            "shader", "glsl", "frag", "chunk", "vfx", "render", "palette", "hue", "chroma",
-            "luminance", "vignette", "tonemap", "tone", "dither", "glow", "bloom", "tile",
-            "gap", "wireframe", "geodesic", "avatar", "sprite", "canvas", "webgl", "raymarch",
-            "shadertoy", "swirl", "kaleido", "blend", "mask", "uv", "pixel", "colour", "color",
+            "shader",
+            "glsl",
+            "frag",
+            "chunk",
+            "vfx",
+            "render",
+            "palette",
+            "hue",
+            "chroma",
+            "luminance",
+            "vignette",
+            "tonemap",
+            "tone",
+            "dither",
+            "glow",
+            "bloom",
+            "tile",
+            "gap",
+            "wireframe",
+            "geodesic",
+            "avatar",
+            "sprite",
+            "canvas",
+            "webgl",
+            "raymarch",
+            "shadertoy",
+            "swirl",
+            "kaleido",
+            "blend",
+            "mask",
+            "uv",
+            "pixel",
+            "colour",
+            "color",
         ],
     },
 }
@@ -60,8 +114,14 @@ DOMAINS: Dict[str, Dict[str, Any]] = {
 # Paths are the strongest signal available and they beat vocabulary, because a lesson ABOUT the vfx
 # bench often uses system words (endpoint, commit, test) while sitting squarely in the vfx domain.
 _PATH_HINTS = (
-    ("vfx", re.compile(r"(design/vfx|vfx-chunks|vfx-sketches|vfx_render|vfx_ingest|vfx\.html|"
-                       r"agent-avatar|\.glsl|\.frag)", re.I)),
+    (
+        "vfx",
+        re.compile(
+            r"(design/vfx|vfx-chunks|vfx-sketches|vfx_render|vfx_ingest|vfx\.html|"
+            r"agent-avatar|\.glsl|\.frag)",
+            re.I,
+        ),
+    ),
 )
 
 _WORD = re.compile(r"[a-z0-9_]+")
@@ -70,9 +130,19 @@ _WORD = re.compile(r"[a-z0-9_]+")
 def _text_of(record: Dict[str, Any]) -> str:
     if not isinstance(record, dict):
         return str(record or "")
-    parts = [str(record.get(k) or "") for k in
-             ("experiment_name", "what_tried", "expected_outcome", "actual_outcome",
-              "recommendation", "root_cause", "category", "anti_pattern")]
+    parts = [
+        str(record.get(k) or "")
+        for k in (
+            "experiment_name",
+            "what_tried",
+            "expected_outcome",
+            "actual_outcome",
+            "recommendation",
+            "root_cause",
+            "category",
+            "anti_pattern",
+        )
+    ]
     return " ".join(parts).lower()
 
 
@@ -92,8 +162,7 @@ def infer_domain(record: Dict[str, Any]) -> str:
         if pat.search(text):
             return name
     tokens = set(_WORD.findall(text))
-    scores = {name: sum(1 for m in spec["markers"] if m in tokens)
-              for name, spec in DOMAINS.items()}
+    scores = {name: sum(1 for m in spec["markers"] if m in tokens) for name, spec in DOMAINS.items()}
     best = max(scores, key=lambda k: scores[k])
     if scores[best] == 0:
         return DEFAULT_DOMAIN

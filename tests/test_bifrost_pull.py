@@ -3,6 +3,7 @@ Pull-side read lane: boot surfaces unread Bifrost inbox (non-consuming) + promot
 
 Run: py -m pytest tests/test_bifrost_pull.py -q
 """
+
 import argparse
 import io
 import os
@@ -22,18 +23,19 @@ from core.comm.promoter import PROMOTED_KIND
 
 def test_format_digest_line_is_compact():
     line = bifrost_pull.format_digest_line(
-        {"frm": "cursor", "kind": "handoff", "ts": "2026-06-28T22:43:55+00:00",
-         "content": "x" * 500})
+        {"frm": "cursor", "kind": "handoff", "ts": "2026-06-28T22:43:55+00:00", "content": "x" * 500}
+    )
     assert "[handoff]" in line and "cursor>" in line and "22:43" in line
-    assert "...[truncated]" in line          # long body is clipped, not dumped
-    assert len(line) < 120                    # a cheap one-liner, not the full body
+    assert "...[truncated]" in line  # long body is clipped, not dumped
+    assert len(line) < 120  # a cheap one-liner, not the full body
 
 
 def _redis_client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -91,12 +93,14 @@ def test_boot_prints_bifrost_section(monkeypatch):
 
 
 def test_cmd_promoted_formatter():
-    evs = [{
-        "kind": PROMOTED_KIND,
-        "at": "2026-06-28T22:00:00",
-        "detail": {"frm": "claude", "to": "cursor", "kind": "handoff", "content": "durable handoff"},
-        "_ref": "event:events:raw:test1",
-    }]
+    evs = [
+        {
+            "kind": PROMOTED_KIND,
+            "at": "2026-06-28T22:00:00",
+            "detail": {"frm": "claude", "to": "cursor", "kind": "handoff", "content": "durable handoff"},
+            "_ref": "event:events:raw:test1",
+        }
+    ]
     out = bifrost_pull.format_promoted_events(evs)
     assert "durable handoff" in out
     assert "event:events:raw:test1" in out
@@ -109,8 +113,7 @@ def test_bifrost_sync_peek():
         Bus("claude", c, promote=False).send(agent, "note", "sync test")
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = agent_cli.cmd_bifrost_sync(
-                argparse.Namespace(agent_id=agent, limit=5, consume=False, json=False))
+            rc = agent_cli.cmd_bifrost_sync(argparse.Namespace(agent_id=agent, limit=5, consume=False, json=False))
         assert rc == 0
         assert "sync test" in buf.getvalue()
         still = bifrost_pull.peek_inbox(agent, limit=30)

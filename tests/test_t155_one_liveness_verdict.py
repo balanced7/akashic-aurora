@@ -34,6 +34,7 @@ and the scoreboard cannot distinguish that from a live player who found nothing.
 
 Run: py -m pytest tests/test_t155_one_liveness_verdict.py -q
 """
+
 import os
 import sys
 
@@ -46,18 +47,20 @@ def test_l1_a_public_attendance_probe_exists():
     every other surface is forced to invent its own weaker answer -- which is exactly how
     presence-keys came to be printed as 'online'."""
     from core.comm import liveness
+
     assert hasattr(liveness, "attendance"), (
         "no public attendance probe: core.comm.liveness.attendance(agent) must exist so every "
-        "surface can share ONE verdict instead of reimplementing a weaker one")
+        "surface can share ONE verdict instead of reimplementing a weaker one"
+    )
 
 
 def test_l3_unknown_is_a_real_state_not_a_false_live():
     """The probe reports three states. A gauge that cannot check must say UNKNOWN."""
     from core.comm.liveness import attendance
+
     verdict = attendance("almost-certainly-not-a-real-agent-t155")
     assert hasattr(verdict, "state"), "attendance() must return a verdict carrying .state"
-    assert verdict.state in ("ATTENDED", "UNATTENDED", "UNKNOWN"), \
-        f"unexpected state {verdict.state!r}"
+    assert verdict.state in ("ATTENDED", "UNATTENDED", "UNKNOWN"), f"unexpected state {verdict.state!r}"
     assert verdict.state != "ATTENDED", "a nonexistent agent must never read as ATTENDED"
 
 
@@ -72,8 +75,7 @@ def test_l4_the_probe_never_raises(monkeypatch):
     monkeypatch.setattr(liveness, "worklive_beat_age", _boom, raising=False)
     monkeypatch.setattr(liveness, "progress_age", _boom, raising=False)
     verdict = liveness.attendance("any-agent-t155")
-    assert verdict.state in ("UNATTENDED", "UNKNOWN"), \
-        f"a broken probe must degrade, got {verdict.state!r}"
+    assert verdict.state in ("UNATTENDED", "UNKNOWN"), f"a broken probe must degrade, got {verdict.state!r}"
 
 
 def test_l2_the_boot_render_agrees_with_the_send_path():
@@ -88,15 +90,18 @@ def test_l2_the_boot_render_agrees_with_the_send_path():
     disagreements = [a for a in listed if attendance(a).state == "UNATTENDED"]
     assert not disagreements, (
         f"boot prints 'online:' for agent(s) the send path would call UNATTENDED: {disagreements} "
-        f"-- a registration echo is being rendered as attendance")
+        f"-- a registration echo is being rendered as attendance"
+    )
 
 
 def test_l5_a_suffixed_incarnation_id_resolves_like_its_bare_agent():
     """`codex_root_019fab2d` and `codex_root` must not give different attendance answers, or
     directed mail queues into a void under a near-identical name (measured tonight)."""
     from core.comm.liveness import attendance
+
     bare = attendance("t155-ghost")
     suffixed = attendance("t155-ghost_019fab2d")
     assert bare.state == suffixed.state, (
         f"id form changes the verdict: bare={bare.state} suffixed={suffixed.state} -- mail "
-        f"addressed to the suffixed form would queue where nothing reads it")
+        f"addressed to the suffixed form would queue where nothing reads it"
+    )

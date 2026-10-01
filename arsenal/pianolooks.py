@@ -18,6 +18,7 @@ the server only keeps the values simple. The starter looks are built into the pa
 The file is state/arsenal/looks/presets.json (git-ignored). It is written whole to a temp file in the same folder and
 moved over the old one with os.replace, so a failed write leaves the previous file as it was.
 """
+
 from __future__ import annotations
 
 import json
@@ -71,8 +72,14 @@ def request_problem(method: str, headers: Mapping[str, str], port: int) -> Optio
     if origin is not None:
         try:
             o = urlsplit(origin.strip())
-            same = (o.scheme == "http" and o.hostname == host_name and o.port == port and o.path in ("", "/")
-                    and not o.query and o.username is None)
+            same = (
+                o.scheme == "http"
+                and o.hostname == host_name
+                and o.port == port
+                and o.path in ("", "/")
+                and not o.query
+                and o.username is None
+            )
         except ValueError:
             same = False
         if not same:
@@ -157,7 +164,12 @@ def validate_presets(presets) -> list:
         for stamp in ("created", "updated"):
             if stamp in preset:
                 value = preset[stamp]
-                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                    or value < 0
+                ):
                     raise LooksError(400, f"{where}: {stamp} must be a time in epoch milliseconds")
                 clean[stamp] = value
         out.append(clean)
@@ -194,9 +206,13 @@ class LooksStore:
         with self._lock:
             current = self.read()
             if rev != current["rev"]:
-                raise LooksError(409, f"the saved looks changed since rev {rev} (now rev {current['rev']}); "
-                                      "load them again and reapply the change", rev=current["rev"],
-                                 presets=current["presets"])
+                raise LooksError(
+                    409,
+                    f"the saved looks changed since rev {rev} (now rev {current['rev']}); "
+                    "load them again and reapply the change",
+                    rev=current["rev"],
+                    presets=current["presets"],
+                )
             doc = {"api": API, "rev": current["rev"] + 1, "presets": presets}
             self._write(doc)
             return doc

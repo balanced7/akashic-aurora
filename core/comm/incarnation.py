@@ -17,6 +17,7 @@ Phase 3 (T074 W11/W12) upgrades the same seam to published TTL cards
 Precedent: "for a runner, the runner lock IS the incarnation card" (deepseek T074 half,
 sec. 4) -- v1 simply reads the session-side equivalents that already exist.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,7 +34,7 @@ from core.comm import wake_seat
 # born at SessionStart, re-armed at every stop-hook firing, gone 30 minutes after the
 # last sign of life. Namespaced like every comm key (R9) so drills never leak.
 CARD_TTL_SEC = int(os.getenv("AKASHIC_INCARNATION_TTL_MIN", "30")) * 60
-IDLE_AFTER_MIN = 5.0                     # R11: derived at READ time, never written
+IDLE_AFTER_MIN = 5.0  # R11: derived at READ time, never written
 _TS_FMT = "%Y-%m-%dT%H:%M:%S"
 
 
@@ -48,6 +49,7 @@ def _card_key(agent: str, session_id: str) -> str:
 def _redis():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -71,10 +73,13 @@ def _ledger_claims(agent: str, limit: int = 4) -> List[str]:
     pretend to a precision the ledger cannot give."""
     try:
         from core.coord.task_ledger import read_ledger
+
         tasks = (read_ledger() or {}).get("tasks", [])
-        return [t["id"] for t in tasks
-                if t.get("owner") == agent
-                and t.get("status") in ("claimed", "in_progress", "verifying")][:limit]
+        return [
+            t["id"]
+            for t in tasks
+            if t.get("owner") == agent and t.get("status") in ("claimed", "in_progress", "verifying")
+        ][:limit]
     except Exception:
         return []
 
@@ -85,19 +90,28 @@ def _resolve_client(c, allow_fallback: bool):
     return _redis() if allow_fallback else None
 
 
-def publish_card(agent: str, session_id: str, pid: Optional[int] = None,
-                 claims: Optional[List[str]] = None, c=None,
-                 allow_fallback: bool = True) -> bool:
+def publish_card(
+    agent: str,
+    session_id: str,
+    pid: Optional[int] = None,
+    claims: Optional[List[str]] = None,
+    c=None,
+    allow_fallback: bool = True,
+) -> bool:
     """Birth (or rebirth) of a session's card. False when no client -- callers are
     hooks and MUST stay fail-open; the marker path still proves life without Redis."""
     cli = _resolve_client(c, allow_fallback)
     if cli is None or not session_id:
         return False
     now = _now_ts()
-    card = {"session_id": session_id, "pid": int(pid if pid is not None else os.getpid()),
-            "started": now, "refreshed": now,
-            "claims": list(claims) if claims is not None else _ledger_claims(agent),
-            "status": "active"}
+    card = {
+        "session_id": session_id,
+        "pid": int(pid if pid is not None else os.getpid()),
+        "started": now,
+        "refreshed": now,
+        "claims": list(claims) if claims is not None else _ledger_claims(agent),
+        "status": "active",
+    }
     try:
         cli.set(_card_key(agent, session_id), json.dumps(card), ex=CARD_TTL_SEC)
         return True
@@ -119,8 +133,9 @@ def delete_card(agent: str, session_id: str, c=None, allow_fallback: bool = True
         return False
 
 
-def refresh_card(agent: str, session_id: str, claims: Optional[List[str]] = None,
-                 c=None, allow_fallback: bool = True) -> bool:
+def refresh_card(
+    agent: str, session_id: str, claims: Optional[List[str]] = None, c=None, allow_fallback: bool = True
+) -> bool:
     """Every stop-hook firing re-arms the TTL. Keeps the birth stamp and claims (unless
     new ones are given); a MISSING card self-heals by republishing (R12: a Redis outage
     window must not leave a live session cardless until restart)."""
@@ -135,9 +150,13 @@ def refresh_card(agent: str, session_id: str, claims: Optional[List[str]] = None
             if claims is not None:
                 card["claims"] = list(claims)
         else:
-            card = {"session_id": session_id, "pid": os.getpid(), "started": _now_ts(),
-                    "claims": list(claims) if claims is not None else _ledger_claims(agent),
-                    "status": "active"}
+            card = {
+                "session_id": session_id,
+                "pid": os.getpid(),
+                "started": _now_ts(),
+                "claims": list(claims) if claims is not None else _ledger_claims(agent),
+                "status": "active",
+            }
         card["refreshed"] = _now_ts()
         cli.set(key, json.dumps(card), ex=CARD_TTL_SEC)
         return True
@@ -145,8 +164,7 @@ def refresh_card(agent: str, session_id: str, claims: Optional[List[str]] = None
         return False
 
 
-def read_cards(agent: str, c=None, allow_fallback: bool = True,
-               now: Optional[float] = None) -> List[Dict]:
+def read_cards(agent: str, c=None, allow_fallback: bool = True, now: Optional[float] = None) -> List[Dict]:
     """All live cards for `agent`, status DERIVED at read time (R11): refreshed within
     IDLE_AFTER_MIN = active, older = idle. TTL expiry already removed the dead."""
     cli = _resolve_client(c, allow_fallback)
@@ -188,10 +206,14 @@ def daemon_runtimes(agent: str, c=None, allow_fallback: bool = True) -> Dict[str
         return {}
 
 
-def live_incarnations(agent: str, my_session: Optional[str] = None,
-                      tmp: Optional[str] = None,
-                      now: Optional[float] = None,
-                      c=None, allow_fallback: bool = True) -> List[Dict]:
+def live_incarnations(
+    agent: str,
+    my_session: Optional[str] = None,
+    tmp: Optional[str] = None,
+    now: Optional[float] = None,
+    c=None,
+    allow_fallback: bool = True,
+) -> List[Dict]:
     """All OTHER live sessions of `agent`, freshest first:
     [{session_id, age_min, has_seat, (status, claims when carded)}].
 
@@ -226,16 +248,16 @@ def live_incarnations(agent: str, my_session: Optional[str] = None,
     for name in names:
         if not (name.startswith(prefix) and name.endswith(".alive")):
             continue
-        sid = name[len(prefix):-len(".alive")]
+        sid = name[len(prefix) : -len(".alive")]
         if not sid or sid in by_sid or (my_session and sid == my_session):
-            continue                       # carded sids already counted -- cards win (R10)
+            continue  # carded sids already counted -- cards win (R10)
         try:
             ts = float(open(os.path.join(base, name)).read().strip())
         except Exception:
-            continue                       # unreadable marker proves nothing -- skip
+            continue  # unreadable marker proves nothing -- skip
         age_min = max(0.0, (t_now - ts) / 60.0)
         if age_min >= fresh:
-            continue                       # K7 threshold: staler than fresh_minutes() = not live
+            continue  # K7 threshold: staler than fresh_minutes() = not live
         by_sid[sid] = {
             "session_id": sid,
             "age_min": age_min,
@@ -249,6 +271,7 @@ def live_incarnations(agent: str, my_session: Optional[str] = None,
 
 def _fmt_one(agent: str, s: Dict) -> str:
     from core.comm.seat_identity import sid8 as _sid8
+
     sid8 = _sid8(s.get("session_id", ""))
     age = s.get("age_min")
     idle = f"{age:.0f}m idle" if isinstance(age, (int, float)) else "age unknown"

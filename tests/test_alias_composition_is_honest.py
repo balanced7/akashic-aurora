@@ -45,8 +45,15 @@ CLI = [sys.executable, str(REPO / "agent_cli.py")]
 
 
 def _run(*args, timeout=180):
-    return subprocess.run(CLI + list(args), cwd=str(REPO), capture_output=True,
-                          text=True, encoding="utf-8", errors="replace", timeout=timeout)
+    return subprocess.run(
+        CLI + list(args),
+        cwd=str(REPO),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+    )
 
 
 # --------------------------------------------------------------- 1. output surfacing
@@ -57,18 +64,29 @@ def test_run_surfaces_what_its_steps_actually_printed():
     assert "FLIGHTDECK" in direct.stdout, "precondition: flightdeck prints a banner"
     viarun = _run("run", "claude", "cycle-open")
     assert "FLIGHTDECK" in viarun.stdout, (
-        "run swallowed the step's output -- a failing step and a working step look identical")
+        "run swallowed the step's output -- a failing step and a working step look identical"
+    )
 
 
 def test_run_reports_a_failing_step_as_a_failure():
     """The floor: if a step exits nonzero, the macro must not report done."""
-    _run("alias", "claude", "mint", "probe-doomed-step",
-         "--step", "definitely-not-a-verb", "--family", "PROBE",
-         "--why", "RED pin probe: a nonzero step must not read as done")
+    _run(
+        "alias",
+        "claude",
+        "mint",
+        "probe-doomed-step",
+        "--step",
+        "definitely-not-a-verb",
+        "--family",
+        "PROBE",
+        "--why",
+        "RED pin probe: a nonzero step must not read as done",
+    )
     try:
         out = _run("run", "claude", "probe-doomed-step")
         assert out.returncode != 0 or "fail" in (out.stdout + out.stderr).lower(), (
-            "a macro whose step could not even resolve still reported success")
+            "a macro whose step could not even resolve still reported success"
+        )
     finally:
         _run("alias", "claude", "retire", "probe-doomed-step", "--reason", "RED pin cleanup")
 
@@ -90,13 +108,16 @@ def test_defer_refuses_an_unknown_seat_instead_of_reporting_empty():
     eye_get_says_no_event_when_it_means_bad_address lesson, on a different door."""
     roster = _run("doctor", "--json")
     if "discord" not in roster.stdout and "claude" not in roster.stdout:
-        pytest.skip("no live fleet roster in this environment -- the roster HINT is untestable "
-                    "here; the roster-free invariant is covered by the sibling pin below")
+        pytest.skip(
+            "no live fleet roster in this environment -- the roster HINT is untestable "
+            "here; the roster-free invariant is covered by the sibling pin below"
+        )
     out = _run("defer", "totally-not-an-agent-xyz", "--list")
     combined = (out.stdout + out.stderr).lower()
     assert out.returncode != 0 or "unknown" in combined or "no such" in combined, (
         "an unknown seat's queue reported EMPTY rather than UNKNOWN -- absence and "
-        "nonexistence must not render identically")
+        "nonexistence must not render identically"
+    )
 
 
 def test_defer_empty_and_defer_unknown_do_not_render_identically():
@@ -104,4 +125,5 @@ def test_defer_empty_and_defer_unknown_do_not_render_identically():
     real = _run("defer", "claude", "--list")
     fake = _run("defer", "totally-not-an-agent-xyz", "--list")
     assert real.stdout.strip() != fake.stdout.strip(), (
-        "a real empty queue and a phantom seat produce byte-identical output")
+        "a real empty queue and a phantom seat produce byte-identical output"
+    )

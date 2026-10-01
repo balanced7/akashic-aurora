@@ -39,6 +39,7 @@ manufacturing a comfortable number -- the same discipline `precision_audit` stat
 Closing the COMPLIED gap needs the Eye (what the seat ACTUALLY did next), which is the next
 slice. This one makes the prevention numerator computable for the first time, contrastively.
 """
+
 from __future__ import annotations
 
 import glob
@@ -63,6 +64,7 @@ CONFOUNDS = (
 
 def _stage_dir() -> str:
     from core.recall import at_action as aa
+
     return getattr(aa, "_STAGE_DIR", "")
 
 
@@ -82,7 +84,7 @@ def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
                     try:
                         rec = json.loads(line)
                     except Exception:
-                        continue          # a torn line is not a row; never a guess
+                        continue  # a torn line is not a row; never a guess
                     rec["_session"] = os.path.basename(path)[:-6]
                     rows.append(rec)
         except OSError:
@@ -101,6 +103,7 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
     """
     out: Dict[str, List[Dict[str, Any]]] = {}
     from core.learning.learning_store import LearningStore
+
     ls = store or LearningStore()
     rep = ls.repeat_report() or {}
     # The list lives under "entries". The first draft of this function guessed
@@ -121,7 +124,8 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
             f"repeat ledger declares count={declared} but the join extracted 0 rows -- the "
             f"record shape changed (keys: {sorted(rep.keys())}). REFUSING to report zero "
             f"violations from an empty join; that is indistinguishable from 'no violations' "
-            f"and would be a confident zero.")
+            f"and would be a confident zero."
+        )
     return out
 
 
@@ -135,14 +139,18 @@ def _epoch(value: Any) -> Optional[float]:
         pass
     try:
         from datetime import datetime
+
         return datetime.fromisoformat(str(value)).timestamp()
     except Exception:
         return None
 
 
-def observe(*, stage_dir: Optional[str] = None,
-            repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-            sources_resolver: Optional[Callable[[str], bool]] = None) -> List[Dict[str, Any]]:
+def observe(
+    *,
+    stage_dir: Optional[str] = None,
+    repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None,
+    sources_resolver: Optional[Callable[[str], bool]] = None,
+) -> List[Dict[str, Any]]:
     """One observation per (prevention candidate, surfaced lesson). Never a judgment.
 
     TEMPORAL ATTRIBUTION (fixed after the first live run reported 170 violations from 8
@@ -162,33 +170,39 @@ def observe(*, stage_dir: Optional[str] = None,
     for rec in rows:
         if not (rec.get("ok") and rec.get("surfaced") and not rec.get("flipped")):
             continue
-        for src in (rec.get("s") or []):
-            candidates.append({"session": rec.get("_session", ""), "at": rec.get("at"),
-                               "target": rec.get("t", ""), "source": str(src),
-                               "verdict": "UNKNOWABLE", "evidence": [],
-                               "authority": "observation"})
+        for src in rec.get("s") or []:
+            candidates.append(
+                {
+                    "session": rec.get("_session", ""),
+                    "at": rec.get("at"),
+                    "target": rec.get("t", ""),
+                    "source": str(src),
+                    "verdict": "UNKNOWABLE",
+                    "evidence": [],
+                    "authority": "observation",
+                }
+            )
 
     # index candidates by source, ascending in time, for nearest-preceding attribution
     by_src: Dict[str, List[Dict[str, Any]]] = {}
     for c in candidates:
         by_src.setdefault(c["source"], []).append(c)
     for lst in by_src.values():
-        lst.sort(key=lambda c: (_epoch(c["at"]) or 0.0))
+        lst.sort(key=lambda c: _epoch(c["at"]) or 0.0)
 
     unattributed: List[str] = []
     for src, rlist in (reps or {}).items():
-        fired = [r for r in rlist
-                 if str(r.get("recall_outcome") or "").lower().startswith("fired")]
+        fired = [r for r in rlist if str(r.get("recall_outcome") or "").lower().startswith("fired")]
         for rep in fired:
             r_at = _epoch(rep.get("at"))
             pool = by_src.get(src) or []
             target = None
-            for c in pool:                       # nearest PRECEDING, unclaimed
+            for c in pool:  # nearest PRECEDING, unclaimed
                 c_at = _epoch(c["at"])
                 if c_at is None or r_at is None:
                     continue
                 if c_at <= r_at and c["verdict"] != "VIOLATED":
-                    target = c                   # keep advancing -> last one <= r_at
+                    target = c  # keep advancing -> last one <= r_at
             if target is not None:
                 target["verdict"] = "VIOLATED"
                 target["evidence"] = [str(rep.get("id") or "")]
@@ -207,14 +221,14 @@ def observe(*, stage_dir: Optional[str] = None,
     return candidates
 
 
-def report(*, stage_dir: Optional[str] = None,
-           repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Dict[str, Any]:
+def report(
+    *, stage_dir: Optional[str] = None, repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None
+) -> Dict[str, Any]:
     """The contrastive prevention report. Rates only over SETTLED rows; coverage always rides."""
     rows = read_stage_rows(stage_dir)
     obs = observe(stage_dir=stage_dir, repeats=repeats)
 
-    prevention_candidates = sum(1 for r in rows
-                                if r.get("ok") and r.get("surfaced") and not r.get("flipped"))
+    prevention_candidates = sum(1 for r in rows if r.get("ok") and r.get("surfaced") and not r.get("flipped"))
     control_arm = sum(1 for r in rows if r.get("ok") and not r.get("surfaced"))
     flips = sum(1 for r in rows if r.get("flipped"))
     failures = sum(1 for r in rows if not r.get("ok"))
@@ -238,11 +252,13 @@ def report(*, stage_dir: Optional[str] = None,
     # built to expose; exposure-bias is why it is not yet an effect size.
     contrast = {
         "success_rate_when_surfaced": (
-            sum(1 for r in rows if r.get("surfaced") and r.get("ok")) / surfaced_total
-            if surfaced_total else None),
+            sum(1 for r in rows if r.get("surfaced") and r.get("ok")) / surfaced_total if surfaced_total else None
+        ),
         "success_rate_when_not_surfaced": (
             sum(1 for r in rows if not r.get("surfaced") and r.get("ok")) / unsurfaced_total
-            if unsurfaced_total else None),
+            if unsurfaced_total
+            else None
+        ),
     }
 
     per_lesson: Dict[str, Dict[str, int]] = {}
@@ -265,6 +281,6 @@ def report(*, stage_dir: Optional[str] = None,
         "contrast": contrast,
         "per_lesson": dict(sorted(per_lesson.items())),
         "confounds": list(CONFOUNDS),
-        "steers": False,          # fence r2 H-C1 + the stage log's own standing rule
+        "steers": False,  # fence r2 H-C1 + the stage log's own standing rule
         "authority": "observation",
     }

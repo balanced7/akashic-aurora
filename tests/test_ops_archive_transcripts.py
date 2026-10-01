@@ -24,6 +24,7 @@ a non-zero exit when anything was refused or failed (P7).
 
 Run: py -m pytest tests/test_ops_archive_transcripts.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -51,8 +52,7 @@ def rig(tmp_path):
     b = _mk(src / "bbbbbbbb-2222.jsonl", '{"type":"user","t":2}\n{"type":"assistant"}\n')
     d1 = tmp_path / "dest1"
     d2 = tmp_path / "dest2"
-    return {"src_dir": src, "a": a, "b": b, "d1": d1, "d2": d2,
-            "sources": [a, b], "dests": [d1, d2]}
+    return {"src_dir": src, "a": a, "b": b, "d1": d1, "d2": d2, "sources": [a, b], "dests": [d1, d2]}
 
 
 # ---------------------------------------------------------------- P1: additive-only
@@ -63,8 +63,8 @@ def test_p1_a_source_that_rotated_away_is_NEVER_deleted_from_the_archive(rig):
     rotated = rig["d1"] / "aaaaaaaa-1111.jsonl"
     assert rotated.exists()
 
-    rig["a"].unlink()                                    # the harness rotates it off disk
-    rep = ARC.archive([rig["b"]], rig["dests"])           # next run sees only b
+    rig["a"].unlink()  # the harness rotates it off disk
+    rep = ARC.archive([rig["b"]], rig["dests"])  # next run sees only b
 
     assert rotated.exists(), "THE ARCHIVE MUST KEEP WHAT THE SOURCE FORGOT"
     assert rotated.read_text(encoding="utf-8") == '{"type":"user","t":1}\n'
@@ -77,11 +77,12 @@ def test_p2_a_shrunken_source_is_refused_and_the_good_copy_survives(rig):
     ARC.archive(rig["sources"], rig["dests"])
     good = (rig["d1"] / "bbbbbbbb-2222.jsonl").read_text(encoding="utf-8")
 
-    rig["b"].write_text('{"type":"user"}\n', encoding="utf-8")   # truncated upstream
+    rig["b"].write_text('{"type":"user"}\n', encoding="utf-8")  # truncated upstream
     rep = ARC.archive(rig["sources"], rig["dests"])
 
     assert (rig["d1"] / "bbbbbbbb-2222.jsonl").read_text(encoding="utf-8") == good, (
-        "the archived copy was NOT overwritten by the shorter one")
+        "the archived copy was NOT overwritten by the shorter one"
+    )
     assert "bbbbbbbb-2222.jsonl" in str(rep["destinations"][0]["refused"])
     assert rep["ok"] is False, "a refusal is a loud outcome, not a quiet skip"
 
@@ -102,8 +103,7 @@ def test_p4_an_appended_source_is_carried_over(rig):
         fh.write('{"type":"assistant","t":3}\n')
     rep = ARC.archive(rig["sources"], rig["dests"])
     assert rep["destinations"][0]["copied"] == 1
-    assert (rig["d1"] / "aaaaaaaa-1111.jsonl").read_text(encoding="utf-8") == \
-        rig["a"].read_text(encoding="utf-8")
+    assert (rig["d1"] / "aaaaaaaa-1111.jsonl").read_text(encoding="utf-8") == rig["a"].read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------- P5: verification
@@ -129,7 +129,7 @@ def test_p5_verify_detects_a_corrupted_archive_copy_and_repairs_it(rig):
 def test_p6_one_unreachable_destination_does_not_cost_the_other(rig, tmp_path):
     """Two drives exist so that one can die. An unplugged drive must not abort the copy to
     the live one -- and must not be reported as if it had succeeded."""
-    dead = tmp_path / "nope" / "nested"   # parent missing AND uncreatable is simulated below
+    dead = tmp_path / "nope" / "nested"  # parent missing AND uncreatable is simulated below
     rep = ARC.archive(rig["sources"], [ARC.UNREACHABLE_PROBE, rig["d1"]])
 
     live = [d for d in rep["destinations"] if str(rig["d1"]) in d["path"]][0]
@@ -160,15 +160,17 @@ def test_p7b_exit_code_is_nonzero_when_anything_was_refused(rig, tmp_path):
     """A scheduler only ever sees the exit code."""
     ARC.archive(rig["sources"], rig["dests"])
     rig["b"].write_text("short\n", encoding="utf-8")
-    assert ARC.main(["--source-dir", str(rig["src_dir"]),
-                     "--dest", str(rig["d1"]),
-                     "--receipt-dir", str(tmp_path / "r")]) != 0
+    assert (
+        ARC.main(["--source-dir", str(rig["src_dir"]), "--dest", str(rig["d1"]), "--receipt-dir", str(tmp_path / "r")])
+        != 0
+    )
 
 
 def test_p7c_a_clean_run_exits_zero(rig, tmp_path):
-    assert ARC.main(["--source-dir", str(rig["src_dir"]),
-                     "--dest", str(rig["d1"]),
-                     "--receipt-dir", str(tmp_path / "r")]) == 0
+    assert (
+        ARC.main(["--source-dir", str(rig["src_dir"]), "--dest", str(rig["d1"]), "--receipt-dir", str(tmp_path / "r")])
+        == 0
+    )
 
 
 # ---------------------------------------------------------------- P8: source selection
@@ -196,7 +198,7 @@ def test_p9_a_test_run_never_overwrites_the_production_receipt(rig):
     prod = ARC.DEFAULT_RECEIPTS / "latest.json"
     before = prod.read_text(encoding="utf-8") if prod.exists() else None
 
-    ARC.archive(rig["sources"], rig["dests"])        # no receipt_dir -- the dangerous call
+    ARC.archive(rig["sources"], rig["dests"])  # no receipt_dir -- the dangerous call
 
     after = prod.read_text(encoding="utf-8") if prod.exists() else None
     assert after == before, "the production receipt was left exactly as it was found"

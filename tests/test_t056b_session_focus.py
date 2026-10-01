@@ -18,6 +18,7 @@ in task_costs it required, in place.
   F8  cost_line() renders a tool-calls-only task instead of returning ''
   F9  a focus on an unknown task id is refused, not silently accepted
 """
+
 import json
 import os
 import sys
@@ -30,10 +31,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -49,10 +51,15 @@ def env(monkeypatch, tmp_path):
 
     # TaskLedger.load() reads `tasks` as a LIST and keys it by id itself (task_ledger.py:283).
     tasks = [
-        {"id": "T900", "title": "with files", "owner": "claude", "status": "in_progress",
-         "files": ["core/eye/index.py", "scripts/hooks/"], "history": []},
-        {"id": "T901", "title": "no files", "owner": "claude", "status": "in_progress",
-         "files": [], "history": []},
+        {
+            "id": "T900",
+            "title": "with files",
+            "owner": "claude",
+            "status": "in_progress",
+            "files": ["core/eye/index.py", "scripts/hooks/"],
+            "history": [],
+        },
+        {"id": "T901", "title": "no files", "owner": "claude", "status": "in_progress", "files": [], "history": []},
     ]
     p = tmp_path / "tasks.json"
     p.write_text(json.dumps({"seq": 1, "tasks": tasks}), encoding="utf-8")
@@ -61,6 +68,7 @@ def env(monkeypatch, tmp_path):
     c = _client()
     monkeypatch.setattr(SF, "_client", lambda: c)
     from core.coord import task_costs as TC
+
     monkeypatch.setattr(TC, "_client", lambda: c)
     sid = f"sess-{uuid.uuid4().hex[:8]}"
     yield SF, TC, sid, ns, c
@@ -73,16 +81,17 @@ def test_f1_attribution_lands_on_the_t056_accumulator(env):
     SF.set_focus(sid, "T900")
     for _ in range(3):
         SF.record_call(sid, "Read", "core/eye/index.py")
-    assert c.hget(TC._acc_key("T900"), "tool_calls") == "3", \
+    assert c.hget(TC._acc_key("T900"), "tool_calls") == "3", (
         "F1: calls must land on task_costs' own key so its DONE path finalizes them"
+    )
 
 
 def test_f2_hits_and_misses_follow_the_declared_files(env):
     SF, TC, sid, ns, c = env
     SF.set_focus(sid, "T900")
-    SF.record_call(sid, "Read", "core/eye/index.py")          # exact file
+    SF.record_call(sid, "Read", "core/eye/index.py")  # exact file
     SF.record_call(sid, "Write", "scripts/hooks/whatever.py")  # under a declared dir
-    SF.record_call(sid, "Read", "arsenal/web/piano.js")        # elsewhere
+    SF.record_call(sid, "Read", "arsenal/web/piano.js")  # elsewhere
     st = SF.current(sid)
     assert (st["hits"], st["misses"]) == (2, 1), f"F2: got {st}"
     assert st["streak"] == 1, "F2: the miss streak counts consecutive misses only"
@@ -105,13 +114,15 @@ def test_f3_the_nudge_is_silent_below_the_threshold(env):
 
 def test_f4_a_task_with_no_declared_files_is_never_nagged(env):
     SF, TC, sid, ns, c = env
-    SF.set_focus(sid, "T901")                                  # declares no files
+    SF.set_focus(sid, "T901")  # declares no files
     for _ in range(SF.MISS_BEFORE_NUDGE * 2):
         SF.record_call(sid, "Read", "anything/at/all.py")
-    assert SF.drift_note(sid) is None, \
+    assert SF.drift_note(sid) is None, (
         "F4: with nothing declared there is no evidence of drift, and a nudge would be a guess"
-    assert c.hget(TC._acc_key("T901"), "tool_calls") == str(SF.MISS_BEFORE_NUDGE * 2), \
+    )
+    assert c.hget(TC._acc_key("T901"), "tool_calls") == str(SF.MISS_BEFORE_NUDGE * 2), (
         "F4: attribution still works for a task that declares no files"
+    )
 
 
 def test_f5_quiet_silences_notes_but_keeps_counting(env):
@@ -121,8 +132,9 @@ def test_f5_quiet_silences_notes_but_keeps_counting(env):
     for _ in range(SF.MISS_BEFORE_NUDGE + 2):
         SF.record_call(sid, "Read", "elsewhere.py")
     assert SF.drift_note(sid) is None, "F5: quiet means quiet"
-    assert int(c.hget(TC._acc_key("T900"), "tool_calls")) == SF.MISS_BEFORE_NUDGE + 2, \
+    assert int(c.hget(TC._acc_key("T900"), "tool_calls")) == SF.MISS_BEFORE_NUDGE + 2, (
         "F5: silencing the NOTE must not silence the ATTRIBUTION"
+    )
 
 
 def test_f6_two_dismissals_silence_it_on_their_own(env):
@@ -135,8 +147,7 @@ def test_f6_two_dismissals_silence_it_on_their_own(env):
         SF.dismiss(sid)
     for _ in range(SF.MISS_BEFORE_NUDGE):
         SF.record_call(sid, "Read", "elsewhere.py")
-    assert SF.drift_note(sid) is None, \
-        "F6: a detector the operator keeps waving off must stop asking by itself"
+    assert SF.drift_note(sid) is None, "F6: a detector the operator keeps waving off must stop asking by itself"
 
 
 def test_f7_finalize_keeps_a_tool_calls_only_accumulator(env):
@@ -146,9 +157,9 @@ def test_f7_finalize_keeps_a_tool_calls_only_accumulator(env):
         SF.record_call(sid, "Read", "core/eye/index.py")
     task = {"id": "T900", "status": "done"}
     stamped = TC.finalize("T900", task)
-    assert stamped.get("cost_tool_calls") == 5, \
-        ("F7: the old gate required turns>0 and DELETED an accumulator fed per tool call -- "
-         f"got {stamped}")
+    assert stamped.get("cost_tool_calls") == 5, (
+        f"F7: the old gate required turns>0 and DELETED an accumulator fed per tool call -- got {stamped}"
+    )
     assert not c.exists(TC._acc_key("T900")), "F7: the accumulator is still consumed once"
     assert TC.finalize("T900", dict(task)) == {}, "F7: an empty accumulator still stamps nothing"
 
@@ -157,8 +168,9 @@ def test_f8_cost_line_renders_a_tool_calls_only_task(env):
     SF, TC, sid, ns, c = env
     line = TC.cost_line({"status": "done", "cost_tool_calls": 42})
     assert line and "42" in line, f"F8: a tool-calls-only task must not render as nothing: {line!r}"
-    assert TC.cost_line({"status": "in_progress", "cost_tool_calls": 42}) == "", \
+    assert TC.cost_line({"status": "in_progress", "cost_tool_calls": 42}) == "", (
         "F8: K5 still holds -- live tasks never render cost"
+    )
 
 
 def test_f9_an_unknown_task_is_refused(env):

@@ -28,6 +28,7 @@ and "green" means green HERE.
 
 Run: py -m pytest tests/test_t178_absence_is_not_zero_debt.py -q
 """
+
 import json
 import os
 import subprocess
@@ -62,7 +63,8 @@ def test_k1_load_baseline_has_three_states_not_one_falsy(monkeypatch, tmp_path):
     bad.write_text("{not json", encoding="utf-8")
     counts, status = pc._load_baseline()
     assert (counts, status) == ({}, "unreadable"), (
-        "a corrupt baseline must be distinguishable from an absent one and from a clean one")
+        "a corrupt baseline must be distinguishable from an absent one and from a clean one"
+    )
 
 
 def test_k2_an_empty_baseline_is_refused_not_passed():
@@ -76,7 +78,8 @@ def test_k3_a_missing_baseline_file_is_refused(monkeypatch, tmp_path):
     _point_at(monkeypatch, tmp_path)
     ok, msg = pc.ratchet_ok(live={"check_boundaries": 99})
     assert ok is False and "missing" in msg.lower(), (
-        "a fresh clone had NO enforcement and NO notice -- absence read as success")
+        "a fresh clone had NO enforcement and NO notice -- absence read as success"
+    )
 
 
 def test_k4_ensure_baseline_materialises_a_missing_file_and_says_so(monkeypatch, tmp_path):
@@ -85,7 +88,8 @@ def test_k4_ensure_baseline_materialises_a_missing_file_and_says_so(monkeypatch,
     assert created is True and note, "materialising in silence would be the same defect"
     written = json.loads(open(target, encoding="utf-8").read())["counts"]
     assert written == {"check_boundaries": 0, "check_kind_policy": 2}, (
-        "adopt TODAY's debt: a commit cannot be blamed for debt that predates it")
+        "adopt TODAY's debt: a commit cannot be blamed for debt that predates it"
+    )
     ok, _ = pc.ratchet_ok(live={"check_boundaries": 0, "check_kind_policy": 2})
     assert ok is True, "having adopted the current level, the very next check must pass"
 
@@ -112,8 +116,8 @@ def test_k7_a_crashed_guard_still_fails():
 def test_k8_the_baseline_travels_with_the_repo():
     """The half that makes the rest matter: a ratchet whose baseline is untracked is per-machine,
     so 'green' means green HERE. T177 enforced on exactly one workstation because of this."""
-    tracked = subprocess.run(["git", "ls-files", BASELINE_REL], cwd=ROOT,
-                             capture_output=True, text=True).stdout.strip()
+    tracked = subprocess.run(["git", "ls-files", BASELINE_REL], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     assert tracked == BASELINE_REL, (
         f"{BASELINE_REL} is not tracked by git, so the debt allowance does not travel -- "
-        f"every fresh clone and CI itself runs with no ratchet at all")
+        f"every fresh clone and CI itself runs with no ratchet at all"
+    )

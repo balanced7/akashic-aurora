@@ -7,6 +7,7 @@ hid deepseek's death for hours. Explicit `--expect-reply-within 0` opts out; non
 Complements the receiver-side pin (test_doctor_dead_runner_visibility): together they close the
 silent-handoff class from both ends.
 """
+
 from types import SimpleNamespace
 
 import pytest
@@ -23,8 +24,15 @@ pytestmark = pytest.mark.skipif(_client() is None, reason="bus/Redis offline")
 
 
 def _args(**kw):
-    base = dict(agent_id="ztestpin-snd", to="ztestpin-rcp", kind="request", text=["ping"],
-                broadcast=False, expect_reply_within=-1, json=False)
+    base = dict(
+        agent_id="ztestpin-snd",
+        to="ztestpin-rcp",
+        kind="request",
+        text=["ping"],
+        broadcast=False,
+        expect_reply_within=-1,
+        json=False,
+    )
     base.update(kw)
     return SimpleNamespace(**base)
 
@@ -36,7 +44,7 @@ def _armed(agent):
 
 def _wipe():
     c = _client()
-    for k in (c.keys("bifrost:*ztestpin*") or []):
+    for k in c.keys("bifrost:*ztestpin*") or []:
         c.delete(k)
 
 

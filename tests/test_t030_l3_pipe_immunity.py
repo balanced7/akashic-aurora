@@ -21,6 +21,7 @@ Contract frozen here:
 
 Run: py -m pytest tests/test_t030_l3_pipe_immunity.py -q
 """
+
 import io
 import os
 import subprocess
@@ -34,36 +35,39 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from core.foundation import streams
+
     _BUILT = hasattr(streams, "pipe_immune") and hasattr(streams, "self_bless_stdout")
 except ImportError:
     streams = None
     _BUILT = False
 
-pytestmark = pytest.mark.skipif(
-    not _BUILT, reason="L3 pins pre-registered; impl pending (assertions frozen)")
+pytestmark = pytest.mark.skipif(not _BUILT, reason="L3 pins pre-registered; impl pending (assertions frozen)")
 
 
 class _DeadPipe(io.TextIOBase):
     """A stream that dies on the first write -- the closed-pipe shape."""
+
     def __init__(self):
         self.write_attempts = 0
+
     def write(self, s):
         self.write_attempts += 1
         raise OSError(22, "The pipe has been ended")
+
     def flush(self):
         raise OSError(232, "The pipe is being closed")
 
 
 # --- P1: the wrapper survives a dead stream, latches, never spins ---
 
+
 def test_wrapper_survives_dead_stream_and_latches():
     dead = _DeadPipe()
     w = streams.pipe_immune(dead)
     for i in range(50):
-        w.write(f"line {i}\n")        # must never raise
-        w.flush()                     # must never raise
-    assert dead.write_attempts == 1, \
-        "latched after the FIRST failure -- no per-line retry storm on a dead pipe"
+        w.write(f"line {i}\n")  # must never raise
+        w.flush()  # must never raise
+    assert dead.write_attempts == 1, "latched after the FIRST failure -- no per-line retry storm on a dead pipe"
 
 
 # --- P2: a child printing through the blessing SURVIVES a truncating reader ---
@@ -74,14 +78,15 @@ _CHILD_SPEW = (
     "[print(f'line {i}') for i in range(500)]; sys.exit(0)"
 )
 
+
 def test_truncating_reader_cannot_kill_the_child():
-    p = subprocess.Popen([sys.executable, "-c", _CHILD_SPEW % _ROOT],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    p = subprocess.Popen(
+        [sys.executable, "-c", _CHILD_SPEW % _ROOT], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+    )
     for _ in range(3):
-        p.stdout.readline()           # take three lines, then hang up mid-spew
+        p.stdout.readline()  # take three lines, then hang up mid-spew
     p.stdout.close()
-    assert p.wait(timeout=15) == 0, \
-        "the -First-N reader class must not kill the runner (exit 0, not EPIPE death)"
+    assert p.wait(timeout=15) == 0, "the -First-N reader class must not kill the runner (exit 0, not EPIPE death)"
 
 
 # --- P3: first line visible within 1s while the process still runs (line buffering) ---
@@ -92,16 +97,17 @@ _CHILD_SLOW = (
     "print('first line out'); time.sleep(8)"
 )
 
+
 def test_first_line_visible_within_one_second():
-    p = subprocess.Popen([sys.executable, "-c", _CHILD_SLOW % _ROOT],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    p = subprocess.Popen(
+        [sys.executable, "-c", _CHILD_SLOW % _ROOT], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+    )
     try:
         t0 = time.time()
         line = p.stdout.readline()
         elapsed = time.time() - t0
         assert "first line out" in line
-        assert elapsed < 1.0, \
-            f"line-buffered when piped: visible in {elapsed:.2f}s, not at buffer-fill/exit"
+        assert elapsed < 1.0, f"line-buffered when piped: visible in {elapsed:.2f}s, not at buffer-fill/exit"
         assert p.poll() is None, "the process was still RUNNING when the line arrived"
     finally:
         p.kill()
@@ -109,15 +115,15 @@ def test_first_line_visible_within_one_second():
 
 # --- P4: the runner is WIRED to the blessing (built != wired) ---
 
+
 def test_runner_wired_to_self_bless():
-    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"),
-               encoding="utf-8").read()
+    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
     assert "self_bless_stdout" in src, "the runner calls the blessing at startup"
 
 
 # --- P5: AGENTS.md carries the blessed-launch rule ---
 
+
 def test_agents_md_carries_the_launch_rule():
     src = open(os.path.join(_ROOT, "AGENTS.md"), encoding="utf-8").read().lower()
-    assert "truncating pipe" in src, \
-        "the contract doc teaches: never launch a live runner through a truncating pipe"
+    assert "truncating pipe" in src, "the contract doc teaches: never launch a live runner through a truncating pipe"

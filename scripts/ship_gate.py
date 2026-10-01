@@ -31,6 +31,7 @@ So this is a RATCHET, not an amnesty, and the ratchet is the whole design:
     disease in gate form, and suite_baseline.delta() already gets this right by putting
     everything in `new`.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,18 +41,20 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import suite_baseline as sb   # noqa: E402
+from core.coord import suite_baseline as sb  # noqa: E402
 
 
 def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
 
-DEFAULT_STALE_S = 48 * 3600          # announce: the list is getting old
+
+DEFAULT_STALE_S = 48 * 3600  # announce: the list is getting old
 
 # THE TTL IS WHAT MAKES THIS A DEFERRAL INSTEAD OF AN AMNESTY (deepseek's counter, 2026-07-27,
 # and its stated condition for not opposing this change). A passive "stale" line would BE the
@@ -61,7 +64,7 @@ DEFAULT_STALE_S = 48 * 3600          # announce: the list is getting old
 # Its line: "a failure that has been inherited for a week isn't inherited -- it's owned."
 # delta() is the COMPLIANCE half (did we add new failures?); the TTL is the OUTCOME half (are
 # we retiring the old ones?). Compliance without outcome is the WHO-checklist failure.
-DEFAULT_TTL_S = 168 * 3600           # one week
+DEFAULT_TTL_S = 168 * 3600  # one week
 
 
 def _baseline_nodes() -> List[str]:
@@ -79,10 +82,17 @@ def _age_s(rec: Optional[Dict[str, Any]], now: Optional[float]) -> Optional[floa
     return max(0.0, (now if now is not None else time.time()) - t)
 
 
-def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
-             stale_after_s: float = DEFAULT_STALE_S, ttl_s: float = DEFAULT_TTL_S,
-             tighten: bool = False, collected: Optional[List[str]] = None,
-             seat: str = "ship_gate", sha: str = "") -> Dict[str, Any]:
+def evaluate(
+    current_nodes: List[str],
+    *,
+    now: Optional[float] = None,
+    stale_after_s: float = DEFAULT_STALE_S,
+    ttl_s: float = DEFAULT_TTL_S,
+    tighten: bool = False,
+    collected: Optional[List[str]] = None,
+    seat: str = "ship_gate",
+    sha: str = "",
+) -> Dict[str, Any]:
     """Judge a suite run against the baseline. Returns the verdict; never raises.
 
     tighten=True performs the RATCHET: fixed failures are removed from the baseline as a side
@@ -114,19 +124,21 @@ def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
         try:
             sb.record(remaining, seat=seat, sha=sha)
         except Exception:
-            pass                      # a failed tighten must never block a ship
+            pass  # a failed tighten must never block a ship
 
     age = _age_s(rec, now)
     expired = bool(inherited) and age is not None and age > float(ttl_s)
     if expired:
-        blocked = True               # the deferral lapsed: inherited failures are owned now
+        blocked = True  # the deferral lapsed: inherited failures are owned now
 
     lines: List[str] = []
     if expired:
-        lines.append(f"BLOCKED: baseline EXPIRED ({int(age / 3600)}h old, TTL "
-                     f"{int(ttl_s / 3600)}h). {len(inherited)} failure(s) have been "
-                     f"'inherited' past the deferral window -- they are owned, not inherited. "
-                     f"Fix them, or re-record the baseline deliberately and say why.")
+        lines.append(
+            f"BLOCKED: baseline EXPIRED ({int(age / 3600)}h old, TTL "
+            f"{int(ttl_s / 3600)}h). {len(inherited)} failure(s) have been "
+            f"'inherited' past the deferral window -- they are owned, not inherited. "
+            f"Fix them, or re-record the baseline deliberately and say why."
+        )
     if blocked and new:
         lines.append(f"BLOCKED: {len(new)} NEW failure(s) not in the baseline")
         lines.extend(f"    NEW  {n}" for n in new[:12])
@@ -142,17 +154,19 @@ def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
         for n in inherited:
             tally[lanes.get(n) or "unowned"] = tally.get(lanes.get(n) or "unowned", 0) + 1
         who = ", ".join(f"{k}:{v}" for k, v in sorted(tally.items()))
-        lines.append(f"shipping over {len(inherited)} INHERITED failure(s) [{who}] "
-                     f"-- known red, not silence:")
+        lines.append(f"shipping over {len(inherited)} INHERITED failure(s) [{who}] -- known red, not silence:")
         lines.extend(f"    inherited  {n}  ({lanes.get(n) or 'unowned'})" for n in inherited[:12])
     if fixed:
-        lines.append(f"RATCHET: {len(fixed)} failure(s) FIXED"
-                     + (" and removed from the baseline" if tighten else
-                        " -- run with --tighten to retire them")
-                     + " -- they block if they return")
+        lines.append(
+            f"RATCHET: {len(fixed)} failure(s) FIXED"
+            + (" and removed from the baseline" if tighten else " -- run with --tighten to retire them")
+            + " -- they block if they return"
+        )
     if unchecked:
-        lines.append(f"UNCHECKABLE: {len(unchecked)} baseline node(s) did not appear in this "
-                     f"run and were NOT collected -- absence is not a pass, exemption kept:")
+        lines.append(
+            f"UNCHECKABLE: {len(unchecked)} baseline node(s) did not appear in this "
+            f"run and were NOT collected -- absence is not a pass, exemption kept:"
+        )
         lines.extend(f"    unchecked  {n}" for n in unchecked[:8])
     if rec is None:
         # The advice must be RUNNABLE. This line used to read `suite-baseline --record`,
@@ -160,19 +174,30 @@ def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
         # and --check is what opts out of it), and it omits the required agent_id positional.
         # A reader who pasted it got an argparse error from the tool that had just told them
         # what to do. Last survivor of the flag census; the other seven were instrument-side.
-        lines.append("NO BASELINE -- failing closed; every failure blocks. Record one: "
-                     # `;` not `&&`: a suite WITH failures exits nonzero, so && would skip
-                     # the record exactly when a baseline is most needed.
-                     f"{_pyl()} -m pytest -q > suite.txt; "
-                     f"{_pyl()} agent_cli.py suite-baseline <you> --from-file suite.txt")
+        lines.append(
+            "NO BASELINE -- failing closed; every failure blocks. Record one: "
+            # `;` not `&&`: a suite WITH failures exits nonzero, so && would skip
+            # the record exactly when a baseline is most needed.
+            f"{_pyl()} -m pytest -q > suite.txt; "
+            f"{_pyl()} agent_cli.py suite-baseline <you> --from-file suite.txt"
+        )
     elif age is not None and age > float(stale_after_s):
-        lines.append(f"baseline is STALE ({int(age / 3600)}h old, seat={rec.get('seat', '?')}) "
-                     f"-- an inherited list nobody refreshes is how a red becomes furniture")
+        lines.append(
+            f"baseline is STALE ({int(age / 3600)}h old, seat={rec.get('seat', '?')}) "
+            f"-- an inherited list nobody refreshes is how a red becomes furniture"
+        )
     if not lines:
         lines.append("suite clean against baseline")
 
-    return {"blocked": blocked, "new": new, "fixed": fixed, "inherited": inherited,
-            "unchecked": unchecked, "age_s": age, "report": "\n".join(lines)}
+    return {
+        "blocked": blocked,
+        "new": new,
+        "fixed": fixed,
+        "inherited": inherited,
+        "unchecked": unchecked,
+        "age_s": age,
+        "report": "\n".join(lines),
+    }
 
 
 def evaluate_pytest_output(text: str, **kw) -> Dict[str, Any]:
@@ -190,42 +215,48 @@ def main() -> int:
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--run", action="store_true", help="run pytest, then judge the result")
-    ap.add_argument("--tighten", action="store_true",
-                    help="DELIBERATELY retire failures proven fixed in this run (needs a full "
-                         "collect so absence is never mistaken for a pass). Off by default: the "
-                         "gate is read-only, baseline mutation is a choice.")
+    ap.add_argument(
+        "--tighten",
+        action="store_true",
+        help="DELIBERATELY retire failures proven fixed in this run (needs a full "
+        "collect so absence is never mistaken for a pass). Off by default: the "
+        "gate is read-only, baseline mutation is a choice.",
+    )
     a = ap.parse_args()
     if not a.run:
         ap.print_help()
         return 0
 
-    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "--no-header",
-                        "-p", "no:cacheprovider"],
-                       capture_output=True, text=True)
+    r = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider"], capture_output=True, text=True
+    )
     out = (r.stdout or "") + (r.stderr or "")
 
     # Only a DELIBERATE tighten pays for the collect pass; that list is what lets us tell a
     # genuine pass from a node that was never collected.
     collected = None
     if a.tighten:
-        cr = subprocess.run([sys.executable, "-m", "pytest", "-q", "--collect-only",
-                             "--no-header", "-p", "no:cacheprovider"],
-                            capture_output=True, text=True)
-        collected = [ln.strip() for ln in (cr.stdout or "").splitlines()
-                     if "::" in ln and not ln.startswith(" ")]
+        cr = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "--collect-only", "--no-header", "-p", "no:cacheprovider"],
+            capture_output=True,
+            text=True,
+        )
+        collected = [ln.strip() for ln in (cr.stdout or "").splitlines() if "::" in ln and not ln.startswith(" ")]
 
     sha = ""
-    try:   # provenance (kimi): an empty sha renders the boot line as 'baseline @' with nothing
-        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
-                             capture_output=True, text=True, timeout=15).stdout.strip()
+    try:  # provenance (kimi): an empty sha renders the boot line as 'baseline @' with nothing
+        sha = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=15
+        ).stdout.strip()
     except Exception:
         pass
-    v = evaluate_pytest_output(out, tighten=a.tighten, collected=collected,
-                               seat="ship_gate", sha=sha)
+    v = evaluate_pytest_output(out, tighten=a.tighten, collected=collected, seat="ship_gate", sha=sha)
     print(v["report"])
     if v["blocked"]:
-        print("\n[ship-gate] A NEW failure is not in the baseline. Fix it, or -- if it is a "
-              "deliberate known-red -- record a new baseline EXPLICITLY and say why.")
+        print(
+            "\n[ship-gate] A NEW failure is not in the baseline. Fix it, or -- if it is a "
+            "deliberate known-red -- record a new baseline EXPLICITLY and say why."
+        )
         return 1
     return 0
 

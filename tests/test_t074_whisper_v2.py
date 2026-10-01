@@ -25,6 +25,7 @@ BUILD REFINEMENTS (flagged per the T073 pre-registration precedent):
   R6  The line budget is env-tunable (AKASHIC_WHISPER_LINES, default 12) so the drop
       order is TESTABLE (the 9 sections structurally max out at 11 lines + spill).
 """
+
 import os
 import sys
 import tempfile
@@ -44,14 +45,30 @@ _REPO = repo_root()
 def _dec(title, body, hours_ago=2.0, curated=None):
     """A real Decision (the dataclass change is itself under pin) aged `hours_ago`."""
     created = (datetime.now() - timedelta(hours=hours_ago)).isoformat()
-    return Decision(id=f"ADR_test_{title}", title=title, status="accepted", context="",
-                    decision=body, rationale=[], alternatives=[],
-                    consequences={"positive": [], "negative": []},
-                    created_at=created, curated=curated)
+    return Decision(
+        id=f"ADR_test_{title}",
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+        curated=curated,
+    )
 
 
-def _wire(monkeypatch, notes=None, siblings=None, unread=0, draft=False, delta=0,
-          funnel="funnel: 91 lessons | value 4.3%", journey="The night the contract carried strangers (2026-07-14/15)"):
+def _wire(
+    monkeypatch,
+    notes=None,
+    siblings=None,
+    unread=0,
+    draft=False,
+    delta=0,
+    funnel="funnel: 91 lessons | value 4.3%",
+    journey="The night the contract carried strangers (2026-07-14/15)",
+):
     monkeypatch.setattr(ctx, "_fetch_notes", lambda: list(notes or []))
     monkeypatch.setattr(ctx, "_live_siblings", lambda agent_id, my_session="": list(siblings or []))
     monkeypatch.setattr(ctx, "_unread_count", lambda agent_id: unread)
@@ -63,13 +80,20 @@ def _wire(monkeypatch, notes=None, siblings=None, unread=0, draft=False, delta=0
 
 def _full(monkeypatch, **over):
     base = dict(
-        notes=[_dec("next-focus", "T074 Phase 1 whisper v2", hours_ago=3),
-               _dec("where-we-are", "SESSION HANDOFF: epic night closes; T074 next. " * 8,
-                    hours_ago=2, curated=True),
-               _dec("session-themes", "THE HARD-TO-PIN THEMES: gauge inversion; harness tier beats model tier.",
-                    hours_ago=10)],
+        notes=[
+            _dec("next-focus", "T074 Phase 1 whisper v2", hours_ago=3),
+            _dec("where-we-are", "SESSION HANDOFF: epic night closes; T074 next. " * 8, hours_ago=2, curated=True),
+            _dec(
+                "session-themes",
+                "THE HARD-TO-PIN THEMES: gauge inversion; harness tier beats model tier.",
+                hours_ago=10,
+            ),
+        ],
         siblings=[{"session_id": "b0b7771d-9c2a-4f00-8888-000000000000", "age_min": 45.0, "has_seat": True}],
-        unread=3, draft=True, delta=4)
+        unread=3,
+        draft=True,
+        delta=4,
+    )
     base.update(over)
     _wire(monkeypatch, **base)
     return ctx.build_autoboot_context(_REPO, "claude", session_id="09f7ad79-3749-4c5e-a860-9d9e05133eaa")
@@ -107,8 +131,7 @@ def test_w2_refinement_r1_legacy_note_renders_age_only(monkeypatch):
     out = _full(monkeypatch, notes=[_dec("where-we-are", "legacy pre-flag note", hours_ago=2, curated=None)])
     where = next(l for l in out.splitlines() if "WHERE:" in l)
     assert "h ago" in where
-    assert "curated" not in where and "auto" not in where, \
-        "R1: an absent flag must not be inferred either way"
+    assert "curated" not in where and "auto" not in where, "R1: an absent flag must not be inferred either way"
 
 
 # ---------------------------------------------------------------- W3 SIBLINGS
@@ -138,9 +161,13 @@ def test_w4_note_lines_stamped_live_lines_not(monkeypatch):
 
 # ---------------------------------------------------------------- W5 staleness
 def test_w5_stale_note_gains_stale_prefix(monkeypatch):
-    out = _full(monkeypatch,
-                notes=[_dec("next-focus", "old directive", hours_ago=12 * 24),
-                       _dec("where-we-are", "old state", hours_ago=12 * 24, curated=True)])
+    out = _full(
+        monkeypatch,
+        notes=[
+            _dec("next-focus", "old directive", hours_ago=12 * 24),
+            _dec("where-we-are", "old state", hours_ago=12 * 24, curated=True),
+        ],
+    )
     lines = out.splitlines()
     assert any("[STALE]" in l and "DIRECTIVE:" in l for l in lines), "W5: 12d-old directive must be [STALE]"
     assert any("[STALE]" in l and "WHERE:" in l for l in lines)
@@ -166,28 +193,31 @@ def test_w6_drop_order_protects_the_orienting_core(monkeypatch):
     for core in ("DIRECTIVE:", "WHERE:", "SIBLINGS:"):
         assert core in joined, f"drop order must protect {core}"
     # probe the SECTIONS, not raw substrings (the delta line legitimately says "last boot ->")
-    assert not any(l.strip().startswith("funnel:") for l in lines), \
-        "R6: FUNNEL drops before the orienting core"
-    assert not any(l.strip().startswith("boot:") for l in lines), \
-        "R6: BOOT drops first under budget pressure"
+    assert not any(l.strip().startswith("funnel:") for l in lines), "R6: FUNNEL drops before the orienting core"
+    assert not any(l.strip().startswith("boot:") for l in lines), "R6: BOOT drops first under budget pressure"
 
 
 # ---------------------------------------------------------------- R2 THEMES window
 def test_r2_themes_line_renders_fresh_and_absent_when_old(monkeypatch):
     out = _full(monkeypatch)
     assert any("THEMES:" in l for l in out.splitlines())
-    out2 = _full(monkeypatch,
-                 notes=[_dec("next-focus", "x", 3),
-                        _dec("where-we-are", "y", 2, curated=True),
-                        _dec("session-themes", "old themes", hours_ago=35 * 24)])
+    out2 = _full(
+        monkeypatch,
+        notes=[
+            _dec("next-focus", "x", 3),
+            _dec("where-we-are", "y", 2, curated=True),
+            _dec("session-themes", "old themes", hours_ago=35 * 24),
+        ],
+    )
     assert not any("THEMES:" in l for l in out2.splitlines()), "R2: themes >30d old stay off the whisper"
 
 
 # ---------------------------------------------------------------- R3 STORY spill
 def test_r3_story_spill_line_when_room(monkeypatch):
     out = _full(monkeypatch, unread=0, draft=False, delta=0)
-    assert any("STORY:" in l and "JOURNEY" in l for l in out.splitlines()), \
+    assert any("STORY:" in l and "JOURNEY" in l for l in out.splitlines()), (
         "R3: quiet whisper has room -> the story pointer rides the spill"
+    )
 
 
 def test_r3_story_yields_under_budget_pressure(monkeypatch):
@@ -225,6 +255,7 @@ def _touch_marker(tmp, agent, sid, age_s=0.0):
 
 def test_r4_fresh_marker_is_a_live_incarnation(tmp_path):
     from core.comm.incarnation import live_incarnations
+
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude", "aaaabbbb-1111-2222-3333-444455556666", age_s=60)
     out = live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False)
@@ -236,16 +267,19 @@ def test_r4_fresh_marker_is_a_live_incarnation(tmp_path):
 
 def test_r4_stale_marker_and_own_session_are_excluded(tmp_path):
     from core.comm.incarnation import live_incarnations
+
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude", "aaaabbbb-1111-2222-3333-444455556666", age_s=3 * 3600)
     _touch_marker(tmp, "claude", "09f7ad79-0000-0000-0000-000000000000", age_s=10)
-    out = live_incarnations("claude", my_session="09f7ad79-0000-0000-0000-000000000000",
-                            tmp=tmp, c=None, allow_fallback=False)
+    out = live_incarnations(
+        "claude", my_session="09f7ad79-0000-0000-0000-000000000000", tmp=tmp, c=None, allow_fallback=False
+    )
     assert out == [], "stale markers and the caller's own session never count as siblings"
 
 
 def test_r4_seat_file_reported(tmp_path):
     from core.comm.incarnation import live_incarnations
+
     tmp = str(tmp_path)
     sid = "ccccdddd-1111-2222-3333-444455556666"
     _touch_marker(tmp, "claude", sid, age_s=30)
@@ -257,7 +291,9 @@ def test_r4_seat_file_reported(tmp_path):
 
 def test_r4_foreign_agent_markers_never_leak(tmp_path):
     from core.comm.incarnation import live_incarnations
+
     tmp = str(tmp_path)
     _touch_marker(tmp, "claude-2", "eeeeffff-1111-2222-3333-444455556666", age_s=30)
-    assert live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False) == [], \
+    assert live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False) == [], (
         "prefix-exact: agent 'claude' never enumerates 'claude-2' incarnations (wake_seat precedent)"
+    )

@@ -9,6 +9,7 @@ n=3 the view shows elapsed-only; the % bar never claims 100 until the turn close
 
 Run: py -m pytest tests/test_turn_metrics.py -q
 """
+
 import os
 import sys
 import time
@@ -20,6 +21,7 @@ from core.comm import turn_metrics as tm
 
 class FakeStore:
     """Capped-list semantics standing in for the Redis stream."""
+
     def __init__(self):
         self.rows = {}
 
@@ -36,8 +38,7 @@ def test_record_and_history_are_capped(monkeypatch):
     monkeypatch.setattr(tm, "_push_row", st.push)
     monkeypatch.setattr(tm, "_read_rows", st.read)
     for i in range(tm.HISTORY_CAP + 20):
-        tm.record("deepseek", "handoff", duration_s=10 + (i % 5), progress_points=6,
-                  outcome="ok", prompt_len=900)
+        tm.record("deepseek", "handoff", duration_s=10 + (i % 5), progress_points=6, outcome="ok", prompt_len=900)
     rows = st.read(tm._key("deepseek", "handoff"))
     assert len(rows) == tm.HISTORY_CAP, "history stays capped"
     assert rows[-1]["prompt_len_band"] == "medium"
@@ -92,7 +93,9 @@ def test_prompt_len_bands():
 
 
 def test_pulse_count_take_resets():
-    tm.count_pulse("z"); tm.count_pulse("z"); tm.count_pulse("z")
+    tm.count_pulse("z")
+    tm.count_pulse("z")
+    tm.count_pulse("z")
     assert tm.take_pulse_count("z") == 3
     assert tm.take_pulse_count("z") == 0, "turn-scoped: reading resets"
 
@@ -103,17 +106,17 @@ def test_progress_view_composes_live_turn(monkeypatch):
     monkeypatch.setattr(tm, "_read_rows", st.read)
     tm._est_cache.clear()
     for d in (10, 10, 10, 10):
-        tm.record("deepseek", "handoff", duration_s=d, progress_points=8,
-                  outcome="ok", prompt_len=900)
+        tm.record("deepseek", "handoff", duration_s=d, progress_points=8, outcome="ok", prompt_len=900)
     now = time.time()
-    monkeypatch.setattr(tm, "_worklive_read", lambda a: {
-        "phase": "handling", "detail": "claude:handoff", "since_ts": now - 5})
-    tm.count_pulse("deepseek"); tm.count_pulse("deepseek")
+    monkeypatch.setattr(
+        tm, "_worklive_read", lambda a: {"phase": "handling", "detail": "claude:handoff", "since_ts": now - 5}
+    )
+    tm.count_pulse("deepseek")
+    tm.count_pulse("deepseek")
     view = tm.progress_view("deepseek", peek=True)
     assert view["ask_kind"] == "handoff" and 4.5 <= view["elapsed_s"] <= 6
     assert view["points_seen"] == 2
     assert view["eta"]["median_s"] == 10
-    assert view["pct_estimate"] == 25   # 2/8 * 100
-    idle_view = tm.progress_view("deepseek", peek=True,
-                                 _wl={"phase": "idle", "since_ts": now})
+    assert view["pct_estimate"] == 25  # 2/8 * 100
+    idle_view = tm.progress_view("deepseek", peek=True, _wl={"phase": "idle", "since_ts": now})
     assert idle_view is None, "no live turn -> no bars (idle agents get no card)"

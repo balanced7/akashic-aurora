@@ -29,6 +29,7 @@ TWO FOUNDING RULES (adversarial targets for first run):
   Rule 1 (stale receipt): updated_at > tested_against_ts => INFER, not VERIFIED
   Rule 2 (argparse-eaten): bare "--" token in macro steps consumed by argparse separator
 """
+
 from __future__ import annotations
 
 import json
@@ -48,15 +49,16 @@ VERDICTS = ("MATCH", "DRIFT", "UNKNOWN")
 @dataclass
 class Row:
     """One belief-pair photograph. Direction-neutral: belief_a/source_a vs belief_b/source_b."""
+
     domain: str
-    entry_ref: str               # e.g. "claude:ask-peer"
-    belief_a: Any                # value from source A
-    source_a: str                # name of source A
-    belief_b: Any                # value from source B
-    source_b: str                # name of source B
-    verdict: str                 # MATCH | DRIFT | UNKNOWN
-    detail: str = ""             # human explanation
-    rule: str = ""               # which rule fired (empty for MATCH)
+    entry_ref: str  # e.g. "claude:ask-peer"
+    belief_a: Any  # value from source A
+    source_a: str  # name of source A
+    belief_b: Any  # value from source B
+    source_b: str  # name of source B
+    verdict: str  # MATCH | DRIFT | UNKNOWN
+    detail: str = ""  # human explanation
+    rule: str = ""  # which rule fired (empty for MATCH)
 
     def render(self, ground: str = "registry") -> str:
         """Render one row. `ground` names which source is canonical — only affects wording,
@@ -74,17 +76,19 @@ class Row:
 # Domain protocol
 # ---------------------------------------------------------------------------
 
+
 class Domain(Protocol):
     """A domain is a callable that returns rows. No state, no cache."""
+
     name: str
 
-    def run(self) -> List[Row]:
-        ...
+    def run(self) -> List[Row]: ...
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_kata_ts(tested_against: Optional[str]) -> Optional[float]:
     """Parse a kata pin like 'kata-20260721-005225' -> Unix timestamp (float).
@@ -115,25 +119,28 @@ def _load_agent_cli_verbs() -> set:
     """Live verb roster from agent_cli's own parser — the door's truth."""
     try:
         import agent_cli
+
         p = agent_cli.build_parser()
         # _subparsers._group_actions[0].choices keys are the registered verbs
         for action in p._actions:
-            if hasattr(action, 'choices') and isinstance(action.choices, dict):
+            if hasattr(action, "choices") and isinstance(action.choices, dict):
                 return set(action.choices.keys())
     except Exception:
         pass
     # Fallback: scan the module for cmd_* functions (less precise, but works)
     try:
         import agent_cli
-        return {n[4:] for n in dir(agent_cli) if n.startswith('cmd_')}
+
+        return {n[4:] for n in dir(agent_cli) if n.startswith("cmd_")}
     except Exception:
         return set()
 
 
 def _registry_dir() -> str:
     """Path to data/verb-registry/ relative to repo root."""
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "data", "verb-registry")
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "verb-registry"
+    )
 
 
 def _load_registry(agent: str) -> Optional[Dict[str, Any]]:
@@ -153,11 +160,7 @@ def _all_agents() -> List[str]:
     d = _registry_dir()
     if not os.path.isdir(d):
         return []
-    return sorted(
-        os.path.splitext(f)[0]
-        for f in os.listdir(d)
-        if f.endswith(".json")
-    )
+    return sorted(os.path.splitext(f)[0] for f in os.listdir(d) if f.endswith(".json"))
 
 
 def _detect_argparse_eaten_tokens(steps: List[List[str]]) -> List[Tuple[int, int, str]]:
@@ -174,6 +177,7 @@ def _detect_argparse_eaten_tokens(steps: List[List[str]]) -> List[Tuple[int, int
 # ---------------------------------------------------------------------------
 # VERBS domain
 # ---------------------------------------------------------------------------
+
 
 class VerbsDomain:
     """V1 domain: cross-read the verb registry against the live parser.
@@ -206,14 +210,19 @@ class VerbsDomain:
         for agent in _all_agents():
             reg = _load_registry(agent)
             if not reg:
-                rows.append(Row(
-                    domain=self.name, entry_ref=f"{agent}:*",
-                    belief_a="registry file exists", source_a="filesystem",
-                    belief_b="unparseable or missing", source_b="json parser",
-                    verdict="UNKNOWN",
-                    detail=f"cannot load registry for {agent}",
-                    rule="load-failure",
-                ))
+                rows.append(
+                    Row(
+                        domain=self.name,
+                        entry_ref=f"{agent}:*",
+                        belief_a="registry file exists",
+                        source_a="filesystem",
+                        belief_b="unparseable or missing",
+                        source_b="json parser",
+                        verdict="UNKNOWN",
+                        detail=f"cannot load registry for {agent}",
+                        rule="load-failure",
+                    )
+                )
                 continue
 
             entries = reg.get("entries", {})
@@ -223,8 +232,7 @@ class VerbsDomain:
 
         return rows
 
-    def _check_entry(self, agent: str, name: str,
-                     entry: Dict[str, Any]) -> List[Row]:
+    def _check_entry(self, agent: str, name: str, entry: Dict[str, Any]) -> List[Row]:
         """Run all rules against one registry entry. Returns 0-N rows."""
         rows: List[Row] = []
         ref = f"{agent}:{name}"
@@ -240,31 +248,45 @@ class VerbsDomain:
             kata_ts = _parse_kata_ts(tested_against)
             updated_ts = _parse_iso_ts(updated_at)
             if kata_ts is not None and updated_ts is not None and updated_ts > kata_ts:
-                rows.append(Row(
-                    domain=self.name, entry_ref=ref,
-                    belief_a="VERIFIED", source_a="registry",
-                    belief_b="INFER (stale receipt)", source_b="kata timestamp",
-                    verdict="DRIFT",
-                    detail=(f"registry claims VERIFIED but kata receipt "
+                rows.append(
+                    Row(
+                        domain=self.name,
+                        entry_ref=ref,
+                        belief_a="VERIFIED",
+                        source_a="registry",
+                        belief_b="INFER (stale receipt)",
+                        source_b="kata timestamp",
+                        verdict="DRIFT",
+                        detail=(
+                            f"registry claims VERIFIED but kata receipt "
                             f"{tested_against} ({time.strftime('%H:%M:%S', time.localtime(kata_ts))}) "
-                            f"is older than updated_at {updated_at}"),
-                    rule="stale-receipt",
-                ))
+                            f"is older than updated_at {updated_at}"
+                        ),
+                        rule="stale-receipt",
+                    )
+                )
 
         # ---- Rule 2: argparse-eaten tokens ----
         eaten = _detect_argparse_eaten_tokens(steps)
         if eaten:
             locations = ", ".join(f"step[{si}][{ti}]" for si, ti, _ in eaten)
-            rows.append(Row(
-                domain=self.name, entry_ref=ref,
-                belief_a="steps valid (argparse accepts them)", source_a="argparse",
-                belief_b="steps contain bare '--' token(s)", source_b="step definition",
-                verdict="DRIFT",
-                detail=(f"argparse-eaten token(s): {locations} — "
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref=ref,
+                    belief_a="steps valid (argparse accepts them)",
+                    source_a="argparse",
+                    belief_b="steps contain bare '--' token(s)",
+                    source_b="step definition",
+                    verdict="DRIFT",
+                    detail=(
+                        f"argparse-eaten token(s): {locations} — "
                         f"the '--' positional separator is silently consumed; "
-                        f"delivered text is not what was written"),
-                rule="argparse-eaten",
-            ))
+                        f"delivered text is not what was written"
+                    ),
+                    rule="argparse-eaten",
+                )
+            )
 
         # ---- Rule 3: sugar-only (verb roster check) ----
         live_verbs = self.verbs
@@ -272,27 +294,41 @@ class VerbsDomain:
             if step and live_verbs:
                 verb = str(step[0])
                 if verb not in live_verbs:
-                    rows.append(Row(
-                        domain=self.name, entry_ref=ref,
-                        belief_a=f"verb '{verb}' in registry", source_a="registry",
-                        belief_b=f"verb '{verb}' NOT in live parser", source_b="agent_cli",
-                        verdict="DRIFT",
-                        detail=(f"step[{si}] verb '{verb}' is not a known agent_cli verb "
-                                f"({len(live_verbs)} verbs in parser)"),
-                        rule="sugar-only",
-                    ))
+                    rows.append(
+                        Row(
+                            domain=self.name,
+                            entry_ref=ref,
+                            belief_a=f"verb '{verb}' in registry",
+                            source_a="registry",
+                            belief_b=f"verb '{verb}' NOT in live parser",
+                            source_b="agent_cli",
+                            verdict="DRIFT",
+                            detail=(
+                                f"step[{si}] verb '{verb}' is not a known agent_cli verb "
+                                f"({len(live_verbs)} verbs in parser)"
+                            ),
+                            rule="sugar-only",
+                        )
+                    )
 
         # ---- Rule 4: GUESS honesty ----
         if evidence == "GUESS" and tested_against is not None:
-            rows.append(Row(
-                domain=self.name, entry_ref=ref,
-                belief_a="GUESS (untested)", source_a="registry",
-                belief_b=f"tested_against={tested_against}", source_b="registry",
-                verdict="DRIFT",
-                detail=(f"evidence=GUESS but tested_against is set to "
-                        f"'{tested_against}' — confesses untested but has a receipt"),
-                rule="guess-honesty",
-            ))
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref=ref,
+                    belief_a="GUESS (untested)",
+                    source_a="registry",
+                    belief_b=f"tested_against={tested_against}",
+                    source_b="registry",
+                    verdict="DRIFT",
+                    detail=(
+                        f"evidence=GUESS but tested_against is set to "
+                        f"'{tested_against}' — confesses untested but has a receipt"
+                    ),
+                    rule="guess-honesty",
+                )
+            )
 
         # ---- No rows emitted = all checks passed = MATCH ----
         if not rows:
@@ -301,13 +337,18 @@ class VerbsDomain:
                 detail_parts.append(f"receipt {tested_against}")
             if updated_at:
                 detail_parts.append(f"updated {updated_at[11:16]}")
-            rows.append(Row(
-                domain=self.name, entry_ref=ref,
-                belief_a=evidence, source_a="registry",
-                belief_b=evidence, source_b="parser",
-                verdict="MATCH",
-                detail=" ".join(detail_parts),
-            ))
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref=ref,
+                    belief_a=evidence,
+                    source_a="registry",
+                    belief_b=evidence,
+                    source_b="parser",
+                    verdict="MATCH",
+                    detail=" ".join(detail_parts),
+                )
+            )
 
         return rows
 
@@ -316,24 +357,26 @@ class VerbsDomain:
 # Audit runner
 # ---------------------------------------------------------------------------
 
+
 # Registered domains (append new domains here)
 def _default_domains() -> List[Domain]:
     """Lazy: audit_spend reads kimi_chat.py by REGEX (never imports — the module
     pulls an SDK client at import time). Import here so `import audit` stays light
     and the SPEND domain rides the same row schema."""
     from core.toolbelt.audit_spend import SpendDomain
+
     # T227: the CONCEPT -> MECHANISM bindings. Same belief-vs-state shape as the other two --
     # belief is the ratified table, ground truth is the tree -- which is why this arrived as a
     # domain rather than as a fourth checker nobody would remember to run.
     from core.toolbelt.lexicon_bindings import LexiconDomain
+
     return [VerbsDomain(), SpendDomain(), LexiconDomain()]
 
 
 DOMAINS: List[Domain] = _default_domains()
 
 
-def run(domains: Optional[List[Domain]] = None,
-        ground_truth_source: str = "registry") -> List[Row]:
+def run(domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry") -> List[Row]:
     """Run all domains (or a subset), collect rows. Read-only; no side effects."""
     doms = domains or DOMAINS
     rows: List[Row] = []
@@ -341,21 +384,25 @@ def run(domains: Optional[List[Domain]] = None,
         try:
             rows.extend(d.run())
         except Exception as exc:
-            rows.append(Row(
-                domain=getattr(d, 'name', '?'),
-                entry_ref="*",
-                belief_a=None, source_a="domain",
-                belief_b=str(exc), source_b="exception",
-                verdict="UNKNOWN",
-                detail=f"domain crashed: {type(exc).__name__}: {exc}",
-                rule="domain-crash",
-            ))
+            rows.append(
+                Row(
+                    domain=getattr(d, "name", "?"),
+                    entry_ref="*",
+                    belief_a=None,
+                    source_a="domain",
+                    belief_b=str(exc),
+                    source_b="exception",
+                    verdict="UNKNOWN",
+                    detail=f"domain crashed: {type(exc).__name__}: {exc}",
+                    rule="domain-crash",
+                )
+            )
     return rows
 
 
-def render(rows: Optional[List[Row]] = None,
-           domains: Optional[List[Domain]] = None,
-           ground_truth_source: str = "registry") -> str:
+def render(
+    rows: Optional[List[Row]] = None, domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry"
+) -> str:
     """Render rows as a text table. If rows not provided, runs audit first."""
     if rows is None:
         rows = run(domains=domains, ground_truth_source=ground_truth_source)
@@ -381,8 +428,7 @@ def render(rows: Optional[List[Row]] = None,
         d_m = sum(1 for r in domain_rows if r.verdict == "MATCH")
         d_d = sum(1 for r in domain_rows if r.verdict == "DRIFT")
         d_u = sum(1 for r in domain_rows if r.verdict == "UNKNOWN")
-        lines.append(f"[{domain_name}] {len(domain_rows)} row(s) "
-                     f"({d_m}M/{d_d}D/{d_u}U)")
+        lines.append(f"[{domain_name}] {len(domain_rows)} row(s) ({d_m}M/{d_d}D/{d_u}U)")
         for r in domain_rows:
             lines.append(r.render(ground=ground_truth_source))
         lines.append("")
@@ -390,9 +436,9 @@ def render(rows: Optional[List[Row]] = None,
     return "\n".join(lines)
 
 
-def json_result(rows: Optional[List[Row]] = None,
-                domains: Optional[List[Domain]] = None,
-                ground_truth_source: str = "registry") -> List[Dict[str, Any]]:
+def json_result(
+    rows: Optional[List[Row]] = None, domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry"
+) -> List[Dict[str, Any]]:
     """Render rows as a list of dicts (for --json output)."""
     if rows is None:
         rows = run(domains=domains, ground_truth_source=ground_truth_source)

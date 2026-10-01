@@ -22,6 +22,7 @@ Pins:
 
 Run: py -m pytest tests/test_t081_w4_trace_collapse.py -q
 """
+
 import os
 import sys
 from dataclasses import dataclass
@@ -54,14 +55,24 @@ class _M:
 def _make_toolbox(agent_id="deepseek", allow_write=False):
     """Lightweight ToolBox for render tests — no confirm, no exec, no trust."""
     from scripts.deepseek_chat import ToolBox
-    return ToolBox(ROOT, allow_exec=False, trust=False, allow_secrets=False,
-                   confirm=lambda _p: False, agent_id=agent_id,
-                   allow_write=allow_write, boot_text="test", boot_sources=[])
+
+    return ToolBox(
+        ROOT,
+        allow_exec=False,
+        trust=False,
+        allow_secrets=False,
+        confirm=lambda _p: False,
+        agent_id=agent_id,
+        allow_write=allow_write,
+        boot_text="test",
+        boot_sources=[],
+    )
 
 
 def _render(msgs: List[_M]) -> str:
     """Call the shared render_collapsed + join, same as bifrost_inbox does post-refactor."""
     from agent.bifrost_pull import render_collapsed
+
     lines = render_collapsed(msgs)
     return "\n".join(lines) if lines else "(inbox empty -- no unread messages)"
 
@@ -69,8 +80,7 @@ def _render(msgs: List[_M]) -> str:
 # ------------------------------------------------------------------ W4-P1: consecutive collapse
 def test_w4_p1_consecutive_same_kind_traces_collapse():
     """5 consecutive [trace] from deepseek → one shown, then '4 more trace(s)'."""
-    msgs = [_M(kind="trace", frm="deepseek", content=f"trace line {i}")
-            for i in range(5)]
+    msgs = [_M(kind="trace", frm="deepseek", content=f"trace line {i}") for i in range(5)]
     out = _render(msgs)
     assert "[trace] from deepseek: trace line 0" in out, "first trace must be shown"
     assert "4 more trace(s) from deepseek" in out, "must collapse remaining 4"
@@ -193,20 +203,24 @@ def test_w4_p8_offline_error_unchanged():
 def test_w4_integration_real_bus_traces_collapse():
     """End-to-end: send real trace messages, then peek through bifrost_inbox. Redis-backed;
     skip if Redis is down. Uses a throwaway namespace."""
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         import pytest as _p
+
         _p.skip("redis not available")
 
     import uuid
+
     ns = f"bifrost_w4_int_{uuid.uuid4().hex[:8]}"
     aid = f"deepseek-test-{uuid.uuid4().hex[:4]}"
     os.environ["BIFROST_NAMESPACE"] = ns
     try:
         from core.comm.bus import Bus
+
         # Register aid
         b_me = Bus(aid)
         b_me.register(ttl=60)
@@ -214,10 +228,8 @@ def test_w4_integration_real_bus_traces_collapse():
         # we need a different sender to land in aid's inbox
         b_other = Bus(f"other-{uuid.uuid4().hex[:4]}")
         for i in range(4):
-            b_other.send(aid, "trace", f"integration trace {i}",
-                         meta={"display_only": True})
-        b_other.send(aid, "chat", "real mail message",
-                     meta={"via": "test"})
+            b_other.send(aid, "trace", f"integration trace {i}", meta={"display_only": True})
+        b_other.send(aid, "chat", "real mail message", meta={"via": "test"})
         # Now peek through ToolBox as aid
         tb = _make_toolbox(agent_id=aid)
         out = tb.bifrost_inbox()
@@ -239,4 +251,5 @@ def test_w4_integration_real_bus_traces_collapse():
 if __name__ == "__main__":
     import pytest
     import sys
+
     sys.exit(pytest.main([__file__, "-q"]))

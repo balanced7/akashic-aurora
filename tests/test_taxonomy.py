@@ -10,8 +10,21 @@ def test_roster_is_capped_at_24():
 
 def test_roster_is_plane_clean():
     # A category never names a TYPE (LIBRARY canon) or an arc id.
-    types = {"contract", "map", "design", "brief", "report", "chronicle", "ledger",
-             "agent-contract", "skill", "pin", "receipt", "fossil", "ruling"}
+    types = {
+        "contract",
+        "map",
+        "design",
+        "brief",
+        "report",
+        "chronicle",
+        "ledger",
+        "agent-contract",
+        "skill",
+        "pin",
+        "receipt",
+        "fossil",
+        "ruling",
+    }
     assert not types & set(tx.CATEGORY_ROSTER)
     assert not any(c.startswith("t1") or c.startswith("t0") for c in tx.CATEGORY_ROSTER)
 

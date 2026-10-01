@@ -2,6 +2,7 @@
 Wire-probe battery — DeepSeek API, raw SSE capture.
 Run: py research/in-flight/wire-capture-deepseek-2026-08-02/probes.py
 """
+
 from __future__ import annotations
 import json, os, sys, time, pathlib, pprint, itertools
 
@@ -18,17 +19,18 @@ if not API_KEY:
 import httpx
 from openai import OpenAI
 
-SDK = OpenAI(api_key=API_KEY, base_url=BASE_URL,
-             timeout=httpx.Timeout(120, connect=15), max_retries=1)
+SDK = OpenAI(api_key=API_KEY, base_url=BASE_URL, timeout=httpx.Timeout(120, connect=15), max_retries=1)
 HTTPX = httpx.Client(timeout=httpx.Timeout(120, connect=15))
 
 OUT = pathlib.Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
 
+
 def save(name, text):
     p = OUT / name
     p.write_text(text, encoding="utf-8")
     print(f"  -> saved {p}")
+
 
 # ========================================================================
 # P1: logprobs under stream=True
@@ -131,7 +133,8 @@ print("P3: TTFT DECOMPOSITION — same prompt twice, then perturbed")
 print("=" * 72)
 
 PROMPT_CACHE = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Italy is"
-PERTURBED   = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Spain is"
+PERTURBED = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Spain is"
+
 
 def measure_ttft(prompt, label):
     t0 = time.monotonic()
@@ -153,7 +156,9 @@ def measure_ttft(prompt, label):
             if c.choices:
                 d = c.choices[0].delta
                 has_content = d.content and d.content.strip()
-                has_reasoning = getattr(d, "reasoning_content", None) or (getattr(d, "model_extra", None) or {}).get("reasoning_content")
+                has_reasoning = getattr(d, "reasoning_content", None) or (getattr(d, "model_extra", None) or {}).get(
+                    "reasoning_content"
+                )
                 if has_content or (has_reasoning and has_reasoning.strip()):
                     first_ts = time.monotonic()
         if c.choices and c.choices[0].delta.content:
@@ -166,8 +171,15 @@ def measure_ttft(prompt, label):
             usage = c.usage.model_dump() if hasattr(c.usage, "model_dump") else dict(c.usage)
     t1 = time.monotonic()
     ttft = round(first_ts - t0, 4) if first_ts else None
-    return {"label": label, "ttft_s": ttft, "total_s": round(t1 - t0, 4),
-            "usage": usage, "content": "".join(content), "reasoning": "".join(reasoning)[:80]}
+    return {
+        "label": label,
+        "ttft_s": ttft,
+        "total_s": round(t1 - t0, 4),
+        "usage": usage,
+        "content": "".join(content),
+        "reasoning": "".join(reasoning)[:80],
+    }
+
 
 p3a = measure_ttft(PROMPT_CACHE, "run-1 (cold or warm)")
 time.sleep(0.5)

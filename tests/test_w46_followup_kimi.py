@@ -79,6 +79,7 @@ def cmd_followup(args):
           f"--receipt \"answered {res['qid']}: ...\"")
     return 0
 """
+
 import json
 import os
 import re
@@ -108,22 +109,25 @@ def _write(root, name, text):
 
 
 def _qline(qid, ask):
-    return re.compile(r"- %s \(\d{4}-\d{2}-\d{2}, kimi -> deepseek\) OPEN: %s"
-                      % (qid, re.escape(ask)))
+    return re.compile(r"- %s \(\d{4}-\d{2}-\d{2}, kimi -> deepseek\) OPEN: %s" % (qid, re.escape(ask)))
 
 
 def test_p1_question_lands_inside_block_with_qid(stage):
-    f = _write(stage, "verdict.md",
-               "# Verdict\n\nbody citing Q1 consensus\n\n## Open Questions\n\n"
-               "- Q2 (2026-07-21, claude -> deepseek) OPEN: earlier one\n\n"
-               "## Next\n\ntail\n")
+    f = _write(
+        stage,
+        "verdict.md",
+        "# Verdict\n\nbody citing Q1 consensus\n\n## Open Questions\n\n"
+        "- Q2 (2026-07-21, claude -> deepseek) OPEN: earlier one\n\n"
+        "## Next\n\ntail\n",
+    )
     res = fq.file_followup("verdict.md", by="kimi", to="deepseek", ask="is n=1 enough?")
     assert res["qid"] == "Q3" and res["created_block"] is False
     text = f.read_text(encoding="utf-8")
     m = _qline("Q3", "is n=1 enough?").search(text)
     assert m, "q-id'd question line appended"
-    assert text.index("## Open Questions") < m.start() < text.index("## Next"), \
+    assert text.index("## Open Questions") < m.start() < text.index("## Next"), (
         "the line lands INSIDE the block, before the next heading"
+    )
     assert "## Next\n\ntail\n" in text, "surrounding content preserved"
 
 
@@ -135,8 +139,9 @@ def test_p2_defer_item_carries_the_pointer(stage):
     it = items[0]
     assert it["id"] == res["defer_id"] and it["by"] == "kimi"
     assert it["needs"] == "write", "answering means editing the verdict file"
-    assert "Q1" in it["cmd"] and "v.md" in it["cmd"] and "the ask text" in it["cmd"], \
+    assert "Q1" in it["cmd"] and "v.md" in it["cmd"] and "the ask text" in it["cmd"], (
         "cmd points at the question: file + q-id + ask"
+    )
     assert "deepseek" in it["why"], "why names the responsible seat"
     stored = json.load(open(dq.QUEUE_PATH, encoding="utf-8"))
     assert len(stored["items"]) == 1, "queue file valid + holds the item"
@@ -189,13 +194,14 @@ def test_p7_door_hygiene_refusals(stage, tmp_path):
     assert dq.pending() == [], "every refusal leaves the queue untouched"
 
 
-@pytest.mark.skip(reason="agent_cli.py is outside the builder allowlist -- the verb "
-                         "wiring rides the fence seat (paste blocks in the module "
-                         "docstring); unskip when cmd_followup lands")
+@pytest.mark.skip(
+    reason="agent_cli.py is outside the builder allowlist -- the verb "
+    "wiring rides the fence seat (paste blocks in the module "
+    "docstring); unskip when cmd_followup lands"
+)
 def test_p8_cli_wiring_and_refusal_rc(stage, capsys):
     p = agent_cli.build_parser()
-    a = p.parse_args(["followup", "kimi", "--on", "v.md",
-                      "--ask", "is it enough?", "--to", "deepseek"])
+    a = p.parse_args(["followup", "kimi", "--on", "v.md", "--ask", "is it enough?", "--to", "deepseek"])
     assert a.fn is agent_cli.cmd_followup
     f = _write(stage, "v.md", "# V\n\n## Open Questions\n")
     assert a.fn(a) == 0

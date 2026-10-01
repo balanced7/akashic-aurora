@@ -23,6 +23,7 @@ What must hold now:
 Offline: a copy of mirror.py in a temp repo with a local bare origin, so the push leg runs for real
 with no network and nowhere near the real remote.
 """
+
 import importlib.util
 import os
 import shutil
@@ -33,13 +34,26 @@ from pathlib import Path
 import pytest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_IDENTITY_VARS = ("AKASHIC_AGENT_ID", "AKASHIC_SEAT_DOOR", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
-                  "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL")
+_IDENTITY_VARS = (
+    "AKASHIC_AGENT_ID",
+    "AKASHIC_SEAT_DOOR",
+    "GIT_AUTHOR_NAME",
+    "GIT_AUTHOR_EMAIL",
+    "GIT_COMMITTER_NAME",
+    "GIT_COMMITTER_EMAIL",
+)
 
 
 def _git(cwd, *args, env=None):
-    r = subprocess.run(["git", *[str(a) for a in args]], cwd=str(cwd), env=env,
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = subprocess.run(
+        ["git", *[str(a) for a in args]],
+        cwd=str(cwd),
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     assert r.returncode == 0, f"git {args} failed:\n{r.stdout}\n{r.stderr}"
     return r.stdout.strip()
 
@@ -92,16 +106,23 @@ def _staged(work):
 def _commit_as(work, author, name, subject):
     """A local, unpushed commit authored by `author` (None = the repo's git config, i.e. Daniel)."""
     (work / name).write_text(subject + "\n")
-    extra = {} if author is None else {"GIT_AUTHOR_NAME": author,
-                                       "GIT_AUTHOR_EMAIL": f"{author}@akashic-aurora.local"}
+    extra = {} if author is None else {"GIT_AUTHOR_NAME": author, "GIT_AUTHOR_EMAIL": f"{author}@akashic-aurora.local"}
     _git(work, "add", name)
     _git(work, "commit", "-q", "-m", subject, env=_env(**extra))
 
 
 def _mirror(work, *args, seat="claude", door=None):
-    return subprocess.run([sys.executable, "scripts/mirror.py", *args], cwd=str(work),
-                          env=_env(seat, door), stdin=subprocess.DEVNULL, capture_output=True,
-                          text=True, encoding="utf-8", errors="replace", timeout=120)
+    return subprocess.run(
+        [sys.executable, "scripts/mirror.py", *args],
+        cwd=str(work),
+        env=_env(seat, door),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
 
 
 def test_d1_incident_argv_is_only_a_dry_run(pub_repo):
@@ -146,7 +167,6 @@ def test_c1_commit_flag_commits_locally_and_never_pushes(pub_repo):
     assert _published(work, bare) == published
 
 
-
 def _flat(text):
     """Collapse whitespace before matching prose.
 
@@ -163,8 +183,7 @@ def _flat(text):
     return " ".join((text or "").split())
 
 
-@pytest.mark.parametrize("seat,door", [("kimi", None), ("sol", None),
-                                       ("claude", "toolbox"), (None, "toolbox")])
+@pytest.mark.parametrize("seat,door", [("kimi", None), ("sol", None), ("claude", "toolbox"), (None, "toolbox")])
 def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     work, bare = pub_repo
     _commit_as(work, "claude", "waiting.txt", "waiting")
@@ -174,8 +193,7 @@ def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     # The PUBLISH leg is unchanged: --push is refused for every seat but claude and for
     # any process inside the toolbox door (exit 3), before git is touched. (The plain
     # positional-args dry-run leg for commit-authorized seats is covered by test_u1b.)
-    r = _mirror(work, "count-plus-lines", "stale.patch", "--push", "--yes", "--include-others",
-                seat=seat, door=door)
+    r = _mirror(work, "count-plus-lines", "stale.patch", "--push", "--yes", "--include-others", seat=seat, door=door)
     assert r.returncode == 3, r.stdout + r.stderr
     flat = _flat(r.stdout)
     assert "PUBLISH door" in flat and "does not count lines" in flat
@@ -195,21 +213,24 @@ def test_u1c_heimdall_may_publish_but_the_inherited_claude_id_still_may_not():
     ends: heimdall in, inherited-claude out.
     """
     import importlib.util as _ilu
+
     spec = _ilu.spec_from_file_location("mirror_amend", os.path.join(REPO, "scripts", "mirror.py"))
     mirror = _ilu.module_from_spec(spec)
     spec.loader.exec_module(mirror)
     tb = {"AKASHIC_SEAT_DOOR": "toolbox"}
 
-    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, \
+    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, (
         "heimdall/deepseek must be able to publish -- that is the amendment"
-    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, \
-        "...at its own terminal too"
+    )
+    assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "deepseek"}, push=True) is None, "...at its own terminal too"
 
-    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "claude"}, push=True) is not None, \
+    assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": "claude"}, push=True) is not None, (
         "an inherited claude id inside the toolbox door must STILL be refused (2026-07-21)"
+    )
     for seat in ("kimi", "sol", "unknown-seat", ""):
-        assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": seat}, push=True) is not None, \
+        assert mirror.runner_refusal({**tb, "AKASHIC_AGENT_ID": seat}, push=True) is not None, (
             f"{seat!r} was not authorised to publish and must stay refused"
+        )
 
 
 def test_u1b_commit_authorized_seat_commits_dry_run_without_flag(pub_repo):
@@ -222,15 +243,17 @@ def test_u1b_commit_authorized_seat_commits_dry_run_without_flag(pub_repo):
     (work / "stale.patch").write_text("diff --git a/x b/x\n")
     head, published = _head(work), _published(work, bare)
     r = _mirror(work, "count-plus-lines", "stale.patch", seat="deepseek", door=None)
-    assert r.returncode == 2, r.stdout + r.stderr   # usage/dry-run, not a commit
+    assert r.returncode == 2, r.stdout + r.stderr  # usage/dry-run, not a commit
     assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
 
 
 def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
     sys.path.insert(0, REPO)
     from core.comm.toolbox import ToolBox
-    box = ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                  confirm=lambda _p: False, agent_id="deepseek")
+
+    box = ToolBox(
+        Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda _p: False, agent_id="deepseek"
+    )
     argv, env_extra, why = box._exec_family("py scripts/mirror.py count-plus-lines research/x.patch")
     assert why is None and env_extra.get("AKASHIC_SEAT_DOOR") == "toolbox"
 
@@ -244,8 +267,9 @@ def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
     assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "deepseek"}, push=False) is None
     assert mirror.runner_refusal({"AKASHIC_AGENT_ID": "claude"}, push=False) is None
     assert mirror.runner_refusal({}, push=False) is None, "Daniel at his own terminal"
-    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "claude"}, push=False) is not None, \
+    assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "claude"}, push=False) is not None, (
         "a claude id inside the toolbox door is inherited from a launcher (2026-07-21) and refused"
+    )
     assert mirror.runner_refusal({**env_extra, "AKASHIC_AGENT_ID": "unknown-seat"}, push=False) is not None
 
     # PUSH leg (push=True), as amended 2026-09-24: an AUTHORISED runner seat may publish

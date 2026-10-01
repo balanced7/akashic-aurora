@@ -68,17 +68,17 @@ class RedisHAManager:
     """
     Manages triple-redundant Redis setup with Sentinel.
     """
-    
+
     def __init__(self):
         self.instances: Dict[str, RedisInstance] = {}
         self.current_master: Optional[RedisInstance] = None
         self.sentinel_clients: List[Tuple[str, int]] = [
             ("127.0.0.1", SENTINEL1_PORT),
             ("127.0.0.1", SENTINEL2_PORT),
-            ("127.0.0.1", SENTINEL3_PORT)
+            ("127.0.0.1", SENTINEL3_PORT),
         ]
         self._lock = threading.Lock()
-        
+
     def _run_wsl(self, cmd: List[str], timeout: int = 30) -> Tuple[str, int]:
         """Execute command in WSL2"""
         full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + cmd
@@ -89,21 +89,21 @@ class RedisHAManager:
             return "TIMEOUT", -1
         except Exception as e:
             return str(e), -1
-    
+
     def _redis_command(self, host: str, port: int, cmd: str) -> Tuple[str, int]:
         """Run redis-cli command"""
         return self._run_wsl(["redis-cli", "-h", host, "-p", str(port), cmd])
-    
+
     def _sentinel_command(self, host: str, port: int, cmd: str) -> Tuple[str, int]:
         """Run sentinel command"""
         return self._run_wsl(["redis-cli", "-p", str(port), cmd])
-    
+
     def get_current_master_via_sentinel(self) -> Optional[Tuple[str, int]]:
         """Get current master address from Sentinel"""
         for host, port in self.sentinel_clients:
             output, code = self._sentinel_command(host, port, f"SENTINEL get-master-addr-by-name akasha")
             if code == 0 and output:
-                parts = output.split('\n')
+                parts = output.split("\n")
                 if len(parts) >= 2:
                     try:
                         ip = parts[0].strip()
@@ -113,7 +113,7 @@ class RedisHAManager:
                     except:
                         pass
         return None
-    
+
     def check_instance_health(self, host: str, port: int, role: RedisRole) -> bool:
         """Check if a Redis instance is healthy"""
         try:
@@ -121,40 +121,40 @@ class RedisHAManager:
                 output, code = self._sentinel_command(host, port, "PING")
             else:
                 output, code = self._redis_command(host, port, "PING")
-            
+
             if output == "PONG":
                 return True
         except:
             pass
         return False
-    
+
     def get_replication_status(self, host: str, port: int) -> Dict[str, Any]:
         """Get replication info from a Redis instance"""
         output, code = self._redis_command(host, port, "INFO replication")
         if code != 0:
             return {"status": "error", "output": output}
-        
+
         result = {"status": "ok"}
-        for line in output.split('\n'):
-            if ':' in line:
-                key, value = line.strip().split(':', 1)
+        for line in output.split("\n"):
+            if ":" in line:
+                key, value = line.strip().split(":", 1)
                 result[key] = value
         return result
-    
+
     def get_sentinel_master_info(self, host: str, port: int) -> Dict[str, Any]:
         """Get master info from Sentinel"""
         output, code = self._sentinel_command(host, port, "SENTINEL master akasha")
         if code != 0:
             return {"status": "error"}
-        
+
         result = {"status": "ok"}
-        for line in output.split('\n'):
-            if ':' in line:
-                parts = line.strip().split(':', 1)
+        for line in output.split("\n"):
+            if ":" in line:
+                parts = line.strip().split(":", 1)
                 if len(parts) == 2:
                     result[parts[0]] = parts[1]
         return result
-    
+
     def get_all_sentinel_info(self) -> List[Dict[str, Any]]:
         """Get info from all Sentinels"""
         results = []
@@ -164,7 +164,7 @@ class RedisHAManager:
             info["sentinel_port"] = port
             results.append(info)
         return results
-    
+
     def get_system_health(self) -> Dict[str, Any]:
         """Get comprehensive health of the Redis HA system"""
         health = {
@@ -173,90 +173,95 @@ class RedisHAManager:
             "redis_instances": [],
             "current_master": None,
             "quorum_reachable": 0,
-            "system_healthy": False
+            "system_healthy": False,
         }
-        
+
         # Get master from Sentinel
         master = self.get_current_master_via_sentinel()
         if master:
             health["current_master"] = {"host": master[0], "port": master[1]}
-        
+
         # Check each Sentinel
         for host, port in self.sentinel_clients:
             is_healthy = self.check_instance_health(host, port, RedisRole.SENTINEL)
             sentinel_info = self.get_sentinel_master_info(host, port)
-            
+
             if is_healthy:
                 health["quorum_reachable"] += 1
-            
-            health["sentinels"].append({
-                "host": host,
-                "port": port,
-                "healthy": is_healthy,
-                "master_ip": sentinel_info.get("ip"),
-                "master_port": sentinel_info.get("port"),
-                "flags": sentinel_info.get("flags")
-            })
-        
+
+            health["sentinels"].append(
+                {
+                    "host": host,
+                    "port": port,
+                    "healthy": is_healthy,
+                    "master_ip": sentinel_info.get("ip"),
+                    "master_port": sentinel_info.get("port"),
+                    "flags": sentinel_info.get("flags"),
+                }
+            )
+
         # Check Redis instances
         redis_instances = [
             ("master", "127.0.0.1", REDIS_MASTER_PORT, RedisRole.MASTER),
             ("replica1", "127.0.0.1", REDIS_REPLICA1_PORT, RedisRole.REPLICA),
             ("replica2", "127.0.0.1", REDIS_REPLICA2_PORT, RedisRole.REPLICA),
         ]
-        
+
         for name, host, port, role in redis_instances:
             is_healthy = self.check_instance_health(host, port, role)
             rep_status = self.get_replication_status(host, port) if role != RedisRole.MASTER else {}
-            
-            health["redis_instances"].append({
-                "name": name,
-                "host": host,
-                "port": port,
-                "role": role.value,
-                "healthy": is_healthy,
-                "replication": rep_status
-            })
-        
+
+            health["redis_instances"].append(
+                {
+                    "name": name,
+                    "host": host,
+                    "port": port,
+                    "role": role.value,
+                    "healthy": is_healthy,
+                    "replication": rep_status,
+                }
+            )
+
         # System healthy if quorum reached and master known
         health["system_healthy"] = (
-            health["quorum_reachable"] >= SENTINEL_QUORUM and
-            health["current_master"] is not None
+            health["quorum_reachable"] >= SENTINEL_QUORUM and health["current_master"] is not None
         )
-        
+
         return health
-    
+
     def print_health_report(self):
         """Print human-readable health report"""
         health = self.get_system_health()
-        
+
         print("\n" + "=" * 70)
         print("  REDIS HIGH AVAILABILITY - TRIPLE REDUNDANCY")
         print("=" * 70)
         print(f"\nTimestamp: {health['timestamp']}")
         print(f"System Healthy: {'YES ✓' if health['system_healthy'] else 'NO ✗'}")
         print(f"Quorum Reachable: {health['quorum_reachable']}/{len(self.sentinel_clients)}")
-        
+
         print("\n--- Current Master ---")
-        if health['current_master']:
-            m = health['current_master']
+        if health["current_master"]:
+            m = health["current_master"]
             print(f"  {m['host']}:{m['port']}")
         else:
             print("  UNKNOWN (failover in progress?)")
-        
+
         print("\n--- Sentinels ---")
-        for s in health['sentinels']:
-            status = "[OK]" if s['healthy'] else "[FAIL]"
-            print(f"  {status} {s['host']}:{s['port']} -> master={s.get('master_ip')}:{s.get('master_port')} flags={s.get('flags')}")
-        
+        for s in health["sentinels"]:
+            status = "[OK]" if s["healthy"] else "[FAIL]"
+            print(
+                f"  {status} {s['host']}:{s['port']} -> master={s.get('master_ip')}:{s.get('master_port')} flags={s.get('flags')}"
+            )
+
         print("\n--- Redis Instances ---")
-        for r in health['redis_instances']:
-            status = "[OK]" if r['healthy'] else "[FAIL]"
-            role = r['role'].upper()
+        for r in health["redis_instances"]:
+            status = "[OK]" if r["healthy"] else "[FAIL]"
+            role = r["role"].upper()
             print(f"  {status} {r['name']} ({role}) {r['host']}:{r['port']}")
-        
+
         print("\n" + "=" * 70 + "\n")
-        
+
         return health
 
 
@@ -377,7 +382,7 @@ sentinel parallel-syncs akasha 1
 sentinel deny-scripts-reconfig yes
 dir /tmp
 """
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         f.write(config)
     print(f"Created Sentinel config: {output_path}")
 
@@ -385,9 +390,8 @@ dir /tmp
 def get_sentinel_client(host: str = "127.0.0.1", port: int = 26379):
     """Get a Sentinel client connection for service discovery"""
     from core.foundation.redis_connection import connect_to_redis_with_fail_fast
-    return connect_to_redis_with_fail_fast(
-        host=host, port=port, timeout_seconds=5, decode_responses=False
-    )
+
+    return connect_to_redis_with_fail_fast(host=host, port=port, timeout_seconds=5, decode_responses=False)
 
 
 def get_current_master_from_sentinel(host: str = "127.0.0.1", port: int = 26379) -> Optional[Tuple[str, int]]:
@@ -406,14 +410,14 @@ def wait_for_failover(timeout: int = 60) -> bool:
     """Wait for failover to complete"""
     start = time.time()
     old_master = get_current_master_from_sentinel()
-    
+
     while time.time() - start < timeout:
         new_master = get_current_master_from_sentinel()
         if new_master and new_master != old_master:
             print(f"Failover complete: {old_master} -> {new_master}")
             return True
         time.sleep(1)
-    
+
     print("Failover timeout")
     return False
 
@@ -421,17 +425,17 @@ def wait_for_failover(timeout: int = 60) -> bool:
 # CLI
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Redis HA Manager")
     parser.add_argument("--health", "-H", action="store_true", help="Show system health")
     parser.add_argument("--master", "-m", action="store_true", help="Get current master")
     parser.add_argument("--setup", "-s", action="store_true", help="Generate HA docker-compose")
     parser.add_argument("--sentinel-config", "-c", type=int, metavar="PORT", help="Create sentinel config for port")
-    
+
     args = parser.parse_args()
-    
+
     manager = RedisHAManager()
-    
+
     if args.health:
         manager.print_health_report()
     elif args.master:
@@ -443,11 +447,12 @@ if __name__ == "__main__":
     elif args.setup:
         compose = create_ha_docker_compose()
         output_file = os.path.join(BASE_DIR, "docker-compose-ha.yml")
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(compose)
         print(f"Generated: {output_file}")
     elif args.sentinel_config:
-        create_sentinel_config(args.sentinel_config, 
-                            os.path.join(BASE_DIR, f"sentinel{args.sentinel_config - 26379 + 1}.conf"))
+        create_sentinel_config(
+            args.sentinel_config, os.path.join(BASE_DIR, f"sentinel{args.sentinel_config - 26379 + 1}.conf")
+        )
     else:
         manager.print_health_report()

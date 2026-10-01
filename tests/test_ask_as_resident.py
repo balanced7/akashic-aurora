@@ -33,6 +33,7 @@ it being better, and it is precisely the harness the kill-drill needs.
 
 Run: py -m pytest tests/test_ask_as_resident.py -q
 """
+
 import os
 import sys
 import subprocess
@@ -48,29 +49,31 @@ import pytest  # noqa: E402
 def run(*args, timeout=120):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
 def _seed_lesson(agent, experiment, tried):
-    rc, out, err = run("learn", agent, "--experiment", experiment,
-                       "--tried", tried, "--result", "t261 seed")
+    rc, out, err = run("learn", agent, "--experiment", experiment, "--tried", tried, "--result", "t261 seed")
     assert rc == 0, f"seed {experiment} failed: {err or out}"
     return experiment
 
 
 # --------------------------------------------------------------- a hermetic fake client
 
+
 class _FakeCompletions:
     """Captures every request; answers canned. The pin reads what WOULD go on the wire."""
+
     def __init__(self, log):
         self._log = log
 
     def create(self, **kw):
         self._log.append(kw)
 
-        class _Msg:                    # the minimal shape ask() reads back
+        class _Msg:  # the minimal shape ask() reads back
             content = "canned answer"
             reasoning_content = None
 
@@ -103,11 +106,10 @@ class _FakeClient:
 def resident_kimi():
     """A RATIFIED resident with topical lessons of its own, plus a decoy by another agent."""
     from core.fleet import residents as R
+
     receipt = _seed_lesson("kimi", "t261_receipt_kimi", "the receipt that earned the name")
-    _seed_lesson("kimi", "t261_kimi_cursor_lesson",
-                 "cursor divergence: drain the lane you armed before re-arming")
-    _seed_lesson("claude", "t261_claude_cursor_decoy",
-                 "cursor divergence: a decoy lesson by a DIFFERENT author")
+    _seed_lesson("kimi", "t261_kimi_cursor_lesson", "cursor divergence: drain the lane you armed before re-arming")
+    _seed_lesson("claude", "t261_claude_cursor_decoy", "cursor divergence: a decoy lesson by a DIFFERENT author")
     R.nominate(nominee="kimi", callsign="Navi", receipts=[receipt], by="daniil_pin")
     R.ratify(nominee="kimi", callsign="Navi", by="daniil_pin")
     return "kimi"
@@ -115,68 +117,76 @@ def resident_kimi():
 
 # --------------------------------------------------------------- P1: the tier is guarded
 
+
 def test_p1_a_non_resident_cannot_claim_the_tier_and_no_call_is_made(resident_kimi):
     from core.comm.ask import ask
+
     fake = _FakeClient()
     out = ask("any question", as_resident="unregistered_seat", client=fake)
     assert not out.ok, "an unregistered --as must refuse"
     why = str(out.why or "").lower()
     assert "resident" in why, "the refusal must say WHY: not a resident"
-    assert fake.requests == [], \
-        "the refusal must happen BEFORE any model call -- a helper must not be billed for it"
+    assert fake.requests == [], "the refusal must happen BEFORE any model call -- a helper must not be billed for it"
 
 
 # --------------------------------------------------------------- P2: identity rides the wire
 
+
 def test_p2_the_system_context_carries_callsign_and_own_lessons(resident_kimi):
     from core.comm.ask import ask
+
     fake = _FakeClient()
-    out = ask("how do I handle cursor divergence on re-arm?",
-              as_resident="kimi", client=fake)
+    out = ask("how do I handle cursor divergence on re-arm?", as_resident="kimi", client=fake)
     assert out.ok, f"resident ask must succeed: {out.why}"
     assert len(fake.requests) == 1
     msgs = fake.requests[0]["messages"]
     system = " ".join(m.get("content", "") for m in msgs if m.get("role") == "system")
     assert "Navi" in system, "the callsign must ride the system context -- the branch is SPAWNED named"
-    assert "t261_kimi_cursor_lesson" in system, \
-        "the catch-up pack must carry the resident's own topical lesson"
+    assert "t261_kimi_cursor_lesson" in system, "the catch-up pack must carry the resident's own topical lesson"
 
 
 def test_p5_the_pack_contains_only_the_residents_lessons(resident_kimi):
     from core.comm.ask import ask
+
     fake = _FakeClient()
     ask("how do I handle cursor divergence on re-arm?", as_resident="kimi", client=fake)
-    system = " ".join(m.get("content", "") for m in fake.requests[0]["messages"]
-                      if m.get("role") == "system")
-    assert "t261_claude_cursor_decoy" not in system, \
-        "another agent's lesson in the pack would make the resident a fleet-corpus reader -- " \
+    system = " ".join(m.get("content", "") for m in fake.requests[0]["messages"] if m.get("role") == "system")
+    assert "t261_claude_cursor_decoy" not in system, (
+        "another agent's lesson in the pack would make the resident a fleet-corpus reader -- "
         "precisely not the point (T260's scope exists for this)"
+    )
 
 
 # --------------------------------------------------------------- P3/P4: the tier stamp
 
+
 def test_p3_a_resident_outcome_carries_tier_and_designation(resident_kimi):
     from core.comm.ask import ask
+
     out = ask("q", as_resident="kimi", client=_FakeClient())
     assert out.detail.get("tier") == "resident"
-    assert "Navi" in str(out.detail.get("designation") or ""), \
+    assert "Navi" in str(out.detail.get("designation") or ""), (
         "the finding must carry WHO answered -- convergence claims must be able to state their spread"
+    )
 
 
 def test_p4_a_blind_ask_is_stamped_blind_and_carries_no_identity(resident_kimi):
     from core.comm.ask import ask
+
     fake = _FakeClient()
     out = ask("q", client=fake)
     assert out.ok
-    assert out.detail.get("tier") == "blind", \
+    assert out.detail.get("tier") == "blind", (
         "tier 0 must be LABELLED too -- unlabelled control arms stop being control arms"
-    system = " ".join(m.get("content", "") for m in fake.requests[0]["messages"]
-                      if m.get("role") == "system")
-    assert "Navi" not in system and "t261_kimi_cursor_lesson" not in system, \
+    )
+    system = " ".join(m.get("content", "") for m in fake.requests[0]["messages"] if m.get("role") == "system")
+    assert "Navi" not in system and "t261_kimi_cursor_lesson" not in system, (
         "a blind branch must stay blind -- injection into tier 0 destroys the only uncorrelated arm"
+    )
 
 
 # --------------------------------------------------------------- P6: the door refuses early
+
 
 def test_p6_cli_as_unknown_resident_refuses_before_any_network(resident_kimi):
     """The CLI refusal path must trigger on the registry read, never reaching the API --

@@ -20,6 +20,7 @@ Usage:
   py scripts/install_dsh_plugin.py [--profile web] [--agent-id dsh_agent]
                                    [--dsh-home PATH] [--dry-run]
 """
+
 import argparse
 import hashlib
 import io
@@ -72,10 +73,12 @@ def _stamp_env(env_path: str, stamps: dict, dry: bool) -> list:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", default="web")
-    ap.add_argument("--agent-id", default="dsh_agent",
-                    help="the id this instance's DSH seat STAMPS (grant this exact id in the ACL)")
-    ap.add_argument("--dsh-home", default=os.environ.get("DSH_HOME")
-                    or os.path.join(os.path.expanduser("~"), ".dsh"))
+    ap.add_argument(
+        "--agent-id",
+        default="dsh_agent",
+        help="the id this instance's DSH seat STAMPS (grant this exact id in the ACL)",
+    )
+    ap.add_argument("--dsh-home", default=os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh"))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 

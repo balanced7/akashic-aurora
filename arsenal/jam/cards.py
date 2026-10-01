@@ -13,6 +13,7 @@ resolve.ResolveError (400, naming the field) or resolve.BridgeUnavailable (503),
 Card ids: seeds and Claude's cards are slugs; page saves are t-YYYYMMDD-HHMMSS-xxxx; kept copies k-<source id>-xxxx
 (truncated to 48). Every error is a DeckError carrying its HTTP status and extra body fields (409 carries the rev).
 """
+
 from __future__ import annotations
 
 import copy
@@ -37,14 +38,18 @@ TEMPLATE_MAX_NOTES = 16
 PC_FLAT = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
 
 # Plain default lines for cards Daniel keeps (DATA 2.10 gives none; tests/fixtures/jam/card_kept_template.json).
-CAPTURE_TEXT = {"meaning": "The chord you were holding when you pressed Keep.",
-                "explanation": "These are the notes you held, kept as you played them.",
-                "why": "It is your own voicing, so you can hear it again and build on it.",
-                "try": "Play it, then change one note at a time and listen to what moves."}
-MOMENT_TEXT = {"meaning": "A chord from your practice log, kept as it sounded.",
-               "explanation": "These are the notes that sounded through that moment of your playing.",
-               "why": "It is your own voicing, so you can hear it again and build on it.",
-               "try": "Play it, then change one note at a time and listen to what moves."}
+CAPTURE_TEXT = {
+    "meaning": "The chord you were holding when you pressed Keep.",
+    "explanation": "These are the notes you held, kept as you played them.",
+    "why": "It is your own voicing, so you can hear it again and build on it.",
+    "try": "Play it, then change one note at a time and listen to what moves.",
+}
+MOMENT_TEXT = {
+    "meaning": "A chord from your practice log, kept as it sounded.",
+    "explanation": "These are the notes that sounded through that moment of your playing.",
+    "why": "It is your own voicing, so you can hear it again and build on it.",
+    "try": "Play it, then change one note at a time and listen to what moves.",
+}
 
 
 class DeckError(Exception):
@@ -206,18 +211,33 @@ class DeckStore:
 
     @staticmethod
     def summary(card: dict, runs: int = 0) -> dict:
-        return {"id": card["id"], "rev": card["rev"], "title": card["title"], "meaning": card.get("meaning"),
-                "group": card.get("group"), "kind": card.get("kind"), "key": card.get("key"),
-                "numbers": numbers_text(card.get("chords")), "variants": [v["id"] for v in card.get("variants") or []],
-                "tags": card.get("tags") or [], "created_by": card.get("created_by"),
-                "updated_at": card.get("updated_at"), "favorite": bool(card.get("favorite")),
-                "archived": bool(card.get("archived")), "runs": runs}
+        return {
+            "id": card["id"],
+            "rev": card["rev"],
+            "title": card["title"],
+            "meaning": card.get("meaning"),
+            "group": card.get("group"),
+            "kind": card.get("kind"),
+            "key": card.get("key"),
+            "numbers": numbers_text(card.get("chords")),
+            "variants": [v["id"] for v in card.get("variants") or []],
+            "tags": card.get("tags") or [],
+            "created_by": card.get("created_by"),
+            "updated_at": card.get("updated_at"),
+            "favorite": bool(card.get("favorite")),
+            "archived": bool(card.get("archived")),
+            "runs": runs,
+        }
 
     def doc(self, runs_by_card: Optional[Dict[str, int]] = None, **filters) -> dict:
         deck = self.deck()
         runs_by_card = runs_by_card or {}
-        return {"api": DECK_API, "rev": deck["rev"], "order": deck["order"],
-                "cards": [self.summary(c, runs_by_card.get(c["id"], 0)) for c in self.list(**filters)]}
+        return {
+            "api": DECK_API,
+            "rev": deck["rev"],
+            "order": deck["order"],
+            "cards": [self.summary(c, runs_by_card.get(c["id"], 0)) for c in self.list(**filters)],
+        }
 
     def trash(self) -> List[dict]:
         out = []
@@ -230,8 +250,15 @@ class DeckStore:
                     title = json.loads(path.read_text(encoding="utf-8")).get("title")
                 except (OSError, ValueError):
                     title = None
-                out.append({"id": m.group(1), "rev": int(m.group(2)), "trashed_at": m.group(3),
-                            "file": f"trash/{path.name}", "title": title})
+                out.append(
+                    {
+                        "id": m.group(1),
+                        "rev": int(m.group(2)),
+                        "trashed_at": m.group(3),
+                        "file": f"trash/{path.name}",
+                        "title": title,
+                    }
+                )
         out.sort(key=lambda t: (t["trashed_at"], t["id"]), reverse=True)
         return out
 
@@ -246,8 +273,10 @@ class DeckStore:
         for pr in card.get("page_reads") or []:
             if pr["match"] not in ("exact", "enharmonic", "notes"):
                 line = f"variant {pr['variant']} " if pr.get("variant") else ""
-                warnings.append(f"{line}slot {pr['slot'] + 1}: the page reads these notes as "
-                                f"{pr.get('name') or 'a cluster'} ({pr['match']})")
+                warnings.append(
+                    f"{line}slot {pr['slot'] + 1}: the page reads these notes as "
+                    f"{pr.get('name') or 'a cluster'} ({pr['match']})"
+                )
         return warnings
 
     def create(self, card: dict, by: str = "claude", source: Optional[dict] = None) -> dict:
@@ -269,8 +298,13 @@ class DeckStore:
                     cid = f"{base}-{n}"
                 c["id"] = cid
             now = now_iso()
-            c.update(rev=1, created_at=now, updated_at=now, updated_by=by,
-                     source=source or ({"kind": "claude"} if by == "claude" else {"kind": "edit"}))
+            c.update(
+                rev=1,
+                created_at=now,
+                updated_at=now,
+                updated_by=by,
+                source=source or ({"kind": "claude"} if by == "claude" else {"kind": "edit"}),
+            )
             if self.exists(c.get("id")):
                 raise DeckError(f"card {c['id']} exists", 409, rev=self.get(c["id"])["rev"])
             warnings = self._finish(c)
@@ -320,8 +354,9 @@ class DeckStore:
             if not entries:
                 raise DeckError(f"no card {card_id} in the trash", 404)
             if self.exists(card_id):
-                raise DeckError(f"card {card_id} exists; delete it before restoring an older one", 409,
-                                rev=self.get(card_id)["rev"])
+                raise DeckError(
+                    f"card {card_id} exists; delete it before restoring an older one", 409, rev=self.get(card_id)["rev"]
+                )
             path = self.root / "deck" / entries[0]["file"]
             c = json.loads(path.read_text(encoding="utf-8"))
             c.update(rev=c["rev"] + 1, updated_at=now_iso(), updated_by=by)
@@ -335,6 +370,7 @@ class DeckStore:
         """A copy in Daniel's Kept group, with source {kind: kept, from: {id, rev}}; key moves it (numbers move with
         the key, exact notes shift by the nearest interval)."""
         from arsenal.jam.resolve import key_of, shift_notes, shift_of, ResolveError
+
         src = self.get(card_id)
         c = copy.deepcopy(src)
         for k in ("pair", "favorite", "archived"):
@@ -354,7 +390,7 @@ class DeckStore:
                     if isinstance(it, dict) and it.get("notes"):
                         it["notes"] = shift_notes(it["notes"], s)[0]
                         it.pop("name", None)  # the author label names the chord in the old key
-            c["also_in"] = [k for k in c.get("also_in") or [] if k != target][:S.MAX_ALSO_IN]
+            c["also_in"] = [k for k in c.get("also_in") or [] if k != target][: S.MAX_ALSO_IN]
         return self.create(c, by, source={"kind": "kept", "from": {"id": src["id"], "rev": src["rev"]}})
 
     def order(self, order, if_rev, by: str = "claude") -> dict:
@@ -377,7 +413,7 @@ class DeckStore:
 
     # ------------------------------------------------------------------------------------------ templates
     def template_from_capture(self, capture, by: str = "daniel") -> dict:
-        """"Keep what I just played" (DATA 2.10): a chord card from the page's capture."""
+        """ "Keep what I just played" (DATA 2.10): a chord card from the page's capture."""
         cap = _schema(S._obj, capture, "capture")
         notes = cap.get("notes")
         _schema(S._midi_list, notes, "capture.notes", 1, TEMPLATE_MAX_NOTES)
@@ -391,22 +427,43 @@ class DeckStore:
         stamp = time.strftime("%H:%M")
         letters = " ".join(dict.fromkeys(PC_FLAT[n % 12] for n in notes))
         title = cap.get("title") or f"{name or letters}, {stamp}"
-        card = {"api": CARD_API, "id": template_id(), "title": title[:80], **CAPTURE_TEXT, "group": "kept",
-                "kind": "chord", "key": key, "chords": [{"n": number, "beats": 4, "notes": notes}],
-                "created_by": "daniel"}
+        card = {
+            "api": CARD_API,
+            "id": template_id(),
+            "title": title[:80],
+            **CAPTURE_TEXT,
+            "group": "kept",
+            "kind": "chord",
+            "key": key,
+            "chords": [{"n": number, "beats": 4, "notes": notes}],
+            "created_by": "daniel",
+        }
         log = cap.get("log") if isinstance(cap.get("log"), dict) else None
-        source = {"kind": "saved-live", "saved_by": by, "page_name": name, "page_number": cap.get("number"),
-                  "key_conf": cap.get("key_conf"), "log_session": None, "log_t_ms": None}
+        source = {
+            "kind": "saved-live",
+            "saved_by": by,
+            "page_name": name,
+            "page_number": cap.get("number"),
+            "key_conf": cap.get("key_conf"),
+            "log_session": None,
+            "log_t_ms": None,
+        }
         if number_from:
             source["number_from"] = number_from
         session = log.get("session") if log else None
         perf, t0 = cap.get("perf_ms"), (log or {}).get("t0_perf_ms")
-        if session and S.SESSION_RE.match(str(session)) and isinstance(perf, (int, float)) and \
-                isinstance(t0, (int, float)) and perf >= t0:
+        if (
+            session
+            and S.SESSION_RE.match(str(session))
+            and isinstance(perf, (int, float))
+            and isinstance(t0, (int, float))
+            and perf >= t0
+        ):
             t_ms = int(round(perf - t0))
             source.update(log_session=session, log_t_ms=t_ms)
-            card["moments"] = [{"session": session, "at": clock_text(t_ms), "until": None,
-                                "label": "saved from the page"}]
+            card["moments"] = [
+                {"session": session, "at": clock_text(t_ms), "until": None, "label": "saved from the page"}
+            ]
         return self.create(card, by, source=source)
 
     def template_from_moment(self, moment, by: str = "claude") -> dict:
@@ -427,15 +484,33 @@ class DeckStore:
         key, number_from = self._template_key(m.get("key"), name, sorted(notes))
         number = self._template_number(m.get("number"), name, key, number_from)
         at_text = clock_text(at_ms)
-        card = {"api": CARD_API, "title": (m.get("title") or f"{name or 'Your chord'}, from {at_text}")[:80],
-                **MOMENT_TEXT, "group": "kept", "kind": "chord", "key": key,
-                "chords": [{"n": number, "beats": beats, "notes": sorted(notes)}], "created_by": "daniel",
-                "moments": [{"session": session, "at": at_text,
-                             "until": clock_text(until_ms) if isinstance(until_ms, (int, float)) else None,
-                             "label": "saved from your practice log"}]}
+        card = {
+            "api": CARD_API,
+            "title": (m.get("title") or f"{name or 'Your chord'}, from {at_text}")[:80],
+            **MOMENT_TEXT,
+            "group": "kept",
+            "kind": "chord",
+            "key": key,
+            "chords": [{"n": number, "beats": beats, "notes": sorted(notes)}],
+            "created_by": "daniel",
+            "moments": [
+                {
+                    "session": session,
+                    "at": at_text,
+                    "until": clock_text(until_ms) if isinstance(until_ms, (int, float)) else None,
+                    "label": "saved from your practice log",
+                }
+            ],
+        }
         card["id"] = m.get("id") or template_id()
-        source = {"kind": "saved-from-moment", "saved_by": by, "page_name": name, "page_number": m.get("number"),
-                  "log_session": session, "log_t_ms": int(at_ms)}
+        source = {
+            "kind": "saved-from-moment",
+            "saved_by": by,
+            "page_name": name,
+            "page_number": m.get("number"),
+            "log_session": session,
+            "log_t_ms": int(at_ms),
+        }
         if number_from:
             source["number_from"] = number_from
         return self.create(card, by, source=source)
@@ -463,8 +538,9 @@ class DeckStore:
     def moments_file(self) -> Path:
         return self.root / MOMENTS_FILE
 
-    def seed(self, doc: dict, moments: Optional[dict] = None, update: bool = False, dry_run: bool = False,
-             by: str = "claude") -> dict:
+    def seed(
+        self, doc: dict, moments: Optional[dict] = None, update: bool = False, dry_run: bool = False, by: str = "claude"
+    ) -> dict:
         """Install the seed deck (7.1): ids not in the deck are installed; with update, seed cards nobody edited
         (source.kind seed and rev 1) are replaced; everything else is kept. Moment links merge in by card id."""
         _schema(S.validate_seed, doc)
@@ -500,8 +576,13 @@ class DeckStore:
                     if not dry_run:
                         c.setdefault("api", CARD_API)
                         c.setdefault("created_by", by)
-                        c.update(rev=1, created_at=old.get("created_at") or now_iso(), updated_at=now_iso(),
-                                 updated_by=by, source=source)
+                        c.update(
+                            rev=1,
+                            created_at=old.get("created_at") or now_iso(),
+                            updated_at=now_iso(),
+                            updated_by=by,
+                            source=source,
+                        )
                         self._finish(c)
                         self._write_json(self._path(c["id"]), c)
                         self._bump()

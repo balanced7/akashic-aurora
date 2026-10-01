@@ -14,6 +14,7 @@ The module is deliberately strict:
 * reducing density moves landmarks to a named periphery instead of dropping them;
 * reducing depth leaves a drillable contour and never removes the epistemic floor.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, Mapping, Optional
@@ -25,6 +26,7 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
@@ -49,22 +51,16 @@ def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
     if not raw:
         return None
     if ":" not in raw:
-        raise ValueError(
-            "orient destination must be typed: verb:<name>, seat:<your-id>, or thread:<ref>"
-        )
+        raise ValueError("orient destination must be typed: verb:<name>, seat:<your-id>, or thread:<ref>")
     kind, name = raw.split(":", 1)
     kind = kind.strip().lower().replace("-", "_")
     name = name.strip()
     if kind not in _TARGET_KINDS:
-        raise ValueError(
-            f"unsupported orient destination kind {kind!r}; use verb, seat, or thread"
-        )
+        raise ValueError(f"unsupported orient destination kind {kind!r}; use verb, seat, or thread")
     if not name:
         raise ValueError("orient destination name is required")
     if kind == "seat" and name != subject:
-        raise ValueError(
-            f"seat orientation cannot borrow a foreign identity; bound subject is {subject!r}"
-        )
+        raise ValueError(f"seat orientation cannot borrow a foreign identity; bound subject is {subject!r}")
     normalized = name.lower().replace("-", "_") if kind == "verb" else name
     return {
         "kind": kind,
@@ -77,9 +73,7 @@ def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
 def _assert_pure(payload: Mapping[str, Any], label: str) -> None:
     effects = list(payload.get("effects") or [])
     if effects:
-        raise RuntimeError(
-            f"orient refuses an effectful {label} provider: {effects!r}; orientation is read-only"
-        )
+        raise RuntimeError(f"orient refuses an effectful {label} provider: {effects!r}; orientation is read-only")
 
 
 def _epistemic(sources: Any, *, effects: Any = ()) -> Dict[str, Any]:
@@ -142,18 +136,18 @@ def _focus_sources(result: Mapping[str, Any]) -> list[str]:
     return sources
 
 
-def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: str,
-                 per_stream: int) -> str:
+def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: str, per_stream: int) -> str:
     for rung in result.get("rungs") or []:
         drill = str((rung or {}).get("drill") or "").strip()
         if drill:
             return drill
     if target["kind"] == "thread":
-        return (f"{_pyl()} agent_cli.py capture --thread {target['name']} --agent {subject} "
-                f"--per-stream {per_stream} --json")
+        return (
+            f"{_pyl()} agent_cli.py capture --thread {target['name']} --agent {subject} "
+            f"--per-stream {per_stream} --json"
+        )
     continuity = " --continuity" if target["kind"] == "seat" else ""
-    return (f"{_pyl()} agent_cli.py ground {target['address']} --agent {subject}"
-            f"{continuity} --json")
+    return f"{_pyl()} agent_cli.py ground {target['address']} --agent {subject}{continuity} --json"
 
 
 def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:
@@ -164,9 +158,7 @@ def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:
         return f"thread {found}; messages={count}; truncated={'yes' if truncated else 'no'}"
     rungs = result.get("rungs") or []
     if rungs:
-        return "; ".join(
-            f"{row.get('name')}={row.get('state')}" for row in rungs[:4]
-        )
+        return "; ".join(f"{row.get('name')}={row.get('state')}" for row in rungs[:4])
     regions = result.get("regions") or []
     if regions:
         return f"continuity regions={len(regions)}"
@@ -177,14 +169,12 @@ def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> Di
     if target["kind"] == "thread":
         step = {
             "verb": "capture",
-            "args": {"thread": target["name"], "as_doc": False,
-                     "per_stream": per_stream},
+            "args": {"thread": target["name"], "as_doc": False, "per_stream": per_stream},
         }
     else:
         step = {
             "verb": "ground",
-            "args": {"target": target["address"], "agent": subject,
-                     "continuity": target["kind"] == "seat"},
+            "args": {"target": target["address"], "agent": subject, "continuity": target["kind"] == "seat"},
         }
     return {
         "name": "focus",
@@ -238,8 +228,7 @@ def build_orientation(
     seams.update(dict(providers or {}))
 
     snapshot = seams["snapshot"](subject)
-    snapshot_payload = (snapshot.as_dict() if hasattr(snapshot, "as_dict")
-                        else dict(snapshot or {}))
+    snapshot_payload = snapshot.as_dict() if hasattr(snapshot, "as_dict") else dict(snapshot or {})
     if str(snapshot_payload.get("subject") or "") != subject:
         raise ValueError("snapshot provider returned a foreign subject")
     _assert_pure(snapshot_payload, "snapshot")
@@ -249,8 +238,7 @@ def build_orientation(
         _assert_pure(row, f"landmark:{row['name']}")
     nearby_count = min(_DENSITY_NEARBY[density], len(landmarks))
     nearby_full = landmarks[:nearby_count]
-    nearby = (nearby_full if depth == "evidence"
-              else [_contour(row) for row in nearby_full])
+    nearby = nearby_full if depth == "evidence" else [_contour(row) for row in nearby_full]
     periphery = [_contour(row) for row in landmarks[nearby_count:]]
     # The observations live exactly once, in nearby/periphery.  Position is the
     # stable scene stamp; embedding the full snapshot here would duplicate every
@@ -269,12 +257,11 @@ def build_orientation(
     aggregate_blind = []
     if target_row is not None:
         if target_row["kind"] == "thread":
-            result = seams["capture"](
-                subject, target_row["name"], per_stream=per_stream
-            )
+            result = seams["capture"](subject, target_row["name"], per_stream=per_stream)
         else:
             result = seams["ground"](
-                target_row["address"], subject=subject,
+                target_row["address"],
+                subject=subject,
                 continuity=target_row["kind"] == "seat",
             )
         result = dict(result or {})
@@ -362,8 +349,7 @@ def render_orientation(scene: Mapping[str, Any]) -> str:
     lines.append("  nearby " + (", ".join(str(row.get("name")) for row in nearby) or "none"))
     periphery = list(scene.get("periphery") or [])
     lines.append(
-        f"  periphery {len(periphery)} contour(s): "
-        + (", ".join(str(row.get("name")) for row in periphery) or "none")
+        f"  periphery {len(periphery)} contour(s): " + (", ".join(str(row.get("name")) for row in periphery) or "none")
     )
     return_step = next((r for r in scene.get("routes") or [] if r.get("name") == "return"), None)
     lines.append(f"  return {((return_step or {}).get('steps') or [{}])[0]}")

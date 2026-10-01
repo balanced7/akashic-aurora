@@ -45,9 +45,9 @@ from typing import Optional, Tuple
 class CanaryState(str, Enum):
     """What a POSITIVE CANARY READ actually observed -- the read, not the context."""
 
-    READABLE = "readable"            # a property read off the foreground window came back non-empty
+    READABLE = "readable"  # a property read off the foreground window came back non-empty
     NO_FOREGROUND = "no_foreground"  # no foreground window to read at all (genuine empty desktop)
-    UNREADABLE = "unreadable"        # a window exists, but the property read returned None/empty
+    UNREADABLE = "unreadable"  # a window exists, but the property read returned None/empty
     # NOTE: no "unknown" state. The canary ANSWERS by reading; it does not declare a context.
     # A failed READ attempt is UNREADABLE, not "unknown" -- absence of the answer is an answer
     # about the read, never about the session.

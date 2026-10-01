@@ -19,6 +19,7 @@ Storage (on the Store, canonical or injected):
   persp:assoc:<a>|<b>      -> json {strength, count, last_used}   (undirected, a<b)
   persp:assoc:node:<id>    -> set of neighbour ids
 """
+
 import json
 from typing import List, Optional, Tuple
 
@@ -26,16 +27,19 @@ from core.foundation.store import Store, create_store
 
 MAX_STRENGTH = 1.0
 LEARNING_RATE = 0.34
-HALF_LIFE_SECONDS = 30 * 24 * 3600   # 30 days
+HALF_LIFE_SECONDS = 30 * 24 * 3600  # 30 days
 
 
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class ReinforcedGraph:
-    def __init__(self, store: Optional[Store] = None,
-                 learning_rate: float = LEARNING_RATE,
-                 half_life_seconds: float = HALF_LIFE_SECONDS):
+    def __init__(
+        self,
+        store: Optional[Store] = None,
+        learning_rate: float = LEARNING_RATE,
+        half_life_seconds: float = HALF_LIFE_SECONDS,
+    ):
         self.store = store if store is not None else create_store()
         self.lr = learning_rate
         self.half_life = half_life_seconds
@@ -67,18 +71,17 @@ class ReinforcedGraph:
         if a == b or not a or not b:
             return 0.0
         rec = self._load(a, b)
-        s = self._decayed(rec, now)                       # fade to 'now' first
-        s = s + self.lr * weight * (MAX_STRENGTH - s)     # bounded saturating bump
+        s = self._decayed(rec, now)  # fade to 'now' first
+        s = s + self.lr * weight * (MAX_STRENGTH - s)  # bounded saturating bump
         s = min(MAX_STRENGTH, max(0.0, s))
-        self.store.set(self._key(a, b), json.dumps(
-            {"strength": s, "count": rec.get("count", 0) + 1, "last_used": now}))
+        self.store.set(self._key(a, b), json.dumps({"strength": s, "count": rec.get("count", 0) + 1, "last_used": now}))
         self.store.sadd(f"persp:assoc:node:{a}", b)
         self.store.sadd(f"persp:assoc:node:{b}", a)
         return s
 
     def reinforce_cooccurrence(self, node_ids, *, now, weight: float = 1.0) -> int:
         """Co-activation: every pair in the set strengthens (e.g. beats in one chapter)."""
-        ids = [n for n in dict.fromkeys(node_ids) if n]   # de-dup, keep order
+        ids = [n for n in dict.fromkeys(node_ids) if n]  # de-dup, keep order
         pairs = 0
         for i in range(len(ids)):
             for j in range(i + 1, len(ids)):
@@ -105,6 +108,7 @@ def get_reinforced_graph(store: Optional[Store] = None) -> ReinforcedGraph:
     # T069 reconciled spec: injection -> fresh; _AISETUP_TEST_ISOLATED -> fresh per
     # call, cache untouched (stateless wrapper); canonical -> lazy singleton.
     import os
+
     global _INSTANCE
     if store is not None:
         return ReinforcedGraph(store)

@@ -4,6 +4,7 @@ and acceptance-bar metrics.
 
 Run: py tests/test_themes.py
 """
+
 import json
 import os
 import sys
@@ -15,8 +16,16 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
-    Beat, Chapter, Track, Theme, Atlas, Edge,
-    beat_key, chapter_key, track_key, theme_key,
+    Beat,
+    Chapter,
+    Track,
+    Theme,
+    Atlas,
+    Edge,
+    beat_key,
+    chapter_key,
+    track_key,
+    theme_key,
     STORY_FORMAT_VERSION,
 )
 from core.narrative.theme_assigner import ThemeAssigner, THEME_KEYWORDS
@@ -32,8 +41,10 @@ def _make_store():
 def _run_cli(args, store=None):
     import io
     from agent_cli import cmd_story
+
     class FakeArgs:
         pass
+
     fa = FakeArgs()
     fa.chronicle = "--chronicle" in args
     fa.session_end = "--session-end" in args
@@ -130,20 +141,33 @@ def _setup_chronicle_with_themes():
     s = _make_store()
     cdir = tempfile.mkdtemp()
     bl = BeatLog(s)
-    bl.emit("note", "fix routing bug in TrackRouter", "src:1",
-            at="2026-06-27T10:00:00", weight=1,
-            themes=["routing"],
-            hint=RouteHint(paths=["core/"]))
-    bl.emit("note", "run benchmark suite for chronicler", "src:2",
-            at="2026-06-27T10:30:00", weight=1,
-            themes=["evaluation", "narrative"],
-            hint=RouteHint(paths=["core/"]))
-    bl.emit("note", "unrelated admin task", "src:3",
-            at="2026-06-27T11:00:00", weight=1,
-            themes=[])
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir,
-                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
-                   token_budget=4000)
+    bl.emit(
+        "note",
+        "fix routing bug in TrackRouter",
+        "src:1",
+        at="2026-06-27T10:00:00",
+        weight=1,
+        themes=["routing"],
+        hint=RouteHint(paths=["core/"]),
+    )
+    bl.emit(
+        "note",
+        "run benchmark suite for chronicler",
+        "src:2",
+        at="2026-06-27T10:30:00",
+        weight=1,
+        themes=["evaluation", "narrative"],
+        hint=RouteHint(paths=["core/"]),
+    )
+    bl.emit("note", "unrelated admin task", "src:3", at="2026-06-27T11:00:00", weight=1, themes=[])
+    c = Chronicler(
+        beat_log=bl,
+        store=s,
+        chronicle_dir=cdir,
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
+        token_budget=4000,
+    )
     c.chronicle_all(now="2026-06-27T12:00:00")
     return s
 
@@ -188,8 +212,7 @@ def test_theme_beat_back_link():
     raw_b = s.get(beat_key(ch.beats[0]))
     b = Beat.from_dict(json.loads(raw_b))
     edge_targets = [e.target for e in b.relates]
-    assert any("narr:theme:routing" in t for t in edge_targets), \
-        "beat should have member_of edge to routing theme"
+    assert any("narr:theme:routing" in t for t in edge_targets), "beat should have member_of edge to routing theme"
 
 
 def test_theme_idempotent():
@@ -197,9 +220,14 @@ def test_theme_idempotent():
     s = _setup_chronicle_with_themes()
     cdir = tempfile.mkdtemp()
     bl = BeatLog(s)
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir,
-                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
-                   token_budget=4000)
+    c = Chronicler(
+        beat_log=bl,
+        store=s,
+        chronicle_dir=cdir,
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
+        token_budget=4000,
+    )
     c.chronicle_all(now="2026-06-27T12:00:00")
     raw = s.get(theme_key("routing"))
     t = Theme.from_dict(json.loads(raw))
@@ -215,20 +243,33 @@ def _setup_cli_with_themes():
     s = _make_store()
     cdir = tempfile.mkdtemp()
     bl = BeatLog(s)
-    bl.emit("note", "routing fix in TrackRouter", "src:1",
-            at="2026-06-27T10:00:00", weight=1,
-            themes=["routing"],
-            hint=RouteHint(paths=["core/"]))
-    bl.emit("note", "narrative chronicle benchmark", "src:2",
-            at="2026-06-27T11:00:00", weight=1,
-            themes=["evaluation", "narrative"],
-            hint=RouteHint(paths=["core/"]))
-    bl.emit("note", "no themes here", "src:3",
-            at="2026-06-27T12:00:00", weight=1,
-            themes=[])
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir,
-                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
-                   token_budget=4000)
+    bl.emit(
+        "note",
+        "routing fix in TrackRouter",
+        "src:1",
+        at="2026-06-27T10:00:00",
+        weight=1,
+        themes=["routing"],
+        hint=RouteHint(paths=["core/"]),
+    )
+    bl.emit(
+        "note",
+        "narrative chronicle benchmark",
+        "src:2",
+        at="2026-06-27T11:00:00",
+        weight=1,
+        themes=["evaluation", "narrative"],
+        hint=RouteHint(paths=["core/"]),
+    )
+    bl.emit("note", "no themes here", "src:3", at="2026-06-27T12:00:00", weight=1, themes=[])
+    c = Chronicler(
+        beat_log=bl,
+        store=s,
+        chronicle_dir=cdir,
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
+        token_budget=4000,
+    )
     c.chronicle_all(now="2026-06-27T13:00:00")
     return s
 
@@ -273,17 +314,32 @@ def test_cli_theme_cross_track():
     s = _make_store()
     cdir = tempfile.mkdtemp()
     bl = BeatLog(s)
-    bl.emit("note", "routing A", "src:1",
-            at="2026-06-27T10:00:00", weight=1,
-            themes=["routing"],
-            hint=RouteHint(paths=["core/"]))
-    bl.emit("note", "routing B", "src:2",
-            at="2026-06-27T11:00:00", weight=1,
-            themes=["routing"],
-            hint=RouteHint(category="research"))
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir,
-                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
-                   token_budget=4000)
+    bl.emit(
+        "note",
+        "routing A",
+        "src:1",
+        at="2026-06-27T10:00:00",
+        weight=1,
+        themes=["routing"],
+        hint=RouteHint(paths=["core/"]),
+    )
+    bl.emit(
+        "note",
+        "routing B",
+        "src:2",
+        at="2026-06-27T11:00:00",
+        weight=1,
+        themes=["routing"],
+        hint=RouteHint(category="research"),
+    )
+    c = Chronicler(
+        beat_log=bl,
+        store=s,
+        chronicle_dir=cdir,
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
+        token_budget=4000,
+    )
     c.chronicle_all(now="2026-06-27T12:00:00")
     out, rc = _run_cli(["--theme=routing"], store=s)
     assert rc == 0
@@ -300,4 +356,5 @@ def test_cli_empty_store_themes():
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main([__file__, "-v"])

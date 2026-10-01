@@ -21,15 +21,16 @@ Ledger) and the shared Ranker (core/primitives). It does NOT import the narrativ
 routing a raw event to a Track / linking it to a Beat is the BRIDGE concern (Slice 4),
 which lives in System 4 where importing the TrackRouter is layering-legal.
 """
+
 from typing import Any, Dict, List, Optional
 
 from core.events.event_log import EventLog, get_event_log
 from core.primitives.ranker import Ranker
 
-_DEFAULT_SCAN = 20000   # how many recent events a query considers (briefing_loader precedent)
+_DEFAULT_SCAN = 20000  # how many recent events a query considers (briefing_loader precedent)
 
 
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class EventQuery:
@@ -38,17 +39,24 @@ class EventQuery:
     Semantic Relationship: EventQuery selects RawEvents (by window / filters / relevance)
     """
 
-    def __init__(self, event_log: Optional[EventLog] = None, ranker: Optional[Ranker] = None,
-                 scan: int = _DEFAULT_SCAN):
+    def __init__(
+        self, event_log: Optional[EventLog] = None, ranker: Optional[Ranker] = None, scan: int = _DEFAULT_SCAN
+    ):
         self.log = event_log if event_log is not None else get_event_log()
         self.ranker = ranker if ranker is not None else Ranker()
         self.scan = scan
 
     # --------------------------------------------------------------- time window (the bridge)
-    def events_in_window(self, start_iso: str, end_iso: str, *,
-                         agent: Optional[str] = None, kind: Optional[str] = None,
-                         track: Optional[str] = None,
-                         limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def events_in_window(
+        self,
+        start_iso: str,
+        end_iso: str,
+        *,
+        agent: Optional[str] = None,
+        kind: Optional[str] = None,
+        track: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
         """Raw events whose `at` falls in [start, end] (inclusive), oldest-first, filtered.
 
         The core timeline-drill primitive: pass a Chapter/Beat span to see what actually
@@ -68,9 +76,11 @@ class EventQuery:
                 # filters in-window -- incl. agent, which the scan path got from the per-agent
                 # stream but the index must apply explicitly.
                 candidates = index.window(start_iso, end_iso)
-                out = [e for e in candidates
-                       if (agent is None or e.get("agent_id") == agent)
-                       and self._match(e, kind=kind, track=track)]
+                out = [
+                    e
+                    for e in candidates
+                    if (agent is None or e.get("agent_id") == agent) and self._match(e, kind=kind, track=track)
+                ]
                 return out[:limit] if limit else out
             out = []
             for e in self.log.scan(agent=agent, limit=self.scan):
@@ -81,9 +91,17 @@ class EventQuery:
             return []
 
     # --------------------------------------------------------------- relevance search
-    def search(self, query: str, *, kind: Optional[str] = None, agent: Optional[str] = None,
-               track: Optional[str] = None, since: Optional[str] = None,
-               until: Optional[str] = None, top_k: int = 10) -> List[Dict[str, Any]]:
+    def search(
+        self,
+        query: str,
+        *,
+        kind: Optional[str] = None,
+        agent: Optional[str] = None,
+        track: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        top_k: int = 10,
+    ) -> List[Dict[str, Any]]:
         """Rank raw events by relevance to `query` within the filters, best-first.
 
         Empty query -> relevance contributes 0, so results fall back to recency/importance
@@ -146,12 +164,15 @@ class EventQuery:
         """Project a raw event into a Ranker item: searchable text + recency timestamp,
         carrying the original event so callers get the full record back."""
         import json
-        text = " ".join([
-            str(e.get("summary", "")),
-            str(e.get("kind", "")),
-            " ".join(str(r) for r in e.get("refs", [])),
-            json.dumps(e.get("detail", {}), default=str),
-        ])
+
+        text = " ".join(
+            [
+                str(e.get("summary", "")),
+                str(e.get("kind", "")),
+                " ".join(str(r) for r in e.get("refs", [])),
+                json.dumps(e.get("detail", {}), default=str),
+            ]
+        )
         return {"text": text, "timestamp": e.get("at"), "_event": e}
 
 
@@ -164,6 +185,7 @@ def get_event_query(event_log: Optional[EventLog] = None) -> EventQuery:
     if event_log is not None:
         return EventQuery(event_log)
     import os
+
     if os.environ.get("_AISETUP_TEST_ISOLATED"):
         return EventQuery()
     if _INSTANCE is None:

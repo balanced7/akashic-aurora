@@ -29,17 +29,17 @@ SHADER = Path(__file__).resolve().parent.parent / "arsenal" / "web" / "shaders" 
 # The spec's Uniforms list, in spec order. Names only; types are asserted loosely
 # below where cheap, but the contract the page actually reads is the NAME.
 SPEC_UNIFORMS = [
-    ("u_video",      "sampler2D"),
-    ("u_res",        "vec2"),
-    ("u_video_res",  "vec2"),
-    ("u_time",       "float"),
-    ("u_pulse",      "float"),
-    ("u_hue",        "float"),
-    ("u_intensity",  "float"),
-    ("u_bass",       "float"),
-    ("u_mid",        "float"),
-    ("u_high",       "float"),
-    ("u_flux",       "float"),
+    ("u_video", "sampler2D"),
+    ("u_res", "vec2"),
+    ("u_video_res", "vec2"),
+    ("u_time", "float"),
+    ("u_pulse", "float"),
+    ("u_hue", "float"),
+    ("u_intensity", "float"),
+    ("u_bass", "float"),
+    ("u_mid", "float"),
+    ("u_high", "float"),
+    ("u_flux", "float"),
 ]
 
 
@@ -56,9 +56,7 @@ def test_version_is_the_absolute_first_line():
     # Cap the leading-blank-line hazard too: line 1 must be exactly the directive,
     # not even leading whitespace (ANGLE is strict about position, and a trailing
     # comment is fine but a leading one is not).
-    assert lines[0] == "#version 300 es", (
-        f"line 1 must be exactly '#version 300 es'; got {lines[0]!r}"
-    )
+    assert lines[0] == "#version 300 es", f"line 1 must be exactly '#version 300 es'; got {lines[0]!r}"
 
 
 def test_every_spec_uniform_is_declared():
@@ -81,8 +79,7 @@ def test_every_declared_uniform_matches_the_contract_type():
             re.MULTILINE,
         )
         assert declared, (
-            f"{name} must be declared as 'uniform {glsl_type} {name}' "
-            f"(or in a shared 'uniform {glsl_type} ...' line)"
+            f"{name} must be declared as 'uniform {glsl_type} {name}' (or in a shared 'uniform {glsl_type} ...' line)"
         )
 
 

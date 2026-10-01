@@ -22,7 +22,7 @@ def test_primitive():
     assert S.is_active({}) is True
     assert S.is_active({"superseded": True}) is False
     assert S.mark_supersedes({}, "old1")["supersedes"] == "old1"
-    assert S.mark_supersedes({}, None) == {}            # no-op when nothing to supersede
+    assert S.mark_supersedes({}, None) == {}  # no-op when nothing to supersede
     assert S.retire({})["superseded"] is True
     assert S.active_only([{"id": 1}, {"id": 2, "superseded": True}]) == [{"id": 1}]
     print("\n--- primitive ---\n  is_active/mark/retire/active_only OK")

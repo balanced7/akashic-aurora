@@ -30,6 +30,7 @@ seat-tasks could return two findings and read as a failure.
 
 Run: py -m pytest tests/test_t181_ask_many_is_still_not_a_seat.py -q
 """
+
 import ast
 import os
 import sys
@@ -43,9 +44,7 @@ from core.comm import ask as A  # noqa: E402
 
 class _Resp:
     def __init__(self, text, finish="stop", pt=100, ct=50):
-        self.choices = [type("C", (), {
-            "message": type("M", (), {"content": text})(),
-            "finish_reason": finish})()]
+        self.choices = [type("C", (), {"message": type("M", (), {"content": text})(), "finish_reason": finish})()]
         self.usage = type("U", (), {"prompt_tokens": pt, "completion_tokens": ct})()
 
 
@@ -85,8 +84,7 @@ def test_k2_branches_actually_run_concurrently():
     o = A.ask_many(prompts, client=_Client(delays=delays), max_workers=5)
     elapsed = time.time() - t0
     assert o.ok
-    assert elapsed < 1.2, (
-        f"5 x 0.4s branches took {elapsed:.2f}s -- serial would be ~2.0s. Not running concurrently.")
+    assert elapsed < 1.2, f"5 x 0.4s branches took {elapsed:.2f}s -- serial would be ~2.0s. Not running concurrently."
 
 
 def test_k3_one_bad_branch_does_not_kill_the_fan():
@@ -120,8 +118,7 @@ def test_k5_aggregate_spend_is_the_sum_of_the_branches():
 
 def test_k6_input_order_survives_reversed_completion_order():
     """first finishes LAST. Attribution depends on order, so completion order must not leak."""
-    o = A.ask_many(["first", "second"],
-                   client=_Client(delays={"first": 0.5, "second": 0.0}), max_workers=2)
+    o = A.ask_many(["first", "second"], client=_Client(delays={"first": 0.5, "second": 0.0}), max_workers=2)
     assert [b["answer"] for b in o.detail["branches"]] == ["answer:first", "answer:second"]
 
 
@@ -141,12 +138,26 @@ def test_k8_ask_many_touches_no_seat_machinery():
     in test_t197_peer_presence.py.
     """
     tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
-    tree = ast.Module(body=[n for n in tree.body
-                            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                                    and n.name == "ask_peer")],
-                      type_ignores=[])
-    forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
-                 "acquire", "bifrost_send", "heartbeat", "role_queue", "expectations"}
+    tree = ast.Module(
+        body=[
+            n
+            for n in tree.body
+            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "ask_peer")
+        ],
+        type_ignores=[],
+    )
+    forbidden = {
+        "runner_lock",
+        "seed_cursor",
+        "roster",
+        "mailbox",
+        "worklive",
+        "acquire",
+        "bifrost_send",
+        "heartbeat",
+        "role_queue",
+        "expectations",
+    }
     referenced = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

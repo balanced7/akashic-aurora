@@ -32,6 +32,7 @@ slice. This slice makes the live hole un-reopenable while that gets designed pro
 
 Run: py -m pytest tests/test_private_plane_guard.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -54,11 +55,12 @@ def plane(tmp_path):
     priv = tmp_path / "private" / "assessments"
     priv.mkdir(parents=True)
     (priv / "20260101_synthetic-sample-dossier_ff00aa.md").write_text(
-        "# A synthetic dossier\n\nname: synthetic-sample-dossier\n"
-        "fixture body, no real content.\n", encoding="utf-8")
+        "# A synthetic dossier\n\nname: synthetic-sample-dossier\nfixture body, no real content.\n", encoding="utf-8"
+    )
     (priv / "atoms-private.jsonl").write_text(
-        '{"id": "art_20260101_synthetic-sample-dossier_ff00aa", '
-        '"title": "synthetic-sample-dossier"}\n', encoding="utf-8")
+        '{"id": "art_20260101_synthetic-sample-dossier_ff00aa", "title": "synthetic-sample-dossier"}\n',
+        encoding="utf-8",
+    )
     return tmp_path
 
 
@@ -95,10 +97,8 @@ def test_p2b_existence_metadata_counts_as_a_leak(plane):
     """deepseek's sharpest point: publishing IDS and TITLES leaks even with no body."""
     tracked = plane / "docs" / "MAP.md"
     tracked.parent.mkdir(parents=True, exist_ok=True)
-    tracked.write_text("atom art_20260101_synthetic-sample-dossier_ff00aa -> report\n",
-                       encoding="utf-8")
-    assert PP.scan([str(tracked)], root=plane), \
-        "an id-only reference is still a leak -- existence metadata is content"
+    tracked.write_text("atom art_20260101_synthetic-sample-dossier_ff00aa -> report\n", encoding="utf-8")
+    assert PP.scan([str(tracked)], root=plane), "an id-only reference is still a leak -- existence metadata is content"
 
 
 # ---------------------------------------------------------------- P3: the plane itself is ok

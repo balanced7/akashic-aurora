@@ -23,8 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 # Fields to summarize from, in priority order (first present wins).
-_SUMMARY_FIELDS = ["recommendation", "decision", "description", "title", "summary",
-                   "text", "what_tried", "task"]
+_SUMMARY_FIELDS = ["recommendation", "decision", "description", "title", "summary", "text", "what_tried", "task"]
 
 # Values that look present but carry no signal — skip them when summarizing.
 _EMPTY_TOKENS = {"", "none", "null", "n/a", "unknown"}
@@ -46,14 +45,14 @@ def _clip_words(s: str, max_chars: int) -> str:
 
 @dataclass
 class Distillation:
-    skeleton: str                       # compact human-readable text (the shape)
-    entries: List[Dict[str, Any]]       # structured: {summary, source, relates, kind}
+    skeleton: str  # compact human-readable text (the shape)
+    entries: List[Dict[str, Any]]  # structured: {summary, source, relates, kind}
     included_sources: List[str]
-    dropped_sources: List[str]          # didn't fit -> recoverable via these pointers
+    dropped_sources: List[str]  # didn't fit -> recoverable via these pointers
     approx_tokens: int
     critic_ok: bool
     critic_notes: List[str] = field(default_factory=list)
-    skipped_no_source: int = 0          # items excluded for lacking a source pointer
+    skipped_no_source: int = 0  # items excluded for lacking a source pointer
 
 
 def _summarize_item(item: Dict[str, Any], max_chars: int) -> str:
@@ -78,16 +77,16 @@ class Distiller:
     Semantic Relationship: Distiller compacts Items into Skeleton (within budget)
     """
 
-    def __init__(self, *,
-                 writer: Optional[Callable] = None,
-                 critic: Optional[Callable] = None,
-                 max_chars_per_entry: int = 170):
-        self.writer = writer    # writer(items, token_budget, instruction) -> Distillation
-        self.critic = critic    # critic(items, skeleton, entries) -> (ok: bool, notes: list)
+    def __init__(
+        self, *, writer: Optional[Callable] = None, critic: Optional[Callable] = None, max_chars_per_entry: int = 170
+    ):
+        self.writer = writer  # writer(items, token_budget, instruction) -> Distillation
+        self.critic = critic  # critic(items, skeleton, entries) -> (ok: bool, notes: list)
         self.max_chars_per_entry = max_chars_per_entry
 
-    def distill(self, items: List[Dict[str, Any]], *, token_budget: int,
-                instruction: str = "", kind: str = "") -> Distillation:
+    def distill(
+        self, items: List[Dict[str, Any]], *, token_budget: int, instruction: str = "", kind: str = ""
+    ) -> Distillation:
         """
         Compact `items` (already ranked best-first) into a skeleton within budget.
 
@@ -135,9 +134,16 @@ class Distiller:
             cok, cnotes = self.critic(items, skeleton, entries)
             ok = ok and bool(cok)
             notes = notes + list(cnotes or [])
-        return Distillation(skeleton=skeleton, entries=entries, included_sources=included,
-                            dropped_sources=dropped, approx_tokens=used,
-                            critic_ok=ok, critic_notes=notes, skipped_no_source=skipped_no_source)
+        return Distillation(
+            skeleton=skeleton,
+            entries=entries,
+            included_sources=included,
+            dropped_sources=dropped,
+            approx_tokens=used,
+            critic_ok=ok,
+            critic_notes=notes,
+            skipped_no_source=skipped_no_source,
+        )
 
     @staticmethod
     def _heuristic_critic(entries, used, budget, dropped):

@@ -37,6 +37,7 @@ WHAT IT CANNOT DO (stated, not discovered later)
 
 Run: py scripts/checkers/check_pointer_promises.py
 """
+
 from __future__ import annotations
 
 import os
@@ -55,8 +56,10 @@ from pathlib import Path
 # instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
 try:
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from core.paths import repo_root as _rr
+
     ROOT = _rr()
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
@@ -80,7 +83,12 @@ PROMISE_CLASSES: dict[str, tuple[str, ...]] = {
 # Directories whose contents are immutable projections: true when written, and our own
 # principle is that corrections supersede rather than rewrite. Never scanned.
 OUT_OF_SCOPE = (
-    "docs/library/", "_archive/", "backups/", ".git/", ".claude/", "node_modules/",
+    "docs/library/",
+    "_archive/",
+    "backups/",
+    ".git/",
+    ".claude/",
+    "node_modules/",
     "tests/data/",
 )
 
@@ -139,7 +147,9 @@ def live_surfaces(root: Path = ROOT) -> list[str]:
     try:
         res = subprocess.run(
             ["git", "-C", str(root), "ls-files", "*.md"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if res.returncode == 0:
             tracked = [ln.strip() for ln in res.stdout.splitlines() if ln.strip()]
@@ -147,14 +157,13 @@ def live_surfaces(root: Path = ROOT) -> list[str]:
         tracked = None
 
     if tracked is None:
-        print("[warn] git unavailable -- falling back to a filesystem walk; scope is wider "
-              "than what a reader sees, so treat findings outside the repo tree as noise.")
+        print(
+            "[warn] git unavailable -- falling back to a filesystem walk; scope is wider "
+            "than what a reader sees, so treat findings outside the repo tree as noise."
+        )
         tracked = [p.relative_to(root).as_posix() for p in root.rglob("*.md")]
 
-    return sorted(
-        rel for rel in tracked
-        if not any(rel.startswith(x) or f"/{x}" in f"/{rel}" for x in OUT_OF_SCOPE)
-    )
+    return sorted(rel for rel in tracked if not any(rel.startswith(x) or f"/{x}" in f"/{rel}" for x in OUT_OF_SCOPE))
 
 
 def _count_class(target: Path, exts: tuple[str, ...]) -> int:
@@ -162,10 +171,9 @@ def _count_class(target: Path, exts: tuple[str, ...]) -> int:
     if not target.is_dir():
         return 0
     return sum(
-        1 for p in target.rglob("*")
-        if p.is_file()
-        and p.suffix.lower() in exts
-        and p.stem.lower() not in NON_CLASS_STEMS
+        1
+        for p in target.rglob("*")
+        if p.is_file() and p.suffix.lower() in exts and p.stem.lower() not in NON_CLASS_STEMS
     )
 
 
@@ -193,12 +201,12 @@ def scan_doc(doc: Path, root: Path = ROOT) -> list[Finding]:
         # forward-only window silently dropped every leading claim -- coverage fell to zero
         # on the live repo, and the honesty line (P8) is what surfaced it. Proximity is the
         # rule; direction is not.
-        before = text[max(0, m.start() - WINDOW): m.start()]
+        before = text[max(0, m.start() - WINDOW) : m.start()]
         for stop in (". ", ".\n", "\n\n"):
             idx = before.rfind(stop)
             if idx != -1:
-                before = before[idx + len(stop):]
-        after = text[m.end(): m.end() + WINDOW]
+                before = before[idx + len(stop) :]
+        after = text[m.end() : m.end() + WINDOW]
         for stop in (". ", ".\n", "\n\n"):
             idx = after.find(stop)
             if idx != -1:
@@ -220,24 +228,45 @@ def scan_doc(doc: Path, root: Path = ROOT) -> list[Finding]:
         if claimed is None:
             # Unfalsifiable prose. Silence is correct -- see P4.
             findings.append(
-                Finding(doc.name, href, "", None, 0, "NO-CARDINAL",
-                        "directory pointer examined; prose makes no falsifiable claim")
+                Finding(
+                    doc.name,
+                    href,
+                    "",
+                    None,
+                    0,
+                    "NO-CARDINAL",
+                    "directory pointer examined; prose makes no falsifiable claim",
+                )
             )
             continue
 
         target = (root / href.lstrip("/")).resolve()
         if not target.is_dir():
             findings.append(
-                Finding(doc.name, href, promise, claimed, 0, "UNVERIFIABLE",
-                        "pointer target does not exist or is not a directory")
+                Finding(
+                    doc.name,
+                    href,
+                    promise,
+                    claimed,
+                    0,
+                    "UNVERIFIABLE",
+                    "pointer target does not exist or is not a directory",
+                )
             )
             continue
 
         observed = _count_class(target, PROMISE_CLASSES[promise])
         if observed < claimed * MISMATCH_RATIO:
             findings.append(
-                Finding(doc.name, href, promise, claimed, observed, "MISMATCH",
-                        f"prose promises ~{claimed} {promise}; target holds {observed}")
+                Finding(
+                    doc.name,
+                    href,
+                    promise,
+                    claimed,
+                    observed,
+                    "MISMATCH",
+                    f"prose promises ~{claimed} {promise}; target holds {observed}",
+                )
             )
         else:
             findings.append(Finding(doc.name, href, promise, claimed, observed, "OK"))
@@ -263,8 +292,8 @@ def census_stats(root: Path = ROOT, live_docs: list[str] | None = None) -> dict:
     flagged = [f for f in findings if f.verdict in ("MISMATCH", "UNVERIFIABLE")]
     return {
         "docs": len(docs),
-        "pointers": len(findings),        # every directory pointer examined
-        "examined": len(falsifiable),     # those making a checkable claim
+        "pointers": len(findings),  # every directory pointer examined
+        "examined": len(falsifiable),  # those making a checkable claim
         "flagged": len(flagged),
         "clean_claim": bool(falsifiable) and not flagged,
         "findings": findings,
@@ -286,8 +315,10 @@ def run_census(root: Path = ROOT, live_docs: list[str] | None = None) -> int:
     if s["clean_claim"]:
         print(f"\n[OK] all {s['examined']} falsifiable promise(s) match their target's contents.")
     elif not s["examined"]:
-        print("\n[NOTHING CHECKED] no falsifiable promise was found. This is NOT a clean bill "
-              "of health -- it means nothing was verifiable, which may itself be the finding.")
+        print(
+            "\n[NOTHING CHECKED] no falsifiable promise was found. This is NOT a clean bill "
+            "of health -- it means nothing was verifiable, which may itself be the finding."
+        )
     for f in s["flagged_findings"]:
         print(f"\n  [{f.verdict}] {f.doc} -> {f.target}")
         print(f"      {f.detail}")

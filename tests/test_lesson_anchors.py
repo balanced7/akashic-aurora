@@ -33,6 +33,7 @@ class reading "pre-registered; impl pending (assertions frozen)". So a pin ancho
 only against an execution RECEIPT (ran-and-passed), and without one it confesses UNCHECKABLE
 rather than reading a green suite as proof.
 """
+
 from pathlib import Path
 import subprocess
 import sys
@@ -72,18 +73,16 @@ def test_unknown_anchor_is_uncheckable_never_true():
 
 def test_pin_anchor_without_a_receipt_is_uncheckable_not_green():
     """The blind mode: a collected-but-skipped pin reads green. Refuse to read it as proof."""
-    v = anchors.resolve("tests/test_t070_universal_isolation.py::test_spill_dir_is_isolated_too",
-                        root=ROOT)
-    assert v.status == "UNCHECKABLE", (
-        "a pin with no execution receipt must NOT resolve -- a skipped pin is green"
-    )
+    v = anchors.resolve("tests/test_t070_universal_isolation.py::test_spill_dir_is_isolated_too", root=ROOT)
+    assert v.status == "UNCHECKABLE", "a pin with no execution receipt must NOT resolve -- a skipped pin is green"
     assert "receipt" in v.detail.lower()
 
 
 def test_pin_anchor_with_a_ran_and_passed_receipt_resolves():
     receipt = {"tests/test_t070_universal_isolation.py::test_spill_dir_is_isolated_too": "passed"}
-    v = anchors.resolve("tests/test_t070_universal_isolation.py::test_spill_dir_is_isolated_too",
-                        root=ROOT, receipts=receipt)
+    v = anchors.resolve(
+        "tests/test_t070_universal_isolation.py::test_spill_dir_is_isolated_too", root=ROOT, receipts=receipt
+    )
     assert v.status == "RESOLVED"
 
 
@@ -98,8 +97,9 @@ def test_a_skipped_pin_receipt_is_uncheckable_not_resolved():
 # Real resolution against this repo.
 # --------------------------------------------------------------------------
 def test_a_live_commit_sha_resolves():
-    sha = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
-                         capture_output=True, text=True).stdout.strip()
+    sha = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
     if not sha:
         return  # git unavailable: nothing to assert, and we do not fake it
     assert anchors.resolve(sha, root=ROOT).status == "RESOLVED"
@@ -130,8 +130,7 @@ def test_a_lesson_with_no_anchors_is_starved_not_clean():
 
 
 def test_a_lesson_whose_anchor_is_gone_banners():
-    lesson = {"experiment_name": "x",
-              "recommendation": "see docs/intelligence-roadmap.md for the plan"}
+    lesson = {"experiment_name": "x", "recommendation": "see docs/intelligence-roadmap.md for the plan"}
     report = anchors.review(lesson, root=ROOT)
     assert report.starved is False
     assert any(v.status == "MISSING" for v in report.verdicts)
@@ -164,10 +163,9 @@ def _receipt_anchors(states):
 def test_one_missing_among_resolved_strong_anchors_is_labelled_partial():
     """The defer's own example: three strong anchors, two RESOLVED, one gone -> '1 of 3'."""
     cites, receipts = _receipt_anchors(["passed", "passed", "failed"])
-    report = anchors.review({"experiment_name": "x", "cites": cites},
-                            root=ROOT, receipts=receipts)
+    report = anchors.review({"experiment_name": "x", "cites": cites}, root=ROOT, receipts=receipts)
     statuses = sorted(v.status for v in report.verdicts)
-    assert statuses == ["MISSING", "RESOLVED", "RESOLVED"], statuses   # the pin's own premise
+    assert statuses == ["MISSING", "RESOLVED", "RESOLVED"], statuses  # the pin's own premise
     assert all(not v.weak for v in report.verdicts)
     assert report.starved is False
     assert not report.banner.startswith("[premise MISSING"), (
@@ -180,8 +178,9 @@ def test_one_missing_among_resolved_strong_anchors_is_labelled_partial():
 
 def test_a_moved_commit_beside_a_live_one_is_partial_not_missing():
     """Same rule through the real resolver: a live sha and a bogus one -> '1 of 2'."""
-    sha = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
-                         capture_output=True, text=True).stdout.strip()
+    sha = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
     if not sha:
         return  # git unavailable: nothing to assert, and we do not fake it
     report = anchors.review({"experiment_name": "x", "cites": [sha, "deadbee"]}, root=ROOT)
@@ -194,8 +193,9 @@ def test_all_strong_anchors_missing_still_reads_missing():
     """Guard against over-softening: every strong anchor gone is MISSING, and a WEAK path
     that happens to resolve does not rescue the premise -- weak is never authoritative."""
     cites, receipts = _receipt_anchors(["failed", "failed"])
-    report = anchors.review({"experiment_name": "x", "cites": cites + ["docs/ARCHITECTURE.md"]},
-                            root=ROOT, receipts=receipts)
+    report = anchors.review(
+        {"experiment_name": "x", "cites": cites + ["docs/ARCHITECTURE.md"]}, root=ROOT, receipts=receipts
+    )
     assert any(v.weak and v.status == "RESOLVED" for v in report.verdicts)
     assert report.banner.startswith("[premise MISSING"), report.banner
     assert "PARTIALLY" not in report.banner
@@ -204,8 +204,8 @@ def test_all_strong_anchors_missing_still_reads_missing():
 def test_weak_missing_beside_a_live_strong_anchor_still_reads_may_have_moved():
     """Boundary: a gone PATH next to a live strong anchor is the weak-only branch, untouched."""
     cites, receipts = _receipt_anchors(["passed"])
-    report = anchors.review({"experiment_name": "x",
-                             "cites": cites + ["docs/intelligence-roadmap.md"]},
-                            root=ROOT, receipts=receipts)
+    report = anchors.review(
+        {"experiment_name": "x", "cites": cites + ["docs/intelligence-roadmap.md"]}, root=ROOT, receipts=receipts
+    )
     assert report.banner.startswith("[premise may have moved"), report.banner
     assert "PARTIALLY" not in report.banner

@@ -1,5 +1,6 @@
 """GET and PUT /api/piano/looks (arsenal/pianolooks.py): the Studio drawer's saved looks, over HTTP against a server on a
 free port. Round trip, rev conflicts, the Host, Origin, type and size refusals, value checks, and the atomic write."""
+
 import http.client
 import json
 import re
@@ -20,8 +21,11 @@ LOOKS = "/api/piano/looks"
 
 
 def preset(pid="look-a", name="Moonlit practice", **settings):
-    return {"id": pid, "name": name,
-            "settings": settings or {"scheme": "classic", "enabled": True, "intensity": 0.85, "theme": "moon"}}
+    return {
+        "id": pid,
+        "name": name,
+        "settings": settings or {"scheme": "classic", "enabled": True, "intensity": 0.85, "theme": "moon"},
+    }
 
 
 @pytest.fixture()
@@ -57,26 +61,43 @@ def test_get_answers_an_empty_list_before_any_save_and_writes_nothing(looks):
 
 def test_looks_root_follows_the_state_folders(tmp_path):
     assert App([str(tmp_path)], takes_root=tmp_path / "t").looks.root == ROOT / "state" / "arsenal" / "looks"
-    assert App([str(tmp_path)], takes_root=tmp_path / "t", performance_root=tmp_path / "p").looks.root == \
-        (tmp_path / "looks").resolve()
+    assert (
+        App([str(tmp_path)], takes_root=tmp_path / "t", performance_root=tmp_path / "p").looks.root
+        == (tmp_path / "looks").resolve()
+    )
     assert App([str(tmp_path)], takes_root=tmp_path / "t", looks_root=tmp_path / "mine").looks.root == tmp_path / "mine"
 
 
 def test_round_trip_keeps_every_value_and_bumps_rev(looks):
     port, _, folder = looks
-    first = [preset(), dict(preset("look-b", "Film · wide 16:9", framing="16:9", quality="ultra", motion=0.4,
-                                   autoWorld=False), favourite=True, created=1893456000000, updated=1893456000001)]
+    first = [
+        preset(),
+        dict(
+            preset("look-b", "Film · wide 16:9", framing="16:9", quality="ultra", motion=0.4, autoWorld=False),
+            favourite=True,
+            created=1893456000000,
+            updated=1893456000001,
+        ),
+    ]
     status, reply = call(port, "PUT", {"rev": 0, "presets": first})
     assert status == 200 and reply == {"api": pianolooks.API, "rev": 1, "presets": first}
     assert call(port, "GET") == (200, reply)
     on_disk = json.loads((folder / "presets.json").read_text(encoding="utf-8"))
     assert on_disk == reply
     # the page's own origin, under either loopback name, and the api field echoed back are all accepted
-    status, reply = call(port, "PUT", {"api": pianolooks.API, "rev": 1, "presets": first[:1]},
-                         headers={"Host": f"localhost:{port}", "Origin": f"http://localhost:{port}"})
+    status, reply = call(
+        port,
+        "PUT",
+        {"api": pianolooks.API, "rev": 1, "presets": first[:1]},
+        headers={"Host": f"localhost:{port}", "Origin": f"http://localhost:{port}"},
+    )
     assert status == 200 and reply["rev"] == 2 and reply["presets"] == first[:1]
-    status, reply = call(port, "PUT", {"rev": 2, "presets": []},
-                         headers={"Origin": f"http://127.0.0.1:{port}", "Content-Type": "application/json; charset=utf-8"})
+    status, reply = call(
+        port,
+        "PUT",
+        {"rev": 2, "presets": []},
+        headers={"Origin": f"http://127.0.0.1:{port}", "Content-Type": "application/json; charset=utf-8"},
+    )
     assert status == 200 and reply == {"api": pianolooks.API, "rev": 3, "presets": []}
     assert sorted(p.name for p in folder.iterdir()) == ["presets.json"]  # no temp file left behind
 
@@ -92,8 +113,19 @@ def test_a_stale_rev_is_refused_with_409_and_the_current_list(looks):
     assert (folder / "presets.json").read_bytes() == before
 
 
-@pytest.mark.parametrize("host", ["evil.example:{port}", "127.0.0.1:1", "localhost", "192.168.1.20:{port}",
-                                  "127.0.0.1.nip.io:{port}", "user@127.0.0.1:{port}", "127.0.0.1:{port}/x", ""])
+@pytest.mark.parametrize(
+    "host",
+    [
+        "evil.example:{port}",
+        "127.0.0.1:1",
+        "localhost",
+        "192.168.1.20:{port}",
+        "127.0.0.1.nip.io:{port}",
+        "user@127.0.0.1:{port}",
+        "127.0.0.1:{port}/x",
+        "",
+    ],
+)
 def test_a_host_other_than_this_machine_on_this_port_is_refused(looks, host):
     port, _, folder = looks
     host = host.format(port=port)
@@ -103,8 +135,17 @@ def test_a_host_other_than_this_machine_on_this_port_is_refused(looks, host):
     assert not folder.exists()
 
 
-@pytest.mark.parametrize("origin", ["http://evil.example", "http://127.0.0.1:1", "https://127.0.0.1:{port}", "null",
-                                    "http://localhost:{port}", "http://127.0.0.1.nip.io:{port}"])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://evil.example",
+        "http://127.0.0.1:1",
+        "https://127.0.0.1:{port}",
+        "null",
+        "http://localhost:{port}",
+        "http://127.0.0.1.nip.io:{port}",
+    ],
+)
 def test_an_origin_other_than_the_page_is_refused(looks, origin):
     port, _, folder = looks
     origin = origin.format(port=port)  # localhost is refused here because the Host is 127.0.0.1
@@ -175,9 +216,18 @@ def test_names_of_one_to_sixty_characters_are_kept_as_given(looks):
     assert status == 200 and [p["name"] for p in reply["presets"]] == names
 
 
-@pytest.mark.parametrize("settings", [{"theme": {"name": "moon"}}, {"theme": ["moon"]}, {"theme": None},
-                                      {"theme": "x" * 201}, {"bad key": 1}, {"__proto__": 1},
-                                      {f"s{i}": i for i in range(65)}])
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {"theme": {"name": "moon"}},
+        {"theme": ["moon"]},
+        {"theme": None},
+        {"theme": "x" * 201},
+        {"bad key": 1},
+        {"__proto__": 1},
+        {f"s{i}": i for i in range(65)},
+    ],
+)
 def test_setting_values_must_be_strings_numbers_or_booleans(looks, settings):
     port, _, folder = looks
     status, reply = call(port, "PUT", {"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": settings}]})
@@ -185,25 +235,28 @@ def test_setting_values_must_be_strings_numbers_or_booleans(looks, settings):
     assert not folder.exists()
 
 
-@pytest.mark.parametrize("raw", [
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {"intensity": NaN}}]}',
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {"intensity": Infinity}}]}',
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "builtIn": true}]}',
-    b'{"rev": 0, "presets": [{"id": "builtin:classic", "name": "A", "settings": {}}]}',
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "favourite": "yes"}]}',
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "created": -1}]}',
-    b'{"rev": 0, "presets": [{"id": "look-a", "name": "A"}]}',
-    b'{"rev": true, "presets": []}',
-    b'{"rev": "0", "presets": []}',
-    b'{"presets": []}',
-    b'{"rev": 0, "presets": {}}',
-    b'{"rev": 0, "presets": [], "extra": 1}',
-    b'{"api": "arsenal.piano.looks/v0", "rev": 0, "presets": []}',
-    b'[]',
-    b'not json',
-    b'\xff\xfe',
-    b'[' * 5000 + b']' * 5000,
-])
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {"intensity": NaN}}]}',
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {"intensity": Infinity}}]}',
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "builtIn": true}]}',
+        b'{"rev": 0, "presets": [{"id": "builtin:classic", "name": "A", "settings": {}}]}',
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "favourite": "yes"}]}',
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A", "settings": {}, "created": -1}]}',
+        b'{"rev": 0, "presets": [{"id": "look-a", "name": "A"}]}',
+        b'{"rev": true, "presets": []}',
+        b'{"rev": "0", "presets": []}',
+        b'{"presets": []}',
+        b'{"rev": 0, "presets": {}}',
+        b'{"rev": 0, "presets": [], "extra": 1}',
+        b'{"api": "arsenal.piano.looks/v0", "rev": 0, "presets": []}',
+        b"[]",
+        b"not json",
+        b"\xff\xfe",
+        b"[" * 5000 + b"]" * 5000,
+    ],
+)
 def test_malformed_bodies_are_refused_with_400(looks, raw):
     port, _, folder = looks
     status, reply = call(port, "PUT", raw)
@@ -280,12 +333,32 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
     port, _, folder = looks
     crlf = "\r\n"
     inner = json.dumps({"rev": 0, "presets": [preset("pwned", "written by another site")]}).encode("utf-8")
-    hidden = crlf.join([f"PUT {LOOKS} HTTP/1.1", f"Host: 127.0.0.1:{port}", "Content-Type: application/json",
-                        f"Content-Length: {len(inner)}", "", ""]).encode("ascii") + inner
+    hidden = (
+        crlf.join(
+            [
+                f"PUT {LOOKS} HTTP/1.1",
+                f"Host: 127.0.0.1:{port}",
+                "Content-Type: application/json",
+                f"Content-Length: {len(inner)}",
+                "",
+                "",
+            ]
+        ).encode("ascii")
+        + inner
+    )
     for method, path in (("POST", LOOKS), ("POST", "/api/nope"), ("PUT", "/api/nope")):
-        outer = crlf.join([f"{method} {path} HTTP/1.1", f"Host: 127.0.0.1:{port}", "Origin: http://evil.example",
-                           "Content-Type: text/plain;charset=UTF-8", "Connection: keep-alive",
-                           f"Content-Length: {len(hidden)}", "", ""]).encode("ascii")
+        outer = crlf.join(
+            [
+                f"{method} {path} HTTP/1.1",
+                f"Host: 127.0.0.1:{port}",
+                "Origin: http://evil.example",
+                "Content-Type: text/plain;charset=UTF-8",
+                "Connection: keep-alive",
+                f"Content-Length: {len(hidden)}",
+                "",
+                "",
+            ]
+        ).encode("ascii")
         data, kept_open = b"", False
         with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
             sock.sendall(outer + hidden)
@@ -300,8 +373,9 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
     assert call(port, "GET")[1]["presets"] == []
     # a body the route reads in full leaves the keep-alive connection usable
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
-    conn.request("PUT", LOOKS, body=json.dumps({"rev": 0, "presets": [preset()]}),
-                 headers={"Content-Type": "application/json"})
+    conn.request(
+        "PUT", LOOKS, body=json.dumps({"rev": 0, "presets": [preset()]}), headers={"Content-Type": "application/json"}
+    )
     resp = conn.getresponse()
     assert resp.status == 200 and resp.getheader("Connection") is None
     resp.read()

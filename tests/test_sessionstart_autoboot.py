@@ -8,6 +8,7 @@ T074 Phase 1 (R5): the v1 SHAPE assertions (a `notes:` titles line, <=10 lines) 
 superseded by the whisper-v2 spec -- section shape pins live in test_t074_whisper_v2.py;
 THIS file keeps the tiering / silence / kill-switch / fail-soft contracts, which v2
 inherits unchanged."""
+
 import io
 import json
 import os
@@ -28,13 +29,29 @@ _ELSEWHERE = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
 
 def _note(title, body, hours_ago=2.0):
     created = (datetime.now() - timedelta(hours=hours_ago)).isoformat()
-    return Decision(id=f"ADR_test_{title}", title=title, status="accepted", context="",
-                    decision=body, rationale=[], alternatives=[],
-                    consequences={"positive": [], "negative": []}, created_at=created)
+    return Decision(
+        id=f"ADR_test_{title}",
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+    )
 
 
-def _quiet_sources(monkeypatch, notes=None, funnel="funnel: 10 lessons | helped 1",
-                   unread=0, draft=False, siblings=None, delta=0, journey=""):
+def _quiet_sources(
+    monkeypatch,
+    notes=None,
+    funnel="funnel: 10 lessons | helped 1",
+    unread=0,
+    draft=False,
+    siblings=None,
+    delta=0,
+    journey="",
+):
     if notes is None:
         notes = [_note("next-focus", "t1"), _note("where-we-are", "t2")]
     monkeypatch.setattr(ctx, "_fetch_notes", lambda: list(notes))

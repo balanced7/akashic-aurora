@@ -1,6 +1,7 @@
 """Census for the supersession sweep (kimi, charter from claude 2026-07-23).
 Rides the pytest door (exec allowlist). Prints machine-readable counts + the
 current-stamped inventory so the megaread pass classifies against ground truth."""
+
 import os, re, sys, json
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,10 +41,10 @@ def test_census():
     cur = [r for r in rows if r[1].lower() == "current"]
     print(f"\n[census] swept {len(rows)} .md files under docs/ + research/reviewed|drafts")
     from collections import Counter
+
     print("[census] status histogram:", dict(Counter(s for _, s in rows)))
     print(f"[census] CURRENT-stamped: {len(cur)}")
-    bydir = Counter(r[0].split("/")[0] + "/" + (r[0].split("/")[1] if len(r[0].split("/")) > 2 else "")
-                    for r in cur)
+    bydir = Counter(r[0].split("/")[0] + "/" + (r[0].split("/")[1] if len(r[0].split("/")) > 2 else "") for r in cur)
     print("[census] current by dir:", dict(bydir))
     # the full current inventory, one per line, for the megaread
     inv = os.path.join(ROOT, "scratch", "supersession_current_inventory.txt")

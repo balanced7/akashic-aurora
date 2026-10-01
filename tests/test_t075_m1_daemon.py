@@ -1,4 +1,4 @@
-﻿"""T075 M1-ALPHA PRE-REGISTERED ACCEPTANCE -- the daemon skeleton's governing pins.
+"""T075 M1-ALPHA PRE-REGISTERED ACCEPTANCE -- the daemon skeleton's governing pins.
 
 Spec: docs/library/report/20260715_t060-m1-continuous-presence-reconciliati_32cac4.md (slice M1-alpha:
 lock + presence + heartbeat + bus-loss guard + stable token + clean SIGINT;
@@ -35,6 +35,7 @@ Exit codes: 0 = every benign ending (up->clean, refusal, stand-down);
 
 Run: py -m pytest tests/test_t075_m1_daemon.py -q   (live Redis required)
 """
+
 import json
 import os
 import re
@@ -55,6 +56,7 @@ def _control_client():
     manually per drill namespace). None when the live bus is unreachable."""
     try:
         from core.comm.bus import Bus
+
         b = Bus("t075drill-probe", promote=False)
         return b._client if (b.online and b.probe()) else None
     except Exception:
@@ -65,7 +67,8 @@ _C = _control_client()
 pytestmark = pytest.mark.skipif(
     _C is None,
     reason="live Redis required: runner_lock FAIL-OPENS offline, so an offline "
-           "run would false-pass every pin (same gate as the RB-21 drills)")
+    "run would false-pass every pin (same gate as the RB-21 drills)",
+)
 
 
 def _lock_key(ns, agent):
@@ -84,21 +87,28 @@ def _spawn(agent, ns, home, mult, extra=()):
     """Launch the daemon as a real subprocess in an isolated drill namespace.
     HOME/USERPROFILE point at the drill dir so the stable-token dotfile
     (~/.akashic/daemon_<agent>.id) is sandboxed per test."""
-    assert os.path.exists(DAEMON), \
+    assert os.path.exists(DAEMON), (
         "M1-alpha build target scripts/bifrost_daemon.py does not exist yet (RED until built)"
+    )
     env = dict(os.environ)
-    env.update({
-        "BIFROST_NAMESPACE": ns,
-        "_AISETUP_TEST_ISOLATED": "1",
-        "AKASHIC_TIMEOUT_MULTIPLIER": mult,
-        "HOME": home,
-        "USERPROFILE": home,
-        "PYTHONUNBUFFERED": "1",
-    })
+    env.update(
+        {
+            "BIFROST_NAMESPACE": ns,
+            "_AISETUP_TEST_ISOLATED": "1",
+            "AKASHIC_TIMEOUT_MULTIPLIER": mult,
+            "HOME": home,
+            "USERPROFILE": home,
+            "PYTHONUNBUFFERED": "1",
+        }
+    )
     return subprocess.Popen(
         [sys.executable, DAEMON, "--agent", agent, *extra],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-        env=env, cwd=ROOT)
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+        cwd=ROOT,
+    )
 
 
 def _await_exit(proc, timeout=8):
@@ -161,18 +171,20 @@ def test_m1_p1_daemon_starts_holds_lock_registers_presence_and_survives(tmp_path
         raw = _wait_for(lambda: _C.get(_lock_key(ns, agent)), timeout=12)
         assert raw, "P1: daemon never acquired the runner lock"
         rec = json.loads(raw)
-        assert str(rec.get("token", "")).startswith("daemon:"), \
-            "P1: lock token is the daemon's stable identity token"
-        assert _wait_for(lambda: _C.get(_presence_key(ns, agent)), timeout=4), \
+        assert str(rec.get("token", "")).startswith("daemon:"), "P1: lock token is the daemon's stable identity token"
+        assert _wait_for(lambda: _C.get(_presence_key(ns, agent)), timeout=4), (
             "P1: daemon never registered presence (roster check)"
+        )
         card = json.loads(_C.get(_presence_key(ns, agent)))
-        assert card.get("runtime_class") == "daemon", \
+        assert card.get("runtime_class") == "daemon", (
             "P1: presence card must be marked runtime_class=daemon (roster legibility)"
+        )
         time.sleep(3.0)  # the scaled 60 seconds
         assert proc.poll() is None, "P1: daemon died inside the survival window"
         assert _C.get(_lock_key(ns, agent)), "P1: lock lapsed while the daemon lived"
-        assert not _C.exists(_cursor_key(ns, agent)), \
+        assert not _C.exists(_cursor_key(ns, agent)), (
             "R-a2: the daemon must NEVER create its agent's cursor (no consume moves in wave 1)"
+        )
     finally:
         code, out = _kill(proc)
         _cleanup_ns(ns)
@@ -195,10 +207,10 @@ def test_m1_p2_heartbeat_keeps_holder_fresh(tmp_path):
         r2 = json.loads(_C.get(_lock_key(ns, agent)) or "{}")
         assert r2, "P2: lock vanished mid-run (heartbeat not refreshing)"
         assert r2.get("token") == r1.get("token"), "P2: token must be stable across refreshes"
-        assert int(r2.get("gen", -1)) == int(r1.get("gen", -2)), \
+        assert int(r2.get("gen", -1)) == int(r1.get("gen", -2)), (
             "P2: a refresh must never mint a new generation (that is acquisition's job)"
-        assert r2.get("ts") != r1.get("ts"), \
-            "P2: holder ts did not advance across the refresh window -- heartbeat dead"
+        )
+        assert r2.get("ts") != r1.get("ts"), "P2: holder ts did not advance across the refresh window -- heartbeat dead"
         ttl = _C.ttl(_lock_key(ns, agent))
         assert 0 < ttl <= 12, f"P2: lock TTL out of band ({ttl}s) -- refresh not re-arming expiry"
     finally:
@@ -212,15 +224,20 @@ def test_m1_p11_pre_existing_lock_refused_no_steal(tmp_path):
     coexistence phase 1, the operator chooses who runs. No steal, no wait-loop."""
     ns, home = _drill(tmp_path, "p11")
     agent = "t075c"
-    foreign = {"token": f"{agent}:999999:feedfacecafe", "pid": 999999,
-               "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "gen": 7}
+    foreign = {
+        "token": f"{agent}:999999:feedfacecafe",
+        "pid": 999999,
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "gen": 7,
+    }
     _C.set(_lock_key(ns, agent), json.dumps(foreign), ex=60)
     proc = _spawn(agent, ns, home, "0.1")
     try:
         code, out = _await_exit(proc, timeout=20)
         assert code == 0, f"P11: refusal must exit 0 (benign, operator-facing); got {code}\n{out}"
-        assert "refused" in out.lower() and "no steal" in out.lower(), \
+        assert "refused" in out.lower() and "no steal" in out.lower(), (
             f"P11: refusal provenance line missing from stdout:\n{out}"
+        )
         rec = json.loads(_C.get(_lock_key(ns, agent)))
         assert rec == foreign, "P11: the daemon touched a lock it refused (steal or clobber)"
     finally:
@@ -243,8 +260,7 @@ def test_m1_p12_stable_token_reused_generation_increments(tmp_path):
         m = up_re.search(out)
         assert m, f"P12: no '[daemon] up ... token= gen=' line in stdout:\n{out}"
         assert code == 0, f"P12: max-runtime exit must be benign 0; got {code}\n{out}"
-        assert "clean exit" in out and "lock released" in out, \
-            f"P12: clean-exit provenance missing:\n{out}"
+        assert "clean exit" in out and "lock released" in out, f"P12: clean-exit provenance missing:\n{out}"
         return m.group(1), int(m.group(2)), out
 
     tok1, gen1, _ = run_once()
@@ -257,8 +273,7 @@ def test_m1_p12_stable_token_reused_generation_increments(tmp_path):
         assert os.path.exists(dotfile), "P12: ~/.akashic/daemon_<agent>.id missing"
         with open(dotfile, encoding="utf-8") as f:
             assert f.read().strip() == tok1, "P12: dotfile content is not the lock token"
-        assert not _C.exists(_cursor_key(ns, agent)), \
-            "R-a2: no cursor key, ever (consume path unmoved)"
+        assert not _C.exists(_cursor_key(ns, agent)), "R-a2: no cursor key, ever (consume path unmoved)"
     finally:
         _cleanup_ns(ns)
 

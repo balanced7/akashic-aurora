@@ -10,6 +10,7 @@ while remaining read-only.
 Registry failures preserve the historical ToolBox fail-open execution policy,
 but the returned preview state is ``unknown`` rather than an invented allow.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Tuple
@@ -64,6 +65,7 @@ def evaluate_toolbox_bus_action(
     ]
     try:
         from core.trust import registry
+
         grant = registry.resolve(subject)
         caps = sorted(getattr(cap, "value", str(cap)) for cap in grant.caps)
         role = str(grant.role)

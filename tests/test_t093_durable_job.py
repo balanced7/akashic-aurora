@@ -7,6 +7,7 @@ from the supervised child's stdout pipe.  Durations stay small; the production d
 Governing build spec:
 docs/library/report/20260717_t093-crash-path-reconciliation-fable-rec_c00255.md sections 7-9.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,8 +28,14 @@ ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"
 SHIP = ROOT / "scripts" / "ship.py"
 TERMINAL = {
-    "succeeded", "failed", "cancelled", "deadline_exceeded", "child_killed",
-    "launch_failed", "outcome_unknown", "supervision_lost",
+    "succeeded",
+    "failed",
+    "cancelled",
+    "deadline_exceeded",
+    "child_killed",
+    "launch_failed",
+    "outcome_unknown",
+    "supervision_lost",
 }
 
 
@@ -54,27 +61,47 @@ def _cli(*args: str, timeout: float = 8.0) -> dict:
         errors="replace",
         timeout=timeout,
     )
-    assert proc.returncode == 0, (
-        f"run_job rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
-    )
+    assert proc.returncode == 0, f"run_job rc={proc.returncode}\nstdout={proc.stdout}\nstderr={proc.stderr}"
     return _json_tail(proc.stdout)
 
 
-def _launch(state_dir: Path, job_id: str, command: list[str], *,
-            max_runtime: float = 4.0, grace: float = 0.2,
-            heartbeat: float = 0.05, broker: str = "auto") -> dict:
+def _launch(
+    state_dir: Path,
+    job_id: str,
+    command: list[str],
+    *,
+    max_runtime: float = 4.0,
+    grace: float = 0.2,
+    heartbeat: float = 0.05,
+    broker: str = "auto",
+) -> dict:
     return _cli(
-        "launch", "--state-dir", str(state_dir), "--job-id", job_id,
-        "--max-runtime", str(max_runtime), "--grace-seconds", str(grace),
-        "--heartbeat-seconds", str(heartbeat), "--broker", broker,
-        "--", *command,
+        "launch",
+        "--state-dir",
+        str(state_dir),
+        "--job-id",
+        job_id,
+        "--max-runtime",
+        str(max_runtime),
+        "--grace-seconds",
+        str(grace),
+        "--heartbeat-seconds",
+        str(heartbeat),
+        "--broker",
+        broker,
+        "--",
+        *command,
     )
 
 
 def _status(state_dir: Path, job_id: str, *, stale_after: float = 0.3) -> dict:
     return _cli(
-        "status", job_id, "--state-dir", str(state_dir),
-        "--stale-after", str(stale_after),
+        "status",
+        job_id,
+        "--state-dir",
+        str(state_dir),
+        "--stale-after",
+        str(stale_after),
     )
 
 
@@ -106,7 +133,9 @@ def _force_tree(pid: int) -> None:
     if sys.platform == "win32":
         subprocess.run(
             ["taskkill", "/PID", str(pid), "/T", "/F"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
     else:
         try:
@@ -119,7 +148,9 @@ def _force_pid(pid: int) -> None:
     if sys.platform == "win32":
         subprocess.run(
             ["taskkill", "/PID", str(pid), "/F"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
     else:
         try:
@@ -128,34 +159,44 @@ def _force_pid(pid: int) -> None:
             pass
 
 
-def _seed_spec(state_dir: Path, job_id: str, command: list[str], *,
-               max_runtime: float = 3.0, grace: float = 0.2,
-               heartbeat: float = 0.05, broker: str = "detached",
-               startup_expired: bool = False) -> dict[str, Path]:
+def _seed_spec(
+    state_dir: Path,
+    job_id: str,
+    command: list[str],
+    *,
+    max_runtime: float = 3.0,
+    grace: float = 0.2,
+    heartbeat: float = 0.05,
+    broker: str = "detached",
+    startup_expired: bool = False,
+) -> dict[str, Path]:
     """Seed the immutable pre-broker receipt to reproduce a controller launch-gap death."""
     paths = run_job._paths(state_dir, job_id)
     paths["root"].mkdir(parents=True, exist_ok=True)
     now_mono = time.monotonic()
     now_epoch = time.time()
     startup_delta = -1.0 if startup_expired else 5.0
-    run_job._atomic_json(paths["spec"], {
-        "schema": 1,
-        "job_id": job_id,
-        "command": [str(x) for x in command],
-        "cwd": str(ROOT.resolve()),
-        "max_runtime": float(max_runtime),
-        "grace_seconds": float(grace),
-        "heartbeat_seconds": float(heartbeat),
-        "broker_requested": broker,
-        "created_at": "preregistered-drill",
-        "created_epoch": now_epoch - 20,
-        "created_monotonic": now_mono - 20,
-        "startup_deadline_epoch": now_epoch + startup_delta,
-        "startup_deadline_monotonic": now_mono + startup_delta,
-        "environment": {},
-        "log_path": str(paths["log"]),
-        "cancel_path": str(paths["cancel"]),
-    })
+    run_job._atomic_json(
+        paths["spec"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "command": [str(x) for x in command],
+            "cwd": str(ROOT.resolve()),
+            "max_runtime": float(max_runtime),
+            "grace_seconds": float(grace),
+            "heartbeat_seconds": float(heartbeat),
+            "broker_requested": broker,
+            "created_at": "preregistered-drill",
+            "created_epoch": now_epoch - 20,
+            "created_monotonic": now_mono - 20,
+            "startup_deadline_epoch": now_epoch + startup_delta,
+            "startup_deadline_monotonic": now_mono + startup_delta,
+            "environment": {},
+            "log_path": str(paths["log"]),
+            "cancel_path": str(paths["cancel"]),
+        },
+    )
     return paths
 
 
@@ -163,8 +204,7 @@ def test_launch_is_immediate_and_fresh_status_recovers_result(tmp_path):
     job_id = _job_id("fresh")
     marker = tmp_path / "fresh.marker"
     code = (
-        "import pathlib,sys,time; time.sleep(.35); "
-        "pathlib.Path(sys.argv[1]).write_text('complete', encoding='utf-8')"
+        "import pathlib,sys,time; time.sleep(.35); pathlib.Path(sys.argv[1]).write_text('complete', encoding='utf-8')"
     )
     started = time.monotonic()
     launch = _launch(tmp_path, job_id, [sys.executable, "-c", code, str(marker)])
@@ -185,10 +225,12 @@ def test_wmi_broker_launches_guards_without_visible_consoles(monkeypatch):
     class BrokerResult:
         returncode = 0
         stderr = ""
-        stdout = json.dumps([
-            {"ReturnValue": 0, "ProcessId": 101},
-            {"ReturnValue": 0, "ProcessId": 102},
-        ])
+        stdout = json.dumps(
+            [
+                {"ReturnValue": 0, "ProcessId": 101},
+                {"ReturnValue": 0, "ProcessId": 102},
+            ]
+        )
 
     def fake_run(argv, **kwargs):
         captured["argv"] = argv
@@ -196,10 +238,12 @@ def test_wmi_broker_launches_guards_without_visible_consoles(monkeypatch):
         return BrokerResult()
 
     monkeypatch.setattr(run_job.subprocess, "run", fake_run)
-    pids = run_job._wmi_create_pair([
-        [sys.executable, "-c", "raise SystemExit(0)"],
-        [sys.executable, "-c", "raise SystemExit(0)"],
-    ])
+    pids = run_job._wmi_create_pair(
+        [
+            [sys.executable, "-c", "raise SystemExit(0)"],
+            [sys.executable, "-c", "raise SystemExit(0)"],
+        ]
+    )
 
     encoded = captured["argv"][captured["argv"].index("-EncodedCommand") + 1]
     broker_script = __import__("base64").b64decode(encoded).decode("utf-16le")
@@ -219,8 +263,7 @@ def test_wmi_broker_survives_recursive_controller_tree_kill(tmp_path):
     ready = tmp_path / "controller-ready.json"
     marker = tmp_path / "tree.marker"
     child_code = (
-        "import pathlib,sys,time; time.sleep(.8); "
-        "pathlib.Path(sys.argv[1]).write_text('survived', encoding='utf-8')"
+        "import pathlib,sys,time; time.sleep(.8); pathlib.Path(sys.argv[1]).write_text('survived', encoding='utf-8')"
     )
     controller_code = r"""
 import pathlib, subprocess, sys, time
@@ -234,8 +277,17 @@ pathlib.Path(ready).write_text(p.stdout if p.returncode == 0 else
 time.sleep(30)
 """
     controller = subprocess.Popen(
-        [sys.executable, "-c", controller_code, str(RUN_JOB), str(tmp_path), job_id,
-         str(ready), str(marker), child_code],
+        [
+            sys.executable,
+            "-c",
+            controller_code,
+            str(RUN_JOB),
+            str(tmp_path),
+            job_id,
+            str(ready),
+            str(marker),
+            child_code,
+        ],
         cwd=ROOT,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
@@ -267,8 +319,7 @@ def test_independent_deadline_resolves_wedged_child(tmp_path):
         "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()), encoding='utf-8'); "
         "print('entered wedge', flush=True); time.sleep(60)"
     )
-    _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code, str(child_pid)],
-            max_runtime=0.45, grace=0.15)
+    _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code, str(child_pid)], max_runtime=0.45, grace=0.15)
     final = _wait_terminal(tmp_path, job_id, timeout=5)
     assert final["state"] == "deadline_exceeded"
     assert final["reported_by"] == "watchdog"
@@ -286,34 +337,47 @@ def test_watchdog_never_claims_enforcement_when_exact_kill_fails(tmp_path, monke
     child_identity = run_job._process_info(os.getpid())[1]
     assert child_identity, "the kill drill requires a reusable process-creation identity"
     now = time.monotonic()
-    run_job._atomic_json(paths["spec"], {
-        "schema": 1,
-        "job_id": job_id,
-        "heartbeat_seconds": 0.01,
-        "grace_seconds": 0.0,
-        "startup_deadline_monotonic": now + 5,
-    })
-    run_job._atomic_json(paths["status"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "running",
-        "supervisor_pid": 2_000_000_000,
-        "heartbeat_epoch": 0.0,
-        "child_pid": os.getpid(),
-        "child_identity": child_identity,
-        "deadline_monotonic": now + 60,
-    })
-    run_job._atomic_json(paths["cancel"], {
-        "schema": 1,
-        "job_id": job_id,
-        "reason": "kill-refusal-drill",
-        "requested_monotonic": now,
-    })
-    monkeypatch.setattr(run_job, "_kill_tree", lambda *_: {
-        "killed": False,
-        "identity_match": True,
-        "detail": "injected taskkill refusal",
-    })
+    run_job._atomic_json(
+        paths["spec"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "heartbeat_seconds": 0.01,
+            "grace_seconds": 0.0,
+            "startup_deadline_monotonic": now + 5,
+        },
+    )
+    run_job._atomic_json(
+        paths["status"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "running",
+            "supervisor_pid": 2_000_000_000,
+            "heartbeat_epoch": 0.0,
+            "child_pid": os.getpid(),
+            "child_identity": child_identity,
+            "deadline_monotonic": now + 60,
+        },
+    )
+    run_job._atomic_json(
+        paths["cancel"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "reason": "kill-refusal-drill",
+            "requested_monotonic": now,
+        },
+    )
+    monkeypatch.setattr(
+        run_job,
+        "_kill_tree",
+        lambda *_: {
+            "killed": False,
+            "identity_match": True,
+            "detail": "injected taskkill refusal",
+        },
+    )
 
     rc = run_job._watchdog(job_id, tmp_path)
     receipt = run_job._read_json(paths["watchdog"])
@@ -493,8 +557,15 @@ def test_terminal_receipt_waits_for_retained_workload_quiescence(tmp_path):
         tmp_path,
         job_id,
         [
-            sys.executable, "-c", root_code, str(root_ready), str(grandchild_pid_path),
-            str(terminal_seen), str(effect), grandchild_code, str(release_root),
+            sys.executable,
+            "-c",
+            root_code,
+            str(root_ready),
+            str(grandchild_pid_path),
+            str(terminal_seen),
+            str(effect),
+            grandchild_code,
+            str(release_root),
         ],
         max_runtime=8,
         grace=0.1,
@@ -502,10 +573,7 @@ def test_terminal_receipt_waits_for_retained_workload_quiescence(tmp_path):
     )
     _wait_running(tmp_path, job_id)
     deadline = time.monotonic() + 4
-    while (
-        (not root_ready.exists() or not grandchild_pid_path.exists())
-        and time.monotonic() < deadline
-    ):
+    while (not root_ready.exists() or not grandchild_pid_path.exists()) and time.monotonic() < deadline:
         time.sleep(0.01)
     assert root_ready.exists() and grandchild_pid_path.exists()
     grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
@@ -631,8 +699,12 @@ def test_deadline_kills_grandchild_after_intermediate_parent_exits(tmp_path):
         tmp_path,
         job_id,
         [
-            sys.executable, "-c", root_code, str(grandchild_pid_path),
-            intermediate_code, grandchild_code,
+            sys.executable,
+            "-c",
+            root_code,
+            str(grandchild_pid_path),
+            intermediate_code,
+            grandchild_code,
         ],
         max_runtime=1.0,
         grace=0.1,
@@ -702,13 +774,14 @@ def test_deadline_kills_retained_descendant_after_root_exits(tmp_path):
 def test_watchdog_death_does_not_collapse_healthy_owned_job(tmp_path):
     job_id = _job_id("watchdog-handle-loss")
     marker = tmp_path / "completed.marker"
-    code = (
-        "import pathlib,sys,time; time.sleep(.35); "
-        "pathlib.Path(sys.argv[1]).write_text('complete',encoding='utf-8')"
-    )
+    code = "import pathlib,sys,time; time.sleep(.35); pathlib.Path(sys.argv[1]).write_text('complete',encoding='utf-8')"
     _launch(
-        tmp_path, job_id, [sys.executable, "-c", code, str(marker)],
-        max_runtime=4.0, grace=0.1, heartbeat=0.03,
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", code, str(marker)],
+        max_runtime=4.0,
+        grace=0.1,
+        heartbeat=0.03,
     )
     running = _wait_running(tmp_path, job_id)
     watchdog_pid = int(running["watchdog_pid"])
@@ -756,8 +829,12 @@ with run_job.protect_owned_job_during_publish():
     identities: list[tuple[int, str]] = []
     try:
         _launch(
-            tmp_path, job_id, [sys.executable, "-u", "-c", code],
-            max_runtime=5.0, grace=0.1, heartbeat=0.03,
+            tmp_path,
+            job_id,
+            [sys.executable, "-u", "-c", code],
+            max_runtime=5.0,
+            grace=0.1,
+            heartbeat=0.03,
         )
         running = _wait_running(tmp_path, job_id)
         deadline = time.monotonic() + 3
@@ -801,33 +878,46 @@ with run_job.protect_owned_job_during_publish():
 def test_already_dead_force_race_never_becomes_cancelled(tmp_path, monkeypatch):
     job_id = _job_id("already-dead-race")
     paths = _seed_spec(
-        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(0)"],
-        grace=0.0, heartbeat=0.01,
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "raise SystemExit(0)"],
+        grace=0.0,
+        heartbeat=0.01,
     )
     child_identity = run_job._process_info(os.getpid())[1]
     assert child_identity
-    run_job._atomic_json(paths["status"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "running",
-        "supervisor_pid": 2_000_000_000,
-        "heartbeat_epoch": 0.0,
-        "child_pid": os.getpid(),
-        "child_identity": child_identity,
-        "deadline_monotonic": time.monotonic() + 60,
-    })
-    run_job._atomic_json(paths["cancel"], {
-        "schema": 1,
-        "job_id": job_id,
-        "reason": "already-dead-race",
-        "requested_monotonic": time.monotonic(),
-    })
-    monkeypatch.setattr(run_job, "_kill_tree", lambda *_: {
-        "killed": True,
-        "already_dead": True,
-        "identity_match": True,
-        "force_applied": False,
-    })
+    run_job._atomic_json(
+        paths["status"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "running",
+            "supervisor_pid": 2_000_000_000,
+            "heartbeat_epoch": 0.0,
+            "child_pid": os.getpid(),
+            "child_identity": child_identity,
+            "deadline_monotonic": time.monotonic() + 60,
+        },
+    )
+    run_job._atomic_json(
+        paths["cancel"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "reason": "already-dead-race",
+            "requested_monotonic": time.monotonic(),
+        },
+    )
+    monkeypatch.setattr(
+        run_job,
+        "_kill_tree",
+        lambda *_: {
+            "killed": True,
+            "already_dead": True,
+            "identity_match": True,
+            "force_applied": False,
+        },
+    )
     rc = run_job._watchdog(job_id, tmp_path)
     receipt = run_job._read_json(paths["watchdog"])
     assert rc != 0
@@ -863,7 +953,9 @@ def test_post_publish_optional_failure_preserves_primary_success(tmp_path, monke
 def test_watchdog_startup_expiry_clears_deadline_enforcement(tmp_path):
     job_id = _job_id("startup-expiry")
     paths = _seed_spec(
-        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(0)"],
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "raise SystemExit(0)"],
         startup_expired=True,
     )
     rc = run_job._watchdog(job_id, tmp_path)
@@ -875,10 +967,7 @@ def test_watchdog_startup_expiry_clears_deadline_enforcement(tmp_path):
 
 def test_slow_work_below_hard_deadline_is_not_killed(tmp_path):
     job_id = _job_id("slow")
-    code = (
-        "import time; "
-        "[(print(f'tick {i}', flush=True), time.sleep(.15)) for i in range(5)]"
-    )
+    code = "import time; [(print(f'tick {i}', flush=True), time.sleep(.15)) for i in range(5)]"
     _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code], max_runtime=3)
     final = _wait_terminal(tmp_path, job_id)
     assert final["state"] == "succeeded"
@@ -898,8 +987,7 @@ while not cancel.exists():
 marker.write_text('quiesced', encoding='utf-8')
 raise SystemExit(130)
 """
-    _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code, str(marker)],
-            max_runtime=5, grace=1.0)
+    _launch(tmp_path, job_id, [sys.executable, "-u", "-c", code, str(marker)], max_runtime=5, grace=1.0)
     _wait_running(tmp_path, job_id)
     cancel = _cli("cancel", job_id, "--state-dir", str(tmp_path), "--reason", "test")
     assert cancel["cancel_requested"] is True
@@ -913,8 +1001,7 @@ raise SystemExit(130)
 def test_atomic_receipt_never_tears_during_heartbeats(tmp_path):
     job_id = _job_id("atomic")
     code = "import time; time.sleep(.6)"
-    launch = _launch(tmp_path, job_id, [sys.executable, "-c", code],
-                     max_runtime=3, heartbeat=0.02)
+    launch = _launch(tmp_path, job_id, [sys.executable, "-c", code], max_runtime=3, heartbeat=0.02)
     receipt = Path(launch["receipt_path"])
     deadline = time.monotonic() + 2
     reads = 0
@@ -930,8 +1017,7 @@ def test_atomic_receipt_never_tears_during_heartbeats(tmp_path):
 
 def test_forced_child_death_is_reported_without_inventing_attribution(tmp_path):
     job_id = _job_id("external-kill")
-    _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
-            max_runtime=10)
+    _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"], max_runtime=10)
     running = _wait_running(tmp_path, job_id)
     _force_tree(int(running["child_pid"]))
     final = _wait_terminal(tmp_path, job_id)
@@ -943,8 +1029,7 @@ def test_forced_child_death_is_reported_without_inventing_attribution(tmp_path):
 
 def test_stale_supervisor_is_loud_but_watchdog_still_enforces_deadline(tmp_path):
     job_id = _job_id("supervisor-loss")
-    _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
-            max_runtime=0.75, heartbeat=0.03)
+    _launch(tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"], max_runtime=0.75, heartbeat=0.03)
     running = _wait_running(tmp_path, job_id)
     assert running.get("watchdog_pid"), running
     _force_pid(int(running["supervisor_pid"]))
@@ -975,10 +1060,22 @@ def test_duplicate_deterministic_launch_executes_worker_once(tmp_path):
 def test_real_ship_dry_run_is_recoverable_from_fresh_process(tmp_path):
     job_id = _job_id("ship")
     proc = subprocess.run(
-        [sys.executable, str(SHIP), "T093 durable dry-run", "scripts/ship.py",
-         "--dry-run", "--durable", "--job-id", job_id,
-         "--job-state-dir", str(tmp_path), "--deadline-seconds", "5",
-         "--grace-seconds", ".2"],
+        [
+            sys.executable,
+            str(SHIP),
+            "T093 durable dry-run",
+            "scripts/ship.py",
+            "--dry-run",
+            "--durable",
+            "--job-id",
+            job_id,
+            "--job-state-dir",
+            str(tmp_path),
+            "--deadline-seconds",
+            "5",
+            "--grace-seconds",
+            ".2",
+        ],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -1005,8 +1102,13 @@ def test_expired_spec_only_retry_fails_loudly_without_rebrokering(tmp_path, monk
     monkeypatch.setattr(run_job, "_wmi_create_pair", lambda *_: broker_calls.append(1))
 
     receipt = run_job.launch_job(
-        command, job_id=job_id, state_dir=tmp_path, cwd=ROOT,
-        max_runtime=3.0, grace_seconds=0.2, heartbeat_seconds=0.05,
+        command,
+        job_id=job_id,
+        state_dir=tmp_path,
+        cwd=ROOT,
+        max_runtime=3.0,
+        grace_seconds=0.2,
+        heartbeat_seconds=0.05,
         broker="detached",
     )
     assert broker_calls == []
@@ -1019,19 +1121,24 @@ def test_expired_spec_only_retry_fails_loudly_without_rebrokering(tmp_path, monk
 def test_terminal_sticky_watchdog_ready_cannot_authorize_worker_start(tmp_path):
     job_id = _job_id("stale-ready")
     paths = _seed_spec(
-        tmp_path, job_id, [sys.executable, "-c", "raise SystemExit(99)"],
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "raise SystemExit(99)"],
     )
     identity = run_job._process_info(os.getpid())[1]
     assert identity
-    run_job._atomic_json(paths["watchdog"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "complete_observed",
-        "ready": True,
-        "watchdog_pid": os.getpid(),
-        "watchdog_identity": identity,
-        "heartbeat_epoch": time.time(),
-    })
+    run_job._atomic_json(
+        paths["watchdog"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "complete_observed",
+            "ready": True,
+            "watchdog_pid": os.getpid(),
+            "watchdog_identity": identity,
+            "heartbeat_epoch": time.time(),
+        },
+    )
     ready = run_job._wait_watchdog_ready(paths, time.monotonic() + 0.06)
     assert not ready, "historical ready=True is not a live deadline owner"
 
@@ -1039,20 +1146,26 @@ def test_terminal_sticky_watchdog_ready_cannot_authorize_worker_start(tmp_path):
 def test_running_receipt_failure_cleans_up_prearmed_child(tmp_path, monkeypatch):
     job_id = _job_id("arm-failure")
     paths = _seed_spec(
-        tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
-        max_runtime=5.0, heartbeat=0.02,
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        max_runtime=5.0,
+        heartbeat=0.02,
     )
     identity = run_job._process_info(os.getpid())[1]
     assert identity
-    run_job._atomic_json(paths["watchdog"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "watching",
-        "ready": True,
-        "watchdog_pid": os.getpid(),
-        "watchdog_identity": identity,
-        "heartbeat_epoch": time.time(),
-    })
+    run_job._atomic_json(
+        paths["watchdog"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "watching",
+            "ready": True,
+            "watchdog_pid": os.getpid(),
+            "watchdog_identity": identity,
+            "heartbeat_epoch": time.time(),
+        },
+    )
     real_atomic = run_job._atomic_json
     failed_once = False
 
@@ -1096,8 +1209,12 @@ while not cancel.exists():
 raise SystemExit(0)
 """
     _launch(
-        tmp_path, job_id, [sys.executable, "-u", "-c", code],
-        max_runtime=0.2, grace=0.5, heartbeat=0.02,
+        tmp_path,
+        job_id,
+        [sys.executable, "-u", "-c", code],
+        max_runtime=0.2,
+        grace=0.5,
+        heartbeat=0.02,
     )
     final = _wait_terminal(tmp_path, job_id, timeout=4)
     assert final["state"] == "succeeded"
@@ -1127,8 +1244,12 @@ with run_job.publish_fence(fence, blocking=True):
     os.environ["AKASHIC_T093_ENTERED_MARKER"] = str(entered)
     try:
         _launch(
-            tmp_path, job_id, [sys.executable, "-u", "-c", code],
-            max_runtime=5, grace=0.05, heartbeat=0.02,
+            tmp_path,
+            job_id,
+            [sys.executable, "-u", "-c", code],
+            max_runtime=5,
+            grace=0.05,
+            heartbeat=0.02,
         )
         deadline = time.monotonic() + 3
         while not entered.exists() and time.monotonic() < deadline:
@@ -1243,24 +1364,32 @@ raise SystemExit(7)
 def test_dead_guards_promote_primary_state_to_supervision_lost(tmp_path):
     job_id = _job_id("guards-gone")
     paths = _seed_spec(
-        tmp_path, job_id, [sys.executable, "-c", "import time; time.sleep(60)"],
+        tmp_path,
+        job_id,
+        [sys.executable, "-c", "import time; time.sleep(60)"],
     )
-    run_job._atomic_json(paths["launch"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "launching",
-        "supervisor_pid": 2_000_000_000,
-        "watchdog_pid": 2_000_000_001,
-    })
-    run_job._atomic_json(paths["status"], {
-        "schema": 1,
-        "job_id": job_id,
-        "state": "running",
-        "supervisor_pid": 2_000_000_000,
-        "heartbeat_epoch": 0.0,
-        "child_pid": 2_000_000_002,
-        "child_identity": "definitely-not-live",
-    })
+    run_job._atomic_json(
+        paths["launch"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "launching",
+            "supervisor_pid": 2_000_000_000,
+            "watchdog_pid": 2_000_000_001,
+        },
+    )
+    run_job._atomic_json(
+        paths["status"],
+        {
+            "schema": 1,
+            "job_id": job_id,
+            "state": "running",
+            "supervisor_pid": 2_000_000_000,
+            "heartbeat_epoch": 0.0,
+            "child_pid": 2_000_000_002,
+            "child_identity": "definitely-not-live",
+        },
+    )
     receipt = run_job.read_status(job_id, tmp_path, stale_after=0.01)
     assert receipt["state"] == "supervision_lost"
     assert receipt["last_reported_state"] == "running"

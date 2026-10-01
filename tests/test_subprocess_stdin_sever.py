@@ -27,6 +27,7 @@ keep-in-sync comment that test_mcp_arg_defaults_parity.py replaced:
 
 Run: py -m pytest tests/test_subprocess_stdin_sever.py -q
 """
+
 import argparse
 import contextlib
 import io
@@ -51,7 +52,9 @@ def test_s1_door_severs_stdin_for_children_by_default():
     # Behavioural, not just structural: the child must see EOF, not an inherited handle.
     r = subprocess.run(
         [sys.executable, "-c", "import sys; sys.stdout.write(repr(sys.stdin.read()))"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert r.stdout == "''", f"S1: child did not get DEVNULL stdin (got {r.stdout!r})"
 
@@ -67,7 +70,10 @@ def test_s2_explicit_stdin_and_piped_input_still_work():
 
     r = subprocess.run(
         [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read().upper())"],
-        input="membrane holds", capture_output=True, text=True, timeout=30,
+        input="membrane holds",
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert r.stdout == "MEMBRANE HOLDS", f"S2: piped input broken (got {r.stdout!r})"
 
@@ -86,12 +92,12 @@ def test_s3_boot_path_spawns_no_stdin_inheriting_child():
     import agent_cli
     import ai_setup_mcp as door
 
-    base = subprocess.Popen          # the membrane class, already installed
+    base = subprocess.Popen  # the membrane class, already installed
     leaks = []
 
     class _Tracer(base):
         def __init__(self, args, bufsize=-1, executable=None, stdin=None, *a, **kw):
-            if stdin is None:        # the inherit case, as the CALLER wrote it
+            if stdin is None:  # the inherit case, as the CALLER wrote it
                 site = "<unknown>"
                 for fr in reversed(traceback.extract_stack()[:-1]):
                     f = fr.filename.replace("\\", "/")
@@ -102,9 +108,9 @@ def test_s3_boot_path_spawns_no_stdin_inheriting_child():
                 leaks.append(f"{site}  ->  {argv[:70]}")
             super().__init__(args, bufsize, executable, stdin, *a, **kw)
 
-    ns = argparse.Namespace(**{**door._ARG_DEFAULTS,
-                               "agent_id": "c7-4-class-pin",
-                               "task": "S3 stdin-sever boot-path pin"})
+    ns = argparse.Namespace(
+        **{**door._ARG_DEFAULTS, "agent_id": "c7-4-class-pin", "task": "S3 stdin-sever boot-path pin"}
+    )
     # Plain redirect_stdout, NOT the door's thread-local proxy: the proxy installs
     # itself as sys.stdout at import, and pytest swaps sys.stdout per test, so arming
     # it here would capture only when this test happened to run first.

@@ -5,6 +5,7 @@ no live bus (tonight's own tempdir_sidecar_test_selfpoison lesson applied at bir
 The founding LIVE photograph (claude's round-2 leak flagged) is a run receipt in the
 build commit, not a pin.
 """
+
 import os
 import sys
 
@@ -30,8 +31,7 @@ def test_note_id_pointer_suppresses():
 
 
 def test_library_path_pointer_suppresses():
-    assert classify_body(
-        _DOC + "\nsee docs/library/design/20260724_x_9ebbcf.md", "handoff") is None
+    assert classify_body(_DOC + "\nsee docs/library/design/20260724_x_9ebbcf.md", "handoff") is None
 
 
 def test_short_body_is_clean():
@@ -43,7 +43,7 @@ def test_trace_kind_never_flagged():
 
 
 def test_long_unstructured_prose_is_clean():
-    prose = ("we talked for a while about the library and the night went on " * 40)
+    prose = "we talked for a while about the library and the night went on " * 40
     assert len(prose) >= THRESHOLD
     assert classify_body(prose, "chat") is None
 

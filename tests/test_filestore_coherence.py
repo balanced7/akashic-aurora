@@ -34,6 +34,7 @@ schedule rather than discovered by luck.
 
 Remove the xfail marker -- do not delete the test -- when the store learns to merge or refuse.
 """
+
 import json
 import subprocess
 import sys
@@ -65,8 +66,8 @@ def _read_kv(state: Path) -> dict:
 @pytest.mark.xfail(
     strict=True,
     reason="FileStore has no cross-process coherence: _flush replaces the whole file from a "
-           "stale in-memory dict, so the child's write is lost. Pinned 2026-07-25; unpin when "
-           "RB-8 CAS / T034 lands. XPASS here means the store was fixed -- delete the marker.",
+    "stale in-memory dict, so the child's write is lost. Pinned 2026-07-25; unpin when "
+    "RB-8 CAS / T034 lands. XPASS here means the store was fixed -- delete the marker.",
 )
 def test_a_concurrent_writers_write_is_not_silently_lost(tmp_path):
     state = tmp_path / "store_state.json"
@@ -78,7 +79,9 @@ def test_a_concurrent_writers_write_is_not_silently_lost(tmp_path):
     child_src = _CHILD.format(repo=str(REPO_ROOT), path=str(state))
     done = subprocess.run(
         [sys.executable, "-c", child_src],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     assert done.returncode == 0, f"setup: child writer failed: {done.stderr[:500]}"
     assert "child_write" in _read_kv(state), "setup: the child's write should have landed"

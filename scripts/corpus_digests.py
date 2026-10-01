@@ -24,6 +24,7 @@ answerable without another full read.
     py scripts/corpus_digests.py                 # land everything found, print a coverage table
     py scripts/corpus_digests.py --stats         # report on what is already landed, write nothing
 """
+
 import argparse
 import glob
 import json
@@ -35,9 +36,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "data", "corpus-digests")
@@ -45,13 +48,23 @@ OUT = os.environ.get("AKASHIC_DIGESTS_FILE") or os.path.join(OUT_DIR, "digests.j
 
 # Workflow journals live beside the session transcripts, not in the repo.
 JOURNAL_GLOB = os.path.join(
-    os.path.expanduser("~"), ".claude", "projects", "*", "*", "subagents", "workflows",
-    "*", "journal.jsonl")
+    os.path.expanduser("~"), ".claude", "projects", "*", "*", "subagents", "workflows", "*", "journal.jsonl"
+)
 
 # Fields a digest may carry. Absent != empty: a field missing from a shard's schema is unknown,
 # not false, and the coverage table below reports population per field so a reader can tell.
-FIELDS = ("path", "date", "status_claimed", "gist", "settled", "orphaned",
-          "staleness_signal", "gold", "themes", "daniil_directives")
+FIELDS = (
+    "path",
+    "date",
+    "status_claimed",
+    "gist",
+    "settled",
+    "orphaned",
+    "staleness_signal",
+    "gold",
+    "themes",
+    "daniil_directives",
+)
 
 
 def _journals(extra=None):
@@ -69,14 +82,14 @@ def _digests_from(journal):
             try:
                 rec = json.loads(line)
             except Exception:
-                continue                       # a partial line is not a reason to lose the file
+                continue  # a partial line is not a reason to lose the file
             if rec.get("type") != "result":
                 continue
             val = rec.get("value") or rec.get("result") or {}
             if not isinstance(val, dict):
                 continue
             shard = val.get("shard") or rec.get("label") or "?"
-            for art in (val.get("artifacts") or []):
+            for art in val.get("artifacts") or []:
                 if isinstance(art, dict) and art.get("path"):
                     yield run, shard, art
             # A sweep over TRANSCRIPTS returns operator utterances rather than artifact digests.
@@ -95,13 +108,17 @@ def _digests_from(journal):
                 # its `shard` -- a 2KB "path" that made the index unreadable. Clamp the label;
                 # the index is a NAVIGATION key, and a key nobody can read is not a key.
                 _s = " ".join(str(shard).split())[:48]
-                yield run, shard, {
-                    "path": f"utterance:{_s}:{i}:{d.get('source') or '?'}",
-                    "date": d.get("date"),
-                    "gist": d.get("about") or "",
-                    "themes": [d.get("kind")] if d.get("kind") else [],
-                    "daniil_directives": [{k: v for k, v in d.items() if v}],
-                }
+                yield (
+                    run,
+                    shard,
+                    {
+                        "path": f"utterance:{_s}:{i}:{d.get('source') or '?'}",
+                        "date": d.get("date"),
+                        "gist": d.get("about") or "",
+                        "themes": [d.get("kind")] if d.get("kind") else [],
+                        "daniil_directives": [{k: v for k, v in d.items() if v}],
+                    },
+                )
 
 
 def load_existing():
@@ -141,8 +158,10 @@ def _bound(shown, total, what, offset=0):
     if offset:
         line += f"  (from --offset {offset})"
     if offset + shown < total:
-        line += (f"  (TRUNCATED -- {total - offset - shown} more; continue with "
-                 f"--offset {offset + shown}, widen with --limit, or --all)")
+        line += (
+            f"  (TRUNCATED -- {total - offset - shown} more; continue with "
+            f"--offset {offset + shown}, widen with --limit, or --all)"
+        )
     return line
 
 
@@ -157,10 +176,9 @@ def _print_hits(rows, total, what, field=None, offset=0):
         if field:
             v = r.get(field)
             if isinstance(v, list):
-                v = "; ".join(json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else str(x)
-                              for x in v)
+                v = "; ".join(json.dumps(x, ensure_ascii=False) if isinstance(x, dict) else str(x) for x in v)
             extra = f"\n      {v}"
-        print(f"  {r.get('path')}\n      {r.get('gist','')}{extra}")
+        print(f"  {r.get('path')}\n      {r.get('gist', '')}{extra}")
 
 
 # --- the JOIN: narrative <-> specifics -------------------------------------------------------
@@ -169,6 +187,7 @@ def _print_hits(rows, total, what, field=None, offset=0):
 # commits. The join key is TIME CONTAINMENT: a chapter carries span_start/span_end and a digest
 # carries a date. That is a FACT, not an inference; no prose is interpreted to produce it, which
 # is exactly why it is trustworthy where a theme-match would not be.
+
 
 def _load_chapters():
     """Chapters from the sanctioned door (`story --json`), or an injected file for pins."""
@@ -186,12 +205,14 @@ def _load_chapters():
     # A coverage claim manufactured by the reader's own bug is the exact disease this corpus
     # keeps paying for, produced here by the tool built to detect it. Chapters live PER TRACK.
     import subprocess
+
     cli = os.path.join(ROOT, "agent_cli.py")
 
     def _cli(*args):
         try:
-            r = subprocess.run([sys.executable, cli, "story", *args],
-                               capture_output=True, text=True, timeout=180, cwd=ROOT)
+            r = subprocess.run(
+                [sys.executable, cli, "story", *args], capture_output=True, text=True, timeout=180, cwd=ROOT
+            )
             return json.loads(r.stdout)
         except Exception:
             return None
@@ -228,16 +249,20 @@ def _query(rows, args):
         chapters = _load_chapters()
         for r in hits:
             day = _day(r.get("date"))
-            print(f"  {r.get('path')}\n      {r.get('gist','')}")
+            print(f"  {r.get('path')}\n      {r.get('gist', '')}")
             if not day:
-                print("      UNPLACEABLE -- this digest carries no parsable date, so it belongs "
-                      "to no chapter. That is a gap in the record, not an empty result.")
+                print(
+                    "      UNPLACEABLE -- this digest carries no parsable date, so it belongs "
+                    "to no chapter. That is a gap in the record, not an empty result."
+                )
                 continue
             owning = [c for c in chapters if _contains(c, day)]
             print(_bound(len(owning), len(owning), f"chapter(s) whose span contains {day}"))
             for c in owning:
-                print(f"      {c.get('id')}  [{c.get('track')}]  {c.get('title')}"
-                      f"\n        {_day(c.get('span_start'))} .. {_day(c.get('span_end'))}")
+                print(
+                    f"      {c.get('id')}  [{c.get('track')}]  {c.get('title')}"
+                    f"\n        {_day(c.get('span_start'))} .. {_day(c.get('span_end'))}"
+                )
         return 0
 
     if args.in_chapter:
@@ -251,12 +276,14 @@ def _query(rows, args):
         print(f"[digests] chapter {ch.get('id')} [{ch.get('track')}] {ch.get('title')}")
         print(f"          span {_day(ch.get('span_start'))} .. {_day(ch.get('span_end'))}")
         total = len(placed)
-        shown = placed[:args.limit] if args.limit else placed
+        shown = placed[: args.limit] if args.limit else placed
         _print_hits(shown, total, "artifacts born inside this chapter")
         # UNSCANNED is not EMPTY, applied to the join itself: a digest with no date is not
         # absent from this chapter, it is unplaceable, and the difference is the whole point.
-        print(f"[digests] NOTE: {len(undated)} undated digest(s) in the dataset cannot be placed "
-              "in ANY chapter -- they are excluded from every span, not from this one.")
+        print(
+            f"[digests] NOTE: {len(undated)} undated digest(s) in the dataset cannot be placed "
+            "in ANY chapter -- they are excluded from every span, not from this one."
+        )
         return 0
 
     # One budget rule for every listing surface: default DEFAULT_LIMIT, --all lifts,
@@ -267,13 +294,15 @@ def _query(rows, args):
     if args.themes:
         counts = {}
         for r in rows:
-            for t in (r.get("themes") or []):
+            for t in r.get("themes") or []:
                 counts[t] = counts.get(t, 0) + 1
         ordered = sorted(counts.items(), key=lambda x: (-x[1], x[0]))
-        page = ordered[offset:offset + eff_limit] if eff_limit else ordered[offset:]
-        print(_bound(len(page), len(ordered),
-                     "axes (exact labels) -- --theme matches EXACTLY; --contains to browse",
-                     offset))
+        page = ordered[offset : offset + eff_limit] if eff_limit else ordered[offset:]
+        print(
+            _bound(
+                len(page), len(ordered), "axes (exact labels) -- --theme matches EXACTLY; --contains to browse", offset
+            )
+        )
         for t, c in page:
             print(f"  {c:>5}  {t}")
         return 0
@@ -286,12 +315,10 @@ def _query(rows, args):
             # defect this replaces: the menu counted exact labels while the hop matched
             # substrings -- '95 recall' on one surface, '137 of 137' on the other. Two
             # surfaces, two sets, one claiming completeness (codex, reproduced 2026-08-01).
-            picks = [r for r in rows
-                     if any(t in str(x).lower() for x in (r.get("themes") or []))]
+            picks = [r for r in rows if any(t in str(x).lower() for x in (r.get("themes") or []))]
             what = f"artifacts whose labels CONTAIN {args.theme!r} (substring browse)"
         else:
-            picks = [r for r in rows
-                     if any(t == str(x).lower() for x in (r.get("themes") or []))]
+            picks = [r for r in rows if any(t == str(x).lower() for x in (r.get("themes") or []))]
             what = f"artifacts labeled exactly {args.theme!r}"
     elif args.grep:
         g = args.grep.lower()
@@ -300,21 +327,29 @@ def _query(rows, args):
     # Band headers say CLAIMS. The critic proved these carry TOON-class false positives --
     # a header that reads as fact launders a sweep agent's assertion into a finding.
     elif args.orphans:
-        picks, what, field = (_rows_with(rows, "orphaned"),
-                              "orphan CLAIMS (sweep-agent assertions -- verify before citing)",
-                              "orphaned")
+        picks, what, field = (
+            _rows_with(rows, "orphaned"),
+            "orphan CLAIMS (sweep-agent assertions -- verify before citing)",
+            "orphaned",
+        )
     elif args.stale:
-        picks, what, field = (_rows_with(rows, "staleness_signal"),
-                              "staleness CLAIMS (sweep-agent assertions -- verify before citing)",
-                              "staleness_signal")
+        picks, what, field = (
+            _rows_with(rows, "staleness_signal"),
+            "staleness CLAIMS (sweep-agent assertions -- verify before citing)",
+            "staleness_signal",
+        )
     elif args.gold:
-        picks, what, field = (_rows_with(rows, "gold"),
-                              "gold CLAIMS (sweep-agent assertions -- verify before citing)",
-                              "gold")
+        picks, what, field = (
+            _rows_with(rows, "gold"),
+            "gold CLAIMS (sweep-agent assertions -- verify before citing)",
+            "gold",
+        )
     elif args.directives:
-        picks, what, field = (_rows_with(rows, "daniil_directives"),
-                              "artifacts carrying his words as captured by the sweep",
-                              "daniil_directives")
+        picks, what, field = (
+            _rows_with(rows, "daniil_directives"),
+            "artifacts carrying his words as captured by the sweep",
+            "daniil_directives",
+        )
     elif args.show:
         hits = [r for r in rows if args.show.lower() in str(r.get("path", "")).lower()]
         print(_bound(len(hits), len(hits), f"record(s) for {args.show!r}"))
@@ -324,7 +359,7 @@ def _query(rows, args):
     if picks is None:
         return None
     total = len(picks)
-    page = picks[offset:offset + eff_limit] if eff_limit else picks[offset:]
+    page = picks[offset : offset + eff_limit] if eff_limit else picks[offset:]
     _print_hits(page, total, what, field, offset=offset)
     return 0
 
@@ -351,23 +386,37 @@ def main(argv=None):
     ap.add_argument("--gold", action="store_true", help="mechanisms worth resurfacing")
     ap.add_argument("--directives", action="store_true", help="his words, verbatim")
     ap.add_argument("--show", help="drill: every field recorded for one path")
-    ap.add_argument("--chapter-of", dest="chapter_of",
-                    help="join: which narrative chapter's span contains this artifact")
-    ap.add_argument("--in-chapter", dest="in_chapter",
-                    help="join: which artifacts were born inside this chapter's span")
-    ap.add_argument("--limit", type=int, default=0,
-                    help=f"cap rows (default {DEFAULT_LIMIT}; truncation is ANNOUNCED)")
+    ap.add_argument(
+        "--chapter-of", dest="chapter_of", help="join: which narrative chapter's span contains this artifact"
+    )
+    ap.add_argument(
+        "--in-chapter", dest="in_chapter", help="join: which artifacts were born inside this chapter's span"
+    )
+    ap.add_argument("--limit", type=int, default=0, help=f"cap rows (default {DEFAULT_LIMIT}; truncation is ANNOUNCED)")
     ap.add_argument("--all", action="store_true", help="lift the default row budget")
     ap.add_argument("--offset", type=int, default=0, help="continuation: skip the first N rows")
-    ap.add_argument("--contains", action="store_true",
-                    help="with --theme: substring browse instead of exact label match")
+    ap.add_argument(
+        "--contains", action="store_true", help="with --theme: substring browse instead of exact label match"
+    )
     args = ap.parse_args(argv)
 
     existing = load_existing()
     rows = list(existing.values())
 
-    if any([args.themes, args.theme, args.grep, args.orphans, args.stale, args.gold,
-            args.directives, args.show, args.chapter_of, args.in_chapter]):
+    if any(
+        [
+            args.themes,
+            args.theme,
+            args.grep,
+            args.orphans,
+            args.stale,
+            args.gold,
+            args.directives,
+            args.show,
+            args.chapter_of,
+            args.in_chapter,
+        ]
+    ):
         if not rows:
             print(f"[digests] no digests at {OUT} -- land them first: {_pyl()} scripts/corpus_digests.py")
             return 2
@@ -388,7 +437,7 @@ def main(argv=None):
         for run, shard, art in _digests_from(j):
             key = (run, art["path"])
             if key in existing:
-                continue                       # idempotent: same run + same artifact = same digest
+                continue  # idempotent: same run + same artifact = same digest
             rec = {"run": run, "shard": shard}
             rec.update({f: art.get(f) for f in FIELDS if art.get(f)})
             existing[key] = rec

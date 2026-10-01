@@ -58,6 +58,7 @@ false-alarming monitor is worse than the blind spot it replaces.
 
 Run:  py -m pytest tests/test_idle_seat_attendance.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -84,6 +85,7 @@ class FakeRedis:
 
     def keys(self, pattern):
         import fnmatch
+
         return [k for k in self.kv if fnmatch.fnmatch(k, pattern)]
 
     def set(self, k, v, ex=None, **kw):
@@ -112,7 +114,7 @@ def test_an_incarnation_only_seat_has_a_measurable_beat(fake_bus):
     pre = L._worklive_prefix()
     fake_bus.kv[pre + "claude#c097980f"] = _rec(3.0)
 
-    assert L.read("claude") is None                      # unchanged, by design
+    assert L.read("claude") is None  # unchanged, by design
     assert L.live_incarnations("claude") == ["claude#c097980f"]
 
     age = L.worklive_beat_age("claude")
@@ -162,6 +164,7 @@ def test_attendance_sees_an_idle_armed_seat(fake_bus, monkeypatch):
     reading his mail while a listener is blocked on his inbox."""
     monkeypatch.setattr(L, "progress_age", lambda *a, **k: None)
     import core.comm.roster as _roster
+
     monkeypatch.setattr(_roster, "roster", lambda *a, **k: [])
 
     pre = L._worklive_prefix()

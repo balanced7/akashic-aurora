@@ -20,6 +20,7 @@ this script + INDEX.md are the committed, reproducible part):
 
 Rerunnable: skips files that already exist (pass --force to refetch).
 """
+
 import argparse
 import json
 import re
@@ -31,8 +32,7 @@ from pathlib import Path
 BASE = "https://developer.apple.com"
 DATA = BASE + "/tutorials/data/design/human-interface-guidelines/{slug}.json"
 ROOT = Path(__file__).resolve().parent.parent / "design" / "refs" / "apple-hig"
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 DELAY = 0.25  # politeness between requests
 
 
@@ -107,7 +107,8 @@ def harvest_page(slug: str, force: bool) -> dict | None:
         text_p.parent.mkdir(parents=True, exist_ok=True)
         text_p.write_text(
             f"# {title}\n\n_{abstract}_\n\nSource: {BASE}/design/human-interface-guidelines/{slug}\n\n"
-            + extract_text(page) + "\n",
+            + extract_text(page)
+            + "\n",
             encoding="utf-8",
         )
 
@@ -222,8 +223,7 @@ def main() -> int:
             f"{BASE}/design/human-interface-guidelines/{r['slug']} |"
         )
     (ROOT / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[hig] DONE: {len(rows)} pages, {sum(r['images'] for r in rows)} images, "
-          f"{len(misses)} miss(es) -> {ROOT}")
+    print(f"[hig] DONE: {len(rows)} pages, {sum(r['images'] for r in rows)} images, {len(misses)} miss(es) -> {ROOT}")
     return 0
 
 

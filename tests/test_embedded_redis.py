@@ -5,6 +5,7 @@ consumer groups, blocking reads, Lua -- and it must survive restarts, because an
 empties on reboot is not an inbox. And a machine that HAS a real Redis must never get a second,
 embedded one started beside it: that splits the bus in two and squats on the port.
 """
+
 from __future__ import annotations
 
 import json
@@ -47,20 +48,23 @@ def _up(port: int, timeout: float = 20.0) -> bool:
 def server(tmp_path, monkeypatch):
     """Start/stop a real server subprocess on a throwaway port with a throwaway data dir."""
     port = _free_port()
-    env = dict(os.environ, AKASHIC_EMBEDDED_REDIS_DIR=str(tmp_path),
-               PYTHONPATH=str(ROOT))
+    env = dict(os.environ, AKASHIC_EMBEDDED_REDIS_DIR=str(tmp_path), PYTHONPATH=str(ROOT))
     procs = []
 
     def start():
-        p = subprocess.Popen([sys.executable, "-m", "core.foundation.embedded_redis",
-                              "--port", str(port)], cwd=str(ROOT), env=env,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p = subprocess.Popen(
+            [sys.executable, "-m", "core.foundation.embedded_redis", "--port", str(port)],
+            cwd=str(ROOT),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         procs.append(p)
         assert _up(port), "embedded redis did not come up"
         return redis.Redis(port=port, decode_responses=True, socket_timeout=10)
 
     def stop():
-        time.sleep(E.FLUSH_INTERVAL * 3)      # let the flusher run (terminate is abrupt on Windows)
+        time.sleep(E.FLUSH_INTERVAL * 3)  # let the flusher run (terminate is abrupt on Windows)
         p = procs[-1]
         p.terminate()
         p.wait(timeout=20)
@@ -73,6 +77,7 @@ def server(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------- persistence
+
 
 def test_bus_state_survives_a_restart(server):
     start, stop = server
@@ -125,6 +130,7 @@ def test_info_and_touch_exist(server):
 
 # ---------------------------------------------------------------------------- backend choice
 
+
 def test_backend_env_override_wins(monkeypatch, tmp_path):
     monkeypatch.setenv("AKASHIC_REDIS_BACKEND", "external")
     assert E.configured_backend() == "external"
@@ -148,9 +154,9 @@ def test_never_starts_a_server_for_another_world_or_host(monkeypatch):
     monkeypatch.setattr(E, "_spawn", lambda port: spawned.append(port))
     monkeypatch.setattr(E, "configured_backend", lambda: "embedded")
     monkeypatch.setattr(E, "is_own_world_port", lambda port: port == 16379)
-    assert E.ensure_running("10.0.0.5", 16379, timeout=0.1) is False      # not this machine
-    assert E.ensure_running("localhost", 16380, timeout=0.1) is False     # another world
-    assert E.ensure_running("localhost", 54321, timeout=0.1) is False     # a throwaway test port
+    assert E.ensure_running("10.0.0.5", 16379, timeout=0.1) is False  # not this machine
+    assert E.ensure_running("localhost", 16380, timeout=0.1) is False  # another world
+    assert E.ensure_running("localhost", 54321, timeout=0.1) is False  # a throwaway test port
     assert spawned == []
 
 
@@ -166,23 +172,35 @@ def test_external_backend_never_starts_a_server(monkeypatch):
 
 # ---------------------------------------------------------------------------- first boot
 
+
 def test_first_boot_seeds_the_file_store_once(tmp_path, monkeypatch):
     import fakeredis
     from types import SimpleNamespace
+
     data = tmp_path / "data"
     (data / "session_logs").mkdir(parents=True)
-    (data / "session_logs" / "store_state.json").write_text(json.dumps({
-        "kv": {"k": "v"},
-        "hash": {"learn:experiment:x": {"actual": "it worked"}},
-        "list": {"l": ["a", "b"]}, "set": {"s": ["m"]}, "zset": {"z": {"m": 2.0}},
-        "__expiry__": {}}), encoding="utf-8")
+    (data / "session_logs" / "store_state.json").write_text(
+        json.dumps(
+            {
+                "kv": {"k": "v"},
+                "hash": {"learn:experiment:x": {"actual": "it worked"}},
+                "list": {"l": ["a", "b"]},
+                "set": {"s": ["m"]},
+                "zset": {"z": {"m": 2.0}},
+                "__expiry__": {},
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setenv("AI_SETUP", str(data))
     import core.world as W
+
     monkeypatch.setattr(W, "current", lambda: SimpleNamespace(redis_port=16379))
     srv = fakeredis.FakeServer()
     path = tmp_path / "16379.sqlite3"
     assert E._seed_from_file_tier(srv, 16379, path) == 5
     from core.foundation.redis_connection import DEFAULT_REDIS_DB
+
     r = fakeredis.FakeRedis(server=srv, db=int(DEFAULT_REDIS_DB), decode_responses=True)
     assert r.hget("learn:experiment:x", "actual") == "it worked"
     assert r.lrange("l", 0, -1) == ["a", "b"] and r.zscore("z", "m") == 2.0
@@ -191,9 +209,11 @@ def test_first_boot_seeds_the_file_store_once(tmp_path, monkeypatch):
 
 # ---------------------------------------------------------------------------- ledger backfill
 
+
 def test_ledger_backfills_file_history_on_the_embedded_backend(tmp_path, monkeypatch):
     import fakeredis
     from core.foundation import ledger as L
+
     fl = L.FileLedger(str(tmp_path))
     fl.emit("events:raw", {"n": 1})
     fl.emit("events:raw", {"n": 2})
@@ -211,6 +231,7 @@ def test_ledger_backfills_file_history_on_the_embedded_backend(tmp_path, monkeyp
 def test_ledger_never_backfills_an_external_redis(tmp_path, monkeypatch):
     import fakeredis
     from core.foundation import ledger as L
+
     fl = L.FileLedger(str(tmp_path))
     fl.emit("events:raw", {"n": 1})
     rl = L.RedisLedger(fakeredis.FakeRedis(decode_responses=True))

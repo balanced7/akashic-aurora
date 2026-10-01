@@ -2,6 +2,7 @@
 reads the body from piped stdin -- the safe path becomes the effortless one (five argv
 misparse strikes in one day forced this). TTY-without-pipe still refuses loudly. Offline:
 Bus is faked; nothing touches Redis."""
+
 import io
 import os
 import sys
@@ -33,14 +34,24 @@ class _FakeBus:
 
 
 def _args(**over):
-    base = dict(agent_id="w06pin", text=[], text_file=None, to="peer", kind="chat",
-                broadcast=False, expect_reply_within=-1, to_incarnation=None, json=False)
+    base = dict(
+        agent_id="w06pin",
+        text=[],
+        text_file=None,
+        to="peer",
+        kind="chat",
+        broadcast=False,
+        expect_reply_within=-1,
+        to_incarnation=None,
+        json=False,
+    )
     base.update(over)
     return types.SimpleNamespace(**base)
 
 
 def _with_fake_bus(monkeypatch):
     import core.comm.bus as busmod
+
     monkeypatch.setattr(busmod, "Bus", _FakeBus)
     _FakeBus.sent = []
 

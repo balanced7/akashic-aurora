@@ -12,6 +12,7 @@ BUILD REFINEMENTS (flagged, T073 precedent):
   R8  `wrap --focus` stamps next-focus curated=True: setting the directive is a
       DELIBERATE act (it feeds the whisper's DIRECTIVE line), not a distillation.
 """
+
 import io
 import os
 import sys
@@ -53,11 +54,13 @@ def test_w7_mechanical_wrap_refuses_to_clobber_curated(monkeypatch, capsys):
     rc = agent_cli.cmd_wrap(_args())
     out = capsys.readouterr().out
     assert rc == 1, "W7: the guarded wrap must refuse, loudly, not exit clean"
-    assert "CURATED" in out and "--force" in out and "--title" in out, \
+    assert "CURATED" in out and "--force" in out and "--title" in out, (
         f"W7: the refusal must teach both escape hatches, got: {out}"
+    )
     after = _head(mem, "where-we-are")
-    assert after.id == before.id and after.decision == "HAND-CURATED HANDOFF: precious", \
+    assert after.id == before.id and after.decision == "HAND-CURATED HANDOFF: precious", (
         "W7: nothing may be written on refusal"
+    )
 
 
 # ---------------------------------------------------------------- W8 --force
@@ -85,7 +88,7 @@ def test_w9_title_records_alongside_curated_untouched(monkeypatch):
 # ---------------------------------------------------------------- R7 legacy boundary
 def test_r7_legacy_unflagged_head_is_not_guarded(monkeypatch):
     mem = _isolated_mem(monkeypatch)
-    mem.decide("where-we-are", "legacy pre-flag note")          # curated=None
+    mem.decide("where-we-are", "legacy pre-flag note")  # curated=None
     rc = agent_cli.cmd_wrap(_args())
     assert rc == 0, "R7: no inference -- an unproven head is not protected"
     assert _head(mem, "where-we-are").decision != "legacy pre-flag note"

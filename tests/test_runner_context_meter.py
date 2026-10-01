@@ -26,6 +26,7 @@ And one guard learned the hard way today: T078-W1's TokenJournal shipped unit-gr
 recorded a single turn in production, because nothing pinned that a runner actually reached
 it. So the last pin here asserts the counters are wired to the real accumulation path.
 """
+
 from pathlib import Path
 import ast
 import sys
@@ -49,6 +50,7 @@ class _Usage:
 def _agent():
     """A bare Agent instance without running __init__ (no API key, no network)."""
     import deepseek_chat as dc
+
     a = dc.Agent.__new__(dc.Agent)
     a.prompt_tokens = a.completion_tokens = 0
     a.cache_hit_tokens = a.cache_miss_tokens = 0
@@ -98,8 +100,10 @@ def test_meter_is_wired_to_the_streaming_usage_path():
     """T078-W1's lesson: a meter nothing calls is indistinguishable from a dead one."""
     tree = ast.parse(CHAT_SRC)
     calls = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
         and n.func.attr in ("_absorb_usage", "_mark_context")
     ]
     names = {c.func.attr for c in calls}

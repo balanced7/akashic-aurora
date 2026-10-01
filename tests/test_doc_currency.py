@@ -8,6 +8,7 @@ superseded-by. Guard behavior pins run against a temp docs tree.
 
 Run: py -m pytest tests/test_doc_currency.py -q
 """
+
 from scripts.checkers import check_doc_currency as g  # T104-M1 home; conftest puts repo root on sys.path
 
 
@@ -18,10 +19,12 @@ def _classify(tmp_path, head):
 
 
 def test_current_variants_parse(tmp_path):
-    for head in ("# T\n\nStatus: current\n",
-                 "# T\nStatus: current (plan awaiting picks)\n",
-                 "# T\n**Status:** current\n",
-                 "# T\nSTATUS: Current as of 2026-07\n"):
+    for head in (
+        "# T\n\nStatus: current\n",
+        "# T\nStatus: current (plan awaiting picks)\n",
+        "# T\n**Status:** current\n",
+        "# T\nSTATUS: Current as of 2026-07\n",
+    ):
         verdict, _ = _classify(tmp_path, head)
         assert verdict == "current", head
 
@@ -41,10 +44,12 @@ def test_historical_parses(tmp_path):
 
 
 def test_vocabulary_is_strict(tmp_path):
-    for head in ("# T\nStatus: execution plan\n",
-                 "# T\nStatus: SETTLED -- full ACK\n",
-                 "# T\nStatus: v2.1 LOCKED\n",
-                 "# T\nno status here at all\n"):
+    for head in (
+        "# T\nStatus: execution plan\n",
+        "# T\nStatus: SETTLED -- full ACK\n",
+        "# T\nStatus: v2.1 LOCKED\n",
+        "# T\nno status here at all\n",
+    ):
         v, _ = _classify(tmp_path, head)
         assert v == "unstamped", head
 

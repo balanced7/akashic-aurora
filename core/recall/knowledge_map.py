@@ -26,6 +26,7 @@ Zero new storage: every edge is read from where it already lives. Deterministic,
 fail-soft per corpus (a broken corpus drops out; the map never bricks). Corpus adapters
 for notes and docs are reused verbatim from lookback -- one projection, two faces.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,8 +34,12 @@ import os
 from typing import Any, Callable, Dict, List, Optional
 
 from core.recall.lookback import (
-    MIN_RELEVANCE, _build_idf_relevance, _stem_relevance, _match_excerpt,
-    _docs_items, _note_items,
+    MIN_RELEVANCE,
+    _build_idf_relevance,
+    _stem_relevance,
+    _match_excerpt,
+    _docs_items,
+    _note_items,
 )
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface
@@ -55,6 +60,7 @@ def _lesson_status(rec: Dict[str, Any]) -> str:
     benched/graduated hold ISO timestamps when set, so only is_benched/is_graduated may
     read them (a truthy-string compare reads every timestamp as false)."""
     from core.learning.learning_store import is_benched, is_graduated
+
     if is_benched(rec):
         return "benched"
     if is_graduated(rec):
@@ -66,6 +72,7 @@ def _lesson_items() -> List[Dict[str, Any]]:
     """Every lesson as a graph node carrying its related_to edges. Notes and docs come from
     lookback's adapters unchanged; lessons need the edge projection, which is ours."""
     from core.learning.learning_store import get_learning_store
+
     out: List[Dict[str, Any]] = []
     for rec in get_learning_store().load_all_learnings_from_store():
         name = str(rec.get("experiment_name") or "").strip()
@@ -75,44 +82,62 @@ def _lesson_items() -> List[Dict[str, Any]]:
             raw = json.loads(rec.get("related_to") or "[]")
         except Exception:
             raw = []
-        edges = [{"to": e.get("experiment_name"), "type": "related_to", "matched": e.get("matched")}
-                 for e in raw if isinstance(e, dict) and e.get("experiment_name")]
+        edges = [
+            {"to": e.get("experiment_name"), "type": "related_to", "matched": e.get("matched")}
+            for e in raw
+            if isinstance(e, dict) and e.get("experiment_name")
+        ]
         status = _lesson_status(rec)
-        text = "\n".join(str(rec.get(k, "")) for k in
-                         ("experiment_name", "recommendation", "actual", "root_cause",
-                          "what_tried", "category") if rec.get(k))
-        out.append({"kind": "lesson", "id": name, "text": text,
-                    "source": rec.get("source") or f"learn:experiment:{name}",
-                    "timestamp": rec.get("timestamp", ""),
-                    "importance": 1 if status != "current" else 3,
-                    "status": status,
-                    "drill": f"recall --full learn:experiment:{name}",
-                    "edges": edges})
+        text = "\n".join(
+            str(rec.get(k, ""))
+            for k in ("experiment_name", "recommendation", "actual", "root_cause", "what_tried", "category")
+            if rec.get(k)
+        )
+        out.append(
+            {
+                "kind": "lesson",
+                "id": name,
+                "text": text,
+                "source": rec.get("source") or f"learn:experiment:{name}",
+                "timestamp": rec.get("timestamp", ""),
+                "importance": 1 if status != "current" else 3,
+                "status": status,
+                "drill": f"recall --full learn:experiment:{name}",
+                "edges": edges,
+            }
+        )
     return out
 
 
 # ---------------------------------------------------------------- node projection
 def _node(item: Dict[str, Any], kind: str, score: Optional[float], q: str) -> Dict[str, Any]:
     text = str(item.get("text", ""))
-    title = (item.get("id") or (text.split("\n", 1)[0] if text else "") or
-             item.get("source", "")).strip()[:80]
-    return {"kind": kind,
-            "id": item.get("id") or item.get("source", ""),
-            "title": title,
-            "source": item.get("source", ""),
-            "status": item.get("status", "current"),
-            "score": score,
-            "excerpt": _match_excerpt(text, q) if (q and text) else text[:180],
-            "drill": item.get("drill") or item.get("source", ""),
-            "edge_count": len(item.get("edges") or [])}
+    title = (item.get("id") or (text.split("\n", 1)[0] if text else "") or item.get("source", "")).strip()[:80]
+    return {
+        "kind": kind,
+        "id": item.get("id") or item.get("source", ""),
+        "title": title,
+        "source": item.get("source", ""),
+        "status": item.get("status", "current"),
+        "score": score,
+        "excerpt": _match_excerpt(text, q) if (q and text) else text[:180],
+        "drill": item.get("drill") or item.get("source", ""),
+        "edge_count": len(item.get("edges") or []),
+    }
 
 
 # ---------------------------------------------------------------- the walk (pure, testable)
-def build_map(topic: str, lessons: List[Dict[str, Any]], notes: List[Dict[str, Any]],
-              docs: List[Dict[str, Any]], *, per_layer: int = PER_LAYER,
-              min_relevance: float = MIN_RELEVANCE,
-              relevance_fn: Optional[Callable[[str, str], float]] = None,
-              now: Optional[float] = None) -> Dict[str, Any]:
+def build_map(
+    topic: str,
+    lessons: List[Dict[str, Any]],
+    notes: List[Dict[str, Any]],
+    docs: List[Dict[str, Any]],
+    *,
+    per_layer: int = PER_LAYER,
+    min_relevance: float = MIN_RELEVANCE,
+    relevance_fn: Optional[Callable[[str, str], float]] = None,
+    now: Optional[float] = None,
+) -> Dict[str, Any]:
     """Walk the neighborhood of `topic` over already-loaded corpus item lists.
 
     Returns {topic, surface[], neighborhood[], archive[], counts{}}. Each node:
@@ -120,8 +145,13 @@ def build_map(topic: str, lessons: List[Dict[str, Any]], notes: List[Dict[str, A
     nodes add `via` = {from, type, direction(in|out), matched}. Pure: the loader
     (`knowledge_map`) supplies the lists, so the graph logic is unit-testable in isolation."""
     q = (topic or "").strip()
-    empty = {"topic": q, "surface": [], "neighborhood": [], "archive": [],
-             "counts": {"surface": 0, "neighborhood": 0, "archive": 0}}
+    empty = {
+        "topic": q,
+        "surface": [],
+        "neighborhood": [],
+        "archive": [],
+        "counts": {"surface": 0, "neighborhood": 0, "archive": 0},
+    }
     if not q:
         return empty
 
@@ -131,10 +161,10 @@ def build_map(topic: str, lessons: List[Dict[str, Any]], notes: List[Dict[str, A
     lesson_by_id = {l.get("id"): l for l in lessons if l.get("id")}
 
     from core.primitives.ranker import Ranker
+
     if relevance_fn is None:
         try:
-            relevance_fn = _build_idf_relevance(
-                [str(i.get("text", "")) for i in (lessons + notes + docs)])
+            relevance_fn = _build_idf_relevance([str(i.get("text", "")) for i in (lessons + notes + docs)])
         except Exception:
             relevance_fn = _stem_relevance
     ranker = Ranker(relevance_fn=relevance_fn)
@@ -171,22 +201,26 @@ def build_map(topic: str, lessons: List[Dict[str, Any]], notes: List[Dict[str, A
 
     def _add(rec: Dict[str, Any], frm: str, edge: Dict[str, Any], direction: str) -> None:
         node = _node(rec, "lesson", None, q)
-        node["via"] = {"from": frm, "type": edge.get("type", "related_to"),
-                       "direction": direction, "matched": edge.get("matched")}
+        node["via"] = {
+            "from": frm,
+            "type": edge.get("type", "related_to"),
+            "direction": direction,
+            "matched": edge.get("matched"),
+        }
         neighborhood.append(node)
         seen.add(node["id"])
 
-    for sid in surface_lesson_order:                           # forward: surface -> edge -> B
-        for e in (lesson_by_id.get(sid, {}).get("edges") or []):
+    for sid in surface_lesson_order:  # forward: surface -> edge -> B
+        for e in lesson_by_id.get(sid, {}).get("edges") or []:
             bid = e.get("to")
             if bid and bid not in seen and bid in lesson_by_id:
                 _add(lesson_by_id[bid], sid, e, "out")
-    rev = []                                                   # reverse: A -> edge -> surface
+    rev = []  # reverse: A -> edge -> surface
     for rec in lessons:
         aid = rec.get("id")
         if not aid or aid in seen:
             continue
-        for e in (rec.get("edges") or []):
+        for e in rec.get("edges") or []:
             if e.get("to") in surface_lesson_ids:
                 rev.append((surface_rank[e.get("to")], str(aid), rec, e))
                 break
@@ -194,25 +228,28 @@ def build_map(topic: str, lessons: List[Dict[str, Any]], notes: List[Dict[str, A
     # order must never decide who survives the truncation two lines down
     for _, _, rec, e in sorted(rev, key=lambda t: (t[0], t[1])):
         _add(rec, e.get("to"), e, "in")
-    neighborhood = neighborhood[:per_layer * 2]
+    neighborhood = neighborhood[: per_layer * 2]
 
-    return {"topic": q, "surface": surface, "neighborhood": neighborhood, "archive": archive,
-            "counts": {"surface": len(surface), "neighborhood": len(neighborhood),
-                       "archive": len(archive)}}
+    return {
+        "topic": q,
+        "surface": surface,
+        "neighborhood": neighborhood,
+        "archive": archive,
+        "counts": {"surface": len(surface), "neighborhood": len(neighborhood), "archive": len(archive)},
+    }
 
 
 # ---------------------------------------------------------------- the loader (live corpora)
-def knowledge_map(topic: str, *, per_layer: int = PER_LAYER,
-                  min_relevance: float = MIN_RELEVANCE,
-                  now: Optional[float] = None) -> Dict[str, Any]:
+def knowledge_map(
+    topic: str, *, per_layer: int = PER_LAYER, min_relevance: float = MIN_RELEVANCE, now: Optional[float] = None
+) -> Dict[str, Any]:
     """Walk the LIVE knowledge neighborhood of `topic`. Loads lessons (with edges), notes,
     and docs fail-soft, then delegates to `build_map`. Accrues a per-topic funnel count so
     the next audit of this surface has numbers, not anecdotes (the lookback pattern)."""
     lessons = _safe(_lesson_items)
     notes = _safe(_note_items)
     docs = _safe(_docs_items)
-    m = build_map(topic, lessons, notes, docs, per_layer=per_layer,
-                  min_relevance=min_relevance, now=now)
+    m = build_map(topic, lessons, notes, docs, per_layer=per_layer, min_relevance=min_relevance, now=now)
     _count(m)
     return m
 
@@ -223,6 +260,7 @@ def _count(m: Dict[str, Any]) -> None:
         return
     try:
         from core.foundation.store import create_store
+
         st = create_store(prefer_redis=True)
         c = m.get("counts", {})
         nodes = c.get("surface", 0) + c.get("neighborhood", 0) + c.get("archive", 0)
@@ -232,6 +270,7 @@ def _count(m: Dict[str, Any]) -> None:
                 st.set(key, str(int(st.get(key) or 0) + by))
             except Exception:
                 pass
+
         bump("knowledge_map:queries", 1)
         if nodes:
             bump("knowledge_map:nodes", nodes)

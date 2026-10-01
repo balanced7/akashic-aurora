@@ -6,6 +6,7 @@ The Bus continues to route through ``packet_spec.lane_for()``.  Counter writes a
 best-effort and bounded to static fields so telemetry can never fail a send or
 turn untrusted kind strings into unbounded Redis cardinality.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -75,11 +76,7 @@ def metric_field_schema() -> Tuple[str, ...]:
     """All counter fields this module can create (a static cardinality ceiling)."""
     labels = _labels()
     fields = [f"decision:{label}" for label in labels]
-    fields.extend(
-        f"mirror:{label}:{outcome}"
-        for label in labels
-        for outcome in MIRROR_OUTCOMES
-    )
+    fields.extend(f"mirror:{label}:{outcome}" for label in labels for outcome in MIRROR_OUTCOMES)
     fields.extend(f"reply:reply:{outcome}" for outcome in REPLY_OUTCOMES)
     return tuple(fields)
 
@@ -91,8 +88,7 @@ def _label(decision: RoutingDecision) -> str:
     return decision.kind if decision.kind in packet_spec.KIND_LANE else UNKNOWN_RULE
 
 
-def _observation_fields(decision: RoutingDecision, outcome: str,
-                        family: str) -> Optional[Tuple[str, str]]:
+def _observation_fields(decision: RoutingDecision, outcome: str, family: str) -> Optional[Tuple[str, str]]:
     label = _label(decision)
     if family == "mirror" and outcome in MIRROR_OUTCOMES:
         outcome_field = f"mirror:{label}:{outcome}"
@@ -110,8 +106,9 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def record_observation(client: Any, namespace: str, decision: RoutingDecision,
-                       outcome: str, *, family: str = "mirror") -> bool:
+def record_observation(
+    client: Any, namespace: str, decision: RoutingDecision, outcome: str, *, family: str = "mirror"
+) -> bool:
     """Best-effort increment of one decision and one physical outcome.
 
     The field names are selected only from ``metric_field_schema``.  Unknown kinds

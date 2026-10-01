@@ -21,6 +21,7 @@ resurrects the conductor is the specific outcome these pins forbid.
 
 Written BEFORE the implementation (M3 pre-registration). They are RED on arrival.
 """
+
 from __future__ import annotations
 
 import re
@@ -33,21 +34,27 @@ from core.fleet import app_package as ap
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _proof(*, files=2348, blocks=11411, size=629549194, mismatches=(),
-           declared_blocks=11411, declared_files=2348):
+def _proof(*, files=2348, blocks=11411, size=629549194, mismatches=(), declared_blocks=11411, declared_files=2348):
     """A payload proof shaped like a real one. Defaults are the REAL numbers of
     Claude_1.28929.0.0, independently reproduced 2026-08-24 (2348 / 11411 /
     629549194) -- so a pin that passes here passes against the true magnitude, not
     against a toy."""
     return ap.PayloadProof(
-        files=files, blocks=blocks, bytes=size,
+        files=files,
+        blocks=blocks,
+        bytes=size,
         mismatches=list(mismatches),
-        declared_files=declared_files, declared_blocks=declared_blocks)
+        declared_files=declared_files,
+        declared_blocks=declared_blocks,
+    )
 
 
-PKG_OK = {"name": "Claude", "full_name": "Claude_1.28929.0.0_x64__pzs8sxrjxfjjc",
-          "status": "Modified, NeedsRemediation",
-          "install_location": r"C:\Program Files\WindowsApps\Claude_1.28929.0.0_x64__pzs8sxrjxfjjc"}
+PKG_OK = {
+    "name": "Claude",
+    "full_name": "Claude_1.28929.0.0_x64__pzs8sxrjxfjjc",
+    "status": "Modified, NeedsRemediation",
+    "install_location": r"C:\Program Files\WindowsApps\Claude_1.28929.0.0_x64__pzs8sxrjxfjjc",
+}
 
 
 # ------------------------------------------------------------------ the pass path
@@ -69,20 +76,18 @@ def test_F1_any_block_mismatch_refuses():
 def test_F2_empty_blockmap_refuses_and_does_not_read_as_zero_mismatches():
     """THE defect this module exists to prevent. Zero mismatches over zero blocks is
     not evidence of integrity; it is evidence of a failed read."""
-    r = ap.clear_refusals(PKG_OK, _proof(files=0, blocks=0, size=0, mismatches=(),
-                                         declared_files=0, declared_blocks=0),
-                          elevated=True)
+    r = ap.clear_refusals(
+        PKG_OK, _proof(files=0, blocks=0, size=0, mismatches=(), declared_files=0, declared_blocks=0), elevated=True
+    )
     assert r, "an EMPTY payload proof must refuse, never pass on 'no mismatches'"
-    assert any(("no blocks" in x.lower() or "empty" in x.lower() or "zero" in x.lower())
-               for x in r), r
+    assert any(("no blocks" in x.lower() or "empty" in x.lower() or "zero" in x.lower()) for x in r), r
 
 
 def test_F2b_a_partial_verification_refuses():
     """The check ran but did not cover every declared block -- a cap, a timeout, an
     unreadable file. Absence of a mismatch in the part you read says nothing about the
     part you did not."""
-    r = ap.clear_refusals(PKG_OK, _proof(blocks=9000, declared_blocks=11411),
-                          elevated=True)
+    r = ap.clear_refusals(PKG_OK, _proof(blocks=9000, declared_blocks=11411), elevated=True)
     assert r, "an INCOMPLETE verification must refuse"
     assert any(("incomplete" in x.lower() or "9000" in x) for x in r), r
 
@@ -99,8 +104,7 @@ def test_F3_absent_package_refuses():
     """Aggregation over an empty set: no package found must never report success."""
     r = ap.clear_refusals(None, _proof(), elevated=True)
     assert r, "an absent package must refuse"
-    assert any(("not found" in x.lower() or "absent" in x.lower() or "no package" in x.lower())
-               for x in r), r
+    assert any(("not found" in x.lower() or "absent" in x.lower() or "no package" in x.lower()) for x in r), r
 
 
 # ------------------------------------------------------------------ F5: elevation
@@ -126,8 +130,7 @@ def test_an_unrecognised_bad_status_refuses_by_name_rather_than_guessing():
     weird = dict(PKG_OK, status="Tampered")
     r = ap.clear_refusals(weird, _proof(), elevated=True)
     assert r, "an unrecognised status must refuse"
-    assert any("tampered" in x.lower() for x in r), \
-        f"the refusal must NAME the state it does not handle, got {r}"
+    assert any("tampered" in x.lower() for x in r), f"the refusal must NAME the state it does not handle, got {r}"
 
 
 # ------------------------------------------------------------------ F6: receipt
@@ -140,10 +143,8 @@ def test_F6_the_receipt_carries_the_counts_it_actually_evaluated():
 
 
 def test_F6b_an_empty_proof_receipt_does_not_read_as_success():
-    line = ap.proof_receipt(_proof(files=0, blocks=0, size=0, declared_files=0,
-                                   declared_blocks=0)).lower()
-    assert "verified" not in line or "0" in line, \
-        f"an empty proof must not render as a bare 'verified': {line!r}"
+    line = ap.proof_receipt(_proof(files=0, blocks=0, size=0, declared_files=0, declared_blocks=0)).lower()
+    assert "verified" not in line or "0" in line, f"an empty proof must not render as a bare 'verified': {line!r}"
 
 
 # ------------------------------- F4: the oracle is a launch, not a status field
@@ -157,10 +158,12 @@ def test_F4_app_verification_is_a_launch_not_a_status_read():
     fn = re.search(r"def verify_recovered\((.|\n)*?(?=\ndef |\Z)", src)
     assert fn, "verify_recovered must exist"
     body = fn.group(0)
-    assert re.search(r"launch|Start-Process|process|running", body, re.I), \
+    assert re.search(r"launch|Start-Process|process|running", body, re.I), (
         "verify_recovered must probe an actual launch"
-    assert not re.search(r"return\s+.*status\s*==\s*[\"']Ok", body), \
+    )
+    assert not re.search(r"return\s+.*status\s*==\s*[\"']Ok", body), (
         "verify_recovered must NOT be satisfied by the status field alone"
+    )
 
 
 # ------------------------------------------------------ the revive ladder wiring
@@ -169,8 +172,8 @@ def test_the_ladder_has_an_app_rung_at_all():
     HOSTS the conductor was not in the ladder's ontology, so !revive ran twice and
     reported that it ran while nothing it could see was wrong."""
     import scripts.revive as revive
-    assert "app" in revive._ORDER, \
-        "the ladder must have a rung at the application layer"
+
+    assert "app" in revive._ORDER, "the ladder must have a rung at the application layer"
 
 
 def test_converge_names_what_it_cannot_reach_instead_of_reporting_a_boring_run():
@@ -178,11 +181,10 @@ def test_converge_names_what_it_cannot_reach_instead_of_reporting_a_boring_run()
     nothing must not report 'touched NOTHING (a boring run is a successful run)' when
     the thing that was down is a thing it has no rung for."""
     import scripts.revive as revive
+
     src = (ROOT / "scripts" / "revive.py").read_text(encoding="utf-8")
-    assert hasattr(revive, "unreachable_report"), \
-        "converge must be able to name targets it has no rung for"
-    assert "no rung" in src.lower(), \
-        "the refusal must say, in words, that no rung reaches the fault"
+    assert hasattr(revive, "unreachable_report"), "converge must be able to name targets it has no rung for"
+    assert "no rung" in src.lower(), "the refusal must say, in words, that no rung reaches the fault"
 
 
 # ============================================================================
@@ -209,17 +211,17 @@ def _make_package(tmp_path, payload: bytes, name="a.bin"):
     loc = tmp_path / "pkg"
     loc.mkdir()
     (loc / name).write_bytes(payload)
-    blocks = [payload[i:i + ap.BLOCK_SIZE]
-              for i in range(0, max(len(payload), 1), ap.BLOCK_SIZE)] or [b""]
+    blocks = [payload[i : i + ap.BLOCK_SIZE] for i in range(0, max(len(payload), 1), ap.BLOCK_SIZE)] or [b""]
     els = "".join(
-        '<Block Hash="%s" Size="%d"/>'
-        % (_b64.b64encode(_hl.sha256(b).digest()).decode(), len(b))
-        for b in blocks)
+        '<Block Hash="%s" Size="%d"/>' % (_b64.b64encode(_hl.sha256(b).digest()).decode(), len(b)) for b in blocks
+    )
     (loc / "AppxBlockMap.xml").write_text(
         f'<?xml version="1.0" encoding="UTF-8"?>'
         f'<BlockMap xmlns="{_BM_NS}" HashMethod="http://www.w3.org/2001/04/xmlenc#sha256">'
         f'<File Name="{name}" Size="{len(payload)}" LfhSize="30">{els}</File>'
-        f'</BlockMap>', encoding="utf-8")
+        f"</BlockMap>",
+        encoding="utf-8",
+    )
     return loc
 
 
@@ -238,14 +240,12 @@ def test_F1_EXECUTED_one_flipped_byte_is_caught_and_refuses(tmp_path):
     payload = bytearray(b"\x5a" * (ap.BLOCK_SIZE * 2 + 17))
     loc = _make_package(tmp_path, bytes(payload))
     tampered = bytearray(payload)
-    tampered[ap.BLOCK_SIZE + 5] ^= 0xFF          # one byte, in the SECOND block
+    tampered[ap.BLOCK_SIZE + 5] ^= 0xFF  # one byte, in the SECOND block
     (loc / "a.bin").write_bytes(bytes(tampered))
 
     proof = ap.verify_payload(str(loc))
-    assert proof.mismatches, \
-        "a flipped byte MUST be caught -- a verifier that cannot go red is theatre"
-    assert ap.clear_refusals(PKG_OK, proof, elevated=True), \
-        "a mismatched payload MUST refuse the clear"
+    assert proof.mismatches, "a flipped byte MUST be caught -- a verifier that cannot go red is theatre"
+    assert ap.clear_refusals(PKG_OK, proof, elevated=True), "a mismatched payload MUST refuse the clear"
 
 
 def test_F1b_a_truncated_file_is_caught(tmp_path):
@@ -253,13 +253,11 @@ def test_F1b_a_truncated_file_is_caught(tmp_path):
     a hash-only loop can miss by simply reading fewer blocks and finding no mismatch."""
     payload = b"\x5a" * (ap.BLOCK_SIZE * 2 + 17)
     loc = _make_package(tmp_path, payload)
-    (loc / "a.bin").write_bytes(payload[:ap.BLOCK_SIZE])      # drop 2 of 3 blocks
+    (loc / "a.bin").write_bytes(payload[: ap.BLOCK_SIZE])  # drop 2 of 3 blocks
 
     proof = ap.verify_payload(str(loc))
-    assert proof.mismatches or not proof.complete, \
-        "a truncated payload must not read as intact"
-    assert ap.clear_refusals(PKG_OK, proof, elevated=True), \
-        "a truncated payload MUST refuse the clear"
+    assert proof.mismatches or not proof.complete, "a truncated payload must not read as intact"
+    assert ap.clear_refusals(PKG_OK, proof, elevated=True), "a truncated payload MUST refuse the clear"
 
 
 def test_F1c_a_missing_file_is_caught(tmp_path):

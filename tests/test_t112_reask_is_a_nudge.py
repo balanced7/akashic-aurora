@@ -58,8 +58,7 @@ NS = "t112"
 
 @pytest.fixture(autouse=True)
 def _env():
-    saved = {k: os.environ.get(k) for k in
-             ("BIFROST_NAMESPACE", "BIFROST_REASK_WINDOW_S", "BIFROST_REASK_COLLAPSE")}
+    saved = {k: os.environ.get(k) for k in ("BIFROST_NAMESPACE", "BIFROST_REASK_WINDOW_S", "BIFROST_REASK_COLLAPSE")}
     yield
     for k, v in saved.items():
         os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
@@ -97,10 +96,12 @@ def test_p1_p2_identical_reask_is_suppressed_and_returns_the_original_id(peers):
         f"RE-ASK DELIVERED AS NEW WORK: got {again!r}, expected the original {first!r}. "
         f"Sol sent one byte-identical ask FOUR times in 39 minutes and kimi answered it "
         f"four times. The sender's bookkeeping must still resolve, so return the original "
-        f"id rather than None -- suppression is not failure.")
+        f"id rather than None -- suppression is not failure."
+    )
     assert _inbox_len(sender, rcv) == before, (
         f"the recipient's stream grew: {before} -> {_inbox_len(sender, rcv)}. Every copy "
-        f"costs a full turn; that cost IS the defect.")
+        f"costs a full turn; that cost IS the defect."
+    )
 
 
 # --------------------------------------------------------------- P3
@@ -120,7 +121,8 @@ def test_p4_same_content_to_a_different_peer_always_delivers(peers):
     b = sender.send(other, "question", "read the netcode doc and file your plan")
     assert a and b and a != b, (
         "the SAME ask to two peers is the fan-out pattern the whole fleet runs on "
-        "(build-plan rounds, census work orders) -- suppression is per RECIPIENT")
+        "(build-plan rounds, census work orders) -- suppression is per RECIPIENT"
+    )
     assert _inbox_len(sender, other) == 1
 
 
@@ -132,7 +134,8 @@ def test_p5_once_the_window_lapses_it_delivers(peers):
     b = sender.send(rcv, "question", "status?")
     assert a != b, (
         "with a zero window every send is a fresh ask: asking the same question an hour "
-        "later is real work, not a duplicate. The window is what makes this safe.")
+        "later is real work, not a duplicate. The window is what makes this safe."
+    )
 
 
 # --------------------------------------------------------------- P6 the strand guard
@@ -142,13 +145,14 @@ def test_p6_a_vanished_original_always_redelivers(peers):
     class from S4, re-created one layer up. Never trade a duplicate for a strand."""
     sender, _, rcv = peers
     first = sender.send(rcv, "question", "the ask that got reaped")
-    sender._client.delete(f"{NS}:inbox:{rcv}")          # original is gone
+    sender._client.delete(f"{NS}:inbox:{rcv}")  # original is gone
 
     again = sender.send(rcv, "question", "the ask that got reaped")
     assert again and again != first, (
         f"STRANDED: the original {first!r} is no longer in the recipient's stream and the "
         f"re-ask was suppressed anyway ({again!r}). A suppressor that cannot see the "
-        f"original must fail OPEN -- a duplicate costs a turn, a strand costs the work.")
+        f"original must fail OPEN -- a duplicate costs a turn, a strand costs the work."
+    )
     assert _inbox_len(sender, rcv) == 1
 
 
@@ -169,10 +173,11 @@ def test_p7_suppression_is_loud(peers, capsys):
     out = ((cap.out or "") + (cap.err or "")).lower()
     assert "re-ask" in out or "reask" in out or "suppress" in out, (
         f"a silent drop is indistinguishable from a lost message. Say what happened and "
-        f"name the original, or the next hour is spent debugging the fix. Saw: {out!r}")
+        f"name the original, or the next hour is spent debugging the fix. Saw: {out!r}"
+    )
     assert str(first) in out, (
-        f"the notice must NAME the original id so the sender can nudge it instead of "
-        f"re-sending: {out!r}")
+        f"the notice must NAME the original id so the sender can nudge it instead of re-sending: {out!r}"
+    )
 
 
 # --------------------------------------------------------------- P8
@@ -193,17 +198,18 @@ def test_p8_the_dial_turns_off(peers):
 # P6 does not catch this: there the original is GONE, here it is present and the re-send is
 # still correct. Same strand class, different door.
 
+
 def test_p9_a_redrive_is_never_collapsed(peers):
     """expectations.redrive re-sends a copy past the reply deadline with
     meta={redrive_of, attempt}. Suppressing it silences the only escalation the
     sender-side deadline machinery has."""
     sender, _, rcv = peers
     first = sender.send(rcv, "question", "did the fence pass?")
-    again = sender.send(rcv, "question", "did the fence pass?",
-                        meta={"redrive_of": first, "attempt": 1})
+    again = sender.send(rcv, "question", "did the fence pass?", meta={"redrive_of": first, "attempt": 1})
     assert again and again != first, (
         "REDRIVE COLLAPSED: a deadline redrive is deliberate re-delivery, not an "
-        "impatient re-send. The marker is the difference and it must be honoured.")
+        "impatient re-send. The marker is the difference and it must be honoured."
+    )
 
 
 def test_p10_a_reaper_rehome_is_never_collapsed(peers):
@@ -212,11 +218,13 @@ def test_p10_a_reaper_rehome_is_never_collapsed(peers):
     the S4 strand it was built to fix."""
     sender, _, rcv = peers
     first = sender.send(rcv, "note", "the ask that outlived its seat")
-    again = sender.send(rcv, "note", "the ask that outlived its seat",
-                        meta={"rehomed_from": "claude#dead1234", "original_mid": first})
+    again = sender.send(
+        rcv, "note", "the ask that outlived its seat", meta={"rehomed_from": "claude#dead1234", "original_mid": first}
+    )
     assert again and again != first, (
         "REHOME COLLAPSED: re-homed mail is the rescue path for a dead seat's work. "
-        "Suppressing it stranded the packet twice over.")
+        "Suppressing it stranded the packet twice over."
+    )
 
 
 # --------------------------------------------------------------- P11 deepseek's fence residual
@@ -244,11 +252,13 @@ def test_p11_the_sender_learns_it_was_collapsed_not_just_stderr():
         first = sender.send(rcv, "question", "fence this please")
         assert sender.last_reask is None, (
             "a normal send must not report a collapse -- a false positive here teaches the "
-            "sender to stop sending real work")
+            "sender to stop sending real work"
+        )
         sender.send(rcv, "question", "fence this please")
         assert sender.last_reask == first, (
             f"the Bus must expose WHICH id the send collapsed onto, so the calling door can "
-            f"put it in the string the model reads: {sender.last_reask!r} != {first!r}")
+            f"put it in the string the model reads: {sender.last_reask!r} != {first!r}"
+        )
     finally:
         for k in sender._client.scan_iter(match=f"{NS}:*{a}*", count=200):
             sender._client.delete(k)

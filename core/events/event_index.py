@@ -29,6 +29,7 @@ Bounded in lockstep with the firehose (CANONICAL_MAXLEN): each add evicts the ol
 score so the index can't outgrow the stream it indexes. Best-effort throughout -- an index hiccup
 must never break capture (the Ledger write already succeeded; the event is safe and re-indexable).
 """
+
 import json
 import logging
 from typing import Any, Dict, Iterable, List, Optional
@@ -40,10 +41,10 @@ logger = logging.getLogger("event_index")
 TINDEX = "events:raw:tindex"
 BYID_PREFIX = "events:raw:byid:"
 BYREF_PREFIX = "events:raw:byref:"
-DEFAULT_MAXLEN = 100_000          # match the firehose (event_log.CANONICAL_MAXLEN)
+DEFAULT_MAXLEN = 100_000  # match the firehose (event_log.CANONICAL_MAXLEN)
 
 
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 def byid_key(event_id: str) -> str:
@@ -72,7 +73,7 @@ class EventIndex:
             score = _epoch(event.get("at", ""))
             self.store.set(byid_key(eid), json.dumps(event))
             self.store.zadd(TINDEX, {eid: score})
-            for ref in (event.get("refs") or []):          # RB-4: exact per-ref lookup
+            for ref in event.get("refs") or []:  # RB-4: exact per-ref lookup
                 if ref:
                     self.store.sadd(byref_key(str(ref)), eid)
             self._trim()
@@ -93,12 +94,12 @@ class EventIndex:
             overflow = n - self.maxlen
             if overflow <= 0:
                 return
-            evict = self.store.zrange(TINDEX, 0, overflow - 1)   # oldest by score
+            evict = self.store.zrange(TINDEX, 0, overflow - 1)  # oldest by score
             if not evict:
                 return
             for eid in evict:
                 ev = self.get(eid)
-                for ref in ((ev or {}).get("refs") or []):
+                for ref in (ev or {}).get("refs") or []:
                     k = byref_key(str(ref))
                     self.store.srem(k, eid)
                     if not self.store.smembers(k):
@@ -109,8 +110,7 @@ class EventIndex:
             pass
 
     # ------------------------------------------------------------------ read
-    def window(self, start_iso: str, end_iso: str, *,
-               limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def window(self, start_iso: str, end_iso: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Every indexed event whose `at` is in [start, end] (inclusive), OLDEST-first.
 
         Total recall within retention (the bug this fixes): a range-scan, not a capped
@@ -120,7 +120,7 @@ class EventIndex:
             lo, hi = _epoch(start_iso), _epoch(end_iso)
             if lo > hi:
                 lo, hi = hi, lo
-            ids = self.store.zrangebyscore(TINDEX, lo, hi)        # ascending by score
+            ids = self.store.zrangebyscore(TINDEX, lo, hi)  # ascending by score
             out: List[Dict[str, Any]] = []
             for eid in ids:
                 ev = self.get(eid)

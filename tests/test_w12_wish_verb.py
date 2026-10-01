@@ -1,5 +1,6 @@
 """Pin W12 (2026-07-18): the `wish` door appends an auto-numbered, attributed block to the
 wishlist and echoes the W## back. Isolated via AKASHIC_WISHLIST_FILE; no git, no bus."""
+
 import os
 import subprocess
 import sys
@@ -24,8 +25,9 @@ SEED = """# WISHLIST — test double
 
 def _run(tmp, *argv):
     env = {**os.environ, "AKASHIC_WISHLIST_FILE": str(tmp)}
-    return subprocess.run([sys.executable, CLI, "wish", *argv],
-                          capture_output=True, text=True, timeout=30, env=env, cwd=REPO)
+    return subprocess.run(
+        [sys.executable, CLI, "wish", *argv], capture_output=True, text=True, timeout=30, env=env, cwd=REPO
+    )
 
 
 def test_wish_appends_numbered_attributed(tmp_path):
@@ -103,6 +105,7 @@ def test_wish_reports_a_collided_ledger_instead_of_extending_it_silently(tmp_pat
 def test_wish_never_reuses_an_existing_id(tmp_path):
     """Whatever id is allocated must not already exist in the file."""
     import re
+
     p = tmp_path / "WISHLIST.md"
     p.write_text(SEED, encoding="utf-8")
     before = set(re.findall(r"- \[[ x~]\] W(\d+)", p.read_text(encoding="utf-8")))

@@ -47,6 +47,7 @@ means nothing (the kind-resolution lesson, one plane over).
 s1 deliberately does NOT include: the recall-at trigger join (s2, holds for kimi's
 precision counter), assertions/competing-route ranking (s3), retraction (s4), prefetch (s5).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -65,8 +66,7 @@ DB_PATH = _REPO_ROOT / "state" / "eye" / "eye.db"
 
 SCHEMA_VERSION = 1
 
-STEP_TYPES = ("observation", "discriminating-test", "decision", "dead-end", "anchor",
-              "handoff")
+STEP_TYPES = ("observation", "discriminating-test", "decision", "dead-end", "anchor", "handoff")
 
 # The walk-depth vocabulary, ordered shallow -> deep, and the ONE place it is written down.
 # Heimdall's flag on the s2 render (2026-08-17): the depth strings lived here implicitly, in
@@ -94,18 +94,19 @@ def _canon_steps(steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             raise ValueError(f"step {i}: unknown type {typ!r} (vocabulary: {STEP_TYPES})")
         receipt = str(s.get("receipt") or s.get("target") or "")
         if not receipt:
-            raise ValueError(f"step {i}: no receipt -- a claim about the past must be "
-                             "checkable")
-        out.append({
-            "id": f"s{i + 1}",
-            "type": typ,
-            "target": str(s.get("target") or receipt),
-            "receipt": receipt,
-            "note": " ".join(str(s.get("note", "")).split()),
-            "is_not": [str(x) for x in (s.get("is_not") or [])],
-            "outcome": dict(s.get("outcome") or {}),
-            "superseded_by": s.get("superseded_by"),
-        })
+            raise ValueError(f"step {i}: no receipt -- a claim about the past must be checkable")
+        out.append(
+            {
+                "id": f"s{i + 1}",
+                "type": typ,
+                "target": str(s.get("target") or receipt),
+                "receipt": receipt,
+                "note": " ".join(str(s.get("note", "")).split()),
+                "is_not": [str(x) for x in (s.get("is_not") or [])],
+                "outcome": dict(s.get("outcome") or {}),
+                "superseded_by": s.get("superseded_by"),
+            }
+        )
     return out
 
 
@@ -147,11 +148,18 @@ def _project_walk(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
     cur = con.execute(
         "INSERT OR IGNORE INTO route_walks(walk_id, route_id, at, by, depth, legs_shown, "
         "legs_drilled) VALUES(?,?,?,?,?,?,?)",
-        (rec["walk_id"], rec["route_id"], rec.get("at", ""), rec.get("by", ""),
-         rec["depth"], rec.get("legs_shown"), rec.get("legs_drilled")))
+        (
+            rec["walk_id"],
+            rec["route_id"],
+            rec.get("at", ""),
+            rec.get("by", ""),
+            rec["depth"],
+            rec.get("legs_shown"),
+            rec.get("legs_drilled"),
+        ),
+    )
     if cur.rowcount:
-        con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE route_id=?",
-                    (rec["route_id"],))
+        con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE route_id=?", (rec["route_id"],))
 
 
 def _project(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
@@ -159,15 +167,33 @@ def _project(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
     con.execute(
         "INSERT OR IGNORE INTO routes(route_id, name, status, walk_count, by, at, "
         "schema_version) VALUES(?,?,?,?,?,?,?)",
-        (rec["route_id"], rec["name"], rec.get("status", "active"), 0,
-         rec.get("by", ""), rec.get("at", ""), rec.get("schema_version", SCHEMA_VERSION)))
+        (
+            rec["route_id"],
+            rec["name"],
+            rec.get("status", "active"),
+            0,
+            rec.get("by", ""),
+            rec.get("at", ""),
+            rec.get("schema_version", SCHEMA_VERSION),
+        ),
+    )
     for seq, s in enumerate(rec["steps"]):
         con.execute(
             "INSERT OR IGNORE INTO route_steps(route_id, seq, id, type, target, receipt, "
             "note, is_not, outcome, superseded_by) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (rec["route_id"], seq, s["id"], s["type"], s["target"], s["receipt"],
-             s["note"], json.dumps(s["is_not"]), json.dumps(s["outcome"]),
-             s.get("superseded_by")))
+            (
+                rec["route_id"],
+                seq,
+                s["id"],
+                s["type"],
+                s["target"],
+                s["receipt"],
+                s["note"],
+                json.dumps(s["is_not"]),
+                json.dumps(s["outcome"]),
+                s.get("superseded_by"),
+            ),
+        )
 
 
 def save(name: str, steps: List[Dict[str, Any]], *, by: str) -> str:
@@ -179,9 +205,17 @@ def save(name: str, steps: List[Dict[str, Any]], *, by: str) -> str:
         raise ValueError("a route needs a name -- it is the handle the next walker grabs")
     canon = _canon_steps(steps)
     rid = _route_id(name, canon)
-    rec = {"v": 1, "kind": "route_saved", "route_id": rid, "schema_version": SCHEMA_VERSION,
-           "name": name, "by": str(by), "at": _now_iso(), "status": "active",
-           "steps": canon}
+    rec = {
+        "v": 1,
+        "kind": "route_saved",
+        "route_id": rid,
+        "schema_version": SCHEMA_VERSION,
+        "name": name,
+        "by": str(by),
+        "at": _now_iso(),
+        "status": "active",
+        "steps": canon,
+    }
 
     jp = Path(JOURNAL_PATH)
     jp.parent.mkdir(parents=True, exist_ok=True)
@@ -247,8 +281,8 @@ def _resolve(step: Dict[str, Any]) -> str:
         con = sqlite3.connect(str(DB_PATH))
         try:
             row = con.execute(
-                "SELECT 1 FROM events WHERE session LIKE ? AND line=?",
-                (sess + "%", int(line))).fetchone()
+                "SELECT 1 FROM events WHERE session LIKE ? AND line=?", (sess + "%", int(line))
+            ).fetchone()
         finally:
             con.close()
         return "current" if row else "dangling"
@@ -268,8 +302,8 @@ def _drill(step: Dict[str, Any]) -> Optional[str]:
         con = sqlite3.connect(str(DB_PATH))
         try:
             row = con.execute(
-                "SELECT text FROM events WHERE session LIKE ? AND line=?",
-                (sess + "%", int(line))).fetchone()
+                "SELECT text FROM events WHERE session LIKE ? AND line=?", (sess + "%", int(line))
+            ).fetchone()
         finally:
             con.close()
         return row[0] if row else None
@@ -277,8 +311,7 @@ def _drill(step: Dict[str, Any]) -> Optional[str]:
         return None
 
 
-def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False,
-         by: str = "") -> Dict[str, Any]:
+def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False, by: str = "") -> Dict[str, Any]:
     """Re-walk a saved string: steps in authored order, receipts attached, and (with
     resolve=True) each leg's resolution named. With drill=True each leg's BODY is read.
 
@@ -298,20 +331,31 @@ def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False,
     con = _connect()
     try:
         row = con.execute(
-            "SELECT route_id, name, status, walk_count FROM routes "
-            "WHERE name=? OR route_id=? ORDER BY at DESC LIMIT 1",
-            (name_or_id, name_or_id)).fetchone()
+            "SELECT route_id, name, status, walk_count FROM routes WHERE name=? OR route_id=? ORDER BY at DESC LIMIT 1",
+            (name_or_id, name_or_id),
+        ).fetchone()
         if not row:
-            raise KeyError(f"no route named {name_or_id!r} -- `eye route ls` shows what "
-                           "strings exist; `eye route save` ties a new one")
+            raise KeyError(
+                f"no route named {name_or_id!r} -- `eye route ls` shows what "
+                "strings exist; `eye route save` ties a new one"
+            )
         rid, name, status, walk_count = row
         steps = []
-        for (seq, sid, typ, target, receipt, note, is_not, outcome, sup) in con.execute(
-                "SELECT seq, id, type, target, receipt, note, is_not, outcome, "
-                "superseded_by FROM route_steps WHERE route_id=? ORDER BY seq", (rid,)):
-            s = {"id": sid, "type": typ, "target": target, "receipt": receipt,
-                 "note": note, "is_not": json.loads(is_not or "[]"),
-                 "outcome": json.loads(outcome or "{}"), "superseded_by": sup}
+        for seq, sid, typ, target, receipt, note, is_not, outcome, sup in con.execute(
+            "SELECT seq, id, type, target, receipt, note, is_not, outcome, "
+            "superseded_by FROM route_steps WHERE route_id=? ORDER BY seq",
+            (rid,),
+        ):
+            s = {
+                "id": sid,
+                "type": typ,
+                "target": target,
+                "receipt": receipt,
+                "note": note,
+                "is_not": json.loads(is_not or "[]"),
+                "outcome": json.loads(outcome or "{}"),
+                "superseded_by": sup,
+            }
             if resolve:
                 s["resolution"] = _resolve(s)
             steps.append(s)
@@ -328,9 +372,18 @@ def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False,
                 legs_drilled += 1
     depth = "drilled" if drill else ("resolved" if resolve else "listed")
 
-    rec = {"v": 1, "kind": "route_walked", "walk_id": uuid.uuid4().hex[:16],
-           "route_id": rid, "name": name, "at": _now_iso(), "by": str(by),
-           "depth": depth, "legs_shown": len(steps), "legs_drilled": legs_drilled}
+    rec = {
+        "v": 1,
+        "kind": "route_walked",
+        "walk_id": uuid.uuid4().hex[:16],
+        "route_id": rid,
+        "name": name,
+        "at": _now_iso(),
+        "by": str(by),
+        "depth": depth,
+        "legs_shown": len(steps),
+        "legs_drilled": legs_drilled,
+    }
 
     # Journal FIRST, projection second -- the same ordering save() uses, and the reason a
     # wiped eye.db now loses no walk history either.
@@ -351,10 +404,17 @@ def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False,
     # without its scope is not a coverage claim, one organ over. This is also what makes
     # walks() reachable from the door every walk already comes through, rather than only from
     # a render that has not been written yet.
-    return {"route_id": rid, "name": name, "status": status,
-            "walk_count": walk_count + 1, "depth": depth,
-            "legs_shown": len(steps), "legs_drilled": legs_drilled,
-            "tally": walks(rid), "steps": steps}
+    return {
+        "route_id": rid,
+        "name": name,
+        "status": status,
+        "walk_count": walk_count + 1,
+        "depth": depth,
+        "legs_shown": len(steps),
+        "legs_drilled": legs_drilled,
+        "tally": walks(rid),
+        "steps": steps,
+    }
 
 
 def walks(name_or_id: str) -> Dict[str, Any]:
@@ -368,25 +428,31 @@ def walks(name_or_id: str) -> Dict[str, Any]:
     con = _connect()
     try:
         row = con.execute(
-            "SELECT route_id, walk_count FROM routes WHERE name=? OR route_id=? "
-            "ORDER BY at DESC LIMIT 1", (name_or_id, name_or_id)).fetchone()
+            "SELECT route_id, walk_count FROM routes WHERE name=? OR route_id=? ORDER BY at DESC LIMIT 1",
+            (name_or_id, name_or_id),
+        ).fetchone()
         if not row:
-            raise KeyError(f"no route named {name_or_id!r} -- `eye route ls` shows what "
-                           "strings exist")
+            raise KeyError(f"no route named {name_or_id!r} -- `eye route ls` shows what strings exist")
         rid, total = row
         records = [
-            {"walk_id": w, "at": at, "by": by, "depth": d,
-             "legs_shown": ls, "legs_drilled": ld}
+            {"walk_id": w, "at": at, "by": by, "depth": d, "legs_shown": ls, "legs_drilled": ld}
             for (w, at, by, d, ls, ld) in con.execute(
-                "SELECT walk_id, at, by, depth, legs_shown, legs_drilled FROM route_walks "
-                "WHERE route_id=? ORDER BY at", (rid,))]
+                "SELECT walk_id, at, by, depth, legs_shown, legs_drilled FROM route_walks WHERE route_id=? ORDER BY at",
+                (rid,),
+            )
+        ]
     finally:
         con.close()
     by_depth: Dict[str, int] = {}
     for r in records:
         by_depth[r["depth"]] = by_depth.get(r["depth"], 0) + 1
-    return {"route_id": rid, "total": total, "by_depth": by_depth,
-            "unknown": max(0, total - len(records)), "records": records}
+    return {
+        "route_id": rid,
+        "total": total,
+        "by_depth": by_depth,
+        "unknown": max(0, total - len(records)),
+        "records": records,
+    }
 
 
 def list_routes() -> List[Dict[str, Any]]:
@@ -396,9 +462,11 @@ def list_routes() -> List[Dict[str, Any]]:
         rows = con.execute(
             "SELECT r.route_id, r.name, r.status, r.walk_count, r.by, r.at, "
             "COUNT(s.seq) FROM routes r LEFT JOIN route_steps s "
-            "ON s.route_id = r.route_id GROUP BY r.route_id ORDER BY r.at").fetchall()
+            "ON s.route_id = r.route_id GROUP BY r.route_id ORDER BY r.at"
+        ).fetchall()
     finally:
         con.close()
-    return [{"route_id": rid, "name": name, "status": status, "walk_count": wc,
-             "by": by, "at": at, "steps": n}
-            for rid, name, status, wc, by, at, n in rows]
+    return [
+        {"route_id": rid, "name": name, "status": status, "walk_count": wc, "by": by, "at": at, "steps": n}
+        for rid, name, status, wc, by, at, n in rows
+    ]

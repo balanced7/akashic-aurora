@@ -49,6 +49,7 @@ guards nothing.
 
 Run: py -m pytest tests/test_t141_advertised_tools.py -q
 """
+
 import os
 import sys
 
@@ -70,7 +71,8 @@ def test_t1_a_nonexistent_tool_is_reported(tmp_path):
     bad = cat.scan([d])
     assert any(n == "knowledge_bootstrap" for _f, n, _ln in bad), (
         "a doc that tells a newcomer to call a tool which does not exist strands them exactly "
-        "the way AGENTS.md stranded the cold seat")
+        "the way AGENTS.md stranded the cold seat"
+    )
 
 
 def test_t2_a_real_tool_is_not_reported(tmp_path):
@@ -97,7 +99,8 @@ def test_t5_agents_md_names_the_tool_surface_door():
     text = open(os.path.join(ROOT, "AGENTS.md"), encoding="utf-8", errors="replace").read()
     assert "knowledge_boot" in text, (
         "AGENTS.md gives a shell command as step 1 and the default new agent has no shell -- "
-        "it must name the tool-surface door too")
+        "it must name the tool-surface door too"
+    )
 
 
 def test_t6_the_real_docs_advertise_no_missing_tools():

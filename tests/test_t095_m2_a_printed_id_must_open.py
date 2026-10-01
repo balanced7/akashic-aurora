@@ -53,6 +53,7 @@ Run::
 
     py -m pytest tests/test_t095_m2_a_printed_id_must_open.py -q
 """
+
 from __future__ import annotations
 
 import importlib
@@ -75,7 +76,8 @@ def _mailbox():
 
 
 def _fake():
-    from test_t095_m0_mailbox_shadow import _FakeRedis   # reuse the M0 double, do not fork it
+    from test_t095_m0_mailbox_shadow import _FakeRedis  # reuse the M0 double, do not fork it
+
     return _FakeRedis()
 
 
@@ -84,14 +86,14 @@ def _ingest(mbx, client, *, sid, content, frm="kimi", kind="request", sha=None):
     content-fallback basis, which is SHORTER (42). Both are longer than anything we print, and
     the pins below must hold for either -- an id's length is not the contract, the round trip is.
     """
-    fields = {"frm": frm, "to": "claude", "kind": kind, "ts": sid.split("-")[0],
-              "content": content}
+    fields = {"frm": frm, "to": "claude", "kind": kind, "ts": sid.split("-")[0], "content": content}
     if sha:
         fields["sha"] = sha
     return mbx._ingest_one(client, NS, "claude", "work_inbox", sid, fields)
 
 
 # ------------------------------------------------- THE ROUND TRIP (the wiring, not the mechanism)
+
 
 def test_m2_1_every_width_the_doors_print_is_a_width_that_opens():
     """THE PIN. Not "a resolver exists" -- take the id the screen shows and feed it back.
@@ -206,9 +208,7 @@ def test_m2_4_all_the_doors_accept_what_all_the_doors_print():
     assert it.get("ok"), f"--intent refused a printed id: {it.get('reason')!r}"
     # The receipt must name the entry the declaration LANDED ON, not the id the caller typed.
     # Echoing the input back is how a reader ends up believing a prefix is an identity.
-    assert it.get("sha") == sha, (
-        f"the intent receipt echoed {it.get('sha')!r}, not the resolved {sha!r}"
-    )
+    assert it.get("sha") == sha, f"the intent receipt echoed {it.get('sha')!r}, not the resolved {sha!r}"
 
     # The declaration must land on the FULL sha. Stored under the prefix it would sit under a key
     # nothing else queries, which is indistinguishable from never having declared at all.
@@ -231,6 +231,7 @@ def test_m2_5_the_exact_sha_still_works_unchanged():
     got = mbx.open(NS, "claude", sha, incarnation="pin-m2", client=client)
     assert got.get("ok") and got["body"] == "exact still wins"
 
+
 def test_m2_6_a_capped_candidate_list_still_reports_the_TRUE_match_count():
     """The cap is fine. Reporting the cap AS the count is not.
 
@@ -244,8 +245,9 @@ def test_m2_6_a_capped_candidate_list_still_reports_the_TRUE_match_count():
     """
     mbx = _mailbox()
     client = _fake()
-    made = [_ingest(mbx, client, sid=f"17902159601{i:02d}-0", content=f"m{i}",
-                    sha=f"{'ab'}{i:062x}") for i in range(30)]
+    made = [
+        _ingest(mbx, client, sid=f"17902159601{i:02d}-0", content=f"m{i}", sha=f"{'ab'}{i:062x}") for i in range(30)
+    ]
     assert len(set(made)) == 30, "fixture did not mint 30 distinct shas"
 
     r = mbx.resolve_sha(NS, "claude", "ab", client=client)
@@ -270,8 +272,7 @@ def test_m2_7_the_state_survives_every_wrapper_between_resolver_and_caller():
     for door, call in (
         ("open", lambda: mbx.open(NS, "claude", "ab", incarnation="pin-m2", client=client)),
         ("state_for", lambda: mbx.state_for(NS, "claude", "ab", client=client)),
-        ("declare_intent", lambda: mbx.declare_intent(NS, "claude", "ab", "act",
-                                                      incarnation="pin-m2", client=client)),
+        ("declare_intent", lambda: mbx.declare_intent(NS, "claude", "ab", "act", incarnation="pin-m2", client=client)),
     ):
         out = call()
         assert out.get("how") == "ambiguous", f"{door} lost `how`: {out!r}"

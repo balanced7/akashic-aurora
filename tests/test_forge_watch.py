@@ -7,6 +7,7 @@ for a lesson that HAD a baseline rate); surviving the window (14d or 8 impressio
 CONFIRMS the variant. Unreviewed optimizer proposals expire after 7 days. All stamps are
 reversible state, never deletes.
 """
+
 import json
 import os
 import sys
@@ -27,14 +28,20 @@ NEW_TEXT = "Use when editing the seam, before refactoring: route every source th
 def _fixture(baseline, use_now, *, forged_days_ago=1.0):
     d = tempfile.mkdtemp()
     ls = LearningStore(store=FileStore(os.path.join(d, "learn.json")))
-    ls.persist_learning_derived_from_experiment({
-        "experiment_name": "watched", "what_tried": "x", "actual_outcome": "y",
-        "success": "yes", "recommendation": OLD_TEXT, "agent_id": "t"})
+    ls.persist_learning_derived_from_experiment(
+        {
+            "experiment_name": "watched",
+            "what_tried": "x",
+            "actual_outcome": "y",
+            "success": "yes",
+            "recommendation": OLD_TEXT,
+            "agent_id": "t",
+        }
+    )
     assert ls.apply_forge_edit("watched", NEW_TEXT, {"floor": 0.2}, baseline=baseline)
     # backdate the provisional stamp to simulate elapsed time (production-shaped naive utcnow)
     forged_at = (datetime.utcnow() - timedelta(days=forged_days_ago)).isoformat()
-    ls.store.hset("learn:experiment:watched", mapping={"forge_provisional": forged_at,
-                                                       "forged_at": forged_at})
+    ls.store.hset("learn:experiment:watched", mapping={"forge_provisional": forged_at, "forged_at": forged_at})
     use = FileStore(os.path.join(d, "use.json"))
     use.set("recall:use:learn:experiment:watched", json.dumps(use_now))
     return ls, use
@@ -53,8 +60,7 @@ def test_rollback_on_new_noise_vote():
 
 def test_rollback_on_credit_rate_regression():
     # baseline rate 2/10 = 0.2; then +10 fresh impressions with zero fresh credit
-    ls, use = _fixture(baseline={"surfaced": 10, "helped": 2},
-                       use_now={"surfaced": 20, "helped": 2})
+    ls, use = _fixture(baseline={"surfaced": 10, "helped": 2}, use_now={"surfaced": 20, "helped": 2})
     rep = curation_report(store=use, learning_store=ls)
     assert rep["forge_rollback"] and "credit rate" in rep["forge_rollback"][0]["why"]
     print("--- rate rollback ---\n  credited lesson goes quiet after the edit -> rollback OK")
@@ -74,19 +80,23 @@ def test_confirm_after_quiet_window():
 
 
 def test_young_provisional_is_left_alone():
-    ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 13},
-                       forged_days_ago=0.5)
+    ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 13}, forged_days_ago=0.5)
     rep = curation_report(store=use, learning_store=ls)
     assert not rep["forge_rollback"] and not rep["forge_confirm"], rep
     print("--- patience ---\n  young provisional with thin data -> no action OK")
 
 
 def test_stale_proposal_expires():
-    ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 11},
-                       forged_days_ago=0.5)
+    ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 11}, forged_days_ago=0.5)
     old = (datetime.utcnow() - timedelta(days=9)).isoformat()
-    ls.store.hset("learn:experiment:watched", mapping={"forge_proposal": json.dumps(
-        {"draft": "stale draft", "verdict": "PASS", "at": old, "by": "deepseek-optimizer"})})
+    ls.store.hset(
+        "learn:experiment:watched",
+        mapping={
+            "forge_proposal": json.dumps(
+                {"draft": "stale draft", "verdict": "PASS", "at": old, "by": "deepseek-optimizer"}
+            )
+        },
+    )
     rep = curation_report(store=use, learning_store=ls)
     assert [r["name"] for r in rep["forge_expire"]] == ["watched"], rep
     out = apply_curation(rep, store=use, learning_store=ls)

@@ -32,6 +32,7 @@ squat on the port Docker needs. A checkout with no Redis is `embedded`.
     py -m core.foundation.embedded_redis --port 16379        # run in the foreground
     py -m core.foundation.embedded_redis --status            # who is serving each world port
 """
+
 from __future__ import annotations
 
 import argparse
@@ -62,11 +63,13 @@ _FULL_RESYNC = {"flushdb", "flushall", "swapdb", "move", "copy", "restore", "deb
 
 # ------------------------------------------------------------------------------ locations
 
+
 def _repo_root() -> Path:
     try:
         from core.paths import repo_root
+
         return repo_root()
-    except Exception:                                        # pragma: no cover - import guard
+    except Exception:  # pragma: no cover - import guard
         return Path(__file__).resolve().parents[2]
 
 
@@ -88,10 +91,12 @@ def _marker() -> Path:
 
 # ------------------------------------------------------------------------------ backend choice
 
+
 def available() -> bool:
     """True when the pure-Python server can run here (fakeredis installed)."""
     try:
         import fakeredis  # noqa: F401
+
         return True
     except Exception:
         return False
@@ -119,7 +124,7 @@ def record_backend(reachable: bool) -> str:
     try:
         _marker().parent.mkdir(parents=True, exist_ok=True)
         _marker().write_text(choice + "\n", encoding="utf-8")
-    except OSError:                                           # read-only tree: decide per call
+    except OSError:  # read-only tree: decide per call
         pass
     return choice
 
@@ -130,13 +135,18 @@ def _has_redis_container() -> bool:
     moment is still an `external` checkout, and an embedded server squatting on its port would
     stop that container from ever starting again."""
     import shutil
+
     docker = shutil.which("docker")
     if not docker:
         return False
     try:
-        r = subprocess.run([docker, "ps", "-a", "--filter", "name=akashic-redis", "-q"],
-                           capture_output=True, text=True, timeout=10,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        r = subprocess.run(
+            [docker, "ps", "-a", "--filter", "name=akashic-redis", "-q"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
         return r.returncode == 0 and bool(r.stdout.strip())
     except Exception:
         return False
@@ -147,6 +157,7 @@ def is_world_port(port: int) -> bool:
     purpose to exercise the Redis-down path; conjuring a server there would erase it."""
     try:
         from core.world import owner_of_port
+
         return owner_of_port(int(port)) is not None
     except Exception:
         return False
@@ -158,6 +169,7 @@ def is_own_world_port(port: int) -> bool:
     squatting on its port. An UNKNOWN checkout owns no port, so it never starts one."""
     try:
         from core.world import current
+
         return current().redis_port == int(port)
     except Exception:
         return False
@@ -165,20 +177,20 @@ def is_own_world_port(port: int) -> bool:
 
 # ------------------------------------------------------------------------------ persistence
 
+
 class _Persistence:
     """Dirty-key tracking plus a flusher thread that mirrors those keys into SQLite."""
 
     def __init__(self, fake_server, path: Path):
         self.server = fake_server
         self.path = path
-        self._dirty: Set[Tuple[int, bytes]] = set()    # (id(Database), key)
+        self._dirty: Set[Tuple[int, bytes]] = set()  # (id(Database), key)
         self._full = False
         self._mu = threading.Lock()
         self._stop = threading.Event()
         path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as c:
-            c.execute("CREATE TABLE IF NOT EXISTS kv (db INTEGER, key BLOB, item BLOB, "
-                      "PRIMARY KEY (db, key))")
+            c.execute("CREATE TABLE IF NOT EXISTS kv (db INTEGER, key BLOB, item BLOB, PRIMARY KEY (db, key))")
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(str(self.path), timeout=30)
@@ -194,7 +206,7 @@ class _Persistence:
         for db, key, blob in rows:
             try:
                 item = pickle.loads(blob)
-            except Exception as e:                                # a corrupt row costs one key
+            except Exception as e:  # a corrupt row costs one key
                 logger.warning("skipping unreadable key %r in db %s: %s", key, db, e)
                 continue
             exp = getattr(item, "expireat", None)
@@ -219,7 +231,7 @@ class _Persistence:
         if not dirty and not full:
             return
         upserts, deletes = [], []
-        with self.server.lock:                  # a consistent cut: no command runs mid-snapshot
+        with self.server.lock:  # a consistent cut: no command runs mid-snapshot
             by_id = {id(d): (n, d) for n, d in self.server.dbs.items()}
             if full:
                 for n, d in by_id.values():
@@ -245,7 +257,7 @@ class _Persistence:
         while not self._stop.wait(FLUSH_INTERVAL):
             try:
                 self.flush()
-            except Exception as e:                                # never kill the flusher
+            except Exception as e:  # never kill the flusher
                 logger.error("flush failed: %s", e)
 
     def stop(self) -> None:
@@ -261,6 +273,7 @@ def _install_hooks() -> None:
     import fakeredis._basefakesocket as bfs
     import fakeredis._commands as cmds
     from fakeredis._commands import command
+
     if getattr(bfs.BaseFakeSocket, "_aurora_hooked", False):
         return
     write_cmds = _write_commands()
@@ -295,11 +308,19 @@ def _install_hooks() -> None:
         @command(name="info", fixed=(), repeat=(bytes,))
         def info(self, *sections):
             dbs = {n: len(d) for n, d in self._server.dbs.items() if len(d)}
-            lines = ["# Server", "redis_version:7.4.0", "redis_mode:standalone",
-                     "aurora_backend:embedded", f"process_id:{os.getpid()}",
-                     "# Clients", "connected_clients:1",
-                     "# Memory", "used_memory:0", "used_memory_human:embedded",
-                     "# Keyspace"]
+            lines = [
+                "# Server",
+                "redis_version:7.4.0",
+                "redis_mode:standalone",
+                "aurora_backend:embedded",
+                f"process_id:{os.getpid()}",
+                "# Clients",
+                "connected_clients:1",
+                "# Memory",
+                "used_memory:0",
+                "used_memory_human:embedded",
+                "# Keyspace",
+            ]
             lines += [f"db{n}:keys={k},expires=0,avg_ttl=0" for n, k in sorted(dbs.items())]
             return ("\r\n".join(lines) + "\r\n").encode()
 
@@ -338,6 +359,7 @@ def _write_commands() -> Set[str]:
     (names as fakeredis spells them: 'xgroup create' for subcommands)."""
     import json
     import fakeredis
+
     table = json.loads((Path(fakeredis.__file__).parent / "commands.json").read_text("utf-8"))
     out: Set[str] = set()
 
@@ -356,6 +378,7 @@ def _write_commands() -> Set[str]:
 
 # ------------------------------------------------------------------------------ first boot
 
+
 def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
     """On an EMPTY first boot, load what the file tier already holds.
 
@@ -370,12 +393,14 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
         return 0
     try:
         from core.world import current
+
         if current().redis_port != port:
             return 0
         from core.paths import data_root
         from core.foundation.redis_connection import DEFAULT_REDIS_DB
         import json
         import fakeredis
+
         state_file = data_root() / "session_logs" / "store_state.json"
         n = 0
         if state_file.exists():
@@ -383,19 +408,24 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
             r = fakeredis.FakeRedis(server=fake_server, db=int(DEFAULT_REDIS_DB))
             p = r.pipeline(transaction=False)
             for k, v in (data.get("kv") or {}).items():
-                p.set(k, v); n += 1
+                p.set(k, v)
+                n += 1
             for k, v in (data.get("hash") or {}).items():
                 if v:
-                    p.hset(k, mapping=v); n += 1
+                    p.hset(k, mapping=v)
+                    n += 1
             for k, v in (data.get("list") or {}).items():
                 if v:
-                    p.rpush(k, *v); n += 1
+                    p.rpush(k, *v)
+                    n += 1
             for k, v in (data.get("set") or {}).items():
                 if v:
-                    p.sadd(k, *v); n += 1
+                    p.sadd(k, *v)
+                    n += 1
             for k, v in (data.get("zset") or {}).items():
                 if v:
-                    p.zadd(k, {m: float(s) for m, s in v.items()}); n += 1
+                    p.zadd(k, {m: float(s) for m, s in v.items()})
+                    n += 1
             now = time.time()
             for k, ts in (data.get("__expiry__") or {}).items():
                 ttl = float(ts) - now
@@ -406,18 +436,20 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
             p.execute()
         marker.write_text(f"{n}\n", encoding="utf-8")
         return n
-    except Exception as e:                        # a failed seed must never stop the server
+    except Exception as e:  # a failed seed must never stop the server
         logger.warning("seeding from the file store failed: %s", e)
         return 0
 
 
 # ------------------------------------------------------------------------------ the server
 
+
 def _no_delay_handler(base):
     """fakeredis writes each reply of a pipeline as its own small send. With Nagle on, the
     second waits for the ACK of the first, which the client delays ~40ms because it is only
     reading -- so EVERY pipeline of two or more commands cost ~41ms flat (measured), against
     ~0.3ms for a single command. A real Redis sets TCP_NODELAY on client sockets; so do we."""
+
     class _NoDelay(base):
         def setup(self):
             try:
@@ -425,6 +457,7 @@ def _no_delay_handler(base):
             except OSError:
                 pass
             super().setup()
+
     return _NoDelay
 
 
@@ -432,6 +465,7 @@ def serve(port: int, host: str = "127.0.0.1", path: Optional[Path] = None) -> in
     """Run the server in this process until SIGTERM/SIGINT or SHUTDOWN. Returns an exit code."""
     global _PERSIST
     from fakeredis import TcpFakeServer
+
     _install_hooks()
     path = path or data_file(port)
     try:
@@ -463,7 +497,7 @@ def serve(port: int, host: str = "127.0.0.1", path: Optional[Path] = None) -> in
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             signal.signal(sig, _stop)
-        except (ValueError, OSError):                         # not the main thread
+        except (ValueError, OSError):  # not the main thread
             pass
     try:
         srv.serve_forever(poll_interval=0.2)
@@ -497,15 +531,14 @@ def _spawn(port: int) -> None:
     env = dict(os.environ)
     root = str(_repo_root())
     env["PYTHONPATH"] = root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-    kwargs = dict(cwd=root, stdin=subprocess.DEVNULL, stdout=open(log, "ab"),
-                  stderr=subprocess.STDOUT, close_fds=True, env=env)
+    kwargs = dict(
+        cwd=root, stdin=subprocess.DEVNULL, stdout=open(log, "ab"), stderr=subprocess.STDOUT, close_fds=True, env=env
+    )
     if sys.platform == "win32":
-        kwargs["creationflags"] = (subprocess.DETACHED_PROCESS
-                                   | subprocess.CREATE_NEW_PROCESS_GROUP)
+        kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         kwargs["start_new_session"] = True
-    subprocess.Popen([exe, "-m", "core.foundation.embedded_redis", "--port", str(int(port))],
-                     **kwargs)
+    subprocess.Popen([exe, "-m", "core.foundation.embedded_redis", "--port", str(int(port))], **kwargs)
 
 
 def ensure_running(host: str, port: int, timeout: float = 10.0) -> bool:
@@ -515,7 +548,7 @@ def ensure_running(host: str, port: int, timeout: float = 10.0) -> bool:
         if _reachable(host, port):
             return True
         if (host or "").lower() not in _LOCAL_HOSTS:
-            return False                      # we only ever start a server on this machine
+            return False  # we only ever start a server on this machine
         if not is_own_world_port(port) or not available():
             return False
         if record_backend(reachable=False) != "embedded":
@@ -526,10 +559,15 @@ def ensure_running(host: str, port: int, timeout: float = 10.0) -> bool:
             if _reachable(host, port):
                 return True
             time.sleep(0.05)
-        logger.warning("embedded redis did not come up on %s:%s within %.0fs (see %s)",
-                       host, port, timeout, data_dir() / f"{int(port)}.log")
+        logger.warning(
+            "embedded redis did not come up on %s:%s within %.0fs (see %s)",
+            host,
+            port,
+            timeout,
+            data_dir() / f"{int(port)}.log",
+        )
         return False
-    except Exception as e:                                        # pragma: no cover
+    except Exception as e:  # pragma: no cover
         logger.warning("ensure_running failed: %s", e)
         return False
 
@@ -539,6 +577,7 @@ def status() -> Dict[int, str]:
     out = {}
     try:
         from core.world import WORLDS
+
         ports = [w.redis_port for w in WORLDS.values() if w.redis_port]
     except Exception:
         ports = [16379]
@@ -548,6 +587,7 @@ def status() -> Dict[int, str]:
             continue
         try:
             import redis
+
             info = redis.Redis(port=p, socket_timeout=2).info()
             out[p] = "embedded" if info.get("aurora_backend") == "embedded" else "redis"
         except Exception as e:
@@ -570,6 +610,7 @@ def main(argv=None) -> int:
     if a.port is None:
         try:
             from core.foundation.redis_connection import DEFAULT_REDIS_PORT
+
             a.port = DEFAULT_REDIS_PORT
         except Exception:
             a.port = 16379

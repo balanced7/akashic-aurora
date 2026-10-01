@@ -3,6 +3,7 @@
 DeepSeek authored the impl (ToolBox boot_sources + mem: arm + bifrost_dashboard) but has no
 exec to run tests; these pins are the run-it-for-real half of the fenced cross-check.
 """
+
 import sys
 from pathlib import Path
 
@@ -15,8 +16,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 def _tb(**kw):
-    return dc.ToolBox(REPO, allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda p: False, **kw)
+    return dc.ToolBox(REPO, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda p: False, **kw)
 
 
 def test_w6p2_boot_sources_used_directly_when_provided():

@@ -22,6 +22,7 @@ Each fixture pins one defect, red before the fix and green after it:
   pins them as the engine named them at git 7c2266a2, and they must not change. Rewrite it only after reading the
   diff: py tests/test_arsenal_practice_sounding.py --pin-already-correct
 """
+
 import json
 import shutil
 import sys
@@ -40,9 +41,13 @@ FIX = ROOT / "tests" / "fixtures" / "practice_sounding"
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is needed to run piano.js Theory.detect")
 
-SESSIONS = {"rolled_dmaj7": "20300102-010000-5d0a0001", "late_arrivals": "20300102-011000-5d0a0002",
-            "landings": "20300102-012000-5d0a0003", "late_pedal": "20300102-013000-5d0a0004",
-            "already_correct": "20300102-014000-5d0a0005"}
+SESSIONS = {
+    "rolled_dmaj7": "20300102-010000-5d0a0001",
+    "late_arrivals": "20300102-011000-5d0a0002",
+    "landings": "20300102-012000-5d0a0003",
+    "late_pedal": "20300102-013000-5d0a0004",
+    "already_correct": "20300102-014000-5d0a0005",
+}
 OPENED_EPOCH = {name: 1893546000000.0 + k * 600000 for k, name in enumerate(SESSIONS)}  # from 2030-01-02T01:00Z
 
 PRIORITY = {"off": 0, "up": 1, "down": 2, "on": 3}
@@ -58,7 +63,7 @@ CM = ["C3", "Eb4", "G4", "C5"]
 def n(name: str) -> int:
     """'Eb3' -> 51 (C4 = 60)."""
     letters = name.rstrip("-0123456789")
-    return (int(name[len(letters):]) + 1) * 12 + PC[letters]
+    return (int(name[len(letters) :]) + 1) * 12 + PC[letters]
 
 
 def perform(actions):
@@ -171,9 +176,12 @@ def landings():
     acts = []
     t = d_minor_context(acts)
     times = {}
-    for name, before, between, arrival in (("note_5_1", A7, ["C#4"], DM), ("note_4_1", GM, ["Bb4"], DM),
-                                           ("octaves_5_power", A_MAJOR, ["D2", "D3"], ["D2", "A3", "D4"]),
-                                           ("unnamed_5_1", None, None, DM)):
+    for name, before, between, arrival in (
+        ("note_5_1", A7, ["C#4"], DM),
+        ("note_4_1", GM, ["Bb4"], DM),
+        ("octaves_5_power", A_MAJOR, ["D2", "D3"], ["D2", "A3", "D4"]),
+        ("unnamed_5_1", None, None, DM),
+    ):
         t = _then(acts, t, BB, 2000)
         times[name] = t
         if before is not None:
@@ -193,10 +201,12 @@ def late_pedal():
     acts = []
     t = d_minor_context(acts)
     starts = []
-    chords = [(["Bb1", "Bb2", "D4", "D5"], ["F4", "A4"], ["Bb3", "D4", "F4", "A4"]),
-              (["G1", "G2", "Bb3", "Bb4"], ["D5", "F5"], ["G4", "Bb4", "D5", "F5"]),
-              (["A1", "A2", "C#4", "C#5"], ["E4", "G4"], ["A3", "C#4", "E4", "G4"]),
-              (["D1", "D2", "F4", "F5"], ["A4", "C5"], ["D4", "F4", "A4", "C5"])]
+    chords = [
+        (["Bb1", "Bb2", "D4", "D5"], ["F4", "A4"], ["Bb3", "D4", "F4", "A4"]),
+        (["G1", "G2", "Bb3", "Bb4"], ["D5", "F5"], ["G4", "Bb4", "D5", "F5"]),
+        (["A1", "A2", "C#4", "C#5"], ["E4", "G4"], ["A3", "C#4", "E4", "G4"]),
+        (["D1", "D2", "F4", "F5"], ["A4", "C5"], ["D4", "F4", "A4", "C5"]),
+    ]
     acts.append((t, "down", 0, 0))
     for strike, arrive, cycle in chords:
         starts.append(t)
@@ -255,8 +265,13 @@ def already_correct():
     return acts, {}
 
 
-BUILDERS = {"rolled_dmaj7": rolled_dmaj7, "late_arrivals": late_arrivals, "landings": landings,
-            "late_pedal": late_pedal, "already_correct": already_correct}
+BUILDERS = {
+    "rolled_dmaj7": rolled_dmaj7,
+    "late_arrivals": late_arrivals,
+    "landings": landings,
+    "late_pedal": late_pedal,
+    "already_correct": already_correct,
+}
 
 
 def _iso(epoch_ms: float) -> str:
@@ -269,22 +284,42 @@ def build_fixture(name: str, folder: Path) -> Path:
     events = perform(acts)
     sid, opened = SESSIONS[name], OPENED_EPOCH[name]
     last = max(e["t_ms"] for e in events)
-    info = {"api": "arsenal.performance/v0", "session": sid, "opened_at": _iso(opened + 41),
-            "opened_ns": int(round(opened + 41)) * 1000000, "client_id": "lg-5d0a",
-            "meta": {"page_id": "p-5d0a", "opened_at_client": _iso(opened), "buffered": False}, "closed": True,
-            "event_count": len(events), "last_t_ms": last, "duration_s": round(last / 1000, 3)}
+    info = {
+        "api": "arsenal.performance/v0",
+        "session": sid,
+        "opened_at": _iso(opened + 41),
+        "opened_ns": int(round(opened + 41)) * 1000000,
+        "client_id": "lg-5d0a",
+        "meta": {"page_id": "p-5d0a", "opened_at_client": _iso(opened), "buffered": False},
+        "closed": True,
+        "event_count": len(events),
+        "last_t_ms": last,
+        "duration_s": round(last / 1000, 3),
+    }
     d = folder / "performance" / sid
     d.mkdir(parents=True, exist_ok=True)
     (d / "session.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
-    (d / "events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8",
-                                    newline="\n")
+    (d / "events.jsonl").write_text(
+        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8", newline="\n"
+    )
     return folder
 
 
 def window_view(doc: dict) -> list:
     """What 'a window did not change' means: its span, name, label, notes, class and key."""
-    return [{"at": w["at"], "start_ms": w["start_ms"], "end_ms": w["end_ms"], "name": w["name"], "label": w["label"],
-             "pcs": w["pcs"], "class": w["class"], "key": w["key"]} for w in doc["windows"]]
+    return [
+        {
+            "at": w["at"],
+            "start_ms": w["start_ms"],
+            "end_ms": w["end_ms"],
+            "name": w["name"],
+            "label": w["label"],
+            "pcs": w["pcs"],
+            "class": w["class"],
+            "key": w["key"],
+        }
+        for w in doc["windows"]
+    ]
 
 
 # ================================================================================================= helpers
@@ -362,8 +397,12 @@ def test_landings_on_1_pass_over_notes_octaves_and_find_an_unnamed_5():
     doc = fixture_doc("landings")
     times = landings()[1]
     found = {c["start_ms"]: (c["kind"], c["chords"][-1]) for c in doc["findings"]["cadences"]}
-    want = {"note_5_1": ("5 -> 1 (authentic)", "Dm"), "note_4_1": ("4m -> 1 (minor plagal)", "Dm"),
-            "octaves_5_power": ("5 -> 1 (authentic)", "D5"), "unnamed_5_1": ("5 -> 1 (authentic)", "Dm")}
+    want = {
+        "note_5_1": ("5 -> 1 (authentic)", "Dm"),
+        "note_4_1": ("4m -> 1 (minor plagal)", "Dm"),
+        "octaves_5_power": ("5 -> 1 (authentic)", "D5"),
+        "unnamed_5_1": ("5 -> 1 (authentic)", "Dm"),
+    }
     for name, (kind, arrival) in want.items():
         assert found.get(times[name]) == (kind, arrival), (name, times[name], found)
     unnamed = next(c for c in doc["findings"]["cadences"] if c["start_ms"] == times["unnamed_5_1"])
@@ -388,8 +427,9 @@ def test_windows_that_were_already_correct_do_not_change():
     expected = json.loads((FIX / "already_correct" / "expected.json").read_text(encoding="utf-8"))
     doc = fixture_doc("already_correct")
     assert window_view(doc) == expected["windows"]
-    assert [(c["at"], c["kind"], c["chords"]) for c in doc["findings"]["cadences"]] == \
-        [tuple(c) for c in expected["cadences"]]
+    assert [(c["at"], c["kind"], c["chords"]) for c in doc["findings"]["cadences"]] == [
+        tuple(c) for c in expected["cadences"]
+    ]
     assert [a["key"] for a in doc["keys"]["areas"]] == expected["areas"]
 
 
@@ -398,23 +438,30 @@ def test_split_returns_keeps_a_picardy_ending_in_its_key():
 
     def w(a, b, pcs):
         return {"start_ms": a, "end_ms": b, "pcs": pcs}
+
     dm, d, gm, a7 = [2, 5, 9], [2, 6, 9], [7, 10, 2], [9, 1, 4, 7]
     ending = [w(0, 20000, dm), w(20000, 22000, d), w(22000, 25000, gm), w(25000, 28000, a7), w(28000, 34000, d)]
     assert len(pr.split_returns([area], ending)) == 1  # 2 s of D before the last chord: a Picardy third, not a return
     longer = [w(0, 20000, dm), w(20000, 25000, d), w(25000, 28000, a7), w(28000, 34000, d)]
-    got = [(pr.KEYS[a["state"]], a["start_ms"], a["end_ms"], bool(a.get("return")))
-           for a in pr.split_returns([area], longer)]
+    got = [
+        (pr.KEYS[a["state"]], a["start_ms"], a["end_ms"], bool(a.get("return")))
+        for a in pr.split_returns([area], longer)
+    ]
     assert got == [((2, "minor"), 0, 20000, False), ((2, "major"), 20000, 34000, True)], got
 
 
 def _pin_already_correct() -> None:
     doc = pr.load_session(PerformanceStore(FIX / "already_correct" / "performance"), SESSIONS["already_correct"])["doc"]
     note = "Windows the engine named correctly before the sounding fix (git 7c2266a2); they must not change."
-    pinned = {"note": note, "windows": window_view(doc),
-              "cadences": [[c["at"], c["kind"], c["chords"]] for c in doc["findings"]["cadences"]],
-              "areas": [a["key"] for a in doc["keys"]["areas"]]}
-    (FIX / "already_correct" / "expected.json").write_text(json.dumps(pinned, indent=2) + "\n", encoding="utf-8",
-                                                          newline="\n")
+    pinned = {
+        "note": note,
+        "windows": window_view(doc),
+        "cadences": [[c["at"], c["kind"], c["chords"]] for c in doc["findings"]["cadences"]],
+        "areas": [a["key"] for a in doc["keys"]["areas"]],
+    }
+    (FIX / "already_correct" / "expected.json").write_text(
+        json.dumps(pinned, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 if __name__ == "__main__":

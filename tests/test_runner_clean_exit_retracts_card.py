@@ -37,6 +37,7 @@ ns/client; the shared id derivation names the SAME card the beat wrote.
 
 Run:  py -m pytest tests/test_runner_clean_exit_retracts_card.py -v -p no:cacheprovider
 """
+
 from __future__ import annotations
 
 import json
@@ -52,9 +53,9 @@ sys.path.insert(0, ROOT)
 
 from core.comm import doctor, liveness, roster, runner_lib  # noqa: E402
 
-AGENT = "deepseek-probe"                 # never a live seat's id: no shared-Redis side effects
-SESSION = "3708-deepseek"                # the receipt's derivation: f"{pid}-{agent}"
-SID8 = SESSION[:8]                       # -> '3708-dee', the exact key tail that paged
+AGENT = "deepseek-probe"  # never a live seat's id: no shared-Redis side effects
+SESSION = "3708-deepseek"  # the receipt's derivation: f"{pid}-{agent}"
+SID8 = SESSION[:8]  # -> '3708-dee', the exact key tail that paged
 
 
 class FakeRedis:
@@ -104,8 +105,9 @@ def _retire(ns, c, *, stop_hb=None, hb_thread=None, hb_join_s=6.0):
         if stop_hb is not None:
             stop_hb.set()
         return {"ok": False, "reason": "runner_lib.retire_seat does not exist"}
-    return retire(AGENT, SESSION, stop_hb=stop_hb, hb_thread=hb_thread,
-                  hb_join_s=hb_join_s, ns=ns, client=c, bare_phase=None)
+    return retire(
+        AGENT, SESSION, stop_hb=stop_hb, hb_thread=hb_thread, hb_join_s=hb_join_s, ns=ns, client=c, bare_phase=None
+    )
 
 
 # ------------------------------------------------------------------ P1: the retraction
@@ -118,10 +120,12 @@ def test_p1_retire_seat_deletes_the_card_and_declares_offline():
 
     assert _card(c, ns) is None, (
         f"P1: a clean exit must DELETE its own phase card -- it survived ({rep}); the roster "
-        f"pages HARD WEDGE on it for 180s and the process is gone")
+        f"pages HARD WEDGE on it for 180s and the process is gone"
+    )
     w = _witness(c, ns)
     assert w.get("phase") == "offline" and w.get("offline_ts"), (
-        f"P1: departure must be DECLARED (phase=offline + offline_ts) so OFFLINE renders, not DEAD: {w}")
+        f"P1: departure must be DECLARED (phase=offline + offline_ts) so OFFLINE renders, not DEAD: {w}"
+    )
     assert rep.get("ok") is True, f"retire_seat must report ok: {rep}"
 
 
@@ -133,7 +137,7 @@ def test_p1b_the_beat_thread_is_joined_before_the_card_is_deleted():
     def _beat_thread():
         while not stop.wait(0.02):
             roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)
-        time.sleep(0.2)                         # the in-flight beat, landing after stop
+        time.sleep(0.2)  # the in-flight beat, landing after stop
         roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)
 
     t = threading.Thread(target=_beat_thread, daemon=True)
@@ -147,7 +151,8 @@ def test_p1b_the_beat_thread_is_joined_before_the_card_is_deleted():
     assert not t.is_alive(), "the beat thread must have been stopped and joined"
     assert _card(c, ns) is None, (
         f"P1b: the card came BACK after the retraction ({rep}) -- the beat thread must be "
-        f"joined BEFORE go_offline deletes the card, or an in-flight beat resurrects it")
+        f"joined BEFORE go_offline deletes the card, or an in-flight beat resurrects it"
+    )
     assert _witness(c, ns).get("phase") == "offline"
 
 
@@ -177,11 +182,9 @@ def test_p1c_no_fake_retraction_when_the_beat_thread_does_not_join():
 
     rep = _retire(ns, c, stop_hb=stop, hb_thread=t, hb_join_s=0.1)
 
-    assert rep.get("retracted") is False, (
-        f"P1c: a non-joined beat thread must NOT be reported as retracted: {rep}")
+    assert rep.get("retracted") is False, f"P1c: a non-joined beat thread must NOT be reported as retracted: {rep}"
     assert rep.get("reason"), "the refusal must say why"
-    assert _card(c, ns) is not None, (
-        "P1c: go_offline must NOT have run while the beat thread was still alive")
+    assert _card(c, ns) is not None, "P1c: go_offline must NOT have run while the beat thread was still alive"
 
 
 # ------------------------------------------------------------------ P1d: REJECT (2) closed
@@ -192,21 +195,20 @@ def test_p1d_bare_phase_write_honours_the_passed_client():
     c, ns = FakeRedis(), _ns()
     stop = threading.Event()
 
-    rep = runner_lib.retire_seat(AGENT, SESSION, stop_hb=stop, hb_thread=None,
-                                 ns=ns, client=c, bare_phase="idle")
+    rep = runner_lib.retire_seat(AGENT, SESSION, stop_hb=stop, hb_thread=None, ns=ns, client=c, bare_phase="idle")
     # The bare worklive key must be deleted THROUGH c (the fake), under THIS ns.
     assert f"{ns}:worklive:{AGENT}" in c.kv or rep.get("hb_joined") is None or True
     # The key assertion that matters: nothing was written to the shared registry.
     assert AGENT not in liveness._registry, (
         "P1d: bare-phase write leaked into the live liveness._registry (shared Redis) "
-        "instead of the passed test client -- REJECT defect (2) not closed")
+        "instead of the passed test client -- REJECT defect (2) not closed"
+    )
 
 
 # ------------------------------------------------------------------ P2: every runner, from disk
 def test_p2_every_runner_retracts_its_card_on_the_exit_path():
     rd = os.path.join(ROOT, "scripts")
-    runners = sorted(f for f in os.listdir(rd)
-                     if f.startswith("bifrost_runner_") and f.endswith(".py"))
+    runners = sorted(f for f in os.listdir(rd) if f.startswith("bifrost_runner_") and f.endswith(".py"))
     assert runners, "no runner scripts found -- the enumeration itself is broken"
     missing = []
     for f in runners:
@@ -224,7 +226,8 @@ def test_p2_every_runner_retracts_its_card_on_the_exit_path():
             missing.append(f"{f}: heartbeat and retraction do not share seat_session_id()")
     assert not missing, (
         f"{len(missing)} of {len(runners)} runner(s) leave a 'running' card behind on a "
-        f"clean exit:\n  " + "\n  ".join(missing))
+        f"clean exit:\n  " + "\n  ".join(missing)
+    )
 
 
 # ------------------------------------------------------------------ P3: the doctor, end to end
@@ -232,20 +235,24 @@ def _examine(c, ns, agent_id, now):
     def _wl(a):
         raw = c.get(f"{ns}:worklive:{a}")
         return json.loads(raw) if raw else None
-    return doctor.examine(agent_id, probes={
-        "now": now,
-        "worklive": _wl,
-        "progress": lambda a: None,
-        "backlog": lambda a: 0,
-        "stalled_since": lambda a, present: None,
-        "halted": lambda a: None,
-        "lane_health": lambda a: None,
-        "token_cost": lambda a: None,
-        "wire": lambda a: [],
-        "feed_failures": lambda a: [],
-        "stale_code": lambda a: None,
-        "bench_count": lambda a: 0,
-    })
+
+    return doctor.examine(
+        agent_id,
+        probes={
+            "now": now,
+            "worklive": _wl,
+            "progress": lambda a: None,
+            "backlog": lambda a: 0,
+            "stalled_since": lambda a, present: None,
+            "halted": lambda a: None,
+            "lane_health": lambda a: None,
+            "token_cost": lambda a: None,
+            "wire": lambda a: [],
+            "feed_failures": lambda a: [],
+            "stale_code": lambda a: None,
+            "bench_count": lambda a: 0,
+        },
+    )
 
 
 def _grades(findings):
@@ -260,7 +267,8 @@ def test_p3_the_retired_incarnation_no_longer_pages_hard_wedge():
 
     before = _examine(c, ns, incarnation, now)
     assert ("hard_wedge", "page") in _grades(before), (
-        f"control: the lingering card must reproduce the page; got {_grades(before)}")
+        f"control: the lingering card must reproduce the page; got {_grades(before)}"
+    )
     assert liveness.DEFAULT_WEDGE_S <= 4232, "the receipt's age must clear the page threshold"
 
     rep = _retire(ns, c, stop_hb=threading.Event())
@@ -269,4 +277,5 @@ def test_p3_the_retired_incarnation_no_longer_pages_hard_wedge():
     pages = [f for f in after if f.get("grade") == "page"]
     assert not pages, (
         f"P3: the process exited CLEANLY ({rep}) and the doctor still pages on its card: "
-        f"{[f.get('line') for f in pages]}")
+        f"{[f.get('line') for f in pages]}"
+    )

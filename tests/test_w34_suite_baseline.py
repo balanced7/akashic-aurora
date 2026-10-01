@@ -15,6 +15,7 @@ receipts when they run suites anyway, the baseline snapshots the freshest.
   P5  decay: a snapshot-classified lane now CLOSED renders the re-run advisory
   P6  no baseline -> boot line is "" (fail-open, never a [GAP] shout)
 """
+
 import json
 import os
 import sys
@@ -61,8 +62,7 @@ def test_p2_record_read_roundtrip(qfile, monkeypatch):
 
 def test_p3_delta_by_node_id(qfile, monkeypatch):
     monkeypatch.setattr(sb, "_ledger_claims", lambda: {})
-    sb.record(["tests/a.py::t1", "tests/a.py::t2", "tests/b.py::t3"],
-              seat="s", sha="x")
+    sb.record(["tests/a.py::t1", "tests/a.py::t2", "tests/b.py::t3"], seat="s", sha="x")
     d = sb.delta(["tests/a.py::t1", "tests/b.py::t9", "tests/c.py::t4"])
     assert d["inherited"] == ["tests/a.py::t1"]
     assert sorted(d["new"]) == ["tests/b.py::t9", "tests/c.py::t4"]
@@ -72,9 +72,14 @@ def test_p3_delta_by_node_id(qfile, monkeypatch):
 
 
 def test_p4_auto_classification(qfile, monkeypatch):
-    monkeypatch.setattr(sb, "_task_files", lambda: {
-        "T067": ["tests/test_t067_1_toolbox_parity.py", "core/comm/toolbox.py"],
-        "T068": ["tests/test_t068_r3_preflight.py"]})
+    monkeypatch.setattr(
+        sb,
+        "_task_files",
+        lambda: {
+            "T067": ["tests/test_t067_1_toolbox_parity.py", "core/comm/toolbox.py"],
+            "T068": ["tests/test_t068_r3_preflight.py"],
+        },
+    )
     lanes = sb.classify(sb.ingest_pytest(PYTEST_TAIL))
     assert lanes["tests/test_t067_1_toolbox_parity.py::test_d1_toolbox_enumerated_and_reality_passes"] == "T067"
     assert lanes["tests/test_t068_r3_preflight.py::test_p9_double_fail_sends_anyway_loud"] == "T068"
@@ -83,8 +88,7 @@ def test_p4_auto_classification(qfile, monkeypatch):
 
 def test_p5_decay_advisory(qfile, monkeypatch):
     monkeypatch.setattr(sb, "_ledger_claims", lambda: {"T067": "verifying"})
-    monkeypatch.setattr(sb, "_task_files",
-                        lambda: {"T067": ["tests/test_t067_1_toolbox_parity.py"]})
+    monkeypatch.setattr(sb, "_task_files", lambda: {"T067": ["tests/test_t067_1_toolbox_parity.py"]})
     sb.record(sb.ingest_pytest(PYTEST_TAIL), seat="claude", sha="abc")
     # the lane closes after the snapshot
     monkeypatch.setattr(sb, "_ledger_claims", lambda: {"T067": "done"})

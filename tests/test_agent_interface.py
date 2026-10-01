@@ -15,6 +15,7 @@ can be "dumb" or the environment can be degraded:
 
 Run: py tests/test_agent_interface.py
 """
+
 import os
 import sys
 import subprocess
@@ -30,16 +31,18 @@ PASS = []
 def run(*args, redis_port=None, timeout=60):
     """Invoke the CLI as a subprocess, like OpenCode would. Returns (rc, out, err)."""
     env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"          # clean capture; we separately assert ASCII
+    env["PYTHONIOENCODING"] = "utf-8"  # clean capture; we separately assert ASCII
     if redis_port is not None:
         env["REDIS_PORT"] = str(redis_port)
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
 def ok(name):
-    PASS.append(name); print(f"  [OK] {name}")
+    PASS.append(name)
+    print(f"  [OK] {name}")
 
 
 # --------------------------------------------------------------------------------
@@ -66,9 +69,20 @@ def test_boot_output_front_loaded_and_ascii():
 
 def test_full_loop_agent_a_to_b():
     """Agent A records a lesson; Agent B boots and sees it (episodic->semantic)."""
-    run("learn", "agentA", "--experiment", "iface_loop_exp",
-        "--tried", "wrote a lesson", "--result", "it persisted",
-        "--recommend", "agent B should see this", "--category", "verification")
+    run(
+        "learn",
+        "agentA",
+        "--experiment",
+        "iface_loop_exp",
+        "--tried",
+        "wrote a lesson",
+        "--result",
+        "it persisted",
+        "--recommend",
+        "agent B should see this",
+        "--category",
+        "verification",
+    )
     rc, out, _ = run("recall", "iface_loop_exp")
     assert rc == 0 and "iface_loop_exp" in out, "recall must find the new lesson"
     rc, out, _ = run("boot", "agentB", "--task", "verification work")
@@ -77,7 +91,7 @@ def test_full_loop_agent_a_to_b():
 
 
 def test_learn_validation():
-    rc, out, _ = run("learn", "agent_x", "--experiment", "no_body")   # no --tried/--result
+    rc, out, _ = run("learn", "agent_x", "--experiment", "no_body")  # no --tried/--result
     assert rc == 2 and "ERROR" in out and "Example" in out, "must reject + show usage"
     ok("learn rejects empty body with a helpful error + exit 2")
 
@@ -85,13 +99,25 @@ def test_learn_validation():
 def test_messy_input_is_sanitized():
     """Unicode + oversized fields must not crash; they get clipped/encoded safely."""
     big = "x" * 9000
-    rc, out, _ = run("learn", "messy_agent", "--experiment", "messy_exp",
-                     "--tried", "café ☃ 日本語", "--result", big,
-                     "--recommend", "handle me", "--category", "robustness")
+    rc, out, _ = run(
+        "learn",
+        "messy_agent",
+        "--experiment",
+        "messy_exp",
+        "--tried",
+        "café ☃ 日本語",
+        "--result",
+        big,
+        "--recommend",
+        "handle me",
+        "--category",
+        "robustness",
+    )
     assert rc == 0, f"messy learn should still succeed, rc={rc}, out={out}"
     assert out.isascii(), "confirmation output must stay ASCII"
     # verify it stored, clipped (read the isolated store in-process)
     from core.learning.learning_store import get_learning_store
+
     rec = get_learning_store()._load_experiment("messy_exp")
     assert rec, "messy lesson must be stored"
     assert len(rec.get("actual", "")) <= 4100, "oversized field must be clipped"
@@ -101,10 +127,19 @@ def test_messy_input_is_sanitized():
 def test_rerecord_does_not_duplicate_index():
     """Re-recording the same experiment updates it; the index must NOT grow."""
     for i in range(4):
-        run("learn", "dup_agent", "--experiment", "dup_exp",
-            "--tried", f"attempt {i}", "--result", "same name each time")
+        run(
+            "learn",
+            "dup_agent",
+            "--experiment",
+            "dup_exp",
+            "--tried",
+            f"attempt {i}",
+            "--result",
+            "same name each time",
+        )
     from core.foundation.store import create_store
-    store = create_store()                       # db 15 (isolated) per env
+
+    store = create_store()  # db 15 (isolated) per env
     alllist = store.lrange("learn:experiments:all", 0, -1)
     assert alllist.count("dup_exp") == 1, f"dup_exp must appear once, got {alllist.count('dup_exp')}"
     ok("re-recording updates in place (no duplicate index growth)")
@@ -114,9 +149,17 @@ def test_redis_down_file_fallback():
     """Point at a dead Redis port: boot + learn + recall must still work off files."""
     rc, out, _ = run("boot", "downagent", "--task", "x", redis_port=63999)
     assert rc == 0, f"boot must survive Redis down, rc={rc}"
-    rc, out, _ = run("learn", "downagent", "--experiment", "offline_exp",
-                     "--tried", "work while redis down", "--result", "file fallback held",
-                     redis_port=63999)
+    rc, out, _ = run(
+        "learn",
+        "downagent",
+        "--experiment",
+        "offline_exp",
+        "--tried",
+        "work while redis down",
+        "--result",
+        "file fallback held",
+        redis_port=63999,
+    )
     assert rc == 0, "learn must survive Redis down (file fallback)"
     rc, out, _ = run("recall", "offline", redis_port=63999)
     assert "offline_exp" in out, "recall must find the file-fallback lesson"
@@ -124,11 +167,11 @@ def test_redis_down_file_fallback():
 
 
 def test_bad_invocation():
-    rc, _, err = run()                       # no subcommand
+    rc, _, err = run()  # no subcommand
     assert rc != 0, "no-subcommand must exit nonzero"
-    rc, _, err = run("learn", "agent_x")     # missing required --experiment
+    rc, _, err = run("learn", "agent_x")  # missing required --experiment
     assert rc != 0, "missing --experiment must exit nonzero"
-    rc, _, err = run("nonsense")             # unknown subcommand
+    rc, _, err = run("nonsense")  # unknown subcommand
     assert rc != 0, "unknown subcommand must exit nonzero"
     ok("bad invocations exit nonzero (don't silently no-op)")
 
@@ -143,17 +186,29 @@ def test_status_and_recall_ascii():
 def test_learn_emits_a_beat():
     """Slice 1 hook: recording a lesson via the CLI also appends a narrative Beat."""
     from core.narrative.beat_log import get_beat_log
+
     before = get_beat_log().count()
-    run("learn", "beat_agent", "--experiment", "beat_hook_exp",
-        "--tried", "wire learn->beat", "--result", "a beat appears")
+    run(
+        "learn",
+        "beat_agent",
+        "--experiment",
+        "beat_hook_exp",
+        "--tried",
+        "wire learn->beat",
+        "--result",
+        "a beat appears",
+    )
     assert get_beat_log().count() == before + 1, "learn must emit exactly one Beat"
     ok("learn emits a narrative Beat (the timeline grows)")
 
 
 def main():
     import redis
+
     db0_before = redis.Redis(port=16379, db=0).dbsize()
-    print("=" * 60); print("AGENT INTERFACE FAILURE-MODE TESTS"); print("=" * 60)
+    print("=" * 60)
+    print("AGENT INTERFACE FAILURE-MODE TESTS")
+    print("=" * 60)
     test_agents_md_front_loaded()
     test_boot_output_front_loaded_and_ascii()
     test_full_loop_agent_a_to_b()
@@ -167,7 +222,9 @@ def main():
     db0_after = redis.Redis(port=16379, db=0).dbsize()
     assert db0_before == db0_after, f"CANONICAL TOUCHED: db0 {db0_before} -> {db0_after}"
     ok(f"canonical db0 unchanged ({db0_after}) -- interface tests fully isolated")
-    print("\n" + "=" * 60); print(f"ALL AGENT INTERFACE TESTS PASSED ({len(PASS)})"); print("=" * 60)
+    print("\n" + "=" * 60)
+    print(f"ALL AGENT INTERFACE TESTS PASSED ({len(PASS)})")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

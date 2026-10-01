@@ -6,6 +6,7 @@ activity-marker freshness, armed-listener pid, no-evidence staleness -- and free
 positive death evidence; every ambiguity resolves toward ALIVE. Live-Redis pins (rb21 pattern):
 unique agent id per test = namespace isolation; teardown deletes touched keys.
 """
+
 import os
 import sys
 import time
@@ -60,7 +61,7 @@ def test_no_holder_is_noop(agent):
 
 
 def test_runner_token_never_touched(agent):
-    ok = runner_lock.acquire(agent, f"{agent}:1234:aabbcc")   # a runner-style token
+    ok = runner_lock.acquire(agent, f"{agent}:1234:aabbcc")  # a runner-style token
     assert ok
     v = runner_lock.free_if_dead(agent, now=time.time() + 10_000)
     assert not v["freed"] and v["reason"] == "holder-is-runner"
@@ -69,16 +70,16 @@ def test_runner_token_never_touched(agent):
 
 def test_fresh_claim_protected_by_grace(agent):
     _claim(agent)
-    v = runner_lock.free_if_dead(agent)          # now ~= claim ts -> age ~0
+    v = runner_lock.free_if_dead(agent)  # now ~= claim ts -> age ~0
     assert not v["freed"] and v["reason"].startswith("grace")
 
 
 def test_fresh_activity_marker_means_alive(agent, tmp_path):
     tok = _claim(agent, sid="s1")
     m = wake_seat.activity_marker_path(agent, "s1", str(tmp_path))
-    open(m, "w").write("x")                       # mtime = now; marker fresh vs aged now?
+    open(m, "w").write("x")  # mtime = now; marker fresh vs aged now?
     now = _aged(agent)
-    os.utime(m, (now - 10, now - 10))             # touched 10s before probe time
+    os.utime(m, (now - 10, now - 10))  # touched 10s before probe time
     v = runner_lock.free_if_dead(agent, now=now, tmp=str(tmp_path))
     assert not v["freed"] and v["reason"].startswith("marker-fresh")
     assert runner_lock.holder(agent)["token"] == tok
@@ -87,24 +88,22 @@ def test_fresh_activity_marker_means_alive(agent, tmp_path):
 def test_dead_listener_pid_frees_the_seat(agent, tmp_path):
     _claim(agent, sid="s2")
     open(wake_seat.seat_path(agent, "s2", str(tmp_path)), "w").write("999999")
-    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path),
-                                 pid_alive=lambda p: False)
+    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path), pid_alive=lambda p: False)
     assert v["freed"] and "listener-pid-dead" in v["reason"]
-    assert runner_lock.holder(agent) is None      # seat claimable again
+    assert runner_lock.holder(agent) is None  # seat claimable again
     ok, _, _ = runner_lock.claim_consumer(agent, "session:successor")
-    assert ok                                     # the successor claims cleanly
+    assert ok  # the successor claims cleanly
 
 
 def test_live_listener_pid_means_alive(agent, tmp_path):
     _claim(agent, sid="s3")
     open(wake_seat.seat_path(agent, "s3", str(tmp_path)), "w").write(str(os.getpid()))
-    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path),
-                                 pid_alive=lambda p: True)
+    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path), pid_alive=lambda p: True)
     assert not v["freed"] and v["reason"].startswith("listener-alive")
 
 
 def test_no_evidence_at_all_frees(agent, tmp_path):
-    _claim(agent, sid="s4")                       # no seat file, no marker in tmp
+    _claim(agent, sid="s4")  # no seat file, no marker in tmp
     v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path))
     assert v["freed"] and "no-liveness-evidence" in v["reason"]
 
@@ -116,7 +115,7 @@ def test_stale_marker_frees(agent, tmp_path):
     now = _aged(agent)
     os.utime(m, (now - STALE - 60, now - STALE - 60))
     v = runner_lock.free_if_dead(agent, now=now, tmp=str(tmp_path))
-    assert v["freed"] and "renewal-stale" in v["reason"]   # label renamed by T086 S2a (same semantics)
+    assert v["freed"] and "renewal-stale" in v["reason"]  # label renamed by T086 S2a (same semantics)
 
 
 def test_midband_marker_is_indeterminate_ttl_rules(agent, tmp_path):
@@ -124,7 +123,7 @@ def test_midband_marker_is_indeterminate_ttl_rules(agent, tmp_path):
     m = wake_seat.activity_marker_path(agent, "s6", str(tmp_path))
     open(m, "w").write("x")
     now = _aged(agent)
-    os.utime(m, (now - (GRACE + 60), now - (GRACE + 60)))   # between grace and stale
+    os.utime(m, (now - (GRACE + 60), now - (GRACE + 60)))  # between grace and stale
     v = runner_lock.free_if_dead(agent, now=now, tmp=str(tmp_path))
     assert not v["freed"] and v["reason"].startswith("indeterminate")
 
@@ -132,7 +131,6 @@ def test_midband_marker_is_indeterminate_ttl_rules(agent, tmp_path):
 def test_probe_error_fails_toward_alive(agent, tmp_path):
     _claim(agent, sid="s7")
     open(wake_seat.seat_path(agent, "s7", str(tmp_path)), "w").write("4242")
-    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path),
-                                 pid_alive=lambda p: 1 / 0)
-    assert not v["freed"]                          # an erroring probe never frees
+    v = runner_lock.free_if_dead(agent, now=_aged(agent), tmp=str(tmp_path), pid_alive=lambda p: 1 / 0)
+    assert not v["freed"]  # an erroring probe never frees
     assert runner_lock.holder(agent) is not None

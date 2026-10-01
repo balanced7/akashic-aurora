@@ -30,6 +30,7 @@ replaces -- a number whose denominator is unknowable, presented as though it wer
 Daniil, 2026-08-08: "I want all of our metrics to evolve and be true to what is / be useful for
 their purpose. metrics that don't serve a purpose or mislead are not great."
 """
+
 import os
 import tempfile
 
@@ -42,20 +43,28 @@ from core.learning.learning_store import LearningStore
 @pytest.fixture
 def store(tmp_path):
     s = LearningStore(store=FileStore(os.path.join(str(tmp_path), "learn.json")))
-    s.record_learning({
-        "experiment_name": "the_original_lesson", "agent_id": "claude",
-        "category": "tooling", "success": "yes",
-        "what_tried": "iterated a value that turned out to be a string",
-        "recommendation": "Use when iterating a value that might be a string: a bare string is "
-                          "iterable and will be walked character by character.",
-    })
+    s.record_learning(
+        {
+            "experiment_name": "the_original_lesson",
+            "agent_id": "claude",
+            "category": "tooling",
+            "success": "yes",
+            "what_tried": "iterated a value that turned out to be a string",
+            "recommendation": "Use when iterating a value that might be a string: a bare string is "
+            "iterable and will be walked character by character.",
+        }
+    )
     return s
 
 
 def test_a_repeat_records_its_original(store):
     """The link is the finding. A repeat with no original is just another lesson."""
-    r = store.record_repeat(of="the_original_lesson", agent_id="claude",
-                            what="iterated a string in _note_exclusion", recall_outcome="excluded_silent")
+    r = store.record_repeat(
+        of="the_original_lesson",
+        agent_id="claude",
+        what="iterated a string in _note_exclusion",
+        recall_outcome="excluded_silent",
+    )
     assert r["of"] == "the_original_lesson"
     # Deliberately via the report: a second accessor for the same number is a second thing to
     # keep in agreement, and check_wiring flagged the standalone counter as having no caller.
@@ -67,8 +76,7 @@ def test_a_repeat_captures_elapsed_time_since_the_original(store):
 
     Today's worst case was minutes, against a lesson read at boot that morning.
     """
-    r = store.record_repeat(of="the_original_lesson", agent_id="claude",
-                            what="again", recall_outcome="fired")
+    r = store.record_repeat(of="the_original_lesson", agent_id="claude", what="again", recall_outcome="fired")
     assert "elapsed_s" in r and isinstance(r["elapsed_s"], (int, float)), r
     assert r["elapsed_s"] >= 0
 
@@ -79,8 +87,9 @@ def test_a_repeat_captures_what_recall_did_at_that_moment(store):
     A repeat where recall FIRED is a reading failure. A repeat where it was SUPPRESSED is a
     targeting failure. Those need opposite fixes, and one field separates them.
     """
-    r = store.record_repeat(of="the_original_lesson", agent_id="claude",
-                            what="again", recall_outcome="excluded_silent:self_echo")
+    r = store.record_repeat(
+        of="the_original_lesson", agent_id="claude", what="again", recall_outcome="excluded_silent:self_echo"
+    )
     assert r["recall_outcome"] == "excluded_silent:self_echo"
 
 
@@ -97,10 +106,8 @@ def test_the_surface_reports_a_count_and_a_list_never_a_rate(store):
     An undercount rendered as a rate is the exact defect this task exists to replace: a
     denominator nobody can know, presented as though it were known.
     """
-    store.record_repeat(of="the_original_lesson", agent_id="claude", what="a",
-                        recall_outcome="fired")
-    store.record_repeat(of="the_original_lesson", agent_id="claude", what="b",
-                        recall_outcome="floor_silent")
+    store.record_repeat(of="the_original_lesson", agent_id="claude", what="a", recall_outcome="fired")
+    store.record_repeat(of="the_original_lesson", agent_id="claude", what="b", recall_outcome="floor_silent")
     r = store.repeat_report()
 
     assert r["count"] == 2
@@ -116,12 +123,18 @@ def test_the_report_ranks_lessons_by_how_often_they_were_violated(store):
     A lesson that exists, is good, and gets violated anyway is a targeting failure with a
     known right answer -- which is the rarest and most useful thing in the corpus.
     """
-    store.record_learning({"experiment_name": "second_lesson", "agent_id": "claude",
-                           "category": "tooling", "success": "yes",
-                           "what_tried": "a different thing", "recommendation": "Use when..."})
+    store.record_learning(
+        {
+            "experiment_name": "second_lesson",
+            "agent_id": "claude",
+            "category": "tooling",
+            "success": "yes",
+            "what_tried": "a different thing",
+            "recommendation": "Use when...",
+        }
+    )
     for _ in range(3):
-        store.record_repeat(of="the_original_lesson", agent_id="claude", what="x",
-                            recall_outcome="excluded_silent")
+        store.record_repeat(of="the_original_lesson", agent_id="claude", what="x", recall_outcome="excluded_silent")
     store.record_repeat(of="second_lesson", agent_id="claude", what="y", recall_outcome="fired")
 
     top = store.repeat_report()["most_violated"]

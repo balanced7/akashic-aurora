@@ -22,6 +22,7 @@ mutation test caught it.
 
 Run: py -m pytest tests/test_door_probe.py -q
 """
+
 import ast
 import os
 import sys
@@ -29,7 +30,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import door_probe as dp   # noqa: E402
+from core.comm import door_probe as dp  # noqa: E402
 
 #: Measured 2026-07-26 by mutation-testing the probe against the reproduced bug.
 HEALTHY_BASELINE_S = 1.3
@@ -46,8 +47,8 @@ def test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace():
     """
     v = dp.probe(cache=False)
     assert v["verdict"] == dp.GREEN, (
-        f"B1: the door is not healthy right now -- {v.get('cause')}: {v.get('detail')}\n"
-        f"    -> {v.get('recovery')}")
+        f"B1: the door is not healthy right now -- {v.get('cause')}: {v.get('detail')}\n    -> {v.get('recovery')}"
+    )
     assert v["elapsed_s"] < dp.SLOW_BUDGET_S
 
 
@@ -64,7 +65,8 @@ def test_b1b_probe_isolation_contract_is_intact():
     env = dp._probe_env("/tmp/door-probe-xyz")
     assert env["_AISETUP_TEST_ISOLATED"] == "1", (
         "B1b: the Redis isolation primitive is gone -- the probe's boot will register "
-        "presence in canonical Redis and door-probe will appear in the fleet roster")
+        "presence in canonical Redis and door-probe will appear in the fleet roster"
+    )
     assert env["AI_SETUP"] == "/tmp/door-probe-xyz", "B1b: file plane not redirected"
     assert env["AI_SETUP"] != str(dp.ROOT), "B1b: the probe is writing into the real repo"
 
@@ -93,9 +95,11 @@ def test_b3_latency_budget_still_brackets_the_known_defect():
     assert HEALTHY_BASELINE_S < dp.SLOW_BUDGET_S < KNOWN_DEFECT_S, (
         f"B3: SLOW_BUDGET_S={dp.SLOW_BUDGET_S} no longer sits between the healthy "
         f"baseline ({HEALTHY_BASELINE_S}s) and the 2026-07-25 defect ({KNOWN_DEFECT_S}s). "
-        "Above the defect the probe cannot see the bug it exists for.")
+        "Above the defect the probe cannot see the bug it exists for."
+    )
     assert dp.SLOW_BUDGET_S >= HEALTHY_BASELINE_S * 3, (
-        "B3: less than 3x headroom over a healthy probe -- ordinary load will flap it")
+        "B3: less than 3x headroom over a healthy probe -- ordinary load will flap it"
+    )
 
 
 # ------------------------------------------------------------------------- B4
@@ -112,12 +116,13 @@ def test_b4_every_non_green_verdict_teaches_a_recovery():
         if not (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "_verdict"):
             continue
         first = node.args[0] if node.args else None
-        level = getattr(first, "id", None)          # RED / UNKNOWN / GREEN as names
+        level = getattr(first, "id", None)  # RED / UNKNOWN / GREEN as names
         if level not in {"RED", "UNKNOWN"}:
             continue
         # _verdict(verdict, stage, elapsed, cause, detail="", recovery="")
-        recovery = node.args[5] if len(node.args) >= 6 else next(
-            (k.value for k in node.keywords if k.arg == "recovery"), None)
+        recovery = (
+            node.args[5] if len(node.args) >= 6 else next((k.value for k in node.keywords if k.arg == "recovery"), None)
+        )
         # A recovery is either a plain string or an f-string (JoinedStr) -- several of
         # them interpolate the failing stage or a command, which is the point.
         if isinstance(recovery, ast.JoinedStr):
@@ -132,6 +137,9 @@ def test_b4_every_non_green_verdict_teaches_a_recovery():
 
 # ------------------------------------------------------------------------- B4b
 def test_b4b_render_surfaces_the_recovery_for_a_red():
-    line = dp.render(dp._verdict(dp.RED, "boot", 9.9, "response_path_hang",
-                                 "boot did not answer", "Boot via CLI: py agent_cli.py boot <you>"))
+    line = dp.render(
+        dp._verdict(
+            dp.RED, "boot", 9.9, "response_path_hang", "boot did not answer", "Boot via CLI: py agent_cli.py boot <you>"
+        )
+    )
     assert "RED" in line and "Boot via CLI" in line

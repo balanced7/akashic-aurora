@@ -18,6 +18,7 @@ seat stays legal (that is what handoffs are for). It makes the sender's ignoranc
 
 Run: py -m pytest tests/test_t108_s0_loud_delivery.py -q
 """
+
 import os
 import sys
 
@@ -34,7 +35,8 @@ def test_send_to_a_dead_seat_warns(monkeypatch, capsys):
     when the operator asked why the work had not happened.
     """
     from core.comm import bus as B
-    b = B.Bus.__new__(B.Bus)                      # no connect; we only exercise the warn path
+
+    b = B.Bus.__new__(B.Bus)  # no connect; we only exercise the warn path
     monkeypatch.setattr(b, "_recipient_liveness", lambda to: (False, 7886.0), raising=False)
     warned = b._warn_if_unattended("deepseek")
     assert warned, "a send to a 2h-dead seat produced no warning at all"
@@ -45,6 +47,7 @@ def test_send_to_a_dead_seat_warns(monkeypatch, capsys):
 def test_send_to_a_live_seat_is_silent(monkeypatch):
     """The warning must fire ONLY on the real condition, or it becomes noise people mute."""
     from core.comm import bus as B
+
     b = B.Bus.__new__(B.Bus)
     monkeypatch.setattr(b, "_recipient_liveness", lambda to: (True, 12.0), raising=False)
     assert not b._warn_if_unattended("kimi"), "warned about a live seat -- this is how guards get muted"
@@ -54,10 +57,12 @@ def test_liveness_probe_failure_does_not_block_the_send(monkeypatch):
     """Fail OPEN on a broken probe. A transport that refuses to send because it cannot check
     liveness is worse than one that sends blind -- durable mail to an offline seat is LEGAL."""
     from core.comm import bus as B
+
     b = B.Bus.__new__(B.Bus)
 
     def boom(to):
         raise RuntimeError("redis down")
+
     monkeypatch.setattr(b, "_recipient_liveness", boom, raising=False)
     assert b._warn_if_unattended("anyone") is None, "a probe crash must not become a send failure"
 
@@ -68,12 +73,14 @@ def test_unlock_failure_is_not_swallowed(monkeypatch):
     failing unlock left a stale lock that froze a peer and nothing anywhere paged. Its words:
     'a failed unlock should be loud.'"""
     from core.comm import toolbox as T
+
     tb = T.ToolBox.__new__(T.ToolBox)
     tb.agent_id = "kimi"
     tb._written_lock_paths = ["scripts/bifrost_ui.py"]
 
     def boom(argv, timeout=15):
         raise RuntimeError("cli exploded")
+
     monkeypatch.setattr(tb, "_agent_cli", boom, raising=False)
     problems = []
     monkeypatch.setattr(T, "_loud", lambda msg: problems.append(msg), raising=False)
@@ -91,6 +98,7 @@ def test_operator_inbox_with_pump_configured_is_silent(monkeypatch):
     a warning wrong in the common case trains every reader to ignore it in the rare true one.
     """
     from core.comm import bus as B
+
     b = B.Bus.__new__(B.Bus)
     monkeypatch.setattr("core.comm.discord_feed.configured", lambda: True, raising=False)
 
@@ -104,6 +112,7 @@ def test_operator_inbox_with_pump_configured_is_silent(monkeypatch):
 def test_operator_inbox_with_pump_unconfigured_warns_about_the_pump_not_a_dead_seat(monkeypatch):
     """When the feed genuinely cannot reach him, say THAT -- not the false 'no live seat'."""
     from core.comm import bus as B
+
     b = B.Bus.__new__(B.Bus)
     monkeypatch.setattr("core.comm.discord_feed.configured", lambda: False, raising=False)
     warned = b._warn_if_unattended("daniil")
@@ -127,9 +136,10 @@ def test_the_real_probe_is_wired_not_just_the_monkeypatched_one():
     guard was written to end.
     """
     from core.comm import bus as B
+
     b = B.Bus("claude")
     try:
-        live, age = b._recipient_liveness("claude")     # the real probe, no monkeypatch
+        live, age = b._recipient_liveness("claude")  # the real probe, no monkeypatch
     except Exception as e:
         raise AssertionError(
             f"the REAL liveness probe raised {type(e).__name__}: {e} -- with fail-open this "

@@ -52,6 +52,7 @@ def family():
     try:
         from core.library.atoms import AtomFamily
         from core.foundation.store import create_store  # type: ignore
+
         _FAMILY = AtomFamily(create_store(), repo_root=str(ROOT))
     except Exception:
         _FAMILY = None
@@ -77,16 +78,18 @@ def handle(path: str, query: Optional[Dict[str, Any]] = None) -> Optional[Respon
 
     if path == "/api/reports":
         status = _one(query, "status", "current")
-        return _json(rs.list_reports(
-            family(),
-            shelf=_one(query, "shelf"),
-            category=_one(query, "category"),
-            arc=_one(query, "arc"),
-            status=None if status in ("", "all", "any") else status,
-            q=_one(query, "q"),
-            limit=int(_one(query, "limit", "200") or 200),
-            offset=int(_one(query, "offset", "0") or 0),
-        ))
+        return _json(
+            rs.list_reports(
+                family(),
+                shelf=_one(query, "shelf"),
+                category=_one(query, "category"),
+                arc=_one(query, "arc"),
+                status=None if status in ("", "all", "any") else status,
+                q=_one(query, "q"),
+                limit=int(_one(query, "limit", "200") or 200),
+                offset=int(_one(query, "offset", "0") or 0),
+            )
+        )
 
     if path == "/api/report":
         rid = _one(query, "id", "") or ""
@@ -96,8 +99,7 @@ def handle(path: str, query: Optional[Dict[str, Any]] = None) -> Optional[Respon
         return _json(rep)
 
     if path == "/api/reports/compare":
-        return _json(rs.compare(family(), _one(query, "left", "") or "",
-                                _one(query, "right", "") or ""))
+        return _json(rs.compare(family(), _one(query, "left", "") or "", _one(query, "right", "") or ""))
     return None
 
 

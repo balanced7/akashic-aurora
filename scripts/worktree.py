@@ -21,6 +21,7 @@ Daily flow:
 The main checkout (E:\\AI-Setup on master) becomes the integration point -- agents
 live in their worktrees, master is where green slices land.
 """
+
 import argparse
 import os
 import subprocess
@@ -32,12 +33,14 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
 
+
 ROOT = Path(__file__).resolve().parent.parent
-ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
+ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}  # never hang on a credential prompt
 DEFAULT_BRANCH = "master"
 
 
@@ -78,8 +81,10 @@ def setup(agent: str, root=ROOT, base=None) -> Path:
         _git(root, "worktree", "add", "-b", br, str(wt), DEFAULT_BRANCH)
     print(f"[worktree] {agent}: {wt}  (branch {br})")
     print(f"  -> Open THIS dir in your IDE: {wt}")
-    print(f"  -> Commit to {br}; publish with `{_pyl()} scripts/mirror.py \"msg\" <paths> --push --yes` "
-          "(claude seat or Daniel only).")
+    print(
+        f'  -> Commit to {br}; publish with `{_pyl()} scripts/mirror.py "msg" <paths> --push --yes` '
+        "(claude seat or Daniel only)."
+    )
     print(f"  -> When a slice is green: {_pyl()} scripts/worktree.py integrate {slugify(agent)}")
     return wt
 
@@ -113,8 +118,11 @@ def integrate(agent: str, root=ROOT, no_ff=False) -> None:
     _git(root, *margs)
     print(f"[worktree] merged {br} -> {DEFAULT_BRANCH}")
     pushed = _git(root, "push", "origin", DEFAULT_BRANCH, check=False)
-    print("[worktree] pushed master" if pushed.returncode == 0
-          else "[worktree] merge done; push skipped/failed (push manually when online).")
+    print(
+        "[worktree] pushed master"
+        if pushed.returncode == 0
+        else "[worktree] merge done; push skipped/failed (push manually when online)."
+    )
 
 
 def remove(agent: str, root=ROOT, base=None, force=False) -> None:
@@ -132,16 +140,25 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="worktree.py", description="Per-agent git worktrees (C1).")
     sub = p.add_subparsers(dest="cmd", required=True)
     for name in ("setup", "sync", "remove"):
-        s = sub.add_parser(name); s.add_argument("agent"); s.add_argument("--base")
+        s = sub.add_parser(name)
+        s.add_argument("agent")
+        s.add_argument("--base")
     sub.choices["remove"].add_argument("--force", action="store_true")
     sub.add_parser("list")
-    si = sub.add_parser("integrate"); si.add_argument("agent"); si.add_argument("--no-ff", action="store_true")
+    si = sub.add_parser("integrate")
+    si.add_argument("agent")
+    si.add_argument("--no-ff", action="store_true")
     a = p.parse_args(argv)
-    if a.cmd == "setup":      setup(a.agent, base=a.base)
-    elif a.cmd == "list":     list_worktrees()
-    elif a.cmd == "sync":     sync(a.agent, base=a.base)
-    elif a.cmd == "integrate": integrate(a.agent, no_ff=a.no_ff)
-    elif a.cmd == "remove":   remove(a.agent, base=a.base, force=a.force)
+    if a.cmd == "setup":
+        setup(a.agent, base=a.base)
+    elif a.cmd == "list":
+        list_worktrees()
+    elif a.cmd == "sync":
+        sync(a.agent, base=a.base)
+    elif a.cmd == "integrate":
+        integrate(a.agent, no_ff=a.no_ff)
+    elif a.cmd == "remove":
+        remove(a.agent, base=a.base, force=a.force)
     return 0
 
 

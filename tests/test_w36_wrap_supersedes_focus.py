@@ -16,6 +16,7 @@ WITHIN the window is fresh intent (possibly another seat's) -> survives.
   P4  wrap --commit --focus "new" supersedes old focus with NEW intent (never a bare gap)
   P5  no next-focus at all -> wrap works, no receipt, no crash
 """
+
 import json
 import os
 import sys
@@ -50,21 +51,28 @@ def mem(monkeypatch):
 
 
 def _forge_note(mem, dec_id, title, body, created, curated=None):
-    d = Decision(id=dec_id, title=title, status="accepted", context="", decision=body,
-                 rationale=[], alternatives=[], consequences={"positive": [], "negative": []},
-                 created_at=created, session_id="")
+    d = Decision(
+        id=dec_id,
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+        session_id="",
+    )
     rec = asdict(d)
     if curated is not None:
         rec["curated"] = curated
     mem.store.hset(mem.KEY_DECISIONS, field=dec_id, value=json.dumps(rec))
-    mem.store.zadd(mem.KEY_DECISION_INDEX,
-                   {dec_id: datetime.fromisoformat(created).timestamp()})
+    mem.store.zadd(mem.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
     mem.store.set(mem.HEAD_KEY_PREFIX + title, dec_id) if hasattr(mem, "HEAD_KEY_PREFIX") else None
 
 
 def _active_focus(mem):
-    return [d for d in mem.get_decisions(days=3650)
-            if d.title == "next-focus" and not d.superseded]
+    return [d for d in mem.get_decisions(days=3650) if d.title == "next-focus" and not d.superseded]
 
 
 def _wrap(commit=True, focus=None, hours=12, force=False):
@@ -78,21 +86,17 @@ def test_p1_stale_focus_retired_with_receipt(mem, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert _active_focus(mem) == [], "stale next-focus retired"
-    assert "retired stale next-focus" in out and "ADR_nf_stale" in out, \
-        "the retirement is a LOUD receipt, never silent"
-    assert any(d.title == "where-we-are" for d in mem.get_decisions(days=1)), \
-        "the wrap's own note landed"
+    assert "retired stale next-focus" in out and "ADR_nf_stale" in out, "the retirement is a LOUD receipt, never silent"
+    assert any(d.title == "where-we-are" for d in mem.get_decisions(days=1)), "the wrap's own note landed"
 
 
 def test_p2_refused_wrap_touches_nothing(mem, capsys):
     old = (datetime.now() - timedelta(days=5)).isoformat()
     _forge_note(mem, "ADR_nf_stale2", "next-focus", "old directive", old)
-    _forge_note(mem, "ADR_wwa_cur", "where-we-are", "hand-written state",
-                datetime.now().isoformat(), curated=True)
+    _forge_note(mem, "ADR_wwa_cur", "where-we-are", "hand-written state", datetime.now().isoformat(), curated=True)
     rc = agent_cli.cmd_wrap(_wrap(force=False))
     assert rc == 1, "curated head refuses the mechanical wrap"
-    assert len(_active_focus(mem)) == 1, \
-        "ORDERING pin: a refused wrap never tombstones the only directive"
+    assert len(_active_focus(mem)) == 1, "ORDERING pin: a refused wrap never tombstones the only directive"
 
 
 def test_p3_fresh_focus_survives(mem, capsys):
@@ -100,8 +104,7 @@ def test_p3_fresh_focus_survives(mem, capsys):
     _forge_note(mem, "ADR_nf_fresh", "next-focus", "tonight: build B3", fresh)
     rc = agent_cli.cmd_wrap(_wrap(hours=12))
     assert rc == 0
-    assert len(_active_focus(mem)) == 1, \
-        "a directive set within the wrap window is fresh intent -- survives"
+    assert len(_active_focus(mem)) == 1, "a directive set within the wrap window is fresh intent -- survives"
 
 
 def test_p4_focus_flag_replaces_not_gaps(mem, capsys):
@@ -110,8 +113,9 @@ def test_p4_focus_flag_replaces_not_gaps(mem, capsys):
     rc = agent_cli.cmd_wrap(_wrap(focus="NEW: ship the wave"))
     assert rc == 0
     live = _active_focus(mem)
-    assert len(live) == 1 and "NEW: ship the wave" in live[0].decision, \
+    assert len(live) == 1 and "NEW: ship the wave" in live[0].decision, (
         "--focus supersedes with fresh intent; the slot never gaps"
+    )
 
 
 def test_p5_no_focus_no_crash(mem, capsys):

@@ -15,10 +15,12 @@ Safety (design delta F2 -- the failure modes a naive media-by-reference hits):
     blob never changes under a ref.
   * **dangling pointer is not fatal.** `get` of a missing/garbage ref returns None, never raises.
 """
+
 import hashlib
 import os
 from pathlib import Path
 from typing import Optional
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -30,11 +32,12 @@ def _repo_root_str() -> str:
     """
     from core.paths import root_str
     import os as _os
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
 PREFIX = "blob:"
-_SHA_LEN = 24                       # 96 bits of sha256 -- ample for a single-user blob store
+_SHA_LEN = 24  # 96 bits of sha256 -- ample for a single-user blob store
 
 
 def _default_base() -> Path:
@@ -58,7 +61,7 @@ class BlobStore:
         s = str(ref or "")
         if not s.startswith(PREFIX):
             return None
-        sha = s[len(PREFIX):]
+        sha = s[len(PREFIX) :]
         if len(sha) != _SHA_LEN or any(c not in "0123456789abcdef" for c in sha):
             return None
         return sha
@@ -72,11 +75,11 @@ class BlobStore:
             raise TypeError("BlobStore.put expects bytes or str")
         sha = hashlib.sha256(bytes(data)).hexdigest()[:_SHA_LEN]
         path = self._path(sha)
-        if not path.exists():                          # dedup
+        if not path.exists():  # dedup
             self.base.mkdir(parents=True, exist_ok=True)
             tmp = path.with_suffix(".tmp")
             tmp.write_bytes(bytes(data))
-            tmp.replace(path)                          # atomic -> ref valid only after a full write
+            tmp.replace(path)  # atomic -> ref valid only after a full write
         return f"{PREFIX}{sha}"
 
     def put_path(self, path) -> str:

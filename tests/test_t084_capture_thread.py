@@ -1,4 +1,5 @@
 """T084 S2 pre-registered pins — subject-bound bus thread capture."""
+
 from __future__ import annotations
 
 import argparse
@@ -42,23 +43,49 @@ class FakeRedis:
 def _fixture():
     streams = {
         "bifrost:inbox:sol": [
-            ("1000-0", _fields("claude", "sol", "question", "First verbatim body",
-                               "2026-08-28T01:00:00Z", "sha-a",
-                               {"thread_id": "thread-7"})),
+            (
+                "1000-0",
+                _fields(
+                    "claude",
+                    "sol",
+                    "question",
+                    "First verbatim body",
+                    "2026-08-28T01:00:00Z",
+                    "sha-a",
+                    {"thread_id": "thread-7"},
+                ),
+            ),
             # Content resemblance is not linkage and must stay out.
-            ("1002-0", _fields("kimi", "sol", "chat", "I happened to say thread-7",
-                               "2026-08-28T01:02:00Z", "sha-c")),
+            ("1002-0", _fields("kimi", "sol", "chat", "I happened to say thread-7", "2026-08-28T01:02:00Z", "sha-c")),
         ],
         "bifrost:work:inbox:sol": [
             # Dual-write copy: different stream id, same packet sha.
-            ("1000-1", _fields("claude", "sol", "question", "First verbatim body",
-                               "2026-08-28T01:00:00Z", "sha-a",
-                               {"thread_id": "thread-7"})),
+            (
+                "1000-1",
+                _fields(
+                    "claude",
+                    "sol",
+                    "question",
+                    "First verbatim body",
+                    "2026-08-28T01:00:00Z",
+                    "sha-a",
+                    {"thread_id": "thread-7"},
+                ),
+            ),
         ],
         "bifrost:broadcast": [
-            ("1001-0", _fields("sol", "*", "reply", "Second **verbatim** body",
-                               "2026-08-28T01:01:00Z", "sha-b",
-                               {"answers": "1000-0", "reply_id": "reply-7"})),
+            (
+                "1001-0",
+                _fields(
+                    "sol",
+                    "*",
+                    "reply",
+                    "Second **verbatim** body",
+                    "2026-08-28T01:01:00Z",
+                    "sha-b",
+                    {"answers": "1000-0", "reply_id": "reply-7"},
+                ),
+            ),
         ],
         "bifrost:work:broadcast": [],
     }
@@ -69,16 +96,14 @@ def test_thread_capture_is_strict_deduplicated_bounded_and_read_only():
     from core.comm.thread_capture import collect_thread
 
     client = _fixture()
-    result = collect_thread("sol", "thread-7", client=client, namespace="bifrost",
-                            per_stream=50)
+    result = collect_thread("sol", "thread-7", client=client, namespace="bifrost", per_stream=50)
 
     assert result["schema"] == "capture.thread.v1"
     assert result["subject"] == "sol"
     assert result["thread_ref"] == "thread-7"
     assert result["found"] is True
     assert result["effects"] == []
-    assert [row["content"] for row in result["messages"]] == [
-        "First verbatim body", "Second **verbatim** body"]
+    assert [row["content"] for row in result["messages"]] == ["First verbatim body", "Second **verbatim** body"]
     assert len(result["messages"][0]["copies"]) == 2
     assert result["bounds"]["duplicates_collapsed"] == 1
     assert result["bounds"]["ordering"] == "timestamp then stream id ascending"
@@ -104,8 +129,7 @@ def test_archive_truncation_and_not_found_are_loud():
 
     client = _fixture()
     client.lengths["bifrost:inbox:sol"] = 500
-    result = collect_thread("sol", "missing-thread", client=client,
-                            namespace="bifrost", per_stream=2)
+    result = collect_thread("sol", "missing-thread", client=client, namespace="bifrost", per_stream=2)
     assert result["found"] is False
     assert result["messages"] == []
     assert result["bounds"]["truncated"] is True
@@ -147,9 +171,14 @@ def test_mint_uses_atom_authority_and_returns_projection_receipt(tmp_path):
         calls["render"] = (atom["id"], repo_root)
         return str(tmp_path / "thread.md")
 
-    receipt = mint_thread_atom(snap, title="verb discussion", cites=["art_design_1"],
-                               family=Family(), render_fn=render,
-                               repo_root=str(tmp_path))
+    receipt = mint_thread_atom(
+        snap,
+        title="verb discussion",
+        cites=["art_design_1"],
+        family=Family(),
+        render_fn=render,
+        repo_root=str(tmp_path),
+    )
     assert receipt["atom_id"] == "art_thread_7"
     assert receipt["projection"].endswith("thread.md")
     assert calls["kwargs"]["status"] == "draft"
@@ -173,28 +202,27 @@ def test_native_mcp_and_toolbox_capture_share_the_core_seam(monkeypatch, tmp_pat
     from core.comm import thread_capture
     from core.comm.toolbox import TOOLS, ToolBox
 
-    snap = thread_capture.collect_thread("sol", "thread-7", client=_fixture(),
-                                         namespace="bifrost")
+    snap = thread_capture.collect_thread("sol", "thread-7", client=_fixture(), namespace="bifrost")
     monkeypatch.setattr(thread_capture, "collect_thread", lambda *a, **k: snap)
     advertised = {row["function"]["name"] for row in TOOLS}
     assert "capture" in advertised
 
-    raw = asyncio.run(ai_setup_mcp.capture(agent="sol", thread="thread-7",
-                                            as_doc=False, title="", cites=[]))
+    raw = asyncio.run(ai_setup_mcp.capture(agent="sol", thread="thread-7", as_doc=False, title="", cites=[]))
     assert json.loads(raw)["schema"] == "capture.thread.v1"
 
-    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *_: False, agent_id="sol")
-    monkeypatch.setattr(tb, "_agent_cli", lambda *_a, **_k: (_ for _ in ()).throw(
-        AssertionError("capture must not shell through agent_cli")))
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False, agent_id="sol")
+    monkeypatch.setattr(
+        tb,
+        "_agent_cli",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("capture must not shell through agent_cli")),
+    )
     assert json.loads(tb.capture(thread="thread-7"))["subject"] == "sol"
 
 
 def test_native_capture_requires_a_bound_subject(tmp_path):
     from core.comm.toolbox import ToolBox
 
-    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *_: False)
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False)
     try:
         tb.capture(thread="thread-7")
     except ValueError as exc:
@@ -210,27 +238,44 @@ def test_native_as_doc_refuses_missing_thread_without_calling_mint(monkeypatch, 
     from core.trust import registry
 
     missing = {
-        "schema": "capture.thread.v1", "subject": "sol", "thread_ref": "missing",
-        "observed_at": "2026-08-28T00:00:00Z", "found": False, "messages": [],
-        "bounds": {"truncated": False}, "blind": ["thread missing not found"],
+        "schema": "capture.thread.v1",
+        "subject": "sol",
+        "thread_ref": "missing",
+        "observed_at": "2026-08-28T00:00:00Z",
+        "found": False,
+        "messages": [],
+        "bounds": {"truncated": False},
+        "blind": ["thread missing not found"],
         "effects": [],
     }
     monkeypatch.setattr(thread_capture, "collect_thread", lambda *a, **k: dict(missing))
-    monkeypatch.setattr(thread_capture, "mint_thread_atom", lambda *a, **k: (_ for _ in ()).throw(
-        AssertionError("an absent thread must never reach the mint door")))
-    monkeypatch.setattr(registry, "resolve", lambda _agent: type("Grant", (), {
-        "role": "fixture", "has": lambda self, _cap: True,
-    })())
+    monkeypatch.setattr(
+        thread_capture,
+        "mint_thread_atom",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("an absent thread must never reach the mint door")),
+    )
+    monkeypatch.setattr(
+        registry,
+        "resolve",
+        lambda _agent: type(
+            "Grant",
+            (),
+            {
+                "role": "fixture",
+                "has": lambda self, _cap: True,
+            },
+        )(),
+    )
 
-    mcp_result = json.loads(asyncio.run(ai_setup_mcp.capture(
-        agent="sol", thread="missing", as_doc=True, title="must not mint", cites=[])))
+    mcp_result = json.loads(
+        asyncio.run(ai_setup_mcp.capture(agent="sol", thread="missing", as_doc=True, title="must not mint", cites=[]))
+    )
     assert mcp_result["found"] is False
     assert mcp_result["artifact"] is None
     assert mcp_result["mint"]["state"] == "refused"
     assert mcp_result["effects"] == []
 
-    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *_: False, agent_id="sol")
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False, agent_id="sol")
     monkeypatch.setattr(tb, "_kb_write_ok", lambda: None)
     tb_result = json.loads(tb.capture(thread="missing", as_doc=True, title="must not mint"))
     assert tb_result["found"] is False

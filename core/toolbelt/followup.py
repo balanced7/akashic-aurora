@@ -36,6 +36,7 @@ Honest residual: if the file half is later REVERTED by hand while its defer item
 pending, a re-file mints a fresh q-id and the stale item discharges against a missing
 question — the discharger sees it and re-files. Named, not hidden.
 """
+
 from __future__ import annotations
 
 import os
@@ -70,8 +71,8 @@ def _resolve(path: str, root: str) -> str:
         raise ValueError(f"verdict file must live inside the repo root -- got {p}")
     if not os.path.isfile(p):
         raise FileNotFoundError(
-            f"no verdict file at {path!r} -- followup appends to an EXISTING verdict; "
-            f"it never mints one")
+            f"no verdict file at {path!r} -- followup appends to an EXISTING verdict; it never mints one"
+        )
     return p
 
 
@@ -112,9 +113,10 @@ def _find_block(lines) -> Optional[Tuple[int, int]]:
 
 def _existing_qid(lines, head: int, end: int, by: str, to: str, ask: str) -> Optional[str]:
     """The q-id of an identical OPEN line already in the block (replay detection)."""
-    pat = re.compile(r"^- (Q\d+) \([^)]*" + re.escape(by) + r" -> " + re.escape(to) +
-                     r"[^)]*\) OPEN: " + re.escape(ask) + r"\s*$")
-    for ln in lines[head + 1:end]:
+    pat = re.compile(
+        r"^- (Q\d+) \([^)]*" + re.escape(by) + r" -> " + re.escape(to) + r"[^)]*\) OPEN: " + re.escape(ask) + r"\s*$"
+    )
+    for ln in lines[head + 1 : end]:
         m = pat.match(ln)
         if m:
             return m.group(1)
@@ -143,17 +145,19 @@ def _append_question(p: str, line: str) -> bool:
     return False
 
 
-def file_followup(path: str, *, by: str, to: str, ask: str,
-                  needs: str = "write", root: Optional[str] = None) -> Dict[str, Any]:
+def file_followup(
+    path: str, *, by: str, to: str, ask: str, needs: str = "write", root: Optional[str] = None
+) -> Dict[str, Any]:
     """File one followup: q-id'd question into the verdict file's Open Questions block
     + a defer-queue item the responsible seat's next boot surfaces. FILE-HALF-FIRST so
     a refusal never points at an unwritten question; replay-safe per RB-26."""
     by, to, ask = str(by or "").strip(), str(to or "").strip(), str(ask or "").strip()
     if not ask:
-        raise ValueError("followup needs the question itself (--ask \"...\")")
+        raise ValueError('followup needs the question itself (--ask "...")')
     if not to:
-        raise ValueError("followup needs --to <seat> -- a question with no responsible "
-                         "seat is a wish; file that instead")
+        raise ValueError(
+            "followup needs --to <seat> -- a question with no responsible seat is a wish; file that instead"
+        )
     root = root or ROOT
     p = _resolve(path, root)
     rel = _rel(p, root)
@@ -162,8 +166,7 @@ def file_followup(path: str, *, by: str, to: str, ask: str,
         text = f.read()
     lines = text.splitlines()
     found = _find_block(lines)
-    reused_qid = (_existing_qid(lines, found[0], found[1], by, to, ask)
-                  if found else None)
+    reused_qid = _existing_qid(lines, found[0], found[1], by, to, ask) if found else None
 
     if reused_qid:
         qid, created_block, reused_line = reused_qid, False, True
@@ -174,8 +177,10 @@ def file_followup(path: str, *, by: str, to: str, ask: str,
         reused_line = False
 
     cmd = f"answer {qid} in {rel} (Open Questions): {ask}"
-    why = (f"followup for {to}: flip {qid} OPEN -> ANSWERED in the file; the discharge "
-           f"receipt points at the answered block")
+    why = (
+        f"followup for {to}: flip {qid} OPEN -> ANSWERED in the file; the discharge "
+        f"receipt points at the answered block"
+    )
     reused_defer = None
     for it in _dq.pending():
         if it["by"] == by and cmd in it["cmd"]:
@@ -186,6 +191,11 @@ def file_followup(path: str, *, by: str, to: str, ask: str,
     else:
         defer_id = _dq.add(by, cmd, needs=needs, why=why)["id"]
 
-    return {"qid": qid, "defer_id": defer_id, "path": rel,
-            "created_block": created_block,
-            "reused_line": reused_line, "reused_defer": bool(reused_defer)}
+    return {
+        "qid": qid,
+        "defer_id": defer_id,
+        "path": rel,
+        "created_block": created_block,
+        "reused_line": reused_line,
+        "reused_defer": bool(reused_defer),
+    }

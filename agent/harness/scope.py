@@ -8,6 +8,7 @@ projects. That decision is POLICY and lives here exactly once -- adapters transl
 their runtime's payload shape into these predicates, they never re-implement them
 (three drifting copies of _under_root is how this module was earned).
 """
+
 import os
 
 # agent/harness/scope.py -> repo root is three dirs up.

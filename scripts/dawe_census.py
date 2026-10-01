@@ -14,6 +14,7 @@ rate. On the day it earns a threshold it can become a ratchet.
 Run against agent_cli.py on 2026-08-14 it came back clean, which disproved the prediction that
 motivated building it -- see tests/test_w164_dawe_census.py::test_d8.
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import dawe_census as D                          # noqa: E402
-from core.paths import repo_root                                 # noqa: E402
+from core.coord import dawe_census as D  # noqa: E402
+from core.paths import repo_root  # noqa: E402
 
 
 def main() -> int:
@@ -35,7 +36,7 @@ def main() -> int:
     print(D.render(D.survey(src)))
     print()
     print(D.render_import_guards(D.survey_import_guards(src)))
-    return 0                    # a census REPORTS; exit 0 always, so it can never gate
+    return 0  # a census REPORTS; exit 0 always, so it can never gate
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ THE RULE: faithful and confidence describe a check that RAN. When retrieval fail
 UNAVAILABLE -- not True, not 1.0. Silence that means "nothing relevant" and silence that means
 "I could not look" are different facts and must not share a rendering.
 """
+
 from pathlib import Path
 import sys
 
@@ -34,8 +35,10 @@ import core.recall.at_action as aa  # noqa: E402
 
 def _force_failure(monkeypatch):
     """Make the retrieval body raise, leaving the top-level handler to answer."""
+
     def boom(*a, **k):
         raise RuntimeError("store unreachable")
+
     monkeypatch.setattr(aa, "_query_from", boom, raising=False)
 
 
@@ -43,17 +46,13 @@ def test_a_failed_recall_does_not_claim_faithfulness(monkeypatch):
     _force_failure(monkeypatch)
     out = aa.recall_at(path="core/foundation/store.py")
     assert out.get("error"), "the failure must be recorded"
-    assert out.get("faithful") is not True, (
-        "a retrieval that RAISED claimed faithful=True -- it verified nothing"
-    )
+    assert out.get("faithful") is not True, "a retrieval that RAISED claimed faithful=True -- it verified nothing"
 
 
 def test_a_failed_recall_does_not_claim_full_confidence(monkeypatch):
     _force_failure(monkeypatch)
     out = aa.recall_at(path="core/foundation/store.py")
-    assert out.get("confidence") != 1.0, (
-        "a retrieval that RAISED claimed confidence=1.0 -- the confident-zero genus"
-    )
+    assert out.get("confidence") != 1.0, "a retrieval that RAISED claimed confidence=1.0 -- the confident-zero genus"
 
 
 def test_the_error_is_visible_to_a_renderer(monkeypatch):
@@ -63,14 +62,24 @@ def test_the_error_is_visible_to_a_renderer(monkeypatch):
     rendered = aa.render(out)
     assert rendered, "a failed recall must render SOMETHING, not empty silence"
     low = rendered.lower()
-    assert ("error" in low or "unavailable" in low or "could not" in low), (
+    assert "error" in low or "unavailable" in low or "could not" in low, (
         f"a failed recall rendered as ordinary silence: {rendered!r}"
     )
 
 
 def test_a_genuinely_empty_recall_still_renders_silently():
     """The fix must not turn honest 'nothing relevant' into noise -- that is the whole design."""
-    out = {"path": "x", "command": None, "query": "", "lessons": [], "locks": [],
-           "counter": None, "shown": 0, "total": 0, "faithful": True, "confidence": 1.0}
+    out = {
+        "path": "x",
+        "command": None,
+        "query": "",
+        "lessons": [],
+        "locks": [],
+        "counter": None,
+        "shown": 0,
+        "total": 0,
+        "faithful": True,
+        "confidence": 1.0,
+    }
     rendered = aa.render(out)
     assert not rendered, "a true empty must stay silent -- silence-when-irrelevant is the contract"

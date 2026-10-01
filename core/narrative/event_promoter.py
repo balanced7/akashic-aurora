@@ -26,25 +26,36 @@ Layering: System 4. Imports the domain EventQuery (lower) + the narrative BeatLo
 layer). A pure-domain module must not depend upward on the narrative, so promotion lives
 HERE, not in core/events.
 """
+
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.foundation.store import Store, create_store
 from core.events.event_query import EventQuery, get_event_query
 
-PROMOTED_SET = "narr:promoted:refs"        # dedup: refs already promoted to a Beat
-DEFAULT_THRESHOLD = 3                       # salience >= this is worth a Beat
-DEFAULT_MAX_PROMOTE = 10                    # per-run cap (rate-limit; no Beat flood)
-DEFAULT_SCAN = 500                          # how many recent raw events to consider
+PROMOTED_SET = "narr:promoted:refs"  # dedup: refs already promoted to a Beat
+DEFAULT_THRESHOLD = 3  # salience >= this is worth a Beat
+DEFAULT_MAX_PROMOTE = 10  # per-run cap (rate-limit; no Beat flood)
+DEFAULT_SCAN = 500  # how many recent raw events to consider
 
 # raw kind -> Beat kind (unknown -> note; the `weight` carries the salience either way)
-_KIND_TO_BEAT = {"learning": "learning", "blocker": "blocker",
-                 "decision": "decision", "milestone": "milestone"}
+_KIND_TO_BEAT = {"learning": "learning", "blocker": "blocker", "decision": "decision", "milestone": "milestone"}
 
 # base salience per raw kind (the Tier-0 importance prior)
-_BASE_SALIENCE = {"milestone": 5, "decision": 4, "learning": 4, "blocker": 3,
-                  "command": 3, "file_edit": 2, "tool_call": 1, "observation": 1,
-                  "message": 1, "note": 1, "boot": 1, "session": 1}
+_BASE_SALIENCE = {
+    "milestone": 5,
+    "decision": 4,
+    "learning": 4,
+    "blocker": 3,
+    "command": 3,
+    "file_edit": 2,
+    "tool_call": 1,
+    "observation": 1,
+    "message": 1,
+    "note": 1,
+    "boot": 1,
+    "session": 1,
+}
 
 # content boosts (each group adds at most once; final score is clamped to 0..5)
 _BOOST: List[Tuple[Tuple[str, ...], int]] = [
@@ -68,8 +79,7 @@ def salience(event: Dict[str, Any]) -> int:
     """
     kind = str(event.get("kind", "note"))
     score = _BASE_SALIENCE.get(kind, 1)
-    text = (str(event.get("summary", "")) + " " +
-            json.dumps(event.get("detail", {}), default=str)).lower()
+    text = (str(event.get("summary", "")) + " " + json.dumps(event.get("detail", {}), default=str)).lower()
     for words, bump in _BOOST:
         if any(w in text for w in words):
             score += bump
@@ -83,9 +93,15 @@ def _already_beat(event: Dict[str, Any]) -> bool:
     return False
 
 
-def promote_salient(store: Optional[Store] = None, event_query: Optional[EventQuery] = None,
-                    *, threshold: int = DEFAULT_THRESHOLD, max_promote: int = DEFAULT_MAX_PROMOTE,
-                    scan: int = DEFAULT_SCAN, agent: Optional[str] = None) -> Dict[str, int]:
+def promote_salient(
+    store: Optional[Store] = None,
+    event_query: Optional[EventQuery] = None,
+    *,
+    threshold: int = DEFAULT_THRESHOLD,
+    max_promote: int = DEFAULT_MAX_PROMOTE,
+    scan: int = DEFAULT_SCAN,
+    agent: Optional[str] = None,
+) -> Dict[str, int]:
     """Scan recent raw events; promote the salient, not-yet-promoted ones into Beats.
 
     Rate-limited three ways (Generative-Agents-style): a salience THRESHOLD, a per-run CAP
@@ -98,6 +114,7 @@ def promote_salient(store: Optional[Store] = None, event_query: Optional[EventQu
         store = store if store is not None else create_store()
         eq = event_query if event_query is not None else get_event_query()
         from core.narrative.beat_log import BeatLog
+
         bl = BeatLog(store)
 
         candidates = eq.log.scan(agent=agent, limit=scan)
@@ -120,17 +137,22 @@ def promote_salient(store: Optional[Store] = None, event_query: Optional[EventQu
 
         report["eligible"] = len(scored)
         from core.narrative.track_router import RouteHint
+
         # highest salience first (ties -> most recent), then apply the per-run cap
         scored.sort(key=lambda x: (x[0], x[1].get("at", "")), reverse=True)
-        for s, e in scored[:max(0, max_promote)]:
+        for s, e in scored[: max(0, max_promote)]:
             # Route via a hint (like the commit/learn hooks) so the Track is registered --
             # passing an explicit `track` to emit() skips _route and leaves the track
             # un-indexed. The raw event's `track` becomes the routing task signal.
-            hint = RouteHint(task=str(e.get("summary", "") or e.get("track", "")),
-                             category=str(e.get("kind", "")))
-            beat = bl.emit(_KIND_TO_BEAT.get(e.get("kind", ""), "note"),
-                           summary=e.get("summary", ""), source=e["_ref"],
-                           weight=s, at=e.get("at"), hint=hint)
+            hint = RouteHint(task=str(e.get("summary", "") or e.get("track", "")), category=str(e.get("kind", "")))
+            beat = bl.emit(
+                _KIND_TO_BEAT.get(e.get("kind", ""), "note"),
+                summary=e.get("summary", ""),
+                source=e["_ref"],
+                weight=s,
+                at=e.get("at"),
+                hint=hint,
+            )
             if beat is not None:
                 store.sadd(PROMOTED_SET, e["_ref"])
                 report["promoted"] += 1

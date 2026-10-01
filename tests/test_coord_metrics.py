@@ -1,4 +1,5 @@
 """Tests for core/coord/metrics.py — the Solution-Space-Shrinkage Tracker."""
+
 import pytest
 from core.coord.metrics import (
     ApproachVector,
@@ -15,6 +16,7 @@ from core.coord.metrics import (
 
 
 # --- _run_diversity (per-run signal) ---
+
 
 class TestRunDiversity:
     def test_empty(self):
@@ -37,6 +39,7 @@ class TestRunDiversity:
 
 # --- ApproachVector construction ---
 
+
 class TestVectorFromRun:
     def test_empty(self):
         assert vector_from_run([]) == frozenset()
@@ -46,21 +49,26 @@ class TestVectorFromRun:
         assert v == frozenset({("api.py", "add-rate-limiting")})
 
     def test_dedup_same_intent(self):
-        v = vector_from_run([
-            ("claude", "api.py", "add-rate-limiting"),
-            ("deepseek", "api.py", "add-rate-limiting"),
-        ])
+        v = vector_from_run(
+            [
+                ("claude", "api.py", "add-rate-limiting"),
+                ("deepseek", "api.py", "add-rate-limiting"),
+            ]
+        )
         assert v == frozenset({("api.py", "add-rate-limiting")})
 
     def test_different_intents_same_file(self):
-        v = vector_from_run([
-            ("claude", "api.py", "add-rate-limiting"),
-            ("deepseek", "api.py", "add-auth"),
-        ])
+        v = vector_from_run(
+            [
+                ("claude", "api.py", "add-rate-limiting"),
+                ("deepseek", "api.py", "add-auth"),
+            ]
+        )
         assert v == frozenset({("api.py", "add-rate-limiting"), ("api.py", "add-auth")})
 
 
 # --- Shannon entropy ---
+
 
 class TestShannonEntropy:
     def test_empty(self):
@@ -98,6 +106,7 @@ class TestShannonEntropy:
 
 # --- Uniqueness ratio ---
 
+
 class TestUniquenessRatio:
     def test_empty(self):
         assert uniqueness_ratio([]) == 0.0
@@ -120,6 +129,7 @@ class TestUniquenessRatio:
 
 # --- Monotonicity ---
 
+
 class TestIsMonotonicDecreasing:
     def test_empty(self):
         assert not is_monotonic_decreasing([])
@@ -141,6 +151,7 @@ class TestIsMonotonicDecreasing:
 
 
 # --- Flat and rising ---
+
 
 class TestIsFlat:
     def test_empty(self):
@@ -180,6 +191,7 @@ class TestIsRising:
 
 
 # --- Assess (the watchdog) ---
+
 
 class TestAssessCollapse:
     def test_collapse_signal(self):
@@ -245,6 +257,7 @@ class TestAssessCollapse:
 
 # --- Integration: run_metrics with experiment.py ---
 
+
 class TestRunMetricsIntegration:
     def test_smoke_run_metrics(self):
         """run_metrics returns vectors and scores for a real scenario+policy."""
@@ -288,17 +301,14 @@ class TestRunMetricsIntegration:
         # intent_gate: admits all 6 distinct intents → A_task = 1.0
         assert is_[0] == 1.0, f"intent_gate A_task should be 1.0, got {is_[0]}"
         # lock_gate: admits only the first action → 1 of 6 intents delivered
-        assert ls[0] == pytest.approx(1/6, abs=0.001), (
-            f"lock_gate should deliver 1/6 on parallel_useful, got {ls[0]}"
-        )
+        assert ls[0] == pytest.approx(1 / 6, abs=0.001), f"lock_gate should deliver 1/6 on parallel_useful, got {ls[0]}"
 
         # APPROACH VECTOR RICHNESS:
         # intent_gate: each run admits ALL 6 actions → 6 (resource,intent) pairs per vector
         # lock_gate: each run admits only the FIRST → 1 (resource,intent) pair per vector
         # This is the MEASURED advantage: intent delivers 6x more approaches AND all 6 intents
         assert len(iv[0]) > len(lv[0]), (
-            f"intent_gate admits {len(iv[0])} approaches per run, "
-            f"lock_gate admits only {len(lv[0])}"
+            f"intent_gate admits {len(iv[0])} approaches per run, lock_gate admits only {len(lv[0])}"
         )
         assert len(iv[0]) == 6, f"intent_gate should admit all 6 approaches, got {len(iv[0])}"
         assert len(lv[0]) == 1, f"lock_gate should admit only 1 approach, got {len(lv[0])}"
@@ -312,7 +322,7 @@ class TestRunMetricsIntegration:
         assert i_verdict.runs == 3
         assert l_verdict.runs == 3
         assert i_verdict.run_diversities[0] == pytest.approx(2.585, abs=0.001)  # log2(6)
-        assert l_verdict.run_diversities[0] == 0.0                              # log2(1)
+        assert l_verdict.run_diversities[0] == 0.0  # log2(1)
         # Neither is collapsing (deterministic = flat), but lock's zero diversity is the risk
         # The real live proof: run stochastic scenarios where lock_gate's narrowness HURTS
 
@@ -335,6 +345,4 @@ class TestRunMetricsIntegration:
         assert v.diversity_dropping is False, "diversity was never high, can't drop"
         assert v.correctness_flat is True
         # Stagnant: flat correctness + diversity not growing + not collapsing
-        assert "STAGNANT" in v.diagnosis, (
-            f"Expected STAGNANT diagnosis, got: {v.diagnosis}"
-        )
+        assert "STAGNANT" in v.diagnosis, f"Expected STAGNANT diagnosis, got: {v.diagnosis}"

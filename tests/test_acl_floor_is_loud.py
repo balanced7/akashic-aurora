@@ -24,6 +24,7 @@ inspection (doctor row + acl_status()).
 
 Run: py -m pytest tests/test_acl_floor_is_loud.py -q -p no:cacheprovider
 """
+
 import json
 import os
 import sys
@@ -40,10 +41,24 @@ VALID = {
     "_comment": "test acl (cf6fe59a4d pin)",
     "schema_version": 1,
     "grants": [
-        {"agent_id": "claude", "role": "super_admin", "caps": [], "path_scope": ["*"],
-         "granted_by": "root", "granted_at": "2026-08-24T00:00:00Z", "reason": "t"},
-        {"agent_id": "kimi", "role": "member", "caps": ["read"], "path_scope": [],
-         "granted_by": "claude", "granted_at": "2026-08-24T00:00:00Z", "reason": "t"},
+        {
+            "agent_id": "claude",
+            "role": "super_admin",
+            "caps": [],
+            "path_scope": ["*"],
+            "granted_by": "root",
+            "granted_at": "2026-08-24T00:00:00Z",
+            "reason": "t",
+        },
+        {
+            "agent_id": "kimi",
+            "role": "member",
+            "caps": ["read"],
+            "path_scope": [],
+            "granted_by": "claude",
+            "granted_at": "2026-08-24T00:00:00Z",
+            "reason": "t",
+        },
     ],
 }
 
@@ -75,7 +90,8 @@ def test_f1_missing_acl_floor_is_loud_on_stderr(floor_state, capsys):
     _floor_roles_pinned()
     err = capsys.readouterr().err
     assert "BOOTSTRAP FLOOR" in err, (
-        f"a MISSING ACL put two seats on the bootstrap floor and said nothing: stderr={err!r}")
+        f"a MISSING ACL put two seats on the bootstrap floor and said nothing: stderr={err!r}"
+    )
     assert "missing" in err.lower(), f"the line must name the fault kind: {err!r}"
     assert str(floor_state) in err, f"the line must name the path it could not read: {err!r}"
 
@@ -85,7 +101,8 @@ def test_f2_corrupt_acl_floor_is_loud_on_stderr(floor_state, capsys):
     _floor_roles_pinned()
     err = capsys.readouterr().err
     assert "BOOTSTRAP FLOOR" in err, (
-        f"a CORRUPT ACL put two seats on the bootstrap floor and said nothing: stderr={err!r}")
+        f"a CORRUPT ACL put two seats on the bootstrap floor and said nothing: stderr={err!r}"
+    )
     assert "corrupt" in err.lower(), f"the line must name the fault kind: {err!r}"
     assert str(floor_state) in err, f"the line must name the path it could not parse: {err!r}"
 
@@ -97,7 +114,8 @@ def test_f3_the_notice_fires_once_per_process(floor_state, capsys):
     REG.resolve("stranger")
     REG.resolve("deepseek")
     assert capsys.readouterr().err == "", (
-        "every later resolve() repeated the notice -- noise is how a warning gets silenced")
+        "every later resolve() repeated the notice -- noise is how a warning gets silenced"
+    )
 
 
 def test_f4_a_valid_acl_is_quiet_and_reports_ok(floor_state, capsys):
@@ -113,7 +131,7 @@ def test_f4_a_valid_acl_is_quiet_and_reports_ok(floor_state, capsys):
 
 
 def test_f5_acl_status_names_the_fault_and_never_raises(floor_state, capsys):
-    st = REG.acl_status()                         # before ANY resolve(): doctor must not depend on use
+    st = REG.acl_status()  # before ANY resolve(): doctor must not depend on use
     assert st["ok"] is False
     assert st["fault_kind"] == "missing"
     assert st["floor_in_force"] is True
@@ -129,13 +147,17 @@ def _doctor_stdout(monkeypatch, capsys):
     """Drive cmd_doctor with the fleet/services probes stubbed (H6 precedent: no Redis needed)."""
     import agent_cli
     from core.comm import doctor
-    monkeypatch.setattr(doctor, "examine_fleet",
-                        lambda agents, page_notes=False: {
-                            "agents": [], "findings": [], "summary": "doctor: healthy"})
+
+    monkeypatch.setattr(
+        doctor,
+        "examine_fleet",
+        lambda agents, page_notes=False: {"agents": [], "findings": [], "summary": "doctor: healthy"},
+    )
     monkeypatch.setattr(doctor, "known_agents", lambda: [])
     monkeypatch.setattr(doctor, "examine_services", lambda: [])
     try:
         import core.recall.at_action as _aa
+
         monkeypatch.setattr(_aa, "injections_by_family", lambda hours: {})
     except Exception:
         pass
@@ -158,7 +180,8 @@ def test_f6_doctor_shows_the_floor_and_the_restore_drill(floor_state, monkeypatc
     monkeypatch.setattr(REG, "_CACHE", _fresh_cache())
     out = _doctor_stdout(monkeypatch, capsys)
     assert "## ACL" not in out and "BOOTSTRAP FLOOR" not in out, (
-        f"a valid ACL must not raise a doctor row (no crying wolf):\n{out}")
+        f"a valid ACL must not raise a doctor row (no crying wolf):\n{out}"
+    )
 
 
 def test_f7_recovery_then_loss_warns_again(floor_state, capsys):
@@ -176,7 +199,8 @@ def test_f7_recovery_then_loss_warns_again(floor_state, capsys):
     floor_state.unlink()
     REG.resolve("claude")
     assert capsys.readouterr().err.count("BOOTSTRAP FLOOR") == 1, (
-        "a SECOND loss after recovery must warn again -- the once-flag resets when the file comes back")
+        "a SECOND loss after recovery must warn again -- the once-flag resets when the file comes back"
+    )
 
 
 def _drill_never_offers_the_example_copy_alone(text):
@@ -184,19 +208,23 @@ def _drill_never_offers_the_example_copy_alone(text):
     drill that offers the copy as a standalone step moves a fresh clone from the floor to a state where
     every seat (claude and deepseek included) is quarantined -- worse than what it warns about."""
     assert "acl.example.json AND add your own root" in text, (
-        "the drill must bind the example copy to adding a root record: " + text)
+        "the drill must bind the example copy to adding a root record: " + text
+    )
     assert "or copy security/acl.example.json;" not in text and "(or copy" not in text, (
-        "the drill must never offer the example copy as a standalone recovery: " + text)
+        "the drill must never offer the example copy as a standalone recovery: " + text
+    )
 
 
 def test_f8_the_restore_drill_never_offers_the_empty_example_alone(floor_state, capsys, monkeypatch):
     import core.trust.registry as registry
+
     registry.resolve("claude")
     err = capsys.readouterr().err
     assert "BOOTSTRAP FLOOR" in err, err
     _drill_never_offers_the_example_copy_alone(err)
     import contextlib, io, sys as _sys
     import agent_cli
+
     monkeypatch.setattr(_sys, "argv", ["agent_cli.py", "doctor"])
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

@@ -22,6 +22,7 @@ Pins:
 Redis-backed pins use throwaway namespaces (skip if down).
 Run: py -m pytest tests/test_t045_wake_cutover.py -q
 """
+
 import os
 import sys
 import uuid
@@ -38,10 +39,11 @@ from core.comm.bifrost_api import BifrostAPI
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -75,9 +77,9 @@ def test_lane_watcher_blind_to_trace_flood(monkeypatch):
     ns = _ns()
     sender = Bus("noisy", c, namespace=ns, promote=False)
     watcher = BifrostAPI("alice", namespace=ns)
-    assert watcher.wake_block(timeout_ms=200) == []          # arm quiet (seeds lane tails)
+    assert watcher.wake_block(timeout_ms=200) == []  # arm quiet (seeds lane tails)
     for _ in range(10):
-        sender.broadcast("narration", "flood")               # legacy bc + trace ring only
+        sender.broadcast("narration", "flood")  # legacy bc + trace ring only
     got = watcher.wake_block(timeout_ms=300)
     assert got == [], "trace broadcasts must be STRUCTURALLY invisible to a lane watcher"
 
@@ -90,7 +92,7 @@ def test_lane_watcher_wakes_on_handoff(monkeypatch):
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     watcher = BifrostAPI("alice", namespace=ns)
-    assert watcher.wake_block(timeout_ms=200) == []          # arm quiet first
+    assert watcher.wake_block(timeout_ms=200) == []  # arm quiet first
     sender.send("alice", "handoff", "work arrives")
     got = watcher.wake_block(timeout_ms=2000)
     assert got and str(got[0].kind) == "handoff"
@@ -104,10 +106,11 @@ def test_pending_legacy_mail_wakes_fresh_watcher(monkeypatch):
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "sent BEFORE the watcher armed")
-    fresh = BifrostAPI("alice", namespace=ns)                # arms AFTER the send
+    fresh = BifrostAPI("alice", namespace=ns)  # arms AFTER the send
     got = fresh.wake_block(timeout_ms=500)
-    assert got and str(got[0].kind) == "handoff", \
+    assert got and str(got[0].kind) == "handoff", (
         "unconsumed legacy mail must wake a fresh watcher (the T017 hole stays closed)"
+    )
 
 
 # ---------------------------------------------------- L5: lane backlog is soak, not mail
@@ -116,9 +119,18 @@ def test_lane_backlog_alone_never_wakes(monkeypatch):
     monkeypatch.setenv("BIFROST_WAKE_LANE", "work")
     ns = _ns()
     # backlog written straight to the lane key: legacy stays EMPTY (no pending mail)
-    c.xadd(f"{ns}:work:inbox:alice", {"frm": "ghost", "to": "alice", "kind": "handoff",
-                                      "content": '"old soak entry"', "ts": "0", "meta": "{}",
-                                      "parts": "[]"})
+    c.xadd(
+        f"{ns}:work:inbox:alice",
+        {
+            "frm": "ghost",
+            "to": "alice",
+            "kind": "handoff",
+            "content": '"old soak entry"',
+            "ts": "0",
+            "meta": "{}",
+            "parts": "[]",
+        },
+    )
     fresh = BifrostAPI("alice", namespace=ns)
     got = fresh.wake_block(timeout_ms=300)
     assert got == [], "A4 tail-at-flip: pre-arm lane history must never wake"
@@ -127,6 +139,7 @@ def test_lane_backlog_alone_never_wakes(monkeypatch):
 # ------------------------------------------------------------------ L6: P4 skip set
 def test_lane_skip_set_adds_note_status():
     import bifrost_wake as bw
+
     assert {"note", "status"} <= bw.SKIP_KINDS_LANE
     assert {"trace", "steer", "resolved", "ledger_update"} <= bw.SKIP_KINDS_LANE
     assert "note" not in bw.SKIP_KINDS, "legacy skip set unchanged (strangler discipline)"
@@ -154,8 +167,10 @@ def test_pending_check_not_trapped_by_legacy_junk(monkeypatch):
 def test_pending_skip_parity_with_lane_skip_set():
     from core.comm import bifrost_api
     import bifrost_wake as bw
-    assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, \
+
+    assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, (
         "drift here either traps the pending check on junk or wakes idle seats on noise"
+    )
 
 
 if __name__ == "__main__":

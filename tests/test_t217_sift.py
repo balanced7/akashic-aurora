@@ -13,6 +13,7 @@ one night (worst: timeline's pins fed dicts straight in, never exercised the par
 git's bare-epoch strings stamped the whole history at 1970). So at least one pin here runs
 the real extractor over the real tree.
 """
+
 from __future__ import annotations
 
 import pytest  # noqa: F401  (used by the pins below)
@@ -98,8 +99,7 @@ def test_every_occurrence_carries_its_plane_and_exclusions_are_counted():
     pack = sift.evidence_pack("drained", planes=("source",))
     assert pack.occurrences
     assert all(o["plane"] == "source" for o in pack.occurrences)
-    assert any("EXCLUDED BY PLANE" in b for b in pack.blind), \
-        "dropped a large share of the corpus without saying so"
+    assert any("EXCLUDED BY PLANE" in b for b in pack.blind), "dropped a large share of the corpus without saying so"
 
     docs = sift.evidence_pack("drained", planes=("doc",))
     assert docs.occurrences, "doc plane should be selectable, not merely discardable"
@@ -124,8 +124,8 @@ def test_capping_samples_across_files_instead_of_truncating():
     files = {o["file"] for o in pack.occurrences}
     assert len(pack.occurrences) == 20
     assert len(files) >= 15, (
-        f"cap kept only {len(files)} distinct files of 40 -- that is truncation wearing a "
-        f"sample's clothes")
+        f"cap kept only {len(files)} distinct files of 40 -- that is truncation wearing a sample's clothes"
+    )
 
 
 def test_junction_pack_shows_writer_and_reader_together():
@@ -202,8 +202,9 @@ def test_junction_pack_reports_no_junction_rather_than_inventing_one():
     corpus = {"a.py": "# the word cursor appears only in this comment\n"}
     pack = sift.junction_pack("cursor", corpus=corpus)
     assert pack.junctions == []
-    assert any("no writer/reader pair" in b.lower() or "no junction" in b.lower()
-               for b in pack.blind), "must SAY it found none, not merely return empty"
+    assert any("no writer/reader pair" in b.lower() or "no junction" in b.lower() for b in pack.blind), (
+        "must SAY it found none, not merely return empty"
+    )
 
 
 def test_every_tier_states_its_blindness():
@@ -280,8 +281,9 @@ def test_flip_rate_refuses_when_evidence_hashes_differ():
     out = sift.compare_dossiers([d1, d2])
     assert out["flip_rate"] is None, "computed a rate over inputs that were not identical"
     assert out["refused"], "refused silently -- the caller cannot tell a refusal from agreement"
-    assert "aaaaaaaa" in out["refused"] and "bbbbbbbb" in out["refused"], \
+    assert "aaaaaaaa" in out["refused"] and "bbbbbbbb" in out["refused"], (
         "refusal must name BOTH hashes so the divergence is locatable"
+    )
 
 
 def test_flip_rate_computes_when_hashes_match():
@@ -309,14 +311,25 @@ def test_a_verdict_resting_on_one_hat_against_five_renders_contested():
 
     So the tally rides in the verdict. One-against-five is CONTESTED, never FORK.
     """
-    lopsided = {"term": "behaviour", "hat": "outsider", "evidence_sha": "aa11",
-                "verdict": "FORK", "tally": {"FORK": 1, "NO_FORK": 6}}
+    lopsided = {
+        "term": "behaviour",
+        "hat": "outsider",
+        "evidence_sha": "aa11",
+        "verdict": "FORK",
+        "tally": {"FORK": 1, "NO_FORK": 6},
+    }
     assert sift.settle_verdict(lopsided) == "CONTESTED"
 
-    solid = {"term": "capabilities", "hat": "outsider", "evidence_sha": "aa11",
-             "verdict": "FORK", "tally": {"FORK": 5, "NO_FORK": 2}}
-    assert sift.settle_verdict(solid) == "FORK", \
+    solid = {
+        "term": "capabilities",
+        "hat": "outsider",
+        "evidence_sha": "aa11",
+        "verdict": "FORK",
+        "tally": {"FORK": 5, "NO_FORK": 2},
+    }
+    assert sift.settle_verdict(solid) == "FORK", (
         "a real majority must survive -- this guard must not eat the genuine finding"
+    )
 
     # No tally reported: the margin is UNKNOWN and must not be invented in either direction.
     assert sift.settle_verdict({"verdict": "FORK"}) == "FORK"
@@ -356,16 +369,16 @@ def test_two_abstentions_are_not_agreement():
     and the praise hides it.
     """
     same = "cc33"
-    out = sift.compare_dossiers([
-        {"term": "t1", "hat": "a", "evidence_sha": same, "verdict": "UNCLEAR"},
-        {"term": "t1", "hat": "b", "evidence_sha": same, "verdict": "UNCLEAR"},
-    ])
-    assert [a["term"] for a in out["agreements"]] == [], \
-        "two abstentions counted as consensus"
+    out = sift.compare_dossiers(
+        [
+            {"term": "t1", "hat": "a", "evidence_sha": same, "verdict": "UNCLEAR"},
+            {"term": "t1", "hat": "b", "evidence_sha": same, "verdict": "UNCLEAR"},
+        ]
+    )
+    assert [a["term"] for a in out["agreements"]] == [], "two abstentions counted as consensus"
     assert [d["term"] for d in out["dissents"]] == [], "nor is it dissent -- nobody decided"
     assert [u["term"] for u in out["undecided"]] == ["t1"]
-    assert out["flip_rate"] is None, \
-        "a flip rate over zero deciding pairs is not 0.0, it is undefined"
+    assert out["flip_rate"] is None, "a flip rate over zero deciding pairs is not 0.0, it is undefined"
 
 
 def test_the_flip_rate_denominator_counts_only_deciding_pairs():
@@ -384,10 +397,12 @@ def test_the_flip_rate_denominator_counts_only_deciding_pairs():
     out = sift.compare_dossiers(ds)
     assert out["flip_rate"] == 0.5, (
         f"1 dissent over 2 DECIDING pairs is 0.5, not {out['flip_rate']} -- an abstention "
-        f"must not dilute the artifact rate")
+        f"must not dilute the artifact rate"
+    )
     assert len(out["undecided"]) == 1
-    assert any("undecided" in b.lower() or "abstain" in b.lower() for b in out["blind"]), \
+    assert any("undecided" in b.lower() or "abstain" in b.lower() for b in out["blind"]), (
         "a report with undecided terms must say so where the rate is read"
+    )
 
 
 def test_dissent_is_rendered_before_agreement():
@@ -456,8 +471,9 @@ def test_aggregate_is_three_state_never_binary():
     # success -- that trap hit twice in one hour on 2026-08-05 (a timeout rendered as
     # CLOSED.ECHO because the CLI echo-branch tested o.ok). Truthiness is the safe test.
     assert part.ok == full.ok, "precondition: .ok cannot separate partial from done"
-    assert bool(part) is False and bool(full) is True, \
+    assert bool(part) is False and bool(full) is True, (
         "a partial must be FALSY so callers that ignore partiality fail closed"
+    )
 
 
 def test_no_silent_caps():
@@ -468,5 +484,6 @@ def test_no_silent_caps():
     pack = sift.evidence_pack("open", corpus=corpus, max_occurrences=10)
     assert len(pack.occurrences) == 10
     assert pack.truncated is True
-    assert any("490" in b or "500" in b for b in pack.blind), \
+    assert any("490" in b or "500" in b for b in pack.blind), (
         "capped evidence must say HOW MUCH it dropped, in its own blind list"
+    )

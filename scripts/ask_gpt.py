@@ -14,6 +14,7 @@ Prompt source: positional args, else --file <path>, else stdin.
 NOTE: the prompt is sent to OpenAI's API (pay-as-you-go -- real cost, usually cents). Don't pass
 anything you wouldn't share with OpenAI.
 """
+
 import argparse
 import os
 import sys
@@ -58,6 +59,7 @@ def main():
         return 2
 
     from openai import OpenAI
+
     client = OpenAI(api_key=key)
     messages = []
     if args.system:

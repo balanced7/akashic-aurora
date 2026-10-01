@@ -11,6 +11,7 @@ Tier 1 (embeddings via Ranker relevance_fn seam) is a later slice.
 Design pattern follows TrackRouter (keyword rules + Tier 0 heuristic first),
 but multi-label instead of first-match.
 """
+
 from typing import List, Optional, Tuple
 
 # --- keyword tuples -> theme id ---
@@ -37,6 +38,7 @@ class ThemeAssigner:
         # Word-boundary matching (D2): a theme keyword must match as a whole word, not inside
         # a larger one. Multi-label, so we check every group (not first-match).
         from core.narrative.track_router import compile_keyword_group
+
         self._theme_re = [(compile_keyword_group(kws), theme_id) for kws, theme_id in self.keywords]
 
     def assign(self, beat, hint=None) -> List[str]:

@@ -33,6 +33,7 @@ is proportional to how distinctive the name is, and a generic name was never giv
   P3  prose containing the generic phrase is not flagged
   P4  the exclusion is case-insensitive, like every other entry
 """
+
 import os
 import sys
 
@@ -40,15 +41,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.trust import private_plane as pp
 
-GENERIC = "best-" "practices"          # split so this pin does not trip the gate it tests
+GENERIC = "best-practices"  # split so this pin does not trip the gate it tests
 
 
 def test_p1_a_generic_multiword_name_is_not_a_marker(tmp_path):
     (tmp_path / "private").mkdir()
     (tmp_path / "private" / (GENERIC + ".md")).write_text("x", encoding="utf-8")
-    assert GENERIC not in {m.lower() for m in pp.markers(tmp_path)}, \
-        "P1: a private file named with a common English phrase must not make that phrase a " \
+    assert GENERIC not in {m.lower() for m in pp.markers(tmp_path)}, (
+        "P1: a private file named with a common English phrase must not make that phrase a "
         "forbidden token across every tracked file in the repo"
+    )
 
 
 def test_p2_a_distinctive_private_name_is_still_a_marker(tmp_path):
@@ -56,16 +58,16 @@ def test_p2_a_distinctive_private_name_is_still_a_marker(tmp_path):
     (tmp_path / "private").mkdir()
     (tmp_path / "private" / "zarquon-ledger-nineteen.md").write_text("x", encoding="utf-8")
     marks = {m.lower() for m in pp.markers(tmp_path)}
-    assert any("zarquon" in m for m in marks), \
-        "P2: a distinctive private name must still be protected -- this fix narrows the " \
+    assert any("zarquon" in m for m in marks), (
+        "P2: a distinctive private name must still be protected -- this fix narrows the "
         "vocabulary, it does not disarm the guard"
+    )
 
 
 def test_p3_prose_using_the_generic_phrase_is_not_flagged(tmp_path):
     (tmp_path / "private").mkdir()
     (tmp_path / "private" / (GENERIC + ".md")).write_text("x", encoding="utf-8")
-    hits = pp.scan_text("This document records our " + GENERIC + " for the wake path.",
-                        label="prose", root=tmp_path)
+    hits = pp.scan_text("This document records our " + GENERIC + " for the wake path.", label="prose", root=tmp_path)
     assert not hits, "P3: ordinary prose must not be refused, or the repo freezes"
 
 

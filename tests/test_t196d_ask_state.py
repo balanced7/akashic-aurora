@@ -26,6 +26,7 @@ Contract frozen here:
 
 Run: py -m pytest tests/test_t196d_ask_state.py -q
 """
+
 import os
 import sys
 import time
@@ -44,6 +45,7 @@ except ImportError:
 
 try:
     from core.comm import ask_state
+
     _BUILT = hasattr(ask_state, "state_of") and hasattr(ask_state, "STATES")
 except ImportError:
     ask_state = None
@@ -57,12 +59,12 @@ except Exception:
 needs_built = pytest.mark.skipif(not _BUILT, reason="ask_state pending (pins frozen)")
 needs_live = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offline")
 
-SEVEN = {"OPEN.DISPATCHED", "OPEN.NOTED", "OPEN.REDRIVING",
-         "CLOSED.ANSWERED", "CLOSED.ECHO", "CLOSED.DEAD", "UNKNOWN"}
+SEVEN = {"OPEN.DISPATCHED", "OPEN.NOTED", "OPEN.REDRIVING", "CLOSED.ANSWERED", "CLOSED.ECHO", "CLOSED.DEAD", "UNKNOWN"}
 
 
 class _StubLog:
     """Injectable event source: pins construct terminal evidence instead of writing it."""
+
     def __init__(self, events):
         self._events = list(events)
 
@@ -80,9 +82,15 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
-        for k in (f"bifrost:expect:{s}", f"bifrost:inbox:{s}", f"bifrost:inbox:{r}",
-                  f"bifrost:cursor:{s}", f"bifrost:cursor:{r}",
-                  f"bifrost:presence:{s}", f"bifrost:presence:{r}"):
+        for k in (
+            f"bifrost:expect:{s}",
+            f"bifrost:inbox:{s}",
+            f"bifrost:inbox:{r}",
+            f"bifrost:cursor:{s}",
+            f"bifrost:cursor:{r}",
+            f"bifrost:presence:{s}",
+            f"bifrost:presence:{r}",
+        ):
             c.delete(k)
     except Exception:
         pass
@@ -97,6 +105,7 @@ def _arm(s, r, within=60, content="answer me"):
 
 # --- P1: the seven states, no more, no fewer, each with terminal + caller_should ---
 
+
 def test_states_are_the_spec_seven():
     assert _BUILT, "core/comm/ask_state.py with STATES + state_of is the T196d deliverable"
     assert set(ask_state.STATES) == SEVEN
@@ -106,6 +115,7 @@ def test_states_are_the_spec_seven():
 
 
 # --- P2: OPEN.DISPATCHED -- armed, nothing observable happened ---
+
 
 @needs_built
 @needs_live
@@ -120,6 +130,7 @@ def test_dispatched(pair):
 
 # --- P3: OPEN.NOTED -- a directed NON-answer arrived; the ask is neither dead nor done ---
 
+
 @needs_built
 @needs_live
 def test_noted(pair):
@@ -131,6 +142,7 @@ def test_noted(pair):
 
 
 # --- P4: OPEN.REDRIVING -- deadline passed, a copy went out ---
+
 
 @needs_built
 @needs_live
@@ -145,6 +157,7 @@ def test_redriving(pair):
 
 # --- P5: a REDRIVE id resolves to the original (idalias walk) instead of lying UNKNOWN ---
 
+
 @needs_built
 @needs_live
 def test_redrive_id_resolves(pair):
@@ -152,8 +165,7 @@ def test_redrive_id_resolves(pair):
     t0 = time.time()
     orig = _arm(s, r, within=60)
     assert expectations.sweep(s, now=t0 + 61)["redriven"] == [orig]
-    copies = [m for m in Bus(r).inbox(limit=50, advance=False)
-              if (m.meta or {}).get("redrive_of") == orig]
+    copies = [m for m in Bus(r).inbox(limit=50, advance=False) if (m.meta or {}).get("redrive_of") == orig]
     assert copies, "redrive copy visible on the peer inbox"
     rid = copies[0].id
     st = ask_state.state_of(s, rid, log=_StubLog([]))
@@ -163,12 +175,16 @@ def test_redrive_id_resolves(pair):
 
 # --- P6: CLOSED.ANSWERED from durable evidence, duration computed from created ---
 
+
 @needs_built
 def test_answered_from_terminal_event():
-    ev = {"kind": "expectation_settled_answered", "at": "2026-08-05T12:01:40+00:00",
-          "agent_id": "s", "refs": ["ASK-1", "REPLY-9"],
-          "detail": {"to": "peerx", "attempt": 1, "created": 1786017600.0,
-                     "answer_id": "REPLY-9"}}
+    ev = {
+        "kind": "expectation_settled_answered",
+        "at": "2026-08-05T12:01:40+00:00",
+        "agent_id": "s",
+        "refs": ["ASK-1", "REPLY-9"],
+        "detail": {"to": "peerx", "attempt": 1, "created": 1786017600.0, "answer_id": "REPLY-9"},
+    }
     st = ask_state.state_of("s", "ASK-1", log=_StubLog([ev]))
     assert st["state"] == "CLOSED.ANSWERED" and st["terminal"] is True
     assert st["answer_id"] == "REPLY-9" and st["peer"] == "peerx"
@@ -177,14 +193,23 @@ def test_answered_from_terminal_event():
 
 # --- P7: CLOSED.ECHO and CLOSED.DEAD from their durable kinds ---
 
+
 @needs_built
 def test_echo_and_dead_from_terminal_events():
-    echo = {"kind": "expectation_settled_done_task", "at": "2026-08-05T12:00:00+00:00",
-            "agent_id": "s", "refs": ["ASK-2"],
-            "detail": {"to": "peerx", "settle": "referenced tasks terminal: T042=done"}}
-    dead = {"kind": "expectation_dead", "at": "2026-08-05T12:00:00+00:00",
-            "agent_id": "s", "refs": ["ASK-3"],
-            "detail": {"to": "peery", "attempts": 3}}
+    echo = {
+        "kind": "expectation_settled_done_task",
+        "at": "2026-08-05T12:00:00+00:00",
+        "agent_id": "s",
+        "refs": ["ASK-2"],
+        "detail": {"to": "peerx", "settle": "referenced tasks terminal: T042=done"},
+    }
+    dead = {
+        "kind": "expectation_dead",
+        "at": "2026-08-05T12:00:00+00:00",
+        "agent_id": "s",
+        "refs": ["ASK-3"],
+        "detail": {"to": "peery", "attempts": 3},
+    }
     st_e = ask_state.state_of("s", "ASK-2", log=_StubLog([echo, dead]))
     st_d = ask_state.state_of("s", "ASK-3", log=_StubLog([echo, dead]))
     assert st_e["state"] == "CLOSED.ECHO" and st_e["terminal"] is True
@@ -193,6 +218,7 @@ def test_echo_and_dead_from_terminal_events():
 
 
 # --- P8: UNKNOWN -- no record, no evidence: terminal, and it says so ---
+
 
 @needs_built
 @needs_live
@@ -205,9 +231,11 @@ def test_unknown_never_guesses(pair):
 
 # --- P9: the door is wired ---
 
+
 def test_door_wired():
     cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
     # The ASK parser specifically -- a bare '"--status"' grep matched other verbs' flags
     # and made this pin green before the build, which is no pin at all.
-    assert 'ask_p.add_argument("--status"' in cli and 'ask_p.add_argument("--as"' in cli, \
+    assert 'ask_p.add_argument("--status"' in cli and 'ask_p.add_argument("--as"' in cli, (
         "ask --status <id> --as <sender> renders the state row"
+    )

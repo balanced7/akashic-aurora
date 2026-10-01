@@ -34,6 +34,7 @@ Run:  py scripts/bifrost_runner_sol.py --agentic --allow-write --allow-exec     
       py scripts/bifrost_runner_sol.py --agentic --once                           # smoke: one wake
 Key:  env OPENAI_API_KEY else .secrets/openai.key (same provider convention as ask_gpt.py).
 """
+
 import argparse
 import json
 import os
@@ -74,8 +75,18 @@ from core.comm import self_restart
 from core.comm import context_hints
 from core.comm.timescale import scaled as _scaled
 
-from sol_chat import (SOL, DEFAULT_MODEL, DEFAULT_EFFORT, DEFAULT_VERBOSITY, EFFORTS,
-                      VERBOSITIES, MAX_OUTPUT_TOKENS, SolAgent, SolTransport, load_key)
+from sol_chat import (
+    SOL,
+    DEFAULT_MODEL,
+    DEFAULT_EFFORT,
+    DEFAULT_VERBOSITY,
+    EFFORTS,
+    VERBOSITIES,
+    MAX_OUTPUT_TOKENS,
+    SolAgent,
+    SolTransport,
+    load_key,
+)
 
 CARD = {
     "runtime_class": "api",
@@ -87,23 +98,21 @@ CARD = {
 # 'steer' deliberately NOT answerable (folds via inject); 'reply' NOT answerable (echo-loop guard).
 ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
 
-REPLY_TIMEOUT_SEC = _scaled(600)   # 10 min wall-clock; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
+REPLY_TIMEOUT_SEC = _scaled(600)  # 10 min wall-clock; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
 SOL_MAX_HOPS = int(os.getenv("SOL_MAX_HOPS", "30"))
 
-DEFAULT_SYSTEM = ("You are Sol (gpt-5.6-sol), operating as an agentic technical partner on "
-                  "Akashic Aurora -- the third frontier seat beside claude (Fable) and deepseek. "
-                  "You are reached over a shared message bus; each reply posts back to the sender, "
-                  "so make it self-contained.")
+DEFAULT_SYSTEM = (
+    "You are Sol (gpt-5.6-sol), operating as an agentic technical partner on "
+    "Akashic Aurora -- the third frontier seat beside claude (Fable) and deepseek. "
+    "You are reached over a shared message bus; each reply posts back to the sender, "
+    "so make it self-contained."
+)
 
 
 def source_is_ignored(meta, args) -> bool:
     """Return whether a dedicated bridge owns this message's ingress source."""
     source = str((meta or {}).get("source") or "").strip().lower()
-    ignored = {
-        str(value).strip().lower()
-        for value in getattr(args, "ignore_source", [])
-        if str(value).strip()
-    }
+    ignored = {str(value).strip().lower() for value in getattr(args, "ignore_source", []) if str(value).strip()}
     return bool(source and source in ignored)
 
 
@@ -113,6 +122,7 @@ def take_drain_request(agent: str):
     if request:
         control.clear_drain(agent)
     return request
+
 
 # RB-27a: tenure fencing generation (one-slot mutable so closures see main()'s value).
 PULSE_GEN = [0]
@@ -145,6 +155,7 @@ def _reply_already_sent(bus, mid) -> bool:
         pass
     try:
         from core.foundation.store import create_store
+
         return bool(create_store().get(f"reply_sent:{mid}"))
     except Exception:
         return False
@@ -158,6 +169,7 @@ def _mark_reply_sent(bus, mid) -> None:
         pass
     try:
         from core.foundation.store import create_store
+
         store = create_store()
         store.set(f"reply_sent:{mid}", "1")
         store.expire(f"reply_sent:{mid}", REPLY_TIMEOUT_SEC + 60)
@@ -178,20 +190,19 @@ def _killpoint(name: str) -> None:
 
 # ---- onboarding (the same boot door every citizen walks; THIS is what the ergonomics walk assesses)
 
+
 def _trim_onboarding(digest: str, budget_chars: int) -> str:
     """T050 Q2 / T043 packet law: never silently truncate -- cut at budget, NAME every dropped
     section with a pull pointer.
-    
+
     T120 F2 (07-28, deepseek): the contour names total sections, how many were dropped,
     and the budget constraint so the agent can gauge the severity of the cut — not just
     which sections are gone."""
     if len(digest) <= budget_chars:
         return digest
     head, tail = digest[:budget_chars], digest[budget_chars:]
-    all_sections = [ln.strip().lstrip("#").strip() for ln in digest.splitlines()
-                    if ln.strip().startswith("##")]
-    dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines()
-               if ln.strip().startswith("##")]
+    all_sections = [ln.strip().lstrip("#").strip() for ln in digest.splitlines() if ln.strip().startswith("##")]
+    dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines() if ln.strip().startswith("##")]
     n_total = len(all_sections)
     n_dropped = len(dropped)
     n_kept = n_total - n_dropped
@@ -202,29 +213,36 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
     named = "; ".join(distinct[:8]) if distinct else "tail content (cut mid-section)"
     more = f" (+{len(distinct) - 8} more distinct)" if len(distinct) > 8 else ""
     contour = f"{n_kept}/{n_total} sections kept"
-    return (head.rstrip()
-            + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget "
-              f"({contour}). DROPPED: {named}{more}. "
-              f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
-              f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
+    return (
+        head.rstrip() + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget "
+        f"({contour}). DROPPED: {named}{more}. "
+        f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
+        f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]"
+    )
 
 
-def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000,
-                       door_detail: str = "") -> str:
+def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000, door_detail: str = "") -> str:
     """Pull the project's startup briefing ONCE at boot (the same agent_cli.py boot door a human
     agent runs) and fold a TRIMMED digest into the system prompt. Never raises; '' on failure."""
     import subprocess
     import tempfile
+
     env = dict(os.environ)
     env["AKASHIC_SEAT_DOOR"] = "toolbox"
     if door_detail:
         env["AKASHIC_SEAT_DOOR_DETAIL"] = door_detail
     sources_file = os.path.join(tempfile.gettempdir(), f"boot_sources_{agent_id}_{os.getpid()}.json")
     try:
-        p = subprocess.run([sys.executable, "agent_cli.py", "boot", agent_id, "--task", task,
-                            "--sources-json", sources_file],
-                           cwd=str(root), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=90, env=env)
+        p = subprocess.run(
+            [sys.executable, "agent_cli.py", "boot", agent_id, "--task", task, "--sources-json", sources_file],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=90,
+            env=env,
+        )
         digest = (p.stdout or "").strip()
     except Exception:
         return ""
@@ -241,18 +259,21 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     try:
         # T050 Q1: the agent's PRIVATE notes-to-self ride every boot (post-trim: small, never cut).
         from core.learning.agent_memory import get_agent_memory
+
         pref = f"scratch:{agent_id}:"
-        notes = [d for d in get_agent_memory().get_decisions(days=365)
-                 if str(d.title).startswith(pref) and not d.superseded][:8]
+        notes = [
+            d for d in get_agent_memory().get_decisions(days=365) if str(d.title).startswith(pref) and not d.superseded
+        ][:8]
         if notes:
             digest += "\n\n## YOUR PRIVATE NOTES (yours alone; memory_note updates, memory_recall lists)\n"
-            digest += "\n".join(f"- {d.title[len(pref):]}: {str(d.decision)[:160]}" for d in notes)
+            digest += "\n".join(f"- {d.title[len(pref) :]}: {str(d.decision)[:160]}" for d in notes)
     except Exception:
         pass
     return digest
 
 
 # ---- RB-23 quality gates (hardening slice 2; reused genus-level) -----------------------------
+
 
 def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
     """T018 promise bounce + RB-23 content floor before any reply ships. Reused from
@@ -266,30 +287,52 @@ def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
         print(f"[sol-runner] RB-23 gates unavailable ({type(e).__name__}: {e}) -- shipping ungated")
         return answer
     if pulse is None:
+
         def pulse(agent, reason, **kw):
             liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+
     pre = answer
     answer = bounce_promise(answer, resend)
-    return content_floor_check(answer, resend, agent_id=agent_id,
-                               promise_bounce_fired=(answer is not pre), pulse=pulse)
+    return content_floor_check(answer, resend, agent_id=agent_id, promise_bounce_fired=(answer is not pre), pulse=pulse)
 
 
 # ---- the sol responder (SolAgent + guarded ToolBox) ------------------------------------------
 
-def make_sol_replier(model: str, system: str, effort: str, verbosity: str, service_tier,
-                     root: Path, agent_id: str, allow_write: bool = False,
-                     allow_exec: bool = False, boot_sources=None):
+
+def make_sol_replier(
+    model: str,
+    system: str,
+    effort: str,
+    verbosity: str,
+    service_tier,
+    root: Path,
+    agent_id: str,
+    allow_write: bool = False,
+    allow_exec: bool = False,
+    boot_sources=None,
+):
     """Tool-using bridge: Sol reads files, searches, inspects git, and queries the knowledge base
     WHILE composing its reply. Per-peer SolAgent conversations for continuity."""
-    import deepseek_chat as dc   # [shared-seam] the guarded ToolBox ONLY -- see module docstring
+    import deepseek_chat as dc  # [shared-seam] the guarded ToolBox ONLY -- see module docstring
+
     # T050 Q3+Q4: capabilities declared UP FRONT -- no hop wasted discovering what a session can do.
-    system = (f"[session capabilities] write_mode: "
-              f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
-              f" | tool budget: {SOL_MAX_HOPS} hops per task, running counter [hop N] rides every result"
-              f" | reasoning effort: {effort} | recall-at: off\n" + system)
-    toolbox = dc.ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
-                         confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write,
-                         boot_text=system, boot_sources=boot_sources)
+    system = (
+        f"[session capabilities] write_mode: "
+        f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
+        f" | tool budget: {SOL_MAX_HOPS} hops per task, running counter [hop N] rides every result"
+        f" | reasoning effort: {effort} | recall-at: off\n" + system
+    )
+    toolbox = dc.ToolBox(
+        root,
+        allow_exec=allow_exec,
+        trust=allow_exec,
+        allow_secrets=False,
+        confirm=lambda _p: False,
+        agent_id=agent_id,
+        allow_write=allow_write,
+        boot_text=system,
+        boot_sources=boot_sources,
+    )
 
     _wl = liveness.worklive(agent_id)
 
@@ -304,9 +347,11 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
         prefix = "🔧" if kind == "tool" else "💭"
         liveness.pulse(agent_id, f"{kind}:{str(text)[:60]}", generation=PULSE_GEN[0])
         try:
-            trace_bus.broadcast("trace", f"{prefix} {text}",
-                                meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind,
-                                      "display_only": True})
+            trace_bus.broadcast(
+                "trace",
+                f"{prefix} {text}",
+                meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True},
+            )
         except Exception:
             pass
 
@@ -324,12 +369,24 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
     def respond(frm: str, prompt: str) -> str:
         ag = convos.get(frm)
         if ag is None:
-            transport = SolTransport(model=model, effort=effort, verbosity=verbosity,
-                                     max_output_tokens=MAX_OUTPUT_TOKENS,
-                                     service_tier=service_tier)
-            ag = SolAgent(transport, instructions=system, tools_schemas=dc.TOOLS,
-                          dispatch=_dispatch, interrupt=interrupt, inject=inject,
-                          on_trace=on_trace, on_activity=on_activity, max_hops=SOL_MAX_HOPS)
+            transport = SolTransport(
+                model=model,
+                effort=effort,
+                verbosity=verbosity,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
+                service_tier=service_tier,
+            )
+            ag = SolAgent(
+                transport,
+                instructions=system,
+                tools_schemas=dc.TOOLS,
+                dispatch=_dispatch,
+                interrupt=interrupt,
+                inject=inject,
+                on_trace=on_trace,
+                on_activity=on_activity,
+                max_hops=SOL_MAX_HOPS,
+            )
             convos[frm] = ag
         try:
             hints = context_hints.drain(agent_id)
@@ -348,7 +405,7 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
             answer = f"(sol agentic runner error: {type(e).__name__}: {e})"
         answer = _rb23_gates(answer, ag.send, agent_id)
         try:
-            toolbox.release_written_locks()   # T048: task end = lock end
+            toolbox.release_written_locks()  # T048: task end = lock end
         except Exception:
             pass
         return answer or "(sol produced no final answer)"
@@ -356,15 +413,16 @@ def make_sol_replier(model: str, system: str, effort: str, verbosity: str, servi
     return respond
 
 
-def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, service_tier,
-                          agent_id: str = "sol"):
+def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, service_tier, agent_id: str = "sol"):
     """One-shot bridge: each message -> one Responses completion -> reply. Fast, toolless."""
-    transport = SolTransport(model=model, effort=effort, verbosity=verbosity,
-                             max_output_tokens=MAX_OUTPUT_TOKENS, service_tier=service_tier)
+    transport = SolTransport(
+        model=model, effort=effort, verbosity=verbosity, max_output_tokens=MAX_OUTPUT_TOKENS, service_tier=service_tier
+    )
 
     def _one(prompt: str) -> str:
         text, _calls, reasoning, _items = SolTransport.extract(
-            transport.respond(system, [{"role": "user", "content": prompt}]))
+            transport.respond(system, [{"role": "user", "content": prompt}])
+        )
         return text or "(sol produced no final answer)"
 
     def respond(prompt: str) -> str:
@@ -381,6 +439,7 @@ def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, 
 
 
 # ---- consume-to-commit pipeline (spec section 1; per-message) --------------------------------
+
 
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process ONE incoming message: filter chain, model turn, reply, sentinel.
@@ -400,8 +459,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
     if str(m.kind) == "hint":
         meta = m.meta or {}
         hint_data = meta.get("hint") or {}
-        ok = context_hints.push(args.agent, hint_data.get("key", "?"),
-                                hint_data.get("value", "?"), from_agent=m.frm)
+        ok = context_hints.push(args.agent, hint_data.get("key", "?"), hint_data.get("value", "?"), from_agent=m.frm)
         if ok:
             cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
             print(f"[sol-runner] hint accepted ({hint_data.get('key', '?')}) from {m.frm}")
@@ -434,26 +492,36 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [7] hop-count loop guard
     hops = control.next_hops(m.meta)
     if control.hops_exceeded(m.meta):
-        bus.send(m.frm, "note",
-                 f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         print(f"[sol-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
         return
 
     # [8] rate-limit backstop
     if not rate.allow():
         control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent, ttl=3600)
-        bus.send(m.frm, "note",
-                 "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h).",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h).",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         print("[sol-runner] rate limit -> auto-paused (ttl 1h)")
         return
 
     # [9] nudge / halt handling
     if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
         nudge.clear(args.agent)
-        bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            "[nudge ack] interrupting current work to look at this now.",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         cog.record_human_interjection(args.agent)
         print(f"[sol-runner] nudge from {m.frm} -> acked + cleared")
     if control.is_halted(args.agent) and str(m.kind) != "nudge":
@@ -511,7 +579,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         dest = "*(broadcast)"
     else:
         if reply_kind == "reply":
-            bus.send_reply(m.frm, out, meta=reply_meta)   # T066: lane-first, meta.reply_id
+            bus.send_reply(m.frm, out, meta=reply_meta)  # T066: lane-first, meta.reply_id
         else:
             bus.send(m.frm, reply_kind, out, meta=reply_meta)
         dest = m.frm
@@ -523,11 +591,13 @@ def _process_one(m, bus, args, responder, rate) -> None:
     _mark_reply_sent(bus, m.id)
 
     # [16] P6 handoff auto-ack -- RB-29: timeout/error answers never ack
-    answered_ok = (finished and result_holder and not isinstance(result_holder[0], Exception)
-                   and not out.startswith("(sol"))
+    answered_ok = (
+        finished and result_holder and not isinstance(result_holder[0], Exception) and not out.startswith("(sol")
+    )
     if str(m.kind) == "handoff" and answered_ok:
         try:
             from core.comm.promoter import ack as _ack
+
             _ack(args.agent, m.id, note="answered on the bus")
             print(f"[sol-runner] acked handoff {m.id}")
         except Exception:
@@ -536,20 +606,22 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [17] turn metrics
     try:
         cog.record_turn_complete(args.agent)
-        outcome = ("timeout" if not finished
-                   else "error" if nonanswer
-                   else "ok")
+        outcome = "timeout" if not finished else "error" if nonanswer else "ok"
         toks = _token_deltas.pop(m.frm, None)
-        _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
-                   progress_points=_tm.take_pulse_count(args.agent),
-                   outcome=outcome, prompt_len=len(str(m.content)),
-                   tokens=({"prompt": toks[0], "completion": toks[1]} if toks else None))
+        _tm.record(
+            args.agent,
+            str(m.kind),
+            duration_s=time.time() - turn_t0,
+            progress_points=_tm.take_pulse_count(args.agent),
+            outcome=outcome,
+            prompt_len=len(str(m.content)),
+            tokens=({"prompt": toks[0], "completion": toks[1]} if toks else None),
+        )
         _RUN_STATS["turns"] += 1
         # T078 W1: record to the daily journal. This call did not exist -- main() opened a
         # journal, printed its reading, and never wrote to it, so the meter was decorative.
         if _token_journal is not None and toks:
-            _token_journal.add_turn(prompt=toks[0], completion=toks[1],
-                                    model=getattr(args, "model", ""))
+            _token_journal.add_turn(prompt=toks[0], completion=toks[1], model=getattr(args, "model", ""))
     except Exception:
         pass
 
@@ -561,11 +633,11 @@ def _process_one(m, bus, args, responder, rate) -> None:
 
 # ---- exit summary + continuity (M1-delta; hardening slice 1) ----------------------------------
 
+
 def default_summary_path(agent_id: str) -> str:
     """The CONVENTIONAL per-agent exit-summary path. Writer (exit) and reader (next boot)
     both default here, so session-2+ continuity needs zero launcher choreography."""
-    return os.path.join(os.path.dirname(HERE), "state", "runner",
-                        f"{agent_id}-exit-summary.json")
+    return os.path.join(os.path.dirname(HERE), "state", "runner", f"{agent_id}-exit-summary.json")
 
 
 def read_prior_summary(path: str) -> dict:
@@ -592,12 +664,14 @@ def continuity_header(prior: dict) -> str:
     except Exception:
         pass
     err = prior.get("last_error")
-    return (f"## RUNNER CONTINUITY (session {n}; automatic)\n"
-            f"Your last run: exit={prior.get('exit_code')} turns={prior.get('turns')} "
-            f"verdict={prior.get('verdict', '?')}{age}."
-            + (f" Last error: {err}." if err else "")
-            + " If that exit was abnormal, re-verify anything it claimed before building on "
-              "it -- the ledger and notes beat your memory of the run.\n")
+    return (
+        f"## RUNNER CONTINUITY (session {n}; automatic)\n"
+        f"Your last run: exit={prior.get('exit_code')} turns={prior.get('turns')} "
+        f"verdict={prior.get('verdict', '?')}{age}."
+        + (f" Last error: {err}." if err else "")
+        + " If that exit was abnormal, re-verify anything it claimed before building on "
+        "it -- the ledger and notes beat your memory of the run.\n"
+    )
 
 
 def _write_exit_summary(path, exit_code, session=1):
@@ -606,16 +680,23 @@ def _write_exit_summary(path, exit_code, session=1):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({"exit_code": exit_code, "turns": _RUN_STATS["turns"],
-                       "last_error": _RUN_STATS["last_error"] or None,
-                       "verdict": "ok" if exit_code == 0 else "abnormal",
-                       "session": session,
-                       "timestamp": time.time()}, f)
+            json.dump(
+                {
+                    "exit_code": exit_code,
+                    "turns": _RUN_STATS["turns"],
+                    "last_error": _RUN_STATS["last_error"] or None,
+                    "verdict": "ok" if exit_code == 0 else "abnormal",
+                    "session": session,
+                    "timestamp": time.time(),
+                },
+                f,
+            )
     except Exception:
         pass
 
 
 # ---- main ---------------------------------------------------------------------------------------
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Extracted from main() so offline pins can construct/parse args without launching."""
@@ -623,19 +704,30 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--agent", default="sol")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default=DEFAULT_SYSTEM)
-    ap.add_argument("--effort", default=DEFAULT_EFFORT, choices=list(EFFORTS),
-                    help="reasoning effort ladder (sol's --think analog; default medium)")
+    ap.add_argument(
+        "--effort",
+        default=DEFAULT_EFFORT,
+        choices=list(EFFORTS),
+        help="reasoning effort ladder (sol's --think analog; default medium)",
+    )
     ap.add_argument("--verbosity", default=DEFAULT_VERBOSITY, choices=list(VERBOSITIES))
-    ap.add_argument("--service-tier", default=None, dest="service_tier",
-                    choices=[None, "default", "flex"], help="flex = cost lever for non-urgent lanes")
-    ap.add_argument("--agentic", action="store_true",
-                    help="give Sol tools (read files/search/git/knowledge base) while it replies")
-    ap.add_argument("--root", default=os.path.dirname(HERE),
-                    help="file-access root for --agentic (default: the repo)")
-    ap.add_argument("--allow-write", action="store_true",
-                    help="guarded write_file/edit_file doors (path-scoped, secret-blocked)")
-    ap.add_argument("--allow-exec", action="store_true",
-                    help="run_command door (families-only under trust; see security/acl.json)")
+    ap.add_argument(
+        "--service-tier",
+        default=None,
+        dest="service_tier",
+        choices=[None, "default", "flex"],
+        help="flex = cost lever for non-urgent lanes",
+    )
+    ap.add_argument(
+        "--agentic", action="store_true", help="give Sol tools (read files/search/git/knowledge base) while it replies"
+    )
+    ap.add_argument("--root", default=os.path.dirname(HERE), help="file-access root for --agentic (default: the repo)")
+    ap.add_argument(
+        "--allow-write", action="store_true", help="guarded write_file/edit_file doors (path-scoped, secret-blocked)"
+    )
+    ap.add_argument(
+        "--allow-exec", action="store_true", help="run_command door (families-only under trust; see security/acl.json)"
+    )
     ap.add_argument(
         "--ignore-source",
         action="append",
@@ -646,16 +738,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument("--once", action="store_true", help="process one wake then exit (smoke)")
-    ap.add_argument("--summary-file", default=None, dest="summary_file",
-                    help="exit-summary json (default: state/runner/<agent>-exit-summary.json)")
-    ap.add_argument("--inject-summary", default=None, dest="inject_summary",
-                    help="prior-run summary to fold (default: the conventional path if present)")
+    ap.add_argument(
+        "--summary-file",
+        default=None,
+        dest="summary_file",
+        help="exit-summary json (default: state/runner/<agent>-exit-summary.json)",
+    )
+    ap.add_argument(
+        "--inject-summary",
+        default=None,
+        dest="inject_summary",
+        help="prior-run summary to fold (default: the conventional path if present)",
+    )
     return ap
 
 
 def main() -> int:
     try:
-        from core.foundation.streams import self_bless_stdout   # RB-28: utf-8 + line-buffered
+        from core.foundation.streams import self_bless_stdout  # RB-28: utf-8 + line-buffered
+
         self_bless_stdout()
     except Exception:
         pass
@@ -664,6 +765,7 @@ def main() -> int:
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
     from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
+
     set_seat_agent(args.agent)
     # Hardening slice 1: continuity is AUTOMATIC -- explicit flags stay as overrides.
     if args.summary_file is None:
@@ -683,13 +785,19 @@ def main() -> int:
     if not os.environ.get("AKASHIC_DRILL_ECHO"):
         try:
             from core.trust.registry import may_run_runner
+
             if not may_run_runner(args.agent):
-                print(f"bifrost_runner_sol: '{args.agent}' is quarantined (deny-by-default) -- "
-                      f"refusing to start. A super-admin must grant it a role in security/acl.json.")
+                print(
+                    f"bifrost_runner_sol: '{args.agent}' is quarantined (deny-by-default) -- "
+                    f"refusing to start. A super-admin must grant it a role in security/acl.json."
+                )
                 return 3
         except Exception as e:
-            print(f"[sol-runner] may_run_runner check skipped ({type(e).__name__}) -- "
-                  f"guard NOT active for '{args.agent}'", file=sys.stderr)
+            print(
+                f"[sol-runner] may_run_runner check skipped ({type(e).__name__}) -- "
+                f"guard NOT active for '{args.agent}'",
+                file=sys.stderr,
+            )
 
     # Singleton: at most ONE runner per agent id (two runners share one read-cursor and race).
     lock_token = runner_lock.instance_token(args.agent)
@@ -697,8 +805,10 @@ def main() -> int:
         h = runner_lock.holder(args.agent) or {}
         tok = str(h.get("token", ""))
         if tok.startswith("session:"):
-            print(f"bifrost_runner_sol: a session '{tok}' holds the consumer seat for "
-                  f"'{args.agent}' (since {h.get('ts')}). Wind it down or wait for TTL.")
+            print(
+                f"bifrost_runner_sol: a session '{tok}' holds the consumer seat for "
+                f"'{args.agent}' (since {h.get('ts')}). Wind it down or wait for TTL."
+            )
         else:
             print(f"bifrost_runner_sol: another '{args.agent}' runner is live (pid {h.get('pid')}).")
         return 3
@@ -711,10 +821,13 @@ def main() -> int:
 
     try:
         from scripts.runner_token_journal import TokenJournal
+
         global _token_journal
         _token_journal = TokenJournal(args.agent)
-        print(f"[sol-runner] token journal: {_token_journal.turns} turns, "
-              f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today")
+        print(
+            f"[sol-runner] token journal: {_token_journal.turns} turns, "
+            f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today"
+        )
     except Exception:
         journal = None
 
@@ -722,38 +835,55 @@ def main() -> int:
     header = continuity_header(prior)
     base_system = (header + "\n" + args.system) if header else args.system
     if header:
-        print(f"[sol-runner] continuity: session {session_n} "
-              f"(prior exit={prior.get('exit_code')}, turns={prior.get('turns')})")
+        print(
+            f"[sol-runner] continuity: session {session_n} "
+            f"(prior exit={prior.get('exit_code')}, turns={prior.get('turns')})"
+        )
 
     if args.agentic:
         root = Path(args.root).resolve()
         system = base_system
-        import deepseek_chat as dc   # [shared-seam] tool count for the boot transport line only
-        door_detail = (f"{len(dc.TOOLS)} tools, write={'on' if args.allow_write else 'off'}, "
-                       f"exec={'on' if args.allow_exec else 'off'}")
-        onboard = onboarding_context(root, args.agent,
-                                     "Live Bifrost session: third frontier seat, collaborating "
-                                     "with claude and deepseek on Akashic Aurora over the shared bus.",
-                                     door_detail=door_detail)
+        import deepseek_chat as dc  # [shared-seam] tool count for the boot transport line only
+
+        door_detail = (
+            f"{len(dc.TOOLS)} tools, write={'on' if args.allow_write else 'off'}, "
+            f"exec={'on' if args.allow_exec else 'off'}"
+        )
+        onboard = onboarding_context(
+            root,
+            args.agent,
+            "Live Bifrost session: third frontier seat, collaborating "
+            "with claude and deepseek on Akashic Aurora over the shared bus.",
+            door_detail=door_detail,
+        )
         boot_sources = getattr(onboarding_context, "_last_sources", None)
         if boot_sources:
             print(f"[sol-runner] boot sources from sidecar: {len(boot_sources)} entries")
         if onboard:
-            system += ("\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor "
-                       "the AGENTS.md contract) ===\n" + onboard)
+            system += (
+                "\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor "
+                "the AGENTS.md contract) ===\n" + onboard
+            )
             print(f"[sol-runner] onboarded via boot ({len(onboard)} chars folded into system prompt)")
         else:
             print("[sol-runner] onboarding skipped (boot returned nothing; check agent_cli.py boot)")
-        responder = make_sol_replier(args.model, system, args.effort, args.verbosity,
-                                     args.service_tier, root, args.agent,
-                                     allow_write=args.allow_write, allow_exec=args.allow_exec,
-                                     boot_sources=boot_sources)
-        mode = (f"agentic tools @ {root}{' +write' if args.allow_write else ''}"
-                f"{' +exec' if args.allow_exec else ''}")
+        responder = make_sol_replier(
+            args.model,
+            system,
+            args.effort,
+            args.verbosity,
+            args.service_tier,
+            root,
+            args.agent,
+            allow_write=args.allow_write,
+            allow_exec=args.allow_exec,
+            boot_sources=boot_sources,
+        )
+        mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
     else:
-        responder = make_one_shot_replier(args.model, base_system, args.effort,
-                                          args.verbosity, args.service_tier,
-                                          agent_id=args.agent)
+        responder = make_one_shot_replier(
+            args.model, base_system, args.effort, args.verbosity, args.service_tier, agent_id=args.agent
+        )
         mode = "one-shot bridge"
 
     if os.environ.get("AKASHIC_DRILL_ECHO"):
@@ -765,10 +895,13 @@ def main() -> int:
     # RB-25 F2: a virgin cursor fast-forwards to the live tail (stale broadcast backlog is
     # HISTORY, not directive); an established runner keeps draining its real backlog.
     if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
-        print(f"[sol-runner] {args.agent} is new -- cursor seeded at the live tail "
-              f"(stale broadcast backlog skipped; only new mail wakes it)")
+        print(
+            f"[sol-runner] {args.agent} is new -- cursor seeded at the live tail "
+            f"(stale broadcast backlog skipped; only new mail wakes it)"
+        )
 
     from core.coord import cognitive_metrics as cog
+
     cog.init(args.agent)
     rate = control.RateLimiter()
 
@@ -787,8 +920,7 @@ def main() -> int:
                 # T147: the roster reads a PER-INCARNATION key; the worklive refresh above writes the
                 # BARE one. Without this beat a live runner renders DEAD and reaper._provably_dead()
                 # agrees -- and roster.py:9 calls the roster "the reaper's only sensor".
-                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent,
-                                 seat_sid, phase="running")
+                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent, seat_sid, phase="running")
             except Exception:
                 pass
 
@@ -796,6 +928,7 @@ def main() -> int:
     hb_thread.start()
 
     from core.comm.bifrost_api import BifrostAPI
+
     lane_mode = BifrostAPI.consume_lane_enabled()
     lane_key = bus.lane_cursor_key() if lane_mode else None
     api = BifrostAPI(args.agent) if lane_mode else None
@@ -807,8 +940,10 @@ def main() -> int:
     lock_gen = runner_lock.generation_of(lock_token)
     PULSE_GEN[0] = lock_gen
     liveness.worklive(args.agent).set("idle")
-    print(f"[sol-runner] {args.agent} online (model={args.model}, effort={args.effort}, "
-          f"verbosity={args.verbosity}, {mode}, max_hops={SOL_MAX_HOPS}). Waiting for messages...")
+    print(
+        f"[sol-runner] {args.agent} online (model={args.model}, effort={args.effort}, "
+        f"verbosity={args.verbosity}, {mode}, max_hops={SOL_MAX_HOPS}). Waiting for messages..."
+    )
 
     exit_code = 0
     bus_guard = liveness.BusLossGuard(max_dead=10)
@@ -820,8 +955,7 @@ def main() -> int:
                 exit_code = 4
                 break
             if verdict == "degraded":
-                print(f"[sol-runner] bus unreachable "
-                      f"(beat {bus_guard.dead_beats}/{bus_guard.max_dead})")
+                print(f"[sol-runner] bus unreachable (beat {bus_guard.dead_beats}/{bus_guard.max_dead})")
                 time.sleep(bus_guard.backoff_s)
                 continue
             if not runner_lock.heartbeat(args.agent, lock_token):
@@ -846,9 +980,11 @@ def main() -> int:
             # because an exception here would wedge every runner at once.
             _beat = _shift_turn.turn_beat(args.agent)
             if _beat.get("action") not in ("idle", "blocked"):
-                print(f"[sol-runner] shift: {_beat['action']}"
-                      + (f" {_beat['task']}" if _beat.get('task') else '')
-                      + f" -- {_beat.get('reason','')}")
+                print(
+                    f"[sol-runner] shift: {_beat['action']}"
+                    + (f" {_beat['task']}" if _beat.get("task") else "")
+                    + f" -- {_beat.get('reason', '')}"
+                )
             _sr = self_restart.maybe_self_restart(args.agent)
             if _sr:
                 print(f"[sol-runner] {_sr} -- exiting clean; the successor takes the lock.")
@@ -872,13 +1008,15 @@ def main() -> int:
                 try:
                     _process_one(m, bus, args, responder, rate)
                 except Exception as e:
-                    print(f"[sol-runner] !! unhandled error on message from {m.frm}: "
-                          f"{type(e).__name__}: {e}")
+                    print(f"[sol-runner] !! unhandled error on message from {m.frm}: {type(e).__name__}: {e}")
                     liveness.pulse_error(args.agent, f"{type(e).__name__}: {e}", generation=lock_gen)
                     try:
-                        bus.send(m.frm, "note",
-                                 f"[error] sol runner hit an unhandled error: {type(e).__name__}: {e}",
-                                 meta={"via": f"{args.agent}-runner"})
+                        bus.send(
+                            m.frm,
+                            "note",
+                            f"[error] sol runner hit an unhandled error: {type(e).__name__}: {e}",
+                            meta={"via": f"{args.agent}-runner"},
+                        )
                     except Exception:
                         pass
                 _killpoint("post-sentinel-pre-advance")
@@ -898,8 +1036,9 @@ def main() -> int:
 
             # Batch sweep: advance to the batch tail (idempotent when nothing moved).
             if batch_next and (batch_next.get("inbox") or batch_next.get("bc")):
-                status = bus.advance_to(inbox=batch_next.get("inbox"), bc=batch_next.get("bc"),
-                                        generation=lock_gen, cursor_key=lane_key)
+                status = bus.advance_to(
+                    inbox=batch_next.get("inbox"), bc=batch_next.get("bc"), generation=lock_gen, cursor_key=lane_key
+                )
                 if status == "STALE_GENERATION":
                     print("[sol-runner] batch-sweep REFUSED -- standing down.")
                     break

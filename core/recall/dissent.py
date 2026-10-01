@@ -38,6 +38,7 @@ not a cleverer reader. Deterministic lexical matching cannot detect semantically
 (genuine conflicts often score cosine ~0.05, lexically invisible); that recall ceiling is deferred to
 a later semantic tier, not faked here.
 """
+
 from __future__ import annotations
 
 import math
@@ -48,17 +49,88 @@ _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Generic English/dev tokens carry no topic signal and cause spurious collisions; never weigh them.
 # (A stoplist can't fix DOMAIN-token collisions like store/test/path — that is why the gate is
 # IDF-WEIGHTED cosine, not a token-count threshold: common tokens get near-zero weight by construction.)
-_STOP = {"the", "and", "for", "with", "this", "that", "use", "using", "via", "from", "into", "not",
-         "but", "than", "them", "they", "should", "must", "every", "each", "only", "same", "make",
-         "here", "there", "also", "still", "like", "just", "then", "when", "what", "will", "been",
-         "have", "does", "both", "else", "such", "more", "most", "very", "able", "keep", "gave",
-         "over", "under", "onto", "need", "needs", "work", "works", "done", "next", "new", "old",
-         "now", "per", "add", "adds", "set", "sets", "get", "gets", "run", "runs", "way", "ways"}
+_STOP = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "use",
+    "using",
+    "via",
+    "from",
+    "into",
+    "not",
+    "but",
+    "than",
+    "them",
+    "they",
+    "should",
+    "must",
+    "every",
+    "each",
+    "only",
+    "same",
+    "make",
+    "here",
+    "there",
+    "also",
+    "still",
+    "like",
+    "just",
+    "then",
+    "when",
+    "what",
+    "will",
+    "been",
+    "have",
+    "does",
+    "both",
+    "else",
+    "such",
+    "more",
+    "most",
+    "very",
+    "able",
+    "keep",
+    "gave",
+    "over",
+    "under",
+    "onto",
+    "need",
+    "needs",
+    "work",
+    "works",
+    "done",
+    "next",
+    "new",
+    "old",
+    "now",
+    "per",
+    "add",
+    "adds",
+    "set",
+    "sets",
+    "get",
+    "gets",
+    "run",
+    "runs",
+    "way",
+    "ways",
+}
 
 # Explicit "this refutes that" relationship-type labels (from the relationship-type vocabulary). Present
 # for when the write-side (Slice 2) starts recording conflict links; harmless — just doesn't fire — until then.
-_CONTRADICT_RELS = {"contradicts", "refutes", "conflicts_with", "contradicted_by", "refuted_by",
-                    "disputes", "challenges"}
+_CONTRADICT_RELS = {
+    "contradicts",
+    "refutes",
+    "conflicts_with",
+    "contradicted_by",
+    "refuted_by",
+    "disputes",
+    "challenges",
+}
 
 # Topic-gate bar. Empirically, generic-token collisions on the real corpus top out ~0.016; genuine
 # on-topic pairs clear this comfortably. Start strict (precision-first); loosen only with eval evidence.
@@ -116,13 +188,18 @@ def _stance(cand: Dict[str, Any]) -> Optional[str]:
     deterministic counter trigger is an author-declared contradicts/refutes link; genuine
     same-topic disagreement otherwise waits for the semantic tier."""
     if str(cand.get("relationship_type", "")).lower() in _CONTRADICT_RELS:
-        return "explicit_link"                      # author-declared contradiction (the one reliable signal)
+        return "explicit_link"  # author-declared contradiction (the one reliable signal)
     return None
 
 
-def find_counter(thesis: Dict[str, Any], candidates: Sequence[Dict[str, Any]], *,
-                 idf: Optional[Dict[str, float]] = None, n_docs: Optional[int] = None,
-                 min_cosine: float = MIN_COSINE) -> Optional[Dict[str, Any]]:
+def find_counter(
+    thesis: Dict[str, Any],
+    candidates: Sequence[Dict[str, Any]],
+    *,
+    idf: Optional[Dict[str, float]] = None,
+    n_docs: Optional[int] = None,
+    min_cosine: float = MIN_COSINE,
+) -> Optional[Dict[str, Any]]:
     """The strongest genuine counter to `thesis` among `candidates`, or None (silent).
 
     A candidate qualifies iff it carries an EXPLICIT stance signal (anti_pattern / contradicts-link)
@@ -141,17 +218,22 @@ def find_counter(thesis: Dict[str, Any], candidates: Sequence[Dict[str, Any]], *
         for c in cands:
             stance = _stance(c)
             if not stance:
-                continue                            # STANCE REQUIRED — never fire on topic/outcome alone
+                continue  # STANCE REQUIRED — never fire on topic/outcome alone
             cos = topic_cosine(t_tokens, _tokens(_text_of(c)), idf)
             if cos < min_cosine:
-                continue                            # TOPIC gate — kill generic-token collisions
+                continue  # TOPIC gate — kill generic-token collisions
             # weak corroboration: an opposite recorded outcome nudges strength, but is never a trigger
             opposite = _opposite_outcome(thesis, c)
             strength = cos + (0.05 if opposite else 0.0)
             if best is None or strength > best["strength"]:
-                best = {"source": c.get("source"), "text": _text_of(c), "kind": stance,
-                        "cosine": round(cos, 3), "strength": round(strength, 3),
-                        "corroborated_by_outcome": opposite}
+                best = {
+                    "source": c.get("source"),
+                    "text": _text_of(c),
+                    "kind": stance,
+                    "cosine": round(cos, 3),
+                    "strength": round(strength, 3),
+                    "corroborated_by_outcome": opposite,
+                }
         return best
     except Exception:
         return None

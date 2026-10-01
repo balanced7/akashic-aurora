@@ -1,4 +1,5 @@
 """Module manifests (arsenal.module/v0): what each module takes, gives and needs."""
+
 from __future__ import annotations
 
 import json
@@ -46,8 +47,12 @@ def validate_manifest(m: dict, source: str = "manifest") -> List[str]:
         rng = param.get("range")
         if not param.get("name") or not param.get("unit"):
             problems.append(f"{source}: a param needs a name and a unit")
-        if not (isinstance(rng, list) and len(rng) == 2 and all(isinstance(v, (int, float)) for v in rng)
-                and rng[0] < rng[1]):
+        if not (
+            isinstance(rng, list)
+            and len(rng) == 2
+            and all(isinstance(v, (int, float)) for v in rng)
+            and rng[0] < rng[1]
+        ):
             problems.append(f"{source}: param {param.get('name')!r} needs range [lo, hi] with lo < hi")
     return problems
 

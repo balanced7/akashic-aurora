@@ -14,6 +14,7 @@ whole point of the best-effort wrapping).
 Layering: this is narrative (System 4). It is bumped only from narrative-layer code -- the lower
 event/domain primitives must not depend upward on it, so their own failures stay in their logs.
 """
+
 from typing import Any, Dict, Optional
 
 HEALTH_KEY = "narr:health"

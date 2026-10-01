@@ -11,6 +11,7 @@ Tests the THREE fixes applied in T014 without needing an API key:
 
 Run: py -m pytest tests/test_bifrost_runner_deepseek.py -q
 """
+
 import os
 import sys
 import uuid
@@ -24,10 +25,11 @@ from bifrost_runner_deepseek import ANSWERABLE, should_answer
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -48,25 +50,24 @@ class TestReplyEchoGuard:
     """'reply' must NEVER be in ANSWERABLE — the anti-loop contract."""
 
     def test_reply_not_answerable(self):
-        assert "reply" not in ANSWERABLE, \
-            "'reply' kind must NOT be answerable — no runner↔runner echo loop"
+        assert "reply" not in ANSWERABLE, "'reply' kind must NOT be answerable — no runner↔runner echo loop"
 
     def test_should_answer_rejects_reply(self):
-        assert should_answer("reply", "claude", "deepseek") is False, \
+        assert should_answer("reply", "claude", "deepseek") is False, (
             "a reply from another agent must NOT trigger a reply (loop guard)"
+        )
 
     def test_own_echo_rejected(self):
-        assert should_answer("chat", "deepseek", "deepseek") is False, \
-            "own message must not trigger a reply"
+        assert should_answer("chat", "deepseek", "deepseek") is False, "own message must not trigger a reply"
 
     def test_answerable_kinds_accepted(self):
         for k in ("chat", "request", "question", "handoff", "nudge", "inform"):
-            assert should_answer(k, "claude", "deepseek") is True, \
-                f"kind '{k}' from another agent must be answerable"
+            assert should_answer(k, "claude", "deepseek") is True, f"kind '{k}' from another agent must be answerable"
 
     def test_steer_not_answerable(self):
-        assert should_answer("steer", "claude", "deepseek") is False, \
+        assert should_answer("steer", "claude", "deepseek") is False, (
             "'steer' is folded into current task, never triggers a standalone reply"
+        )
         assert "steer" not in ANSWERABLE
 
 
@@ -80,6 +81,7 @@ class TestDrainCursorSkipFix:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             alice = Bus("alice", c, namespace=ns)
             bob = Bus("bob", c, namespace=ns)
 
@@ -94,8 +96,7 @@ class TestDrainCursorSkipFix:
 
             # The remaining 2 MUST still be readable — this is the fix
             second = bob.inbox(limit=10, advance=True)
-            assert len(second) == 2, \
-                f"second drain returned {len(second)}, expected 2 (the cursor-skip regression)"
+            assert len(second) == 2, f"second drain returned {len(second)}, expected 2 (the cursor-skip regression)"
             assert [m.content for m in second] == ["m3", "m4"]
 
             # Third drain should be empty
@@ -109,6 +110,7 @@ class TestDrainCursorSkipFix:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             alice = Bus("alice", c, namespace=ns)
             bob = Bus("bob", c, namespace=ns)
             carol = Bus("carol", c, namespace=ns)
@@ -131,8 +133,7 @@ class TestDrainCursorSkipFix:
 
             # Remaining 3 must be readable
             rest = bob.inbox(limit=10, advance=True)
-            assert len(rest) == 3, \
-                f"expected 3 remaining after limit=2 drain, got {len(rest)} (cursor-skip regression)"
+            assert len(rest) == 3, f"expected 3 remaining after limit=2 drain, got {len(rest)} (cursor-skip regression)"
 
             empty = bob.inbox(limit=10, advance=True)
             assert empty == []
@@ -144,6 +145,7 @@ class TestDrainCursorSkipFix:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             alice = Bus("alice", c, namespace=ns)
             bob = Bus("bob", c, namespace=ns)
 
@@ -154,8 +156,7 @@ class TestDrainCursorSkipFix:
             peek1 = bob.inbox(limit=10, advance=False)
             assert len(peek1) == 2
             peek2 = bob.inbox(limit=10, advance=False)
-            assert len(peek2) == 2, \
-                "peek (advance=False) must not consume — cursor should not move"
+            assert len(peek2) == 2, "peek (advance=False) must not consume — cursor should not move"
 
             # Now consume
             got = bob.inbox(limit=10, advance=True)
@@ -169,6 +170,7 @@ class TestDrainCursorSkipFix:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             alice = Bus("alice", c, namespace=ns)
             bob = Bus("bob", c, namespace=ns)
 
@@ -185,10 +187,8 @@ class TestDrainCursorSkipFix:
                 else:
                     break
 
-            assert collected == ["p0", "p1", "p2", "p3"], \
-                f"limit=1 sequential drain lost messages: got {collected}"
-            assert bob.inbox(limit=10, advance=True) == [], \
-                "nothing left after draining all"
+            assert collected == ["p0", "p1", "p2", "p3"], f"limit=1 sequential drain lost messages: got {collected}"
+            assert bob.inbox(limit=10, advance=True) == [], "nothing left after draining all"
         finally:
             _cleanup(c, ns)
 
@@ -201,6 +201,7 @@ class TestDirectedReplyRouting:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             deepseek = Bus("deepseek", c, namespace=ns)
             claude = Bus("claude", c, namespace=ns)
             gemini = Bus("gemini", c, namespace=ns)
@@ -218,13 +219,11 @@ class TestDirectedReplyRouting:
 
             # Gemini must NOT see it
             gemini_msgs = gemini.inbox()
-            assert gemini_msgs == [], \
-                "a directed reply must NOT leak to a third agent"
+            assert gemini_msgs == [], "a directed reply must NOT leak to a third agent"
 
             # DeepSeek must NOT see its own sent message
             deepseek_msgs = deepseek.inbox()
-            assert deepseek_msgs == [], \
-                "a sender must not receive its own sent message"
+            assert deepseek_msgs == [], "a sender must not receive its own sent message"
         finally:
             _cleanup(c, ns)
 
@@ -233,6 +232,7 @@ class TestDirectedReplyRouting:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             deepseek = Bus("deepseek", c, namespace=ns)
             claude = Bus("claude", c, namespace=ns)
 
@@ -260,6 +260,7 @@ class TestDirectedReplyRouting:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             deepseek = Bus("deepseek", c, namespace=ns)
             claude = Bus("claude", c, namespace=ns)
             gemini = Bus("gemini", c, namespace=ns)
@@ -272,8 +273,7 @@ class TestDirectedReplyRouting:
             assert len(cl) == 1 and cl[0].kind == "reply"
             gm = gemini.inbox()
             assert len(gm) == 1 and gm[0].kind == "reply"
-            assert deepseek.inbox() == [], \
-                "sender must not receive its own broadcast"
+            assert deepseek.inbox() == [], "sender must not receive its own broadcast"
         finally:
             _cleanup(c, ns)
 
@@ -282,6 +282,7 @@ class TestDirectedReplyRouting:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             deepseek = Bus("deepseek", c, namespace=ns)
             gemini = Bus("gemini", c, namespace=ns)
             claude = Bus("claude", c, namespace=ns)
@@ -311,17 +312,19 @@ class TestFilteredAdvance:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             bob = Bus("bob", c, namespace=ns)
             alice = Bus("alice", c, namespace=ns)
             bob.broadcast("note", "own1")
             bob.broadcast("note", "own2")
             bob.broadcast("note", "own3")
             alice.send("bob", "chat", "for bob")
-            got = bob.inbox(limit=10, advance=True)   # 4 read, 1 deliverable, NO truncation
+            got = bob.inbox(limit=10, advance=True)  # 4 read, 1 deliverable, NO truncation
             assert [m.content for m in got] == ["for bob"]
             cur = c.hgetall(f"{ns}:cursor:bob")
-            assert cur.get("bc", "0") != "0", \
+            assert cur.get("bc", "0") != "0", (
                 "own-broadcast entries must advance the bc cursor when nothing was truncated"
+            )
             assert bob.inbox(limit=10, advance=True) == []
         finally:
             _cleanup(c, ns)
@@ -332,14 +335,15 @@ class TestFilteredAdvance:
         c, ns = _client(), _ns()
         try:
             from core.comm.bus import Bus
+
             bob = Bus("bob", c, namespace=ns)
             alice = Bus("alice", c, namespace=ns)
             alice.send("bob", "chat", "d1")
             bob.broadcast("note", "own-mid")
             alice.send("bob", "chat", "d2")
-            first = bob.inbox(limit=1, advance=True)          # truncation branch
+            first = bob.inbox(limit=1, advance=True)  # truncation branch
             assert [m.content for m in first] == ["d1"]
-            rest = bob.inbox(limit=10, advance=True)          # untruncated branch
+            rest = bob.inbox(limit=10, advance=True)  # untruncated branch
             assert [m.content for m in rest] == ["d2"], f"truncation tail lost: {rest}"
             assert bob.inbox(limit=10, advance=True) == []
         finally:

@@ -2,6 +2,7 @@
 
 The JS twin (arsenal/web/piano/nashville.js) runs the same fixture in tests/nashville_js.test.mjs.
 """
+
 import json
 import re
 import sys
@@ -20,8 +21,13 @@ CASES = FIXTURE["cases"]
 
 def number(case):
     opts = case["opts"]
-    return nv.nashville_from_name(case["chord"], case["key"], minor=opts.get("minor", "tonic"),
-                                  minor_mark=opts.get("minorMark", "m"), kind=opts.get("kind"))
+    return nv.nashville_from_name(
+        case["chord"],
+        case["key"],
+        minor=opts.get("minor", "tonic"),
+        minor_mark=opts.get("minorMark", "m"),
+        kind=opts.get("kind"),
+    )
 
 
 def test_fixture_is_broad():
@@ -32,7 +38,9 @@ def test_fixture_is_broad():
     assert any(c["opts"].get("minorMark") == "-" for c in CASES)
 
 
-@pytest.mark.parametrize("case", CASES, ids=[f"{i}:{c['chord']}@{c['key']}{json.dumps(c['opts'])}" for i, c in enumerate(CASES)])
+@pytest.mark.parametrize(
+    "case", CASES, ids=[f"{i}:{c['chord']}@{c['key']}{json.dumps(c['opts'])}" for i, c in enumerate(CASES)]
+)
 def test_fixture_case(case):
     got = number(case)
     assert (got and {"text": got["text"], "diatonic": got["diatonic"]}) == case["expected"]
@@ -40,14 +48,38 @@ def test_fixture_case(case):
 
 def test_result_shape():
     assert nv.nashville_from_name("G7/B", "C major") == {
-        "text": "5^7/7", "degree": 5, "acc": 0, "root": "5", "suffix": "7",
-        "bass": {"degree": 7, "acc": 0, "text": "7"}, "upper": None, "diatonic": True, "kind": "chord"}
+        "text": "5^7/7",
+        "degree": 5,
+        "acc": 0,
+        "root": "5",
+        "suffix": "7",
+        "bass": {"degree": 7, "acc": 0, "text": "7"},
+        "upper": None,
+        "diatonic": True,
+        "kind": "chord",
+    }
     assert nv.nashville_from_name("Bbm7b5", "C major") == {
-        "text": "b7ø7", "degree": 7, "acc": -1, "root": "b7", "suffix": "ø7",
-        "bass": None, "upper": None, "diatonic": False, "kind": "chord"}
+        "text": "b7ø7",
+        "degree": 7,
+        "acc": -1,
+        "root": "b7",
+        "suffix": "ø7",
+        "bass": None,
+        "upper": None,
+        "diatonic": False,
+        "kind": "chord",
+    }
     assert nv.nashville_from_name("F#-A", "C major") == {
-        "text": "#4-6", "degree": 4, "acc": 1, "root": "#4", "suffix": "", "bass": None,
-        "upper": {"degree": 6, "acc": 0, "text": "6"}, "diatonic": False, "kind": "interval"}
+        "text": "#4-6",
+        "degree": 4,
+        "acc": 1,
+        "root": "#4",
+        "suffix": "",
+        "bass": None,
+        "upper": {"degree": 6, "acc": 0, "text": "6"},
+        "diatonic": False,
+        "kind": "interval",
+    }
     assert nv.nashville_from_name("Eb4", "C major")["kind"] == "note"
 
 
@@ -77,10 +109,14 @@ def test_parse_key():
 def test_spell_in_key_twins_the_js():
     """spell_in_key reads a spelling the way the numbers do (nashville.js spellInKey, which piano.js uses to spell
     chord names in the shown key, returns the same values under the key inScale)."""
-    assert nv.spell_in_key((5, -1), "C# minor") == {"letter": 4, "acc": 1, "in_scale": True}                # Ab -> G#
+    assert nv.spell_in_key((5, -1), "C# minor") == {"letter": 4, "acc": 1, "in_scale": True}  # Ab -> G#
     assert nv.spell_in_key((0, 0), "C# minor", suffix="dim7") == {"letter": 6, "acc": 1, "in_scale": True}  # C -> B#
-    assert nv.spell_in_key((3, 1), "C major", suffix="") == {"letter": 4, "acc": -1, "in_scale": False}     # F# chord -> Gb
-    assert nv.spell_in_key((3, 1), "C major") == {"letter": 3, "acc": 1, "in_scale": False}                 # the note F#
+    assert nv.spell_in_key((3, 1), "C major", suffix="") == {
+        "letter": 4,
+        "acc": -1,
+        "in_scale": False,
+    }  # F# chord -> Gb
+    assert nv.spell_in_key((3, 1), "C major") == {"letter": 3, "acc": 1, "in_scale": False}  # the note F#
     assert nv.spell_in_key((0, 0), None) is None
 
 
@@ -98,7 +134,7 @@ def test_parse_chord():
 def test_every_template_suffix_has_a_family():
     """FAMILY covers exactly the suffixes piano.js's Theory.detect can produce (TEMPLATES plus the power chord)."""
     src = (ROOT / "arsenal" / "web" / "piano.js").read_text(encoding="utf-8")
-    block = src[src.index("const TEMPLATES = ["):src.index("];", src.index("const TEMPLATES = ["))]
+    block = src[src.index("const TEMPLATES = [") : src.index("];", src.index("const TEMPLATES = ["))]
     suffixes = set(re.findall(r'T\("([^"]*)"', block)) | {"5"}
     assert set(nv.FAMILY) == suffixes
     for suffix in suffixes:  # on the tonic of a major key only minor, diminished and augmented families are flagged
@@ -111,7 +147,7 @@ def test_tone_steps_are_the_templates_letter_steps():
     """A slash chord's bass is read from the chord's own tones: TONE_STEPS is piano.js Theory.detect's TEMPLATES
     (semitones above the root -> letter steps), except a dim7's 7th, a diminished 7th rather than detect's 6th."""
     src = (ROOT / "arsenal" / "web" / "piano.js").read_text(encoding="utf-8")
-    block = src[src.index("const TEMPLATES = ["):src.index("];", src.index("const TEMPLATES = ["))]
+    block = src[src.index("const TEMPLATES = [") : src.index("];", src.index("const TEMPLATES = ["))]
     want = {"5": {0: 0, 7: 4}}
     for suffix, tones in re.findall(r'T\("([^"]*)",\s*\[\[(.*?)\]\]', block):
         for semis, steps in re.findall(r"(\d+),\s*(\d+)", tones):
@@ -122,9 +158,19 @@ def test_tone_steps_are_the_templates_letter_steps():
 def test_a_slash_chords_bass_is_read_from_its_chord_not_its_letters():
     """piano.js spellForKey writes a bass that would need a double accidental as its plain twin: D#/G for D#/F## in
     C# minor. G is the chord's 3rd, so it reads #4 (as F##), not b5 (verifier, 2026-09-14)."""
-    assert nv.nashville_from_name("D#/G", "C# minor")["text"] == nv.nashville_from_name("D#/F##", "C# minor")["text"] == "2/#4"
-    assert nv.nashville_from_name("Gbm/A", "Db major")["text"] == nv.nashville_from_name("Gbm/Bbb", "Db major")["text"] == "4m/b6"
-    assert nv.nashville_from_name("C/D", "C major")["text"] == "1/2"  # no chord tone: spelled as detect spells a foreign bass
+    assert (
+        nv.nashville_from_name("D#/G", "C# minor")["text"]
+        == nv.nashville_from_name("D#/F##", "C# minor")["text"]
+        == "2/#4"
+    )
+    assert (
+        nv.nashville_from_name("Gbm/A", "Db major")["text"]
+        == nv.nashville_from_name("Gbm/Bbb", "Db major")["text"]
+        == "4m/b6"
+    )
+    assert (
+        nv.nashville_from_name("C/D", "C major")["text"] == "1/2"
+    )  # no chord tone: spelled as detect spells a foreign bass
 
 
 def test_minor_numberings_flag_the_same_chords():

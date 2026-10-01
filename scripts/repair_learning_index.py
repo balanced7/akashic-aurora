@@ -31,6 +31,7 @@ Dry-run by default. `--apply` writes.
   py scripts/repair_learning_index.py            # report only
   py scripts/repair_learning_index.py --apply    # rebuild
 """
+
 import argparse
 import os
 import sys
@@ -40,9 +41,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -60,8 +63,10 @@ def _discover(ls):
                 if n:
                     names.add(n)
     except Exception as e:
-        print(f"WARN: key discovery failed ({type(e).__name__}: {e}) -- "
-              "repair will only re-order what the index already holds")
+        print(
+            f"WARN: key discovery failed ({type(e).__name__}: {e}) -- "
+            "repair will only re-order what the index already holds"
+        )
     return names
 
 
@@ -88,19 +93,21 @@ def plan(ls):
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--apply", action="store_true",
-                    help="write the rebuilt index (default: report only)")
-    ap.add_argument("--check", action="store_true",
-                    help="GUARD mode: exit non-zero if any record is missing from the "
-                         "index (wire into ship gates -- check_doc_currency.py pattern). "
-                         "A repair with no detector recurs silently, and this defect is "
-                         "invisible from the outside: every spot-check of a known lesson "
-                         "name passes while search answers from a fraction of the corpus.")
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--apply", action="store_true", help="write the rebuilt index (default: report only)")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="GUARD mode: exit non-zero if any record is missing from the "
+        "index (wire into ship gates -- check_doc_currency.py pattern). "
+        "A repair with no detector recurs silently, and this defect is "
+        "invisible from the outside: every spot-check of a known lesson "
+        "name passes while search answers from a fraction of the corpus.",
+    )
     args = ap.parse_args()
 
     from core.learning.learning_store import get_learning_store
+
     ls = get_learning_store()
 
     # Union, newest-first by the record's own timestamp. Unknown timestamps sort last
@@ -124,9 +131,11 @@ def main() -> int:
 
     if args.check:
         if missing:
-            print(f"\nFAIL: {len(missing)} lesson(s) exist but are invisible to every "
-                  f"keyword search ({100 * len(missing) // max(1, len(found))}% of the "
-                  f"corpus). Repair: {_pyl()} scripts/repair_learning_index.py --apply")
+            print(
+                f"\nFAIL: {len(missing)} lesson(s) exist but are invisible to every "
+                f"keyword search ({100 * len(missing) // max(1, len(found))}% of the "
+                f"corpus). Repair: {_pyl()} scripts/repair_learning_index.py --apply"
+            )
             return 1
         print("\n[OK] every discovered lesson record is reachable by search.")
         return 0
@@ -142,8 +151,10 @@ def main() -> int:
     ls.store.rpush(INDEX, *union)
     after = list(ls.store.lrange(INDEX, 0, -1))
     ok = len(after) == len(union) and set(after) == set(union)
-    print(f"\n{'[OK]' if ok else 'ERROR'} index rebuilt: {len(current)} -> {len(after)} entries"
-          f" ({len(missing)} lesson(s) returned to search)")
+    print(
+        f"\n{'[OK]' if ok else 'ERROR'} index rebuilt: {len(current)} -> {len(after)} entries"
+        f" ({len(missing)} lesson(s) returned to search)"
+    )
     return 0 if ok else 1
 
 

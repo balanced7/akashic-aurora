@@ -60,13 +60,15 @@ from core.learning.domains import DEFAULT_DOMAIN, infer_domain
 # returned ten identical confident errors; a metric suite that scored three visibly different images
 # as identical). AN INSTRUMENT THAT CANNOT SEE ITS SUBJECT RETURNS A CONFIDENT ANSWER, NOT SILENCE.
 # Recall is allowed to answer "nothing" -- and must, or every other honesty guarantee is decoration.
-_STOPWORDS = frozenset("""
+_STOPWORDS = frozenset(
+    """
 a an and are as at be been being both but by can could did do does for from had has have how i if
 in into is it its may might most must no not of on once one only or other our over own same should
 so some such than that the their them then there these they this those through to too two under
 until up very was we were what when where which while who why will with would you your about after
 again all also any because before between during each few more much never new now off out same
-""".split())
+""".split()
+)
 
 # UNDERSCORE IS PART OF A TOKEN; HYPHEN IS A SEPARATOR. That asymmetry is deliberate and was caught
 # by an existing pin: splitting on '_' made the query `gamma_lesson` match the record `alpha_lesson`
@@ -83,22 +85,37 @@ _TOKEN = re.compile(r"[a-z0-9_]+")
 # old substring test caught "track" inside "tracks" by accident. Folding a few suffixes serves both
 # bars honestly instead of weakening either: word forms match, fragments still do not.
 # Longest suffix first; the stem must stay >=4 characters so short words are left alone.
-_SUFFIXES = ("ations", "ation", "ions", "ion", "ences", "ence", "ances", "ance",
-             "ents", "ent", "ings", "ing", "ed", "es", "s", "e")
+_SUFFIXES = (
+    "ations",
+    "ation",
+    "ions",
+    "ion",
+    "ences",
+    "ence",
+    "ances",
+    "ance",
+    "ents",
+    "ent",
+    "ings",
+    "ing",
+    "ed",
+    "es",
+    "s",
+    "e",
+)
 
 
 def _stem(tok: str) -> str:
     for suf in _SUFFIXES:
         if tok.endswith(suf) and len(tok) - len(suf) >= 4:
-            return tok[:-len(suf)]
+            return tok[: -len(suf)]
     return tok
 
 
 def _content_terms(query: str) -> List[str]:
     """Query words that carry meaning, folded to stems. Single characters go too: they cannot
     discriminate and they were half the flood."""
-    return [_stem(t) for t in _TOKEN.findall(str(query or "").lower())
-            if t not in _STOPWORDS and len(t) > 1]
+    return [_stem(t) for t in _TOKEN.findall(str(query or "").lower()) if t not in _STOPWORDS and len(t) > 1]
 
 
 def _tokens_of(text: str) -> set:
@@ -116,19 +133,67 @@ def _min_hits(n_terms: int) -> int:
     """
     if n_terms <= 2:
         return 1
-    return max(2, -(-n_terms // 4))         # ceil(n/4), never below 2
+    return max(2, -(-n_terms // 4))  # ceil(n/4), never below 2
+
 
 # Generic verbs/nouns that describe *that* something failed rather than *what* the known-bad is;
 # stripped so an auto-drafted slug names the pattern, not the failure event.
-_DRAFT_STOP = {"the", "and", "for", "with", "this", "that", "use", "used", "using", "via", "from",
-               "into", "was", "were", "then", "when", "because", "cause", "only", "gave", "made",
-               "make", "does", "did", "not", "but", "our", "its", "have", "has", "had", "will",
-               "would", "could", "should", "must", "tried", "trying", "failed", "fails", "fail",
-               "error", "errors", "issue", "problem", "result", "results", "instead", "again"}
+_DRAFT_STOP = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "use",
+    "used",
+    "using",
+    "via",
+    "from",
+    "into",
+    "was",
+    "were",
+    "then",
+    "when",
+    "because",
+    "cause",
+    "only",
+    "gave",
+    "made",
+    "make",
+    "does",
+    "did",
+    "not",
+    "but",
+    "our",
+    "its",
+    "have",
+    "has",
+    "had",
+    "will",
+    "would",
+    "could",
+    "should",
+    "must",
+    "tried",
+    "trying",
+    "failed",
+    "fails",
+    "fail",
+    "error",
+    "errors",
+    "issue",
+    "problem",
+    "result",
+    "results",
+    "instead",
+    "again",
+}
 
 
-def draft_anti_pattern_slug(what_tried: str = "", root_cause: str = "", recommendation: str = "",
-                            max_words: int = 4) -> str:
+def draft_anti_pattern_slug(
+    what_tried: str = "", root_cause: str = "", recommendation: str = "", max_words: int = 4
+) -> str:
     """Auto-draft a candidate anti-pattern slug from a failure lesson's own words -- removes the
     'what do I even name it' cost of capturing a known-bad (Slice 2). Prefers root_cause (it names
     WHY it failed), then what_tried, then recommendation. Returns a snake_case slug of the most
@@ -162,11 +227,22 @@ class LearningStore:
     # Maps the messy real-world representations that have shown up in signals
     # (booleans, prose, pass/fail) onto the canonical vocabulary above.
     _SUCCESS_SYNONYMS = {
-        "yes": "yes", "true": "yes", "success": "yes", "succeeded": "yes",
-        "pass": "yes", "passed": "yes", "ok": "yes",
-        "partial": "partial", "partially": "partial", "mixed": "partial",
-        "no": "no", "false": "no", "failure": "no", "failed": "no",
-        "fail": "no", "error": "no",
+        "yes": "yes",
+        "true": "yes",
+        "success": "yes",
+        "succeeded": "yes",
+        "pass": "yes",
+        "passed": "yes",
+        "ok": "yes",
+        "partial": "partial",
+        "partially": "partial",
+        "mixed": "partial",
+        "no": "no",
+        "false": "no",
+        "failure": "no",
+        "failed": "no",
+        "fail": "no",
+        "error": "no",
     }
 
     @classmethod
@@ -198,7 +274,7 @@ class LearningStore:
         """
         log_dir = data_root() / "coordinator_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        logging.basicConfig(level=logging.INFO, format='[LEARNING_STORE] [%(asctime)s] %(message)s')
+        logging.basicConfig(level=logging.INFO, format="[LEARNING_STORE] [%(asctime)s] %(message)s")
         self.logger = logging.getLogger("learning_store")
 
         if store is not None:
@@ -206,6 +282,7 @@ class LearningStore:
         elif redis_client is not None:
             # Back-compat: wrap a passed-in client, keep file durability.
             from core.foundation.store import RedisStore, FileStore, HybridStore
+
             self.store = HybridStore(RedisStore(redis_client), FileStore())
         else:
             self.store = create_store(prefer_redis=True)
@@ -291,8 +368,7 @@ class LearningStore:
     #: it replaces. `repeat_report()` refuses to emit one and says so in its own payload.
     REPEAT_INDEX = "learn:repeats"
 
-    def record_repeat(self, of: str, agent_id: str = "", what: str = "",
-                      recall_outcome: str = "") -> Dict[str, Any]:
+    def record_repeat(self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "") -> Dict[str, Any]:
         """Record that a lesson which ALREADY EXISTED was violated anyway.
 
         `recall_outcome` is the field that earns its place: a repeat where recall FIRED is a
@@ -306,7 +382,8 @@ class LearningStore:
         if not of or not self.store.exists(key):
             raise ValueError(
                 f"cannot record a repeat of {of!r}: no such lesson. A repeat is a pointer AT a "
-                f"lesson; without a resolvable target it is just an unverifiable claim.")
+                f"lesson; without a resolvable target it is just an unverifiable claim."
+            )
 
         original = self._load_experiment(of) or {}
         now = datetime.utcnow()
@@ -316,16 +393,22 @@ class LearningStore:
             if ts:
                 elapsed = max(0.0, (now - datetime.fromisoformat(str(ts))).total_seconds())
         except Exception:
-            elapsed = 0.0                       # unparseable original timestamp -> 0, not a guess
+            elapsed = 0.0  # unparseable original timestamp -> 0, not a guess
 
         # A timestamp alone is NOT unique here. Windows clock granularity let two repeats
         # recorded in the same tick produce the same id, and `sadd` then silently deduped them
         # -- three became two. Caught by this slice's own pin. In a counter whose only claim is
         # to be an honest FLOOR, silently merging two real events is the one unacceptable bug.
         rid = f"{of}:{now.strftime('%Y%m%dT%H%M%S%f')}:{uuid.uuid4().hex[:8]}"
-        rec = {"id": rid, "of": of, "agent_id": str(agent_id or ""), "what": str(what or ""),
-               "recall_outcome": str(recall_outcome or ""), "at": now.isoformat(),
-               "elapsed_s": round(elapsed, 3)}
+        rec = {
+            "id": rid,
+            "of": of,
+            "agent_id": str(agent_id or ""),
+            "what": str(what or ""),
+            "recall_outcome": str(recall_outcome or ""),
+            "at": now.isoformat(),
+            "elapsed_s": round(elapsed, 3),
+        }
         try:
             self.store.hset(f"learn:repeat:{rid}", mapping={k: str(v) for k, v in rec.items()})
             self.store.sadd(self.REPEAT_INDEX, rid)
@@ -352,7 +435,7 @@ class LearningStore:
         """
         entries: List[Dict[str, Any]] = []
         try:
-            for rid in (self.store.smembers(self.REPEAT_INDEX) or []):
+            for rid in self.store.smembers(self.REPEAT_INDEX) or []:
                 rec = self.store.hgetall(f"learn:repeat:{rid}") or {}
                 if rec:
                     entries.append(rec)
@@ -390,15 +473,18 @@ class LearningStore:
         if not name or not self.store.exists(key):
             return False
         try:
-            self.store.hset(key, mapping={"anti_pattern": str(name)})   # merge: only this field
+            self.store.hset(key, mapping={"anti_pattern": str(name)})  # merge: only this field
             self.store.sadd("learn:anti_patterns", str(name))
             existing = self._load_experiment(experiment_id)
-            self.store.hset(f"learn:anti_pattern:{name}", mapping={
-                "experiments": experiment_id,
-                "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
-                "severity": "medium",
-                "first_seen": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                f"learn:anti_pattern:{name}",
+                mapping={
+                    "experiments": experiment_id,
+                    "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
+                    "severity": "medium",
+                    "first_seen": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"tag_anti_pattern failed for {experiment_id}: {e}")
@@ -420,10 +506,13 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "graduated": "" if undo else datetime.utcnow().isoformat(),
-                "enforced_by": "" if undo else str(enforced_by or ""),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "graduated": "" if undo else datetime.utcnow().isoformat(),
+                    "enforced_by": "" if undo else str(enforced_by or ""),
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"mark_graduated failed for {experiment_id}: {e}")
@@ -444,10 +533,13 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "benched": "" if undo else datetime.utcnow().isoformat(),
-                "bench_reason": "" if undo else str(reason or ""),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "benched": "" if undo else datetime.utcnow().isoformat(),
+                    "bench_reason": "" if undo else str(reason or ""),
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
@@ -469,12 +561,22 @@ class LearningStore:
         try:
             if not related or not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "related_to": json.dumps([{"experiment_name": r.get("experiment_name"),
-                                           "dims": r.get("dims"),
-                                           "matched": r.get("matched")} for r in related[:5]]),
-                "related_stamped": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "related_to": json.dumps(
+                        [
+                            {
+                                "experiment_name": r.get("experiment_name"),
+                                "dims": r.get("dims"),
+                                "matched": r.get("matched"),
+                            }
+                            for r in related[:5]
+                        ]
+                    ),
+                    "related_stamped": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"mark_related failed for {experiment_id}: {e}")
@@ -494,17 +596,22 @@ class LearningStore:
                 buf = json.loads(str(rec.get("forge_rejected") or "[]"))
             except Exception:
                 buf = []
-            buf.append({"at": datetime.utcnow().isoformat(),
-                        "draft": str(draft or "")[:400],
-                        "reasons": [str(r)[:200] for r in (reasons or [])][:5]})
+            buf.append(
+                {
+                    "at": datetime.utcnow().isoformat(),
+                    "draft": str(draft or "")[:400],
+                    "reasons": [str(r)[:200] for r in (reasons or [])][:5],
+                }
+            )
             self.store.hset(key, mapping={"forge_rejected": json.dumps(buf[-8:])})
             return True
         except Exception as e:
             self.logger.error(f"mark_forge_rejected failed for {experiment_id}: {e}")
             return False
 
-    def stamp_forge_proposal(self, experiment_id: str, draft: str, verdict: str, *,
-                             by: str = "", rationale: str = "") -> bool:
+    def stamp_forge_proposal(
+        self, experiment_id: str, draft: str, verdict: str, *, by: str = "", rationale: str = ""
+    ) -> bool:
         """Queue an optimizer proposal for HUMAN review (F2): one pending proposal per
         lesson, overwritten by a newer one, swept by the curator after PROPOSAL_TTL_DAYS.
         Holds the draft + the gate's verdict (PASS or UNMEASURABLE) -- FAILs never queue."""
@@ -512,10 +619,20 @@ class LearningStore:
         try:
             if not self.store.exists(key) or not str(draft or "").strip():
                 return False
-            self.store.hset(key, mapping={"forge_proposal": json.dumps({
-                "draft": str(draft), "verdict": str(verdict or ""),
-                "at": datetime.utcnow().isoformat(), "by": str(by or ""),
-                "rationale": str(rationale or "")[:200]})})
+            self.store.hset(
+                key,
+                mapping={
+                    "forge_proposal": json.dumps(
+                        {
+                            "draft": str(draft),
+                            "verdict": str(verdict or ""),
+                            "at": datetime.utcnow().isoformat(),
+                            "by": str(by or ""),
+                            "rationale": str(rationale or "")[:200],
+                        }
+                    )
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"stamp_forge_proposal failed for {experiment_id}: {e}")
@@ -533,9 +650,13 @@ class LearningStore:
             self.logger.error(f"clear_forge_proposal failed for {experiment_id}: {e}")
             return False
 
-    def apply_forge_edit(self, experiment_id: str, new_recommendation: str,
-                         gate_summary: Dict[str, Any],
-                         baseline: Optional[Dict[str, Any]] = None) -> bool:
+    def apply_forge_edit(
+        self,
+        experiment_id: str,
+        new_recommendation: str,
+        gate_summary: Dict[str, Any],
+        baseline: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """Apply a gate-PASSED, human-approved Forge edit: swap the recommendation text,
         retaining the incumbent for rollback (reversible by construction -- the same bet
         bench/unbench makes) and stamping provenance + the provisional watch marker the
@@ -546,17 +667,20 @@ class LearningStore:
             rec = self._load_experiment(experiment_id)
             if not rec or not str(new_recommendation or "").strip():
                 return False
-            self.store.hset(key, mapping={
-                "recommendation": str(new_recommendation),
-                "forge_previous_text": str(rec.get("recommendation") or ""),
-                "forged_at": datetime.utcnow().isoformat(),
-                "forge_provisional": datetime.utcnow().isoformat(),
-                "forge_gate": json.dumps(gate_summary or {}, default=str),
-                # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
-                # rollback/confirm deltas against exactly this
-                "forge_baseline": json.dumps(baseline or {}, default=str),
-                "forge_proposal": "",   # an applied proposal is no longer pending
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "recommendation": str(new_recommendation),
+                    "forge_previous_text": str(rec.get("recommendation") or ""),
+                    "forged_at": datetime.utcnow().isoformat(),
+                    "forge_provisional": datetime.utcnow().isoformat(),
+                    "forge_gate": json.dumps(gate_summary or {}, default=str),
+                    # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
+                    # rollback/confirm deltas against exactly this
+                    "forge_baseline": json.dumps(baseline or {}, default=str),
+                    "forge_proposal": "",  # an applied proposal is no longer pending
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"apply_forge_edit failed for {experiment_id}: {e}")
@@ -571,9 +695,15 @@ class LearningStore:
             prev = str((rec or {}).get("forge_previous_text") or "")
             if not rec or not prev:
                 return False
-            self.store.hset(key, mapping={"recommendation": prev, "forge_previous_text": "",
-                                          "forge_provisional": "", "forge_rolled_back":
-                                          datetime.utcnow().isoformat()})
+            self.store.hset(
+                key,
+                mapping={
+                    "recommendation": prev,
+                    "forge_previous_text": "",
+                    "forge_provisional": "",
+                    "forge_rolled_back": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
             self.logger.error(f"rollback_forge_edit failed for {experiment_id}: {e}")
@@ -609,11 +739,10 @@ class LearningStore:
             if name:
                 rows[name] = str((val or {}).get("timestamp") or "")
         for name in self.store.lrange("learn:experiments:all", 0, -1):
-            rows.setdefault(name, "")          # union-only: never drop what we cannot resolve
+            rows.setdefault(name, "")  # union-only: never drop what we cannot resolve
         if not rows:
             return
-        ordered = [n for n, _ in sorted(rows.items(), key=lambda kv: (kv[1], kv[0]),
-                                        reverse=True)]
+        ordered = [n for n, _ in sorted(rows.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)]
         self.store.delete("learn:experiments:all")
         self.store.rpush("learn:experiments:all", *ordered)
 
@@ -623,9 +752,7 @@ class LearningStore:
 
         Semantic Relationship: Learning indexed_in Store
         """
-        experiment_id = learning_signal.get(
-            "experiment_name", f"exp_{datetime.utcnow().isoformat()}"
-        )
+        experiment_id = learning_signal.get("experiment_name", f"exp_{datetime.utcnow().isoformat()}")
 
         # Normalize success once, here, so the stored field and the success
         # score are derived from the same canonical value -- they can never
@@ -689,7 +816,7 @@ class LearningStore:
         try:
             if experiment_id not in set(self.store.lrange("learn:experiments:all", 0, -1)):
                 self._rebuild_index()
-        except Exception as e:                    # never let indexing lose the record itself
+        except Exception as e:  # never let indexing lose the record itself
             self.logger.warning(f"index rebuild skipped for {experiment_id}: {e}")
         if experiment_id not in set(self.store.lrange(f"learn:agent:{agent_id}", 0, -1)):
             self.store.lpush(f"learn:agent:{agent_id}", experiment_id)
@@ -703,12 +830,15 @@ class LearningStore:
         anti_pattern = learning_signal.get("anti_pattern")
         if anti_pattern:
             self.store.sadd("learn:anti_patterns", str(anti_pattern))
-            self.store.hset(f"learn:anti_pattern:{anti_pattern}", mapping={
-                "experiments": experiment_id,
-                "reason": _s(learning_signal.get("root_cause")),
-                "severity": _s(learning_signal.get("severity"), "medium"),
-                "first_seen": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                f"learn:anti_pattern:{anti_pattern}",
+                mapping={
+                    "experiments": experiment_id,
+                    "reason": _s(learning_signal.get("root_cause")),
+                    "severity": _s(learning_signal.get("severity"), "medium"),
+                    "first_seen": datetime.utcnow().isoformat(),
+                },
+            )
 
     # ----- read helpers -----
     def _load_experiment(self, exp_id: str) -> Dict[str, Any]:
@@ -723,9 +853,9 @@ class LearningStore:
         return data
 
     # ----- read: search -----
-    def search_learnings_by_keyword(self, keyword: str,
-                                    domain: Optional[str] = None,
-                                    agent: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_learnings_by_keyword(
+        self, keyword: str, domain: Optional[str] = None, agent: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Search learnings by keyword, optionally scoped to one domain and/or one agent.
 
@@ -774,7 +904,7 @@ class LearningStore:
                     scored.append((hits, {"id": exp_id, **data}))
                 elif hits:
                     weak.append((hits, {"id": exp_id, **data}))
-            scored.sort(key=lambda x: -x[0])   # most terms matched first
+            scored.sort(key=lambda x: -x[0])  # most terms matched first
             if scored:
                 return [d for _, d in scored]
             # NOTHING CLEARED THE FLOOR, BUT SOMETHING TOUCHED. Returning silence here would be the
@@ -865,13 +995,15 @@ class LearningStore:
             for pattern in matching:
                 data = self.store.hgetall(f"learn:anti_pattern:{pattern}")
                 if data:
-                    results.append({
-                        "pattern": pattern,
-                        "severity": data.get("severity", "medium"),
-                        "reason": data.get("reason", ""),
-                        "experiments": data.get("experiments", ""),
-                        "first_seen": data.get("first_seen", ""),
-                    })
+                    results.append(
+                        {
+                            "pattern": pattern,
+                            "severity": data.get("severity", "medium"),
+                            "reason": data.get("reason", ""),
+                            "experiments": data.get("experiments", ""),
+                            "first_seen": data.get("first_seen", ""),
+                        }
+                    )
 
             severity_order = {"high": 3, "medium": 2, "low": 1}
             results.sort(key=lambda x: severity_order.get(x["severity"], 0), reverse=True)
@@ -899,26 +1031,24 @@ class LearningStore:
                 if task and task_lower not in exp_id.lower():
                     data = self._load_experiment(exp_id)
                     # also match against content, not just id
-                    if not data or task_lower not in " ".join(
-                        str(v).lower() for v in data.values()
-                    ):
+                    if not data or task_lower not in " ".join(str(v).lower() for v in data.values()):
                         continue
                 else:
                     data = self._load_experiment(exp_id)
                 if data and data.get("recommendation"):
-                    recommendations.append({
-                        "experiment": exp_id,
-                        "recommendation": data.get("recommendation", ""),
-                        "success": data.get("success", ""),
-                        "what_tried": data.get("what_tried", ""),
-                        "metrics": data.get("metrics", {}),
-                        "category": data.get("category", ""),
-                    })
+                    recommendations.append(
+                        {
+                            "experiment": exp_id,
+                            "recommendation": data.get("recommendation", ""),
+                            "success": data.get("success", ""),
+                            "what_tried": data.get("what_tried", ""),
+                            "metrics": data.get("metrics", {}),
+                            "category": data.get("category", ""),
+                        }
+                    )
 
             success_scores = {"yes": 3, "partial": 2, "no": 1}
-            recommendations.sort(
-                key=lambda x: success_scores.get(x["success"], 0), reverse=True
-            )
+            recommendations.sort(key=lambda x: success_scores.get(x["success"], 0), reverse=True)
             return recommendations
         except Exception as e:
             self.logger.error(f"Error getting recommendations: {e}")
@@ -1076,21 +1206,30 @@ def _overlap(a: set, b: set) -> float:
     return len(a & b) / min(len(a), len(b))
 
 
-def find_related(signal: Dict[str, Any], existing: List[Dict[str, Any]], *,
-                 threshold: float = 0.5, min_dims: int = 2,
-                 exclude_name: str = "") -> List[Dict[str, Any]]:
+def find_related(
+    signal: Dict[str, Any],
+    existing: List[Dict[str, Any]],
+    *,
+    threshold: float = 0.5,
+    min_dims: int = 2,
+    exclude_name: str = "",
+) -> List[Dict[str, Any]]:
     """Deterministic near-duplicate scan for a lesson about to be recorded. Returns
     [{'experiment_name', 'dims', 'matched'}] sorted by dims desc, for records matching the
     candidate on >= min_dims of the five dimensions. The write door uses it as an ADVISORY
     (4-5 dims: 'update the existing one instead'; 2-3: 'flag for consolidation') -- it never
     blocks a write (append-only ethos; the consolidation pass merges later)."""
-    cand = _dims_of({"what_tried": signal.get("what_tried"),
-                     "expected": signal.get("expected_outcome"),
-                     "recommendation": signal.get("recommendation"),
-                     "actual": signal.get("actual_outcome"),
-                     "root_cause": signal.get("root_cause"),
-                     "category": signal.get("category"),
-                     "anti_pattern": signal.get("anti_pattern")})
+    cand = _dims_of(
+        {
+            "what_tried": signal.get("what_tried"),
+            "expected": signal.get("expected_outcome"),
+            "recommendation": signal.get("recommendation"),
+            "actual": signal.get("actual_outcome"),
+            "root_cause": signal.get("root_cause"),
+            "category": signal.get("category"),
+            "anti_pattern": signal.get("anti_pattern"),
+        }
+    )
     out: List[Dict[str, Any]] = []
     for rec in existing or []:
         name = str(rec.get("experiment_name") or "")
@@ -1123,8 +1262,7 @@ def is_benched(rec: Dict[str, Any]) -> bool:
 _learning_store: Optional[LearningStore] = None
 
 
-def get_learning_store_instance(redis_client: Optional[Any] = None,
-                                store: Optional[Store] = None) -> LearningStore:
+def get_learning_store_instance(redis_client: Optional[Any] = None, store: Optional[Store] = None) -> LearningStore:
     """
     Get or create the global learning store instance.
 
@@ -1135,6 +1273,7 @@ def get_learning_store_instance(redis_client: Optional[Any] = None,
     Semantic Relationship: LearningStoreInstance references_to GlobalInstance
     """
     import os
+
     global _learning_store
     if store is not None or redis_client is not None:
         return LearningStore(store=store, redis_client=redis_client)

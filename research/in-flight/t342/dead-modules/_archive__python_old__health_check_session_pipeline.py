@@ -55,9 +55,7 @@ def compressor_pids() -> list[dict]:
         "| Where-Object { $_.CommandLine -match 'session_compressor' } "
         "| Select-Object ProcessId, CommandLine | ConvertTo-Json -Compress"
     )
-    code, out, err = _sub(
-        ["powershell", "-NoProfile", "-Command", ps_cmd], timeout=20
-    )
+    code, out, err = _sub(["powershell", "-NoProfile", "-Command", ps_cmd], timeout=20)
     rows: list[dict] = []
     if code != 0 or not out.strip():
         return rows
@@ -67,9 +65,7 @@ def compressor_pids() -> list[dict]:
             rows.append({"pid": data.get("ProcessId"), "cmd": data.get("CommandLine", "")})
         elif isinstance(data, list):
             for item in data:
-                rows.append(
-                    {"pid": item.get("ProcessId"), "cmd": item.get("CommandLine", "")}
-                )
+                rows.append({"pid": item.get("ProcessId"), "cmd": item.get("CommandLine", "")})
     except json.JSONDecodeError:
         pass
     return rows
@@ -112,9 +108,7 @@ def docker_inspect_devices(container: str) -> dict:
 
 
 def ollama_ps(container: str) -> dict:
-    code, out, err = _sub(
-        ["docker", "exec", container, "ollama", "ps"], timeout=20
-    )
+    code, out, err = _sub(["docker", "exec", container, "ollama", "ps"], timeout=20)
     text = (out + err).strip()
     return {"exit_code": code, "raw": text}
 
@@ -193,9 +187,7 @@ def redis_checks() -> dict:
             if label == "wsl":
                 try:
                     rep[label]["learn_decisions_count"] = int(r.zcard("learn:decisions:idx") or 0)
-                    rep[label]["learn_experiences_success"] = int(
-                        r.zcard("learn:experiences:success") or 0
-                    )
+                    rep[label]["learn_experiences_success"] = int(r.zcard("learn:experiences:success") or 0)
                 except Exception:
                     rep[label]["learn_decisions_count"] = None
                     rep[label]["learn_experiences_success"] = None
@@ -205,9 +197,7 @@ def redis_checks() -> dict:
     # parity
     wc = rep.get("wsl", {}).get("session_summary_count")
     dc = rep.get("docker", {}).get("session_summary_count")
-    rep["summary_parity_match"] = (
-        wc is not None and dc is not None and wc == dc if wc is not None else None
-    )
+    rep["summary_parity_match"] = wc is not None and dc is not None and wc == dc if wc is not None else None
     rep["summary_counts"] = {"wsl": wc, "docker": dc}
     return rep
 
@@ -292,10 +282,7 @@ def inference_gpu_report() -> dict:
         devs = hint.get("devices_inspect", {}).get("Devices") or []
         hint["has_dri_or_kfd"] = any(
             isinstance(d, dict)
-            and (
-                "/dev/dri" in str(d.get("PathOnHost", ""))
-                or "/dev/kfd" in str(d.get("PathOnHost", ""))
-            )
+            and ("/dev/dri" in str(d.get("PathOnHost", "")) or "/dev/kfd" in str(d.get("PathOnHost", "")))
             for d in devs
         )
 
@@ -310,11 +297,7 @@ def inference_gpu_report() -> dict:
 
     if ps_gpu or vr_loaded:
         verdict = "GPU (Ollama reports GPU offload / VRAM resident weights)"
-    elif ps_cpu or (
-        isinstance(api_ps.get("json"), dict)
-        and (api_ps.get("json", {}).get("models"))
-        and not vr_loaded
-    ):
+    elif ps_cpu or (isinstance(api_ps.get("json"), dict) and (api_ps.get("json", {}).get("models")) and not vr_loaded):
         verdict = "CPU (Ollama `ollama ps` shows CPU and/or size_vram=0 - model running on CPU RAM)"
     else:
         verdict = "unknown (Ollama not reachable or no loaded model)"
@@ -353,9 +336,7 @@ def main():
     # Recent stream IDs (WSL)
     try:
         r = redis.Redis(**get_redis_config())
-        payload["stream_tail_ids"] = [
-            mid for mid, _ in r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=5)
-        ]
+        payload["stream_tail_ids"] = [mid for mid, _ in r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=5)]
     except Exception as e:
         payload["stream_tail_error"] = str(e)
 
@@ -374,7 +355,9 @@ def main():
         f"stream_len={rw.get('stream_entries_approx')} FT_docs={rw.get('ft_num_docs')} "
         f"learn_ADRs={rw.get('learn_decisions_count')} learn_exp_ok={rw.get('learn_experiences_success')}"
     )
-    print(f"Redis Docker ping={rd.get('ping')} summaries={rd.get('session_summary_count')} FT_docs={rd.get('ft_num_docs')}")
+    print(
+        f"Redis Docker ping={rd.get('ping')} summaries={rd.get('session_summary_count')} FT_docs={rd.get('ft_num_docs')}"
+    )
     print(f"Summary parity (counts equal): {payload['redis'].get('summary_counts')}")
     cp = payload["compressor_processes"]
     print(f"Compressor daemon: {len(cp)} process(es)", cp or "(none — run session_compressor.py --daemon)")

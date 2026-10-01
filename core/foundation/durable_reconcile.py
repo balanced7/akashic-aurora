@@ -22,6 +22,7 @@ therefore it HALTS the whole run loudly -- the checker-shaped refusal, not a gue
 Both modes classify EVERY authority-side key first; any unknown non-ephemeral
 family halts before a single write (see ReconcileHalt).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,6 +32,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -42,6 +44,7 @@ def _repo_root_str() -> str:
     """
     from core.paths import root_str
     import os as _os
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -117,6 +120,7 @@ def _report_family(key: str) -> str:
 def _is_ephemeral(key: str) -> bool:
     try:
         from core.comm.packet_spec import is_ephemeral_key
+
         return bool(is_ephemeral_key(key))
     except Exception:
         return False
@@ -148,7 +152,8 @@ def _halt(unknown: Dict[str, int]) -> "ReconcileHalt":
     return ReconcileHalt(
         f"[reconcile] HALT: {len(shown)} unrostered family group(s) on the authority "
         f"side: {head}{more}. Rule on each in ROSTER (with a census receipt) or add "
-        f"it to the ephemeral roster; nothing was written.")
+        f"it to the ephemeral roster; nothing was written."
+    )
 
 
 def _quiet(fn, default):
@@ -227,9 +232,8 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
     if unknown:
         raise _halt(unknown)
 
-    report: Dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [],
-                              "untouched_equal": 0}
-    to_copy: List[Tuple[str, str, str, Any]] = []      # (family, key, structure, value)
+    report: Dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [], "untouched_equal": 0}
+    to_copy: List[Tuple[str, str, str, Any]] = []  # (family, key, structure, value)
     displaced: Dict[str, Any] = {}
 
     for fam, keys in per_family.items():
@@ -253,15 +257,15 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
 
     # RATIFIED stop-rule: a divergent WRITE-ONCE twin is a contract violation, not a
     # tie to break. Halt before any write -- no escrow, no copies, durable untouched.
-    stop = sorted(k for k in displaced
-                  if any(str(k).startswith(p) for p in STOP_ON_DIVERGENCE_PREFIXES))
+    stop = sorted(k for k in displaced if any(str(k).startswith(p) for p in STOP_ON_DIVERGENCE_PREFIXES))
     if stop:
         shown = ", ".join(stop[:5]) + (" ..." if len(stop) > 5 else "")
         raise ReconcileHalt(
             f"[reconcile] HALT: {len(stop)} write-once twin(s) diverged -- "
             f"impossible-by-contract under {STOP_ON_DIVERGENCE_PREFIXES}, so "
             f"something upstream is broken. Investigate before ANY reconcile: {shown}. "
-            f"Nothing was written, no escrow was created.")
+            f"Nothing was written, no escrow was created."
+        )
 
     if displaced:
         escrow_path = Path(escrow_path)
@@ -277,7 +281,7 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
         elif src_t == "kv":
             durable_store.set(key, src)
         elif src_t == "list":
-            durable_store.delete(key)   # divergent replace; no-op on fresh copies
+            durable_store.delete(key)  # divergent replace; no-op on fresh copies
             durable_store.rpush(key, *src)
         elif src_t == "set":
             durable_store.sadd(key, *src)
@@ -295,28 +299,34 @@ def main(argv=None) -> int:
         ap.error("pick --plan or --apply")
 
     from core.foundation.store import FileStore, RedisStore
+
     redis = RedisStore.connect()
     if not redis.is_available():
-        print("[reconcile] REFUSING: Redis (the authority side for rostered families) "
-              "is down; a reconcile without the authority present would be fiction.")
+        print(
+            "[reconcile] REFUSING: Redis (the authority side for rostered families) "
+            "is down; a reconcile without the authority present would be fiction."
+        )
         return 1
     file_store = FileStore(None)
 
     try:
         if a.plan:
             rep = plan(redis, file_store)
-            print(f"[reconcile] PLAN (read-only): copy={rep['copy']} "
-                  f"divergent(escrow-then-take)={rep['divergent']} "
-                  f"type_anomalies={len(rep['type_anomalies'])}")
+            print(
+                f"[reconcile] PLAN (read-only): copy={rep['copy']} "
+                f"divergent(escrow-then-take)={rep['divergent']} "
+                f"type_anomalies={len(rep['type_anomalies'])}"
+            )
             return 0
         stamp = int(time.time())
-        escrow = Path(_repo_root_str()) / "session_logs" / \
-            f"reconcile-displaced-{stamp}.json"
+        escrow = Path(_repo_root_str()) / "session_logs" / f"reconcile-displaced-{stamp}.json"
         rep = apply(redis, file_store, escrow_path=escrow)
-        print(f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "
-              f"(escrow: {escrow if rep['displaced'] else 'none needed'}) "
-              f"equal-untouched={rep['untouched_equal']} "
-              f"type_anomalies={rep['type_anomalies'] or 'none'}")
+        print(
+            f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "
+            f"(escrow: {escrow if rep['displaced'] else 'none needed'}) "
+            f"equal-untouched={rep['untouched_equal']} "
+            f"type_anomalies={rep['type_anomalies'] or 'none'}"
+        )
         return 0
     except ReconcileHalt as e:
         print(str(e))

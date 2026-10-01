@@ -33,6 +33,7 @@ must survive; only the unactionable pages go.
       backlog stays VISIBLE as a dashboard row (graveyard-is-a-resource; T120 says a
       surface must not go quiet about what it holds).
 """
+
 import os
 import sys
 
@@ -40,8 +41,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DEEP_OLD_LANE = {"age_s": 70000.0, "depth": 18, "straggler": 0,
-                 "backlog_age_s": 70000.0}
+DEEP_OLD_LANE = {"age_s": 70000.0, "depth": 18, "straggler": 0, "backlog_age_s": 70000.0}
 
 
 def _probes(*, worklive):
@@ -69,12 +69,14 @@ def test_p1_absent_seat_deep_lane_does_not_page(monkeypatch):
     """A retired/parked seat's backlog is ghost mail. Nobody is coming to drain it, so
     paging an operator about it is a demand with no possible action."""
     from core.comm import doctor
+
     monkeypatch.setattr(doctor, "_present_no_worklive", lambda a: False)
     findings = doctor.examine("t-w108-absent", probes=_probes(worklive={}))
     pages = [f for f in _lane_stall(findings) if f.get("grade") == "page"]
     assert not pages, (
         "an ABSENT seat (no worklive, no runner, no wake seat) must not page LANE "
-        f"STALL -- nobody is expected to drain it. Got: {pages}")
+        f"STALL -- nobody is expected to drain it. Got: {pages}"
+    )
 
 
 def test_p2_present_no_worklive_seat_does_not_page(monkeypatch):
@@ -82,12 +84,14 @@ def test_p2_present_no_worklive_seat_does_not_page(monkeypatch):
     watcher, and drains on its next turn by construction. examine() already knows this
     for the unread-backlog finding; the lane-stall finding must agree."""
     from core.comm import doctor
+
     monkeypatch.setattr(doctor, "_present_no_worklive", lambda a: True)
     findings = doctor.examine("t-w108-interactive", probes=_probes(worklive={}))
     pages = [f for f in _lane_stall(findings) if f.get("grade") == "page"]
     assert not pages, (
         "a present-but-runnerless seat consumes on its next turn/wake; a LANE STALL "
-        f"page tells the operator to act on something already self-healing. Got: {pages}")
+        f"page tells the operator to act on something already self-healing. Got: {pages}"
+    )
 
 
 def test_p3_live_runner_with_stalled_lane_still_pages(monkeypatch):
@@ -95,24 +99,26 @@ def test_p3_live_runner_with_stalled_lane_still_pages(monkeypatch):
     2026-07-26, kimi: pulse fresh the whole time, 45h of work at depth 55. This must
     remain page-grade or the fix has traded one blindness for another."""
     from core.comm import doctor
+
     monkeypatch.setattr(doctor, "_present_no_worklive", lambda a: True)
-    live_runner = {"phase": "idle", "since_ts": 1785459900.0, "beat_ts": 1785459990.0,
-                   "seq": 42}
+    live_runner = {"phase": "idle", "since_ts": 1785459900.0, "beat_ts": 1785459990.0, "seq": 42}
     findings = doctor.examine("t-w108-runner", probes=_probes(worklive=live_runner))
     pages = [f for f in _lane_stall(findings) if f.get("grade") == "page"]
     assert pages, (
         "a LIVE RUNNER whose work lane has not moved in ~19h MUST still page -- that is "
-        "the kimi receipt and the whole reason this finding exists")
+        "the kimi receipt and the whole reason this finding exists"
+    )
 
 
 def test_p4_absent_seat_backlog_stays_visible(monkeypatch):
     """Demoting the grade must not delete the fact. T120: a surface that goes quiet
     about what it holds manufactures false confidence."""
     from core.comm import doctor
+
     monkeypatch.setattr(doctor, "_present_no_worklive", lambda a: False)
     findings = doctor.examine("t-w108-absent-visible", probes=_probes(worklive={}))
-    rows = _lane_stall(findings) + [f for f in findings
-                                    if "lane" in str(f.get("state", ""))]
+    rows = _lane_stall(findings) + [f for f in findings if "lane" in str(f.get("state", ""))]
     assert rows, (
         "an absent seat's undrained lane must remain VISIBLE as a dashboard row; "
-        "silencing the page must not silence the fact")
+        "silencing the page must not silence the fact"
+    )

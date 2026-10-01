@@ -42,33 +42,16 @@ MAX_MODEL_LEN = 32768  # 32k context
 
 # Model Catalog for VRAM Optimization
 MODELS = {
-    "deepseek-ai/deepseek-coder-v2-16b": {
-        "vram_gb": 8.9,
-        "recommended_len": 32768,
-        "quantization": "fp16"
-    },
-    "meta-llama/Llama-3.2-3B-Instruct": {
-        "vram_gb": 2.0,
-        "recommended_len": 8192,
-        "quantization": "fp16"
-    },
-    "microsoft/Florence-2-large": {
-        "vram_gb": 1.5,
-        "recommended_len": 2048,
-        "quantization": "fp16"
-    },
+    "deepseek-ai/deepseek-coder-v2-16b": {"vram_gb": 8.9, "recommended_len": 32768, "quantization": "fp16"},
+    "meta-llama/Llama-3.2-3B-Instruct": {"vram_gb": 2.0, "recommended_len": 8192, "quantization": "fp16"},
+    "microsoft/Florence-2-large": {"vram_gb": 1.5, "recommended_len": 2048, "quantization": "fp16"},
 }
 
 
 def check_rocm() -> bool:
     """Check if ROCm is available"""
     try:
-        result = subprocess.run(
-            ["rocm-smi", "--showdrammouse"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["rocm-smi", "--showdrammouse"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except:
         return False
@@ -78,6 +61,7 @@ def check_rocm_pytorch() -> bool:
     """Check if ROCm PyTorch is installed"""
     try:
         import torch
+
         return torch.cuda.is_available() and torch.version.hip
     except:
         return False
@@ -86,19 +70,15 @@ def check_rocm_pytorch() -> bool:
 def get_gpu_vram() -> Optional[float]:
     """Get total GPU VRAM in GB"""
     try:
-        result = subprocess.run(
-            ["rocm-smi", "--showid", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["rocm-smi", "--showid", "--json"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             import json
+
             data = json.loads(result.stdout)
             for gpu_id, info in data.items():
-                if 'vram_used' in info:
-                    vram_str = info.get('vram_total', '16384MB')
-                    vram_gb = float(vram_str.replace('MB', '')) / 1024
+                if "vram_used" in info:
+                    vram_str = info.get("vram_total", "16384MB")
+                    vram_gb = float(vram_str.replace("MB", "")) / 1024
                     return vram_gb
     except:
         pass
@@ -108,7 +88,7 @@ def get_gpu_vram() -> Optional[float]:
 def calculate_memory_fraction(model_name: str, vram_gb: float) -> float:
     """
     Calculate optimal gpu-memory-utilization for a model.
-    
+
     Leaves room for:
     - Model weights
     - KV cache
@@ -119,18 +99,16 @@ def calculate_memory_fraction(model_name: str, vram_gb: float) -> float:
     else:
         # Estimate based on parameter count
         model_vram = 8.0  # Default assumption
-    
+
     # Use 90% of available VRAM minus a small buffer
     buffer = 0.5  # GB buffer for system
     available = vram_gb - buffer
     fraction = min(0.95, available / vram_gb)
-    
+
     return fraction
 
 
-def generate_docker_run(model: str, port: int = API_PORT, 
-                       tensor_parallel: int = 1,
-                       enforce_eager: bool = False) -> str:
+def generate_docker_run(model: str, port: int = API_PORT, tensor_parallel: int = 1, enforce_eager: bool = False) -> str:
     """
     Generate docker run command for vLLM with AMD ROCm.
     """
@@ -144,7 +122,8 @@ def generate_docker_run(model: str, port: int = API_PORT,
         f"-v {HUGGINGFACE_CACHE}:/root/.cache/huggingface",
         "-e HF_TOKEN=$HF_TOKEN",  # Optional: for gated models
         VLLM_IMAGE,
-        "--model", model,
+        "--model",
+        model,
         f"--gpu-memory-utilization {GPU_MEMORY_UTILIZATION}",
         f"--max-model-len {MAX_MODEL_LEN}",
         f"--tensor-parallel-size {tensor_parallel}",
@@ -153,7 +132,7 @@ def generate_docker_run(model: str, port: int = API_PORT,
         "--trust-remote-code",
         "--seed 42",
     ]
-    
+
     # Filter empty strings
     cmd = [c for c in cmd if c]
     return " \\\n    ".join(cmd)
@@ -205,20 +184,29 @@ def deploy_direct(model: str, port: int = API_PORT) -> int:
     Requires: pip install vllm[rocm]
     """
     cmd = [
-        sys.executable, "-m", "vllm.entrypoints.openai.api_server",
-        "--model", model,
-        "--gpu-memory-utilization", str(GPU_MEMORY_UTILIZATION),
-        "--max-model-len", str(MAX_MODEL_LEN),
-        "--dtype", "float16",
+        sys.executable,
+        "-m",
+        "vllm.entrypoints.openai.api_server",
+        "--model",
+        model,
+        "--gpu-memory-utilization",
+        str(GPU_MEMORY_UTILIZATION),
+        "--max-model-len",
+        str(MAX_MODEL_LEN),
+        "--dtype",
+        "float16",
         "--trust-remote-code",
-        "--host", "0.0.0.0",
-        "--port", str(port),
-        "--seed", "42",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        str(port),
+        "--seed",
+        "42",
     ]
-    
+
     print(f"[vLLM] Starting server...")
     print(f"[vLLM] Command: {' '.join(cmd)}")
-    
+
     return subprocess.run(cmd).returncode
 
 
@@ -226,7 +214,7 @@ def test_connection(port: int = API_PORT) -> bool:
     """Test if vLLM server is responding"""
     import urllib.request
     import json
-    
+
     try:
         # Check models endpoint
         url = f"http://localhost:{port}/v1/models"
@@ -253,14 +241,14 @@ def main():
     parser.add_argument("--test", action="store_true", help="Test if server is running")
     parser.add_argument("--tensor-parallel", type=int, default=1, help="Tensor parallel size")
     parser.add_argument("--enforce-eager", action="store_true", help="Enforce eager mode (no CUDA graphs)")
-    
+
     args = parser.parse_args()
-    
+
     # Handle --test separately
     if args.test:
         success = test_connection(args.port)
         sys.exit(0 if success else 1)
-    
+
     # Generate docker-compose if requested
     if args.compose:
         compose = generate_docker_compose(args.model, args.port)
@@ -271,28 +259,28 @@ def main():
         print(f"[vLLM] docker-compose.yml written to {compose_path}")
         print(f"[vLLM] Run with: docker-compose -f {compose_path} up -d")
         sys.exit(0)
-    
+
     # Print command if requested
     if args.print_cmd:
         cmd = generate_docker_run(args.model, args.port, args.tensor_parallel, args.enforce_eager)
         print(cmd)
         sys.exit(0)
-    
+
     # Pre-flight checks
     print("=" * 50)
     print("vLLM AMD ROCm Deployment")
     print("=" * 50)
-    
+
     print(f"\n[1] Checking ROCm...")
     if not check_rocm():
         print("[!] ROCm not detected. Install ROCm 6.0+")
         sys.exit(1)
     print("[OK] ROCm detected")
-    
+
     vram = get_gpu_vram()
     if vram:
         print(f"[OK] GPU VRAM: {vram:.1f} GB")
-    
+
     if args.direct:
         print(f"\n[2] Deploying vLLM directly...")
         sys.exit(deploy_direct(args.model, args.port))
@@ -300,14 +288,14 @@ def main():
         print(f"\n[2] Generating Docker command...")
         cmd = generate_docker_run(args.model, args.port, args.tensor_parallel, args.enforce_eager)
         print(cmd)
-        
+
         print(f"\n[3] To deploy, run:")
         print(f"    {cmd}")
-        
+
         print(f"\n[4] Or use docker-compose:")
         print(f"    python {sys.argv[0]} --compose --model '{args.model}'")
         print(f"    docker-compose -f vllm-docker-compose.yml up -d")
-        
+
         print(f"\n[5] Test with:")
         print(f"    curl http://localhost:{args.port}/v1/models")
 

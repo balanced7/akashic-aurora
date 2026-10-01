@@ -3,6 +3,7 @@ attempt (S3a) or against a live twin's held seat (S3b); a tombstoned holder fall
 Cites t086-seat-reconciliation-2026-07-16.md. Receipts: 2026-07-16 ~09:16 (nag mid-retry-loop)
 and ~09:11 (nag would have demanded a watcher while the ghost held the seat).
 Exercised through the REAL hook subprocess (the t086-s1 pattern)."""
+
 import json
 import os
 import subprocess
@@ -29,11 +30,11 @@ HOOK = os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")
 
 
 def _run_hook(agent: str, session_id: str):
-    env = {**os.environ, "AKASHIC_AGENT_ID": agent, "AKASHIC_DAEMON_WAKE": "0",
-           "AKASHIC_STOP_PROMISE": "0"}
+    env = {**os.environ, "AKASHIC_AGENT_ID": agent, "AKASHIC_DAEMON_WAKE": "0", "AKASHIC_STOP_PROMISE": "0"}
     payload = json.dumps({"session_id": session_id, "hook_event_name": "Stop"})
-    return subprocess.run([sys.executable, HOOK], input=payload, capture_output=True,
-                          text=True, timeout=60, cwd=REPO, env=env)
+    return subprocess.run(
+        [sys.executable, HOOK], input=payload, capture_output=True, text=True, timeout=60, cwd=REPO, env=env
+    )
 
 
 @pytest.fixture()

@@ -20,6 +20,7 @@ Every one of them faces the same two bad doors today.
 The evidence bar does not move. PARKED's mandatory --reason gate is untouched and is
 pinned here from the new origin, so a shorter route stays a route and not a hole.
 """
+
 import os
 import sys
 

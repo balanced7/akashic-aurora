@@ -33,6 +33,7 @@ Run:
   py scripts/remote_bridge_listener.py --port 9000
   py scripts/remote_bridge_listener.py --host 0.0.0.0 --allow-public   # deliberate, logged
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,9 +57,11 @@ def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
         from core.paths import python_launcher
+
         return python_launcher()
     except Exception:
         return "py"
+
 
 #: Loopback. THE DEFAULT IS THE POLICY — nobody reads flag docs before the first run, and this
 #: machine runs with Defender disabled and Windows Update blocked by choice, so an
@@ -97,16 +100,16 @@ def bind_class(host: Any) -> str:
     """
     try:
         h = str(host).strip().lower()
-    except Exception:                                             # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return "unknown"
     if h in ("localhost",):
         return "loopback"
     if h in ("0.0.0.0", "::", "*"):
-        return "public"                       # binds EVERY interface — never inferred safe
+        return "public"  # binds EVERY interface — never inferred safe
     try:
         addr = ipaddress.ip_address(h)
     except ValueError:
-        return "unknown"                      # absent knowledge is refusal, never permission
+        return "unknown"  # absent knowledge is refusal, never permission
     if addr.is_loopback:
         return "loopback"
     if addr.is_private or addr.is_link_local:
@@ -123,12 +126,20 @@ def _owning_interface(host: str) -> str:
     a banner that cannot be rendered must not stop a listener from starting."""
     try:
         import subprocess
+
         out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-NetIPAddress -IPAddress '{host}' -ErrorAction SilentlyContinue)"
-             f".InterfaceAlias"], capture_output=True, text=True, timeout=8).stdout.strip()
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                f"(Get-NetIPAddress -IPAddress '{host}' -ErrorAction SilentlyContinue).InterfaceAlias",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=8,
+        ).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
-    except Exception:                                             # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return ""
 
 
@@ -138,18 +149,22 @@ def bind_banner(host: Any) -> str:
     learns the banner overstates will stop reading it."""
     kind = bind_class(host)
     if kind == "loopback":
-        return ""                             # nothing outside the machine — no warning owed
+        return ""  # nothing outside the machine — no warning owed
     if kind == "private":
         iface = _owning_interface(str(host))
         where = f' on "{iface}"' if iface else ""
         # Deliberately avoids the literal word the operator scans for. An earlier draft read
         # "NOT from the public internet" — true, and containing the exact string a skimming
         # reader treats as the alarm. A banner is read at a glance or not at all.
-        return (f"[PRIVATE NETWORK] bound to {host}{where} — reachable by nodes on that "
-                f"network only, and not routable from the open internet")
+        return (
+            f"[PRIVATE NETWORK] bound to {host}{where} — reachable by nodes on that "
+            f"network only, and not routable from the open internet"
+        )
     if kind == "public":
-        return (f"[PUBLIC] bound to {host} — REACHABLE FROM THE INTERNET. The HMAC gate is "
-                f"now the only thing in front of this door.")
+        return (
+            f"[PUBLIC] bound to {host} — REACHABLE FROM THE INTERNET. The HMAC gate is "
+            f"now the only thing in front of this door."
+        )
     return f"[UNKNOWN] {host} could not be classified"
 
 
@@ -166,14 +181,16 @@ def bind_allowed(host: Any, *, allow_public: bool) -> Tuple[bool, str]:
     if kind == "unknown":
         return False, (
             f"refusing to bind {host!r}: not a recognisable address, so its exposure cannot "
-            f"be judged. Absent knowledge is refusal, never permission — pass an explicit IP.")
+            f"be judged. Absent knowledge is refusal, never permission — pass an explicit IP."
+        )
     if allow_public:
         return True, ""
     return False, (
         f"refusing to bind {host!r}: that is a PUBLIC interface (or the wildcard, which is "
         f"every interface at once) and this is the inbound half of a fleet bridge. Prefer a "
         f"private mesh address — a Tailscale/LAN address binds with no flag at all, because "
-        f"it is not the internet. Use --allow-public only if you genuinely mean the internet.")
+        f"it is not the internet. Use --allow-public only if you genuinely mean the internet."
+    )
 
 
 def length_allowed(declared: int) -> bool:
@@ -184,9 +201,14 @@ def length_allowed(declared: int) -> bool:
         return False
 
 
-def handle_request(method: str, path: str, body: bytes, *,
-                   secret: Optional[bytes] = None, peer: str = "",
-                   ) -> Tuple[int, Dict[str, Any], str]:
+def handle_request(
+    method: str,
+    path: str,
+    body: bytes,
+    *,
+    secret: Optional[bytes] = None,
+    peer: str = "",
+) -> Tuple[int, Dict[str, Any], str]:
     """The whole door as a PURE FUNCTION: (status, wire_body, log_line). NEVER RAISES.
 
     Pure so the pins run with no port, no thread and no network. A listener whose tests need a
@@ -198,12 +220,11 @@ def handle_request(method: str, path: str, body: bytes, *,
         if str(method).upper() != "POST":
             return 405, FLAT_REFUSAL, f"405 method {method!r} on /xfer (POST only)"
         if not length_allowed(len(body or b"")):
-            return 413, FLAT_REFUSAL, (
-                f"413 body {len(body or b'')}B over the {MAX_BODY_BYTES}B cap")
+            return 413, FLAT_REFUSAL, (f"413 body {len(body or b'')}B over the {MAX_BODY_BYTES}B cap")
 
         try:
             envelope = json.loads((body or b"").decode("utf-8"))
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             return 400, FLAT_REFUSAL, f"400 unreadable envelope ({type(e).__name__}: {e})"
 
         out = RR.accept(envelope, secret=secret, peer=peer)
@@ -211,15 +232,16 @@ def handle_request(method: str, path: str, body: bytes, *,
             # The teaching reason goes HERE and only here.
             return 400, FLAT_REFUSAL, f"400 refused by the gate: {out.why}"
         return 202, _ACCEPTED, f"202 admitted {out.ref} from remote:{peer or 'peer'}"
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         # A listener that raises is a denial of service with a one-line exploit, and this one
         # is reachable by anyone who can route to the port. There is no input that gets a
         # traceback out of this function.
         return 400, FLAT_REFUSAL, f"400 handler caught {type(e).__name__}: {e}"
 
 
-def handle_blob(method: str, path: str, body: bytes, *,
-                secret: Optional[bytes] = None, blobs: Any = None) -> Tuple[int, Any, str]:
+def handle_blob(
+    method: str, path: str, body: bytes, *, secret: Optional[bytes] = None, blobs: Any = None
+) -> Tuple[int, Any, str]:
     """The blob door: a SIGNED request naming a ref, answered with bytes. NEVER RAISES.
 
     Same auth as /xfer -- signed envelope, replay window, flat refusal -- because a second
@@ -243,7 +265,7 @@ def handle_blob(method: str, path: str, body: bytes, *,
         try:
             env = json.loads((body or b"").decode("utf-8"))
             b64, sig = str(env.get("body") or ""), str(env.get("sig") or "")
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             return 400, FLAT_REFUSAL, f"400 unreadable blob request ({type(e).__name__})"
 
         key = secret
@@ -254,18 +276,19 @@ def handle_blob(method: str, path: str, body: bytes, *,
 
         try:
             ref = str(json.loads(base64.b64decode(b64).decode("utf-8")).get("ref") or "")
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             return 400, FLAT_REFUSAL, f"400 blob request payload unreadable ({type(e).__name__})"
 
         # INJECTABLE, because get_blob_store() is a cached singleton whose base is
         # <repo>/blobs with no env override -- a store that cannot be redirected is a store
         # that cannot be pinned (the T365 credential-constant lesson, one module over).
         from core.comm.blobs import get_blob_store
+
         data = (blobs or get_blob_store()).get(ref)
         if data is None:
             return 404, FLAT_REFUSAL, f"404 no blob for ref {ref[:40]!r} (flat: not an oracle)"
         return 200, data, f"200 served {ref[:24]} ({len(data)}B)"
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         return 400, FLAT_REFUSAL, f"400 blob door caught {type(e).__name__}: {e}"
 
 
@@ -296,7 +319,7 @@ class _Handler(BaseHTTPRequestHandler):
             pass
         print(f"[{time.strftime('%H:%M:%S')}] {self.client_address[0]} {log}", flush=True)
 
-    def do_POST(self) -> None:                                    # noqa: N802
+    def do_POST(self) -> None:  # noqa: N802
         declared = self.headers.get("Content-Length") or 0
         if not length_allowed(declared):
             self._respond(413, FLAT_REFUSAL, f"413 declared length {declared} refused unread")
@@ -317,15 +340,14 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._respond(*handle_request("POST", self.path, body, peer=self.peer_name))
 
-    def do_GET(self) -> None:                                     # noqa: N802
+    def do_GET(self) -> None:  # noqa: N802
         self._respond(*handle_request("GET", self.path, b"", peer=self.peer_name))
 
     def log_message(self, fmt, *args):
         """Silence the stdlib's own line — _respond already prints one we control."""
 
 
-def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *,
-          allow_public: bool = False, peer: str = "") -> int:
+def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, allow_public: bool = False, peer: str = "") -> int:
     ok, why = bind_allowed(host, allow_public=allow_public)
     if not ok:
         print(why, file=sys.stderr)
@@ -336,14 +358,16 @@ def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *,
         # Started, and honestly useless. Loud, because a listener that looks up but refuses
         # everything is the exact shape of "green receipt over a broken path" this house spent
         # a 2h44m outage learning to hate.
-        print("WARNING: no inbound secret found — this listener is INERT and will refuse "
-              f"every message. Drop remote_bridge_inbound.key into .secrets/ ({_pyl()} agent_cli.py "
-              "secret) and restart.", file=sys.stderr)
+        print(
+            "WARNING: no inbound secret found — this listener is INERT and will refuse "
+            f"every message. Drop remote_bridge_inbound.key into .secrets/ ({_pyl()} agent_cli.py "
+            "secret) and restart.",
+            file=sys.stderr,
+        )
 
     _Handler.peer_name = peer
     httpd = ThreadingHTTPServer((host, port), _Handler)
-    print(f"akashic remote-bridge listener on http://{host}:{port}/xfer  peer={peer or '?'}",
-          flush=True)
+    print(f"akashic remote-bridge listener on http://{host}:{port}/xfer  peer={peer or '?'}", flush=True)
     banner = bind_banner(host)
     if banner:
         print(banner, flush=True)
@@ -361,8 +385,9 @@ def main(argv=None) -> int:
     ap.add_argument("--host", default=DEFAULT_HOST)
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--peer", default="", help="route name for provenance (default: config)")
-    ap.add_argument("--allow-public", action="store_true",
-                    help="permit a non-loopback bind — say it out loud or it is refused")
+    ap.add_argument(
+        "--allow-public", action="store_true", help="permit a non-loopback bind — say it out loud or it is refused"
+    )
     a = ap.parse_args(argv)
     return serve(a.host, a.port, allow_public=a.allow_public, peer=a.peer)
 

@@ -3,6 +3,7 @@
 The pure gate logic lives in task_ledger (tested there). Here we cover the conductor's own behaviour:
 next_task() sequencing (deps + one-at-a-time) and that done() emits the RESOLVED marker.
 """
+
 import os
 
 import pytest
@@ -23,27 +24,26 @@ def _kw(tmp_path):
 
 
 def test_next_task_respects_deps_and_one_at_a_time(tmp_path, monkeypatch):
-    monkeypatch.setattr(C, "_emit_resolved", lambda *a, **k: None)   # no bus in tests
+    monkeypatch.setattr(C, "_emit_resolved", lambda *a, **k: None)  # no bus in tests
     k = _kw(tmp_path)
     a = C.propose("a", **k)
     b = C.propose("b", deps=[a["id"]], **k)
     C.approve(a["id"], **k)
     C.approve(b["id"], **k)
-    assert C.next_task(**k)["id"] == a["id"]        # b is blocked: dep a not DONE
+    assert C.next_task(**k)["id"] == a["id"]  # b is blocked: dep a not DONE
     C.claim(a["id"], "claude", **k)
     C.start(a["id"], **k)
-    assert C.next_task(**k) is None                 # one-at-a-time: a is running
+    assert C.next_task(**k) is None  # one-at-a-time: a is running
     C.verify(a["id"], **k)
     # 8-hex fixture: T297's done gate (598be034) refuses commits under 7 hex chars,
     # and 'c0ffee' was six -- the fixtures predated the validator by four days.
     C.done(a["id"], "c0ffee42", "pytest", **k)
-    assert C.next_task(**k)["id"] == b["id"]        # a DONE -> b now claimable
+    assert C.next_task(**k)["id"] == b["id"]  # a DONE -> b now claimable
 
 
 def test_done_emits_resolved_marker(tmp_path, monkeypatch):
     seen = {}
-    monkeypatch.setattr(C, "_emit_resolved",
-                        lambda tid, title, commit: seen.update(tid=tid, commit=commit))
+    monkeypatch.setattr(C, "_emit_resolved", lambda tid, title, commit: seen.update(tid=tid, commit=commit))
     k = _kw(tmp_path)
     a = C.propose("x", **k)
     C.approve(a["id"], **k)
@@ -58,8 +58,10 @@ def test_offline_conductor_loses_no_transition(tmp_path, monkeypatch):
     """RB-6 offline-conductor case (T029 Wave 2). test_ledger_push pins that two
     transitions RETURN under a dead bus; this pin closes the acceptance as written --
     the FULL lifecycle lands in the ledger FILE (re-read from disk), nothing lost."""
+
     def _down(*a, **kw):
         raise ConnectionError("redis down")
+
     monkeypatch.setattr(C, "_broadcast", _down)
     k = _kw(tmp_path)
     a = C.propose("offline drill", **k)

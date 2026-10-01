@@ -9,10 +9,10 @@ phrase. Deterministic, free, meaning-safe.
 MODEL-BASED: a lazy, optional challenger (rpunct). The core verb must never
 hard-depend on it -- a missing package raises the teaching error.
 """
+
 import pytest
 
-from scripts.yt_captions import (punctuate_gaps, punctuate_model, punctuate_hybrid,
-                                 MODEL_PUNCT_HINT)
+from scripts.yt_captions import punctuate_gaps, punctuate_model, punctuate_hybrid, MODEL_PUNCT_HINT
 
 
 VTT_GAPS = """WEBVTT
@@ -78,6 +78,7 @@ def test_h1_hybrid_capitalizes_and_punctuates():
 
 def test_h2_hybrid_has_no_lowercase_sentence_openings():
     import re
+
     try:
         out = punctuate_hybrid("this is a sentence and another one. and then some more")
     except RuntimeError as e:

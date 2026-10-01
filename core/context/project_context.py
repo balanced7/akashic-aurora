@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 
+
 @dataclass
 class Milestone:
     id: str
@@ -90,6 +91,7 @@ class ProjectContextManager:
         the Store always works (file fallback), so context is always available.
         """
         from core.foundation.store import create_store
+
         self.store = create_store(prefer_redis=True)
 
     def _key(self, name: str) -> str:
@@ -99,7 +101,7 @@ class ProjectContextManager:
     def _gen_id(self, prefix: str) -> str:
         """Collision-resistant id: prefix + timestamp + random suffix."""
         return f"{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{random.randint(1000, 9999)}"
-    
+
     # ============ ARCHITECTURAL CONTEXT ============
 
     def establish_architecture_with_relationships(self, architecture: Dict) -> bool:
@@ -158,7 +160,7 @@ class ProjectContextManager:
     def update_architecture_component(self, component: str, details: Dict) -> None:
         """Deprecated: Use update_architecture_component_details() instead"""
         return self.update_architecture_component_details(component, details)
-    
+
     # ============ BIG PICTURE (Milestones) ============
 
     def record_milestone_marking_progress(self, name: str, description: str, priority: int = 0) -> str:
@@ -183,14 +185,10 @@ class ProjectContextManager:
             description=description,
             status="pending",
             created_at=datetime.now().isoformat(),
-            priority=priority
+            priority=priority,
         )
 
-        self.store.hset(
-            self._key("milestones"),
-            milestone_id,
-            json.dumps(asdict(milestone))
-        )
+        self.store.hset(self._key("milestones"), milestone_id, json.dumps(asdict(milestone)))
 
         return milestone_id
 
@@ -266,11 +264,12 @@ class ProjectContextManager:
     def complete_milestone(self, milestone_id: str) -> None:
         """Deprecated: Use mark_milestone_as_completed() instead"""
         return self.mark_milestone_as_completed(milestone_id)
-    
+
     # ============ MID PICTURE (Tasks) ============
 
-    def register_task_derived_from_milestone(self, title: str, description: str, milestone_id: Optional[str] = None,
-                 assignee: Optional[str] = None) -> str:
+    def register_task_derived_from_milestone(
+        self, title: str, description: str, milestone_id: Optional[str] = None, assignee: Optional[str] = None
+    ) -> str:
         """
         Register a task derived from a milestone.
 
@@ -294,19 +293,22 @@ class ProjectContextManager:
             status="todo",
             milestone_id=milestone_id,
             assignee=assignee,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
         )
 
         self.store.hset(self._key("tasks"), task_id, json.dumps(asdict(task)))
         return task_id
 
     # Backward compatibility alias
-    def add_task(self, title: str, description: str, milestone_id: Optional[str] = None,
-                 assignee: Optional[str] = None) -> str:
+    def add_task(
+        self, title: str, description: str, milestone_id: Optional[str] = None, assignee: Optional[str] = None
+    ) -> str:
         """Deprecated: Use register_task_derived_from_milestone() instead"""
         return self.register_task_derived_from_milestone(title, description, milestone_id, assignee)
 
-    def load_tasks_filtered_by_status(self, status: Optional[str] = None, milestone_id: Optional[str] = None) -> List[Task]:
+    def load_tasks_filtered_by_status(
+        self, status: Optional[str] = None, milestone_id: Optional[str] = None
+    ) -> List[Task]:
         """
         Load tasks optionally filtered by status and milestone.
 
@@ -362,10 +364,12 @@ class ProjectContextManager:
     def update_task_status(self, task_id: str, status: str) -> None:
         """Deprecated: Use update_task_status_to() instead"""
         return self.update_task_status_to(task_id, status)
-    
+
     # ============ BLOCKERS ============
 
-    def record_blocker_preventing_task(self, description: str, severity: str = "medium", task_id: Optional[str] = None) -> str:
+    def record_blocker_preventing_task(
+        self, description: str, severity: str = "medium", task_id: Optional[str] = None
+    ) -> str:
         """
         Record a blocker preventing task progress.
 
@@ -387,7 +391,7 @@ class ProjectContextManager:
             severity=severity,
             status="active",
             created_at=datetime.now().isoformat(),
-            task_id=task_id
+            task_id=task_id,
         )
 
         self.store.hset(self._key("blockers"), blocker_id, json.dumps(asdict(blocker)))
@@ -447,7 +451,7 @@ class ProjectContextManager:
     def resolve_blocker(self, blocker_id: str) -> None:
         """Deprecated: Use mark_blocker_as_resolved() instead"""
         return self.mark_blocker_as_resolved(blocker_id)
-    
+
     # ============ CURRENT WORK ============
 
     def set_current_task_with_details(self, task: str, details: str = "") -> None:
@@ -465,7 +469,7 @@ class ProjectContextManager:
             "task": task,
             "details": details,
             "started_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now().isoformat(),
         }
         self.store.set(self._key("current_task"), json.dumps(data))
 
@@ -504,10 +508,7 @@ class ProjectContextManager:
 
         work_log = self.store.lrange(self._key("work_log"), 0, 49)
 
-        entry_data = {
-            "entry": entry,
-            "timestamp": datetime.now().isoformat()
-        }
+        entry_data = {"entry": entry, "timestamp": datetime.now().isoformat()}
         self.store.lpush(self._key("work_log"), json.dumps(entry_data))
         self.store.ltrim(self._key("work_log"), 0, 99)  # Keep last 100
 
@@ -515,7 +516,7 @@ class ProjectContextManager:
     def add_to_work_log(self, entry: str) -> None:
         """Deprecated: Use append_entry_to_work_log() instead"""
         return self.append_entry_to_work_log(entry)
-    
+
     # ============ COMPREHENSIVE CONTEXT ============
 
     def derive_full_context_for_agent_repriming(self) -> Dict:
@@ -564,9 +565,9 @@ class ProjectContextManager:
                     "in_progress": len(active_milestones),
                     "pending": len([m for m in milestones if m.status == "pending"]),
                     "completed_list": [asdict(m) for m in completed_milestones[-5:]],
-                    "in_progress_list": [asdict(m) for m in active_milestones]
+                    "in_progress_list": [asdict(m) for m in active_milestones],
                 },
-                "progress_percentage": progress_pct
+                "progress_percentage": progress_pct,
             },
             "mid_picture": {
                 "tasks": {
@@ -574,18 +575,12 @@ class ProjectContextManager:
                     "todo": len(todo_tasks),
                     "in_progress": len(active_tasks),
                     "done": done_task_count,
-                    "active_list": [asdict(t) for t in active_tasks]
+                    "active_list": [asdict(t) for t in active_tasks],
                 },
-                "blockers": {
-                    "active": len(blockers),
-                    "list": [asdict(b) for b in blockers]
-                },
-                "current_work": current_task
+                "blockers": {"active": len(blockers), "list": [asdict(b) for b in blockers]},
+                "current_work": current_task,
             },
-            "recent_context": {
-                "work_log": work_log,
-                "last_20_actions": self._load_recent_actions_from_sessions()
-            }
+            "recent_context": {"work_log": work_log, "last_20_actions": self._load_recent_actions_from_sessions()},
         }
 
     # Backward compatibility alias
@@ -626,7 +621,7 @@ class ProjectContextManager:
     def _get_recent_actions(self) -> List[Dict]:
         """Deprecated internal: Use _load_recent_actions_from_sessions() instead"""
         return self._load_recent_actions_from_sessions()
-    
+
     def print_full_context_for_repriming(self) -> None:
         """
         Print human-readable full context for agent re-priming.
@@ -636,16 +631,16 @@ class ProjectContextManager:
         Displays architectural, big-picture, mid-picture, and recent context.
         """
         ctx = self.derive_full_context_for_agent_repriming()
-        
+
         print("\n" + "=" * 70)
         print("  PROJECT CONTEXT - FOR AGENT RE-PRIMING")
         print("=" * 70)
-        
+
         if "error" in ctx:
             print(f"  Error: {ctx['error']}")
             print("=" * 70 + "\n")
             return
-        
+
         # Big Picture
         print("\n[ARCHITECTURE]")
         arch = ctx.get("architecture", {})
@@ -656,49 +651,51 @@ class ProjectContextManager:
                 print(f"  Components: {', '.join(components.keys())}")
         else:
             print("  Not yet documented - see ARCHITECTURE.md")
-        
+
         # Milestones
         print("\n[BIG PICTURE - MILESTONES]")
         bp = ctx.get("big_picture", {})
         print(f"  Progress: {bp.get('progress_percentage', 0)}%")
-        
+
         completed = bp.get("milestones", {}).get("completed_list", [])
         if completed:
             print(f"  Completed ({len(completed)}):")
             for m in completed:
                 print(f"    - {m['name']}")
-        
+
         in_progress = bp.get("milestones", {}).get("in_progress_list", [])
         if in_progress:
             print(f"  In Progress ({len(in_progress)}):")
             for m in in_progress:
                 print(f"    - {m['name']}")
-        
+
         # Mid Picture
         print("\n[MID PICTURE - TASKS]")
         mp = ctx.get("mid_picture", {})
         tasks_data = mp.get("tasks", {})
-        print(f"  Tasks: {tasks_data.get('todo', 0)} todo, {tasks_data.get('in_progress', 0)} active, {tasks_data.get('done', 0)} done")
-        
+        print(
+            f"  Tasks: {tasks_data.get('todo', 0)} todo, {tasks_data.get('in_progress', 0)} active, {tasks_data.get('done', 0)} done"
+        )
+
         active_tasks = tasks_data.get("active_list", [])
         if active_tasks:
             print(f"  Active:")
             for t in active_tasks[:5]:
                 print(f"    - {t['title']}")
-        
+
         blockers = mp.get("blockers", {}).get("list", [])
         if blockers:
             print(f"\n  BLOCKERS ({len(blockers)}):")
             for b in blockers:
                 print(f"    - [{b['severity'].upper()}] {b['description']}")
-        
+
         # Current Work
         current = mp.get("current_work")
         if current:
             print(f"\n  CURRENT: {current.get('task', 'Unknown')}")
-            if current.get('details'):
+            if current.get("details"):
                 print(f"  Details: {current.get('details')}")
-        
+
         # Recent Context
         print("\n[RECENT CONTEXT - LAST 20 ACTIONS]")
         recent = ctx.get("recent_context", {}).get("work_log", [])
@@ -707,7 +704,7 @@ class ProjectContextManager:
                 ts = r.get("timestamp", "")[:19]
                 entry = r.get("entry", "")[:60]
                 print(f"  [{ts}] {entry}")
-        
+
         print("\n" + "=" * 70 + "\n")
 
     # Backward compatibility alias
@@ -732,30 +729,62 @@ class ProjectContextManager:
                 "version": "6.0",
                 "purpose": "Agentic AI harness with multi-agent coordination, Redis HA, vector storage",
                 "components": {
-                    "redis_ha": {"type": "database", "status": "running", "description": "Redis HA cluster with Sentinel failover"},
-                    "mcp_server": {"type": "protocol", "status": "ready", "description": "Model Context Protocol server"},
-                    "session_logger": {"type": "logging", "status": "active", "description": "Session and action logging"},
-                    "sync_service": {"type": "sync", "status": "active", "description": "Redis sync background service"},
-                    "vector_store": {"type": "storage", "status": "active", "description": "Vector embeddings for fast search"}
+                    "redis_ha": {
+                        "type": "database",
+                        "status": "running",
+                        "description": "Redis HA cluster with Sentinel failover",
+                    },
+                    "mcp_server": {
+                        "type": "protocol",
+                        "status": "ready",
+                        "description": "Model Context Protocol server",
+                    },
+                    "session_logger": {
+                        "type": "logging",
+                        "status": "active",
+                        "description": "Session and action logging",
+                    },
+                    "sync_service": {
+                        "type": "sync",
+                        "status": "active",
+                        "description": "Redis sync background service",
+                    },
+                    "vector_store": {
+                        "type": "storage",
+                        "status": "active",
+                        "description": "Vector embeddings for fast search",
+                    },
                 },
                 "relationships": [
                     "redis_ha -> session_logger (stores session data)",
                     "redis_ha -> mcp_server (exposes data)",
                     "redis_ha -> sync_service (syncs logs)",
-                    "mcp_server -> all_components (provides context)"
+                    "mcp_server -> all_components (provides context)",
                 ],
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now().isoformat(),
             }
             self.establish_architecture_with_relationships(arch)
 
         # Add initial milestones if none exist
         if not self.load_milestones_filtered_by_status():
-            self.record_milestone_marking_progress("Redis HA Cluster", "Deploy Redis with triple redundancy and Sentinel failover", priority=10)
-            self.record_milestone_marking_progress("MCP Server", "Create MCP server for context exposure to AI clients", priority=9)
-            self.record_milestone_marking_progress("Redis Sync Service", "Background service to sync logs to Redis", priority=8)
-            self.record_milestone_marking_progress("Session Context System", "Track session state and enable agent catch-up", priority=7)
-            self.record_milestone_marking_progress("Bootstrap Automation", "Foolproof bootstrap for new OpenCode instances", priority=6)
-            self.record_milestone_marking_progress("Project Context Tracking", "Milestones, tasks, blockers for project management", priority=5)
+            self.record_milestone_marking_progress(
+                "Redis HA Cluster", "Deploy Redis with triple redundancy and Sentinel failover", priority=10
+            )
+            self.record_milestone_marking_progress(
+                "MCP Server", "Create MCP server for context exposure to AI clients", priority=9
+            )
+            self.record_milestone_marking_progress(
+                "Redis Sync Service", "Background service to sync logs to Redis", priority=8
+            )
+            self.record_milestone_marking_progress(
+                "Session Context System", "Track session state and enable agent catch-up", priority=7
+            )
+            self.record_milestone_marking_progress(
+                "Bootstrap Automation", "Foolproof bootstrap for new OpenCode instances", priority=6
+            )
+            self.record_milestone_marking_progress(
+                "Project Context Tracking", "Milestones, tasks, blockers for project management", priority=5
+            )
 
         print("[ProjectContext] Initialized with Akashic Aurora defaults")
 
@@ -767,6 +796,7 @@ class ProjectContextManager:
 
 # Singleton instance
 _manager = None
+
 
 def get_project_context_manager_instance() -> ProjectContextManager:
     """
@@ -807,7 +837,7 @@ if __name__ == "__main__":
     parser.add_argument("--current", type=str, help="Set current task")
     parser.add_argument("--complete-milestone", type=str, help="Complete a milestone by name")
     parser.add_argument("--resolve-blocker", type=str, help="Resolve a blocker by ID")
-    
+
     args = parser.parse_args()
 
     mgr = get_project_context_manager_instance()

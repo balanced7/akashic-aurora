@@ -27,14 +27,14 @@ Kill switch: AKASHIC_CLEAN_DEATH=0 (B-c, the ruling-4 first-week hatch pattern).
 Every run appends ONE provenance line (wake_seat.append_provenance) so a released
 seat is auditable and never mistaken for a lock expiry.
 """
+
 from __future__ import annotations
 
 import os
 from typing import Optional
 
 
-def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
-                c=None, event: str = "SessionEnd") -> dict:
+def clean_death(agent: str, session_id: str, tmp: Optional[str] = None, c=None, event: str = "SessionEnd") -> dict:
     """Release seat + card + listener artifacts for exactly (agent, session_id).
 
     Returns a provenance dict: {"seat","card","listener","marker"} booleans --
@@ -56,17 +56,19 @@ def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
     out = {"tombstone": False, "seat": False, "card": False, "listener": False, "marker": False}
     token = f"session:{session_id}"
 
-    try:   # ---- leg 0 (T086 S1): tombstone FIRST -- the durable "this session ENDED" fact
+    try:  # ---- leg 0 (T086 S1): tombstone FIRST -- the durable "this session ENDED" fact
         #      every liveness surface consults (ladder skips grace, janitor overrides
         #      chain-immunity, a resurrected turn stands down unarmed). Written before the
         #      other legs so even a crash mid-trio leaves the discriminator behind.
         from core.comm import wake_seat
+
         out["tombstone"] = wake_seat.write_tombstone(session_id, tmp, c=c)
     except Exception:
         pass
 
-    try:   # ---- leg 1: consumer seat (own hold only -- release() refuses foreign tokens)
+    try:  # ---- leg 1: consumer seat (own hold only -- release() refuses foreign tokens)
         from core.comm import runner_lock
+
         held = runner_lock.holder(agent)
         ours = bool(held and held.get("token") == token)
         if ours:
@@ -75,16 +77,20 @@ def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
     except Exception:
         pass
 
-    try:   # ---- leg 2: incarnation card (exact key; TTL stays the crash net)
+    try:  # ---- leg 2: incarnation card (exact key; TTL stays the crash net)
         from core.comm import incarnation
+
         out["card"] = incarnation.delete_card(agent, session_id, c=c)
     except Exception:
         pass
 
-    try:   # ---- leg 3: listener seat file + activity marker (removal = stand-down)
+    try:  # ---- leg 3: listener seat file + activity marker (removal = stand-down)
         from core.comm import wake_seat
-        for field, path in (("listener", wake_seat.seat_path(agent, session_id, tmp)),
-                            ("marker", wake_seat.activity_marker_path(agent, session_id, tmp))):
+
+        for field, path in (
+            ("listener", wake_seat.seat_path(agent, session_id, tmp)),
+            ("marker", wake_seat.activity_marker_path(agent, session_id, tmp)),
+        ):
             try:
                 if os.path.exists(path):
                     os.remove(path)
@@ -96,7 +102,8 @@ def clean_death(agent: str, session_id: str, tmp: Optional[str] = None,
             f"clean-death sid={session_id[:8]}: tombstone={out['tombstone']} seat={out['seat']} "
             f"card={out['card']} listener={out['listener']} marker={out['marker']} "
             f"(M1-beta trio + T086 S1; TTLs remain the crash net)",
-            tmp)
+            tmp,
+        )
     except Exception:
         pass
 

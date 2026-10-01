@@ -47,19 +47,24 @@ from core.comm import self_restart as SR
 
 @pytest.fixture(autouse=True)
 def _env():
-    saved = {k: os.environ.get(k) for k in
-             ("AKASHIC_SELF_RESTART", "AKASHIC_SELF_RESTART_MIN_BEHIND",
-              "AKASHIC_SELF_RESTART_MIN_UPTIME_S", "BIFROST_CONSUME_LANE")}
+    saved = {
+        k: os.environ.get(k)
+        for k in (
+            "AKASHIC_SELF_RESTART",
+            "AKASHIC_SELF_RESTART_MIN_BEHIND",
+            "AKASHIC_SELF_RESTART_MIN_UPTIME_S",
+            "BIFROST_CONSUME_LANE",
+        )
+    }
     yield
     for k, v in saved.items():
         os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
 
 
-def _decide(*, stamped="a" * 12, head="b" * 12, behind=7, uptime_s=3600,
-            in_flight=False):
+def _decide(*, stamped="a" * 12, head="b" * 12, behind=7, uptime_s=3600, in_flight=False):
     return SR.should_restart(
-        stamped_sha=stamped, head_sha=head, commits_behind=behind,
-        uptime_s=uptime_s, in_flight=in_flight)
+        stamped_sha=stamped, head_sha=head, commits_behind=behind, uptime_s=uptime_s, in_flight=in_flight
+    )
 
 
 # --------------------------------------------------------------- P1
@@ -69,7 +74,8 @@ def test_p1_provably_stale_past_cooldown_idle_restarts():
     for frag in ("aaaaaaaaaaaa", "bbbbbbbbbbbb", "7"):
         assert frag in reason, (
             f"the reason must NAME stamp/head/count -- a restart nobody can explain "
-            f"is a crash with better manners: {reason!r}")
+            f"is a crash with better manners: {reason!r}"
+        )
 
 
 # --------------------------------------------------------------- P2
@@ -80,8 +86,8 @@ def test_p2_at_head_never_restarts():
 # --------------------------------------------------------------- P3
 def test_p3_inside_min_uptime_never_restarts():
     assert _decide(uptime_s=30) is None, (
-        "a restart that re-triggers on boot flaps forever on a busy repo -- "
-        "the cooldown is the anti-thrash guarantee")
+        "a restart that re-triggers on boot flaps forever on a busy repo -- the cooldown is the anti-thrash guarantee"
+    )
 
 
 # --------------------------------------------------------------- P4
@@ -94,8 +100,8 @@ def test_p5_unknown_staleness_keeps_running():
     assert _decide(stamped="", head="b" * 12) is None, "no stamp -> no restart"
     assert _decide(stamped="a" * 12, head="") is None, "no HEAD -> no restart"
     assert _decide(behind=0, stamped="a" * 12, head="b" * 12) is None, (
-        "stamp differs but the count is unproven -> keep running; restarts are "
-        "for PROVEN staleness")
+        "stamp differs but the count is unproven -> keep running; restarts are for PROVEN staleness"
+    )
 
 
 # --------------------------------------------------------------- P6
@@ -106,8 +112,10 @@ def test_p6_the_respawn_carries_argv_and_the_lane_env(monkeypatch):
     def _fake_popen(argv, **kw):
         captured["argv"] = list(argv)
         captured["env"] = dict(kw.get("env") or os.environ)
+
         class _P:
             pid = 99999
+
         return _P()
 
     monkeypatch.setattr(SR.subprocess, "Popen", _fake_popen)
@@ -117,16 +125,15 @@ def test_p6_the_respawn_carries_argv_and_the_lane_env(monkeypatch):
     # this file ran first -- a pollution bug that was invisible while nothing read the var.
     # The fixture-scoped set restores on teardown, so test order stops being load-bearing.
     monkeypatch.setenv("BIFROST_CONSUME_LANE", "work")
-    ok = SR.respawn_self(argv=["scripts/bifrost_runner_deepseek.py",
-                               "--agent", "deepseek", "--session", "abc123"])
+    ok = SR.respawn_self(argv=["scripts/bifrost_runner_deepseek.py", "--agent", "deepseek", "--session", "abc123"])
     assert ok, "respawn must report success when the spawn succeeded"
     assert captured["argv"][0] == sys.executable
     assert "--session" in captured["argv"] and "abc123" in captured["argv"], (
-        f"SAME argv or the incarnation changes and the per-incarnation cursor "
-        f"forks: {captured['argv']}")
+        f"SAME argv or the incarnation changes and the per-incarnation cursor forks: {captured['argv']}"
+    )
     assert captured["env"].get("BIFROST_CONSUME_LANE") == "work", (
-        "the lane env MUST survive the respawn -- this exact omission cost a "
-        "6.5h lane stall once already")
+        "the lane env MUST survive the respawn -- this exact omission cost a 6.5h lane stall once already"
+    )
 
 
 # --------------------------------------------------------------- P7
@@ -138,8 +145,7 @@ def test_p7_the_dial_turns_off():
 # --------------------------------------------------------------- P8
 def test_p8_never_raises(monkeypatch):
     monkeypatch.setattr(SR, "_min_behind", lambda: (_ for _ in ()).throw(RuntimeError()))
-    assert SR.should_restart(stamped_sha="a", head_sha="b", commits_behind=9,
-                             uptime_s=9999, in_flight=False) is None
+    assert SR.should_restart(stamped_sha="a", head_sha="b", commits_behind=9, uptime_s=9999, in_flight=False) is None
 
 
 # --------------------------------------------------------------- P9 the frozen-HEAD trap
@@ -159,8 +165,9 @@ def test_p9_the_head_the_ceremony_compares_against_is_fresh(monkeypatch):
     monkeypatch.setattr(SR, "_resolve_head_fresh", _fake_git_head)
     SR._HEAD_CACHE.update({"sha": "", "at": 0.0})
     first = SR.fresh_head_sha()
-    SR._HEAD_CACHE["at"] = 0.0                    # force TTL expiry
+    SR._HEAD_CACHE["at"] = 0.0  # force TTL expiry
     second = SR.fresh_head_sha()
     assert first == "e" * 12 and second == "f" * 12, (
         f"HEAD must MOVE for a long-lived process: {first!r} -> {second!r}. A "
-        f"process-lifetime cache freezes the ceremony at boot and it never fires.")
+        f"process-lifetime cache freezes the ceremony at boot and it never fires."
+    )

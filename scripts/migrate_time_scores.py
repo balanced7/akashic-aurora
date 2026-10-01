@@ -19,6 +19,7 @@ Zsets re-scored:
 
 Run:  py scripts/migrate_time_scores.py
 """
+
 import json
 import os
 import sys
@@ -40,7 +41,7 @@ def migrate_time_scores(store: Store = None) -> dict:
 
     # 1. the beat timeline + each beat's entry in its current track zset
     timeline_scores = {}
-    track_scores = {}                      # track -> {beat_id: score}
+    track_scores = {}  # track -> {beat_id: score}
     for bid in store.zrange(TIMELINE, 0, -1):
         raw = store.get(beat_key(bid))
         if not raw:
@@ -54,7 +55,7 @@ def migrate_time_scores(store: Store = None) -> dict:
         if b.track:
             track_scores.setdefault(b.track, {})[bid] = score
     if timeline_scores:
-        store.zadd(TIMELINE, timeline_scores)        # overwrites scores in place
+        store.zadd(TIMELINE, timeline_scores)  # overwrites scores in place
         report["timeline"] = len(timeline_scores)
     for track, mapping in track_scores.items():
         store.zadd(f"narr:track:{track}:beats", mapping)

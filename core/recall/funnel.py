@@ -21,6 +21,7 @@ host's UTC offset).
 
 Everything is fail-soft and injectable: a missing backend yields zeros, never a raise.
 """
+
 import json
 import time
 from datetime import datetime, timedelta
@@ -43,14 +44,20 @@ def _parse_ts(s: Any) -> Optional[datetime]:
         return None
 
 
-def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = None,
-             flips: Optional[List[Dict[str, Any]]] = None,
-             injections: Optional[List[Dict[str, Any]]] = None,
-             now: Optional[datetime] = None) -> Dict[str, Any]:
+def snapshot(
+    hours: float = 24.0,
+    *,
+    store: Any = None,
+    learning_store: Any = None,
+    flips: Optional[List[Dict[str, Any]]] = None,
+    injections: Optional[List[Dict[str, Any]]] = None,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
     """All-time funnel counters + one recent window. The dict `stats` prints verbatim."""
     if store is None:
         try:
             from core.foundation.store import create_store
+
             store = create_store()
         except Exception:
             store = None
@@ -59,7 +66,7 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
         try:
             for k in store.keys("recall:use:*"):
                 try:
-                    use[k[len("recall:use:"):]] = json.loads(store.get(k) or "{}")
+                    use[k[len("recall:use:") :]] = json.loads(store.get(k) or "{}")
                 except Exception:
                     pass
         except Exception:
@@ -74,6 +81,7 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
+
             learning_store = get_learning_store()
         recs = learning_store.load_all_learnings_from_store()
     except Exception:
@@ -85,6 +93,7 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
     if flips is None:
         try:
             from core.recall.at_action import recent_flips
+
             flips = recent_flips(hours)
         except Exception:
             flips = []
@@ -92,32 +101,47 @@ def snapshot(hours: float = 24.0, *, store: Any = None, learning_store: Any = No
     if injections is None:
         try:
             from core.recall.at_action import recent_injections
+
             injections = recent_injections(hours)
         except Exception:
             injections = []
     # 'lessons_per_flip' not 'capture rate': recorded lessons are NOT all flip-caused, so a
     # ratio over 1.0 is legitimate -- the name must not lie.
-    window = {"flips": len(flips), "flips_credited": credited,
-              "flips_corpus_gap": len(flips) - credited,
-              "lessons_recorded": len(new_lessons),
-              "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None),
-              # what the push side COSTS (the Ronacher dissent: measure it): count + ~tokens
-              "injections": len(injections),
-              "injected_tokens_approx": sum(int(i.get("chars", 0)) for i in injections) // 4}
+    window = {
+        "flips": len(flips),
+        "flips_credited": credited,
+        "flips_corpus_gap": len(flips) - credited,
+        "lessons_recorded": len(new_lessons),
+        "lessons_per_flip": (round(len(new_lessons) / len(flips), 2) if flips else None),
+        # what the push side COSTS (the Ronacher dissent: measure it): count + ~tokens
+        "injections": len(injections),
+        "injected_tokens_approx": sum(int(i.get("chars", 0)) for i in injections) // 4,
+    }
     # Value rate = (useful + helped) / surfaced: of everything recall pushed, how much earned
     # credit. The one steering ratio (Greptile managed its whole noise war by the analogous
     # address rate, 19%->55%). OBSERVABILITY ONLY -- never feed it back into ranking as an
     # optimizer input (epistemic-risk register F2: a proxy under optimization pressure Goodharts).
     value_rate = round((useful + helped) / surfaced, 4) if surfaced else None
-    return {"corpus_lessons": len(recs), "tracked_sources": len(use),
-            "surfaced_impressions": surfaced, "votes": {"useful": useful, "noise": noise},
-            "helped_credits": helped, "lessons_with_track_record": with_track,
-            "value_rate": value_rate,
-            "window_hours": hours, "window": window}
+    return {
+        "corpus_lessons": len(recs),
+        "tracked_sources": len(use),
+        "surfaced_impressions": surfaced,
+        "votes": {"useful": useful, "noise": noise},
+        "helped_credits": helped,
+        "lessons_with_track_record": with_track,
+        "value_rate": value_rate,
+        "window_hours": hours,
+        "window": window,
+    }
 
 
-def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = None,
-           injections: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+def triage(
+    min_surfaced: int = 5,
+    *,
+    store: Any = None,
+    learning_store: Any = None,
+    injections: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     """Sharpening-loop S1: rank every tracked lesson by measured value so a REVIEWER can
     decide what to merge, graduate, or retire. READ-ONLY and OBSERVABILITY-ONLY by design:
     this function proposes nothing and prunes nothing -- feeding its output back into
@@ -138,6 +162,7 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
     if store is None:
         try:
             from core.foundation.store import create_store
+
             store = create_store()
         except Exception:
             store = None
@@ -146,7 +171,7 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
         try:
             for k in store.keys("recall:use:*"):
                 try:
-                    use[k[len("recall:use:"):]] = json.loads(store.get(k) or "{}")
+                    use[k[len("recall:use:") :]] = json.loads(store.get(k) or "{}")
                 except Exception:
                     pass
         except Exception:
@@ -156,6 +181,7 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
+
             learning_store = get_learning_store()
         recs = learning_store.load_all_learnings_from_store()
         n_corpus = len(recs)
@@ -167,6 +193,7 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
     if injections is None:
         try:
             from core.recall.at_action import recent_injections
+
             injections = recent_injections(24 * 7)
         except Exception:
             injections = []
@@ -184,33 +211,43 @@ def triage(min_surfaced: int = 5, *, store: Any = None, learning_store: Any = No
     _LESSON = "learn:experiment:"
     rows, ghosts, live_lessons = [], [], 0
     for src, u in use.items():
-        row = {"source": src,
-               "surfaced": int(u.get("surfaced", 0)),
-               "useful": int(u.get("useful", 0)),
-               "noise": int(u.get("noise", 0)),
-               "helped": int(u.get("helped", 0)),
-               "window_tokens_approx": win_chars.get(src, 0) // 4}
+        row = {
+            "source": src,
+            "surfaced": int(u.get("surfaced", 0)),
+            "useful": int(u.get("useful", 0)),
+            "noise": int(u.get("noise", 0)),
+            "helped": int(u.get("helped", 0)),
+            "window_tokens_approx": win_chars.get(src, 0) // 4,
+        }
         if src.startswith(_LESSON):
-            if corpus_names and src[len(_LESSON):] not in corpus_names:
+            if corpus_names and src[len(_LESSON) :] not in corpus_names:
                 ghosts.append(row)
                 continue
             live_lessons += 1
         rows.append(row)
     ghosts.sort(key=lambda r: r["surfaced"], reverse=True)
-    protect = sorted((r for r in rows if r["helped"] or r["useful"]),
-                     key=lambda r: (r["helped"], r["useful"]), reverse=True)
+    protect = sorted(
+        (r for r in rows if r["helped"] or r["useful"]), key=lambda r: (r["helped"], r["useful"]), reverse=True
+    )
     noise_voted = [r for r in rows if r["noise"] and not (r["helped"] or r["useful"])]
     rest = [r for r in rows if not (r["helped"] or r["useful"]) and not r["noise"]]
-    cost_no_return = sorted((r for r in rest if r["surfaced"] >= min_surfaced),
-                            key=lambda r: r["surfaced"], reverse=True)
+    cost_no_return = sorted(
+        (r for r in rest if r["surfaced"] >= min_surfaced), key=lambda r: r["surfaced"], reverse=True
+    )
     watch = [r for r in rest if 0 < r["surfaced"] < min_surfaced]
-    return {"corpus_lessons": n_corpus, "tracked": len(rows) + len(ghosts),
-            "tracked_lessons": live_lessons, "ghosts": ghosts,
-            "dormant_count": max(0, n_corpus - live_lessons),
-            "min_surfaced": min_surfaced,
-            "protect": protect, "cost_no_return": cost_no_return,
-            "noise_voted": noise_voted, "watch_count": len(watch),
-            "window_injected_tokens_approx": sum(r["window_tokens_approx"] for r in rows + ghosts)}
+    return {
+        "corpus_lessons": n_corpus,
+        "tracked": len(rows) + len(ghosts),
+        "tracked_lessons": live_lessons,
+        "ghosts": ghosts,
+        "dormant_count": max(0, n_corpus - live_lessons),
+        "min_surfaced": min_surfaced,
+        "protect": protect,
+        "cost_no_return": cost_no_return,
+        "noise_voted": noise_voted,
+        "watch_count": len(watch),
+        "window_injected_tokens_approx": sum(r["window_tokens_approx"] for r in rows + ghosts),
+    }
 
 
 def summary_line(snap: Dict[str, Any]) -> str:
@@ -236,19 +273,23 @@ def summary_line(snap: Dict[str, Any]) -> str:
     if rate is None or not surfaced:
         judged_seg = ""
     elif judged:
-        judged_seg = (f" | judged {judged}/{surfaced} ({judged / surfaced * 100:.1f}%)"
-                      f" -> {useful / judged * 100:.0f}% useful")
+        judged_seg = (
+            f" | judged {judged}/{surfaced} ({judged / surfaced * 100:.1f}%) -> {useful / judged * 100:.0f}% useful"
+        )
     else:
         judged_seg = f" | judged 0/{surfaced} -- UNLABELLED, no quality claim"
-    return (f"{snap.get('corpus_lessons', 0)} lessons | surfaced {surfaced}"
-            f" | votes useful={useful} noise={noise}"
-            f" | helped {snap.get('helped_credits', 0)}"
-            + judged_seg
-            + f" | last {span}: +{w.get('lessons_recorded', 0)} lesson(s), {w.get('flips', 0)} flip(s)")
+    return (
+        f"{snap.get('corpus_lessons', 0)} lessons | surfaced {surfaced}"
+        f" | votes useful={useful} noise={noise}"
+        f" | helped {snap.get('helped_credits', 0)}"
+        + judged_seg
+        + f" | last {span}: +{w.get('lessons_recorded', 0)} lesson(s), {w.get('flips', 0)} flip(s)"
+    )
 
 
-def trend(days: int = 7, *, learning_store: Any = None, event_log: Any = None,
-          now: Optional[datetime] = None) -> Dict[str, Any]:
+def trend(
+    days: int = 7, *, learning_store: Any = None, event_log: Any = None, now: Optional[datetime] = None
+) -> Dict[str, Any]:
     """Per-day lessons/flips over `days`, from DURABLE records only.
 
     The tempdir flip logs prune weekly, so the trend reads the flip EVENTS the PostToolUse
@@ -266,6 +307,7 @@ def trend(days: int = 7, *, learning_store: Any = None, event_log: Any = None,
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
+
             learning_store = get_learning_store()
         recs = learning_store.load_all_learnings_from_store()
     except Exception:
@@ -286,6 +328,7 @@ def trend(days: int = 7, *, learning_store: Any = None, event_log: Any = None,
     try:
         if event_log is None:
             from core.events.event_log import get_event_log
+
             event_log = get_event_log()
         events = event_log.scan(limit=EVENT_SCAN_LIMIT)
     except Exception:
@@ -305,8 +348,10 @@ def trend(days: int = 7, *, learning_store: Any = None, event_log: Any = None,
             except Exception:
                 pass
 
-    return {"days": days,
-            "per_day": [buckets[d] for d in day_keys],
-            "lessons_30d": lessons_30d,
-            "target_30d": TARGET_LESSONS_30D,
-            "events_capped": len(events) >= EVENT_SCAN_LIMIT}
+    return {
+        "days": days,
+        "per_day": [buckets[d] for d in day_keys],
+        "lessons_30d": lessons_30d,
+        "target_30d": TARGET_LESSONS_30D,
+        "events_capped": len(events) >= EVENT_SCAN_LIMIT,
+    }

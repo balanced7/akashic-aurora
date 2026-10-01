@@ -11,15 +11,14 @@ VERIFIABILITY: a large body with no helper seam and no value-returning path has 
 transform and render fused, which is not proof of a bad answer but is proof that no seam
 exists at which an answer could be inspected, tested or reused.
 """
+
 from core.coord import dawe_census as D
 
 FUSED_BIG = "def cmd_big():\n" + "\n".join(f"    print({i})" for i in range(120))
-SEAMED_BIG = ("def _helper():\n    return 1\n\n"
-              "def cmd_seamed():\n    x = _helper()\n"
-              + "\n".join(f"    print({i})" for i in range(120)))
-ANSWERING_BIG = ("def cmd_answers():\n"
-                 + "\n".join(f"    print({i})" for i in range(118))
-                 + "\n    return {'rows': 1}\n")
+SEAMED_BIG = "def _helper():\n    return 1\n\ndef cmd_seamed():\n    x = _helper()\n" + "\n".join(
+    f"    print({i})" for i in range(120)
+)
+ANSWERING_BIG = "def cmd_answers():\n" + "\n".join(f"    print({i})" for i in range(118)) + "\n    return {'rows': 1}\n"
 FUSED_SMALL = "def cmd_small():\n    print(1)\n    print(2)\n"
 
 
@@ -88,22 +87,24 @@ def test_d8_the_real_monolith_comes_back_CLEAN_and_that_is_the_finding():
     conclusion rather than the number. This pin exists so the correction survives the
     conversation that produced it."""
     from core.paths import repo_root
+
     src = (repo_root() / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     shapes = D.survey(src)
     assert len(shapes) >= 80, f"expected ~87 cmd_* verbs, surveyed {len(shapes)}"
     flagged = [s.name for s in shapes if s.unverifiable]
     assert not flagged, (
         f"verbs are now structurally unverifiable: {flagged}. If that is real, good -- the "
-        f"census earned its keep. Update this pin with the reason rather than deleting it.")
+        f"census earned its keep. Update this pin with the reason rather than deleting it."
+    )
 
 
 # --------------------------------------------------------------- silent degradation
 
 GUARD_SILENT = "def f():\n    try:\n        from core.x import y\n    except Exception:\n        pass\n"
-GUARD_LOUD = ("def g():\n    try:\n        from core.x import y\n"
-              "    except Exception as e:\n        print('x unavailable', e)\n")
-GUARD_RERAISE = ("def h():\n    try:\n        from core.x import y\n"
-                 "    except Exception:\n        raise\n")
+GUARD_LOUD = (
+    "def g():\n    try:\n        from core.x import y\n    except Exception as e:\n        print('x unavailable', e)\n"
+)
+GUARD_RERAISE = "def h():\n    try:\n        from core.x import y\n    except Exception:\n        raise\n"
 
 
 def test_s1_a_swallowed_import_is_classified_silent():
@@ -141,6 +142,7 @@ def test_s6_the_real_monolith_shows_BOTH_kinds_which_is_the_finding():
     house already knows how to announce a failed optional import, so the 42 are drift rather
     than a uniform policy. If loud ever reaches 0 this pin should fail and be re-read."""
     from core.paths import repo_root
+
     src = (repo_root() / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     guards = D.survey_import_guards(src)
     silent = [g for g in guards if g.handler == "silent"]

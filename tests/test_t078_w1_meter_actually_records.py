@@ -24,14 +24,12 @@ Both printed a number every boot while measuring nothing -- the status-line-lies
 These pins are STATIC so they cannot themselves go quiet: a runtime test needs a live API
 turn, and a test you cannot run in CI is a test that stops running.
 """
+
 from pathlib import Path
 import ast
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNNERS = sorted(
-    p for p in (ROOT / "scripts").glob("bifrost_runner*.py")
-    if p.suffix == ".py"
-)
+RUNNERS = sorted(p for p in (ROOT / "scripts").glob("bifrost_runner*.py") if p.suffix == ".py")
 
 
 def _tree(p: Path) -> ast.AST:
@@ -39,19 +37,14 @@ def _tree(p: Path) -> ast.AST:
 
 
 def _opens_journal(tree: ast.AST) -> bool:
-    return any(
-        isinstance(n, ast.Name) and n.id == "TokenJournal" for n in ast.walk(tree)
-    ) or any(
-        isinstance(n, ast.ImportFrom) and "runner_token_journal" in (n.module or "")
-        for n in ast.walk(tree)
+    return any(isinstance(n, ast.Name) and n.id == "TokenJournal" for n in ast.walk(tree)) or any(
+        isinstance(n, ast.ImportFrom) and "runner_token_journal" in (n.module or "") for n in ast.walk(tree)
     )
 
 
 def _records(tree: ast.AST) -> bool:
     return any(
-        isinstance(n, ast.Call)
-        and isinstance(n.func, ast.Attribute)
-        and n.func.attr == "add_turn"
+        isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "add_turn"
         for n in ast.walk(tree)
     )
 
@@ -85,9 +78,7 @@ def test_every_runner_that_opens_a_journal_also_records_to_it():
         tree = _tree(p)
         if _opens_journal(tree) and not _records(tree):
             offenders[p.name] = "opens TokenJournal but never calls add_turn"
-    assert not offenders, (
-        "runner(s) print a token-journal reading while recording nothing: " + repr(offenders)
-    )
+    assert not offenders, "runner(s) print a token-journal reading while recording nothing: " + repr(offenders)
 
 
 def test_module_level_journal_is_not_shadowed_by_a_local_bind():
@@ -106,5 +97,6 @@ def test_module_level_journal_is_not_shadowed_by_a_local_bind():
 def test_the_pins_are_actually_looking_at_runners():
     """Guard the guard: an empty RUNNERS list would pass both tests vacuously."""
     assert len(RUNNERS) >= 3, f"expected several runners, found {[p.name for p in RUNNERS]}"
-    assert any(_opens_journal(_tree(p)) for p in RUNNERS), \
+    assert any(_opens_journal(_tree(p)) for p in RUNNERS), (
         "no runner references TokenJournal -- the pins above would be vacuous"
+    )

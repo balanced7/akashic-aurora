@@ -25,6 +25,7 @@ and read_verdict still works. The journal is substrate only: no verdict logic, n
 threshold, no gate behaviour may change, because this gate blocks every seat's push and an
 instrumentation slice is not allowed to risk that.
 """
+
 import json
 import os
 import sys
@@ -56,7 +57,7 @@ def test_a_verdict_appends_a_journal_line(paths):
     assert journal.exists(), "no gate journal was written"
     lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
     assert len(lines) == 1
-    json.loads(lines[0])            # one JSON object per line, parseable alone
+    json.loads(lines[0])  # one JSON object per line, parseable alone
 
 
 def test_the_journal_appends_and_never_truncates(paths):
@@ -101,7 +102,7 @@ def test_a_journal_failure_never_breaks_the_caller(tmp_path, monkeypatch):
     blocker.write_text("not a directory", encoding="utf-8")
     monkeypatch.setattr(DP, "GATE_JOURNAL", blocker / "gate_journal.jsonl", raising=False)
 
-    DP.write_verdict(_v("GREEN", 2.5))          # must not raise
+    DP.write_verdict(_v("GREEN", 2.5))  # must not raise
     assert json.loads(cache.read_text(encoding="utf-8"))["verdict"] == "GREEN"
 
 

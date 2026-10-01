@@ -36,6 +36,7 @@ a production path, so the gate is satisfied; it is the DATA that never arrives.
 
 Run: py -m pytest tests/test_t160_wire_seat_attribution.py -q
 """
+
 import glob
 import json
 import os
@@ -51,10 +52,12 @@ sys.path.insert(0, ROOT)
 def _wj():
     import importlib
     from scripts import wire_journal
+
     return importlib.reload(wire_journal)
 
 
 # --------------------------------------------------------------------------- A1
+
 
 def test_a1_a_journal_told_its_agent_attributes_records(tmp_path):
     WJ = _wj()
@@ -65,6 +68,7 @@ def test_a1_a_journal_told_its_agent_attributes_records(tmp_path):
 
 
 # --------------------------------------------------------------------------- A2
+
 
 def test_a2_the_seat_identity_door_reaches_a_lazy_singleton(tmp_path, monkeypatch):
     """The journal singleton is built inside the transport hook, long after argv is parsed.
@@ -77,18 +81,21 @@ def test_a2_the_seat_identity_door_reaches_a_lazy_singleton(tmp_path, monkeypatc
     WJ = _wj()
     assert hasattr(WJ, "set_seat_agent"), (
         "wire_journal must expose a seat-identity door -- BIFROST_AGENT is read in exactly one "
-        "place and written in none, so there is currently no way for a runner to say who it is")
+        "place and written in none, so there is currently no way for a runner to say who it is"
+    )
 
-    WJ.set_seat_agent("gemini")                     # BEFORE the singleton is built
+    WJ.set_seat_agent("gemini")  # BEFORE the singleton is built
     assert WJ.journal().agent == "gemini"
 
-    WJ.set_seat_agent("sol")                        # AFTER it exists -- must re-point it
+    WJ.set_seat_agent("sol")  # AFTER it exists -- must re-point it
     assert WJ.journal().agent == "sol", (
         "the door did not reach an already-built singleton, so attribution depends on whether "
-        "the runner happened to make a call first")
+        "the runner happened to make a call first"
+    )
 
 
 # --------------------------------------------------------------------------- A3
+
 
 def test_a3_every_runner_stamps_its_seat_identity():
     """The pin that would have caught this. Static, over the whole runner FAMILY.
@@ -108,10 +115,12 @@ def test_a3_every_runner_stamps_its_seat_identity():
             missing.append(os.path.basename(path))
     assert not missing, (
         f"{len(missing)} runner(s) can reach a model call without ever saying which seat they "
-        f"are, so every record they write is attributed to 'unknown': {missing}")
+        f"are, so every record they write is attributed to 'unknown': {missing}"
+    )
 
 
 # --------------------------------------------------------------------------- A4
+
 
 def test_a4_the_recording_transport_carries_the_seat(tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_WIRE_DIR", str(tmp_path))
@@ -121,12 +130,13 @@ def test_a4_the_recording_transport_carries_the_seat(tmp_path, monkeypatch):
     if client is None:
         pytest.skip("httpx unavailable")
     j = WJ.journal()
-    j.record(status=200, model="m")                 # the path the transport hook takes
+    j.record(status=200, model="m")  # the path the transport hook takes
     j.flush()
     assert {r.get("agent") for r in j.read_all()} == {"kimi"}
 
 
 # --------------------------------------------------------------------------- A5
+
 
 def test_a5_attribution_reaches_the_shard(tmp_path, monkeypatch):
     """T157's isolation is only real if the shard key is a real seat id."""
@@ -140,5 +150,6 @@ def test_a5_attribution_reaches_the_shard(tmp_path, monkeypatch):
     shards = [d for d in os.listdir(tmp_path) if os.path.isdir(os.path.join(tmp_path, d))]
     assert "deepseek" in shards, (
         f"records landed in {shards} -- if that is ['unknown'], every seat shares one shard and "
-        f"T157's isolation, per-shard rotation and per-shard drop attribution are all inert")
+        f"T157's isolation, per-shard rotation and per-shard drop attribution are all inert"
+    )
     assert "unknown" not in shards

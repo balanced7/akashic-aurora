@@ -33,12 +33,12 @@ to life; its first live run is what produced this finding.
 
 Run: py -m pytest tests/test_wiring_sees_shell_invocations.py -q
 """
+
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "scripts", "checkers"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "checkers"))
 
 
 def _refs(tmp_path, text, name="pre-push"):
@@ -46,6 +46,7 @@ def _refs(tmp_path, text, name="pre-push"):
     d.mkdir(parents=True, exist_ok=True)
     (d / name).write_text(text, encoding="utf-8")
     import check_wiring
+
     return check_wiring.shell_invoked_modules([str(d)])
 
 
@@ -53,7 +54,8 @@ def test_p1_dash_m_invocation_counts_as_wired(tmp_path):
     got = _refs(tmp_path, "#!/bin/sh\nif ! py -m core.comm.door_probe; then\n exit 1\nfi\n")
     assert "core/comm/door_probe.py" in got, (
         "a module run as `py -m` from the repo's only mandatory gate reads as dead -- and the "
-        "offered remedy is an EXCEPTIONS entry, which would hole the guard permanently")
+        "offered remedy is an EXCEPTIONS entry, which would hole the guard permanently"
+    )
 
 
 def test_p2_script_path_invocation_counts_as_wired(tmp_path):
@@ -71,4 +73,5 @@ def test_p3_the_guard_is_not_weakened(tmp_path):
 
 def test_p4_an_unreadable_hook_never_crashes_the_guard(tmp_path):
     import check_wiring
+
     assert check_wiring.shell_invoked_modules([str(tmp_path / "nope")]) == set()

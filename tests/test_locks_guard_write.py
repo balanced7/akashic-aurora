@@ -6,6 +6,7 @@ Bar: an agent PROACTIVELY claims a free path (peers then auto-blocked), the clai
 everything fails open when Redis is down. Uses throwaway paths so it never touches live file locks.
 Skips if Redis is down. Run: py -m pytest tests/test_locks_guard_write.py -q
 """
+
 import os
 import sys
 import uuid
@@ -39,14 +40,14 @@ def test_first_writer_claims(path):
 
 def test_reentrant_refresh(path):
     assert locks.guard_write(path, "claude")["ok"] is True
-    again = locks.guard_write(path, "claude")            # same agent, second edit
-    assert again["ok"] is True                            # re-entrant: keeps working, refreshes TTL
+    again = locks.guard_write(path, "claude")  # same agent, second edit
+    assert again["ok"] is True  # re-entrant: keeps working, refreshes TTL
     assert again["held_by"] == "claude"
 
 
 def test_peer_yields_not_clobbers(path):
-    locks.guard_write(path, "claude")                     # claude claims it
-    g = locks.guard_write(path, "deepseek")               # deepseek must yield
+    locks.guard_write(path, "claude")  # claude claims it
+    g = locks.guard_write(path, "deepseek")  # deepseek must yield
     assert g["ok"] is False and g["claimed"] is False
     assert g["held_by"] == "claude"
     assert "yield" in g["reason"].lower()
@@ -55,10 +56,10 @@ def test_peer_yields_not_clobbers(path):
 def test_influence_map_reflects_claim(path):
     locks.guard_write(path, "claude")
     assert (locks.LockManager("deepseek").holder(path) or {}).get("agent") == "claude"
-    assert locks.path_conflict(path, "deepseek")["conflict"] is True     # the map shows the collision
+    assert locks.path_conflict(path, "deepseek")["conflict"] is True  # the map shows the collision
 
 
 def test_fail_open_offline(monkeypatch, path):
     monkeypatch.setattr(locks, "_connect", lambda: None)
     g = locks.guard_write(path, "deepseek")
-    assert g["ok"] is True                                 # never wedge a local edit when the bus is down
+    assert g["ok"] is True  # never wedge a local edit when the bus is down

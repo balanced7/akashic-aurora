@@ -28,6 +28,7 @@ FAIL-OPEN, ALWAYS. A commit that has already happened must never be undone by it
 bookkeeping, and a missing row is recoverable (the sha and its subject are in git forever)
 while a refused commit loses work. Every failure path exits 0 in silence.
 """
+
 import json
 import os
 import subprocess
@@ -39,8 +40,7 @@ LEDGER = ROOT / "state" / "authorship" / "seats.jsonl"
 
 
 def _git(*args):
-    out = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True,
-                         stdin=subprocess.DEVNULL, close_fds=True)
+    out = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, stdin=subprocess.DEVNULL, close_fds=True)
     if out.returncode != 0:
         raise RuntimeError("git failed")
     return out.stdout.decode("utf-8", "replace").strip()
@@ -64,10 +64,13 @@ def main() -> int:
     try:
         who = seat()
         if not who:
-            return 0                       # nothing declared -> no row, no guess
+            return 0  # nothing declared -> no row, no guess
         sha, at, subject, ce = _git("log", "-1", "--format=%H%n%at%n%s%n%ce").split("\n", 3)
         row = {
-            "sha": sha[:12], "seat": who, "at": at, "subject": subject,
+            "sha": sha[:12],
+            "seat": who,
+            "at": at,
+            "subject": subject,
             "committer_email": ce,
             # How this row was decided, so a later reader can tell a recorded fact from a
             # reconstructed guess. cmd_build's rows carry seat_email; these cannot.
@@ -77,7 +80,7 @@ def main() -> int:
         with LEDGER.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
     except Exception:
-        return 0                           # bookkeeping never costs a commit
+        return 0  # bookkeeping never costs a commit
     return 0
 
 

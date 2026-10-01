@@ -22,6 +22,7 @@ Run::
 
     py -m pytest tests/test_room_feed_namespace.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -37,6 +38,7 @@ sys.path.insert(0, str(ROOT))
 
 def _mod():
     import importlib
+
     return importlib.import_module("core.comm.room_feed")
 
 
@@ -50,15 +52,19 @@ class _FakeRedis:
     def keys(self, pattern="*"):
         self.patterns.append(str(pattern))
         import fnmatch
+
         return [k for k in self._keys if fnmatch.fnmatch(k, str(pattern))]
 
 
 ROOMS_KEYSPACE = [
-    "bifrost:inbox:claude", "bifrost:inbox:deepseek", "bifrost:broadcast",
-    "test-drill:inbox:claude", "test-drill:broadcast",
+    "bifrost:inbox:claude",
+    "bifrost:inbox:deepseek",
+    "bifrost:broadcast",
+    "test-drill:inbox:claude",
+    "test-drill:broadcast",
     "sandbox:inbox:kimi",
-    "bifrost:cursor:lane:claude",          # not a feed stream -- must never be returned
-    "bifrost:mailbox:msg:abc",             # ditto
+    "bifrost:cursor:lane:claude",  # not a feed stream -- must never be returned
+    "bifrost:mailbox:msg:abc",  # ditto
 ]
 
 
@@ -71,8 +77,7 @@ def test_streams_scope_to_the_named_room():
 
     got = set(rf.streams_for(fake, "test-drill"))
 
-    assert got == {"test-drill:inbox:claude", "test-drill:broadcast"}, (
-        f"side-room streams wrong: {got}")
+    assert got == {"test-drill:inbox:claude", "test-drill:broadcast"}, f"side-room streams wrong: {got}"
 
 
 # ---------------------------------------------------------------- pin 2
@@ -85,7 +90,8 @@ def test_default_room_is_unchanged():
     got = set(rf.streams_for(fake, "bifrost"))
 
     assert got == {"bifrost:inbox:claude", "bifrost:inbox:deepseek", "bifrost:broadcast"}, (
-        f"the default room changed shape: {got}")
+        f"the default room changed shape: {got}"
+    )
 
 
 # ---------------------------------------------------------------- pin 3
@@ -97,13 +103,11 @@ def test_non_feed_keys_are_never_returned():
 
     got = rf.streams_for(fake, "bifrost")
 
-    assert not any("cursor" in k or "mailbox" in k for k in got), (
-        f"non-feed keys leaked into the feed: {got}")
+    assert not any("cursor" in k or "mailbox" in k for k in got), f"non-feed keys leaked into the feed: {got}"
 
 
 # ---------------------------------------------------------------- pin 4
-@pytest.mark.parametrize("bad", ["*", "bifrost:*", "*:inbox:*", "", "  ", "a b",
-                                 "bifrost:inbox", "../etc", "ns\n*"])
+@pytest.mark.parametrize("bad", ["*", "bifrost:*", "*:inbox:*", "", "  ", "a b", "bifrost:inbox", "../etc", "ns\n*"])
 def test_wildcards_and_junk_are_refused(bad):
     """SECURITY. The namespace comes from a query string and lands in a KEYS pattern.
     'ns=*' would match the entire keyspace and leak every room at once. Refuse loudly;
@@ -114,8 +118,7 @@ def test_wildcards_and_junk_are_refused(bad):
     with pytest.raises(ValueError):
         rf.streams_for(fake, bad)
 
-    assert fake.patterns == [], (
-        f"a rejected namespace still reached Redis as pattern {fake.patterns}")
+    assert fake.patterns == [], f"a rejected namespace still reached Redis as pattern {fake.patterns}"
 
 
 # ---------------------------------------------------------------- pin 5

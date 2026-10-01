@@ -44,13 +44,15 @@ def load_decisions_applicable_to_task(
     items = []
     for decision in mem.get_decisions(days=days):
         d = asdict(decision)
-        items.append({
-            "text": _text_of(d),
-            "importance": 4,                 # decisions are durable/high-value by nature
-            "timestamp": d.get("created_at"),
-            "source": d.get("id"),
-            "_decision": d,
-        })
+        items.append(
+            {
+                "text": _text_of(d),
+                "importance": 4,  # decisions are durable/high-value by nature
+                "timestamp": d.get("created_at"),
+                "source": d.get("id"),
+                "_decision": d,
+            }
+        )
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
     return [

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.
 from core.paths import repo_root as _repo_root  # noqa: E402
+
 BASE_DIR = _repo_root()
 COORD_DIR = BASE_DIR / "blackboard_data" / "agent_coordination"
 DATA_DIR = BASE_DIR / "data"
@@ -21,8 +22,8 @@ DATA_DIR = BASE_DIR / "data"
 # currently-inactive server concern managed by services/redis_ha_manager.py.)
 REDIS_HOST = "localhost"
 REDIS_PORT = 16379
-REDIS_DB = 0          # production logical DB
-REDIS_TEST_DB = 15    # tests run here so they NEVER touch canonical data (db 0)
+REDIS_DB = 0  # production logical DB
+REDIS_TEST_DB = 15  # tests run here so they NEVER touch canonical data (db 0)
 REDIS_TIMEOUT = 5
 
 # Legacy WSL HA pair (separate server lifecycle; not the canonical app endpoint).
@@ -56,26 +57,26 @@ REDIS_DOCKER_PORT = 16379
 # with the live console again.
 
 # --- PRODUCTION (878x) -- the one live fleet ---
-PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py). CANONICAL.
-PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
-PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
+PORT_UI = 8787  # Bifrost live agent console (scripts/bifrost_ui.py). CANONICAL.
+PORT_UI_RESERVED = 8788  # RESERVED prod-aux. NOT the console. Do not bind for tests.
+PORT_MCP_HTTP = 18765  # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
 
 # --- BETA (879x) -- E:\AI-Setup-Beta, longer-form integration; prod's waiting room ---
 # Renamed from SANDBOX 2026-08-14 (W156). Same band, same ports, new name: the world
 # gained a sibling, and "sandbox" stopped describing a TIER once there were two of them.
 # `core.world.ALIASES` maps sandbox->beta so old docs and the July clone still resolve.
-PORT_UI_BETA = 8790         # beta console
-REDIS_PORT_BETA = 16380     # beta Redis (isolated from prod 16379)
-PORT_UI_SANDBOX = PORT_UI_BETA          # lineage alias; prefer the BETA names
-REDIS_PORT_SANDBOX = REDIS_PORT_BETA    # lineage alias; prefer the BETA names
+PORT_UI_BETA = 8790  # beta console
+REDIS_PORT_BETA = 16380  # beta Redis (isolated from prod 16379)
+PORT_UI_SANDBOX = PORT_UI_BETA  # lineage alias; prefer the BETA names
+REDIS_PORT_SANDBOX = REDIS_PORT_BETA  # lineage alias; prefer the BETA names
 
 # --- ALPHA (880x) -- E:\AI-Setup-Alpha, risky work; discardable by design ---
-PORT_UI_ALPHA = 8800        # alpha console
-REDIS_PORT_ALPHA = 16381    # alpha Redis (isolated from prod 16379 and beta 16380)
+PORT_UI_ALPHA = 8800  # alpha console
+REDIS_PORT_ALPHA = 16381  # alpha Redis (isolated from prod 16379 and beta 16380)
 
 # --- TEST / EPHEMERAL UIs (89xx) -- the dedicated throwaway band ---
-PORT_TEST_UI_BASE = 8900    # first test-UI port; allocate upward (8900, 8901, ...).
-PORT_TEST_UI_MAX = 8999     # last test-UI port. A test UI MUST live in [8900, 8999].
+PORT_TEST_UI_BASE = 8900  # first test-UI port; allocate upward (8900, 8901, ...).
+PORT_TEST_UI_MAX = 8999  # last test-UI port. A test UI MUST live in [8900, 8999].
 
 # --- THE REGISTRY (T266) -- the constants above, as DATA a checker can read ---
 #
@@ -97,66 +98,106 @@ PORT_TEST_UI_MAX = 8999     # last test-UI port. A test UI MUST live in [8900, 8
 # NOT A REDESIGN. The 878x/879x/89xx band rules and config-wins-over-doc precedence are
 # unchanged; this slice extends the schema's REACH to the plane it could not see.
 PORT_REGISTRY = {
-    PORT_UI:            {"world": "prod",     "bound_by": "app",
-                         "what": "Bifrost live agent console",
-                         "owner": "scripts/bifrost_ui.py"},
-    PORT_UI_RESERVED:   {"world": "prod",     "bound_by": "app",
-                         "what": "RESERVED prod-aux -- NOT the console; do not bind",
-                         "owner": "(reserved)"},
-    PORT_MCP_HTTP:      {"world": "prod",     "bound_by": "app",
-                         "what": "MCP HTTP mode (stdio is the default, so usually silent)",
-                         "owner": "ai_setup_mcp.py"},
-    REDIS_PORT:         {"world": "prod",     "bound_by": "container",
-                         "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
-                         "owner": "akashic-redis"},
-    PORT_UI_BETA:       {"world": "beta",     "bound_by": "app",
-                         "what": "beta console (was: sandbox)",
-                         "owner": "<beta checkout>/scripts/bifrost_ui.py"},
-    REDIS_PORT_BETA:    {"world": "beta",     "bound_by": "container",
-                         "what": "beta Redis, isolated from prod and alpha",
-                         "owner": "akashic-redis-beta"},
-    PORT_UI_ALPHA:      {"world": "alpha",    "bound_by": "app",
-                         "what": "alpha console",
-                         "owner": "<alpha checkout>/scripts/bifrost_ui.py"},
-    REDIS_PORT_ALPHA:   {"world": "alpha",    "bound_by": "container",
-                         "what": "alpha Redis, isolated from prod and beta",
-                         "owner": "akashic-redis-alpha"},
+    PORT_UI: {
+        "world": "prod",
+        "bound_by": "app",
+        "what": "Bifrost live agent console",
+        "owner": "scripts/bifrost_ui.py",
+    },
+    PORT_UI_RESERVED: {
+        "world": "prod",
+        "bound_by": "app",
+        "what": "RESERVED prod-aux -- NOT the console; do not bind",
+        "owner": "(reserved)",
+    },
+    PORT_MCP_HTTP: {
+        "world": "prod",
+        "bound_by": "app",
+        "what": "MCP HTTP mode (stdio is the default, so usually silent)",
+        "owner": "ai_setup_mcp.py",
+    },
+    REDIS_PORT: {
+        "world": "prod",
+        "bound_by": "container",
+        "what": "canonical knowledge store + bus (db 0 prod / db 15 test)",
+        "owner": "akashic-redis",
+    },
+    PORT_UI_BETA: {
+        "world": "beta",
+        "bound_by": "app",
+        "what": "beta console (was: sandbox)",
+        "owner": "<beta checkout>/scripts/bifrost_ui.py",
+    },
+    REDIS_PORT_BETA: {
+        "world": "beta",
+        "bound_by": "container",
+        "what": "beta Redis, isolated from prod and alpha",
+        "owner": "akashic-redis-beta",
+    },
+    PORT_UI_ALPHA: {
+        "world": "alpha",
+        "bound_by": "app",
+        "what": "alpha console",
+        "owner": "<alpha checkout>/scripts/bifrost_ui.py",
+    },
+    REDIS_PORT_ALPHA: {
+        "world": "alpha",
+        "bound_by": "container",
+        "what": "alpha Redis, isolated from prod and beta",
+        "owner": "akashic-redis-alpha",
+    },
     # The container plane -- invisible to any source grep, which is exactly why it went
     # undocumented and why "which of these do we need?" could not be answered from a map.
-    11434:              {"world": "prod",     "bound_by": "container",
-                         "what": "local model lane; core/fleet/caller.py calls /api/generate",
-                         "owner": "ai-ollama"},
-    8888:               {"world": "prod",     "bound_by": "container",
-                         "what": "the fleet's ONLY web-search door (loopback only)",
-                         "owner": "akashic-searxng / scripts/local/websearch.py"},
-    3000:               {"world": "external", "bound_by": "container",
-                         "what": "human chat front-end over the same ollama; no live repo refs",
-                         "owner": "ai-open-webui"},
-    5000:               {"world": "external", "bound_by": "container",
-                         "what": "voice service; no live repo refs",
-                         "owner": "ai-voice"},
-    5001:               {"world": "external", "bound_by": "container",
-                         "what": "voice service (second port)",
-                         "owner": "ai-voice"},
+    11434: {
+        "world": "prod",
+        "bound_by": "container",
+        "what": "local model lane; core/fleet/caller.py calls /api/generate",
+        "owner": "ai-ollama",
+    },
+    8888: {
+        "world": "prod",
+        "bound_by": "container",
+        "what": "the fleet's ONLY web-search door (loopback only)",
+        "owner": "akashic-searxng / scripts/local/websearch.py",
+    },
+    3000: {
+        "world": "external",
+        "bound_by": "container",
+        "what": "human chat front-end over the same ollama; no live repo refs",
+        "owner": "ai-open-webui",
+    },
+    5000: {
+        "world": "external",
+        "bound_by": "container",
+        "what": "voice service; no live repo refs",
+        "owner": "ai-voice",
+    },
+    5001: {"world": "external", "bound_by": "container", "what": "voice service (second port)", "owner": "ai-voice"},
     # Found by check_ports on its FIRST run, and it was live-broken rather than merely
     # undocumented: model_roster's default_host said 11435, nothing listens there, and a real
     # call to an installed model failed with WinError 10061. Registering the port is what
     # makes the off-by-one visible; the fix was pointing it at the ollama that exists.
-    47100:              {"world": "prod",     "bound_by": "app",
-                         "what": "runner control-channel BASE; each seat takes base+n on "
-                                 "loopback, so the exact port is dynamic by design",
-                         "owner": "core/comm/control_channel.py"},
-    27100:              {"world": "prod",     "bound_by": "app",
-                         "what": "runner control-channel BASE where 47100 falls inside the OS's "
-                                 "ephemeral range (Linux); base+n on loopback, dynamic by design",
-                         "owner": "core/comm/control_channel.py"},
+    47100: {
+        "world": "prod",
+        "bound_by": "app",
+        "what": "runner control-channel BASE; each seat takes base+n on "
+        "loopback, so the exact port is dynamic by design",
+        "owner": "core/comm/control_channel.py",
+    },
+    27100: {
+        "world": "prod",
+        "bound_by": "app",
+        "what": "runner control-channel BASE where 47100 falls inside the OS's "
+        "ephemeral range (Linux); base+n on loopback, dynamic by design",
+        "owner": "core/comm/control_channel.py",
+    },
 }
 
 #: Bands, as data rather than prose, so the report can name a port's WORLD from its digits.
 PORT_BANDS = (
     (8780, 8789, "prod"),
-    (8790, 8799, "beta"),          # renamed from "sandbox" 2026-08-14 (W156)
-    (8800, 8809, "alpha"),         # W156: the third world
+    (8790, 8799, "beta"),  # renamed from "sandbox" 2026-08-14 (W156)
+    (8800, 8809, "alpha"),  # W156: the third world
     (PORT_TEST_UI_BASE, PORT_TEST_UI_MAX, "test"),
 )
 
@@ -204,6 +245,7 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 # These were drive-letter literals; on Linux a literal like that is a RELATIVE path, so the
 # archiver would have mkdir'd it inside the cwd -- unredacted transcripts in the public repo.
 from core.paths import env_paths as _env_paths  # noqa: E402
+
 TRANSCRIPT_ARCHIVE_ROOTS = _env_paths("AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS")
 
 # T406: the DSH plane. Rill (dsh_agent) runs on the DSH/cordis harness, which keeps its
@@ -242,7 +284,7 @@ def get_redis_config():
         "port": REDIS_PORT,
         "db": REDIS_DB,
         "decode_responses": True,
-        "socket_connect_timeout": REDIS_TIMEOUT
+        "socket_connect_timeout": REDIS_TIMEOUT,
     }
 
 
@@ -252,5 +294,5 @@ def get_docker_redis_config():
         "port": REDIS_DOCKER_PORT,
         "db": REDIS_DB,
         "decode_responses": True,
-        "socket_connect_timeout": REDIS_TIMEOUT
+        "socket_connect_timeout": REDIS_TIMEOUT,
     }

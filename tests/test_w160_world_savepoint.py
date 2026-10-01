@@ -25,19 +25,25 @@ A SAVEPOINT OF A DIRTY TREE IS NOT A SAVEPOINT, and says so rather than pretendi
 can only restore what was committed, so uncommitted work is outside what the label can
 promise. Recording that honestly at SAVE time is cheaper than discovering it at restore.
 """
+
 import pytest
 
 from core.coord import world_savepoint as SP
 
 
-def _sp(world="alpha", label="before-risky-thing", sha="a3c4b038",
-        snapshot="20260814_015417", dirty=0):
-    return SP.Savepoint(world=world, label=label, git_sha=sha,
-                        knowledge_snapshot=snapshot, dirty_at_save=dirty,
-                        saved_at="2026-08-14T09:00:00+00:00")
+def _sp(world="alpha", label="before-risky-thing", sha="a3c4b038", snapshot="20260814_015417", dirty=0):
+    return SP.Savepoint(
+        world=world,
+        label=label,
+        git_sha=sha,
+        knowledge_snapshot=snapshot,
+        dirty_at_save=dirty,
+        saved_at="2026-08-14T09:00:00+00:00",
+    )
 
 
 # ------------------------------------------------------------------ both planes or neither
+
 
 def test_b1_a_savepoint_missing_its_memory_half_is_refused_before_anything_is_touched():
     """The W156h shape: two planes, one restored, the operator believing the label."""
@@ -62,18 +68,17 @@ def test_b3_a_complete_savepoint_passes():
 
 # ------------------------------------------------------------------ blast radius
 
+
 def test_r1_restoring_prod_is_refused_without_explicit_consent():
     """Same law as the backup door after it flushed prod twice: routing safety is not
     consent, and an operation correctly aimed at prod is still aimed at prod."""
-    ok, why = SP.can_restore(_sp(world="prod"), snapshot_exists=lambda n: True,
-                             tree_dirty=0, consent=False)
+    ok, why = SP.can_restore(_sp(world="prod"), snapshot_exists=lambda n: True, tree_dirty=0, consent=False)
     assert ok is False
     assert "prod" in why.lower() and "consent" in why.lower()
 
 
 def test_r2_prod_restore_proceeds_with_explicit_consent():
-    ok, _ = SP.can_restore(_sp(world="prod"), snapshot_exists=lambda n: True,
-                           tree_dirty=0, consent=True)
+    ok, _ = SP.can_restore(_sp(world="prod"), snapshot_exists=lambda n: True, tree_dirty=0, consent=True)
     assert ok is True
 
 
@@ -85,8 +90,13 @@ def test_g1_generated_dirt_does_not_count_as_dirty():
     -- far worse -- made can_restore refuse FOREVER, so the feature was unusable on the
     repo it was built for. An always-on caveat is an ignored caveat; a never-satisfiable
     guard is a disabled guard."""
-    files = ["docs/MAP.md", "docs/DOORS.md", "chronicles/memory.md",
-             "data/corpus-digests/digests.jsonl", "state/coord/tasks.json"]
+    files = [
+        "docs/MAP.md",
+        "docs/DOORS.md",
+        "chronicles/memory.md",
+        "data/corpus-digests/digests.jsonl",
+        "state/coord/tasks.json",
+    ]
     assert SP.authored_dirt(files) == []
 
 
@@ -98,8 +108,15 @@ def test_g2_authored_dirt_still_counts():
 def test_g3_the_split_is_reported_not_silently_dropped():
     """Ignoring generated files is a judgement, and a judgement nobody can see is one
     nobody can correct."""
-    sp = SP.Savepoint(world="alpha", label="x", git_sha="abc", knowledge_snapshot="s",
-                      saved_at="t", dirty_at_save=0, generated_at_save=6)
+    sp = SP.Savepoint(
+        world="alpha",
+        label="x",
+        git_sha="abc",
+        knowledge_snapshot="s",
+        saved_at="t",
+        dirty_at_save=0,
+        generated_at_save=6,
+    )
     assert sp.complete is True
     assert "6" in sp.note and "generated" in sp.note.lower()
 
@@ -117,6 +134,7 @@ def test_r4_the_refusal_names_the_way_out():
 
 
 # ------------------------------------------------------------------ honesty at save time
+
 
 def test_s1_saving_a_dirty_tree_records_the_dirt_rather_than_hiding_it():
     """git restores what was COMMITTED, so uncommitted work is outside what this label can
@@ -156,8 +174,7 @@ def test_s5_the_same_label_supersedes_rather_than_duplicating(tmp_path):
 def test_s6_a_savepoint_never_crosses_worlds(tmp_path):
     """alpha's savepoint restored into beta would be the cross-world write the whole arc
     exists to prevent."""
-    ok, why = SP.can_restore(_sp(world="alpha"), snapshot_exists=lambda n: True,
-                             tree_dirty=0, into_world="beta")
+    ok, why = SP.can_restore(_sp(world="alpha"), snapshot_exists=lambda n: True, tree_dirty=0, into_world="beta")
     assert ok is False
     assert "alpha" in why and "beta" in why
 

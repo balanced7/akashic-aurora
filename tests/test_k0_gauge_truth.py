@@ -13,6 +13,7 @@ Laws pinned:
      payload within the window is a silent no-op (O_EXCL marker; no load-then-mark race).
 Run: py -m pytest tests/test_k0_gauge_truth.py -q
 """
+
 import json
 import os
 import sys
@@ -42,9 +43,11 @@ def test_single_registration_surface():
     assert surfaces_with_hook <= 1, (
         "claude_pretooluse.py registered on BOTH settings surfaces again -- every matched "
         "call double-fires and the funnel denominator lies (C8-3). Keep ONLY the user-level "
-        "absolute-path registration.")
+        "absolute-path registration."
+    )
     assert _hook_count(project) == 0, (
-        "project-level registration returned -- the ledger's routing keeps user-level only")
+        "project-level registration returned -- the ledger's routing keeps user-level only"
+    )
 
 
 def test_dedup_guard_is_atomic_and_window_bound(tmp_path, monkeypatch):
@@ -55,6 +58,7 @@ def test_dedup_guard_is_atomic_and_window_bound(tmp_path, monkeypatch):
     sys.path.insert(0, os.path.join(REPO, "agent", "harness", "hooks"))
     import importlib
     import claude_pretooluse as hook
+
     importlib.reload(hook)
     payload = {"session_id": "s1", "tool_name": "Bash", "tool_input": {"command": "ls"}}
     assert hook._dedup_should_skip(payload) is False, "first fire must pass"

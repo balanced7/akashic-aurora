@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Arm a future-only, zero-model-idle Bifrost watcher for Codex/Sol."""
+
 from __future__ import annotations
 
 import argparse
@@ -124,8 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         allowed_senders=frozenset(args.allow_from or ["dsh_agent"]),
         expected_answers=frozenset(str(value) for value in args.expected_answer),
         direct_kinds=frozenset(
-            set(DIRECT_ACTION_KINDS)
-            | {str(value).strip().lower() for value in args.allow_kind if str(value).strip()}
+            set(DIRECT_ACTION_KINDS) | {str(value).strip().lower() for value in args.allow_kind if str(value).strip()}
         ),
         required_source=(str(args.require_source).strip() if args.require_source else None),
     )

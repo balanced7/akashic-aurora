@@ -23,6 +23,7 @@ Proposals (the curator, C5, decides what to do with them):
     the two sub-groups are computed at cluster time (we have the vectors) and carried on the
     Cluster so `propose()` stays pure.
 """
+
 import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -36,23 +37,28 @@ from core.primitives.embedder import Embedder, get_embedder
 class Cluster:
     id: str
     atom_ids: List[str]
-    cohesion: float                       # mean cosine of members to the centroid (0..1)
-    label: str                            # the most-central member's text (human handle)
+    cohesion: float  # mean cosine of members to the centroid (0..1)
+    label: str  # the most-central member's text (human handle)
     centroid: List[float] = field(default_factory=list)
-    salient: bool = False                 # a preserved high-importance atom/anchor
-    split_score: float = 0.0              # >0 if internally bimodal (distinctness of the two halves)
+    salient: bool = False  # a preserved high-importance atom/anchor
+    split_score: float = 0.0  # >0 if internally bimodal (distinctness of the two halves)
     split_parts: Optional[Tuple[List[str], List[str]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"id": self.id, "atom_ids": self.atom_ids, "cohesion": round(self.cohesion, 3),
-                "label": self.label, "salient": self.salient,
-                "split_score": round(self.split_score, 3)}
+        return {
+            "id": self.id,
+            "atom_ids": self.atom_ids,
+            "cohesion": round(self.cohesion, 3),
+            "label": self.label,
+            "salient": self.salient,
+            "split_score": round(self.split_score, 3),
+        }
 
 
 @dataclass
 class Clustering:
     clusters: List[Cluster]
-    outliers: List[str]                   # low-importance loners (noise; not a resource)
+    outliers: List[str]  # low-importance loners (noise; not a resource)
 
     def assignment(self) -> Dict[str, str]:
         out: Dict[str, str] = {}
@@ -64,14 +70,18 @@ class Clustering:
 
 @dataclass
 class Proposal:
-    kind: str                             # "merge" | "split"
+    kind: str  # "merge" | "split"
     cluster_ids: List[str]
-    score: float                          # 0..1 (centroid sim for merge; distinctness for split)
+    score: float  # 0..1 (centroid sim for merge; distinctness for split)
     reason: str
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"kind": self.kind, "cluster_ids": self.cluster_ids,
-                "score": round(self.score, 3), "reason": self.reason}
+        return {
+            "kind": self.kind,
+            "cluster_ids": self.cluster_ids,
+            "score": round(self.score, 3),
+            "reason": self.reason,
+        }
 
 
 def _cluster_id(atom_ids: Sequence[str]) -> str:
@@ -80,15 +90,22 @@ def _cluster_id(atom_ids: Sequence[str]) -> str:
 
 
 class Clusterer:
-    def __init__(self, embedder: Optional[Embedder] = None, *,
-                 sim_threshold: float = 0.45, min_cluster: int = 3,
-                 salient_importance: float = 4.0, salient_keep: float = 0.55,
-                 merge_threshold: float = 0.82, split_threshold: float = 0.40):
+    def __init__(
+        self,
+        embedder: Optional[Embedder] = None,
+        *,
+        sim_threshold: float = 0.45,
+        min_cluster: int = 3,
+        salient_importance: float = 4.0,
+        salient_keep: float = 0.55,
+        merge_threshold: float = 0.82,
+        split_threshold: float = 0.40,
+    ):
         self.embedder = embedder or get_embedder()
-        self.sim_threshold = sim_threshold      # edge if cosine >= this
-        self.min_cluster = min_cluster          # rule of three: no (non-salient) cluster below this
+        self.sim_threshold = sim_threshold  # edge if cosine >= this
+        self.min_cluster = min_cluster  # rule of three: no (non-salient) cluster below this
         self.salient_importance = salient_importance
-        self.salient_keep = salient_keep        # a salient member below this cos-to-centroid is ejected
+        self.salient_keep = salient_keep  # a salient member below this cos-to-centroid is ejected
         self.merge_threshold = merge_threshold
         self.split_threshold = split_threshold  # two halves with inter-centroid cos below this = bimodal
 
@@ -100,9 +117,9 @@ class Clusterer:
         vecs = self.embedder.embed_many([a.get("text", "") for a in atoms])
         have = [i for i, v in enumerate(vecs) if v is not None]
         if not have:
-            return Clustering([], list(ids))     # no model -> all outliers (graceful, no crash)
+            return Clustering([], list(ids))  # no model -> all outliers (graceful, no crash)
 
-        V = np.array([vecs[i] for i in have], dtype=float)        # unit-normalized rows
+        V = np.array([vecs[i] for i in have], dtype=float)  # unit-normalized rows
         sims = V @ V.T
         n = len(have)
         parent = list(range(n))
@@ -113,12 +130,12 @@ class Clusterer:
                 x = parent[x]
             return x
 
-        for a in range(n):                                        # union at the threshold
+        for a in range(n):  # union at the threshold
             for b in range(a + 1, n):
                 if sims[a, b] >= self.sim_threshold:
                     ra, rb = find(a), find(b)
                     if ra != rb:
-                        parent[max(ra, rb)] = min(ra, rb)         # lower root -> deterministic
+                        parent[max(ra, rb)] = min(ra, rb)  # lower root -> deterministic
 
         comps: Dict[int, List[int]] = {}
         for a in range(n):
@@ -132,7 +149,7 @@ class Clusterer:
             if len(keep) >= self.min_cluster:
                 clusters.append(self._build_cluster(keep, V, atoms, ids, have))
             else:
-                ejected = sorted(set(ejected) | set(keep))       # too small to be a resource
+                ejected = sorted(set(ejected) | set(keep))  # too small to be a resource
             for m in ejected:
                 gi = have[m]
                 if imp[gi] >= self.salient_importance:
@@ -143,8 +160,9 @@ class Clusterer:
         clusters.sort(key=lambda c: c.atom_ids[0])
         return Clustering(clusters, sorted(set(outliers)))
 
-    def _eject_ill_fitting_salient(self, members: List[int], V, imp: List[float],
-                                   have: List[int]) -> Tuple[List[int], List[int]]:
+    def _eject_ill_fitting_salient(
+        self, members: List[int], V, imp: List[float], have: List[int]
+    ) -> Tuple[List[int], List[int]]:
         """A high-importance member that fits the cluster poorly is pulled out (never absorbed)."""
         if len(members) <= 1:
             return list(members), []
@@ -164,8 +182,7 @@ class Clusterer:
         nrm = np.linalg.norm(c)
         return c / nrm if nrm > 0 else c
 
-    def _build_cluster(self, local: List[int], V, atoms, ids, have: List[int],
-                       *, salient: bool = False) -> Cluster:
+    def _build_cluster(self, local: List[int], V, atoms, ids, have: List[int], *, salient: bool = False) -> Cluster:
         rows = V[local]
         centroid = self._centroid(rows)
         coss = [float(rows[k] @ centroid) for k in range(len(local))]
@@ -175,9 +192,16 @@ class Clusterer:
         split_score, split_parts = 0.0, None
         if len(local) >= 2 * self.min_cluster:
             split_score, split_parts = self._bimodality(atom_ids, rows)
-        return Cluster(id=_cluster_id(atom_ids), atom_ids=atom_ids, cohesion=cohesion, label=label,
-                       centroid=[float(x) for x in centroid], salient=salient,
-                       split_score=split_score, split_parts=split_parts)
+        return Cluster(
+            id=_cluster_id(atom_ids),
+            atom_ids=atom_ids,
+            cohesion=cohesion,
+            label=label,
+            centroid=[float(x) for x in centroid],
+            salient=salient,
+            split_score=split_score,
+            split_parts=split_parts,
+        )
 
     def _bimodality(self, atom_ids: List[str], rows) -> Tuple[float, Optional[Tuple[List[str], List[str]]]]:
         """Split by the two least-similar 'poles'; bimodal if both halves are >=min_cluster and
@@ -207,13 +231,19 @@ class Clusterer:
             for j in range(i + 1, len(cl)):
                 cos = float(np.array(cl[i].centroid) @ np.array(cl[j].centroid))
                 if cos >= self.merge_threshold:
-                    out.append(Proposal("merge", [cl[i].id, cl[j].id], cos,
-                                        f"centroids near-duplicate (cos={cos:.2f})"))
+                    out.append(
+                        Proposal("merge", [cl[i].id, cl[j].id], cos, f"centroids near-duplicate (cos={cos:.2f})")
+                    )
         for c in cl:
             if c.split_score > 0 and c.split_parts:
-                out.append(Proposal("split", [c.id], c.split_score,
-                                    f"bimodal {len(c.split_parts[0])}+{len(c.split_parts[1])} "
-                                    f"(distinctness={c.split_score:.2f})"))
+                out.append(
+                    Proposal(
+                        "split",
+                        [c.id],
+                        c.split_score,
+                        f"bimodal {len(c.split_parts[0])}+{len(c.split_parts[1])} (distinctness={c.split_score:.2f})",
+                    )
+                )
         out.sort(key=lambda p: -p.score)
         return out
 

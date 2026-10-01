@@ -19,6 +19,7 @@ What the render owes the reader is the address it ALREADY HAS.
 An unaddressed clip is a data-loss path by design rather than by accident, because nothing
 in the output says where the rest went.
 """
+
 from __future__ import annotations
 
 import sys
@@ -39,9 +40,10 @@ def test_a_clipped_body_prints_a_way_to_reach_the_rest():
     long_body = "POINT ONE. " + ("x" * 4000) + " POINT THREE, the part that got eaten."
     line = BP.format_inbox_line(_msg(long_body), max_len=200)
     assert "[truncated]" in line or "clipped" in line.lower()
-    assert ("1786094136458-0" in line or "518bfcb0c5" in line), (
+    assert "1786094136458-0" in line or "518bfcb0c5" in line, (
         "the body was clipped and the line names no address -- the reader has nothing to "
-        "follow, which is exactly the six-door hunt this pin exists to prevent")
+        "follow, which is exactly the six-door hunt this pin exists to prevent"
+    )
 
 
 def test_the_pointer_names_the_door_not_just_the_id():
@@ -51,8 +53,9 @@ def test_the_pointer_names_the_door_not_just_the_id():
     long_body = "y" * 5000
     line = BP.format_inbox_line(_msg(long_body), max_len=200)
     low = line.lower()
-    assert "mailbox" in low or "bifrost-fetch" in low or "--open" in low, \
+    assert "mailbox" in low or "bifrost-fetch" in low or "--open" in low, (
         "name the door that turns this handle back into the body"
+    )
 
 
 def test_clip_pointer_keeps_the_promise_its_docstring_makes():
@@ -84,5 +87,6 @@ def test_a_message_with_no_addressable_id_says_so():
     m = {"frm": "x", "kind": "note", "content": "z" * 5000}
     line = BP.format_inbox_line(m, max_len=200)
     low = line.lower()
-    assert "no address" in low or "unrecoverable" in low or "not addressable" in low, \
+    assert "no address" in low or "unrecoverable" in low or "not addressable" in low, (
         "a clip with no recoverable handle must confess it, not stay quiet"
+    )

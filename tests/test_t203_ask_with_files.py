@@ -29,6 +29,7 @@ HONESTY REQUIREMENTS, because a context assembler that lies is worse than no ass
 
 Run: py -m pytest tests/test_t203_ask_with_files.py -q
 """
+
 import os
 import sys
 
@@ -107,8 +108,10 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
         class C:
             class M:
                 content = "ok"
+
             message = M()
             finish_reason = "stop"
+
         choices = [C()]
         usage = None
 
@@ -120,8 +123,7 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
                     seen["messages"] = kw.get("messages")
                     return FakeResp()
 
-    o = ask_mod.ask("why", with_files=[str(tree / "a.py")], client=FakeClient(),
-                     context_root=tree)
+    o = ask_mod.ask("why", with_files=[str(tree / "a.py")], client=FakeClient(), context_root=tree)
     assert o.ok
     assert "alpha" in str(seen["messages"]), "file content must reach the model"
     assert o.detail.get("context", {}).get("included"), "outcome records what it sent"
@@ -143,8 +145,10 @@ def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
         class C:
             class M:
                 content = "ok"
+
             message = M()
             finish_reason = "stop"
+
         choices = [C()]
         usage = None
 
@@ -156,8 +160,7 @@ def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
                     seen.append(str(kw.get("messages")))
                     return FakeResp()
 
-    o = ask_mod.ask_many(["q1", "q2"], client=FakeClient(),
-                         with_files=[str(tree / "a.py")], context_root=tree)
+    o = ask_mod.ask_many(["q1", "q2"], client=FakeClient(), with_files=[str(tree / "a.py")], context_root=tree)
     assert o.ok
     assert len(seen) == 2
     for msg in seen:

@@ -16,6 +16,7 @@ T019 shape -- prevents the chatty-child wedge), circuit breaker (3 crashes/300s
 = trip), benign-exit-is-handover (N1: exit 0 = deliberate, daemon does not
 contest -- docstring says it).
 """
+
 from __future__ import annotations
 
 import collections
@@ -55,8 +56,7 @@ class DaemonLock:
         if self._c is None:
             return True
         try:
-            rec = {"token": self._token, "pid": self._pid,
-                   "started": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            rec = {"token": self._token, "pid": self._pid, "started": time.strftime("%Y-%m-%dT%H:%M:%S")}
             return bool(self._c.set(self._key, json.dumps(rec), nx=True, ex=self._ttl))
         except Exception:
             return True
@@ -77,10 +77,13 @@ class DaemonLock:
                 self._c.set(self._key, json.dumps(rec), ex=self._ttl)
                 return True
             # F5: key vanished (outage > TTL, Redis restart). nx-reclaim.
-            rec = {"token": self._token, "pid": self._pid,
-                   "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                   "refreshed": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                   "reclaimed": True}
+            rec = {
+                "token": self._token,
+                "pid": self._pid,
+                "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "refreshed": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "reclaimed": True,
+            }
             return bool(self._c.set(self._key, json.dumps(rec), nx=True, ex=self._ttl))
         except Exception:
             return True
@@ -126,11 +129,15 @@ class ManagedChild:
     down. Daemon becomes presence-only until restart.
     """
 
-    def __init__(self, args: List[str], env: Optional[Dict[str, str]] = None,
-                 cwd: Optional[str] = None,
-                 on_blocker: Optional[Callable[[], None]] = None,
-                 breaker_window_s: float = 300.0,
-                 breaker_max: int = 3):
+    def __init__(
+        self,
+        args: List[str],
+        env: Optional[Dict[str, str]] = None,
+        cwd: Optional[str] = None,
+        on_blocker: Optional[Callable[[], None]] = None,
+        breaker_window_s: float = 300.0,
+        breaker_max: int = 3,
+    ):
         self._args = list(args)
         # env=None INHERITS, exactly as subprocess.Popen documents it. The old
         # `dict(env or {})` turned "no preference" into a genuinely EMPTY environment --
@@ -191,18 +198,26 @@ class ManagedChild:
         if time.time() < self._next_spawn_at:
             return None  # F2: backoff not yet elapsed; caller retries on next tick
         self._proc = subprocess.Popen(
-            self._args, env=self._env, cwd=self._cwd,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            self._args,
+            env=self._env,
+            cwd=self._cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             # Runners self-bless stdout/stderr to UTF-8.  On Windows a bare
             # text=True reader defaults to cp1252; one valid UTF-8 continuation
             # byte then kills the drainer's decoder, the broad exception guard
             # hides that death, and the child blocks once the undrained pipe fills.
             # Declare the wire encoding at BOTH ends; replacement keeps best-effort
             # display from becoming a process-lifecycle dependency.
-            text=True, encoding="utf-8", errors="replace", bufsize=1)
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            bufsize=1,
+        )
         # F1: start drainer thread to prevent pipe wedge
         self._ring.clear()
         self._drainer_done.clear()
+
         def _drain():
             try:
                 for line in self._proc.stdout:
@@ -211,6 +226,7 @@ class ManagedChild:
                 pass
             finally:
                 self._drainer_done.set()
+
         self._drainer = threading.Thread(target=_drain, daemon=True)
         self._drainer.start()
         return self._proc
@@ -274,7 +290,7 @@ class ManagedChild:
             # contest -- a runner that stood down or exited cleanly stays down.
             self._backoff_idx = 0
             self._crashes.clear()
-            self._next_spawn_at = float("inf")   # never auto-respawn
+            self._next_spawn_at = float("inf")  # never auto-respawn
             return
         if code == self.HANDOVER_EXIT:
             # Supervisor-directed tenure replacement: respawn immediately, clear
@@ -283,7 +299,7 @@ class ManagedChild:
             # readiness to hand off (the sol stuck-runner root cause).
             self._backoff_idx = 0
             self._crashes.clear()
-            self._next_spawn_at = 0.0   # spawn on the next poll tick
+            self._next_spawn_at = 0.0  # spawn on the next poll tick
             return
         # crash
         now = time.time()

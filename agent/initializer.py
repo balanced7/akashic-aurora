@@ -33,10 +33,7 @@ from typing import Dict, Any, Optional
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='[AGENT_INIT] %(asctime)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="[AGENT_INIT] %(asctime)s - %(message)s")
 logger = logging.getLogger("agent_init")
 
 
@@ -45,7 +42,7 @@ def derive_agent_context_from_startup_sources(
     task_keyword: Optional[str] = None,
     redis_host: str = DEFAULT_REDIS_HOST,
     redis_port: int = DEFAULT_REDIS_PORT,
-    verbose: bool = True
+    verbose: bool = True,
 ) -> Dict[str, Any]:
     """
     Derive agent context from startup sources (Redis primary, Files fallback).
@@ -91,9 +88,9 @@ def derive_agent_context_from_startup_sources(
     """
 
     if verbose:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"AGENT INITIALIZATION: {agent_id}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     start_time = time.time()
     status = "success"
@@ -114,8 +111,7 @@ def derive_agent_context_from_startup_sources(
 
         # SignalEmitter for EMITTING signals. Context now comes from the Context
         # pillar (below), so we skip coordinator_api's old load path -> no duplication.
-        api = initialize(agent_id, redis_host=redis_host, redis_port=redis_port,
-                         load_context=False)
+        api = initialize(agent_id, redis_host=redis_host, redis_port=redis_port, load_context=False)
 
         # Session state for crash recovery
         logger.info("Checking for checkpoint...")
@@ -137,12 +133,16 @@ def derive_agent_context_from_startup_sources(
         if verbose:
             print("STARTUP CONTEXT ASSEMBLED (Context pillar / System 4):")
             print(f"  coverage: {context.get('coverage')}")
-            print(f"  ~tokens: {context.get('approx_tokens')}/{context.get('token_budget')} "
-                  f"(within budget: {context.get('within_budget')})")
-            print(f"  decisions: {len(sections.get('decisions', []))}  "
-                  f"learnings: {len(sections.get('learnings', []))}  "
-                  f"blockers: {len(sections.get('blockers', []))}  "
-                  f"briefing: {sections.get('briefing') is not None}")
+            print(
+                f"  ~tokens: {context.get('approx_tokens')}/{context.get('token_budget')} "
+                f"(within budget: {context.get('within_budget')})"
+            )
+            print(
+                f"  decisions: {len(sections.get('decisions', []))}  "
+                f"learnings: {len(sections.get('learnings', []))}  "
+                f"blockers: {len(sections.get('blockers', []))}  "
+                f"briefing: {sections.get('briefing') is not None}"
+            )
             print(f"  checkpoint available: {checkpoint_exists}")
 
             if checkpoint_exists:
@@ -205,11 +205,7 @@ def initialize_agent_with_minimal_output(agent_id: str, task_keyword: str = None
 
     Returns: tuple of (api, state, context) for quick setup
     """
-    result = derive_agent_context_from_startup_sources(
-        agent_id,
-        task_keyword=task_keyword,
-        verbose=False
-    )
+    result = derive_agent_context_from_startup_sources(agent_id, task_keyword=task_keyword, verbose=False)
 
     if result["status"] == "success":
         return result["api"], result["state"], result["context"]
@@ -225,27 +221,22 @@ def initialize_agent_with_full_diagnostics(agent_id: str, task_keyword: str = No
 
     Returns: result dict with complete status information and diagnostics
     """
-    return derive_agent_context_from_startup_sources(
-        agent_id,
-        task_keyword=task_keyword,
-        verbose=True
-    )
+    return derive_agent_context_from_startup_sources(agent_id, task_keyword=task_keyword, verbose=True)
 
 
 # ===== BACKWARD COMPATIBILITY ALIASES =====
 # These are deprecated. Use semantic names instead.
+
 
 def initialize_and_load_context(
     agent_id: str,
     task_keyword: Optional[str] = None,
     redis_host: str = DEFAULT_REDIS_HOST,
     redis_port: int = DEFAULT_REDIS_PORT,
-    verbose: bool = True
+    verbose: bool = True,
 ) -> Dict[str, Any]:
     """Deprecated: Use derive_agent_context_from_startup_sources() instead"""
-    return derive_agent_context_from_startup_sources(
-        agent_id, task_keyword, redis_host, redis_port, verbose
-    )
+    return derive_agent_context_from_startup_sources(agent_id, task_keyword, redis_host, redis_port, verbose)
 
 
 def quick_initialize(agent_id: str, task_keyword: str = None):

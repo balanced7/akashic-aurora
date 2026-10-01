@@ -15,6 +15,7 @@ Laws under test (pre-registered, RED before core/toolbelt/registry.py exists):
   - EXECUTION: resolve_and_run executes steps in order through an injected runner (hermetic).
 Run: py -m pytest tests/test_t099_v0_toolbelt.py -q
 """
+
 import os
 import sys
 
@@ -25,14 +26,20 @@ KNOWN = {"bifrost-pause", "bifrost-skip-to-now", "bifrost-resume", "doctor", "di
 
 def _reg(tmp_path):
     from core.toolbelt.registry import Toolbelt
+
     return Toolbelt("t-tester", root=str(tmp_path), known_verbs=lambda: KNOWN)
 
 
 def test_mint_resolve_round_trip(tmp_path):
     tb = _reg(tmp_path)
-    tb.mint("standby-hard", [["bifrost-pause", "--reason", "x", "--by", "t-tester"],
-                             ["bifrost-skip-to-now", "t-tester", "--by", "t-tester", "--reason", "x"],
-                             ["bifrost-resume"]])
+    tb.mint(
+        "standby-hard",
+        [
+            ["bifrost-pause", "--reason", "x", "--by", "t-tester"],
+            ["bifrost-skip-to-now", "t-tester", "--by", "t-tester", "--reason", "x"],
+            ["bifrost-resume"],
+        ],
+    )
     steps = tb.resolve("standby-hard")
     assert [s[0] for s in steps] == ["bifrost-pause", "bifrost-skip-to-now", "bifrost-resume"]
 
@@ -60,9 +67,9 @@ def test_remint_supersedes_with_version_exact_remint_noop(tmp_path):
     tb = _reg(tmp_path)
     tb.mint("peek", [["discover"]])
     v1 = tb.get("peek")["version"]
-    tb.mint("peek", [["discover"]])                      # exact re-mint -> no-op
+    tb.mint("peek", [["discover"]])  # exact re-mint -> no-op
     assert tb.get("peek")["version"] == v1
-    tb.mint("peek", [["doctor"]])                        # changed definition -> supersede
+    tb.mint("peek", [["doctor"]])  # changed definition -> supersede
     e = tb.get("peek")
     assert e["version"] == v1 + 1 and e["steps"] == [["doctor"]]
     assert tb.history("peek")[0]["steps"] == [["discover"]], "prior observation retained"
@@ -83,15 +90,16 @@ def test_run_executes_steps_in_order_via_injected_runner(tmp_path):
     tb = _reg(tmp_path)
     tb.mint("combo", [["bifrost-pause", "--by", "t"], ["bifrost-resume"]])
     ran = []
-    rc = tb.resolve_and_run("combo", runner=lambda argv: (ran.append(list(argv)) or 0))
+    rc = tb.resolve_and_run("combo", runner=lambda argv: ran.append(list(argv)) or 0)
     assert rc == 0 and [r[0] for r in ran] == ["bifrost-pause", "bifrost-resume"]
 
 
 def test_registry_survives_reload_file_is_truth(tmp_path):
     from core.toolbelt.registry import Toolbelt
+
     tb = _reg(tmp_path)
     tb.mint("keep", [["discover"]])
-    tb2 = Toolbelt("t-tester", root=str(tmp_path), known_verbs=lambda: KNOWN)   # fresh projection
+    tb2 = Toolbelt("t-tester", root=str(tmp_path), known_verbs=lambda: KNOWN)  # fresh projection
     assert tb2.resolve("keep") == [["discover"]], "re-projection from the durable file"
 
 
@@ -117,7 +125,7 @@ def test_family_tag_persists_renders_and_is_content(tmp_path):
     tb.mint("peek", [["discover"]], family="MONITORS")
     e = tb.get("peek")
     assert e["family"] == "MONITORS" and e["version"] == 2, "family change supersedes"
-    tb.mint("peek", [["discover"]], family="MONITORS")     # exact re-mint incl family -> no-op
+    tb.mint("peek", [["discover"]], family="MONITORS")  # exact re-mint incl family -> no-op
     assert tb.get("peek")["version"] == 2
     assert "MONITORS" in tb.render_list()
 
@@ -126,8 +134,7 @@ def test_macro_params_detected_and_substituted(tmp_path):
     """Pass-2 · macros: steps may carry $1..$9 slots (macro expansion, the canonical word).
     Mint detects the arity and marks kind=macro; resolve substitutes positionally."""
     tb = _reg(tmp_path)
-    e = tb.mint("park-one", [["bifrost-pause", "--reason", "$2", "--by", "$1"],
-                            ["bifrost-resume"]])
+    e = tb.mint("park-one", [["bifrost-pause", "--reason", "$2", "--by", "$1"], ["bifrost-resume"]])
     assert e["kind"] == "macro" and e["params"] == 2, "arity detected from the highest $N"
     steps = tb.resolve("park-one", args=["claude", "sweeping"])
     assert steps[0] == ["bifrost-pause", "--reason", "sweeping", "--by", "claude"]

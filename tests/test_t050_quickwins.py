@@ -12,6 +12,7 @@ Pins:
 
 Run: py -m pytest tests/test_t050_quickwins.py -q
 """
+
 import os
 import sys
 import types
@@ -32,8 +33,8 @@ from pathlib import Path
 def _repo_root():
     """Derived: the old literal pinned one machine."""
     from core.paths import repo_root
-    return repo_root()
 
+    return repo_root()
 
 
 # ------------------------------------------------------------------ W1: loud trim
@@ -42,8 +43,9 @@ def test_trim_under_budget_unchanged():
 
 
 def test_trim_over_budget_names_dropped_sections():
-    digest = ("HEAD " * 20) + "\n## KEPT SECTION\nbody\n" + ("x" * 200) + \
-             "\n## DROPPED ALPHA\nbody\n## DROPPED BETA\nmore"
+    digest = (
+        ("HEAD " * 20) + "\n## KEPT SECTION\nbody\n" + ("x" * 200) + "\n## DROPPED ALPHA\nbody\n## DROPPED BETA\nmore"
+    )
     out = runner._trim_onboarding(digest, budget_chars=140)
     assert "TRIMMED at its 140-char budget" in out
     assert "DROPPED ALPHA" in out and "DROPPED BETA" in out
@@ -70,12 +72,14 @@ class _FakeMemory:
 
 
 def _toolbox():
-    return dc.ToolBox(_repo_root(), allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda _p: False, agent_id="testagent")
+    return dc.ToolBox(
+        _repo_root(), allow_exec=False, trust=False, allow_secrets=False, confirm=lambda _p: False, agent_id="testagent"
+    )
 
 
 def test_memory_note_and_recall_roundtrip(monkeypatch):
     import core.learning.agent_memory as am
+
     fake = _FakeMemory()
     monkeypatch.setattr(am, "get_agent_memory", lambda *a, **k: fake)
     tb = _toolbox()
@@ -89,6 +93,7 @@ def test_memory_note_and_recall_roundtrip(monkeypatch):
 
 def test_memory_recall_empty_teaches(monkeypatch):
     import core.learning.agent_memory as am
+
     monkeypatch.setattr(am, "get_agent_memory", lambda *a, **k: _FakeMemory())
     assert "memory_note" in _toolbox().memory_recall()
 
@@ -96,6 +101,7 @@ def test_memory_recall_empty_teaches(monkeypatch):
 # ------------------------------------------------------------------ W3: lock notes
 def test_lock_note_rendered_in_holder():
     from core.comm.locks import LockManager
+
     lm = LockManager("t050-tester")
     if not lm.online:
         pytest.skip("redis not available")
@@ -112,9 +118,11 @@ def test_lock_note_rendered_in_holder():
 # ------------------------------------------------------------- W4: seat-path parity
 def test_fast_seat_path_matches_wake_seat():
     from core.comm import wake_seat
+
     for sid in ("abc-123", None):
-        assert bifrost_wake._hb_path_fast("claude", sid) == wake_seat.seat_path("claude", sid), \
+        assert bifrost_wake._hb_path_fast("claude", sid) == wake_seat.seat_path("claude", sid), (
             "fast path MUST mirror wake_seat.seat_path -- drift silently un-arms every session"
+        )
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ injections are ledgered altitude="action". Payload capture comes FIRST and has i
 switch (AKASHIC_PAYLOAD_CAPTURE=0) -- while shapes are unpinned, capture IS the product.
 Recall/credit kill switch: AKASHIC_RECALL_AT_ACTION=0. Everything fails OPEN.
 """
+
 import json
 import os
 import sys
@@ -63,19 +64,20 @@ def _recall_block(sid: str, path: str, command: str) -> str:
     sid serves as both keys — byte-for-byte the old single-key behavior."""
     try:
         from agent.harness.actions import recall_block
+
         return recall_block(sid, sid, path or None, command or None)
     except Exception:
-        return ""   # recall must never brick the agent
+        return ""  # recall must never brick the agent
 
 
 def _in_scope(data, command: str, path: str) -> bool:
     """Belt only -- .cursor/hooks.json is project config, so events are this-repo by
     construction; this protects against the config being copied elsewhere."""
     from agent.harness.scope import file_in_scope, shell_in_scope
+
     if path:
         return file_in_scope(path)
-    return shell_in_scope(data.get("cwd") or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd(),
-                          command)
+    return shell_in_scope(data.get("cwd") or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd(), command)
 
 
 def main() -> int:
@@ -85,6 +87,7 @@ def main() -> int:
         return 0
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label=_event(data))
     except Exception:
         pass
@@ -96,12 +99,14 @@ def main() -> int:
         if not _in_scope(data, command, path):
             return 0
         from core.recall.at_action import normalize_target
+
         target = normalize_target(path or None, command or None)
         if not target:
             return 0
         # Outcome + nudge now ride the shared door (t383): resolve, credit-on-flip,
         # capture the flip event, rate-limited nudge — all inside outcome_block.
         from agent.harness.actions import outcome_block
+
         if "failure" in _event(data).lower():
             outcome_block(sid, sid, target, False)
             ctx = _recall_block(sid, path, command)
@@ -116,7 +121,7 @@ def main() -> int:
             if ctx:
                 _emit_context(ctx)
     except Exception:
-        pass   # credit/recall must never affect the agent
+        pass  # credit/recall must never affect the agent
     return 0
 
 

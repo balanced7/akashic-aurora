@@ -12,11 +12,13 @@ alerted six times in three minutes on MemCompression -- while that process was
 SHRINKING (4406.7 -> 4393.6MB) and the host sat at 46.7% used with 32.9GB free and
 swap at 0.4%. Two defects, both invisible to the drill by construction.
 """
+
 import importlib.util
 from pathlib import Path
 
 _spec = importlib.util.spec_from_file_location(
-    "mem_watch", Path(__file__).resolve().parents[1] / "scripts" / "ops" / "mem_watch.py")
+    "mem_watch", Path(__file__).resolve().parents[1] / "scripts" / "ops" / "mem_watch.py"
+)
 mem_watch = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mem_watch)
 
@@ -24,8 +26,16 @@ BIG, STEP = 4096.0, 512.0
 
 
 def _call(**kw):
-    base = dict(name="python.exe", pid=7, rss=5000.0, first_seen=4000.0, last_alert=None,
-                peak=5000.0, proc_alert_mb=BIG, growth_alert_mb=STEP)
+    base = dict(
+        name="python.exe",
+        pid=7,
+        rss=5000.0,
+        first_seen=4000.0,
+        last_alert=None,
+        peak=5000.0,
+        proc_alert_mb=BIG,
+        growth_alert_mb=STEP,
+    )
     base.update(kw)
     return mem_watch.process_alert(**base)
 

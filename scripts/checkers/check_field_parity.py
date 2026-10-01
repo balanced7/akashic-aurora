@@ -43,6 +43,7 @@ FAILS on drift past the manifest, per the ratchet idiom check_door_parity establ
 Run:  py scripts/checkers/check_field_parity.py            # gate (exit 1 on NEW anomaly)
       py scripts/checkers/check_field_parity.py --report   # full per-field table
 """
+
 import json
 import os
 import sys
@@ -56,15 +57,18 @@ if ROOT not in sys.path:
 #: after fixing it is how the debt is paid down. Format: plane -> {field: (variant, note)}.
 MANIFEST = {
     "learn:experiment": {
-        "root_cause":      ("ZERO",  "FIXED 2026-08-26 (--root-cause added); stays listed until "
-                                     "backfill or until fresh records move it off zero"),
-        "files_affected":  ("ZERO",  "FIXED 2026-08-26 (--files-affected added); same note"),
-        "expected":        ("ZERO",  "4% fill, near-dead; door offers --expected. low priority"),
-        "anti_pattern":    ("ZERO",  "3.3%, filled via tag-anti-pattern not the learn door"),
-        "metrics":         ("SHELL", "97.5% filled / 2.9% real -- '{}' on most records"),
-        "confidence":      ("MONO",  "81% 'medium'; also holds TWO TYPE SYSTEMS (25 floats)"),
-        "category":        ("MONO",  "60% 'uncategorized'; forfeits 2 of base_score's 4 tiers"),
-        "success":         ("MONO",  "92% 'yes'"),
+        "root_cause": (
+            "ZERO",
+            "FIXED 2026-08-26 (--root-cause added); stays listed until "
+            "backfill or until fresh records move it off zero",
+        ),
+        "files_affected": ("ZERO", "FIXED 2026-08-26 (--files-affected added); same note"),
+        "expected": ("ZERO", "4% fill, near-dead; door offers --expected. low priority"),
+        "anti_pattern": ("ZERO", "3.3%, filled via tag-anti-pattern not the learn door"),
+        "metrics": ("SHELL", "97.5% filled / 2.9% real -- '{}' on most records"),
+        "confidence": ("MONO", "81% 'medium'; also holds TWO TYPE SYSTEMS (25 floats)"),
+        "category": ("MONO", "60% 'uncategorized'; forfeits 2 of base_score's 4 tiers"),
+        "success": ("MONO", "92% 'yes'"),
         # DORMANT -- the fourth variant, and the checker found it on its first run.
         # Writer EXISTS (learning_store.stamp_forge_proposal), reader EXISTS
         # (core/recall/curator.py:79), and 0 of 1130 records carry one. So the forge is
@@ -72,23 +76,32 @@ MANIFEST = {
         # complete capability that has never executed, and nothing announces that.
         # Same class as backup_door_never_ran and a_capabilitys_death_is_invisible_from_
         # inside_the_live_tree: present, reachable, and silently inert.
-        "forge_proposal":  ("ZERO",  "DORMANT: writer + reader both exist, 0 instances ever. "
-                                     "The forge has never stamped a proposal. Decide whether "
-                                     "to run it or retire it -- not a field defect"),
+        "forge_proposal": (
+            "ZERO",
+            "DORMANT: writer + reader both exist, 0 instances ever. "
+            "The forge has never stamped a proposal. Decide whether "
+            "to run it or retire it -- not a field defect",
+        ),
     },
     "mem:decisions": {
         # The checker corrected my hand analysis here and it was right: these are not
         # ABSENT, they are WRITTEN EMPTY on every record ([] / {}). That is SHELL, and the
         # distinction matters -- the writer does touch the field, it just always writes
         # nothing, so adding a door flag is only half the fix.
-        "rationale":       ("SHELL", "1355 written, 0 real -- always []. READ by "
-                                     "decision_loader._text_of, which builds the text the "
-                                     "Ranker scores. OPEN DEFECT: no --rationale on the door"),
-        "alternatives":    ("SHELL", "always [] -- no readers found; dead schema, harmless"),
-        "consequences":    ("SHELL", "always {'negative': [], 'positive': []}; no readers"),
-        "session_id":      ("ZERO",  "0/1355 DESPITE the door offering --session. Writer with "
-                                     "no users -- a false affordance, not an output defect"),
-        "status":          ("MONO",  "'accepted' on all 1355"),
+        "rationale": (
+            "SHELL",
+            "1355 written, 0 real -- always []. READ by "
+            "decision_loader._text_of, which builds the text the "
+            "Ranker scores. OPEN DEFECT: no --rationale on the door",
+        ),
+        "alternatives": ("SHELL", "always [] -- no readers found; dead schema, harmless"),
+        "consequences": ("SHELL", "always {'negative': [], 'positive': []}; no readers"),
+        "session_id": (
+            "ZERO",
+            "0/1355 DESPITE the door offering --session. Writer with "
+            "no users -- a false affordance, not an output defect",
+        ),
+        "status": ("MONO", "'accepted' on all 1355"),
     },
 }
 
@@ -122,15 +135,17 @@ def _records():
     try:
         import redis
         from core.foundation.redis_connection import ensure_redis_server
+
         _host = os.environ.get("AKASHIC_REDIS_HOST", "localhost")
         _port = int(os.environ.get("AKASHIC_REDIS_PORT", 16379))
-        ensure_redis_server(_host, _port)          # starts the embedded server if that is ours
-        r = redis.Redis(host=_host, port=_port,
-                        decode_responses=True, socket_connect_timeout=3)
+        ensure_redis_server(_host, _port)  # starts the embedded server if that is ours
+        r = redis.Redis(host=_host, port=_port, decode_responses=True, socket_connect_timeout=3)
         r.ping()
     except Exception as e:
-        print(f"[field-parity] SKIPPED -- no store reachable ({type(e).__name__}). "
-              f"Not a failure; this checker measures live data or says nothing.")
+        print(
+            f"[field-parity] SKIPPED -- no store reachable ({type(e).__name__}). "
+            f"Not a failure; this checker measures live data or says nothing."
+        )
         return out
 
     lessons = []
@@ -174,8 +189,7 @@ def analyse(records):
             variant = "SHELL" if filled > n * 0.5 else "ZERO"
         elif distinct == 1 and filled == n:
             variant = "MONO"
-        rows.append({"field": f, "n": n, "filled": filled, "real": real,
-                     "distinct": distinct, "variant": variant})
+        rows.append({"field": f, "n": n, "filled": filled, "real": real, "distinct": distinct, "variant": variant})
     return rows
 
 
@@ -197,17 +211,21 @@ def main(argv=None):
         for row in rows:
             if report:
                 pct = 100 * row["real"] / max(row["n"], 1)
-                print(f"{row['field']:<20}{row['filled']:>9}{row['real']:>9}"
-                      f"{row['distinct']:>10}  {row['variant'] or ''}"
-                      f"{'' if row['variant'] is None else f'  ({pct:.1f}% real)'}")
+                print(
+                    f"{row['field']:<20}{row['filled']:>9}{row['real']:>9}"
+                    f"{row['distinct']:>10}  {row['variant'] or ''}"
+                    f"{'' if row['variant'] is None else f'  ({pct:.1f}% real)'}"
+                )
             if row["variant"] and row["field"] not in known:
                 new_anomalies.append((plane, row["field"], row["variant"], row))
 
     if new_anomalies:
         print("\n[field-parity] FAIL -- new field anomalies outside the manifest:\n")
         for plane, field, variant, row in new_anomalies:
-            print(f"  {plane}.{field}  [{variant}]  "
-                  f"filled={row['filled']}/{row['n']} real={row['real']} distinct={row['distinct']}")
+            print(
+                f"  {plane}.{field}  [{variant}]  "
+                f"filled={row['filled']}/{row['n']} real={row['real']} distinct={row['distinct']}"
+            )
         print("\n  ZERO  = nothing writes it. Check whether a scorer READS it -- if so this is a")
         print("          live defect degrading output silently, not a cosmetic gap.")
         print("  SHELL = a default written on every record. It will pass any fill-rate check.")
@@ -216,8 +234,10 @@ def main(argv=None):
         print("  rationale is how known debt becomes forgotten debt.")
         return 1
 
-    print(f"[field-parity] OK -- {sum(len(v) for v in planes.values())} records across "
-          f"{len(planes)} plane(s); no anomalies outside the manifest.")
+    print(
+        f"[field-parity] OK -- {sum(len(v) for v in planes.values())} records across "
+        f"{len(planes)} plane(s); no anomalies outside the manifest."
+    )
     return 0
 
 

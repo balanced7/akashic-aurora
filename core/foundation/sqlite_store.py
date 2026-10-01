@@ -54,6 +54,7 @@ WHAT THIS CLASS DOES NOT PROTECT (kimi's ROT-2 -- a fix must name its own covera
 - A reader that holds a transaction open indefinitely still starves the checkpoint. The
   policy mitigates; it does not make the hazard vanish.
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -65,6 +66,7 @@ from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store
 
+
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
 
@@ -75,6 +77,7 @@ def _repo_root_str() -> str:
     """
     from core.paths import root_str
     import os as _os
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -123,8 +126,7 @@ _DATA_TABLES = ("kv", "hash", "list", "set_members", "zset")
 class SqliteStore(Store):
     """File-backed Store on SQLite in WAL mode. Safe across processes AND instances."""
 
-    def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000,
-                 echo_json_path: Optional[str] = None):
+    def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000, echo_json_path: Optional[str] = None):
         base = os.path.join(_repo_root_str(), "session_logs")
         os.makedirs(base, exist_ok=True)
         self._path = path or os.path.join(base, "store_state.db")
@@ -145,8 +147,9 @@ class SqliteStore(Store):
     # ---------------------------------------------------------------- lifecycle
     def _connect(self) -> None:
         try:
-            conn = sqlite3.connect(self._path, timeout=self._busy_timeout_ms / 1000.0,
-                                   isolation_level=None, check_same_thread=False)
+            conn = sqlite3.connect(
+                self._path, timeout=self._busy_timeout_ms / 1000.0, isolation_level=None, check_same_thread=False
+            )
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute(f"PRAGMA busy_timeout={self._busy_timeout_ms}")
             conn.execute("PRAGMA synchronous=NORMAL")
@@ -223,11 +226,9 @@ class SqliteStore(Store):
         first, matching FileStore's contract that a snapshot never resurrects."""
         with self._lock:
             if self._conn is None:
-                return {"kv": {}, "hash": {}, "list": {}, "set": {},
-                        "zset": {}, "expiry": {}}
+                return {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "expiry": {}}
             self.purge_expired()
-            out: Dict[str, Any] = {"kv": {}, "hash": {}, "list": {}, "set": {},
-                                   "zset": {}, "expiry": {}}
+            out: Dict[str, Any] = {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "expiry": {}}
             for k, v in self._conn.execute("SELECT key,value FROM kv"):
                 out["kv"][k] = v
             for k, f, v in self._conn.execute("SELECT key,field,value FROM hash"):
@@ -251,16 +252,22 @@ class SqliteStore(Store):
         went stale."""
         import json as _json
         import logging
+
         try:
             snap = self.snapshot()
-            payload = {"kv": snap["kv"], "hash": snap["hash"], "list": snap["list"],
-                       "set": snap["set"], "zset": snap["zset"],
-                       "__expiry__": snap["expiry"]}
+            payload = {
+                "kv": snap["kv"],
+                "hash": snap["hash"],
+                "list": snap["list"],
+                "set": snap["set"],
+                "zset": snap["zset"],
+                "__expiry__": snap["expiry"],
+            }
             tmp = f"{self._echo_path}.tmp.{os.getpid()}"
             with open(tmp, "w", encoding="utf-8") as f:
                 _json.dump(payload, f)
             last: Optional[Exception] = None
-            for attempt in range(5):   # Windows: brief reader holds are contention
+            for attempt in range(5):  # Windows: brief reader holds are contention
                 try:
                     os.replace(tmp, self._echo_path)
                     return
@@ -272,7 +279,8 @@ class SqliteStore(Store):
             logging.getLogger(__name__).error(
                 f"SqliteStore echo export to {self._echo_path} FAILED ({e}) -- the "
                 f"JSON rollback twin is STALE; a rollback now loses writes since the "
-                f"last successful echo. check_dual_authority will flag the tear.")
+                f"last successful echo. check_dual_authority will flag the tear."
+            )
 
     # ------------------------------------------------------------ expiry (TTL)
     def _now(self) -> float:
@@ -305,8 +313,7 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is None:
                 return 0
-            rows = self._conn.execute("SELECT key FROM expiry WHERE expires_at<=?",
-                                      (self._now(),)).fetchall()
+            rows = self._conn.execute("SELECT key FROM expiry WHERE expires_at<=?", (self._now(),)).fetchall()
             for (k,) in rows:
                 self._drop_key(k)
             return len(rows)
@@ -324,9 +331,10 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is None:
                 return False
-            self._conn.execute("INSERT INTO kv(key,value) VALUES(?,?) "
-                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                               (key, str(value)))
+            self._conn.execute(
+                "INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, str(value)),
+            )
             self._conn.execute("DELETE FROM expiry WHERE key=?", (key,))
             return True
 
@@ -352,12 +360,15 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is None:
                 return False
-            self._conn.execute("INSERT INTO kv(key,value) VALUES(?,?) "
-                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                               (key, str(value)))
-            self._conn.execute("INSERT INTO expiry(key,expires_at) VALUES(?,?) "
-                               "ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at",
-                               (key, self._now() + int(seconds)))
+            self._conn.execute(
+                "INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (key, str(value)),
+            )
+            self._conn.execute(
+                "INSERT INTO expiry(key,expires_at) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at",
+                (key, self._now() + int(seconds)),
+            )
             return True
 
     def expire(self, key: str, seconds: int) -> bool:
@@ -366,9 +377,11 @@ class SqliteStore(Store):
                 return False
             if not self._raw_exists(key):
                 return False
-            self._conn.execute("INSERT INTO expiry(key,expires_at) VALUES(?,?) "
-                               "ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at",
-                               (key, self._now() + int(seconds)))
+            self._conn.execute(
+                "INSERT INTO expiry(key,expires_at) VALUES(?,?) "
+                "ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at",
+                (key, self._now() + int(seconds)),
+            )
             return True
 
     def ttl(self, key: str) -> int:
@@ -378,15 +391,19 @@ class SqliteStore(Store):
             self._evict_if_expired(key)
             if not self._raw_exists(key):
                 return -2
-            row = self._conn.execute("SELECT expires_at FROM expiry WHERE key=?",
-                                     (key,)).fetchone()
+            row = self._conn.execute("SELECT expires_at FROM expiry WHERE key=?", (key,)).fetchone()
             if not row:
                 return -1
             return max(0, int(round(row[0] - self._now())))
 
     # ----------------------------------------------------------------- hash
-    def hset(self, key: str, field: Optional[str] = None, value: Optional[str] = None,
-             mapping: Optional[Dict[str, str]] = None) -> int:
+    def hset(
+        self,
+        key: str,
+        field: Optional[str] = None,
+        value: Optional[str] = None,
+        mapping: Optional[Dict[str, str]] = None,
+    ) -> int:
         with self._lock:
             if self._conn is None:
                 return 0
@@ -395,13 +412,14 @@ class SqliteStore(Store):
                 items[field] = value
             added = 0
             for f, v in items.items():
-                cur = self._conn.execute("SELECT 1 FROM hash WHERE key=? AND field=?",
-                                         (key, f)).fetchone()
+                cur = self._conn.execute("SELECT 1 FROM hash WHERE key=? AND field=?", (key, f)).fetchone()
                 if not cur:
                     added += 1
-                self._conn.execute("INSERT INTO hash(key,field,value) VALUES(?,?,?) "
-                                   "ON CONFLICT(key,field) DO UPDATE SET value=excluded.value",
-                                   (key, f, str(v)))
+                self._conn.execute(
+                    "INSERT INTO hash(key,field,value) VALUES(?,?,?) "
+                    "ON CONFLICT(key,field) DO UPDATE SET value=excluded.value",
+                    (key, f, str(v)),
+                )
             return added
 
     def hget(self, key: str, field: str) -> Optional[str]:
@@ -409,8 +427,7 @@ class SqliteStore(Store):
             if self._conn is None:
                 return None
             self._evict_if_expired(key)
-            row = self._conn.execute("SELECT value FROM hash WHERE key=? AND field=?",
-                                     (key, field)).fetchone()
+            row = self._conn.execute("SELECT value FROM hash WHERE key=? AND field=?", (key, field)).fetchone()
             return row[0] if row else None
 
     def hgetall(self, key: str) -> Dict[str, str]:
@@ -418,13 +435,11 @@ class SqliteStore(Store):
             if self._conn is None:
                 return {}
             self._evict_if_expired(key)
-            return {f: v for f, v in
-                    self._conn.execute("SELECT field,value FROM hash WHERE key=?", (key,))}
+            return {f: v for f, v in self._conn.execute("SELECT field,value FROM hash WHERE key=?", (key,))}
 
     # ----------------------------------------------------------------- list
     def _list_bounds(self, key: str):
-        row = self._conn.execute("SELECT MIN(idx), MAX(idx) FROM list WHERE key=?",
-                                 (key,)).fetchone()
+        row = self._conn.execute("SELECT MIN(idx), MAX(idx) FROM list WHERE key=?", (key,)).fetchone()
         return (row[0], row[1]) if row and row[0] is not None else (None, None)
 
     def lpush(self, key: str, *values: str) -> int:
@@ -434,8 +449,7 @@ class SqliteStore(Store):
             for v in values:
                 lo, _ = self._list_bounds(key)
                 nxt = (lo - 1) if lo is not None else 0
-                self._conn.execute("INSERT INTO list(key,idx,value) VALUES(?,?,?)",
-                                   (key, nxt, str(v)))
+                self._conn.execute("INSERT INTO list(key,idx,value) VALUES(?,?,?)", (key, nxt, str(v)))
             return self.llen(key)
 
     def rpush(self, key: str, *values: str) -> int:
@@ -445,16 +459,14 @@ class SqliteStore(Store):
             for v in values:
                 _, hi = self._list_bounds(key)
                 nxt = (hi + 1) if hi is not None else 0
-                self._conn.execute("INSERT INTO list(key,idx,value) VALUES(?,?,?)",
-                                   (key, nxt, str(v)))
+                self._conn.execute("INSERT INTO list(key,idx,value) VALUES(?,?,?)", (key, nxt, str(v)))
             return self.llen(key)
 
     def llen(self, key: str) -> int:
         with self._lock:
             if self._conn is None:
                 return 0
-            return self._conn.execute("SELECT COUNT(*) FROM list WHERE key=?",
-                                      (key,)).fetchone()[0]
+            return self._conn.execute("SELECT COUNT(*) FROM list WHERE key=?", (key,)).fetchone()[0]
 
     @staticmethod
     def _slice(n: int, start: int, end: int):
@@ -475,9 +487,12 @@ class SqliteStore(Store):
             s, e = self._slice(n, start, end)
             if n == 0 or s > e:
                 return []
-            return [r[0] for r in self._conn.execute(
-                "SELECT value FROM list WHERE key=? ORDER BY idx LIMIT ? OFFSET ?",
-                (key, e - s + 1, s))]
+            return [
+                r[0]
+                for r in self._conn.execute(
+                    "SELECT value FROM list WHERE key=? ORDER BY idx LIMIT ? OFFSET ?", (key, e - s + 1, s)
+                )
+            ]
 
     def ltrim(self, key: str, start: int, end: int) -> bool:
         with self._lock:
@@ -490,13 +505,15 @@ class SqliteStore(Store):
             if s > e:
                 self._conn.execute("DELETE FROM list WHERE key=?", (key,))
                 return True
-            keep = [r[0] for r in self._conn.execute(
-                "SELECT idx FROM list WHERE key=? ORDER BY idx LIMIT ? OFFSET ?",
-                (key, e - s + 1, s))]
+            keep = [
+                r[0]
+                for r in self._conn.execute(
+                    "SELECT idx FROM list WHERE key=? ORDER BY idx LIMIT ? OFFSET ?", (key, e - s + 1, s)
+                )
+            ]
             self._conn.execute(
-                f"DELETE FROM list WHERE key=? AND idx NOT IN ({','.join('?' * len(keep))})",
-                (key, *keep)) if keep else self._conn.execute(
-                "DELETE FROM list WHERE key=?", (key,))
+                f"DELETE FROM list WHERE key=? AND idx NOT IN ({','.join('?' * len(keep))})", (key, *keep)
+            ) if keep else self._conn.execute("DELETE FROM list WHERE key=?", (key,))
             return True
 
     # ------------------------------------------------------------------ set
@@ -506,12 +523,10 @@ class SqliteStore(Store):
                 return 0
             n = 0
             for m in members:
-                cur = self._conn.execute("SELECT 1 FROM set_members WHERE key=? AND member=?",
-                                         (key, str(m))).fetchone()
+                cur = self._conn.execute("SELECT 1 FROM set_members WHERE key=? AND member=?", (key, str(m))).fetchone()
                 if not cur:
                     n += 1
-                self._conn.execute(
-                    "INSERT OR IGNORE INTO set_members(key,member) VALUES(?,?)", (key, str(m)))
+                self._conn.execute("INSERT OR IGNORE INTO set_members(key,member) VALUES(?,?)", (key, str(m)))
             return n
 
     def smembers(self, key: str) -> set:
@@ -519,17 +534,18 @@ class SqliteStore(Store):
             if self._conn is None:
                 return set()
             self._evict_if_expired(key)
-            return {r[0] for r in
-                    self._conn.execute("SELECT member FROM set_members WHERE key=?", (key,))}
+            return {r[0] for r in self._conn.execute("SELECT member FROM set_members WHERE key=?", (key,))}
 
     def sismember(self, key: str, member: str) -> bool:
         with self._lock:
             if self._conn is None:
                 return False
             self._evict_if_expired(key)
-            return bool(self._conn.execute(
-                "SELECT 1 FROM set_members WHERE key=? AND member=? LIMIT 1",
-                (key, str(member))).fetchone())
+            return bool(
+                self._conn.execute(
+                    "SELECT 1 FROM set_members WHERE key=? AND member=? LIMIT 1", (key, str(member))
+                ).fetchone()
+            )
 
     def srem(self, key: str, *members: str) -> int:
         with self._lock:
@@ -537,8 +553,7 @@ class SqliteStore(Store):
                 return 0
             n = 0
             for m in members:
-                cur = self._conn.execute("DELETE FROM set_members WHERE key=? AND member=?",
-                                         (key, str(m)))
+                cur = self._conn.execute("DELETE FROM set_members WHERE key=? AND member=?", (key, str(m)))
                 n += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
             return n
 
@@ -549,24 +564,23 @@ class SqliteStore(Store):
                 return 0
             added = 0
             for m, s in mapping.items():
-                cur = self._conn.execute("SELECT 1 FROM zset WHERE key=? AND member=?",
-                                         (key, str(m))).fetchone()
+                cur = self._conn.execute("SELECT 1 FROM zset WHERE key=? AND member=?", (key, str(m))).fetchone()
                 if not cur:
                     added += 1
-                self._conn.execute("INSERT INTO zset(key,member,score) VALUES(?,?,?) "
-                                   "ON CONFLICT(key,member) DO UPDATE SET score=excluded.score",
-                                   (key, str(m), float(s)))
+                self._conn.execute(
+                    "INSERT INTO zset(key,member,score) VALUES(?,?,?) "
+                    "ON CONFLICT(key,member) DO UPDATE SET score=excluded.score",
+                    (key, str(m), float(s)),
+                )
             return added
 
     def zcard(self, key: str) -> int:
         with self._lock:
             if self._conn is None:
                 return 0
-            return self._conn.execute("SELECT COUNT(*) FROM zset WHERE key=?",
-                                      (key,)).fetchone()[0]
+            return self._conn.execute("SELECT COUNT(*) FROM zset WHERE key=?", (key,)).fetchone()[0]
 
-    def zrange(self, key: str, start: int, end: int, desc: bool = False,
-               withscores: bool = False) -> List[Any]:
+    def zrange(self, key: str, start: int, end: int, desc: bool = False, withscores: bool = False) -> List[Any]:
         with self._lock:
             if self._conn is None:
                 return []
@@ -577,17 +591,16 @@ class SqliteStore(Store):
                 return []
             order = "DESC" if desc else "ASC"
             rows = self._conn.execute(
-                f"SELECT member,score FROM zset WHERE key=? "
-                f"ORDER BY score {order}, member {order} LIMIT ? OFFSET ?",
-                (key, e - s + 1, s)).fetchall()
+                f"SELECT member,score FROM zset WHERE key=? ORDER BY score {order}, member {order} LIMIT ? OFFSET ?",
+                (key, e - s + 1, s),
+            ).fetchall()
             return [(m, sc) for m, sc in rows] if withscores else [m for m, _ in rows]
 
     def zscore(self, key: str, member: str) -> Optional[float]:
         with self._lock:
             if self._conn is None:
                 return None
-            row = self._conn.execute("SELECT score FROM zset WHERE key=? AND member=?",
-                                     (key, str(member))).fetchone()
+            row = self._conn.execute("SELECT score FROM zset WHERE key=? AND member=?", (key, str(member))).fetchone()
             return float(row[0]) if row else None
 
     @staticmethod
@@ -608,9 +621,13 @@ class SqliteStore(Store):
             self._evict_if_expired(key)
             lo = self._bound(min_score, float("-inf"))
             hi = self._bound(max_score, float("inf"))
-            return [r[0] for r in self._conn.execute(
-                "SELECT member FROM zset WHERE key=? AND score>=? AND score<=? "
-                "ORDER BY score, member", (key, lo, hi))]
+            return [
+                r[0]
+                for r in self._conn.execute(
+                    "SELECT member FROM zset WHERE key=? AND score>=? AND score<=? ORDER BY score, member",
+                    (key, lo, hi),
+                )
+            ]
 
     def zremrangebyrank(self, key: str, start: int, end: int) -> int:
         with self._lock:
@@ -620,14 +637,17 @@ class SqliteStore(Store):
             s, e = self._slice(n, start, end)
             if n == 0 or s > e:
                 return 0
-            doomed = [r[0] for r in self._conn.execute(
-                "SELECT member FROM zset WHERE key=? ORDER BY score, member LIMIT ? OFFSET ?",
-                (key, e - s + 1, s))]
+            doomed = [
+                r[0]
+                for r in self._conn.execute(
+                    "SELECT member FROM zset WHERE key=? ORDER BY score, member LIMIT ? OFFSET ?", (key, e - s + 1, s)
+                )
+            ]
             if not doomed:
                 return 0
             self._conn.execute(
-                f"DELETE FROM zset WHERE key=? AND member IN ({','.join('?' * len(doomed))})",
-                (key, *doomed))
+                f"DELETE FROM zset WHERE key=? AND member IN ({','.join('?' * len(doomed))})", (key, *doomed)
+            )
             return len(doomed)
 
     def zrem(self, key: str, *members: str) -> int:
@@ -636,8 +656,7 @@ class SqliteStore(Store):
                 return 0
             n = 0
             for m in members:
-                cur = self._conn.execute("DELETE FROM zset WHERE key=? AND member=?",
-                                         (key, str(m)))
+                cur = self._conn.execute("DELETE FROM zset WHERE key=? AND member=?", (key, str(m)))
                 n += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
             return n
 
@@ -654,11 +673,12 @@ class SqliteStore(Store):
                 return {}
             out: Dict[str, Dict[str, str]] = {}
             rows = self._conn.execute(
-                "SELECT key, field, value FROM hash WHERE key >= ? AND key < ? ORDER BY key",
-                (prefix, prefix + "￿")).fetchall()
+                "SELECT key, field, value FROM hash WHERE key >= ? AND key < ? ORDER BY key", (prefix, prefix + "￿")
+            ).fetchall()
             now = self._now()
-            expired = {k for (k,) in self._conn.execute(
-                "SELECT key FROM expiry WHERE expires_at<=?", (now,)).fetchall()}
+            expired = {
+                k for (k,) in self._conn.execute("SELECT key FROM expiry WHERE expires_at<=?", (now,)).fetchall()
+            }
             for key, field, value in rows:
                 if key in expired:
                     continue
@@ -703,9 +723,10 @@ class SqliteStore(Store):
                 if cur != want:
                     self._conn.execute("ROLLBACK")
                     return False
-                self._conn.execute("INSERT INTO kv(key,value) VALUES(?,?) "
-                                   "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                                   (key, str(value)))
+                self._conn.execute(
+                    "INSERT INTO kv(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                    (key, str(value)),
+                )
                 self._conn.execute("DELETE FROM expiry WHERE key=?", (key,))
                 self._conn.execute("COMMIT")
                 return True
