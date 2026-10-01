@@ -137,6 +137,12 @@ DEP004 = [
     "playwright", "patchright", "playwright_stealth",
 ]
 
+# ---- Task runner (plan G1.P6): `uv run poe <task>`; `uv run poe -d <task>` prints the command.
+# Ruff and basedpyright always get their config explicitly (one config home: pyproject.toml).
+# `gate` runs the tasks that can be green today, in plan order, and stops at the first failure.
+# The others join it in the goal that makes them green (recorded in tooling-upgrade/checks/):
+# fmt-check in G2, lint-check in G3, types in G4, ci-lint in G5.
+
 [tool.poe.tasks.deps]
 help = "Dependency truth: deptry over RUNTIME and SCRIPT code (config: [tool.deptry])"
 cmd = "deptry . --config pyproject.toml"
@@ -154,3 +160,60 @@ sequence = [
     { cmd = "uv lock --check" },
     { cmd = "python scripts/generators/gen_requirements.py --check" },
 ]
+
+[tool.poe.tasks.fmt]
+help = "Format every in-scope file with ruff"
+cmd = "ruff format --config pyproject.toml"
+
+[tool.poe.tasks.fmt-check]
+help = "Fail if any in-scope file is not ruff-formatted (changes nothing)"
+cmd = "ruff format --check --config pyproject.toml"
+
+[tool.poe.tasks.lint]
+help = "Lint with ruff and apply its safe fixes"
+cmd = "ruff check --fix --config pyproject.toml"
+
+[tool.poe.tasks.lint-check]
+help = "Fail on any ruff finding (changes nothing)"
+cmd = "ruff check --config pyproject.toml"
+
+[tool.poe.tasks.types]
+help = "Type-check with basedpyright"
+cmd = "basedpyright -p pyproject.toml"
+
+[tool.poe.tasks.types-ty]
+help = "Type-check with ty (advisory second opinion)"
+cmd = "ty check"
+
+
+
+[tool.poe.tasks.ci-lint]
+help = "Workflow lint: zizmor (security), actionlint (syntax), every uses: pinned to a SHA"
+sequence = [
+    { cmd = "uvx zizmor@1.30.1 --offline .github/workflows" },
+    { cmd = "uvx --from actionlint-py==1.7.12.25 actionlint" },
+    { cmd = "python tooling-upgrade/certify.py assert-sha-pins" },
+]
+
+[tool.poe.tasks.guardrails]
+help = "Every scripts/checkers/* with its documented arguments; none may exit worse than at g0"
+cmd = "python tooling-upgrade/oracle.py guardrails"
+
+[tool.poe.tasks.test]
+help = "Full suite in a throwaway worktree (REDIS_DB=15); writes the suite record snapshots/suite/O1.json"
+cmd = "python tooling-upgrade/oracle.py snapshot suite --components O1 --runs 1"
+
+[tool.poe.tasks.test-fast]
+help = "Smoke set + tests impacted by uncommitted changes (REDIS_DB=15), well under 3 minutes"
+cmd = "python tooling-upgrade/oracle.py test-fast"
+
+[tool.poe.tasks.oracle]
+help = "Full behavioural oracle: snapshot HEAD, then compare it with the g0 baseline"
+sequence = [
+    { cmd = "python tooling-upgrade/oracle.py snapshot head --runs 1" },
+    { cmd = "python tooling-upgrade/oracle.py compare g0 head" },
+]
+
+[tool.poe.tasks.gate]
+help = "The local gate: lock-check, deps, guardrails, test-fast; stops at the first failure"
+sequence = ["lock-check", "deps", "guardrails", "test-fast"]
