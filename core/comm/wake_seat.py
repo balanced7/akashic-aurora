@@ -147,6 +147,65 @@ def harness_armed(agent: str, session_id: Optional[str] = None,
     return state in {f"armed-{o}" for o in WAKEABLE_ORIGINS}
 
 
+# ---------------------------------------------------------------- wake RECEIPTS (S3, 2026-10-01)
+# Every wake is a full model turn. Before S3 nothing recorded how many there were or whether
+# they carried mail, so "a chatty sender burns plan" was a feeling. One JSON line per listener
+# exit -- woke / quiet / cycled, the tiers that fired, what the floor held back -- lets the
+# standby print the day's count on every arm and lets doctor page on a seat that wakes for
+# nothing. Lives under state/ (git-ignored) beside the other machine-local ledgers.
+def wake_receipts_path(agent: str, base: Optional[str] = None) -> str:
+    root = base or os.environ.get("AKASHIC_WAKE_RECEIPTS_DIR") or os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "state", "wake-receipts")
+    return os.path.join(root, f"{agent}.jsonl")
+
+
+def append_wake_receipt(agent: str, receipt: Dict, base: Optional[str] = None) -> bool:
+    """Append one receipt; best-effort, never raises (a receipt must never cost the wake)."""
+    try:
+        import json
+        p = wake_receipts_path(agent, base)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        rec = dict(receipt)
+        rec.setdefault("ts", time.time())
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=True) + "\n")
+        return True
+    except Exception:
+        return False
+
+
+def wake_receipts_summary(agent: str, since_s: float = 24 * 3600, now: Optional[float] = None,
+                          base: Optional[str] = None) -> Dict[str, int]:
+    """Counts over the window: wakes (listener exits), with_mail, quiet, cycled,
+    held_below_floor (sum). Missing file -> zeros, which is a measured zero: the ledger
+    exists from the first arm after S3, and absence before that is 'not yet recorded'."""
+    out = {"wakes": 0, "with_mail": 0, "quiet": 0, "cycled": 0, "held_below_floor": 0}
+    try:
+        import json
+        cutoff = (now if now is not None else time.time()) - float(since_s)
+        with open(wake_receipts_path(agent, base), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if float(r.get("ts") or 0) < cutoff:
+                    continue
+                out["wakes"] += 1
+                o = r.get("outcome")
+                if o == "woke":
+                    out["with_mail"] += 1
+                elif o == "cycled":
+                    out["cycled"] += 1
+                else:
+                    out["quiet"] += 1
+                out["held_below_floor"] += int(r.get("below_floor") or 0)
+    except Exception:
+        pass
+    return out
+
+
 def iter_seats(agent: str, tmp: Optional[str] = None) -> List[Tuple[str, Optional[str]]]:
     """All seat files for THIS agent: [(path, session_id_or_None_for_legacy)].
     Prefix-exact so agent 'claude' never enumerates 'claude-2' seats."""

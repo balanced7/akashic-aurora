@@ -418,6 +418,67 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     deadline = time.time() + total_deadline_s
     chunk_s = max(1.0, inner_block_ms / 1000.0)
     cycled = False
+    def _admit(batch):
+        """The admission chain for one batch: wake_worthy -> tier floor -> twin dedup.
+        One function so the settle window below reuses the SAME chain (S3: a second
+        implementation would be one meaning under two gates, the drift this house keeps
+        paying for)."""
+        nonlocal steers, below_floor, twins
+        for m in batch:
+            frm = str(getattr(m, "frm", "?"))
+            kind = str(getattr(m, "kind", "?"))
+            seen.append(f"{frm}:{kind}")
+            if kind == "steer":
+                steers += 1
+            # T073: the whole wake decision lives in wake_worthy() -- allowlist ratchet,
+            # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
+            if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
+                continue
+            # THE TIER FLOOR (2026-09-23). A SECOND, independent question asked only of mail
+            # that already passed the gate above: not "does this wake a seat" but "how much
+            # does it outrank other mail". wake_worthy() stays the sole gate -- forking it
+            # would be one meaning under two implementations, which is the drift this house
+            # keeps paying for.
+            #
+            # WHY A FLOOR RATHER THAN A DRAIN. A watcher armed over unconsumed mail fires
+            # immediately BY DESIGN (wake_block's SEED rule: pending mail must wake a watcher
+            # armed after it arrived). With ~1,383 informational messages standing on the work
+            # lane, every arm exited in seconds, so no watcher persisted, so the operator
+            # override was never reached -- four directed operator messages went unread across
+            # five days. The obvious remedy, "consume the backlog then arm", would have the
+            # watcher drain mail the real reader has never seen, which is precisely what
+            # detect-without-consume exists to prevent. A floor makes the seat armable over a
+            # backlog while CONSUMING NOTHING: the backlog stays intact for whoever reads it.
+            #
+            # Default is AMBIENT, so this admits everything it admitted before.
+            from core.comm import wake_tiers   # LAZY: T050 Q6 (arm-vs-stop-hook race)
+            tier = wake_tiers.wake_tier(m, agent=agent, incarnation=str(session_id or ""),
+                                        operator_ids=_operator_ids())
+            if not wake_tiers.admits(tier, min_tier):
+                below_floor += 1
+                continue
+            woke_tiers.append(tier)
+            # S0-gamma: a logical twin of mail this session was ALREADY woken for (dual-write
+            # copy or RB-26 redelivery of the still-unconsumed original) spends no wake.
+            # A3 runner-down recounts share an outage_key (no ts, no minute-count) so a
+            # still-true outage is one wake, not a 10-minute metronome. Live re-check
+            # travels with the coalesce: if the runner is no longer down, a new mid wakes.
+            k = logical_key(m)
+            ok = outage_key(m)
+            if ok and ok in seen_set and runner_still_down(frm):
+                twins += 1
+                continue
+            if k in seen_set:
+                twins += 1
+                continue
+            seen_set.add(k)
+            seen_keys.append(k)
+            if ok:
+                seen_set.add(ok)
+                seen_keys.append(ok)
+            delivered.append(m)
+            out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+
     while not out:
         # T073 P8: near-deadline SELF-CYCLE -- exit before a block would overshoot the
         # deadline, leaving a re-arm trigger. The exit re-invokes the owning session
@@ -525,60 +586,23 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
                   f"(Redis unreachable) -- SHIFT TRUNCATED, this is NOT a quiet watch; "
                   f"anything that arrived from here on is unobserved, not absent")
             return 2
-        for m in msgs:
-            frm = str(getattr(m, "frm", "?"))
-            kind = str(getattr(m, "kind", "?"))
-            seen.append(f"{frm}:{kind}")
-            if kind == "steer":
-                steers += 1
-            # T073: the whole wake decision lives in wake_worthy() -- allowlist ratchet,
-            # explicit incarnation addressing, echo + room-chatter skips (pins P1-P11).
-            if not wake_worthy(m, agent=agent, incarnation=str(session_id or "")):
-                continue
-            # THE TIER FLOOR (2026-09-23). A SECOND, independent question asked only of mail
-            # that already passed the gate above: not "does this wake a seat" but "how much
-            # does it outrank other mail". wake_worthy() stays the sole gate -- forking it
-            # would be one meaning under two implementations, which is the drift this house
-            # keeps paying for.
-            #
-            # WHY A FLOOR RATHER THAN A DRAIN. A watcher armed over unconsumed mail fires
-            # immediately BY DESIGN (wake_block's SEED rule: pending mail must wake a watcher
-            # armed after it arrived). With ~1,383 informational messages standing on the work
-            # lane, every arm exited in seconds, so no watcher persisted, so the operator
-            # override was never reached -- four directed operator messages went unread across
-            # five days. The obvious remedy, "consume the backlog then arm", would have the
-            # watcher drain mail the real reader has never seen, which is precisely what
-            # detect-without-consume exists to prevent. A floor makes the seat armable over a
-            # backlog while CONSUMING NOTHING: the backlog stays intact for whoever reads it.
-            #
-            # Default is AMBIENT, so this admits everything it admitted before.
-            from core.comm import wake_tiers   # LAZY: T050 Q6 (arm-vs-stop-hook race)
-            tier = wake_tiers.wake_tier(m, agent=agent, incarnation=str(session_id or ""),
-                                        operator_ids=_operator_ids())
-            if not wake_tiers.admits(tier, min_tier):
-                below_floor += 1
-                continue
-            woke_tiers.append(tier)
-            # S0-gamma: a logical twin of mail this session was ALREADY woken for (dual-write
-            # copy or RB-26 redelivery of the still-unconsumed original) spends no wake.
-            # A3 runner-down recounts share an outage_key (no ts, no minute-count) so a
-            # still-true outage is one wake, not a 10-minute metronome. Live re-check
-            # travels with the coalesce: if the runner is no longer down, a new mid wakes.
-            k = logical_key(m)
-            ok = outage_key(m)
-            if ok and ok in seen_set and runner_still_down(frm):
-                twins += 1
-                continue
-            if k in seen_set:
-                twins += 1
-                continue
-            seen_set.add(k)
-            seen_keys.append(k)
-            if ok:
-                seen_set.add(ok)
-                seen_keys.append(ok)
-            delivered.append(m)
-            out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+        _admit(msgs)
+    # S3 SETTLE WINDOW (T421, 2026-10-01). Every exit is a full model turn. When the mail that
+    # ended the block is a peer's (tier >= 1), wait BIFROST_WAKE_SETTLE_S more so a burst rides
+    # ONE wake through the same admission chain; the operator (tier 0) never waits -- a tier-0
+    # message ends the block at once. 0 disables.
+    try:
+        settle_s = float(os.environ.get("BIFROST_WAKE_SETTLE_S", "15") or 0)
+    except ValueError:
+        settle_s = 15.0
+    if out and settle_s > 0 and woke_tiers and min(woke_tiers) > 0:
+        settle_until = time.time() + settle_s
+        while time.time() < settle_until and (not woke_tiers or min(woke_tiers) > 0):
+            remaining_ms = max(1, int((settle_until - time.time()) * 1000))
+            try:
+                _admit(api.wake_block(timeout_ms=min(inner_block_ms, remaining_ms)))
+            except Exception:
+                break
     if out:
         save_seen(sf, seen_keys)   # S0-gamma: delivered -> remembered (before any print can throw)
         # T380 v1.3 (Daniil: "the thinking receipt should land the instant you make
@@ -606,9 +630,11 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         # C1-6 diagnostic: ELAPSED is the truth; the configured total alone masked a
         # phantom early-cycle (2026-07-16: "after 4.0h" on a minutes-old watcher).
         elapsed_s = time.time() - (deadline - total_deadline_s)
+        held_c = (f"; {below_floor} held below tier floor {min_tier} "
+                  f"({wake_tiers_name(min_tier)}) -- present, not absent" if below_floor else "")
         print(f"BIFROST_WAKE: deadline self-cycle for {lane} after {elapsed_s / 3600.0:.2f}h "
               f"elapsed (configured {total_deadline_s / 3600.0:.1f}h, chunk {chunk_s:.0f}s) -- "
-              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + ")")
+              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + held_c + ")")
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
         # THE FLOOR MUST CONFESS. Mail that passed wake_worthy() and was then held back by the
@@ -618,6 +644,17 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         held = (f"; {below_floor} held below tier floor {min_tier} "
                 f"({wake_tiers_name(min_tier)}) -- present, not absent" if below_floor else "")
         print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + held + deduped + ")")
+    # S3 RECEIPT: one line per exit so wakes per day and turns-with-nothing-to-do are numbers.
+    try:
+        from core.comm import wake_seat as _ws_r
+        _ws_r.append_wake_receipt(agent, {
+            "session": str(session_id or ""), "origin": os.environ.get("BIFROST_WAKE_ORIGIN", "unknown"),
+            "outcome": "woke" if out else ("cycled" if cycled else "quiet"),
+            "mail": len(out), "tiers": list(woke_tiers), "below_floor": below_floor,
+            "twins": twins, "floor": min_tier,
+            "elapsed_s": round(time.time() - (deadline - total_deadline_s), 1)})
+    except Exception:
+        pass
     return 0
 
 

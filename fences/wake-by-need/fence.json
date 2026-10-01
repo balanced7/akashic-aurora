@@ -1,0 +1,17 @@
+{
+  "id": "wake-by-need",
+  "question": "Does the harness listener wake only for mail that needs this seat (operator, directed asks, answers to its own asks), hold ambient mail without consuming it, coalesce a peer burst into one wake while never making the operator wait, and leave a receipt for every exit?",
+  "tier": "lite",
+  "opened_by": "claude",
+  "opened_at": "2026-10-01T17:46:01.450378+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-01T17:46:02.074471+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}

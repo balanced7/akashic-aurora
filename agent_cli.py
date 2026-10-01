@@ -6450,11 +6450,46 @@ def cmd_bifrost_sync(args):
     return 0
 
 
+#: S3 wake-by-need (T421, Daniel 2026-10-01: "wake decides by need, not by kind"). The harness
+#: listener's DEFAULT tier floor: operator (0), directed asks (1) and answers to my own asks (2)
+#: wake the seat; ambient mail (broadcasts, peers' chat, notes, traces) waits for the next boot
+#: and is confessed by count on the quiet line. Every wake is a full model turn; before this the
+#: floor was AMBIENT and quiet cycles and peer traces each cost one. BIFROST_WAKE_MIN_TIER or
+#: --min-tier override per arm; 3 restores the old admit-everything behaviour.
+WAKE_FLOOR_DEFAULT = 2
+
+
+def standby_min_tier(flag=None) -> int:
+    """Resolve the arm's tier floor: explicit flag > BIFROST_WAKE_MIN_TIER > WAKE_FLOOR_DEFAULT.
+    Clamped to the ladder [0, 3]; an unreadable env value falls to the default, never to 3."""
+    if flag is not None:
+        return max(0, min(3, int(flag)))
+    raw = (os.environ.get("BIFROST_WAKE_MIN_TIER") or "").strip()
+    if raw:
+        try:
+            return max(0, min(3, int(raw)))
+        except ValueError:
+            pass
+    return WAKE_FLOOR_DEFAULT
+
+
+def standby_listener_argv(agent_id: str, session_id: str, min_tier: int) -> list:
+    """The exact listener command the standby parents -- one builder so the pin and the
+    launcher cannot drift (the floor MUST reach the child or the default is a fiction)."""
+    cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "scripts", "bifrost_wake.py"), "--agent", agent_id,
+           "--min-tier", str(int(min_tier))]
+    if session_id:
+        cmd += ["--session", session_id]
+    return cmd
+
+
 def cmd_bifrost_standby(args):
     """T084-CL-2: the turn-end ritual as ONE verb -- drain -> seat report -> BLOCK as the wake
     listener's parent. Run THIS as the harness background task; its exit (the listener detecting
     wake-worthy mail) re-invokes the harness. --no-listen = drain + report only."""
     from agent.bifrost_pull import standby
+    floor = standby_min_tier(getattr(args, "min_tier", None))
 
     def _listen(agent_id, session_id):
         # Blocking child, NOT detached: this CLI process is the harness-tracked parent (the T073
@@ -6464,11 +6499,7 @@ def cmd_bifrost_standby(args):
                # ORIGIN stamp (2026-10-01): THIS process is the harness-tracked parent, so the
                # listener's exit starts a turn -- the stop hook passes only on this origin.
                "BIFROST_WAKE_ORIGIN": "harness"}
-        cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            "scripts", "bifrost_wake.py"), "--agent", agent_id]
-        if session_id:
-            cmd += ["--session", session_id]
-        return subprocess.run(cmd, env=env).returncode
+        return subprocess.run(standby_listener_argv(agent_id, session_id, floor), env=env).returncode
 
     session = args.session or os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
     try:   # T086-S3a: stamp the arming attempt BEFORE the drain -- the stop-hook backstop
@@ -6487,6 +6518,14 @@ def cmd_bifrost_standby(args):
                   limit=args.limit or 20)
     for ln in res["report"]:
         print(ln)
+    try:   # S3: the floor and today's wake receipts, on every arm -- the instrument rides the ritual
+        from core.comm import wake_seat as _ws, wake_tiers as _wt
+        s = _ws.wake_receipts_summary(args.agent_id, since_s=24 * 3600)
+        print(f"[standby] floor: tier {floor} ({_wt.tier_name(floor)}) | wakes 24h: {s['wakes']} "
+              f"({s['with_mail']} with mail, {s['quiet']} quiet, {s['cycled']} deadline cycles; "
+              f"{s['held_below_floor']} held below floor)")
+    except Exception:
+        pass
     if res["decision"] == "listen":
         rc = res.get("listen_rc")
         how = ("wake-worthy mail or deadline" if rc == 0
@@ -8861,6 +8900,10 @@ def build_parser():
                                                    "(default: harness session env)")
     sby.add_argument("--no-listen", action="store_true", help="drain + report only; do not block")
     sby.add_argument("--limit", type=int, default=None)
+    sby.add_argument("--min-tier", type=int, default=None, dest="min_tier", choices=[0, 1, 2, 3],
+                     help="S3 tier floor for this arm: 0 operator only, 1 +directed asks, "
+                          "2 +answers to my asks (DEFAULT; env BIFROST_WAKE_MIN_TIER), "
+                          "3 everything (the pre-S3 behaviour)")
     sby.set_defaults(fn=cmd_bifrost_standby)
 
     fc = sub.add_parser("forecast", help="T375 engineering forecast registry -- register "
