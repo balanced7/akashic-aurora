@@ -57,7 +57,7 @@ def test_report_surfaces_elapsed_since_the_lesson():
     try:
         rep = _j.loads(out[out.index("{") : out.rindex("}") + 1])
     except Exception as e:
-        raise AssertionError(f"--report --json did not emit JSON ({e}): {out[:200]}")
+        raise AssertionError(f"--report --json did not emit JSON ({e}): {out[:200]}") from e
     # Shape, not ambient data: this pin must not depend on the live store having rows, or it
     # passes or fails on whatever else ran first (lesson: a pin that reads ambient state).
     assert "entries" in rep, f"the report drops the per-repeat entries entirely: {list(rep)}"

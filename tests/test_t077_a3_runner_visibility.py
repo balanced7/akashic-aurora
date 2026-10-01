@@ -85,7 +85,7 @@ def test_p2_doctor_flags_runner_down():
 
     orig = _inc._resolve_client
     try:
-        _inc._resolve_client = lambda c_param, allow: c if c_param is not None else c
+        _inc._resolve_client = lambda c_param, allow: c
         findings = doctor.examine("deepseek", probes=probes)
         downs = [f for f in findings if f["state"] == "runner_down"]
         assert len(downs) >= 1, f"A3-P2: doctor must flag runner_down, got {findings}"
@@ -101,7 +101,7 @@ def test_p2_doctor_flags_runner_blocked():
 
     orig = _inc._resolve_client
     try:
-        _inc._resolve_client = lambda c_param, allow: c if c_param is not None else c
+        _inc._resolve_client = lambda c_param, allow: c
         findings = doctor.examine("deepseek", probes=doctor._default_probes())
         blocked = [f for f in findings if f["state"] == "runner_blocked"]
         assert len(blocked) >= 1, f"A3-P2: doctor must flag runner_blocked, got {findings}"
@@ -118,7 +118,7 @@ def test_p3_doctor_silent_when_runner_live():
 
     orig = _inc._resolve_client
     try:
-        _inc._resolve_client = lambda c_param, allow: c if c_param is not None else c
+        _inc._resolve_client = lambda c_param, allow: c
         findings = doctor.examine("deepseek", probes=doctor._default_probes())
         rt_findings = [f for f in findings if f["state"] in ("runner_down", "runner_blocked")]
         assert rt_findings == [], f"A3-P3: no runtime findings when runner is live, got {rt_findings}"
@@ -133,7 +133,7 @@ def test_p3_doctor_silent_when_no_daemon_card():
 
     orig = _inc._resolve_client
     try:
-        _inc._resolve_client = lambda c_param, allow: c if c_param is not None else c
+        _inc._resolve_client = lambda c_param, allow: c
         # agent with no presence card
         findings = doctor.examine("nobody", probes=doctor._default_probes())
         rt_findings = [f for f in findings if f["state"] in ("runner_down", "runner_blocked")]

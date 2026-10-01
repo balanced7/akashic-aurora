@@ -63,7 +63,7 @@ def test_p2_interiority_files_are_readable_and_have_standing():
     for seat in seats:
         interiority = charters_dir / seat / "INTERIORITY.md"
         text = interiority.read_text(encoding="utf-8")
-        # Match ## Standing:, ### STANDING —, and similar variants
+        # Matches level-2 and level-3 'Standing' headings, any case variant.
         if not re.search(r"^#{2,3}\s+(?:Standing|STANDING)", text, re.MULTILINE):
             missing_standing.append(seat)
     assert missing_standing == [], f"Seats whose INTERIORITY.md lacks 'Standing' section: {missing_standing}"

@@ -201,7 +201,7 @@ def test_a_name_only_match_is_not_corroborated():
     history are shared by 68 commits, so the name alone must not license a row a resolver will
     treat as an answer. tree_agree used to be computed, printed, and thrown away."""
     rr = _rr()
-    # (tree, author-date, author-email, subject, oid)
+    # Row layout: tree, author-date, author-email, subject, oid.
     o = ("t1", "100", "a@x", "same subject", "o1")
     n = ("t2", "100", "b@x", "same subject", "n1")
     parents = {"o1": ("po",), "n1": ("pn",)}  # parents correspond to nothing
@@ -276,7 +276,7 @@ def test_every_committed_inferred_row_is_corroborated():
         for a, b in pairs:
             if a not in info or b not in info:
                 continue  # an unreadable side cannot be judged here
-            if not rr.corroborate(info[a], info[b], parents, dict(pairs), key_of=lambda sha: keys.get(sha)):
+            if not rr.corroborate(info[a], info[b], parents, dict(pairs), key_of=lambda sha, keys=keys: keys.get(sha)):
                 bad.append(a[:12])
         assert not bad, f"{d.name} holds name-only rows: {bad}"
 

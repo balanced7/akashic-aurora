@@ -101,7 +101,7 @@ def test_flag_shipped_capability_is_reachable():
         raise AssertionError(
             "verb_index() does not exist yet -- T311 must expose a parser-derived index "
             f"that includes flag help strings, not only verb names ({e})"
-        )
+        ) from e
     idx = verb_index()
     hay = " ".join(
         f"{e.get('verb', '')} {e.get('purpose', '')} {' '.join(e.get('flags', []) or [])}" for e in idx
@@ -118,7 +118,7 @@ def test_index_is_derived_from_the_parser_not_a_snapshot():
     try:
         from core.recall.at_action import verb_index
     except ImportError as e:
-        raise AssertionError(f"verb_index() does not exist yet ({e})")
+        raise AssertionError(f"verb_index() does not exist yet ({e})") from e
     idx = verb_index()
     names = {e.get("verb") for e in idx}
     for known in ("captions", "discover", "recall-at", "wish"):

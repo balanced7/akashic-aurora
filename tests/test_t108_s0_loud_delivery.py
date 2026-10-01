@@ -145,6 +145,6 @@ def test_the_real_probe_is_wired_not_just_the_monkeypatched_one():
         raise AssertionError(
             f"the REAL liveness probe raised {type(e).__name__}: {e} -- with fail-open this "
             "means the warning never fires in production, no matter how green the other pins are"
-        )
+        ) from e
     assert isinstance(live, bool), f"probe returned a non-bool liveness: {live!r}"
     assert age is None or isinstance(age, (int, float)), f"probe returned a bad age: {age!r}"

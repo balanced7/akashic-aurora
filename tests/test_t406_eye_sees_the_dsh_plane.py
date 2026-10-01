@@ -211,7 +211,7 @@ def test_dsh_sessions_get_distinct_ids():
             "currently inlined as `f.stem` inside ingest(), which cannot be correct for any "
             "harness that names transcripts by a constant filename. It needs to be one named "
             "function so both the corpus and the ingest agree on what a session IS."
-        )
+        ) from e
     files = sorted(_dsh_root().rglob("session.jsonl*"))
     if len(files) < 2:
         import pytest
@@ -259,7 +259,7 @@ def test_a_compressed_transcript_is_readable():
             f"core.eye.index.open_transcript(path) does not exist ({e}). ingest() calls "
             "open(f, encoding='utf-8', errors='replace') directly, which cannot read a "
             "'.jsonl.zstd' and -- because of errors='replace' -- will not fail loudly either."
-        )
+        ) from e
     files = sorted(_dsh_root().rglob("session.jsonl.zstd"))
     if not files:
         import pytest

@@ -63,7 +63,7 @@ def null_judge(case: dict[str, Any]) -> bool:
     return False
 
 
-# ----------------------------------------------------------------------------- tests (hermetic)
+# ----------------------------------------------------------------------------- hermetic tests
 def test_datasets_wellformed():
     cp, aa = contradiction_pairs(), action_applicability_cases()
     assert len(cp) >= 20, f"expected a real contradiction set, got {len(cp)}"

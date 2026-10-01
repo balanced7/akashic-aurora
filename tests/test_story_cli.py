@@ -313,7 +313,7 @@ def test_story_ascii_safe():
         try:
             out.encode("cp1252")
         except UnicodeEncodeError as e:
-            raise AssertionError(f"output not cp1252-safe: {e}")
+            raise AssertionError(f"output not cp1252-safe: {e}") from e
     print("  ascii-safe: output encodes to cp1252 OK")
 
 

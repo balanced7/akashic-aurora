@@ -103,7 +103,7 @@ class _FakeRedis:
         self.streams.setdefault(str(key), []).append((sid, dict(fields)))
         return sid
 
-    def xrange(self, key, min="-", max="+", count=None):
+    def xrange(self, key, min="-", max="+", count=None):  # noqa: A002  # mirrors redis-py xrange(min=, max=)
         entries = list(self.streams.get(str(key), []))
         out = []
         for sid, fields in entries:

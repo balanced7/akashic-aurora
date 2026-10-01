@@ -32,6 +32,7 @@ Run: py -m pytest tests/test_t184_llm_player_cannot_flatter_itself.py -q
 import os
 import sys
 import textwrap
+from typing import ClassVar
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -126,7 +127,7 @@ def _fake_fan(monkeypatch, branches):
     """Stand in for ask_many with a scripted set of branch results."""
 
     class _O:
-        detail = {
+        detail: ClassVar[dict] = {
             "branches": branches,
             "n_ok": sum(1 for b in branches if b["ok"]),
             "n": len(branches),

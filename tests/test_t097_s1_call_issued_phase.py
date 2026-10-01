@@ -15,6 +15,7 @@ Run: py -m pytest tests/test_t097_s1_call_issued_phase.py -q
 
 import os
 import sys
+from typing import ClassVar
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
@@ -75,7 +76,7 @@ def test_phase_flips_to_thinking_once_the_stream_yields():
         delta = _Delta()
 
     class _Chunk:
-        choices = [_Choice()]
+        choices: ClassVar[list] = [_Choice()]
         usage = None
 
     class _OneStream:

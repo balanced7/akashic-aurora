@@ -118,9 +118,7 @@ def test_p3_the_seam_the_skill_promises_is_on_every_module():
     gone = []
     for rel, tokens in SEAM.items():
         src = _read(rel)
-        for t in tokens:
-            if t not in src:
-                gone.append(f"{rel} lacks {t}")
+        gone.extend(f"{rel} lacks {t}" for t in tokens if t not in src)
     assert not gone, "; ".join(gone)
 
 
@@ -141,9 +139,7 @@ def test_p5_the_verbs_and_flags_the_loop_names_still_exist():
     gone = []
     for rel, tokens in VERBS.items():
         src = _read(rel)
-        for t in tokens:
-            if t not in src:
-                gone.append(f"{rel} lacks {t}")
+        gone.extend(f"{rel} lacks {t}" for t in tokens if t not in src)
     assert not gone, "; ".join(gone)
 
 
@@ -157,7 +153,7 @@ def test_p7_every_quoted_line_is_in_head_not_only_in_the_working_tree():
     try:
         subprocess.run(["git", "--version"], capture_output=True, check=True)
     except Exception as e:  # pragma: no cover - a repo without git cannot make this claim
-        raise AssertionError(f"git is needed to check HEAD: {e}")
+        raise AssertionError(f"git is needed to check HEAD: {e}") from e
     stale, cache = [], {}
     for rel, line in QUOTED:
         if rel not in cache:

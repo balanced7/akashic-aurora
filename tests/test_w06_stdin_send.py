@@ -7,6 +7,7 @@ import io
 import os
 import sys
 import types
+from typing import ClassVar
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
@@ -15,7 +16,7 @@ import agent_cli  # noqa: E402
 
 
 class _FakeBus:
-    sent = []
+    sent: ClassVar[list] = []
 
     def __init__(self, agent_id):
         self.agent_id = agent_id

@@ -96,7 +96,7 @@ def test_default_corpus_publishes_its_coverage():
             f"core.eye.index.corpus_coverage() does not exist ({e}) -- default_corpus() returns a "
             "bare list, so a root that vanishes or a glob that narrows produces a smaller answer "
             "with no signal. Publish roots scanned and per-root counts."
-        )
+        ) from e
     cov = corpus_coverage()
     assert isinstance(cov, dict), f"coverage must name the roots it scanned, got {cov!r}"
     assert cov.get("roots"), f"coverage must name the roots it scanned, got {cov!r}"

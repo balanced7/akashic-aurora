@@ -3,6 +3,7 @@ docs/library/design/20260717_sol-gpt-5-6-live-api-probe-receipts-2026_ae0409.md 
 
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -92,7 +93,7 @@ def test_extract_pairs_calls_for_stateless_resend():
         call_id, name, arguments = "c1", "calc", '{"expr":"6*7"}'
 
     class Resp:
-        output = [Item()]
+        output: ClassVar[list] = [Item()]
         output_text = ""
 
     _text, calls, reasoning, items = SolTransport.extract(Resp())
@@ -108,11 +109,11 @@ def test_extract_surfaces_reasoning_item():
 
     class ReasoningItem:
         type = "reasoning"
-        summary = [SummaryPart()]
+        summary: ClassVar[list] = [SummaryPart()]
         summary_text = None
 
     class Resp:
-        output = [ReasoningItem()]
+        output: ClassVar[list] = [ReasoningItem()]
         output_text = "final answer"
 
     _text, calls, reasoning, _items = SolTransport.extract(Resp())

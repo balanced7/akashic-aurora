@@ -66,7 +66,10 @@ def _seat(tmp_path, pid):
     return hb
 
 
-def _run(api, seen_file, tmp_path, deadline=30, session="sess" + uuid.uuid4().hex[:8]):
+_IMPORT_SESSION = "sess" + uuid.uuid4().hex[:8]  # evaluated once at import, as the old default was
+
+
+def _run(api, seen_file, tmp_path, deadline=30, session=_IMPORT_SESSION):
     agent = "tclaude"
     hb = _seat(tmp_path, os.getpid())
     rc = bw.watch(

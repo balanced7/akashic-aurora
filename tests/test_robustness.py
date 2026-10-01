@@ -34,7 +34,8 @@ def _rnd_word(n=5):
 
 
 # ---------- 1. model-based fuzzing of the Store ----------
-def test_store_model_fuzz(iterations=1500):
+def test_store_model_fuzz():
+    iterations = 1500
     with tempfile.TemporaryDirectory() as d:
         s = FileStore(os.path.join(d, "fuzz.json"))
         kv, hashes, sets, zsets = {}, {}, {}, {}
@@ -78,7 +79,8 @@ def test_store_model_fuzz(iterations=1500):
 
 
 # ---------- 2. cross-backend equivalence ----------
-def test_cross_backend_equivalence(iterations=800):
+def test_cross_backend_equivalence():
+    iterations = 800
     with tempfile.TemporaryDirectory() as d:
         a = FileStore(os.path.join(d, "a.json"))
         b = HybridStore.create(port=63999, file_path=os.path.join(d, "b.json"))  # redis down
@@ -115,7 +117,8 @@ def test_cross_backend_equivalence(iterations=800):
 
 
 # ---------- 3. property invariants ----------
-def test_distiller_invariants(rounds=400):
+def test_distiller_invariants():
+    rounds = 400
     d = Distiller()
     for _ in range(rounds):
         n = random.randint(0, 12)
@@ -134,7 +137,8 @@ def test_distiller_invariants(rounds=400):
     print(f"\n--- distiller invariants ({rounds} rounds) ---\n  always within budget, no source lost OK")
 
 
-def test_ranker_invariants(rounds=400):
+def test_ranker_invariants():
+    rounds = 400
     r = Ranker()
     for _ in range(rounds):
         n = random.randint(0, 12)

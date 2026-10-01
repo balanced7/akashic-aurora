@@ -71,31 +71,30 @@ OPEN = [
 
 
 def _claims(player, hits, misses, confidence):
-    out = []
-    for i in range(hits):
-        out.append(
-            {
-                "player": player,
-                "dedupe_key": f"{player}::h{i}",
-                "claim_class": "needs-caller",
-                "outcome": "confirmed",
-                "confidence": confidence,
-                "stream_id": f"1-{i}",
-                "evidence": [f"evidence {i}"],
-            }
-        )
-    for i in range(misses):
-        out.append(
-            {
-                "player": player,
-                "dedupe_key": f"{player}::m{i}",
-                "claim_class": "needs-caller",
-                "outcome": "refuted",
-                "confidence": confidence,
-                "stream_id": f"2-{i}",
-                "evidence": [f"evidence m{i}"],
-            }
-        )
+    out = [
+        {
+            "player": player,
+            "dedupe_key": f"{player}::h{i}",
+            "claim_class": "needs-caller",
+            "outcome": "confirmed",
+            "confidence": confidence,
+            "stream_id": f"1-{i}",
+            "evidence": [f"evidence {i}"],
+        }
+        for i in range(hits)
+    ]
+    out.extend(
+        {
+            "player": player,
+            "dedupe_key": f"{player}::m{i}",
+            "claim_class": "needs-caller",
+            "outcome": "refuted",
+            "confidence": confidence,
+            "stream_id": f"2-{i}",
+            "evidence": [f"evidence m{i}"],
+        }
+        for i in range(misses)
+    )
     return out
 
 

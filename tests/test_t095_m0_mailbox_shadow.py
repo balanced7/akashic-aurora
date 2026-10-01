@@ -62,7 +62,7 @@ class _FakeRedis:
         self.streams.setdefault(str(key), []).append((sid, {str(k): str(v) for k, v in fields.items()}))
         return sid
 
-    def xrange(self, key, min="-", max="+", count=None):
+    def xrange(self, key, min="-", max="+", count=None):  # noqa: A002  # mirrors redis-py xrange(min=, max=)
         entries = self.streams.get(str(key), [])
         if isinstance(min, str) and min.startswith("("):
             floor = min[1:]

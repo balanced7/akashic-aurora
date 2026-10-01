@@ -51,7 +51,7 @@ SEAT_A = "aaaa1111-0000-0000-0000-000000000000"
 SEAT_B = "bbbb2222-0000-0000-0000-000000000000"
 
 
-def _seat_bus(session_id: str, ns: str = None) -> Bus:
+def _seat_bus(session_id: str, ns: str | None = None) -> Bus:
     """A bus handle AS a specific incarnation of AGENT (env carries the incarnation identity,
     matching how live seats derive it)."""
     os.environ["BIFROST_INCARNATION"] = session_id

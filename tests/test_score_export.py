@@ -306,9 +306,9 @@ def check_export(manifest_path: Path) -> dict:
         t = e["t_ms"] - t0
         if t != int(t):
             rounded += 1
-        tick = int(round(t))
+        tick = round(t)
         if e["kind"] == "on":
-            want_on[(tick, e["note"], max(1, min(127, int(round(e.get("vel", 64))))))] += 1
+            want_on[(tick, e["note"], max(1, min(127, round(e.get("vel", 64)))))] += 1
         elif e["kind"] == "off":
             want_off[(tick, e["note"])] += 1
         elif bool(e.get("down")) != down:

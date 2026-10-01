@@ -178,7 +178,7 @@ def test_chain_alive_ambiguity_fails_safe():
     assert alive, "walking off the top without contradiction = fail-safe alive (K8 direction)"
 
 
-# ---------------------------------------------------------------- janitor (integration, injected)
+# ---------------------------------------------------------------- janitor: integration, injected
 def test_janitor_fresh_marker_never_snapshots(tmp_path):
     """K7 pin 2 at the janitor level: fresh marker -> zero WMI cost, seat untouched."""
     p = _seat(tmp_path, "sidA", 999)

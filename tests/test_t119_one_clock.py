@@ -103,9 +103,7 @@ def test_naive_local_stampers_are_gone():
     offenders = []
     for rel in NAIVE_LOCAL_STAMPERS:
         src = (REPO / rel).read_text(encoding="utf-8", errors="replace")
-        for pat in _LOCAL_STAMP_PATTERNS:
-            if re.search(pat, src):
-                offenders.append(f"{rel} matches {pat}")
+        offenders.extend(f"{rel} matches {pat}" for pat in _LOCAL_STAMP_PATTERNS if re.search(pat, src))
     assert not offenders, (
         "naive-LOCAL timestamp stampers remain (each lands 4h in the past the moment "
         "its string enters to_epoch on this box):\n  " + "\n  ".join(offenders)

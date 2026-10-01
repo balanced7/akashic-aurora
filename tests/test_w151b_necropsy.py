@@ -15,6 +15,8 @@ The LLM half of distillation (the death-delta ask) is a grounded-ask passthrough
 unpinned here -- its honesty comes from the ask door's own contract.
 """
 
+from typing import ClassVar
+
 from scripts.necropsy import classify_session, digest_transcript_text
 
 NOW = 1_800_000_000.0
@@ -114,7 +116,7 @@ def test_n9_distill_folds_in_subagent_tails(monkeypatch, tmp_path):
         captured["prompt"] = prompt
 
         class Reply:
-            detail = {"answer": "DEATH-DELTA: believed the docs page was safe"}
+            detail: ClassVar[dict] = {"answer": "DEATH-DELTA: believed the docs page was safe"}
 
         return Reply()
 
@@ -149,7 +151,7 @@ def test_n10_death_delta_needs_the_coroners_report(monkeypatch, tmp_path):
         captured["prompt"] = prompt
 
         class Reply:
-            detail = {"answer": "DEATH-DELTA: believed the pane was safe"}
+            detail: ClassVar[dict] = {"answer": "DEATH-DELTA: believed the pane was safe"}
 
         return Reply()
 

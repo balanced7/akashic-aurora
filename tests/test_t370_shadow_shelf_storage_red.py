@@ -461,9 +461,7 @@ def test_p12_module_source_has_no_forbidden_imports():
     offending = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name in _FORBIDDEN_P12:
-                    offending.append(alias.name)
+            offending.extend(alias.name for alias in node.names if alias.name in _FORBIDDEN_P12)
         elif isinstance(node, ast.ImportFrom) and node.module in _FORBIDDEN_P12:
             offending.append(node.module)
     assert not offending, f"shadow_shelf source imports forbidden writer surface: {sorted(set(offending))}"

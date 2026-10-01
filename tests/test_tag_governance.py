@@ -108,7 +108,7 @@ def test_crdt_monotonicity_fuzz():
     assert fact.summary == "Slice 0 schema", "I1: fact never changed"
 
 
-def test_d3_tampered_nonfinite_confidence_cannot_degrade(monkeypatch=None):
+def test_d3_tampered_nonfinite_confidence_cannot_degrade():
     """D3 at the governance layer: even if a hostile/corrupt inf-confidence opinion is written
     DIRECTLY into the stored beat (bypassing the sanitizing write path), reading current() drops
     it -- the confirmed real tag still wins, and the fact is untouched."""

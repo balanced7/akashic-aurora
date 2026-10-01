@@ -271,8 +271,8 @@ def test_straggler_report_uses_getattr_for_safe_access():
     from core.comm import bifrost_api
 
     src = inspect.getsource(bifrost_api.BifrostAPI.work_drain)
-    # The existing code already uses getattr for kind lookup:
-    # packet_spec.lane_for(str(getattr(m, "kind", "")))
+    # The existing code already uses getattr for the kind lookup (packet_spec.lane_for on the
+    # getattr'd kind string).
     # The W97 fix must use getattr for frm/id too.
     assert "getattr" in src, "work_drain straggler report already uses getattr; W97 extends it"
 

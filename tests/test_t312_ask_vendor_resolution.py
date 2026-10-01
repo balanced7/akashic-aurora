@@ -40,7 +40,7 @@ def _vendor_for(model):
     try:
         from core.comm.ask import _vendor_for as f
     except ImportError as e:
-        raise AssertionError(f"core.comm.ask._vendor_for does not exist yet -- T312 is unbuilt ({e})")
+        raise AssertionError(f"core.comm.ask._vendor_for does not exist yet -- T312 is unbuilt ({e})") from e
     return f(model)
 
 

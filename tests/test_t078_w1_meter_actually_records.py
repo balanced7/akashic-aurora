@@ -65,9 +65,11 @@ def _local_bind_without_global(tree: ast.AST) -> list:
                 continue
             if "TokenJournal" not in ast.dump(node.value):
                 continue
-            for t in node.targets:
-                if isinstance(t, ast.Name) and t.id.startswith("_") and t.id not in declared:
-                    bad.append(f"{fn.name}() binds local '{t.id}' at line {node.lineno}")
+            bad.extend(
+                f"{fn.name}() binds local '{t.id}' at line {node.lineno}"
+                for t in node.targets
+                if isinstance(t, ast.Name) and t.id.startswith("_") and t.id not in declared
+            )
     return bad
 
 

@@ -79,9 +79,7 @@ def test_p3_the_kit_lives_in_exactly_one_file():
     for dirpath, _dirnames, filenames in os.walk(ROOT):
         if any(x in dirpath for x in ("_archive", "ComfyUI-Zluda", ".git", "node_modules")):
             continue
-        for f in filenames:
-            if f.endswith(".css") and "report-kit" in f:
-                hits.append(os.path.join(dirpath, f))
+        hits.extend(os.path.join(dirpath, f) for f in filenames if f.endswith(".css") and "report-kit" in f)
     assert len(hits) == 1, f"the kit must have exactly one home, found: {hits}"
 
 

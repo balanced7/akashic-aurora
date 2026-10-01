@@ -32,6 +32,7 @@ Run: py -m pytest tests/test_t203_ask_with_files.py -q
 
 import os
 import sys
+from typing import ClassVar
 
 import pytest
 
@@ -116,7 +117,7 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
             message = M()
             finish_reason = "stop"
 
-        choices = [C()]
+        choices: ClassVar[list] = [C()]
         usage = None
 
     class FakeClient:
@@ -153,7 +154,7 @@ def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
             message = M()
             finish_reason = "stop"
 
-        choices = [C()]
+        choices: ClassVar[list] = [C()]
         usage = None
 
     class FakeClient:

@@ -108,8 +108,7 @@ def test_coherence_scan_cap_drops_oldest_ack_PROOF(monkeypatch):
     past top_k=500, so acks_for returns empty even though the ack EXISTS."""
     monkeypatch.setattr(promoter, "_closed_task_ids", lambda: set())
     events = [_promoted("target"), _ack_event("target")]
-    for i in range(600):
-        events.append(_ack_event(f"other-{i}"))
+    events.extend(_ack_event(f"other-{i}") for i in range(600))
     amap = promoter.acks_for(["target"], event_query=FakeQuery(events))
     assert not amap["target"], (
         "CLASS 2 PROOF: target ack EXISTS in firehose but acks_for returns empty "

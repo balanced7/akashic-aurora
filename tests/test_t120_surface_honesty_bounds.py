@@ -25,18 +25,17 @@ sys.path.insert(0, str(REPO))
 
 def _specimen_recall_result(n_shown=3, n_total=7, with_title_match=False):
     """A recall result dict in the shape recall_at returns."""
-    lessons = []
-    for i in range(n_shown):
-        lessons.append(
-            {
-                "source": f"learn:experiment:test_lesson_{i}",
-                "text": f"Test lesson {i}: use when testing; some advice here.",
-                "agent_id": "deepseek",
-                "success": "yes",
-                "_use": {},
-                "timestamp": "2026-07-28T00:00:00",
-            }
-        )
+    lessons = [
+        {
+            "source": f"learn:experiment:test_lesson_{i}",
+            "text": f"Test lesson {i}: use when testing; some advice here.",
+            "agent_id": "deepseek",
+            "success": "yes",
+            "_use": {},
+            "timestamp": "2026-07-28T00:00:00",
+        }
+        for i in range(n_shown)
+    ]
     return {
         "path": None,
         "command": "read_file test.txt",
@@ -53,21 +52,19 @@ def _specimen_recall_result(n_shown=3, n_total=7, with_title_match=False):
 
 def _specimen_peek_msgs(n_msgs=12):
     """Messages shaped like peek_inbox returns."""
-    msgs = []
-    for i in range(n_msgs):
-        msgs.append(
-            {
-                "id": f"msg{i}",
-                "frm": "claude" if i % 2 == 0 else "deepseek",
-                "to": "deepseek",
-                "kind": "chat" if i % 3 != 0 else "trace",
-                "content": f"This is message number {i} with some content to render.",
-                "ts": f"2026-07-28T00:{i:02d}:00",
-                "pending_at_least": n_msgs,
-                "pending_capped": n_msgs >= 50,
-            }
-        )
-    return msgs
+    return [
+        {
+            "id": f"msg{i}",
+            "frm": "claude" if i % 2 == 0 else "deepseek",
+            "to": "deepseek",
+            "kind": "chat" if i % 3 != 0 else "trace",
+            "content": f"This is message number {i} with some content to render.",
+            "ts": f"2026-07-28T00:{i:02d}:00",
+            "pending_at_least": n_msgs,
+            "pending_capped": n_msgs >= 50,
+        }
+        for i in range(n_msgs)
+    ]
 
 
 # ── TEST 1: recall/recall_at emits N-of-M + exact-title-miss ────────────

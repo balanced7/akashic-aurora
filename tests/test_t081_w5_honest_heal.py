@@ -80,11 +80,11 @@ def test_empty_orphans_no_lines():
 
 
 def test_counts_are_lossless_and_ordered_most_severe_first():
-    orphans = (
-        ["weird:a:1", "weird:a:2"]  # 2 unknown
-        + ["events:raw:1", "events:raw:2", "events:raw:3"]  # 3 durable
-        + ["bifrost:cursor:1", "bifrost:presence:2", "bifrost:work:3", "bifrost:runner:4"]
-    )  # 4 ephemeral
+    orphans = [
+        *["weird:a:1", "weird:a:2"],  # 2 unknown
+        *["events:raw:1", "events:raw:2", "events:raw:3"],  # 3 durable
+        *["bifrost:cursor:1", "bifrost:presence:2", "bifrost:work:3", "bifrost:runner:4"],  # 4 ephemeral
+    ]
     lines = R(orphans, {"events:raw"})
     text = "\n".join(lines)
     assert "2 UNKNOWN" in text

@@ -29,12 +29,12 @@ class Ns:
         return None
 
 
-def _dec(id, title, body, superseded=False, at="2026-07-21T01:00:00"):
+def _dec(id_, title, body, superseded=False, at="2026-07-21T01:00:00"):
     return Decision(
-        id=id,
+        id=id_,
         title=title,
         status="decided",
-        context="ctx-" + id,
+        context="ctx-" + id_,
         decision=body,
         rationale=[],
         alternatives=[],
