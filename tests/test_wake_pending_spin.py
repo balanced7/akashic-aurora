@@ -360,7 +360,12 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
     # Old code's second call: re-peeks shared cursor, finds BOTH (Phase 1 never
     # consumed — detect-only — so it's still there alongside Phase 2)
     old_second = old_wake_block_lane(timeout_ms=1)
-    assert len(old_second) == 2 and any(m.frm == "kimi" for m in old_second), (
+    assert len(old_second) == 2, (
+        f"OLD code re-peeked shared cursor and found BOTH messages ({len(old_second)}); "
+        f"the Phase 2 straggler would have been delivered as a wake. "
+        f"NEW code missed it (lane-only read after seed)"
+    )
+    assert any(m.frm == "kimi" for m in old_second), (
         f"OLD code re-peeked shared cursor and found BOTH messages ({len(old_second)}); "
         f"the Phase 2 straggler would have been delivered as a wake. "
         f"NEW code missed it (lane-only read after seed)"

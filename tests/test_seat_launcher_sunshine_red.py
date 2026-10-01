@@ -77,7 +77,8 @@ def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
         "the daemon hardcodes the deepseek runner for --spawn-runner; handing sol that script is "
         "the daemon_spawn_runner_hardcodes_deepseek_script lesson repeating"
     )
-    assert "--agent" in argv and "sol" in argv, argv
+    assert "--agent" in argv, argv
+    assert "sol" in argv, argv
     assert cwd == ROOT, cwd
 
 
@@ -149,7 +150,8 @@ def test_p5_refuses_loudly_when_the_script_is_absent():
 def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
     rec = SL.resolve_seat("sunshine")
     note = SL.launch_note(rec)
-    assert "Sunshine" in note and "sol" in note, note
+    assert "Sunshine" in note, note
+    assert "sol" in note, note
 
     if rec.get("drilled"):
         assert rec["drilled"] in note, "a drilled lever must show its dated receipt"
@@ -179,4 +181,5 @@ def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
 )
 def test_p7_existing_seats_are_untouched(word, seat):
     rec = SL.resolve_seat(word)
-    assert rec is not None and rec["seat"] == seat, (word, rec)
+    assert rec is not None, (word, rec)
+    assert rec["seat"] == seat, (word, rec)

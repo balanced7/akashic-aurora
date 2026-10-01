@@ -206,7 +206,10 @@ def test_p7_the_watcher_has_no_write_path(db):
         assert forbidden not in called, f"the watcher calls {forbidden!r}"
 
     # ...and the only file access it makes is READING.
-    assert "write_text" not in called and "open" not in called, (
+    assert "write_text" not in called, (
+        "the watcher has no write path at all -- reading is its entire relationship with the world"
+    )
+    assert "open" not in called, (
         "the watcher has no write path at all -- reading is its entire relationship with the world"
     )
 

@@ -108,7 +108,8 @@ def test_p2_the_lod_pin(tmp_path):
 def test_p3_descent_is_citation_following(db):
     PYR.build(db_path=db)
     l2 = PYR.zoom("session_alpha", db_path=db)
-    assert l2["level"] == "L2" and l2["children"], "L2 lists its L1 children"
+    assert l2["level"] == "L2", "L2 lists its L1 children"
+    assert l2["children"], "L2 lists its L1 children"
     l1 = PYR.zoom(l2["children"][0], db_path=db)
     assert l1["level"] == "L1"
     assert l1["refs"]

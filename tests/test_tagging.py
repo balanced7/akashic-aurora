@@ -119,7 +119,8 @@ def test_d3_out_of_range_finite_is_clamped_on_load():
     ]  # tampered high
     h = TagHistory.from_list(raw)
     cur = h.current()
-    assert cur.value == "research" and cur.confidence == 1.0, "finite out-of-range clamped to 1.0, not dropped"
+    assert cur.value == "research", "finite out-of-range clamped to 1.0, not dropped"
+    assert cur.confidence == 1.0, "finite out-of-range clamped to 1.0, not dropped"
 
 
 def test_d3_add_sanitizes_nonfinite_input():

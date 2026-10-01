@@ -58,9 +58,8 @@ def test_p3_get_bus_cache_keys_on_namespace(monkeypatch):
         monkeypatch.setenv("BIFROST_NAMESPACE", "t069_ns_b")
         b = busmod.get_bus("t069agent")
         added = [k for k in busmod._INSTANCES if "t069agent" in str(k)]
-        assert a.ns == "t069_ns_a" and b.ns == "t069_ns_b", (
-            f"a namespace flip must never serve a stale-ns bus (got {a.ns!r}, {b.ns!r})"
-        )
+        assert a.ns == "t069_ns_a", f"a namespace flip must never serve a stale-ns bus (got {a.ns!r}, {b.ns!r})"
+        assert b.ns == "t069_ns_b", f"a namespace flip must never serve a stale-ns bus (got {a.ns!r}, {b.ns!r})"
         assert a is not b, "different namespaces are different buses"
     finally:
         for k in added:
@@ -89,7 +88,8 @@ def test_p5_door_touch_cannot_pin_stores_for_isolated_consumers(monkeypatch):
     try:
         agent_cli._orientation_header("claude")  # the door touch
         x, y = am.get_agent_memory(), am.get_agent_memory()
-        assert x is not y and am._agent_memory is saved, "a door touch pinned a store instance for isolated consumers"
+        assert x is not y, "a door touch pinned a store instance for isolated consumers"
+        assert am._agent_memory is saved, "a door touch pinned a store instance for isolated consumers"
     finally:
         am._agent_memory = saved
 

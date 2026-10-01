@@ -78,7 +78,8 @@ class ScriptedClient:
 def test_a_cut_answer_is_continued_and_stitched():
     c = ScriptedClient(_resp("The first half", "length"), _resp(" and the second half.", "stop"))
     o = ask_mod.ask("q", client=c, continue_on_cut=True)
-    assert o.ok and not o.partial, "a fully continued answer is DONE"
+    assert o.ok, "a fully continued answer is DONE"
+    assert not o.partial, "a fully continued answer is DONE"
     assert o.detail["answer"] == "The first half and the second half."
     assert o.detail["continuations"] == 1
     assert len(c.calls) == 2

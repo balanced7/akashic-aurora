@@ -28,7 +28,8 @@ def test_p1_armed_line_names_count():
 
 def test_p2_zero_corpus_still_armed():
     line = agent_cli._recall_armed_line(0)
-    assert "armed" in line and "0" in line, "an empty corpus is armed, not broken"
+    assert "armed" in line, "an empty corpus is armed, not broken"
+    assert "0" in line, "an empty corpus is armed, not broken"
 
 
 def test_p3_warm_failure_is_honest():

@@ -65,7 +65,11 @@ def test_o2_offline_renders_offline_not_dead():
     ro.heartbeat(ns, AGENT, SEAT_A, phase="building")
     ro.go_offline(ns, AGENT, SEAT_A)
     mine = _mine(ns, ro)
-    assert mine and mine[0]["state"] == "OFFLINE", (
+    assert mine, (
+        f"O2: a declared departure must render OFFLINE, not DEAD -- DEAD claims an "
+        f"unexplained expiry when the seat told us it left: {mine}"
+    )
+    assert mine[0]["state"] == "OFFLINE", (
         f"O2: a declared departure must render OFFLINE, not DEAD -- DEAD claims an "
         f"unexplained expiry when the seat told us it left: {mine}"
     )
@@ -79,7 +83,11 @@ def test_o3_next_heartbeat_revives():
     assert _mine(ns, ro)[0]["state"] == "OFFLINE"
     ro.heartbeat(ns, AGENT, SEAT_A, phase="idle")
     mine = _mine(ns, ro)
-    assert mine and mine[0]["state"] == "LIVE", (
+    assert mine, (
+        f"O3: offline must be reversible -- the next beat re-creates the worklive key and "
+        f"the seat is LIVE again, not stuck offline: {mine}"
+    )
+    assert mine[0]["state"] == "LIVE", (
         f"O3: offline must be reversible -- the next beat re-creates the worklive key and "
         f"the seat is LIVE again, not stuck offline: {mine}"
     )
@@ -92,9 +100,13 @@ def test_o4_rank_and_no_churn_from_goodbyes():
     ro.go_offline(ns, AGENT, SEAT_A, _beat_ts=time.time() - 60)
     groups = ro.by_agent(ro.roster(ns))
     mine = [g for g in groups if g["agent"] == AGENT]
-    assert mine and mine[0]["state"] == "OFFLINE", (
+    assert mine, f"O4: the per-agent best row must render OFFLINE for an all-offline agent: {mine}"
+    assert mine[0]["state"] == "OFFLINE", (
         f"O4: the per-agent best row must render OFFLINE for an all-offline agent: {mine}"
     )
-    assert mine[0]["deaths_in_window"] == 0 and not mine[0]["churning"], (
+    assert mine[0]["deaths_in_window"] == 0, (
+        "O4: a declared goodbye must never count as a churn death -- churn flags crash loops, not departures"
+    )
+    assert not mine[0]["churning"], (
         "O4: a declared goodbye must never count as a churn death -- churn flags crash loops, not departures"
     )

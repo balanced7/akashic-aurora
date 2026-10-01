@@ -59,7 +59,8 @@ def test_w13_legacy_head_keeps_the_one_liner(monkeypatch):
     _fake_mem(monkeypatch, wwa_chars=500)
     head = agent_cli._orientation_header("claude", primer_aware=False)
     wwa_lines = [l for l in head.splitlines() if l.startswith("# where-we-are:")]
-    assert wwa_lines and len(wwa_lines[0]) < 160, "legacy boot keeps the compact one-liner"
+    assert wwa_lines, "legacy boot keeps the compact one-liner"
+    assert len(wwa_lines[0]) < 160, "legacy boot keeps the compact one-liner"
 
 
 def test_w13_primer_aware_head_names_siblings(monkeypatch):

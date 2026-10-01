@@ -98,9 +98,11 @@ def test_default_corpus_publishes_its_coverage():
             "with no signal. Publish roots scanned and per-root counts."
         )
     cov = corpus_coverage()
-    assert isinstance(cov, dict) and cov.get("roots"), f"coverage must name the roots it scanned, got {cov!r}"
+    assert isinstance(cov, dict), f"coverage must name the roots it scanned, got {cov!r}"
+    assert cov.get("roots"), f"coverage must name the roots it scanned, got {cov!r}"
     for r in cov["roots"]:
-        assert "path" in r and "files" in r, f"each root reports path + files, got {r!r}"
+        assert "path" in r, f"each root reports path + files, got {r!r}"
+        assert "files" in r, f"each root reports path + files, got {r!r}"
     assert "total" in cov, "coverage must carry a total"
 
 

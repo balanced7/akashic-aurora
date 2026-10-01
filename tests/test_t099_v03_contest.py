@@ -62,7 +62,8 @@ def test_p2_bad_receipt_refuses_silently_nothing_sent():
         raise AssertionError("should have refused")
     except ValueError as e:
         assert "REFUSED" in str(e)
-    assert r["_sent"] == [] and r["_notes"] == {}, "refusal must not write anywhere"
+    assert r["_sent"] == [], "refusal must not write anywhere"
+    assert r["_notes"] == {}, "refusal must not write anywhere"
 
 
 def test_p3_forced_contest_confesses_guess_both_artifacts():

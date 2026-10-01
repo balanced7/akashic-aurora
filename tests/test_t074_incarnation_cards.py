@@ -125,9 +125,8 @@ def test_r10_cards_merge_with_markers_cards_win(tmp_path):
     sids = {o["session_id"] for o in out}
     assert sids == {SID, SID2}, "R10: the migration window keeps marker-only sessions visible"
     carded = next(o for o in out if o["session_id"] == SID)
-    assert carded.get("status") == "active" and carded.get("claims") == ["T074"], (
-        "R10: where both exist, the CARD's richer fields win"
-    )
+    assert carded.get("status") == "active", "R10: where both exist, the CARD's richer fields win"
+    assert carded.get("claims") == ["T074"], "R10: where both exist, the CARD's richer fields win"
 
 
 def test_r10_own_session_excluded_from_cards(tmp_path):

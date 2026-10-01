@@ -43,7 +43,8 @@ def test_agent_memory_experience_supersession():
     old = mem.record(task="install comfyui nodes", success=False)
     new = mem.record(task="install comfyui nodes", success=True, supersedes=old)
     ids = [e.id for e in mem.get_similar("install comfyui nodes")]
-    assert new in ids and old not in ids, "superseded experience excluded from retrieval"
+    assert new in ids, "superseded experience excluded from retrieval"
+    assert old not in ids, "superseded experience excluded from retrieval"
     print("\n--- AgentMemory experiences ---\n  superseded experience retired from get_similar OK")
 
 

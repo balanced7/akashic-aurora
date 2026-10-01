@@ -65,7 +65,11 @@ def test_static_scan_flags_tracked_import_of_untracked_module(tmp_path):
 
     assert violations, "tracked->untracked import must be flagged, not silent"
     rendered = " ".join(str(v) for v in violations)
-    assert "app.py" in rendered and "helper_util" in rendered, (
+    assert "app.py" in rendered, (
+        "a violation must NAME the importer and the stranded module -- "
+        "a loud gate that doesn't say where is only half loud"
+    )
+    assert "helper_util" in rendered, (
         "a violation must NAME the importer and the stranded module -- "
         "a loud gate that doesn't say where is only half loud"
     )

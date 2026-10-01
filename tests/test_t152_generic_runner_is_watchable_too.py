@@ -56,8 +56,10 @@ def test_w1_generic_runner_is_line_buffered_and_utf8():
         f"until it exits (the T150 defect, in the one runner T150's glob could not see)"
     )
     args = m.group(1)
-    assert "line_buffering" in args and "True" in args, f"{GENERIC}: stdout not line-buffered: {args}"
-    assert "utf-8" in args and "replace" in args, f"{GENERIC}: stream encoding left to platform: {args}"
+    assert "line_buffering" in args, f"{GENERIC}: stdout not line-buffered: {args}"
+    assert "True" in args, f"{GENERIC}: stdout not line-buffered: {args}"
+    assert "utf-8" in args, f"{GENERIC}: stream encoding left to platform: {args}"
+    assert "replace" in args, f"{GENERIC}: stream encoding left to platform: {args}"
 
 
 def test_w2_generic_runner_reconfigures_stderr():
@@ -71,7 +73,10 @@ def test_w3_generic_runner_guards_the_reconfigure():
     m = re.search(r"sys\.stdout\.reconfigure", s)
     assert m, f"{GENERIC}: no stdout reconfigure to check"
     window = s[max(0, m.start() - 400) : m.start() + 400]
-    assert "try:" in window and "except" in window, (
+    assert "try:" in window, (
+        f"{GENERIC}: unguarded reconfigure -- an unsupported stream would kill the runner at import"
+    )
+    assert "except" in window, (
         f"{GENERIC}: unguarded reconfigure -- an unsupported stream would kill the runner at import"
     )
 

@@ -106,9 +106,9 @@ def test_p2b_fan_detail_carries_coverage(tmp_path, monkeypatch):
     try:
         o = A.ask_many(["p1"], client=_Scripted({"p1": "a"}), with_files=[str(f)])
         cov = o.detail.get("coverage")
-        assert cov and cov["ratio"] == 1.0 and cov["chars_total"] > 0, (
-            "P2b: a fan that rode evidence carries the coverage block in its envelope"
-        )
+        assert cov, "P2b: a fan that rode evidence carries the coverage block in its envelope"
+        assert cov["ratio"] == 1.0, "P2b: a fan that rode evidence carries the coverage block in its envelope"
+        assert cov["chars_total"] > 0, "P2b: a fan that rode evidence carries the coverage block in its envelope"
     finally:
         f.unlink(missing_ok=True)
 
@@ -136,11 +136,12 @@ def test_p3b_dead_journal_never_wedges(tmp_path, monkeypatch):
 # ---------------------------------------------------------------- P4: teaching errors
 def test_p4_validate_geometry_teaches():
     err = A.validate_geometry("panel", fan_n=1, n_prompts=1, has_evidence=False)
-    assert err and "--fan" in err, "P4: panel without --fan N>1 names the missing flag"
+    assert err, "P4: panel without --fan N>1 names the missing flag"
+    assert "--fan" in err, "P4: panel without --fan N>1 names the missing flag"
     err2 = A.validate_geometry("no-such-shape", fan_n=1, n_prompts=1, has_evidence=False)
-    assert err2 and "partition" in err2 and "backbrief" in err2, (
-        "P4: unknown geometry lists the vocabulary (422-with-vocabulary, the grammar law)"
-    )
+    assert err2, "P4: unknown geometry lists the vocabulary (422-with-vocabulary, the grammar law)"
+    assert "partition" in err2, "P4: unknown geometry lists the vocabulary (422-with-vocabulary, the grammar law)"
+    assert "backbrief" in err2, "P4: unknown geometry lists the vocabulary (422-with-vocabulary, the grammar law)"
     assert A.validate_geometry("", fan_n=1, n_prompts=1, has_evidence=False) == "", (
         "P4: empty declaration is always valid (geometry is optional)"
     )
@@ -174,7 +175,8 @@ def test_p4b_cli_refuses_before_any_model_call(tmp_path):
         env=env,
         timeout=120,
     )
-    assert r2.returncode == 2 and "--with" in (r2.stderr or ""), "backbrief without a pack refuses and names --with"
+    assert r2.returncode == 2, "backbrief without a pack refuses and names --with"
+    assert "--with" in (r2.stderr or ""), "backbrief without a pack refuses and names --with"
 
 
 # ---------------------------------------------------------------- P5: the rubric at the door

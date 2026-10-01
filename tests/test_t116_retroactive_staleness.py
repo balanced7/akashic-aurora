@@ -140,7 +140,8 @@ def test_p8_a_warm_fleet_probe_spawns_no_subprocess(monkeypatch):
     monkeypatch.setattr(ra, "_probe_start_time", lambda pid: calls.append(pid) or "2026-07-28T04:00:00+00:00")
     ra._START_CACHE.clear()
     first = ra.start_time(31337)
-    assert first and calls == [31337], "cold probe pays once"
+    assert first, "cold probe pays once"
+    assert calls == [31337], "cold probe pays once"
 
     ra._START_CACHE.clear()  # simulate a FRESH process (empty local cache)
     second = ra.start_time(31337)

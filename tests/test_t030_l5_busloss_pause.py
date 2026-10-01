@@ -105,11 +105,13 @@ def test_bus_loss_guard_sequence():
         backoffs.append(g.backoff_s)
     assert g.beat(False) == "stand_down", "the 10th consecutive dead beat exits cleanly"
     assert backoffs == sorted(backoffs), "backoff never shrinks while dead"
-    assert backoffs[0] >= 1 and backoffs[-1] <= 30, "bounded: no busy-spin, no coma"
+    assert backoffs[0] >= 1, "bounded: no busy-spin, no coma"
+    assert backoffs[-1] <= 30, "bounded: no busy-spin, no coma"
     g2 = liveness.BusLossGuard(max_dead=10)
     for _ in range(5):
         g2.beat(False)
-    assert g2.beat(True) == "ok" and g2.dead_beats == 0, "one live beat resets fully"
+    assert g2.beat(True) == "ok", "one live beat resets fully"
+    assert g2.dead_beats == 0, "one live beat resets fully"
 
 
 # --- P4: the doors render the pause line (built != wired) ---

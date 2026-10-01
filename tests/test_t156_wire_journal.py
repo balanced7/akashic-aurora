@@ -71,7 +71,8 @@ def test_w2_no_bodies_are_ever_written(tmp_path):
     raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
     assert secret not in raw, "a request/response BODY reached the journal -- metadata only"
     rows = j.read_all()
-    assert rows and rows[0].get("prompt_sha"), "a prefix HASH must still be recorded for cache forensics"
+    assert rows, "a prefix HASH must still be recorded for cache forensics"
+    assert rows[0].get("prompt_sha"), "a prefix HASH must still be recorded for cache forensics"
     assert secret not in json.dumps(rows), "body leaked into a parsed field"
 
 

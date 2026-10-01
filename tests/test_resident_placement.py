@@ -86,9 +86,9 @@ def test_p1b_an_unplaced_resident_still_renders_the_short_form(posted):
     # No pipe is CORRECT here: with no vendor and no posting there is only a callsign. The
     # first draft of this pin demanded a "|" and was asserting a FORMAT rather than the
     # property that matters -- that absent fields render as absent, never as empty segments.
-    assert "None" not in d and "|  |" not in d and not d.strip().startswith("|"), (
-        f"absent fields must render as ABSENT, not as empty segments: {d!r}"
-    )
+    assert "None" not in d, f"absent fields must render as ABSENT, not as empty segments: {d!r}"
+    assert "|  |" not in d, f"absent fields must render as ABSENT, not as empty segments: {d!r}"
+    assert not d.strip().startswith("|"), f"absent fields must render as ABSENT, not as empty segments: {d!r}"
 
 
 # ---------------------------------------------------------------- P2: append-only
@@ -134,7 +134,8 @@ def test_p4_placing_a_non_resident_refuses_and_points_at_the_ceremony(posted):
     with pytest.raises(ValueError) as e:
         R.place(agent="nobody_here", family="Onyx", team="Blue", number=9, by="daniil_pin")
     msg = str(e.value).lower()
-    assert "resident" in msg and "nominate" in msg, f"the refusal must say why AND name the fix: {e.value}"
+    assert "resident" in msg, f"the refusal must say why AND name the fix: {e.value}"
+    assert "nominate" in msg, f"the refusal must say why AND name the fix: {e.value}"
 
 
 def test_p4b_placement_needs_an_actor(posted):

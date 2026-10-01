@@ -120,11 +120,16 @@ def test_p1_claimed_row_and_live_lock_surface_with_citations():
     assert lk.get("ok") or lk.get("mine"), f"drill lock not acquired: {lk}"
 
     text, _meta = S.build_pack()
-    assert tid in text and "drill_owner" in text, (
+    assert tid in text, (
         "P1: the claimed row surfaces WITH id and owner -- a scout that cannot cite the "
         "row cannot warn the caller off it"
     )
-    assert "widget_frobnicator" in text and "drill_holder" in text, "P1: the live lock surfaces with path and holder"
+    assert "drill_owner" in text, (
+        "P1: the claimed row surfaces WITH id and owner -- a scout that cannot cite the "
+        "row cannot warn the caller off it"
+    )
+    assert "widget_frobnicator" in text, "P1: the live lock surfaces with path and holder"
+    assert "drill_holder" in text, "P1: the live lock surfaces with path and holder"
 
 
 # ---------------------------------------------------------------- P2: settled drill
@@ -153,7 +158,11 @@ def test_p3_scout_memory_is_role_scoped_not_wearer_scoped():
         role=S.SCOUT_ROLE,
     )
     text, _meta = S.build_pack(for_wearer="p3_wearer_b")
-    assert "scout-p3-1" in text and "intent.py" in text, (
+    assert "scout-p3-1" in text, (
+        "P3: wearer B reads wearer A's scout verdicts -- the role remembers, not the "
+        "wearer (fence H-C3; without this the role is decoration)"
+    )
+    assert "intent.py" in text, (
         "P3: wearer B reads wearer A's scout verdicts -- the role remembers, not the "
         "wearer (fence H-C3; without this the role is decoration)"
     )
@@ -171,9 +180,8 @@ def test_p4_scout_ask_files_once_and_returns():
     assert r1.get("tier") == "resident"
 
     vs = V.verdicts(agent="p4_scout_wearer", role=S.SCOUT_ROLE)
-    assert len(vs) == 1 and vs[0]["ask_id"] == r1["ask_id"], (
-        "P4: the verdict filed under wearer AND role, joined to the returned ask_id"
-    )
+    assert len(vs) == 1, "P4: the verdict filed under wearer AND role, joined to the returned ask_id"
+    assert vs[0]["ask_id"] == r1["ask_id"], "P4: the verdict filed under wearer AND role, joined to the returned ask_id"
 
     S.scout_ask("is anyone mid-flight on the flux capacitor?", wearer="p4_scout_wearer", by="claude", client=client)
     assigns = R.roles(agent="p4_scout_wearer", role=S.SCOUT_ROLE)

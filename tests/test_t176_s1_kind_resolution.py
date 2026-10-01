@@ -65,7 +65,11 @@ def test_p1b_a_registered_kind_resolves_with_a_real_answer():
     assert yes.classified is True
     assert yes.value is True
     no = K.resolve("trace", "wake_worthy", plane="bus_kind")
-    assert no.classified is True and no.value is False, (
+    assert no.classified is True, (
+        "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
+        "that is the distinction the whole organ exists to make"
+    )
+    assert no.value is False, (
         "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
         "that is the distinction the whole organ exists to make"
     )

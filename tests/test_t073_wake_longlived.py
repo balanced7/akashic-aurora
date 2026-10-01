@@ -99,9 +99,8 @@ def test_p8_near_deadline_exit_writes_rearm_trigger(tmp_path, monkeypatch, capsy
     trig = bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))
     assert os.path.exists(trig), "P8: the near-deadline exit must write the re-arm trigger"
     body = open(trig, encoding="utf-8").read()
-    assert "re-arm" in body.lower() and "bifrost_wake" in body, (
-        "the trigger carries the instruction, not just a timestamp"
-    )
+    assert "re-arm" in body.lower(), "the trigger carries the instruction, not just a timestamp"
+    assert "bifrost_wake" in body, "the trigger carries the instruction, not just a timestamp"
     assert "self-cycle" in out.lower()
 
 
@@ -171,6 +170,7 @@ def test_p9_dead_watcher_still_blocks_with_backstop_wording(tmp_path):
     data = json.loads(out.splitlines()[-1])
     assert data.get("decision") == "block"
     reason = data.get("reason", "").lower()
-    assert "once" in reason and ("died" in reason or "cycled" in reason), (
+    assert "once" in reason, f"P9: the block message carries re-launch-ONCE backstop semantics, got: {reason[:200]}"
+    assert "died" in reason or "cycled" in reason, (
         f"P9: the block message carries re-launch-ONCE backstop semantics, got: {reason[:200]}"
     )

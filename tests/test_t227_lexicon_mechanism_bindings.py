@@ -62,9 +62,8 @@ def test_drained_binds_the_three_cursor_families():
     tbl = LB.load_bindings()
     mechs = tbl["drained"]["mechanisms"]
     pats = " ".join(m["pattern"] for m in mechs)
-    assert "cursor:seat:" in pats and "cursor:lane:" in pats, (
-        "the seat and lane cursor families are the fork; both must be bound"
-    )
+    assert "cursor:seat:" in pats, "the seat and lane cursor families are the fork; both must be bound"
+    assert "cursor:lane:" in pats, "the seat and lane cursor families are the fork; both must be bound"
     assert len(mechs) >= 3
 
 
@@ -164,4 +163,5 @@ def test_the_live_table_audits_clean_or_says_why():
     for r in rows:
         assert r.verdict in {"MATCH", "DRIFT", "UNKNOWN"}
         if r.verdict != "MATCH":
-            assert r.detail and r.rule, f"{r.entry_ref}: a non-MATCH row must locate itself"
+            assert r.detail, f"{r.entry_ref}: a non-MATCH row must locate itself"
+            assert r.rule, f"{r.entry_ref}: a non-MATCH row must locate itself"

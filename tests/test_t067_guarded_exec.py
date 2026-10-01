@@ -46,17 +46,20 @@ def _tb(trust=True, allow_exec=True, agent_id=None):
 # ---------------------------------------------------------------- G1 families allowed
 def test_g1_unattended_pytest_family_runs():
     out = _tb().run_command("py -m pytest --version", timeout=60)
-    assert "pytest" in out.lower() and "REFUSED" not in out, out
+    assert "pytest" in out.lower(), out
+    assert "REFUSED" not in out, out
 
 
 def test_g1_unattended_agent_cli_read_verb_runs():
     out = _tb().run_command("py agent_cli.py discover", timeout=120)
-    assert "REFUSED" not in out and ("verb" in out.lower() or "boot" in out.lower()), out[:300]
+    assert "REFUSED" not in out, out[:300]
+    assert "verb" in out.lower() or "boot" in out.lower(), out[:300]
 
 
 def test_g1_unattended_generic_command_refused():
     out = _tb().run_command("git push origin master")
-    assert "REFUSED" in out and "famil" in out.lower(), f"unattended exec must be families-only, got: {out[:200]}"
+    assert "REFUSED" in out, f"unattended exec must be families-only, got: {out[:200]}"
+    assert "famil" in out.lower(), f"unattended exec must be families-only, got: {out[:200]}"
 
 
 def test_g1_unattended_arbitrary_python_refused():
@@ -93,7 +96,8 @@ def test_g3_pytest_family_forces_isolation_env(monkeypatch):
     _tb().run_command("py -m pytest tests/test_t073_wake_longlived.py -q", timeout=300)
     from core.comm.toolbox import _is_python
 
-    assert _is_python(seen["argv"][0]) and seen["argv"][1:3] == ["-m", "pytest"], "shell=False argv split (G2)"
+    assert _is_python(seen["argv"][0]), "shell=False argv split (G2)"
+    assert seen["argv"][1:3] == ["-m", "pytest"], "shell=False argv split (G2)"
     assert (seen["env"] or {}).get("_AISETUP_TEST_ISOLATED") == "1", (
         "G3: an unattended verify run must never touch live backends"
     )
@@ -109,7 +113,8 @@ def test_g4_mutating_agent_cli_verbs_refused():
         "py agent_cli.py lock deepseek somefile",
     ):
         out = _tb().run_command(cmd)
-        assert "REFUSED" in out and "read" in out.lower(), f"mutator survived: {cmd!r}"
+        assert "REFUSED" in out, f"mutator survived: {cmd!r}"
+        assert "read" in out.lower(), f"mutator survived: {cmd!r}"
 
 
 # ------------------------------------------------------- G4b recovery verbs reachable
@@ -242,9 +247,8 @@ def test_g5_exec_cap_checked_when_agent_identity_present(monkeypatch):
 
     monkeypatch.setattr(registry, "resolve", lambda agent_id, **k: NoExecGrant())
     out = _tb(agent_id="deepseek-ui").run_command("py -m pytest --version")
-    assert "REFUSED" in out and "acl" in out.lower(), (
-        "G5: without Cap.EXEC the door refuses regardless of the runner flag"
-    )
+    assert "REFUSED" in out, "G5: without Cap.EXEC the door refuses regardless of the runner flag"
+    assert "acl" in out.lower(), "G5: without Cap.EXEC the door refuses regardless of the runner flag"
 
 
 def test_g5_flagless_toolbox_still_fully_disabled():
@@ -262,6 +266,7 @@ def test_g1_interactive_generic_still_confirm_gated():
 
     tb = dc.ToolBox(REPO, allow_exec=True, trust=False, allow_secrets=False, confirm=confirm)
     out = tb.run_command("git status")
-    assert "DENIED" in out and "git status" in asked.get("prompt", ""), (
+    assert "DENIED" in out, "interactive generic exec stays human-confirmed (Daniel's own /exec path)"
+    assert "git status" in asked.get("prompt", ""), (
         "interactive generic exec stays human-confirmed (Daniel's own /exec path)"
     )

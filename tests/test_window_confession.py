@@ -51,9 +51,11 @@ def _promoted_rec(mid, to="claude"):
 def test_promoted_page_confesses_older_records():
     evs = [_promoted_rec(f"{i}-0") for i in range(7)]
     page, more = promoter.promoted_page(limit=5, event_query=FakeQuery(evs))
-    assert len(page) == 5 and more is True, "a full page must say older records exist, not under-report silently"
+    assert len(page) == 5, "a full page must say older records exist, not under-report silently"
+    assert more is True, "a full page must say older records exist, not under-report silently"
     page, more = promoter.promoted_page(limit=10, event_query=FakeQuery(evs))
-    assert len(page) == 7 and more is False, "a page with room left is the whole truth -- no false confession"
+    assert len(page) == 7, "a page with room left is the whole truth -- no false confession"
+    assert more is False, "a page with room left is the whole truth -- no false confession"
 
 
 # ------------------------------------------------------------- one threshold seam
@@ -95,7 +97,8 @@ def test_hint_ring_overflow_is_confessed():
     assert dropped == 4, "12 pushes into a ring of 8 -> 4 evictions counted"
     hints = context_hints.drain("deepseek")
     block = context_hints.format_for_prompt(hints, dropped=dropped)
-    assert "4" in block and "dropped" in block, "the drained block confesses the loss instead of silently narrowing"
+    assert "4" in block, "the drained block confesses the loss instead of silently narrowing"
+    assert "dropped" in block, "the drained block confesses the loss instead of silently narrowing"
     assert context_hints.take_dropped("deepseek") == 0, "one confession per drain"
 
 
@@ -109,9 +112,9 @@ def test_no_overflow_means_no_confession():
 
 def test_confession_renders_even_with_no_live_hints():
     block = context_hints.format_for_prompt([], dropped=2)
-    assert block and "2" in block and "dropped" in block, (
-        "losses are reported even when every surviving hint also expired"
-    )
+    assert block, "losses are reported even when every surviving hint also expired"
+    assert "2" in block, "losses are reported even when every surviving hint also expired"
+    assert "dropped" in block, "losses are reported even when every surviving hint also expired"
     assert context_hints.format_for_prompt([], dropped=0) == "", (
         "empty ring, no losses -> no block at all (unchanged contract)"
     )

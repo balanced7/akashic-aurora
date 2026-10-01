@@ -102,9 +102,10 @@ def test_resurrected_spawn_runner_daemons_carry_the_work_lane(monkeypatch):
             continue
         cmd = step["cmd"]
         if "--spawn-runner" in cmd:
-            assert "--runner-consume-lane" in cmd and "work" in cmd, (
+            assert "--runner-consume-lane" in cmd, (
                 f"{step['agent']}: resurrection without the lane flag diverges cursors"
             )
+            assert "work" in cmd, f"{step['agent']}: resurrection without the lane flag diverges cursors"
         else:
             assert "--runner-consume-lane" not in cmd, "claude's manage-listener daemon takes no runner flags"
 
@@ -144,7 +145,8 @@ def test_resurrected_kimi_daemon_carries_its_OWN_runner_script(monkeypatch):
     )
     plan = revive.decide(obs, target="daemon")
     kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
-    assert "--runner-script" in kimi_cmd and "bifrost_runner_kimi.py" in kimi_cmd, (
+    assert "--runner-script" in kimi_cmd, f"a resurrected kimi daemon must name its own runner script, got {kimi_cmd}"
+    assert "bifrost_runner_kimi.py" in kimi_cmd, (
         f"a resurrected kimi daemon must name its own runner script, got {kimi_cmd}"
     )
 

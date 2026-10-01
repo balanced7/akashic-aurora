@@ -41,7 +41,8 @@ def test_send_to_a_dead_seat_warns(monkeypatch, capsys):
     warned = b._warn_if_unattended("deepseek")
     assert warned, "a send to a 2h-dead seat produced no warning at all"
     out = (capsys.readouterr().err or "") + (capsys.readouterr().out or "")
-    assert "deepseek" in warned and ("dead" in warned.lower() or "unattended" in warned.lower()), warned
+    assert "deepseek" in warned, warned
+    assert "dead" in warned.lower() or "unattended" in warned.lower(), warned
 
 
 def test_send_to_a_live_seat_is_silent(monkeypatch):

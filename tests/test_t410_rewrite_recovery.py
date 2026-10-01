@@ -171,7 +171,8 @@ def test_a_map_only_in_dotgit_is_marked_volatile(tmp_path):
     (tmp_path / ".git" / "filter-repo").mkdir(parents=True)
     (tmp_path / ".git" / "filter-repo" / "commit-map").write_text(f"{A} {B}\n", encoding="utf-8")
     maps = rm.load_maps(tmp_path)
-    assert len(maps) == 1 and maps[0].durable is False, maps
+    assert len(maps) == 1, maps
+    assert maps[0].durable is False, maps
 
 
 def test_an_archived_map_is_preferred_and_not_duplicated(tmp_path):
@@ -324,7 +325,8 @@ def test_every_accepted_waiver_states_a_reason():
         return
     for sha, why in json.loads(p.read_text(encoding="utf-8"))["unresolvable"].items():
         assert len(sha) == 40, f"{sha} is not a full oid"
-        assert isinstance(why, str) and len(why.strip()) > 30, f"{sha[:12]} has no real reason"
+        assert isinstance(why, str), f"{sha[:12]} has no real reason"
+        assert len(why.strip()) > 30, f"{sha[:12]} has no real reason"
         assert _git("cat-file", "-t", sha).strip() == "commit", (
             f"{sha[:12]} does not name a commit in this repo -- a guessed hash waives nothing"
         )

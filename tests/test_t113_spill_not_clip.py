@@ -122,7 +122,8 @@ def test_p7_a_blob_failure_degrades_to_the_old_clip(monkeypatch):
 
     monkeypatch.setattr(packet_spec, "_blob_store", lambda: _Broken())
     out, meta = packet_spec.spill_tool_text(BIG)
-    assert len(out) <= LIMIT and out, "a broken blob store must still deliver a message"
+    assert len(out) <= LIMIT, "a broken blob store must still deliver a message"
+    assert out, "a broken blob store must still deliver a message"
     assert not (meta or {}).get("spill_ref"), "no ref may be advertised when none was stored"
     assert "clipped" in out.lower(), f"falling back must still CONFESS -- RB-5 holds in every branch: {out[-200:]!r}"
 

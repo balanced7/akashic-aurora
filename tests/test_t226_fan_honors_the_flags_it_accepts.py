@@ -203,7 +203,8 @@ def test_bg_forwards_the_fan():
     )
     argv = agent_cli._bg_forward_argv(ns)
 
-    assert "--fan" in argv and argv[argv.index("--fan") + 1] == "5", (
+    assert "--fan" in argv, "--bg dropped --fan: the caller asked for 5 branches and got 1, silently"
+    assert argv[argv.index("--fan") + 1] == "5", (
         "--bg dropped --fan: the caller asked for 5 branches and got 1, silently"
     )
     assert "--system" in argv, "--bg dropped --system"
@@ -257,7 +258,8 @@ def test_get_renders_a_backgrounded_fan():
     s = summarize(rec)
 
     assert s["state"] == "DONE"
-    assert "A0" in s["answer"] and "A2" in s["answer"], "the branch bodies must be readable"
+    assert "A0" in s["answer"], "the branch bodies must be readable"
+    assert "A2" in s["answer"], "the branch bodies must be readable"
     assert "3 of 3" in s["next"]
     assert "COLLAPSED" in s["next"], "a collapsed fan must say so, or it reads as 3 findings"
 

@@ -129,7 +129,8 @@ def test_family_tag_persists_renders_and_is_content(tmp_path):
     assert tb.get("peek").get("family", "UNSORTED") == "UNSORTED"
     tb.mint("peek", [["discover"]], family="MONITORS")
     e = tb.get("peek")
-    assert e["family"] == "MONITORS" and e["version"] == 2, "family change supersedes"
+    assert e["family"] == "MONITORS", "family change supersedes"
+    assert e["version"] == 2, "family change supersedes"
     tb.mint("peek", [["discover"]], family="MONITORS")  # exact re-mint incl family -> no-op
     assert tb.get("peek")["version"] == 2
     assert "MONITORS" in tb.render_list()
@@ -140,7 +141,8 @@ def test_macro_params_detected_and_substituted(tmp_path):
     Mint detects the arity and marks kind=macro; resolve substitutes positionally."""
     tb = _reg(tmp_path)
     e = tb.mint("park-one", [["bifrost-pause", "--reason", "$2", "--by", "$1"], ["bifrost-resume"]])
-    assert e["kind"] == "macro" and e["params"] == 2, "arity detected from the highest $N"
+    assert e["kind"] == "macro", "arity detected from the highest $N"
+    assert e["params"] == 2, "arity detected from the highest $N"
     steps = tb.resolve("park-one", args=["claude", "sweeping"])
     assert steps[0] == ["bifrost-pause", "--reason", "sweeping", "--by", "claude"]
 

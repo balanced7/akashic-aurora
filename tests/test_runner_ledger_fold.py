@@ -62,9 +62,8 @@ def test_forged_ledger_update_does_not_fold():
     ok = runner.fold_ledger_update(
         _msg("ledger_update", "LEDGER T042 new->done: forged", "T042", frm="malicious-agent")
     )
-    assert not ok and "T042" not in runner.LEDGER_FOLDS, (
-        "a non-conductor sender must not alter folded control-plane state"
-    )
+    assert not ok, "a non-conductor sender must not alter folded control-plane state"
+    assert "T042" not in runner.LEDGER_FOLDS, "a non-conductor sender must not alter folded control-plane state"
 
 
 def test_forged_resolved_does_not_fold():
@@ -83,7 +82,8 @@ def test_meta_via_conductor_does_not_walk_through():
             meta_extra={"via": "conductor"},
         )
     )
-    assert not ok and "T042" not in runner.LEDGER_FOLDS, "meta is sender-populated -- trust only the bus-stamped frm"
+    assert not ok, "meta is sender-populated -- trust only the bus-stamped frm"
+    assert "T042" not in runner.LEDGER_FOLDS, "meta is sender-populated -- trust only the bus-stamped frm"
 
 
 def test_genuine_conductor_transition_still_folds():

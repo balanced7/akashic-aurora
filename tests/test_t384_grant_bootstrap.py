@@ -102,7 +102,10 @@ def test_p1_bootstrap_preserves_grants_and_stamps_marker(acl_file):
     doc = json.loads(acl_file.read_text(encoding="utf-8"))
     assert rep["grants_preserved"] == len(before) == 2
     assert doc["grants"] == before, "P1: bootstrap must touch NOTHING but the marker -- grants changed"
-    assert doc["_instance"]["hostname"] and doc["_instance"]["bootstrapped_at"], (
+    assert doc["_instance"]["hostname"], (
+        f"P1: the instance marker is the ceremony's load-bearing stamp: {doc.get('_instance')}"
+    )
+    assert doc["_instance"]["bootstrapped_at"], (
         f"P1: the instance marker is the ceremony's load-bearing stamp: {doc.get('_instance')}"
     )
 
@@ -189,7 +192,11 @@ def test_p6_far_side_drill(tmp_path, monkeypatch):
     # (3) the peer pulls with the marker UNCOMMITTED -- git must ABORT the merge loudly
     # (refusing to overwrite the local file), never silently delete
     pull = g("pull", "-q", "origin", "master", cwd=peer)
-    assert "security/acl.json" in (pull.stdout + pull.stderr) and pull.returncode != 0, (
+    assert "security/acl.json" in (pull.stdout + pull.stderr), (
+        f"P6: an uncommitted local ACL must ABORT the pull loudly; got rc={pull.returncode}\n"
+        f"out={pull.stdout}\nerr={pull.stderr}"
+    )
+    assert pull.returncode != 0, (
         f"P6: an uncommitted local ACL must ABORT the pull loudly; got rc={pull.returncode}\n"
         f"out={pull.stdout}\nerr={pull.stderr}"
     )
@@ -214,7 +221,8 @@ def test_p6_far_side_drill(tmp_path, monkeypatch):
     registry._CACHE["mtime"] = None
     g1 = registry.resolve("claude", verified=True)
     g2 = registry.resolve("dsh_agent", verified=True)
-    assert g1.role == "super_admin" and g2.role == "admin", (
+    assert g1.role == "super_admin", (
         f"P6: keeping local must leave the grants SERVING: claude={g1.role}, dsh_agent={g2.role}"
     )
+    assert g2.role == "admin", f"P6: keeping local must leave the grants SERVING: claude={g1.role}, dsh_agent={g2.role}"
     monkeypatch.delenv("AKASHIC_ACL_PATH", raising=False)

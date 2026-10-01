@@ -37,9 +37,8 @@ def _cli(*args):
 def test_repeat_verb_exists_on_the_door():
     """The whole defect is a capability nothing can reach."""
     rc, out = _cli("repeat", "--help")
-    assert rc == 0 and "usage" in out.lower(), (
-        f"`agent_cli.py repeat` is not a verb (rc={rc}). record_repeat has no door."
-    )
+    assert rc == 0, f"`agent_cli.py repeat` is not a verb (rc={rc}). record_repeat has no door."
+    assert "usage" in out.lower(), f"`agent_cli.py repeat` is not a verb (rc={rc}). record_repeat has no door."
 
 
 def test_repeat_is_discoverable():

@@ -60,7 +60,8 @@ def test_the_refusal_never_echoes_the_credential():
     with pytest.raises(IntakeError) as e:
         save_secret("claude_oauth.token", MANGLED)
     msg = str(e.value)
-    assert HEAD not in msg and TAIL not in msg, "the refusal leaked the value"
+    assert HEAD not in msg, "the refusal leaked the value"
+    assert TAIL not in msg, "the refusal leaked the value"
     assert "sk-ant-oat" not in msg, "the refusal leaked the prefix"
 
 

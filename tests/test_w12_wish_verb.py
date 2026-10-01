@@ -102,7 +102,8 @@ def test_wish_reports_a_collided_ledger_instead_of_extending_it_silently(tmp_pat
     p.write_text(DUPED, encoding="utf-8")
     r = _run(p, "claude", "a new wish")
     out = (r.stdout or "") + (r.stderr or "")
-    assert "W04" in out and ("collid" in out.lower() or "duplicate" in out.lower()), (
+    assert "W04" in out, "the door appended to a ledger whose id space is already corrupt and said nothing:\n" + out
+    assert "collid" in out.lower() or "duplicate" in out.lower(), (
         "the door appended to a ledger whose id space is already corrupt and said nothing:\n" + out
     )
 

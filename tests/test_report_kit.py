@@ -38,7 +38,8 @@ def gen(*args, timeout=90):
 def test_p1_the_kit_is_inlined_and_nothing_is_fetched():
     rc, out = gen("--title", "Pin Report")
     assert rc == 0, out
-    assert "<style>" in out and "--aurora" in out, "the kit must be INLINED in the scaffold"
+    assert "<style>" in out, "the kit must be INLINED in the scaffold"
+    assert "--aurora" in out, "the kit must be INLINED in the scaffold"
     # STRIP COMMENTS FIRST. The first draft of this pin matched the kit's own comment
     # explaining why we never <link> -- it flagged the WARNING as the violation, which is
     # location-matching rather than meaning-matching, the same error check_ports v1 made.
@@ -54,13 +55,18 @@ def test_p1_the_kit_is_inlined_and_nothing_is_fetched():
 def test_p2_both_themes_are_defined_and_the_override_wins_both_ways():
     css = open(KIT, encoding="utf-8").read()
     assert "prefers-color-scheme: light" in css, "the OS signal must be honoured"
-    assert ':root[data-theme="dark"]' in css and ':root[data-theme="light"]' in css, (
+    assert ':root[data-theme="dark"]' in css, "the viewer's toggle must be able to win in BOTH directions, not just one"
+    assert ':root[data-theme="light"]' in css, (
         "the viewer's toggle must be able to win in BOTH directions, not just one"
     )
     # Components must style through tokens, never inside the media query -- otherwise the
     # data-theme override cannot reach them.
     media = css.split("@media (prefers-color-scheme: light)", 1)[1].split("}\n}", 1)[0]
-    assert ".card" not in media and ".tile" not in media, (
+    assert ".card" not in media, (
+        "components must style through TOKENS; redefining them inside the media query makes "
+        "the data-theme override unreachable"
+    )
+    assert ".tile" not in media, (
         "components must style through TOKENS; redefining them inside the media query makes "
         "the data-theme override unreachable"
     )

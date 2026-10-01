@@ -124,9 +124,8 @@ def test_the_operator_still_learns_the_real_reason():
     teaching reason accept() produced must reach the LOG — a flat wire plus a flat log is not
     security, it is a bridge nobody can debug at 2am."""
     _s, _b, log = L.handle_request("POST", "/xfer", _envelope(kind="halt"), secret=IN_SECRET, peer="serge-dsh")
-    assert "halt" in log and "allowlist" in log, (
-        f"the operator's log lost the reason the wire deliberately withheld: {log!r}"
-    )
+    assert "halt" in log, f"the operator's log lost the reason the wire deliberately withheld: {log!r}"
+    assert "allowlist" in log, f"the operator's log lost the reason the wire deliberately withheld: {log!r}"
 
 
 def test_refusal_body_names_no_policy():

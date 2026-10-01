@@ -88,7 +88,11 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     row = led.get(tid)
     assert row["status"] == "abandoned"
     last = row["history"][-1]
-    assert "operator_ruling" in last and "Clean" in last["operator_ruling"], (
+    assert "operator_ruling" in last, (
+        "the ruling that authorized leaving DONE must live in the history "
+        "entry — a terminal-state exit with no recorded authority is a hole"
+    )
+    assert "Clean" in last["operator_ruling"], (
         "the ruling that authorized leaving DONE must live in the history "
         "entry — a terminal-state exit with no recorded authority is a hole"
     )

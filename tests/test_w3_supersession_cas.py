@@ -107,7 +107,8 @@ def test_decide_with_retry_chains_linearly(mem):
     c = mem.decide_with_retry(TITLE, "C")
     assert _head(mem) == c
     recs = {d.id: d for d in _all(mem)}
-    assert recs[b].supersedes == a and recs[c].supersedes == b, "linear: C<-B<-A"
+    assert recs[b].supersedes == a, "linear: C<-B<-A"
+    assert recs[c].supersedes == b, "linear: C<-B<-A"
     targets = [d.supersedes for d in recs.values() if d.supersedes]
     assert len(targets) == len(set(targets)), "never two records claiming one ancestor"
     assert len(_actives(mem)) == 1
@@ -169,7 +170,8 @@ def test_uncontended_single_cas(mem):
     real_cas = mem.store.cas
     mem.store.cas = lambda *args, **kw: (cas_calls.append(1), real_cas(*args, **kw))[1]
     b = mem.decide(TITLE, "B", supersedes=a)
-    assert b and len(cas_calls) == 1, "happy path pays exactly one CAS"
+    assert b, "happy path pays exactly one CAS"
+    assert len(cas_calls) == 1, "happy path pays exactly one CAS"
 
 
 # --- (9) lazy head bootstrap over a pre-RB-8 corpus; idempotent ---

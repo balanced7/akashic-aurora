@@ -112,7 +112,6 @@ def test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not():
     )
 
     # and the page itself must still exist for the case it was written for
-    assert "hard_wedge" in src and "DEAD pulse" in src, (
-        "the hard_wedge page is gone entirely -- a real wedge would now be silent"
-    )
+    assert "hard_wedge" in src, "the hard_wedge page is gone entirely -- a real wedge would now be silent"
+    assert "DEAD pulse" in src, "the hard_wedge page is gone entirely -- a real wedge would now be silent"
     assert liveness.DEFAULT_WEDGE_S > 0

@@ -49,7 +49,17 @@ def test_p1_resume_marker_reported_after_gap():
     base = time.time() - 3600
     roster.heartbeat(NS, AGENT, SEAT_A, phase="sync", _beat_ts=base)
     hb = roster.heartbeat(NS, AGENT, SEAT_A, phase="sync")  # one hour later: a RESUME
-    assert isinstance(hb, dict) and hb.get("resumed_after_s") and hb["resumed_after_s"] > 600, (
+    assert isinstance(hb, dict), (
+        f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
+        f"'Resumed' marker -- replay and live are different states and the seat must know "
+        f"which side of the line it is on). Got: {hb!r}"
+    )
+    assert hb.get("resumed_after_s"), (
+        f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
+        f"'Resumed' marker -- replay and live are different states and the seat must know "
+        f"which side of the line it is on). Got: {hb!r}"
+    )
+    assert hb["resumed_after_s"] > 600, (
         f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
         f"'Resumed' marker -- replay and live are different states and the seat must know "
         f"which side of the line it is on). Got: {hb!r}"
@@ -70,7 +80,12 @@ def test_p2_tombstoned_consume_names_invalid_session():
     wake_seat.write_tombstone(sid)
     res = consume_inbox(AGENT, limit=3)
     teach = str(res.get("teach") or "").lower()
-    assert res.get("invalid_session") and "invalid session" in teach, (
+    assert res.get("invalid_session"), (
+        f"INVALID MASQUERADES AS CONTENTION: a tombstoned session's consume must be refused "
+        f"with INVALID-SESSION language (ended by record; boot fresh; never consume/arm) -- "
+        f"not the generic seat-held teach that blames a phantom holder. Got: {res!r}"
+    )
+    assert "invalid session" in teach, (
         f"INVALID MASQUERADES AS CONTENTION: a tombstoned session's consume must be refused "
         f"with INVALID-SESSION language (ended by record; boot fresh; never consume/arm) -- "
         f"not the generic seat-held teach that blames a phantom holder. Got: {res!r}"

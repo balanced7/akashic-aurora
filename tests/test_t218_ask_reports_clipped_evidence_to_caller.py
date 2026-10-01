@@ -73,9 +73,8 @@ def test_caller_is_told_when_its_evidence_was_clipped():
     notice = unusable_evidence_notice(meta)
     assert notice, "evidence was clipped and the caller-facing notice was empty"
     assert "bus.py" in notice, "a clip notice that does not name the file is unactionable"
-    assert "40000" in notice and "80052" in notice, (
-        "must state how much was shown OF how much, not merely that something was cut"
-    )
+    assert "40000" in notice, "must state how much was shown OF how much, not merely that something was cut"
+    assert "80052" in notice, "must state how much was shown OF how much, not merely that something was cut"
     low = notice.lower()
     assert "absen" in low or "missing" in low or "not there" in low, (
         "the notice must warn that an abstention may be about the WINDOW rather than about "

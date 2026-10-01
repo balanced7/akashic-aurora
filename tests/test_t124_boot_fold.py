@@ -224,7 +224,8 @@ def test_p7b_narrow_file_geometry_all_seats():
             f"{seat}: digest {len(result)} chars breaches the 1500 total budget "
             f"-- geometry-specific escape (kimi's narrow-file concern)"
         )
-        assert "G4" in result and "INNER-REPORT" in result, f"{seat}: provenance missing from digest"
+        assert "G4" in result, f"{seat}: provenance missing from digest"
+        assert "INNER-REPORT" in result, f"{seat}: provenance missing from digest"
         full_standing_present = "[excerpted" in result or len(result) < 1200
         assert full_standing_present, (
             f"{seat}: long digest carries no excerpt marker -- a partial window must say it is partial"
@@ -253,9 +254,10 @@ def test_p7c_found_file_without_standing_is_loud(tmp_path):
         "found-but-no-Standing rendered as '' -- indistinguishable from a missing "
         "file, and the seat's interiority silently vanishes from its boot"
     )
-    assert "INTERIORITY.md" in result and (
-        "no standing" in result.lower() or "not matched" in result.lower() or "drift" in result.lower()
-    ), f"the loud path must NAME the miss and point at the file, got: {result!r}"
+    assert "INTERIORITY.md" in result, f"the loud path must NAME the miss and point at the file, got: {result!r}"
+    assert "no standing" in result.lower() or "not matched" in result.lower() or "drift" in result.lower(), (
+        f"the loud path must NAME the miss and point at the file, got: {result!r}"
+    )
     # And the true missing-file contract (P8) is unchanged:
     assert fn("truly_missing_seat", str(tmp_path)) == ""
 

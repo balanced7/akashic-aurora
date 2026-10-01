@@ -48,7 +48,8 @@ def test_done_refuses_symbolic_refs_and_accepts_hex():
     rc, out, err = run("task", "done", tid, "--commit", "HEAD", "--verified-by", "t297 drill")
     blob = (out or "") + (err or "")
     assert rc != 0, "the gate must refuse 'HEAD' -- a symbolic ref dangles when the ref moves"
-    assert "hex" in blob.lower() and "rev-parse" in blob.lower(), (
+    assert "hex" in blob.lower(), "the refusal teaches: what a receipt is (hex) and how to get one (git rev-parse)"
+    assert "rev-parse" in blob.lower(), (
         "the refusal teaches: what a receipt is (hex) and how to get one (git rev-parse)"
     )
 

@@ -69,7 +69,8 @@ def test_k1_a_clean_capture_is_truthy_and_carries_its_ref():
     log = _log(index=_Index())
     o = log.capture("note", "hello")
     assert bool(o) is True, "a fully successful capture must be truthy"
-    assert o.ref and "event:" in o.ref, "the followable ref is the handle callers act on"
+    assert o.ref, "the followable ref is the handle callers act on"
+    assert "event:" in o.ref, "the followable ref is the handle callers act on"
     assert o.detail.get("summary") == "hello"
 
 
@@ -81,7 +82,8 @@ def test_k2_an_index_failure_is_PARTIAL_not_a_lost_event():
     assert o.ok is True, "the record IS on the firehose -- this is not a failure"
     assert o.partial is True, "nor is it a clean success: an index is behind"
     assert bool(o) is False, "a partial is falsy, so a caller cannot mistake it for done"
-    assert "index" in o.why.lower() and o.why, "it must name which index is behind"
+    assert "index" in o.why.lower(), "it must name which index is behind"
+    assert o.why, "it must name which index is behind"
     assert EL.RAW_STREAM in ledger.emitted, "the canonical write really did happen"
 
 
@@ -97,7 +99,8 @@ def test_k3_a_per_agent_stream_failure_is_also_PARTIAL():
 def test_k4_a_canonical_emit_failure_is_a_named_failure():
     o = _log(ledger=_Ledger(boom={EL.RAW_STREAM})).capture("note", "hi")
     assert o.ok is False, "no canonical write means the event really is lost"
-    assert "RuntimeError" in o.why and "down" in o.why, "a failure must name its cause"
+    assert "RuntimeError" in o.why, "a failure must name its cause"
+    assert "down" in o.why, "a failure must name its cause"
 
 
 class _Weird(Exception):
@@ -136,7 +139,11 @@ def test_k5_capture_swallows_errors_but_not_the_operator():
 def test_k6_the_hot_path_wrapper_returns_an_outcome_not_none(monkeypatch):
     monkeypatch.setattr(EL, "get_event_log", lambda: (_ for _ in ()).throw(RuntimeError("no store")))
     o = EL.capture_event("note", "hi")
-    assert hasattr(o, "ok") and o.ok is False, (
+    assert hasattr(o, "ok"), (
+        "capture_event returned a bare None on failure -- the same unrepresentable silence one "
+        "layer out from the function it wraps"
+    )
+    assert o.ok is False, (
         "capture_event returned a bare None on failure -- the same unrepresentable silence one "
         "layer out from the function it wraps"
     )

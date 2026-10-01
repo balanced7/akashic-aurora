@@ -151,4 +151,5 @@ def test_s6_the_real_monolith_shows_BOTH_kinds_which_is_the_finding():
     silent = [g for g in guards if g.handler == "silent"]
     loud = [g for g in guards if g.handler == "loud"]
     assert len(guards) >= 40, f"only {len(guards)} import guards surveyed"
-    assert silent and loud, "both kinds must exist for the drift argument to hold"
+    assert silent, "both kinds must exist for the drift argument to hold"
+    assert loud, "both kinds must exist for the drift argument to hold"

@@ -93,7 +93,8 @@ def test_elsewhere_is_silent_when_nothing_new(monkeypatch):
 def test_elsewhere_whispers_one_line_when_mail_waits(monkeypatch):
     _quiet_sources(monkeypatch, unread=2, draft=True)
     out = ctx.build_autoboot_context(_ELSEWHERE, "claude")
-    assert out and len(out.splitlines()) == 1, "one line, pointing home"
+    assert out, "one line, pointing home"
+    assert len(out.splitlines()) == 1, "one line, pointing home"
     assert "2 unread" in out
     assert "boot claude" in out
 

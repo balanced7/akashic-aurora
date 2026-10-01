@@ -55,7 +55,8 @@ def test_files_are_inlined_with_path_and_line_numbers(tree):
     assert "1" in block
     assert "alpha" in block
     lines = [ln for ln in block.splitlines() if "alpha" in ln]
-    assert lines and lines[0].strip().startswith("1"), "line number must precede the line"
+    assert lines, "line number must precede the line"
+    assert lines[0].strip().startswith("1"), "line number must precede the line"
     assert meta["included"]
     assert meta["included"][0]["path"].endswith("a.py")
 

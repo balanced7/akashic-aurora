@@ -56,7 +56,8 @@ def test_lane_depth_spike_detected():
     assert d.feed(60, []) is None, "sample 1: window not full"
     assert d.feed(55, []) is None, "sample 2: window not full"
     sig = d.feed(70, [])
-    assert sig is not None and sig["kind"] == "lane_depth_spike", "sample 3: window full, all >= threshold => spike"
+    assert sig is not None, "sample 3: window full, all >= threshold => spike"
+    assert sig["kind"] == "lane_depth_spike", "sample 3: window full, all >= threshold => spike"
     assert sig["window"] == [60, 55, 70]
 
 
@@ -69,7 +70,8 @@ def test_repeat_delivery_storm_detected():
     assert d.feed(0, ["a"]) is None
     assert d.feed(0, ["a"]) is None
     sig = d.feed(0, ["a"])
-    assert sig is not None and sig["kind"] == "repeat_delivery_storm", "5 consecutive 'a' ids => repeat storm"
+    assert sig is not None, "5 consecutive 'a' ids => repeat storm"
+    assert sig["kind"] == "repeat_delivery_storm", "5 consecutive 'a' ids => repeat storm"
     assert sig["id"] == "a"
     assert sig["count"] == 5
 

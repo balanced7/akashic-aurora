@@ -141,9 +141,9 @@ def test_p2_defer_item_carries_the_pointer(stage):
     assert it["id"] == res["defer_id"]
     assert it["by"] == "kimi"
     assert it["needs"] == "write", "answering means editing the verdict file"
-    assert "Q1" in it["cmd"] and "v.md" in it["cmd"] and "the ask text" in it["cmd"], (
-        "cmd points at the question: file + q-id + ask"
-    )
+    assert "Q1" in it["cmd"], "cmd points at the question: file + q-id + ask"
+    assert "v.md" in it["cmd"], "cmd points at the question: file + q-id + ask"
+    assert "the ask text" in it["cmd"], "cmd points at the question: file + q-id + ask"
     assert "deepseek" in it["why"], "why names the responsible seat"
     stored = json.load(open(dq.QUEUE_PATH, encoding="utf-8"))
     assert len(stored["items"]) == 1, "queue file valid + holds the item"

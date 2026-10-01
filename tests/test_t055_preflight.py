@@ -67,7 +67,8 @@ def test_b3_budget_cap_with_pull_pointer(monkeypatch):
     long_out = "\n".join(f"[worked claude] lesson line {i} " + "x" * 90 for i in range(6))
     box, _ = _box(monkeypatch, long_out)
     block = box._preflight_recall("read_file", {"path": "core/comm/bus.py"})
-    assert block and len(block) <= 301, "B3: the pre-flight block respects its 300-char budget"
+    assert block, "B3: the pre-flight block respects its 300-char budget"
+    assert len(block) <= 301, "B3: the pre-flight block respects its 300-char budget"
     assert "+more" in block, "B3: truncation is LOUD with a pull pointer"
 
 

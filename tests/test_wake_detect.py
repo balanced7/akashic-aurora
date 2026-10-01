@@ -246,7 +246,8 @@ def test_watch_skips_own_broadcasts_without_spin():
         # >=1.5s floor encoded exit-AT-deadline timing. The pinned semantic is anti-SPIN:
         # a spinning watcher exits in milliseconds; a blocking one takes real fractions
         # of the deadline. 0.7s of a 2s deadline proves blocking happened.
-        assert rc == 0 and time.time() - t0 >= 0.7, "own broadcast must not wake or spin"
+        assert rc == 0, "own broadcast must not wake or spin"
+        assert time.time() - t0 >= 0.7, "own broadcast must not wake or spin"
     finally:
         _cleanup(c, ns)
 
@@ -301,7 +302,9 @@ def test_watch_ignores_broadcast_reply_but_wakes_on_directed_reply(capsys):
         a.broadcast("reply", "room-wide answer")
         rc = _watch("bob", api, deadline_s=2, block_ms=400)
         out = capsys.readouterr().out.lower()
-        assert rc == 0 and "self-cycle" in out and "bifrost wake -- messages" not in out, (
+        assert rc == 0, "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
+        assert "self-cycle" in out, "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
+        assert "bifrost wake -- messages" not in out, (
             "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
         )
         a.send("bob", "reply", "answer for bob")

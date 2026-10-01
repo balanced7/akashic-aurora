@@ -106,7 +106,11 @@ def test_p3_adjudication_refusals():
 
     with pytest.raises(ValueError) as e:
         V.adjudicate(ask_id="j1", outcome="confirmed", by="deepseek")
-    assert "adjudicat" in str(e.value).lower() and "deepseek" in str(e.value), (
+    assert "adjudicat" in str(e.value).lower(), (
+        "P3: a resident outside the operator set is refused BY NAME -- H-C1, operator-only "
+        "is the default, not the fallback"
+    )
+    assert "deepseek" in str(e.value), (
         "P3: a resident outside the operator set is refused BY NAME -- H-C1, operator-only "
         "is the default, not the fallback"
     )
@@ -140,9 +144,8 @@ def test_p4_operator_adjudication_lands():
 
     with pytest.raises(ValueError) as e:
         V.adjudicate(ask_id="k1", outcome="maybe", by="daniil")
-    assert "confirmed" in str(e.value) and "refuted" in str(e.value), (
-        "P4: outcome vocabulary refused WITH the vocabulary"
-    )
+    assert "confirmed" in str(e.value), "P4: outcome vocabulary refused WITH the vocabulary"
+    assert "refuted" in str(e.value), "P4: outcome vocabulary refused WITH the vocabulary"
 
 
 # ---------------------------------------------------------------- P5: counts, never rates
@@ -155,9 +158,9 @@ def test_p5_calibration_counts_absence_honestly():
 
     cal = V.calibration(resident="p5_deep")
     cell = cal["cells"][("descriptive", "p5_deep")]
-    assert cell["filed"] == 2 and cell["adjudicated"] == 0 and cell["confirmed"] == 0, (
-        "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)"
-    )
+    assert cell["filed"] == 2, "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)"
+    assert cell["adjudicated"] == 0, "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)"
+    assert cell["confirmed"] == 0, "P5: unadjudicated is VISIBLY unadjudicated -- never coerced toward success (T178)"
 
     V.adjudicate(ask_id="c1", outcome="confirmed", by="daniil")
     cal2 = V.calibration(resident="p5_deep")
@@ -167,7 +170,11 @@ def test_p5_calibration_counts_absence_honestly():
     assert cell2["filed"] == 2
 
     pooled = cal2["shapes"]["descriptive"]
-    assert pooled["filed"] >= 2 and pooled["adjudicated"] >= 1, (
+    assert pooled["filed"] >= 2, (
+        "P5: per-shape pooling exists alongside cells -- the fence's convergent counter "
+        "(H-C2 + N-C2): shape-level is the primary axis at our n"
+    )
+    assert pooled["adjudicated"] >= 1, (
         "P5: per-shape pooling exists alongside cells -- the fence's convergent counter "
         "(H-C2 + N-C2): shape-level is the primary axis at our n"
     )
@@ -203,7 +210,11 @@ def test_p7_cold_twin_recorded_and_filterable():
     V.file_verdict(agent="deepseek", ask_id="w1", question_shape="generative", gist="warm")
     V.file_verdict(agent="blind", ask_id="w1-cold", question_shape="generative", gist="cold", cold_twin_of="w1")
     twins = V.verdicts(cold_twin_of="w1")
-    assert len(twins) == 1 and twins[0]["ask_id"] == "w1-cold", (
+    assert len(twins) == 1, (
+        "P7: the pairing the pre-registered claim needs (>=20 adjudicated pairs/shape) is "
+        "enumerable from the log, not reconstructed from timestamps"
+    )
+    assert twins[0]["ask_id"] == "w1-cold", (
         "P7: the pairing the pre-registered claim needs (>=20 adjudicated pairs/shape) is "
         "enumerable from the log, not reconstructed from timestamps"
     )

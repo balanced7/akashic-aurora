@@ -45,7 +45,8 @@ def _which_ok(name):
 def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
     """He says 'rill', the ledger says 'dsh_agent', and neither is wrong."""
     rec = sl.resolve_seat(word)
-    assert rec and rec["seat"] == seat, f"{word!r} -> {rec}"
+    assert rec, f"{word!r} -> {rec}"
+    assert rec["seat"] == seat, f"{word!r} -> {rec}"
 
 
 # SUPERSEDED ENTRY, recorded rather than quietly dropped: `"vandor"` was in this list
@@ -82,7 +83,8 @@ def test_rill_states_its_own_identity_and_does_not_inherit_the_launchers():
     argv, env, cwd = sl.launch_argv(rec, root=ROOT, which=_which_ok, dsh_home=r"C:\dsh")
     assert env.get("AKASHIC_AGENT_ID") == "dsh_agent", env
     assert env.get("DSH_HOME") == r"C:\dsh", env
-    assert argv[1] == "web" and "--no-open" in argv, argv
+    assert argv[1] == "web", argv
+    assert "--no-open" in argv, argv
     assert cwd == r"C:\dsh"
 
 
@@ -131,7 +133,8 @@ def test_heimdall_goes_through_the_daemon_which_owns_its_runner_child():
     rec = sl.resolve_seat("heimdall")
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
     joined = " ".join(argv).replace("\\", "/")
-    assert "bifrost_daemon.py" in joined and "--spawn-runner" in joined, joined
+    assert "bifrost_daemon.py" in joined, joined
+    assert "--spawn-runner" in joined, joined
 
 
 # ------------------------------------------------- an undrilled lever says so
@@ -164,7 +167,8 @@ def test_a_spawned_claude_seat_can_ALWAYS_exec(mode):
     An unknown mode degrades to ARMED, never silently to read-only."""
     flags = " ".join(sl.claude_permission_flags(mode))
     assert "Bash" in flags, f"mode {mode!r} spawned a seat that cannot exec: {flags}"
-    assert "Write" in flags and "Edit" in flags, flags
+    assert "Write" in flags, flags
+    assert "Edit" in flags, flags
     assert "acceptEdits" in flags, flags
 
 
@@ -226,7 +230,8 @@ def test_app_missing_with_no_flag_OFFERS_rather_than_acting():
 
 def test_the_options_message_does_not_read_like_it_acted():
     m = _plan()["message"].lower()
-    assert "spawning" not in m and "launched" not in m, m
+    assert "spawning" not in m, m
+    assert "launched" not in m, m
 
 
 def test_repair_is_opt_in_and_says_what_it_will_do():
@@ -236,7 +241,8 @@ def test_repair_is_opt_in_and_says_what_it_will_do():
     assert "stale status bit" in p["message"]
     # And it must not read as proven. The MSIX rung is drilled; the end-to-end
     # app-down -> repair -> seat chain is not, and cannot be from inside the app.
-    assert "NOT" in p["message"] and "end-to-end" in p["message"].lower(), p["message"]
+    assert "NOT" in p["message"], p["message"]
+    assert "end-to-end" in p["message"].lower(), p["message"]
 
 
 def test_seat_flag_skips_the_app_because_the_cli_works_without_it():

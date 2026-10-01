@@ -108,7 +108,8 @@ def test_m2_1_every_width_the_doors_print_is_a_width_that_opens():
     # sha is 64 hex but the content-fallback basis is 42, so the pin encoded ONE sha basis as
     # though it were the requirement. The actual contract is simply that the stored id is longer
     # than every width we print -- which is exactly why the round trip below can fail at all.
-    assert sha and len(sha) > max(PRINTED_WIDTHS), f"unexpectedly short sha {sha!r}"
+    assert sha, f"unexpectedly short sha {sha!r}"
+    assert len(sha) > max(PRINTED_WIDTHS), f"unexpectedly short sha {sha!r}"
 
     for w in PRINTED_WIDTHS:
         shown = sha[:w]
@@ -154,7 +155,8 @@ def test_m2_2_absent_is_reported_DIFFERENTLY_from_short():
 
     # And the human-facing sentence must differ too -- a distinction visible only in a dict field
     # is a distinction the reader at the terminal never sees.
-    assert absent.get("reason") and absent["reason"] != short.get("reason", ""), (
+    assert absent.get("reason"), "absent and prefix produce the same prose; the terminal reader learns nothing"
+    assert absent["reason"] != short.get("reason", ""), (
         "absent and prefix produce the same prose; the terminal reader learns nothing"
     )
 

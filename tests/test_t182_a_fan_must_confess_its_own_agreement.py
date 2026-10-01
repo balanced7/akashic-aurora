@@ -93,7 +93,8 @@ DIFFERENT = (
 
 def test_k1_near_verbatim_is_collapsed_and_still_ok():
     o = A.ask_many(["p1", "p2"], client=_Scripted({"p1": VERBATIM, "p2": VERBATIM}))
-    assert o.ok and not o.partial, "nothing failed -- agreement is information, not an error"
+    assert o.ok, "nothing failed -- agreement is information, not an error"
+    assert not o.partial, "nothing failed -- agreement is information, not an error"
     assert o.detail["diversity"] == "collapsed"
     assert o.detail["collapsed"] is True
 
@@ -120,7 +121,11 @@ def test_k3_the_real_control_is_UNKNOWN_never_distinct():
 def test_k4_the_number_survives_the_bands():
     o = A.ask_many(["p1", "p2", "p3"], client=_Scripted({"p1": REAL_A, "p2": REAL_B, "p3": REAL_C}))
     score = o.detail["lexical_agreement"]
-    assert isinstance(score, float) and 0.0 <= score <= 1.0, (
+    assert isinstance(score, float), (
+        "bands are a judgement; the number is the evidence. Keep both so a later reader can "
+        "reject the thresholds without losing the measurement"
+    )
+    assert 0.0 <= score <= 1.0, (
         "bands are a judgement; the number is the evidence. Keep both so a later reader can "
         "reject the thresholds without losing the measurement"
     )

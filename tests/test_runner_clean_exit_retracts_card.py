@@ -123,7 +123,10 @@ def test_p1_retire_seat_deletes_the_card_and_declares_offline():
         f"pages HARD WEDGE on it for 180s and the process is gone"
     )
     w = _witness(c, ns)
-    assert w.get("phase") == "offline" and w.get("offline_ts"), (
+    assert w.get("phase") == "offline", (
+        f"P1: departure must be DECLARED (phase=offline + offline_ts) so OFFLINE renders, not DEAD: {w}"
+    )
+    assert w.get("offline_ts"), (
         f"P1: departure must be DECLARED (phase=offline + offline_ts) so OFFLINE renders, not DEAD: {w}"
     )
     assert rep.get("ok") is True, f"retire_seat must report ok: {rep}"

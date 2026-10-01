@@ -46,7 +46,8 @@ def test_wake_seat_session_scoped(tmp_path):
     a = ws.seat_path(AGENT, "sidA", str(tmp_path))
     b = ws.seat_path(AGENT, "sidB", str(tmp_path))
     legacy = ws.seat_path(AGENT, None, str(tmp_path))
-    assert a != b != legacy and a != legacy, "three distinct seats -- sessions never collide"
+    assert a != b != legacy, "three distinct seats -- sessions never collide"
+    assert a != legacy, "three distinct seats -- sessions never collide"
     assert legacy.endswith(f"bifrost_wake_{AGENT}.pid"), "legacy path unchanged (pin 6 backward compat)"
 
 
@@ -238,7 +239,8 @@ def test_janitor_true_orphan_reaped_with_both_factors(tmp_path):
     assert killed == [10]
     assert not os.path.exists(p)
     log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
-    assert "stale" in log and "broken" in log, "provenance carries BOTH factors"
+    assert "stale" in log, "provenance carries BOTH factors"
+    assert "broken" in log, "provenance carries BOTH factors"
 
 
 def test_janitor_snapshot_unavailable_is_alive(tmp_path):
@@ -292,7 +294,8 @@ def test_watch_stolen_seat_exits_zero(tmp_path, capsys):
     rc = bw.watch(AGENT, 5, 50, api=_FakeApi(), hb_path=str(hb), my_pid=999999, session_id="sidA")
     out = capsys.readouterr().out
     assert rc == 0, "displacement is benign -- no FAILED badge into a live session"
-    assert "standing down" in out and "benign" in out, "the printed line is the provenance"
+    assert "standing down" in out, "the printed line is the provenance"
+    assert "benign" in out, "the printed line is the provenance"
 
 
 def test_watch_lost_seat_exits_zero_promptly(tmp_path, capsys):
@@ -311,7 +314,8 @@ def test_watch_lost_seat_exits_zero_promptly(tmp_path, capsys):
     t0 = time.time()
     rc = bw.watch(AGENT, 30, 50, api=_FakeApi(steal_then_quiet), hb_path=str(hb), my_pid=999999, session_id="sidA")
     out = capsys.readouterr().out
-    assert rc == 0 and "seat lost" in out, "seatless watching is impossible -- loud benign exit"
+    assert rc == 0, "seatless watching is impossible -- loud benign exit"
+    assert "seat lost" in out, "seatless watching is impossible -- loud benign exit"
     assert time.time() - t0 < 5, "stand-down is prompt, not deadline-length"
 
 
@@ -322,7 +326,8 @@ def test_watch_unseated_embedder_keeps_watching(tmp_path):
 
     hb = tmp_path / "seat.pid"
     rc = bw.watch(AGENT, 1, 50, api=_FakeApi(), hb_path=str(hb), my_pid=424242)
-    assert rc == 0 and not hb.exists(), "watch() writes no files it wasn't given"
+    assert rc == 0, "watch() writes no files it wasn't given"
+    assert not hb.exists(), "watch() writes no files it wasn't given"
 
 
 # ---------------------------------------------------------------- provenance log hygiene

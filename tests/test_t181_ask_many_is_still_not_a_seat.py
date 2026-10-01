@@ -96,7 +96,8 @@ def test_k3_one_bad_branch_does_not_kill_the_fan():
     assert o.ok is True, "two of three landed; that is not a failure"
     assert o.partial is True, "nor is it a clean success"
     assert bool(o) is False, "a partial fan is falsy so nobody mistakes it for complete"
-    assert "2" in o.why and "3" in o.why, f"the aggregate must say how many landed: {o.why!r}"
+    assert "2" in o.why, f"the aggregate must say how many landed: {o.why!r}"
+    assert "3" in o.why, f"the aggregate must say how many landed: {o.why!r}"
     branches = o.detail["branches"]
     assert [b["ok"] for b in branches] == [True, False, True], "order and per-branch verdicts kept"
     assert "refused" in branches[1]["why"], "the failed branch names its own cause"
@@ -127,7 +128,8 @@ def test_k6_input_order_survives_reversed_completion_order():
 
 def test_k7_an_empty_fan_is_a_named_failure():
     o = A.ask_many([], client=_Client())
-    assert o.ok is False and o.why, "asking nothing is not the same as asking and hearing nothing"
+    assert o.ok is False, "asking nothing is not the same as asking and hearing nothing"
+    assert o.why, "asking nothing is not the same as asking and hearing nothing"
 
 
 def test_k8_ask_many_touches_no_seat_machinery():

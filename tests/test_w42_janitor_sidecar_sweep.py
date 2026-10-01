@@ -57,9 +57,8 @@ def test_p2_skipped_seat_keeps_sidecars(tmp_path, monkeypatch):
     res = ws.janitor(agent, my_session="other", tmp=str(tmp_path), snapshot_fn=lambda: None, kill_fn=lambda p: True)
     actions = {a for _, a, _ in res}
     assert "skip" in actions
-    assert os.path.exists(seenp) and os.path.exists(alivep), (
-        "an assumed-alive seat's sidecars are never reaped (fail-open)"
-    )
+    assert os.path.exists(seenp), "an assumed-alive seat's sidecars are never reaped (fail-open)"
+    assert os.path.exists(alivep), "an assumed-alive seat's sidecars are never reaped (fail-open)"
 
 
 def test_p3_missing_sidecar_is_silent(tmp_path):

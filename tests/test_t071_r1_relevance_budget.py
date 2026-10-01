@@ -85,7 +85,8 @@ def test_p1_task_id_match_outranks_everything():
     )
     fresh_cat = _lesson("cat", "General comm advice.", category="comm robustness", ts=NOW)
     picked = _select([fresh_cat, old_hit])
-    assert picked and picked[0]["source"] == "hit", "P1: an exact task-id mention must outrank a fresher category match"
+    assert picked, "P1: an exact task-id mention must outrank a fresher category match"
+    assert picked[0]["source"] == "hit", "P1: an exact task-id mention must outrank a fresher category match"
     assert picked[0]["score"] >= 1.0
 
 
@@ -164,11 +165,11 @@ def test_p7_top_hit_always_included_and_clip_is_said():
     _built()
     long_hit = _lesson("hit", "Use when touching T077: " + "detail " * 600, category="general", ts=NOW)
     picked = _select([long_hit], cap=300)
-    assert picked and picked[0]["source"] == "hit", "P7: the top hit must ALWAYS be included"
+    assert picked, "P7: the top hit must ALWAYS be included"
+    assert picked[0]["source"] == "hit", "P7: the top hit must ALWAYS be included"
     line = rb.render_entry(picked[0])
-    assert len(line) <= 300 and "[budget]" in line, (
-        "P7: an over-budget top entry is clipped WITH an explicit marker (packet law)"
-    )
+    assert len(line) <= 300, "P7: an over-budget top entry is clipped WITH an explicit marker (packet law)"
+    assert "[budget]" in line, "P7: an over-budget top entry is clipped WITH an explicit marker (packet law)"
 
 
 # --------------------------------------------------------------- R1-P8 zero-relevance floor
@@ -194,6 +195,5 @@ def test_kill_switch_falls_back_to_legacy(monkeypatch):
     monkeypatch.setenv("AKASHIC_RELEVANCE_BUDGET", "0")
     store = FakeStore([_lesson("only", "anything", ts=NOW)])
     out = ll.load_learnings_for_boot(TASK, learning_store=store, now=NOW)
-    assert out and out[0]["source"] == "only", (
-        "R1-d: kill switch must serve the legacy loader shape, not an empty section"
-    )
+    assert out, "R1-d: kill switch must serve the legacy loader shape, not an empty section"
+    assert out[0]["source"] == "only", "R1-d: kill switch must serve the legacy loader shape, not an empty section"

@@ -69,13 +69,18 @@ def test_p1_provably_live_vs_stale():
     ro.heartbeat(NS, AGENT, SEAT_A, phase="building")
     rows = ro.roster(NS)
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and mine[0]["state"] == "LIVE", f"fresh beat must render LIVE: {mine}"
+    assert mine, f"fresh beat must render LIVE: {mine}"
+    assert mine[0]["state"] == "LIVE", f"fresh beat must render LIVE: {mine}"
     # Replay the same seat with an ANCIENT beat via the raw key (simulating a stale key
     # that has not yet TTL'd): state must be STALE, not LIVE. Key-exists != alive.
     ro.heartbeat(NS, AGENT, SEAT_B, phase="idle", _beat_ts=time.time() - 3600)
     rows = ro.roster(NS)
     other = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_B}"]
-    assert other and other[0]["state"] == "STALE", (
+    assert other, (
+        f"a beat older than the freshness window must render STALE even while the key "
+        f"exists -- key-exists is not alive (kimi P1): {other}"
+    )
+    assert other[0]["state"] == "STALE", (
         f"a beat older than the freshness window must render STALE even while the key "
         f"exists -- key-exists is not alive (kimi P1): {other}"
     )
@@ -92,7 +97,11 @@ def test_p3_w84_contract_in_render():
     ro.heartbeat(NS + "w", AGENT, SEAT_A, phase="idle")
     lines = ro.render_roster(NS + "w")
     joined = "\n".join(lines).lower()
-    assert "checked" in joined and "not checked" in joined, (
+    assert "checked" in joined, (
+        "W84: the roster must render what it CHECKED and what it did NOT -- a roster that "
+        "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines)
+    )
+    assert "not checked" in joined, (
         "W84: the roster must render what it CHECKED and what it did NOT -- a roster that "
         "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines)
     )
@@ -103,7 +112,11 @@ def test_p4_have_summary_present():
     ro.heartbeat(NS + "h", AGENT, SEAT_A, phase="building")
     rows = ro.roster(NS + "h")
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and "have" in mine[0], (
+    assert mine, (
+        f"each row carries the seat's consumed-through positions (torrent bitfield, T3) so "
+        f"a successor can DIFF a dead seat's inventory: {mine}"
+    )
+    assert "have" in mine[0], (
         f"each row carries the seat's consumed-through positions (torrent bitfield, T3) so "
         f"a successor can DIFF a dead seat's inventory: {mine}"
     )
@@ -133,7 +146,12 @@ def test_p6_just_died_seat_renders_dead_not_absent():
     _client().delete(f"{ns}:worklive:{AGENT}#{SEAT_A}")
     rows = ro.roster(ns)
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and mine[0]["state"] == "DEAD", (
+    assert mine, (
+        f"JUST-DIED SEAT INVISIBLE: worklive expired and the seat vanished from the roster "
+        f"instead of rendering DEAD -- absence-as-dead is fine for the reaper's predicate, "
+        f"never for the render's claim (kimi F1). rows={rows}"
+    )
+    assert mine[0]["state"] == "DEAD", (
         f"JUST-DIED SEAT INVISIBLE: worklive expired and the seat vanished from the roster "
         f"instead of rendering DEAD -- absence-as-dead is fine for the reaper's predicate, "
         f"never for the render's claim (kimi F1). rows={rows}"

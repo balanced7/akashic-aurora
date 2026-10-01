@@ -107,7 +107,8 @@ def test_pending_legacy_mail_wakes_fresh_watcher(monkeypatch):
     sender.send("alice", "handoff", "sent BEFORE the watcher armed")
     fresh = BifrostAPI("alice", namespace=ns)  # arms AFTER the send
     got = fresh.wake_block(timeout_ms=500)
-    assert got and str(got[0].kind) == "handoff", (
+    assert got, "unconsumed legacy mail must wake a fresh watcher (the T017 hole stays closed)"
+    assert str(got[0].kind) == "handoff", (
         "unconsumed legacy mail must wake a fresh watcher (the T017 hole stays closed)"
     )
 
@@ -160,7 +161,8 @@ def test_pending_check_not_trapped_by_legacy_junk(monkeypatch):
     assert watcher._lane_since is not None, "lane cursor must have seeded despite pending junk"
     noisy.send("alice", "handoff", "real work after the junk")
     got = watcher.wake_block(timeout_ms=2000)
-    assert got and str(got[0].kind) == "handoff", "lane watching must be LIVE after junk-seed"
+    assert got, "lane watching must be LIVE after junk-seed"
+    assert str(got[0].kind) == "handoff", "lane watching must be LIVE after junk-seed"
 
 
 def test_pending_skip_parity_with_lane_skip_set():

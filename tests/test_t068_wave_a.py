@@ -24,9 +24,8 @@ import agent_cli
 def test_r1_boot_header_carries_constraint_pack():
     head = agent_cli._orientation_header("claude")
     assert "# LIVE CONSTRAINTS" in head, "the constraint pack block must render in the head"
-    assert "RB-26" in head and "RB-29" in head, (
-        "the crash-redelivery and note-settle rules are non-negotiable head content"
-    )
+    assert "RB-26" in head, "the crash-redelivery and note-settle rules are non-negotiable head content"
+    assert "RB-29" in head, "the crash-redelivery and note-settle rules are non-negotiable head content"
     assert "docs/LIVE_CONSTRAINTS.md" in head, "the block must cite its curated source doc"
 
 

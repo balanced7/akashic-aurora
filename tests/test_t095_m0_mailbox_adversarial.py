@@ -130,7 +130,8 @@ def test_replied_evidence_ingested_via_sender_inbox():
     mbx.catch_up(NS, "claude", client=fake)
     r = _q(mbx, NS, "deepseek", fake, catch_up_budget=0)
     tier = list({e["sha"]: e["tier"] for e in r["entries"]}.values())
-    assert tier and tier[0] in ("replied", "auto_acked"), f"got {tier}"
+    assert tier, f"got {tier}"
+    assert tier[0] in ("replied", "auto_acked"), f"got {tier}"
 
 
 # A-D6

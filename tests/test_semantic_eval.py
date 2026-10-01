@@ -70,7 +70,8 @@ def test_datasets_wellformed():
     assert any(p["contradicts"] for p in cp), "need positive (genuine-contradiction) pairs"
     assert any(not p["contradicts"] for p in cp), "need negative (agreement/adjacent) pairs"
     for p in cp:
-        assert p["a"] and p["b"], "every pair needs text on both sides"
+        assert p["a"], "every pair needs text on both sides"
+        assert p["b"], "every pair needs text on both sides"
     # the hard negatives must be present: an on-topic anti-pattern the thesis AGREES with
     assert any(p["case"].startswith("syn-antipattern-agrees") and not p["contradicts"] for p in cp), (
         "the agrees-distractor hard negatives must be in the eval (they sank the deterministic finder)"
@@ -90,7 +91,8 @@ def test_datasets_wellformed():
 def test_null_baseline_characterizes_balance():
     m = score_binary(contradiction_pairs(), null_judge, "contradicts")
     a = score_binary(action_applicability_cases(), null_judge, "instantiates")
-    assert m["recall"] == 0.0 and m["fp"] == 0, "always-false -> 0 recall, 0 false positives"
+    assert m["recall"] == 0.0, "always-false -> 0 recall, 0 false positives"
+    assert m["fp"] == 0, "always-false -> 0 recall, 0 false positives"
     assert a["recall"] == 0.0
     assert a["fp"] == 0
     # accuracy-by-always-false = the negative rate; a judge that can't beat it is worthless
@@ -108,7 +110,8 @@ def test_metric_can_fail_and_reward():
     oracle = score_binary(cp, lambda c: c["contradicts"], "contradicts")
     always = score_binary(cp, lambda c: True, "contradicts")
     assert oracle["f1"] == 1.0, "a perfect judge must score F1 1.0"
-    assert always["precision"] < 1.0 and always["recall"] == 1.0, "always-true must tank precision"
+    assert always["precision"] < 1.0, "always-true must tank precision"
+    assert always["recall"] == 1.0, "always-true must tank precision"
     print(
         f"--- metric sanity ---\n  oracle F1={oracle['f1']:.2f}; always-true precision="
         f"{always['precision']:.2f} -> the metric rewards right and punishes noise OK"

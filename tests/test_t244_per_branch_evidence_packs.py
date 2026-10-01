@@ -126,7 +126,10 @@ def test_an_unusable_file_damages_only_the_branch_that_asked_for_it(files, tmp_p
     clean = next(b for b in branches if "clean branch" in (b.get("prompt") or ""))
     doomed = next(b for b in branches if "doomed branch" in (b.get("prompt") or ""))
 
-    assert not (clean.get("warnings") or []), (
+    assert not clean.get("warnings"), (
+        f"a branch whose own evidence was fine carries a warning about another branch's file: {clean.get('warnings')!r}"
+    )
+    assert not [], (
         f"a branch whose own evidence was fine carries a warning about another branch's file: {clean.get('warnings')!r}"
     )
     assert doomed.get("warnings"), "the branch whose file was refused (outside the repo root) was not told"

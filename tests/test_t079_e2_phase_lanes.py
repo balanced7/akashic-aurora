@@ -29,9 +29,8 @@ except ImportError:
 
 
 def _built():
-    assert ld is not None and fp is not None, (
-        "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
-    )
+    assert ld is not None, "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
+    assert fp is not None, "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
 
 
 class FakeRedis:

@@ -48,7 +48,8 @@ def test_p2_soft_render_safe_default(capsys):
     assert "5 untracked" in out
     assert "research 2" in out
     assert "tests 2" in out
-    assert "sibling" in out and "task list" in out, "the safe-default teaches claims"
+    assert "sibling" in out, "the safe-default teaches claims"
+    assert "task list" in out, "the safe-default teaches claims"
     assert 'run `py scripts/mirror.py "msg"`' not in out, (
         "the unqualified sweep imperative is DEAD (kimi Q4: the 80% is the verb)"
     )

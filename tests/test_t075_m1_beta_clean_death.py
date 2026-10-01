@@ -98,12 +98,14 @@ def test_b1_own_seat_released_and_successor_claims_instantly(fake, tmp_path):
     _built()
     tok = f"session:{SID}"
     ok, gen, _ = runner_lock.claim_consumer(AGENT, tok)
-    assert ok and fake.get(_seat_key()), "fixture: session must hold the seat first"
+    assert ok, "fixture: session must hold the seat first"
+    assert fake.get(_seat_key()), "fixture: session must hold the seat first"
     out = session_exit.clean_death(AGENT, SID, tmp=str(tmp_path), c=fake, event="SessionEnd")
     assert out.get("seat") is True, f"B1: held seat not released: {out}"
     assert fake.get(_seat_key()) is None, "B1: seat key still present after clean death"
     ok2, gen2, _ = runner_lock.claim_consumer(AGENT, f"session:{SID2}")
-    assert ok2 and gen2 > gen, "B7: successor must claim INSTANTLY after a clean death (the f9207c90 30-min shadow)"
+    assert ok2, "B7: successor must claim INSTANTLY after a clean death (the f9207c90 30-min shadow)"
+    assert gen2 > gen, "B7: successor must claim INSTANTLY after a clean death (the f9207c90 30-min shadow)"
 
 
 # --------------------------------------------------------------- B2 (foreign seat untouched)
@@ -159,7 +161,8 @@ def test_b5_precompact_never_acts(fake, tmp_path):
     inc.publish_card(AGENT, SID, c=fake)
     out = session_exit.clean_death(AGENT, SID, tmp=str(tmp_path), c=fake, event="PreCompact")
     assert out.get("disabled") is True, "B5/B-a: a PreCompact must never run the trio"
-    assert fake.get(_seat_key()) and fake.get(f"bifrost:incarnation:{AGENT}:{SID}"), (
+    assert fake.get(_seat_key()), "B5: PreCompact released living resources -- the session was still running"
+    assert fake.get(f"bifrost:incarnation:{AGENT}:{SID}"), (
         "B5: PreCompact released living resources -- the session was still running"
     )
 
@@ -170,7 +173,8 @@ def test_b6_kill_switch(fake, tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_CLEAN_DEATH", "0")
     runner_lock.claim_consumer(AGENT, f"session:{SID}")
     out = session_exit.clean_death(AGENT, SID, tmp=str(tmp_path), c=fake, event="SessionEnd")
-    assert out.get("disabled") is True and fake.get(_seat_key()), "B6/B-c: AKASHIC_CLEAN_DEATH=0 must be a total no-op"
+    assert out.get("disabled") is True, "B6/B-c: AKASHIC_CLEAN_DEATH=0 must be a total no-op"
+    assert fake.get(_seat_key()), "B6/B-c: AKASHIC_CLEAN_DEATH=0 must be a total no-op"
 
 
 # --------------------------------------------------------------- provenance is auditable

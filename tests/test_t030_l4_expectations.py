@@ -93,7 +93,8 @@ def test_arm_records_and_clamps(pair):
     t0 = time.time()
     _arm(s, r, within=5)
     res = expectations.sweep(s, now=t0 + 29)
-    assert res["redriven"] == [] and res["dead"] == [], "within=5 clamped to 30 -- nothing fires before the floor"
+    assert res["redriven"] == [], "within=5 clamped to 30 -- nothing fires before the floor"
+    assert res["dead"] == [], "within=5 clamped to 30 -- nothing fires before the floor"
 
 
 # --- P2: a sweep before the deadline is a no-op ---

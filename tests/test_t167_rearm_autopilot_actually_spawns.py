@@ -58,7 +58,11 @@ def test_a1_the_daemon_spawn_callable_matches_the_definition():
     call = re.search(r"_spawn_listener\((?!sid: str)([^)]*)\)", src[d.end() :])
     assert call, "no _spawn_listener CALL site found"
     passed = [a for a in (x.strip() for x in call.group(1).split(",")) if a]
-    assert len(passed) >= len(required) and len(passed) <= len(params), (
+    assert len(passed) >= len(required), (
+        f"the daemon calls _spawn_listener with {len(passed)} arg(s) but it accepts "
+        f"{len(required)}..{len(params)} -- every rearm raises TypeError and is swallowed"
+    )
+    assert len(passed) <= len(params), (
         f"the daemon calls _spawn_listener with {len(passed)} arg(s) but it accepts "
         f"{len(required)}..{len(params)} -- every rearm raises TypeError and is swallowed"
     )

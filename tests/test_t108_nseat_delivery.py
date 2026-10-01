@@ -121,7 +121,8 @@ def test_pin2_dead_seat_directed_mail_rehomes():
     # A dies for real: worklive expires (simulated), seatseen witnesses -> roster says DEAD.
     sender._client.delete(f"{ns}:worklive:{AGENT}#{sid8}")
     dead = [r for r in ro.roster(ns) if r["seat"] == f"{AGENT}#{sid8}"]
-    assert dead and dead[0]["state"] == "DEAD", f"precondition: A must be PROVABLY dead: {dead}"
+    assert dead, f"precondition: A must be PROVABLY dead: {dead}"
+    assert dead[0]["state"] == "DEAD", f"precondition: A must be PROVABLY dead: {dead}"
 
     rehomed = reaper.reap(ns)
     assert any(r["original_mid"] for r in rehomed), f"the reaper must report its re-homes: {rehomed}"

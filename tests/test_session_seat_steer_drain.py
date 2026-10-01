@@ -65,8 +65,10 @@ def test_renders_every_fact_and_names_its_sender():
     )
     lines = BP.steer_facts_lines("claude", nudge=fake)
     body = "\n".join(lines)
-    assert "deepseek" in body and "kimi" in body, body
-    assert "ninth clipper" in body and "provenance" in body, body
+    assert "deepseek" in body, body
+    assert "kimi" in body, body
+    assert "ninth clipper" in body, body
+    assert "provenance" in body, body
 
 
 def test_it_actually_drains():

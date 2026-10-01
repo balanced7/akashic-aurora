@@ -80,9 +80,8 @@ def test_p2_an_over_cap_briefing_leads_with_a_resolvable_pointer(tmp_path, monke
     out = fn(body, 1000, "note", confessions, to_agent="claude", by_agent="claude")
     assert len(out) <= 1000, "the stored field must still respect the cap"
     head = out[:200].lower()
-    assert "note" in head and "--get" in out[:300], (
-        "the stored briefing must OPEN with the retrieval command, not end with it"
-    )
+    assert "note" in head, "the stored briefing must OPEN with the retrieval command, not end with it"
+    assert "--get" in out[:300], "the stored briefing must OPEN with the retrieval command, not end with it"
 
 
 def test_p3_the_confession_names_the_note_not_only_a_file():

@@ -92,7 +92,8 @@ def test_k9_one_definition_of_the_gates_field_of_view():
     )
 
     cand = W.candidate_modules()
-    assert isinstance(cand, (list, tuple)) and cand, "candidate_modules() returned nothing"
+    assert isinstance(cand, (list, tuple)), "candidate_modules() returned nothing"
+    assert cand, "candidate_modules() returned nothing"
 
     # the gate's own analysis must agree with the exported definition, or they have drifted
     core_universe, reachable, _unwired = W.analyze()

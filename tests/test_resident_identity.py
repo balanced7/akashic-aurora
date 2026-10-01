@@ -218,7 +218,8 @@ def test_p8_a_corrupt_row_is_reported_never_silently_dropped(seeded, capfd):
     assert any(r.get("callsign") == "Corrupt" for r in recs), (
         "the good rows must still be returned -- one bad row cannot hide the rest"
     )
-    assert "kimi" in err and ("corrupt" in err.lower() or "unreadable" in err.lower()), (
+    assert "kimi" in err, f"a dropped row must NAME itself on a channel someone reads; stderr was: {err!r}"
+    assert "corrupt" in err.lower() or "unreadable" in err.lower(), (
         f"a dropped row must NAME itself on a channel someone reads; stderr was: {err!r}"
     )
 
@@ -279,7 +280,11 @@ def test_p6_two_drafts_one_callsign_the_latest_wins_and_carries_its_receipts(see
 
     rec = R.ratify(nominee="kimi", callsign="Twice", by="daniil")
     got = rec.get("receipts") or []
-    assert second in got and first not in got, (
+    assert second in got, (
+        f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming "
+        f"a different draft than the ratifier saw is the defect the review named"
+    )
+    assert first not in got, (
         f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming "
         f"a different draft than the ratifier saw is the defect the review named"
     )

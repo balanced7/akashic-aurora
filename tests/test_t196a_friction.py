@@ -74,7 +74,8 @@ def _iso(epoch):
 
 
 def test_seams_exist():
-    assert friction is not None and _BUILT, "core/comm/friction.py with fold() + gather() is the T196a deliverable"
+    assert friction is not None, "core/comm/friction.py with fold() + gather() is the T196a deliverable"
+    assert _BUILT, "core/comm/friction.py with fold() + gather() is the T196a deliverable"
     assert hasattr(expectations, "snapshot"), "expectations.snapshot(sender) -- the read-only armed-record view"
 
 
@@ -146,7 +147,8 @@ def test_fold_classification_and_aggregates():
     assert agg["settle_p50_s"] == 100
     assert agg["n_duration_unknown"] == 2
 
-    assert isinstance(rep["blind"], list) and rep["blind"], "a report that names no blindness is claiming omniscience"
+    assert isinstance(rep["blind"], list), "a report that names no blindness is claiming omniscience"
+    assert rep["blind"], "a report that names no blindness is claiming omniscience"
 
 
 # --- P3: rates never fabricate -- nothing closed means dead_rate None, not 0.0 ---

@@ -138,7 +138,9 @@ def test_ship_plan_wires_the_gate_before_tests():
     plan = ship.build_plan(args)
     labels = [l for l, _ in plan]
     gate = next((l for l in labels if "reconciliation" in l), None)
-    assert gate and "guard" in gate, f"gate step present as a guard: {labels}"
+    assert gate, f"gate step present as a guard: {labels}"
+    assert "guard" in gate, f"gate step present as a guard: {labels}"
     assert labels.index(gate) < labels.index("tests (full suite)"), "gate runs BEFORE the suite"
     argv = dict(plan)[gate]
-    assert "m" in argv and "core/comm/bus.py" in argv, "the gate sees the ship's message and staged paths"
+    assert "m" in argv, "the gate sees the ship's message and staged paths"
+    assert "core/comm/bus.py" in argv, "the gate sees the ship's message and staged paths"

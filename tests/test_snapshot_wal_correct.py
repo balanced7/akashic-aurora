@@ -54,9 +54,8 @@ def test_backup_carries_writes_a_file_copy_would_drop(tmp_path):
     conn = _live_db_with_uncheckpointed_writes(live)
     try:
         wal = live.with_name(live.name + "-wal")
-        assert wal.exists() and wal.stat().st_size > 0, (
-            "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
-        )
+        assert wal.exists(), "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
+        assert wal.stat().st_size > 0, "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
 
         good = tmp_path / "good.db"
         assert snap._backup_sqlite(live, good) is True

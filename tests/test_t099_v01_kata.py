@@ -62,7 +62,8 @@ def test_kata_refuses_bad_grammar_and_names_the_step(tmp_path):
     tb.mint("broken", [["discover"], ["bifrost-skip-to-now"]])  # skip-to-now REQUIRES agent + --by + --reason
     ok, results = agent_cli._kata_check(tb.resolve("broken"))
     assert not ok, "a step failing the door's grammar must fail the kata"
-    assert results[0][0] is True and results[1][0] is False, "the failing step is NAMED"
+    assert results[0][0] is True, "the failing step is NAMED"
+    assert results[1][0] is False, "the failing step is NAMED"
     assert tb.get("broken")["evidence"] == "GUESS", "no upgrade on a failed kata"
 
 

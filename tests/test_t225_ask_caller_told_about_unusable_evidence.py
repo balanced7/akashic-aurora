@@ -113,9 +113,9 @@ def test_the_three_classes_are_reported_together_and_stay_distinguishable():
     _ctx, meta = build_context(["core/comm/bus.py", outside, "no/such/file/t225.py"], root=str(REPO))
 
     notice = unusable_evidence_notice(meta)
-    assert "CLIPPED" in notice and "REFUSED" in notice and "MISSING" in notice, (
-        "bus.py clips at the 40k budget; the other two are refused and missing"
-    )
+    assert "CLIPPED" in notice, "bus.py clips at the 40k budget; the other two are refused and missing"
+    assert "REFUSED" in notice, "bus.py clips at the 40k budget; the other two are refused and missing"
+    assert "MISSING" in notice, "bus.py clips at the 40k budget; the other two are refused and missing"
     assert notice.count("--") >= 1, "each class must carry its own next move, not one shared one"
 
 

@@ -118,7 +118,8 @@ def test_w1_no_next_focus_teaches_the_ledger(monkeypatch):
 def test_w2_where_carries_age_and_curated_flag(monkeypatch):
     out = _full(monkeypatch)
     where = next(l for l in out.splitlines() if "WHERE:" in l)
-    assert "curated" in where and "h ago" in where, f"W2: expected '(curated, Nh ago)', got: {where}"
+    assert "curated" in where, f"W2: expected '(curated, Nh ago)', got: {where}"
+    assert "h ago" in where, f"W2: expected '(curated, Nh ago)', got: {where}"
 
 
 def test_w2_mechanical_note_renders_auto(monkeypatch):
@@ -132,7 +133,8 @@ def test_w2_refinement_r1_legacy_note_renders_age_only(monkeypatch):
     out = _full(monkeypatch, notes=[_dec("where-we-are", "legacy pre-flag note", hours_ago=2, curated=None)])
     where = next(l for l in out.splitlines() if "WHERE:" in l)
     assert "h ago" in where
-    assert "curated" not in where and "auto" not in where, "R1: an absent flag must not be inferred either way"
+    assert "curated" not in where, "R1: an absent flag must not be inferred either way"
+    assert "auto" not in where, "R1: an absent flag must not be inferred either way"
 
 
 # ---------------------------------------------------------------- W3 SIBLINGS

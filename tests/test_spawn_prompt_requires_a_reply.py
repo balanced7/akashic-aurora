@@ -64,6 +64,7 @@ def test_the_prompt_covers_task_shaped_asks_not_just_questions():
     answered on the model's own initiative. The instruction must not leave that judgment
     call to chance."""
     block = _spawn_prompt_block()
-    assert "task" in block.lower() and (
-        "even if" in block.lower() or "task-shaped" in block.lower() or "task rather than" in block.lower()
-    ), "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    assert "task" in block.lower(), "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    assert "even if" in block.lower() or "task-shaped" in block.lower() or "task rather than" in block.lower(), (
+        "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    )

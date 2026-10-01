@@ -121,9 +121,8 @@ def test_a_bare_string_is_one_path_not_a_bag_of_letters(repo_files):
     missing = [m.get("path", "") for m in ctx.get("missing", [])]
 
     assert not missing, f"a bare string was walked character by character: {missing[:8]}"
-    assert len(included) == 1 and included[0].endswith("own.py"), (
-        f"the single named file should be the only evidence: {included}"
-    )
+    assert len(included) == 1, f"the single named file should be the only evidence: {included}"
+    assert included[0].endswith("own.py"), f"the single named file should be the only evidence: {included}"
     assert "OWN_TOKEN" in c.bodies[0], "the branch never received the file it named"
 
 

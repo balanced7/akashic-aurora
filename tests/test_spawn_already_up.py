@@ -46,7 +46,11 @@ def test_already_up_wins_over_the_interpreter_banner():
     check spawn_already_up_reason FIRST and never let the fallback answer instead."""
     log_text = "Error: listen EADDRINUSE: address already in use 127.0.0.1:3080\nNode.js v24.14.1\n"
     stillborn = DI.spawn_stillborn_reason(1, log_text)
-    assert stillborn is not None and "Node.js" in stillborn, (
+    assert stillborn is not None, (
+        "the fallback reason must still be the banner -- that IS the defect this "
+        "already-up check is designed to be consulted ahead of"
+    )
+    assert "Node.js" in stillborn, (
         "the fallback reason must still be the banner -- that IS the defect this "
         "already-up check is designed to be consulted ahead of"
     )

@@ -108,16 +108,24 @@ def test_p6_voice_labels_are_conservative(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     caveat = EYE.find(q="command-name", db_path=db)["results"]
-    assert caveat and caveat[0]["voice"] == "system", (
+    assert caveat, (
+        "a command-caveat block inside a user record is SYSTEM -- the false-positive class the sweep paid for"
+    )
+    assert caveat[0]["voice"] == "system", (
         "a command-caveat block inside a user record is SYSTEM -- the false-positive class the sweep paid for"
     )
     qnoise = EYE.find(q="fixture noise", db_path=db)["results"]
-    assert qnoise and qnoise[0]["voice"] == "system", (
+    assert qnoise, (
+        "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
+        "these polluting the operator axis; the law has a marker exception on every lane"
+    )
+    assert qnoise[0]["voice"] == "system", (
         "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
         "these polluting the operator axis; the law has a marker exception on every lane"
     )
     meta = EYE.find(q="meta housekeeping", db_path=db)["results"]
-    assert meta and meta[0]["voice"] == "system", "isMeta user records are never operator"
+    assert meta, "isMeta user records are never operator"
+    assert meta[0]["voice"] == "system", "isMeta user records are never operator"
     real = EYE.find(q="sharper every week", db_path=db)["results"]
     assert real
     assert real[0]["voice"] == "operator"

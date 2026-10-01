@@ -66,7 +66,11 @@ def test_p2_ambiguous_prefix_refuses_naming_candidates(db):
     with pytest.raises(ValueError) as exc:
         eye.get_event("feed0001:1", db_path=db)
     msg = str(exc.value)
-    assert SESS_A in msg and SESS_B in msg, (
+    assert SESS_A in msg, (
+        "ambiguity must refuse LOUDLY with every candidate named — a None here "
+        "would render 'two matches' as 'no event', the same lie one branch over"
+    )
+    assert SESS_B in msg, (
         "ambiguity must refuse LOUDLY with every candidate named — a None here "
         "would render 'two matches' as 'no event', the same lie one branch over"
     )
@@ -86,6 +90,9 @@ def test_p4_true_absence_is_still_none(db):
 
 def test_p5_resolution_teaches_the_canonical_form(db):
     ev = eye.get_event("cafe0002:1", db_path=db)
-    assert ev is not None and ev["session"] == SESS_C, (
+    assert ev is not None, (
+        "the resolved record must carry the FULL session id so the caller learns the canonical address"
+    )
+    assert ev["session"] == SESS_C, (
         "the resolved record must carry the FULL session id so the caller learns the canonical address"
     )

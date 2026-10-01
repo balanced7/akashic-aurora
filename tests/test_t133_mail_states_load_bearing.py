@@ -302,7 +302,8 @@ def test_the_real_pulse_reader_actually_works():
     if not liveness.pulse(agent, "t133 verification"):
         pytest.skip("no live store for the pulse probe")
     age = liveness.progress_age(agent)
-    assert age is not None and age < 30, f"the real reader returned {age!r}"
+    assert age is not None, f"the real reader returned {age!r}"
+    assert age < 30, f"the real reader returned {age!r}"
     assert liveness.progress_age("t133-agent-that-never-pulsed") is None
 
 
@@ -403,7 +404,10 @@ def test_the_sweep_runs_on_a_cadence_not_a_ritual():
 
     _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="another corpse's ask"))
     again = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
-    assert again["due"] is False and again["retired"] == 0, (
+    assert again["due"] is False, (
+        "boot is on the hot path for every session; an O(entries) scan must not run every time"
+    )
+    assert again["retired"] == 0, (
         "boot is on the hot path for every session; an O(entries) scan must not run every time"
     )
 

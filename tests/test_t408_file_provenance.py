@@ -68,7 +68,8 @@ def _captured(tb):
 
 def test_p1_write_file_emits_seat_file_edit(tb):
     out = tb.write_file("notes/write_me.md", "hello")
-    assert "wrote" in out and "ERROR" not in out, out
+    assert "wrote" in out, out
+    assert "ERROR" not in out, out
     evs = _captured(tb)
     assert len(evs) == 1, evs
     e = evs[0]
@@ -81,7 +82,8 @@ def test_p2_edit_file_emits_seat_file_edit(tb):
     tb.write_file("notes/edit_me.md", "before")
     _captured(tb).clear()
     out = tb.edit_file("notes/edit_me.md", "before", "after")
-    assert "edited" in out and "ERROR" not in out, out
+    assert "edited" in out, out
+    assert "ERROR" not in out, out
     evs = _captured(tb)
     assert len(evs) == 1, evs
     assert evs[0]["kind"] == "file_edit"
@@ -101,7 +103,8 @@ def test_p3_failed_write_emits_nothing(tb):
 def test_p4_capture_failure_does_not_break_write(tb):
     tb._provenance_fake.capture = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
     out = tb.write_file("notes/still_writes.md", "content")
-    assert "wrote" in out and "ERROR" not in out, out
+    assert "wrote" in out, out
+    assert "ERROR" not in out, out
 
 
 # ---- slice-tagging: a seat with a declared intent covering the path gets its writes tagged ----
@@ -143,4 +146,5 @@ def test_p7_intent_lookup_failure_does_not_break_write(tb, monkeypatch):
     """A broken intent lookup must not wedge a write -- the tag is best-effort, provenance is too."""
     monkeypatch.setattr("core.coord.intent.active", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
     out = tb.write_file("notes/safe.md", "x")
-    assert "wrote" in out and "ERROR" not in out, out
+    assert "wrote" in out, out
+    assert "ERROR" not in out, out

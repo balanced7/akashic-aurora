@@ -207,9 +207,8 @@ def test_f1_utf8_decode_error_cannot_kill_drainer_and_wedge_child(monkeypatch, t
         )
         assert mc.poll() == 0
         tail = "\n".join(mc._ring)
-        assert "\u3041" in tail and "DONE" in tail, (
-            "F1-UTF8: the drainer must preserve Unicode and reach the final sentinel"
-        )
+        assert "\u3041" in tail, "F1-UTF8: the drainer must preserve Unicode and reach the final sentinel"
+        assert "DONE" in tail, "F1-UTF8: the drainer must preserve Unicode and reach the final sentinel"
     finally:
         if mc.alive:
             mc.terminate()

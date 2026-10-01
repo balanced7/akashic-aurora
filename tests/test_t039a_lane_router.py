@@ -99,7 +99,8 @@ def test_dual_write_work_lane_and_legacy_identical(monkeypatch):
     bus.send("agent-b", "handoff", "dual-write probe")
     legacy = c.xrevrange(f"{ns}:inbox:agent-b", count=1)
     lane = c.xrevrange(f"{ns}:work:inbox:agent-b", count=1)
-    assert legacy and lane, "both streams must receive the packet"
+    assert legacy, "both streams must receive the packet"
+    assert lane, "both streams must receive the packet"
     lf, wf = dict(legacy[0][1]), dict(lane[0][1])
     for k in ("frm", "to", "kind", "content", "len", "sha"):
         if k in lf or k in wf:

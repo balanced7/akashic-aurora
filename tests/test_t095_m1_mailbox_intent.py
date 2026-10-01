@@ -101,11 +101,16 @@ def test_m1_2_body_survives_transport_eviction():
     assert sha, "ingest refused a normal directed reply"
 
     got = mbx.body_of(NS, "claude", sha, client=client)
-    assert got and got["body"] == fields["content"], "body not retrievable right after ingest"
+    assert got, "body not retrievable right after ingest"
+    assert got["body"] == fields["content"], "body not retrievable right after ingest"
 
     client.streams.clear()  # the ephemeral lane is gone -- aged out, trimmed, or evicted
     after = mbx.body_of(NS, "claude", sha, client=client)
-    assert after and after["body"] == fields["content"], (
+    assert after, (
+        "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
+        "an index of envelopes, not a mailbox."
+    )
+    assert after["body"] == fields["content"], (
         "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
         "an index of envelopes, not a mailbox."
     )
@@ -129,7 +134,11 @@ def test_m1_3_no_entry_outlives_its_body():
     implementation choose how.
     """
     mbx = _mailbox()
-    assert hasattr(mbx, "retention_s_for") and hasattr(mbx, "body_of"), (
+    assert hasattr(mbx, "retention_s_for"), (
+        "D2: nothing ties an entry's advertised retention to its body's durability, so a 30-day "
+        "index entry can point at a 7-day stream -- a promise the system cannot keep."
+    )
+    assert hasattr(mbx, "body_of"), (
         "D2: nothing ties an entry's advertised retention to its body's durability, so a 30-day "
         "index entry can point at a 7-day stream -- a promise the system cannot keep."
     )
@@ -242,7 +251,8 @@ def test_m1_10_seen_receipt_is_idempotent_across_retries():
     assert len(mbx.seen_by(NS, "claude", sha, client=client)) == 1, "retries minted extra receipts"
     mbx.open(NS, "claude", sha, incarnation="seat-B", client=client)
     seen = mbx.seen_by(NS, "claude", sha, client=client)
-    assert len(seen) == 2 and {r["incarnation"] for r in seen} == {"seat-A", "seat-B"}, (
+    assert len(seen) == 2, "a genuinely different incarnation reading the same mail is a NEW fact and must record"
+    assert {r["incarnation"] for r in seen} == {"seat-A", "seat-B"}, (
         "a genuinely different incarnation reading the same mail is a NEW fact and must record"
     )
 
@@ -325,7 +335,11 @@ def test_m1_14_rebuild_does_not_eat_bodies_whose_transport_is_gone():
     assert out.get("available"), f"rebuild failed: {out}"
 
     after = mbx.body_of(NS, "claude", sha, client=client)
-    assert after is not None and after["body"] == fields["content"], (
+    assert after is not None, (
+        "rebuild destroyed a body it could not regenerate -- a determinism receipt that eats "
+        f"message bodies is not a receipt. result={out}"
+    )
+    assert after["body"] == fields["content"], (
         "rebuild destroyed a body it could not regenerate -- a determinism receipt that eats "
         f"message bodies is not a receipt. result={out}"
     )

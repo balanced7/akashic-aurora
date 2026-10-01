@@ -80,7 +80,8 @@ def test_unverified_receipt_refuses_loudly_no_surfaces():
     except ValueError as e:
         assert "REFUSED" in str(e)
         assert "no experiment matching" in str(e)
-    assert not sent and not notes, "refusal touches neither surface"
+    assert not sent, "refusal touches neither surface"
+    assert not notes, "refusal touches neither surface"
 
 
 def test_forced_unverified_sends_honestly_labeled_guess():

@@ -64,7 +64,8 @@ def test_p4_changed_entry_supersedes_history_retained(tmp_path):
     changed["entries"][2]["steps"] = [["doctor"]]  # vitals, narrower
     rep = kit.install(changed, b)
     row = [e for e in rep["entries"] if e["name"] == "vitals"][0]
-    assert "superseded" in row["result"] and "v2" in row["result"], row
+    assert "superseded" in row["result"], row
+    assert "v2" in row["result"], row
     assert len(b.history("vitals")) == 1
 
 
@@ -74,7 +75,9 @@ def test_p5_quota_refusal_confessed_partial_install_visible(tmp_path):
     assert rep["ok"] is False
     refused = [e for e in rep["entries"] if e["result"].startswith("REFUSED")]
     minted = [e for e in rep["entries"] if e["result"] == "minted"]
-    assert len(minted) == 2 and len(refused) == 2, rep  # partial, confessed
+    # partial, confessed
+    assert len(minted) == 2, rep
+    assert len(refused) == 2, rep
 
 
 def test_p6_evidence_labels_ride_no_upgrade(tmp_path):

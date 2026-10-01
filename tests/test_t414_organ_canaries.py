@@ -35,9 +35,8 @@ def test_every_canary_declares_what_would_retire_it():
     this checker from becoming another immortal entry -- so it is enforced, not documented."""
     for name, (fn, retire_when) in oc.CANARIES.items():
         assert callable(fn), f"{name} has no callable"
-        assert isinstance(retire_when, str) and len(retire_when.strip()) > 30, (
-            f"{name} has no real retirement condition: {retire_when!r}"
-        )
+        assert isinstance(retire_when, str), f"{name} has no real retirement condition: {retire_when!r}"
+        assert len(retire_when.strip()) > 30, f"{name} has no real retirement condition: {retire_when!r}"
         assert oc.self_test() == 0
 
 
@@ -79,7 +78,8 @@ def test_a_raising_canary_is_unchecked_never_a_pass(monkeypatch):
     rc2, _out2 = oc.run("-c", "raise SystemExit(0)", timeout=60)
     assert rc2 == 0
     rc3, out3 = oc.run("nonexistent_file_that_cannot_be_run.py")
-    assert rc3 != 0 and out3, "a failed invocation must return a non-zero rc and say something"
+    assert rc3 != 0, "a failed invocation must return a non-zero rc and say something"
+    assert out3, "a failed invocation must return a non-zero rc and say something"
 
 
 def test_no_canary_supplies_its_own_input():

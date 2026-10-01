@@ -288,4 +288,5 @@ def test_p7_real_divergence_still_loud(monkeypatch):
         "promoted_id": "p",
     }
     txt = "\n".join(delta_mod._sections("claude", mark, cur))
-    assert "BACKWARDS" in txt and "git log" in txt, "genuine divergence keeps its alarm"
+    assert "BACKWARDS" in txt, "genuine divergence keeps its alarm"
+    assert "git log" in txt, "genuine divergence keeps its alarm"

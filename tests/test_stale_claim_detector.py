@@ -135,6 +135,5 @@ def test_p5_the_sweep_reports_its_own_scope():
     assert rep["examined"] >= 0
     assert "scope" in rep, "a coverage claim must state what it globbed (the frame law)"
     for item in rep.get("stale", []):
-        assert item.get("lesson") and item.get("evidence"), (
-            "every flagged lesson names itself and the line that refutes it"
-        )
+        assert item.get("lesson"), "every flagged lesson names itself and the line that refutes it"
+        assert item.get("evidence"), "every flagged lesson names itself and the line that refutes it"

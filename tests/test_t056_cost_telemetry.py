@@ -163,7 +163,8 @@ def test_k6_done_render_budget(monkeypatch, tmp_path):
     t = _task("T900", "alice", "done")
     t.update(cost_turns=84, cost_duration_s=7612.4, cost_tool_calls=412, cost_tokens=156000)
     line = tc.cost_line(t)
-    assert line and len(line) <= 120, "K6: one line, <=120 chars"
+    assert line, "K6: one line, <=120 chars"
+    assert len(line) <= 120, "K6: one line, <=120 chars"
     assert "84" in line
     assert "turn" in line
     t["cost_tokens"] = 10**12  # absurd width forces the drop order
@@ -246,7 +247,10 @@ def test_k9_kimi_and_sol_pass_split_token_usage(relpath):
     exprs = _runner_record_token_exprs(relpath)
     assert len(exprs) == 1, f"K9: expected one _tm.record token seam in {relpath}"
     expr = exprs[0]
-    assert isinstance(expr, ast.IfExp) and isinstance(expr.body, ast.Dict), (
+    assert isinstance(expr, ast.IfExp), (
+        f"K9: {relpath} must pass a conditional split token dictionary, got {ast.dump(expr, include_attributes=False)}"
+    )
+    assert isinstance(expr.body, ast.Dict), (
         f"K9: {relpath} must pass a conditional split token dictionary, got {ast.dump(expr, include_attributes=False)}"
     )
     pairs = {

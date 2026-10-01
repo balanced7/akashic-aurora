@@ -51,7 +51,8 @@ def test_nonzero_exit_is_stillborn_and_carries_the_real_line():
 def test_known_fatal_line_is_stillborn_even_on_a_zero_exit():
     """A truthful exit code is not guaranteed; the log line is the harder evidence."""
     reason = DI.spawn_stillborn_reason(0, OAUTH + "\n")
-    assert reason and "authenticate" in reason.lower(), reason
+    assert reason, reason
+    assert "authenticate" in reason.lower(), reason
 
 
 def test_clean_fast_exit_is_not_an_alarm():
@@ -71,7 +72,8 @@ def test_reason_is_one_line_a_phone_reads_it():
 def test_empty_log_still_names_the_exit_code():
     """Silence plus a corpse is still a stillbirth; say what little is known."""
     reason = DI.spawn_stillborn_reason(2, "")
-    assert reason and "2" in reason, reason
+    assert reason, reason
+    assert "2" in reason, reason
 
 
 # ------------------------------------------------------- no receipt for a corpse

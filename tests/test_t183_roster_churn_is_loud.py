@@ -106,9 +106,8 @@ def test_k4_churning_fires_on_a_crash_loop_and_not_on_an_old_graveyard():
 def test_k5_summarising_is_not_hiding():
     rows = [_row("kimi", "LIVE", 2)] + [_row("kimi", "DEAD", 50000)] * 14
     g = by_agent(rows)[0]
-    assert g["n_total"] == 15 and g["n_dead"] == 14, (
-        "the graveyard size stays visible -- this view compresses the render, not the record"
-    )
+    assert g["n_total"] == 15, "the graveyard size stays visible -- this view compresses the render, not the record"
+    assert g["n_dead"] == 14, "the graveyard size stays visible -- this view compresses the render, not the record"
 
 
 def test_k7_two_live_incarnations_of_one_agent_is_itself_the_signal():

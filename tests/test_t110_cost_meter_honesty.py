@@ -266,7 +266,12 @@ def test_p9_the_doctor_recomputes_and_does_not_trust_a_stale_cost(tmp_path):
         )  # <- the real file, verbatim
 
     line = str((doctor._token_cost_line("kimi", journal_dir=str(tmp_path)) or {}).get("line", ""))
-    assert "9.07" not in line and "9.08" not in line, (
+    assert "9.07" not in line, (
+        f"STALE LIE SERVED: the doctor re-published the old DeepSeek-priced $9.076 for "
+        f"kimi straight from the file. Price at read time from PRICES, or every journal "
+        f"written before today keeps lying forever: {line!r}"
+    )
+    assert "9.08" not in line, (
         f"STALE LIE SERVED: the doctor re-published the old DeepSeek-priced $9.076 for "
         f"kimi straight from the file. Price at read time from PRICES, or every journal "
         f"written before today keeps lying forever: {line!r}"

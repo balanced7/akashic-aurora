@@ -56,7 +56,8 @@ def test_k1_same_identifier_different_membership_is_a_conflict():
     assert len(conflicts) == 1, "one identifier, two memberships -- that is the T175 defect"
     name, detail = conflicts[0][0], str(conflicts[0])
     assert name == "SKIP_KINDS"
-    assert "halt" in detail and "steer" in detail, "the conflict must NAME the disagreement"
+    assert "halt" in detail, "the conflict must NAME the disagreement"
+    assert "steer" in detail, "the conflict must NAME the disagreement"
 
 
 def test_k2_same_identifier_identical_membership_is_not_a_conflict():
@@ -101,7 +102,11 @@ def test_k7_resolution_is_total_unknown_is_never_a_silent_false():
     s = _sets(a__BUS_A=["handoff"])
     assert C.resolve("handoff", "BUS_A", s) == (True, "classified")
     verdict, why = C.resolve("never_seen", "BUS_A", s)
-    assert verdict is False and why == "UNCLASSIFIED", (
+    assert verdict is False, (
+        "an unregistered kind must resolve to UNCLASSIFIED, never to a bare False that reads "
+        "identical to a deliberate exclusion -- the whole census finding in one assertion"
+    )
+    assert why == "UNCLASSIFIED", (
         "an unregistered kind must resolve to UNCLASSIFIED, never to a bare False that reads "
         "identical to a deliberate exclusion -- the whole census finding in one assertion"
     )

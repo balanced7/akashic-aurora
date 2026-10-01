@@ -95,9 +95,8 @@ def test_p4_inherited_failures_are_announced(monkeypatch, tmp_path):
 
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate(["tests/test_a.py::test_one"])
-    assert v["report"] and "1" in v["report"], (
-        "shipping over a red test must SAY SO -- silence is how a red becomes furniture"
-    )
+    assert v["report"], "shipping over a red test must SAY SO -- silence is how a red becomes furniture"
+    assert "1" in v["report"], "shipping over a red test must SAY SO -- silence is how a red becomes furniture"
 
 
 def test_p5_a_stale_baseline_is_announced(monkeypatch, tmp_path):

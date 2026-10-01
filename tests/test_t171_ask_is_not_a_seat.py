@@ -181,7 +181,8 @@ def test_k6_ask_touches_no_seat_machinery():
 
 def test_k7_spend_is_reported_and_an_unpriced_model_says_none():
     o = A.ask("hi", client=_Client(_Resp("yo")))
-    assert o.detail["usd"] is not None and o.detail["usd"] > 0, "a priced model must report cost"
+    assert o.detail["usd"] is not None, "a priced model must report cost"
+    assert o.detail["usd"] > 0, "a priced model must report cost"
     u = A.ask("hi", model="model-that-has-no-rate", client=_Client(_Resp("yo")))
     assert u.detail["usd"] is None, (
         "an unpriced model must report None, never borrow another vendor's rate -- the designed "

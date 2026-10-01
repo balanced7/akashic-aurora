@@ -113,9 +113,8 @@ def _responder(r, s, text="the peer's answer", delay=0.4, stop=None):
 
 
 def test_seam_exists():
-    assert _BUILT and callable(ask_peer), (
-        "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
-    )
+    assert _BUILT, "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
+    assert callable(ask_peer), "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
 
 
 # --- P2: settled within the wait -> done, answer in-band, cursors untouched ---
@@ -129,7 +128,8 @@ def test_settles_in_band_without_consuming(pair):
     t = _responder(r, s, text="42, obviously")
     o = ask_peer(s, r, "what is the answer?", wait_s=15, poll_s=0.2)
     t.join(timeout=1)
-    assert o.ok and not o.partial, f"settled ask must be a clean done, got: {o.why}"
+    assert o.ok, f"settled ask must be a clean done, got: {o.why}"
+    assert not o.partial, f"settled ask must be a clean done, got: {o.why}"
     d = o.detail
     assert d["state"] == "CLOSED.ANSWERED"
     assert d["ask_id"]
@@ -152,7 +152,8 @@ def test_timeout_returns_handle_and_stays_armed(pair):
     # (ok means "not failed"); failed = not ok. The first cut of this pin asserted
     # `partial and not ok` -- a foreign outcome type, corrected to the contract's
     # actual intent: a timeout is PARTIALLY, never failed, never a clean done.
-    assert o.partial and not bool(o), "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
+    assert o.partial, "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
+    assert not bool(o), "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
     d = o.detail
     assert d["state"].startswith("OPEN.")
     assert d["ask_id"]
@@ -233,6 +234,9 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
 
 def test_door_wired():
     cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
-    assert re.search(r'ask_p\.add_argument\(\s*"--peer"', cli) and re.search(
-        r'ask_p\.add_argument\(\s*"--wait"', cli
-    ), "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
+    assert re.search(r'ask_p\.add_argument\(\s*"--peer"', cli), (
+        "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
+    )
+    assert re.search(r'ask_p\.add_argument\(\s*"--wait"', cli), (
+        "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
+    )

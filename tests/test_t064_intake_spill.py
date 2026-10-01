@@ -52,7 +52,8 @@ def test_s2_in_band_marker_names_the_spill(monkeypatch, tmp_path):
     body = "x" * 400
     stored, _ = _run(monkeypatch, tmp_path, body)
     files = os.listdir(str(tmp_path))
-    assert files and files[0] in stored, "S2: the stored text's in-band marker must point the READER at the spill file"
+    assert files, "S2: the stored text's in-band marker must point the READER at the spill file"
+    assert files[0] in stored, "S2: the stored text's in-band marker must point the READER at the spill file"
     assert stored.startswith("x" * 100), "S2: the stored head stays the clipped original"
 
 
@@ -71,9 +72,7 @@ def test_s4_spill_failure_degrades_to_confession(monkeypatch, tmp_path):
     monkeypatch.setenv("AKASHIC_SPILL_DIR", deadend)
     confessions = []
     stored = agent_cli._intake("y" * 300, 100, "note", confessions)
-    assert confessions and "resend" in confessions[0].lower(), (
-        "S4: spill failure keeps the honest confession (chunk/resend guidance)"
-    )
-    assert stored.startswith("y" * 100) and "clipped at" in stored, (
-        "S4: in-band marker survives even when the spill write fails"
-    )
+    assert confessions, "S4: spill failure keeps the honest confession (chunk/resend guidance)"
+    assert "resend" in confessions[0].lower(), "S4: spill failure keeps the honest confession (chunk/resend guidance)"
+    assert stored.startswith("y" * 100), "S4: in-band marker survives even when the spill write fails"
+    assert "clipped at" in stored, "S4: in-band marker survives even when the spill write fails"

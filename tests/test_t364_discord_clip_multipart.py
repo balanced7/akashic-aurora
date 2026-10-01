@@ -68,16 +68,16 @@ def test_bridge_oversize_posts_multiple_parts_no_shell_tail():
     assert len(parts) > 1, "an oversize body must produce multiple parts, not one clip"
     for p in parts:
         assert len(p) <= DB.DISCORD_MAX, "Discord rejects any part over 2000 outright"
-        assert "bifrost-fetch" not in p and "clipped" not in p, (
-            f"a part carries the phone-un-runnable shell handle: {p[:80]!r}"
-        )
+        assert "bifrost-fetch" not in p, f"a part carries the phone-un-runnable shell handle: {p[:80]!r}"
+        assert "clipped" not in p, f"a part carries the phone-un-runnable shell handle: {p[:80]!r}"
 
 
 def test_bridge_short_body_is_one_part_with_head():
     msg = {"kind": "reply", "frm": "claude", "content": "short"}
     parts = DB.render_parts(msg)
     assert len(parts) == 1
-    assert "claude" in parts[0] and "reply" in parts[0], "the head rides the single part"
+    assert "claude" in parts[0], "the head rides the single part"
+    assert "reply" in parts[0], "the head rides the single part"
 
 
 # ---------------------------------------------------- the forward N-post loop

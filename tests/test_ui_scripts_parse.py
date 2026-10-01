@@ -37,7 +37,11 @@ def _page_constant():
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == "PAGE":
-                    assert isinstance(node.value, ast.Constant) and isinstance(node.value.value, str), (
+                    assert isinstance(node.value, ast.Constant), (
+                        "PAGE is no longer a plain string constant -- update this pin to "
+                        "extract whatever _html() now serves; do NOT let it skip."
+                    )
+                    assert isinstance(node.value.value, str), (
                         "PAGE is no longer a plain string constant -- update this pin to "
                         "extract whatever _html() now serves; do NOT let it skip."
                     )

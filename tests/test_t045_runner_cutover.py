@@ -238,7 +238,8 @@ def test_r6_note_status_drain_but_never_wake(monkeypatch):
     api = BifrostAPI("alice", namespace=ns)
     got = api.work_drain(timeout_ms=800)
     ks = _kinds(got)
-    assert "note" in ks and "status" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
+    assert "note" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
+    assert "status" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
 
 
 # ------------------------- R7: lane-aware pending check load-bearing (dual-write OFF)

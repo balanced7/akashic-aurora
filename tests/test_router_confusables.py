@@ -59,9 +59,8 @@ def test_whole_word_keywords_still_match():
     ]
     for text, track, basis in cases:
         res = _route(text)
-        assert res.track == track and res.basis == basis, (
-            f"'{text}' -> expected {track}/{basis}, got {res.track}/{res.basis}"
-        )
+        assert res.track == track, f"'{text}' -> expected {track}/{basis}, got {res.track}/{res.basis}"
+        assert res.basis == basis, f"'{text}' -> expected {track}/{basis}, got {res.track}/{res.basis}"
 
 
 def test_phrase_keywords_keep_internal_spaces():

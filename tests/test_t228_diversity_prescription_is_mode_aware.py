@@ -146,7 +146,8 @@ def test_prescription_exists_for_every_shape_and_verdict():
     for hom in (True, False):
         for verdict in ("collapsed", "distinct", "unknown"):
             line = diversity_prescription(verdict, hom, n_compared=3, score=0.4)
-            assert line and len(line) > 20, f"no next move for {verdict}/homogeneous={hom}"
+            assert line, f"no next move for {verdict}/homogeneous={hom}"
+            assert len(line) > 20, f"no next move for {verdict}/homogeneous={hom}"
 
 
 def test_heterogeneous_low_agreement_is_reported_as_expected_not_as_a_result():

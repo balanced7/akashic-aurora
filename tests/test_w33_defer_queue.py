@@ -67,12 +67,13 @@ def test_p4_capability_aware_render(qfile):
     for i in range(5):
         dq.add("kimi", f"cmd {i}", needs="exec")
     full = dq.render_boot_section(agent_caps={"read", "exec", "write"})
-    assert "cmd 0" in full and "+2 more" in full, "caps-holder sees the capped list"
+    assert "cmd 0" in full, "caps-holder sees the capped list"
+    assert "+2 more" in full, "caps-holder sees the capped list"
     assert full.count("cmd") == 3, "capped at 3 lines (funnel discipline)"
     dim = dq.render_boot_section(agent_caps={"read"})
-    assert "cmd 0" not in dim and "not you" in dim and "5" in dim, (
-        "a read-only seat gets one dim line, never a shouted work list"
-    )
+    assert "cmd 0" not in dim, "a read-only seat gets one dim line, never a shouted work list"
+    assert "not you" in dim, "a read-only seat gets one dim line, never a shouted work list"
+    assert "5" in dim, "a read-only seat gets one dim line, never a shouted work list"
     assert dq.render_boot_section(agent_caps=set()) == dim
     empty = dq.render_boot_section(agent_caps={"exec"})
     # a queue with only-discharged items renders nothing for anyone

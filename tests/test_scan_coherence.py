@@ -89,7 +89,8 @@ def test_coherence_acks_for_resolves_existing_ack():
     """acks_for() itself must find the ack for a given message id."""
     events = [_promoted("m1"), _ack_event("m1")]
     amap = promoter.acks_for(["m1"], event_query=FakeQuery(events))
-    assert amap["m1"] and amap["m1"][0]["by"] == "claude", "acks_for must resolve the ack when event IS in the firehose"
+    assert amap["m1"], "acks_for must resolve the ack when event IS in the firehose"
+    assert amap["m1"][0]["by"] == "claude", "acks_for must resolve the ack when event IS in the firehose"
 
 
 def test_coherence_unacked_old_message_flags():

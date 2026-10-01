@@ -204,7 +204,11 @@ def test_mail_behind_the_lane_cursor_is_pending_whatever_legacy_says(monkeypatch
     fresh = BifrostAPI("alice", namespace=ns)
     got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got), (
+    assert got, (
+        f"got {_kinds(got)}: mail still behind the LANE cursor must wake a fresh arm -- the "
+        f"lane consumer will redeliver it, and the watcher's 'unread' must mean the consumer's"
+    )
+    assert "chat" in _kinds(got), (
         f"got {_kinds(got)}: mail still behind the LANE cursor must wake a fresh arm -- the "
         f"lane consumer will redeliver it, and the watcher's 'unread' must mean the consumer's"
     )
@@ -316,7 +320,11 @@ def test_a_note_heavy_backlog_does_not_hide_the_chat_behind_it(monkeypatch):
     fresh = BifrostAPI("alice", namespace=ns)
     got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got), (
+    assert got, (
+        f"got {_kinds(got)}: twelve notes older than one directed chat must never read as "
+        f"'nothing pending' -- the peek must filter skip-kinds BEFORE it decides, and page"
+    )
+    assert "chat" in _kinds(got), (
         f"got {_kinds(got)}: twelve notes older than one directed chat must never read as "
         f"'nothing pending' -- the peek must filter skip-kinds BEFORE it decides, and page"
     )

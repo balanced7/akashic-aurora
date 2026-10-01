@@ -118,4 +118,5 @@ def test_p6_never_raises():
             raise RuntimeError("boom")
 
     s = ev.gauge_snapshot(AGENT, c=Hostile())
-    assert s["heartbeat"] == "offline" and s["pages"] == 0, "P6: hostile client -> quiet snapshot"
+    assert s["heartbeat"] == "offline", "P6: hostile client -> quiet snapshot"
+    assert s["pages"] == 0, "P6: hostile client -> quiet snapshot"

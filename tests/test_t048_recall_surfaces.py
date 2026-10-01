@@ -107,7 +107,8 @@ def test_recall_at_tool_maps_args(monkeypatch):
     assert args[0] == "recall-at"
     assert "--limit" in args
     assert "7" in args
-    assert "--hint-style" in args and "tool" in args, "tool-loop pulls must get tool-shaped hints"
+    assert "--hint-style" in args, "tool-loop pulls must get tool-shaped hints"
+    assert "tool" in args, "tool-loop pulls must get tool-shaped hints"
     assert "--path" in args
 
 

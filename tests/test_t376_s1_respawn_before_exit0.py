@@ -56,9 +56,9 @@ def test_s1_p1_rotation_jitter_is_deterministic_and_in_band():
     # bounded and non-negative
     for organ in ("daemon", "gateway", "ui", "runner", "anything-at-all"):
         d = SR.rotation_jitter_s(organ)
-        assert isinstance(d, (int, float)) and d >= 0.0 and d < 120.0, (
-            f"jitter for {organ!r} out of band [0,120): {d!r}"
-        )
+        assert isinstance(d, (int, float)), f"jitter for {organ!r} out of band [0,120): {d!r}"
+        assert d >= 0.0, f"jitter for {organ!r} out of band [0,120): {d!r}"
+        assert d < 120.0, f"jitter for {organ!r} out of band [0,120): {d!r}"
 
     # pure function of the NAME: distinct organs may (probabilistically) differ,
     # but two DIFFERENT names must never be forced equal by a broken impl that

@@ -18,9 +18,14 @@ def test_draft_has_sections_and_pointers():
     lessons = [{"experiment_name": "write_once_notes_shipped", "recommendation": "record once, reproject"}]
     notes = [SimpleNamespace(id="ADR_1", title="next-focus", decision="FC-01 curator is next")]
     d = agent_cli.build_session_draft(commits, lessons, notes)
-    assert "Shipped:" in d and "Learned:" in d and "Decided / noted:" in d, d
-    assert "(git:abc123)" in d and "(learn:experiment:write_once_notes_shipped)" in d and "(mem:decision:ADR_1)" in d, d
-    assert "ship: one-command gated slice" in d and "next-focus" in d, d
+    assert "Shipped:" in d, d
+    assert "Learned:" in d, d
+    assert "Decided / noted:" in d, d
+    assert "(git:abc123)" in d, d
+    assert "(learn:experiment:write_once_notes_shipped)" in d, d
+    assert "(mem:decision:ADR_1)" in d, d
+    assert "ship: one-command gated slice" in d, d
+    assert "next-focus" in d, d
     print("\n--- draft sections + pointers ---\n  Shipped/Learned/Decided with source pointers OK")
 
 
@@ -45,10 +50,13 @@ def test_write_last_session_draft_to_file():
     lessons = [{"experiment_name": "e1", "recommendation": "r1"}]
     notes = [SimpleNamespace(id="ADR_1", title="next-focus", decision="FC-01")]
     out = agent_cli.write_last_session_draft(path, commits, lessons, notes, trigger="PreCompact")
-    assert out == path and os.path.exists(path), "draft file is written"
+    assert out == path, "draft file is written"
+    assert os.path.exists(path), "draft file is written"
     text = open(path, encoding="utf-8").read()
-    assert "Last-session draft" in text and "PreCompact" in text, text[:120]
-    assert "(git:abc123)" in text and "next-focus" in text, "draft body + pointers present"
+    assert "Last-session draft" in text, text[:120]
+    assert "PreCompact" in text, text[:120]
+    assert "(git:abc123)" in text, "draft body + pointers present"
+    assert "next-focus" in text, "draft body + pointers present"
     # no activity -> no file, returns None (don't write an empty draft)
     p2 = os.path.join(d, "chronicles", "empty.md")
     assert agent_cli.write_last_session_draft(p2, [], [], []) is None

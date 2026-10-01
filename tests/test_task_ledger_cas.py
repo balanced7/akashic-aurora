@@ -158,7 +158,8 @@ def test_rev_advances_on_every_save_not_only_on_propose(path):
     A.transition("T001", TL.APPROVED, by="user", at="t2")
     with open(path, encoding="utf-8") as fh:
         second = json.load(fh)
-    assert first.get("rev") == 1 and second.get("rev") == 2, (first.get("rev"), second.get("rev"))
+    assert first.get("rev") == 1, (first.get("rev"), second.get("rev"))
+    assert second.get("rev") == 2, (first.get("rev"), second.get("rev"))
     assert first["seq"] == second["seq"] == 1, "seq is the id allocator; a transition leaves it"
 
 

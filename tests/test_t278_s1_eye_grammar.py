@@ -74,9 +74,8 @@ def test_p2_malformed_as_of_refuses_with_teaching(db):
     with pytest.raises(ValueError) as e:
         EYE.find(q="fixture", as_of="2026-13-01", db_path=db)
     msg = str(e.value)
-    assert "as_of" in msg and ("ISO" in msg or "YYYY-MM-DD" in msg), (
-        "THE SILENT-EMPTY PIN: the refusal teaches the expected shape"
-    )
+    assert "as_of" in msg, "THE SILENT-EMPTY PIN: the refusal teaches the expected shape"
+    assert "ISO" in msg or "YYYY-MM-DD" in msg, "THE SILENT-EMPTY PIN: the refusal teaches the expected shape"
     with pytest.raises(ValueError):
         EYE.find(q="fixture", as_of="not-a-date", db_path=db)
 

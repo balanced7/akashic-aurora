@@ -77,15 +77,15 @@ def test_k2_an_empty_baseline_is_refused_not_passed():
 def test_k3_a_missing_baseline_file_is_refused(monkeypatch, tmp_path):
     _point_at(monkeypatch, tmp_path)
     ok, msg = pc.ratchet_ok(live={"check_boundaries": 99})
-    assert ok is False and "missing" in msg.lower(), (
-        "a fresh clone had NO enforcement and NO notice -- absence read as success"
-    )
+    assert ok is False, "a fresh clone had NO enforcement and NO notice -- absence read as success"
+    assert "missing" in msg.lower(), "a fresh clone had NO enforcement and NO notice -- absence read as success"
 
 
 def test_k4_ensure_baseline_materialises_a_missing_file_and_says_so(monkeypatch, tmp_path):
     target = _point_at(monkeypatch, tmp_path)
     created, note = pc.ensure_baseline(live={"check_boundaries": 0, "check_kind_policy": 2})
-    assert created is True and note, "materialising in silence would be the same defect"
+    assert created is True, "materialising in silence would be the same defect"
+    assert note, "materialising in silence would be the same defect"
     written = json.loads(open(target, encoding="utf-8").read())["counts"]
     assert written == {"check_boundaries": 0, "check_kind_policy": 2}, (
         "adopt TODAY's debt: a commit cannot be blamed for debt that predates it"

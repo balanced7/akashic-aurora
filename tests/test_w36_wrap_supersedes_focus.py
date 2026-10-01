@@ -85,7 +85,8 @@ def test_p1_stale_focus_retired_with_receipt(mem, capsys):
     assert rc == 0
     out = capsys.readouterr().out
     assert _active_focus(mem) == [], "stale next-focus retired"
-    assert "retired stale next-focus" in out and "ADR_nf_stale" in out, "the retirement is a LOUD receipt, never silent"
+    assert "retired stale next-focus" in out, "the retirement is a LOUD receipt, never silent"
+    assert "ADR_nf_stale" in out, "the retirement is a LOUD receipt, never silent"
     assert any(d.title == "where-we-are" for d in mem.get_decisions(days=1)), "the wrap's own note landed"
 
 
@@ -112,9 +113,8 @@ def test_p4_focus_flag_replaces_not_gaps(mem, capsys):
     rc = agent_cli.cmd_wrap(_wrap(focus="NEW: ship the wave"))
     assert rc == 0
     live = _active_focus(mem)
-    assert len(live) == 1 and "NEW: ship the wave" in live[0].decision, (
-        "--focus supersedes with fresh intent; the slot never gaps"
-    )
+    assert len(live) == 1, "--focus supersedes with fresh intent; the slot never gaps"
+    assert "NEW: ship the wave" in live[0].decision, "--focus supersedes with fresh intent; the slot never gaps"
 
 
 def test_p5_no_focus_no_crash(mem, capsys):

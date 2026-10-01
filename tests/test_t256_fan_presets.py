@@ -110,7 +110,8 @@ def test_parse_is_lenient_about_shape_but_strict_about_presence():
         "REASONING\nbecause\n\nCHECK\nrun it\n\nBLIND\nnothing"
     )
     out = presets.get("findings").parse(messy)
-    assert out["ok"] is True and len(out["findings"]) == 2, out
+    assert out["ok"] is True, out
+    assert len(out["findings"]) == 2, out
 
 
 # ---------------------------------------------------------------- lens plumbing

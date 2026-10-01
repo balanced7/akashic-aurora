@@ -137,7 +137,8 @@ def test_doctor_renders_open_watches_against_the_cap(tmp_path, monkeypatch):
     w = rep["watches"]
     assert (w["open"], w["cap"], w["ids"], w["over"], w["error"]) == (2, 2, [a["id"], b["id"]], False, None)
     assert "watches 2/2" in rep["summary"], "the count rides the one line boot and doctor both print"
-    assert a["id"] in rep["summary"] and b["id"] in rep["summary"], "ids, so the reader knows WHICH"
+    assert a["id"] in rep["summary"], "ids, so the reader knows WHICH"
+    assert b["id"] in rep["summary"], "ids, so the reader knows WHICH"
     assert rep["findings"] == [], "at cap is lawful: the line informs, it does not alarm"
 
 
@@ -150,7 +151,8 @@ def test_doctor_fails_open_on_an_unreadable_ledger(tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_TASKS_PATH", path)
     rep = examine_fleet(["claude"], probes=_hermetic_probes())  # must not raise
     w = rep["watches"]
-    assert w["open"] is None and w["error"], "a corrupt ledger is REPORTED, never raised through a boot"
+    assert w["open"] is None, "a corrupt ledger is REPORTED, never raised through a boot"
+    assert w["error"], "a corrupt ledger is REPORTED, never raised through a boot"
     assert "watches ?/2" in rep["summary"]
     assert "ledger" in rep["summary"]
 

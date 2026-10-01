@@ -117,7 +117,11 @@ def test_a_failed_fetch_can_never_read_as_an_empty_page():
     out = tb.web_fetch("https://this-host-does-not-exist.invalid")
     assert "FETCH FAILED" in out, f"a failure did not announce itself: {out[:160]!r}"
     low = out.lower()
-    assert "not an empty page" in low and "absent" in low, (
+    assert "not an empty page" in low, (
+        "the failure does not distinguish itself from an empty page / an absent subject, which "
+        "is the exact confusion that produced this task"
+    )
+    assert "absent" in low, (
         "the failure does not distinguish itself from an empty page / an absent subject, which "
         "is the exact confusion that produced this task"
     )

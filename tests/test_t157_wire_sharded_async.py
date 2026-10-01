@@ -238,7 +238,8 @@ def test_p7_legacy_journals_stay_readable(tmp_path):
 
     assert str(legacy) in [os.path.abspath(p) for p in j.files()], "files() no longer returns pre-T157 segments"
     agents = {r.get("agent") for r in j.read_all()}
-    assert "old" in agents and "new" in agents, f"legacy records became unreadable after the shard migration: {agents}"
+    assert "old" in agents, f"legacy records became unreadable after the shard migration: {agents}"
+    assert "new" in agents, f"legacy records became unreadable after the shard migration: {agents}"
 
 
 # --------------------------------------------------------------------------- P8

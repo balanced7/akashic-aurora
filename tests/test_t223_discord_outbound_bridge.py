@@ -113,7 +113,8 @@ def test_a_dead_webhook_never_breaks_the_bus():
     """The bridge is a LISTENER on a substrate that must not care about it. A Discord outage
     must not raise into a caller, and must not silently pretend success either."""
     out = DB.forward(_msg(), url="https://example.invalid/hook", post=FakePost(fail=True))
-    assert out.ok is False and out.why, "a failed post must say why"
+    assert out.ok is False, "a failed post must say why"
+    assert out.why, "a failed post must say why"
 
 
 def test_no_url_is_a_configuration_state_not_a_failure():

@@ -109,7 +109,9 @@ def test_p3_different_content_always_delivers(peers):
     sender, _, rcv = peers
     a = sender.send(rcv, "question", "run the fence-lite on 5cb20ea")
     b = sender.send(rcv, "question", "run the fence-lite on 8c23646")
-    assert a and b and a != b, "distinct asks are distinct work and must both deliver"
+    assert a, "distinct asks are distinct work and must both deliver"
+    assert b, "distinct asks are distinct work and must both deliver"
+    assert a != b, "distinct asks are distinct work and must both deliver"
     assert _inbox_len(sender, rcv) == 2
 
 
@@ -119,7 +121,15 @@ def test_p4_same_content_to_a_different_peer_always_delivers(peers):
     other = f"oth{uuid.uuid4().hex[:6]}"
     a = sender.send(rcv, "question", "read the netcode doc and file your plan")
     b = sender.send(other, "question", "read the netcode doc and file your plan")
-    assert a and b and a != b, (
+    assert a, (
+        "the SAME ask to two peers is the fan-out pattern the whole fleet runs on "
+        "(build-plan rounds, census work orders) -- suppression is per RECIPIENT"
+    )
+    assert b, (
+        "the SAME ask to two peers is the fan-out pattern the whole fleet runs on "
+        "(build-plan rounds, census work orders) -- suppression is per RECIPIENT"
+    )
+    assert a != b, (
         "the SAME ask to two peers is the fan-out pattern the whole fleet runs on "
         "(build-plan rounds, census work orders) -- suppression is per RECIPIENT"
     )
@@ -148,7 +158,12 @@ def test_p6_a_vanished_original_always_redelivers(peers):
     sender._client.delete(f"{NS}:inbox:{rcv}")  # original is gone
 
     again = sender.send(rcv, "question", "the ask that got reaped")
-    assert again and again != first, (
+    assert again, (
+        f"STRANDED: the original {first!r} is no longer in the recipient's stream and the "
+        f"re-ask was suppressed anyway ({again!r}). A suppressor that cannot see the "
+        f"original must fail OPEN -- a duplicate costs a turn, a strand costs the work."
+    )
+    assert again != first, (
         f"STRANDED: the original {first!r} is no longer in the recipient's stream and the "
         f"re-ask was suppressed anyway ({again!r}). A suppressor that cannot see the "
         f"original must fail OPEN -- a duplicate costs a turn, a strand costs the work."
@@ -206,7 +221,11 @@ def test_p9_a_redrive_is_never_collapsed(peers):
     sender, _, rcv = peers
     first = sender.send(rcv, "question", "did the fence pass?")
     again = sender.send(rcv, "question", "did the fence pass?", meta={"redrive_of": first, "attempt": 1})
-    assert again and again != first, (
+    assert again, (
+        "REDRIVE COLLAPSED: a deadline redrive is deliberate re-delivery, not an "
+        "impatient re-send. The marker is the difference and it must be honoured."
+    )
+    assert again != first, (
         "REDRIVE COLLAPSED: a deadline redrive is deliberate re-delivery, not an "
         "impatient re-send. The marker is the difference and it must be honoured."
     )
@@ -221,7 +240,11 @@ def test_p10_a_reaper_rehome_is_never_collapsed(peers):
     again = sender.send(
         rcv, "note", "the ask that outlived its seat", meta={"rehomed_from": "claude#dead1234", "original_mid": first}
     )
-    assert again and again != first, (
+    assert again, (
+        "REHOME COLLAPSED: re-homed mail is the rescue path for a dead seat's work. "
+        "Suppressing it stranded the packet twice over."
+    )
+    assert again != first, (
         "REHOME COLLAPSED: re-homed mail is the rescue path for a dead seat's work. "
         "Suppressing it stranded the packet twice over."
     )

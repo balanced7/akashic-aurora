@@ -127,9 +127,8 @@ def test_h1_failed_send_does_not_poison_retry_marker(isolated_bus, monkeypatch):
 
     monkeypatch.setattr(Bus, "send", real_send)
     second = reaper.reap(ns, client=client)
-    assert len(second) == 1 and second[0].get("rehomed_mid"), (
-        "a transient send failure must remain retryable on the next pass"
-    )
+    assert len(second) == 1, "a transient send failure must remain retryable on the next pass"
+    assert second[0].get("rehomed_mid"), "a transient send failure must remain retryable on the next pass"
 
 
 def test_h2_rehome_preserves_original_asker_and_is_answerable(isolated_bus):
@@ -141,7 +140,8 @@ def test_h2_rehome_preserves_original_asker_and_is_answerable(isolated_bus):
     records = reaper.reap(ns, client=client)
     fields = _role_rehome_fields(client, ns, original_mid)
 
-    assert records and fields, "the recovered packet must be present on the role delivery path"
+    assert records, "the recovered packet must be present on the role delivery path"
+    assert fields, "the recovered packet must be present on the role delivery path"
     frm = str(fields.get("frm") or "")
     kind = str(fields.get("kind") or "")
     assert frm == "real_sender", (
@@ -188,12 +188,21 @@ def test_h4_original_clock_drives_stale_gate_after_rehome(isolated_bus):
     records = reaper.reap(ns, client=client)
     messages = Bus(AGENT, namespace=ns).inbox(limit=20, advance=False)
     recovered = [m for m in messages if str((getattr(m, "meta", {}) or {}).get("original_mid") or "") == original_mid]
-    assert records and recovered, "precondition: the old request must be re-homed"
+    assert records, "precondition: the old request must be re-homed"
+    assert recovered, "precondition: the old request must be re-homed"
 
     fresh, stale_asks, stale_skips = packet_spec.partition_stale(
         recovered, now_ms=int(time.time() * 1000), stale_ms=6 * 3600 * 1000
     )
-    assert not fresh and len(stale_asks) == 1 and not stale_skips, (
+    assert not fresh, (
+        "the re-home got a fresh stream id and bypassed the 6h stale-ask gate; "
+        "meta.original_ts/original_mid is currently ignored downstream"
+    )
+    assert len(stale_asks) == 1, (
+        "the re-home got a fresh stream id and bypassed the 6h stale-ask gate; "
+        "meta.original_ts/original_mid is currently ignored downstream"
+    )
+    assert not stale_skips, (
         "the re-home got a fresh stream id and bypassed the 6h stale-ask gate; "
         "meta.original_ts/original_mid is currently ignored downstream"
     )
@@ -207,7 +216,8 @@ def test_h5_full_session_tombstone_reaches_sid8_roster_row(isolated_bus):
     client.set(f"{ns}:session:ended:{SID}", str(time.time()), ex=3600)
 
     rows = [row for row in roster.roster(ns, client=client) if row.get("seat") == f"{AGENT}#{SID[:8]}"]
-    assert rows and rows[0].get("state") == "LIVE", (
+    assert rows, "precondition: worklive is still present, so only the durable tombstone proves death"
+    assert rows[0].get("state") == "LIVE", (
         "precondition: worklive is still present, so only the durable tombstone proves death"
     )
     assert rows[0].get("full_sid") == SID, (

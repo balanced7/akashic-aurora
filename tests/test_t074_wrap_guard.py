@@ -53,13 +53,12 @@ def test_w7_mechanical_wrap_refuses_to_clobber_curated(monkeypatch, capsys):
     rc = agent_cli.cmd_wrap(_args())
     out = capsys.readouterr().out
     assert rc == 1, "W7: the guarded wrap must refuse, loudly, not exit clean"
-    assert "CURATED" in out and "--force" in out and "--title" in out, (
-        f"W7: the refusal must teach both escape hatches, got: {out}"
-    )
+    assert "CURATED" in out, f"W7: the refusal must teach both escape hatches, got: {out}"
+    assert "--force" in out, f"W7: the refusal must teach both escape hatches, got: {out}"
+    assert "--title" in out, f"W7: the refusal must teach both escape hatches, got: {out}"
     after = _head(mem, "where-we-are")
-    assert after.id == before.id and after.decision == "HAND-CURATED HANDOFF: precious", (
-        "W7: nothing may be written on refusal"
-    )
+    assert after.id == before.id, "W7: nothing may be written on refusal"
+    assert after.decision == "HAND-CURATED HANDOFF: precious", "W7: nothing may be written on refusal"
 
 
 # ---------------------------------------------------------------- W8 --force
@@ -100,4 +99,5 @@ def test_r8_focus_note_is_curated(monkeypatch):
     rc = agent_cli.cmd_wrap(_args(commit=True, focus="T074 Phase 3 next"))
     assert rc == 0
     nf = _head(mem, "next-focus")
-    assert nf is not None and nf.curated is True, "R8: setting the directive is a deliberate act"
+    assert nf is not None, "R8: setting the directive is a deliberate act"
+    assert nf.curated is True, "R8: setting the directive is a deliberate act"

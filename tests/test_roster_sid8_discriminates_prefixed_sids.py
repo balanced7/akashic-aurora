@@ -119,7 +119,8 @@ def test_p0_one_derivation_byte_identical_for_every_existing_shape():
     )
     assert sid8(SID_A) == A8, f"'session-<uuid>' must yield the uuid's hex head, got {sid8(SID_A)!r}"
     assert sid8(sid8(SID_A)) == sid8(SID_A), "idempotent: a tail parsed from a key derives to itself"
-    assert sid8("") == "" and sid8(None) == "", "empty in, empty out (no seat -> no key)"
+    assert sid8("") == "", "empty in, empty out (no seat -> no key)"
+    assert sid8(None) == "", "empty in, empty out (no seat -> no key)"
 
 
 def test_p1_two_prefixed_seats_render_two_rows():
@@ -179,7 +180,10 @@ def test_p4_eye_standpoint_is_per_incarnation():
     _as_seat(SID_B)
     other = whoami(AGENT)
     assert me == f"{AGENT}#{A8}", f"the eye keys a standpoint by the hex head, got {me!r}"
-    assert other == f"{AGENT}#{B8}" and other != me, (
+    assert other == f"{AGENT}#{B8}", (
+        f"two web seats must never share one standpoint (they would poison each other's `since=`): {me!r} vs {other!r}"
+    )
+    assert other != me, (
         f"two web seats must never share one standpoint (they would poison each other's `since=`): {me!r} vs {other!r}"
     )
 
@@ -216,7 +220,8 @@ def test_p6_one_derivation_lives_in_seat_identity_and_bus_reexports_it():
 
     assert busmod.sid8 is si.sid8
     uid = si.unknown_id("session-7ed91e83-1111-2222-3333-444444444444")
-    assert uid.endswith("7ed91e83") and not uid.endswith("session-"), uid
+    assert uid.endswith("7ed91e83"), uid
+    assert not uid.endswith("session-"), uid
 
 
 def test_p7_a_nested_scheme_strips_to_the_hex_head():

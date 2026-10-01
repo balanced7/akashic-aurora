@@ -90,7 +90,8 @@ def main():
         )
         after = len(ls.load_all_learnings_from_store())
         print(f"\n[3] persist new learning -> ok={ok}, count {before} -> {after}")
-        assert ok and after == before + 1, "new learning did not index"
+        assert ok, "new learning did not index"
+        assert after == before + 1, "new learning did not index"
         print("    new learning indexed OK")
 
         # 4) search

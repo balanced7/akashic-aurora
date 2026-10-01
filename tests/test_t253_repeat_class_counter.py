@@ -76,7 +76,8 @@ def test_a_repeat_captures_elapsed_time_since_the_original(store):
     Today's worst case was minutes, against a lesson read at boot that morning.
     """
     r = store.record_repeat(of="the_original_lesson", agent_id="claude", what="again", recall_outcome="fired")
-    assert "elapsed_s" in r and isinstance(r["elapsed_s"], (int, float)), r
+    assert "elapsed_s" in r, r
+    assert isinstance(r["elapsed_s"], (int, float)), r
     assert r["elapsed_s"] >= 0
 
 
@@ -137,7 +138,8 @@ def test_the_report_ranks_lessons_by_how_often_they_were_violated(store):
     store.record_repeat(of="second_lesson", agent_id="claude", what="y", recall_outcome="fired")
 
     top = store.repeat_report()["most_violated"]
-    assert top[0][0] == "the_original_lesson" and top[0][1] == 3, top
+    assert top[0][0] == "the_original_lesson", top
+    assert top[0][1] == 3, top
 
 
 def test_recording_a_repeat_does_not_create_a_new_lesson(store):

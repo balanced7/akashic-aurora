@@ -157,7 +157,8 @@ def _ask_json(capsys, *extra):
 def test_a_json_caller_gets_a_discoverable_warning_when_evidence_was_clipped(capsys, wire):
     """THE PIN. bus.py is ~80k chars against a 40k budget, so this always clips."""
     d, rc, _ = _ask_json(capsys, "--with", BUS)
-    assert rc == 0 and wire.calls == 1, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert wire.calls == 1, "precondition: the fake wire answered through the real door"
     assert (d.get("context") or {}).get("truncated") is True, "precondition: it clipped"
     warnings = d.get("warnings")
     assert warnings, (
@@ -174,7 +175,8 @@ def test_a_clean_run_carries_no_warnings(capsys, wire):
     """Noise on clean runs gets filtered out mentally, and that is how the real one is missed.
     An empty or absent list on a clean call, never a placeholder."""
     d, rc, _ = _ask_json(capsys, "--with", CLEAN)
-    assert rc == 0 and wire.calls == 1, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert wire.calls == 1, "precondition: the fake wire answered through the real door"
     assert (d.get("context") or {}).get("truncated") is False, "precondition: fits the budget"
     assert not d.get("warnings")
 
@@ -183,5 +185,6 @@ def test_the_human_path_still_prints_to_stderr(capsys, wire):
     """REGRESSION. The machine channel is ADDITIVE -- T218's stderr notice is what a person
     reads, and gaining a field must not cost the line."""
     rc, out, err = _run_cli(capsys, "--with", BUS, "reply with just: OK")
-    assert rc == 0 and "ANSWER" in out, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert "ANSWER" in out, "precondition: the fake wire answered through the real door"
     assert "CLIPPED" in (err or ""), "the human notice regressed"

@@ -48,9 +48,8 @@ def test_b1_fourth_call_refused(monkeypatch):
         out = box.ask_clarification(f"question {i}?")
         assert "REFUSED" not in out
     out4 = box.ask_clarification("one too many?")
-    assert "REFUSED" in out4 and "best judgment" in out4, (
-        "B1: the call past the budget refuses with proceed-with-assumption guidance"
-    )
+    assert "REFUSED" in out4, "B1: the call past the budget refuses with proceed-with-assumption guidance"
+    assert "best judgment" in out4, "B1: the call past the budget refuses with proceed-with-assumption guidance"
     assert len(fake.sent) == dc.CLARIFY_MAX_PER_TASK, "B1: the refused call never sends"
 
 
@@ -58,7 +57,8 @@ def test_b1_fourth_call_refused(monkeypatch):
 def test_b2_bus_offline_returns_error(monkeypatch):
     box, _ = _box(monkeypatch, bus=None)
     out = box.ask_clarification("anyone there?")
-    assert out.startswith("ERROR") and "bus" in out.lower(), "B2: Redis down -> error string, never a crash"
+    assert out.startswith("ERROR"), "B2: Redis down -> error string, never a crash"
+    assert "bus" in out.lower(), "B2: Redis down -> error string, never a crash"
 
 
 # ------------------------------------------------ B3: directed-send shape
@@ -70,9 +70,8 @@ def test_b3_directed_to_user_with_clarify_meta(monkeypatch):
     m = fake.sent[0]
     assert m["to"] == "user", "B3: DIRECTED to the human operator only"
     assert m["kind"] == "request"
-    assert m["meta"].get("kind") == "clarify" and m["meta"].get("clarify_id"), (
-        "B3: meta carries kind=clarify + a clarify_id for the answer fold"
-    )
+    assert m["meta"].get("kind") == "clarify", "B3: meta carries kind=clarify + a clarify_id for the answer fold"
+    assert m["meta"].get("clarify_id"), "B3: meta carries kind=clarify + a clarify_id for the answer fold"
     assert "CLARIFICATION:" in m["content"]
     assert "frobnicator" in m["content"]
 

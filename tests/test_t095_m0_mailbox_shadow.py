@@ -383,7 +383,10 @@ def test_cursor_advance_during_mailbox_read_consistent():
     mbx.query(NS, "deepseek", client=fake)
     lane_reads = [k for k in fake.cursor_hgetall_calls if k == f"{NS}:cursor:lane:deepseek"]
     legacy_reads = [k for k in fake.cursor_hgetall_calls if k == f"{NS}:cursor:deepseek"]
-    assert len(lane_reads) == 1 and len(legacy_reads) == 1, (
+    assert len(lane_reads) == 1, (
+        f"cursors must be read once per query (snapshot semantics); got {fake.cursor_hgetall_calls}"
+    )
+    assert len(legacy_reads) == 1, (
         f"cursors must be read once per query (snapshot semantics); got {fake.cursor_hgetall_calls}"
     )
 

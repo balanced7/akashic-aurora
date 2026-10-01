@@ -335,7 +335,8 @@ def test_dsh_epoch_milliseconds_parse():
     from core.eye.index import _event_from
 
     ev = _event_from(DSH_OPERATOR)
-    assert ev is not None and ev["ts"], "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
+    assert ev is not None, "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
+    assert ev["ts"], "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
     # 1790300029000 ms -> 2026-09-24 local. Assert the year rather than an exact instant.
     from datetime import datetime
 

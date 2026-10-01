@@ -91,7 +91,8 @@ def test_warning_stays_quiet_until_the_cliff_is_close():
 
 def test_warning_names_the_days_and_the_fix_when_close():
     warn = DI.credential_warning(3.0)
-    assert warn and "3" in warn, warn
+    assert warn, warn
+    assert "3" in warn, warn
     assert "setup-token" in warn.lower() or "login" in warn.lower(), warn
 
 

@@ -80,7 +80,8 @@ def test_migration_pin_key_is_cas_guarded_per_name(mem):
     a, b = [], []
     mem.run_migration_once("mig-a", lambda: a.append(1))
     mem.run_migration_once("mig-b", lambda: b.append(1))
-    assert a == [1] and b == [1], "pin keys are per-name, not global"
+    assert a == [1], "pin keys are per-name, not global"
+    assert b == [1], "pin keys are per-name, not global"
 
 
 def test_chain_warning_boundary_51_not_49(mem):

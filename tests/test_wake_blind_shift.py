@@ -117,7 +117,8 @@ def test_b1_bus_dying_mid_shift_ends_the_watch_loudly(tmp_path, monkeypatch, cap
 
     # B2: the report must distinguish unobserved from absent. "nothing lost" is the sentence a
     # QUIET shift prints; a blind shift printing it is the entire defect.
-    assert "SHIFT TRUNCATED" in out and "unobserved, not absent" in out, (
+    assert "SHIFT TRUNCATED" in out, "B2: a truncated shift must say so, in the vocabulary of unobserved-vs-absent"
+    assert "unobserved, not absent" in out, (
         "B2: a truncated shift must say so, in the vocabulary of unobserved-vs-absent"
     )
     assert "nothing lost" not in out, "B2: a blind shift must never borrow the quiet shift's reassurance"

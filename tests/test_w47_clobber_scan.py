@@ -50,9 +50,8 @@ def test_p2b_guard_does_not_leak_across_defs():
         "def guarded():\n    was_paused = control.is_paused()\n    control.pause()\ndef naked():\n    control.pause()\n"
     )
     findings = cs.scan(text)
-    assert len(findings) == 1 and findings[0]["line_no"] == 5, (
-        "def resets guard scope -- the second function's bare pause still flags"
-    )
+    assert len(findings) == 1, "def resets guard scope -- the second function's bare pause still flags"
+    assert findings[0]["line_no"] == 5, "def resets guard scope -- the second function's bare pause still flags"
 
 
 def test_p3_non_control_write_ignored():
@@ -81,7 +80,8 @@ def test_p5_live_storm_block_reads_clean():
     # isolate the storm ceremony: from '_was_paused = control.is_paused()' to '_storm.reset()'
     start = src.find("_was_paused = control.is_paused()")
     end = src.find("_storm.reset()", start)
-    assert start > 0 and end > start, "storm ceremony markers present in the runner"
+    assert start > 0, "storm ceremony markers present in the runner"
+    assert end > start, "storm ceremony markers present in the runner"
     block = "def _storm_ceremony():\n" + src[start:end]
     pause_hits = [f for f in cs.scan(block) if cs._surface(f["family"]) == "pause"]
     assert pause_hits == [], (

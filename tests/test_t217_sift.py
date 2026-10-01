@@ -69,8 +69,10 @@ def test_evidence_pack_runs_on_the_real_repo():
     pack = sift.evidence_pack("drained")
     assert pack.occurrences, "no real usages of a term known to span 6 files"
     for o in pack.occurrences[:20]:
-        assert isinstance(o["line"], int) and o["line"] > 0, f"bad line number: {o}"
-        assert o["file"] and not o["file"].startswith("b'"), f"undecoded path: {o}"
+        assert isinstance(o["line"], int), f"bad line number: {o}"
+        assert o["line"] > 0, f"bad line number: {o}"
+        assert o["file"], f"undecoded path: {o}"
+        assert not o["file"].startswith("b'"), f"undecoded path: {o}"
 
 
 def test_vendored_vocabulary_never_enters_the_corpus():
@@ -156,7 +158,8 @@ def test_junction_pack_shows_writer_and_reader_together():
     pack = sift.junction_pack("drained", corpus=corpus)
     assert pack.junctions, "found no writer/reader pair for a term that plainly has one"
     j = pack.junctions[0]
-    assert j["writes"] and j["reads"], "a junction needs BOTH sides or it is not a junction"
+    assert j["writes"], "a junction needs BOTH sides or it is not a junction"
+    assert j["reads"], "a junction needs BOTH sides or it is not a junction"
     wf = {w["file"] for w in j["writes"]}
     rf = {r["file"] for r in j["reads"]}
     assert "producer.py" in wf
@@ -284,9 +287,8 @@ def test_flip_rate_refuses_when_evidence_hashes_differ():
     out = sift.compare_dossiers([d1, d2])
     assert out["flip_rate"] is None, "computed a rate over inputs that were not identical"
     assert out["refused"], "refused silently -- the caller cannot tell a refusal from agreement"
-    assert "aaaaaaaa" in out["refused"] and "bbbbbbbb" in out["refused"], (
-        "refusal must name BOTH hashes so the divergence is locatable"
-    )
+    assert "aaaaaaaa" in out["refused"], "refusal must name BOTH hashes so the divergence is locatable"
+    assert "bbbbbbbb" in out["refused"], "refusal must name BOTH hashes so the divergence is locatable"
 
 
 def test_flip_rate_computes_when_hashes_match():
@@ -475,9 +477,8 @@ def test_aggregate_is_three_state_never_binary():
     # success -- that trap hit twice in one hour on 2026-08-05 (a timeout rendered as
     # CLOSED.ECHO because the CLI echo-branch tested o.ok). Truthiness is the safe test.
     assert part.ok == full.ok, "precondition: .ok cannot separate partial from done"
-    assert bool(part) is False and bool(full) is True, (
-        "a partial must be FALSY so callers that ignore partiality fail closed"
-    )
+    assert bool(part) is False, "a partial must be FALSY so callers that ignore partiality fail closed"
+    assert bool(full) is True, "a partial must be FALSY so callers that ignore partiality fail closed"
 
 
 def test_no_silent_caps():

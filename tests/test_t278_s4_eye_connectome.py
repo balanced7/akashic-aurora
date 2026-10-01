@@ -87,9 +87,8 @@ def test_p1b_downstream_returns_descendants(db):
     t = CONN.trace(f"{G}:1", db_path=db)  # u1, the root
     assert [d["event_id"] for d in t["downstream"]] == [f"{G}:2", f"{G}:5", f"{G}:6", f"{G}:7", f"{G}:9"]
     assert t["upstream"] == [], "the root has no ancestors -- empty, not fabricated"
-    assert t["degraded"] is True and t["edges_inferred"] == 1, (
-        "reaching the orphan cost one guess, and the envelope charges for it"
-    )
+    assert t["degraded"] is True, "reaching the orphan cost one guess, and the envelope charges for it"
+    assert t["edges_inferred"] == 1, "reaching the orphan cost one guess, and the envelope charges for it"
 
 
 # ---------------------------------------------------------------- P2: the utterance set
@@ -112,9 +111,8 @@ def test_p3_queued_operator_speech_reaches_the_recorded_chain(db):
         "hops to the twin (line 5), then walks the twin's recorded ancestry"
     )
     bridge = [u for u in t["upstream"] if u["edge_kind"] == "same_utterance"]
-    assert bridge == [] and t["bridged_via"] == f"{G}:5", (
-        "the bridge is named in the envelope, not smuggled into the ancestor list"
-    )
+    assert bridge == [], "the bridge is named in the envelope, not smuggled into the ancestor list"
+    assert t["bridged_via"] == f"{G}:5", "the bridge is named in the envelope, not smuggled into the ancestor list"
     # PIN CORRECTED during the build: v1 asserted degraded is False for the whole envelope,
     # but this walk's DOWNSTREAM legitimately reaches the orphan across an inferred edge.
     # The claim being pinned is narrower and is the one that matters: crossing the bridge
@@ -183,9 +181,8 @@ def test_p6_pre_contract_edges_are_flagged_never_dropped_never_backfilled(db):
 
     # no sentinel backfill -- rewriting history is the fossil class
     raw = [e for e in CONN.edges(db_path=db) if e["formed_via"] is None]
-    assert len(raw) == 1 and raw[0]["formed_by"] is None, (
-        "the pre-contract edge stays exactly as unlabelled as it was found"
-    )
+    assert len(raw) == 1, "the pre-contract edge stays exactly as unlabelled as it was found"
+    assert raw[0]["formed_by"] is None, "the pre-contract edge stays exactly as unlabelled as it was found"
 
 
 def test_p6b_unfiltered_walk_does_not_flag_pre_contract(db):

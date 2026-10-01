@@ -291,12 +291,10 @@ def test_peek_counters_carry_numerator_and_denominator(tmp_path):
                 "disagreement_rate",
             ):
                 assert isinstance(val, dict), f"rate '{key}' must be a dict, got {val!r}"
-                assert "numerator" in val and "denominator" in val, (
-                    f"rate '{key}' must carry numerator AND denominator, got {val!r}"
-                )
-                assert isinstance(val["numerator"], int) and isinstance(val["denominator"], int), (
-                    f"rate '{key}' components must be integers, got {val!r}"
-                )
+                assert "numerator" in val, f"rate '{key}' must carry numerator AND denominator, got {val!r}"
+                assert "denominator" in val, f"rate '{key}' must carry numerator AND denominator, got {val!r}"
+                assert isinstance(val["numerator"], int), f"rate '{key}' components must be integers, got {val!r}"
+                assert isinstance(val["denominator"], int), f"rate '{key}' components must be integers, got {val!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +400,8 @@ def test_disagreement_ranks_before_agreement_independent_of_order(tmp_path):
     got = reader.peek(subject="s", purpose="p", limit=10)
     rows = got["rows"]
     states = [r.get("state") for r in rows]
-    assert "disagreement" in states and "agreement" in states, states
+    assert "disagreement" in states, states
+    assert "agreement" in states, states
     assert states.index("disagreement") < states.index("agreement"), (
         "disagreement must precede agreement regardless of insertion order, got " + str(states)
     )

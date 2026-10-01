@@ -126,7 +126,12 @@ def test_p5_claim_state_is_a_projection_of_the_durable_layer():
     a = rq.claim_next(NS + "p", AGENT, SEAT_A, block_ms=0)
     assert a is not None
     st = rq.claim_state(NS + "p", AGENT, mid)
-    assert st and st.get("claimed_by") == SEAT_A, (
+    assert st, (
+        f"PROJECTION missing: claim state not readable from the durable layer (got {st}) -- "
+        f"per the Sol amendment, claims live in stream PEL + fence records and any fresh "
+        f"reader must see them; the mailbox projects, never owns"
+    )
+    assert st.get("claimed_by") == SEAT_A, (
         f"PROJECTION missing: claim state not readable from the durable layer (got {st}) -- "
         f"per the Sol amendment, claims live in stream PEL + fence records and any fresh "
         f"reader must see them; the mailbox projects, never owns"

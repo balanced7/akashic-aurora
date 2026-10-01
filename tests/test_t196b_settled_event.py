@@ -115,9 +115,8 @@ def test_linked_settle_emits_once_with_both_ids(pair, monkeypatch):
     assert sender == s
     assert oid == orig
     assert rid, "the answering message id rides along -- the readout's answer pointer"
-    assert isinstance(rec, dict) and rec.get("to") == r, (
-        "the record (with created/attempt) is handed to the emit BEFORE deletion"
-    )
+    assert isinstance(rec, dict), "the record (with created/attempt) is handed to the emit BEFORE deletion"
+    assert rec.get("to") == r, "the record (with created/attempt) is handed to the emit BEFORE deletion"
 
 
 # --- P3: the FIFO-fallback settle fires the same seam ---
@@ -152,9 +151,8 @@ def test_event_shape_kind_refs_created(pair, monkeypatch):
     assert len(settled) == 1, "kind is expectation_settled_answered"
     _kind, _summary, kw = settled[0]
     refs = kw.get("refs") or []
-    assert len(refs) == 2 and refs[0] == str(orig), (
-        "refs = [ask id, answer id], ask FIRST (stable order: attribution depends on it)"
-    )
+    assert len(refs) == 2, "refs = [ask id, answer id], ask FIRST (stable order: attribution depends on it)"
+    assert refs[0] == str(orig), "refs = [ask id, answer id], ask FIRST (stable order: attribution depends on it)"
     detail = kw.get("detail") or {}
     assert detail.get("created"), (
         "created rides the terminal event: the record is deleted at settle, so episode "

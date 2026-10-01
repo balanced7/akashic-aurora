@@ -235,9 +235,8 @@ def test_m1_p11_pre_existing_lock_refused_no_steal(tmp_path):
     try:
         code, out = _await_exit(proc, timeout=20)
         assert code == 0, f"P11: refusal must exit 0 (benign, operator-facing); got {code}\n{out}"
-        assert "refused" in out.lower() and "no steal" in out.lower(), (
-            f"P11: refusal provenance line missing from stdout:\n{out}"
-        )
+        assert "refused" in out.lower(), f"P11: refusal provenance line missing from stdout:\n{out}"
+        assert "no steal" in out.lower(), f"P11: refusal provenance line missing from stdout:\n{out}"
         rec = json.loads(_C.get(_lock_key(ns, agent)))
         assert rec == foreign, "P11: the daemon touched a lock it refused (steal or clobber)"
     finally:
@@ -260,7 +259,8 @@ def test_m1_p12_stable_token_reused_generation_increments(tmp_path):
         m = up_re.search(out)
         assert m, f"P12: no '[daemon] up ... token= gen=' line in stdout:\n{out}"
         assert code == 0, f"P12: max-runtime exit must be benign 0; got {code}\n{out}"
-        assert "clean exit" in out and "lock released" in out, f"P12: clean-exit provenance missing:\n{out}"
+        assert "clean exit" in out, f"P12: clean-exit provenance missing:\n{out}"
+        assert "lock released" in out, f"P12: clean-exit provenance missing:\n{out}"
         return m.group(1), int(m.group(2)), out
 
     tok1, gen1, _ = run_once()

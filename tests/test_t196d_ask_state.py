@@ -112,7 +112,8 @@ def test_states_are_the_spec_seven():
     assert set(ask_state.STATES) == SEVEN
     for name, (terminal, should) in ask_state.STATES.items():
         assert isinstance(terminal, bool)
-        assert should and isinstance(should, str), f"{name} must answer 'what now?'"
+        assert should, f"{name} must answer 'what now?'"
+        assert isinstance(should, str), f"{name} must answer 'what now?'"
 
 
 # --- P2: OPEN.DISPATCHED -- armed, nothing observable happened ---
@@ -246,6 +247,7 @@ def test_door_wired():
     cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
     # The ASK parser specifically -- a bare '"--status"' grep matched other verbs' flags
     # and made this pin green before the build, which is no pin at all.
-    assert re.search(r'ask_p\.add_argument\(\s*"--status"', cli) and re.search(
-        r'ask_p\.add_argument\(\s*"--as"', cli
-    ), "ask --status <id> --as <sender> renders the state row"
+    assert re.search(r'ask_p\.add_argument\(\s*"--status"', cli), (
+        "ask --status <id> --as <sender> renders the state row"
+    )
+    assert re.search(r'ask_p\.add_argument\(\s*"--as"', cli), "ask --status <id> --as <sender> renders the state row"

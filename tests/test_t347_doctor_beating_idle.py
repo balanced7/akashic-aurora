@@ -85,10 +85,10 @@ def test_p2_runner_beat_only_earns_the_third_state_naming_both_signals():
     )
     line = hits[0].get("line", "").lower()
     # T282: a verdict names the signals it keyed on — both of them.
-    assert "beat" in line and "pulse" in line, "the third state must name BOTH signals: fresh beat, dead/absent pulse"
-    assert "alive" in line and "working" in line, (
-        "the third state must say the discriminating sentence: alive is not working"
-    )
+    assert "beat" in line, "the third state must name BOTH signals: fresh beat, dead/absent pulse"
+    assert "pulse" in line, "the third state must name BOTH signals: fresh beat, dead/absent pulse"
+    assert "alive" in line, "the third state must say the discriminating sentence: alive is not working"
+    assert "working" in line, "the third state must say the discriminating sentence: alive is not working"
 
 
 def test_p3_true_seat_beat_still_retracts():

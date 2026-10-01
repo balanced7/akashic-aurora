@@ -75,7 +75,8 @@ def test_render_iso_same_instant_both_frames():
     # each rendered string (strip label -> not required parseable) is out of scope;
     # the door must at minimum not raise and not return identical strings on a
     # non-UTC box unless local IS utc.
-    assert u and l, "both frames must render"
+    assert u, "both frames must render"
+    assert l, "both frames must render"
 
 
 # -- (3) the naive-LOCAL stamper class is retired -----------------------------

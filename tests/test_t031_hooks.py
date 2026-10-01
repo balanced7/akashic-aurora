@@ -63,7 +63,8 @@ def fake_pin():
 
 def test_h2_new_pin_with_source_fails(fake_pin):
     rc, out = _run(_H2, "RB-99 impl + pins in one go", fake_pin, "core/comm/bus.py")
-    assert rc == 1 and "M3" in out, "a NEW pre-registered pin file shipping WITH source is the M3 violation"
+    assert rc == 1, "a NEW pre-registered pin file shipping WITH source is the M3 violation"
+    assert "M3" in out, "a NEW pre-registered pin file shipping WITH source is the M3 violation"
 
 
 def test_h2_registration_only_passes(fake_pin):
@@ -88,7 +89,8 @@ def test_h2_no_tests_staged_passes():
 
 def test_h4_gate_language_without_citation_fails():
     rc, out = _run(_H4, "RB-99 landed: deepseek GATE GREEN, all pins pass")
-    assert rc == 1 and "docs/library/report" in out, (
+    assert rc == 1, "a GATE decision must cite its persisted verbatim record (M6; atom-era home post-P3)"
+    assert "docs/library/report" in out, (
         "a GATE decision must cite its persisted verbatim record (M6; atom-era home post-P3)"
     )
 

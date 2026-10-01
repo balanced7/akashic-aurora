@@ -166,7 +166,10 @@ def test_p5_partial_and_no_one_voice_consensus(tmp_path):
     m = tl.matrix(opening, [c1, c2])
     assert m["status"]["Q1"] == "partial", "a silent author makes the row partial"
     one = tl.matrix(opening, [c1])
-    assert one["status"]["B1"] == "partial" and one["status"]["Q1"] == "partial", (
+    assert one["status"]["B1"] == "partial", (
+        "ONE VOICE never reads AGREE -- 2-of-3 cannot be pronounced from a single counter"
+    )
+    assert one["status"]["Q1"] == "partial", (
         "ONE VOICE never reads AGREE -- 2-of-3 cannot be pronounced from a single counter"
     )
 

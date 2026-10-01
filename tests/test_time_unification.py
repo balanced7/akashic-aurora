@@ -107,7 +107,8 @@ def test_reinforce_decay_unaffected_for_naive():
     g.reinforce("a", "b", now="2026-01-01T00:00:00")
     s0 = g.strength("a", "b", now="2026-01-01T00:00:00")
     s1 = g.strength("a", "b", now="2026-01-01T01:00:00")  # one half-life later
-    assert s1 < s0 and abs(s1 - s0 * 0.5) < 1e-6, "half-life decay still correct on naive iso"
+    assert s1 < s0, "half-life decay still correct on naive iso"
+    assert abs(s1 - s0 * 0.5) < 1e-6, "half-life decay still correct on naive iso"
 
 
 if __name__ == "__main__":

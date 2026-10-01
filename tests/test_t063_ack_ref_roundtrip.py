@@ -41,7 +41,8 @@ def test_mailbox_sha_prefix_resolves_and_acks():
     ns = sender.ns
     mailbox.catch_up(ns, AGENT)
     hit = mailbox.explain(ns, AGENT, mid)  # OUR entry, located by stream id
-    assert hit.get("available") and hit.get("found"), f"mailbox must index the handoff: {hit}"
+    assert hit.get("available"), f"mailbox must index the handoff: {hit}"
+    assert hit.get("found"), f"mailbox must index the handoff: {hit}"
     sha_ref = str(hit["sha"])[:10]  # exactly what the mailbox renders
 
     from core.comm.promoter import ack, ack_verdict, resolve_ack_ref

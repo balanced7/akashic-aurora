@@ -358,7 +358,8 @@ def test_c5_expert_reports_nothing_as_clean_not_as_broken(tmp_path):
             usage={"prompt_cache_hit_tokens": 9, "prompt_cache_miss_tokens": 1},
         )
     sev = {s for s, _, _ in j.expert()}
-    assert "error" not in sev and "warn" not in sev, f"clean traffic produced {j.expert()}"
+    assert "error" not in sev, f"clean traffic produced {j.expert()}"
+    assert "warn" not in sev, f"clean traffic produced {j.expert()}"
 
 
 def test_c6_agent_scope_isolates(tmp_path):

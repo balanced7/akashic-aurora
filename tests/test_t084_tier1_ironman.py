@@ -62,7 +62,8 @@ def test_ir3_p4_split_into_multiple_calls():
     """Both descriptions must advise splitting large work."""
     for name in ("write_file", "edit_file"):
         desc = _tool_desc(name)
-        assert "split" in desc.lower() and "multiple" in desc.lower(), f"{name} must advise splitting: {desc}"
+        assert "split" in desc.lower(), f"{name} must advise splitting: {desc}"
+        assert "multiple" in desc.lower(), f"{name} must advise splitting: {desc}"
 
 
 # ------------------------------------------------------------------ IR-6 research_note

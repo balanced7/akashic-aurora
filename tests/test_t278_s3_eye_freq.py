@@ -51,9 +51,8 @@ def db(tmp_path):
 def test_p1_single_phrase_counts_and_voices(db):
     r = EYE.freq(["fixture sword"], db_path=db)
     assert r["events_total"] == 3, "operator original + two agent echoes"
-    assert r["operator_events"] == 1 and r["sessions"] == 1, (
-        "the axis counts HIS voice and HIS sessions; agent echoes never inflate it"
-    )
+    assert r["operator_events"] == 1, "the axis counts HIS voice and HIS sessions; agent echoes never inflate it"
+    assert r["sessions"] == 1, "the axis counts HIS voice and HIS sessions; agent echoes never inflate it"
     assert r["by_voice"] == {"agent": 2, "operator": 1}
     assert r["first_ts"] is not None
     assert r["last_ts"] >= r["first_ts"]
@@ -81,9 +80,8 @@ def test_p3_per_session_refs(db):
 
 def test_p4_queue_operation_rides_the_operator_axis(db):
     r = EYE.freq(["fixture progress"], db_path=db)
-    assert r["events_total"] == 2 and r["operator_events"] == 2, (
-        "the queue-operation record counts as operator speech (the law)"
-    )
+    assert r["events_total"] == 2, "the queue-operation record counts as operator speech (the law)"
+    assert r["operator_events"] == 2, "the queue-operation record counts as operator speech (the law)"
     assert r["by_voice"].get("operator", 0) == 2
     assert r["events_total"] >= r["operator_events"]
 
@@ -111,5 +109,6 @@ def test_p5b_standing_directive_threshold(tmp_path):
     dbp = tmp_path / "eye.db"
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=dbp)
     r = EYE.freq(["fixture sword"], db_path=dbp)
-    assert r["operator_events"] == 3 and r["sessions"] == 2, "beta:1 + gamma x2"
+    assert r["operator_events"] == 3, "beta:1 + gamma x2"
+    assert r["sessions"] == 2, "beta:1 + gamma x2"
     assert r["verdict"] == "standing-directive"

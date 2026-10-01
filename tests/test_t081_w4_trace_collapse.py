@@ -196,7 +196,8 @@ def test_w4_p8_offline_error_unchanged():
     tb = _make_toolbox(agent_id=None)
     out = tb.bifrost_inbox()
     # When agent_id is None, _bus() returns None → the NOT ON BUS error
-    assert "ERROR" in out and "Bifrost bus" in out, f"offline got: {out!r}"
+    assert "ERROR" in out, f"offline got: {out!r}"
+    assert "Bifrost bus" in out, f"offline got: {out!r}"
 
 
 # ------------------------------------------------------------------ integration: real bus round-trip

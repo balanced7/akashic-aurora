@@ -122,5 +122,7 @@ def test_doctor_renders_the_bench(monkeypatch):
     triage_park.park("t-agent", msg, reason="stale", by="t-test")
     findings = doctor.examine("t-agent")
     bench = [f for f in findings if f["state"] == "triage_bench"]
-    assert bench and bench[0]["grade"] == "dashboard", "the doctor sees the bench"
-    assert "1" in bench[0]["line"] and bench[0]["drill"], "count + drill in the line"
+    assert bench, "the doctor sees the bench"
+    assert bench[0]["grade"] == "dashboard", "the doctor sees the bench"
+    assert "1" in bench[0]["line"], "count + drill in the line"
+    assert bench[0]["drill"], "count + drill in the line"

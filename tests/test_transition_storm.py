@@ -85,9 +85,8 @@ def test_hints_survive_ledger_fold_flood():
     for i in range(100):
         runner.fold_ledger_update(_msg("ledger_update", f"LEDGER T{i:03d} step", f"T{i:03d}"))
     hints = context_hints.drain("deepseek")
-    assert len(hints) == 1 and hints[0]["key"] == "critical", (
-        "hints and ledger folds are independent -- fold storm does not evict hints"
-    )
+    assert len(hints) == 1, "hints and ledger folds are independent -- fold storm does not evict hints"
+    assert hints[0]["key"] == "critical", "hints and ledger folds are independent -- fold storm does not evict hints"
     assert len(runner.LEDGER_FOLDS) == 100, "but folds themselves are unaffected"
 
 

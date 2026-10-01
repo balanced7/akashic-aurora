@@ -45,14 +45,12 @@ def test_p3_genuine_unknown_still_loud():
     orphans = ["bifrost:mailbox:answered", "bifrost:genuinely_new_thing:x"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
     joined = "\n".join(lines)
-    assert "1 UNKNOWN" in joined and "genuinely_new_thing" in joined, (
-        "registering mailbox must not silence a real orphan"
-    )
+    assert "1 UNKNOWN" in joined, "registering mailbox must not silence a real orphan"
+    assert "genuinely_new_thing" in joined, "registering mailbox must not silence a real orphan"
 
 
 def test_p4_heal_lines_carry_scope_tag():
     orphans = ["bifrost:genuinely_new_thing:x", "bifrost:mailbox:answered"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
-    assert lines and all("[fleet-hygiene]" in l for l in lines), (
-        "W03: heal lines are fleet-hygiene, never the fresh seat's task"
-    )
+    assert lines, "W03: heal lines are fleet-hygiene, never the fresh seat's task"
+    assert all("[fleet-hygiene]" in l for l in lines), "W03: heal lines are fleet-hygiene, never the fresh seat's task"

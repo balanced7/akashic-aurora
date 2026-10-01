@@ -92,9 +92,8 @@ def test_p2_newborn_empty_then_delta_after_movement(monkeypatch):
     pos["ledger_seq"] = "-1"
     mark.write(pos)
     text2, _ = d.delta_boot_block(agent)
-    assert text2 != "" and "ledger" in text2, (
-        "P2: after the mark exists and a source moved, the block renders the delta"
-    )
+    assert text2 != "", "P2: after the mark exists and a source moved, the block renders the delta"
+    assert "ledger" in text2, "P2: after the mark exists and a source moved, the block renders the delta"
 
 
 # ------------------------------------------------------------------ P3: budget

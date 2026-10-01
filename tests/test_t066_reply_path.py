@@ -95,7 +95,8 @@ def test_p1_reply_is_lane_first():
     assert mid, "send_reply must return a message id"
     lane_writes = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_writes = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
-    assert lane_writes and legacy_writes, "both streams must be written"
+    assert lane_writes, "both streams must be written"
+    assert legacy_writes, "both streams must be written"
     assert b._client.xadd_keys.index(lane_writes[0]) < b._client.xadd_keys.index(legacy_writes[0]), (
         "the LANE write must come FIRST (it is the load-bearing consume surface)"
     )
@@ -168,7 +169,8 @@ def test_p4_unit_is_duplicate_reply_marks_and_ttls():
     assert b.is_duplicate_reply("rid-1") is False, "first sight marks, reports not-duplicate"
     assert b.is_duplicate_reply("rid-1") is True, "second sight within TTL is a duplicate"
     ttl = b._client.ttl(f"{ns}:reply_seen:rid-1")
-    assert ttl and ttl > 0, "the dedup mark must expire (TTL), never accrete forever"
+    assert ttl, "the dedup mark must expire (TTL), never accrete forever"
+    assert ttl > 0, "the dedup mark must expire (TTL), never accrete forever"
     assert b.is_duplicate_reply("") is False, "empty id never dedupes"
 
 
@@ -183,7 +185,8 @@ def test_p5_p6_non_reply_kinds_now_lane_first_and_legacy_compat():
     b.send("claude", "handoff", "take this")
     lane_first = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_first = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
-    assert legacy_first and lane_first, "handoff still dual-writes"
+    assert legacy_first, "handoff still dual-writes"
+    assert lane_first, "handoff still dual-writes"
     assert b._client.xadd_keys.index(lane_first[0]) < b._client.xadd_keys.index(legacy_first[0]), (
         "C6-7: non-reply kinds are now LANE-first (was legacy-first in T039a P0)"
     )

@@ -365,9 +365,8 @@ def test_p12_a_broken_settle_transition_preserves_everything(sender, monkeypatch
     out = _sweep_with(s, [_Reply("1785228386835-0", "kimi", answers="1785226575200-0")], monkeypatch)
     assert out["cleared"] == [], f"a failed transition must clear NOTHING: {out}"
     still = c.hgetall(E._key(s)) or {}
-    assert "1785226575000-0" in still and "1785226575200-0" in still, (
-        f"BOTH expectations must survive a broken settle plane: {sorted(still)}"
-    )
+    assert "1785226575000-0" in still, f"BOTH expectations must survive a broken settle plane: {sorted(still)}"
+    assert "1785226575200-0" in still, f"BOTH expectations must survive a broken settle plane: {sorted(still)}"
 
 
 def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sender, monkeypatch):

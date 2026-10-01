@@ -45,7 +45,8 @@ def test_a_seats_closing_words_are_relayed_so_he_can_act_on_them():
     r = spawn_closing_report(
         0, "Armed the watcher and drained the work lane. Two blockers filed.", elapsed_s=30.0, deadline_s=DEADLINE
     )
-    assert r and "drained the work lane" in r, r
+    assert r, r
+    assert "drained the work lane" in r, r
 
 
 # ------------------------------------------------- F12: a hang is distinguishable
@@ -82,7 +83,8 @@ def test_the_rill_case_the_message_he_should_have_received():
     r = spawn_closing_report(0, RILL_LOG, elapsed_s=30.0, deadline_s=DEADLINE)
     assert r, "the rill spawn must produce a report"
     low = r.lower()
-    assert "can't comply" in low and "wedged" in low, f"the seat's actual words must reach him: {r!r}"
+    assert "can't comply" in low, f"the seat's actual words must reach him: {r!r}"
+    assert "wedged" in low, f"the seat's actual words must reach him: {r!r}"
 
 
 def test_harness_noise_does_not_displace_the_seats_own_answer():
@@ -97,7 +99,8 @@ def test_a_very_long_transcript_is_clipped_but_keeps_the_ending():
     """Discord caps at 2000 chars and the ENDING is where a seat says what it concluded."""
     body = ("filler line that goes on and on\n" * 400) + "FINAL: the lane is drained.\n"
     r = spawn_closing_report(0, body, elapsed_s=30.0, deadline_s=DEADLINE)
-    assert r and "FINAL: the lane is drained." in r, "the closing words must survive clipping"
+    assert r, "the closing words must survive clipping"
+    assert "FINAL: the lane is drained." in r, "the closing words must survive clipping"
     assert len(r) <= 1900, f"report must fit Discord's limit, got {len(r)}"
 
 

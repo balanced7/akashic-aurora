@@ -470,7 +470,9 @@ def test_lr9_exports():
         pytest.skip("no exports under state/arsenal/score")
     summary = run(manifests, write=False)
     for name, g in summary["groups"].items():
-        assert g["LR9a"]["pass"] and g["LR9b"]["pass"] and g["LR9c"]["pass"], (name, g["LR9a"], g["LR9b"], g["LR9c"])
+        assert g["LR9a"]["pass"], (name, g["LR9a"], g["LR9b"], g["LR9c"])
+        assert g["LR9b"]["pass"], (name, g["LR9a"], g["LR9b"], g["LR9c"])
+        assert g["LR9c"]["pass"], (name, g["LR9a"], g["LR9b"], g["LR9c"])
 
 
 def main() -> int:

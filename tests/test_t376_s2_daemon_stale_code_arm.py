@@ -105,7 +105,11 @@ def test_s2_p3_daemon_arm_is_in_flight_aware():
 
     for call in calls:
         # a hardcoded in_flight=False is the bug; it must be a live expression
-        assert "in_flight=False" not in call and "in_flight = False" not in call, (
+        assert "in_flight=False" not in call, (
+            f"S2: the arm must NOT hardcode in_flight=False; pass live child "
+            f"management state. Found: {call.strip()[:120]!r}"
+        )
+        assert "in_flight = False" not in call, (
             f"S2: the arm must NOT hardcode in_flight=False; pass live child "
             f"management state. Found: {call.strip()[:120]!r}"
         )

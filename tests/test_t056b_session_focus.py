@@ -107,7 +107,8 @@ def test_f3_the_nudge_is_silent_below_the_threshold(env):
     assert SF.drift_note(sid) is None, "F3: a run shorter than the threshold must stay quiet"
     SF.record_call(sid, "Read", "somewhere/else.txt")
     note = SF.drift_note(sid)
-    assert note and "T900" in note, "F3: the nudge fires at the threshold and names the task"
+    assert note, "F3: the nudge fires at the threshold and names the task"
+    assert "T900" in note, "F3: the nudge fires at the threshold and names the task"
     assert "call" in note.lower(), "F3: it reports the EVIDENCE (a run of calls), not elapsed time"
     assert SF.drift_note(sid) is None, "F3: it must earn the next one, not repeat every call"
 
@@ -167,7 +168,8 @@ def test_f7_finalize_keeps_a_tool_calls_only_accumulator(env):
 def test_f8_cost_line_renders_a_tool_calls_only_task(env):
     _SF, TC, _sid, _ns, _c = env
     line = TC.cost_line({"status": "done", "cost_tool_calls": 42})
-    assert line and "42" in line, f"F8: a tool-calls-only task must not render as nothing: {line!r}"
+    assert line, f"F8: a tool-calls-only task must not render as nothing: {line!r}"
+    assert "42" in line, f"F8: a tool-calls-only task must not render as nothing: {line!r}"
     assert TC.cost_line({"status": "in_progress", "cost_tool_calls": 42}) == "", (
         "F8: K5 still holds -- live tasks never render cost"
     )

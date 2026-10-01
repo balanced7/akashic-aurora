@@ -58,7 +58,8 @@ def test_p1_stats_counts_match_fixture_truth(db):
 def test_p2_time_fog_is_a_number(db):
     s = EYE.stats(db_path=db)
     assert s["ts_missing"] == 1, "the timeless gamma event"
-    assert 0 < s["time_fog"] < 0.15 and abs(s["time_fog"] - 1 / 12) < 1e-9, (
+    assert 0 < s["time_fog"] < 0.15, "fog is a FRACTION, stated -- every as_of query is blind to exactly this share"
+    assert abs(s["time_fog"] - 1 / 12) < 1e-9, (
         "fog is a FRACTION, stated -- every as_of query is blind to exactly this share"
     )
 

@@ -102,7 +102,8 @@ def test_r1_the_report_names_what_was_refused_not_only_what_was_carried():
 def test_r2_every_exclusion_carries_a_reason():
     p = S.plan("prod", "alpha")
     for prefix, why in p.excluded.items():
-        assert why and len(why) > 20, f"{prefix} excluded with no usable reason"
+        assert why, f"{prefix} excluded with no usable reason"
+        assert len(why) > 20, f"{prefix} excluded with no usable reason"
 
 
 def test_r3_a_dry_run_says_it_is_a_dry_run():

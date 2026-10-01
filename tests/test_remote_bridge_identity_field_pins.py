@@ -162,7 +162,8 @@ def test_rows_without_as_still_select_by_name(tmp_path, monkeypatch):
     RR._reset_cache()
     spy = Spy()
     out = RR.push({"frm": "v", "kind": "chat", "content": "x", "id": "m"}, peer="zadkiel", post=spy)
-    assert out.ok and spy.calls, f"our own shape broke: {out.why}"
+    assert out.ok, f"our own shape broke: {out.why}"
+    assert spy.calls, f"our own shape broke: {out.why}"
 
 
 def test_an_ambiguous_selector_is_refused_not_guessed():

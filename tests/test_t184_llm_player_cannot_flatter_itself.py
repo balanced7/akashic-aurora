@@ -165,7 +165,8 @@ def test_k5_a_dead_branch_shrinks_coverage_visibly(monkeypatch, tmp_path):
         ],
     )
     dead, rep = P.llm_player(str(tmp_path), batch_size=1)
-    assert rep["branches_ok"] == 1 and rep["branches"] == 2, "the loss must be on the report"
+    assert rep["branches_ok"] == 1, "the loss must be on the report"
+    assert rep["branches"] == 2, "the loss must be on the report"
     assert dead == ["fn_1"]
 
 
