@@ -86,7 +86,9 @@ def test_pause_line_pure_render():
         },
         now=time.mktime(time.strptime("2026-07-11T10:30:00", "%Y-%m-%dT%H:%M:%S")),
     )
-    assert "PAUSED" in line and "deepseek" in line and "rate limit" in line
+    assert "PAUSED" in line
+    assert "deepseek" in line
+    assert "rate limit" in line
     assert "30m" in line, "age computed at render (clock-free store)"
     assert "bifrost-resume" in line, "the line TEACHES the resume verb"
 

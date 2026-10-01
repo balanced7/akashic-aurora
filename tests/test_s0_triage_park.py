@@ -53,7 +53,8 @@ def test_park_is_durable_and_receipted(monkeypatch):
     entry = triage_park.park("t-agent", msg, reason="stale 72h", by="t-test")
     assert entry["parked_id"], "park returns the entry (caller advances its cursor past it)"
     bench = triage_park.list_parked("t-agent")
-    assert len(bench) == 1 and bench[0]["msg"]["content"] == "an old ask"
+    assert len(bench) == 1
+    assert bench[0]["msg"]["content"] == "an old ask"
     assert bench[0]["reason"] == "stale 72h"
 
 

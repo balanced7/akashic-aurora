@@ -24,7 +24,7 @@ def _run(args, timeout=15):
     env = dict(os.environ)
     env["AKASHIC_DRILL_ECHO"] = "1"  # offline mode — no Redis, no API
     p = subprocess.run(
-        [sys.executable, RUNNER] + args,
+        [sys.executable, RUNNER, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",

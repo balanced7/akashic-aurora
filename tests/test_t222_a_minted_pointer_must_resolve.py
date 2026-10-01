@@ -72,7 +72,8 @@ def test_the_pointer_a_clipped_render_prints_actually_resolves():
     assert mid, "could not send a probe message"
 
     line = BP.format_inbox_line({"frm": "claude", "kind": "note", "content": body, "id": mid}, max_len=200)
-    assert "[truncated]" in line and mid in line
+    assert "[truncated]" in line
+    assert mid in line
 
     # Extract the command the render told the reader to run, and RUN IT.
     assert "bifrost-fetch --get" in line, f"unexpected pointer shape: {line[-120:]}"

@@ -48,7 +48,8 @@ def _fresh(tmp_path, files=("session_alpha.jsonl", "session_beta.jsonl")):
 def test_p1_manifest_matches_indexed(tmp_path):
     corpus, db = _fresh(tmp_path)
     rep = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
-    assert rep["files_seen"] == 2 and rep["files_indexed"] == 2
+    assert rep["files_seen"] == 2
+    assert rep["files_indexed"] == 2
     assert rep["files_failed"] == []
     assert rep["manifest_complete"] is True
     # alpha: 6 lines -> user(op) + assistant + user(system caveat) + queue-op + meta(system)
@@ -83,7 +84,7 @@ def test_p3_incremental_ingests_only_the_appended_line(tmp_path):
 def test_p4_coverage_names_the_gap(tmp_path):
     corpus, db = _fresh(tmp_path)
     ghost = corpus / "session_ghost.jsonl"  # named in the manifest, not on disk
-    rep = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")) + [ghost], db_path=db)
+    rep = EYE.ingest(paths=[*sorted(corpus.glob("*.jsonl")), ghost], db_path=db)
     assert rep["manifest_complete"] is False, (
         "P4 THE COVERAGE PIN: one unreadable file and the index may not claim wholeness"
     )
@@ -95,7 +96,8 @@ def test_p5_event_id_resolves_to_verbatim(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     hits = EYE.find(q="measure fixture progress", db_path=db)["results"]
-    assert hits and hits[0]["session"] == "session_alpha"
+    assert hits
+    assert hits[0]["session"] == "session_alpha"
     ev = EYE.get_event(hits[0]["event_id"], db_path=db)
     assert ev is not None, "the address must resolve (grammar address space; T288 resolver)"
     assert "measure fixture progress" in ev["text"]
@@ -117,6 +119,8 @@ def test_p6_voice_labels_are_conservative(tmp_path):
     meta = EYE.find(q="meta housekeeping", db_path=db)["results"]
     assert meta and meta[0]["voice"] == "system", "isMeta user records are never operator"
     real = EYE.find(q="sharper every week", db_path=db)["results"]
-    assert real and real[0]["voice"] == "operator"
+    assert real
+    assert real[0]["voice"] == "operator"
     agent = EYE.find(q="Beta acknowledges", db_path=db)["results"]
-    assert agent and agent[0]["voice"] == "agent"
+    assert agent
+    assert agent[0]["voice"] == "agent"

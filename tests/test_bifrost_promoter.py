@@ -39,7 +39,8 @@ def test_salient_is_promoted_and_queryable():
     assert len(out) == 1
     ev = out[0]
     assert ev["kind"] == PROMOTED_KIND
-    assert ev["detail"]["frm"] == "claude" and ev["detail"]["to"] == "cursor"
+    assert ev["detail"]["frm"] == "claude"
+    assert ev["detail"]["to"] == "cursor"
     assert ev["detail"]["content"] == {"task": "B2"}
     assert "bifrost:msg1" in ev.get("refs", [])
 
@@ -66,7 +67,8 @@ def test_durable_across_a_fresh_reader():
     promote("claude", "cursor", "handoff", "durable?", "m9", "2026-06-28T20:04:00", event_log=EventLog(led))
     fresh = EventQuery(event_log=EventLog(led))  # cold reader on the same ledger
     out = promoted(event_query=fresh)
-    assert len(out) == 1 and out[0]["detail"]["content"] == "durable?"
+    assert len(out) == 1
+    assert out[0]["detail"]["content"] == "durable?"
 
 
 if __name__ == "__main__":

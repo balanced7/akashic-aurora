@@ -62,7 +62,8 @@ def test_m2_model_punctuates_when_available():
     except RuntimeError as e:
         assert "deepmultilingualpunctuation" in str(e)
         pytest.skip("model challenger offline (honest contract)")
-    assert out and "." in out
+    assert out
+    assert "." in out
 
 
 def test_h1_hybrid_capitalizes_and_punctuates():

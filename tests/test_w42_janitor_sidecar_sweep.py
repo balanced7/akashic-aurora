@@ -52,7 +52,7 @@ def test_p1_cleaned_seat_sweeps_sidecars(tmp_path):
 
 def test_p2_skipped_seat_keeps_sidecars(tmp_path, monkeypatch):
     agent = "twjan2"
-    pidp, seenp, alivep = _seat_set(tmp_path, agent, "livesess", os.getpid())
+    _pidp, seenp, alivep = _seat_set(tmp_path, agent, "livesess", os.getpid())
     # snapshot unavailable -> K8 assume-alive -> skip; sidecars must survive
     res = ws.janitor(agent, my_session="other", tmp=str(tmp_path), snapshot_fn=lambda: None, kill_fn=lambda p: True)
     actions = {a for _, a, _ in res}
@@ -69,4 +69,5 @@ def test_p3_missing_sidecar_is_silent(tmp_path):
         f.write("999999")
     # no .seen / .alive written -- the sweep must not raise
     res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=lambda p: True)
-    assert res and not os.path.exists(pidp)
+    assert res
+    assert not os.path.exists(pidp)

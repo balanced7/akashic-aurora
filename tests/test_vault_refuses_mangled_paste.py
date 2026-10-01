@@ -103,4 +103,5 @@ def test_refuses_a_byte_order_mark_from_a_shell_pipe():
 def test_the_bom_refusal_also_keeps_the_value_out_of_the_message():
     with pytest.raises(IntakeError) as e:
         save_secret("claude_oauth.token", "﻿" + CLEAN)
-    assert CLEAN not in str(e.value) and "sk-ant-oat" not in str(e.value)
+    assert CLEAN not in str(e.value)
+    assert "sk-ant-oat" not in str(e.value)

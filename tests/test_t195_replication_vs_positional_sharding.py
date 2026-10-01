@@ -245,7 +245,8 @@ def test_run_uses_one_combined_fan_with_matched_controls(tmp_path, monkeypatch):
         archive_dir=str(tmp_path / "archive"),
     )
 
-    assert len(calls) == 1 and len(calls[0][0]) == 8
+    assert len(calls) == 1
+    assert len(calls[0][0]) == 8
     assert calls[0][1]["system"] == F.SYSTEM
     assert calls[0][1]["max_tokens"] == 9000
     assert calls[0][1]["max_workers"] == 8

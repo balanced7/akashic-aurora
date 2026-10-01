@@ -34,7 +34,8 @@ def _bare_data_dir(tmp_path: Path) -> Path:
     """Exactly what isolate_canonical creates: a data dir with NO repo markers."""
     bare = tmp_path / "bare"
     (bare / "session_logs").mkdir(parents=True)
-    assert not (bare / "agent_cli.py").exists() and not (bare / "core").exists()
+    assert not (bare / "agent_cli.py").exists()
+    assert not (bare / "core").exists()
     return bare
 
 

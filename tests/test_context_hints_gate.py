@@ -29,7 +29,8 @@ def test_hint_from_unknown_id_is_dropped():
 def test_hint_from_claude_folds():
     assert context_hints.push("deepseek", "file", "x.py:1 real fact", from_agent="claude")
     hints = context_hints.drain("deepseek")
-    assert hints and hints[0]["from"] == "claude"
+    assert hints
+    assert hints[0]["from"] == "claude"
 
 
 def test_hint_from_deepseek_folds():
@@ -37,7 +38,8 @@ def test_hint_from_deepseek_folds():
     # on 07-09; a valid durable grant must let the fleet's designed hint flow work.
     assert context_hints.push("claude", "state", "T029 wave1 status", from_agent="deepseek")
     hints = context_hints.drain("claude")
-    assert hints and hints[0]["from"] == "deepseek"
+    assert hints
+    assert hints[0]["from"] == "deepseek"
 
 
 def test_hint_with_default_sender_is_dropped():
@@ -99,4 +101,5 @@ def test_hint_sender_trust_gate_still_works_under_flood():
     not_ok = context_hints.push("flood2", "bad_k", "bad_v", from_agent="evil")
     assert not not_ok, "RB-1 gate: untrusted hint rejected regardless of ring state"
     hints = context_hints.drain("flood2")
-    assert len(hints) == 1 and hints[0]["key"] == "good_k"
+    assert len(hints) == 1
+    assert hints[0]["key"] == "good_k"

@@ -98,7 +98,8 @@ def test_bus_state_survives_a_restart(server):
     assert r.xpending("bifrost:inbox:claude", "g")["pending"] == 2, "delivered-unacked lost"
     nxt = r.xreadgroup("g", "c", {"bifrost:inbox:claude": ">"}, count=5)
     assert [m[0] for m in nxt[0][1]] == ids[2:], "group read position lost"
-    assert r.hget("h", "f") == "v" and r.get("lua") == "wrote"
+    assert r.hget("h", "f") == "v"
+    assert r.get("lua") == "wrote"
     assert 0 < r.ttl("ttl") <= 300
     assert not r.exists("gone"), "a delete was not persisted"
 
@@ -116,7 +117,8 @@ def test_blocking_read_wakes_on_another_clients_write(server):
     threading.Thread(target=later, daemon=True).start()
     t0 = time.monotonic()
     got = r.xread({"wake": "$"}, block=5000)
-    assert got and got[0][1][0][1] == {"x": "y"}
+    assert got
+    assert got[0][1][0][1] == {"x": "y"}
     assert time.monotonic() - t0 < 3.0, "blocking read did not wake on the write"
 
 
@@ -204,7 +206,8 @@ def test_first_boot_seeds_the_file_store_once(tmp_path, monkeypatch):
 
     r = fakeredis.FakeRedis(server=srv, db=int(DEFAULT_REDIS_DB), decode_responses=True)
     assert r.hget("learn:experiment:x", "actual") == "it worked"
-    assert r.lrange("l", 0, -1) == ["a", "b"] and r.zscore("z", "m") == 2.0
+    assert r.lrange("l", 0, -1) == ["a", "b"]
+    assert r.zscore("z", "m") == 2.0
     assert E._seed_from_file_tier(fakeredis.FakeServer(), 16379, path) == 0, "seeded twice"
 
 

@@ -52,7 +52,8 @@ def test_f1_answers_chain_builds_the_waterfall():
     fl = out["flows"][0]
     assert fl["flow"] == "1000-0", "flow id is the root message id"
     root = fl["root"]
-    assert root["kind"] == "request" and len(root["children"]) == 1
+    assert root["kind"] == "request"
+    assert len(root["children"]) == 1
     child = root["children"][0]
     assert child["kind"] == "reply" and child["offset_ms"] == 4000, (
         f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
@@ -102,7 +103,8 @@ def test_f4_singletons_window_and_order():
     ids = _flow_ids(out)
     assert "1000-0" not in ids, "outside the window -- must be excluded"
     assert ids == ["900000-0", "600000-0"], f"newest flow first, got {ids}"
-    assert out["counts"]["flows"] == 2 and out["counts"]["dropped_by_window"] == 1
+    assert out["counts"]["flows"] == 2
+    assert out["counts"]["dropped_by_window"] == 1
     print("--- F4 window + order ---\n  singleton flows, newest-first, window drop counted OK")
 
 

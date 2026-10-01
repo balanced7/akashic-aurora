@@ -310,7 +310,8 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
 
     # --- NEW code path ---
     first = api_new._wake_block_lane(timeout_ms=1)
-    assert len(first) == 1 and first[0].kind == "request"
+    assert len(first) == 1
+    assert first[0].kind == "request"
     assert bus.peeks == 1
     assert api_new._lane_since is not None, "seeded after first delivery"
 
@@ -349,7 +350,8 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
 
     # Phase 1 for old code: finds Phase 1 mail
     old_first = old_wake_block_lane(timeout_ms=1)
-    assert len(old_first) == 1 and old_first[0].kind == "request"
+    assert len(old_first) == 1
+    assert old_first[0].kind == "request"
     assert api_old._lane_since is None, "OLD code: still unseeded after delivery"
 
     # Phase 2: add straggler

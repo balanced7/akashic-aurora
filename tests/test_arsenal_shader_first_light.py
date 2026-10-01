@@ -96,7 +96,7 @@ def test_no_loop_bounds_to_inject():
         assert not m, f"loop bound uses uniform {name!r}; loop bounds must be constant"
 
 
-@pytest.mark.parametrize("name,_type", SPEC_UNIFORMS)
+@pytest.mark.parametrize(("name", "_type"), SPEC_UNIFORMS)
 def test_no_highp_violation_in_shared_declarations(name, _type):
     # The floor says highp always. This is a structural pin, not a compiler: it
     # asserts the file opens with the house setup and never lowers precision.

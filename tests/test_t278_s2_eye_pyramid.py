@@ -98,7 +98,8 @@ def test_p2_the_lod_pin(tmp_path):
     l0_tokens = EYE.stats(db_path=dbp)["events_total"] and sum(
         e["tokens"] for e in EYE.find(session="session_long", limit=10_000, db_path=dbp)["results"]
     )
-    assert dig["level"] == "L2" and dig["tokens"] > 0
+    assert dig["level"] == "L2"
+    assert dig["tokens"] > 0
     assert dig["tokens"] < 0.05 * l0_tokens, (
         f"THE LOD PIN: L2 at {dig['tokens']} tok vs L0 {l0_tokens} -- viewing a session must cost <5% of reading it"
     )
@@ -109,7 +110,8 @@ def test_p3_descent_is_citation_following(db):
     l2 = PYR.zoom("session_alpha", db_path=db)
     assert l2["level"] == "L2" and l2["children"], "L2 lists its L1 children"
     l1 = PYR.zoom(l2["children"][0], db_path=db)
-    assert l1["level"] == "L1" and l1["refs"]
+    assert l1["level"] == "L1"
+    assert l1["refs"]
     ev = EYE.get_event(l1["refs"][0], db_path=db)
     assert ev is not None, "descent bottoms out at verbatim L0"
     assert l2["children"] == sorted(l2["children"]), "child ordering is stable"

@@ -24,15 +24,15 @@ pytestmark = pytest.mark.skipif(_client() is None, reason="bus/Redis offline")
 
 
 def _args(**kw):
-    base = dict(
-        agent_id="ztestpin-snd",
-        to="ztestpin-rcp",
-        kind="request",
-        text=["ping"],
-        broadcast=False,
-        expect_reply_within=-1,
-        json=False,
-    )
+    base = {
+        "agent_id": "ztestpin-snd",
+        "to": "ztestpin-rcp",
+        "kind": "request",
+        "text": ["ping"],
+        "broadcast": False,
+        "expect_reply_within": -1,
+        "json": False,
+    }
     base.update(kw)
     return SimpleNamespace(**base)
 

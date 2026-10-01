@@ -20,7 +20,9 @@ import agent_cli
 
 def test_p1_armed_line_names_count():
     line = agent_cli._recall_armed_line(34)
-    assert "recall-at" in line and "armed" in line and "34" in line
+    assert "recall-at" in line
+    assert "armed" in line
+    assert "34" in line
     assert "silence" in line.lower(), "the line teaches that later silence is calibrated"
 
 

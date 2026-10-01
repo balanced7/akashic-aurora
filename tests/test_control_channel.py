@@ -46,9 +46,10 @@ def test_port_is_stable_across_processes():
     import sys
 
     src = (
-        "import sys; sys.path.insert(0, r'%s'); "
-        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
-        % os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        "import sys; sys.path.insert(0, r'{}'); "
+        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))".format(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
     )
     out = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr[:300]
@@ -92,7 +93,7 @@ def test_bind_conflict_is_loud(capsys):
 
 def test_listener_is_loopback_only(chan):
     """A control plane must never be reachable off-box."""
-    conns = [c for c in socket.getaddrinfo("127.0.0.1", chan.port, proto=socket.IPPROTO_TCP)]
+    conns = list(socket.getaddrinfo("127.0.0.1", chan.port, proto=socket.IPPROTO_TCP))
     assert conns, "expected a loopback binding"
     s = socket.socket()
     s.settimeout(1.0)

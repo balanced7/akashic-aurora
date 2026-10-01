@@ -9,11 +9,11 @@ import scripts.checkers.check_wiring as cw
 
 
 def test_precise():
-    core_universe, reachable, unwired = cw.analyze()
+    core_universe, reachable, _unwired = cw.analyze()
     cg = "core/comm/conductor_gate.py"
     assert cg in reachable, "not reachable"
     cand = cw.candidate_modules(reachable, core_universe)
-    _cand, prod, orphans, fn_stale = cw.function_level(reachable, core_universe)
+    _cand, prod, orphans, _fn_stale = cw.function_level(reachable, core_universe)
     cg_orphans = [(m, n, lo) for m, n, lo in orphans if m == cg]
     print("conductor_gate in prod files:", cg in prod)
     print("conductor_gate orphans:", [n for _m, n, _lo in cg_orphans])

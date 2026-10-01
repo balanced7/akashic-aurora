@@ -63,7 +63,8 @@ def test_done_keeps_the_resolved_marker_too(tmp_path, monkeypatch):
     kinds = [k for k, _, _ in sent]
     assert "resolved" in kinds, "existing consumers keep their marker"
     resolved = next(txt for k, txt, _ in sent if k == "resolved")
-    assert f"RESOLVED {tid}" in resolved and "do not redo" in resolved
+    assert f"RESOLVED {tid}" in resolved
+    assert "do not redo" in resolved
 
 
 def test_block_emits_blocked(tmp_path, monkeypatch):

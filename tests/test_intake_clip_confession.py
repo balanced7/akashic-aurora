@@ -66,17 +66,17 @@ class _quiet_fanout:
 
 
 def _note_args(**kw):
-    base = dict(
-        agent_id="clipbot",
-        title="clip-probe",
-        note="",
-        context=None,
-        supersedes=None,
-        session=None,
-        retire=None,
-        json=False,
-        category=None,
-    )
+    base = {
+        "agent_id": "clipbot",
+        "title": "clip-probe",
+        "note": "",
+        "context": None,
+        "supersedes": None,
+        "session": None,
+        "retire": None,
+        "json": False,
+        "category": None,
+    }
     base.update(kw)
     return SimpleNamespace(**base)
 
@@ -102,7 +102,8 @@ def test_5k_note_arg_stores_whole():
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-5k", note=body))
         stored = _stored(f.mem, "clip-probe-5k")
-    assert rc == 0 and "[OK] noted" in out
+    assert rc == 0
+    assert "[OK] noted" in out
     assert stored == body, f"stored {len(stored)}/{len(body)} chars -- the door clipped"
     assert " ...[truncated]" not in stored, "legacy silent-clip marker resurfaced"
     assert "[CLIPPED]" not in out, "door confessed a clip it did not make"
@@ -120,7 +121,8 @@ def test_over_cap_note_confesses_in_result_and_in_band(monkeypatch, tmp_path):
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-overcap", note=body))
         stored = _stored(f.mem, "clip-probe-overcap")
-    assert rc == 0 and "[OK] noted" in out
+    assert rc == 0
+    assert "[OK] noted" in out
     assert "[CLIPPED]" in out and "note body" in out and ("spilled to" in out or "resend" in out.lower()), (
         f"over-cap store did not confess in the result: {out!r}"
     )
@@ -138,7 +140,8 @@ def test_json_mode_carries_confession():
     with _quiet_fanout():
         rc, out = _run_note(_note_args(title="clip-probe-json", note="y" * (cap + 100), json=True))
     doc = json.loads(out)
-    assert rc == 0 and doc["recorded"] is True
+    assert rc == 0
+    assert doc["recorded"] is True
     assert doc["clipped"] and any("note body" in c for c in doc["clipped"]), (
         f"--json result lacks the clip confession: {doc}"
     )
@@ -151,7 +154,9 @@ def test_small_note_unchanged():
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-small", note=body))
         stored = _stored(f.mem, "clip-probe-small")
-    assert rc == 0 and stored == body and "[CLIPPED]" not in out
+    assert rc == 0
+    assert stored == body
+    assert "[CLIPPED]" not in out
     print("  under-cap note byte-identical, silent OK")
 
 

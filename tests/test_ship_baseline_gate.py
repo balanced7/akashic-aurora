@@ -177,4 +177,5 @@ def test_p7_a_green_suite_is_always_clean(monkeypatch, tmp_path):
 
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate([])
-    assert v["blocked"] is False and not v["new"]
+    assert v["blocked"] is False
+    assert not v["new"]

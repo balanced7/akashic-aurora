@@ -181,24 +181,30 @@ def test_qos_message():
 
 
 @pytest.mark.parametrize(
-    "line, expected",
+    ("line", "expected"),
     [
         (
-            "0:00:00.349719200      58892      66084 WARN                 qtdemux "
-            "qtdemux.c:11589:qtdemux_parse_segments:<demux> Segment 0  extends to 0:00:15.354000000 "
-            "past the end of the declared movie duration 0:00:15.350000000 movie segment will be "
-            "extended",
+            (
+                "0:00:00.349719200      58892      66084 WARN                 qtdemux "
+                "qtdemux.c:11589:qtdemux_parse_segments:<demux> Segment 0  extends to 0:00:15.354000000 "
+                "past the end of the declared movie duration 0:00:15.350000000 movie segment will be "
+                "extended"
+            ),
             True,
         ),
         (
-            "WARNING: from element /GstPipeline:pipeline0/GstFPSDisplaySink:fps/GstFakeVideoSink:sink/"
-            "GstFakeSink:sink: A lot of buffers are being dropped.",
+            (
+                "WARNING: from element /GstPipeline:pipeline0/GstFPSDisplaySink:fps/GstFakeVideoSink:sink/"
+                "GstFakeSink:sink: A lot of buffers are being dropped."
+            ),
             True,
         ),
         ("ERROR: from element /GstPipeline:pipeline0/GstFileSrc:filesrc0: Resource not found.", True),  # constructed
         (
-            "0:00:00.100000000      58892      66084 INFO             GST_INIT gst.c:100:init_pre: "
-            "Initializing GStreamer Core Library version 1.28.7",
+            (
+                "0:00:00.100000000      58892      66084 INFO             GST_INIT gst.c:100:init_pre: "
+                "Initializing GStreamer Core Library version 1.28.7"
+            ),
             False,
         ),  # constructed
         (QOS_LINE, False),
@@ -245,8 +251,10 @@ def test_pipeline_string_quotes_spaced_values(tmp_path):
     text = soak.pipeline_string(tokens)
     assert f'location="{clip.as_posix()}"' in text
     assert 'video-sink="fakevideosink name=sink"' in text
-    assert "sync=true" in text and "eos-after=-1" in text
-    assert "d3d12videosink" not in text and "autovideosink" not in text
+    assert "sync=true" in text
+    assert "eos-after=-1" in text
+    assert "d3d12videosink" not in text
+    assert "autovideosink" not in text
 
 
 # --- verdict (synthetic passes; pins that unmeasured criteria fail) ----------------------------
@@ -317,7 +325,8 @@ def test_calibration_stall_is_reported_beside_the_soak_result():
         "pass": {"drops": {"gated": {"dropped": 295}}},
     }
     verdict, _ = _verdict(passes, calibration=stalled)
-    assert verdict["pass"] is True and verdict["soak_verdict"] == "pass"
+    assert verdict["pass"] is True
+    assert verdict["soak_verdict"] == "pass"
     assert verdict["calibration"]["drops_observed"] == 295
     assert verdict["calibration"]["gated_count_detected_drops"] is True
     assert verdict["calibration"]["completed"] is False
@@ -349,7 +358,8 @@ def test_verdict_fails_on_growth_after_warmup_and_when_growth_is_unmeasured():
     assert summary["memory"]["post_warmup"]["working_set_growth_mb"] > 64
     single = [_pass(1, "throughput"), _pass(2, "synced")]
     verdict, summary = _verdict(single)
-    assert verdict["pass"] is False and summary["memory"]["post_warmup"] is None
+    assert verdict["pass"] is False
+    assert summary["memory"]["post_warmup"] is None
 
 
 def test_verdict_fails_on_exit_code_or_download_before_sink():

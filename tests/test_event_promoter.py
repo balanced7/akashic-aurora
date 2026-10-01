@@ -99,7 +99,8 @@ def test_rate_limit_cap():
     for i in range(5):
         eq.log.capture("milestone", f"shipped milestone {i}", at=f"2026-06-22T10:0{i}:00")
     rep = promote_salient(store, eq, threshold=3, max_promote=2)
-    assert rep["eligible"] == 5 and rep["promoted"] == 2  # cap respected (no flood)
+    assert rep["eligible"] == 5
+    assert rep["promoted"] == 2
 
 
 def test_threshold_gates():
@@ -122,7 +123,8 @@ def test_promoted_beat_points_at_atom():
     assert beat.source == ev.ref  # provenance preserved
     # and the bridge can drill back from the Beat to the raw atom
     res = raw_for_beat(beat.id, store=store, event_query=eq)
-    assert res["atom"] is not None and res["atom"]["summary"] == "error: critical failure"
+    assert res["atom"] is not None
+    assert res["atom"]["summary"] == "error: critical failure"
 
 
 def test_promote_empty_never_raises():

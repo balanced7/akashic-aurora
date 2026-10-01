@@ -52,8 +52,11 @@ def test_edges_validate_against_real_vocabulary():
 
 
 def test_weight_and_kinds():
-    assert clamp_weight(9) == 5 and clamp_weight(-3) == 0 and clamp_weight("nope") == 1
-    assert DEFAULT_WEIGHT["milestone"] == 5 and DEFAULT_WEIGHT["note"] == 1
+    assert clamp_weight(9) == 5
+    assert clamp_weight(-3) == 0
+    assert clamp_weight("nope") == 1
+    assert DEFAULT_WEIGHT["milestone"] == 5
+    assert DEFAULT_WEIGHT["note"] == 1
     assert set(BEAT_KINDS) == set(DEFAULT_WEIGHT.keys())
     print("  narrative weight + kinds OK")
 
@@ -78,12 +81,10 @@ def test_beat_roundtrip_and_validation():
     # a source-less beat with a bad kind + invalid edge is caught
     bad = Beat(id="x", at="t", kind="bogus", summary="", source="", weight=99, relates=[Edge("led_to", "y")])
     probs = validate_beat(bad)
-    assert (
-        any("kind" in p for p in probs)
-        and any("source" in p for p in probs)
-        and any("weight" in p for p in probs)
-        and any("led_to" in p for p in probs)
-    )
+    assert any("kind" in p for p in probs)
+    assert any("source" in p for p in probs)
+    assert any("weight" in p for p in probs)
+    assert any("led_to" in p for p in probs)
     print("  beat round-trip + validation OK")
 
 

@@ -49,7 +49,9 @@ def test_present_pointer_resolves_clean(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
     refs = [log.capture("note", f"event {i}").ref for i in range(8)]
     ev, why = log.resolve(refs[-1])
-    assert why is None and ev is not None and ev["summary"] == "event 7"
+    assert why is None
+    assert ev is not None
+    assert ev["summary"] == "event 7"
 
 
 def test_never_existed_says_so_without_false_aging(tmp_path, monkeypatch):
@@ -64,7 +66,8 @@ def test_never_existed_says_so_without_false_aging(tmp_path, monkeypatch):
 def test_malformed_pointer_is_named(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
     ev, why = log.resolve("bogus-not-a-ref")
-    assert ev is None and "followable" in why
+    assert ev is None
+    assert "followable" in why
 
 
 def test_get_still_returns_bare_event(tmp_path, monkeypatch):
@@ -80,7 +83,8 @@ def test_query_layer_shares_the_honest_door(tmp_path, monkeypatch):
     refs = [log.capture("note", f"event {i}").ref for i in range(8)]
     eq = EventQuery(log)
     ev, why = eq.resolve(refs[0])
-    assert ev is None and "aged out" in why
+    assert ev is None
+    assert "aged out" in why
 
 
 def test_cli_drill_door_resolves_honestly():

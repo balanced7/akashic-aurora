@@ -52,7 +52,7 @@ def _v(verdict="GREEN", elapsed=2.5, cause=""):
 
 
 def test_a_verdict_appends_a_journal_line(paths):
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v())
     assert journal.exists(), "no gate journal was written"
     lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
@@ -62,7 +62,7 @@ def test_a_verdict_appends_a_journal_line(paths):
 
 def test_the_journal_appends_and_never_truncates(paths):
     """THE POINT. last_probe.json may clobber; the journal may only grow."""
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("GREEN", 2.52))
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     DP.write_verdict(_v("GREEN", 2.84))
@@ -74,7 +74,7 @@ def test_the_journal_appends_and_never_truncates(paths):
 
 
 def test_the_line_carries_what_a_false_positive_rate_needs(paths):
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     rec = json.loads(journal.read_text(encoding="utf-8").splitlines()[0])
     for field in ("gate", "verdict", "elapsed_s", "budget_s", "sha", "at", "cause"):
@@ -85,7 +85,7 @@ def test_the_line_carries_what_a_false_positive_rate_needs(paths):
 
 def test_the_clobbering_cache_is_unchanged(paths):
     """ADDITIVE: existing readers must see exactly what they saw before."""
-    cache, journal = paths
+    cache, _journal = paths
     DP.write_verdict(_v("GREEN", 2.52))
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     assert json.loads(cache.read_text(encoding="utf-8"))["verdict"] == "RED"
@@ -108,7 +108,7 @@ def test_a_journal_failure_never_breaks_the_caller(tmp_path, monkeypatch):
 
 def test_journal_records_survive_across_processes(paths):
     """The file is the record, not an in-memory list -- a fresh import must still append."""
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("GREEN", 2.5))
     journal.write_text(journal.read_text(encoding="utf-8"), encoding="utf-8")  # simulate reopen
     DP.write_verdict(_v("RED", 6.0, "response_path_slow"))

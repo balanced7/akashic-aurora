@@ -566,7 +566,7 @@ def build_fixture(name: str, folder: Path) -> Path:
                 "slide_ins": tagged("slide-in"),
                 "outside": tagged("outside"),
                 "anticipations": tagged("anticipation"),
-                "phrases": {"count": 8, "pickups": 6, "t_ms": sorted(tagged("pickup") + [t_of(0), t_of(32)])},
+                "phrases": {"count": 8, "pickups": 6, "t_ms": sorted([*tagged("pickup"), t_of(0), t_of(32)])},
                 "vel_medians": MEDIANS,
                 "pedal": 0.8,
             },
@@ -712,18 +712,23 @@ def test_fixture_runs_and_sessions_are_valid_and_synthetic(name):
     store = PerformanceStore(f / "performance")
     info = store.info(SESSION_ID)
     events, problems = pr.read_events(store, SESSION_ID)
-    assert problems == [] and events
-    assert info["opened_at"].startswith("2030-") and run["created_at"].startswith("2030-")
-    assert run["run"].startswith("2030") and SESSION_ID.startswith("2030")
+    assert problems == []
+    assert events
+    assert info["opened_at"].startswith("2030-")
+    assert run["created_at"].startswith("2030-")
+    assert run["run"].startswith("2030")
+    assert SESSION_ID.startswith("2030")
 
 
 # ================================================================================================ A11
 def test_a11_planted_counts_are_reported_exactly():
     doc = fixture_doc("riff_lydian_l1")
-    assert doc["api"] == RIFF_API and doc["session"] == SESSION_ID
+    assert doc["api"] == RIFF_API
+    assert doc["session"] == SESSION_ID
     assert planted_counts(doc) == A11_COUNTS
     b = doc["runs"][0]
-    assert slot(b, 1)["name"] == "Abmaj7#11" and slot(b, 0)["name"] == "Ebmaj9"
+    assert slot(b, 1)["name"] == "Abmaj7#11"
+    assert slot(b, 0)["name"] == "Ebmaj9"
     assert b["coverage"] == {"passes": 8, "bars": 16, "bars_with_his_notes": 16, "notes": 99, "top_line_notes": 99}
     notes = b["notes"]
     rub = [x for x in notes if x["class"] == "rub"]
@@ -747,7 +752,7 @@ def test_a11_planted_times_within_10_ms():
 
     def close(got, want):
         assert len(got) == len(want), (got, want)
-        assert all(abs(g - w) <= 10 for g, w in zip(sorted(got), sorted(want))), (got, want)
+        assert all(abs(g - w) <= 10 for g, w in zip(sorted(got), sorted(want), strict=False)), (got, want)
 
     close([x["t_ms"] for x in b["notes"] if x["slot"] == 1 and x["label"] == "#11"], planted["sharp_eleven"]["t_ms"])
     close([x["t_ms"] for s in b["slots"] for x in s["rubs"]], planted["rub"])
@@ -760,20 +765,29 @@ def test_a11_planted_times_within_10_ms():
 
 def test_a11_alignment_is_l1_within_2_ms():
     a = fixture_doc("riff_lydian_l1")["runs"][0]["alignment"]
-    assert a["method"] == "L1" and a["error_ms"] <= 2 and a["approx"] is False
-    assert abs(a["bar0_t_ms"] - BAR0_T) <= 0.1 and a["page_id"] == PAGE
+    assert a["method"] == "L1"
+    assert a["error_ms"] <= 2
+    assert a["approx"] is False
+    assert abs(a["bar0_t_ms"] - BAR0_T) <= 0.1
+    assert a["page_id"] == PAGE
 
 
 def test_a11_mode_naming_gate_and_its_twin():
     doc = fixture_doc("riff_lydian_l1")
     sc = slot(doc["runs"][0], 1)["scale"]
-    assert sc["best"] == "Ab Lydian" and sc["named"] is True and sc["own_note"] == "D" and sc["own_share"] >= 0.05
+    assert sc["best"] == "Ab Lydian"
+    assert sc["named"] is True
+    assert sc["own_note"] == "D"
+    assert sc["own_share"] >= 0.05
     t2 = [p for p in doc["talking_points"] if p["type"] == "T2"]
-    assert len(t2) == 1 and "(Ab Lydian)" in t2[0]["text"] and "the D, its #11, came 9 times" in t2[0]["text"]
+    assert len(t2) == 1
+    assert "(Ab Lydian)" in t2[0]["text"]
+    assert "the D, its #11, came 9 times" in t2[0]["text"]
     twin = fixture_doc("riff_lydian_d4")
     sc = slot(twin["runs"][0], 1)["scale"]
     assert sc["own_note"] == "D" and 0.03 <= sc["own_share"] < 0.05, sc
-    assert sc["named"] is False and sc["say"] == "the notes of Eb major"
+    assert sc["named"] is False
+    assert sc["say"] == "the notes of Eb major"
     assert "T2" not in [p["type"] for p in twin["talking_points"]]
 
 
@@ -797,12 +811,15 @@ def test_a11_free_play_same_notes_no_run(tmp_path, capsys):
     assert code == 0
     doc = json.loads(capsys.readouterr().out)
     free = doc["free_play"]
-    assert doc["runs"] == [] and free["mode"] == "free play" and free["chords"] == "chords read from your own playing"
+    assert doc["runs"] == []
+    assert free["mode"] == "free play"
+    assert free["chords"] == "chords read from your own playing"
     assert free["anticipations"] == []
     assert "T14" not in [p["type"] for p in doc["talking_points"]]
     assert all("beat" not in p and "seconds" in p for p in free["phrases"])
     if NODE:
-        assert free["coverage"]["chords_read"] > 0 and free["coverage"]["notes"] > 0
+        assert free["coverage"]["chords_read"] > 0
+        assert free["coverage"]["notes"] > 0
     assert riff.wording_problems(doc) == []
 
 
@@ -811,28 +828,35 @@ def test_a11_buffered_session_at_l4_exits_2_naming_opened_at_client(capsys):
     code = riff.main([RUN_ID, "--root", str(f / "performance"), "--jam-root", str(f / "jam")])
     assert code == 2
     captured = capsys.readouterr()
-    assert "opened_at_client" in captured.err and captured.out == ""
+    assert "opened_at_client" in captured.err
+    assert captured.out == ""
 
 
 @needs_node
 def test_a11_loopback_guard_through_the_groove_bridge():
     mirrored = fixture_doc("riff_lydian_loopback")
     lb = mirrored["runs"][0]["loopback"]
-    assert lb["source"] == "groove_bridge.mjs" and lb["claude_onsets"] > 0
-    assert lb["suspected"] is True and lb["mirrored_share"] >= 0.9
+    assert lb["source"] == "groove_bridge.mjs"
+    assert lb["claude_onsets"] > 0
+    assert lb["suspected"] is True
+    assert lb["mirrored_share"] >= 0.9
     assert "the loop may be echoing into the log (MIDI loopback)" in riff.render(mirrored)
     assert slot(mirrored["runs"][0], 1)["labels"]["#11"] == 9  # and it still analyses
     clean = fixture_doc("riff_lydian_l1")["runs"][0]["loopback"]
-    assert clean["source"] == "groove_bridge.mjs" and clean["claude_onsets"] > 0
-    assert clean["suspected"] is False and clean["mirrored_share"] == 0.0
+    assert clean["source"] == "groove_bridge.mjs"
+    assert clean["claude_onsets"] > 0
+    assert clean["suspected"] is False
+    assert clean["mirrored_share"] == 0.0
 
 
 def test_a11_loopback_guard_from_the_def_without_node():
     lb = fixture_doc("riff_lydian_loopback", "def")["runs"][0]["loopback"]
     assert lb["source"].startswith("the def's downbeat strikes")
-    assert lb["suspected"] is True and lb["mirrored_share"] >= 0.9
+    assert lb["suspected"] is True
+    assert lb["mirrored_share"] >= 0.9
     clean = fixture_doc("riff_lydian_l1", "def")["runs"][0]["loopback"]
-    assert clean["suspected"] is False and clean["mirrored_share"] == 0.0
+    assert clean["suspected"] is False
+    assert clean["mirrored_share"] == 0.0
 
 
 WORDING_CASES = {
@@ -898,17 +922,20 @@ def test_a11_speed_30_minute_session_with_4_runs(tmp_path):
     doc = riff.riff(None, session=SESSION_ID, root=folder / "performance", jam_root=folder / "jam")
     elapsed = time.perf_counter() - t
     assert elapsed <= 3.0, elapsed
-    assert len(doc["runs"]) == 4 and all(b["coverage"]["passes"] == 40 for b in doc["runs"])
+    assert len(doc["runs"]) == 4
+    assert all(b["coverage"]["passes"] == 40 for b in doc["runs"])
     assert PerformanceStore(folder / "performance").info(SESSION_ID)["last_t_ms"] >= 29 * 60000 + 59000
 
 
 # ================================================================================================ the rest of 11
-@pytest.mark.parametrize("meta,method,error", [("full", "L2", 2.0), ("l3", "L3", 50.0), ("l4", "L4", 150.0)])
+@pytest.mark.parametrize(("meta", "method", "error"), [("full", "L2", 2.0), ("l3", "L3", 50.0), ("l4", "L4", 150.0)])
 def test_alignment_ladder_without_an_l1_ack(tmp_path, meta, method, error):
     doc = case_doc(jam_case(tmp_path, meta=meta, ack_log=False))
     b = doc["runs"][0]
     a = b["alignment"]
-    assert a["method"] == method and a["error_ms"] == error and a["approx"] is (method == "L4")
+    assert a["method"] == method
+    assert a["error_ms"] == error
+    assert a["approx"] is (method == "L4")
     assert abs(a["bar0_t_ms"] - BAR0_T) <= error
     assert slot(b, 1)["labels"]["#11"] == 9  # which chord: at every level
     assert len(b["anticipations"]) == 5
@@ -919,7 +946,8 @@ def test_tempo_change_mid_run_follows_the_tempo_map(tmp_path):
     case = jam_case(tmp_path, changes=[("tempo", 8, 80)])
     doc = case_doc(case)
     assert planted_counts(doc) == A11_COUNTS
-    assert doc["runs"][0]["bpm"] == [66, 80] and doc["runs"][0]["coverage"]["bars"] == 16
+    assert doc["runs"][0]["bpm"] == [66, 80]
+    assert doc["runs"][0]["coverage"]["bars"] == 16
     loaded = riff.load_run(case["jam"], RUN_ID)
     tl = riff.RunTimeline(loaded, riff.align(loaded, SESSION_ID, PerformanceStore(case["root"]).info(SESSION_ID)))
     segs = case["run"]["segments"]
@@ -955,8 +983,11 @@ def test_not_enough_playing_inside_the_loop_exits_0(tmp_path, capsys):
     assert code == 0
     doc = json.loads(capsys.readouterr().out)
     b = doc["runs"][0]
-    assert b["enough"] is False and b["say"] == "not enough playing inside the loop to talk about (5 notes)"
-    assert doc["talking_points"] == [] and doc["question"] is None and doc["try"] is None
+    assert b["enough"] is False
+    assert b["say"] == "not enough playing inside the loop to talk about (5 notes)"
+    assert doc["talking_points"] == []
+    assert doc["question"] is None
+    assert doc["try"] is None
 
 
 def test_no_session_overlapping_the_run_exits_2(tmp_path, capsys):
@@ -972,16 +1003,21 @@ def test_question_try_checks_and_the_held_rub_point():
     doc = fixture_doc("riff_lydian_l1")
     planted = json.loads((FIX / "riff_lydian_l1" / "expected.json").read_text(encoding="utf-8"))["planted"]
     q = doc["question"]
-    assert q["kind"] == "rub" and q["at"] == pr.clock(planted["rub"][0])
+    assert q["kind"] == "rub"
+    assert q["at"] == pr.clock(planted["rub"][0])
     assert (
         q["text"] == f"At {pr.clock(planted['rub'][0])} the Ab rubbed against the G in Ebmaj9. Did you want that rub?"
     )
     assert q["replay"] == riff.replay_command(SESSION_ID, planted["rub"][0] - 4000, 8)
-    assert doc["try"]["rule"] == 5 and doc["try"]["text"].startswith("Keep the loop going. On the Ab bar")
+    assert doc["try"]["rule"] == 5
+    assert doc["try"]["text"].startswith("Keep the loop going. On the Ab bar")
     check = doc["runs"][0]["checks"][0]
-    assert check["id"] == "sharp-eleven" and check["pass"] is True and check["count"] == 9
+    assert check["id"] == "sharp-eleven"
+    assert check["pass"] is True
+    assert check["count"] == 9
     t4 = [p for p in fixture_doc("riff_lydian_d4")["talking_points"] if p["type"] == "T4"]
-    assert t4 and t4[0]["text"] == (
+    assert t4
+    assert t4[0]["text"] == (
         f"At {pr.clock(planted['rub'][0])} you held Ab over Ebmaj9 for 2 beats: it rubs a "
         f"half step against the G. At {pr.clock(planted['passing'][0])} the same Ab passed "
         f"quickly."
@@ -991,8 +1027,10 @@ def test_question_try_checks_and_the_held_rub_point():
 def test_concept_note_missing_gives_try_rule_1(tmp_path):
     doc = case_doc(jam_case(tmp_path, d_plan="d0"))
     check = doc["runs"][0]["checks"][0]
-    assert check["pass"] is False and check["count"] == 0
-    assert doc["try"]["rule"] == 1 and doc["try"]["text"] == "Land your top note on D in bar 2."
+    assert check["pass"] is False
+    assert check["count"] == 0
+    assert doc["try"]["rule"] == 1
+    assert doc["try"]["text"] == "Land your top note on D in bar 2."
     assert doc["try"]["card"] == {"id": "lydian-four", "target_notes": [74], "bar": 2}
     assert "- sharp-eleven: D did not come up this time" in riff.render(doc)
 
@@ -1022,8 +1060,10 @@ def test_card_with_no_run_is_assumed_alignment(tmp_path, capsys):
     )
     assert code == 0
     b = json.loads(capsys.readouterr().out)["runs"][0]
-    assert b["alignment"]["method"] == "assumed" and b["alignment"]["approx"] is True
-    assert slot(b, 1)["labels"]["#11"] == 9 and len(b["anticipations"]) == 5
+    assert b["alignment"]["method"] == "assumed"
+    assert b["alignment"]["approx"] is True
+    assert slot(b, 1)["labels"]["#11"] == 9
+    assert len(b["anticipations"]) == 5
     assert all(x["approx"] is True for x in b["anticipations"])
 
 
@@ -1037,9 +1077,12 @@ def test_save_writes_only_the_riff_file(tmp_path, capsys):
     assert code == 0
     saved = folder / "jam" / "riffs" / f"{RUN_ID}.json"
     doc = json.loads(saved.read_text(encoding="utf-8"))
-    assert doc["api"] == RIFF_API and doc["saved_at"] and [b["run"] for b in doc["runs"]] == [RUN_ID]
+    assert doc["api"] == RIFF_API
+    assert doc["saved_at"]
+    assert [b["run"] for b in doc["runs"]] == [RUN_ID]
     after = {p: p.read_bytes() for p in folder.rglob("*") if p.is_file()}
-    assert set(after) - set(before) == {saved} and all(after[p] == before[p] for p in before)
+    assert set(after) - set(before) == {saved}
+    assert all(after[p] == before[p] for p in before)
     assert "saved" in capsys.readouterr().err
 
 
@@ -1068,28 +1111,31 @@ def test_the_practice_verb_registration():
     )
     assert proc.returncode == 0, proc.stderr
     doc = json.loads(proc.stdout)
-    assert doc["api"] == RIFF_API and doc["runs"][0]["alignment"]["method"] == "L1"
-    assert doc["constants"]["ONSET_GROUP_MS"] == 50 and doc["constants"]["GRID_TOL"] == 0.08
+    assert doc["api"] == RIFF_API
+    assert doc["runs"][0]["alignment"]["method"] == "L1"
+    assert doc["constants"]["ONSET_GROUP_MS"] == 50
+    assert doc["constants"]["GRID_TOL"] == 0.08
 
 
 def test_latest_and_session_forms_and_the_filters(capsys):
     f = FIX / "riff_lydian_l1"
     base = ["--root", str(f / "performance"), "--jam-root", str(f / "jam"), "--json", "--rebuild", "def"]
-    assert riff.main(["latest"] + base) == 0
+    assert riff.main(["latest", *base]) == 0
     latest = json.loads(capsys.readouterr().out)
-    assert [b["run"] for b in latest["runs"]] == [RUN_ID] and latest["session"] == SESSION_ID
-    assert riff.main(["--session", SESSION_ID] + base) == 0
+    assert [b["run"] for b in latest["runs"]] == [RUN_ID]
+    assert latest["session"] == SESSION_ID
+    assert riff.main(["--session", SESSION_ID, *base]) == 0
     by_session = json.loads(capsys.readouterr().out)
-    assert [b["run"] for b in by_session["runs"]] == [RUN_ID] and "free_play" not in by_session
+    assert [b["run"] for b in by_session["runs"]] == [RUN_ID]
+    assert "free_play" not in by_session
     for flags in (["--pass", "3"], ["--bars", "5-6"]):
-        assert riff.main([RUN_ID] + flags + base) == 0
+        assert riff.main([RUN_ID, *flags, *base]) == 0
         b = json.loads(capsys.readouterr().out)["runs"][0]
         assert b["coverage"]["passes"] == 1 and b["coverage"]["bars"] == 2, flags
-        assert (
-            sum(s["classes"]["rub"] for s in b["slots"]) == 1 and sum(s["classes"]["passing"] for s in b["slots"]) == 0
-        )
+        assert sum(s["classes"]["rub"] for s in b["slots"]) == 1
+        assert sum(s["classes"]["passing"] for s in b["slots"]) == 0
         assert {x["pass"] for x in b["notes"]} == {3}
-    assert riff.main([RUN_ID, "--pass", "0"] + base) == 2
+    assert riff.main([RUN_ID, "--pass", "0", *base]) == 2
     assert "--pass counts from 1" in capsys.readouterr().err
 
 

@@ -80,7 +80,7 @@ def _isolated_outcomes(tmp_path, monkeypatch):
     """Point the outcome sink at a temp dir so pins never pollute production streams
     (the 2026-07-02 hermeticity rule) -- and so assertions can read it back."""
     monkeypatch.setattr(A, "_OUTCOME_DIR", str(tmp_path), raising=False)
-    yield tmp_path
+    return tmp_path
 
 
 def _outcomes(tmp_path):

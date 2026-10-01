@@ -57,7 +57,8 @@ def test_p1_identity_overrides_inherited_env(box, monkeypatch):
     monkeypatch.setattr(tbmod.subprocess, "run", _capture_run(seen))
     monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")  # the inherited-launcher value
     out = box.run_command("py agent_cli.py status")
-    assert "REFUSED" not in out and seen.get("env") is not None
+    assert "REFUSED" not in out
+    assert seen.get("env") is not None
     assert seen["env"]["AKASHIC_AGENT_ID"] == "deepseek", (
         "the door's verified identity beats the launching session's inherited one"
     )

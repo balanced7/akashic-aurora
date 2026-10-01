@@ -59,7 +59,8 @@ def test_seal_unseal_round_trips_the_inner_message(alice, bob):
     env = _sealed(alice, bob)
     got = seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge")
     assert got["content"] == INNER["content"]
-    assert got["id"] == INNER["id"] and got["kind"] == INNER["kind"]
+    assert got["id"] == INNER["id"]
+    assert got["kind"] == INNER["kind"]
 
 
 def test_the_midpoint_cannot_read_the_body(alice, bob):

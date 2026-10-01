@@ -97,7 +97,8 @@ def test_p4_tokens_from_journal(tmp_path):
     p = tmp_path / f"runner_{AGENT}_{day}.json"
     p.write_text(json.dumps({"prompt": 1234, "completion": 567}))
     s = ev.gauge_snapshot(AGENT, c=c, journal_dir=str(tmp_path))
-    assert s["tokens"]["prompt"] == 1234 and s["tokens"]["completion"] == 567
+    assert s["tokens"]["prompt"] == 1234
+    assert s["tokens"]["completion"] == 567
     s2 = ev.gauge_snapshot(AGENT, c=c, journal_dir=str(tmp_path / "nope"))
     assert s2["tokens"] == {"prompt": 0, "completion": 0}, "P4: absent journal -> zeros"
 

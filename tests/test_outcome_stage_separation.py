@@ -53,7 +53,8 @@ def test_s2_first_try_success_without_lesson_is_the_control_arm():
     at_action.resolve_action_outcome(sid, tgt, True)
     recs = at_action.session_outcomes(sid)
     assert len(recs) == 1
-    assert recs[0]["ok"] is True and recs[0]["surfaced"] is False
+    assert recs[0]["ok"] is True
+    assert recs[0]["surfaced"] is False
 
 
 def test_s3_real_flip_still_flips_and_logs(monkeypatch):
@@ -68,7 +69,8 @@ def test_s3_real_flip_still_flips_and_logs(monkeypatch):
     assert at_action.session_flips(sid), "the flip log still receives it"
     recs = at_action.session_outcomes(sid)
     assert len(recs) == 2, "and BOTH resolutions are now staged"
-    assert recs[0]["ok"] is False and recs[1]["flipped"] is True
+    assert recs[0]["ok"] is False
+    assert recs[1]["flipped"] is True
 
 
 def test_s4_prevention_rate_contrasts_the_two_arms():
@@ -82,8 +84,10 @@ def test_s4_prevention_rate_contrasts_the_two_arms():
         at_action.resolve_action_outcome(sid, t, False)
 
     pr = at_action.prevention_rate(sid)
-    assert pr["with_lesson"]["n"] == 3 and pr["with_lesson"]["ok"] == 2
-    assert pr["without_lesson"]["n"] == 2 and pr["without_lesson"]["ok"] == 0
+    assert pr["with_lesson"]["n"] == 3
+    assert pr["with_lesson"]["ok"] == 2
+    assert pr["without_lesson"]["n"] == 2
+    assert pr["without_lesson"]["ok"] == 0
     assert pr["rate_with"] == pytest.approx(2 / 3)
     assert pr["rate_without"] == 0.0
     assert pr["lift"] == pytest.approx(0.6667, abs=1e-3)
@@ -149,7 +153,8 @@ def test_s8_durable_readers_are_fail_soft(monkeypatch):
     monkeypatch.setattr(el, "get_event_log", boom)
     assert at_action.durable_outcomes(30) == []
     pr = at_action.prevention_rate_durable(30)
-    assert pr["lift"] is None and pr["with_lesson"]["n"] == 0
+    assert pr["lift"] is None
+    assert pr["with_lesson"]["n"] == 0
 
 
 def test_s6_outcome_stage_does_not_steer_ranking(monkeypatch):
@@ -157,7 +162,7 @@ def test_s6_outcome_stage_does_not_steer_ranking(monkeypatch):
     until the stages are separately observed. Recording an outcome must touch NO counter."""
     calls = []
     monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: calls.append(a) or True)
-    monkeypatch.setattr(at_action, "bump_surfaced", lambda *a, **k: calls.append(("bump",) + a))
+    monkeypatch.setattr(at_action, "bump_surfaced", lambda *a, **k: calls.append(("bump", *a)))
     sid, tgt = _sid(), at_action.normalize_target(command="echo nosteer")
     at_action.mark_impression(sid, tgt, ["learn:experiment:l"])
     at_action.resolve_action_outcome(sid, tgt, True)  # first-try success

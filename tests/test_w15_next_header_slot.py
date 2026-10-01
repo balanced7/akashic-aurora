@@ -39,6 +39,7 @@ def test_header_promises_when_slot_free(tmp_path):
     TL.approve(L, b["id"], at="t1")
 
     got = next_task(client=None, path=L.path)
-    assert got and got["id"] == b["id"]  # the gate offers...
+    assert got
+    assert got["id"] == b["id"]
     text = TL.format_state(path=L.path, client=None)
     assert "NEXT (claimable now):" in text  # ...and the header agrees

@@ -95,7 +95,9 @@ def test_c7_a_mixed_batch_reports_BOTH_counts_rather_than_the_louder_one():
     """Ten skew and one real failure is a different situation from eleven of either, and
     collapsing them is what hid the single genuine defect for a whole day."""
     out = A.render_straggler_summary({"lane-write-failed": 1, "cursor-skew": 10, "unknown": 2})
-    assert "1" in out and "10" in out and "2" in out
+    assert "1" in out
+    assert "10" in out
+    assert "2" in out
 
 
 def test_c8_an_all_clear_batch_renders_nothing():

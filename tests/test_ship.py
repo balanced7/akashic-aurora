@@ -18,19 +18,19 @@ import ship
 
 
 def _args(**over):
-    base = dict(
-        message="msg",
-        paths=["a.py", "b.py"],
-        agent="claude",
-        learn_exp=None,
-        tried="",
-        result="",
-        recommend="",
-        anti_pattern="",
-        no_test=False,
-        no_snapshot=False,
-        dry_run=False,
-    )
+    base = {
+        "message": "msg",
+        "paths": ["a.py", "b.py"],
+        "agent": "claude",
+        "learn_exp": None,
+        "tried": "",
+        "result": "",
+        "recommend": "",
+        "anti_pattern": "",
+        "no_test": False,
+        "no_snapshot": False,
+        "dry_run": False,
+    }
     base.update(over)
     return Namespace(**base)
 

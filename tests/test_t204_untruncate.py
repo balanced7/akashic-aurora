@@ -109,7 +109,8 @@ def test_continuation_is_opt_in():
     established. Spending extra calls must be asked for."""
     c = ScriptedClient(_resp("cut here", "length"))
     o = ask_mod.ask("q", client=c)
-    assert o.partial and len(c.calls) == 1
+    assert o.partial
+    assert len(c.calls) == 1
 
 
 # --------------------------------------------------------------------------------------
@@ -133,7 +134,8 @@ def test_starved_says_how_much_reasoning_ate():
     c = ScriptedClient(_resp("", "length", _Usage(pt=8662, ct=1200, reasoning=1200)))
     o = ask_mod.ask("q", client=c, continue_on_cut=True, max_tokens=1200)
     assert o.detail.get("reasoning_tokens") == 1200
-    assert "1200" in o.why and "reasoning" in o.why.lower()
+    assert "1200" in o.why
+    assert "reasoning" in o.why.lower()
 
 
 def test_reasoning_tokens_are_recorded_even_on_success():
@@ -141,7 +143,8 @@ def test_reasoning_tokens_are_recorded_even_on_success():
     starvation threshold learnable instead of guessed."""
     c = ScriptedClient(_resp("fine", "stop", _Usage(pt=10, ct=50, reasoning=30)))
     o = ask_mod.ask("q", client=c)
-    assert o.ok and o.detail.get("reasoning_tokens") == 30
+    assert o.ok
+    assert o.detail.get("reasoning_tokens") == 30
 
 
 def test_absent_reasoning_field_is_none_never_zero():

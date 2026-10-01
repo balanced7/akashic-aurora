@@ -208,7 +208,8 @@ def test_events_for_ref_fallback_without_index():
     el.capture("msg_ack", "ack", refs=["bifrost:m9"])
     el.capture("note", "noise", refs=[])
     got = EventQuery(event_log=el).events_for_ref("bifrost:m9")
-    assert len(got) == 1 and got[0]["summary"] == "ack"
+    assert len(got) == 1
+    assert got[0]["summary"] == "ack"
 
 
 def test_filestore_srem_contract():

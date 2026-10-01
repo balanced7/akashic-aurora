@@ -49,7 +49,8 @@ def test_blocker_loader():
     mgr.record_blocker_preventing_task("GPU allocation unavailable", "critical")
     mgr.record_blocker_preventing_task("minor cosmetic typo", "low")
     out = load_blockers_preventing_progress("", context_manager=mgr)
-    assert len(out) == 2 and all(r["source"] for r in out)
+    assert len(out) == 2
+    assert all(r["source"] for r in out)
     assert out[0]["severity"] == "critical", f"critical blocker should rank first, got {out}"
     print("\n--- blocker_loader ---\n  ranks active blockers by severity + source pointers OK")
 
@@ -83,7 +84,9 @@ def test_briefing_loader():
     )
     b = load_briefing_from_previous_handoff("B", signal_ledger=sl)
     assert b is not None and b["task"] == "latest task", f"should get most recent handoff to B, got {b}"
-    assert b["from_agent"] == "C" and b["blockers"] == ["x"] and b["source"]
+    assert b["from_agent"] == "C"
+    assert b["blockers"] == ["x"]
+    assert b["source"]
     assert load_briefing_from_previous_handoff("NOBODY", signal_ledger=sl) is None
     print("\n--- briefing_loader ---\n  latest handoff to agent + none-for-unknown OK")
 

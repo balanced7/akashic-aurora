@@ -23,7 +23,7 @@ P = r"C:\repo\chronicles\last-session-draft.md"
 
 
 def _probe(*, present=True, age=0.0, now=1000.0):
-    return dict(exists=lambda p: present, getmtime=lambda p: now - age)
+    return {"exists": lambda p: present, "getmtime": lambda p: now - age}
 
 
 # --------------------------------------------------- the throttle, both directions
@@ -63,7 +63,8 @@ def test_the_kill_switch_stops_it_dead(monkeypatch):
     monkeypatch.setenv(dk.ENV_OFF, "0")
     assert dk.should_refresh(P, now=1000.0, max_age=600.0, **_probe(present=False)) is False
     out = dk.refresh(P, write=lambda: pytest.fail("must not write when disabled"))
-    assert out["wrote"] is False and "disabled" in out["reason"]
+    assert out["wrote"] is False
+    assert "disabled" in out["reason"]
 
 
 def test_a_bad_max_age_env_falls_back_rather_than_crashing(monkeypatch):
@@ -83,7 +84,8 @@ def test_a_writer_that_explodes_does_not_escape_into_the_turn():
 
     out = dk.refresh(P, write=boom, now=1000.0, max_age=600.0, **_probe(present=False))
     assert out["wrote"] is False
-    assert "RuntimeError" in out["reason"] and "exploded" in out["reason"]
+    assert "RuntimeError" in out["reason"]
+    assert "exploded" in out["reason"]
 
 
 def test_the_failure_reason_carries_the_MESSAGE_not_just_the_class():
@@ -105,8 +107,10 @@ def test_every_outcome_states_its_reason():
     skipped = dk.refresh(
         P, write=lambda: pytest.fail("fresh draft must not be rewritten"), now=1000.0, max_age=600.0, **_probe(age=5.0)
     )
-    assert wrote["wrote"] is True and wrote["reason"]
-    assert skipped["wrote"] is False and skipped["reason"]
+    assert wrote["wrote"] is True
+    assert wrote["reason"]
+    assert skipped["wrote"] is False
+    assert skipped["reason"]
     assert wrote["reason"] != skipped["reason"]
 
 

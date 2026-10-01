@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 from arsenal import band  # noqa: E402
 from arsenal.band import BandError  # noqa: E402
+import itertools
 
 LOOP_C = "Cmaj7 | Am7 | Dm7 | G7"
 
@@ -69,7 +70,8 @@ def read_midi(data):
                 size = 1 if status & 0xF0 in (0xC0, 0xD0) else 2
                 events.append(("midi", tick, status, bytes(body[j : j + size])))
                 j += size
-        assert events and events[-1][:3] == ("meta", events[-1][1], 0x2F)
+        assert events
+        assert events[-1][:3] == ("meta", events[-1][1], 0x2F)
         tracks.append(events)
     assert i == len(data), "bytes after the last track"
     return {"format": fmt, "division": division, "tracks": tracks}
@@ -184,7 +186,9 @@ def test_vlq_matches_the_smf_spec_table():
 def test_combined_mid_is_type_1_with_a_conductor_and_one_track_per_lane():
     ps = band.seed("eb-neosoul-pocket")
     m = read_midi(band.midi_bytes(ps))
-    assert m["format"] == 1 and m["division"] == 480 and len(m["tracks"]) == 1 + len(band.LANES)
+    assert m["format"] == 1
+    assert m["division"] == 480
+    assert len(m["tracks"]) == 1 + len(band.LANES)
     conductor = m["tracks"][0]
     assert metas(conductor, 0x51) == [(0, round(60_000_000 / 84).to_bytes(3, "big"))]
     assert metas(conductor, 0x58) == [(0, bytes((4, 2, 24, 8)))]
@@ -193,11 +197,12 @@ def test_combined_mid_is_type_1_with_a_conductor_and_one_track_per_lane():
         (round(c["beat"] * 480), c["name"]) for c in ps["chords"]
     ]
     end = round(ps["length_beats"] * 480)
-    for track, name in zip(m["tracks"][1:], band.LANES):
+    for track, name in zip(m["tracks"][1:], band.LANES, strict=False):
         assert metas(track, 0x03) == [(0, name.encode())]
         assert notes_of(track) == expected_notes(lane(ps, name), band.CHANNELS[name])
         assert track[-1][1] == end  # End of Track on the loop's end
-    assert band.CHANNELS["drums"] == 9 and notes_of(m["tracks"][2])[0][2] == 9  # drums on MIDI channel 10
+    assert band.CHANNELS["drums"] == 9
+    assert notes_of(m["tracks"][2])[0][2] == 9
 
 
 def test_per_lane_files_hold_the_tempo_and_just_that_lane(tmp_path):
@@ -209,7 +214,8 @@ def test_per_lane_files_hold_the_tempo_and_just_that_lane(tmp_path):
     )  # comp is off in this seed
     for name in ("bass", "drums", "pad"):
         m = read_midi((tmp_path / f"db-ballad-lift-{name}.mid").read_bytes())
-        assert m["format"] == 1 and len(m["tracks"]) == 1
+        assert m["format"] == 1
+        assert len(m["tracks"]) == 1
         track = m["tracks"][0]
         assert metas(track, 0x51)[0][1] == round(60_000_000 / 66).to_bytes(3, "big")
         assert metas(track, 0x59) == [(0, struct.pack(">bB", -5, 0))]  # Db major: five flats
@@ -221,12 +227,13 @@ def test_a_repeated_pitch_releases_before_it_strikes_again():
     track = read_midi(band.midi_bytes(ps, "bass"))["tracks"][0]
     at_240 = [ev for ev in track if ev[0] == "midi" and ev[1] == 240]
     kinds = [ev[2] & 0xF0 for ev in at_240]
-    assert kinds.count(0x90) == 1 and (0x80 not in kinds or kinds.index(0x80) < kinds.index(0x90))
+    assert kinds.count(0x90) == 1
+    assert 0x80 not in kinds or kinds.index(0x80) < kinds.index(0x90)
     assert len(notes_of(track)) == 8
 
 
 @pytest.mark.parametrize(
-    "key, sf, mi",
+    ("key", "sf", "mi"),
     [
         ("C major", 0, 0),
         ("D major", 2, 0),
@@ -245,11 +252,12 @@ def test_key_signatures(key, sf, mi):
 
 # ================================================================================================ bars and beats
 @pytest.mark.parametrize(
-    "meter, beats", [((4, 4), 4), ((3, 4), 3), ((6, 8), 3), ((12, 8), 6), ((7, 8), 3.5), ((2, 2), 4)]
+    ("meter", "beats"), [((4, 4), 4), ((3, 4), 3), ((6, 8), 3), ((12, 8), 6), ((7, 8), 3.5), ((2, 2), 4)]
 )
 def test_beats_per_bar(meter, beats):
     assert band.beats_per_bar(meter) == beats
-    assert band.is_whole_bars(beats * 3, meter) and not band.is_whole_bars(beats * 3 + 1, meter)
+    assert band.is_whole_bars(beats * 3, meter)
+    assert not band.is_whole_bars(beats * 3 + 1, meter)
 
 
 def test_next_bar_line_is_strictly_after_the_position():
@@ -273,7 +281,8 @@ def test_bar_lines_split_a_bar_and_durations_override():
     cycle = band.parse_loop("Db13sus4:2 Db7b9:2 Gbmaj9", "Gb major")
     assert [(c["beat"], c["dur"]) for c in cycle] == [(0, 2), (2, 2), (4, 4)]
     cycle = band.parse_loop("Fmaj9 % Dm9 %")
-    assert [c["name"] for c in cycle] == ["Fmaj9", "Fmaj9", "Dm9", "Dm9"] and cycle[3]["beat"] == 12
+    assert [c["name"] for c in cycle] == ["Fmaj9", "Fmaj9", "Dm9", "Dm9"]
+    assert cycle[3]["beat"] == 12
     cycle = band.parse_loop("| Cmaj7:8 | Am7 |")
     assert [(c["beat"], c["dur"]) for c in cycle] == [(0, 8), (8, 4)]
     with pytest.raises(BandError, match="whole bars"):
@@ -292,12 +301,14 @@ def test_bars_repeat_or_cut_the_loop_and_every_note_fits():
     for name in band.LANES:
         assert all(0 <= n["beat"] < 32 and n["beat"] + n["len"] <= 32 + 1e-9 for n in lane(ps, name))
     short = make(bars=2)
-    assert short["length_beats"] == 8 and [c["name"] for c in short["chords"]] == ["Cmaj7", "Am7"]
+    assert short["length_beats"] == 8
+    assert [c["name"] for c in short["chords"]] == ["Cmaj7", "Am7"]
 
 
 def test_three_four_meter():
     ps = make("C | G | Am | F", meter="3/4", bass="walking", drums="ballad", pad=True)
-    assert ps["meter"] == [3, 4] and ps["length_beats"] == 12
+    assert ps["meter"] == [3, 4]
+    assert ps["length_beats"] == 12
     assert [c["beat"] for c in ps["chords"]] == [0, 3, 6, 9]
     band.validate_pattern_set(ps)
     assert band.lint(ps) == []
@@ -331,7 +342,8 @@ def test_normalize_notes_cuts_overlaps_and_keeps_the_louder_duplicate():
 def test_the_contract_shape():
     ps = band.seed("gb-real-v7")
     assert list(ps) == ["version", "id", "title", "key", "bpm_hint", "meter", "length_beats", "chords", "lanes"]
-    assert ps["version"] == 1 and list(ps["lanes"]) == list(band.LANES)
+    assert ps["version"] == 1
+    assert list(ps["lanes"]) == list(band.LANES)
     assert all(set(c) == {"beat", "name", "nns"} for c in ps["chords"])
     for name in band.LANES:
         assert set(ps["lanes"][name]) == {"notes"}
@@ -342,7 +354,7 @@ def test_the_contract_shape():
 
 
 @pytest.mark.parametrize(
-    "patch, message",
+    ("patch", "message"),
     [
         (lambda ps: ps.update(version=2), "version"),
         (lambda ps: ps.update(length_beats=30), "whole bars"),
@@ -372,7 +384,7 @@ REGISTER_LOOPS = [
 ]
 
 
-@pytest.mark.parametrize("loop, key", REGISTER_LOOPS)
+@pytest.mark.parametrize(("loop", "key"), REGISTER_LOOPS)
 @pytest.mark.parametrize("style", band.BASS_STYLES)
 def test_bass_styles_stay_in_register_and_never_overlap(loop, key, style):
     ps = band.make_pattern_set(loop, key=key, bass=style, drums="none", comp=True, pad=True, bars=8, pid="reg")
@@ -382,7 +394,8 @@ def test_bass_styles_stay_in_register_and_never_overlap(loop, key, style):
     assert all(lo <= n["note"] <= hi for n in lane(ps, "bass"))
     assert (lane(ps, "bass") == []) == (style == "none")
     for name in ("comp", "pad"):
-        assert lane(ps, name) and all(48 <= n["note"] <= 71 for n in lane(ps, name))
+        assert lane(ps, name)
+        assert all(48 <= n["note"] <= 71 for n in lane(ps, name))
     for name in band.LANES:
         assert_no_overlap(lane(ps, name))
 
@@ -433,19 +446,24 @@ def test_walking_is_quarters_that_step_into_each_change_half_a_beat_early():
         assert onsets == ([0] if b == 0 else []) + [1, 2, 3, 3.5], f"bar {b + 1}: {onsets}"
         approach, early = at(notes, b * 4 + 3)[0], at(notes, b * 4 + 3.5)[0]
         assert early["note"] % 12 == roots[nxt], f"bar {b + 1} does not step to the next root on the and of 4"
-        assert abs(approach["note"] - early["note"]) == 1 and approach["len"] <= 0.5  # a half-step 8th
+        assert abs(approach["note"] - early["note"]) == 1
+        assert approach["len"] <= 0.5
         if nxt:
-            assert sounding(notes, nxt * 4) == [early] and early["beat"] + early["len"] > nxt * 4 + 0.5  # tied over
+            assert sounding(notes, nxt * 4) == [early]
+            assert early["beat"] + early["len"] > nxt * 4 + 0.5
         else:
-            assert early["beat"] + early["len"] <= 16 and at(notes, 0)  # the loop top strikes its 1
-    for a, b2 in zip(notes, notes[1:]):
+            assert early["beat"] + early["len"] <= 16
+            assert at(notes, 0)
+    for a, b2 in itertools.pairwise(notes):
         assert a["note"] != b2["note"], "a walking line repeats a note"
 
 
 def test_walking_does_not_step_early_where_the_bass_note_stays():
     notes = lane(make("Cmaj7:8 Fmaj7:8", bass="walking", drums="none"), "bass")
-    assert [n["beat"] for n in notes if n["beat"] < 4] == [0, 1, 2, 3] and at(notes, 4)  # same chord: on the 1
-    assert at(notes, 7.5)[0]["note"] % 12 == 5 and not at(notes, 8)  # the change to F
+    assert [n["beat"] for n in notes if n["beat"] < 4] == [0, 1, 2, 3]
+    assert at(notes, 4)
+    assert at(notes, 7.5)[0]["note"] % 12 == 5
+    assert not at(notes, 8)
 
 
 def test_gospel_runs_early_into_phrase_tops_and_steps_plainly_into_the_other_changes():
@@ -460,19 +478,22 @@ def test_gospel_runs_early_into_phrase_tops_and_steps_plainly_into_the_other_cha
         assert root % 12 == roots[b]
         struck_1 = [0] if b == 0 or b % 2 == 1 else []  # bar 3 is tied in from bar 2
         if nxt % 2 == 0:  # into bar 3 or the loop top, the phrase tops of a 4-bar loop: the run
-            assert onsets == struck_1 + [1.5, 2, 2.75, 3, 3.25, 3.5], f"bar {b + 1}: {onsets}"
+            assert onsets == [*struck_1, 1.5, 2, 2.75, 3, 3.25, 3.5], f"bar {b + 1}: {onsets}"
             partner, third, run, early = bar[-6], bar[-5], [n["note"] for n in bar[-4:-1]], bar[-1]
-            assert run[1] - run[0] == run[2] - run[1] and abs(run[1] - run[0]) == 1  # a chromatic 16th run
-            assert abs(run[2] - early["note"]) == 1 and early["note"] % 12 == roots[nxt]
+            assert run[1] - run[0] == run[2] - run[1]
+            assert abs(run[1] - run[0]) == 1
+            assert abs(run[2] - early["note"]) == 1
+            assert early["note"] % 12 == roots[nxt]
             assert partner["note"] % 12 in (root % 12, (root + 7) % 12)  # octave, or the fifth
             assert run[0] != third["note"], "the run restates beat 3's note"
             assert partner["note"] != third["note"], "the and of 2 and beat 3 repeat one note"
             if nxt:
                 assert sounding(notes, nxt * 4) == [early]  # tied over the bar line
         else:  # any other change: no run, no anticipation, room for the piano
-            assert onsets == struck_1 + [1.5, 2, 3], f"bar {b + 1}: {onsets}"
+            assert onsets == [*struck_1, 1.5, 2, 3], f"bar {b + 1}: {onsets}"
             approach, landing = bar[-1], at(notes, nxt * 4)[0]
-            assert abs(approach["note"] - landing["note"]) == 1 and landing["note"] % 12 == roots[nxt]
+            assert abs(approach["note"] - landing["note"]) == 1
+            assert landing["note"] % 12 == roots[nxt]
             assert approach["beat"] + approach["len"] <= nxt * 4  # lands on the 1, not before
 
 
@@ -481,19 +502,24 @@ def test_f_to_d_drop_runs_in_triplets_only_into_the_key_drop_and_the_turnaround(
     notes, drums = lane(ps, "bass"), lane(ps, "drums")
     rides = {tick(n["beat"]) for n in drums if n["note"] == band.RIDE}
     tail = {b: [round(n["beat"] - b * 4, 3) for n in notes if b * 4 + 2.5 <= n["beat"] < b * 4 + 4] for b in range(8)}
-    assert tail[3] == [2.667, 3, 3.333, 3.667] and tail[7] == [3.333, 3.667]  # into bar 5 and bar 1
+    assert tail[3] == [2.667, 3, 3.333, 3.667]
+    assert tail[7] == [3.333, 3.667]
     assert all(tail[b] == [3] for b in (0, 1, 2, 4, 5, 6)), tail  # a plain step elsewhere
     for b, pc in ((3, 2), (7, 5)):  # D at the drop, F at the top
         early = [n for n in notes if tick(n["beat"]) == tick(b * 4 + 3 + 2 / 3)][0]
-        assert tick(early["beat"]) in rides and early["note"] % 12 == pc  # on the ride's triplet skip
-    assert sounding(notes, 16)[0]["note"] % 12 == 2 and not at(notes, 16)  # tied into the drop
+        assert tick(early["beat"]) in rides
+        assert early["note"] % 12 == pc
+    assert sounding(notes, 16)[0]["note"] % 12 == 2
+    assert not at(notes, 16)
     assert at(notes, 0)[0]["note"] % 12 == 5  # the loop top strikes its 1
 
 
 def test_gospel_keeps_the_triplet_run_on_4_where_the_bass_note_stays():
     notes = lane(make("Cmaj7:8 Fmaj7:8", bass="gospel", drums="none"), "bass")
     assert [round(n["beat"], 4) for n in notes if n["beat"] < 4] == [0, 1.5, 2, 3, 3.3333, 3.6667]
-    assert at(notes, 4) and at(notes, 7.5) and not at(notes, 8)
+    assert at(notes, 4)
+    assert at(notes, 7.5)
+    assert not at(notes, 8)
 
 
 def test_gospel_minor_third_walk_down_keeps_moving():
@@ -501,7 +527,7 @@ def test_gospel_minor_third_walk_down_keeps_moving():
     notes = sorted(lane(ps, "bass"), key=lambda n: n["beat"])
     assert [len([n for n in notes if b * 4 <= n["beat"] < b * 4 + 4]) for b in range(4)] == [4, 7, 3, 7]
     line = [n["note"] for n in notes]
-    assert all(x != y for x, y in zip(line, line[1:])), f"the line repeats a note back to back: {line}"
+    assert all(x != y for x, y in itertools.pairwise(line)), f"the line repeats a note back to back: {line}"
 
 
 def test_pocket_bass_is_root_on_1_ghosts_anticipations_and_space():
@@ -515,11 +541,15 @@ def test_pocket_bass_is_root_on_1_ghosts_anticipations_and_space():
         offs = [round(n["beat"] - b * 4, 6) for n in bar]
         first = at(notes, b * 4)
         assert first and first[0]["note"] % 12 == root_pc[b], f"bar {b + 1} has no root on 1"
-        assert 1.5 in offs and offs != [0, 1, 2, 3]  # the and of 2, not a walk
-        assert at(notes, b * 4 + 2.5) and b * 4 + 2.5 in kicks  # with the kick on the and of 3
+        assert 1.5 in offs
+        assert offs != [0, 1, 2, 3]
+        assert at(notes, b * 4 + 2.5)
+        assert b * 4 + 2.5 in kicks
         if b % 2 == 0:
             ghost = at_tick(notes, sw(b * 4 + 0.75))[0]  # swung with the hats
-            assert ghost["vel"] < 50 and ghost["len"] <= 0.25 and ghost["note"] == first[0]["note"]
+            assert ghost["vel"] < 50
+            assert ghost["len"] <= 0.25
+            assert ghost["note"] == first[0]["note"]
             assert abs(at_tick(notes, sw(b * 4 + 3.75))[0]["note"] - at(notes, (b + 1) % 8 * 4)[0]["note"]) == 1
         else:
             assert at(notes, b * 4 + 3.5)[0]["note"] % 12 == root_pc[(b + 1) % 8]  # anticipated on the and of 4
@@ -569,9 +599,9 @@ def test_repeats_of_the_loop_play_the_same_bass_line():
 @pytest.mark.parametrize(
     "kw",
     [
-        dict(bass="pocket", comp=True),
-        dict(bass="gospel", comp=True, pad=True, swing=0.66),
-        dict(bass="walking", comp=True, swing=0.5),
+        {"bass": "pocket", "comp": True},
+        {"bass": "gospel", "comp": True, "pad": True, "swing": 0.66},
+        {"bass": "walking", "comp": True, "swing": 0.5},
     ],
 )
 def test_bass_comp_and_pad_sit_in_the_neo_soul_swing_with_the_hats(kw):
@@ -608,7 +638,10 @@ def test_neo_soul_lays_back_the_snare_ghosts_and_swings_the_hats():
         ghosts = [n for n in d if n["note"] == band.SNARE and n["vel"] < 45 and b * 4 <= n["beat"] < b * 4 + 4]
         assert len(ghosts) == 2
     hats = per_bar(d, band.HAT)[0]
-    assert len(hats) == 15 and band.q(0.29) in hats and 0.25 not in hats and 0.5 in hats  # offbeat 16ths late
+    assert len(hats) == 15
+    assert band.q(0.29) in hats
+    assert 0.25 not in hats
+    assert 0.5 in hats
     assert per_bar(d, band.OPEN_HAT) == {b: [3.5] for b in range(4)}
     assert per_bar(d, band.KICK) == {b: [0, 1.75, 2.5] for b in range(4)}
     straight = lane(make(drums="neo-soul", swing=0.5), "drums")
@@ -647,8 +680,9 @@ def test_ambient_is_sparse_with_crashes_and_a_rising_swell():
         swell = sorted(
             (n for n in d if n["note"] == band.RIDE and bar * 4 + 2 <= n["beat"] < bar * 4 + 4), key=lambda n: n["beat"]
         )
-        assert len(swell) == 8 and swell[-1]["vel"] > swell[0]["vel"] + 50
-        assert all(b2["vel"] >= a["vel"] - 4 for a, b2 in zip(swell, swell[1:]))
+        assert len(swell) == 8
+        assert swell[-1]["vel"] > swell[0]["vel"] + 50
+        assert all(b2["vel"] >= a["vel"] - 4 for a, b2 in itertools.pairwise(swell))
     for bar in (0, 1, 2, 4, 5, 6):
         assert len([n for n in d if bar * 4 <= n["beat"] < bar * 4 + 4]) <= 3
 
@@ -665,7 +699,8 @@ def test_fill_rewrites_the_back_half_of_the_last_bar():
 
 
 def test_humanize_is_seeded_per_seed_bar_and_lane():
-    assert "HUMANIZE INVARIANT" in band.__doc__ and '"<id>/<bar>/<lane>"' in band.__doc__
+    assert "HUMANIZE INVARIANT" in band.__doc__
+    assert '"<id>/<bar>/<lane>"' in band.__doc__
 
     def bar5(h):
         return [h.vel(20 + k * 0.5, 80, 10) for k in range(8)]
@@ -682,12 +717,13 @@ def test_a_bars_velocities_ignore_what_other_bars_hold():
     one, two = make("C | C | C | C", pad=True, drums="none"), make("C:2 G:2 | C | C | C", pad=True, drums="none")
     assert len([n for n in lane(two, "pad") if n["beat"] < 4]) > len([n for n in lane(one, "pad") if n["beat"] < 4])
     later = [[n["vel"] for n in lane(ps, "pad") if n["beat"] >= 4] for ps in (one, two)]
-    assert later[0] == later[1] and len(set(later[0])) > 1
+    assert later[0] == later[1]
+    assert len(set(later[0])) > 1
 
 
 def test_dropout_rests_every_lane_but_the_bass():
     loop = "Cmaj7:12 Fmaj7:4"
-    kw = dict(bass="walking", drums="neo-soul", comp=True, pad=True, bars=4)
+    kw = {"bass": "walking", "drums": "neo-soul", "comp": True, "pad": True, "bars": 4}
     holes, plain = make(loop, dropout=1.0, **kw), make(loop, **kw)
     assert band.dropout_bars("t", 4, 1.0) == [1, 3]
     band.validate_pattern_set(holes)
@@ -713,12 +749,23 @@ def test_dropout_rests_every_lane_but_the_bass():
 
 def test_dropout_treats_pushes_as_the_vfx_band_does():
     spec = next(s for s in band.SEEDS if s["id"] == "eb-neosoul-pocket")
-    kw = dict(key=spec["key"], bpm=spec["bpm"], bars=8, bass="pocket", drums="neo-soul", comp=True, pid=spec["id"])
+    kw = {
+        "key": spec["key"],
+        "bpm": spec["bpm"],
+        "bars": 8,
+        "bass": "pocket",
+        "drums": "neo-soul",
+        "comp": True,
+        "pid": spec["id"],
+    }
     holes, plain = band.make_pattern_set(spec["loop"], dropout=0.3, **kw), band.make_pattern_set(spec["loop"], **kw)
     assert band.dropout_bars(spec["id"], 8, 0.3) == [1, 3]
-    assert at_tick(lane(plain, "comp"), sw(3.75)) and not [n for n in lane(holes, "comp") if 3 <= n["beat"] < 7.5]
+    assert at_tick(lane(plain, "comp"), sw(3.75))
+    assert not [n for n in lane(holes, "comp") if 3 <= n["beat"] < 7.5]
     out = at_tick(lane(holes, "comp"), sw(7.75))
-    assert out and out == at_tick(lane(plain, "comp"), sw(7.75)) and not at(lane(holes, "comp"), 8)
+    assert out
+    assert out == at_tick(lane(plain, "comp"), sw(7.75))
+    assert not at(lane(holes, "comp"), 8)
     long_pad = band.make_pattern_set(
         "Cmaj9:8 Fmaj9:8", key="C major", bars=4, drums="none", pad=True, pid="set-3", dropout=1.0
     )
@@ -733,11 +780,13 @@ def test_dropout_bars_are_seeded_never_the_first_and_never_two_in_a_row():
         for amount in (0.25, 0.6, 0.95):
             rests = band.dropout_bars(pid, 16, amount)
             assert rests == band.dropout_bars(pid, 16, amount)
-            assert 0 not in rests and all(y - x >= 2 for x, y in zip(rests, rests[1:]))
+            assert 0 not in rests
+            assert all(y - x >= 2 for x, y in itertools.pairwise(rests))
             assert band.dropout_bars(pid, 8, amount) == [b for b in rests if b < 8]
             seen.update(rests)
-    assert seen and band.dropout_bars("set-1", 16, 0) == []
-    assert len(set(tuple(band.dropout_bars(f"set-{i}", 16, 0.25)) for i in range(40))) > 5  # not one fixed pattern
+    assert seen
+    assert band.dropout_bars("set-1", 16, 0) == []
+    assert len({tuple(band.dropout_bars(f"set-{i}", 16, 0.25)) for i in range(40)}) > 5  # not one fixed pattern
     with pytest.raises(BandError, match="--dropout"):
         make(dropout=1.5)
     assert make(dropout=0.0) == make()
@@ -767,13 +816,16 @@ def test_suffix_tones():
     assert t("maj9#11") == {"1": 0, "3": 4, "5": 7, "7": 11, "9": 2, "#11": 6}
     assert t("m11") == {"1": 0, "3": 3, "5": 7, "7": 10, "9": 2, "11": 5}
     assert t("13sus4") == {"1": 0, "5": 7, "7": 10, "9": 2, "13": 9, "4": 5}
-    assert "3" not in t("11") and t("11")["11"] == 5
+    assert "3" not in t("11")
+    assert t("11")["11"] == 5
     assert t("7(#9,b13)") == {"1": 0, "3": 4, "5": 7, "7": 10, "#9": 3, "b13": 8}
-    assert t("m7b5")["5"] == 6 and t("ø7") == t("m7b5")
+    assert t("m7b5")["5"] == 6
+    assert t("ø7") == t("m7b5")
     assert t("dim7") == {"1": 0, "3": 3, "5": 6, "7": 9}
     assert t("6/9") == t("69") == {"1": 0, "3": 4, "5": 7, "6": 9, "9": 2}
     assert t("add9") == {"1": 0, "3": 4, "5": 7, "9": 2}
-    assert t("m(maj7)")["7"] == 11 and t("m(maj7)")["3"] == 3
+    assert t("m(maj7)")["7"] == 11
+    assert t("m(maj7)")["3"] == 3
     assert t("5") == {"1": 0, "5": 7}
     assert t("sus") == t("sus4") == {"1": 0, "5": 7, "4": 5}
     assert t("7alt") == {"1": 0, "3": 4, "7": 10, "b9": 1, "#9": 3, "b13": 8}
@@ -788,7 +840,8 @@ def test_voicings_use_chord_tones_guide_tones_first_in_c3_to_b4():
             parsed = band.parse_chord_token(c["name"], None)
             pcs = {(parsed["root"] + s) % 12 for s in parsed["tones"].values()}
             struck = [n["note"] for n in lane(ps, name) if n["beat"] == c["beat"]]
-            assert struck and {p % 12 for p in struck} <= pcs
+            assert struck
+            assert {p % 12 for p in struck} <= pcs
             assert all(48 <= p <= 71 for p in struck)
             third, seventh = (parsed["root"] + parsed["tones"]["3"]) % 12, (parsed["root"] + parsed["tones"]["7"]) % 12
             assert {third, seventh} <= {p % 12 for p in struck}, f"{name} {c['name']} lacks its guide tones"
@@ -808,7 +861,7 @@ def test_voice_leading_moves_little():
     for name in ("comp", "pad"):
         voicings = band.voice_lead(cycle, name)
         moves = []
-        for a, b in zip(voicings, voicings[1:]):
+        for a, b in itertools.pairwise(voicings):
             moves.append(band._movement(a, b) / max(len(a), len(b)))
         assert sum(moves) / len(moves) <= 3.0, (name, voicings)
         assert all(v[-1] <= 71 and v[0] >= 48 for v in voicings)
@@ -821,12 +874,12 @@ MUD_LOOPS = (
 )
 
 
-@pytest.mark.parametrize("loop, key", MUD_LOOPS)
+@pytest.mark.parametrize(("loop", "key"), MUD_LOOPS)
 def test_no_minor_second_is_stacked_below_g3(loop, key):
     cycle = band.parse_loop(loop, key)
     for name in ("comp", "pad"):
-        for chord, v in zip(cycle, band.voice_lead(cycle, name)):
-            lows = [(a, b) for a, b in zip(v, v[1:]) if b - a == 1 and a < 55]
+        for chord, v in zip(cycle, band.voice_lead(cycle, name), strict=False):
+            lows = [(a, b) for a, b in itertools.pairwise(v) if b - a == 1 and a < 55]
             assert not lows, f"{name} {chord['name']} {[band.midi_name(p) for p in v]}"
 
 
@@ -854,9 +907,9 @@ def test_keys_voice_lead_across_the_loop_seam(sid):
         if not spec.get(name):
             continue
         vs = band.voice_lead(cycle, name)
-        tops = [abs(a[-1] - b[-1]) for a, b in zip(vs, vs[1:])]
+        tops = [abs(a[-1] - b[-1]) for a, b in itertools.pairwise(vs)]
         seam = abs(vs[-1][-1] - vs[0][-1])
-        assert seam <= max([2] + tops), f"{name}: the top voice jumps {seam} at the seam ({vs})"
+        assert seam <= max([2, *tops]), f"{name}: the top voice jumps {seam} at the seam ({vs})"
         assert band._movement(vs[-1], vs[0]) / max(len(vs[-1]), len(vs[0])) <= 3.0
 
 
@@ -875,7 +928,7 @@ def test_comp_rhythm_follows_the_drum_style():
         comp = lane(make(drums=style, comp=True), "comp")
         rhythms[style] = {b: sorted(set(v)) for b, v in per_bar(comp).items()}
         onsets = sorted({n["beat"] for n in comp})
-        for a, b2 in zip(onsets, onsets[1:]):
+        for a, b2 in itertools.pairwise(onsets):
             assert all(n["beat"] + n["len"] < b2 for n in at(comp, a)), f"{style}: a strike rings into the next"
         if style == "ballad":
             assert all(len(at(comp, b * 4 + 3)) == 2 and len(at(comp, b * 4)) == 4 for b in range(4))  # top two on 4
@@ -911,7 +964,8 @@ def test_a_shell_comp_is_two_guide_tones_below_e4():
     full = band.make_pattern_set(loop, key="Eb major", comp=True, pad=True, bass="walking", pid="x")
     shell = band.make_pattern_set(loop, key="Eb major", comp=True, pad=True, bass="walking", shell=True, pid="x")
     assert max(n["note"] for n in lane(shell, "comp")) <= 64 < max(n["note"] for n in lane(full, "comp"))
-    assert lane(shell, "pad") == lane(full, "pad") and lane(shell, "bass") == lane(full, "bass")
+    assert lane(shell, "pad") == lane(full, "pad")
+    assert lane(shell, "bass") == lane(full, "bass")
 
 
 def test_the_real_v7_sounds_its_third_and_seventh():
@@ -938,7 +992,7 @@ def test_nashville_numbers_read_in_the_key_and_round_trip():
 
 
 def test_the_same_numbers_in_another_key_transpose_every_lane():
-    kw = dict(pid="same", bass="walking", drums="neo-soul", comp=True, pad=True, bars=4)
+    kw = {"pid": "same", "bass": "walking", "drums": "neo-soul", "comp": True, "pad": True, "bars": 4}
     db = band.make_pattern_set("4maj9 - 6m11 - 5^11/4 - 1add9", key="Db major", **kw)
     d = band.make_pattern_set("4maj9 - 6m11 - 5^11/4 - 1add9", key="D major", **kw)
     assert [c["name"] for c in d["chords"]] == ["Gmaj9", "Bm11", "A11/G", "Dadd9"]
@@ -968,7 +1022,8 @@ def test_numbers_need_a_key_and_letters_get_an_estimated_one():
     with pytest.raises(BandError, match="--key"):
         band.parse_loop("1 - 4 - 5")
     ps = band.make_pattern_set("Gbmaj9 | Bbm11 | Ab11/Gb | Dbadd9", pid="est")
-    assert ps["key"] == "Db major" and [c["nns"] for c in ps["chords"]] == ["4maj9", "6m11", "5^11/4", "1add9"]
+    assert ps["key"] == "Db major"
+    assert [c["nns"] for c in ps["chords"]] == ["4maj9", "6m11", "5^11/4", "1add9"]
     with pytest.raises(BandError, match="key"):
         band.make_pattern_set("C | G", key="H major")
     with pytest.raises(BandError, match="chord"):
@@ -977,15 +1032,19 @@ def test_numbers_need_a_key_and_letters_get_an_estimated_one():
 
 # ================================================================================================ seeds
 def test_six_seeds_fit_daniel_and_cover_every_drum_style():
-    assert len(band.SEEDS) == 6 and len({s["id"] for s in band.SEEDS}) == 6
+    assert len(band.SEEDS) == 6
+    assert len({s["id"] for s in band.SEEDS}) == 6
     assert {s["drums"] for s in band.SEEDS} == set(band.DRUM_STYLES) - {"none"}
     for s in band.SEEDS:
         ps = band.seed(s["id"])
         band.validate_pattern_set(ps)
         assert band.lint(ps) == [], s["id"]
-        assert ps["key"] == s["key"] and s["why"]
+        assert ps["key"] == s["key"]
+        assert s["why"]
         assert all(c["nns"] for c in ps["chords"])
-        assert lane(ps, "bass") and lane(ps, "drums") and (lane(ps, "comp") or lane(ps, "pad"))
+        assert lane(ps, "bass")
+        assert lane(ps, "drums")
+        assert lane(ps, "comp") or lane(ps, "pad")
     with pytest.raises(KeyError):
         band.seed("nope")
 
@@ -1005,8 +1064,10 @@ def test_seed_output_is_pinned_to_the_generator_version():
 def test_the_minor_third_drop_seed_changes_key_centre():
     ps = band.seed("f-to-d-drop")
     names = [c["name"] for c in ps["chords"]]
-    assert names[:4] == ["Fmaj9", "Dm9", "Bbmaj9", "C13sus4"] and names[4] == "Dmaj9"
-    assert names[-1] == "C13sus4" and ps["chords"][-1]["beat"] == 30
+    assert names[:4] == ["Fmaj9", "Dm9", "Bbmaj9", "C13sus4"]
+    assert names[4] == "Dmaj9"
+    assert names[-1] == "C13sus4"
+    assert ps["chords"][-1]["beat"] == 30
 
 
 # ================================================================================================ store, playlist
@@ -1015,7 +1076,8 @@ def test_store_round_trip_and_seed_fallback(tmp_path):
     ps = make(pid="mine", comp=True)
     path = store.save(ps)
     assert path == tmp_path / "patterns" / "mine.json"
-    assert store.load("mine") == ps and store.stored() == ["mine"]
+    assert store.load("mine") == ps
+    assert store.stored() == ["mine"]
     assert store.load("db-ballad-lift") == band.seed("db-ballad-lift")
     with pytest.raises(BandError, match="no pattern set"):
         store.load("missing")
@@ -1033,11 +1095,15 @@ def test_playlist_add_rm_and_current(tmp_path):
     assert store.playlist()["current"] == 2
     store.playlist_add("gb-real-v7", at=1)  # inserted before the current set: it stays current
     pl = store.playlist()
-    assert pl["items"] == ["gb-real-v7", "db-ballad-lift", "eb-neosoul-pocket", "bbm-lament"] and pl["current"] == 3
+    assert pl["items"] == ["gb-real-v7", "db-ballad-lift", "eb-neosoul-pocket", "bbm-lament"]
+    assert pl["current"] == 3
     pl, removed = store.playlist_rm("2")
-    assert removed == "db-ballad-lift" and pl["current"] == 2 and pl["items"][2] == "bbm-lament"
+    assert removed == "db-ballad-lift"
+    assert pl["current"] == 2
+    assert pl["items"][2] == "bbm-lament"
     pl, removed = store.playlist_rm("bbm-lament")  # removing the last, current set
-    assert pl["current"] == 1 and pl["items"] == ["gb-real-v7", "eb-neosoul-pocket"]
+    assert pl["current"] == 1
+    assert pl["items"] == ["gb-real-v7", "eb-neosoul-pocket"]
     with pytest.raises(BandError):
         store.playlist_add("missing")
     with pytest.raises(BandError):
@@ -1052,16 +1118,24 @@ def test_vfx_module_is_ascii_python_holding_the_playlist(tmp_path):
     store = band.PatternStore(str(tmp_path))
     out = tmp_path / "vfx" / "arsenal_patterns.py"
     path, live, ids, current = band.export_vfx(store, out)  # empty playlist: the six seeds
-    assert ids == [s["id"] for s in band.SEEDS] and current == 0 and live == tmp_path / "vfx" / "arsenal_live.json"
+    assert ids == [s["id"] for s in band.SEEDS]
+    assert current == 0
+    assert live == tmp_path / "vfx" / "arsenal_live.json"
     assert store.stored() == sorted(ids)  # ... saved into the store as well
     raw = path.read_bytes()
-    assert raw.isascii() and live.read_bytes().isascii()
+    assert raw.isascii()
+    assert live.read_bytes().isascii()
     scope = {}
     exec(compile(raw.decode("ascii"), str(path), "exec"), scope)
-    assert scope["VERSION"] == 1 and scope["LIVE_PATH"] is None and scope["DRUM_MAPS"] == {}
+    assert scope["VERSION"] == 1
+    assert scope["LIVE_PATH"] is None
+    assert scope["DRUM_MAPS"] == {}
     assert scope["PATTERNS"] == [band.seed(i) for i in ids]
     doc = json.loads(live.read_text(encoding="utf-8"))
-    assert doc["version"] == 1 and doc["current"] == 0 and doc["patterns"] == scope["PATTERNS"] and doc["rev"]
+    assert doc["version"] == 1
+    assert doc["current"] == 0
+    assert doc["patterns"] == scope["PATTERNS"]
+    assert doc["rev"]
 
     store.save(make(pid="mine", pad=True, title="Café ☕ loop"))  # non-ASCII titles are escaped, not written raw
     store.playlist_add("mine")
@@ -1075,7 +1149,8 @@ def test_vfx_module_is_ascii_python_holding_the_playlist(tmp_path):
     assert scope["PATTERNS"][0]["title"] == "Café ☕ loop"
     assert scope["LIVE_PATH"] == "C:\\Users\\L5\\jam\\arsenal_live.json"
     doc2 = json.loads(live.read_text(encoding="utf-8"))
-    assert doc2["current"] == 1 and doc2["rev"] != doc["rev"]
+    assert doc2["current"] == 1
+    assert doc2["rev"] != doc["rev"]
 
 
 def test_vfx_export_refuses_what_the_band_would_refuse():
@@ -1104,9 +1179,11 @@ def test_the_vfx_band_script_accepts_the_generated_module(tmp_path):
     exec(path.read_text(encoding="ascii"), scope)
     for i, ps in enumerate(scope["PATTERNS"]):
         parsed = vfx_band.parse_pattern_set(ps, f"PATTERNS[{i}]")
-        assert parsed["id"] == ids[i] and parsed["length_beats"] == ps["length_beats"]
+        assert parsed["id"] == ids[i]
+        assert parsed["length_beats"] == ps["length_beats"]
     playlist = vfx_band.parse_playlist(json.loads(live.read_text(encoding="utf-8")))
-    assert [p["id"] for p in playlist["patterns"]] == ids and playlist["current"] == 0
+    assert [p["id"] for p in playlist["patterns"]] == ids
+    assert playlist["current"] == 0
 
 
 def test_default_vfx_path_is_the_generated_area_inside_the_repo():
@@ -1119,7 +1196,8 @@ def test_grid_shows_chords_bass_degrees_drums_and_keys():
     text = band.render_grid(band.seed("eb-neosoul-pocket"))
     lines = text.splitlines()
     chord = next(line for line in lines if line.startswith("chord"))
-    assert "Ebmaj9" in chord and "Abmaj9#11" in chord
+    assert "Ebmaj9" in chord
+    assert "Abmaj9#11" in chord
     bass = next(line for line in lines if line.startswith("bass "))
     assert bass.split("|")[1].startswith("R--R")  # the pocket: 1, then its ghost
     kick = next(line for line in lines if line.startswith("kick"))
@@ -1166,60 +1244,79 @@ def test_cli_make_show_export_and_playlist(tmp_path):
     assert code == 0, err
     path = tmp_path / "state" / "patterns" / "test-lift.json"
     ps = band.validate_pattern_set(json.loads(path.read_text(encoding="utf-8")))
-    assert ps["length_beats"] == 32 and ps["bpm_hint"] == 66
-    assert "Gbmaj9 (4maj9)" in out and "added test-lift" in out
+    assert ps["length_beats"] == 32
+    assert ps["bpm_hint"] == 66
+    assert "Gbmaj9 (4maj9)" in out
+    assert "added test-lift" in out
 
     code, out, _ = run_cli("show", "test-lift", "--state", state)
-    assert code == 0 and "|Gbmaj9" in out and "comp voicings" in out
+    assert code == 0
+    assert "|Gbmaj9" in out
+    assert "comp voicings" in out
 
     code, out, _ = run_cli("export-mid", "test-lift", "--state", state)
     folder = tmp_path / "state" / "mid" / "test-lift"
-    assert code == 0 and sorted(p.name for p in folder.iterdir()) == sorted(
+    assert code == 0
+    assert sorted(p.name for p in folder.iterdir()) == sorted(
         ["test-lift.mid"] + [f"test-lift-{name}.mid" for name in band.LANES]
     )
     assert read_midi((folder / "test-lift.mid").read_bytes())["format"] == 1
 
     code, out, _ = run_cli("playlist", "add", "bbm-lament", "--state", state)
-    assert code == 0 and "> " in out and "bbm-lament" in out
+    assert code == 0
+    assert "> " in out
+    assert "bbm-lament" in out
     vfx = tmp_path / "gen" / "arsenal_patterns.py"
     code, out, _ = run_cli("export-vfx", "--out", str(vfx), "--state", state)
-    assert code == 0 and "2 pattern sets" in out and "Pattern knob  1: bbm-lament" in out
+    assert code == 0
+    assert "2 pattern sets" in out
+    assert "Pattern knob  1: bbm-lament" in out
     assert (tmp_path / "gen" / "arsenal_live.json").is_file()
     scope = {}
     exec(vfx.read_text(encoding="utf-8"), scope)
     assert [p["id"] for p in scope["PATTERNS"]] == ["test-lift", "bbm-lament"]
 
     code, out, _ = run_cli("playlist", "rm", "1", "--state", state)
-    assert code == 0 and "removed test-lift" in out
+    assert code == 0
+    assert "removed test-lift" in out
     code, out, _ = run_cli("list", "--state", state)
-    assert "stored  test-lift" in out and "seed    db-ballad-lift" in out
+    assert "stored  test-lift" in out
+    assert "seed    db-ballad-lift" in out
 
 
 def test_cli_errors_exit_2_with_a_message(tmp_path):
     code, _, err = run_cli("make", "1 - 4 - 5", "--state", str(tmp_path))
-    assert code == 2 and "--key" in err
+    assert code == 2
+    assert "--key" in err
     code, _, err = run_cli("show", "missing", "--state", str(tmp_path))
-    assert code == 2 and "no pattern set" in err
+    assert code == 2
+    assert "no pattern set" in err
     code, _, err = run_cli("make", "C | G", "--bars", "0", "--state", str(tmp_path))
-    assert code == 2 and "--bars" in err
+    assert code == 2
+    assert "--bars" in err
 
 
 def test_cli_export_vfx_saves_the_seeds_when_the_playlist_is_empty(tmp_path):
     state, module = tmp_path / "state", tmp_path / "gen" / "arsenal_patterns.py"
     code, out, _ = run_cli("export-vfx", "--out", str(module), "--no-write-seeds", "--state", str(state))
-    assert code == 0 and not (state / "patterns").exists() and "saved the" not in out
+    assert code == 0
+    assert not (state / "patterns").exists()
+    assert "saved the" not in out
     stale = band.seed("gb-real-v7")
     stale["title"] = "an older build of this seed"
     band.PatternStore(str(state)).save(stale)
     code, out, _ = run_cli("export-vfx", "--out", str(module), "--state", str(state))
     store = band.PatternStore(str(state))
-    assert code == 0 and "saved the 6 seeds" in out
+    assert code == 0
+    assert "saved the 6 seeds" in out
     assert store.stored() == sorted(s["id"] for s in band.SEEDS)
     assert store.load("gb-real-v7") == band.seed("gb-real-v7")  # overwritten, as seeds --write does
     store.playlist_add("bbm-lament")
     (state / "patterns" / "db-ballad-lift.json").unlink()
     code, out, _ = run_cli("export-vfx", "--out", str(module), "--state", str(state))
-    assert code == 0 and "saved the" not in out and "db-ballad-lift" not in store.stored()
+    assert code == 0
+    assert "saved the" not in out
+    assert "db-ballad-lift" not in store.stored()
 
 
 def test_show_and_exports_warn_about_a_stored_set_from_an_older_generator(tmp_path):
@@ -1231,27 +1328,34 @@ def test_show_and_exports_warn_about_a_stored_set_from_an_older_generator(tmp_pa
     assert store.load("gb-real-v7") == band.seed("gb-real-v7")  # ... and never part of the loaded set
     for verb in ("show", "export-mid"):
         code, _, err = run_cli(verb, "gb-real-v7", "--state", str(state))
-        assert code == 0 and "older" not in err
+        assert code == 0
+        assert "older" not in err
     del raw["generator"]  # a file from before the stamp
     path.write_text(json.dumps(raw), encoding="utf-8")
     for verb in ("show", "export-mid"):
         code, _, err = run_cli(verb, "gb-real-v7", "--state", str(state))
-        assert code == 0 and "generator version 1, older than this band.py" in err and "seeds --write" in err
+        assert code == 0
+        assert "generator version 1, older than this band.py" in err
+        assert "seeds --write" in err
     store.playlist_add("gb-real-v7")
     code, _, err = run_cli("export-vfx", "--out", str(tmp_path / "gen" / "arsenal_patterns.py"), "--state", str(state))
-    assert code == 0 and "gb-real-v7.json was written by generator version 1" in err
+    assert code == 0
+    assert "gb-real-v7.json was written by generator version 1" in err
     mine = make(pid="mine")
     band.PatternStore(str(state)).save({**mine, "title": "old"})
     raw = json.loads((state / "patterns" / "mine.json").read_text(encoding="utf-8"))
     raw["generator"] = band.GENERATOR_VERSION - 1
     (state / "patterns" / "mine.json").write_text(json.dumps(raw), encoding="utf-8")
     code, _, err = run_cli("show", "mine", "--state", str(state))
-    assert code == 0 and "make it again" in err
+    assert code == 0
+    assert "make it again" in err
     assert run_cli("seeds", "--write", "--state", str(state))[0] == 0
     code, _, err = run_cli("show", "gb-real-v7", "--state", str(state))
-    assert code == 0 and "older" not in err
+    assert code == 0
+    assert "older" not in err
     code, _, err = run_cli("show", "bbm-lament", "--state", str(tmp_path / "empty"))  # no stored file: the seed
-    assert code == 0 and "older" not in err
+    assert code == 0
+    assert "older" not in err
 
 
 def test_cli_make_with_dropout_names_the_rest_bars(tmp_path):
@@ -1276,23 +1380,27 @@ def test_cli_make_with_dropout_names_the_rest_bars(tmp_path):
     assert code == 0, err
     assert "dropout bars 2, 4, 6, 8 rest" in out
     ps = band.PatternStore(state).load("holes")
-    assert not [n for n in lane(ps, "drums") if 4 <= n["beat"] < 8] and [
-        n for n in lane(ps, "bass") if 4 <= n["beat"] < 8
-    ]
+    assert not [n for n in lane(ps, "drums") if 4 <= n["beat"] < 8]
+    assert [n for n in lane(ps, "bass") if 4 <= n["beat"] < 8]
     code, _, err = run_cli("make", "C | G", "--dropout", "2", "--state", state)
-    assert code == 2 and "--dropout" in err
+    assert code == 2
+    assert "--dropout" in err
     code, out, err = run_cli(
         "make", "Dm9 | G13 | Cmaj9 | A7b13", "--key", "C major", "--comp", "--shell", "--id", "shells", "--state", state
     )
     assert code == 0, err
     comp = lane(band.PatternStore(state).load("shells"), "comp")
-    assert comp and max(n["note"] for n in comp) <= 64 and len(at(comp, 0)) == 2
+    assert comp
+    assert max(n["note"] for n in comp) <= 64
+    assert len(at(comp, 0)) == 2
 
 
 def test_cli_seeds_explain_themselves(tmp_path):
     code, out, _ = run_cli("seeds", "--state", str(tmp_path))
-    assert code == 0 and all(s["id"] in out and s["why"] in out for s in band.SEEDS)
+    assert code == 0
+    assert all(s["id"] in out and s["why"] in out for s in band.SEEDS)
     assert not (tmp_path / "patterns").exists()
     code, out, _ = run_cli("seeds", "--add", "--state", str(tmp_path))
-    assert code == 0 and len(list((tmp_path / "patterns").glob("*.json"))) == 6
+    assert code == 0
+    assert len(list((tmp_path / "patterns").glob("*.json"))) == 6
     assert band.PatternStore(str(tmp_path)).playlist()["items"] == [s["id"] for s in band.SEEDS]

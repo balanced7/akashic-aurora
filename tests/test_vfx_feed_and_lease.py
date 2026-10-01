@@ -40,7 +40,7 @@ def clean():
     B._VFX_FEED_SEQ[0] = 0
     B._VFX_JOBS.clear()
     B._VFX_SEQ[0] = 0
-    yield
+    return
 
 
 def _age(seconds):
@@ -129,7 +129,8 @@ def test_every_finished_job_posts_its_picture_and_its_reason():
     B._vfx_job_next("wA", True)
     B._vfx_job_result("j1", {"ok": True, "path": "design/vfx-snaps/x.png"})
     e = B._vfx_feed_since(0)["entries"][-1]
-    assert e["kind"] == "render" and e["ok"] is True
+    assert e["kind"] == "render"
+    assert e["ok"] is True
     assert e["url"] == "/vfx/snap/x.png", "no URL means the page has nothing to put in an <img>"
     assert e["label"] == "thumb swirl", "the subject, not just the verb"
     assert e["text"] == "the reference, before I touch gap"
@@ -140,7 +141,8 @@ def test_a_failed_render_posts_too():
     B._vfx_job_next("wA", True)
     B._vfx_job_result("j1", {"ok": False, "error": "no such chunk: nope"})
     e = B._vfx_feed_since(0)["entries"][-1]
-    assert e["ok"] is False and "no such chunk" in e["error"]
+    assert e["ok"] is False
+    assert "no such chunk" in e["error"]
     assert e["url"] == "", "a failure has no image, and must not render a broken one"
 
 
@@ -148,7 +150,8 @@ def test_thumbs_and_snaps_resolve_to_their_own_routes():
     assert B._vfx_feed_url("design/vfx-snaps/a.png") == "/vfx/snap/a.png"
     assert B._vfx_feed_url("design/vfx-thumbs/b.png") == "/vfx/thumb/b.png"
     assert B._vfx_feed_url("design\\vfx-snaps\\c.png") == "/vfx/snap/c.png"  # Windows path
-    assert B._vfx_feed_url("") == "" and B._vfx_feed_url("notes.txt") == ""
+    assert B._vfx_feed_url("") == ""
+    assert B._vfx_feed_url("notes.txt") == ""
 
 
 def test_a_live_watcher_gets_only_what_it_has_not_seen():
@@ -182,13 +185,15 @@ def bench(tmp_path, monkeypatch):
 
 def test_a_bench_that_has_never_been_used_still_opens(bench):
     d = B._vfx_bench_read()
-    assert d["subject"] == "avatar" and d["sketch"] == ""
+    assert d["subject"] == "avatar"
+    assert d["sketch"] == ""
 
 
 def test_what_it_was_showing_survives(bench):
     assert B._vfx_bench_write({"subject": "shader", "sketch": "geodesic-original"})["ok"]
     d = B._vfx_bench_read()
-    assert d["subject"] == "shader" and d["sketch"] == "geodesic-original"
+    assert d["subject"] == "shader"
+    assert d["sketch"] == "geodesic-original"
 
 
 def test_a_partial_write_merges_rather_than_clobbers(bench):
@@ -197,7 +202,8 @@ def test_a_partial_write_merges_rather_than_clobbers(bench):
     B._vfx_bench_write({"subject": "shader", "sketch": "ringpulse", "identity": "claude"})
     B._vfx_bench_write({"note": "looking at the gap bloom"})
     d = B._vfx_bench_read()
-    assert d["sketch"] == "ringpulse" and d["identity"] == "claude"
+    assert d["sketch"] == "ringpulse"
+    assert d["identity"] == "claude"
     assert d["note"] == "looking at the gap bloom"
 
 

@@ -109,7 +109,8 @@ def patched(monkeypatch):
 
 def test_p1_fleet_mode_renders_all_agents(patched):
     fd = flightdeck()
-    assert len(fd["agents"]) == 2 and fd["fleet"] is True
+    assert len(fd["agents"]) == 2
+    assert fd["fleet"] is True
 
 
 def test_p2_single_agent_includes_unwedge(patched):
@@ -120,7 +121,8 @@ def test_p2_single_agent_includes_unwedge(patched):
 
 def test_p3_pulse_zones_in_output(patched):
     out = format_flightdeck(flightdeck())
-    assert "elevated" in out and "normal" in out
+    assert "elevated" in out
+    assert "normal" in out
 
 
 def test_p4_lane_column_shows_data(patched):
@@ -135,4 +137,5 @@ def test_p5_commits_section(patched):
 
 def test_p6_json_output(patched):
     out = format_flightdeck(flightdeck(), json_mode=True)
-    assert '"fleet"' in out and '"sections"' in out
+    assert '"fleet"' in out
+    assert '"sections"' in out

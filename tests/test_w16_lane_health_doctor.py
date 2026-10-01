@@ -34,8 +34,7 @@ def _online():
 
 @pytest.fixture
 def agents(monkeypatch):
-    ns = _ns_env(monkeypatch)
-    return ns
+    return _ns_env(monkeypatch)
 
 
 def test_p1_lane_mode_consumer_returns_health(monkeypatch, agents):
@@ -61,7 +60,8 @@ def test_p1_lane_mode_consumer_returns_health(monkeypatch, agents):
     )
     lh = _probe_lane_health(agent)
     assert lh is not None, "lane-mode consumer must return health"
-    assert lh["age_s"] is not None and abs(lh["age_s"] - 5) < 5
+    assert lh["age_s"] is not None
+    assert abs(lh["age_s"] - 5) < 5
     assert lh["depth"] >= 0
     assert lh["straggler"] >= 0
 

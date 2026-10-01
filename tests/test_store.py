@@ -62,7 +62,8 @@ def _exercise_all_structures(store: Store, label: str) -> None:
     assert store.zrange("z1", 0, -1, desc=True) == ["high", "mid", "low"]
     assert store.zscore("z1", "mid") == 50.0
     ws = store.zrange("z1", 0, 0, withscores=True)
-    assert ws[0][0] == "low" and float(ws[0][1]) == 0.0
+    assert ws[0][0] == "low"
+    assert float(ws[0][1]) == 0.0
     print("  zset: zadd/zrange(asc,desc,withscores)/zscore OK")
 
     # extended sorted-set ops (used by the agent-memory layer)
@@ -71,7 +72,8 @@ def _exercise_all_structures(store: Store, label: str) -> None:
     assert store.zrangebyscore("z1", 60, "+inf") == ["high"]
     assert store.zrangebyscore("z1", "-inf", "+inf") == ["low", "mid", "high"]
     removed = store.zremrangebyrank("z1", 0, 0)  # drop the lowest-scored
-    assert removed == 1 and store.zcard("z1") == 2
+    assert removed == 1
+    assert store.zcard("z1") == 2
     assert store.zrange("z1", 0, -1) == ["mid", "high"]
     print("  zset+: zrangebyscore/zcard/zremrangebyrank OK")
 

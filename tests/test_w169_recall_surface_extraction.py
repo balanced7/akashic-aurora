@@ -50,7 +50,7 @@ def test_w169_c_agent_cli_rebinds_the_very_same_object(name):
 
 
 @pytest.mark.parametrize(
-    "verb,func",
+    ("verb", "func"),
     [
         ("recall-at", "cmd_recall_at"),
         ("recall-feedback", "cmd_recall_feedback"),

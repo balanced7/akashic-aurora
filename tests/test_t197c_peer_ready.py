@@ -84,7 +84,8 @@ def test_ambiguous_peer_is_returned_as_a_choice_not_guessed():
     this function -- silently taking the first would be an unowned choice wearing a
     default's clothes."""
     r = PR.resolve_tag("worker", AMBIGUOUS_REGISTRY)
-    assert r["ok"] is False and r["reason"] == "ambiguous"
+    assert r["ok"] is False
+    assert r["reason"] == "ambiguous"
     assert r["candidates"] == ["worker-deep", "worker-fast"], "sorted, so it is stable"
     assert "worker-deep" in r["why"], "the caller must be able to act without a second command"
 
@@ -100,7 +101,8 @@ def test_the_real_deepseek_registry_is_not_ambiguous():
 def test_exact_tag_wins_outright():
     """Naming the tag IS the disambiguation -- it must not be re-litigated by agent_id."""
     r = PR.resolve_tag("deepseek-think", REGISTRY)
-    assert r["ok"] and r["tag"] == "deepseek-think"
+    assert r["ok"]
+    assert r["tag"] == "deepseek-think"
 
 
 def test_unique_agent_id_resolves():
@@ -109,7 +111,9 @@ def test_unique_agent_id_resolves():
 
 def test_unknown_peer_says_so_plainly():
     r = PR.resolve_tag("sol", REGISTRY)
-    assert r["ok"] is False and r["reason"] == "no_tag" and r["candidates"] == []
+    assert r["ok"] is False
+    assert r["reason"] == "no_tag"
+    assert r["candidates"] == []
 
 
 def test_resolve_tag_is_pure():
@@ -131,7 +135,8 @@ def test_an_attending_peer_is_never_relaunched(monkeypatch):
     _attend(monkeypatch, "ATTENDED")
     lz = FakeLauncher()
     out = PR.ensure_peer("deepseek", launcher=lz)
-    assert out["action"] == "already_attending" and out["attending"] is True
+    assert out["action"] == "already_attending"
+    assert out["attending"] is True
     assert lz.launched == [], "an attending peer must not be respawned"
 
 
@@ -140,7 +145,8 @@ def test_ambiguous_peer_spawns_nothing(monkeypatch):
     _attend(monkeypatch, "UNATTENDED")
     lz = FakeLauncher(registry=AMBIGUOUS_REGISTRY)
     out = PR.ensure_peer("worker", launcher=lz)
-    assert out["action"] == "ambiguous" and lz.launched == []
+    assert out["action"] == "ambiguous"
+    assert lz.launched == []
     assert out["candidates"] == ["worker-deep", "worker-fast"]
 
 
@@ -148,8 +154,10 @@ def test_launch_then_attended_reports_launched(monkeypatch):
     _attend(monkeypatch, "UNATTENDED", "ATTENDED")
     lz = FakeLauncher()
     out = PR.ensure_peer("deepseek-think", launcher=lz, wait_s=5, poll_s=0, sleep=lambda s: None)
-    assert out["action"] == "launched" and out["attending"] is True
-    assert lz.launched == ["deepseek-think"] and out["pid"] == 4242
+    assert out["action"] == "launched"
+    assert out["attending"] is True
+    assert lz.launched == ["deepseek-think"]
+    assert out["pid"] == 4242
 
 
 def test_boots_but_never_consumes_is_reported_not_hidden(monkeypatch):
@@ -158,7 +166,8 @@ def test_boots_but_never_consumes_is_reported_not_hidden(monkeypatch):
     _attend(monkeypatch, "UNATTENDED")
     lz = FakeLauncher()
     out = PR.ensure_peer("gemini", launcher=lz, wait_s=0, poll_s=0, sleep=lambda s: None)
-    assert out["action"] == "never_attended" and out["attending"] is False
+    assert out["action"] == "never_attended"
+    assert out["attending"] is False
     assert lz.launched == ["gemini"]
     assert "boots without consuming" in out["why"] or "still be booting" in out["why"]
 
@@ -170,7 +179,8 @@ def test_a_launcher_refusal_is_a_state_not_a_crash(monkeypatch):
     _attend(monkeypatch, "UNATTENDED")
     lz = FakeLauncher(ok=False, error="'gemini' already has a live runner (pid 99)")
     out = PR.ensure_peer("gemini", launcher=lz, wait_s=0, sleep=lambda s: None)
-    assert out["action"] == "launch_refused" and out["attending"] is False
+    assert out["action"] == "launch_refused"
+    assert out["attending"] is False
     assert "live runner" in out["why"]
 
 
@@ -220,7 +230,8 @@ def test_never_raises_when_everything_is_broken(monkeypatch):
             raise RuntimeError("redis down")
 
     out = PR.ensure_peer("deepseek", launcher=Broken())
-    assert out["action"] == "launch_refused" and out["attending"] is False
+    assert out["action"] == "launch_refused"
+    assert out["attending"] is False
     assert "registry unreadable" in out["why"]
 
 
@@ -229,4 +240,5 @@ def test_blind_list_is_non_empty_and_names_the_lane_gap():
     That gap is real and separate (a healthy seat CAN read the wrong lane), so it is
     confessed rather than implied."""
     out = PR.BLIND
-    assert out and any("lane" in b for b in out)
+    assert out
+    assert any("lane" in b for b in out)

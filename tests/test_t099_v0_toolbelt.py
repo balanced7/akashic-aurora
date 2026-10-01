@@ -48,7 +48,7 @@ def test_sugar_only_unknown_verb_refuses(tmp_path):
     tb = _reg(tmp_path)
     try:
         tb.mint("evil", [["rm", "-rf", "/"]])
-        assert False, "minting a non-agent_cli step must refuse"
+        raise AssertionError("minting a non-agent_cli step must refuse")
     except ValueError as e:
         assert "unknown verb" in str(e).lower()
 
@@ -60,7 +60,8 @@ def test_honesty_label_defaults_guess_and_renders(tmp_path):
     assert entry["evidence"] == "GUESS", "untested sugar must confess it's untested"
     assert entry["tested_against"] is None
     listing = tb.render_list()
-    assert "GUESS" in listing and "peek" in listing
+    assert "GUESS" in listing
+    assert "peek" in listing
 
 
 def test_remint_supersedes_with_version_exact_remint_noop(tmp_path):
@@ -71,7 +72,8 @@ def test_remint_supersedes_with_version_exact_remint_noop(tmp_path):
     assert tb.get("peek")["version"] == v1
     tb.mint("peek", [["doctor"]])  # changed definition -> supersede
     e = tb.get("peek")
-    assert e["version"] == v1 + 1 and e["steps"] == [["doctor"]]
+    assert e["version"] == v1 + 1
+    assert e["steps"] == [["doctor"]]
     assert tb.history("peek")[0]["steps"] == [["discover"]], "prior observation retained"
 
 
@@ -81,7 +83,7 @@ def test_quota_refuses_21st_active(tmp_path):
         tb.mint(f"a{i}", [["discover"]])
     try:
         tb.mint("a20", [["discover"]])
-        assert False, "21st active mint must refuse (junk-drawer guard)"
+        raise AssertionError("21st active mint must refuse (junk-drawer guard)")
     except ValueError as e:
         assert "quota" in str(e).lower()
 
@@ -91,7 +93,8 @@ def test_run_executes_steps_in_order_via_injected_runner(tmp_path):
     tb.mint("combo", [["bifrost-pause", "--by", "t"], ["bifrost-resume"]])
     ran = []
     rc = tb.resolve_and_run("combo", runner=lambda argv: ran.append(list(argv)) or 0)
-    assert rc == 0 and [r[0] for r in ran] == ["bifrost-pause", "bifrost-resume"]
+    assert rc == 0
+    assert [r[0] for r in ran] == ["bifrost-pause", "bifrost-resume"]
 
 
 def test_registry_survives_reload_file_is_truth(tmp_path):
@@ -112,7 +115,9 @@ def test_evidence_upgrade_is_not_swallowed_by_noop(tmp_path):
     assert tb.get("peek")["evidence"] == "GUESS"
     tb.mint("peek", [["discover"]], evidence="VERIFIED", tested_against="pin-x")
     e = tb.get("peek")
-    assert e["evidence"] == "VERIFIED" and e["tested_against"] == "pin-x" and e["version"] == 2
+    assert e["evidence"] == "VERIFIED"
+    assert e["tested_against"] == "pin-x"
+    assert e["version"] == 2
 
 
 def test_family_tag_persists_renders_and_is_content(tmp_path):
@@ -145,7 +150,7 @@ def test_macro_refuses_missing_args_loudly(tmp_path):
     tb.mint("park-one", [["bifrost-pause", "--by", "$1"]])
     try:
         tb.resolve("park-one", args=[])
-        assert False, "a macro without its args must refuse, never run half-substituted"
+        raise AssertionError("a macro without its args must refuse, never run half-substituted")
     except ValueError as e:
         assert "expects 1 arg" in str(e)
 
@@ -154,7 +159,8 @@ def test_plain_combo_ignores_args_and_keeps_kind(tmp_path):
     """A no-slot entry stays kind=alias (combo) and tolerates stray args (ignored)."""
     tb = _reg(tmp_path)
     e = tb.mint("plain", [["discover"]])
-    assert e["kind"] == "alias" and e["params"] == 0
+    assert e["kind"] == "alias"
+    assert e["params"] == 0
     assert tb.resolve("plain", args=["ignored"]) == [["discover"]]
 
 
@@ -165,4 +171,5 @@ def test_kind_change_is_content_too(tmp_path):
     tb.mint("thing", [["discover"]])
     v = tb.get("thing")["version"]
     tb.mint("thing", [["discover"]], kind="ritual")
-    assert tb.get("thing")["kind"] == "ritual" and tb.get("thing")["version"] == v + 1
+    assert tb.get("thing")["kind"] == "ritual"
+    assert tb.get("thing")["version"] == v + 1

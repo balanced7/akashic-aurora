@@ -136,7 +136,7 @@ def test_o4_equal_and_diff():
 
 
 def test_normalize_text_is_path_and_whitespace_neutral(tmp_path):
-    t = "usage:   %s/run.py   [-h]  \r\n\n\n" % tmp_path
+    t = "usage:   {}/run.py   [-h]  \r\n\n\n".format(tmp_path)
     assert O.normalize_text(t, tmp_path) == "usage: <ROOT>/run.py [-h]"
 
 
@@ -274,18 +274,22 @@ def test_compare_dirs_equal_diff_and_intended(tmp_path):
     _snap(tmp_path / "a", base)
     _snap(tmp_path / "b", {"O8": {"violations": []}, "O9": {"tests": {"t::a": 1}, "total": 1}})
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", ["O2", "O8", "O9"], intended=[])
-    assert ok and lines[-1] == "ORACLE: 3/3 EQUAL"
+    assert ok
+    assert lines[-1] == "ORACLE: 3/3 EQUAL"
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "b", ["O8", "O9"], intended=[])
-    assert not ok and lines[1].startswith("O9 DIFF 2")
+    assert not ok
+    assert lines[1].startswith("O9 DIFF 2")
     intended = [{"id": "IC-0001", "component": "O9", "key": "*", "reason": "test"}]
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "b", ["O8", "O9"], intended=intended)
-    assert ok and lines[1] == "O9 EQUAL (intended: IC-0001)"
+    assert ok
+    assert lines[1] == "O9 EQUAL (intended: IC-0001)"
 
 
 def test_missing_component_is_never_equal(tmp_path):
     _snap(tmp_path / "a", {"O8": {"violations": []}})
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", ["O8", "O9"], intended=[])
-    assert not ok and lines[1].startswith("O9 MISSING")
+    assert not ok
+    assert lines[1].startswith("O9 MISSING")
 
 
 # ----------------------------------------------------------------------------- inventory pieces
@@ -295,7 +299,8 @@ def test_dotted_name_and_history():
     assert O.dotted_name("core/foo/bar.py") == "core.foo.bar"
     assert O.dotted_name("core/foo/__init__.py") == "core.foo"
     assert O.dotted_name("research/in-flight/x.py") is None
-    assert O.is_history("research/x.py") and not O.is_history("core/x.py")
+    assert O.is_history("research/x.py")
+    assert not O.is_history("core/x.py")
 
 
 def test_import_safe_refuses_scripts_that_run_on_import():
@@ -335,7 +340,7 @@ def test_load_intended_parses_toml_blocks(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "presence,clean,faulty,expected",
+    ("presence", "clean", "faulty", "expected"),
     [
         (1, 0, 1, "MISSED (gate absent)"),
         (0, 1, 1, "MISSED (gate red before the fault: rc=1)"),
@@ -371,7 +376,7 @@ def test_drill_verdicts(tmp_path, monkeypatch, presence, clean, faulty, expected
 
 
 @pytest.mark.parametrize(
-    "form,is_blanket",
+    ("form", "is_blanket"),
     [
         ("noqa", True),
         ("noqa: F401", False),
@@ -418,7 +423,8 @@ def test_every_comparator_runs_through_compare_dirs(tmp_path):
     assert set(fixtures) == set(O.COMPARATORS)
     _snap(tmp_path / "a", fixtures)
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", intended=[])
-    assert ok and lines[-1] == "ORACLE: 10/10 EQUAL"
+    assert ok
+    assert lines[-1] == "ORACLE: 10/10 EQUAL"
 
 
 def test_oracle_records_are_not_archival_evidence(tmp_path, monkeypatch):
@@ -442,8 +448,10 @@ def test_oracle_records_are_not_archival_evidence(tmp_path, monkeypatch):
 def test_public_id_hashes_parameter_text():
     nid = "tests/test_x.py::test_k[fixture-value]"
     pid = O.public_id(nid)
-    assert pid.startswith("tests/test_x.py::test_k[#") and "fixture-value" not in pid
-    assert O.public_id(pid) == pid and O.public_id("t.py::test_plain") == "t.py::test_plain"
+    assert pid.startswith("tests/test_x.py::test_k[#")
+    assert "fixture-value" not in pid
+    assert O.public_id(pid) == pid
+    assert O.public_id("t.py::test_plain") == "t.py::test_plain"
 
 
 def test_o1_volatile_parametrize_ids_compare_by_count():
@@ -487,7 +495,7 @@ def test_dev_group_must_be_exactly_the_plan_list():
     assert certify.dev_group_problems(good) == []
     bad = {
         "project": {"dependencies": ["pytest>=8", "pre-commit>=3"]},
-        "dependency-groups": {"dev": dev[1:] + ["black"], "ml": []},
+        "dependency-groups": {"dev": [*dev[1:], "black"], "ml": []},
     }
     msgs = " | ".join(certify.dev_group_problems(bad))
     for frag in ("dev lacks ruff", "dev has black", "still has tool pytest", "pre-commit", "browser missing"):
@@ -514,7 +522,9 @@ def test_gate_members_order_and_ignore_fail():
     assert certify.gate_problems(ok, ["fmt-check"]) == ["gate lacks fmt-check"]
     wrong = {"gate": {"sequence": ["deps", "lock-check", "echo"], "ignore_fail": True}}
     msgs = " | ".join(certify.gate_problems(wrong, []))
-    assert "'echo' is not a plan gate task" in msgs and "order" in msgs and "ignore_fail" in msgs
+    assert "'echo' is not a plan gate task" in msgs
+    assert "order" in msgs
+    assert "ignore_fail" in msgs
     assert certify.gate_problems({"gate": {"shell": "true || true"}}, []) == ["gate is not a sequence task"]
 
 
@@ -532,7 +542,8 @@ def test_sha_pins(tmp_path):
         encoding="utf-8",
     )
     problems = certify.sha_pin_problems(tmp_path)
-    assert len(problems) == 1 and "actions/setup-python@v5" in problems[0]
+    assert len(problems) == 1
+    assert "actions/setup-python@v5" in problems[0]
 
 
 def test_verify_checkout_catches_a_flipped_byte(tmp_path):

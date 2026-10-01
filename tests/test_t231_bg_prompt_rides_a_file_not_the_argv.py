@@ -117,4 +117,5 @@ def test_the_prompt_is_recoverable_from_the_handle(tmp_path):
 
     assert hasattr(ask_bg, "prompt_path"), "the background prompt needs a handle-scoped location the record can name"
     p = ask_bg.prompt_path("deadbeef")
-    assert str(p).endswith(".prompt") and "deadbeef" in str(p)
+    assert str(p).endswith(".prompt")
+    assert "deadbeef" in str(p)

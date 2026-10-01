@@ -104,7 +104,9 @@ def test_sweep_before_deadline_noop(pair):
     t0 = time.time()
     _arm(s, r, within=60)
     res = expectations.sweep(s, now=t0 + 10)
-    assert res["redriven"] == [] and res["dead"] == [] and res["cleared"] == []
+    assert res["redriven"] == []
+    assert res["dead"] == []
+    assert res["cleared"] == []
 
 
 # --- P3: past deadline -> ONE redrive copy with linkage meta, budget decremented ---
@@ -117,7 +119,8 @@ def test_redrive_past_deadline(pair):
     res = expectations.sweep(s, now=t0 + 61)
     assert res["redriven"] == [orig]
     copies = [m for m in Bus(r).inbox(limit=50, advance=False) if (m.meta or {}).get("redrive_of") == orig]
-    assert len(copies) == 1 and copies[0].meta.get("attempt") == 1
+    assert len(copies) == 1
+    assert copies[0].meta.get("attempt") == 1
     res2 = expectations.sweep(s, now=t0 + 61)
     assert res2["redriven"] == [], "same sweep moment never double-fires (fresh deadline)"
 
@@ -132,11 +135,12 @@ def test_exhaustion_emits_dead_event(pair, monkeypatch):
     t0 = time.time()
     orig = _arm(s, r, within=60)
     now = t0 + 61
-    for i in range(expectations.REDRIVES):
+    for _i in range(expectations.REDRIVES):
         assert expectations.sweep(s, now=now)["redriven"] == [orig]
         now += 3600
     res = expectations.sweep(s, now=now)
-    assert res["dead"] == [orig] and len(seen) == 1
+    assert res["dead"] == [orig]
+    assert len(seen) == 1
     assert expectations.sweep(s, now=now + 3600)["dead"] == [], "record deleted after death"
     assert expectations.REDRIVES == 3
 

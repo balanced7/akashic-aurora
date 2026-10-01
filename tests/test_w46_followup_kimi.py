@@ -109,7 +109,7 @@ def _write(root, name, text):
 
 
 def _qline(qid, ask):
-    return re.compile(r"- %s \(\d{4}-\d{2}-\d{2}, kimi -> deepseek\) OPEN: %s" % (qid, re.escape(ask)))
+    return re.compile(r"- {} \(\d{{4}}-\d{{2}}-\d{{2}}, kimi -> deepseek\) OPEN: {}".format(qid, re.escape(ask)))
 
 
 def test_p1_question_lands_inside_block_with_qid(stage):
@@ -121,7 +121,8 @@ def test_p1_question_lands_inside_block_with_qid(stage):
         "## Next\n\ntail\n",
     )
     res = fq.file_followup("verdict.md", by="kimi", to="deepseek", ask="is n=1 enough?")
-    assert res["qid"] == "Q3" and res["created_block"] is False
+    assert res["qid"] == "Q3"
+    assert res["created_block"] is False
     text = f.read_text(encoding="utf-8")
     m = _qline("Q3", "is n=1 enough?").search(text)
     assert m, "q-id'd question line appended"
@@ -137,7 +138,8 @@ def test_p2_defer_item_carries_the_pointer(stage):
     items = dq.pending()
     assert len(items) == 1
     it = items[0]
-    assert it["id"] == res["defer_id"] and it["by"] == "kimi"
+    assert it["id"] == res["defer_id"]
+    assert it["by"] == "kimi"
     assert it["needs"] == "write", "answering means editing the verdict file"
     assert "Q1" in it["cmd"] and "v.md" in it["cmd"] and "the ask text" in it["cmd"], (
         "cmd points at the question: file + q-id + ask"
@@ -157,7 +159,8 @@ def test_p4_block_created_if_absent(stage):
     body = "# Verdict\n\nno block here\n"
     f = _write(stage, "v.md", body)
     res = fq.file_followup("v.md", by="kimi", to="deepseek", ask="first q")
-    assert res["created_block"] is True and res["qid"] == "Q1"
+    assert res["created_block"] is True
+    assert res["qid"] == "Q1"
     text = f.read_text(encoding="utf-8")
     assert text.startswith(body), "prior content byte-preserved"
     assert "## Open Questions" in text
@@ -175,7 +178,8 @@ def test_p6_replayed_ask_is_idempotent(stage):
     a = fq.file_followup("v.md", by="kimi", to="deepseek", ask="same ask")
     b = fq.file_followup("v.md", by="kimi", to="deepseek", ask="same ask")
     assert (a["qid"], a["defer_id"]) == (b["qid"], b["defer_id"])
-    assert b["reused_line"] and b["reused_defer"]
+    assert b["reused_line"]
+    assert b["reused_defer"]
     text = f.read_text(encoding="utf-8")
     assert text.count("same ask") == 1, "one question line, not two"
     assert len(dq.pending()) == 1, "one pending defer item, not two"
@@ -206,7 +210,8 @@ def test_p8_cli_wiring_and_refusal_rc(stage, capsys):
     f = _write(stage, "v.md", "# V\n\n## Open Questions\n")
     assert a.fn(a) == 0
     out = capsys.readouterr().out
-    assert "Q1" in out and "deepseek" in out
+    assert "Q1" in out
+    assert "deepseek" in out
     assert "is it enough?" in f.read_text(encoding="utf-8")
     assert len(dq.pending()) == 1
 

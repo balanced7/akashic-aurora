@@ -128,7 +128,8 @@ def test_claude_hook_fails_open_on_bad_input():
             rc = claude_pretooluse.main()
     finally:
         sys.stdin = real
-    assert rc == 0 and out.getvalue().strip() == ""  # unparseable -> allow, never block by accident
+    assert rc == 0
+    assert out.getvalue().strip() == ""
 
 
 # --------------------------------------------------------- Cursor hook adapter

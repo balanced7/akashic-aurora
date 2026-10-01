@@ -114,5 +114,6 @@ def test_p5_the_plain_case_still_works(tmp_path):
         "    def meth(self):\n"
         "        return 3\n",
     )
-    assert "plain" in got and "meth" in got
+    assert "plain" in got
+    assert "meth" in got
     assert "_private" not in got

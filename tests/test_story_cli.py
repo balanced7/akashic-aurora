@@ -100,7 +100,7 @@ def _run_cli(args, store=None):
 
 def test_story_atlas_shape():
     """`story` with no flags prints atlas + tracks with counts."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     out, rc = _run_cli([], store=s)
     assert rc == 0, f"non-zero exit: {rc}"
     assert "Story Atlas" in out
@@ -112,7 +112,7 @@ def test_story_atlas_shape():
 
 def test_story_atlas_json():
     """`story --json` returns Atlas as JSON."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     out, rc = _run_cli(["--json"], store=s)
     assert rc == 0
     data = json.loads(out)
@@ -124,7 +124,7 @@ def test_story_atlas_json():
 
 def test_story_track():
     """`story --track NAME` prints chapters in that track."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     out, rc = _run_cli(["--track=ai-setup"], store=s)
     assert rc == 0
     assert "Track: ai-setup" in out
@@ -135,7 +135,7 @@ def test_story_track():
 
 def test_story_track_json():
     """`story --track NAME --json` returns chapters as JSON array."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     out, rc = _run_cli(["--track=ai-setup", "--json"], store=s)
     assert rc == 0
     data = json.loads(out)
@@ -148,7 +148,7 @@ def test_story_track_json():
 
 def test_story_chapter():
     """`story --chapter ID` prints full chapter."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
     at = Atlas.from_dict(json.loads(raw_at))
     # Get first chapter from first track
@@ -165,7 +165,7 @@ def test_story_chapter():
 
 def test_story_chapter_json():
     """`story --chapter ID --json` returns Chapter as JSON."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
@@ -182,7 +182,7 @@ def test_story_chapter_json():
 
 def test_story_beat():
     """`story --beat ID` prints full beat."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
@@ -200,7 +200,7 @@ def test_story_beat():
 
 def test_story_beat_json():
     """`story --beat ID --json` returns Beat as JSON."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
@@ -219,7 +219,7 @@ def test_story_beat_json():
 
 def test_story_at_timestamp():
     """`story --at ISO` finds the chapter containing that time."""
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     out, rc = _run_cli(["--at=2026-06-27T10:15:00"], store=s)
     assert rc == 0
     assert "Chapters containing" in out
@@ -229,8 +229,8 @@ def test_story_at_timestamp():
 
 def test_story_at_no_match():
     """`story --at` with a time before any beats returns 1."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli(["--at=2025-01-01T00:00:00"], store=s)
+    s, _cdir = _setup_story()
+    _out, rc = _run_cli(["--at=2025-01-01T00:00:00"], store=s)
     assert rc == 1
     print("  at-no-match: returns exit code 1 OK")
 
@@ -240,7 +240,7 @@ def test_story_at_no_match():
 
 def test_story_empty_store():
     """No story exists -> error message + exit code 2."""
-    s, cdir = _setup_story()
+    _s, _cdir = _setup_story()
     # Use a different store with no story data
     empty = FileStore(os.path.join(tempfile.mkdtemp(), "empty.json"))
     out, rc = _run_cli([], store=empty)
@@ -250,24 +250,24 @@ def test_story_empty_store():
 
 def test_story_bad_chapter():
     """Non-existent chapter ID -> error."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli(["--chapter=nonexistent_chapter"], store=s)
+    s, _cdir = _setup_story()
+    _out, rc = _run_cli(["--chapter=nonexistent_chapter"], store=s)
     assert rc == 2
     print("  bad-chapter: unknown chapter error OK")
 
 
 def test_story_bad_beat():
     """Non-existent beat ID -> error."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli(["--beat=nonexistent_beat"], store=s)
+    s, _cdir = _setup_story()
+    _out, rc = _run_cli(["--beat=nonexistent_beat"], store=s)
     assert rc == 2
     print("  bad-beat: unknown beat error OK")
 
 
 def test_story_bad_track():
     """Non-existent track -> error."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli(["--track=nonexistent_track"], store=s)
+    s, _cdir = _setup_story()
+    _out, rc = _run_cli(["--track=nonexistent_track"], store=s)
     assert rc == 2
     print("  bad-track: unknown track error OK")
 
@@ -280,7 +280,7 @@ def test_story_drill_pointer():
 
     Acceptance bar: the right chapter/beat is reachable in <=2 drills.
     """
-    s, cdir = _setup_story()
+    s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
@@ -304,8 +304,8 @@ def test_story_drill_pointer():
 
 def test_story_ascii_safe():
     """Output is ASCII-safe (no encoding errors on cp1252)."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli([])
+    _s, _cdir = _setup_story()
+    out, _rc = _run_cli([])
     # Verify it can be encoded as ASCII (or at least cp1252)
     try:
         out.encode("ascii")
@@ -313,17 +313,17 @@ def test_story_ascii_safe():
         try:
             out.encode("cp1252")
         except UnicodeEncodeError as e:
-            assert False, f"output not cp1252-safe: {e}"
+            raise AssertionError(f"output not cp1252-safe: {e}")
     print("  ascii-safe: output encodes to cp1252 OK")
 
 
 def test_story_within_budget():
     """Output stays within reasonable token budget."""
-    s, cdir = _setup_story()
-    out, rc = _run_cli([])
+    _s, _cdir = _setup_story()
+    out, _rc = _run_cli([])
     # 4000 tokens ~= 16000 chars (conservative estimate)
     assert len(out) < 20000, f"atlas output too long: {len(out)} chars"
-    out2, rc2 = _run_cli(["--track=research"])
+    out2, _rc2 = _run_cli(["--track=research"])
     assert len(out2) < 20000, f"track output too long: {len(out2)} chars"
     print("  within-budget: output size within limits OK")
 

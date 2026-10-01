@@ -211,7 +211,8 @@ def test_unhandled_matches_ground_truth():
     fake, bus = _mk()
     mid = bus.send("deepseek", "handoff", "please review X")
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["available"] and r["counts"]["unhandled"] == 1
+    assert r["available"]
+    assert r["counts"]["unhandled"] == 1
 
     # answered via reply linkage (meta.answers = the message id) -> replied/auto_acked
     peer = Bus(agent_id="deepseek", client=fake, namespace=NS)
@@ -268,7 +269,8 @@ def test_index_failure_never_affects_delivery():
     lane_key = f"{NS}:work:inbox:deepseek"
     assert any(lane_key == k for k in fake.streams), "delivery unaffected by poisoned index"
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["available"] is False and "peek" in r["reason"].lower()
+    assert r["available"] is False
+    assert "peek" in r["reason"].lower()
 
 
 # ---------------------------------------------------------------- pin 6
@@ -293,7 +295,8 @@ def test_firehose_kinds_excluded():
     )
     r = mbx.query(NS, "deepseek", client=fake)
     kinds = {e["kind"] for e in r["entries"]}
-    assert "trace" not in kinds and "hint" not in kinds
+    assert "trace" not in kinds
+    assert "hint" not in kinds
     assert r["counts"]["unhandled"] == 1
 
 
@@ -367,7 +370,8 @@ def test_hint_excluded_from_mailbox():
         },
     )
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["entries"] == [] and r["counts"]["unhandled"] == 0
+    assert r["entries"] == []
+    assert r["counts"]["unhandled"] == 0
 
 
 # ---------------------------------------------------------------- pin 12 (deepseek)

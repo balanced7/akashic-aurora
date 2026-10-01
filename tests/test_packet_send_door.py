@@ -64,11 +64,15 @@ def _reset_dials():
 def test_pin1_mtu_bounds_triple_and_refuse_loud():
     _reset_dials()
     # exact boundary (65535 ok / 65536 ok / 65537 REFUSED) -- the pure gate
-    assert ps.within_mtu(65535) and ps.within_mtu(65536)
+    assert ps.within_mtu(65535)
+    assert ps.within_mtu(65536)
     assert not ps.within_mtu(65537)
     # teaching text is exact + loud
     text = ps.mtu_refusal_text(65537)
-    assert "REFUSED" in text and "65537B" in text and "65536B" in text and "never truncated" in text
+    assert "REFUSED" in text
+    assert "65537B" in text
+    assert "65536B" in text
+    assert "never truncated" in text
     # the door refuses loud (None) and writes NOTHING (stream tail unchanged) -- never truncates,
     # WHEN allow_frag is explicitly False. The DEFAULT (P2 auto-chunk) fragments oversize.
     c, ns = _client(), _ns()
@@ -83,7 +87,8 @@ def test_pin1_mtu_bounds_triple_and_refuse_loud():
         assert mid is None, "oversize send with allow_frag=False must REFUSE (None), not truncate"
         tail_after = c.xlen(f"{ns}:inbox:b") if c.exists(f"{ns}:inbox:b") else 0
         assert tail_after == tail_before, "refused send must write nothing to the stream"
-        assert "REFUSED" in buf.getvalue() and "never truncated" in buf.getvalue()
+        assert "REFUSED" in buf.getvalue()
+        assert "never truncated" in buf.getvalue()
         assert b.inbox() == [], "nothing delivered"
         # P2 auto-chunk: default (no explicit allow_frag) fragments oversize, reassembles whole
         mid2 = a.send("b", "chat", oversize)
@@ -118,7 +123,8 @@ def test_pin2_len_catches_truncation():
         with redirect_stderr(buf):
             got = b.inbox()
         assert got == [], "a truncated packet (len mismatch) must be DROPPED, not delivered"
-        assert "packet-integrity" in buf.getvalue() and "DROP" in buf.getvalue()
+        assert "packet-integrity" in buf.getvalue()
+        assert "DROP" in buf.getvalue()
     finally:
         _cleanup(c, ns)
 
@@ -360,11 +366,13 @@ def test_pin8_runner_tool_bridge_refuses_oversize_args():
     _reset_dials()
     small = {"path": "x.txt", "content": "hello"}
     ok, text = ps.tool_args_within_mtu("write_file", small)
-    assert ok and text == ""
+    assert ok
+    assert text == ""
     big = {"path": "x.txt", "content": "z" * 200_000}
     ok, text = ps.tool_args_within_mtu("write_file", big)
     assert not ok, "oversize tool args must be REFUSED at the bite site, not silently clipped"
-    assert "REFUSED" in text and "write_file" in text
+    assert "REFUSED" in text
+    assert "write_file" in text
     # a non-bridged (read-only) tool is unaffected
     ok, _ = ps.tool_args_within_mtu("list_directory", big)
     assert ok, "only the storage-intake tools are MTU-gated"
@@ -393,7 +401,7 @@ def test_pin9_corrupt_reply_never_clears_expectation():
             "kind": "reply",
             "content": '"here is X"',
             "ts": "t2",
-            "meta": '{"answers": "%s"}' % orig_id,
+            "meta": '{{"answers": "{}"}}'.format(orig_id),
             "parts": "[]",
         }
         ps.stamp(reply)
@@ -410,7 +418,7 @@ def test_pin9_corrupt_reply_never_clears_expectation():
             "kind": "reply",
             "content": '"here is X"',
             "ts": "t3",
-            "meta": '{"answers": "%s"}' % orig_id,
+            "meta": '{{"answers": "{}"}}'.format(orig_id),
             "parts": "[]",
         }
         ps.stamp(good)

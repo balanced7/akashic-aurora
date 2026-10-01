@@ -111,6 +111,7 @@ def test_p6_format_text_and_json():
         },
     }
     out = format_unwedge(r)
-    assert "HEALTHY" in out and "no action" in out
+    assert "HEALTHY" in out
+    assert "no action" in out
     json_out = format_unwedge(r, json_mode=True)
     assert '"status"' in json_out

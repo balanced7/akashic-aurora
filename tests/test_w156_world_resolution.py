@@ -108,7 +108,8 @@ def test_s2c_the_refusal_teaches_the_one_command_that_fixes_it(tmp_path):
         w.assert_may_write()
     msg = str(e.value)
     assert ".aurora-world" in msg  # names the marker
-    assert "alpha" in msg and "prod" in msg  # names the legal values
+    assert "alpha" in msg
+    assert "prod" in msg
 
 
 # --------------------------------------------------------------------------
@@ -220,7 +221,8 @@ def test_s6_guard_refuses_a_foreign_worlds_port(tmp_path):
     alpha = W.resolve(root=tmp_path / "AI-Setup-Alpha", env={})
     with pytest.raises(W.WorldRefusal) as e:
         alpha.assert_owns_port(16379)
-    assert "prod" in str(e.value) and "alpha" in str(e.value)
+    assert "prod" in str(e.value)
+    assert "alpha" in str(e.value)
 
 
 def test_s6b_guard_allows_its_own_port(tmp_path):
@@ -280,7 +282,8 @@ def test_s9b_loud_in_a_twin(monkeypatch):
     for name, port in (("alpha", "16381"), ("beta", "16380")):
         line = _world_line(monkeypatch, name)
         assert line.startswith("# WORLD:")
-        assert name.upper() in line and "NOT prod" in line
+        assert name.upper() in line
+        assert "NOT prod" in line
         assert port in line
 
 
@@ -303,7 +306,9 @@ def test_s9c_the_twin_line_never_asserts_a_lineage_it_cannot_support(monkeypatch
 
 def test_s9d_unknown_says_writes_are_refused_and_how_to_fix_it(monkeypatch):
     line = _world_line(monkeypatch, "not-a-world")
-    assert "UNKNOWN" in line and "REFUSED" in line and ".aurora-world" in line
+    assert "UNKNOWN" in line
+    assert "REFUSED" in line
+    assert ".aurora-world" in line
 
 
 def test_s9e_the_line_is_exactly_one_line(monkeypatch):
@@ -347,7 +352,8 @@ def test_s9b_checkout_of_strips_this_checkouts_own_world_suffix(tmp_path):
 def test_s9c_an_existing_lowercase_sibling_is_found_not_invented(tmp_path):
     (tmp_path / "aurora-alpha").mkdir()
     got = W.checkout_of("alpha", root=tmp_path / "aurora", env={})
-    assert got.name.lower() == "aurora-alpha" and got.is_dir()
+    assert got.name.lower() == "aurora-alpha"
+    assert got.is_dir()
 
 
 def test_s9d_env_override_wins_for_a_non_sibling_layout(tmp_path):

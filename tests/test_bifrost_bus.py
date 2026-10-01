@@ -67,7 +67,9 @@ def test_direct_delivery_reaches_one():
         mid = alice.send("bob", "chat", {"hi": "bob"})
         assert mid
         got = bob.inbox()
-        assert len(got) == 1 and got[0].frm == "alice" and got[0].to == "bob"
+        assert len(got) == 1
+        assert got[0].frm == "alice"
+        assert got[0].to == "bob"
         assert got[0].content == {"hi": "bob"}
         assert carol.inbox() == [], "a direct message must not reach a third agent"
     finally:
@@ -131,7 +133,8 @@ def test_content_and_meta_roundtrip():
         # T073 Phase 1 (@9d04797): transport stamps frm_incarnation into meta,
         # diagnostic-only. The contract is sender meta RIDES THROUGH UNCHANGED
         # plus the stamp -- not exact equality (stale pre-T073 assert).
-        assert m.meta.get("prio") == "high" and m.kind == "handoff"
+        assert m.meta.get("prio") == "high"
+        assert m.kind == "handoff"
         assert m.meta.get("frm_incarnation", "").startswith("a:"), (
             "transport must stamp the sender's incarnation (T073 Phase 1)"
         )

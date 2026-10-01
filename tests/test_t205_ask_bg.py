@@ -42,13 +42,16 @@ def store(tmp_path, monkeypatch):
 
 def test_a_handle_is_minted_and_short_enough_to_type(store):
     h = ask_bg.new_handle()
-    assert h and len(h) <= 12 and h.isalnum()
+    assert h
+    assert len(h) <= 12
+    assert h.isalnum()
 
 
 def test_record_round_trips(store):
     ask_bg.write_record("h1", {"status": "running", "prompt": "why"})
     r = ask_bg.read_record("h1")
-    assert r["status"] == "running" and r["prompt"] == "why"
+    assert r["status"] == "running"
+    assert r["prompt"] == "why"
 
 
 def test_unknown_handle_is_honest_not_empty(store):
@@ -144,7 +147,8 @@ def test_result_written_by_the_child_is_readable(store):
     ask_bg.write_record("h9", {"status": "running"})
     ask_bg.finish("h9", {"ok": True, "answer": "hello", "usd": 0.001})
     r = ask_bg.read_record("h9")
-    assert r["status"] == "done" and r["result"]["answer"] == "hello"
+    assert r["status"] == "done"
+    assert r["result"]["answer"] == "hello"
     assert ask_bg.summarize(r)["state"] == "DONE"
 
 

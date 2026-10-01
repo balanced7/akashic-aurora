@@ -31,7 +31,7 @@ def _store():
 
 def _beats_in(store):
     bl = BeatLog(store)
-    return [b for b in bl.recent(1000)]
+    return list(bl.recent(1000))
 
 
 # ---------------- session kind ----------------
@@ -46,7 +46,8 @@ def test_session_beat_keeps_kind():
     s = _store()
     bl = BeatLog(s)
     b = bl.emit("session", "Session started", "session:start")
-    assert b is not None and b.kind == "session"  # not downgraded to "note"
+    assert b is not None
+    assert b.kind == "session"
 
 
 # ---------------- auto-capture lifecycle ----------------
@@ -78,7 +79,8 @@ def test_end_session_idempotent():
     start_session(s, now="2026-06-01T10:00:00", chronicle=False)
     r1 = end_session(s, now="2026-06-01T18:00:00", chronicle=False)
     r2 = end_session(s, now="2026-06-01T19:00:00", chronicle=False)
-    assert r1["closed"] is True and r2["closed"] is False
+    assert r1["closed"] is True
+    assert r2["closed"] is False
     ends = [b for b in _beats_in(s) if b.summary == "Session ended"]
     assert len(ends) == 1  # no orphan end on the 2nd call
     assert s.get(SESSION_OPEN_KEY) is None
@@ -107,7 +109,7 @@ def test_mark_titles_its_chapter():
     c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp())
     c.chronicle_all(now="2026-06-02T00:00:00")
     titles = []
-    for k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
+    for _k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
         pass
     # load chapters via atlas/track listing
     from core.narrative.schema import ATLAS_KEY, Atlas, Track, chapter_key, track_key

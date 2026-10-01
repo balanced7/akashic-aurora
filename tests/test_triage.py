@@ -62,7 +62,8 @@ def test_credit_shields_from_cost_bucket():
     """One helped credit outweighs any surfaced count -- proven value is never listed
     as cost, no matter how often it's shown."""
     t = _t({"learn:experiment:workhorse": {"surfaced": 50, "useful": 0, "noise": 1, "helped": 1}})
-    assert t["cost_no_return"] == [] and t["noise_voted"] == []
+    assert t["cost_no_return"] == []
+    assert t["noise_voted"] == []
     assert t["protect"][0]["source"] == "learn:experiment:workhorse"
 
 
@@ -95,7 +96,8 @@ def test_window_token_cost_attributed_per_source():
         injections=inj,
     )
     by = {r["source"]: r["window_tokens_approx"] for r in t["cost_no_return"]}
-    assert by["learn:experiment:a"] == 200 and by["learn:experiment:b"] == 100
+    assert by["learn:experiment:a"] == 200
+    assert by["learn:experiment:b"] == 100
     assert t["window_injected_tokens_approx"] == 300
 
 
@@ -112,7 +114,8 @@ def test_ghosts_split_out_of_adjudication_buckets():
     )  # 10 lessons; 'retired' is gone
     assert [r["source"] for r in t["ghosts"]] == ["learn:experiment:retired"]
     assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:live"], "ghost not proposed as cost"
-    assert t["tracked_lessons"] == 1 and t["tracked"] == 2
+    assert t["tracked_lessons"] == 1
+    assert t["tracked"] == 2
     assert t["dormant_count"] == 9, "corpus 10 - 1 live-lesson counter"
 
 
@@ -120,7 +123,8 @@ def test_broken_corpus_read_ghosts_nothing():
     """If the corpus read yields no names, NOTHING is a ghost (a broken read must not phantom
     the whole store into the ghost bucket)."""
     t = _t({"learn:experiment:x": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0}}, corpus_names=[])
-    assert t["ghosts"] == [] and [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:x"]
+    assert t["ghosts"] == []
+    assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:x"]
 
 
 class _BrokenStore:
@@ -132,4 +136,6 @@ def test_fail_soft_on_broken_backend():
     """A dead store yields an empty report, never a raise (and never a silent fallback
     to the real store -- that's why this passes a BROKEN fake, not None)."""
     t = triage(store=_BrokenStore(), learning_store=_FakeLearning([]), injections=[])
-    assert t["tracked"] == 0 and t["protect"] == [] and t["dormant_count"] == 0
+    assert t["tracked"] == 0
+    assert t["protect"] == []
+    assert t["dormant_count"] == 0

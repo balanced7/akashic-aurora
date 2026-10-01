@@ -13,7 +13,7 @@ GENERATED = {"SHELVES.md", "LIBRARY.md", "INDEX.md"}
 
 def _iter_md():
     for base in SWEEP_DIRS:
-        for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, base)):
+        for dirpath, _dirnames, filenames in os.walk(os.path.join(ROOT, base)):
             for fn in sorted(filenames):
                 if not fn.endswith(".md"):
                     continue

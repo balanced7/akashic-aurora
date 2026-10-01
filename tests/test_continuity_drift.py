@@ -70,7 +70,8 @@ def test_d3_missing_organ_is_named(monkeypatch):
     monkeypatch.setattr(agent_cli, "_head_commit_epoch", lambda: head)
     only_one = [_Note("where-we-are", _iso(time.time()))]
     line = agent_cli._continuity_drift(notes=only_one)
-    assert "next-focus MISSING" in line and "grounding-pointer MISSING" in line
+    assert "next-focus MISSING" in line
+    assert "grounding-pointer MISSING" in line
     # the FRESH organ must not be reported as drifting. Assert on the named-drift list
     # only -- the remediation tail legitimately mentions where-we-are as a fix command.
     named = line.split("written:")[1].split("--")[0]

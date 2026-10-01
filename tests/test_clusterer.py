@@ -68,7 +68,10 @@ def test_recovers_two_domains():
 
 def test_deterministic_ids_across_runs():
     table = {"a1": [1, 0, 0], "a2": [0.95, 0.12, 0], "a3": [0.9, 0.2, 0]}
-    mk = lambda: Clusterer(FakeEmbedder(table), sim_threshold=0.3, min_cluster=3).cluster(_atoms(table))
+
+    def mk():
+        return Clusterer(FakeEmbedder(table), sim_threshold=0.3, min_cluster=3).cluster(_atoms(table))
+
     assert [c.id for c in mk().clusters] == [c.id for c in mk().clusters]
 
 
@@ -84,7 +87,8 @@ def test_high_salience_loner_preserved_not_noise():
         _atoms(table, importance={"gem": 5, "noise": 1})
     )
     assert any(c.salient and c.atom_ids == ["gem"] for c in cl.clusters), "high-importance loner kept"
-    assert "noise" in cl.outliers and "gem" not in cl.outliers  # low-importance loner = noise
+    assert "noise" in cl.outliers
+    assert "gem" not in cl.outliers
 
 
 def test_ill_fitting_salient_member_is_ejected_not_absorbed():
@@ -104,7 +108,8 @@ def test_merge_proposal_for_near_duplicate_centroids():
     c3 = Cluster("cl_c", ["c1", "c2", "c3"], 0.9, "z", centroid=_unit([0, 1, 0]))
     C = Clusterer(FakeEmbedder({}))
     merges = [p for p in C.propose(Clustering([c1, c2, c3], [])) if p.kind == "merge"]
-    assert len(merges) == 1 and set(merges[0].cluster_ids) == {"cl_a", "cl_b"}  # only the near-dupes
+    assert len(merges) == 1
+    assert set(merges[0].cluster_ids) == {"cl_a", "cl_b"}
 
 
 def test_split_proposal_for_bimodal_cluster():
@@ -116,20 +121,25 @@ def test_split_proposal_for_bimodal_cluster():
     splits = [p for p in C.propose(cl) if p.kind == "split"]
     assert splits, "the bimodal cluster is flagged for split"
     parts = cl.clusters[0].split_parts
-    assert parts and {tuple(sorted(parts[0])), tuple(sorted(parts[1]))} == {("a1", "a2"), ("b1", "b2")}
+    assert parts
+    assert {tuple(sorted(parts[0])), tuple(sorted(parts[1]))} == {("a1", "a2"), ("b1", "b2")}
 
 
 def test_worst_cases():
     C = Clusterer(FakeEmbedder({}), sim_threshold=0.3, min_cluster=3)
-    assert C.cluster([]).clusters == [] and C.cluster([]).outliers == []  # empty
+    assert C.cluster([]).clusters == []
+    assert C.cluster([]).outliers == []
     res = C.cluster([{"id": "x", "text": "unknown"}, {"id": "y", "text": "??"}])  # no vectors
-    assert res.clusters == [] and set(res.outliers) == {"x", "y"}  # graceful fallback
+    assert res.clusters == []
+    assert set(res.outliers) == {"x", "y"}
     distinct = {"p": [1, 0, 0], "q": [0, 1, 0], "r": [0, 0, 1]}
     rd = Clusterer(FakeEmbedder(distinct), sim_threshold=0.3, min_cluster=3).cluster(_atoms(distinct))
-    assert rd.clusters == [] and set(rd.outliers) == {"p", "q", "r"}  # all-distinct = noise
+    assert rd.clusters == []
+    assert set(rd.outliers) == {"p", "q", "r"}
     same = {"s1": [1, 0], "s2": [1, 0], "s3": [1, 0]}
     rs = Clusterer(FakeEmbedder(same), sim_threshold=0.3, min_cluster=3).cluster(_atoms(same))
-    assert len(rs.clusters) == 1 and sorted(rs.clusters[0].atom_ids) == ["s1", "s2", "s3"]
+    assert len(rs.clusters) == 1
+    assert sorted(rs.clusters[0].atom_ids) == ["s1", "s2", "s3"]
 
 
 # ----------------------------------------------------------------- real model (skip if absent)

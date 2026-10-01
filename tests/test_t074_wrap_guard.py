@@ -36,7 +36,7 @@ def _isolated_mem(monkeypatch):
 
 
 def _args(**over):
-    base = dict(hours=1, commit=True, title=None, focus=None, force=False)
+    base = {"hours": 1, "commit": True, "title": None, "focus": None, "force": False}
     base.update(over)
     return SimpleNamespace(**base)
 
@@ -81,7 +81,8 @@ def test_w9_title_records_alongside_curated_untouched(monkeypatch):
     assert rc == 0
     assert _head(mem, "where-we-are").decision == "HAND-CURATED HANDOFF", "W9: curated head untouched"
     side = _head(mem, "where-we-are-2026-07-15")
-    assert side is not None and side.curated is False
+    assert side is not None
+    assert side.curated is False
 
 
 # ---------------------------------------------------------------- R7 legacy boundary

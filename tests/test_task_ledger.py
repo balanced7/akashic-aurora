@@ -150,7 +150,8 @@ def test_state_view_next_needs_deps_done(tmp_path):
     TL.approve(L, b["id"], at="t1")
     v = TL.state_view(p, client=None)
     ids_next = {t["id"] for t in v["next"]}
-    assert a["id"] in ids_next and b["id"] not in ids_next  # b blocked: dep a not DONE
+    assert a["id"] in ids_next
+    assert b["id"] not in ids_next
     # finish a → b becomes next
     TL.claim(L, a["id"], "c", at="t2")
     TL.start(L, a["id"], at="t3")
@@ -172,7 +173,8 @@ def test_sync_redis_from_git(tmp_path):
 # --- Slice C: read-state-first formatter -------------------------------------------------------
 def test_format_state_empty(tmp_path):
     s = TL.format_state(path=os.path.join(str(tmp_path), "none.json"), client=None)
-    assert "empty" in s and "no governed tasks" in s
+    assert "empty" in s
+    assert "no governed tasks" in s
 
 
 def test_format_state_shows_done_next_and_rule(tmp_path):
@@ -187,9 +189,13 @@ def test_format_state_shows_done_next_and_rule(tmp_path):
     TL.verifying(L, a["id"], at="t4")
     TL.done(L, a["id"], commit="deadbeef", verified_by="v", at="t5")
     s = TL.format_state(agent="claude", path=p, client=None)
-    assert "DONE" in s and "deadbeef" in s  # closed task shown with its commit
-    assert "NEXT" in s and "next one" in s and "<- you" in s  # b claimable, tagged for its owner
-    assert "obey THIS, not old messages" in s and "in DONE is closed" in s
+    assert "DONE" in s
+    assert "deadbeef" in s
+    assert "NEXT" in s
+    assert "next one" in s
+    assert "<- you" in s
+    assert "obey THIS, not old messages" in s
+    assert "in DONE is closed" in s
 
 
 # --- releasing a claim -------------------------------------------------------------------------

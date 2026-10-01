@@ -113,7 +113,8 @@ def test_p10_the_memory_row_is_MEASURED_from_the_seed_manifest_not_asserted():
         r.plane: r
         for r in F.assess(root="/x", secrets_count=1, state_count=9, head_sha="abc", source_dirty=0, seeded_from="prod")
     }["memory"]
-    assert seeded.status == "present" and "seeded from prod" in seeded.detail
+    assert seeded.status == "present"
+    assert "seeded from prod" in seeded.detail
 
 
 def test_p11_the_source_reports_a_NATIVE_store_never_a_seeded_one():
@@ -122,7 +123,8 @@ def test_p11_the_source_reports_a_NATIVE_store_never_a_seeded_one():
         for r in F.assess(root="/x", secrets_count=1, state_count=9, head_sha="abc", source_dirty=0, is_source=True)
     }["memory"]
     assert native.status == "present"
-    assert "native" in native.detail and "seeded" not in native.detail
+    assert "native" in native.detail
+    assert "seeded" not in native.detail
 
 
 def test_p12_no_manifest_and_not_the_source_is_UNKNOWN_never_a_guess():

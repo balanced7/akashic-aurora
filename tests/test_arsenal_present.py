@@ -89,7 +89,8 @@ def test_schema_is_one_string_everywhere():
 
 
 def test_family_constants_are_enumerable():
-    assert len(sc.ATOM_KINDS) == 15 and "note" in sc.ATOM_KINDS
+    assert len(sc.ATOM_KINDS) == 15
+    assert "note" in sc.ATOM_KINDS
     assert set(sc.TEMPLATES) == {"cover", "section", "statement", "content", "diagram", "comparison", "closing"}
     for tpl in sc.TEMPLATES.values():
         assert any(r["name"] == "note" for r in tpl["regions"]), "every template carries a note region"
@@ -102,7 +103,7 @@ def test_minimal_scene_validates_clean():
 
 
 @pytest.mark.parametrize(
-    "mutate, code",
+    ("mutate", "code"),
     [
         (
             lambda s: s["slides"][0]["atoms"].insert(0, {"kind": "sticker", "region": "body", "text": "x"}),
@@ -211,7 +212,8 @@ def test_present_manifests_load_and_cover_every_kind():
 
 def test_coverage_refuses_a_target_that_names_neither():
     problems = sc.coverage(_scene(), {"id": "present.nothing", "atoms": {"headline": {"preserves": "full"}}})
-    assert problems and all("names neither" in p for p in problems)
+    assert problems
+    assert all("names neither" in p for p in problems)
 
 
 @pytest.mark.skipif(
@@ -219,7 +221,8 @@ def test_coverage_refuses_a_target_that_names_neither():
 )
 def test_mail_and_wake_scene_validates():
     scene = sc.load(SCRATCH_SCENE)
-    assert scene["schema"] == sc.SCHEMA and len(scene["slides"]) == 22
+    assert scene["schema"] == sc.SCHEMA
+    assert len(scene["slides"]) == 22
     assert sc.validate(scene) == []
     assert sc.lint(scene) == []
     reg = load_registry()

@@ -166,7 +166,8 @@ def test_p5_all_sources_broken_still_produces_header():
         directive_override="DIRECTIVE: none active -- check the ledger",
         siblings_override="SIBLINGS: (unavailable)",
     )
-    assert "DIRECTIVE:" in header and "SIBLINGS:" in header
+    assert "DIRECTIVE:" in header
+    assert "SIBLINGS:" in header
     # the header is non-empty even when every source is degraded
 
 

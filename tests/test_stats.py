@@ -76,13 +76,17 @@ def _fixture(now):
 def test_stats_json_funnel(tmp_path, monkeypatch):
     recs, use, flips = _fixture(time.time())
     out = json.loads(_run_stats(monkeypatch, tmp_path, recs, use, flips, as_json=True))
-    assert out["corpus_lessons"] == 2 and out["tracked_sources"] == 2
-    assert out["surfaced_impressions"] == 8 and out["helped_credits"] == 2
+    assert out["corpus_lessons"] == 2
+    assert out["tracked_sources"] == 2
+    assert out["surfaced_impressions"] == 8
+    assert out["helped_credits"] == 2
     assert out["votes"] == {"useful": 1, "noise": 1}
     assert out["lessons_with_track_record"] == 2
     assert out["value_rate"] == 0.375, "(useful+helped)/surfaced = 3/8 -- the steering ratio"
     w = out["window"]
-    assert w["flips"] == 2 and w["flips_credited"] == 1 and w["flips_corpus_gap"] == 1
+    assert w["flips"] == 2
+    assert w["flips_credited"] == 1
+    assert w["flips_corpus_gap"] == 1
     assert w["lessons_recorded"] == 1, "only the recent lesson falls in the window"
     assert w["lessons_per_flip"] == 0.5
 
@@ -90,7 +94,8 @@ def test_stats_json_funnel(tmp_path, monkeypatch):
 def test_stats_human_output_ascii(tmp_path, monkeypatch):
     recs, use, flips = _fixture(time.time())
     out = _run_stats(monkeypatch, tmp_path, recs, use, flips)
-    assert "RECALL-VALUE FUNNEL" in out and "lessons-per-flip=0.5" in out
+    assert "RECALL-VALUE FUNNEL" in out
+    assert "lessons-per-flip=0.5" in out
     assert "value rate ((useful+helped)/surfaced): 37.5%" in out
     assert out == out.encode("ascii", errors="replace").decode(), "ASCII-only (Windows console)"
 
@@ -105,7 +110,8 @@ def test_stats_no_impressions_no_value_rate(tmp_path, monkeypatch):
 
 def test_stats_empty_everything_is_calm(tmp_path, monkeypatch):
     out = json.loads(_run_stats(monkeypatch, tmp_path, [], {}, [], as_json=True))
-    assert out["corpus_lessons"] == 0 and out["window"]["flips"] == 0
+    assert out["corpus_lessons"] == 0
+    assert out["window"]["flips"] == 0
     assert out["window"]["lessons_per_flip"] is None
 
 
@@ -140,9 +146,12 @@ def test_trend_buckets_lessons_and_flip_events_by_utc_day():
     tr = trend(days=3, learning_store=_FakeLearningStore(recs), event_log=_FakeEventLog(events), now=now)
     assert [b["date"] for b in tr["per_day"]][-1] == d0, "oldest-first, today last"
     today = tr["per_day"][-1]
-    assert today["lessons"] == 1 and today["flips"] == 2 and today["credited"] == 1
+    assert today["lessons"] == 1
+    assert today["flips"] == 2
+    assert today["credited"] == 1
     assert tr["per_day"][-2]["lessons"] == 1, "yesterday's lesson bucketed to yesterday"
-    assert tr["lessons_30d"] == 2 and tr["target_30d"] == 30
+    assert tr["lessons_30d"] == 2
+    assert tr["target_30d"] == 30
     assert tr["events_capped"] is False
 
 
@@ -167,7 +176,9 @@ def test_summary_line_is_one_ascii_line():
     line = summary_line(
         snapshot(hours=7 * 24, store=_FakeStore({}), learning_store=_FakeLearningStore([]), flips=[], injections=[])
     )
-    assert "\n" not in line and "lessons" in line and "last 7d" in line
+    assert "\n" not in line
+    assert "lessons" in line
+    assert "last 7d" in line
     assert "value" not in line, "no impressions -> no value segment (silent, not 0%)"
     assert line == line.encode("ascii", errors="replace").decode()
 
@@ -224,7 +235,7 @@ def test_snapshot_counts_injection_cost():
 def test_stats_days_prints_trend_and_pace(tmp_path, monkeypatch):
     import core.events.event_log as el
 
-    recs, use, flips = _fixture(time.time())
+    recs, use, _flips = _fixture(time.time())
     monkeypatch.setattr(
         el,
         "get_event_log",
@@ -242,6 +253,8 @@ def test_stats_days_prints_trend_and_pace(tmp_path, monkeypatch):
     with redirect_stdout(buf):
         assert agent_cli.cmd_stats(args) == 0
     out = buf.getvalue()
-    assert "TREND (last 7d" in out and "30d pace:" in out
-    assert "flips=1" in out and "credited=1" in out
+    assert "TREND (last 7d" in out
+    assert "30d pace:" in out
+    assert "flips=1" in out
+    assert "credited=1" in out
     assert out == out.encode("ascii", errors="replace").decode(), "ASCII-only (Windows console)"

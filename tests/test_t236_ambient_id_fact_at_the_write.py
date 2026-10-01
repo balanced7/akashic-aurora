@@ -125,7 +125,8 @@ def test_it_works_against_the_REAL_ledger():
 
     out = id_facts_for_path("tests/test_t001_would_collide.py")
     assert out, "the real ledger lookup returned nothing for a known-DONE id"
-    assert "T001" in out and "done" in out.lower()
+    assert "T001" in out
+    assert "done" in out.lower()
 
     assert id_facts_for_path("tests/test_t999_free.py") == "", "a free id must stay silent against the real ledger too"
 

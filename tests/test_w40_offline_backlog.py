@@ -27,15 +27,15 @@ _now = time.time()
 
 
 def _probes(**over):
-    base = dict(
-        worklive=lambda a: {"phase": "idle", "detail": "", "turn": 3, "since_ts": _now - 5, "beat_ts": _now - 1},
-        progress=lambda a: None,
-        backlog=lambda a: 0,
-        stalled_since=lambda a, present: None,
-        halted=lambda a: None,
-        lane_health=lambda a: None,
-        now=_now,
-    )
+    base = {
+        "worklive": lambda a: {"phase": "idle", "detail": "", "turn": 3, "since_ts": _now - 5, "beat_ts": _now - 1},
+        "progress": lambda a: None,
+        "backlog": lambda a: 0,
+        "stalled_since": lambda a, present: None,
+        "halted": lambda a: None,
+        "lane_health": lambda a: None,
+        "now": _now,
+    }
     base.update(over)
     return base
 

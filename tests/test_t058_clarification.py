@@ -73,7 +73,8 @@ def test_b3_directed_to_user_with_clarify_meta(monkeypatch):
     assert m["meta"].get("kind") == "clarify" and m["meta"].get("clarify_id"), (
         "B3: meta carries kind=clarify + a clarify_id for the answer fold"
     )
-    assert "CLARIFICATION:" in m["content"] and "frobnicator" in m["content"]
+    assert "CLARIFICATION:" in m["content"]
+    assert "frobnicator" in m["content"]
 
 
 # ------------------------------------------------ B4: waiting state armed

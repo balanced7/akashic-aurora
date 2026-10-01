@@ -55,16 +55,19 @@ def test_capture_roundtrip():
     )
     # T179: capture returns a BoundaryOutcome. The stored event is o.detail; the followable
     # pointer is o.ref. Every assertion below is the one this test always made.
-    assert ev.ok and not ev.partial
+    assert ev.ok
+    assert not ev.partial
     assert ev.detail["kind"] == "tool_call"
     assert ev.detail["summary"] == "ran pytest"
     assert ev.detail["agent_id"] == "opencode"
     assert ev.detail["detail"] == {"cmd": "pytest -q"}
     assert ev.detail["refs"] == ["git:deadbeef"]
-    assert ev.detail["id"] and ev.ref == event_ref(RAW_STREAM, ev.detail["id"])
+    assert ev.detail["id"]
+    assert ev.ref == event_ref(RAW_STREAM, ev.detail["id"])
     # readable back off the firehose
     back = el.recent(10)
-    assert len(back) == 1 and back[0]["summary"] == "ran pytest"
+    assert len(back) == 1
+    assert back[0]["summary"] == "ran pytest"
 
 
 def test_count_matches_captures():
@@ -86,7 +89,8 @@ def test_get_resolves_ref():
     el = _log()
     ev = el.capture("observation", "found a bug", agent_id="claude")
     again = el.get(ev.ref)
-    assert again is not None and again["summary"] == "found a bug"
+    assert again is not None
+    assert again["summary"] == "found a bug"
     assert again["id"] == ev.detail["id"]
 
 
@@ -174,7 +178,8 @@ def test_corrupt_line_skipped_on_read():
         f.write("this is not json\n")
     el.capture("note", "good2", agent_id="a")
     summaries = [e["summary"] for e in el.recent(10)]
-    assert "good" in summaries and "good2" in summaries  # corrupt line skipped, not fatal
+    assert "good" in summaries
+    assert "good2" in summaries
 
 
 # ----------------------------------------------------------------- cross-backend

@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import runner_lock, wake_seat
 from core.comm.bus import Bus
+import contextlib
 
 try:
     _ONLINE = bool(Bus("t086s3-probe").online)
@@ -84,10 +85,8 @@ def test_s3b_tombstoned_twin_falls_through_to_nag(agent):
         r = _run_hook(agent, sid)
         assert '"decision": "block"' in (r.stdout or ""), (r.stdout, r.stderr)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             os.remove(wake_seat.tombstone_path(ghost))
-        except Exception:
-            pass
         c = runner_lock._client()
         if c is not None:
             c.delete(f"bifrost:session:ended:{ghost}")

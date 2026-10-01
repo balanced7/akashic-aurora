@@ -51,7 +51,8 @@ def test_write_last_session_draft_to_file():
     assert "(git:abc123)" in text and "next-focus" in text, "draft body + pointers present"
     # no activity -> no file, returns None (don't write an empty draft)
     p2 = os.path.join(d, "chronicles", "empty.md")
-    assert agent_cli.write_last_session_draft(p2, [], [], []) is None and not os.path.exists(p2)
+    assert agent_cli.write_last_session_draft(p2, [], [], []) is None
+    assert not os.path.exists(p2)
     print("--- write draft file ---\n  auto-capture writes a draft file with header + pointers; empty -> None OK")
 
 

@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal import practice as pr  # noqa: E402
+import itertools
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is needed to run piano.js Theory.detect")
@@ -177,7 +178,7 @@ def test_bb_major_modulating_to_eb_major_is_found_within_a_few_seconds():
     bb = [["Bb2", "D4", "F4", "A4"], ["G2", "Bb3", "D4", "F4"], ["C3", "Eb4", "G4", "Bb4"], ["F2", "A3", "C4", "Eb4"]]
     eb = [["Eb2", "G3", "Bb3", "D4"], CM7, ["F2", "Ab3", "C4", "Eb4"], BB7]
     acts, t = pedalled_progression(bb, seconds=2.0, repeats=8)  # 0:00 - 1:04
-    more, end = pedalled_progression(eb, seconds=2.0, repeats=10, start=t)  # 1:04 - 2:24
+    more, _end = pedalled_progression(eb, seconds=2.0, repeats=10, start=t)  # 1:04 - 2:24
     doc = pr.analyze(perform(acts + more))
     keys = [(a["key"], a["start_ms"]) for a in doc["keys"]["areas"]]
     assert [k for k, _ in keys] == ["Bb major", "Eb major"], keys
@@ -275,7 +276,8 @@ def test_pedal_point_under_changing_chords():
     points = doc["findings"]["pedal_points"]
     assert len(points) == 1, points
     assert points[0]["bass"] == "Eb2"
-    assert points[0]["over"][:2] == ["Eb", "Ab/Eb"] and points[0]["over"][2].startswith("Fm")
+    assert points[0]["over"][:2] == ["Eb", "Ab/Eb"]
+    assert points[0]["over"][2].startswith("Fm")
     assert points[0]["seconds"] >= 11
 
 
@@ -332,7 +334,9 @@ def test_classify_borrowed_modal_and_secondary_dominants():
     eb_minor = {"key": "Eb minor", "tonic": 3, "mode": "minor"}
     dbmaj9 = [1, 5, 8, 0, 3]
     got = pr.classify(dbmaj9, 1, eb_major)
-    assert got["class"] == "modal" and got["mode"] == "Mixolydian" and "borrowed from Eb minor" in got["detail"]
+    assert got["class"] == "modal"
+    assert got["mode"] == "Mixolydian"
+    assert "borrowed from Eb minor" in got["detail"]
     assert pr.classify([0, 4, 7, 10], 0, eb_major)["detail"].startswith("5 of 2m")  # C7: its b7 makes it a dominant
     assert pr.classify([7, 11, 2], 7, eb_major, next_root_pc=0)["detail"] == "5 of 6m, and it lands there"
     assert pr.classify([7, 11, 2], 7, eb_major, next_root_pc=5)["class"] == "chromatic"  # G major going nowhere
@@ -379,7 +383,8 @@ def test_cli_verbs_on_a_temporary_store(tmp_path, capsys):
     out_file = tmp_path / "receipts" / "a.json"
     assert pr.main(["analyze", sid, "--root", root, "--out", str(out_file)]) == 0
     doc = json.loads(out_file.read_text(encoding="utf-8"))
-    assert doc["session"] == sid and doc["api"] == pr.API
+    assert doc["session"] == sid
+    assert doc["api"] == pr.API
     assert pr.main(["windows", "20260101-000000-deadbeef", "--root", root]) == 2
 
 
@@ -489,15 +494,18 @@ def test_sessions_verb_lists_start_length_notes_home_key_and_areas(store, capsys
     assert code == 0
     lines = {line.split()[-1]: line for line in out.splitlines() if line.strip().startswith("20")}
     rich = next(line for line in out.splitlines() if ids["rich"] in line)
-    assert "Eb major" in rich and "1:30" in rich
+    assert "Eb major" in rich
+    assert "1:30" in rich
     assert "(still open)" in next(line for line in out.splitlines() if ids["empty"] in line)
     assert len([line for line in out.splitlines() if "20260101-" in line]) == 5, lines
     code, out, _ = _run(capsys, "sessions", "today", "--root", root, "--json")
     rows = json.loads(out)
     assert ids["loop"] not in [r["session"] for r in rows]  # opened 40 days ago
     by_id = {r["session"]: r for r in rows}
-    assert by_id[ids["modulation"]]["key_areas"] == 2 and by_id[ids["modulation"]]["home_key"] == "Eb major"
-    assert by_id[ids["empty"]]["home_key"] is None and by_id[ids["empty"]]["notes"] == 0
+    assert by_id[ids["modulation"]]["key_areas"] == 2
+    assert by_id[ids["modulation"]]["home_key"] == "Eb major"
+    assert by_id[ids["empty"]]["home_key"] is None
+    assert by_id[ids["empty"]]["notes"] == 0
 
 
 @needs_node
@@ -529,7 +537,8 @@ def test_brief_is_compact_and_covers_what_claude_needs(store, capsys):
     assert len(asks) == 3, asks
     assert sum(1 for line in lines if line.startswith("   In plain words: ")) == 3
     words = _words(out)
-    assert len(words) == len(set(words)) and {"Lydian", "borrowed", "sus", "numbers"} <= set(words)
+    assert len(words) == len(set(words))
+    assert {"Lydian", "borrowed", "sus", "numbers"} <= set(words)
     data = json.loads(_run(capsys, "brief", ids["rich"], "--root", root, "--json")[1])
     categories = [m["category"] for m in data["ask"]]
     assert len(set(categories)) == 3
@@ -539,7 +548,8 @@ def test_brief_is_compact_and_covers_what_claude_needs(store, capsys):
         for b in data["ask"]
         if a is not b
     )
-    assert data["touch"]["pedal"]["presses"] > 0 and data["colours"]["lydian_4"]
+    assert data["touch"]["pedal"]["presses"] > 0
+    assert data["colours"]["lydian_4"]
 
 
 @needs_node
@@ -556,15 +566,21 @@ def test_chords_vocabulary_by_time_with_numbers_and_classes(store, capsys):
     root, ids = store
     data = json.loads(_run(capsys, "chords", ids["rich"], "--root", root, "--json")[1])
     top = data["chords"][0]
-    assert top["chord"] == "Eb" and top["in"][0]["number"] == "1" and top["in"][0]["class"] == "diatonic"
+    assert top["chord"] == "Eb"
+    assert top["in"][0]["number"] == "1"
+    assert top["in"][0]["class"] == "diatonic"
     names = {c["chord"]: c for c in data["chords"]}
-    assert names["Abm"]["in"][0]["class"] == "borrowed" and names["Abm"]["times"] == 3
+    assert names["Abm"]["in"][0]["class"] == "borrowed"
+    assert names["Abm"]["times"] == 3
     assert abs(sum(c["share"] for c in data["chords"]) - 1) < 0.02
     assert "4maj9#11" in {n["number"] for n in data["numbers"]}
     short = json.loads(_run(capsys, "chords", ids["rich"], "--root", root, "--json", "--min-seconds", 4)[1])
-    assert all(c["seconds"] >= 4 for c in short["chords"]) and len(short["chords"]) < len(data["chords"])
+    assert all(c["seconds"] >= 4 for c in short["chords"])
+    assert len(short["chords"]) < len(data["chords"])
     code, out, _ = _run(capsys, "chords", ids["rich"], "--root", root)
-    assert code == 0 and "Chord time by class:" in out and "By number" in out
+    assert code == 0
+    assert "Chord time by class:" in out
+    assert "By number" in out
 
 
 @needs_node
@@ -572,17 +588,20 @@ def test_progressions_find_the_loop_and_moves_with_first_times(store, capsys):
     root, ids = store
     data = json.loads(_run(capsys, "progressions", ids["loop"], "--root", root, "--json")[1])
     moves2 = {tuple(g["numbers"]): g for g in data["moves"]["2"]}
-    assert moves2[("1", "6m")]["count"] == 4 and moves2[("1", "6m")]["first_at"] == "0:00"
+    assert moves2[("1", "6m")]["count"] == 4
+    assert moves2[("1", "6m")]["first_at"] == "0:00"
     assert moves2[("5", "1")]["count"] == 3
     loop = data["loops"][0]
-    assert loop["numbers"] == ["1", "6m", "4", "5"] and loop["best_reps"] == 4
+    assert loop["numbers"] == ["1", "6m", "4", "5"]
+    assert loop["best_reps"] == 4
     exact = json.loads(
         _run(capsys, "progressions", ids["loop"], "--root", root, "--json", "--exact", "--n", "4", "--min-count", 3)[1]
     )
     assert list(exact["moves"]) == ["4"]
     assert [g["numbers"] for g in exact["moves"]["4"]][0] == ["1", "6m7", "4", "5^7"]
     code, out, _ = _run(capsys, "progressions", ids["loop"], "--root", root)
-    assert code == 0 and "1 -> 6m -> 4 -> 5 (and round again): up to 4 times" in out
+    assert code == 0
+    assert "1 -> 6m -> 4 -> 5 (and round again): up to 4 times" in out
     assert _run(capsys, "progressions", ids["loop"], "--root", root, "--n", "7")[0] == 2
 
 
@@ -592,13 +611,18 @@ def test_keys_evidence_names_the_notes_that_changed(store, capsys):
     data = json.loads(_run(capsys, "keys", ids["modulation"], "--root", root, "--json")[1])
     (change,) = data["evidence"]["changes"]
     notes = {s["note"]: s for s in change["swapped"]}
-    assert set(notes) == {"A", "Ab"} and change["agreeing"] == 2
-    assert notes["A"]["before"] > 0.06 and notes["A"]["after"] < notes["A"]["before"] / 3  # the last A still rings
-    assert notes["Ab"]["after"] > 0.06 and notes["Ab"]["before"] < 0.01
+    assert set(notes) == {"A", "Ab"}
+    assert change["agreeing"] == 2
+    assert notes["A"]["before"] > 0.06
+    assert notes["A"]["after"] < notes["A"]["before"] / 3
+    assert notes["Ab"]["after"] > 0.06
+    assert notes["Ab"]["before"] < 0.01
     assert change["first_chord_after"]["key"] == "Eb major"
-    code, out, _ = _run(capsys, "keys", ids["modulation"], "--root", root)
-    assert "Home key: Eb major" in out and "key change: Bb major -> Eb major" in out
-    assert "A (Bb major)" in out and "Ab (Eb major)" in out
+    _code, out, _ = _run(capsys, "keys", ids["modulation"], "--root", root)
+    assert "Home key: Eb major" in out
+    assert "key change: Bb major -> Eb major" in out
+    assert "A (Bb major)" in out
+    assert "Ab (Eb major)" in out
 
 
 @needs_node
@@ -608,11 +632,14 @@ def test_borrowed_lists_source_outside_notes_and_times(store, capsys):
     groups = {g["chord"]: g for g in data["groups"]}
     abm = groups["Abm"]
     assert (abm["number"], abm["class"], abm["source"]) == ("4m", "borrowed", "borrowed from Eb minor")
-    assert abm["outside_notes"] == [{"note": "Cb", "degree": "b6"}] and len(abm["times"]) == 3
+    assert abm["outside_notes"] == [{"note": "Cb", "degree": "b6"}]
+    assert len(abm["times"]) == 3
     mixo = [g for g in data["groups"] if g["class"] == "modal" and "Mixolydian" in g["source"]]
-    assert mixo and {"note": "Db", "degree": "b7"} in mixo[0]["outside_notes"]
-    code, out, _ = _run(capsys, "borrowed", ids["rich"], "--root", root)
-    assert "Borrowed from the parallel key" in out and "outside notes Cb (b6)" in out
+    assert mixo
+    assert {"note": "Db", "degree": "b7"} in mixo[0]["outside_notes"]
+    _code, out, _ = _run(capsys, "borrowed", ids["rich"], "--root", root)
+    assert "Borrowed from the parallel key" in out
+    assert "outside notes Cb (b6)" in out
     assert "borrowed" in _words(out)
 
 
@@ -625,8 +652,9 @@ def test_colors_count_extensions_lydian_4_suspended_dominants(store, capsys):
     assert all(0 < c["share"] <= 1 for c in data["colours"])
     assert len(data["lydian_4"]) == 3
     assert data["dominants"]["summary"]["suspended"]["windows"] == 3
-    code, out, _ = _run(capsys, "colors", ids["rich"], "--root", root)
-    assert "Lydian 4 (the 4 chord with its #11): 3 times" in out and "Suspensions (" in out
+    _code, out, _ = _run(capsys, "colors", ids["rich"], "--root", root)
+    assert "Lydian 4 (the 4 chord with its #11): 3 times" in out
+    assert "Suspensions (" in out
 
 
 def test_colour_tags_measure_from_the_analysed_root():
@@ -648,11 +676,14 @@ def test_moment_shows_notes_with_octaves_windows_and_key(store, capsys):
     root, ids = store
     data = json.loads(_run(capsys, "moment", ids["loop"], "0:03", "--window", 1, "--root", root, "--json")[1])
     assert data["key_area"]["key"] == "Eb major"
-    assert data["onsets"][0]["at"] == "0:02.0" and data["onsets"][0]["notes"] == ["C3", "Eb4", "G4", "Bb4"]
+    assert data["onsets"][0]["at"] == "0:02.0"
+    assert data["onsets"][0]["notes"] == ["C3", "Eb4", "G4", "Bb4"]
     assert "Cm7" in [w["chord"] for w in data["windows"]]
-    assert data["sounding_at"] == ["C3", "Eb4", "G4", "Bb4"] and data["pedal_down_at"] is True
+    assert data["sounding_at"] == ["C3", "Eb4", "G4", "Bb4"]
+    assert data["pedal_down_at"] is True
     code, out, _ = _run(capsys, "moment", "0:03", "--root", root)  # the time alone: the latest session
-    assert code == 0 and out.startswith(f"Session {ids['rich']}")
+    assert code == 0
+    assert out.startswith(f"Session {ids['rich']}")
     assert _run(capsys, "moment", ids["loop"], "soon", "--root", root)[0] == 2
 
 
@@ -674,13 +705,15 @@ def test_name_gives_every_reading_numbered_in_the_key(capsys):
     assert "From the root: Ab3 root, Eb4 5th, G4 maj7, Bb4 9, C5 3rd, D5 #11" in out
     assert "Lydian" in _words(out)
     data = json.loads(_run(capsys, "name", "56 63 67 70 72 74", "--json")[1])
-    assert data["analysed"]["name"] == "Abmaj9#11" and data["key"] is None
+    assert data["analysed"]["name"] == "Abmaj9#11"
+    assert data["key"] is None
     assert data["fits_keys"] == ["C minor", "Eb major"]
     assert [r["name"] for r in data["readings"]][0] == "Abmaj9#11"
     assert _run(capsys, "name", "H3")[0] == 2
     assert _run(capsys, "name", "C4", "--key", "Q lydian")[0] == 2
     single = json.loads(_run(capsys, "name", "E4", "--key", "C major", "--json")[1])
-    assert single["readings"] == [] and single["detect"]["kind"] == "note"
+    assert single["readings"] == []
+    assert single["detect"]["kind"] == "note"
 
 
 @needs_node
@@ -689,10 +722,15 @@ def test_compare_shows_keys_overlap_and_habits(store, capsys):
     data = json.loads(_run(capsys, "compare", ids["loop"], ids["rich"], "--root", root, "--json")[1])
     assert data["a"]["home_key"] == data["b"]["home_key"] == "Eb major"
     shared = [t for t, _, _ in data["numbers"]["shared"]]
-    assert "1" in shared and "4" in shared and 0 < data["numbers"]["overlap"] < 1
-    assert data["a"]["lydian_4"] == 0 and data["b"]["lydian_4"] == 3
+    assert "1" in shared
+    assert "4" in shared
+    assert 0 < data["numbers"]["overlap"] < 1
+    assert data["a"]["lydian_4"] == 0
+    assert data["b"]["lydian_4"] == 3
     code, out, _ = _run(capsys, "compare", ids["loop"], "latest", "--root", root)
-    assert code == 0 and "Overlap" in out and "Lydian 4 (times)" in out
+    assert code == 0
+    assert "Overlap" in out
+    assert "Lydian 4 (times)" in out
     assert _run(capsys, "compare", "today", ids["rich"], "--root", root)[0] == 2
 
 
@@ -703,18 +741,23 @@ def test_history_first_seen_qualities_and_growth(store, capsys):
     assert [g["session"] for g in data["growth"]] == [ids[k] for k in ("loop", "modulation", "empty", "single", "rich")]
     firsts = {q["quality"]: q for q in data["qualities"]}
     assert firsts["m7"]["session"] == ids["loop"]  # Cm7 in the first session
-    assert firsts["maj9#11"]["session"] == ids["rich"] and firsts["maj9#11"]["chord"] == "Abmaj9#11"
+    assert firsts["maj9#11"]["session"] == ids["rich"]
+    assert firsts["maj9#11"]["chord"] == "Abmaj9#11"
     rich = data["growth"][-1]
-    assert "maj9#11" in rich["new_qualities"] and "m7" not in rich["new_qualities"]
+    assert "maj9#11" in rich["new_qualities"]
+    assert "m7" not in rich["new_qualities"]
     assert data["growth"][0]["new_qualities"] == []  # nothing is new in the first session looked at
     top = {n["number"]: n for n in data["numbers"]}
     assert top["1"]["sessions"] == 2  # Eb in the loop and the rich session (the modulation plays only 7th chords)
     recent = pr.history_data(pr.PerformanceStore(root), days=30)
     assert ids["loop"] not in [g["session"] for g in recent["growth"]]
     code, out, _ = _run(capsys, "history", "--days", 60, "--root", root)
-    assert code == 0 and "Chord qualities, by when each was first played:" in out and "maj9#11" in out
+    assert code == 0
+    assert "Chord qualities, by when each was first played:" in out
+    assert "maj9#11" in out
     code, out, _ = _run(capsys, "history", "--days", 60, "--root", root / "nothing-here")
-    assert code == 0 and "No sessions in that time." in out
+    assert code == 0
+    assert "No sessions in that time." in out
 
 
 @needs_node
@@ -724,26 +767,35 @@ def test_history_first_seen_qualities_and_growth(store, capsys):
 def test_every_session_verb_handles_an_open_empty_session_and_single_notes(store, capsys, verb):
     root, ids = store
     code, out, _ = _run(capsys, verb, ids["empty"], "--root", root)
-    assert code == 0 and "No notes logged yet." in out and "still open" in out
+    assert code == 0
+    assert "No notes logged yet." in out
+    assert "still open" in out
     code, out, _ = _run(capsys, verb, ids["single"], "--root", root)
-    assert code == 0 and ids["single"] in out
+    assert code == 0
+    assert ids["single"] in out
     assert json.loads(_run(capsys, verb, ids["single"], "--root", root, "--json")[1])
     code, out, _ = _run(capsys, verb, "today", "--root", root, "--json")
-    assert code == 0 and isinstance(json.loads(out), list) and len(json.loads(out)) == 4
+    assert code == 0
+    assert isinstance(json.loads(out), list)
+    assert len(json.loads(out)) == 4
 
 
 @needs_node
 def test_single_note_session_says_so_instead_of_inventing_chords(store, capsys):
     root, ids = store
     out = _run(capsys, "brief", ids["single"], "--root", root)[1]
-    assert "none: no chords held that long" in out and "hardly any chords were held" in out
+    assert "none: no chords held that long" in out
+    assert "hardly any chords were held" in out
     assert "Mostly single notes; most heard:" in out
     assert "No chords held." in _run(capsys, "chords", ids["single"], "--root", root)[1]
     prog = json.loads(_run(capsys, "progressions", ids["single"], "--root", root, "--json")[1])
-    assert prog["chords"] == 0 and prog["loops"] == [] and all(v == [] for v in prog["moves"].values())
+    assert prog["chords"] == 0
+    assert prog["loops"] == []
+    assert all(v == [] for v in prog["moves"].values())
     assert _run(capsys, "moment", ids["empty"], "0:01", "--root", root)[0] == 0
     moment = json.loads(_run(capsys, "moment", ids["single"], "0:00.8", "--window", 0.1, "--root", root, "--json")[1])
-    assert [g["notes"] for g in moment["onsets"]] == [["D4"]] and moment["windows"]
+    assert [g["notes"] for g in moment["onsets"]] == [["D4"]]
+    assert moment["windows"]
 
 
 def test_glossary_lists_each_used_term_once_and_ignores_times():
@@ -758,12 +810,16 @@ def test_glossary_lists_each_used_term_once_and_ignores_times():
 
 
 def test_small_helpers():
-    assert pr.clock_tenths(75049) == "1:15.0" and pr.clock_tenths(599960) == "10:00.0"
-    assert pr._parse_ns("2..4") == (2, 3, 4) and pr._parse_ns("3") == (3,) and pr._parse_ns("2,4") == (2, 4)
-    assert (
-        pr.quality("m7b5") == "diminished" and pr.quality("7sus4") == "suspended" and pr.quality("maj9#11") == "major"
-    )
-    assert pr._degree(6, "Bb major", "F#") == "#5" and pr._degree(11, "Eb major", "Cb") == "b6"
+    assert pr.clock_tenths(75049) == "1:15.0"
+    assert pr.clock_tenths(599960) == "10:00.0"
+    assert pr._parse_ns("2..4") == (2, 3, 4)
+    assert pr._parse_ns("3") == (3,)
+    assert pr._parse_ns("2,4") == (2, 4)
+    assert pr.quality("m7b5") == "diminished"
+    assert pr.quality("7sus4") == "suspended"
+    assert pr.quality("maj9#11") == "major"
+    assert pr._degree(6, "Bb major", "F#") == "#5"
+    assert pr._degree(11, "Eb major", "Cb") == "b6"
 
 
 # ================================================================================== verifier must-fix items
@@ -839,7 +895,8 @@ def test_a_one_voice_line_is_not_named_as_chords():
     doc = _analyze(acts)
     assert "line" in {w["kind"] for w in doc["windows"]}
     assert not any(pr.is_chord(w) for w in doc["windows"]), [(w["at"], w["name"]) for w in doc["windows"]]
-    assert pr.borrowed_data(doc)["groups"] == [] and doc["findings"]["outside_key"] == []
+    assert pr.borrowed_data(doc)["groups"] == []
+    assert doc["findings"]["outside_key"] == []
     assert pr.progression_data(doc)["chords"] == 0
 
 
@@ -863,7 +920,8 @@ def test_a_treble_arpeggio_has_no_bass():
     assert doc["findings"]["pedal_points"] == []
     sess = _sess(events, doc)
     text = pr.render_moment(sess, pr.moment_data(sess, chords[0]["start_ms"] + 1000, 1000))
-    assert "no low bass" in text and "bass moving" not in text
+    assert "no low bass" in text
+    assert "bass moving" not in text
 
 
 @needs_node
@@ -934,15 +992,19 @@ def test_a_long_pause_starts_a_new_section_and_a_short_passage_takes_its_own_cen
     doc = pr.analyze(events)
     areas = doc["keys"]["areas"]
     assert [a["key"] for a in areas] == ["Bb major", "Eb major", "Db major"], areas
-    assert areas[1]["after_pause_s"] >= 19 and areas[2]["after_pause_s"] >= 24
+    assert areas[1]["after_pause_s"] >= 19
+    assert areas[2]["after_pause_s"] >= 24
     assert [s["at"] for s in doc["sections"]] == [a["at"] for a in areas]
     assert not any(a["into"] == "Eb major" and a["start_ms"] >= areas[2]["start_ms"] for a in doc["keys"]["absorbed"])
     db = [w for w in doc["windows"] if w["root"] == "Db"]
-    assert db and db[-1]["number"] == "1maj9" and db[-1]["class"] == "diatonic"
+    assert db
+    assert db[-1]["number"] == "1maj9"
+    assert db[-1]["class"] == "diatonic"
     sess = _sess(events, doc)
     brief = pr.brief_data(sess)
     assert all(m["category"] != "key change" for m in brief["ask"])
-    assert brief["changes"] and all(c["pause_s"] for c in brief["changes"])
+    assert brief["changes"]
+    assert all(c["pause_s"] for c in brief["changes"])
     assert "new section after a" in pr.render_brief(sess, brief)
 
 
@@ -1008,7 +1070,8 @@ def test_a_bass_moving_to_a_new_chords_root_is_a_change():
     steps = pr.chord_sequences({"windows": windows})[0]
     assert [s["token"] for s in steps] == ["2m", "4", "6m", "5"] * 2, [(s["token"], s["merged"]) for s in steps]
     loop = pr.find_loops([steps])[0]
-    assert loop["numbers"] == ["2m", "4", "6m", "5"] and loop["runs"][0]["start_ms"] == 0
+    assert loop["numbers"] == ["2m", "4", "6m", "5"]
+    assert loop["runs"][0]["start_ms"] == 0
     four_one = [
         row("Eb", ["Eb", "G", "Bb"], "Eb3", 0, 2.0),
         row("Bb", ["Bb", "D", "F"], "Bb2", 2.0, 2.0),
@@ -1098,7 +1161,8 @@ def test_notes_still_held_when_the_log_ends(tmp_path, capsys):
     _store(root, "20260103-100000-0000000a", events, now - timedelta(hours=1), closed=True)
     code, out, _ = _run(capsys, "brief", "20260103-100000-0000000a", "--root", root)
     assert code == 0 and "Home key: none yet" in out and "3 notes were still sounding when the log ends" in out, out
-    assert "Key areas: none yet" in out and "0:00-0:00" not in out  # no key area named for a session without chords
+    assert "Key areas: none yet" in out
+    assert "0:00-0:00" not in out
     assert "notes a minute" not in out  # nor a rate for a session of a few milliseconds
     _store(root, "20260103-100100-0000000b", events, now - timedelta(seconds=6), closed=False)
     code, out, _ = _run(capsys, "brief", "20260103-100100-0000000b", "--root", root)
@@ -1164,10 +1228,10 @@ def test_brief_fits_in_80_lines_with_many_key_areas():
     acts, t = [], 0
     for one, six, four, five in keys:
         chords = [
-            [f"{one}2"] + _triad(one, ""),
-            [f"{six}2"] + _triad(six, "m"),
-            [f"{four}2"] + _triad(four, ""),
-            [f"{five}2"] + _triad(five, "7"),
+            [f"{one}2", *_triad(one, "")],
+            [f"{six}2", *_triad(six, "m")],
+            [f"{four}2", *_triad(four, "")],
+            [f"{five}2", *_triad(five, "7")],
         ]
         more, t = pedalled_progression(chords, seconds=2.0, repeats=4, start=t)
         acts += more
@@ -1257,7 +1321,8 @@ def test_a_pedalled_treble_run_is_a_line_not_a_progression():
     shown = [(w["at"], w["name"], w["kind"]) for w in doc["windows"]]
     assert pr.progression_data(doc)["chords"] == 0 and pr.progression_data(doc)["loops"] == [], shown
     assert any(w["kind"] == "line" and " run " in w["name"] for w in doc["windows"]), shown
-    assert doc["findings"]["outside_key"] == [] and doc["findings"]["pedal_points"] == []
+    assert doc["findings"]["outside_key"] == []
+    assert doc["findings"]["pedal_points"] == []
 
 
 @needs_node
@@ -1302,7 +1367,7 @@ def test_lydian_4_counts_moments_and_the_5_chord_over_the_4_bass_is_a_dominant()
     chords = [EB, lyd_a, lyd_b, EB, BB7, EB, over4, over3, over1, home, AB, BB7, EB]
     seconds = [2.0, 1.5, 1.5, 2.0, 2.0, 2.0, 2.2, 0.9, 1.6, 2.5, 2.0, 2.0, 2.0]
     acts, t = [], 0
-    for notes, s in zip(chords, seconds):
+    for notes, s in zip(chords, seconds, strict=False):
         acts += [(t, "up", 0, 0), (t + 100, "down", 0, 0)]
         block(acts, t, notes, int(s * 1000) - 100)
         t += int(s * 1000)
@@ -1362,7 +1427,8 @@ def test_asks_never_treat_the_home_tonic_as_outside_or_repeat_a_return():
     tonic = [m for m in asks if m["category"] == "outside the key" and re.match(r"Eb(/G)? =", m["what"])]
     assert not tonic, asks
     spans = sorted((pr.parse_clock(m["replay"][0]), pr.parse_clock(m["replay"][1])) for m in asks)
-    assert len({m["category"] for m in asks}) == len(asks) and all(b[0] >= a[0] for a, b in zip(spans, spans[1:]))
+    assert len({m["category"] for m in asks}) == len(asks)
+    assert all(b[0] >= a[0] for a, b in itertools.pairwise(spans))
 
 
 @needs_node
@@ -1382,7 +1448,8 @@ def test_an_impossible_event_time_is_dropped_not_allocated(tmp_path, capsys):
     assert _run(capsys, "history", "--days", 30, "--root", root)[0] == 0
     assert time.monotonic() - started < 30
     doc = pr.analyze(bad)
-    assert doc["impossible_events"] == 1 and doc["duration_s"] < 60
+    assert doc["impossible_events"] == 1
+    assert doc["duration_s"] < 60
 
 
 @needs_node
@@ -1422,7 +1489,8 @@ def test_cli_session_paths_and_bad_options(store, capsys, tmp_path):
     assert _run(capsys, "keys", ids["rich"] + "/", "--root", root)[0] == 0  # tab completion's trailing slash
     assert _run(capsys, "keys", str(Path(root) / ids["rich"]), "--root", root)[0] == 0  # a session directory
     code, _, err = _run(capsys, "brief", ids["rich"], "--root", root, "--out", tmp_path)
-    assert code == 2 and "directory" in err
+    assert code == 2
+    assert "directory" in err
     for argv in (
         ("windows", ids["rich"], "--limit", "0"),
         ("windows", ids["rich"], "--from", "9:00"),
@@ -1438,7 +1506,8 @@ def test_cli_session_paths_and_bad_options(store, capsys, tmp_path):
 
 def test_glossary_examples_follow_the_home_key():
     text = "\n".join(pr.glossary("the Lydian 4, borrowed, extensions", "Db major"))
-    assert "C over Gb in Db major" in text and "(Db minor for Db major)" in text
+    assert "C over Gb in Db major" in text
+    assert "(Db minor for Db major)" in text
     assert "D over Ab in Eb major" in "\n".join(pr.glossary("the Lydian 4"))  # Eb major without a home key
     folded = pr.glossary("numbers, Lydian, velocity, semitone, runner-up, new section after a pause", "C major", 6)
     assert "- Lydian: " in "\n".join(folded) and any(line.startswith("- also: ") for line in folded), folded
@@ -1477,7 +1546,8 @@ def test_glossary_explains_carets_and_two_note_shapes():
     assert "- ^ in numbers" in "\n".join(pr.glossary("Bb7sus4/Eb = 5^7sus4/1"))
     assert "- two-note shape" in "\n".join(pr.glossary("arrives on 1-3 (Bb-D)"))
     assert "two-note shape" not in "\n".join(pr.glossary("0:27-1:27 D major; 1^5 power"))
-    assert pr.parse_clock("1:15") == 75000 and pr.parse_clock("75") == 75000
+    assert pr.parse_clock("1:15") == 75000
+    assert pr.parse_clock("75") == 75000
     with pytest.raises(ValueError):
         pr.parse_clock("1:75")
 
@@ -1497,7 +1567,7 @@ def test_a_chord_unfolding_or_gaining_a_note_over_its_bass_is_not_a_pedal_point(
         block(acts, t + 150 + k * 400, [m], 350, vel=50)
     acts.append((t + 6000, "up", 0, 0))
     more, t2 = pedalled_progression(F_MAJOR, seconds=2.0, start=t + 6000)
-    acts += more + [(t2, "up", 0, 0), (t2 + 100, "down", 0, 0)]
+    acts += [*more, (t2, "up", 0, 0), (t2 + 100, "down", 0, 0)]
     block(acts, t2, ["A2"], 4900, vel=45)
     block(acts, t2 + 50, ["F4", "Bb4", "G5"], 4800, vel=50)
     block(acts, t2 + 1300, ["C5"], 3550, vel=50)
@@ -1559,7 +1629,8 @@ def test_a_brush_a_neighbour_note_and_an_approach_bass_are_not_outside_the_key()
     assert not [m for m in pr.borrowed_data(doc)["moments"] if any(n["note"] == "B" for n in m["outside_notes"])]
     n1 = {"note": 71, "vel": 33, "on_ms": 40, "off_ms": 90, "end_ms": 3000}  # the brush on its own
     c5 = {"note": 72, "vel": 79, "on_ms": 0, "off_ms": 570, "end_ms": 3000}
-    assert pr._ornament(n1, [c5, n1]) and not pr._ornament({**n1, "off_ms": 600, "vel": 70}, [c5, n1])
+    assert pr._ornament(n1, [c5, n1])
+    assert not pr._ornament({**n1, "off_ms": 600, "vel": 70}, [c5, n1])
 
 
 @needs_node
@@ -1686,9 +1757,8 @@ def test_days_of_held_sound_cost_what_the_playing_costs(tmp_path, capsys):
     assert code == 0 and "Home key: C major" in out and "while notes kept sounding" in out, out
     assert time.monotonic() - started < 30
     doc = pr.analyze(pedal)
-    assert len(doc["sections"]) == 165 and all(
-        s["end_ms"] - s["start_ms"] <= pr.SECTION_IDLE_MS for s in doc["sections"]
-    )
+    assert len(doc["sections"]) == 165
+    assert all(s["end_ms"] - s["start_ms"] <= pr.SECTION_IDLE_MS for s in doc["sections"])
 
 
 def test_outside_groups_leave_out_only_the_times_that_ride_a_bass_line():
@@ -1716,4 +1786,5 @@ def test_outside_groups_leave_out_only_the_times_that_ride_a_bass_line():
     groups = pr.borrowed_data(doc)["groups"]
     by = {bool(g["on_bass_line"]): g for g in groups}
     assert len(groups) == 2 and by[False]["times"] == ["0:50", "2:40"] and by[False]["seconds"] == 2.0, groups
-    assert by[True]["times"] == ["1:19"] and by[True]["on_bass_line"] == "1:15"
+    assert by[True]["times"] == ["1:19"]
+    assert by[True]["on_bass_line"] == "1:15"

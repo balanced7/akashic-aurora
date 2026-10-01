@@ -40,7 +40,8 @@ def test_blocks_commit_of_peer_locked_file(monkeypatch):
 def test_allows_when_no_peer_lock(monkeypatch):
     _patch_locks(monkeypatch, {})
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent="claude")
-    assert ok is True and reason == ""
+    assert ok is True
+    assert reason == ""
 
 
 def test_allows_own_locked_file(monkeypatch):
@@ -54,13 +55,15 @@ def test_fails_closed_without_agent_id_when_locked(monkeypatch):
     # fails closed with a teaching message instead of fail-open.
     _patch_locks(monkeypatch, {"agent_cli.py": "cursor"})
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
-    assert ok is False and "AKASHIC_AGENT_ID" in reason
+    assert ok is False
+    assert "AKASHIC_AGENT_ID" in reason
 
 
 def test_allows_without_agent_id_when_nothing_locked(monkeypatch):
     _patch_locks(monkeypatch, {})  # no locks -> a human commit is never blocked
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
-    assert ok is True and reason == ""
+    assert ok is True
+    assert reason == ""
 
 
 # --- the guard must actually be able to RUN the thing it guards with -------------------------

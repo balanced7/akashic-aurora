@@ -75,7 +75,8 @@ def test_public_bind_requires_explicit_optin():
     unless the operator opted in by name, so the dangerous case cannot be reached by a typo
     or a copied command line."""
     ok, why = L.bind_allowed("0.0.0.0", allow_public=False)
-    assert not ok and "public" in why.lower()
+    assert not ok
+    assert "public" in why.lower()
     assert L.bind_allowed("0.0.0.0", allow_public=True)[0]
     assert L.bind_allowed("127.0.0.1", allow_public=False)[0]
 
@@ -99,7 +100,7 @@ def test_admitted_message_returns_202_and_is_parked():
 
 # ------------------------------------------------------------------ the asymmetry: wire vs log
 @pytest.mark.parametrize(
-    "bad,label",
+    ("bad", "label"),
     [
         (_envelope(secret=b"wrong-key"), "forged signature"),
         (_envelope(kind="halt"), "control kind"),
@@ -161,7 +162,7 @@ def test_handler_never_raises_on_any_input():
         b'{"body": 5, "sig": []}',
         b'{"body": "' + b"A" * 500 + b'", "sig": "x"}',
     ):
-        status, body, _log = L.handle_request("POST", "/xfer", junk, secret=IN_SECRET)
+        status, _body, _log = L.handle_request("POST", "/xfer", junk, secret=IN_SECRET)
         assert status in (400, 413), f"unexpected status for {junk[:20]!r}: {status}"
 
 
@@ -169,4 +170,5 @@ def test_unkeyed_listener_refuses_everything():
     """Inert-until-keyed reaches the door too: a listener started before the key is dropped
     must refuse, not admit. Absent config is refusal, never permission."""
     status, body, _log = L.handle_request("POST", "/xfer", _envelope(), secret=b"")
-    assert status == 400 and body == L.FLAT_REFUSAL
+    assert status == 400
+    assert body == L.FLAT_REFUSAL

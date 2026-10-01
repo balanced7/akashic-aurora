@@ -42,7 +42,8 @@ class FakeRedis:
 def test_send_rings_the_doorbell_for_recipient():
     fake = FakeRedis()
     mid = Bus("alice", client=fake).send("bob", "request", "hi")
-    assert mid is not None and fake.published
+    assert mid is not None
+    assert fake.published
     ch, data = fake.published[-1]
     assert ch == bell_channel("bob")
     notice = json.loads(data)
@@ -84,26 +85,30 @@ def test_escalation_gate():
 def test_actionable_kind_wakes_target():
     d, calls = _disp({"claude", "cursor"})
     res = d.handle_notice({"frm": "cursor", "to": "claude", "kind": "request"})
-    assert res["escalated"] and res["results"][0] == {
+    assert res["escalated"]
+    assert res["results"][0] == {
         "agent": "claude",
         "escalated": True,
         "dispatched": True,
         "digest": ["digest:claude"],
     }
-    assert calls and calls[0][0] == "claude"
+    assert calls
+    assert calls[0][0] == "claude"
 
 
 def test_note_does_not_wake():
     d, calls = _disp({"claude"})
     res = d.handle_notice({"frm": "cursor", "to": "claude", "kind": "note"})
     assert res["escalated"] is False
-    assert res["results"][0]["dispatched"] is False and not calls  # low-token: seen on next boot
+    assert res["results"][0]["dispatched"] is False
+    assert not calls
 
 
 def test_unmanaged_recipient_ignored():
     d, calls = _disp({"claude"})
     res = d.handle_notice({"frm": "x", "to": "nobody-here", "kind": "request"})
-    assert res["results"] == [] and not calls
+    assert res["results"] == []
+    assert not calls
 
 
 def test_broadcast_wakes_all_but_sender():

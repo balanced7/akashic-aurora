@@ -88,7 +88,8 @@ def test_k2_an_index_failure_is_PARTIAL_not_a_lost_event():
 def test_k3_a_per_agent_stream_failure_is_also_PARTIAL():
     ledger = _Ledger(boom={EL.per_agent_stream("claude")})
     o = _log(ledger=ledger, index=_Index()).capture("note", "hi", agent_id="claude")
-    assert o.ok is True and o.partial is True
+    assert o.ok is True
+    assert o.partial is True
     assert "per-agent" in o.why.lower()
     assert EL.RAW_STREAM in ledger.emitted
 
@@ -115,7 +116,8 @@ def test_k5_capture_swallows_errors_but_not_the_operator():
             raise _Weird("unforeseeable")
 
     o = _log(ledger=_Hostile()).capture("note", "hi")  # must not raise
-    assert o.ok is False and "_Weird" in o.why
+    assert o.ok is False
+    assert "_Weird" in o.why
 
     class _Interrupted:
         def emit(self, *a, **k):

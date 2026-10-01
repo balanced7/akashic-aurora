@@ -37,10 +37,13 @@ def test_resolve_action_outcome_reports_and_logs_flip(tmp_path, monkeypatch):
     )
     aa.resolve_action_outcome(sid, tgt, False)
     rep = aa.resolve_action_outcome(sid, tgt, True)
-    assert rep["flipped"] is True and rep["credited"] == 2
+    assert rep["flipped"] is True
+    assert rep["credited"] == 2
     assert rep["sources"] == ["learn:experiment:a", "learn:experiment:b"]
     flips = aa.session_flips(sid)
-    assert len(flips) == 1 and flips[0]["t"] == tgt and flips[0]["credited"] == 2
+    assert len(flips) == 1
+    assert flips[0]["t"] == tgt
+    assert flips[0]["credited"] == 2
 
 
 def test_flip_logs_even_without_impressions(tmp_path, monkeypatch):
@@ -49,7 +52,9 @@ def test_flip_logs_even_without_impressions(tmp_path, monkeypatch):
     sid, tgt = "nudge-gap", "c:py gap_probe.py"
     aa.resolve_action_outcome(sid, tgt, False)
     rep = aa.resolve_action_outcome(sid, tgt, True)
-    assert rep["flipped"] is True and rep["credited"] == 0 and rep["sources"] == []
+    assert rep["flipped"] is True
+    assert rep["credited"] == 0
+    assert rep["sources"] == []
     assert len(aa.session_flips(sid)) == 1
 
 
@@ -84,7 +89,8 @@ def test_recent_flips_window(tmp_path, monkeypatch):
 def test_learn_command_prefills_slug_and_agent():
     cmd = aa.learn_command_for("c:py -m pytest tests/test_ranker.py", agent_id="claude")
     assert cmd.startswith(f"{_PYL} agent_cli.py learn claude --experiment fix_")
-    assert "--tried" in cmd and "--result" in cmd
+    assert "--tried" in cmd
+    assert "--result" in cmd
 
 
 def test_build_learn_nudge_gap_vs_credited():
@@ -105,12 +111,14 @@ def test_build_learn_nudge_gap_vs_credited():
     the full contract, and W79 for why a path-keyed probe must NOT be wired here.
     """
     gap = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude")
-    assert "[flip]" in gap and "learn claude" in gap
+    assert "[flip]" in gap
+    assert "learn claude" in gap
     assert "corpus gap" not in gap, "claimed a gap with no probe -- the 2026-07-25 defect"
     probed_empty = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude", probe=lambda _t: [])
     assert "corpus gap" in probed_empty, "a probe that RAN and found nothing may claim a gap"
     credited = aa.build_learn_nudge("c:py probe.py", 2, ["learn:experiment:a"], agent_id="claude")
-    assert "2 stored lesson(s)" in credited and "corpus gap" not in credited
+    assert "2 stored lesson(s)" in credited
+    assert "corpus gap" not in credited
     assert len(credited) < 600, "small-when-not: the nudge must never be a wall of text"
 
 
@@ -170,7 +178,8 @@ def test_hook_emits_nudge_on_flip_then_goes_quiet(tmp_path, monkeypatch, capsys)
     payload = json.loads(out)
     ctx = payload["hookSpecificOutput"]["additionalContext"]
     assert payload["hookSpecificOutput"]["hookEventName"] == "PostToolUse"
-    assert "[flip]" in ctx and "learn" in ctx
+    assert "[flip]" in ctx
+    assert "learn" in ctx
     # the same success again: no FAIL preceding -> no flip -> silence (silent-when-irrelevant)
     out2 = _run_hook(monkeypatch, _bash_payload(cmd, sid), capsys)
     assert out2 == ""
@@ -195,7 +204,8 @@ def test_session_draft_includes_candidate_lessons():
     flips = [{"t": "c:py -m pytest tests/test_x.py", "credited": 1, "s": ["learn:experiment:a"], "at": 1.0}]
     d = agent_cli.build_session_draft([], [], [], flips=flips)
     assert "Candidate lessons" in d
-    assert f"{_PYL} agent_cli.py learn" in d and "--experiment fix_" in d
+    assert f"{_PYL} agent_cli.py learn" in d
+    assert "--experiment fix_" in d
 
 
 def test_session_draft_no_flips_no_section():

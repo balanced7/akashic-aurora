@@ -66,7 +66,9 @@ def _quiet_sources(
 def test_repo_cwd_gets_the_compact_whisper(monkeypatch):
     _quiet_sources(monkeypatch)
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "[akashic]" in out and "DIRECTIVE:" in out and "funnel:" in out
+    assert "[akashic]" in out
+    assert "DIRECTIVE:" in out
+    assert "funnel:" in out
     assert "boot claude" in out, "the one-hop full-boot command is always taught"
     assert len(out.splitlines()) <= 12, "a whisper, not a wall (context rot; W6)"
 
@@ -92,7 +94,8 @@ def test_elsewhere_whispers_one_line_when_mail_waits(monkeypatch):
     _quiet_sources(monkeypatch, unread=2, draft=True)
     out = ctx.build_autoboot_context(_ELSEWHERE, "claude")
     assert out and len(out.splitlines()) == 1, "one line, pointing home"
-    assert "2 unread" in out and "boot claude" in out
+    assert "2 unread" in out
+    assert "boot claude" in out
 
 
 def test_kill_switch(monkeypatch):
@@ -105,7 +108,8 @@ def test_broken_source_drops_out_not_blanks(monkeypatch):
     _quiet_sources(monkeypatch)
     monkeypatch.setattr(ctx, "_funnel_line", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "DIRECTIVE:" in out and "funnel:" not in out
+    assert "DIRECTIVE:" in out
+    assert "funnel:" not in out
 
 
 def test_all_sources_empty_stays_silent(monkeypatch):

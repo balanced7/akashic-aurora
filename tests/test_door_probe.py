@@ -142,4 +142,5 @@ def test_b4b_render_surfaces_the_recovery_for_a_red():
             dp.RED, "boot", 9.9, "response_path_hang", "boot did not answer", "Boot via CLI: py agent_cli.py boot <you>"
         )
     )
-    assert "RED" in line and "Boot via CLI" in line
+    assert "RED" in line
+    assert "Boot via CLI" in line

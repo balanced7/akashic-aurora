@@ -99,7 +99,8 @@ def test_a_genuine_no_is_still_reportable(monkeypatch):
         lambda *a, **k: FakeOutcome(answer="EXISTS: no\nWHAT: nothing in the list\nGAP: n/a\nNEAREST MISS: recall"),
     )
     r = CS.find("time travel")
-    assert r["exists"] == "no" and r["confident"] is True
+    assert r["exists"] == "no"
+    assert r["confident"] is True
 
 
 def test_the_answer_is_labelled_as_a_model_read_not_a_lookup(monkeypatch):
@@ -133,7 +134,8 @@ def test_inputs_are_the_substrate_not_the_model_s_memory(monkeypatch):
     CS.find("q")
     assert any("MODULE_INDEX" in f for f in seen["files"])
     low = seen["prompt"].lower()
-    assert "only" in low and ("do not speculate" in low or "not speculate" in low)
+    assert "only" in low
+    assert "do not speculate" in low or "not speculate" in low
 
 
 def test_never_raises(monkeypatch):

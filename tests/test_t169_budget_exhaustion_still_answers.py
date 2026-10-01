@@ -80,7 +80,7 @@ def _agent(turns, tools_enabled=True):
     seq = list(turns)
 
     def _stream_turn():
-        a._seen.append(dict(tools_enabled=a.tools_enabled))
+        a._seen.append({"tools_enabled": a.tools_enabled})
         return seq.pop(0) if seq else ("", [])
 
     a._stream_turn = _stream_turn

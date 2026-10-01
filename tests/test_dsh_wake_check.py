@@ -60,7 +60,8 @@ def _run(capsys):
 
 def test_p1_reports_wake_worthy_non_consuming(patched, capsys):
     rc, out = _run(capsys)
-    assert rc == 0 and out["has_wake_worthy"] is True
+    assert rc == 0
+    assert out["has_wake_worthy"] is True
     assert out["count"] == 2, "request + reply are wake-worthy; note + trace are not"
     assert set(out["kinds"]) == {"request", "reply"}
     assert out["senders"] == ["deepseek"]
@@ -103,15 +104,19 @@ def test_p5_plugin_wake_organ_is_wired():
     src = (Path(__file__).resolve().parents[1] / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(
         encoding="utf-8"
     )
-    assert "startWakeTimer" in src and "stopWakeTimer" in src
+    assert "startWakeTimer" in src
+    assert "stopWakeTimer" in src
     assert "['wake-check']" in src, "the poll calls the non-consuming detect"
     assert "inbox.append('next-turn', doorbell)" in src, "the poke is the inbox append seam"
     assert "form: 'snapshot'" in src, "the doorbell source form is snapshot (R11)"
     assert "wake-seat-down" in src, "seat down must be LOUD (R6)"
-    assert "wake-poke" in src and "wake-poke-failed" in src
+    assert "wake-poke" in src
+    assert "wake-poke-failed" in src
     # arm/stop ride the session lifecycle (R2): created arms, disposed stops
-    assert "startWakeTimer()" in src and "stopWakeTimer()" in src
+    assert "startWakeTimer()" in src
+    assert "stopWakeTimer()" in src
     # WOKEN gate (R13): claimed-only, via the agent/inbox/spliced session event
     assert "agent/inbox/spliced" in src
-    assert "wake-woke" in src and "wake-splice-observed" in src
+    assert "wake-woke" in src
+    assert "wake-splice-observed" in src
     assert "never on append" in src or "claimed-only" in src.lower()

@@ -28,7 +28,8 @@ from core.comm import presets
 def test_a_preset_carries_both_a_contract_and_a_parser():
     """The whole design. A contract with no parser is the situation we already had."""
     p = presets.get("findings")
-    assert p.contract and isinstance(p.contract, str)
+    assert p.contract
+    assert isinstance(p.contract, str)
     assert callable(p.parse)
 
 
@@ -84,7 +85,8 @@ def test_parse_returns_structured_findings():
     assert out["ok"] is True
     assert len(out["findings"]) == 2
     assert "bus.py:249" in out["findings"][0]
-    assert out["check"] and out["blind"]
+    assert out["check"]
+    assert out["blind"]
     assert "read-only" in out["reasoning"]
 
 
@@ -115,7 +117,7 @@ def test_parse_is_lenient_about_shape_but_strict_about_presence():
 def test_lenses_become_one_branch_each_with_the_contract_appended():
     prompts = presets.build_prompts("findings", ["what does it do", "what breaks it"])
     assert len(prompts) == 2
-    for p, lens in zip(prompts, ["what does it do", "what breaks it"]):
+    for p, lens in zip(prompts, ["what does it do", "what breaks it"], strict=False):
         assert p.startswith(lens), "the lens leads; the contract follows"
         assert "BLIND" in p, "every branch carries the contract"
 

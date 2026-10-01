@@ -62,7 +62,8 @@ def test_b2_missing_lesson_degrades_to_slug_alone(resident):
         raise ConnectionError("store down")
 
     block2 = residents.boot_block("claude", lesson_lookup=explode)
-    assert RECEIPTS[0] in block2 and RECEIPTS[1] in block2
+    assert RECEIPTS[0] in block2
+    assert RECEIPTS[1] in block2
     assert "YOU ARE" in block2
 
 

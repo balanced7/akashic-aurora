@@ -98,14 +98,14 @@ def test_child_death_evidence_reaches_the_supervisor_stdout_on_exit(monkeypatch,
 
 
 def test_breaker_trip_prints_the_evidence_adjacent_to_the_trip_line(monkeypatch, capsys, tmp_path):
-    rc, out = _run(monkeypatch, capsys, tmp_path)
+    _rc, out = _run(monkeypatch, capsys, tmp_path)
     assert "BREAKER TRIPPED" in out
     after_trip = out[out.index("BREAKER TRIPPED") :]
     assert SENTINEL in after_trip, "the trip line and the death evidence must be adjacent"
 
 
 def test_the_file_the_breaker_names_actually_receives_the_evidence(monkeypatch, capsys, tmp_path):
-    rc, out = _run(monkeypatch, capsys, tmp_path)
+    _rc, out = _run(monkeypatch, capsys, tmp_path)
     after_trip = out[out.index("BREAKER TRIPPED") :]
     assert "remote-bridge-listener.log" in after_trip
     log = tmp_path / "state" / "logs" / "remote-bridge-listener.log"

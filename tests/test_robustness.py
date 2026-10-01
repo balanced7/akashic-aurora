@@ -138,7 +138,7 @@ def test_ranker_invariants(rounds=400):
     for _ in range(rounds):
         n = random.randint(0, 12)
         items = []
-        for i in range(n):
+        for _i in range(n):
             it = {"text": _rnd_word(8), "importance": random.randint(1, 5)}
             if random.random() < 0.3:
                 it["superseded"] = True
@@ -209,7 +209,8 @@ def test_backward_compat_record_loading():
         "session_id": "",
     }
     dec = Decision(**old_decision)  # must not crash; defaults applied
-    assert dec.superseded is False and dec.supersedes is None
+    assert dec.superseded is False
+    assert dec.supersedes is None
     old_exp = {
         "id": "exp_x",
         "task": "t",

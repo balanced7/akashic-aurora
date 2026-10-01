@@ -84,7 +84,8 @@ def test_prompt_is_blinded_and_carries_the_buffer():
     prompt = build_prompt(rec, counters={"surfaced": 12}, trigger_terms=["consolidator"])
     assert "p:core/primitives/consolidator.py" not in prompt, "raw contexts must NEVER enter the prompt"
     assert "c:py run pipeline" not in prompt
-    assert "a rejected draft" in prompt and "surfaced=12" in prompt
+    assert "a rejected draft" in prompt
+    assert "surfaced=12" in prompt
     assert "PROPOSED-RECOMMENDATION-BEGIN" in prompt
     assert "stays silent otherwise" in prompt, "goal framing: help, not credit-farming"
     print("--- blinding ---\n  no contexts in prompt; buffer + aggregates + framing present OK")
@@ -93,7 +94,8 @@ def test_prompt_is_blinded_and_carries_the_buffer():
 def test_parse_reply_strict():
     good = "noise\nPROPOSED-RECOMMENDATION-BEGIN\nUse when X, before Y: Z. Don't when W.\nPROPOSED-RECOMMENDATION-END\nRATIONALE: tighter."
     p = parse_reply(good)
-    assert p["draft"].startswith("Use when X") and p["rationale"] == "tighter."
+    assert p["draft"].startswith("Use when X")
+    assert p["rationale"] == "tighter."
     assert parse_reply("no markers here") == {}
     assert parse_reply("PROPOSED-RECOMMENDATION-BEGIN\n\nPROPOSED-RECOMMENDATION-END") == {}
     print("--- parsing ---\n  markers required; empty/malformed dropped OK")
@@ -113,8 +115,10 @@ def test_run_pass_end_to_end_stamps_proposal():
     assert len(rows) == 1 and rows[0]["verdict"] == "PASS", rows
     assert rows[0]["outcome"] == "queued for human review"
     props = pending_proposals(learning_store=ls)
-    assert len(props) == 1 and props[0]["experiment"] == "seam_guard"
-    assert props[0]["verdict"] == "PASS" and props[0]["by"] == "deepseek-optimizer"
+    assert len(props) == 1
+    assert props[0]["experiment"] == "seam_guard"
+    assert props[0]["verdict"] == "PASS"
+    assert props[0]["by"] == "deepseek-optimizer"
     # second pass: the pending proposal blocks re-selection (no duplicate work)
     assert (
         run_pass(propose, store=use, learning_store=ls, events=EVENTS, injections=INJECTIONS, min_relevance=0.05) == []

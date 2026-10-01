@@ -55,6 +55,7 @@ os.environ.setdefault("REDIS_DB", "15")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore, HybridStore, RedisStore  # noqa: E402
+import contextlib
 
 
 def test_heal_must_not_clobber_a_richer_redis_list():
@@ -102,10 +103,8 @@ def test_heal_must_not_clobber_a_richer_redis_list():
                 f"the recall-index blindness recurrence of 2026-07-27."
             )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             rs.delete(index_key)
-        except Exception:
-            pass
 
 
 if __name__ == "__main__":

@@ -147,6 +147,6 @@ def test_ack_beyond_the_500_window_still_reads_handled():
         }
         for i in range(520)
     ]
-    q = FakeQuery(list(reversed(newer)) + [first_ack])  # newest first; m0's ack oldest
+    q = FakeQuery([*list(reversed(newer)), first_ack])  # newest first; m0's ack oldest
     acks = promoter.acks_for(["m0"], event_query=q)
     assert acks["m0"], "the oldest settled message must still read as handled (exact lookup)"

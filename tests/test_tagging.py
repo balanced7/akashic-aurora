@@ -35,7 +35,8 @@ def test_current_is_highest_confidence():
     h.add("ai-setup", source="persist", at="2026-01-01T00:00:00")  # 0.3
     h.add("stemroller", source="generic", at="2026-01-02T00:00:00")  # 0.4
     h.add("ai-setup", source="path", at="2026-01-03T00:00:00")  # 0.95 -> current
-    assert h.current_value() == "ai-setup" and h.current_confidence() == 0.95
+    assert h.current_value() == "ai-setup"
+    assert h.current_confidence() == 0.95
 
 
 def test_tiebreaks_confirmed_then_recency():
@@ -69,7 +70,8 @@ def test_append_only_and_rollback_reversible():
 
 def test_worstcase_empty_and_corrupt():
     assert TagHistory().current() is None
-    assert TagHistory().current_value() == "unknown" and TagHistory().current_confidence() == 0.1
+    assert TagHistory().current_value() == "unknown"
+    assert TagHistory().current_confidence() == 0.1
     # a corrupt entry (bad confidence / missing value) is SKIPPED, not fatal
     raw = [
         {"value": "ai-setup", "confidence": 0.95, "at": "t"},
@@ -82,11 +84,15 @@ def test_worstcase_empty_and_corrupt():
 
 def test_d3_unit_confidence_helper():
     """The D3 guard in isolation: non-finite -> None (drop), finite out-of-range -> clamp."""
-    assert _as_unit_confidence(INF) is None and _as_unit_confidence(NINF) is None
+    assert _as_unit_confidence(INF) is None
+    assert _as_unit_confidence(NINF) is None
     assert _as_unit_confidence(NAN) is None
-    assert _as_unit_confidence("not-a-number") is None and _as_unit_confidence(None) is None
-    assert _as_unit_confidence(5.0) == 1.0 and _as_unit_confidence(-3.0) == 0.0  # clamp
-    assert _as_unit_confidence(0.95) == 0.95 and _as_unit_confidence(0) == 0.0  # in-range kept
+    assert _as_unit_confidence("not-a-number") is None
+    assert _as_unit_confidence(None) is None
+    assert _as_unit_confidence(5.0) == 1.0
+    assert _as_unit_confidence(-3.0) == 0.0
+    assert _as_unit_confidence(0.95) == 0.95
+    assert _as_unit_confidence(0) == 0.0
 
 
 def test_d3_nonfinite_confidence_cannot_hijack_resolver():
@@ -95,8 +101,9 @@ def test_d3_nonfinite_confidence_cannot_hijack_resolver():
     base = TagHistory()
     base.add("ai-setup", source="path", at="2026-01-01T00:00:00")  # 0.95, the real tag
     for bad in (INF, NINF, NAN):
-        raw = base.to_list() + [
-            {"value": "stemroller", "confidence": bad, "source": "x", "at": "2026-01-09T00:00:00", "confirmed": False}
+        raw = [
+            *base.to_list(),
+            {"value": "stemroller", "confidence": bad, "source": "x", "at": "2026-01-09T00:00:00", "confirmed": False},
         ]
         h = TagHistory.from_list(raw)
         assert h.current_value() == "ai-setup", f"{bad!r} confidence must not win"
@@ -134,7 +141,8 @@ def test_roundtrip_and_beat_backward_compat():
     # a Beat dict from BEFORE G0 (no tag_history) still loads -> default []
     old = {"id": "b", "at": "t", "kind": "note", "summary": "s", "source": "ledger:x"}
     b = Beat.from_dict(old)
-    assert b.tag_history == [] and Beat.from_dict(b.to_dict()) == b
+    assert b.tag_history == []
+    assert Beat.from_dict(b.to_dict()) == b
 
 
 if __name__ == "__main__":

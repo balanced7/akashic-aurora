@@ -99,7 +99,8 @@ def test_parse_key():
     assert nv.parse_key("db MAJOR") == {"tonic": 1, "mode": "major", "name": "Db major", "bias": -1}
     assert nv.parse_key("Bbm")["mode"] == "minor"
     assert nv.parse_key("A")["name"] == "A major"
-    assert nv.parse_key("A minor")["bias"] == 0 and nv.parse_key("C major")["bias"] == 0
+    assert nv.parse_key("A minor")["bias"] == 0
+    assert nv.parse_key("C major")["bias"] == 0
     sharp = {"G", "D", "A", "E", "B", "F#"}
     for tonic in range(12):
         name = nv.MAJOR_KEY_NAMES[tonic]

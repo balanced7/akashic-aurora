@@ -105,7 +105,8 @@ def test_an_empty_domain_is_distinct_from_a_failed_one():
             _src("events", [], ok=False),
         ]
     )
-    assert "git" in r["coverage"]["read"] and r["coverage"]["counts"]["git"] == 0
+    assert "git" in r["coverage"]["read"]
+    assert r["coverage"]["counts"]["git"] == 0
     assert "events" in r["coverage"]["failed"]
 
 
@@ -119,7 +120,8 @@ def test_rows_are_data_not_a_rendering():
     """Daniil's correction: this must compose with a future set-difference, so it
     returns rows a compare can diff -- never a pre-formatted string."""
     r = TL.gather(sources=[_src("events", [_row(1, "a", "k", "s")])])
-    assert isinstance(r["rows"], list) and isinstance(r["rows"][0], dict)
+    assert isinstance(r["rows"], list)
+    assert isinstance(r["rows"][0], dict)
     for field in ("ts", "domain", "actor", "kind", "summary", "ref"):
         assert field in r["rows"][0]
 
@@ -141,7 +143,7 @@ def test_undated_rows_sort_last_not_at_epoch():
 
 
 @pytest.mark.parametrize(
-    "raw,expect",
+    ("raw", "expect"),
     [
         ("1786079938", 1786079938.0),  # git's %at -- a BARE EPOCH STRING
         (1786079938, 1786079938.0),
@@ -178,7 +180,8 @@ def test_iso_stamps_still_parse():
     """The other half: rejecting 0 must not break the format that DOES parse. Events
     carry ISO stamps and they have to survive the epoch-string branch above."""
     got = TL._epoch("2026-08-07T01:00:00Z")
-    assert got is not None and got > 1_000_000_000
+    assert got is not None
+    assert got > 1_000_000_000
 
 
 def test_git_rows_carry_readable_timestamps():
@@ -197,7 +200,8 @@ def test_gather_never_raises_on_a_broken_source():
         raise ValueError("boom")
 
     r = TL.gather(sources=[("bad", explode)])
-    assert r["rows"] == [] and "bad" in r["coverage"]["failed"]
+    assert r["rows"] == []
+    assert "bad" in r["coverage"]["failed"]
 
 
 def test_default_sources_name_the_real_domains():

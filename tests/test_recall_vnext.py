@@ -109,7 +109,8 @@ def test_bench_needs_exposure_and_age_and_zero_credit():
     _use(st, "old_quiet", surfaced=3)  # under-exposed -> keep
     rep = _report(ls, st)
     assert [r["name"] for r in rep["bench"]] == ["old_cold"]
-    assert rep["surface_active"] == 4 and rep["corpus"] == 4
+    assert rep["surface_active"] == 4
+    assert rep["corpus"] == 4
 
 
 def test_engaged_counts_as_credit_and_protects():
@@ -142,7 +143,8 @@ def test_unbench_on_new_credit_and_graduated_out_of_scope():
     assert [r["name"] for r in rep["unbench"]] == ["benched_now_credited"]
     assert rep["bench"] == []
     out = cu.apply_curation(rep, store=st, learning_store=ls)
-    assert out["unbenched"] == ["benched_now_credited"] and ls.recs["benched_now_credited"]["benched"] == ""
+    assert out["unbenched"] == ["benched_now_credited"]
+    assert ls.recs["benched_now_credited"]["benched"] == ""
 
 
 def test_apply_stamps_bench_and_projection_drops_benched():

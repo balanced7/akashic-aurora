@@ -70,16 +70,21 @@ def _two():
 def test_acquire_then_peer_denied():
     _, claude, cursor = _two()
     a = claude.acquire("scripts/x.py")
-    assert a["ok"] and a["mine"] and a["held_by"] == "claude"
+    assert a["ok"]
+    assert a["mine"]
+    assert a["held_by"] == "claude"
     b = cursor.acquire("scripts/x.py")
-    assert b["ok"] is False and b["held_by"] == "claude" and b["token"] == a["token"]
+    assert b["ok"] is False
+    assert b["held_by"] == "claude"
+    assert b["token"] == a["token"]
 
 
 def test_reacquire_is_reentrant_same_token():
     _, claude, _ = _two()
     t1 = claude.acquire("a/b.py")["token"]
     again = claude.acquire("a/b.py")
-    assert again["ok"] and again["token"] == t1  # refresh, not a new token
+    assert again["ok"]
+    assert again["token"] == t1
 
 
 def test_release_only_by_holder():
@@ -97,7 +102,8 @@ def test_fencing_rejects_stale_token_after_steal():
     assert claude.validate_token("hot.py", a["token"]) is True
     fake.advance(11)  # claude's lock expires (paused/crashed)
     b = cursor.acquire("hot.py")  # cursor reclaims -> new, higher token
-    assert b["ok"] and b["token"] > a["token"]
+    assert b["ok"]
+    assert b["token"] > a["token"]
     assert claude.validate_token("hot.py", a["token"]) is False  # stale holder rejected
     assert cursor.validate_token("hot.py", b["token"]) is True
 
@@ -126,7 +132,8 @@ def test_offline_is_failsoft(monkeypatch):
     lm = LockManager("claude")  # auto-connect -> None
     assert lm.online is False
     r = lm.acquire("x.py")
-    assert r["ok"] is False and r["online"] is False
+    assert r["ok"] is False
+    assert r["online"] is False
     assert lm.list_locks() == []
 
 
@@ -178,4 +185,5 @@ def test_hook_fails_closed_when_no_agent_id_and_path_locked(monkeypatch):
         lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
     )
     reason = hook._check_write({"tool_input": {"file_path": "scripts/x.py"}})
-    assert "AKASHIC_AGENT_ID" in reason and "cursor" in reason
+    assert "AKASHIC_AGENT_ID" in reason
+    assert "cursor" in reason

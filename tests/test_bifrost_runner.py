@@ -26,7 +26,8 @@ def test_should_answer_routing():
 
 
 def test_card_is_api_runner():
-    assert r.CARD_API["runtime_class"] == "api" and r.CARD_API["wake_mode"] == "runner"
+    assert r.CARD_API["runtime_class"] == "api"
+    assert r.CARD_API["wake_mode"] == "runner"
     assert r.CARD_WEB["runtime_class"] == "web"
 
 
@@ -43,7 +44,9 @@ def test_card_for_provider():
 
 
 def test_module_smoke():
-    assert callable(r.main) and callable(r.provider_reply) and callable(r.provider_reply_web)
+    assert callable(r.main)
+    assert callable(r.provider_reply)
+    assert callable(r.provider_reply_web)
 
 
 if __name__ == "__main__":

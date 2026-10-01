@@ -46,7 +46,8 @@ def test_interjection_is_captured_and_queryable():
     assert len(out) == 1
     ev = out[0]
     assert ev["kind"] == INTERJECTION_KIND
-    assert ev["detail"]["intent"] == "halt" and ev["detail"]["to"] == "deepseek"
+    assert ev["detail"]["intent"] == "halt"
+    assert ev["detail"]["to"] == "deepseek"
     assert ev["detail"]["paused"] is True
     assert ev["detail"]["text"] == "wait, that's wrong"
     assert "bifrost:m1" in ev.get("refs", [])
@@ -67,7 +68,8 @@ def test_file_drop_is_captured_with_provenance():
     out = console_events(kinds=(DROP_KIND,), event_query=EventQuery(event_log=el))
     assert len(out) == 1
     assert out[0]["kind"] == DROP_KIND
-    assert out[0]["detail"]["path"] == "dropbox/spec.md" and out[0]["detail"]["bytes"] == 2048
+    assert out[0]["detail"]["path"] == "dropbox/spec.md"
+    assert out[0]["detail"]["bytes"] == 2048
     assert "file:dropbox/spec.md" in out[0].get("refs", [])
 
 
@@ -100,7 +102,8 @@ def test_durable_across_a_fresh_reader():
     promote_control("pause", reason="durable?", by="user", event_log=EventLog(led))
     fresh = EventQuery(event_log=EventLog(led))  # cold reader on the same ledger
     out = console_events(event_query=fresh)
-    assert len(out) == 1 and out[0]["detail"]["reason"] == "durable?"
+    assert len(out) == 1
+    assert out[0]["detail"]["reason"] == "durable?"
 
 
 if __name__ == "__main__":

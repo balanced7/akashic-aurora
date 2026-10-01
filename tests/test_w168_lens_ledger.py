@@ -68,7 +68,8 @@ def _rec(lens, outcome, fan=None):
 def test_v1_the_four_outcomes_are_distinct_states():
     """confirmed/refuted are the SCORED pair; abstained and unverified are neither."""
     assert frozenset({"confirmed", "refuted"}) == L.SCORED
-    assert "abstained" not in L.SCORED and "unverified" not in L.SCORED
+    assert "abstained" not in L.SCORED
+    assert "unverified" not in L.SCORED
 
 
 def test_v2_an_unknown_outcome_is_refused_not_coerced():
@@ -127,7 +128,8 @@ def test_s6_scores_are_per_lens_not_per_fan():
     runs = [_rec("A", "confirmed"), _rec("B", "refuted"), _rec("A", "confirmed"), _rec("B", "refuted")]
     s = L.score(runs, min_verified=2)
     assert set(s) == {"A", "B"}
-    assert s["A"].hit_rate == 1.0 and s["B"].hit_rate == 0.0
+    assert s["A"].hit_rate == 1.0
+    assert s["B"].hit_rate == 0.0
 
 
 # ---------------------------------------------------------------- gating
@@ -261,7 +263,8 @@ def test_x1_a_later_verdict_SUPERSEDES_the_auto_recorded_placeholder():
     ]
     s = L.score(runs, min_verified=1)["A"]
     assert s.runs_n == 1, "the same run was counted twice"
-    assert s.confirmed_n == 1 and s.unverified_n == 0
+    assert s.confirmed_n == 1
+    assert s.unverified_n == 0
 
 
 def test_x2_supersession_is_scoped_to_the_FAN_not_the_lens():
@@ -272,7 +275,8 @@ def test_x2_supersession_is_scoped_to_the_FAN_not_the_lens():
         L.LensRun(lens="A", geometry="lens", outcome="refuted", fan_id="f2"),
     ]
     s = L.score(runs, min_verified=2)["A"]
-    assert s.runs_n == 2 and s.verified_n == 2
+    assert s.runs_n == 2
+    assert s.verified_n == 2
     assert s.hit_rate == 0.5
 
 

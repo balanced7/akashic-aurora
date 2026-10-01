@@ -29,7 +29,7 @@ from agent_cli import load_fan_prompts
 
 
 @pytest.mark.parametrize(
-    "raw,label",
+    ("raw", "label"),
     [
         ('[{"prompt": null}]', "object with a null prompt"),
         ("[null]", "bare null element"),
@@ -72,7 +72,8 @@ def test_arrays_of_real_strings_are_unchanged():
 
 def test_valid_objects_are_unchanged():
     out = load_fan_prompts(json.dumps([{"prompt": "q", "files": ["README.md"]}]))
-    assert out[0]["prompt"] == "q" and out[0]["files"] == ["README.md"]
+    assert out[0]["prompt"] == "q"
+    assert out[0]["files"] == ["README.md"]
 
 
 def test_the_fence_separated_form_is_unchanged():

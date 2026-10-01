@@ -35,8 +35,10 @@ we had about <c.colorE5E5E5>interest rates</c> was a
 
 def test_c1_cues_headers_and_indices_are_stripped():
     out = clean_vtt_text(VTT)
-    assert "WEBVTT" not in out and "-->" not in out
-    assert "Kind:" not in out and "Language:" not in out
+    assert "WEBVTT" not in out
+    assert "-->" not in out
+    assert "Kind:" not in out
+    assert "Language:" not in out
     assert "\n2\n" not in f"\n{out}\n"  # bare cue index lines dropped
 
 
@@ -49,7 +51,8 @@ def test_c2_rolling_duplicates_collapse_preserving_order():
 
 def test_c3_inline_styling_tags_are_stripped_content_kept():
     out = clean_vtt_text(VTT)
-    assert "<c." not in out and "</c>" not in out
+    assert "<c." not in out
+    assert "</c>" not in out
     assert "interest rates" in out
 
 

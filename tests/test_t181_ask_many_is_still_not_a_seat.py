@@ -70,7 +70,8 @@ class _Client:
 def test_k1_n_prompts_return_n_answers_in_input_order():
     prompts = [f"q{i}" for i in range(5)]
     o = A.ask_many(prompts, client=_Client())
-    assert o.ok and not o.partial
+    assert o.ok
+    assert not o.partial
     branches = o.detail["branches"]
     assert [b["answer"] for b in branches] == [f"answer:q{i}" for i in range(5)]
 
@@ -104,7 +105,8 @@ def test_k3_one_bad_branch_does_not_kill_the_fan():
 def test_k4_a_total_wipeout_is_a_failure_that_still_counts():
     o = A.ask_many(["a", "b"], client=_Client(boom_on={"a", "b"}))
     assert o.ok is False
-    assert "0" in o.why and "2" in o.why
+    assert "0" in o.why
+    assert "2" in o.why
 
 
 def test_k5_aggregate_spend_is_the_sum_of_the_branches():
@@ -113,7 +115,8 @@ def test_k5_aggregate_spend_is_the_sum_of_the_branches():
     per = [b["usd"] for b in branches]
     assert all(x is not None for x in per), "a priced model must price every branch"
     assert abs(o.detail["usd"] - sum(per)) < 1e-9, "the fan must report what the fan cost"
-    assert o.detail["n_ok"] == 3 and o.detail["n"] == 3
+    assert o.detail["n_ok"] == 3
+    assert o.detail["n"] == 3
 
 
 def test_k6_input_order_survives_reversed_completion_order():

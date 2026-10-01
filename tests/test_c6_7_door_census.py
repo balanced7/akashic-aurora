@@ -168,7 +168,7 @@ def test_b1_door_census_all_xadd_sites_registered():
     """Acceptance #1: every xadd call site in the bus-write surface is registered in
     DOOR_CENSUS. A new xadd without a matching entry FAILS this test -- the author must
     register the door, classifying it as lane-routed or exempt with reason."""
-    census_files = set(e["file"] for e in DOOR_CENSUS.values())
+    census_files = {e["file"] for e in DOOR_CENSUS.values()}
     all_calls = []
     for fp in sorted(census_files):
         for lineno, ctx in _xadd_calls_in_file(fp):
@@ -265,7 +265,7 @@ def test_b2_work_kinds_are_lane_first():
         assert len(keys) >= 2, f"No xadds recorded for kind={kind}"
         lane_write = keys[-2]
         legacy_write = keys[-1]
-        lane_key, lane_kind = lane_write
+        lane_key, _lane_kind = lane_write
         legacy_key, _ = legacy_write
         assert ":work:inbox:peer" in lane_key, f"kind={kind}: first write should be lane key, got {lane_key}"
         assert lane_key.startswith(f"{ns}:work:"), f"kind={kind}: lane key should be {ns}:work:..., got {lane_key}"
@@ -403,7 +403,8 @@ def test_b3_reply_still_lane_first_via_send_reply():
     lane_key, _ = keys[-2]
     assert ":work:inbox:peer" in lane_key, f"send_reply lane write: got {lane_key}"
     legacy_key, _ = keys[-1]
-    assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key
+    assert legacy_key.endswith(":inbox:peer")
+    assert ":work:" not in legacy_key
     print("B3 OK: send_reply still lane-first, unchanged.")
 
 

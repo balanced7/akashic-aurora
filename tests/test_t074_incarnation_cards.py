@@ -63,7 +63,9 @@ def test_w11_publish_writes_card_with_ttl_and_fields():
     card = json.loads(c.kv[key])
     for field in ("session_id", "pid", "started", "refreshed", "claims", "status"):
         assert field in card, f"W11: card missing {field}"
-    assert card["session_id"] == SID and card["pid"] == 4242 and card["claims"] == ["T074"]
+    assert card["session_id"] == SID
+    assert card["pid"] == 4242
+    assert card["claims"] == ["T074"]
 
 
 def test_w11_refresh_preserves_started_resets_ttl():
@@ -95,7 +97,8 @@ def test_r11_status_derived_at_read_time():
     c = FakeRedis()
     inc.publish_card("claude", SID, claims=[], c=c)
     fresh = inc.read_cards("claude", c=c)
-    assert fresh and fresh[0]["status"] == "active"
+    assert fresh
+    assert fresh[0]["status"] == "active"
     # age the refresh stamp 6 minutes
     key = _key("claude", SID)
     card = json.loads(c.kv[key])

@@ -29,7 +29,7 @@ def _which_ok(name):
 
 # ------------------------------------------------------------------ resolution
 @pytest.mark.parametrize(
-    "word,seat",
+    ("word", "seat"),
     [
         ("rill", "dsh_agent"),
         ("Rill", "dsh_agent"),
@@ -86,7 +86,7 @@ def test_rill_states_its_own_identity_and_does_not_inherit_the_launchers():
     assert cwd == r"C:\dsh"
 
 
-@pytest.mark.parametrize("word,seat", [("rill", "dsh_agent"), ("heimdall", "deepseek"), ("navi", "kimi")])
+@pytest.mark.parametrize(("word", "seat"), [("rill", "dsh_agent"), ("heimdall", "deepseek"), ("navi", "kimi")])
 def test_EVERY_seat_states_its_own_identity(word, seat):
     """Not just Rill. No seat may inherit the launching process's id — that is how a
     launched seat gets mis-attributed or silently muted."""
@@ -191,7 +191,9 @@ def test_a_spawned_claude_seat_can_ALSO_use_powershell(mode):
 # ------------------------------------------------------------------ flag parsing
 def test_flags_parse_off_so_a_flagged_seat_still_resolves():
     rec, flags = sl.parse_spawn_target("vandor --repair")
-    assert rec and rec["seat"] == "claude" and flags == {"--repair"}
+    assert rec
+    assert rec["seat"] == "claude"
+    assert flags == {"--repair"}
 
 
 def test_a_flagged_SENTENCE_is_still_a_task():
@@ -201,7 +203,13 @@ def test_a_flagged_SENTENCE_is_still_a_task():
 
 # --------------------------------------------------------- options, not surprises
 def _plan(**kw):
-    base = dict(app_healthy=False, app_repairable=True, app_detail="status Modified", live_seats=0, flags=set())
+    base = {
+        "app_healthy": False,
+        "app_repairable": True,
+        "app_detail": "status Modified",
+        "live_seats": 0,
+        "flags": set(),
+    }
     base.update(kw)
     return sl.claude_seat_plan(**base)
 
@@ -224,7 +232,8 @@ def test_the_options_message_does_not_read_like_it_acted():
 def test_repair_is_opt_in_and_says_what_it_will_do():
     p = _plan(flags={"--repair"})
     assert p["action"] == "repair_then_spawn"
-    assert "verifying payload" in p["message"] and "stale status bit" in p["message"]
+    assert "verifying payload" in p["message"]
+    assert "stale status bit" in p["message"]
     # And it must not read as proven. The MSIX rung is drilled; the end-to-end
     # app-down -> repair -> seat chain is not, and cannot be from inside the app.
     assert "NOT" in p["message"] and "end-to-end" in p["message"].lower(), p["message"]
@@ -232,12 +241,14 @@ def test_repair_is_opt_in_and_says_what_it_will_do():
 
 def test_seat_flag_skips_the_app_because_the_cli_works_without_it():
     p = _plan(flags={"--seat"})
-    assert p["action"] == "spawn" and "works without it" in p["message"]
+    assert p["action"] == "spawn"
+    assert "works without it" in p["message"]
 
 
 def test_a_healthy_app_just_spawns_without_a_menu():
     p = _plan(app_healthy=True, app_detail="status Ok", live_seats=2)
-    assert p["action"] == "spawn" and "2 live claude seat(s)" in p["message"]
+    assert p["action"] == "spawn"
+    assert "2 live claude seat(s)" in p["message"]
 
 
 def test_status_reports_and_never_acts_even_when_everything_is_fine():

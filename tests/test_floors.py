@@ -58,7 +58,8 @@ def test_check_returns_a_receipt_and_drops_unknown_thresholds(tmp_path):
         for packet in stream.encode():
             out.mux(packet)
     receipt = F.check(str(path), min_contrast=2.0, some_unknown_threshold=1)
-    assert receipt["api"] == F.API and receipt["size"] == [240, 120]
+    assert receipt["api"] == F.API
+    assert receipt["size"] == [240, 120]
     assert {r["floor"] for r in receipt["results"]} == set(F.FLOORS)
     assert receipt["pass"] is False  # a flat 200 field is not a picture
     assert any("taste" in note for note in receipt["not_measured"])
@@ -107,7 +108,8 @@ def test_census_counts_and_names_its_blind_spots(tmp_path):
     receipts = F.sweep(str(tmp_path), floors=F.SETS["canvas"])
     summary = F.summarise(receipts)
     assert summary["frames"] == 3
-    assert summary["failed"] == 2 and summary["passed"] == 1
+    assert summary["failed"] == 2
+    assert summary["passed"] == 1
     assert summary["failures_by_floor"]["not_dead"] >= 1
     assert summary["failures_by_floor"]["not_blown"] >= 1
     assert any("not matched" in note for note in summary["blind"])

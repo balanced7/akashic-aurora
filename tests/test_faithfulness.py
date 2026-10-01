@@ -52,7 +52,9 @@ def test_no_false_positive_on_real_output():
     ok, notes = faithfulness_critic(_ITEMS, skeleton)
     assert ok is True, f"false-positive on faithful output! notes={notes}"
     rep = faithfulness_report(_ITEMS, skeleton)
-    assert rep["unresolved"] == 0 and rep["untraceable"] == 0 and rep["number_fail"] == 0
+    assert rep["unresolved"] == 0
+    assert rep["untraceable"] == 0
+    assert rep["number_fail"] == 0
     print(f"\n--- no false-positive ---\n  faithful real output passes (conf={rep['confidence']}) OK")
 
 

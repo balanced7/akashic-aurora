@@ -160,7 +160,8 @@ def test_p5_every_edge_this_slice_builds_carries_its_formation(db):
 def test_p5b_build_report_is_a_coverage_contract(db):
     rep = CONN.build(db_path=db)
     assert rep["edges_total"] == sum(rep["by_kind"].values())
-    assert rep["by_kind"]["follows"] > 0 and rep["by_kind"]["same_utterance"] > 0
+    assert rep["by_kind"]["follows"] > 0
+    assert rep["by_kind"]["same_utterance"] > 0
     assert rep["by_evidence"]["inferred"] == rep["by_kind"]["adjacent"]
     # rebuild is idempotent -- an edge table that grew on re-run would poison every count
     rep2 = CONN.build(db_path=db)
@@ -192,7 +193,8 @@ def test_p6b_unfiltered_walk_does_not_flag_pre_contract(db):
     nothing and so excludes nothing -- flagging it would train callers to ignore flags."""
     CONN._insert_pre_contract_edge(f"{G}:9", f"{G}:1", "follows", db_path=db)
     t = CONN.trace(f"{G}:9", db_path=db)
-    assert t["pre_contract_edges"] == 0 and t["degraded"] is False
+    assert t["pre_contract_edges"] == 0
+    assert t["degraded"] is False
 
 
 # ---------------------------------------------------------------- P7: the verdict flip
@@ -275,5 +277,6 @@ def test_p7b_a_singly_recorded_utterance_is_unaffected(db):
     and a phrase said once stays said once."""
     r = EYE.freq(["gamma queued directive with a twin"], db_path=db)
     assert r["operator_records"] == 3, "enqueue + dequeue + the delivered twin"
-    assert r["operator_events"] == 1 and r["sessions"] == 1
+    assert r["operator_events"] == 1
+    assert r["sessions"] == 1
     assert r["verdict"] == "mentioned-once"

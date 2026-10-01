@@ -47,7 +47,8 @@ def test_halt_one_agent_others_untouched(ns):
 def test_resume_selected(ns):
     """Resume just the halted agent; leaves any other targeted halt in place."""
     control.halt(targets=["deepseek", "claude"])
-    assert control.is_halted("deepseek") and control.is_halted("claude")
+    assert control.is_halted("deepseek")
+    assert control.is_halted("claude")
     assert control.resume(targets=["deepseek"]) is True
     assert control.is_halted("deepseek") is False
     assert control.is_halted("claude") is True  # the un-named one stays frozen

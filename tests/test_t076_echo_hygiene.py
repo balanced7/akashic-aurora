@@ -50,27 +50,31 @@ def test_done_task_echo_settles_instead_of_redriving(agent, monkeypatch):
     _fake_ledger(monkeypatch, [{"id": "T900", "status": "done"}])
     assert expectations.arm(agent, "111-0", "peer", "handoff", "please build T900 factories", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["settled"] == ["111-0"] and res["redriven"] == []
+    assert res["settled"] == ["111-0"]
+    assert res["redriven"] == []
 
 
 def test_live_task_ask_still_redrives(agent, monkeypatch):
     _fake_ledger(monkeypatch, [{"id": "T901", "status": "claimed"}])
     assert expectations.arm(agent, "222-0", "peer", "handoff", "T901 blind half please", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["redriven"] == ["222-0"] and res["settled"] == []
+    assert res["redriven"] == ["222-0"]
+    assert res["settled"] == []
 
 
 def test_mixed_terminal_and_live_ids_redrives(agent, monkeypatch):
     _fake_ledger(monkeypatch, [{"id": "T900", "status": "done"}, {"id": "T901", "status": "in_progress"}])
     assert expectations.arm(agent, "333-0", "peer", "request", "T900 shipped; now do T901", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["redriven"] == ["333-0"] and res["settled"] == []
+    assert res["redriven"] == ["333-0"]
+    assert res["settled"] == []
 
 
 def test_no_task_ids_redrives_as_before(agent):
     assert expectations.arm(agent, "444-0", "peer", "question", "what color should the button be", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["redriven"] == ["444-0"] and res["settled"] == []
+    assert res["redriven"] == ["444-0"]
+    assert res["settled"] == []
 
 
 def test_settle_kill_switch(agent, monkeypatch):
@@ -78,20 +82,23 @@ def test_settle_kill_switch(agent, monkeypatch):
     monkeypatch.setenv("AKASHIC_EXPECT_TASK_SETTLE", "0")
     assert expectations.arm(agent, "555-0", "peer", "handoff", "T900 echo", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["redriven"] == ["555-0"] and res["settled"] == []
+    assert res["redriven"] == ["555-0"]
+    assert res["settled"] == []
 
 
 def test_unknown_task_id_conservative(agent, monkeypatch):
     _fake_ledger(monkeypatch, [{"id": "T900", "status": "done"}])
     assert expectations.arm(agent, "666-0", "peer", "handoff", "T999 does not exist in ledger", within_s=30)
     res = expectations.sweep(agent, now=time.time() + 3600)
-    assert res["redriven"] == ["666-0"] and res["settled"] == []
+    assert res["redriven"] == ["666-0"]
+    assert res["settled"] == []
 
 
 # ---------------------------------------------------------------- T076a: skip-to-now
 def test_skip_refused_without_reason(agent):
     r = cursor_admin.skip_to_now(agent, by="tester", reason="  ")
-    assert not r["ok"] and "reason required" in r["refused"]
+    assert not r["ok"]
+    assert "reason required" in r["refused"]
 
 
 def test_skip_refused_when_not_paused(agent, monkeypatch):
@@ -99,7 +106,8 @@ def test_skip_refused_when_not_paused(agent, monkeypatch):
 
     monkeypatch.setattr(control, "is_paused", lambda: False)
     r = cursor_admin.skip_to_now(agent, by="tester", reason="test")
-    assert not r["ok"] and "not paused" in r["refused"]
+    assert not r["ok"]
+    assert "not paused" in r["refused"]
 
 
 def test_skip_advances_to_tails(agent, monkeypatch):
@@ -114,7 +122,8 @@ def test_skip_advances_to_tails(agent, monkeypatch):
     r = cursor_admin.skip_to_now(agent, by="tester", reason="drill: clear echo mountain")
     assert r["ok"], r
     tail = b.tail().get("inbox", "0")
-    assert tail != "0" and r["after"]["shared"]["inbox"] == tail
+    assert tail != "0"
+    assert r["after"]["shared"]["inbox"] == tail
     msgs = b.wait(timeout_ms=1)  # nothing pending after the skip
     assert [m for m in msgs if getattr(m, "kind", "") == "chat"] == []
 
@@ -124,4 +133,5 @@ def test_skip_pause_probe_error_fails_closed(agent, monkeypatch):
 
     monkeypatch.setattr(control, "is_paused", lambda: (_ for _ in ()).throw(RuntimeError("probe down")))
     r = cursor_admin.skip_to_now(agent, by="tester", reason="test")
-    assert not r["ok"] and "unprobeable" in r["refused"]
+    assert not r["ok"]
+    assert "unprobeable" in r["refused"]

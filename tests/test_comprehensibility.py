@@ -62,7 +62,9 @@ def test_derived_docs_drift_is_flagged(monkeypatch):
 
 def test_scan_refs_extracts_root_anchored_paths():
     refs = cm.scan_refs("see `tests/foo.py` and core/bar/baz.py plus docs/FAQ.md")
-    assert "tests/foo.py" in refs and "core/bar/baz.py" in refs and "docs/FAQ.md" in refs
+    assert "tests/foo.py" in refs
+    assert "core/bar/baz.py" in refs
+    assert "docs/FAQ.md" in refs
 
 
 def test_scan_refs_ignores_deployment_and_midpath_prefixes():
@@ -79,7 +81,8 @@ def test_stale_ref_is_flagged_but_a_real_path_is_not(tmp_path):
     # a doc citing a nonexistent repo path is caught; a real one is not
     fake = "refs core/foundation/store.py (real) and core/foundation/GONE_totally.py (deleted)"
     refs = cm.scan_refs(fake)
-    assert "core/foundation/store.py" in refs and "core/foundation/GONE_totally.py" in refs
+    assert "core/foundation/store.py" in refs
+    assert "core/foundation/GONE_totally.py" in refs
     assert os.path.exists(os.path.join(cm.ROOT, "core/foundation/store.py"))
     assert not os.path.exists(os.path.join(cm.ROOT, "core/foundation/GONE_totally.py"))
 
@@ -129,7 +132,10 @@ def test_run_wrapper_turns_a_crash_into_a_loud_fail():
         raise ValueError("simulated broken check")
 
     got, crash = cm._run("boomcheck", boom)
-    assert got == [] and crash is not None and "CRASHED" in crash and "boomcheck" in crash
+    assert got == []
+    assert crash is not None
+    assert "CRASHED" in crash
+    assert "boomcheck" in crash
 
 
 def test_main_fails_loud_when_a_check_crashes(monkeypatch):

@@ -57,7 +57,9 @@ def test_estimator_median_p90_and_confidence_tiers(monkeypatch):
     for d in (8, 11, 40):
         tm.record("a", "chat", duration_s=d, progress_points=4, outcome="ok", prompt_len=10)
     est = tm.estimate("a", "chat")
-    assert est and est["n"] == 5 and est["confidence"] == "low"
+    assert est
+    assert est["n"] == 5
+    assert est["confidence"] == "low"
     assert est["median_s"] == 11, f"median robust against the 40s outlier: {est}"
     assert est["p90_s"] >= est["median_s"]
     # n=8+: confidence ok
@@ -114,7 +116,8 @@ def test_progress_view_composes_live_turn(monkeypatch):
     tm.count_pulse("deepseek")
     tm.count_pulse("deepseek")
     view = tm.progress_view("deepseek", peek=True)
-    assert view["ask_kind"] == "handoff" and 4.5 <= view["elapsed_s"] <= 6
+    assert view["ask_kind"] == "handoff"
+    assert 4.5 <= view["elapsed_s"] <= 6
     assert view["points_seen"] == 2
     assert view["eta"]["median_s"] == 10
     assert view["pct_estimate"] == 25  # 2/8 * 100

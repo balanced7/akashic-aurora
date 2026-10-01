@@ -39,15 +39,18 @@ def test_lens_validate_and_roundtrip():
     assert Lens.from_dict(good.to_dict()) == good
     bad = Lens("x", {"not_a_factor": 1.0}, {"led_to": 1.0})  # fake factor + fake relation
     probs = bad.validate()
-    assert any("factor" in p for p in probs) and any("led_to" in p for p in probs)
+    assert any("factor" in p for p in probs)
+    assert any("led_to" in p for p in probs)
 
 
 def test_map_validate_and_roundtrip():
     m = Map("causal", ["causal"], direction="both")
-    assert m.validate() == [] and Map.from_dict(m.to_dict()) == m
+    assert m.validate() == []
+    assert Map.from_dict(m.to_dict()) == m
     bad = Map("x", ["not_a_domain"], direction="sideways")
     probs = bad.validate()
-    assert any("domain" in p for p in probs) and any("direction" in p for p in probs)
+    assert any("domain" in p for p in probs)
+    assert any("direction" in p for p in probs)
 
 
 def test_builtins_are_valid():
@@ -55,8 +58,10 @@ def test_builtins_are_valid():
         assert lens.validate() == [], f"built-in lens {lens.name} invalid"
     for mp in BUILTIN_MAPS.values():
         assert mp.validate() == [], f"built-in map {mp.name} invalid"
-    assert lens_key("causal") == "persp:lens:causal" and map_key("causal") == "persp:map:causal"
-    assert "causal" in VALID_DOMAINS and "temporal" in VALID_DOMAINS
+    assert lens_key("causal") == "persp:lens:causal"
+    assert map_key("causal") == "persp:map:causal"
+    assert "causal" in VALID_DOMAINS
+    assert "temporal" in VALID_DOMAINS
 
 
 # ------------------------------------------------------------------ P1 reinforcement
@@ -102,7 +107,8 @@ def test_cooccurrence_and_neighbors():
     g = _graph()
     n = g.reinforce_cooccurrence(["a", "b", "c"], now=T0)  # 3 pairs
     assert n == 3
-    assert g.strength("a", "b", now=T0) > 0 and g.strength("b", "c", now=T0) > 0
+    assert g.strength("a", "b", now=T0) > 0
+    assert g.strength("b", "c", now=T0) > 0
     # a fresher association outranks a staler one of equal initial strength
     g.reinforce("a", "d", now=T30)  # d bumped 30d after b/c
     nbrs = dict(g.neighbors("a", now=T30))

@@ -128,7 +128,8 @@ def test_k4_the_number_survives_the_bands():
 
 def test_k5_a_failed_branch_is_not_a_dissenting_voice():
     o = A.ask_many(["p1", "p2", "p3"], client=_Scripted({"p1": VERBATIM, "p2": VERBATIM, "p3": None}))
-    assert o.partial and o.detail["n_ok"] == 2
+    assert o.partial
+    assert o.detail["n_ok"] == 2
     assert o.detail["n_compared"] == 2, "the outage must not be counted as a third opinion"
     assert o.detail["diversity"] == "collapsed"
 
@@ -136,4 +137,5 @@ def test_k5_a_failed_branch_is_not_a_dissenting_voice():
 def test_k6_one_branch_cannot_corroborate_itself():
     o = A.ask_many(["p1"], client=_Scripted({"p1": VERBATIM}))
     assert o.ok
-    assert o.detail["lexical_agreement"] is None and o.detail["diversity"] is None
+    assert o.detail["lexical_agreement"] is None
+    assert o.detail["diversity"] is None

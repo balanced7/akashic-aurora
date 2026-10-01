@@ -112,7 +112,8 @@ def test_reasoning_is_still_traced_when_think_is_on():
     agent._stream_turn()
 
     thinking = [t for k, t in traces if k == "thinking"]
-    assert thinking and "check the ACL" in thinking[0]
+    assert thinking
+    assert "check the ACL" in thinking[0]
 
 
 # ---------------------------------------------------------------- pin 3

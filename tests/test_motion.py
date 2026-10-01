@@ -66,7 +66,8 @@ def test_a_take_that_never_moves_reads_still():
 def test_the_numbers_are_derived_from_the_segment_table():
     p = M.profile(_six_per_min())
     assert p["duration_s"] == 30.0  # from the last segment's end, not a field
-    assert p["transitions"] == 3 and p["settled"] == 4
+    assert p["transitions"] == 3
+    assert p["settled"] == 4
     assert p["transitions_per_min"] == 6.0  # 3 in half a minute
     assert p["median_transition_ms"] == 1500
     assert p["p90_transition_ms"] == 1900.0  # default linear percentile of 1000/1500/2000

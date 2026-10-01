@@ -90,10 +90,12 @@ def test_envelope_is_hmac_signed_and_verifies():
     """The wire envelope carries the base64 body + HMAC; verify() accepts it with the SAME
     secret and rejects with a wrong one."""
     env = RR.build_envelope(_msg(), SECRET)
-    assert "body" in env and "sig" in env
+    assert "body" in env
+    assert "sig" in env
     body = base64.b64decode(env["body"]).decode("utf-8")
     decoded = json.loads(body)
-    assert decoded["kind"] == "chat" and decoded["frm"] == "claude"
+    assert decoded["kind"] == "chat"
+    assert decoded["frm"] == "claude"
     assert RR.verify(env["body"], env["sig"], SECRET) is True
     assert RR.verify(env["body"], env["sig"], b"wrong-secret") is False
 
@@ -123,7 +125,8 @@ def test_idless_message_gets_content_derived_address():
     del m["id"]
     a = json.loads(base64.b64decode(RR.build_envelope(m, SECRET)["body"]))
     b = json.loads(base64.b64decode(RR.build_envelope(m, SECRET)["body"]))
-    assert a["id"].startswith("h:") and a["id"] == b["id"]
+    assert a["id"].startswith("h:")
+    assert a["id"] == b["id"]
 
 
 def test_failed_push_does_not_pretend_success():

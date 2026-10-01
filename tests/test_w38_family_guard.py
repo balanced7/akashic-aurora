@@ -36,7 +36,8 @@ def test_p2_unregistered_flagged_registered_not():
     # 'control' is in the ephemeral roster (*:control:*); 'zzznewfamily' is not
     text = 'x = f"{ns}:control:paused"\ny = f"{ns}:zzznewfamily:thing"\n'
     unreg = cb._unregistered_families(text)
-    assert "zzznewfamily" in unreg and "control" not in unreg
+    assert "zzznewfamily" in unreg
+    assert "control" not in unreg
 
 
 def test_p3_durable_allowlist_passes():

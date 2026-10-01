@@ -26,7 +26,8 @@ def _mailbox():
     return _il.import_module("core.comm.mailbox")
 
 
-_NO_ACKS = lambda ids: {}
+def _NO_ACKS(ids):
+    return {}
 
 
 def _q(mbx, ns, agent, client, **kw):
@@ -91,7 +92,8 @@ def test_lane_flip_no_double_count():
     assert r2["counts"].get("unhandled", 0) == 1
     ids = r2["entries"][0]["ids"]
     sources = list(ids.keys() if isinstance(ids, dict) else json.loads(ids).keys())
-    assert "legacy_inbox" in sources and "work_inbox" in sources
+    assert "legacy_inbox" in sources
+    assert "work_inbox" in sources
 
 
 # A-D4

@@ -21,13 +21,16 @@ def test_distills_within_budget():
     ]
     out = d.distill(items, token_budget=9000)
     assert isinstance(out, Distillation)
-    assert out.critic_ok and out.approx_tokens <= 9000
-    assert out.included_sources == ["learn_1", "ADR_2", "blk_3"] and out.dropped_sources == []
+    assert out.critic_ok
+    assert out.approx_tokens <= 9000
+    assert out.included_sources == ["learn_1", "ADR_2", "blk_3"]
+    assert out.dropped_sources == []
     # every entry keeps a source pointer (lossless-pointer rule)
     assert all(e["source"] for e in out.entries)
     # skeleton is human-readable and carries the sources + a relates tag
     assert "trust the file fallback" in out.skeleton
-    assert "(source: blk_3)" in out.skeleton and "[relates: prevents]" in out.skeleton
+    assert "(source: blk_3)" in out.skeleton
+    assert "[relates: prevents]" in out.skeleton
     print("\n--- distill within budget ---\n  compact skeleton + source pointers + critic OK")
 
 

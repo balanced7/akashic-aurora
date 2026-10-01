@@ -64,7 +64,8 @@ def test_p2_old_directive_flagged(mem):
     old = datetime.now() - timedelta(days=10)
     _forge_note(mem, "ADR_nf_old00000", "next-focus", "approve the old wave", old.isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "[STALE?" in head and "d old" in head
+    assert "[STALE?" in head
+    assert "d old" in head
 
 
 def test_p3_ledger_done_task_disagrees(mem, monkeypatch):
@@ -74,7 +75,9 @@ def test_p3_ledger_done_task_disagrees(mem, monkeypatch):
     )
     _forge_note(mem, "ADR_nf_done0000", "next-focus", "approve/amend T075 M1 build wave", datetime.now().isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "LEDGER DISAGREES" in head and "T075 DONE" in head and "trust the ledger" in head
+    assert "LEDGER DISAGREES" in head
+    assert "T075 DONE" in head
+    assert "trust the ledger" in head
 
 
 def test_p5_parked_task_also_disagrees(mem, monkeypatch):
@@ -95,7 +98,8 @@ def test_p5_parked_task_also_disagrees(mem, monkeypatch):
         datetime.now().isoformat(),
     )
     head = agent_cli._orientation_header("claude")
-    assert "T075 PARKED" in head and "LEDGER DISAGREES" in head
+    assert "T075 PARKED" in head
+    assert "LEDGER DISAGREES" in head
     assert "T071" not in head.split("LEDGER DISAGREES")[1].split("]")[0], (
         "an ACTIVE named task never rides the disagreement tag"
     )

@@ -29,7 +29,8 @@ def test_decisions():
         )
         assert dec_id, "decide should return an id"
         decisions = mem.get_decisions(days=30)
-        assert len(decisions) == 1 and decisions[0].title == "Use Sentinel"
+        assert len(decisions) == 1
+        assert decisions[0].title == "Use Sentinel"
         print("\n--- decisions (semantic) ---\n  decide/get_decisions OK")
 
 
@@ -41,7 +42,8 @@ def test_experiences_and_similarity():
         similar = mem.get_similar("install ComfyUI again")
         assert any("ComfyUI" in e.task for e in similar), f"expected a ComfyUI match: {similar}"
         stats = mem.get_stats()
-        assert stats["experiences"] == 2 and stats["recent_failures"] == 1
+        assert stats["experiences"] == 2
+        assert stats["recent_failures"] == 1
         assert 0 < stats["success_rate"] < 1
         print("\n--- experiences (episodic) ---\n  record/get_similar/get_stats OK")
 
@@ -58,7 +60,8 @@ def test_reflections_capped():
             "reflection index should be trimmed to the newest 50"
         )
         insights = mem.get_insights(min_confidence=0.6)
-        assert insights and all(r["confidence"] >= 0.6 for r in insights)
+        assert insights
+        assert all(r["confidence"] >= 0.6 for r in insights)
         print("\n--- reflections (Reflexion) ---\n  reflect/cap-at-50/get_insights OK")
 
 
@@ -68,7 +71,8 @@ def test_approaches():
         mem.register_approach("vision", "florence2", "working", learnings=["fast"])
         mem.register_approach("vision", "blip", "failed")
         status = mem.get_component_status("vision")
-        assert len(status["working"]) == 1 and len(status["failed"]) == 1
+        assert len(status["working"]) == 1
+        assert len(status["failed"]) == 1
         assert status["working"][0]["name"] == "florence2"
         print("\n--- approaches (procedural) ---\n  register/get_component_status OK")
 
@@ -87,7 +91,8 @@ def test_log_failure_and_context():
         )
         assert exp_id, "log_failure should return the experience id"
         stats = mem.get_stats()
-        assert stats["recent_failures"] >= 1 and stats["reflections"] >= 1
+        assert stats["recent_failures"] >= 1
+        assert stats["reflections"] >= 1
         ctx = mem.get_context("anything")
         assert set(ctx) == {"decisions", "recent_experiences", "insights", "stats"}
         assert ctx["stats"]["experiences"] >= 2

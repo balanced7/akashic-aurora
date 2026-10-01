@@ -220,7 +220,7 @@ def test_b5_concurrent_writers_lose_nothing(tmp_path):
     N, PER = 20, 50
 
     def w(i):
-        for k in range(PER):
+        for _k in range(PER):
             j.record(model="m", status=200, agent=f"a{i}", usage={"total_tokens": 1})
 
     ts = [threading.Thread(target=w, args=(i,)) for i in range(N)]
@@ -241,7 +241,7 @@ def test_b6_reader_survives_a_file_deleted_mid_read(tmp_path):
     for _ in range(5):
         j.record(model="m", status=200)
     listed = j.files()
-    j.files = lambda *a, **k: listed + [os.path.join(j._journal_dir, "wire-gone-999.jsonl")]
+    j.files = lambda *a, **k: [*listed, os.path.join(j._journal_dir, "wire-gone-999.jsonl")]
     rows = j.read_all()
     assert isinstance(rows, list), "reader died on a file that vanished between list and open"
 
@@ -347,7 +347,8 @@ def test_c5_expert_reports_nothing_as_clean_not_as_broken(tmp_path):
     """An empty journal must not manufacture findings, and a clean one must not either."""
     j = _j(tmp_path)
     empty = j.expert()
-    assert len(empty) == 1 and empty[0][0] == "info"
+    assert len(empty) == 1
+    assert empty[0][0] == "info"
     for _ in range(3):
         j.record(
             model="m",

@@ -41,11 +41,13 @@ def test_format_message_is_readable():
     # broadcast renders as "all"; non-str content is coerced; a bad timestamp doesn't crash
     ft2 = bc.format_message("a", "*", "chat", {"x": 1}, "not-a-date")
     text2 = "".join(t for _, t in ft2)
-    assert "all" in text2 and "{'x': 1}" in text2
+    assert "all" in text2
+    assert "{'x': 1}" in text2
 
 
 def test_app_module_imports():
-    assert hasattr(bc, "main") and callable(bc.main)
+    assert hasattr(bc, "main")
+    assert callable(bc.main)
 
 
 if __name__ == "__main__":

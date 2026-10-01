@@ -37,7 +37,8 @@ def test_p2_render_nonzero_only_asks_first():
     assert line == "1 ask / 1 fyi / 1 trace"
     # pluralization + zero-bucket omission
     line2 = render_kind_summary([_m("question"), _m("question"), _m("trace")])
-    assert line2 == "2 asks / 1 trace" and "fyi" not in line2
+    assert line2 == "2 asks / 1 trace"
+    assert "fyi" not in line2
 
 
 def test_p3_empty_is_silent():

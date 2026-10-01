@@ -25,7 +25,9 @@ def test_format_digest_line_is_compact():
     line = bifrost_pull.format_digest_line(
         {"frm": "cursor", "kind": "handoff", "ts": "2026-06-28T22:43:55+00:00", "content": "x" * 500}
     )
-    assert "[handoff]" in line and "cursor>" in line and "22:43" in line
+    assert "[handoff]" in line
+    assert "cursor>" in line
+    assert "22:43" in line
     assert "...[truncated]" in line  # long body is clipped, not dumped
     assert len(line) < 120  # a cheap one-liner, not the full body
 

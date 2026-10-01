@@ -155,8 +155,10 @@ def test_p1_composed_of_declared_and_matches_built(patched):
 
 def test_p2_recipe_names_asks_and_turns(patched):
     fd = flightdeck()
-    assert "asks" in fd["composed_of"] and "turns" in fd["composed_of"]
-    assert "asks" in fd["sections"] and "turns" in fd["sections"]
+    assert "asks" in fd["composed_of"]
+    assert "turns" in fd["composed_of"]
+    assert "asks" in fd["sections"]
+    assert "turns" in fd["sections"]
 
 
 def test_p3_single_agent_appends_unwedge(patched):
@@ -220,7 +222,8 @@ def test_p8_render_shows_last_turn(patched, monkeypatch):
     out = format_flightdeck(flightdeck())
     low = out.lower()
     assert "last turn" in low, "the last-turn section is rendered with its source named"
-    assert "nudge" in low and "39.5s" in low
+    assert "nudge" in low
+    assert "39.5s" in low
 
 
 def test_p9_last_turn_reads_firehose_most_recent():

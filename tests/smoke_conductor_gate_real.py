@@ -27,5 +27,6 @@ def test_real_evaluate_returns_verdict_obj():
     v = cg.evaluate_succession()
     # Real environment: conductor is likely ATTENDED (claude is up right now), so this
     # should NOT activate -- but we assert only shape, not the specific verdict.
-    assert hasattr(v, "activate") and hasattr(v, "reason")
+    assert hasattr(v, "activate")
+    assert hasattr(v, "reason")
     assert isinstance(v.reason, str)

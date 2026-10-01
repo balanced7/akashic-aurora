@@ -59,7 +59,7 @@ def plane(tmp_path):
         f"# A synthetic dossier\n\nname: {MARKER}\nfixture body, no real content.\n", encoding="utf-8"
     )
     (priv / "atoms-private.jsonl").write_text(
-        '{"id": "art_20260101_%s_ff00aa", "title": "%s"}\n' % (MARKER, MARKER), encoding="utf-8"
+        '{{"id": "art_20260101_{}_ff00aa", "title": "{}"}}\n'.format(MARKER, MARKER), encoding="utf-8"
     )
     return tmp_path
 
@@ -270,7 +270,8 @@ def test_p6_a_guard_that_cannot_run_fails_open_and_says_so(tmp_path, capsys):
 
 def test_p6b_no_message_path_fails_open_loudly(capsys):
     rc = _hook().main(["commit_msg.py"])
-    assert rc == 0 and "WARNING" in capsys.readouterr().err
+    assert rc == 0
+    assert "WARNING" in capsys.readouterr().err
 
 
 def test_p6c_a_finding_fails_closed_even_when_the_refusal_cannot_be_printed(plane, tmp_path, monkeypatch):

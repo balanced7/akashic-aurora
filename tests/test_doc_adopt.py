@@ -43,7 +43,7 @@ class Args:
 
 
 @pytest.mark.parametrize(
-    "stem,expected",
+    ("stem", "expected"),
     [
         ("buffer-authority-codex-position-2026-07-31", "buffer-authority-codex-position"),
         ("t125-newcomer-lookups-cursor-grok", "t125-newcomer-lookups-cursor-grok"),
@@ -66,7 +66,7 @@ def test_p2_title_never_returns_empty():
 
 
 @pytest.mark.parametrize(
-    "stem,expected",
+    ("stem", "expected"),
     [
         ("buffer-round-reconciliation", "design"),
         ("buffer-authority-codex-position", "report"),

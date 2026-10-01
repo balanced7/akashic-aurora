@@ -20,6 +20,7 @@ Run: py -m pytest tests/test_fleet_doctor.py -q
 import os
 import sys
 import time
+import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,23 +29,23 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _probes(**over):
     """A healthy-idle agent by default; tests override single facets."""
-    base = dict(
-        worklive=lambda a: {
+    base = {
+        "worklive": lambda a: {
             "phase": "idle",
             "detail": "",
             "turn": 3,
             "since_ts": time.time() - 5,
             "beat_ts": time.time() - 1,
         },
-        progress=lambda a: None,  # no pulse needed when idle
-        backlog=lambda a: 0,  # unread messages beyond the cursor
-        stalled_since=lambda a, present: None,  # hysteresis first-seen (None = fresh)
-        halted=lambda a: None,  # None | {"reason":..., "age_s":...}
-        lane_health=lambda a: None,  # W16: lane-mode health (None = legacy)
-        token_cost=lambda a: None,  # T078-W1: daily journal line
-        bench_count=lambda a: 0,  # S0-alpha: parked asks
-        now=time.time(),
-    )
+        "progress": lambda a: None,  # no pulse needed when idle
+        "backlog": lambda a: 0,  # unread messages beyond the cursor
+        "stalled_since": lambda a, present: None,  # hysteresis first-seen (None = fresh)
+        "halted": lambda a: None,  # None | {"reason":..., "age_s":...}
+        "lane_health": lambda a: None,  # W16: lane-mode health (None = legacy)
+        "token_cost": lambda a: None,  # T078-W1: daily journal line
+        "bench_count": lambda a: 0,  # S0-alpha: parked asks
+        "now": time.time(),
+    }
     base.update(over)
     return base
 
@@ -54,7 +55,8 @@ def test_healthy_fleet_is_one_line():
 
     rep = examine_fleet(["claude", "deepseek"], probes=_probes())
     assert rep["findings"] == []
-    assert rep["summary"].count("\n") == 0 and "healthy" in rep["summary"].lower()
+    assert rep["summary"].count("\n") == 0
+    assert "healthy" in rep["summary"].lower()
 
 
 def test_hard_wedge_pages_when_pulse_is_dead():
@@ -176,15 +178,15 @@ def test_pulse_primitives_round_trip():
     try:
         assert liveness.pulse(agent, "tool:read_file", generation=7)
         rec = liveness.progress_read(agent)
-        assert rec and rec["generation"] == 7 and rec["age_s"] < 3
+        assert rec
+        assert rec["generation"] == 7
+        assert rec["age_s"] < 3
         assert liveness.pulse_error(agent, "oom", generation=7)
         rec2 = liveness.progress_read(agent)
         assert rec2["detail"].startswith("trigger:oom")
     finally:
-        try:
+        with contextlib.suppress(Exception):
             Bus(agent)._client.delete(f"bifrost:progress:{agent}")
-        except Exception:
-            pass
 
 
 def test_runner_wires_the_pulse_at_progress_points():

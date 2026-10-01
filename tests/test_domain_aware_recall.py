@@ -91,7 +91,8 @@ def test_a_confident_answer_is_never_flagged_weak():
     ls = _store()
     _lesson(ls, "dither_last", "dither before the tone map", "dither goes last at about 1.6/255", domain="vfx")
     got = ls.search_learnings_by_keyword("dither tone map", domain="vfx")
-    assert got and not got[0].get("weak_match")
+    assert got
+    assert not got[0].get("weak_match")
 
 
 def test_stopwords_alone_cannot_summon_the_corpus():
@@ -123,7 +124,8 @@ def test_a_real_query_still_finds_its_lesson():
         "arm bifrost_wake ONLY via a harness-tracked background job",
     )
     got = ls.search_learnings_by_keyword("wake listener arm harness tracked")
-    assert got and got[0]["experiment_name"] == "wake_listener_harness_tracked"
+    assert got
+    assert got[0]["experiment_name"] == "wake_listener_harness_tracked"
 
 
 # ---- D1: the domain axis ------------------------------------------------------------------------
@@ -214,7 +216,7 @@ def test_every_chunk_note_is_lesson_shaped_in_the_first_place():
             head = fh.readline().strip()
         assert head.startswith("//!"), f
         meta = json.loads(head[3:])
-        assert meta.get("note"), "%s has no note to adopt" % f
+        assert meta.get("note"), "{} has no note to adopt".format(f)
 
 
 def test_the_chunk_rules_become_retrievable_lessons():

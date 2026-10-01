@@ -32,7 +32,8 @@ def _load(store, rid):
 
 def test_schema_roundtrip_and_stable_id():
     r = new_resource(atom_ids=["a", "b"], title="t", summary="s")
-    assert r.id.startswith("res_") and r.version_hash == version_hash(["a", "b"], "s")
+    assert r.id.startswith("res_")
+    assert r.version_hash == version_hash(["a", "b"], "s")
     assert Resource.from_dict(r.to_dict()) == r
     assert new_resource_id() != new_resource_id()  # ids are unique
     # version_hash tracks CONTENT, not identity
@@ -54,7 +55,8 @@ def test_regenerate_keeps_id_and_origin_idempotent():
     r3 = new_resource(atom_ids=["a", "b", "c", "d"], summary="s2", id="res_fixed")
     lifecycle.regenerate_in_place(store, r3, resource_key, now="2026-07-01T00:00:00")
     upd = _load(store, "res_fixed")
-    assert upd.recorded_at == "2026-07-01T00:00:00" and upd.valid_from == "2026-01-01T00:00:00"
+    assert upd.recorded_at == "2026-07-01T00:00:00"
+    assert upd.valid_from == "2026-01-01T00:00:00"
     assert upd.id == "res_fixed"
 
 
@@ -65,11 +67,13 @@ def test_supersede_forwards_links_and_keeps_old():
     new = new_resource(atom_ids=["a", "b", "c", "d"], summary="refined", id="res_new")
     lifecycle.supersede(store, old, new, resource_key, now="2026-02-01T00:00:00")
     so, sn = _load(store, "res_old"), _load(store, "res_new")
-    assert so.valid_to == "2026-02-01T00:00:00" and not lifecycle.is_active(so)  # retired, NOT deleted
+    assert so.valid_to == "2026-02-01T00:00:00"
+    assert not lifecycle.is_active(so)
     assert lifecycle.is_active(sn)  # new active
     assert any(e.type == "replaces" and e.target == "res_new" for e in so.relates)  # forwards
     assert any(e.type == "is_version_of" and e.target == "res_old" for e in sn.relates)
-    assert so.id == "res_old" and sn.id == "res_new"  # stable, distinct ids
+    assert so.id == "res_old"
+    assert sn.id == "res_new"
 
 
 def test_merge_as_supersession_no_atom_orphaned():
@@ -82,7 +86,9 @@ def test_merge_as_supersession_no_atom_orphaned():
     lifecycle.supersede(store, a, merged, resource_key, now="2026-02-01T00:00:00")
     lifecycle.supersede(store, b, merged, resource_key, now="2026-02-01T00:00:00")
     sa, sb, sm = _load(store, "res_a"), _load(store, "res_b"), _load(store, "res_ab")
-    assert not lifecycle.is_active(sa) and not lifecycle.is_active(sb) and lifecycle.is_active(sm)
+    assert not lifecycle.is_active(sa)
+    assert not lifecycle.is_active(sb)
+    assert lifecycle.is_active(sm)
     assert set(sa.atom_ids + sb.atom_ids) <= set(sm.atom_ids), "no atom orphaned by the merge"
     assert {e.target for e in sm.relates if e.type == "is_version_of"} == {"res_a", "res_b"}
 
@@ -115,7 +121,8 @@ def test_ranker_excludes_retired_resource():
         {"text": "retired resource", "valid_to": "2026-01-01T00:00:00", "importance": 5},
     ]
     texts = [s.item["text"] for s in Ranker().rank(items, "")]
-    assert "active resource" in texts and "retired resource" not in texts
+    assert "active resource" in texts
+    assert "retired resource" not in texts
 
 
 if __name__ == "__main__":

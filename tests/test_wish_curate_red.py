@@ -70,7 +70,7 @@ def _apply(doc, wid, action, **kw):
 
 # ------------------------------------------------------------------ C1 decline
 def test_c1_decline_moves_to_declined_with_its_reason():
-    out, msg = _apply(DOC, "W05", "decline", reason="superseded by the atlas rebuild", seat="claude", today="09-23")
+    out, _msg = _apply(DOC, "W05", "decline", reason="superseded by the atlas rebuild", seat="claude", today="09-23")
     assert "- [ ] W05" not in out, "C1: it must leave Open"
     assert "[~] W05" in out, "C1: it must land marked declined"
     assert "superseded by the atlas rebuild" in out, "C1: the reason is the whole point"
@@ -92,7 +92,7 @@ def test_c4_multiline_wishes_survive_intact():
 
 # ------------------------------------------------------------------ C2 fold
 def test_c2_fold_marks_in_place_and_names_the_task():
-    out, msg = _apply(DOC, "W05", "fold", task="T401", seat="claude", today="09-23")
+    out, _msg = _apply(DOC, "W05", "fold", task="T401", seat="claude", today="09-23")
     assert "- [x] W05" in out
     assert "T401" in out
     assert "- [ ] W05" not in out
@@ -105,7 +105,9 @@ def test_c2_fold_without_a_task_refuses():
 
 # ------------------------------------------------------------------ C3 keep
 def test_c3_keep_stays_open_but_stops_being_silent():
-    out, msg = _apply(DOC, "W05", "keep", reason="still wanted, waiting on the eye slice", seat="claude", today="09-23")
+    out, _msg = _apply(
+        DOC, "W05", "keep", reason="still wanted, waiting on the eye slice", seat="claude", today="09-23"
+    )
     assert "- [ ] W05" in out, "C3: keep means KEEP -- it stays open"
     assert "still wanted, waiting on the eye slice" in out
     assert "09-23" in out, "C3: a dated why-still is what makes 'open' a decision"
@@ -131,4 +133,5 @@ def test_decline_is_reported_as_a_success_not_a_failure():
     as a loss, the zero stays zero for another five months."""
     _out, msg = _apply(DOC, "W05", "decline", reason="r", seat="claude", today="09-23")
     assert "declined" in msg.lower()
-    assert "fail" not in msg.lower() and "error" not in msg.lower()
+    assert "fail" not in msg.lower()
+    assert "error" not in msg.lower()

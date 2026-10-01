@@ -19,7 +19,8 @@ assert len(_DOC) >= THRESHOLD, "fixture must clear the length bar"
 
 def test_long_design_body_without_pointer_is_flagged():
     reason = classify_body(_DOC, "handoff")
-    assert reason and "NO durable pointer" in reason
+    assert reason
+    assert "NO durable pointer" in reason
 
 
 def test_atom_id_pointer_suppresses():
@@ -54,4 +55,5 @@ def test_wire_escaped_newlines_still_classify():
     wire = _DOC.replace("\n", "\\n")
     assert "\n" not in wire
     reason = classify_body(wire, "handoff")
-    assert reason and "NO durable pointer" in reason
+    assert reason
+    assert "NO durable pointer" in reason

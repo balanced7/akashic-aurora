@@ -121,23 +121,30 @@ def test_fold_classification_and_aggregates():
     by_id = {e["ask_id"]: e for e in rep["episodes"]}
     assert set(by_id) == {"A1", "A2", "A3", "A4", "A5"}, "boot event never becomes an episode"
 
-    assert by_id["A1"]["outcome"] == "answered" and by_id["A1"]["peer"] == "peer1"
-    assert abs(by_id["A1"]["duration_s"] - 100) < 2 and by_id["A1"]["redrives"] == 1
+    assert by_id["A1"]["outcome"] == "answered"
+    assert by_id["A1"]["peer"] == "peer1"
+    assert abs(by_id["A1"]["duration_s"] - 100) < 2
+    assert by_id["A1"]["redrives"] == 1
 
-    assert by_id["A2"]["outcome"] == "dead" and by_id["A2"]["redrives"] == 3
+    assert by_id["A2"]["outcome"] == "dead"
+    assert by_id["A2"]["redrives"] == 3
     assert by_id["A2"]["duration_s"] is None, "no created -> duration UNKNOWN: never 0.0, never a now-based guess"
 
-    assert by_id["A3"]["outcome"] == "echo" and by_id["A3"]["duration_s"] is None
+    assert by_id["A3"]["outcome"] == "echo"
+    assert by_id["A3"]["duration_s"] is None
 
-    assert by_id["A4"]["outcome"] == "open" and by_id["A4"]["state"] == "dispatched"
+    assert by_id["A4"]["outcome"] == "open"
+    assert by_id["A4"]["state"] == "dispatched"
     assert abs(by_id["A4"]["age_s"] - 50) < 2
-    assert by_id["A5"]["outcome"] == "open" and by_id["A5"]["state"] == "redriving"
+    assert by_id["A5"]["outcome"] == "open"
+    assert by_id["A5"]["state"] == "redriving"
 
     agg = rep["agg"]
     assert (agg["n_open"], agg["n_answered"], agg["n_dead"], agg["n_echo"]) == (2, 1, 1, 1)
     assert agg["n_closed"] == 3
     assert abs(agg["dead_rate"] - (1 / 3)) < 1e-9
-    assert agg["settle_p50_s"] == 100 and agg["n_duration_unknown"] == 2
+    assert agg["settle_p50_s"] == 100
+    assert agg["n_duration_unknown"] == 2
 
     assert isinstance(rep["blind"], list) and rep["blind"], "a report that names no blindness is claiming omniscience"
 
@@ -172,7 +179,8 @@ def test_snapshot_reads_without_mutating():
         snap = expectations.snapshot(s)
         assert str(orig) in {str(k) for k in snap}, "armed record visible"
         rec = snap[str(orig)]
-        assert rec.get("to") == r and rec.get("created")
+        assert rec.get("to") == r
+        assert rec.get("created")
         assert c.hgetall(key) == before, "snapshot mutated nothing -- byte-identical hash"
         t0 = time.time()
         assert expectations.sweep(s, now=t0 + 61)["redriven"] == [str(orig)] or expectations.sweep(s, now=t0 + 61)[

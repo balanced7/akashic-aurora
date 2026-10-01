@@ -68,8 +68,10 @@ def test_gap_lines_replaced_when_notes_exist(mem):
     _forge_note(mem, "ADR_wwa_00000001", "where-we-are", "mid-wave-3", datetime(2026, 7, 10).isoformat())
     _forge_note(mem, "ADR_nf_00000002", "next-focus", "verify RB-9..12", datetime(2026, 7, 10).isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "[GAP] where-we-are:" not in head and "mid-wave-3" in head
-    assert "[GAP] CURRENT DIRECTIVE:" not in head and "verify RB-9..12" in head
+    assert "[GAP] where-we-are:" not in head
+    assert "mid-wave-3" in head
+    assert "[GAP] CURRENT DIRECTIVE:" not in head
+    assert "verify RB-9..12" in head
 
 
 def test_fallback_arc_is_newest_not_alphabetical(mem):

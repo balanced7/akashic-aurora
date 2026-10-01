@@ -89,9 +89,11 @@ def test_meter_math_both_dialects(tmp_path):
         < 1e-6
     )
     assert abs(m.record({"prompt_tokens": 0, "completion_tokens": 1_000_000}) - 15.00) < 1e-6
-    assert m.spent() > 18.0 and not m.warn()
+    assert m.spent() > 18.0
+    assert not m.warn()
     m.state["spent_usd"] = 96.0
-    assert m.warn() and m.exceeded_hard_limit()
+    assert m.warn()
+    assert m.exceeded_hard_limit()
 
 
 def test_meter_durable_across_instances(tmp_path):

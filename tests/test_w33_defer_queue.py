@@ -37,9 +37,12 @@ def qfile(tmp_path, monkeypatch):
 
 def test_p1_defer_files_item(qfile):
     item = dq.add("kimi", "py -m pytest tests/test_x.py -q", needs="exec")
-    assert item["id"] and item["needs"] == "exec" and item["by"] == "kimi"
+    assert item["id"]
+    assert item["needs"] == "exec"
+    assert item["by"] == "kimi"
     stored = json.load(open(qfile, encoding="utf-8"))
-    assert len(stored["items"]) == 1 and stored["items"][0]["cmd"].startswith("py -m pytest")
+    assert len(stored["items"]) == 1
+    assert stored["items"][0]["cmd"].startswith("py -m pytest")
 
 
 def test_p2_done_requires_receipt(qfile):
@@ -47,7 +50,8 @@ def test_p2_done_requires_receipt(qfile):
     with pytest.raises(ValueError):
         dq.mark_done(item["id"], seat="claude", receipt="")
     done = dq.mark_done(item["id"], seat="claude", receipt="ran GREEN 6/6, commit abc123")
-    assert done["done_by"] == "claude" and "GREEN" in done["receipt"]
+    assert done["done_by"] == "claude"
+    assert "GREEN" in done["receipt"]
 
 
 def test_p3_done_items_stay_as_history(qfile):

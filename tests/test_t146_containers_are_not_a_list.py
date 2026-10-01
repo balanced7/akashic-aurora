@@ -107,7 +107,8 @@ def test_n4_a_nested_def_is_still_not_a_candidate(tmp_path):
         "    return inner_helper()\n",
     )
     assert "outer" in got
-    assert "inner_helper" not in got and "hidden" not in got
+    assert "inner_helper" not in got
+    assert "hidden" not in got
 
 
 def test_n5_a_def_in_a_container_in_a_class_is_a_method(tmp_path):

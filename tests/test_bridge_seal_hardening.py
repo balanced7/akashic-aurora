@@ -48,7 +48,8 @@ def test_a_real_tombstone_still_verifies_after_the_body_is_gone(alice, bob):
     tomb = seal.tombstone(_env(alice, bob, seq=2, prev="m1"))
     assert "ct" not in tomb and "sig" not in tomb, "the body must not survive retirement"
     got = seal.verify_tombstone(tomb, sender_public=alice["verify_public"])
-    assert got["seq"] == 2 and got["prev"] == "m1"
+    assert got["seq"] == 2
+    assert got["prev"] == "m1"
 
 
 def test_the_chain_refuses_records_that_were_never_verified(tmp_path):
@@ -270,7 +271,8 @@ def test_a_signed_advert_reveals_the_withheld_tail(alice, bob, tmp_path):
     adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, last_id="m6")
     got = seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")
     out = c.check_head("serge", got, verified=True)
-    assert out["missing_tail"] == [4, 5, 6] and out["behind_by"] == 3
+    assert out["missing_tail"] == [4, 5, 6]
+    assert out["behind_by"] == 3
 
 
 def test_the_midpoint_cannot_forge_an_advert(alice, bob, tmp_path):

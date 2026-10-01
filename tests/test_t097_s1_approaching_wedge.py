@@ -21,20 +21,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _probes(**over):
     """A healthy-idle agent by default; tests override single facets (mirrors test_fleet_doctor)."""
-    base = dict(
-        worklive=lambda a: {
+    base = {
+        "worklive": lambda a: {
             "phase": "idle",
             "detail": "",
             "turn": 3,
             "since_ts": time.time() - 5,
             "beat_ts": time.time() - 1,
         },
-        progress=lambda a: None,
-        backlog=lambda a: 0,
-        stalled_since=lambda a, present: None,
-        halted=lambda a: None,
-        now=time.time(),
-    )
+        "progress": lambda a: None,
+        "backlog": lambda a: 0,
+        "stalled_since": lambda a, present: None,
+        "halted": lambda a: None,
+        "now": time.time(),
+    }
     base.update(over)
     return base
 

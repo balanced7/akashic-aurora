@@ -54,7 +54,8 @@ def test_s7_title_whitespace_cannot_break_the_head():
     format (the W146 family, aimed at the renderer's own new line)."""
     notes = [_n("save:claude:evil\nlabel\twith   spaces")]
     line = agent_cli._boot_save_line("claude", notes)
-    assert "\n" not in line and "\t" not in line
+    assert "\n" not in line
+    assert "\t" not in line
     assert "save:claude:evil label with spaces" in line
 
 
@@ -64,7 +65,8 @@ def test_s4_foreign_seat_saves_never_leak():
     notes = [_n("save:deepseek:heimdall-arc"), _n("save:kimi:navi-arc")]
     assert agent_cli._boot_save_line("claude", notes) == ""
     line = agent_cli._boot_save_line("deepseek", notes)
-    assert "heimdall-arc" in line and "navi-arc" not in line
+    assert "heimdall-arc" in line
+    assert "navi-arc" not in line
 
 
 def test_s6_title_scoping_inherits_the_plane_trust_model():

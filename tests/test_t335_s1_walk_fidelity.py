@@ -139,7 +139,8 @@ def test_p3_a_walk_is_an_event_so_two_walks_are_two_records(tied, tmp_path):
     R.walk("test-string")
     walked = [r for r in _journal_kinds(tmp_path / "routes.jsonl") if r.get("kind") == "route_walked"]
     assert len(walked) == 2
-    assert walked[0].get("at") is not None and walked[1].get("at") is not None
+    assert walked[0].get("at") is not None
+    assert walked[1].get("at") is not None
 
 
 # ============================================================ ambiguity: depth is recorded

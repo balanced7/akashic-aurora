@@ -74,7 +74,8 @@ def test_p2_ambiguous_prefix_refuses_naming_candidates(db):
 
 def test_p3_full_address_still_resolves(db):
     ev = eye.get_event(f"{SESS_A}:1", db_path=db)
-    assert ev is not None and ev["text"] == "alpha utterance"
+    assert ev is not None
+    assert ev["text"] == "alpha utterance"
 
 
 def test_p4_true_absence_is_still_none(db):

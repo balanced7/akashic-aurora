@@ -222,22 +222,22 @@ def test_p9_partial_round_never_retracts_ghosts(fake, monkeypatch):
 def _probes(**over):
     import time
 
-    base = dict(
-        worklive=lambda a: {
+    base = {
+        "worklive": lambda a: {
             "phase": "idle",
             "detail": "",
             "turn": 1,
             "since_ts": time.time() - 5,
             "beat_ts": time.time() - 1,
         },
-        progress=lambda a: None,
-        backlog=lambda a: 0,
-        stalled_since=lambda a, present: None,
-        halted=lambda a: None,
-        lane_health=lambda a: None,
-        token_cost=lambda a: None,
-        bench_count=lambda a: 0,
-        now=time.time(),
-    )
+        "progress": lambda a: None,
+        "backlog": lambda a: 0,
+        "stalled_since": lambda a, present: None,
+        "halted": lambda a: None,
+        "lane_health": lambda a: None,
+        "token_cost": lambda a: None,
+        "bench_count": lambda a: 0,
+        "now": time.time(),
+    }
     base.update(over)
     return base

@@ -99,7 +99,8 @@ def test_p2_a_reposting_appends_and_the_prior_posting_survives(posted):
 
     R.place(agent="kimi", family="Jade", team="Red", number=1, by="daniil_pin")
     R.place(agent="kimi", family="Onyx", team="Blue", number=4, by="daniil_pin")
-    assert "Onyx" in R.designation("kimi") and "Blue" in R.designation("kimi")
+    assert "Onyx" in R.designation("kimi")
+    assert "Blue" in R.designation("kimi")
     hist = R.placement_history("kimi")
     fams = [h.get("family") for h in hist]
     # Assert the TAIL, not the whole list. The fixture is module-scoped, so earlier tests have

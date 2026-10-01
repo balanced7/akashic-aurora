@@ -56,7 +56,8 @@ def test_planted_mistag_flagged():
     ids = [s.beat_id for s in suspects]
     assert ids == ["b3"], f"only the planted low-conf lone tag should flag, got {ids}"
     s = suspects[0]
-    assert "low_confidence" in s.reasons and any("inconsistent" in r for r in s.reasons)
+    assert "low_confidence" in s.reasons
+    assert any("inconsistent" in r for r in s.reasons)
 
 
 def test_no_false_alarms_on_high_or_confirmed():

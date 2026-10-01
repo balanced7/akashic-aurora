@@ -77,7 +77,7 @@ def env(monkeypatch, tmp_path):
 
 
 def test_f1_attribution_lands_on_the_t056_accumulator(env):
-    SF, TC, sid, ns, c = env
+    SF, TC, sid, _ns, c = env
     SF.set_focus(sid, "T900")
     for _ in range(3):
         SF.record_call(sid, "Read", "core/eye/index.py")
@@ -87,7 +87,7 @@ def test_f1_attribution_lands_on_the_t056_accumulator(env):
 
 
 def test_f2_hits_and_misses_follow_the_declared_files(env):
-    SF, TC, sid, ns, c = env
+    SF, _TC, sid, _ns, _c = env
     SF.set_focus(sid, "T900")
     SF.record_call(sid, "Read", "core/eye/index.py")  # exact file
     SF.record_call(sid, "Write", "scripts/hooks/whatever.py")  # under a declared dir
@@ -100,7 +100,7 @@ def test_f2_hits_and_misses_follow_the_declared_files(env):
 
 
 def test_f3_the_nudge_is_silent_below_the_threshold(env):
-    SF, TC, sid, ns, c = env
+    SF, _TC, sid, _ns, _c = env
     SF.set_focus(sid, "T900")
     for _ in range(SF.MISS_BEFORE_NUDGE - 1):
         SF.record_call(sid, "Read", "somewhere/else.txt")
@@ -113,7 +113,7 @@ def test_f3_the_nudge_is_silent_below_the_threshold(env):
 
 
 def test_f4_a_task_with_no_declared_files_is_never_nagged(env):
-    SF, TC, sid, ns, c = env
+    SF, TC, sid, _ns, c = env
     SF.set_focus(sid, "T901")  # declares no files
     for _ in range(SF.MISS_BEFORE_NUDGE * 2):
         SF.record_call(sid, "Read", "anything/at/all.py")
@@ -126,7 +126,7 @@ def test_f4_a_task_with_no_declared_files_is_never_nagged(env):
 
 
 def test_f5_quiet_silences_notes_but_keeps_counting(env):
-    SF, TC, sid, ns, c = env
+    SF, TC, sid, _ns, c = env
     SF.set_focus(sid, "T900")
     SF.quiet(sid)
     for _ in range(SF.MISS_BEFORE_NUDGE + 2):
@@ -138,7 +138,7 @@ def test_f5_quiet_silences_notes_but_keeps_counting(env):
 
 
 def test_f6_two_dismissals_silence_it_on_their_own(env):
-    SF, TC, sid, ns, c = env
+    SF, _TC, sid, _ns, _c = env
     SF.set_focus(sid, "T900")
     for _ in range(SF.DISMISS_QUIET):
         for _ in range(SF.MISS_BEFORE_NUDGE):
@@ -151,7 +151,7 @@ def test_f6_two_dismissals_silence_it_on_their_own(env):
 
 
 def test_f7_finalize_keeps_a_tool_calls_only_accumulator(env):
-    SF, TC, sid, ns, c = env
+    SF, TC, sid, _ns, c = env
     SF.set_focus(sid, "T900")
     for _ in range(5):
         SF.record_call(sid, "Read", "core/eye/index.py")
@@ -165,7 +165,7 @@ def test_f7_finalize_keeps_a_tool_calls_only_accumulator(env):
 
 
 def test_f8_cost_line_renders_a_tool_calls_only_task(env):
-    SF, TC, sid, ns, c = env
+    _SF, TC, _sid, _ns, _c = env
     line = TC.cost_line({"status": "done", "cost_tool_calls": 42})
     assert line and "42" in line, f"F8: a tool-calls-only task must not render as nothing: {line!r}"
     assert TC.cost_line({"status": "in_progress", "cost_tool_calls": 42}) == "", (
@@ -174,7 +174,7 @@ def test_f8_cost_line_renders_a_tool_calls_only_task(env):
 
 
 def test_f9_an_unknown_task_is_refused(env):
-    SF, TC, sid, ns, c = env
+    SF, _TC, sid, _ns, _c = env
     r = SF.set_focus(sid, "T99999")
     assert not r.get("ok"), "F9: focusing a typo would attribute a day's work to nothing"
     assert SF.current(sid) is None, "F9: a refused focus must leave no record behind"

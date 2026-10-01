@@ -93,7 +93,8 @@ def test_p2_the_report_never_contains_the_secret_itself(repo, capsys):
 # ---------------------------------------------------------------- P3: clean is clean
 def test_p3_a_clean_tree_passes_quietly(repo):
     rep = CS.scan_tracked(repo)
-    assert rep["findings"] == [] and rep["ok"] is True
+    assert rep["findings"] == []
+    assert rep["ok"] is True
     assert rep["scanned"] >= 1, "it must state how many files it looked at"
 
 

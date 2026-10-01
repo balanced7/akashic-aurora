@@ -121,7 +121,8 @@ def test_summary_sink_conditions_recorded(receipt):
     assert sc["sync"] is True
     assert sc["qos"] is True
     assert sc["late_frames_can_drop"] is True
-    assert isinstance(sc["max_lateness_ns"], int) and sc["max_lateness_ns"] > 0
+    assert isinstance(sc["max_lateness_ns"], int)
+    assert sc["max_lateness_ns"] > 0
 
 
 def test_total_dropped_consistent_with_sources(receipt):
@@ -199,7 +200,8 @@ def test_amendment_records_who_and_what_changed(receipt):
     am = receipt["amendments"][0]
     for k in ("at", "by", "changes", "unchanged"):
         assert k in am, f"amendment missing {k!r}"
-    assert isinstance(am["changes"], list) and am["changes"]
+    assert isinstance(am["changes"], list)
+    assert am["changes"]
 
 
 def test_current_verdict_gated_count_unchanged_by_amendment(receipt):

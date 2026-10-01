@@ -241,7 +241,8 @@ def test_dynamic_tool_reverse_request_is_answered_without_blocking_stdout_reader
 
     assert result.status == "completed"
     assert result.text == "governed verb output"
-    assert seen and seen[0]["tool"] == "aurora_read_verb"
+    assert seen
+    assert seen[0]["tool"] == "aurora_read_verb"
     traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     initialize = next(item for item in traffic if item.get("method") == "initialize")
     assert initialize["params"]["capabilities"] == {"experimentalApi": True}
@@ -304,7 +305,8 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         AURORA_COMBO_CATALOG_TOOL_NAME,
     ]
     assert watcher._toolbox.agent_id == "sol"
-    assert watcher._toolbox.allow_exec is True and watcher._toolbox.trust is True
+    assert watcher._toolbox.allow_exec is True
+    assert watcher._toolbox.trust is True
     assert "command" not in AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
     advertised_verbs = set(AURORA_READ_VERB_TOOL["inputSchema"]["properties"]["verb"]["enum"])
     assert {"task", "fence", "notes"}.isdisjoint(advertised_verbs)
@@ -385,7 +387,10 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
             return cap == Cap.EXEC
 
     belt_root = tmp_path / "belts"
-    known_verbs = lambda: {"triage", "doctor", "locks", "lookback", "learn"}
+
+    def known_verbs():
+        return {"triage", "doctor", "locks", "lookback", "learn"}
+
     belt = Toolbelt("sol", root=str(belt_root), known_verbs=known_verbs)
     belt.mint(
         "pressure",
@@ -440,10 +445,14 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
     )
     catalog_body = catalog["contentItems"][0]["text"]
     assert catalog["success"] is True
-    assert "pressure" in catalog_body and "ADMITTED" in catalog_body
-    assert "late-mutation" in catalog_body and "OMITTED" in catalog_body
-    assert "learn" in catalog_body and "safe read grammar" in catalog_body
-    assert "late-shell" in catalog_body and "shell metacharacters" in catalog_body
+    assert "pressure" in catalog_body
+    assert "ADMITTED" in catalog_body
+    assert "late-mutation" in catalog_body
+    assert "OMITTED" in catalog_body
+    assert "learn" in catalog_body
+    assert "safe read grammar" in catalog_body
+    assert "late-shell" in catalog_body
+    assert "shell metacharacters" in catalog_body
     peer_probe = watcher.handle_dynamic_tool_call(
         {
             "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
@@ -595,7 +604,8 @@ def test_exact_wake_read_does_not_touch_shared_cursor():
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     message = decode_exact_message(bus, mid)
-    assert message is not None and message.content == "Rill's answer"
+    assert message is not None
+    assert message.content == "Rill's answer"
     assert redis.calls == [("bifrost:inbox:sol", mid, mid, 1)]
 
 
@@ -638,7 +648,8 @@ def test_wake_prompt_is_subject_labelled_and_forbids_peer_interference():
         ),
     )
     assert "SUBJECT SEAT: sol" in prompt
-    assert "dsh_agent" in prompt and "Rill's answer" in prompt
+    assert "dsh_agent" in prompt
+    assert "Rill's answer" in prompt
     assert "Do not manage, stop, relaunch, inspect, or mutate Rill's process" in prompt
     assert "Do not consume or advance any Bifrost mailbox cursor" in prompt
 
@@ -677,7 +688,8 @@ def test_ratified_wake_identity_comes_from_the_resident_registry(monkeypatch):
     assert "IDENTITY AUTHORITY: resident-registry" in prompt
     assert "currently unratified" not in prompt
     assert "historical and unratified" not in instructions
-    assert "Sunshine" in instructions and "ratified" in instructions
+    assert "Sunshine" in instructions
+    assert "ratified" in instructions
 
 
 def test_environment_cannot_self_promote_a_callsign_when_registry_is_absent(monkeypatch):
@@ -966,8 +978,10 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     )
     result = watcher.handle(mid, redis.fields)
     assert result == {"mid": mid, "outcome": "replied", "reply_mid": "70-0"}
-    assert len(servers) == 1 and servers[0].turns == 1
-    assert servers[0].starts == 1 and servers[0].resumes == 0
+    assert len(servers) == 1
+    assert servers[0].turns == 1
+    assert servers[0].starts == 1
+    assert servers[0].resumes == 0
     assert state.thread_id == "thread-wake", "the first durable thread is bound before reuse"
     assert identity_reads == ["sol"], "one admitted turn gets exactly one identity snapshot"
     assert sends[0][:3] == ("dsh_agent", "reply", "A bounded reply from Sol.")
@@ -989,7 +1003,8 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     )
 
     assert watcher.handle(mid, redis.fields)["outcome"] == "duplicate"
-    assert servers[0].turns == 1 and len(sends) == 1
+    assert servers[0].turns == 1
+    assert len(sends) == 1
 
 
 def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
@@ -1034,7 +1049,8 @@ def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
 
     result = watcher.handle(mid, redis.fields)
     assert result["outcome"] == "replied"
-    assert servers[0].starts == 0 and servers[0].resumes == 1
+    assert servers[0].starts == 0
+    assert servers[0].resumes == 1
     assert servers[0].turns == 1
     assert sends[0][3]["continuity_thread_id"] == "thread-wake"
     assert sends[0][3]["continuity_source_thread_id"] == "thread-desktop"
@@ -1083,7 +1099,9 @@ def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp
     assert result == {"mid": mid, "outcome": "deferred_active_writer"}
     assert state.last_seen == "50-0"
     assert state.seen(mid) is False
-    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
+    assert server.starts == 0
+    assert server.resumes == 1
+    assert server.turns == 0
     assert sends == []
 
 
@@ -1127,4 +1145,6 @@ def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tm
     assert result["outcome"] == "continuity_refused"
     assert state.last_seen == "50-0"
     assert state.seen(mid) is False
-    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
+    assert server.starts == 0
+    assert server.resumes == 1
+    assert server.turns == 0

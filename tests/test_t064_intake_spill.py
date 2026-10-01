@@ -37,7 +37,7 @@ def _run(monkeypatch, tmp_path, body, cap=100):
 
 def test_s1_overflow_spills_full_original_and_confession_points(monkeypatch, tmp_path):
     body = "word " * 60  # 300 chars > 100 cap
-    stored, confessions = _run(monkeypatch, tmp_path, body)
+    _stored, confessions = _run(monkeypatch, tmp_path, body)
     assert confessions, "over-cap must confess"
     line = confessions[0]
     files = os.listdir(str(tmp_path))
@@ -59,7 +59,8 @@ def test_s2_in_band_marker_names_the_spill(monkeypatch, tmp_path):
 def test_s3_under_cap_untouched(monkeypatch, tmp_path):
     body = "small note"
     stored, confessions = _run(monkeypatch, tmp_path, body)
-    assert stored == body and not confessions
+    assert stored == body
+    assert not confessions
     assert os.listdir(str(tmp_path)) == [], "S3: no spill file for an under-cap value"
 
 

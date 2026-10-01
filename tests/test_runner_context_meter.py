@@ -73,8 +73,10 @@ def test_missing_cache_fields_do_not_break_accounting():
     """Not every provider reports a cache split. Absence must degrade, never raise."""
     a = _agent()
     a._absorb_usage(_Usage(500, 100))
-    assert a.prompt_tokens == 500 and a.completion_tokens == 100
-    assert a.cache_hit_tokens == 0 and a.cache_miss_tokens == 0
+    assert a.prompt_tokens == 500
+    assert a.completion_tokens == 100
+    assert a.cache_hit_tokens == 0
+    assert a.cache_miss_tokens == 0
 
 
 def test_cache_rate_is_reportable_and_safe_at_zero():

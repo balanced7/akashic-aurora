@@ -92,15 +92,15 @@ def test_p1_alias_same_tuple_second_name_refused():
     """Pin 1: two NAMES over one contract tuple are aliases; the registry refuses the
     second registration rather than minting a ghost category."""
     ss = _resolve("register_contract", "ContractAliasRefused")
-    kwargs = dict(
-        input_kind="recall.at_action.rank.v1",
-        outcome_schema=("emitted", "silent", "abstained", "error"),
-        comparison="same_identity_set",
-        retention="beta-14d",
-        writers=("watcher", "evaluator"),
-        reader="disagreements_first",
-        delivery=None,
-    )
+    kwargs = {
+        "input_kind": "recall.at_action.rank.v1",
+        "outcome_schema": ("emitted", "silent", "abstained", "error"),
+        "comparison": "same_identity_set",
+        "retention": "beta-14d",
+        "writers": ("watcher", "evaluator"),
+        "reader": "disagreements_first",
+        "delivery": None,
+    }
     ss.register_contract("rank-beta", **kwargs)
     with pytest.raises((ValueError, getattr(ss, "ContractAliasRefused", ValueError))):
         ss.register_contract("rank-beta-alias", **kwargs)
@@ -113,15 +113,15 @@ def test_p1_same_name_two_tuples_is_a_version_conflict_refused():
     # Use a tuple distinct from the alias fixture above.  The contract registry is
     # intentionally process-lifetime state: reusing that fixture here would demand
     # both that its second name be refused (the preceding pin) and accepted (this pin).
-    a = dict(
-        input_kind="recall.at_action.rank.v1",
-        outcome_schema=("emitted", "silent", "abstained", "error"),
-        comparison="same_identity_set",
-        retention="conflict-fixture-14d",
-        writers=("watcher", "evaluator"),
-        reader="disagreements_first",
-        delivery=None,
-    )
+    a = {
+        "input_kind": "recall.at_action.rank.v1",
+        "outcome_schema": ("emitted", "silent", "abstained", "error"),
+        "comparison": "same_identity_set",
+        "retention": "conflict-fixture-14d",
+        "writers": ("watcher", "evaluator"),
+        "reader": "disagreements_first",
+        "delivery": None,
+    }
     b = dict(a, comparison="score_comparable")  # differs ONLY in comparison semantics
     ss.register_contract("rank", **a)
     with pytest.raises(ValueError):
@@ -161,17 +161,17 @@ def test_p2_duplicate_source_cohort_write_is_idempotent(tmp_path):
     """Pin 2: re-recording the same source/cohort does not mint a second envelope."""
     ss = _resolve("open_observation", "record_envelope", "count_envelopes")
     db = ss.open_observation(tmp_path / "obs.sqlite")
-    common = dict(
-        subject="sol",
-        purpose_id="recall-at-action",
-        contract_id="rank-beta",
-        cohort_version=7,
-        watcher_incarnation="host-1",
-        decisions={
+    common = {
+        "subject": "sol",
+        "purpose_id": "recall-at-action",
+        "contract_id": "rank-beta",
+        "cohort_version": 7,
+        "watcher_incarnation": "host-1",
+        "decisions": {
             "champion": {"outcome": "emitted", "items": []},
             "challenger": {"outcome": "abstained", "items": []},
         },
-    )
+    }
     ss.record_envelope(db, source_fingerprint="sha256:dup", **common)
     ss.record_envelope(db, source_fingerprint="sha256:dup", **common)
     assert ss.count_envelopes(db) == 1
@@ -321,15 +321,18 @@ def test_p10_kill_between_calc_and_commit_is_zero_or_complete(tmp_path):
     class Kill(RuntimeError):
         """Models the process dying mid-commit."""
 
-    common = dict(
-        source_fingerprint="sha256:kill",
-        subject="sol",
-        purpose_id="recall-at-action",
-        contract_id="rank-beta",
-        cohort_version=7,
-        watcher_incarnation="host-1",
-        decisions={"champion": {"outcome": "emitted", "items": []}, "challenger": {"outcome": "silent", "items": []}},
-    )
+    common = {
+        "source_fingerprint": "sha256:kill",
+        "subject": "sol",
+        "purpose_id": "recall-at-action",
+        "contract_id": "rank-beta",
+        "cohort_version": 7,
+        "watcher_incarnation": "host-1",
+        "decisions": {
+            "champion": {"outcome": "emitted", "items": []},
+            "challenger": {"outcome": "silent", "items": []},
+        },
+    }
 
     # Inject the fault: the cohort is calculated, then the host dies before commit.
     with pytest.raises(Kill):
@@ -354,14 +357,17 @@ def test_p10_retry_after_kill_is_idempotent(tmp_path):
     (idempotency keyed on source/cohort fingerprint, not a backend cursor)."""
     ss = _resolve("open_observation", "record_envelope", "count_envelopes")
     db = ss.open_observation(tmp_path / "obs.sqlite")
-    common = dict(
-        subject="sol",
-        purpose_id="recall-at-action",
-        contract_id="rank-beta",
-        cohort_version=7,
-        watcher_incarnation="host-1",
-        decisions={"champion": {"outcome": "emitted", "items": []}, "challenger": {"outcome": "silent", "items": []}},
-    )
+    common = {
+        "subject": "sol",
+        "purpose_id": "recall-at-action",
+        "contract_id": "rank-beta",
+        "cohort_version": 7,
+        "watcher_incarnation": "host-1",
+        "decisions": {
+            "champion": {"outcome": "emitted", "items": []},
+            "challenger": {"outcome": "silent", "items": []},
+        },
+    }
     ss.record_envelope(db, source_fingerprint="sha256:retry", **common)
     ss.record_envelope(db, source_fingerprint="sha256:retry", **common)
     assert ss.count_envelopes(db) == 1
@@ -458,9 +464,8 @@ def test_p12_module_source_has_no_forbidden_imports():
             for alias in node.names:
                 if alias.name in _FORBIDDEN_P12:
                     offending.append(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            if node.module in _FORBIDDEN_P12:
-                offending.append(node.module)
+        elif isinstance(node, ast.ImportFrom) and node.module in _FORBIDDEN_P12:
+            offending.append(node.module)
     assert not offending, f"shadow_shelf source imports forbidden writer surface: {sorted(set(offending))}"
 
 

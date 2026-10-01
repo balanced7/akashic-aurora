@@ -83,9 +83,11 @@ def test_b2_ack_marks_handled(monkeypatch):
     monkeypatch.setattr(promoter, "ack", fake_ack)
     tb = _toolbox()
     out = tb.bifrost_ack("1784082287759-0")
-    assert calls["by"] == "testseek" and calls["msg_id"] == "1784082287759-0"
+    assert calls["by"] == "testseek"
+    assert calls["msg_id"] == "1784082287759-0"
     assert "ToolBox" in calls["note"]
-    assert "acked" in out and "1784082287759-0" in out
+    assert "acked" in out
+    assert "1784082287759-0" in out
 
     calls["_refuse"] = True
     out2 = tb.bifrost_ack("1784082287759-0")
@@ -177,7 +179,8 @@ def test_q1_private_notes_in_boot(monkeypatch):
     out = _runner().fold_private_notes("SYSBASE", "pintest")
     assert out.startswith("SYSBASE"), "the fold appends; it never rewrites the system text"
     assert "YOUR PRIVATE NOTES" in out
-    assert "alpha" in out and "remember the seam" in out
+    assert "alpha" in out
+    assert "remember the seam" in out
     assert "gone" not in out, "superseded notes stay dead"
     assert "not mine" not in out, "another seat's notes never leak into this boot"
 

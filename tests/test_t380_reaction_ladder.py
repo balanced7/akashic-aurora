@@ -156,7 +156,7 @@ def test_p4_unlinked_reply_is_distinct_op_and_window_capped():
         )
 
         # window cap: a stale entry must NOT be settled by fresh chatter
-        b2, mid2 = _operator_send(c, ns, text="older question")
+        _b2, mid2 = _operator_send(c, ns, text="older question")
         t2 = _tracker(c, ns)
         t2.track(mid2, to_agents=["claude"], channel_id="chan1", discord_msg_id="dmsg2")
         t2._entries[mid2].tracked_ts = time.time() - (REPLIED_WINDOW_S + 60)

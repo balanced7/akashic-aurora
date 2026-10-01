@@ -73,12 +73,14 @@ def _head(m, title=TITLE):
 def test_same_target_race_one_active_loser_errors(mem):
     a = mem.decide_with_retry(TITLE, "state A")
     winner = mem.decide(TITLE, "state B", supersedes=a)
-    assert winner and _head(mem) == winner
+    assert winner
+    assert _head(mem) == winner
     with pytest.raises(SupersedeRaceError) as ei:
         mem.decide(TITLE, "state B-prime", supersedes=a)  # same stale target = the race
     assert winner in str(ei.value), "the error teaches: it names the winning head"
     actives = _actives(mem)
-    assert len(actives) == 1 and actives[0].id == winner
+    assert len(actives) == 1
+    assert actives[0].id == winner
     assert all(d.superseded for d in _all(mem) if d.id != winner), (
         "the loser's own record is auto-retired, never left active-unheaded"
     )
@@ -89,7 +91,8 @@ def test_same_target_race_one_active_loser_errors(mem):
 
 def test_concurrent_first_note_gated(mem):
     first = mem.decide(TITLE, "genesis")  # supersedes=None claims fresh head
-    assert first and _head(mem) == first
+    assert first
+    assert _head(mem) == first
     with pytest.raises(SupersedeRaceError):
         mem.decide(TITLE, "rival genesis")  # head now foreign+active -> lose
     assert len(_actives(mem)) == 1
@@ -134,7 +137,8 @@ def test_retired_head_is_claimable(mem):
     assert mem.retire_decision(a)  # tombstone; sentinel untouched by design
     assert _head(mem) == a, "retire_decision never touches the sentinel"
     b = mem.decide(TITLE, "B after tombstone")  # retired current -> claimable
-    assert b and _head(mem) == b
+    assert b
+    assert _head(mem) == b
     assert len(_actives(mem)) == 1
 
 
@@ -144,7 +148,8 @@ def test_retired_head_is_claimable(mem):
 def test_dangling_head_is_claimable(mem):
     mem.store.set(HEAD_KEY_PREFIX + normalize_title(TITLE), "ADR_ghost_00000000")
     b = mem.decide(TITLE, "B over dangling pointer")
-    assert b and _head(mem) == b
+    assert b
+    assert _head(mem) == b
 
 
 # --- (7) id hardening: same-second generation cannot collide ---
@@ -211,7 +216,8 @@ def test_lazy_bootstrap_pre_head_corpus(mem):
         mem.store.zadd(mem.KEY_DECISION_INDEX, {d.id: datetime.fromisoformat(d.created_at).timestamp()})
     assert _head(mem) is None, "pre-head corpus: no sentinel yet"
     c = mem.decide_with_retry(TITLE, "post-RB-8 write")
-    assert c and _head(mem) == c
+    assert c
+    assert _head(mem) == c
     recs = {d.id: d for d in _all(mem)}
     assert recs[c].supersedes == new.id, "bootstrap derived the head from the newest active"
     assert len(_actives(mem)) == 1

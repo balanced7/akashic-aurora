@@ -75,7 +75,7 @@ def _forge(mem, dec_id, title, body, created, superseded=False, supersedes=None)
 def test_trailing_space_renote_supersedes_clean_title(mem):
     a = mem.decide_with_retry("where-we-are", "clean")
     b = mem.decide_with_retry("where-we-are  ", "dirty-authored re-note")
-    active = [d for d in mem.get_decisions(days=3650)]
+    active = list(mem.get_decisions(days=3650))
     assert [d.id for d in active] == [b], "NFC+strip: one chain, one active"
 
 

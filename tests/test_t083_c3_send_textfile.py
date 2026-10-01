@@ -40,8 +40,7 @@ def _run(argv, monkeypatch):
     _FakeBus.sent = None
     parser = agent_cli.build_parser() if hasattr(agent_cli, "build_parser") else None
     if parser is None:  # fall back to main() with argv
-        rc = agent_cli.main(argv)
-        return rc
+        return agent_cli.main(argv)
     args = parser.parse_args(argv)
     return args.fn(args)
 

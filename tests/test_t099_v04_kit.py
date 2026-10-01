@@ -29,7 +29,8 @@ def _belt(tmp_path, agent="kimi", quota=20):
 
 def test_p1_install_empty_belt_all_minted(tmp_path):
     rep = kit.install(kit.RECOVERY_KIT, _belt(tmp_path))
-    assert rep["ok"] and rep["seat"] == "kimi"
+    assert rep["ok"]
+    assert rep["seat"] == "kimi"
     assert all(e["result"] == "minted" for e in rep["entries"]), rep
     assert len(rep["entries"]) == 4
 

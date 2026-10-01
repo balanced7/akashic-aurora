@@ -30,7 +30,8 @@ def test_bump_and_snapshot():
     bump(store, "route:path")
     bump(store, "route:error", 3)
     snap = snapshot(store)
-    assert snap["route:path"] == 2 and snap["route:error"] == 3
+    assert snap["route:path"] == 2
+    assert snap["route:error"] == 3
     # a non-int counter value is tolerated, not fatal
     store.hset(HEALTH_KEY, "weird", "abc")
     assert snapshot(store)["weird"] == "abc"

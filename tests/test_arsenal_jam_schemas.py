@@ -56,8 +56,10 @@ DEF_FILES = sorted(p.name for p in FIX.glob("def_*.json"))
 
 # ================================================================================================ fixtures accepted
 def test_fixture_set_is_there():
-    assert len(CARD_FILES) >= 5 and len(DEF_FILES) >= 5
-    assert (RUN_DIR / "run.json").is_file() and (RUN_DIR / "expected.json").is_file()
+    assert len(CARD_FILES) >= 5
+    assert len(DEF_FILES) >= 5
+    assert (RUN_DIR / "run.json").is_file()
+    assert (RUN_DIR / "expected.json").is_file()
     assert API["card"] == schemas.CARD_API == "arsenal.jam.card/v0"
 
 
@@ -100,7 +102,9 @@ def test_def_fixtures_cover_sections_rests_exact_notes_and_no_card():
     assert any(d["beats_per_bar"] == 3 for d in defs)
     assert any(d.get("landing") for d in defs)
     rests = [
-        d for d in defs if any(a["at_beat"] + a["beats"] < b["at_beat"] for a, b in zip(d["slots"], d["slots"][1:]))
+        d
+        for d in defs
+        if any(a["at_beat"] + a["beats"] < b["at_beat"] for a, b in zip(d["slots"], d["slots"][1:], strict=False))
     ]
     assert rests
 
@@ -108,7 +112,8 @@ def test_def_fixtures_cover_sections_rests_exact_notes_and_no_card():
 def test_lament_def_keeps_its_upper_voices_with_f():
     d = load("def_lament_bass.json")
     uppers = {tuple(s["voicings"]["full"][1:]) for s in d["slots"]}
-    assert len(uppers) == 1 and 65 in next(iter(uppers))  # F4 stays in the shared shape
+    assert len(uppers) == 1
+    assert 65 in next(iter(uppers))
     assert [s["voicings"]["bass"][0] for s in d["slots"]] == [46, 44, 42, 41]
 
 
@@ -124,7 +129,8 @@ def test_run_events_validate_and_agree_with_run_json():
     for line in lines:
         assert validate_run_event(line) == line
     assert [line["seq"] for line in lines] == list(range(len(lines)))
-    assert lines[0]["kind"] == "start" and lines[0]["def"] == load("def_lydian_four.json")
+    assert lines[0]["kind"] == "start"
+    assert lines[0]["def"] == load("def_lydian_four.json")
     changes = [line for line in lines if line["kind"] == "change"]
     assert changes[-1]["segments"] == run["segments"]
     stop = next(line for line in lines if line["kind"] == "stop")
@@ -214,7 +220,7 @@ def _differ(got, want, key, op, path=""):
     if isinstance(want, list):
         if not isinstance(got, list) or len(got) != len(want):
             return f"{where}: got {got!r} want {want!r}"
-        for i, (g, w) in enumerate(zip(got, want)):
+        for i, (g, w) in enumerate(zip(got, want, strict=False)):
             d = _differ(g, w, key, op, f"{path}[{i}]")
             if d:
                 return d
@@ -722,7 +728,8 @@ def test_seed_validates_and_keeps_moments_out():
 
 def test_concept_card_may_leave_chords_out_but_a_loop_may_not():
     one = _one()
-    assert "chords" not in one and validate_card(one, stored=True)
+    assert "chords" not in one
+    assert validate_card(one, stored=True)
     loop = _lydian()
     loop.pop("chords")
     loop.pop("bars")

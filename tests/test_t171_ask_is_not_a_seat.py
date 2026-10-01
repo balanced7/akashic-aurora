@@ -74,14 +74,16 @@ def test_k2_a_truncated_answer_is_partial_not_complete():
 
 def test_k3_an_empty_answer_is_a_named_failure():
     o = A.ask("hello", client=_Client(_Resp("   ")))
-    assert o.ok is False and o.why
+    assert o.ok is False
+    assert o.why
     assert "empty" in o.why.lower()
 
 
 def test_k4_a_raising_client_is_caught_and_named():
     o = A.ask("hello", client=_Client(exc=RuntimeError("connection reset")))
     assert o.ok is False
-    assert "RuntimeError" in o.why and "connection reset" in o.why
+    assert "RuntimeError" in o.why
+    assert "connection reset" in o.why
 
 
 def test_k5_no_key_is_a_configuration_failure_that_says_so(monkeypatch):

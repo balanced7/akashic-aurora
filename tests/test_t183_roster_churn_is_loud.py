@@ -128,11 +128,13 @@ def test_k7_two_live_incarnations_of_one_agent_is_itself_the_signal():
     assert g["split_brain"] is True, "two live seats on one id must be stated, not averaged away"
     assert set(g["live_sids"]) == {"aaaa0001", "bbbb0002"}, "name BOTH; delivery splits between them"
     single = by_agent([_row("kimi", "LIVE", 1, sid8="cccc0003")])[0]
-    assert single["split_brain"] is False and single["live_sids"] == ["cccc0003"]
+    assert single["split_brain"] is False
+    assert single["live_sids"] == ["cccc0003"]
 
 
 def test_k6_a_fully_dead_agent_still_appears():
     rows = [_row("ghost", "DEAD", 70000), _row("ghost", "DEAD", 71000)]
     g = by_agent(rows)[0]
-    assert g["agent"] == "ghost" and g["state"] == "DEAD"
+    assert g["agent"] == "ghost"
+    assert g["state"] == "DEAD"
     assert g["live_sid8"] is None, "no living incarnation must read as None, never as a stale one"

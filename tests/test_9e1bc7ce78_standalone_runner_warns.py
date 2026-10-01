@@ -148,7 +148,8 @@ def test_p5_stop_hook_nag_names_the_listener_manager_mode(tmp_path):
     v = ds.stop_hook_wake_verdict(
         "claude", "aaaabbbb-1111-2222-3333-444455556666", c=FakeRedis(), ns="bifrost", tmp=str(tmp_path)
     )
-    assert v["pass"] is False and v.get("nag")
+    assert v["pass"] is False
+    assert v.get("nag")
     assert "--manage-listener" in v["line"], (
         "P5: the nag prescribes a mode that cannot consume rearms (manage_listener only)"
     )

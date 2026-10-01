@@ -75,7 +75,9 @@ def test_p2_a_clean_history_reads_100(tmp_path):
         ],
     )
     r = cp.audit_stats(10, root=str(d))
-    assert r["total"] == 1 and r["clean"] == 1 and r["pct"] == 100.0
+    assert r["total"] == 1
+    assert r["clean"] == 1
+    assert r["pct"] == 100.0
 
 
 def test_p3_a_test_plus_source_commit_is_a_violation(tmp_path):
@@ -92,7 +94,9 @@ def test_p3_a_test_plus_source_commit_is_a_violation(tmp_path):
         ],
     )
     r = cp.audit_stats(10, root=str(d))
-    assert r["total"] == 1 and r["violations"] == 1 and r["pct"] == 0.0
+    assert r["total"] == 1
+    assert r["violations"] == 1
+    assert r["pct"] == 0.0
 
 
 def test_p4_the_scorecard_reports_the_measured_rate(tmp_path, capsys):

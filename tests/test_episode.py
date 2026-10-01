@@ -37,7 +37,8 @@ def test_current_auto_opens_and_returns_contract_shape():
     for k in ("id", "title", "description", "why", "started", "duration_seconds", "beats_count", "suggestion"):
         assert k in cur, k
     assert cur["suggestion"] is None
-    assert cur["title"] == "" and cur["why"] == ""  # fresh episode is empty until closed
+    assert cur["title"] == ""
+    assert cur["why"] == ""
 
 
 def test_beats_accrue_into_current_duration_and_count():
@@ -65,10 +66,12 @@ def test_close_drafts_fields_opens_next_and_stamps_span_end():
     assert draft["title"]  # drafted from the salient beat
     assert "parser" in draft["title"].lower() or "parser" in draft["description"].lower()
     # WHY comes from the decision beat (the intent), not the highest-weight edit beat
-    assert "because" in draft["why"].lower() and "qa" in draft["why"].lower()
+    assert "because" in draft["why"].lower()
+    assert "qa" in draft["why"].lower()
     # the closed chapter is stamped + persisted; a NEW current episode is open
     closed = load_chapter_from_store(s, draft["chapter_id"])
-    assert closed.span_end == "2026-07-07T10:05:00" and closed.why == draft["why"]
+    assert closed.span_end == "2026-07-07T10:05:00"
+    assert closed.why == draft["why"]
     assert res["new_current_chapter"]["id"] != draft["chapter_id"]
     assert res["new_current_chapter"]["duration_seconds"] == 0
 
@@ -105,7 +108,9 @@ def test_user_fields_win_over_draft():
     draft = ep.close_episode(s, now="2026-07-07T10:02:00", title="My Title", why="My Why", description="My Desc")[
         "draft"
     ]
-    assert draft["title"] == "My Title" and draft["why"] == "My Why" and draft["description"] == "My Desc"
+    assert draft["title"] == "My Title"
+    assert draft["why"] == "My Why"
+    assert draft["description"] == "My Desc"
 
 
 def test_writer_seam_paraphrases_why():
@@ -132,11 +137,13 @@ def test_accept_applies_edits_and_marks_final_idempotently():
     _emit(s, "note", "work", "2026-07-07T10:00:30")
     cid = ep.close_episode(s, now="2026-07-07T10:02:00")["draft"]["chapter_id"]
     out = ep.accept_episode(s, cid, title="Final Title", why="Final Why")
-    assert out["chapter"]["final"] is True and out["chapter"]["title"] == "Final Title"
+    assert out["chapter"]["final"] is True
+    assert out["chapter"]["title"] == "Final Title"
     assert load_chapter_from_store(s, cid).final is True
     # idempotent re-accept
     again = ep.accept_episode(s, cid, why="Edited Again")
-    assert again["chapter"]["why"] == "Edited Again" and again["chapter"]["final"] is True
+    assert again["chapter"]["why"] == "Edited Again"
+    assert again["chapter"]["final"] is True
 
 
 def test_accept_unknown_chapter_is_error_not_raise():
@@ -185,4 +192,5 @@ def test_session_start_reuses_single_open_episode():
     # a second boot without an explicit end: prior open episode is closed, exactly one stays open
     start_session(s, now="2026-07-07T11:00:00", chronicle=False)
     second = ep._load_open(s)["chapter_id"]
-    assert second != first and ep._load_open(s) is not None
+    assert second != first
+    assert ep._load_open(s) is not None

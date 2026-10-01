@@ -22,7 +22,7 @@ def ari(gold: Sequence, pred: Sequence) -> float:
     n = len(gold)
     if n == 0:
         return 1.0
-    pair = Counter(zip(gold, pred))
+    pair = Counter(zip(gold, pred, strict=False))
     a = sum(_comb2(v) for v in pair.values())
     b = sum(_comb2(v) for v in Counter(gold).values())
     c = sum(_comb2(v) for v in Counter(pred).values())
@@ -48,7 +48,7 @@ def nmi(gold: Sequence, pred: Sequence) -> float:
 
     gc, pc = Counter(gold), Counter(pred)
     mi = 0.0
-    for (g, p), v in Counter(zip(gold, pred)).items():
+    for (g, p), v in Counter(zip(gold, pred, strict=False)).items():
         pij, pi, pj = v / n, gc[g] / n, pc[p] / n
         mi += pij * math.log(pij / (pi * pj))
     denom = (H(gold) + H(pred)) / 2
@@ -60,7 +60,7 @@ def purity(gold: Sequence, pred: Sequence) -> float:
     if n == 0:
         return 1.0
     clusters = defaultdict(list)
-    for g, p in zip(gold, pred):
+    for g, p in zip(gold, pred, strict=False):
         clusters[p].append(g)
     return sum(max(Counter(v).values()) for v in clusters.values()) / n
 
@@ -68,7 +68,7 @@ def purity(gold: Sequence, pred: Sequence) -> float:
 def accuracy(gold: Sequence, pred: Sequence) -> float:
     if not gold:
         return 1.0
-    return sum(1 for g, p in zip(gold, pred) if g == p) / len(gold)
+    return sum(1 for g, p in zip(gold, pred, strict=False) if g == p) / len(gold)
 
 
 def boundaries(labels: Sequence) -> list[int]:
@@ -152,7 +152,7 @@ def multilabel_prf(
     weights every membership equally and degrades gracefully on empty label sets.
     """
     tp = fp = fn = 0
-    for g, p in zip(gold_sets, pred_sets):
+    for g, p in zip(gold_sets, pred_sets, strict=False):
         g, p = set(g), set(p)
         tp += len(g & p)
         fp += len(p - g)
@@ -169,7 +169,7 @@ def jaccard_multilabel(
 ) -> float:
     """Mean per-item Jaccard overlap of label sets (1.0 = identical sets each item)."""
     scores, n = 0.0, 0
-    for g, p in zip(gold_sets, pred_sets):
+    for g, p in zip(gold_sets, pred_sets, strict=False):
         g, p = set(g), set(p)
         union = g | p
         scores += (len(g & p) / len(union)) if union else 1.0

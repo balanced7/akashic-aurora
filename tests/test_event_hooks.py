@@ -82,7 +82,8 @@ def test_log_hook_captures():
     rc = agent_cli.cmd_log(_Args(kind="observation", summary=marker, source="tester:act", category="testing", task="t"))
     assert rc == 0
     ev = _find(marker, kind="observation")
-    assert ev is not None and "tester:act" in ev.get("refs", [])
+    assert ev is not None
+    assert "tester:act" in ev.get("refs", [])
 
 
 def test_boot_hook_captures():
@@ -159,7 +160,8 @@ def test_hook_survives_capture_failure(monkeypatch):
     # test makes is unchanged and slightly stronger: it must not RAISE, and the failure must
     # SAY what happened rather than being indistinguishable from "nothing to report".
     o = event_log.capture_event("note", "should not raise")
-    assert o.ok is False and "simulated auto-logger failure" in o.why
+    assert o.ok is False
+    assert "simulated auto-logger failure" in o.why
     # the host hook still returns success despite the broken logger
     rc = agent_cli.cmd_log(
         _Args(kind="note", summary=f"resilient_{uuid.uuid4().hex[:6]}", source="x:y", category="", task="")

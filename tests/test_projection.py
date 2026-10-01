@@ -9,7 +9,7 @@ from tests.test_atoms import FakeStore
 
 def _mint(tmp_path, **kw):
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "jsonl"))
-    defaults = dict(arc="t101", seats=["claude"], categories=["substrate"], now=1000.0)
+    defaults = {"arc": "t101", "seats": ["claude"], "categories": ["substrate"], "now": 1000.0}
     defaults.update(kw)
     return fam, fam.mint(
         kw.pop("type_", "design") if "type_" in kw else "design",
@@ -20,14 +20,15 @@ def _mint(tmp_path, **kw):
 
 
 def test_relpath_is_type_and_id_only():
-    fam, a = _mint(__import__("pathlib").Path(__import__("tempfile").gettempdir()))
+    _fam, a = _mint(__import__("pathlib").Path(__import__("tempfile").gettempdir()))
     rel = pj.projection_relpath(a)
     assert rel.startswith(os.path.join("docs", "library", "design"))
-    assert "substrate" not in rel and "t101" not in rel  # one-facet law: no facet in path
+    assert "substrate" not in rel
+    assert "t101" not in rel
 
 
 def test_render_writes_frontmatter_sha_and_guard(tmp_path):
-    fam, a = _mint(tmp_path)
+    _fam, a = _mint(tmp_path)
     path = pj.render_atom(a, repo_root=str(tmp_path))
     text = open(path, encoding="utf-8").read()
     assert text.startswith("---\n")
@@ -35,7 +36,8 @@ def test_render_writes_frontmatter_sha_and_guard(tmp_path):
     assert f"akashic_sha: {a['body_sha']}" in text
     assert "DO NOT EDIT" in text
     assert "category: [substrate]" in text
-    assert "# My Design" in text and "the body" in text
+    assert "# My Design" in text
+    assert "the body" in text
 
 
 def test_superseded_render_carries_banner(tmp_path):
@@ -44,7 +46,8 @@ def test_superseded_render_carries_banner(tmp_path):
     new = fam.supersede(old["id"], body="new", now=2.0)
     flipped = fam.get(old["id"])
     text = open(pj.render_atom(flipped, repo_root=str(tmp_path)), encoding="utf-8").read()
-    assert "SUPERSEDED" in text and new["id"] in text
+    assert "SUPERSEDED" in text
+    assert new["id"] in text
 
 
 def test_draft_and_live_conversation_banners(tmp_path):
@@ -53,4 +56,5 @@ def test_draft_and_live_conversation_banners(tmp_path):
     assert "DRAFT" in open(pj.render_atom(d, repo_root=str(tmp_path)), encoding="utf-8").read()
     c = fam.mint("chronicle", "thread", "b", origin="conversation", settled="live", now=2.0)
     text = open(pj.render_atom(c, repo_root=str(tmp_path)), encoding="utf-8").read()
-    assert "LIVE DISCUSSION" in text and "no ruling yet" in text
+    assert "LIVE DISCUSSION" in text
+    assert "no ruling yet" in text

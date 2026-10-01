@@ -19,7 +19,7 @@ def test_ir4_mirror_family_present():
         confirm=lambda x: True,
         agent_id="deepseek",
     )
-    argv, env_extra, why = tb._exec_family('py scripts/mirror.py "test msg" scripts/deepseek_chat.py')
+    argv, _env_extra, why = tb._exec_family('py scripts/mirror.py "test msg" scripts/deepseek_chat.py')
     assert argv is not None, f"mirror family refused: {why}"
     from core.comm.toolbox import _is_python
 

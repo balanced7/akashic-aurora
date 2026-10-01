@@ -77,7 +77,9 @@ def test_p4_hook_lines_render():
     assert pager.hook_lines(c=c) == []
     pager.page("deepseek", "runner down 12m", c=c)
     lines = pager.hook_lines(c=c)
-    assert len(lines) == 1 and "[PAGE]" in lines[0] and "runner down 12m" in lines[0]
+    assert len(lines) == 1
+    assert "[PAGE]" in lines[0]
+    assert "runner down 12m" in lines[0]
 
 
 def test_p5_fail_open():

@@ -139,7 +139,8 @@ def test_rehab_class_vacuous_axis1_axis2_carries():
         "schedule configuration first. Don't when offline."
     )
     rep = gate_edit("noisy_lesson", tightened, learning_store=_corpus(), events=[], injections=inj, min_relevance=FLOOR)
-    assert rep["axis1"]["vacuous"] is True and rep["axis1"]["credited_contexts"] == 0
+    assert rep["axis1"]["vacuous"] is True
+    assert rep["axis1"]["credited_contexts"] == 0
     assert rep["checks"]["grounding"]["ok"] and "schedule" in rep["checks"]["grounding"]["shared"], rep["checks"][
         "grounding"
     ]
@@ -230,7 +231,8 @@ def test_contraindication_must_survive():
 
 def test_unknown_lesson_fails_closed():
     rep = _gate("ghost_lesson", GOOD_EDIT)
-    assert rep["verdict"] == "FAIL" and any("no active lesson" in r for r in rep["reasons"])
+    assert rep["verdict"] == "FAIL"
+    assert any("no active lesson" in r for r in rep["reasons"])
     print("--- unknown lesson ---\n  fails closed with a teaching reason OK")
 
 
@@ -253,7 +255,8 @@ def test_reject_stamp_and_apply_rollback_roundtrip():
     rep = gate_edit(
         "seam_guard", DEGRADED_EDIT, learning_store=ls, events=EVENTS, injections=INJECTIONS, min_relevance=FLOOR
     )
-    assert rep["verdict"] == "FAIL" and rep.get("rejected_stamped") is True
+    assert rep["verdict"] == "FAIL"
+    assert rep.get("rejected_stamped") is True
     buf = json.loads(ls._load_experiment("seam_guard").get("forge_rejected") or "[]")
     assert buf and DEGRADED_EDIT[:60] in buf[0]["draft"], buf
     # PASS + apply swaps the text reversibly
@@ -264,11 +267,13 @@ def test_reject_stamp_and_apply_rollback_roundtrip():
     assert apply_edit("seam_guard", GOOD_EDIT, rep2, learning_store=ls) is True
     rec = ls._load_experiment("seam_guard")
     assert rec.get("recommendation") == GOOD_EDIT
-    assert rec.get("forge_previous_text") == INCUMBENT and rec.get("forge_provisional")
+    assert rec.get("forge_previous_text") == INCUMBENT
+    assert rec.get("forge_provisional")
     # rollback restores the incumbent and clears the provisional watch
     assert ls.rollback_forge_edit("seam_guard") is True
     rec2 = ls._load_experiment("seam_guard")
-    assert rec2.get("recommendation") == INCUMBENT and not rec2.get("forge_provisional")
+    assert rec2.get("recommendation") == INCUMBENT
+    assert not rec2.get("forge_provisional")
     print("--- stamp/apply/rollback ---\n  reject buffered; apply reversible; rollback restores OK")
 
 

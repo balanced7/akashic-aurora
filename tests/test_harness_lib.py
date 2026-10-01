@@ -73,7 +73,8 @@ def test_capture_writes_truncated_snapshot(tmp_path):
     d = str(tmp_path / "cap")
     capmod.capture({"tool": "Shell", "blob": "x" * 1000}, d, label="probe")
     files = os.listdir(d)
-    assert len(files) == 1 and "_probe_" in files[0]
+    assert len(files) == 1
+    assert "_probe_" in files[0]
     with open(os.path.join(d, files[0]), encoding="utf-8") as f:
         rec = json.load(f)
     assert rec["blob"].endswith("...[+600 chars]"), "shape survives, content is cut"

@@ -90,8 +90,10 @@ def test_c1_concurrent_batch_returns_intact():
                 timeout=CALL_CAP,
             )
             # each response carries its own payload, never the sibling's
-            assert "DIAG[SLOW]" in slow_txt and "DIAG[FAST]" not in slow_txt
-            assert "DIAG[FAST]" in fast_txt and "DIAG[SLOW]" not in fast_txt
+            assert "DIAG[SLOW]" in slow_txt
+            assert "DIAG[FAST]" not in slow_txt
+            assert "DIAG[FAST]" in fast_txt
+            assert "DIAG[SLOW]" not in fast_txt
             # session survives the batch (the wedge symptom = it would not)
             after, _ = await _call(s, "AFTER", 0.05)
             assert "DIAG[AFTER]" in after

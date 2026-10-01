@@ -87,7 +87,8 @@ def test_explicit_correction_supersedes_with_edges():
     assert closed.valid_to == "2026-06-27T13:00:00", "old chapter validity closed"
     assert any(e.type == "replaces" and e.target == "chapter_new" for e in closed.relates)
     assert any(e.type == "is_version_of" and e.target == "chapter_old" for e in out.relates)
-    assert is_active_chapter(out) and not is_active_chapter(closed)
+    assert is_active_chapter(out)
+    assert not is_active_chapter(closed)
     print("  correction: explicit supersession closes old + links versions OK")
 
 

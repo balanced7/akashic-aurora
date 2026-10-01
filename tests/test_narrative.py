@@ -273,15 +273,18 @@ def render_report():
     ):
         lines.append(r)
         oks.append(ok)
-    lines.append("        (NMI %.3f | purity %.3f | accuracy %.3f)" % (rt["NMI"], rt["purity"], rt["accuracy"]))
+    lines.append(
+        "        (NMI {:.3f} | purity {:.3f} | accuracy {:.3f})".format(rt["NMI"], rt["purity"], rt["accuracy"])
+    )
 
     lines.append("\n[Themes -- Slice 5]")
     for r, ok in (_row("theme micro-F1", th["micro_F1"], ">=", THEME_F1_BAR),):
         lines.append(r)
         oks.append(ok)
     lines.append(
-        "        (precision %.3f | recall %.3f | jaccard %.3f | primary-NMI %.3f)"
-        % (th["precision"], th["recall"], th["jaccard"], th["primary_NMI"])
+        "        (precision {:.3f} | recall {:.3f} | jaccard {:.3f} | primary-NMI {:.3f})".format(
+            th["precision"], th["recall"], th["jaccard"], th["primary_NMI"]
+        )
     )
 
     lines.append("\n[Chronicler -- Slice 3]")

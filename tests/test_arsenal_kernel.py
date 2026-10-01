@@ -73,7 +73,8 @@ def test_epochs_and_clocks_do_not_mix():
     before = clock.stamp(100, tb(1, 1000))
     clock.bump_epoch("seek")
     after = clock.stamp(50, tb(1, 1000))
-    assert not clock.is_current(before) and clock.is_current(after)
+    assert not clock.is_current(before)
+    assert clock.is_current(after)
     assert clock.history == [(1, "seek")]
     with pytest.raises(StaleEpoch):
         before < after
@@ -99,7 +100,8 @@ def test_clock_map_span_and_json():
     with pytest.raises(ClockMismatch):
         m.map_seconds(TimeRef("audio", 0, 1, tb(1, 48000)))
     span = TimeSpan(TimeRef("media", 0, 10, tb(1, 10)), 10)
-    assert span.contains(TimeRef("media", 0, 10, tb(1, 10))) and not span.contains(span.end)
+    assert span.contains(TimeRef("media", 0, 10, tb(1, 10)))
+    assert not span.contains(span.end)
     assert format_tb(parse_tb("1001/30000")) == "1001/30000"
     ref = TimeRef("media", 2, 12345, tb(1001, 30000))
     assert TimeRef.from_json(ref.to_json()) == ref
@@ -128,7 +130,7 @@ def test_first_light_graph_is_valid():
 
 
 @pytest.mark.parametrize(
-    "mutate, needle",
+    ("mutate", "needle"),
     [
         (lambda g: g["nodes"].__setitem__("x", {"use": "no.such"}), "unknown module"),
         (lambda g: g["edges"].append(["decode.nope", "fx.video"]), "no port"),
@@ -190,7 +192,8 @@ def test_text_form_errors_are_graph_errors():
 def test_map_options_are_typed():
     head = "node knobs = webmidi.input\nnode fx = vfx.first-light-effect\n"
     binding = parse_text(head + "map knobs.cc -> fx.hue {smooth: 12ms/180ms, learn: true}")["bindings"][0]
-    assert binding["smooth"] == {"attack_ms": 12, "release_ms": 180} and binding["learn"] is True
+    assert binding["smooth"] == {"attack_ms": 12, "release_ms": 180}
+    assert binding["learn"] is True
     for bad in ("smooth: fast", "smooth: 12.5ms", "precedence: high", "learn: yes"):
         with pytest.raises(GraphError):
             parse_text(head + f"map knobs.cc -> fx.hue {{{bad}}}")
@@ -220,10 +223,10 @@ def _registry_with(tmp_path, *manifests):
     return load_registry([DEFAULT_DIR, tmp_path])
 
 
-NATIVE_DECODE = dict(
-    inputs=[{"port": "media", "type": "asset.reference"}],
-    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
-)
+NATIVE_DECODE = {
+    "inputs": [{"port": "media", "type": "asset.reference"}],
+    "outputs": [{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+}
 
 
 def test_first_light_plan_is_honest():
@@ -294,4 +297,5 @@ def test_take_round_trip_and_epoch_rules(tmp_path):
     with pytest.raises(ValueError):
         ledger.append(take_id, [{"kind": "pause", "t": _t(1, 5)}])
     listed = ledger.list()
-    assert listed[0]["take_id"] == take_id and listed[0]["closed"] is True
+    assert listed[0]["take_id"] == take_id
+    assert listed[0]["closed"] is True

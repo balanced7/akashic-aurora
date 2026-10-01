@@ -55,7 +55,8 @@ def test_tool_roundtrip_dispatch_and_pairing():
     assert out == "answer done"
     assert seen == [("read_file", {"path": "x.md"})]
     fco = [h for h in ag.history if isinstance(h, dict) and h.get("type") == "function_call_output"]
-    assert len(fco) == 1 and fco[0]["call_id"] == "c1"
+    assert len(fco) == 1
+    assert fco[0]["call_id"] == "c1"
     assert fco[0]["output"].startswith("[hop 1/5] CONTENT")
     # stateless resend: the model's function_call item echoed back into history verbatim
     assert any(getattr(h, "type", "") == "function_call" for h in ag.history)

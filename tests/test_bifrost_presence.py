@@ -61,7 +61,8 @@ def test_register_and_list():
     try:
         a = Bus("alice", c, namespace=ns)
         b = Bus("bob", c, namespace=ns)
-        assert a.register() and b.register()
+        assert a.register()
+        assert b.register()
         assert {p["agent"] for p in a.presence()} == {"alice", "bob"}
     finally:
         _cleanup(c, ns)
@@ -75,7 +76,8 @@ def test_using_the_bus_marks_you_online():
         alice.send("bob", "chat", "hi")  # sending marks alice online
         bob.inbox()  # reading marks bob online
         online = {p["agent"] for p in alice.presence()}
-        assert "alice" in online and "bob" in online
+        assert "alice" in online
+        assert "bob" in online
     finally:
         _cleanup(c, ns)
 
@@ -102,8 +104,11 @@ def test_presence_carries_agent_card():
         g = Bus("gemini", c, namespace=ns, promote=False)
         g.register(card=card)
         rec = [p for p in g.presence() if p["agent"] == "gemini"][0]
-        assert rec["runtime_class"] == "api" and rec["wake_mode"] == "runner"
-        assert rec["door"] == "runner" and rec["caps"] == ["review"] and rec["last_seen"]
+        assert rec["runtime_class"] == "api"
+        assert rec["wake_mode"] == "runner"
+        assert rec["door"] == "runner"
+        assert rec["caps"] == ["review"]
+        assert rec["last_seen"]
         g.send("someone", "chat", "hi")  # an auto-touch heartbeat...
         rec2 = [p for p in g.presence() if p["agent"] == "gemini"][0]
         assert rec2["runtime_class"] == "api", "the card survives the auto-touch heartbeat"
@@ -116,7 +121,8 @@ def test_presence_backward_compat_bare_timestamp():
     try:
         c.set(f"{ns}:presence:legacy", "2026-06-28T00:00:00", ex=60)  # old-style bare ts
         rec = [p for p in Bus("x", c, namespace=ns).presence() if p["agent"] == "legacy"][0]
-        assert rec["last_seen"] == "2026-06-28T00:00:00" and "runtime_class" not in rec
+        assert rec["last_seen"] == "2026-06-28T00:00:00"
+        assert "runtime_class" not in rec
     finally:
         _cleanup(c, ns)
 

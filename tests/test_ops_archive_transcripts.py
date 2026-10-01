@@ -152,8 +152,10 @@ def test_p7_every_run_leaves_a_dated_receipt(rig, tmp_path):
     assert (receipts / "latest.json").exists()
     on_disk = json.loads(files[0].read_text(encoding="utf-8"))
     assert on_disk["sources_seen"] == 2
-    assert on_disk["ok"] is True and rep["ok"] is True
-    assert on_disk["ran_at"] and on_disk["destinations"][0]["present_total"] == 2
+    assert on_disk["ok"] is True
+    assert rep["ok"] is True
+    assert on_disk["ran_at"]
+    assert on_disk["destinations"][0]["present_total"] == 2
 
 
 def test_p7b_exit_code_is_nonzero_when_anything_was_refused(rig, tmp_path):

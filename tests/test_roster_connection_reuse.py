@@ -34,6 +34,7 @@ import sys
 import uuid
 
 import pytest
+import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -224,9 +225,7 @@ def test_conductor_gate_pass_cost_does_not_grow_with_the_fleet():
         )
     finally:
         for agent, sid in planted:
-            try:
+            with contextlib.suppress(Exception):
                 roster.go_offline(ns, agent, sid, client=client)
-            except Exception:
-                pass
             for k in client.keys(f"{ns}:*{agent}*"):
                 client.delete(k)

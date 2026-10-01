@@ -48,7 +48,8 @@ def _rec(name, **kw):
 
 def test_find_related_flags_a_near_duplicate():
     got = find_related(_sig(), [_rec("existing_twin")])
-    assert got and got[0]["experiment_name"] == "existing_twin"
+    assert got
+    assert got[0]["experiment_name"] == "existing_twin"
     assert got[0]["dims"] >= 4, f"a same-story lesson matches most dimensions: {got[0]}"
 
 

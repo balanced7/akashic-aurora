@@ -70,7 +70,8 @@ def test_repeat_delivery_storm_detected():
     assert d.feed(0, ["a"]) is None
     sig = d.feed(0, ["a"])
     assert sig is not None and sig["kind"] == "repeat_delivery_storm", "5 consecutive 'a' ids => repeat storm"
-    assert sig["id"] == "a" and sig["count"] == 5
+    assert sig["id"] == "a"
+    assert sig["count"] == 5
 
 
 def test_below_threshold_silent():

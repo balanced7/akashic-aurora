@@ -76,13 +76,15 @@ def test_resolve_span_beat_window():
     b = Beat(id="b1", at="2026-06-22T12:00:00", kind="note", summary="x", source="s")
     store.set(beat_key("b1"), json.dumps(b.to_dict()))
     start, end = resolve_span("b1", store=store, window_seconds=3600)
-    assert start == "2026-06-22T11:00:00" and end == "2026-06-22T13:00:00"
+    assert start == "2026-06-22T11:00:00"
+    assert end == "2026-06-22T13:00:00"
 
 
 def test_resolve_span_iso_and_garbage():
     store, _ = _ctx()
     start, end = resolve_span("2026-06-22T12:00:00", store=store, window_seconds=60)
-    assert start == "2026-06-22T11:59:00" and end == "2026-06-22T12:01:00"
+    assert start == "2026-06-22T11:59:00"
+    assert end == "2026-06-22T12:01:00"
     assert resolve_span("not-a-thing", store=store) is None
 
 
@@ -124,7 +126,8 @@ def test_events_around_filter_by_kind():
 def test_events_around_unresolvable():
     store, eq = _ctx()
     res = events_around("nope", store=store, event_query=eq)
-    assert res["span"] is None and res["events"] == []
+    assert res["span"] is None
+    assert res["events"] == []
 
 
 # ----------------------------------------------------------------- raw_for_beat
@@ -138,7 +141,8 @@ def test_raw_for_beat_resolves_atom():
     )  # the Beat points AT the raw atom
     store.set(beat_key("b1"), json.dumps(b.to_dict()))
     res = raw_for_beat("b1", store=store, event_query=eq)
-    assert res["atom"] is not None and res["atom"]["summary"] == "edited the file"
+    assert res["atom"] is not None
+    assert res["atom"]["summary"] == "edited the file"
     assert any(e["summary"] == "edited the file" for e in res["events"])
 
 

@@ -48,7 +48,8 @@ def test_commit_below_warn_is_silent():
 def test_commit_between_warn_and_alert_warns_and_names_the_gauge():
     line = mem_watch.host_commit_alert(commit_mb=105000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
     assert line.startswith("WARN host commit")
-    assert "105000" in line and "124000" in line
+    assert "105000" in line
+    assert "124000" in line
 
 
 def test_commit_above_alert_names_the_top_private_consumer():
@@ -66,15 +67,15 @@ def test_commit_alert_survives_a_missing_limit():
 
 
 def _snap(**kw):
-    base = dict(
-        now=10_000.0,
-        last_snapshot_at=None,
-        commit_pct=92.0,
-        available_mb=20000,
-        pct_threshold=88.0,
-        min_available_mb=2048,
-        min_gap_s=600,
-    )
+    base = {
+        "now": 10_000.0,
+        "last_snapshot_at": None,
+        "commit_pct": 92.0,
+        "available_mb": 20000,
+        "pct_threshold": 88.0,
+        "min_available_mb": 2048,
+        "min_gap_s": 600,
+    }
     base.update(kw)
     return mem_watch.should_snapshot(**base)
 
@@ -121,7 +122,8 @@ def test_sample_records_commit_pools_and_private_bytes():
     snap = mem_watch.sample(5, ["python"])
     host = snap["host"]
     assert host["commit_limit_mb"] > host["commit_mb"] > 0
-    assert host["kernel_paged_mb"] > 0 and host["kernel_nonpaged_mb"] > 0
+    assert host["kernel_paged_mb"] > 0
+    assert host["kernel_nonpaged_mb"] > 0
     assert host["handles"] > 0
     assert all("private_mb" in row for row in snap["top"])
     # the top list must include the biggest COMMIT holders, not only the biggest RSS

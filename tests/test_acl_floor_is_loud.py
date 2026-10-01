@@ -139,7 +139,8 @@ def test_f5_acl_status_names_the_fault_and_never_raises(floor_state, capsys):
     assert st["floor_roles"] == {"claude": "super_admin", "deepseek": "admin"}
     floor_state.write_text("{not json", encoding="utf-8")
     st2 = REG.acl_status()
-    assert st2["fault_kind"] == "corrupt" and st2["floor_in_force"] is True
+    assert st2["fault_kind"] == "corrupt"
+    assert st2["floor_in_force"] is True
     capsys.readouterr()
 
 
@@ -231,10 +232,8 @@ def test_f8_the_restore_drill_never_offers_the_empty_example_alone(floor_state, 
     monkeypatch.setattr(_sys, "argv", ["agent_cli.py", "doctor"])
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        try:
+        with contextlib.suppress(SystemExit):
             agent_cli.main()
-        except SystemExit:
-            pass
     out = buf.getvalue()
     assert "BOOTSTRAP FLOOR IN FORCE" in out, out[:600]
     _drill_never_offers_the_example_copy_alone(out)

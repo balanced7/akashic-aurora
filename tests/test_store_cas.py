@@ -56,7 +56,8 @@ def test_lost_update_is_prevented(store):
 def test_update_atomic_increments(store):
     store.set("n", "0")
     out = store.update_atomic("n", lambda cur: int(cur) + 1)
-    assert out == "1" and store.get("n") == "1"
+    assert out == "1"
+    assert store.get("n") == "1"
 
 
 def test_update_atomic_noop_when_fn_returns_none(store):

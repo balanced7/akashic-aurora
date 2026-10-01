@@ -24,7 +24,9 @@ def _log():
 def test_emit_and_count():
     log = _log()
     b = log.emit("learning", "memoization beat +52%", "learn:experiment:perf", at="2026-06-27T10:00:00")
-    assert b is not None and b.kind == "learning" and b.weight == 4  # default for learning
+    assert b is not None
+    assert b.kind == "learning"
+    assert b.weight == 4
     assert log.count() == 1
     print("  emit + count OK")
 
@@ -69,7 +71,8 @@ def test_roundtrip_with_edges():
     )
     loaded = log.recent(1)[0]
     assert loaded.themes == ["local-first"]
-    assert loaded.relates[0].type == "member_of" and isinstance(loaded.relates[0], Edge)
+    assert loaded.relates[0].type == "member_of"
+    assert isinstance(loaded.relates[0], Edge)
     print("  round-trip through the store (themes + edges) OK")
 
 

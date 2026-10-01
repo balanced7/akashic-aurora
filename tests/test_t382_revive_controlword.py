@@ -68,7 +68,8 @@ def _call(text, author=ROOT_ID, reviver="unset"):
 
 def test_p1_root_pulls_the_lever():
     out, calls, reacts = _call("!revive")
-    assert out.get("acted") and out["revive"] == {"target": None, "observe_only": False}
+    assert out.get("acted")
+    assert out["revive"] == {"target": None, "observe_only": False}
     assert calls == [(None, False)]
     assert "🚑" in reacts
     out, calls, _ = _call("!revive daemon")

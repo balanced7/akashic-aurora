@@ -79,7 +79,8 @@ def test_redaction_keeps_the_message_readable():
     """Over-redaction makes the channel useless, which is how a safety feature gets turned
     off. The surrounding text must survive."""
     out = DB.redact("T219 landed at cbae99e -- the scorer fork is closed")
-    assert "cbae99e" in out and "scorer fork" in out
+    assert "cbae99e" in out
+    assert "scorer fork" in out
 
 
 # ------------------------------------------------------------------ transport
@@ -88,7 +89,8 @@ def test_a_post_carries_who_and_what():
     DB.forward(_msg(), url="https://example.invalid/hook", post=post)
     assert len(post.sent) == 1
     _, content = post.sent[0]
-    assert "deepseek" in content and "handoff" in content
+    assert "deepseek" in content
+    assert "handoff" in content
 
 
 def test_oversize_bodies_post_multiple_parts_never_over_the_cap():

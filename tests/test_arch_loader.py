@@ -60,7 +60,8 @@ def test_only_subsystem_sections_are_targets():
     headings = _headings(rows).lower()
     # meta sections must never be orientation targets
     assert "where to start reading" not in headings
-    assert "anti-rot" not in headings and "how this map stays alive" not in headings
+    assert "anti-rot" not in headings
+    assert "how this map stays alive" not in headings
     assert "the layer stack" not in headings
     # every surfaced row carries a real, deeper-than-root code path
     for r in rows:

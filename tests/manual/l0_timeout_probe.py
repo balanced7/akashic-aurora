@@ -14,6 +14,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from openai import OpenAI
+import contextlib
 
 MODE = {"v": "nodata"}  # "nodata" | "midstream"
 
@@ -40,10 +41,8 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0) or 0)
-        try:
+        with contextlib.suppress(Exception):
             self.rfile.read(length)
-        except Exception:
-            pass
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
@@ -67,7 +66,7 @@ def run_case(name, mode, timeout, cap=15.0):
     box = {}
 
     def work():
-        kw = dict(api_key="sk-test", base_url=f"http://127.0.0.1:{PORT}", max_retries=0)
+        kw = {"api_key": "sk-test", "base_url": f"http://127.0.0.1:{PORT}", "max_retries": 0}
         if timeout is not None:
             kw["timeout"] = timeout
         client = OpenAI(**kw)

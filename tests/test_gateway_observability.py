@@ -64,7 +64,8 @@ def test_heartbeat_interval_derives_from_the_ttl_it_must_not_outlive():
 def test_the_gateway_has_a_stable_liveness_identity():
     """doctor discovers agents; an anonymous service is invisible to it by construction."""
     gw = _gateway()
-    assert isinstance(gw.GATEWAY_AGENT_ID, str) and gw.GATEWAY_AGENT_ID.strip()
+    assert isinstance(gw.GATEWAY_AGENT_ID, str)
+    assert gw.GATEWAY_AGENT_ID.strip()
     assert gw.GATEWAY_AGENT_ID != "daniil", (
         "the gateway SPEAKS as the operator on the bus (R3) but it must not claim his liveness "
         "identity -- that would report the operator as alive whenever the socket is up"
@@ -106,7 +107,8 @@ def test_the_log_survives_the_emoji_this_file_already_prints(tmp_path):
     tee.write("[discord-in] \U0001f331 spawned pid 1 -- ⚠️ never lived\n")
     tee.flush()
     body = dest.read_text(encoding="utf-8")
-    assert "\U0001f331" in body and "⚠" in body
+    assert "\U0001f331" in body
+    assert "⚠" in body
 
 
 def test_the_tee_never_swallows_the_original_stream(tmp_path):

@@ -43,13 +43,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 def test_a_shadertoy_shader_becomes_a_program():
     r = V.rewrite(SHADERTOY, name="tunnel")
-    assert r["ok"] and r["kind"] == "shadertoy"
+    assert r["ok"]
+    assert r["kind"] == "shadertoy"
     out = r["src"]
     # #version must be the FIRST line of a GLSL program -- not merely present somewhere.
     assert out.splitlines()[0] == "#version 300 es"
     assert "precision highp float;" in out
     assert "out vec4 outColor;" in out
-    assert "uniform vec2  u_res;" in out and "uniform float u_time;" in out
+    assert "uniform vec2  u_res;" in out
+    assert "uniform float u_time;" in out
     assert "void main(){ mainImage(outColor, gl_FragCoord.xy); }" in out
 
 
@@ -76,7 +78,8 @@ def test_iresolution_stays_a_vec3_so_the_swizzles_survive():
 def test_it_reports_which_shims_the_shader_actually_used():
     r = V.rewrite(SHADERTOY)
     note = " ".join(r["notes"])
-    assert "iTime" in note and "iResolution" in note
+    assert "iTime" in note
+    assert "iResolution" in note
     assert "iMouse" not in note, "reporting shims the shader never touched is noise"
 
 
@@ -107,7 +110,8 @@ def test_texture_channels_are_warned_about_not_silently_broken():
 
 def test_a_sound_shader_is_refused_by_name():
     r = V.rewrite("vec2 mainSound( in int samp, float time ){ return vec2(sin(time)); }")
-    assert r["ok"] is False and "SOUND" in r["error"]
+    assert r["ok"] is False
+    assert "SOUND" in r["error"]
 
 
 def test_a_bench_shader_passes_through_untouched():
@@ -119,7 +123,8 @@ def test_a_bench_shader_passes_through_untouched():
         "void main(){ outColor = vec4(u_time); }\n"
     )
     r = V.rewrite(bench)
-    assert r["ok"] and r["kind"] == "passthrough"
+    assert r["ok"]
+    assert r["kind"] == "passthrough"
     assert r["src"] == bench, "passthrough must mean passthrough"
     assert r["src"].count("void main") == 1
 
@@ -128,7 +133,8 @@ def test_empty_and_nonsense_are_refused_with_a_reason():
     assert V.rewrite("")["ok"] is False
     assert V.rewrite("   \n  ")["ok"] is False
     r = V.rewrite("this is not a shader at all")
-    assert r["ok"] is False and "mainImage" in r["error"]
+    assert r["ok"] is False
+    assert "mainImage" in r["error"]
 
 
 def test_whitespace_variants_of_the_signature_are_recognised():

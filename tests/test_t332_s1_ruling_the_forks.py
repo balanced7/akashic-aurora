@@ -200,7 +200,8 @@ def test_p11_the_plane_vocabulary_does_not_fork_the_way_ask_did():
 
 def test_p12_an_unknown_plane_is_unclassified_not_an_exception():
     v = K.resolve("note", "salient", plane="no_such_plane")
-    assert v.classified is False and v.value is None
+    assert v.classified is False
+    assert v.value is None
     assert v.why, "an unclassified verdict without a reason is unrepresentable"
 
 
@@ -209,7 +210,8 @@ def test_p13_the_collision_stays_visible_after_the_ruling():
     report note and decision -- the registry's census is how the next seat learns the planes
     overlap at all, and a ruling that erased the evidence would be a worse instrument."""
     collisions = K.plane_collisions()
-    assert "note" in collisions and len(collisions["note"]) == 3
+    assert "note" in collisions
+    assert len(collisions["note"]) == 3
     assert "decision" in collisions, "the collision nobody had named stays on the record"
 
 

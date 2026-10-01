@@ -124,8 +124,10 @@ def test_dispatched(pair):
     s, r = pair
     orig = _arm(s, r)
     st = ask_state.state_of(s, orig, log=_StubLog([]))
-    assert st["state"] == "OPEN.DISPATCHED" and st["terminal"] is False
-    assert st["peer"] == r and st["resolved_id"] == orig
+    assert st["state"] == "OPEN.DISPATCHED"
+    assert st["terminal"] is False
+    assert st["peer"] == r
+    assert st["resolved_id"] == orig
     assert st["caller_should"] == ask_state.STATES["OPEN.DISPATCHED"][1]
 
 
@@ -139,7 +141,8 @@ def test_noted(pair):
     orig = _arm(s, r)
     Bus(r).send(s, "note", "(runner timed out -- api call abandoned)")
     st = ask_state.state_of(s, orig, log=_StubLog([]))
-    assert st["state"] == "OPEN.NOTED" and st["terminal"] is False
+    assert st["state"] == "OPEN.NOTED"
+    assert st["terminal"] is False
 
 
 # --- P4: OPEN.REDRIVING -- deadline passed, a copy went out ---
@@ -153,7 +156,8 @@ def test_redriving(pair):
     orig = _arm(s, r, within=60)
     assert expectations.sweep(s, now=t0 + 61)["redriven"] == [orig]
     st = ask_state.state_of(s, orig, log=_StubLog([]))
-    assert st["state"] == "OPEN.REDRIVING" and st["terminal"] is False
+    assert st["state"] == "OPEN.REDRIVING"
+    assert st["terminal"] is False
 
 
 # --- P5: a REDRIVE id resolves to the original (idalias walk) instead of lying UNKNOWN ---
@@ -187,8 +191,10 @@ def test_answered_from_terminal_event():
         "detail": {"to": "peerx", "attempt": 1, "created": 1786017600.0, "answer_id": "REPLY-9"},
     }
     st = ask_state.state_of("s", "ASK-1", log=_StubLog([ev]))
-    assert st["state"] == "CLOSED.ANSWERED" and st["terminal"] is True
-    assert st["answer_id"] == "REPLY-9" and st["peer"] == "peerx"
+    assert st["state"] == "CLOSED.ANSWERED"
+    assert st["terminal"] is True
+    assert st["answer_id"] == "REPLY-9"
+    assert st["peer"] == "peerx"
     assert st["duration_s"] is not None, "created present -> duration computed"
 
 
@@ -213,8 +219,10 @@ def test_echo_and_dead_from_terminal_events():
     }
     st_e = ask_state.state_of("s", "ASK-2", log=_StubLog([echo, dead]))
     st_d = ask_state.state_of("s", "ASK-3", log=_StubLog([echo, dead]))
-    assert st_e["state"] == "CLOSED.ECHO" and st_e["terminal"] is True
-    assert st_d["state"] == "CLOSED.DEAD" and st_d["terminal"] is True
+    assert st_e["state"] == "CLOSED.ECHO"
+    assert st_e["terminal"] is True
+    assert st_d["state"] == "CLOSED.DEAD"
+    assert st_d["terminal"] is True
     assert st_d["duration_s"] is None, "legacy dead event without created: None, no guess"
 
 
@@ -226,7 +234,8 @@ def test_echo_and_dead_from_terminal_events():
 def test_unknown_never_guesses(pair):
     s, _ = pair
     st = ask_state.state_of(s, "1700000000000-0", log=_StubLog([]))
-    assert st["state"] == "UNKNOWN" and st["terminal"] is True
+    assert st["state"] == "UNKNOWN"
+    assert st["terminal"] is True
     assert "re-ask" in st["caller_should"].lower()
 
 

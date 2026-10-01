@@ -135,7 +135,8 @@ def test_d1_incident_argv_is_only_a_dry_run(pub_repo):
     r = _mirror(work, "count-plus-lines", "stale.patch")
 
     assert r.returncode == 2, r.stdout + r.stderr
-    assert "usage:" in r.stdout and "DRY RUN" in r.stdout
+    assert "usage:" in r.stdout
+    assert "DRY RUN" in r.stdout
     assert "stale.patch" in r.stdout, "the plan names the paths it would stage"
     assert "local work from 2026-09-13" in r.stdout, "the plan names what --push would publish"
     assert _head(work) == head, "a dry run committed"
@@ -144,14 +145,15 @@ def test_d1_incident_argv_is_only_a_dry_run(pub_repo):
 
 
 def test_d2_help_commits_nothing(pub_repo):
-    work, bare = pub_repo
+    work, _bare = pub_repo
     (work / "staged.txt").write_text("someone's staged work\n")
     _git(work, "add", "staged.txt")
     head = _head(work)
 
     r = _mirror(work, "--help")
 
-    assert r.returncode == 0 and "PUBLISH door" in _flat(r.stdout)
+    assert r.returncode == 0
+    assert "PUBLISH door" in _flat(r.stdout)
     assert _head(work) == head
 
 
@@ -183,7 +185,7 @@ def _flat(text):
     return " ".join((text or "").split())
 
 
-@pytest.mark.parametrize("seat,door", [("kimi", None), ("sol", None), ("claude", "toolbox"), (None, "toolbox")])
+@pytest.mark.parametrize(("seat", "door"), [("kimi", None), ("sol", None), ("claude", "toolbox"), (None, "toolbox")])
 def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     work, bare = pub_repo
     _commit_as(work, "claude", "waiting.txt", "waiting")
@@ -196,9 +198,12 @@ def test_u1_other_seats_and_the_toolbox_door_are_refused(pub_repo, seat, door):
     r = _mirror(work, "count-plus-lines", "stale.patch", "--push", "--yes", "--include-others", seat=seat, door=door)
     assert r.returncode == 3, r.stdout + r.stderr
     flat = _flat(r.stdout)
-    assert "PUBLISH door" in flat and "does not count lines" in flat
+    assert "PUBLISH door" in flat
+    assert "does not count lines" in flat
     assert "Nothing was staged, committed or pushed" in flat
-    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+    assert _head(work) == head
+    assert _staged(work) == []
+    assert _published(work, bare) == published
 
 
 def test_u1c_heimdall_may_publish_but_the_inherited_claude_id_still_may_not():
@@ -244,7 +249,9 @@ def test_u1b_commit_authorized_seat_commits_dry_run_without_flag(pub_repo):
     head, published = _head(work), _published(work, bare)
     r = _mirror(work, "count-plus-lines", "stale.patch", seat="deepseek", door=None)
     assert r.returncode == 2, r.stdout + r.stderr  # usage/dry-run, not a commit
-    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+    assert _head(work) == head
+    assert _staged(work) == []
+    assert _published(work, bare) == published
 
 
 def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
@@ -254,8 +261,9 @@ def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
     box = ToolBox(
         Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda _p: False, agent_id="deepseek"
     )
-    argv, env_extra, why = box._exec_family("py scripts/mirror.py count-plus-lines research/x.patch")
-    assert why is None and env_extra.get("AKASHIC_SEAT_DOOR") == "toolbox"
+    _argv, env_extra, why = box._exec_family("py scripts/mirror.py count-plus-lines research/x.patch")
+    assert why is None
+    assert env_extra.get("AKASHIC_SEAT_DOOR") == "toolbox"
 
     spec = importlib.util.spec_from_file_location("mirror_under_test", os.path.join(REPO, "scripts", "mirror.py"))
     mirror = importlib.util.module_from_spec(spec)
@@ -291,7 +299,9 @@ def test_p1_push_without_yes_off_a_terminal_is_refused_before_committing(pub_rep
 
     assert r.returncode == 5, r.stdout + r.stderr
     assert "--yes" in r.stdout
-    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+    assert _head(work) == head
+    assert _staged(work) == []
+    assert _published(work, bare) == published
 
 
 def test_p2_push_with_explicit_flags_publishes_and_lists_first(pub_repo):
@@ -317,8 +327,12 @@ def test_p3_other_authors_block_the_push_unless_included(pub_repo):
 
     assert r.returncode == 4, r.stdout + r.stderr
     flat = _flat(r.stdout)
-    assert "sol's unpushed work" in flat and "NOT YOURS" in flat and "--include-others" in flat
-    assert _head(work) == head and _staged(work) == [] and _published(work, bare) == published
+    assert "sol's unpushed work" in flat
+    assert "NOT YOURS" in flat
+    assert "--include-others" in flat
+    assert _head(work) == head
+    assert _staged(work) == []
+    assert _published(work, bare) == published
 
     r = _mirror(work, "mine", "mine.txt", "--push", "--yes", "--include-others")
 

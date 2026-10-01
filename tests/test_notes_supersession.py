@@ -56,7 +56,8 @@ def test_all_view_orders_and_tags_mixed_records(tmp_path):
     allv = mem.get_decisions(days=3650, include_superseded=True)
     assert {d.id for d in allv} == {a, b}
     flags = {d.id: d.superseded for d in allv}
-    assert flags[a] is False and flags[b] is True
+    assert flags[a] is False
+    assert flags[b] is True
 
 
 def test_wrap_default_title_is_bare_where_we_are():

@@ -29,7 +29,8 @@ def test_p1_unconditional_control_write_flagged():
     text = 'def f():\n    c.set(_pause_key(), "frozen")\n'
     findings = cs.scan(text)
     assert len(findings) == 1
-    assert findings[0]["family"] == "pause" and findings[0]["line_no"] == 2
+    assert findings[0]["family"] == "pause"
+    assert findings[0]["line_no"] == 2
 
 
 def test_p2_guarded_write_not_flagged():
@@ -62,7 +63,8 @@ def test_p3_non_control_write_ignored():
 def test_p4_empty_and_shape():
     assert cs.scan("") == []
     f = cs.scan("c.delete(_halt_key(agent))\n")[0]
-    assert set(f) >= {"line_no", "family", "snippet", "why"} and "halt" in f["family"]
+    assert set(f) >= {"line_no", "family", "snippet", "why"}
+    assert "halt" in f["family"]
 
 
 def test_p5_live_storm_block_reads_clean():

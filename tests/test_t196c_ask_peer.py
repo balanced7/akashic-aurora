@@ -131,7 +131,8 @@ def test_settles_in_band_without_consuming(pair):
     t.join(timeout=1)
     assert o.ok and not o.partial, f"settled ask must be a clean done, got: {o.why}"
     d = o.detail
-    assert d["state"] == "CLOSED.ANSWERED" and d["ask_id"]
+    assert d["state"] == "CLOSED.ANSWERED"
+    assert d["ask_id"]
     assert d["answer"] == "42, obviously", "the peer's text comes back IN-BAND"
     assert d["elapsed_s"] < 15
     assert Bus(s).read_lane_cursor() == cursors_before, (
@@ -153,7 +154,8 @@ def test_timeout_returns_handle_and_stays_armed(pair):
     # actual intent: a timeout is PARTIALLY, never failed, never a clean done.
     assert o.partial and not bool(o), "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
     d = o.detail
-    assert d["state"].startswith("OPEN.") and d["ask_id"]
+    assert d["state"].startswith("OPEN.")
+    assert d["ask_id"]
     assert "--status" in d.get("how_to_check", ""), "the handle says how to check later"
     recs = expectations.snapshot(s)
     assert str(d["ask_id"]) in {str(k) for k in recs}, (
@@ -168,7 +170,9 @@ def test_timeout_returns_handle_and_stays_armed(pair):
 @needs_built
 def test_empty_prompt_fails():
     o = ask_peer("anyone", "peer", "   ", wait_s=1)
-    assert not o.ok and not o.partial and "empty" in (o.why or "").lower()
+    assert not o.ok
+    assert not o.partial
+    assert "empty" in (o.why or "").lower()
 
 
 # --- P6 (post-incident, first live use 2026-08-06): the CLI render must branch on
@@ -219,7 +223,8 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
     rc = agent_cli.cmd_ask(args)
     err = capsys.readouterr().err
     assert rc == 0, "an OPEN handle is a normal outcome: exit 0"
-    assert "OPEN.DISPATCHED" in err and "--status" in err
+    assert "OPEN.DISPATCHED" in err
+    assert "--status" in err
     assert "ECHO" not in err, "a PARTIALLY must never render as CLOSED.ECHO -- partial checks BEFORE ok"
 
 

@@ -52,10 +52,12 @@ def test_files_are_inlined_with_path_and_line_numbers(tree):
     possible, and a citation is what makes an answer cheap to verify."""
     block, meta = ask_mod.build_context([str(tree / "a.py")], root=tree)
     assert "a.py" in block
-    assert "1" in block and "alpha" in block
+    assert "1" in block
+    assert "alpha" in block
     lines = [ln for ln in block.splitlines() if "alpha" in ln]
     assert lines and lines[0].strip().startswith("1"), "line number must precede the line"
-    assert meta["included"] and meta["included"][0]["path"].endswith("a.py")
+    assert meta["included"]
+    assert meta["included"][0]["path"].endswith("a.py")
 
 
 def test_an_unreadable_path_is_named_not_silently_dropped(tree):
@@ -89,14 +91,15 @@ def test_budget_is_per_call_and_starvation_is_reported(tree):
 def test_no_path_escapes_the_repo(tmp_path):
     """A prompt assembler is a read primitive pointed at whatever it is handed. Keep it
     inside the repo so a stray path cannot exfiltrate a key file into a model prompt."""
-    block, meta = ask_mod.build_context(["../../../../etc/passwd"])
+    _block, meta = ask_mod.build_context(["../../../../etc/passwd"])
     assert not meta["included"], "outside-repo paths must not be inlined"
     assert meta["missing"] or meta.get("refused")
 
 
 def test_empty_list_is_a_noop_not_an_error():
     block, meta = ask_mod.build_context([])
-    assert block == "" and not meta["included"]
+    assert block == ""
+    assert not meta["included"]
 
 
 def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):

@@ -24,9 +24,11 @@ def test_kata_levels_up_parseable_alias(tmp_path):
     tb.mint("peek", [["discover"]])
     assert tb.get("peek")["evidence"] == "GUESS"
     ok, results = agent_cli._kata_check(tb.resolve("peek"))
-    assert ok and results[0][0] is True
+    assert ok
+    assert results[0][0] is True
     e = agent_cli._kata_apply(tb, "peek", results)
-    assert e["evidence"] == "VERIFIED" and str(e["tested_against"]).startswith("kata-")
+    assert e["evidence"] == "VERIFIED"
+    assert str(e["tested_against"]).startswith("kata-")
     assert e["version"] == 2, "level-up rides supersession, never edit-in-place"
 
 
@@ -75,5 +77,5 @@ def test_kata_handles_macros_with_dummy_args(tmp_path):
     tb.mint("ask", [["bifrost-nudge", "t-kata", "--to", "$1", "--mode", "inform", "hello $2"]])
     e = tb.get("ask")
     steps = tb.resolve("ask", args=["KATA"] * e["params"])
-    ok, results = agent_cli._kata_check(steps)
+    ok, _results = agent_cli._kata_check(steps)
     assert ok, "a well-formed macro passes kata under dummy args"

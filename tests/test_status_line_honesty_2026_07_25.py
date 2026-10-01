@@ -39,7 +39,7 @@ class Ns:
 
 
 def _sync_args(**kw):
-    base = dict(agent_id="claude", consume=True, limit=20, json=False, traces=False)
+    base = {"agent_id": "claude", "consume": True, "limit": 20, "json": False, "traces": False}
     base.update(kw)
     return Ns(**base)
 
@@ -162,7 +162,8 @@ def test_p5_resolvable_grounding_pointer_unchanged(monkeypatch):
     monkeypatch.setattr(agent_cli, "_grounding_exists", lambda p: True)
     line = agent_cli._grounding_line("chronicles/real.md", "2026-07-23", 2)
     assert "chronicles/real.md" in line
-    assert "MOVED" not in line and "UNRESOLVED" not in line
+    assert "MOVED" not in line
+    assert "UNRESOLVED" not in line
     assert "[as of 2026-07-23]" in line
 
 
@@ -206,7 +207,8 @@ def test_p11_stance_block_exists_and_stamps_its_version():
 def test_p12_license_line_is_the_load_bearing_one():
     """Kimi's finding: organs delivered the FORMS without the LICENSE to amend them."""
     joined = "\n".join(agent_cli._stance_block("claude")).lower()
-    assert "floor" in joined and "ceiling" in joined
+    assert "floor" in joined
+    assert "ceiling" in joined
     assert "amend" in joined, "the permission to diverge IS the culture/checklist difference"
 
 
@@ -214,7 +216,8 @@ def test_p13_missing_stretch_renders_a_named_gap(monkeypatch):
     """Unrecorded must read as a GAP, not as a silent zero -- tonight's whole theme."""
     monkeypatch.setattr(agent_cli, "_charter_stretch", lambda a: None)
     line = [l for l in agent_cli._stance_block("kimi") if "stretch" in l][0]
-    assert "GAP" in line and "CHARTER.md" in line
+    assert "GAP" in line
+    assert "CHARTER.md" in line
 
 
 def test_p14_stance_rides_the_head_without_displacing_the_cold_start_four():

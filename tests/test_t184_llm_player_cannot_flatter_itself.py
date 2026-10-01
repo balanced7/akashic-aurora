@@ -115,7 +115,8 @@ def test_k3_prose_contributes_nothing_rather_than_a_guess():
         '{"name": "a", "verdict": "DEAD", "why": "never called"}\n'
         '{"name": "b", "verdict": "LIVE", "why": "called below"}'
     )
-    assert good["a"]["verdict"] == "DEAD" and good["b"]["verdict"] == "LIVE"
+    assert good["a"]["verdict"] == "DEAD"
+    assert good["b"]["verdict"] == "LIVE"
     assert P._parse("I think function a might be dead, but honestly it is hard to say.") == {}
     assert P._parse('{"name": "c", "verdict": "MAYBE"}') == {}, "only DEAD/LIVE are verdicts"
     assert P._parse(None) == {}

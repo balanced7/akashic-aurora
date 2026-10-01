@@ -72,7 +72,8 @@ def test_full_assembly():
     )
     s = ctx["sections"]
     # all the expected sections assembled
-    assert "briefing" in s and s["briefing"]["task"] == "build the aggregator"
+    assert "briefing" in s
+    assert s["briefing"]["task"] == "build the aggregator"
     assert s["decisions"] and s["learnings"] and s["blockers"], "ranked sections present"
     assert s["project_state"]["current_work"]["task"] == "building aggregator"
     # source pointers preserved through assembly (traceability)
@@ -81,8 +82,9 @@ def test_full_assembly():
     assert all(b["source"] for b in s["blockers"])
     assert s["briefing"]["source"]
     # budget accounting
-    assert ctx["within_budget"] is True and ctx["approx_tokens"] > 0
-    assert set(["decisions", "learnings", "blockers", "project_state", "briefing"]).issubset(set(ctx["coverage"]))
+    assert ctx["within_budget"] is True
+    assert ctx["approx_tokens"] > 0
+    assert {"decisions", "learnings", "blockers", "project_state", "briefing"}.issubset(set(ctx["coverage"]))
     # the distilled skeleton (progressive disclosure): compact, traceable, critic-ok
     assert isinstance(ctx["skeleton"], str) and ctx["skeleton"], "should have a compact skeleton"
     assert ctx["skeleton_ok"] is True, f"skeleton critic should pass: {ctx}"
@@ -180,12 +182,13 @@ def test_handoff_without_timestamp_fails_open():
         }
     )
     got = load_briefing_from_previous_handoff("builder", signal_ledger=sl, learning_store=ls)
-    assert got and got["task"] == "no-stamp handoff"
+    assert got
+    assert got["task"] == "no-stamp handoff"
     print("\n--- handoff fail-open ---\n  timestamp-less handoff keeps surfacing OK")
 
 
 def test_budget_trims():
-    mem, ls, cm, sl = _isolated_sources()
+    mem, ls, cm, _sl = _isolated_sources()
     # extra learnings so there's something to trim
     for i in range(6):
         ls.record_learning(

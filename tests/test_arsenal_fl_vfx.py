@@ -19,6 +19,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+import itertools
 
 ROOT = Path(__file__).resolve().parents[1]
 VFX_DIR = ROOT / "arsenal" / "fl" / "vfx"
@@ -128,7 +129,7 @@ def start(host, ticks=1):
 def assert_clean(host):
     assert host.anomalies == []
     for on, off in host.pairs():
-        assert off is not None, "note %s at tick %s never released" % (on["note"], on["tick"])
+        assert off is not None, "note {} at tick {} never released".format(on["note"], on["tick"])
         assert off["host_tick"] >= on["host_tick"]
 
 
@@ -172,7 +173,7 @@ def test_band_uses_only_names_fl_presets_and_manual_use():
             cur = cur.value
         if not isinstance(cur, ast.Name) or cur.id not in roots:
             continue
-        dotted = ".".join([roots[cur.id]] + chain[::-1])
+        dotted = ".".join([roots[cur.id], *chain[::-1]])
         seen.add(dotted)
         parts = dotted.split(".")
         if parts[0] == "voice":
@@ -204,7 +205,7 @@ def test_mock_names_are_attested_by_fl_factory_presets():
     assert set(mock.CONTEXT_NAMES) <= context_names
     assert set(mock.FORM_NAMES) - {"addInputText"} <= form_calls  # addInputText: Tutorial 2 and the manual
     for field in ("note", "velocity", "length", "output", "trigger", "release"):
-        assert re.search(r"\.%s\b" % field, text), field
+        assert re.search(r"\.{}\b".format(field), text), field
 
 
 def test_dialog_controls_and_defaults():
@@ -229,8 +230,11 @@ def test_dialog_controls_and_defaults():
             C_RELOAD,
             C_PANIC,
         ]
-        assert host.get(C_PATTERN) == 0 and host.get(C_CLOCK) == 0 and host.get(C_SWITCH) == 0
-        assert host.get(C_DROPOUT) == 0 and host.get(C_DROPOUT_SEED) == 0
+        assert host.get(C_PATTERN) == 0
+        assert host.get(C_CLOCK) == 0
+        assert host.get(C_SWITCH) == 0
+        assert host.get(C_DROPOUT) == 0
+        assert host.get(C_DROPOUT_SEED) == 0
         assert host.form.options(C_DROPOUT) == ["Off", "Rare", "Often"]
         assert host.form.options(C_DRUM_MAP) == ["GM", "FPC", "AD2 default"]
         for name in names:
@@ -321,15 +325,16 @@ def test_pattern_switches_land_on_bar_lines_only_and_cut_the_old_pattern_there()
         switches = [s for s in band.switches if s[0] is not None]
         poll = band.poll_every
     assert [s[1] for s in switches] == [1, 0, 1, 0, 1]
-    for (t, _idx, anchor_before, bar_before), (at, _) in zip(switches, changes):
+    for (t, _idx, anchor_before, bar_before), (at, _) in zip(switches, changes, strict=False):
         assert (t - anchor_before) % bar_before == 0, "switch at %d is mid-bar" % t
         assert at <= t <= at + bar_before + poll
     bounds = [0] + [s[0] for s in switches] + [10**9]
     owners = [0] + [s[1] for s in switches]
     sets = [notes_of(a), notes_of(b)]
-    for (lo, hi), idx in zip(zip(bounds, bounds[1:]), owners):
+    for (lo, hi), idx in zip(itertools.pairwise(bounds), owners, strict=False):
         segment = [e for e in host.ons() if lo <= e["tick"] < hi]
-        assert segment and {e["note"] for e in segment} <= sets[idx]
+        assert segment
+        assert {e["note"] for e in segment} <= sets[idx]
         if lo:
             first_pattern = [a, b][idx]
             beat0 = {n["note"] for lane in LANES for n in first_pattern["lanes"][lane]["notes"] if n["beat"] == 0}
@@ -377,7 +382,8 @@ def test_editing_the_running_pattern_keeps_its_place_in_the_loop():
         host.run(384 * 2)
         assert host.get(C_RELOAD) == 0  # momentary
         switch = [s for s in host.band.switches if s[0] is not None]
-        assert [s[0] for s in switch] == [768] and host.band.anchor == 0
+        assert [s[0] for s in switch] == [768]
+        assert host.band.anchor == 0
         host.stop()
         host.run(1)
     bass_roots = [(e["tick"], e["note"]) for e in host.ons() if e["output"] == 0 and e["tick"] % 384 == 0]
@@ -466,7 +472,8 @@ def test_pause_mid_bar_then_switch_or_reload_resumes_on_fl_bars(clock, action, s
         host.run(20)
         band = host.band
         if action != "none":
-            assert band.pending is not None and band.current == 0  # held for the bar line, not applied while paused
+            assert band.pending is not None
+            assert band.current == 0
         assert host.active == []
         host.play()
         host.run_to(limit)
@@ -517,10 +524,12 @@ def test_stop_while_paused_with_a_switch_waiting_starts_fresh_on_it():
         host.run(10)
         host.set(C_PATTERN, 1)
         host.run(10)
-        assert host.band.pending == 1 and host.band.current == 0
+        assert host.band.pending == 1
+        assert host.band.current == 0
         host.stop()  # the playhead goes back to the start: nothing to continue
         host.run(10)
-        assert host.band.pending is None and host.band.current == 1
+        assert host.band.pending is None
+        assert host.band.current == 1
         before = len(host.events)
         host.play()
         host.run_to(2 * 384)
@@ -630,8 +639,9 @@ def test_follow_song_position_plays_the_loop_top_downbeat_when_a_gap_skips_the_w
         host.stop()
         host.run(1)
     calls = host.played_calls()
-    wraps = sum(1 for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 < t0)
-    assert wraps >= 7 and any(t != 0 for (_h0, t0), (_h1, t) in zip(calls, calls[1:]) if t < t0)  # gaps skip tick 0
+    wraps = sum(1 for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 < t0)
+    assert wraps >= 7
+    assert any(t != 0 for (_h0, t0), (_h1, t) in itertools.pairwise(calls) if t < t0)
     got = sorted((e["host_tick"], e["output"], e["note"]) for e in host.ons())
     assert got == song_fired(calls, a, 96, loop)
     kicks = [e for e in host.ons() if e["output"] == 1 and e["note"] == 36 and e["tick"] < 96]
@@ -665,7 +675,7 @@ def test_follow_song_position_plays_the_end_of_the_loop_before_a_wrap(bpm, gaps)
     calls = host.played_calls()
     got = sorted((e["host_tick"], e["output"], e["note"]) for e in host.ons())
     assert got == song_fired(calls, p, 96, loop)
-    tails = [(t0, t1) for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 < t0 and t0 < 364]
+    tails = [(t0, t1) for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 < t0 and t0 < 364]
     if gaps == "sparse":
         assert tails  # sparse gaps leave the loop's last notes after the last call before a wrap
     assert_clean(host)
@@ -683,7 +693,8 @@ def test_follow_song_position_keeps_the_downbeat_after_a_seek_back_mid_play(gaps
         host.run_to(1300)
     at_seek = sorted((e["output"], e["note"]) for e in host.ons() if e["tick"] == 770)
     bar3 = sorted((lane, note) for t, lane, note, _ in expected(a, 96, 0, 1536) if 768 <= t <= 770)
-    assert at_seek == bar3 and any(note == 38 for _lane, note in bar3)  # bass root and pad of bar 3, not lost
+    assert at_seek == bar3
+    assert any(note == 38 for _lane, note in bar3)
     assert host.anomalies == []
 
 
@@ -700,7 +711,7 @@ def test_keep_counting_advances_by_the_real_gap_across_fl_loop_wraps(bpm, gaps, 
         host.run(1)
     marks = [h - host.play_host_tick for h, _t in host.played_calls()]
     calls = host.played_calls()
-    assert sum(1 for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 < t0) >= limit // loop - 1
+    assert sum(1 for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 < t0) >= limit // loop - 1
     got = sorted((e["host_tick"] - host.play_host_tick, e["output"], e["note"]) for e in host.ons())
     assert [x for x in got if x[0] < limit] == fired_at(marks, expected(a, 96, 0, limit), limit)
     assert_clean(host)
@@ -750,7 +761,7 @@ def test_keep_counting_re_anchors_to_fl_bars_when_the_fl_loop_is_not_whole_bars(
         assert host.band.loop_span is None  # never guessed from a beat or 16th grid
     assert_on_fl_bars(seen, "Keep counting")
     calls = host.played_calls()
-    assert sum(1 for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 < t0) >= 12
+    assert sum(1 for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 < t0) >= 12
     want, prev = [], None
     for h, t in calls:  # FL's ticks each onTick sounds: since the last call, or from the loop top after a wrap
         heard = range(max(0, t - 1), t + 1) if prev is None else range(prev + 1 if t > prev else 0, t + 1)
@@ -795,8 +806,8 @@ def spike_host(ppq, loop, spike, gaps, bpm, patterns):
 
 
 @pytest.mark.parametrize("clock", ["Keep counting", "Follow song position"])
-@pytest.mark.parametrize("gaps,bpm", [("steady", 120), ("buffer", 72), ("buffer", 120)])
-@pytest.mark.parametrize("ppq,loop,spike", SPIKES)
+@pytest.mark.parametrize(("gaps", "bpm"), [("steady", 120), ("buffer", 72), ("buffer", 120)])
+@pytest.mark.parametrize(("ppq", "loop", "spike"), SPIKES)
 def test_a_long_ontick_gap_across_a_known_wrap_keeps_fl_bars_and_the_loop_top_downbeat(
     ppq, loop, spike, gaps, bpm, clock
 ):
@@ -912,7 +923,7 @@ def test_seeks_wraps_and_pauses_with_irregular_gaps_keep_fl_bars_without_bursts(
     assert host.active == []
     log = host.call_log
     biggest = {"irregular": max(IRREGULAR), "sparse": max(SPARSE), "buffer": 3}[gaps]
-    ordinary = {h1 for (h0, t0, p0), (h1, t1, p1) in zip(log, log[1:]) if p0 and p1 and 0 < t1 - t0 <= biggest}
+    ordinary = {h1 for (h0, t0, p0), (h1, t1, p1) in itertools.pairwise(log) if p0 and p1 and 0 < t1 - t0 <= biggest}
     per_call = Counter(e["host_tick"] for e in host.ons())
     assert max(per_call.values()) <= max(per_call[h] for h in ordinary)  # no onTick after a move plays a burst
 
@@ -948,7 +959,8 @@ def test_a_pause_just_after_an_fl_loop_wrap_resumes_in_step(clock, gap):
     plain, paused = take(False), take(True)
     n = min(k for k, _o, _n in plain[0][-1:]) - 1
     assert [x for x in paused[0] if x[0] <= n] == [x for x in plain[0] if x[0] <= n]
-    assert paused[1] == [] and plain[1] == []
+    assert paused[1] == []
+    assert plain[1] == []
 
 
 def test_stop_in_the_last_beat_of_an_fl_loop_still_restarts_at_bar_one():
@@ -1061,7 +1073,9 @@ def test_a_held_chord_is_struck_again_on_the_bar_after_a_rest_bar(gaps):
     marks = [t for _h, t in host.played_calls()]
     assert played(host, limit) == fired_at(marks, without_rests(expected(p, 96, 0, limit), {1}), limit)
     restruck = sorted((e["output"], e["note"], e["length"]) for e in host.ons() if 768 <= e["tick"] < 768 + 24)
-    assert (3, 60, 384) in restruck and (3, 64, 384) in restruck and (2, 72, 240) in restruck
+    assert (3, 60, 384) in restruck
+    assert (3, 64, 384) in restruck
+    assert (2, 72, 240) in restruck
     assert [(e["tick"] <= 744 + 23, e["length"]) for e in host.ons() if e["note"] == 67] == [
         (True, 144)
     ]  # the push played
@@ -1086,7 +1100,8 @@ def test_pause_resume_and_a_switch_while_paused_with_irregular_gaps(bpm, gaps, c
         host.run(15)
         host.set(C_PATTERN, 1)
         host.run(15)
-        assert host.active == [] and host.band.pending == 1
+        assert host.active == []
+        assert host.band.pending == 1
         host.play()
         host.run_to(limit)
         switches = [s[:2] for s in host.band.switches if s[0] is not None]
@@ -1110,12 +1125,13 @@ def test_pattern_knob_value_round_trips_all_64_indexes(store, read):
         for i in range(64):
             host.form.setNormalizedValue(C_PATTERN, value(i))
             assert host.get(C_PATTERN) == i
-        assert value(-3) == value(0) and value(99) == 1.0
+        assert value(-3) == value(0)
+        assert value(99) == 1.0
     old = [i for i in range(64) if math.floor(mock.stored_normalized(i / 63.0, "16bit") * 63) != i]
     assert len(old) > 32  # what idx / 63 did under a 16-bit step read back by truncation
 
 
-@pytest.mark.parametrize("store,read", [("16bit", "floor"), ("float32", "floor"), ("float", "round")])
+@pytest.mark.parametrize(("store", "read"), [("16bit", "floor"), ("float32", "floor"), ("float", "round")])
 def test_live_file_moves_the_pattern_knob_without_pulling_the_band_one_low(tmp_path, store, read):
     live = tmp_path / "arsenal_live.json"
     sets = [pset("p%d" % i, {"bass": [(0, 1, 24 + i, 100)]}, length=4) for i in range(64)]
@@ -1123,7 +1139,7 @@ def test_live_file_moves_the_pattern_knob_without_pulling_the_band_one_low(tmp_p
         stamp_write(live, {"version": 1, "rev": 0, "current": 0, "patterns": sets})
         host.set(C_LIVE, 1)
         host.run(8)
-        for i in list(range(64)) + [0, 63, 1, 62]:
+        for i in [*list(range(64)), 0, 63, 1, 62]:
             stamp_write(live, {"version": 1, "rev": i + 1, "current": i, "patterns": sets})
             host.run(4 * 96 + 8)  # stopped: the file is read every 4 beats' worth of calls, the knob polled after
             assert (host.band.current, host.get(C_PATTERN)) == (i, i)
@@ -1148,7 +1164,8 @@ def test_wrapped_voices_are_cut_by_mute_switch_and_retrigger_and_released_once(o
         host.set(C_PATTERN, 1)  # lands on 384; bar 1's comp push (tick 360, a beat long) started before the knob moved
         host.run_to(700)
         push = [(on, off) for on, off in host.pairs() if on["output"] == 2 and on["tick"] == 360]
-        assert len(push) == 3 and all(off is not None and off["tick"] == 384 and not off["auto"] for _on, off in push)
+        assert len(push) == 3
+        assert all(off is not None and off["tick"] == 384 and not off["auto"] for _on, off in push)
         host.set(C_PATTERN, 2)  # lands on 768; its 5-beat pad retriggers over itself at 1152, 1536, 1920
         host.run_to(2000)
         host.set(C_PANIC, 1)
@@ -1208,7 +1225,7 @@ def without_rests(notes, rests, ppq=96, first_bar=0):
 
 def largest_gap(host):
     calls = host.played_calls()
-    return max([t1 - t0 for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 > t0] or [1])
+    return max([t1 - t0 for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 > t0] or [1])
 
 
 def assert_rests_are_silent(host, rests):
@@ -1234,9 +1251,11 @@ def test_dropout_rule_is_deterministic_rare_or_often_and_never_two_in_a_row():
     rare = [n for n in range(2000) if band.dropout_bar(5, n, band.DROPOUT_CHANCE[1])]
     often = [n for n in range(2000) if band.dropout_bar(5, n, band.DROPOUT_CHANCE[2])]
     assert [n for n in range(2000) if band.dropout_bar(5, n, 0.0)] == []
-    assert 0 not in often and all(b - a > 1 for a, b in zip(often, often[1:]))
-    assert all(b - a > 1 for a, b in zip(rare, rare[1:]))
-    assert 120 < len(rare) < 250 and 320 < len(often) < 520  # about 1 bar in 11, and 1 in 5
+    assert 0 not in often
+    assert all(b - a > 1 for a, b in itertools.pairwise(often))
+    assert all(b - a > 1 for a, b in itertools.pairwise(rare))
+    assert 120 < len(rare) < 250
+    assert 320 < len(often) < 520
     assert often == [n for n in range(2000) if band.dropout_bar(5, n, band.DROPOUT_CHANCE[2])]
     assert often != [n for n in range(2000) if band.dropout_bar(6, n, band.DROPOUT_CHANCE[2])]
 
@@ -1249,7 +1268,8 @@ def test_dropout_leans_on_the_last_bar_of_a_phrase():
             for n in range(64):
                 by_place[n % 4] += band.dropout_bar(seed, n, band.DROPOUT_CHANCE[level])
         assert by_place[3] > 2 * max(by_place[:3])  # bar 4 of 4, the bar before a phrase top: a breath, not a glitch
-        assert by_place[1] > by_place[0] and by_place[1] > by_place[2]  # then the middle of the phrase
+        assert by_place[1] > by_place[0]
+        assert by_place[1] > by_place[2]
 
 
 @pytest.mark.parametrize("gaps", [[1], "irregular", "sparse", "buffer"])
@@ -1275,7 +1295,8 @@ def test_dropout_bars_rest_all_but_bass_and_cut_what_rings(bpm, gaps):
         for on, off in host.pairs()
         if on["output"] == 3 and off["tick"] // 384 in rests and off["tick"] < on["tick"] + on["length"]
     ]
-    assert cut and not any(off["auto"] for _on, off in cut)  # pads ringing into a rest bar were cut by the band
+    assert cut
+    assert not any(off["auto"] for _on, off in cut)
     assert_clean(host)
 
 
@@ -1291,7 +1312,9 @@ def test_dropout_seed_replays_and_bass_never_rests():
         return sorted((e["tick"], e["output"], e["note"]) for e in host.ons())
 
     off, one, again, other = take("Off", 3), take("Often", 3), take("Often", 3), take("Often", 4)
-    assert one == again and one != other and one != off
+    assert one == again
+    assert one != other
+    assert one != off
     assert [x for x in one if x[1] == 0] == [x for x in off if x[1] == 0]
 
 
@@ -1360,9 +1383,10 @@ def test_dropout_survives_pause_resume_and_song_loop_wraps(bpm, gaps):
         host.stop()
         host.run(1)
     calls = host.played_calls()
-    assert sum(1 for (_h0, t0), (_h1, t1) in zip(calls, calls[1:]) if t1 < t0) >= 3
+    assert sum(1 for (_h0, t0), (_h1, t1) in itertools.pairwise(calls) if t1 < t0) >= 3
     drum_bars = [e["tick"] // 384 for e in host.ons() if e["output"] == 1]
-    assert set(drum_bars) == {0, 2} and drum_bars.count(0) >= 4 * 4  # the same song bars rest on every pass
+    assert set(drum_bars) == {0, 2}
+    assert drum_bars.count(0) >= 4 * 4
     assert_rests_are_silent(host, {1, 3})
     assert_clean(host)
 
@@ -1384,7 +1408,7 @@ DRUM_NOTES = [35, 36, 37, 38, 41, 42, 44, 45, 46, 48, 49, 50, 51, 57, 59, 60]
 
 
 @pytest.mark.parametrize(
-    "map_name,want",
+    ("map_name", "want"),
     [
         ("GM", DRUM_NOTES),
         ("FPC", [36, 36, 37, 38, 41, 42, 42, 45, 46, 48, 49, 50, 51, 49, 51, 60]),
@@ -1457,7 +1481,8 @@ def test_humanize_stays_in_range_varies_by_loop_and_replays_identically():
     one, again = take(1), take(1)
     assert one == again
     assert all(80 <= v <= 120 for v in one)
-    assert len(set(one)) > 3 and one[:8] != one[8:]
+    assert len(set(one)) > 3
+    assert one[:8] != one[8:]
 
 
 def test_swing_moves_only_the_off_beats_of_its_grid():
@@ -1509,7 +1534,7 @@ def test_a_pitch_still_ringing_is_released_before_it_sounds_again():
     at_384 = [(e["kind"], e["note"]) for e in host.events if e["tick"] == 384]
     assert at_384 == [("off", 48), ("on", 48)]
     assert_clean(host)
-    assert len([v for v in host.active]) == 0
+    assert len(list(host.active)) == 0
 
 
 def test_panic_is_momentary_and_releases_everything():
@@ -1576,9 +1601,11 @@ def test_contract_shapes_that_are_accepted():
     band = mock.load_band_parsers()
     twelve_eight = pset("sunday", {"bass": [(-0.25, 0.5, 30, 90), (11.75, 1, 31, 90)]}, length=12, meter=(12, 8))
     parsed = band.parse_pattern_set(twelve_eight)
-    assert parsed["bar_beats"] == 6.0 and parsed["length_beats"] == 12.0
+    assert parsed["bar_beats"] == 6.0
+    assert parsed["length_beats"] == 12.0
     playlist = band.parse_playlist([groove_a(), groove_b()])
-    assert playlist["current"] == 0 and len(playlist["patterns"]) == 2
+    assert playlist["current"] == 0
+    assert len(playlist["patterns"]) == 2
     assert band.parse_playlist({"version": 1, "current": 9, "patterns": [groove_b()]})["current"] == 0
     assert band.parse_playlist(groove_b())["patterns"][0]["id"] == "groove-b"
     with pytest.raises(band.PatternError):
@@ -1594,7 +1621,8 @@ def test_a_refused_baked_pattern_becomes_silence_so_indexes_stay_put():
         start(host)
         host.run(384)
         assert host.band.pattern["id"] == "groove-b"
-        assert "INVALID" in host.form.description and "(1 refused)" in host.form.description
+        assert "INVALID" in host.form.description
+        assert "(1 refused)" in host.form.description
     assert {e["note"] for e in host.ons()} <= notes_of(groove_b())
 
 
@@ -1629,11 +1657,11 @@ def test_example_patterns_module_is_valid_and_plays_clean(monkeypatch):
 def test_reload_reimports_a_regenerated_module_file(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
     src = tmp_path / "arsenal_patterns.py"
-    stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [%r]\n" % (groove_a(),))
+    stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{!r}]\n".format(groove_a()))
     with Host(patterns_dir=tmp_path) as host:
         start(host)
         host.run(384 + 20)
-        stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [%r, %r]\n" % (groove_b(), groove_a()))
+        stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{!r}, {!r}]\n".format(groove_b(), groove_a()))
         host.set(C_RELOAD, 1)
         host.run(400)
         assert host.band.pattern["id"] == "groove-b"
@@ -1656,10 +1684,12 @@ def test_live_file_switches_on_a_bar_line_and_keeps_the_last_good_patterns(tmp_p
         assert host.get(C_PATTERN) == 1  # the knob shows what the file chose
         stamp_write(live, '{"version": 1, "patterns": [')  # a half-written file
         host.run(2 * 384)
-        assert host.band.pattern["id"] == "live-a" and "refused" in host.band.live_error
+        assert host.band.pattern["id"] == "live-a"
+        assert "refused" in host.band.live_error
         live.unlink()
         host.run(2 * 384)
-        assert host.band.pattern["id"] == "live-a" and "cannot read" in host.band.live_error
+        assert host.band.pattern["id"] == "live-a"
+        assert "cannot read" in host.band.live_error
         stamp_write(live, {"version": 1, "rev": 3, "current": 0, "patterns": [groove_b(), groove_a("live-a")]})
         host.run(2 * 384)
         assert host.band.pattern["id"] == "groove-b"
@@ -1679,7 +1709,8 @@ def test_live_file_missing_from_the_start_plays_the_baked_patterns(tmp_path):
         host.set(C_LIVE, 1)
         start(host)
         host.run(2 * 384)
-        assert host.band.pattern["id"] == "groove-a" and "cannot read" in host.band.live_error
+        assert host.band.pattern["id"] == "groove-a"
+        assert "cannot read" in host.band.live_error
         assert host.band.log.count(host.band.live_error) == 1  # said once, not every bar
     assert host.ons()
 
@@ -1693,7 +1724,8 @@ def test_cli_check_and_simulate(tmp_path, capsys):
     assert "refused" in capsys.readouterr().out
     assert mock.main(["simulate", str(EXAMPLE_PATTERNS), "--bars", "1", "--pattern", "1"]) == 0
     out = capsys.readouterr().out
-    assert "  1.1.000  on " in out and "ANOMALY" not in out
+    assert "  1.1.000  on " in out
+    assert "ANOMALY" not in out
     assert (
         mock.main(
             [
@@ -1718,7 +1750,8 @@ def test_cli_check_and_simulate(tmp_path, capsys):
         == 0
     )
     out = capsys.readouterr().out
-    assert "  on  " in out and "ANOMALY" not in out
+    assert "  on  " in out
+    assert "ANOMALY" not in out
     assert mock.main(["simulate", str(EXAMPLE_PATTERNS), "--bars", "2", "--gaps", "buffer:512"]) == 0
     assert "ANOMALY" not in capsys.readouterr().out
     with pytest.raises(SystemExit):

@@ -36,7 +36,9 @@ def test_item_contract():
     }
     # defaults
     d = Consolidator.item(text="t", source="s")
-    assert d["importance"] == 1 and d["timestamp"] is None and d["relationship_type"] is None
+    assert d["importance"] == 1
+    assert d["timestamp"] is None
+    assert d["relationship_type"] is None
 
 
 def test_consolidate_ranks_then_distills_with_pointers():
@@ -47,8 +49,10 @@ def test_consolidate_ranks_then_distills_with_pointers():
     ]
     dist = c.consolidate(items, instruction="test", kind="beat", now=None)
     # every entry keeps a lossless source pointer; the skeleton names them
-    assert dist.entries and all(e["source"] for e in dist.entries)
-    assert "(source: git:b)" in dist.skeleton and "(source: git:a)" in dist.skeleton
+    assert dist.entries
+    assert all(e["source"] for e in dist.entries)
+    assert "(source: git:b)" in dist.skeleton
+    assert "(source: git:a)" in dist.skeleton
     # the more important/recent item is ranked first
     assert dist.entries[0]["source"] == "git:b"
 
@@ -56,7 +60,8 @@ def test_consolidate_ranks_then_distills_with_pointers():
 def test_empty_and_determinism():
     c = Consolidator()
     empty = c.consolidate([], instruction="x")
-    assert empty.entries == [] and empty.skeleton == ""
+    assert empty.entries == []
+    assert empty.skeleton == ""
     items = [
         Consolidator.item(text=f"item {i}", source=f"git:{i}", importance=i % 5, timestamp=f"2026-01-0{i + 1}T00:00:00")
         for i in range(4)

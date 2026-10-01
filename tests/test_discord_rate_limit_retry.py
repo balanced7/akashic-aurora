@@ -89,4 +89,5 @@ def test_non_429_failure_is_not_retried():
 def test_success_on_first_try_never_sleeps():
     slept = []
     out = post_with_rate_limit_retry(lambda: _FakeResponse(200), sleep=slept.append)
-    assert out.status_code == 200 and not slept
+    assert out.status_code == 200
+    assert not slept

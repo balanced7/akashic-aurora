@@ -101,7 +101,8 @@ def _main_ctx(monkeypatch, capsys, prompt="plan the slice"):
 def test_bus_line_composes_after_recall(monkeypatch, capsys):
     _wire(monkeypatch, [{"text": "t", "source": "learn:experiment:x"}], unread=2)
     ctx = _main_ctx(monkeypatch, capsys)
-    assert "Plan-time recall" in ctx and "2 unread bus msg(s)" in ctx
+    assert "Plan-time recall" in ctx
+    assert "2 unread bus msg(s)" in ctx
     assert ctx.splitlines()[-1].startswith("[akashic] mail:"), "mail cue rides last, one line"
 
 

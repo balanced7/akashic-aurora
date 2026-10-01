@@ -97,9 +97,11 @@ def test_an_unsigned_or_forged_request_is_refused(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     ref = store.put(b"secret-ish")
     s1, b1, _ = L.handle_blob("POST", "/blob", blob_request(ref, secret=b"wrong"), secret=KEY, blobs=store)
-    assert s1 == 400 and b1 == L.FLAT_REFUSAL
+    assert s1 == 400
+    assert b1 == L.FLAT_REFUSAL
     s2, b2, _ = L.handle_blob("POST", "/blob", b"{}", secret=KEY)
-    assert s2 == 400 and b2 == L.FLAT_REFUSAL
+    assert s2 == 400
+    assert b2 == L.FLAT_REFUSAL
 
 
 def test_a_stale_request_is_refused(tmp_path):
@@ -109,7 +111,8 @@ def test_a_stale_request_is_refused(tmp_path):
     ref = store.put(b"data")
     old = blob_request(ref, sent_at=int(time.time()) - 99_999)
     status, body, _ = L.handle_blob("POST", "/blob", old, secret=KEY, blobs=store)
-    assert status == 400 and body == L.FLAT_REFUSAL
+    assert status == 400
+    assert body == L.FLAT_REFUSAL
 
 
 def test_an_unknown_ref_reveals_nothing(tmp_path):
@@ -117,7 +120,7 @@ def test_an_unknown_ref_reveals_nothing(tmp_path):
     endpoint becomes an oracle for what this fleet holds, which is exactly the property the
     message gate's flat refusal exists to deny."""
     missing = "blob:" + "0" * 32
-    status, body, _ = L.handle_blob("POST", "/blob", blob_request(missing), secret=KEY)
+    _status, body, _ = L.handle_blob("POST", "/blob", blob_request(missing), secret=KEY)
     assert body == L.FLAT_REFUSAL, "an unknown ref returned something distinguishable"
 
 

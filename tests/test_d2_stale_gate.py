@@ -28,7 +28,8 @@ class M:
 def test_p1_mixed_inbox_partitions_three_ways():
     inbox = [M(DAY3, "inform"), M(DAY3, "question"), M(S30, "question")]
     fresh, asks, skips = PS.partition_stale(inbox, now_ms=NOW, stale_ms=GATE)
-    assert [m.kind for m in fresh] == ["question"] and fresh[0].id == f"{NOW - S30}-0"
+    assert [m.kind for m in fresh] == ["question"]
+    assert fresh[0].id == f"{NOW - S30}-0"
     assert [m.id for m in asks] == [f"{NOW - DAY3}-0"]  # stale ask surfaced, not dropped
     assert [m.kind for m in skips] == ["inform"]  # stale inform auto-skipped
 
@@ -36,7 +37,9 @@ def test_p1_mixed_inbox_partitions_three_ways():
 def test_p2_zero_threshold_reproduces_today():
     inbox = [M(DAY3, "inform"), M(DAY3, "question"), M(S30, "chat")]
     fresh, asks, skips = PS.partition_stale(inbox, now_ms=NOW, stale_ms=0)
-    assert len(fresh) == 3 and not asks and not skips  # the gate is opt-out
+    assert len(fresh) == 3
+    assert not asks
+    assert not skips
 
 
 def test_p3_partition_is_deterministic_relabel():
@@ -55,21 +58,26 @@ def test_p4_notice_names_count_oldest_and_triage_and_never_acks():
     notice = PS.stale_notice(stale_asks, now_ms=NOW)
     assert "2 stale ask(s)" in notice
     assert "72.0h" in notice  # oldest, in hours
-    assert "--traces" in notice and "auto-acked" in notice  # triage instruction, no ack
+    assert "--traces" in notice
+    assert "auto-acked" in notice
     assert PS.stale_notice([], now_ms=NOW) == ""
 
 
 def test_p5_direct_and_broadcast_gate_identically():
     pair = [M(DAY3, "inform", to="claude"), M(DAY3, "inform", to="*")]
     fresh, asks, skips = PS.partition_stale(pair, now_ms=NOW, stale_ms=GATE)
-    assert not fresh and not asks and len(skips) == 2  # no un-gated broadcast seam
+    assert not fresh
+    assert not asks
+    assert len(skips) == 2
 
 
 def test_unknown_age_reads_as_fresh():
     weird = [M(S30, "chat")]
     weird[0].id = "$"  # sentinel: age unknowable
     fresh, asks, skips = PS.partition_stale(weird, now_ms=NOW, stale_ms=GATE)
-    assert len(fresh) == 1 and not asks and not skips  # fail toward showing
+    assert len(fresh) == 1
+    assert not asks
+    assert not skips
 
 
 def test_env_threshold_reads_and_disables(monkeypatch):

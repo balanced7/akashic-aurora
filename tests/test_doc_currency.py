@@ -31,9 +31,11 @@ def test_current_variants_parse(tmp_path):
 
 def test_superseded_requires_target(tmp_path):
     v, target = _classify(tmp_path, "# T\nStatus: superseded-by docs/newer-plan.md\n")
-    assert v == "superseded" and target == "docs/newer-plan.md"
+    assert v == "superseded"
+    assert target == "docs/newer-plan.md"
     v, target = _classify(tmp_path, "# T\n**Status:** superseded-by: docs/x.md (see there)\n")
-    assert v == "superseded" and target.startswith("docs/x.md")
+    assert v == "superseded"
+    assert target.startswith("docs/x.md")
     v, target = _classify(tmp_path, "# T\nStatus: superseded\n")
     assert v == "superseded" and target == "", "no target -> guard fails it upstream"
 
@@ -57,4 +59,5 @@ def test_vocabulary_is_strict(tmp_path):
 def test_status_must_be_near_the_top(tmp_path):
     body = "# T\n" + "filler\n" * 20 + "Status: current\n"
     v, detail = _classify(tmp_path, body)
-    assert v == "unstamped" and "first 12" in detail
+    assert v == "unstamped"
+    assert "first 12" in detail

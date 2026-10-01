@@ -9,7 +9,8 @@ from scripts.generators.gen_master_map import build, render
 def test_matrix_contains_known_organs_with_truthful_columns():
     rows = build()
     comm = {r["module"]: r for r in rows.get("core/comm", ())}
-    assert "bus.py" in comm and comm["bus.py"]["doc"] != "(no docstring)"
+    assert "bus.py" in comm
+    assert comm["bus.py"]["doc"] != "(no docstring)"
     assert "packet_spec.py" in comm
     assert not comm["packet_spec.py"]["gap"]  # pinned + papered this very week
     assert "BIFROST_STALE_MS" not in comm["bus.py"]["flags"]  # D2 kept the flag OUT of bus.py

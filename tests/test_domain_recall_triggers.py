@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
+import contextlib
 
 
 def _ls():
@@ -58,8 +59,10 @@ def test_a_composition_gesture_builds_a_query():
     from core.recall.at_action import _query_from
 
     q = _query_from(None, None, subject="geodesic-original", gesture="add tanh-tonemap after superlinear-highlight")
-    assert "tanh" in q and "tonemap" in q
-    assert "superlinear" in q and "highlight" in q
+    assert "tanh" in q
+    assert "tonemap" in q
+    assert "superlinear" in q
+    assert "highlight" in q
     assert "geodesic" in q
 
 
@@ -68,7 +71,8 @@ def test_the_old_triggers_are_untouched():
     from core.recall.at_action import _query_from
 
     q = _query_from("scripts/bifrost_ui.py", "py -m pytest tests/test_recall_at.py")
-    assert "bifrost" in q and "pytest" in q
+    assert "bifrost" in q
+    assert "pytest" in q
 
 
 def test_a_gesture_is_a_vfx_trigger_and_a_path_still_is_not():
@@ -89,7 +93,8 @@ def test_the_projection_carries_the_domain():
     items = _project_items(
         [{"experiment_name": "x", "recommendation": "do the thing", "success": "yes", "domain": "vfx", "timestamp": ""}]
     )
-    assert items and items[0]["domain"] == "vfx"
+    assert items
+    assert items[0]["domain"] == "vfx"
 
 
 def test_an_adopted_chunk_rule_carries_a_PARSEABLE_trigger():
@@ -204,7 +209,5 @@ def test_a_general_lesson_surfaces_in_every_domain():
             "a lesson promoted by credit in two domains must reach a system-domain action"
         )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             st.delete("recall:use:" + src)
-        except Exception:
-            pass

@@ -105,17 +105,17 @@ def _hermetic_probes():
     import time
 
     now = time.time()
-    return dict(
-        worklive=lambda a: {"phase": "idle", "detail": "", "turn": 3, "since_ts": now - 5, "beat_ts": now - 1},
-        progress=lambda a: None,
-        backlog=lambda a: 0,
-        stalled_since=lambda a, present: None,
-        halted=lambda a: None,
-        lane_health=lambda a: None,
-        token_cost=lambda a: None,
-        bench_count=lambda a: 0,
-        now=now,
-    )
+    return {
+        "worklive": lambda a: {"phase": "idle", "detail": "", "turn": 3, "since_ts": now - 5, "beat_ts": now - 1},
+        "progress": lambda a: None,
+        "backlog": lambda a: 0,
+        "stalled_since": lambda a, present: None,
+        "halted": lambda a: None,
+        "lane_health": lambda a: None,
+        "token_cost": lambda a: None,
+        "bench_count": lambda a: 0,
+        "now": now,
+    }
 
 
 def _isolated_ledger(tmp_path, monkeypatch):
@@ -129,7 +129,7 @@ def test_doctor_renders_open_watches_against_the_cap(tmp_path, monkeypatch):
     # RED at HEAD: examine_fleet's report has no "watches" and its summary never names the cap.
     from core.comm.doctor import examine_fleet
 
-    path, L = _isolated_ledger(tmp_path, monkeypatch)
+    _path, L = _isolated_ledger(tmp_path, monkeypatch)
     a, b = _staged(L, "build"), _staged(L, "design")
     TL.start(L, a["id"], at="t3")
     TL.start(L, b["id"], at="t3")
@@ -151,7 +151,8 @@ def test_doctor_fails_open_on_an_unreadable_ledger(tmp_path, monkeypatch):
     rep = examine_fleet(["claude"], probes=_hermetic_probes())  # must not raise
     w = rep["watches"]
     assert w["open"] is None and w["error"], "a corrupt ledger is REPORTED, never raised through a boot"
-    assert "watches ?/2" in rep["summary"] and "ledger" in rep["summary"]
+    assert "watches ?/2" in rep["summary"]
+    assert "ledger" in rep["summary"]
 
 
 def test_cap_is_one_named_constant_shared_by_gate_and_doctor(tmp_path, monkeypatch):
@@ -181,7 +182,8 @@ def test_silent_width_around_the_gate_is_a_dashboard_finding(tmp_path, monkeypat
     TL.start(L, b["id"], at="t3")
     TL.start(L, c["id"], at="t4", pauses=b["id"])  # lawful: the cost is spoken
     rep = examine_fleet(["claude"], probes=_hermetic_probes())
-    assert rep["watches"]["over"] is True and rep["watches"]["silent"] == [a["id"], b["id"]]
+    assert rep["watches"]["over"] is True
+    assert rep["watches"]["silent"] == [a["id"], b["id"]]
     assert "watches 3/2" in rep["summary"]
     assert not [f for f in rep["findings"] if f["state"] == "watch_cap_silent"], (
         "a third watch with its cost recorded is the ruling working, not a finding"
@@ -198,5 +200,8 @@ def test_silent_width_around_the_gate_is_a_dashboard_finding(tmp_path, monkeypat
     rep = examine_fleet(["claude"], probes=_hermetic_probes())
     assert rep["watches"]["silent"] == [a["id"], b["id"], c["id"]]
     found = [f for f in rep["findings"] if f["state"] == "watch_cap_silent"]
-    assert len(found) == 1 and found[0]["grade"] == "dashboard"
-    assert "369243" in found[0]["line"] and c["id"] in found[0]["line"] and found[0]["drill"]
+    assert len(found) == 1
+    assert found[0]["grade"] == "dashboard"
+    assert "369243" in found[0]["line"]
+    assert c["id"] in found[0]["line"]
+    assert found[0]["drill"]

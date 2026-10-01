@@ -58,7 +58,8 @@ def test_subject_header_names_address_session_and_unratified_hint(monkeypatch):
     out = common.subject_context("sol", "session-123")
     assert "subject: sol" in out
     assert "session: session-123" in out
-    assert "Sunshine" in out and "historical-unratified" in out
+    assert "Sunshine" in out
+    assert "historical-unratified" in out
     assert "attribution is not verification" in out.lower()
     assert "identity-history pointer [subject=sol]" in out
     assert "sol-sunshine-identity-history" in out
@@ -135,7 +136,8 @@ def test_repo_hooks_are_codex_native_and_single_handler_per_event():
     hooks = cfg["hooks"]
     for event in ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"):
         commands = [h["command"] for group in hooks[event] for h in group["hooks"]]
-        assert commands and all("codex_" in command for command in commands)
+        assert commands
+        assert all("codex_" in command for command in commands)
         assert all("claude_" not in command for command in commands)
     assert len(hooks["PreToolUse"]) == 1
     assert len(hooks["PostToolUse"]) == 1

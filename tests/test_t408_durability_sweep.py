@@ -57,7 +57,7 @@ sys.path.insert(0, ROOT)
 
 
 def _git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo)] + list(args), capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(repo), *list(args)], capture_output=True, text=True)
 
 
 @pytest.fixture

@@ -20,7 +20,7 @@ def _no_live_bus(monkeypatch):
 
 
 def _kw(tmp_path):
-    return dict(client=None, path=os.path.join(str(tmp_path), "t.json"))
+    return {"client": None, "path": os.path.join(str(tmp_path), "t.json")}
 
 
 def test_next_task_respects_deps_and_one_at_a_time(tmp_path, monkeypatch):

@@ -111,7 +111,8 @@ def test_p3_the_pack_is_blind(tmp_path):
     low = pack.lower()
     for leak in ("helped", "useful", "noise", "surfaced=", "credit", "worked claude"):
         assert leak not in low, f"the pack leaks prior credit signal ({leak!r}) -- labels would echo the ranker"
-    assert "daemon_needs_spawn_runner" in pack and "doctor.py" in pack
+    assert "daemon_needs_spawn_runner" in pack
+    assert "doctor.py" in pack
 
 
 def test_p4_score_reports_agreement_not_just_precision(tmp_path):
@@ -123,7 +124,8 @@ def test_p4_score_reports_agreement_not_just_precision(tmp_path):
     }
     r = pa.score(labels)
     assert 0.0 <= r["precision"] <= 1.0
-    assert "agreement" in r and 0.0 <= r["agreement"] <= 1.0
+    assert "agreement" in r
+    assert 0.0 <= r["agreement"] <= 1.0
     assert r["disputed"] == ["3:a"], "items the labellers disagree on must be named for the fence round"
 
 

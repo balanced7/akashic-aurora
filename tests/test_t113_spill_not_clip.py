@@ -64,7 +64,7 @@ def test_p1_under_the_bound_is_untouched():
 
 # --------------------------------------------------------------- P2 the whole point
 def test_p2_over_the_bound_keeps_every_byte():
-    out, meta = packet_spec.spill_tool_text(BIG)
+    _out, meta = packet_spec.spill_tool_text(BIG)
     ref = (meta or {}).get("spill_ref")
     assert ref, f"an oversize send must produce a retrievable ref, got meta={meta}"
     recovered = get_blob_store().get(ref)

@@ -272,7 +272,7 @@ def test_chronicler_chronological_integrity():
     assert raw_atlas is not None
     atlas = Atlas.from_dict(json.loads(raw_atlas))
 
-    for ch_dict in json.loads(c.store.get("narr:atlas:current")):
+    for _ch_dict in json.loads(c.store.get("narr:atlas:current")):
         pass  # atlas doesn't contain chapters directly
 
     # Load all chapters and verify their beats are sorted

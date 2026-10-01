@@ -57,7 +57,8 @@ def test_ids_only_move_forward(bus):
 def test_fields_commit_independently(bus):
     assert bus.advance_to(inbox="3-0", bc="8-0", generation=1) == "OK"
     cur = bus.cursor()
-    assert cur["inbox"] == "3-0" and cur["bc"] == "8-0"
+    assert cur["inbox"] == "3-0"
+    assert cur["bc"] == "8-0"
     # bc moves while inbox no-ops -- worst status of the pair is reported
     assert bus.advance_to(inbox="3-0", bc="9-0", generation=1) == "OK"
 
@@ -71,7 +72,8 @@ def test_wait_hands_out_batch_next_without_consuming(bus):
     bus.advance_to(bc=bus.tail()["bc"], generation=0)  # RB-21: guarded harness park
     m1 = sender.send(bus.agent_id, "chat", "one")
     m2 = sender.send(bus.agent_id, "chat", "two")
-    assert m1 and m2
+    assert m1
+    assert m2
     batch_next: dict = {}
     msgs = bus.wait(timeout_ms=300, advance=False, since_out=batch_next)
     direct = [m.id for m in msgs if m.to == bus.agent_id]

@@ -14,7 +14,8 @@ def test_domain_filter_verbs_excludes_spend():
     assert "VERBS" in names and "SPEND" in names, f"registry drifted: {names}"
     wanted = {"VERBS"}
     domains = [d for d in _audit.DOMAINS if d.name.upper() in wanted]
-    assert len(domains) == 1 and domains[0].name == "VERBS"
+    assert len(domains) == 1
+    assert domains[0].name == "VERBS"
 
 
 def test_full_sweep_runs_both_domains():

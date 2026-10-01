@@ -17,7 +17,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import bifrost_runner_sol as R
 
-_NOOP_PULSE = lambda agent, reason, **kw: None
+
+def _NOOP_PULSE(agent, reason, **kw):
+    return None
 
 
 # ---- build_parser extraction ------------------------------------------------------------------
@@ -28,18 +30,24 @@ def test_build_parser_defaults_offline():
     assert args.agent == "sol"
     assert args.model == R.DEFAULT_MODEL
     assert args.effort == R.DEFAULT_EFFORT
-    assert not args.agentic and not args.once
-    assert not args.allow_write and not args.allow_exec
+    assert not args.agentic
+    assert not args.once
+    assert not args.allow_write
+    assert not args.allow_exec
     assert args.ignore_source == []
     # continuity flags default None -- main() resolves them to the conventional path
-    assert args.summary_file is None and args.inject_summary is None
+    assert args.summary_file is None
+    assert args.inject_summary is None
 
 
 def test_build_parser_full_seat_flags():
     args = R.build_parser().parse_args(
         ["--agentic", "--allow-write", "--allow-exec", "--ignore-source", "discord", "--effort", "high", "--once"]
     )
-    assert args.agentic and args.allow_write and args.allow_exec and args.once
+    assert args.agentic
+    assert args.allow_write
+    assert args.allow_exec
+    assert args.once
     assert args.effort == "high"
     assert args.ignore_source == ["discord"]
 
@@ -68,7 +76,9 @@ def test_continuity_header_session2_reads_prior():
     }
     h = R.continuity_header(prior)
     assert "session 2" in h
-    assert "exit=0" in h and "turns=7" in h and "verdict=ok" in h
+    assert "exit=0" in h
+    assert "turns=7" in h
+    assert "verdict=ok" in h
     assert "1h05m ago" in h
     assert "Last error" not in h
 
@@ -93,7 +103,9 @@ def test_exit_summary_roundtrip_carries_session(tmp_path):
     R._RUN_STATS["turns"], R._RUN_STATS["last_error"] = 5, ""
     R._write_exit_summary(str(p), 0, session=3)
     prior = R.read_prior_summary(str(p))
-    assert prior["session"] == 3 and prior["exit_code"] == 0 and prior["turns"] == 5
+    assert prior["session"] == 3
+    assert prior["exit_code"] == 0
+    assert prior["turns"] == 5
     assert prior["verdict"] == "ok"
     assert "session 4" in R.continuity_header(prior)  # the cycle increments
 

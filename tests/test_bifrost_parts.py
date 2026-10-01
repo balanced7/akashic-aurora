@@ -33,7 +33,8 @@ def test_blob_roundtrip_and_ref_shape():
     assert ref.startswith("blob:")
     assert bs.get(ref) == b"hello bifrost"
     assert bs.exists(ref)
-    assert bs.put("a string") and bs.get(bs.put("a string")) == b"a string"  # str -> utf-8
+    assert bs.put("a string")
+    assert bs.get(bs.put("a string")) == b"a string"
 
 
 def test_blob_dedup_same_content_same_ref():
@@ -70,7 +71,8 @@ def test_part_resolve_inline_and_ref():
     assert text_part("hi").resolve() == "hi"
     assert json_part({"a": 1}).resolve() == {"a": 1}
     p = media_part(b"\x89PNG fake bytes", "image/png", blobs=bs)
-    assert p.is_ref and p.resolve(blobs=bs) == b"\x89PNG fake bytes"
+    assert p.is_ref
+    assert p.resolve(blobs=bs) == b"\x89PNG fake bytes"
     assert Part.from_dict(p.to_dict()).ref == p.ref  # serialization round-trip
 
 
@@ -99,9 +101,11 @@ def test_message_with_media_part_roundtrips():
         got = bob.inbox()
         assert len(got) == 1
         m = got[0]
-        assert m.content == {"note": "context attached"} and len(m.parts) == 2
+        assert m.content == {"note": "context attached"}
+        assert len(m.parts) == 2
         assert m.parts[0].resolve() == "see attached log"  # inline survives
-        assert m.parts[1].is_ref and m.parts[1].resolve(blobs=bs) == payload  # media by ref
+        assert m.parts[1].is_ref
+        assert m.parts[1].resolve(blobs=bs) == payload
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:

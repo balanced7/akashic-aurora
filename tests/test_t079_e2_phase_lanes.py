@@ -48,7 +48,10 @@ def test_l1_lane_depths():
     _built()
     c = FakeRedis({"bifrost:work:inbox:claude": 3, "bifrost:inbox:claude": 7, "bifrost:trace": 100})
     d = ld.lane_depths("claude", c=c)
-    assert d["work"] == 3 and d["legacy"] == 7 and d["trace"] == 100 and d["sig"] == 0
+    assert d["work"] == 3
+    assert d["legacy"] == 7
+    assert d["trace"] == 100
+    assert d["sig"] == 0
 
     class Hostile:
         def __getattr__(self, _):

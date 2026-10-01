@@ -97,7 +97,8 @@ def test_a_harness_seat_can_record_seen_without_declaring():
     client, msg = _fake(), _Msg(kind="request")
     sha = _seed(mbx, client, msg)
     r = mbx.open_for_message("claude", msg, incarnation="sess1", ns=NS, client=client)
-    assert r.get("ok") is True and r.get("sha") == sha
+    assert r.get("ok") is True
+    assert r.get("sha") == sha
 
     st = mbx.state_for(NS, "claude", sha, client=client)
     assert [s["incarnation"] for s in st["seen_by"]] == ["sess1"]
@@ -127,7 +128,8 @@ def test_a_declaration_still_records_seen_first():
     sha = _seed(mbx, client, msg)
     mbx.declare_for_message("claude", msg, "act", incarnation="run1", ns=NS, client=client)
     st = mbx.state_for(NS, "claude", sha, client=client)
-    assert st["seen_by"] and st["intent"]["intent"] == "act"
+    assert st["seen_by"]
+    assert st["intent"]["intent"] == "act"
 
 
 def test_reading_never_touches_a_cursor():
@@ -184,7 +186,8 @@ def test_the_wait_announces_itself_once(monkeypatch):
     monkeypatch.setattr(rl, "holder", lambda a: {"pid": 1234})
     monkeypatch.setattr(rl.time, "sleep", lambda s: None)
     rl.acquire_waiting("kimi", "tok", wait_s=3, on_wait=lambda h: seen.append(h))
-    assert len(seen) == 1 and seen[0]["pid"] == 1234
+    assert len(seen) == 1
+    assert seen[0]["pid"] == 1234
 
 
 # ---- M4: the send door stops calling a working seat unattended ----------------------------------
@@ -375,11 +378,14 @@ def test_a_bounded_sweep_says_what_it_did_not_look_at():
     for i in range(12):
         _aged(mbx, client, _Msg(frm="ghost_seat", content=f"m{i}"))
     r = mbx.retire_ghost_mail(NS, "claude", client=client, limit=5, is_live=lambda s: False, incarnation="sweep")
-    assert r["scanned"] == 5 and r["total"] == 12
-    assert r["truncated"] is True and r["unscanned"] == 7
+    assert r["scanned"] == 5
+    assert r["total"] == 12
+    assert r["truncated"] is True
+    assert r["unscanned"] == 7
 
     full = mbx.retire_ghost_mail(NS, "claude", client=client, limit=100, is_live=lambda s: False, incarnation="sweep")
-    assert full["truncated"] is False and full["unscanned"] == 0
+    assert full["truncated"] is False
+    assert full["unscanned"] == 0
 
 
 def test_the_sweep_runs_on_a_cadence_not_a_ritual():
@@ -392,7 +398,8 @@ def test_the_sweep_runs_on_a_cadence_not_a_ritual():
     _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="a corpse's ask"))
 
     first = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
-    assert first["due"] is True and first["retired"] == 1
+    assert first["due"] is True
+    assert first["retired"] == 1
 
     _aged(mbx, client, _Msg(frm="codex_root_019fab2d", content="another corpse's ask"))
     again = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=12)
@@ -401,7 +408,8 @@ def test_the_sweep_runs_on_a_cadence_not_a_ritual():
     )
 
     due = mbx.maybe_retire_ghosts(NS, "claude", client=client, every_h=0)
-    assert due["due"] is True and due["retired"] == 1
+    assert due["due"] is True
+    assert due["retired"] == 1
 
 
 def test_a_failed_sweep_still_stamps():
@@ -434,7 +442,8 @@ def test_a_failed_sweep_still_stamps():
     c = _Broken()
     assert c, "the double must be TRUTHY or the module will treat it as no client at all"
     r = mbx.maybe_retire_ghosts(NS, "claude", client=c, every_h=12)
-    assert r["due"] is True and r["ok"] is False
+    assert r["due"] is True
+    assert r["ok"] is False
     assert c.stamped is not None, "a failed sweep must still stamp, or it retries on every boot"
 
 
@@ -444,7 +453,8 @@ def test_a_dry_run_changes_nothing():
     client = _fake()
     sha = _aged(mbx, client, _Msg(frm="ghost_seat"))
     r = mbx.retire_ghost_mail(NS, "claude", client=client, is_live=lambda s: False, incarnation="sweep")
-    assert r["would_retire"] == 1 and r.get("retired", 0) == 0
+    assert r["would_retire"] == 1
+    assert r.get("retired", 0) == 0
     assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None
 
 
@@ -595,7 +605,7 @@ def test_the_bus_carries_the_packet_sha_onto_the_message():
 
     from core.comm.mailbox import identity_of
 
-    ident, basis = identity_of({"frm": m.frm, "to": m.to, "kind": m.kind, "content": m.content, "ts": m.ts}, m.meta)
+    _ident, basis = identity_of({"frm": m.frm, "to": m.to, "kind": m.kind, "content": m.content, "ts": m.ts}, m.meta)
     assert basis == "packet_sha", f"identity fell back to {basis}; the index would not be found"
 
 
@@ -646,7 +656,9 @@ def test_a_declared_message_stops_reading_as_unhandled():
         "claude", msg, "decline", incarnation="inc1", ns=NS, client=client, note="not answerable by this seat"
     )
     st = mbx.state_for(NS, "claude", sha, client=client)
-    assert st["found"] and st["intent"] and st["intent"]["intent"] == "decline"
+    assert st["found"]
+    assert st["intent"]
+    assert st["intent"]["intent"] == "decline"
     assert st["read_but_undeclared"] is False, "declared mail must stop reading as undeclared"
     intents = mbx.intents_of(NS, "claude", sha, client=client)
     assert intents, "a declared message recorded no intent"
@@ -662,7 +674,8 @@ def test_opening_records_seen_so_a_watcher_finally_has_a_vocabulary():
     sha = _seed(mbx, client, msg)
     mbx.declare_for_message("claude", msg, "act", incarnation="inc1", ns=NS, client=client)
     seen = mbx.seen_by(NS, "claude", sha, client=client)
-    assert seen and any(s.get("incarnation") == "inc1" for s in seen)
+    assert seen
+    assert any(s.get("incarnation") == "inc1" for s in seen)
 
 
 # ---- it must never be able to break the runner --------------------------------------------------
@@ -691,7 +704,8 @@ def test_an_unknown_intent_is_refused_not_silently_accepted():
     client, msg = _fake(), _Msg()
     _seed(mbx, client, msg)
     r = mbx.declare_for_message("claude", msg, "maybe-later", incarnation="inc1", ns=NS, client=client)
-    assert r.get("ok") is False and "maybe-later" in str(r.get("reason", ""))
+    assert r.get("ok") is False
+    assert "maybe-later" in str(r.get("reason", ""))
 
 
 def test_declaring_indexes_mail_the_follower_has_not_reached_yet():
@@ -704,7 +718,8 @@ def test_declaring_indexes_mail_the_follower_has_not_reached_yet():
     r = mbx.declare_for_message("claude", msg, "act", incarnation="inc1", ns=NS, client=client)
     assert r.get("ok") is True, r
     st = mbx.state_for(NS, "claude", r["sha"], client=client)
-    assert st["found"] and st["intent"]["intent"] == "act"
+    assert st["found"]
+    assert st["intent"]["intent"] == "act"
     assert st["body"] == "never ingested by a reader", "the body must be captured, not just the id"
 
 

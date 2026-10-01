@@ -55,7 +55,8 @@ def test_get_answers_an_empty_list_before_any_save_and_writes_nothing(looks):
     port, app, folder = looks
     assert app.looks.root == folder.resolve()
     status, reply = call(port, "GET")
-    assert status == 200 and reply == {"api": pianolooks.API, "rev": 0, "presets": []}
+    assert status == 200
+    assert reply == {"api": pianolooks.API, "rev": 0, "presets": []}
     assert not folder.exists()  # a GET never creates the folder
 
 
@@ -80,7 +81,8 @@ def test_round_trip_keeps_every_value_and_bumps_rev(looks):
         ),
     ]
     status, reply = call(port, "PUT", {"rev": 0, "presets": first})
-    assert status == 200 and reply == {"api": pianolooks.API, "rev": 1, "presets": first}
+    assert status == 200
+    assert reply == {"api": pianolooks.API, "rev": 1, "presets": first}
     assert call(port, "GET") == (200, reply)
     on_disk = json.loads((folder / "presets.json").read_text(encoding="utf-8"))
     assert on_disk == reply
@@ -91,14 +93,17 @@ def test_round_trip_keeps_every_value_and_bumps_rev(looks):
         {"api": pianolooks.API, "rev": 1, "presets": first[:1]},
         headers={"Host": f"localhost:{port}", "Origin": f"http://localhost:{port}"},
     )
-    assert status == 200 and reply["rev"] == 2 and reply["presets"] == first[:1]
+    assert status == 200
+    assert reply["rev"] == 2
+    assert reply["presets"] == first[:1]
     status, reply = call(
         port,
         "PUT",
         {"rev": 2, "presets": []},
         headers={"Origin": f"http://127.0.0.1:{port}", "Content-Type": "application/json; charset=utf-8"},
     )
-    assert status == 200 and reply == {"api": pianolooks.API, "rev": 3, "presets": []}
+    assert status == 200
+    assert reply == {"api": pianolooks.API, "rev": 3, "presets": []}
     assert sorted(p.name for p in folder.iterdir()) == ["presets.json"]  # no temp file left behind
 
 
@@ -107,7 +112,9 @@ def test_a_stale_rev_is_refused_with_409_and_the_current_list(looks):
     assert call(port, "PUT", {"rev": 0, "presets": [preset()]})[0] == 200
     before = (folder / "presets.json").read_bytes()
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset("look-z", "Other window")]})
-    assert status == 409 and reply["rev"] == 1 and reply["presets"] == [preset()]
+    assert status == 409
+    assert reply["rev"] == 1
+    assert reply["presets"] == [preset()]
     assert "changed" in reply["error"]
     assert call(port, "PUT", {"rev": 7, "presets": []})[0] == 409
     assert (folder / "presets.json").read_bytes() == before
@@ -159,7 +166,8 @@ def test_an_origin_other_than_the_page_is_refused(looks, origin):
 def test_a_put_that_is_not_application_json_is_refused(looks, kind):
     port, _, folder = looks
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset()]}, headers={"Content-Type": kind})
-    assert status == 415 and "application/json" in reply["error"]
+    assert status == 415
+    assert "application/json" in reply["error"]
     assert not folder.exists()
 
 
@@ -172,12 +180,14 @@ def test_the_size_cap_is_256_kb(looks):
     conn.putheader("Content-Length", str(pianolooks.MAX_BODY + 1))
     conn.endheaders()
     resp = conn.getresponse()
-    assert resp.status == 413 and "256 KB" in json.loads(resp.read())["error"]
+    assert resp.status == 413
+    assert "256 KB" in json.loads(resp.read())["error"]
     conn.close()
     # exactly at the cap is accepted (padded with whitespace)
     body = json.dumps({"rev": 0, "presets": [preset()]}).encode("utf-8")
     body += b" " * (pianolooks.MAX_BODY - len(body))
-    assert len(body) == pianolooks.MAX_BODY and call(port, "PUT", body)[0] == 200
+    assert len(body) == pianolooks.MAX_BODY
+    assert call(port, "PUT", body)[0] == 200
     # no Content-Length at all
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     conn.putrequest("PUT", LOOKS)
@@ -194,8 +204,9 @@ def test_the_size_cap_is_256_kb(looks):
 def test_at_most_100_presets_with_unique_ids(looks):
     port, _, _ = looks
     many = [preset(f"look-{i}", f"Look {i}") for i in range(pianolooks.MAX_PRESETS)]
-    status, reply = call(port, "PUT", {"rev": 0, "presets": many + [preset("look-x", "One too many")]})
-    assert status == 400 and "at most 100" in reply["error"]
+    status, reply = call(port, "PUT", {"rev": 0, "presets": [*many, preset("look-x", "One too many")]})
+    assert status == 400
+    assert "at most 100" in reply["error"]
     assert call(port, "PUT", {"rev": 0, "presets": [preset(), preset()]})[0] == 400
     assert call(port, "PUT", {"rev": 0, "presets": many})[0] == 200
 
@@ -204,7 +215,8 @@ def test_at_most_100_presets_with_unique_ids(looks):
 def test_bad_names_are_refused(looks, name):
     port, _, folder = looks
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset(name=name)]})
-    assert status == 400 and "name" in reply["error"]
+    assert status == 400
+    assert "name" in reply["error"]
     assert not folder.exists()
 
 
@@ -213,7 +225,8 @@ def test_names_of_one_to_sixty_characters_are_kept_as_given(looks):
     names = ["A", "x" * 60, "Nocturne · rain on the lake", "Écran large"]
     presets = [preset(f"look-{i}", name) for i, name in enumerate(names)]
     status, reply = call(port, "PUT", {"rev": 0, "presets": presets})
-    assert status == 200 and [p["name"] for p in reply["presets"]] == names
+    assert status == 200
+    assert [p["name"] for p in reply["presets"]] == names
 
 
 @pytest.mark.parametrize(
@@ -275,7 +288,8 @@ def test_a_failed_write_leaves_the_previous_file_and_no_temp_file(looks, monkeyp
 
     monkeypatch.setattr(pianolooks.json, "dump", half_written)
     status, reply = call(port, "PUT", {"rev": 1, "presets": [preset("look-b", "Never lands")]})
-    assert status == 500 and "No space left" in reply["error"]
+    assert status == 500
+    assert "No space left" in reply["error"]
     monkeypatch.undo()
     assert (folder / "presets.json").read_bytes() == before
     assert sorted(p.name for p in folder.iterdir()) == ["presets.json"]
@@ -296,7 +310,8 @@ def test_an_unreadable_file_is_reported_and_never_overwritten(looks):
     folder.mkdir()
     (folder / "presets.json").write_text('{"rev": 3, "presets": [', encoding="utf-8")
     status, reply = call(port, "GET")
-    assert status == 500 and "left as it is" in reply["error"]
+    assert status == 500
+    assert "left as it is" in reply["error"]
     assert call(port, "PUT", {"rev": 3, "presets": []})[0] == 500
     assert (folder / "presets.json").read_text(encoding="utf-8") == '{"rev": 3, "presets": ['
 
@@ -377,9 +392,11 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
         "PUT", LOOKS, body=json.dumps({"rev": 0, "presets": [preset()]}), headers={"Content-Type": "application/json"}
     )
     resp = conn.getresponse()
-    assert resp.status == 200 and resp.getheader("Connection") is None
+    assert resp.status == 200
+    assert resp.getheader("Connection") is None
     resp.read()
     conn.request("GET", LOOKS)
     resp = conn.getresponse()
-    assert resp.status == 200 and json.loads(resp.read())["rev"] == 1
+    assert resp.status == 200
+    assert json.loads(resp.read())["rev"] == 1
     conn.close()

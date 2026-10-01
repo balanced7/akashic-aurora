@@ -152,7 +152,8 @@ def test_g6_recovery_taskkill_narrow_shape_runs():
 
 def test_g6_recovery_taskkill_by_name_refused():
     out = _tb().run_command("taskkill /IM notepad.exe /F")
-    assert "REFUSED" in out and "/IM" in out
+    assert "REFUSED" in out
+    assert "/IM" in out
 
 
 def test_g6_recovery_taskkill_without_force_refused():

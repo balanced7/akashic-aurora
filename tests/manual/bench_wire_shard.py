@@ -22,19 +22,20 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from scripts.wire_journal import WireJournal  # noqa: E402
+import contextlib
 
 THREADS = 20
 CALLS = 4000
 
-SAMPLE = dict(
-    model="deepseek-chat",
-    status=200,
-    attempt=0,
-    stream=True,
-    system_fingerprint="fp_3a9c1b",
-    finish_reason="stop",
-    service_tier="default",
-    usage={
+SAMPLE = {
+    "model": "deepseek-chat",
+    "status": 200,
+    "attempt": 0,
+    "stream": True,
+    "system_fingerprint": "fp_3a9c1b",
+    "finish_reason": "stop",
+    "service_tier": "default",
+    "usage": {
         "prompt_tokens": 12000,
         "completion_tokens": 800,
         "total_tokens": 12800,
@@ -42,14 +43,14 @@ SAMPLE = dict(
         "prompt_cache_miss_tokens": 3000,
         "completion_tokens_details": {"reasoning_tokens": 300},
     },
-    headers={
+    "headers": {
         "x-ds-trace-id": "7d0a37b8dcabac6f7fa679e94984f73e",
         "x-cache": "Miss",
         "content-type": "text/event-stream",
         "authorization": "NEVER-KEEP",
     },
-    ms_first_byte=430,
-)
+    "ms_first_byte": 430,
+}
 
 
 def _run(make_writer, teardown=None):
@@ -153,10 +154,8 @@ def _d_make(i):
     q = _dqs[i % NW]
 
     def put(s):
-        try:
+        with contextlib.suppress(queue.Full):
             q.put_nowait(dict(s))
-        except queue.Full:
-            pass
 
     return put
 

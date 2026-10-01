@@ -42,21 +42,21 @@ def _thresholds():
 
 def _probes(**over):
     """A healthy-idle agent by default; each test overrides one facet."""
-    base = dict(
-        worklive=lambda a: {
+    base = {
+        "worklive": lambda a: {
             "phase": "idle",
             "detail": "",
             "turn": 3,
             "since_ts": time.time() - 5,
             "beat_ts": time.time() - 1,
         },
-        progress=lambda a: None,
-        backlog=lambda a: 0,
-        stalled_since=lambda a, present: None,
-        halted=lambda a: None,
-        lane_health=lambda a: None,
-        now=time.time(),
-    )
+        "progress": lambda a: None,
+        "backlog": lambda a: 0,
+        "stalled_since": lambda a, present: None,
+        "halted": lambda a: None,
+        "lane_health": lambda a: None,
+        "now": time.time(),
+    }
     base.update(over)
     return base
 

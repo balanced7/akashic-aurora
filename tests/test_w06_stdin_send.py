@@ -34,17 +34,17 @@ class _FakeBus:
 
 
 def _args(**over):
-    base = dict(
-        agent_id="w06pin",
-        text=[],
-        text_file=None,
-        to="peer",
-        kind="chat",
-        broadcast=False,
-        expect_reply_within=-1,
-        to_incarnation=None,
-        json=False,
-    )
+    base = {
+        "agent_id": "w06pin",
+        "text": [],
+        "text_file": None,
+        "to": "peer",
+        "kind": "chat",
+        "broadcast": False,
+        "expect_reply_within": -1,
+        "to_incarnation": None,
+        "json": False,
+    }
     base.update(over)
     return types.SimpleNamespace(**base)
 
@@ -63,7 +63,8 @@ def test_stdin_body_sends(monkeypatch):
     monkeypatch.setattr(sys, "stdin", fake_in)
     rc = agent_cli.cmd_bifrost_send(_args())
     assert rc in (0, None), f"stdin send must succeed, rc={rc}"
-    assert _FakeBus.sent and "--flag-shaped prose" in _FakeBus.sent[0][3]
+    assert _FakeBus.sent
+    assert "--flag-shaped prose" in _FakeBus.sent[0][3]
 
 
 def test_tty_empty_still_refuses(monkeypatch):

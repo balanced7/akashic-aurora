@@ -260,7 +260,7 @@ def test_conductor_reapplies_after_a_peer_write(tmp_path, monkeypatch):
 
     monkeypatch.setattr(C, "_broadcast", lambda *a, **k: None)
     p = str(tmp_path / "t.json")
-    k = dict(client=None, path=p)
+    k = {"client": None, "path": p}
     C.propose("one", **k)
     C.propose("two", **k)
 

@@ -44,7 +44,8 @@ def test_content_episode_closed_and_drafted():
     _emit(s, "decision", "adopted the 3-way classification", "2026-07-16T10:02:00")
     res = ep.close_open_episode_for_session_end(s, now="2026-07-16T10:05:00")
     assert res["action"] == "closed"
-    assert res["title"] and res["title"] != "Untitled episode"
+    assert res["title"]
+    assert res["title"] != "Untitled episode"
     assert s.get(ep.EPISODE_OPEN_KEY) is None  # open_next=False -> nothing dangling
     ch = load_chapter_from_store(s, res["chapter_id"])
     assert ch.span_end is not None  # span stamped closed

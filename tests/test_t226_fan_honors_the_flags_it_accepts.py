@@ -128,8 +128,7 @@ def _ask_parser_defaults():
     """
     import agent_cli
 
-    ns = agent_cli.build_parser().parse_args(["ask", "q"])
-    return ns
+    return agent_cli.build_parser().parse_args(["ask", "q"])
 
 
 def test_the_library_never_continues_unasked():
@@ -179,7 +178,7 @@ def test_every_ask_flag_is_forwarded_by_bg_or_explicitly_is_not():
     """
     import agent_cli
 
-    sub = [a for a in agent_cli.build_parser()._subparsers._group_actions[0].choices.items()]
+    sub = list(agent_cli.build_parser()._subparsers._group_actions[0].choices.items())
     ask_parser = dict(sub)["ask"]
     dests = {a.dest for a in ask_parser._actions if a.dest != "help"}
 
@@ -268,7 +267,8 @@ def test_get_still_renders_a_single_ask():
     from core.comm.ask_bg import summarize
 
     s = summarize({"handle": "h", "status": "done", "result": {"answer": "just one"}})
-    assert s["answer"] == "just one" and s["next"] == "read the answer"
+    assert s["answer"] == "just one"
+    assert s["next"] == "read the answer"
 
 
 def test_bg_never_forwards_bg_itself():
@@ -277,7 +277,8 @@ def test_bg_never_forwards_bg_itself():
 
     ns = agent_cli.build_parser().parse_args(["ask", "--bg", "q"])
     argv = agent_cli._bg_forward_argv(ns)
-    assert "--bg" not in argv and "--bg-child" not in argv
+    assert "--bg" not in argv
+    assert "--bg-child" not in argv
 
 
 def test_the_flags_are_not_silently_swallowed_by_the_parser():

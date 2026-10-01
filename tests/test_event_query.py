@@ -101,13 +101,15 @@ def test_search_time_bounds():
     eq, _ = _fixture()
     # only Day 3 (stemroller) events fall in this since/until band
     got = eq.search("", since="2026-06-22T00:00:00", until="2026-06-22T23:59:59", top_k=100)
-    assert got and all(e["track"] == "stemroller" for e in got)
+    assert got
+    assert all(e["track"] == "stemroller" for e in got)
 
 
 def test_window_with_kind_filter():
     eq, _ = _fixture()
     got = eq.events_in_window("2026-06-22T00:00:00", "2026-06-22T23:59:59", kind="command")
-    assert len(got) == 1 and got[0]["kind"] == "command"
+    assert len(got) == 1
+    assert got[0]["kind"] == "command"
 
 
 # ----------------------------------------------------------------- robustness
@@ -117,7 +119,8 @@ def test_get_resolves_ref_from_query():
     eq, _ = _fixture()
     hit = eq.search("demucs vocals", top_k=1)[0]
     again = eq.get(hit["_ref"])
-    assert again is not None and again["summary"] == hit["summary"]
+    assert again is not None
+    assert again["summary"] == hit["summary"]
 
 
 def test_empty_store_returns_empty():

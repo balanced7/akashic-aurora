@@ -137,7 +137,7 @@ def test_p5_fixed_cap_junk_cannot_crowd_a_real_hit():
     hit = _lesson(
         "hit", "Use when touching T077 seat logic: check K7 first.", category="unrelated", ts=NOW - 86400 * 60
     )
-    picked = _select(junk + [hit])
+    picked = _select([*junk, hit])
     assert picked[0]["source"] == "hit", "P5: the task-id hit must survive 100 junk lessons"
     total = sum(len(rb.render_entry(p)) for p in picked)
     assert total <= 2000, f"P5: rendered selection blew the FIXED budget ({total} chars)"
@@ -148,7 +148,10 @@ def test_p6_funnel_credit_boosts_cited_over_ignored():
     _built()
     a = _lesson("cited", "Comm advice A.", category="comm robustness", ts=NOW - 7200)
     b = _lesson("ignored", "Comm advice B.", category="comm robustness", ts=NOW - 7200)
-    credit = lambda src: {"helped": 3, "surfaced": 3} if src == "cited" else {"surfaced": 9}
+
+    def credit(src):
+        return {"helped": 3, "surfaced": 3} if src == "cited" else {"surfaced": 9}
+
     picked = _select([b, a], credit=credit)
     srcs = [p["source"] for p in picked]
     assert srcs.index("cited") < srcs.index("ignored"), (
@@ -175,7 +178,7 @@ def test_p8_irrelevant_lessons_never_ride_when_a_relevant_one_exists():
     hit = _lesson(
         "filehit", "When editing scripts/bifrost_wake.py mind the chunk loop.", category="general", ts=NOW - 86400 * 20
     )
-    picked = _select(junk + [hit])
+    picked = _select([*junk, hit])
     assert [p["source"] for p in picked] == ["filehit"], (
         "P8: zero-base lessons must not take boot space while a relevant one exists"
     )

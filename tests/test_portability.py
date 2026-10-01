@@ -240,5 +240,6 @@ def test_p8_archiver_refuses_a_relative_destination(tmp_path, monkeypatch):
     src = tmp_path / "s.jsonl"
     src.write_text("{}\n", encoding="utf-8")
     rec = arch._archive_one_dest([src], Path("not-absolute-archive"), verify=False)
-    assert not rec["reachable"] and rec["failed"]
+    assert not rec["reachable"]
+    assert rec["failed"]
     assert not (tmp_path / "not-absolute-archive").exists(), "a relative destination was created"

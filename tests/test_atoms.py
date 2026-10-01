@@ -81,7 +81,8 @@ def test_mint_roundtrip_and_indexes(fam):
         categories=["substrate", "library"],
         now=1000.0,
     )
-    assert a["id"].startswith("art_") and a["body_sha"] == at._sha12("body text")
+    assert a["id"].startswith("art_")
+    assert a["body_sha"] == at._sha12("body text")
     got = fam.get(a["id"])
     assert got == a
     assert got["header"]["category"] == ["substrate", "library"]
@@ -95,7 +96,8 @@ def test_jsonl_appended_per_type(fam):
     path = os.path.join(fam.jsonl_dir, "report.jsonl")
     with open(path, encoding="utf-8") as f:
         lines = [json.loads(l) for l in f if l.strip()]
-    assert len(lines) == 1 and lines[0]["header"]["type"] == "report"
+    assert len(lines) == 1
+    assert lines[0]["header"]["type"] == "report"
 
 
 def test_validation_refuses_loudly(fam):
@@ -137,7 +139,8 @@ def test_set_arc_relabels_in_place_as_a_version_event(fam):
     a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
     got = fam.set_arc(a["id"], "SA-1", now=2000.0)
     assert (got["id"], got["body_sha"], got["version"], got["updated_ts"]) == (a["id"], a["body_sha"], 2, 2000.0)
-    assert got["header"]["arc"] == "SA-1" and fam.get(a["id"]) == got
+    assert got["header"]["arc"] == "SA-1"
+    assert fam.get(a["id"]) == got
     assert a["id"] not in fam.store.smembers("artifact:index:arc:SA-1 (docs/gone.md)")
     assert a["id"] in fam.store.smembers("artifact:index:arc:SA-1")
     path = os.path.join(fam.jsonl_dir, "design.jsonl")
@@ -164,7 +167,8 @@ def test_doc_arc_door_relabels_and_rerenders_the_projection(tmp_path, capsys):
     assert agent_cli._doc_arc(fam, a["id"], "SA-1", str(tmp_path)) == 0
     proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_") :] + ".md")
     text = proj.read_text(encoding="utf-8")
-    assert "\narc: SA-1\n" in text and "docs/gone.md" not in text
+    assert "\narc: SA-1\n" in text
+    assert "docs/gone.md" not in text
     assert fam.get(a["id"])["version"] == 2
     assert agent_cli._doc_arc(fam, "art_20260101_missing_000000", "SA-1", str(tmp_path)) == 2
     assert agent_cli._doc_arc(fam, "", "SA-1", str(tmp_path)) == 2
@@ -212,8 +216,10 @@ def test_conversation_provenance_fields(fam):
         settled="live",
         now=5.0,
     )
-    assert a["origin"] == "conversation" and a["settled"] == "live"
-    assert a["captured_at"] == 5.0 and a["speakers"] == ["deepseek", "claude"]
+    assert a["origin"] == "conversation"
+    assert a["settled"] == "live"
+    assert a["captured_at"] == 5.0
+    assert a["speakers"] == ["deepseek", "claude"]
 
 
 def test_rebuild_from_jsonl_restores_store(fam, tmp_path):

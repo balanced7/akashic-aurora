@@ -67,7 +67,7 @@ FIXTURE = [
 def _rank_first_accuracy(relevance_fn) -> float:
     hits = 0
     for query, correct, distractors in FIXTURE:
-        docs = [correct] + distractors
+        docs = [correct, *distractors]
         best = max(docs, key=lambda d: relevance_fn(d, query))
         hits += best == correct
     return hits / len(FIXTURE)
@@ -96,7 +96,8 @@ def test_cache_roundtrip_and_content_invalidation():
     emb = _real_embedder()
     store = emb.store
     v1 = emb.embed("alpha beta gamma")
-    assert v1 is not None and len(v1) > 0
+    assert v1 is not None
+    assert len(v1) > 0
     # it was written to the Store cache, keyed by content hash (survives a cold process)
     assert store.get(emb._cache_key(_hash("alpha beta gamma"))) is not None
     # a fresh Embedder on the SAME store hits that cache (separate in-mem map) -> identical vector

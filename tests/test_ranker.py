@@ -40,7 +40,8 @@ def test_relevance():
     miss = {"text": "configure nginx reverse proxy", "timestamp": NOW}
     out = r.rank([miss, match], query="comfyui install", now=NOW)
     assert out[0].item is match, "query-matching item should rank first"
-    assert out[0].components["relevance"] > 0 and out[1].components["relevance"] == 0
+    assert out[0].components["relevance"] > 0
+    assert out[1].components["relevance"] == 0
     print("--- relevance ---\n  query match outranks non-match OK")
 
 

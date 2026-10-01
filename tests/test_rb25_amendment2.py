@@ -120,7 +120,7 @@ class _SeedProbe(Bus):
 
 @pytest.mark.skipif(not _A23, reason="A2-3 pre-registered; truth-return pending")
 @pytest.mark.parametrize(
-    "status,expected",
+    ("status", "expected"),
     [
         ("OK", True),
         ("OK_NOOP", True),

@@ -11,13 +11,16 @@ UI = ["scripts/bifrost_ui.py"]
 
 def test_coherent_when_action_routes_to_active_track():
     v = drift_check("collapse traces in bifrost_ui.py", paths=UI, active="ai-setup", recent_beats=[])
-    assert v.coherent and v.kind == ""
+    assert v.coherent
+    assert v.kind == ""
 
 
 def test_scope_drift_when_action_routes_elsewhere():
     # you think you're in 'research', but a bifrost_ui.py action routes to 'ai-setup'
     v = drift_check("collapse traces in bifrost_ui.py", paths=UI, active="research", recent_beats=[])
-    assert not v.coherent and v.kind == "scope" and "different thread" in v.reason
+    assert not v.coherent
+    assert v.kind == "scope"
+    assert "different thread" in v.reason
 
 
 def test_rework_on_near_duplicate_beat():
@@ -29,7 +32,8 @@ def test_rework_on_near_duplicate_beat():
         active="ai-setup",
         recent_beats=past,
     )
-    assert not v.coherent and v.kind == "rework"
+    assert not v.coherent
+    assert v.kind == "rework"
 
 
 def test_not_rework_when_unrelated():

@@ -91,7 +91,8 @@ def test_plugin_wiring_pins_path_command_not_joined_target():
     never a pre-joined --target (the shape that broke the join on 2026-08-24)."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "['--target', target]" not in src
-    assert "'--path', path" in src and "'--command', command" in src
+    assert "'--path', path" in src
+    assert "'--command', command" in src
 
 
 def test_plugin_pins_generation_freshness_probe():
@@ -128,8 +129,10 @@ def test_t3_injection_message_shape_is_user_contract():
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "role: 'user'" in src
     assert "content: [{ type: 'text', text }]" in src
-    assert "kind: 'plugin'" in src and "form: 'recall'" in src
-    assert "id:" in src and "akashic-" in src  # id + stable prefix
+    assert "kind: 'plugin'" in src
+    assert "form: 'recall'" in src
+    assert "id:" in src
+    assert "akashic-" in src
 
 
 # --- MCP door tools (the typed-tools finish, 2026-08-24) ---

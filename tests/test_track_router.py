@@ -44,20 +44,23 @@ def test_shape():
         _beat({"at": "t", "kind": "commit", "summary": "x", "source": "git:1"}),
         RouteHint(paths=["core/foundation/store.py"]),
     )
-    assert res.track == "ai-setup" and res.basis == "path"
+    assert res.track == "ai-setup"
+    assert res.basis == "path"
     # a research learning -> research (by category)
     res = r.route_one(
         _beat({"at": "t", "kind": "learning", "summary": "x", "source": "learn:e"}),
         RouteHint(category="research"),
         active="ai-setup",
     )
-    assert res.track == "research" and res.switched is True
+    assert res.track == "research"
+    assert res.switched is True
     # strong domain keyword beats a misleading category
     res = r.route_one(
         _beat({"at": "t", "kind": "learning", "summary": "ZLUDA on PATH", "source": "l"}),
         RouteHint(category="infrastructure", task="stemroller"),
     )
-    assert res.track == "stemroller" and res.basis == "strong"
+    assert res.track == "stemroller"
+    assert res.basis == "strong"
     print("  shape: path / category / strong-keyword routing OK")
 
 
@@ -67,7 +70,9 @@ def test_robustness():
     res = r.route_one(
         _beat({"at": "t", "kind": "note", "summary": "back to it", "source": "l"}), RouteHint(), active="vision"
     )
-    assert res.track == "vision" and res.switched is False and res.basis == "persist"
+    assert res.track == "vision"
+    assert res.switched is False
+    assert res.basis == "persist"
     # no signal AND no active -> unknown, no crash
     res = r.route_one(_beat({"at": "t", "kind": "note", "summary": "", "source": "l"}), RouteHint())
     assert res.track == "unknown"

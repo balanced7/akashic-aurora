@@ -53,7 +53,9 @@ def test_p1_ingest_parses_node_ids():
 def test_p2_record_read_roundtrip(qfile, monkeypatch):
     monkeypatch.setattr(sb, "_ledger_claims", lambda: {"T067": "verifying"})
     rec = sb.record(sb.ingest_pytest(PYTEST_TAIL), seat="claude", sha="abc1234")
-    assert rec["sha"] == "abc1234" and rec["seat"] == "claude" and rec["at"]
+    assert rec["sha"] == "abc1234"
+    assert rec["seat"] == "claude"
+    assert rec["at"]
     stored = json.load(open(qfile, encoding="utf-8"))
     assert len(stored["failures"]) == 4
     assert stored["claims_at_snapshot"] == {"T067": "verifying"}
@@ -92,8 +94,10 @@ def test_p5_decay_advisory(qfile, monkeypatch):
     # the lane closes after the snapshot
     monkeypatch.setattr(sb, "_ledger_claims", lambda: {"T067": "done"})
     line = sb.render_boot_line()
-    assert "4 known failure(s)" in line and "abc" in line
-    assert "since closed" in line and "re-run advised" in line
+    assert "4 known failure(s)" in line
+    assert "abc" in line
+    assert "since closed" in line
+    assert "re-run advised" in line
 
 
 def test_p6_no_baseline_silent(qfile):

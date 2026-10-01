@@ -166,10 +166,7 @@ class _FakeRedis:
 
     def zrange(self, key, start, end, withscores=False):
         items = sorted(self.zsets.get(str(key), {}).items(), key=lambda kv: kv[1])
-        if end == -1:
-            end = len(items)
-        else:
-            end = end + 1
+        end = len(items) if end == -1 else end + 1
         sliced = items[start:end]
         return sliced if withscores else [m for m, _ in sliced]
 

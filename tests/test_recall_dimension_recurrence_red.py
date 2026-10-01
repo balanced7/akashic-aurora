@@ -57,7 +57,7 @@ def _resolve(name):
 
 def _ev(sig, at, *, tool="run", args=(), flags=(), ok=True):
     """One observed action. `at` is a caller-supplied integer tick -- never a clock read."""
-    return dict(signature=sig, at=at, tool=tool, args=tuple(args), flags=tuple(flags), ok=ok)
+    return {"signature": sig, "at": at, "tool": tool, "args": tuple(args), "flags": tuple(flags), "ok": ok}
 
 
 # ---------------------------------------------------------------------------
@@ -309,9 +309,8 @@ def test_p9_module_imports_cannot_reach_a_canonical_writer():
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             seen += [a.name.split(".")[0] for a in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level == 0 and node.module:
-                seen.append(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            seen.append(node.module.split(".")[0])
     offenders = [s for s in seen if s not in allowed_roots]
     assert not offenders, (
         f"the recurrence dimension must be a pure function over a supplied stream; these imports "
@@ -348,7 +347,16 @@ def test_p10_empty_stream_is_unevaluated_not_a_clean_report():
 
 
 def _ev2(sig, at, *, subject="claude", episode="ep-1", tool="run", flags=()):
-    return dict(signature=sig, at=at, subject=subject, episode=episode, tool=tool, args=(), flags=tuple(flags), ok=True)
+    return {
+        "signature": sig,
+        "at": at,
+        "subject": subject,
+        "episode": episode,
+        "tool": tool,
+        "args": (),
+        "flags": tuple(flags),
+        "ok": True,
+    }
 
 
 # ---------------------------------------------------------------------------

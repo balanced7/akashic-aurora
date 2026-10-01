@@ -48,7 +48,7 @@ def test_loopback_always_allowed(host):
 
 
 @pytest.mark.parametrize(
-    "host,label",
+    ("host", "label"),
     [
         ("100.101.102.103", "Tailscale CGNAT 100.64/10"),
         ("100.64.0.1", "CGNAT lower edge"),
@@ -75,7 +75,7 @@ def test_private_overlay_allowed_without_the_public_flag(host, label):
 
 
 @pytest.mark.parametrize(
-    "host,label",
+    ("host", "label"),
     [
         ("8.8.8.8", "public resolver -- genuinely routable"),
         ("1.1.1.1", "public resolver -- genuinely routable"),
@@ -93,7 +93,7 @@ def test_wildcard_is_treated_as_public_not_private():
     """0.0.0.0 is the WORST case, not a neutral one: it binds every interface at once,
     including any public one, so it can never be inferred safe from its own digits."""
     for host in ("0.0.0.0", "::"):
-        ok, why = L.bind_allowed(host, allow_public=False)
+        ok, _why = L.bind_allowed(host, allow_public=False)
         assert not ok, f"wildcard {host} was allowed without the flag"
         assert L.bind_class(host) == "public"
 
@@ -120,7 +120,7 @@ def test_unparseable_host_is_refused_not_guessed():
     """A hostname we cannot classify must not fall through to 'allow'. Absent knowledge is
     refusal, never permission -- the same rule the inbound gate follows."""
     for junk in ("", "not a host", "999.999.999.999", "example.com"):
-        ok, why = L.bind_allowed(junk, allow_public=False)
+        ok, _why = L.bind_allowed(junk, allow_public=False)
         assert not ok, f"unclassifiable host {junk!r} was allowed"
 
 

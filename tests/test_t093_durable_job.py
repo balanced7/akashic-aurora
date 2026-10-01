@@ -22,6 +22,7 @@ import pytest
 
 from scripts import run_job
 from scripts import ship as ship_module
+import contextlib
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"
@@ -137,10 +138,8 @@ def _force_tree(pid: int) -> None:
             timeout=5,
         )
     else:
-        try:
+        with contextlib.suppress(ProcessLookupError):
             os.killpg(pid, 9)
-        except ProcessLookupError:
-            pass
 
 
 def _force_pid(pid: int) -> None:
@@ -152,10 +151,8 @@ def _force_pid(pid: int) -> None:
             timeout=5,
         )
     else:
-        try:
+        with contextlib.suppress(ProcessLookupError):
             os.kill(pid, 9)
-        except ProcessLookupError:
-            pass
 
 
 def _seed_spec(
@@ -213,7 +210,8 @@ def test_launch_is_immediate_and_fresh_status_recovers_result(tmp_path):
     assert Path(launch["receipt_path"]).exists(), "launch receipt precedes model/tool return"
 
     final = _wait_terminal(tmp_path, job_id)
-    assert final["state"] == "succeeded" and final["exit_code"] == 0
+    assert final["state"] == "succeeded"
+    assert final["exit_code"] == 0
     assert marker.read_text(encoding="utf-8") == "complete"
 
 
@@ -574,7 +572,8 @@ def test_terminal_receipt_waits_for_retained_workload_quiescence(tmp_path):
     deadline = time.monotonic() + 4
     while (not root_ready.exists() or not grandchild_pid_path.exists()) and time.monotonic() < deadline:
         time.sleep(0.01)
-    assert root_ready.exists() and grandchild_pid_path.exists()
+    assert root_ready.exists()
+    assert grandchild_pid_path.exists()
     grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
     grandchild_identity = run_job._process_info(grandchild_pid)[1]
     assert grandchild_identity
@@ -1187,7 +1186,8 @@ def test_running_receipt_failure_cleans_up_prearmed_child(tmp_path, monkeypatch)
     monkeypatch.setattr(run_job.subprocess, "Popen", capture_child)
     try:
         run_job._supervise(job_id, tmp_path)
-        assert failed_once and children
+        assert failed_once
+        assert children
         deadline = time.monotonic() + 2
         while children[0].poll() is None and time.monotonic() < deadline:
             time.sleep(0.02)
@@ -1325,10 +1325,8 @@ effect.write_text('post-push-work', encoding='utf-8')
         if entered.exists() and not release.exists():
             release.write_text("cleanup", encoding="utf-8")
         if entered.exists() and not final:
-            try:
+            with contextlib.suppress(AssertionError):
                 final = _wait_terminal(tmp_path, job_id, timeout=6)
-            except AssertionError:
-                pass
         for key, old in old_values.items():
             if old is None:
                 os.environ.pop(key, None)

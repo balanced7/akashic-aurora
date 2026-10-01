@@ -131,7 +131,8 @@ def test_docc_json_becomes_sections(tmp_path):
     assert best.anchor == "Best-practices"
     sizing = next(s for s in doc.sections if s.path[-1] == "Sizing")
     assert sizing.path == ("Switches", "Best practices", "Sizing")
-    assert "Phone" in sizing.text and "31 pt" in sizing.text  # tables keep their cells
+    assert "Phone" in sizing.text
+    assert "31 pt" in sizing.text
 
 
 HTML = """<html><head><title>Lamp Guide | Site</title></head><body>
@@ -147,8 +148,10 @@ def test_html_keeps_the_content_and_drops_the_chrome(tmp_path):
     p.write_text(HTML, encoding="utf-8")
     doc = convert.to_document(p)
     text = "\n".join(s.text for s in doc.sections)
-    assert "warm bulb" in text and "Unplug" in text
-    assert "Cookie settings" not in text and "Privacy" not in text
+    assert "warm bulb" in text
+    assert "Unplug" in text
+    assert "Cookie settings" not in text
+    assert "Privacy" not in text
     assert ("Lamp Guide", "Bulbs") in [s.path for s in doc.sections]
 
 
@@ -193,7 +196,9 @@ def test_ingest_is_idempotent_and_replaces_changed_documents(tmp_path):
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     first = sh.ingest("home", corpus)
     again = sh.ingest("home", corpus)
-    assert first.docs_added == 3 and again.docs_added == 0 and again.docs_unchanged == 3
+    assert first.docs_added == 3
+    assert again.docs_added == 0
+    assert again.docs_unchanged == 3
     n = sh.stats()["chunks"]
     (corpus / "kettle.md").write_text(MD.replace("every month", "every week"), encoding="utf-8")
     changed = sh.ingest("home", corpus)
@@ -210,10 +215,12 @@ def test_search_puts_the_answering_section_first(tmp_path):
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("home", corpus)
     res = sh.search("how many watts should the bulb be?")
-    assert res.hits and "Bulbs" in res.hits[0].breadcrumb
+    assert res.hits
+    assert "Bulbs" in res.hits[0].breadcrumb
     res = sh.search("what height is a switch on a phone")
     assert "Sizing" in res.hits[0].breadcrumb
-    assert res.hits[0].url and res.hits[0].url.endswith("#Sizing")
+    assert res.hits[0].url
+    assert res.hits[0].url.endswith("#Sizing")
 
 
 def test_questions_with_punctuation_never_break_the_query(tmp_path):
@@ -278,7 +285,8 @@ def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
     sh.ingest("g", corpus)
     res = sh.search("gear teeth", limit=3, max_chars=1300)
     assert len(res.hits) >= 2, "room for a trimmed second passage must be used"
-    assert sum(len(h.text) for h in res.hits) <= 1300 + 8 and res.truncated
+    assert sum(len(h.text) for h in res.hits) <= 1300 + 8
+    assert res.truncated
 
 
 def test_a_docc_page_links_to_its_human_page_not_its_raw_data(tmp_path):
@@ -372,7 +380,8 @@ def test_hybrid_without_an_embedder_falls_back_to_keywords_and_says_so(tmp_path)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=False)
     sh.ingest("ui", corpus)
     res = sh.search("system palette tint", mode="hybrid")
-    assert res.hits and "Colors" in res.hits[0].breadcrumb
+    assert res.hits
+    assert "Colors" in res.hits[0].breadcrumb
     assert "keyword" in res.render().lower(), "a silent downgrade reads as a hybrid answer"
 
 
@@ -416,7 +425,8 @@ def test_meaning_search_streams_vectors_in_bounded_batches(tmp_path, monkeypatch
     whole = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
     monkeypatch.setattr(shelf_mod, "VECTOR_BATCH", 1)
     streamed = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
-    assert streamed == whole and whole
+    assert streamed == whole
+    assert whole
 
 
 def test_embedding_runs_in_bounded_batches(tmp_path, monkeypatch):
@@ -434,7 +444,8 @@ def test_embedding_runs_in_bounded_batches(tmp_path, monkeypatch):
     monkeypatch.setattr(shelf_mod, "EMBED_BATCH", 1)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=Recording())
     sh.ingest("ui", corpus)
-    assert sizes and max(sizes) == 1
+    assert sizes
+    assert max(sizes) == 1
     assert sh.stats()["embedded"] == sh.stats()["chunks"]
 
 

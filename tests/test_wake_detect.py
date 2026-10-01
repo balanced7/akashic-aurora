@@ -306,7 +306,8 @@ def test_watch_ignores_broadcast_reply_but_wakes_on_directed_reply(capsys):
         )
         a.send("bob", "reply", "answer for bob")
         rc = _watch("bob", api, deadline_s=6, block_ms=400)
-        assert rc == 0 and "answer for bob" in capsys.readouterr().out
+        assert rc == 0
+        assert "answer for bob" in capsys.readouterr().out
     finally:
         _cleanup(c, ns)
 

@@ -38,7 +38,9 @@ def _write(directory: Path, stem: str, text: str) -> Path:
 def test_a_valid_preset_has_no_problems(tmp_path):
     info = parse_preset(_write(tmp_path, "demo-one", VALID))
     assert info["problems"] == []
-    assert info["name"] == "Demo One" and info["author"] == "Vandor" and info["tags"] == ["test"]
+    assert info["name"] == "Demo One"
+    assert info["author"] == "Vandor"
+    assert info["tags"] == ["test"]
     assert info["params"] == [{"k": 1, "name": "trails", "default": 0.5}, {"k": 3, "name": "zoom", "default": 0}]
     assert info["url"] == "/web/presets/demo-one.frag"
 

@@ -47,7 +47,8 @@ def test_trim_over_budget_names_dropped_sections():
     )
     out = runner._trim_onboarding(digest, budget_chars=140)
     assert "TRIMMED at its 140-char budget" in out
-    assert "DROPPED ALPHA" in out and "DROPPED BETA" in out
+    assert "DROPPED ALPHA" in out
+    assert "DROPPED BETA" in out
     assert "knowledge_boot" in out, "the trim must carry a pull pointer, never a dead end"
     assert "trimmed to keep bus replies lean" not in out, "the silent-cut string is retired"
 
@@ -109,7 +110,8 @@ def test_lock_note_rendered_in_holder():
         res = lm.acquire(path, ttl=30, note="pin probe: why-field")
         assert res["ok"]
         h = lm.holder(path)
-        assert h and h.get("note") == "pin probe: why-field"
+        assert h
+        assert h.get("note") == "pin probe: why-field"
     finally:
         lm.release(path)
 

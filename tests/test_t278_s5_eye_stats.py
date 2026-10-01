@@ -49,7 +49,8 @@ def test_p1_stats_counts_match_fixture_truth(db):
     # beta 4 = op2 + agent1 + system1 · gamma 1 = op (timeless)
     assert s["events_total"] == 12
     assert s["sessions"] == 3
-    assert s["by_voice"]["operator"] == 6 and s["by_voice"]["agent"] == 2
+    assert s["by_voice"]["operator"] == 6
+    assert s["by_voice"]["agent"] == 2
     assert s["by_voice"]["system"] == 4
     assert s["by_kind"]["queue-operation"] == 2
 

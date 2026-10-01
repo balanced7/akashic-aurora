@@ -82,7 +82,8 @@ def test_p5_wal_growth_is_a_health_failure(tmp_path):
     wal.write_bytes(b"\0" * 600_000)
     findings = classify(j, d, backend_env="sqlite", now=NOW, wal_alert_bytes=524_288)
     wal_f = [f for f in findings if f["code"] == "WAL-GROWTH"]
-    assert wal_f and wal_f[0]["severity"] == "fail"
+    assert wal_f
+    assert wal_f[0]["severity"] == "fail"
     assert "600000" in wal_f[0]["line"] or "600,000" in wal_f[0]["line"]
 
 

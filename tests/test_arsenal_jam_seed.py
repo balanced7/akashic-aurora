@@ -324,12 +324,14 @@ def expected(cid: str, field: str, text: str) -> str:
 # ========================================================================================================= the file
 def test_seed_file_is_the_seventeen_cards():
     assert validate_seed(DOC) == DOC
-    assert DOC["api"] == SEED_API and DOC["seed_version"] == 1
+    assert DOC["api"] == SEED_API
+    assert DOC["seed_version"] == 1
     assert [card["id"] for card in DOC["cards"]] == IDS
     for card in DOC["cards"]:
         assert card["source"] == {"kind": "seed", "seed_version": 1}
         assert card["created_by"] == "claude"
-        assert card["playback"] == {"velocity": 48} and card["voicing"] == {"style": "spread"}
+        assert card["playback"] == {"velocity": 48}
+        assert card["voicing"] == {"style": "spread"}
 
 
 @pytest.mark.parametrize("cid", IDS)
@@ -345,11 +347,13 @@ def test_card_validates_as_the_store_holds_it(cid):
     }
     assert validate_card(stored, stored=True) == stored
     settings = card_settings(card)
-    assert settings["groove"] in GROOVES_V1 and settings["backing"] in BACKINGS_V1
+    assert settings["groove"] in GROOVES_V1
+    assert settings["backing"] in BACKINGS_V1
     if "bars" in card:
         assert line_beats(card["chords"]) == card["bars"] * card["tempo"]["beats_per_bar"]
     for other in card["related"]:
-        assert other in CARDS and other != cid
+        assert other in CARDS
+        assert other != cid
 
 
 def test_tracked_seed_carries_no_moment_links():
@@ -357,7 +361,8 @@ def test_tracked_seed_carries_no_moment_links():
     assert not re.search(r"\d{8}-\d{6}-[0-9a-f]{8}", raw), "a session id in the tracked seed"
     assert not re.search(r"\bS[1-4]\b", raw), "a session label in the tracked seed"
     for card in DOC["cards"]:
-        assert "moments" not in card and "replay" not in card
+        assert "moments" not in card
+        assert "replay" not in card
     for path, text in strings(DOC):
         assert not re.search(r"\b\d{1,3}:[0-5]\d\b", text), f"{path} holds a clock time: {text!r}"
 
@@ -567,7 +572,8 @@ def test_question_and_answer_pairs_close():
     assert pairs == PAIRS
     for question, answer in PAIRS:
         assert CARDS[answer]["pair"] == {"role": "answer", "with": question}
-        assert answer in CARDS[question]["related"] and question in CARDS[answer]["related"]
+        assert answer in CARDS[question]["related"]
+        assert question in CARDS[answer]["related"]
         assert CARDS[question].get("landing"), f"{question} asks, so it leaves a note hanging"
     broken = copy.deepcopy(DOC)
     next(c for c in broken["cards"] if c["id"] == "float-or-pull").pop("pair")
@@ -683,7 +689,7 @@ def bridge(key: str, style: str, items) -> dict:
     )
     doc = json.loads(res.stdout)
     assert doc.get("ok"), doc
-    return dict(zip(items, doc["results"]))
+    return dict(zip(items, doc["results"], strict=False))
 
 
 def read_all(groups: dict) -> dict:
@@ -704,7 +710,7 @@ def default_reads():
     for cid in IDS:
         card = CARDS[cid]
         style = card["voicing"]["style"]
-        for key in [card["key"]] + card.get("also_in", []) + EXTRA_KEYS.get(cid, []):
+        for key in [card["key"], *card.get("also_in", []), *EXTRA_KEYS.get(cid, [])]:
             for vid, _line in lines(card):
                 for slot, section, item in slots(card, vid, key):
                     section = plain_key(section)
@@ -738,7 +744,8 @@ def test_every_chord_reads_the_way_section_12_says():
             if READS[where] == CLOUD_LETTERS:
                 assert read["number"] is None
             seen_reads.add(where)
-    assert seen_reads == set(READS) and seen_spelled == set(SPELLED)
+    assert seen_reads == set(READS)
+    assert seen_spelled == set(SPELLED)
 
 
 @needs_node

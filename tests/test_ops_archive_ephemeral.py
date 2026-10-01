@@ -89,7 +89,8 @@ def test_p1_streams_become_durable_jsonl_one_file_per_stream(rig):
     assert [r["id"] for r in rows] == ["1000-0", "1001-0"]
     assert rows[0]["stream"] == "bifrost:broadcast"
     assert rows[0]["fields"]["content"] == "alpha", "the payload is kept whole, not summarised"
-    assert rep["streams"] == 2 and rep["entries_written"] == 3
+    assert rep["streams"] == 2
+    assert rep["entries_written"] == 3
 
 
 # ---------------------------------------------------------------- P2: incremental
@@ -124,7 +125,8 @@ def test_p4_the_export_is_queryable_by_who_kind_and_phrase(rig):
     # FIXTURE CORRECTED after the first live run: these records use `frm`, which is the
     # field the real bifrost envelope carries. v1 invented `from`, so the who= facet passed
     # its pin and returned silent-empty against every real message on disk.
-    assert len(hits) == 1 and hits[0]["fields"]["frm"] == "kimi"
+    assert len(hits) == 1
+    assert hits[0]["fields"]["frm"] == "kimi"
 
     assert len(EPH.search(rig["out"], who="deepseek")) == 1
     assert len(EPH.search(rig["out"], kind="chat")) == 1
@@ -144,7 +146,8 @@ def test_p5_state_archiving_reuses_the_proven_engine_not_a_second_copy_of_it(tmp
     (src / "note-1.txt").write_text("body", encoding="utf-8")
     d = tmp_path / "dest"
     rep = EPH.archive([src / "note-1.txt"], [d], receipt_dir=tmp_path / "r")
-    assert rep["ok"] and (d / "note-1.txt").exists()
+    assert rep["ok"]
+    assert (d / "note-1.txt").exists()
 
     (src / "note-1.txt").unlink()  # the source is cleaned up
     EPH.archive([], [d], receipt_dir=tmp_path / "r")
@@ -162,7 +165,8 @@ def test_p6_collect_names_every_plane_and_states_what_it_skipped(tmp_path):
 
     files, planes = EPH.collect_state(root)
     names = {f.name for f in files}
-    assert "a.txt" in names and "learnings.jsonl" in names
+    assert "a.txt" in names
+    assert "learnings.jsonl" in names
     assert "scratch.tmp" not in names, "temp files are not the record"
     assert planes["state/spill"] == 1 and planes["session_logs"] == 1, (
         "per-plane counts ride the report -- an archive that cannot say WHAT it covered "

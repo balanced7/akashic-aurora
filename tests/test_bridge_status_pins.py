@@ -75,7 +75,8 @@ def _world(tmp_path, monkeypatch):
 def test_status_lists_every_configured_peer():
     st = BS.status(probe=False)
     names = [p["name"] for p in st["peers"]]
-    assert "peer-a" in names and "peer-unkeyed" in names
+    assert "peer-a" in names
+    assert "peer-unkeyed" in names
 
 
 def test_an_unkeyed_peer_is_reported_inert_not_broken():
@@ -112,7 +113,8 @@ def test_status_never_raises_on_a_broken_world(monkeypatch):
     monkeypatch.setattr(RR, "CONFIG_FILE", Path("does-not-exist.json"))
     RR._reset_cache()
     st = BS.status(probe=False)
-    assert isinstance(st, dict) and "peers" in st
+    assert isinstance(st, dict)
+    assert "peers" in st
 
 
 def test_status_carries_its_own_timestamp():
@@ -133,7 +135,8 @@ def test_actions_are_enumerated_and_named():
 
 def test_an_unknown_action_is_refused():
     out = BS.act("rm_minus_rf", confirm=True)
-    assert not out.ok and "unknown" in (out.why or "").lower()
+    assert not out.ok
+    assert "unknown" in (out.why or "").lower()
 
 
 def test_dangerous_actions_require_explicit_confirmation():
@@ -284,39 +287,49 @@ def test_restart_listener_selects_the_listener_process_not_any_mention_of_its_na
             102,
             101,
             "python.exe",
-            r"C:\Python311\python.exe -m pytest tests/test_bridge_status_pins.py "
-            r"tests/test_remote_bridge_listener_pins.py",
+            (
+                r"C:\Python311\python.exe -m pytest tests/test_bridge_status_pins.py "
+                r"tests/test_remote_bridge_listener_pins.py"
+            ),
         ),
         (103, 1, "bash.exe", 'bash.exe -c "py -m pytest tests/test_remote_bridge_listener_pins.py"'),
         (
             104,
             102,
             "powershell.exe",
-            "powershell -NoProfile -Command Get-CimInstance Win32_Process | "
-            "Where-Object { $_.CommandLine -like '*remote_bridge_listener*' }",
+            (
+                "powershell -NoProfile -Command Get-CimInstance Win32_Process | "
+                "Where-Object { $_.CommandLine -like '*remote_bridge_listener*' }"
+            ),
         ),
         (
             105,
             1,
             "Code.exe",
-            r'"C:\Users\x\AppData\Local\Programs\Microsoft VS Code\Code.exe" '
-            r"E:\AI-Setup\scripts\remote_bridge_listener.py",
+            (
+                r'"C:\Users\x\AppData\Local\Programs\Microsoft VS Code\Code.exe" '
+                r"E:\AI-Setup\scripts\remote_bridge_listener.py"
+            ),
         ),
         (106, 103, "grep.exe", "grep -rn remote_bridge_listener scripts tests"),
         (
             107,
             1,
             "python.exe",
-            r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
-            r"--host 127.0.0.1 --port 8791 --peer serge",
+            (
+                r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+                r"--host 127.0.0.1 --port 8791 --peer serge"
+            ),
         ),
         (108, 1, "py.exe", "py scripts/remote_bridge_listener.py --port 9000"),
         (
             109,
             1,
             "python.exe",
-            r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
-            r"--port 0 --peer pytest-probe",
+            (
+                r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+                r"--port 0 --peer pytest-probe"
+            ),
         ),
     )
     killed = []

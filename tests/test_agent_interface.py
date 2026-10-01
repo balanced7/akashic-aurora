@@ -171,7 +171,7 @@ def test_bad_invocation():
     assert rc != 0, "no-subcommand must exit nonzero"
     rc, _, err = run("learn", "agent_x")  # missing required --experiment
     assert rc != 0, "missing --experiment must exit nonzero"
-    rc, _, err = run("nonsense")  # unknown subcommand
+    rc, _, _err = run("nonsense")  # unknown subcommand
     assert rc != 0, "unknown subcommand must exit nonzero"
     ok("bad invocations exit nonzero (don't silently no-op)")
 

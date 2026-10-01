@@ -60,7 +60,8 @@ def test_pedal_mode_cuts_every_window_at_the_lift():
     cleared = {PC["E"], PC["G"], PC["D"]}
     for w in after:
         assert not (set(w["pcs"]) & cleared), f"prior notes captured after the lift: {sorted(w['pcs'])}"
-        assert PC["F"] in w["pcs"] and PC["A"] in w["pcs"]
+        assert PC["F"] in w["pcs"]
+        assert PC["A"] in w["pcs"]
     before = [w for w in windows if w["end_ms"] <= 1950]
     assert any({PC["C"], PC["E"], PC["G"]} <= set(w["pcs"]) for w in before), "the C major is named before the lift"
 
@@ -164,7 +165,8 @@ def test_the_late_merges_stop_at_a_lift():
     assert [(w["start_ms"], w["end_ms"]) for w in built] == [(0, 350), (350, 3000)], (
         "a build across a quick lift-and-repress is two chords (merge_built stops at the lift)"
     )
-    assert set(built[0]["pcs"]) == {"C", "G"} and set(built[1]["pcs"]) == {"C", "E", "G"}
+    assert set(built[0]["pcs"]) == {"C", "G"}
+    assert set(built[1]["pcs"]) == {"C", "E", "G"}
     assert 350 not in [w["end_ms"] for w in pr.analyze(build_session(), boundary="notes")["windows"]], (
         "notes mode: the pump is not a boundary"
     )

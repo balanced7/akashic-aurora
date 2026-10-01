@@ -69,7 +69,10 @@ def db_of(ratio):
 def test_the_model_is_amplitude_through_the_voice_curve_with_t60_anchors():
     lo, hi = DECAY_T60_S
     assert (lo, hi) == (20.0, 3.0), "the calibration the first model stated and missed"
-    assert t60_s(36) == lo and t60_s(96) == hi and t60_s(0) == lo and t60_s(127) == hi
+    assert t60_s(36) == lo
+    assert t60_s(96) == hi
+    assert t60_s(0) == lo
+    assert t60_s(127) == hi
     assert amplitude_at(0, 60) == 1.0
     assert abs(db_of(amplitude_at(20000, 36)) - (-60.0)) < 1e-6, "-60 dB at T60"
     assert abs(db_of(amplitude_at(1000, 96)) - (-20.0)) < 1e-6, "a C7 is -20 dB after one second"
@@ -78,7 +81,8 @@ def test_the_model_is_amplitude_through_the_voice_curve_with_t60_anchors():
     assert abs(peak_of(0) - VOICE_LEVEL * VOICE_FLOOR) < 1e-12, "the voice never gates: its floor is 0.012"
     for v in (1, 20, 40, 80, 127):
         assert velocity_for_peak(peak_of(v)) == v
-    assert velocity_for_peak(0.0) == 1 and velocity_for_peak(10.0) == 127
+    assert velocity_for_peak(0.0) == 1
+    assert velocity_for_peak(10.0) == 127
     assert SILENT_DB == -40.0
 
 
@@ -94,7 +98,9 @@ def test_a_chord_over_ringing_notes_plays_them_as_they_sounded_when_it_was_whole
     assert later["velocities"][BASS] == 1, "as quiet as the voice can say it (peak 0.0064 < the voice floor 0.012)"
     assert BASS in later["notes"]
     # the treble D6, 8 s old: T60 ~ 4.1 s -> ~ -116 dB: silent, listed as faded
-    assert later["db"][TREBLE] < SILENT_DB and TREBLE in later["faded"] and TREBLE not in later["notes"]
+    assert later["db"][TREBLE] < SILENT_DB
+    assert TREBLE in later["faded"]
+    assert TREBLE not in later["notes"]
 
 
 def test_an_unfolding_arpeggio_is_aged_from_the_instant_it_is_whole_not_the_window_start():

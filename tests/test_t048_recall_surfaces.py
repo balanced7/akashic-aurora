@@ -68,7 +68,8 @@ def test_hint_style_default_stays_cli():
 # ---------------------------------------------------------------- H2: legend gate
 def test_legend_renders_on_credibility_markers():
     out = render(_result([_lesson(use={"helped": 2, "useful": 1})]))
-    assert "[legend]" in out and "helped=auto credit" in out
+    assert "[legend]" in out
+    assert "helped=auto credit" in out
 
 
 def test_legend_silent_on_plain_lessons():
@@ -103,7 +104,9 @@ def test_recall_at_tool_maps_args(monkeypatch):
     monkeypatch.setattr(tb, "_agent_cli", lambda args, timeout=90: calls.append(args) or "ok")
     tb.recall_at(limit=7, path="core/comm/bus.py")
     args = calls[0]
-    assert args[0] == "recall-at" and "--limit" in args and "7" in args
+    assert args[0] == "recall-at"
+    assert "--limit" in args
+    assert "7" in args
     assert "--hint-style" in args and "tool" in args, "tool-loop pulls must get tool-shaped hints"
     assert "--path" in args
 
@@ -146,7 +149,8 @@ def test_release_written_locks(monkeypatch):
     calls = []
     monkeypatch.setattr(tb, "_agent_cli", lambda args, timeout=90: calls.append(args) or "released")
     n = tb.release_written_locks()
-    assert n == 2 and tb._written_lock_paths == []
+    assert n == 2
+    assert tb._written_lock_paths == []
     assert all(a[0] == "unlock" and a[1] == "testagent" for a in calls)
 
 

@@ -130,7 +130,8 @@ def test_p4_the_detector_has_no_write_path():
 # ---------------------------------------------------------------- P5: the report is a frame
 def test_p5_the_sweep_reports_its_own_scope():
     rep = S.sweep(limit=25)
-    assert "examined" in rep and "checkable" in rep
+    assert "examined" in rep
+    assert "checkable" in rep
     assert rep["examined"] >= 0
     assert "scope" in rep, "a coverage claim must state what it globbed (the frame law)"
     for item in rep.get("stale", []):

@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
+import itertools
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -193,7 +194,7 @@ def seed():
         reply = bridge({"requests": [{"items": items_for(card, v, s), "voicing": "band"} for v, s in keys]})
         assert reply["ok"], reply
         out = {}
-        for (v, s), r in zip(keys, reply["replies"]):
+        for (v, s), r in zip(keys, reply["replies"], strict=False):
             assert r["ok"], (card["id"], v, s, r)
             out[(card["id"], v, s)] = r["results"]
         return out
@@ -218,7 +219,8 @@ def test_every_seed_line_voices_in_all_12_keys(seed):
         assert len(results) == len(items_for(card, variant, shift))
         for r in results:
             assert not r.get("error"), (cid, variant, shift, r)
-            assert r["voicing"] == "band" and set(r["band"]) == {"full", "comp", "bass"}
+            assert r["voicing"] == "band"
+            assert set(r["band"]) == {"full", "comp", "bass"}
 
 
 def test_band_registers_spacing_and_the_bass(seed):
@@ -233,7 +235,7 @@ def test_band_registers_spacing_and_the_bass(seed):
                 assert notes == sorted(set(notes)), where
                 assert 28 <= notes[0] <= 50 and notes[0] % 12 == r["bass_pc"], (where, backing, notes)
                 assert len(v["roles"]) == len(notes) and v["roles"][0] == "bass", (where, backing, v)
-                pairs = [(a, b) for a, b in zip(notes, notes[1:]) if b - a in LIL and a < LIL[b - a]]
+                pairs = [(a, b) for a, b in itertools.pairwise(notes) if b - a in LIL and a < LIL[b - a]]
                 assert not pairs, (where, backing, notes, pairs)
             assert r["band"]["bass"]["notes"] == [r["band"]["full"]["notes"][0]], where
             full, comp = r["band"]["full"]["notes"], r["band"]["comp"]["notes"]
@@ -263,7 +265,7 @@ def test_band_registers_spacing_and_the_bass(seed):
                     )
             assert full[1] >= 50 and comp[1] >= 48, (where, full, comp)
             # comp's inner voices sit in C3-B3; only the top voice or an altered colour reaches up to E4
-            for note, role in zip(comp[1:-1], r["band"]["comp"]["roles"][1:-1]):
+            for note, role in zip(comp[1:-1], r["band"]["comp"]["roles"][1:-1], strict=False):
                 if note > 59 and not any("comp voicing" in w and "inner voice" in w for w in group_loose):
                     assert (note - root) % 12 in ALTERED.get(role, set()), (where, comp, role)
             # the bass pitch class is not doubled above it, except a root-position root filling a thin chord, or a
@@ -278,7 +280,7 @@ def test_band_registers_spacing_and_the_bass(seed):
 
 def test_full_band_reads_back_as_itself_except_the_three_reads_as_chords(seed):
     misses = set()
-    for (cid, variant, shift), results in seed.items():
+    for (cid, variant, _shift), results in seed.items():
         for i, r in enumerate(results):
             match = r["roundtrip"]["match"]
             if match in ("exact", "enharmonic"):
@@ -309,7 +311,7 @@ def test_numbers_stay_and_pitch_classes_move_with_the_key(seed):
             home = seed[(card["id"], variant, 0)]
             for shift in range(1, 12):
                 moved = seed[(card["id"], variant, shift)]
-                for a, b in zip(home, moved):
+                for a, b in zip(home, moved, strict=False):
                     assert a["number"] == b["number"], (card["id"], variant, shift, a["number"], b["number"])
                     assert b["tones_pc"] == {role: (pc + shift) % 12 for role, pc in a["tones_pc"].items()}, (a, b)
                     assert b["bass_pc"] == (a["bass_pc"] + shift) % 12
@@ -410,7 +412,8 @@ def test_upper_same_shares_the_shape_and_a_failed_gate_is_a_warning_not_a_refusa
 
 def test_upper_same_without_a_chord_before_it_is_voiced_on_its_own():
     results = band([{"text": "6m11/5", "key": "Db major", "upper": "same"}, "bogus chord!"], key="Db major")
-    assert results[0]["upper_same"] is False and any('upper "same" needs a chord' in w for w in results[0]["warnings"])
+    assert results[0]["upper_same"] is False
+    assert any('upper "same" needs a chord' in w for w in results[0]["warnings"])
     assert results[1].get("error")
     bad = band([{"text": "1", "upper": "held"}], key="C major")
     assert "upper must be" in bad[0]["error"]
@@ -424,11 +427,15 @@ def test_a_line_through_a_key_change_notes_items_and_a_chain():
         {"text": "1maj9", "key": "D major"},
     ]
     ring = band(items, key="Eb major")
-    assert [r["name"] for r in ring[:2]] == ["C6", "Dadd9"] and ring[1]["key"] == "D major"
-    assert ring[2]["kind"] == "notes" and ring[2]["name"] == "Cm11/Ab" and ring[2]["bass_pc"] == 8
+    assert [r["name"] for r in ring[:2]] == ["C6", "Dadd9"]
+    assert ring[1]["key"] == "D major"
+    assert ring[2]["kind"] == "notes"
+    assert ring[2]["name"] == "Cm11/Ab"
+    assert ring[2]["bass_pc"] == 8
     assert ring[0]["band"]["full"]["move_cost"] is not None
     chain = band(items, key="Eb major", line="chain")
-    assert chain[0]["band"]["full"]["move_cost"] is None and chain[1]["band"]["full"]["move_cost"] is not None
+    assert chain[0]["band"]["full"]["move_cost"] is None
+    assert chain[1]["band"]["full"]["move_cost"] is not None
     assert bridge({"items": ["1"], "key": "C major", "voicing": "band", "line": "loop"})["ok"] is False
     cluster = band(["C4 Db4 D4"])
     assert "the band voices chords" in cluster[0]["error"]
@@ -439,8 +446,10 @@ def test_tones_pc_and_bass_pc_on_every_style_and_on_notes():
         r = bridge({"items": ["Bbm11/Gb", "Ab2 C3 Eb3 G3"], "voicing": style, "key": "Db major"})["results"]
         assert r[0]["tones_pc"] == {"root": 10, "third": 1, "fifth": 5, "seventh": 8, "ninth": 0, "eleventh": 3}
         assert r[0]["bass_pc"] == 6
-        assert r[1]["tones_pc"] == {"root": 8, "third": 0, "fifth": 3, "seventh": 7} and r[1]["bass_pc"] == 8
+        assert r[1]["tones_pc"] == {"root": 8, "third": 0, "fifth": 3, "seventh": 7}
+        assert r[1]["bass_pc"] == 8
     cluster = bridge({"items": ["C4 Db4 D4"], "voicing": "close"})["results"][0]
-    assert cluster["tones_pc"] is None and cluster["bass_pc"] == 0
+    assert cluster["tones_pc"] is None
+    assert cluster["bass_pc"] == 0
     keyed = bridge({"items": [{"text": "1maj9", "key": "D major"}, "1maj9"], "key": "Eb major", "voicing": "close"})
     assert [r["name"] for r in keyed["results"]] == ["Dmaj9", "Ebmaj9"]

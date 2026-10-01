@@ -81,7 +81,8 @@ def test_p4_get_advertises_the_address_shape():
     """An address resolver whose description omits the address shape sends every caller through a
     guess. The corpus addresses as session:line and nothing else."""
     d = {t.get("function", t)["name"]: t.get("function", t)["description"] for t in TB.TOOLS}
-    assert "session" in d["eye_get"].lower() and "line" in d["eye_get"].lower()
+    assert "session" in d["eye_get"].lower()
+    assert "line" in d["eye_get"].lower()
 
 
 # ------------------------------------------------------------------ the guard that must keep seeing

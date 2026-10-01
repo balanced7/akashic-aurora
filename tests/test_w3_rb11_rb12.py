@@ -95,7 +95,8 @@ def test_chain_warning_boundary_51_not_49(mem):
                 superseded=(i < count - 1),
             )
     long_titles = {c.get("title") for c in mem.get_long_chains()}
-    assert "long-chain" in long_titles and "short-chain" not in long_titles
+    assert "long-chain" in long_titles
+    assert "short-chain" not in long_titles
     assert CHAIN_WARN_THRESHOLD == 50
 
 

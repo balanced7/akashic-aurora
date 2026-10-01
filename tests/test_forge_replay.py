@@ -99,9 +99,12 @@ _INJECTIONS = [
 
 def test_flip_events_filters_and_normalizes():
     out = flip_events(events=_EVENTS)
-    assert len(out) == 4 and all(f["target"] for f in out)
-    assert out[0]["credited"] == 2 and out[0]["sources"] == ["learn:experiment:spine1_unify"]
-    assert flip_events(events=[]) == [] and flip_events(events=[{"bad": 1}]) == []
+    assert len(out) == 4
+    assert all(f["target"] for f in out)
+    assert out[0]["credited"] == 2
+    assert out[0]["sources"] == ["learn:experiment:spine1_unify"]
+    assert flip_events(events=[]) == []
+    assert flip_events(events=[{"bad": 1}]) == []
     print("\n--- flip events ---\n  4 flips kept, non-flips dropped, fail-soft OK")
 
 
@@ -125,11 +128,15 @@ def test_parse_target_inverts_normalize_target():
 
     t = normalize_target(path="core/primitives/consolidator.py")
     p, c = parse_target(t)
-    assert p and c is None and p.endswith("consolidator.py")
+    assert p
+    assert c is None
+    assert p.endswith("consolidator.py")
     t2 = normalize_target(command="PY   probe  Redis")
     p2, c2 = parse_target(t2)
-    assert p2 is None and c2 == "py probe redis"
-    assert parse_target("") == (None, None) and parse_target("x:weird") == (None, None)
+    assert p2 is None
+    assert c2 == "py probe redis"
+    assert parse_target("") == (None, None)
+    assert parse_target("x:weird") == (None, None)
     print("--- parse target ---\n  p:/c: inverted; unknown shapes unreplayable OK")
 
 
@@ -149,13 +156,15 @@ def test_fidelity_check_agrees_by_construction():
         f"fresh ledger entries must re-surface on replay (same pipeline!), got {fid}"
     )
     empty = fidelity_check(sample=[], learning_store=_STORE)
-    assert empty["checked"] == 0 and empty["rate"] is None
+    assert empty["checked"] == 0
+    assert empty["rate"] is None
     print("--- fidelity ---\n  2/2 ledgered sources re-surface; empty sample -> NA OK")
 
 
 def test_audit_verdicts_move_with_data():
     rep = audit(events=_EVENTS, injections=_INJECTIONS, learning_store=_STORE)
-    assert rep["flips"] == 4 and rep["credited_lessons"] == 2
+    assert rep["flips"] == 4
+    assert rep["credited_lessons"] == 2
     assert rep["flip_targets_replayable_share"] == 1.0
     assert rep["verdicts"]["c1_fidelity"] == "PASS", rep["verdicts"]
     assert rep["verdicts"]["c5_no_go"] == "clear"

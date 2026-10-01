@@ -72,7 +72,7 @@ def test_p1_block_never_writes_commit_fn_does(monkeypatch):
     _client()
     d = _mod()
     agent = _agent()
-    text, commit = d.delta_boot_block(agent)
+    _text, commit = d.delta_boot_block(agent)
     assert d.DeltaMark(agent).read() is None, "P1: building the block must NEVER write the mark (mark-lag, D1 ruling)"
     commit()
     assert d.DeltaMark(agent).read() is not None, "P1: commit_fn writes the mark"
@@ -163,7 +163,7 @@ def test_p6_unmoved_world_renders_empty_block(monkeypatch):
     _client()
     d = _mod()
     agent = _agent()
-    text, commit = d.delta_boot_block(agent)
+    _text, commit = d.delta_boot_block(agent)
     commit()  # mark == current positions
     text2, _ = d.delta_boot_block(agent)
     assert text2 == "", "P6: with a mark and nothing moved, the delta block is EXACTLY empty (zero cost)"

@@ -166,7 +166,7 @@ def test_p6_far_side_drill(tmp_path, monkeypatch):
 
     def g(*args, cwd):
         return subprocess.run(
-            ["git", "-c", "user.name=drill", "-c", "user.email=drill@test"] + list(args),
+            ["git", "-c", "user.name=drill", "-c", "user.email=drill@test", *list(args)],
             cwd=str(cwd),
             capture_output=True,
             text=True,

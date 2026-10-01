@@ -55,16 +55,19 @@ def test_p1_single_phrase_counts_and_voices(db):
         "the axis counts HIS voice and HIS sessions; agent echoes never inflate it"
     )
     assert r["by_voice"] == {"agent": 2, "operator": 1}
-    assert r["first_ts"] is not None and r["last_ts"] >= r["first_ts"]
+    assert r["first_ts"] is not None
+    assert r["last_ts"] >= r["first_ts"]
 
 
 def test_p2_family_dedupes_same_event_and_sums_distinct(db):
     # both patterns hit the SAME alpha line-1 event -> counted once
     r = EYE.freq(["fixture payrolls", "sharper every week"], db_path=db)
-    assert r["events_total"] == 1 and r["operator_events"] == 1
+    assert r["events_total"] == 1
+    assert r["operator_events"] == 1
     # distinct events across the family sum: sword(3) + harvest(1)
     r2 = EYE.freq(["fixture sword", "fixture harvest"], db_path=db)
-    assert r2["events_total"] == 4 and r2["operator_events"] == 2
+    assert r2["events_total"] == 4
+    assert r2["operator_events"] == 2
 
 
 def test_p3_per_session_refs(db):

@@ -79,8 +79,8 @@ def _wire(
 
 
 def _full(monkeypatch, **over):
-    base = dict(
-        notes=[
+    base = {
+        "notes": [
             _dec("next-focus", "T074 Phase 1 whisper v2", hours_ago=3),
             _dec("where-we-are", "SESSION HANDOFF: epic night closes; T074 next. " * 8, hours_ago=2, curated=True),
             _dec(
@@ -89,11 +89,11 @@ def _full(monkeypatch, **over):
                 hours_ago=10,
             ),
         ],
-        siblings=[{"session_id": "b0b7771d-9c2a-4f00-8888-000000000000", "age_min": 45.0, "has_seat": True}],
-        unread=3,
-        draft=True,
-        delta=4,
-    )
+        "siblings": [{"session_id": "b0b7771d-9c2a-4f00-8888-000000000000", "age_min": 45.0, "has_seat": True}],
+        "unread": 3,
+        "draft": True,
+        "delta": 4,
+    }
     base.update(over)
     _wire(monkeypatch, **base)
     return ctx.build_autoboot_context(_REPO, "claude", session_id="09f7ad79-3749-4c5e-a860-9d9e05133eaa")
@@ -124,7 +124,8 @@ def test_w2_where_carries_age_and_curated_flag(monkeypatch):
 def test_w2_mechanical_note_renders_auto(monkeypatch):
     out = _full(monkeypatch, notes=[_dec("where-we-are", "auto-distilled state", hours_ago=2, curated=False)])
     where = next(l for l in out.splitlines() if "WHERE:" in l)
-    assert "auto" in where and "curated" not in where
+    assert "auto" in where
+    assert "curated" not in where
 
 
 def test_w2_refinement_r1_legacy_note_renders_age_only(monkeypatch):
@@ -144,7 +145,9 @@ def test_w3_solo_when_no_siblings(monkeypatch):
 def test_w3_sibling_line_names_the_incarnation(monkeypatch):
     out = _full(monkeypatch)
     sib = next(l for l in out.splitlines() if "SIBLINGS:" in l)
-    assert "1 live sibling" in sib and "claude#b0b7771d" in sib and "45m idle" in sib
+    assert "1 live sibling" in sib
+    assert "claude#b0b7771d" in sib
+    assert "45m idle" in sib
 
 
 # ---------------------------------------------------------------- W4 age stamps live-vs-note
@@ -286,7 +289,8 @@ def test_r4_seat_file_reported(tmp_path):
     with open(os.path.join(tmp, f"bifrost_wake_claude_{sid}.pid"), "w") as f:
         f.write("12345")
     out = live_incarnations("claude", tmp=tmp, c=None, allow_fallback=False)
-    assert out and out[0]["has_seat"] is True
+    assert out
+    assert out[0]["has_seat"] is True
 
 
 def test_r4_foreign_agent_markers_never_leak(tmp_path):

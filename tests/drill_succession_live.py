@@ -35,7 +35,8 @@ def rung(name, fn):
 
 
 # probes that force each condition
-DEAD = lambda a=None, **k: "orphan: marker stale + parent chain dead (DRILL)"
+def DEAD(a=None, **k):
+    return "orphan: marker stale + parent chain dead (DRILL)"
 
 
 def ALIVE_SUCC(a=None, **k):
@@ -47,7 +48,8 @@ def ALIVE_SUCC(a=None, **k):
     return "UNATTENDED" if str(a) == cg.CONDUCTOR else "ATTENDED"
 
 
-NO_OP = lambda **k: False
+def NO_OP(**k):
+    return False
 
 
 def d1_baseline():

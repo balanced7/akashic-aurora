@@ -53,6 +53,7 @@ from core.comm import (
     runner_lock,  # noqa: E402
 )
 from core.comm.bus import Bus  # noqa: E402
+import contextlib
 
 PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")
@@ -90,7 +91,7 @@ def spawn(argv, log_path, **kw):
     """Launch a child python process, stdout+stderr -> log_path. Returns Popen."""
     f = open(log_path, "w", encoding="utf-8")
     p = subprocess.Popen(
-        [PY] + argv, cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
+        [PY, *argv], cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
     )
     p._logf = f
     return p
@@ -251,10 +252,8 @@ def main():
         if not paused:
             # The burst did not reach the pause -- almost always an early crash. Capture + abort
             # cleanly (finally tears everything down) rather than proceeding to kill nothing.
-            try:
+            with contextlib.suppress(Exception):
                 burst.wait(timeout=5)
-            except Exception:
-                pass
             (logdir / "burst.log").write_text("\n".join(burst_lines), encoding="utf-8")
             note("BURST DID NOT PAUSE -- likely early exit. Aborting. Tail:")
             print("\n".join(burst_lines[-15:]))
@@ -403,8 +402,8 @@ def main():
             reply_tags[t] = reply_tags.get(t, 0) + 1
 
         unc_a, unc_b = unconsumed(ids["a"]), unconsumed(ids["b"])
-        unc_tags = set(x["tag"] for x in (unc_a + unc_b) if x["tag"])
-        answered = set(t for t in reply_tags if t)
+        unc_tags = {x["tag"] for x in (unc_a + unc_b) if x["tag"]}
+        answered = {t for t in reply_tags if t}
 
         # S1 accounting over directed requests (the bar's subject)
         req_entries = [e for e in ledger["messages"] if e["kind"] == "request"]

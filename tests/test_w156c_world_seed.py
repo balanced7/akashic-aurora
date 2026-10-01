@@ -177,7 +177,8 @@ def test_m1_a_seeded_world_records_what_it_inherited():
     dst = _FakeRedis()
     plan = S.plan("prod", "alpha")
     doc = S.write_manifest(dst, plan, {"learn:": 1056, "mem:": 559}, "2026-08-14T02:00:00+00:00")
-    assert doc["source_world"] == "prod" and doc["target_world"] == "alpha"
+    assert doc["source_world"] == "prod"
+    assert doc["target_world"] == "alpha"
     assert doc["total_carried"] == 1056 + 559
     assert S.read_manifest(dst) == doc
 

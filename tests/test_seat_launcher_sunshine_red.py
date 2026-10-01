@@ -69,7 +69,7 @@ def test_p2_a_sentence_is_a_task_not_a_launch(phrase):
 
 def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
     rec = SL.resolve_seat("sunshine")
-    argv, env, cwd = SL.launch_argv(rec, root=ROOT)
+    argv, _env, cwd = SL.launch_argv(rec, root=ROOT)
 
     joined = " ".join(argv)
     assert "bifrost_runner_sol.py" in joined, argv
@@ -167,7 +167,7 @@ def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
 
 
 @pytest.mark.parametrize(
-    "word,seat",
+    ("word", "seat"),
     [
         ("rill", "dsh_agent"),
         ("dsh_agent", "dsh_agent"),

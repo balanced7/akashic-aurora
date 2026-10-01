@@ -54,6 +54,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from core.comm.bus import Bus
+import contextlib
 
 STORM_KINDS = [
     # (kind, count, to_target, description)
@@ -132,7 +133,7 @@ def main():
     plan = []
     for kind, count, to_spec, desc in STORM_KINDS:
         to_agent = _resolve_target(to_spec, runner_id, target_id)
-        for i in range(count):
+        for _i in range(count):
             seq = len(plan)
             content_tag = f"storm-{storm_id}-{kind}-{seq:03d}"
             if kind == "request":
@@ -247,10 +248,8 @@ def main():
             print(f"PAUSE: {sent_count}/{total} messages sent.")
             print(f"OPERATOR: TASKKILL the runner ({target_id}) NOW, then press Enter to resume.")
             print("===")
-            try:
+            with contextlib.suppress(EOFError):
                 input()
-            except EOFError:
-                pass
             print("RESUMING burst...")
 
         # Small inter-send delay so the bus isn't overwhelmed and the operator has

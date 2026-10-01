@@ -91,7 +91,8 @@ def _make_dead(client, ns: str) -> None:
     roster.heartbeat(ns, AGENT, SID[:8], phase="working", client=client)
     client.delete(f"{ns}:worklive:{AGENT}#{SID[:8]}")
     rows = [row for row in roster.roster(ns, client=client) if row.get("seat") == f"{AGENT}#{SID[:8]}"]
-    assert rows and rows[0].get("state") == "DEAD"
+    assert rows
+    assert rows[0].get("state") == "DEAD"
 
 
 def _role_rehome_fields(client, ns: str, original_mid: str):
@@ -315,7 +316,8 @@ def test_h9_self_directed_seat_work_remains_answerable_after_rehome(isolated_bus
 
     records = reaper.reap(ns, client=client)
     fields = _role_rehome_fields(client, ns, original_mid)
-    assert records and fields
+    assert records
+    assert fields
     meta = json.loads(fields.get("meta") or "{}")
 
     assert should_answer(str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)

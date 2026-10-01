@@ -270,9 +270,11 @@ class TestDirectedReplyRouting:
             # Everyone except sender sees it. (claude-review fix: inbox() CONSUMES by
             # default -- the original double-call here would IndexError on the second read.)
             cl = claude.inbox()
-            assert len(cl) == 1 and cl[0].kind == "reply"
+            assert len(cl) == 1
+            assert cl[0].kind == "reply"
             gm = gemini.inbox()
-            assert len(gm) == 1 and gm[0].kind == "reply"
+            assert len(gm) == 1
+            assert gm[0].kind == "reply"
             assert deepseek.inbox() == [], "sender must not receive its own broadcast"
         finally:
             _cleanup(c, ns)

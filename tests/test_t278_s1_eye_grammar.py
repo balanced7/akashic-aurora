@@ -104,7 +104,8 @@ def test_p4_unevaluable_ts_degrades_the_envelope(db):
 
 def test_p5_q_alone_still_works_and_s0_wrapper_intact(db):
     env = EYE.find(q="queued directive", db_path=db)
-    assert env["total"] == 1 and env["results"][0]["type"] == "queue-operation"
+    assert env["total"] == 1
+    assert env["results"][0]["type"] == "queue-operation"
     assert not hasattr(EYE, "find_text"), (
         "one door, no fork: the S0 wrapper was DELETED when production moved to find() -- "
         "a superseded function left callable is a live fork (the lesson, applied)"

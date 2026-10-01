@@ -54,7 +54,8 @@ def test_ack_writes_durable_ref():
     e = log.captured[0]
     assert e["kind"] == "msg_ack"
     assert e["refs"] == ["bifrost:1783600000000-0"]
-    assert e["detail"]["by"] == "claude" and "reviewed" in e["detail"]["note"]
+    assert e["detail"]["by"] == "claude"
+    assert "reviewed" in e["detail"]["note"]
 
 
 def test_acks_for_maps_ids_and_allows_multiple_actors():
@@ -163,7 +164,8 @@ def test_ack_accepted_from_addressee():
     log = FakeLog()
     q = FakeQuery([_promoted_rec("m1", frm="alice", to="claude")])
     assert promoter.ack("claude", "m1", event_log=log, event_query=q)
-    assert log.captured and log.captured[0]["detail"]["by"] == "claude"
+    assert log.captured
+    assert log.captured[0]["detail"]["by"] == "claude"
 
 
 def test_sender_self_ack_refused_beyond_old_page_bound():
@@ -215,11 +217,17 @@ def test_runner_auto_acks_answered_handoff_only(monkeypatch):
     runner._process_one(msg, bus, args, lambda prompt: "done: the thing", rate)
     assert acked == [("deepseek", "777-0")], "real answer -> auto-ack"
     acked.clear()
-    boom = lambda prompt: (_ for _ in ()).throw(RuntimeError("api down"))
+
+    def boom(prompt):
+        return (_ for _ in ()).throw(RuntimeError("api down"))
+
     msg2 = SimpleNamespace(kind="handoff", frm="claude", to="deepseek", id="888-0", content="do the thing", meta={})
     runner._process_one(msg2, bus, args, boom, rate)
     assert acked == [], "error reply must NOT ack -- sender must still see UNHANDLED"
-    err_string = lambda prompt: "(deepseek agentic runner error: RuntimeError: api down)"
+
+    def err_string(prompt):
+        return "(deepseek agentic runner error: RuntimeError: api down)"
+
     msg3 = SimpleNamespace(kind="handoff", frm="claude", to="deepseek", id="999-0", content="do the thing", meta={})
     runner._process_one(msg3, bus, args, err_string, rate)
     assert acked == [], "error-STRING replies must not ack either (respond swallows exceptions)"

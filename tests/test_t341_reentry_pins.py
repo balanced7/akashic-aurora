@@ -100,7 +100,8 @@ def test_p6_legend_declares_bounds(built, rendered):
     leg = built["legend"]
     for k in ("shown", "excluded", "why"):
         assert leg.get(k), f"legend missing '{k}'"
-    assert "shown:" in rendered.lower() and "excluded:" in rendered.lower()
+    assert "shown:" in rendered.lower()
+    assert "excluded:" in rendered.lower()
 
 
 # ---- P7: CAVEAT LAW — assembly, not charge, stated ---------------------------

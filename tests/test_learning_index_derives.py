@@ -30,6 +30,7 @@ import os
 import sys
 
 import pytest
+import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -54,10 +55,8 @@ def ls(monkeypatch, tmp_path):
 
     store = FileStore()
     s = LearningStore(store=store)
-    try:
+    with contextlib.suppress(Exception):
         s.store.delete(INDEX)
-    except Exception:
-        pass
     return s
 
 

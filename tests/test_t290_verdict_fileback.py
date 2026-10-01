@@ -70,10 +70,12 @@ def test_p1_file_verdict_appends_and_teaches_vocabulary():
     rec = V.file_verdict(
         agent="deepseek", ask_id="a1", question_shape="descriptive", gist="cursor families disagree at bus.py:412"
     )
-    assert rec["agent_id"] == "deepseek" and rec["ask_id"] == "a1"
+    assert rec["agent_id"] == "deepseek"
+    assert rec["ask_id"] == "a1"
     assert rec["question_shape"] == "descriptive"
     rows = V.verdicts(agent="deepseek")
-    assert len(rows) == 1 and rows[0]["ask_id"] == "a1"
+    assert len(rows) == 1
+    assert rows[0]["ask_id"] == "a1"
 
     with pytest.raises(ValueError) as e:
         V.file_verdict(agent="deepseek", ask_id="a2", question_shape="vibes", gist="x")
@@ -132,7 +134,9 @@ def test_p3_adjudication_refusals():
 def test_p4_operator_adjudication_lands():
     V.file_verdict(agent="deepseek", ask_id="k1", question_shape="descriptive", gist="g")
     rec = V.adjudicate(ask_id="k1", outcome="refuted", by="daniil", receipt="hand-checked")
-    assert rec["ask_id"] == "k1" and rec["outcome"] == "refuted" and rec["by"] == "daniil"
+    assert rec["ask_id"] == "k1"
+    assert rec["outcome"] == "refuted"
+    assert rec["by"] == "daniil"
 
     with pytest.raises(ValueError) as e:
         V.adjudicate(ask_id="k1", outcome="maybe", by="daniil")
@@ -158,7 +162,9 @@ def test_p5_calibration_counts_absence_honestly():
     V.adjudicate(ask_id="c1", outcome="confirmed", by="daniil")
     cal2 = V.calibration(resident="p5_deep")
     cell2 = cal2["cells"][("descriptive", "p5_deep")]
-    assert cell2["adjudicated"] == 1 and cell2["confirmed"] == 1 and cell2["filed"] == 2
+    assert cell2["adjudicated"] == 1
+    assert cell2["confirmed"] == 1
+    assert cell2["filed"] == 2
 
     pooled = cal2["shapes"]["descriptive"]
     assert pooled["filed"] >= 2 and pooled["adjudicated"] >= 1, (

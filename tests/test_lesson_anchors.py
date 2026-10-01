@@ -157,7 +157,7 @@ def _receipt_anchors(states):
     """Strong, hermetic anchors: pin receipts need neither git nor the filesystem, so these
     pins cannot go blind for a reason unrelated to the banner they test."""
     names = [f"tests/test_hypothetical_guard.py::test_{i}" for i in range(len(states))]
-    return names, dict(zip(names, states))
+    return names, dict(zip(names, states, strict=False))
 
 
 def test_one_missing_among_resolved_strong_anchors_is_labelled_partial():
@@ -194,7 +194,7 @@ def test_all_strong_anchors_missing_still_reads_missing():
     that happens to resolve does not rescue the premise -- weak is never authoritative."""
     cites, receipts = _receipt_anchors(["failed", "failed"])
     report = anchors.review(
-        {"experiment_name": "x", "cites": cites + ["docs/ARCHITECTURE.md"]}, root=ROOT, receipts=receipts
+        {"experiment_name": "x", "cites": [*cites, "docs/ARCHITECTURE.md"]}, root=ROOT, receipts=receipts
     )
     assert any(v.weak and v.status == "RESOLVED" for v in report.verdicts)
     assert report.banner.startswith("[premise MISSING"), report.banner
@@ -205,7 +205,7 @@ def test_weak_missing_beside_a_live_strong_anchor_still_reads_may_have_moved():
     """Boundary: a gone PATH next to a live strong anchor is the weak-only branch, untouched."""
     cites, receipts = _receipt_anchors(["passed"])
     report = anchors.review(
-        {"experiment_name": "x", "cites": cites + ["docs/intelligence-roadmap.md"]}, root=ROOT, receipts=receipts
+        {"experiment_name": "x", "cites": [*cites, "docs/intelligence-roadmap.md"]}, root=ROOT, receipts=receipts
     )
     assert report.banner.startswith("[premise may have moved"), report.banner
     assert "PARTIALLY" not in report.banner

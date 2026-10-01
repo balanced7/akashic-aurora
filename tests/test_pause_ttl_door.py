@@ -28,7 +28,8 @@ class Ns:
 def test_p1_parser_accepts_ttl():
     p = agent_cli.build_parser()
     a = p.parse_args(["bifrost-pause", "--reason", "kit-standby", "--by", "t", "--ttl", "120"])
-    assert a.ttl == 120 and a.fn is agent_cli.cmd_bifrost_pause
+    assert a.ttl == 120
+    assert a.fn is agent_cli.cmd_bifrost_pause
 
 
 def test_p2_ttl_passes_through(monkeypatch):
@@ -43,7 +44,8 @@ def test_p2_ttl_passes_through(monkeypatch):
 
     monkeypatch.setattr(control, "pause", fake_pause)
     rc = agent_cli.cmd_bifrost_pause(Ns(reason="x", by="t", ttl=120, json=False))
-    assert rc == 0 and seen["ttl"] == 120
+    assert rc == 0
+    assert seen["ttl"] == 120
     assert seen["soft"] is False, "no --soft flag must still mean a HARD pause"
 
 
@@ -56,5 +58,6 @@ def test_p3_no_ttl_is_legacy(monkeypatch):
 
     monkeypatch.setattr(control, "pause", fake_pause)
     rc = agent_cli.cmd_bifrost_pause(Ns(reason="", by="t", ttl=None, json=False))
-    assert rc == 0 and seen["ttl"] is None
+    assert rc == 0
+    assert seen["ttl"] is None
     assert seen["soft"] is False, "no --soft flag must still mean a HARD pause"

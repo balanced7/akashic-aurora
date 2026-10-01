@@ -123,7 +123,8 @@ def test_the_calibrated_bands_are_untouched():
     """T182's controls were measured mode-blind. Nothing here re-tunes them."""
     from core.comm import ask as A
 
-    assert A.COLLAPSE_AT == 0.85 and A.DISTINCT_AT == 0.05
+    assert A.COLLAPSE_AT == 0.85
+    assert A.DISTINCT_AT == 0.05
 
 
 def test_the_number_is_identical_in_both_shapes():

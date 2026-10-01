@@ -29,6 +29,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.revive import ReviveLocked, converge, decide  # noqa: E402
+import contextlib
 
 
 def _obs(redis=True, daemon=True, runners=True, gateway=True):
@@ -100,7 +101,5 @@ def test_p6_stop_on_fail(monkeypatch):
     report = converge()
     assert attempted == ["redis"], f"after a failed heal nothing downstream may be attempted: {attempted}"
     assert report["stopped_at"] == "redis"
-    try:
+    with contextlib.suppress(OSError):
         os.remove(rv.LOCK_PATH)
-    except OSError:
-        pass

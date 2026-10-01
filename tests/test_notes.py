@@ -23,7 +23,8 @@ def _mem():
 def test_note_records_and_supersedes():
     mem = _mem()
     a = mem.decide(title="checkpoint", decision="recall-at-action done")
-    assert a and len(mem.get_decisions(days=3650)) == 1
+    assert a
+    assert len(mem.get_decisions(days=3650)) == 1
     b = mem.decide(title="checkpoint", decision="write-once done; FC-01 next", supersedes=a)
     active = mem.get_decisions(days=3650)
     assert len(active) == 1 and active[0].id == b, "superseding leaves exactly one active note"

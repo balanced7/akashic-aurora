@@ -116,7 +116,7 @@ def test_p2_new_mail_forwards_to_both_and_advances(wired):
 
 
 def test_p3_unconfigured_is_a_fast_no_op(wired, monkeypatch):
-    bus, client = wired
+    bus, _client = wired
     monkeypatch.delenv("AKASHIC_DISCORD_WEBHOOK")
     monkeypatch.delenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
     # ... and isolate from the AMBIENT config: the operator's real webhook file
@@ -129,7 +129,8 @@ def test_p3_unconfigured_is_a_fast_no_op(wired, monkeypatch):
         post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
         room_post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
     )
-    assert not out.ok and "not configured" in str(out.why).lower()
+    assert not out.ok
+    assert "not configured" in str(out.why).lower()
 
 
 def test_p5_global_feed_posts_as_the_seat_itself(wired, monkeypatch):

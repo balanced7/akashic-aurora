@@ -24,7 +24,8 @@ FUSED_SMALL = "def cmd_small():\n    print(1)\n    print(2)\n"
 
 def test_d1_a_large_fused_verb_is_flagged_unverifiable():
     s = D.survey(FUSED_BIG)[0]
-    assert s.fused is True and s.unverifiable is True
+    assert s.fused is True
+    assert s.unverifiable is True
 
 
 def test_d2_a_helper_seam_clears_it_however_large():
@@ -61,7 +62,8 @@ def test_d6_the_render_states_that_it_measures_VERIFIABILITY_not_quality():
     """The tool must not assert what its evidence cannot carry -- that would be the exact
     Dawe failure, committed by the instrument named after it."""
     out = D.render(D.survey(FUSED_BIG)).lower()
-    assert "verifiability" in out and "never quality" in out
+    assert "verifiability" in out
+    assert "never quality" in out
 
 
 def test_d7_an_empty_finding_says_so_rather_than_going_quiet():
@@ -109,7 +111,8 @@ GUARD_RERAISE = "def h():\n    try:\n        from core.x import y\n    except Ex
 
 def test_s1_a_swallowed_import_is_classified_silent():
     g = D.survey_import_guards(GUARD_SILENT)[0]
-    assert g.handler == "silent" and g.enclosing == "f"
+    assert g.handler == "silent"
+    assert g.enclosing == "f"
     assert "core.x" in g.modules
 
 

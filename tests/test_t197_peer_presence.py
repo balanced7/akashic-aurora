@@ -63,6 +63,7 @@ import time
 import uuid
 
 import pytest
+import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -147,7 +148,8 @@ def test_a_half_observed_episode_is_unknown_not_half_credited():
     death-time probe exists at all."""
     agg = friction.fold([_dead_ev("d-1", at_ask="ATTENDED")], {}, now=2000.0)["agg"]
     assert agg["dead_peer_unknown"] == 1
-    assert agg["dead_ignored"] == 0 and agg["dead_vanished"] == 0
+    assert agg["dead_ignored"] == 0
+    assert agg["dead_vanished"] == 0
 
 
 def test_episode_rows_carry_both_ends():
@@ -298,7 +300,8 @@ def test_arm_keeps_its_old_positional_contract():
     sig = inspect.signature(expectations.arm)
     for name in ("peer_state", "peer_why"):
         p = sig.parameters[name]
-        assert p.kind == inspect.Parameter.KEYWORD_ONLY and p.default is None
+        assert p.kind == inspect.Parameter.KEYWORD_ONLY
+        assert p.default is None
 
 
 # --------------------------------------------------------------------------------------
@@ -413,7 +416,5 @@ def test_ask_peer_reports_the_verdict_at_t0_without_waiting(monkeypatch):
     assert d["peer_at_ask"] == "UNATTENDED"
     assert d.get("peer_at_ask_why")
     assert d.get("ask_id"), "and it SENT anyway -- the transaction exists"
-    try:
+    with contextlib.suppress(Exception):
         expectations._client().delete(expectations._key(sender))
-    except Exception:
-        pass

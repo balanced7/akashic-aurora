@@ -107,7 +107,8 @@ def test_p1_a_console_message_carries_no_discord_mark(rendered):
 
 def test_p2_a_seat_message_without_meta_renders_and_carries_no_mark(rendered):
     html = rendered["nometa"]
-    assert 'class="who' in html and "via Discord" not in html
+    assert 'class="who' in html
+    assert "via Discord" not in html
 
 
 def test_p3_the_mark_has_a_style_rule_beside_the_other_row_badges():

@@ -62,8 +62,10 @@ def test_a_type_mismatch_is_refused_not_coerced():
     like a finding."""
     r = CMP.diff(_ks("verbs", ["ask"], key_type="verb"), _ks("files", ["core/x.py"], key_type="path"))
     assert r["ok"] is False
-    assert "verb" in r["why"] and "path" in r["why"]
-    assert r["only_a"] == [] and r["only_b"] == []
+    assert "verb" in r["why"]
+    assert "path" in r["why"]
+    assert r["only_a"] == []
+    assert r["only_b"] == []
 
 
 def test_an_incomplete_side_makes_the_difference_unreliable():
@@ -81,7 +83,8 @@ def test_an_incomplete_side_makes_the_difference_unreliable():
 
 def test_a_complete_pair_is_reliable():
     r = CMP.diff(_ks("a", ["x"]), _ks("b", ["x", "y"]))
-    assert r["reliable"] is True and r["ok"] is True
+    assert r["reliable"] is True
+    assert r["ok"] is True
 
 
 def test_a_failed_source_taints_the_side_it_belongs_to():
@@ -94,7 +97,9 @@ def test_a_failed_source_taints_the_side_it_belongs_to():
 
 def test_identical_sets_are_not_a_finding():
     r = CMP.diff(_ks("a", ["x", "y"]), _ks("b", ["y", "x"]))
-    assert r["only_a"] == [] and r["only_b"] == [] and r["identical"] is True
+    assert r["only_a"] == []
+    assert r["only_b"] == []
+    assert r["identical"] is True
 
 
 def test_two_empty_sets_are_not_a_finding_either():
@@ -114,7 +119,8 @@ def test_the_same_entity_spelled_differently_is_not_a_finding():
     entity formatted differently per system. Without a per-type normalizer, a difference
     between two systems measures their FORMATTING as much as their contents."""
     r = CMP.diff(_ks("cli", ["bifrost-send", "knowledge-map"]), _ks("mcp", ["bifrost_send", "knowledge_map"]))
-    assert r["only_a"] == [] and r["only_b"] == []
+    assert r["only_a"] == []
+    assert r["only_b"] == []
     assert r["identical"] is True
 
 
@@ -129,13 +135,16 @@ def test_a_type_with_no_normalizer_compares_literally():
     """An unnormalized type is a DECISION the type makes, not an omission -- and it must
     behave predictably rather than half-matching."""
     r = CMP.diff(_ks("a", ["Thing-One"], key_type="lesson"), _ks("b", ["thing_one"], key_type="lesson"))
-    assert r["only_a"] == ["Thing-One"] and r["only_b"] == ["thing_one"]
+    assert r["only_a"] == ["Thing-One"]
+    assert r["only_b"] == ["thing_one"]
 
 
 def test_results_carry_both_sides_provenance():
     r = CMP.diff(_ks("cli", ["a"]), _ks("mcp", ["b"]))
-    assert r["a"]["name"] == "cli" and r["b"]["name"] == "mcp"
-    assert r["a"]["n"] == 1 and r["b"]["n"] == 1
+    assert r["a"]["name"] == "cli"
+    assert r["b"]["name"] == "mcp"
+    assert r["a"]["n"] == 1
+    assert r["b"]["n"] == 1
     assert r["key_type"] == "verb"
 
 
@@ -165,9 +174,12 @@ def test_select_returns_a_keyset_and_never_raises(monkeypatch):
 
     monkeypatch.setitem(CMP.DOMAINS, "broken", (boom, "verb"))
     ks = CMP.select("broken")
-    assert ks.complete is False and ks.keys == set() and ks.failed
+    assert ks.complete is False
+    assert ks.keys == set()
+    assert ks.failed
 
 
 def test_an_unknown_domain_is_named_not_silently_empty():
     ks = CMP.select("no-such-domain")
-    assert ks.complete is False and ks.failed
+    assert ks.complete is False
+    assert ks.failed

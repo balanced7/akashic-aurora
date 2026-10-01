@@ -62,7 +62,8 @@ def test_p1_an_unknown_kind_resolves_unclassified_not_false():
 
 def test_p1b_a_registered_kind_resolves_with_a_real_answer():
     yes = K.resolve("handoff", "wake_worthy", plane="bus_kind")
-    assert yes.classified is True and yes.value is True
+    assert yes.classified is True
+    assert yes.value is True
     no = K.resolve("trace", "wake_worthy", plane="bus_kind")
     assert no.classified is True and no.value is False, (
         "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
@@ -76,7 +77,9 @@ def test_p1c_resolve_never_returns_a_bare_bool():
     for kind in ("handoff", "trace", "not_a_kind_at_all"):
         v = K.resolve(kind, "wake_worthy", plane="bus_kind")
         assert not isinstance(v, bool), f"resolve({kind!r}) returned a bare bool"
-        assert hasattr(v, "classified") and hasattr(v, "value") and hasattr(v, "why")
+        assert hasattr(v, "classified")
+        assert hasattr(v, "value")
+        assert hasattr(v, "why")
 
 
 # ---------------------------------------------------------------- P2: unknown dimension
@@ -88,7 +91,7 @@ def test_p2_an_unknown_dimension_is_also_unclassified_and_loud():
 
 # ---------------------------------------------------------------- P3: parity, the safety pin
 @pytest.mark.parametrize(
-    "dimension,expected",
+    ("dimension", "expected"),
     [
         ("wake_worthy", {"request", "handoff", "reply", "blocker", "question", "completion", "nudge"}),
         ("answer", {"reply", "handoff", "completion"}),
@@ -113,7 +116,8 @@ def test_p4_coverage_reports_per_dimension_and_names_the_universe():
     wake = cov["dimensions"]["wake_worthy"]
     assert wake["members"] == 7
     assert wake["universe"] >= wake["members"]
-    assert isinstance(cov["kinds_total"], int) and cov["kinds_total"] > 0
+    assert isinstance(cov["kinds_total"], int)
+    assert cov["kinds_total"] > 0
     # the frame that must ship with the number (the coverage-contract lesson)
     assert "sources" in cov, "a coverage claim must name where its sets came from"
 

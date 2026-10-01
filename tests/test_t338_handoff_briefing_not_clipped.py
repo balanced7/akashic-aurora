@@ -133,7 +133,8 @@ def test_p5_a_store_failure_degrades_and_never_raises():
     try:
         confessions: list = []
         out = fn("Z" * 4000, 1000, "note", confessions, to_agent="claude", by_agent="claude")
-        assert isinstance(out, str) and len(out) <= 1100
+        assert isinstance(out, str)
+        assert len(out) <= 1100
         assert confessions, "a degraded path must still confess"
         assert any("FAILED" in c for c in confessions), (
             "the degraded path must say the note write FAILED -- falling back silently would "

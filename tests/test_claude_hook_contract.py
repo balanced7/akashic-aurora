@@ -195,7 +195,8 @@ def test_posttoolusefailure_captures_fail_label_once(tmp_path, monkeypatch):
     _run_main(monkeypatch, data, [], tmp_path)
     labels = [e for e in fails if e[0] == "fail"]
     assert len(labels) == 1, "a direct failure must emit exactly one durable `fail` label"
-    assert labels[0][2]["detail"]["target"] == tgt and labels[0][2]["detail"]["tool"] == "Bash"
+    assert labels[0][2]["detail"]["target"] == tgt
+    assert labels[0][2]["detail"]["tool"] == "Bash"
     # same failure id again -> watermark suppresses a second label (never double-count rework)
     _run_main(monkeypatch, data, [], tmp_path)
     assert len([e for e in fails if e[0] == "fail"]) == 1
@@ -207,7 +208,8 @@ def test_transcript_backfill_captures_fail_label_once(tmp_path, monkeypatch):
     fails = _spy_fail(monkeypatch)
     _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
     labels = [e for e in fails if e[0] == "fail"]
-    assert len(labels) == 1 and labels[0][2]["detail"]["target"] == tgt
+    assert len(labels) == 1
+    assert labels[0][2]["detail"]["target"] == tgt
     # the same success again: the failure is watermarked -> no second label
     _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
     assert len([e for e in fails if e[0] == "fail"]) == 1

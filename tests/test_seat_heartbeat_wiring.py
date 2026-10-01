@@ -198,7 +198,9 @@ def test_w3_both_hook_copies_stay_in_sync():
     a, b = norm(HOOKS["scripts"]), norm(HOOKS["agent_harness"])
     if a != b:
         diff = [
-            f"  line {i + 1}:\n    scripts/: {x!r}\n    agent/:   {y!r}" for i, (x, y) in enumerate(zip(a, b)) if x != y
+            f"  line {i + 1}:\n    scripts/: {x!r}\n    agent/:   {y!r}"
+            for i, (x, y) in enumerate(zip(a, b, strict=False))
+            if x != y
         ][:5]
         pytest.fail(
             "hook copies have drifted (modulo sys.path):\n"

@@ -129,7 +129,8 @@ def test_p6_private_and_dunder_are_not_candidates(tmp_path):
     )
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import thing\nprint(thing)\n")
     got = _orphans(tmp_path, [lib], [door, lib])
-    assert "__init__" not in got and "_helper" not in got
+    assert "__init__" not in got
+    assert "_helper" not in got
 
 
 def test_p7_module_backlog_is_not_double_reported(tmp_path):

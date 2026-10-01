@@ -42,7 +42,8 @@ def test_evidence_pack_uses_word_boundaries():
     pack = sift.evidence_pack("prove", corpus=corpus)
     hay = " ".join(o["text"] for o in pack.occurrences).lower()
     assert "provenance" not in hay, "substring match leaked provenance into 'prove'"
-    assert "improved" not in hay and "unapproved" not in hay
+    assert "improved" not in hay
+    assert "unapproved" not in hay
     assert len(pack.occurrences) == 2, f"expected the 2 real usages, got {pack.occurrences}"
 
 
@@ -158,8 +159,10 @@ def test_junction_pack_shows_writer_and_reader_together():
     assert j["writes"] and j["reads"], "a junction needs BOTH sides or it is not a junction"
     wf = {w["file"] for w in j["writes"]}
     rf = {r["file"] for r in j["reads"]}
-    assert "producer.py" in wf and "consumer.py" in rf
-    assert pack.sha and pack.blind
+    assert "producer.py" in wf
+    assert "consumer.py" in rf
+    assert pack.sha
+    assert pack.blind
 
 
 def test_junction_pack_excludes_its_own_pattern_definitions_and_comments():
@@ -463,7 +466,8 @@ def test_aggregate_is_three_state_never_binary():
     assert (part.ok, part.partial) == (True, True), "3 of 5 must be PARTIAL, not binary"
     assert (full.ok, full.partial) == (True, False)
     assert none.ok is False
-    assert part.detail["n"] == 5 and part.detail["n_ok"] == 3
+    assert part.detail["n"] == 5
+    assert part.detail["n_ok"] == 3
     assert part.why, "a partial that cannot say what is missing is the T170 defect"
 
     # THE DOUBLE-STRIKE, pinned as a behaviour rather than as a comment. `.ok` is True for

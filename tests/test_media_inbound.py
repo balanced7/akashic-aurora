@@ -69,7 +69,8 @@ def test_p1_attachments_ride_as_blob_parts():
         out, bus = _call("design from this", attachments=[p])
         assert out.get("acted")
         parts = bus.sent[-1]["parts"]
-        assert parts and len(parts) == 1
+        assert parts
+        assert len(parts) == 1
         assert parts[0].content_type == "image/png"
         assert parts[0].is_ref, "media rides by REFERENCE (B1), never inline"
     finally:

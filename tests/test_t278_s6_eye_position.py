@@ -93,7 +93,8 @@ def test_p3_go_pushes_a_trail_and_back_pops_it(db):
     assert POS.back("claude#aaaaaaaa", db_path=db)["addr"] == f"{G}:1"
     # at the origin of the trail, back is a no-op that SAYS it is one
     r = POS.back("claude#aaaaaaaa", db_path=db)
-    assert r["addr"] == f"{G}:1" and r["at_trail_origin"] is True
+    assert r["addr"] == f"{G}:1"
+    assert r["at_trail_origin"] is True
 
 
 # ---------------------------------------------------------------- P4: look

@@ -100,7 +100,8 @@ def test_caller_is_told_when_its_evidence_was_missing():
     _ctx, meta = build_context(["README.md", "no/such/file/t225.py"], root=str(REPO))
 
     notice = unusable_evidence_notice(meta)
-    assert notice and "MISSING" in notice
+    assert notice
+    assert "MISSING" in notice
     assert "no/such/file/t225.py" in notice
 
 
@@ -129,7 +130,8 @@ def test_caller_is_told_when_a_file_was_starved_by_the_budget():
     assert meta["skipped"], "a 500-char budget cannot reach the second file"
 
     notice = unusable_evidence_notice(meta)
-    assert "SKIPPED" in notice and "README.md" in notice
+    assert "SKIPPED" in notice
+    assert "README.md" in notice
 
 
 def test_a_clean_evidence_pack_stays_silent():

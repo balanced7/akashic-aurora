@@ -40,7 +40,8 @@ def test_mark_graduated_roundtrip_and_undo():
 
     assert ls.mark_graduated("git_blanket", "git-guard PreToolUse hook (C0)") is True
     rec = ls._load_experiment("git_blanket")
-    assert is_graduated(rec) and rec["enforced_by"] == "git-guard PreToolUse hook (C0)"
+    assert is_graduated(rec)
+    assert rec["enforced_by"] == "git-guard PreToolUse hook (C0)"
 
     assert ls.mark_graduated("git_blanket", undo=True) is True
     assert not is_graduated(ls._load_experiment("git_blanket"))
@@ -58,7 +59,8 @@ def test_re_record_does_not_clear_graduation():
     ls.mark_graduated("git_blanket", "git-guard hook")
     ls.record_learning(_lesson(recommendation="updated wording"))
     rec = ls._load_experiment("git_blanket")
-    assert is_graduated(rec) and rec["recommendation"] == "updated wording"
+    assert is_graduated(rec)
+    assert rec["recommendation"] == "updated wording"
 
 
 def test_graduated_lesson_never_enters_the_recall_cache():
@@ -83,7 +85,8 @@ def test_boot_learning_loader_excludes_graduated():
     got = [
         r["source"] for r in load_learnings_ranked_by_relevance("git staging shared tree", top_k=8, learning_store=ls)
     ]
-    assert "live_git_lesson" in got and "graduated_git_lesson" not in got
+    assert "live_git_lesson" in got
+    assert "graduated_git_lesson" not in got
 
 
 def _run_cmd(monkeypatch, ls, **argv):
@@ -103,16 +106,19 @@ def _run_cmd(monkeypatch, ls, **argv):
 
 def test_cmd_graduate_errors_teach(monkeypatch):
     rc, out = _run_cmd(monkeypatch, _isolated_ls())  # no experiment
-    assert rc == 2 and "Example:" in out
+    assert rc == 2
+    assert "Example:" in out
     rc, out = _run_cmd(monkeypatch, _isolated_ls(), experiment="nope", enforced_by="hook")
-    assert rc == 1 and "list" in out  # unknown -> points at list
+    assert rc == 1
+    assert "list" in out
 
 
 def test_cmd_graduate_and_list_tag(monkeypatch):
     ls = _isolated_ls()
     ls.record_learning(_lesson())
     rc, out = _run_cmd(monkeypatch, ls, experiment="git_blanket", enforced_by="git-guard hook (C0)")
-    assert rc == 0 and "[OK] graduated 'git_blanket'" in out
+    assert rc == 0
+    assert "[OK] graduated 'git_blanket'" in out
     # the full-corpus view keeps it, wearing the tag (history preserved, reason visible)
     import agent_cli
 

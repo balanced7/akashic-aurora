@@ -98,7 +98,8 @@ def test_theme_is_a_shallow_hop(tmp_path):
     """Picking an axis returns gists, not bodies -- shallow by default is the whole point."""
     r = _run(_fixture(tmp_path), "--theme", "recall")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "docs/a.md" in r.stdout and "docs/b.md" in r.stdout
+    assert "docs/a.md" in r.stdout
+    assert "docs/b.md" in r.stdout
     assert "utterance:s2:0" not in r.stdout, "a theme hop leaked an artifact off that axis"
 
 
@@ -106,7 +107,8 @@ def test_show_is_the_drill(tmp_path):
     """Depth on demand: one artifact, every field the sweep recorded."""
     r = _run(_fixture(tmp_path), "--show", "docs/b.md")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "designed, never built" in r.stdout and "superseded by docs/a.md" in r.stdout
+    assert "designed, never built" in r.stdout
+    assert "superseded by docs/a.md" in r.stdout
 
 
 def test_bands_are_reachable(tmp_path):
@@ -180,7 +182,8 @@ def test_no_surface_prints_unbounded_by_default(tmp_path):
     out_all = _run(p, "--theme", "bulk", "--all").stdout
     assert "55 of 55" in out_all, "--all did not lift the cap"
     out_page2 = _run(p, "--theme", "bulk", "--offset", "40").stdout
-    assert "docs/x40.md" in out_page2 and "docs/x39.md" not in out_page2
+    assert "docs/x40.md" in out_page2
+    assert "docs/x39.md" not in out_page2
 
 
 def test_bands_are_labeled_claims_not_facts(tmp_path):

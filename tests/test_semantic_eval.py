@@ -75,9 +75,12 @@ def test_datasets_wellformed():
     assert any(p["case"].startswith("syn-antipattern-agrees") and not p["contradicts"] for p in cp), (
         "the agrees-distractor hard negatives must be in the eval (they sank the deterministic finder)"
     )
-    assert len(aa) >= 6 and any(c["instantiates"] for c in aa) and any(not c["instantiates"] for c in aa)
+    assert len(aa) >= 6
+    assert any(c["instantiates"] for c in aa)
+    assert any(not c["instantiates"] for c in aa)
     for c in aa:
-        assert c["action"] and c["ap_text"]
+        assert c["action"]
+        assert c["ap_text"]
     print(
         f"--- datasets ---\n  {len(cp)} contradiction pairs ({sum(p['contradicts'] for p in cp)} pos), "
         f"{len(aa)} action-applicability cases ({sum(c['instantiates'] for c in aa)} pos) OK"
@@ -88,7 +91,8 @@ def test_null_baseline_characterizes_balance():
     m = score_binary(contradiction_pairs(), null_judge, "contradicts")
     a = score_binary(action_applicability_cases(), null_judge, "instantiates")
     assert m["recall"] == 0.0 and m["fp"] == 0, "always-false -> 0 recall, 0 false positives"
-    assert a["recall"] == 0.0 and a["fp"] == 0
+    assert a["recall"] == 0.0
+    assert a["fp"] == 0
     # accuracy-by-always-false = the negative rate; a judge that can't beat it is worthless
     print(
         f"--- null baseline ---\n  contradiction: {m['pos']}/{m['n']} pairs are true contradictions "

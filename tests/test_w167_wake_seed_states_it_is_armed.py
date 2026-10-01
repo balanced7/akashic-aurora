@@ -92,4 +92,5 @@ def test_a5_the_message_leads_with_the_state_not_the_caveat(caplog):
 def test_a6_the_count_and_kinds_survive(caplog):
     """The diagnostic content that made the line worth printing."""
     out = _emit(caplog, n=9, kinds="chat,question,reply")
-    assert "9" in out and "chat,question,reply" in out
+    assert "9" in out
+    assert "chat,question,reply" in out

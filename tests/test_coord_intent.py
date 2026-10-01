@@ -86,4 +86,5 @@ def test_covers_by_scope_prefix(agents):
 def test_fail_open_offline(monkeypatch):
     monkeypatch.setattr(I, "_client", lambda: None)
     assert I.declare("x", "anything")["ok"] is True  # never wedge a local agent
-    assert I.active() == [] and I.conflicts("x", "y") == []
+    assert I.active() == []
+    assert I.conflicts("x", "y") == []

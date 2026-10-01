@@ -83,10 +83,12 @@ def test_two_successive_empties_confess_and_pulse():
     resend, pulse = FakeSend(replies=[""]), PulseRec()
     out = content_floor_check("", resend, agent_id="deepseek", promise_bounce_fired=False, pulse=pulse)
     assert out.startswith("(deepseek --"), "a confession, in-band, first person"
-    assert "no substantive reply" in out and "empty" in out
+    assert "no substantive reply" in out
+    assert "empty" in out
     assert not MARKER_PATTERN.match(out), "the confession is NOT another bare marker"
     assert len(resend.calls) == 1, "exactly one paid gate resend"
-    assert pulse.calls and "content_floor_exhausted" in pulse.calls[0][1]
+    assert pulse.calls
+    assert "content_floor_exhausted" in pulse.calls[0][1]
 
 
 # --- (2) every marker class bounces once and a real recovery ships ---
@@ -98,7 +100,8 @@ def test_marker_classes_bounce_once_and_recover(marker):
     resend, pulse = FakeSend(replies=["Recovered: the full deliverable, in detail."]), PulseRec()
     out = content_floor_check(marker, resend, agent_id="deepseek", promise_bounce_fired=False, pulse=pulse)
     assert out == "Recovered: the full deliverable, in detail."
-    assert len(resend.calls) == 1 and pulse.calls == []
+    assert len(resend.calls) == 1
+    assert pulse.calls == []
 
 
 # --- (3) short legit outcomes at FIRST reply are untouched (precision first) ---
@@ -109,7 +112,8 @@ def test_short_outcome_first_reply_untouched(short_outcome):
     resend, pulse = FakeSend(), PulseRec()
     out = content_floor_check(short_outcome, resend, agent_id="deepseek", promise_bounce_fired=False, pulse=pulse)
     assert out == short_outcome
-    assert resend.calls == [] and pulse.calls == []
+    assert resend.calls == []
+    assert pulse.calls == []
 
 
 # --- (4) promise -> bounce -> promise -> Tier-2 reprompt -> promise -> confession ---
@@ -120,7 +124,8 @@ def test_successive_promise_confesses():
     out = content_floor_check(
         "I'll get right on that.", resend, agent_id="deepseek", promise_bounce_fired=True, pulse=pulse
     )
-    assert out.startswith("(deepseek --") and "promise-again" in out
+    assert out.startswith("(deepseek --")
+    assert "promise-again" in out
     assert len(resend.calls) == 1
     assert "final word" in resend.calls[0].lower() or "deliver" in resend.calls[0].lower()
     assert pulse.calls, "a confessed stall pulses the liveness lane"
@@ -132,7 +137,8 @@ def test_successive_promise_confesses():
 def test_promise_bounce_then_empty_tier1_catch():
     resend, pulse = FakeSend(replies=["  \n "]), PulseRec()
     out = content_floor_check("", resend, agent_id="deepseek", promise_bounce_fired=True, pulse=pulse)
-    assert out.startswith("(deepseek --") and "empty" in out
+    assert out.startswith("(deepseek --")
+    assert "empty" in out
     assert len(resend.calls) == 1, "gate budget is ONE regardless of what bounce_promise spent"
 
 
@@ -153,7 +159,8 @@ def test_tier3_short_post_bounce_ships_no_confession():
     resend, pulse = FakeSend(replies=["ok again"]), PulseRec()
     out = content_floor_check("ok", resend, agent_id="deepseek", promise_bounce_fired=True, pulse=pulse)
     assert out in ("ok again", "ok"), "short is soft: whatever came back ships"
-    assert not out.startswith("(deepseek --") and pulse.calls == []
+    assert not out.startswith("(deepseek --")
+    assert pulse.calls == []
 
 
 def test_tier3_empty_resend_falls_back_to_original_short():
@@ -166,7 +173,8 @@ def test_tier3_empty_resend_falls_back_to_original_short():
 def test_tier3_never_fires_without_a_prior_bounce():
     resend, pulse = FakeSend(), PulseRec()
     out = content_floor_check("ok", resend, agent_id="deepseek", promise_bounce_fired=False, pulse=pulse)
-    assert out == "ok" and resend.calls == []
+    assert out == "ok"
+    assert resend.calls == []
 
 
 # --- (8) resend exception: hard reasons fail CLOSED to confession, never the bare marker ---
@@ -242,9 +250,12 @@ def test_corpus_dev_half_meets_bounds():
     rows = cl + ds  # ds-01..27 reclassified DEV after the seal incident (spec, M8 record)
     tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot = _grade(rows)
     assert s_tot and s_hit == s_tot, "stall recall on empty|marker forms must be 1.0"
-    assert p_tot and p_hit / p_tot >= BOUND_PROMISE_RECALL
-    assert tp and tp / (tp + fp) >= BOUND_PRECISION
-    assert o_tot and (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE
+    assert p_tot
+    assert p_hit / p_tot >= BOUND_PROMISE_RECALL
+    assert tp
+    assert tp / (tp + fp) >= BOUND_PRECISION
+    assert o_tot
+    assert (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE
 
 
 @pytest.mark.skipif(
@@ -253,9 +264,11 @@ def test_corpus_dev_half_meets_bounds():
 )
 def test_corpus_held_out_meets_bounds():
     held, bad = _load(os.path.join(FIXTURES, "rb23_endings_deepseek_heldout.jsonl"))
-    assert bad == 0 and held
+    assert bad == 0
+    assert held
     tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot = _grade(held)
     assert s_hit == s_tot
     assert p_hit / p_tot >= BOUND_PROMISE_RECALL
     assert tp / (tp + fp) >= BOUND_PRECISION
-    assert o_tot and (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE
+    assert o_tot
+    assert (o_tot - fp) / o_tot >= BOUND_OUTCOME_SHIP_RATE

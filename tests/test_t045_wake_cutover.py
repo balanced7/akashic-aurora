@@ -53,8 +53,7 @@ def _ns():
 
 
 def _lane_api(ns, agent="watcher", monkeypatch=None):
-    api = BifrostAPI(agent, namespace=ns)
-    return api
+    return BifrostAPI(agent, namespace=ns)
 
 
 # ------------------------------------------------------------------ L1: key shapes
@@ -94,7 +93,8 @@ def test_lane_watcher_wakes_on_handoff(monkeypatch):
     assert watcher.wake_block(timeout_ms=200) == []  # arm quiet first
     sender.send("alice", "handoff", "work arrives")
     got = watcher.wake_block(timeout_ms=2000)
-    assert got and str(got[0].kind) == "handoff"
+    assert got
+    assert str(got[0].kind) == "handoff"
 
 
 # ------------------------------------ L4: unconsumed legacy mail at arm wakes immediately

@@ -31,7 +31,7 @@ def _gate_on(monkeypatch):
 # ------------------------------------------------------------------ unit: the assertions
 def test_p1_valid_citations_pass(monkeypatch):
     _gate_on(monkeypatch)
-    held, feedback, warnings = assertions.run_preflight(
+    held, feedback, _warnings = assertions.run_preflight(
         "The fix is at core/comm/assertions.py:1 and pins P1-P9 are green (T068)."
     )
     assert not held, f"valid cites must pass, got feedback: {feedback}"
@@ -64,7 +64,7 @@ def test_p8_closure_without_pin_warns_but_does_not_hold(monkeypatch):
 
 def test_p7_kill_switch_disables(monkeypatch):
     monkeypatch.setenv("BIFROST_PREFLIGHT_ASSERT", "0")
-    held, feedback, warnings = assertions.run_preflight(
+    held, _feedback, warnings = assertions.run_preflight(
         "Cites docs/this-file-does-not-exist-9x7.md:42 and event:events:raw:9-9."
     )
     assert not held and not warnings, "kill switch must disable ALL assertions (fail-open)"
@@ -136,7 +136,10 @@ def test_p5_note_skips_assertions(monkeypatch):
         broadcast=lambda *a, **k: None,
     )
     args = SimpleNamespace(agent="deepseek", agentic=False, model="m")
-    boom = lambda prompt: (_ for _ in ()).throw(RuntimeError("api down"))
+
+    def boom(prompt):
+        return (_ for _ in ()).throw(RuntimeError("api down"))
+
     msg = SimpleNamespace(
         kind="handoff",
         frm="claude",

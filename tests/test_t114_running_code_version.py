@@ -126,7 +126,7 @@ def test_p2_p3_the_roster_derives_stale_code(seat):
     that cannot be trusted to know it is old."""
     from core.comm import roster
 
-    agent, sid8, wl = seat
+    agent, sid8, _wl = seat
     _set_seat_sha(agent, sid8, "0" * 12)
 
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
@@ -137,7 +137,7 @@ def test_p2_p3_the_roster_derives_stale_code(seat):
 def test_p4_a_seat_at_head_is_not_accused(seat):
     from core.comm import roster
 
-    agent, sid8, wl = seat  # fixture already beat the real sha
+    agent, _sid8, _wl = seat  # fixture already beat the real sha
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
     assert row.get("code_state") != "stale", (
         f"a seat running HEAD must NOT be flagged -- a false staleness page is how the "
@@ -150,7 +150,7 @@ def test_p6_unknown_is_not_stale(seat):
     no stamp, and must not be accused of running old code."""
     from core.comm import roster
 
-    agent, sid8, wl = seat
+    agent, sid8, _wl = seat
     _set_seat_sha(agent, sid8, None)
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
     assert row.get("code_state") == "unknown", f"no stamp must read UNKNOWN, never STALE: {row}"
@@ -162,7 +162,7 @@ def test_p5_the_human_render_says_it(seat):
     the reader does not use."""
     from core.comm import roster
 
-    agent, sid8, wl = seat
+    agent, sid8, _wl = seat
     _set_seat_sha(agent, sid8, "0" * 12)
     text = "\n".join(roster.render_roster(NS))
     assert "stale-code" in text.lower() or "stale code" in text.lower(), (

@@ -26,6 +26,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import bifrost_wake as bw
+import contextlib
 
 
 class Msg:
@@ -71,10 +72,8 @@ def _run(api, seen_file, tmp_path, deadline=30, session="sess" + uuid.uuid4().he
         agent, deadline, 100, api=api, hb_path=hb, my_pid=os.getpid(), session_id=session, seen_file=seen_file
     )
     # tempdir hygiene: a cycled exit writes a real re-arm trigger for this throwaway seat
-    try:
+    with contextlib.suppress(OSError):
         os.remove(bw.rearm_trigger_path(agent, session))
-    except OSError:
-        pass
     return rc
 
 
@@ -84,13 +83,15 @@ def test_p1_twin_filtered_fresh_still_wakes(tmp_path, capsys):
     # wake 1: A delivers and is remembered
     assert _run(FakeApi([[a]]), seen, tmp_path, session="sessP1aaaaa") == 0
     out1 = capsys.readouterr().out
-    assert "BIFROST WAKE" in out1 and '"A"' in out1
+    assert "BIFROST WAKE" in out1
+    assert '"A"' in out1
     # wake 2, same session: A's dual-write twin rides with fresh B -> only B delivers
     twin = Msg(ts="T1", content="A-legacy-copy")  # same (frm, ts, kind) = same logical id
     b = Msg(ts="T2", content="B")
     assert _run(FakeApi([[twin, b]]), seen, tmp_path, session="sessP1aaaaa") == 0
     out2 = capsys.readouterr().out
-    assert '"B"' in out2 and "A-legacy-copy" not in out2
+    assert '"B"' in out2
+    assert "A-legacy-copy" not in out2
 
 
 def test_p2_all_twins_do_not_wake(tmp_path, capsys):
@@ -134,7 +135,8 @@ def test_p5_sidecar_bounded_newest_kept(tmp_path):
     bw.save_seen(seen, keys)
     stored = json.load(open(seen, encoding="utf-8"))
     assert len(stored) == bw.SEEN_CAP
-    assert stored[-1] == keys[-1] and keys[0] not in stored
+    assert stored[-1] == keys[-1]
+    assert keys[0] not in stored
 
 
 def test_p6_detect_only_surface(tmp_path):

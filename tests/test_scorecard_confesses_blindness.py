@@ -67,7 +67,9 @@ def test_p3_message_regex_detectors_are_labelled_self_report():
     simply stop typing it -- the same trap M3 sat in until it was made to read git."""
     from scripts import arc_scorecard as sc
 
-    assert "M4" in sc.SELF_REPORT and "M5" in sc.SELF_REPORT and "M1" in sc.SELF_REPORT
+    assert "M4" in sc.SELF_REPORT
+    assert "M5" in sc.SELF_REPORT
+    assert "M1" in sc.SELF_REPORT
     assert "M3" not in sc.SELF_REPORT, "M3 reads git now -- it is measured, not self-reported"
     assert "M10" not in sc.SELF_REPORT
 

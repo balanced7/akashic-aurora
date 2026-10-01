@@ -93,8 +93,9 @@ def _quiesce(agent):
 
 
 def test_session_claim_mints_generation(agent):
-    ok, gen, info = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok and gen > 0
+    ok, gen, _info = runner_lock.claim_consumer(agent, "session:pin-a")
+    assert ok
+    assert gen > 0
     assert Bus(agent).advance_to(inbox="1-1", generation=gen) == "OK"
     assert runner_lock.SESSION_CONSUMER_TTL > runner_lock.LOCK_TTL, (
         "a turn-based session cannot heartbeat in runner seconds"
@@ -105,9 +106,10 @@ def test_session_claim_mints_generation(agent):
 
 
 def test_second_claimant_refused_while_holder_alive(agent):
-    ok_a, gen_a, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    ok_b, gen_b, info_b = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_a and not ok_b
+    ok_a, _gen_a, _ = runner_lock.claim_consumer(agent, "session:pin-a")
+    ok_b, _gen_b, info_b = runner_lock.claim_consumer(agent, "session:pin-b")
+    assert ok_a
+    assert not ok_b
     assert "session:pin-a" in str(info_b), "the refusal names the live holder"
 
 
@@ -117,10 +119,12 @@ def test_second_claimant_refused_while_holder_alive(agent):
 def test_stale_generation_fenced_at_resource(agent):
     bus = Bus(agent)
     ok_a, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok_a and bus.advance_to(inbox="1-1", generation=g1) == "OK"
+    assert ok_a
+    assert bus.advance_to(inbox="1-1", generation=g1) == "OK"
     runner_lock.release(agent, "session:pin-a")  # simulate expiry
     ok_b, g2, _ = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_b and g2 > g1
+    assert ok_b
+    assert g2 > g1
     assert bus.advance_to(inbox="2-1", generation=g2) == "OK"
     assert bus.advance_to(inbox="3-1", generation=g1) == "STALE_GENERATION"
     assert bus.cursor()["inbox"] == "2-1", "the fenced-out write moved NOTHING"
@@ -134,7 +138,8 @@ def test_ttl_frees_dead_holder_alone(agent):
     assert ok_a
     time.sleep(1.3)  # holder vanishes, releases nothing
     ok_b, gen_b, _ = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_b and gen_b > gen_a
+    assert ok_b
+    assert gen_b > gen_a
 
 
 # --- P5: the raw unguarded cursor write is RETIRED ---
@@ -183,7 +188,8 @@ def test_door_degrade_shape_under_foreign_holder(agent):
     bus = Bus(agent)
     before = dict(bus.cursor())
     res = consume_inbox(agent, limit=10)  # a DIFFERENT session's door call
-    assert isinstance(res, dict) and res.get("seat_held") is True
+    assert isinstance(res, dict)
+    assert res.get("seat_held") is True
     assert "session:pin-holder" in str(res.get("holder"))
     assert len(res.get("peeked") or []) == 2, "the mail is SHOWN, never eaten"
     assert dict(bus.cursor()) == before, "degraded read moved nothing"
@@ -209,7 +215,8 @@ def test_door_happy_path_dict_shape(agent):
     _quiesce(agent)
     _seed(agent, 1)
     res = consume_inbox(agent, limit=10)
-    assert isinstance(res, dict) and res.get("seat_held") is False
+    assert isinstance(res, dict)
+    assert res.get("seat_held") is False
     assert len(res.get("consumed") or []) == 1, "one consistent type for JSON callers"
 
 
@@ -222,7 +229,8 @@ def test_door_happy_path_dict_shape(agent):
 
 def test_cross_process_refresh_preserves_generation(agent):
     ok, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok and g1 > 0
+    assert ok
+    assert g1 > 0
     assert Bus(agent).advance_to(inbox="1-1", generation=g1) == "OK"  # cursor gen = g1
     runner_lock._TENURE_GEN.clear()  # simulate a FRESH process (the stop hook)
     assert runner_lock.refresh_consumer(agent, "session:pin-a")
@@ -247,7 +255,7 @@ def test_mcp_door_peek_default():
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "bifrost_inbox"
     )
     args = fn.args
-    named = {a.arg: d for a, d in zip(args.args[len(args.args) - len(args.defaults) :], args.defaults)}
-    named.update({a.arg: d for a, d in zip(args.kwonlyargs, args.kw_defaults) if d})
+    named = {a.arg: d for a, d in zip(args.args[len(args.args) - len(args.defaults) :], args.defaults, strict=False)}
+    named.update({a.arg: d for a, d in zip(args.kwonlyargs, args.kw_defaults, strict=False) if d})
     assert "consume" in named, "bifrost_inbox grows an explicit consume arg"
     assert getattr(named["consume"], "value", None) is False, "and it defaults to PEEK"

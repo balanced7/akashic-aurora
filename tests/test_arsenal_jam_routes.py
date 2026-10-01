@@ -162,27 +162,36 @@ def test_deck_writes_answer_409_when_the_card_moved_underneath(jam):
     status, reply = post(
         jam, "/api/piano/deck/cards/lydian-four/update", {"patch": {"title": "Lydian"}, "if_rev": 1, "by": "daniel"}
     )
-    assert status == 200 and reply["rev"] == 2 and reply["card"]["updated_by"] == "daniel"
+    assert status == 200
+    assert reply["rev"] == 2
+    assert reply["card"]["updated_by"] == "daniel"
     for path, body in (
         ("/api/piano/deck/cards/lydian-four/update", {"patch": {"title": "x"}, "if_rev": 1}),
         ("/api/piano/deck/cards/lydian-four/delete", {"if_rev": 1}),
     ):
         status, reply = post(jam, path, body)
-        assert status == 409 and reply["rev"] == 2
+        assert status == 409
+        assert reply["rev"] == 2
     status, reply = post(jam, "/api/piano/deck/order", {"order": ["lydian-four"], "if_rev": 1})
-    assert status == 409 and reply["rev"] == 2
+    assert status == 409
+    assert reply["rev"] == 2
     bad = load("card_lydian_four.json")
     bad.update(id="bad-card", chords=[{"n": "1maj9", "beats": 0}])
     status, reply = post(jam, "/api/piano/deck/cards", {"card": bad})
-    assert status == 400 and reply["field"] == "chords[0].beats"
+    assert status == 400
+    assert reply["field"] == "chords[0].beats"
     assert post(jam, "/api/piano/deck/cards", {"card": bad, "colour": "blue"})[1]["field"] == "colour"
     assert post(jam, "/api/piano/deck/cards", {"card": bad, "by": "vandor"})[1]["field"] == "by"
     assert get(jam, "/api/piano/deck/cards/nope")[0] == 404
     status, doc = get(jam, "/api/piano/deck")
-    assert status == 200 and doc["rev"] == 2 and [c["id"] for c in doc["cards"]] == ["lydian-four"]
-    assert doc["cards"][0]["numbers"] == "1maj9 4maj7#11" and doc["cards"][0]["runs"] == 0
+    assert status == 200
+    assert doc["rev"] == 2
+    assert [c["id"] for c in doc["cards"]] == ["lydian-four"]
+    assert doc["cards"][0]["numbers"] == "1maj9 4maj7#11"
+    assert doc["cards"][0]["runs"] == 0
     status, reply = post(jam, "/api/piano/deck/cards/lydian-four/delete", {"if_rev": 2, "by": "daniel"})
-    assert status == 200 and reply["trashed"].startswith("trash/lydian-four.rev2.")
+    assert status == 200
+    assert reply["trashed"].startswith("trash/lydian-four.rev2.")
     assert get(jam, "/api/piano/deck/trash")[1]["trash"][0]["id"] == "lydian-four"
     assert post(jam, "/api/piano/deck/cards/lydian-four/restore", {"by": "daniel"})[1]["rev"] == 3
 
@@ -191,27 +200,39 @@ def test_deck_and_jam_frames_ride_the_cue_stream_and_status_counts_jam_pages(jam
     page = Stream(jam.port, "?caps=jam1,deck1&page=p-a")
     try:
         status, st = get(jam, "/api/piano/cues/status")
-        assert st["caps"] == {"jam1": 1, "deck1": 1} and st["pages"][0]["page_id"] == "p-a"
+        assert st["caps"] == {"jam1": 1, "deck1": 1}
+        assert st["pages"][0]["page_id"] == "p-a"
         add_card(jam)
         kind, data = page.event()
-        assert kind == "deck" and data["id"] == 1 and set(data) == {"id", "deck", "sent_at"}
-        assert data["deck"]["op"] == "upsert" and data["deck"]["card_id"] == "lydian-four"
-        assert data["deck"]["rev"] == 1 and data["deck"]["deck_rev"] == 1 and data["deck"]["summary"]["title"]
+        assert kind == "deck"
+        assert data["id"] == 1
+        assert set(data) == {"id", "deck", "sent_at"}
+        assert data["deck"]["op"] == "upsert"
+        assert data["deck"]["card_id"] == "lydian-four"
+        assert data["deck"]["rev"] == 1
+        assert data["deck"]["deck_rev"] == 1
+        assert data["deck"]["summary"]["title"]
         assert post(jam, "/api/piano/cue", {"cue": {"type": "clear"}}) == (200, {"id": 2, "listeners": 1})
         assert page.event()[0] == "cue"
         status, reply = post(jam, "/api/piano/deck/open", {"card_id": "lyd", "by": "claude"})
         assert (status, reply) == (200, {"id": "lydian-four", "listeners": 1})
         kind, data = page.event()
-        assert kind == "deck" and data["deck"]["op"] == "open"
+        assert kind == "deck"
+        assert data["deck"]["op"] == "open"
         status, reply = post(
             jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "lydian-four", "by": "daniel", "page_id": "p-a"}
         )
-        assert status == 200 and reply["jam_pages"] == 1 and reply["listeners"] == 1
+        assert status == 200
+        assert reply["jam_pages"] == 1
+        assert reply["listeners"] == 1
         kinds = [page.event() for _ in range(2)]
         assert [(k, d["jam"]["op"]) for k, d in kinds] == [("jam", "owner"), ("jam", "start")]
         start = kinds[1][1]["jam"]
-        assert start["run"] == reply["run"] and start["state"] == "running" and start["version"] == 1
-        assert start["def"]["api"] == "arsenal.jam.def/v0" and start["segments"][0]["from_bar"] == -1
+        assert start["run"] == reply["run"]
+        assert start["state"] == "running"
+        assert start["version"] == 1
+        assert start["def"]["api"] == "arsenal.jam.def/v0"
+        assert start["segments"][0]["from_bar"] == -1
     finally:
         page.close()
 
@@ -221,10 +242,15 @@ def test_a_claude_start_waits_pending_until_the_owner_launches(jam):
     add_card(jam)
     assert post(jam, "/api/piano/jam/owner", {"page_id": "p-a", "claim": True})[1]["owner"]["page_id"] == "p-a"
     status, reply = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "lydian-four", "by": "claude"})
-    assert status == 200 and reply["state"] == "pending" and reply["start_epoch_ms"] is None and reply["def"]
+    assert status == 200
+    assert reply["state"] == "pending"
+    assert reply["start_epoch_ms"] is None
+    assert reply["def"]
     rid = reply["run"]
     st = get(jam, "/api/piano/jam")[1]
-    assert st["run"]["run"] == rid and st["run"]["segments"] == [] and st["position"] is None
+    assert st["run"]["run"] == rid
+    assert st["run"]["segments"] == []
+    assert st["position"] is None
     assert st["def"]["card"]["id"] == "lydian-four"
     jam.epoch.t += 3000
     launch = f"/api/piano/jam/runs/{rid}/launch"
@@ -233,13 +259,16 @@ def test_a_claude_start_waits_pending_until_the_owner_launches(jam):
         {"error": "only the owner page launches a run", "owner": "p-a"},
     )
     status, reply = post(jam, launch, {"page_id": "p-a", "epoch_ms": jam.epoch.t + 100})
-    assert status == 400 and reply["field"] == "epoch_ms"
+    assert status == 400
+    assert reply["field"] == "epoch_ms"
     status, reply = post(jam, launch, {"page_id": "p-a", "epoch_ms": jam.epoch.t + 500, "via": "rest"})
-    assert status == 200 and reply["start_epoch_ms"] == T0 + 3500
+    assert status == 200
+    assert reply["start_epoch_ms"] == T0 + 3500
     assert reply["bar0_epoch_ms"] == pytest.approx(float(T0 + 3500 + BAR_66), abs=1e-6)
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
     S.validate_run(run["run"])
-    assert run["run"]["state"] == "running" and run["run"]["courtesy"] == {"held_ms": 3000.0, "via": "rest"}
+    assert run["run"]["state"] == "running"
+    assert run["run"]["courtesy"] == {"held_ms": 3000.0, "via": "rest"}
     assert [e["kind"] for e in run["events"]] == ["start", "launch"]
     assert post(jam, launch, {"page_id": "p-a", "epoch_ms": jam.epoch.t + 900})[0] == 409
 
@@ -250,13 +279,17 @@ def test_now_and_the_page_start_at_once_and_a_new_start_replaces_a_pending_one(j
     reply = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "lydian-four", "by": "claude", "now": True})[
         1
     ]
-    assert reply["state"] == "running" and reply["start_epoch_ms"] == T0 + 800
+    assert reply["state"] == "running"
+    assert reply["start_epoch_ms"] == T0 + 800
     old = get(jam, f"/api/piano/jam/runs/{pending}")[1]["run"]
-    assert old["stop_reason"] == "replaced" and old["stopped_epoch_ms"] == T0
+    assert old["stop_reason"] == "replaced"
+    assert old["stopped_epoch_ms"] == T0
     play = post(jam, "/api/piano/jam/start", {"mode": "play", "card_id": "lydian-four", "by": "daniel"})[1]
-    assert play["start_epoch_ms"] == T0 + 250 and play["count_in_bars"] == 0
+    assert play["start_epoch_ms"] == T0 + 250
+    assert play["count_in_bars"] == 0
     st = get(jam, "/api/piano/jam")[1]
-    assert st["run"]["run"] == reply["run"] and st["play"]["run"] == play["run"]
+    assert st["run"]["run"] == reply["run"]
+    assert st["play"]["run"] == play["run"]
     for body, field in (
         ({"mode": "play", "card_id": "lydian-four", "count_in": 1}, "count_in"),
         ({"mode": "loop", "card_id": "lydian-four", "try_backing": "bass"}, "try_backing"),
@@ -349,31 +382,41 @@ def test_changes_land_on_the_first_line_one_beat_and_250_ms_away(jam):
         status, reply = post(jam, control, {"op": "tempo", "bpm": bpm, "at": "bar", "if_version": i + 1})
         assert status == 200, reply
         assert reply["effective_bar"] == want_bar, (i, reply, want_bar)
-        assert abs(reply["epoch_ms"] - float(want_epoch)) <= 0.001 and reply["version"] == i + 2
+        assert abs(reply["epoch_ms"] - float(want_epoch)) <= 0.001
+        assert reply["version"] == i + 2
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
     S.validate_run(run["run"])
     status, reply = post(jam, control, {"op": "tempo", "bpm": 90, "if_version": 1})
-    assert status == 409 and reply["version"] == 31
+    assert status == 409
+    assert reply["version"] == 31
     jam.epoch.t += 777
     segs = run["run"]["segments"]
     s = _segment_at(segs, 10**6)
     status, reply = post(jam, control, {"op": "tempo", "bpm": "+4", "at": "beat"})
-    assert status == 200 and reply["bpm"] == s["bpm"] + 4 and reply["at"] == "bar" and "bar lines" in reply["note"]
+    assert status == 200
+    assert reply["bpm"] == s["bpm"] + 4
+    assert reply["at"] == "bar"
+    assert "bar lines" in reply["note"]
     assert post(jam, control, {"op": "tempo", "bpm": 300})[1]["field"] == "bpm"
     assert post(jam, control, {"op": "fly"})[1]["field"] == "op"
     jam.epoch.t += 5000
     segs = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]["segments"]
     want_bar, want_epoch = _landing(segs, jam.epoch.t, cycle_bars=2)
     status, reply = post(jam, control, {"op": "next", "key": "F major"})
-    assert status == 200 and reply["at"] == "pass" and reply["effective_bar"] == want_bar
+    assert status == 200
+    assert reply["at"] == "pass"
+    assert reply["effective_bar"] == want_bar
     assert jam.app.jam.resolver.calls[-1] == ("card", "lydian-four", "F major", None)
     jam.epoch.t += 20000
     segs = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]["segments"]
     want_bar, want_epoch = _landing(segs, jam.epoch.t)
     status, reply = post(jam, control, {"op": "stop"})
-    assert status == 200 and reply["effective_bar"] == want_bar and abs(reply["epoch_ms"] - float(want_epoch)) <= 0.001
+    assert status == 200
+    assert reply["effective_bar"] == want_bar
+    assert abs(reply["epoch_ms"] - float(want_epoch)) <= 0.001
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
-    assert run["stop_reason"] == "cli" and run["stop_bar"] == want_bar
+    assert run["stop_reason"] == "cli"
+    assert run["stop_bar"] == want_bar
     assert post(jam, control, {"op": "stop"})[0] == 409
 
 
@@ -383,19 +426,25 @@ def test_stop_now_mute_and_set_on_a_running_loop(jam):
     control = f"/api/piano/jam/runs/{rid}/control"
     jam.epoch.t += 9000
     status, reply = post(jam, control, {"op": "mute", "by": "daniel"})
-    assert status == 200 and reply["epoch_ms"] == jam.epoch.t and reply["at"] == "now"
+    assert status == 200
+    assert reply["epoch_ms"] == jam.epoch.t
+    assert reply["at"] == "now"
     status, reply = post(jam, control, {"op": "set", "settings": {"groove": "pulse", "walk": 0}})
     assert status == 200
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
-    assert run["settings"][-1]["groove"] == "pulse" and run["settings"][-1]["walk"] == 0
-    assert run["settings"][-1]["muted"] is True and run["settings"][-1]["from_bar"] == reply["effective_bar"]
+    assert run["settings"][-1]["groove"] == "pulse"
+    assert run["settings"][-1]["walk"] == 0
+    assert run["settings"][-1]["muted"] is True
+    assert run["settings"][-1]["from_bar"] == reply["effective_bar"]
     assert post(jam, control, {"op": "set", "settings": {"colour": "blue"}})[1]["field"] == "settings.colour"
     assert post(jam, control, {"op": "set", "settings": {"try_backing": "bass"}})[0] == 400
     jam.epoch.t += 1234
     status, reply = post(jam, control, {"op": "stop", "at": "now", "by": "daniel"})
-    assert status == 200 and reply["epoch_ms"] == jam.epoch.t
+    assert status == 200
+    assert reply["epoch_ms"] == jam.epoch.t
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
-    assert run["stop_reason"] == "page" and run["stopped_epoch_ms"] == jam.epoch.t
+    assert run["stop_reason"] == "page"
+    assert run["stopped_epoch_ms"] == jam.epoch.t
 
 
 def test_a_second_loop_swaps_on_the_next_bar_and_a_play_overlays(jam):
@@ -413,22 +462,26 @@ def test_a_second_loop_swaps_on_the_next_bar_and_a_play_overlays(jam):
     first = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "lydian-four", "by": "daniel"})[1]
     jam.epoch.t += 10000
     old_segs = get(jam, f"/api/piano/jam/runs/{first['run']}")[1]["run"]["segments"]
-    want_bar, want_epoch = _landing(old_segs, jam.epoch.t)
+    want_bar, _want_epoch = _landing(old_segs, jam.epoch.t)
     while _t(old_segs, want_bar) < Fraction(jam.epoch.t + 250):
         want_bar += 1
     second = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "dorian-vamp", "by": "daniel"})[1]
-    assert second["swapped_from"] == first["run"] and second["count_in_bars"] == 0
+    assert second["swapped_from"] == first["run"]
+    assert second["count_in_bars"] == 0
     assert abs(second["start_epoch_ms"] - float(_t(old_segs, want_bar))) <= 0.001
     assert second["start_epoch_ms"] == second["bar0_epoch_ms"]
     old = get(jam, f"/api/piano/jam/runs/{first['run']}")[1]["run"]
-    assert old["stop_reason"] == "replaced" and old["stop_bar"] == want_bar
+    assert old["stop_reason"] == "replaced"
+    assert old["stop_bar"] == want_bar
     assert old["stopped_epoch_ms"] == second["start_epoch_ms"]
     new = get(jam, f"/api/piano/jam/runs/{second['run']}")[1]["run"]
     S.validate_run(new)
-    assert new["segments"][0]["from_bar"] == 0 and new["card"]["id"] == "dorian-vamp"
+    assert new["segments"][0]["from_bar"] == 0
+    assert new["card"]["id"] == "dorian-vamp"
     play = post(jam, "/api/piano/jam/start", {"mode": "play", "card_id": "lydian-four", "by": "daniel"})[1]
     st = get(jam, "/api/piano/jam")[1]
-    assert st["run"]["run"] == second["run"] and st["play"]["run"] == play["run"]
+    assert st["run"]["run"] == second["run"]
+    assert st["play"]["run"] == play["run"]
     assert get(jam, f"/api/piano/jam/runs/{second['run']}")[1]["run"]["state"] == "running"
 
 
@@ -455,11 +508,14 @@ def test_a_knock_beside_a_playing_loop_leaves_it_playing_until_the_launch_swaps_
     knock = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "dorian-vamp", "by": "claude"})[1]
     assert older["state"] == knock["state"] == "pending"
     run = get(jam, f"/api/piano/jam/runs/{first['run']}")[1]["run"]
-    assert run["state"] == "running" and not run["closed"]
+    assert run["state"] == "running"
+    assert not run["closed"]
     replaced = get(jam, f"/api/piano/jam/runs/{older['run']}")[1]["run"]
-    assert replaced["stop_reason"] == "replaced" and replaced["stop_bar"] is None
+    assert replaced["stop_reason"] == "replaced"
+    assert replaced["stop_bar"] is None
     st = get(jam, "/api/piano/jam")[1]
-    assert st["run"]["run"] == first["run"] and [r["run"] for r in st["pending"]] == [knock["run"]]
+    assert st["run"]["run"] == first["run"]
+    assert [r["run"] for r in st["pending"]] == [knock["run"]]
     jam.epoch.t += 3000
     old_segs = run["segments"]
     epoch = jam.epoch.t + 500
@@ -467,10 +523,12 @@ def test_a_knock_beside_a_playing_loop_leaves_it_playing_until_the_launch_swaps_
     while _t(old_segs, want_bar) < Fraction(epoch):
         want_bar += 1
     status, reply = post(jam, f"/api/piano/jam/runs/{knock['run']}/launch", {"page_id": "p-a", "epoch_ms": epoch})
-    assert status == 200 and reply["count_in_bars"] == 0
+    assert status == 200
+    assert reply["count_in_bars"] == 0
     assert abs(reply["start_epoch_ms"] - float(_t(old_segs, want_bar))) <= 0.001
     old = get(jam, f"/api/piano/jam/runs/{first['run']}")[1]["run"]
-    assert old["stop_reason"] == "replaced" and old["stop_bar"] == want_bar
+    assert old["stop_reason"] == "replaced"
+    assert old["stop_bar"] == want_bar
     assert old["stopped_epoch_ms"] == reply["start_epoch_ms"]
     S.validate_run(old)
     assert get(jam, "/api/piano/jam")[1]["pending"] == []
@@ -479,7 +537,8 @@ def test_a_knock_beside_a_playing_loop_leaves_it_playing_until_the_launch_swaps_
     jam.epoch.t += 2000
     post(jam, "/api/piano/jam/start", {"mode": "play", "card_id": "lydian-four", "by": "daniel"})
     gone = get(jam, f"/api/piano/jam/runs/{p1['run']}")[1]["run"]
-    assert gone["stop_reason"] == "replaced" and isinstance(gone["stop_bar"], int)
+    assert gone["stop_reason"] == "replaced"
+    assert isinstance(gone["stop_bar"], int)
 
 
 def test_a_change_may_land_before_one_already_waiting_later(jam):
@@ -500,18 +559,19 @@ def test_a_change_may_land_before_one_already_waiting_later(jam):
     rid, control = start["run"], f"/api/piano/jam/runs/{start['run']}/control"
     jam.epoch.t = start["bar0_epoch_ms"] + 100  # bar 0: bar 1 is the next bar line, bar 2 the next pass top
     status, key = post(jam, control, {"op": "next", "key": "F major"})
-    assert status == 200 and (key["at"], key["effective_bar"]) == ("pass", 2)
+    assert status == 200
+    assert (key["at"], key["effective_bar"]) == ("pass", 2)
     status, tempo = post(jam, control, {"op": "tempo", "bpm": "+4"})
     assert status == 200 and tempo["effective_bar"] == 1 and tempo["bpm"] == 70, tempo
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
     S.validate_run(run)
     segs = run["segments"]
     assert [(s["from_bar"], s["bpm"], s["def_version"]) for s in segs] == [(-1, 66, 1), (1, 70, 1), (2, 70, 2)]
-    assert (
-        abs(segs[2]["epoch_ms"] - float(_t(segs, 2))) <= 0.001 and abs(tempo["epoch_ms"] - float(_t(segs, 1))) <= 0.001
-    )
+    assert abs(segs[2]["epoch_ms"] - float(_t(segs, 2))) <= 0.001
+    assert abs(tempo["epoch_ms"] - float(_t(segs, 1))) <= 0.001
     status, nxt = post(jam, control, {"op": "next", "card_id": "dorian-vamp"})
-    assert status == 200 and nxt["effective_bar"] == 1
+    assert status == 200
+    assert nxt["effective_bar"] == 1
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
     S.validate_run(run)
     assert [(s["from_bar"], s["bpm"], s["def_version"], s["def_from_bar"]) for s in run["segments"]] == [
@@ -520,9 +580,11 @@ def test_a_change_may_land_before_one_already_waiting_later(jam):
     ]  # the newest line wins over the key change waiting at bar 2
     jam.epoch.t = float(_t(run["segments"], 1)) + 100  # inside bar 1: bar 2 is the next line, bar 3 the next pass top
     status, later = post(jam, control, {"op": "set", "settings": {"walk": 0}, "at": "pass"})
-    assert status == 200 and later["effective_bar"] == 3  # the new card's 2-bar cycle starts at bar 1
+    assert status == 200
+    assert later["effective_bar"] == 3
     status, sooner = post(jam, control, {"op": "set", "settings": {"humanize": 0}})
-    assert status == 200 and sooner["effective_bar"] == 2
+    assert status == 200
+    assert sooner["effective_bar"] == 2
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
     S.validate_run(run["run"])
     got = {s["from_bar"]: (s["humanize"], s["walk"]) for s in run["run"]["settings"]}
@@ -554,7 +616,8 @@ def test_a_change_during_the_count_in_lands_on_bar_0_and_the_run_stays_whole(jam
         status, reply = post(jam, control, body)
         assert status == 200 and reply["effective_bar"] == 0, (body, reply)
         replies.append(reply)
-    assert [r.get("bpm") for r in replies[:2]] == [70, 74] and "count-in" in replies[0]["note"]
+    assert [r.get("bpm") for r in replies[:2]] == [70, 74]
+    assert "count-in" in replies[0]["note"]
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
     S.validate_run(run["run"])
     assert run["run"]["bar0_epoch_ms"] == start["bar0_epoch_ms"]
@@ -562,13 +625,16 @@ def test_a_change_during_the_count_in_lands_on_bar_0_and_the_run_stays_whole(jam
         (-2, 66, 1, 0),
         (0, 74, replies[2]["version"], 0),
     ]  # no count-in bar carries a def cycle or a tempo change
-    assert run["run"]["settings"][-1]["from_bar"] == 0 and run["run"]["settings"][-1]["dropout"] == 0.25
+    assert run["run"]["settings"][-1]["from_bar"] == 0
+    assert run["run"]["settings"][-1]["dropout"] == 0.25
     status, stop = post(jam, control, {"op": "stop", "by": "daniel"})
     assert status == 200
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
     S.validate_run(run["run"])
     on_disk = json.loads((jam.root / "runs" / rid / "run.json").read_text(encoding="utf-8"))
-    assert on_disk == run["run"] and on_disk["closed"] and on_disk["stop_bar"] == stop["effective_bar"]
+    assert on_disk == run["run"]
+    assert on_disk["closed"]
+    assert on_disk["stop_bar"] == stop["effective_bar"]
     assert [e["kind"] for e in run["events"]][-1] == "stop"
     assert get(jam, "/api/piano/jam")[0] == 200
     # `--now` at 140 bpm: its 800 ms lead holds a count-in bar, and a change a few ms later lands on bar 0 too
@@ -600,7 +666,8 @@ def test_a_refused_change_leaves_the_run_exactly_as_it_was(jam, monkeypatch):
     assert get(jam, f"/api/piano/jam/runs/{rid}")[1] == before
     assert (jam.root / "runs" / rid / "run.json").read_bytes() == disk
     status, reply = post(jam, control, {"op": "tempo", "bpm": 80})
-    assert status == 200 and reply["version"] == 2
+    assert status == 200
+    assert reply["version"] == 2
     status, reply = post(jam, control, {"op": "set", "settings": {"dropout": 1.5}})
     assert status == 400 and reply["field"].endswith("dropout"), reply
 
@@ -612,14 +679,17 @@ def test_passes_end_a_run_and_a_knock_nobody_takes_expires(jam):
         "run"
     ]
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
-    assert run["settings"][0]["try_backing"] == "bass" and run["settings"][0]["passes"] == 2
+    assert run["settings"][0]["try_backing"] == "bass"
+    assert run["settings"][0]["passes"] == 2
     end = float(_t(run["segments"], 4))
     jam.epoch.t = end - 1
     assert get(jam, "/api/piano/jam")[1]["run"]["state"] == "running"
     jam.epoch.t = end + 1
     get(jam, "/api/piano/jam")
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
-    assert run["stop_reason"] == "count" and run["stop_bar"] == 4 and run["stopped_epoch_ms"] == end
+    assert run["stop_reason"] == "count"
+    assert run["stop_bar"] == 4
+    assert run["stopped_epoch_ms"] == end
     knock = post(jam, "/api/piano/jam/start", {"mode": "loop", "card_id": "lydian-four", "by": "claude"})[1]["run"]
     jam.epoch.t += PENDING_EXPIRE_MS
     assert get(jam, "/api/piano/jam")[1]["run"] is None
@@ -640,11 +710,15 @@ def test_restart_closes_open_runs_and_building_an_app_does_not(jam):
         assert json.loads((jam.root / "runs" / rid / "run.json").read_text(encoding="utf-8"))["closed"] is False
     assert sorted(app2.jam.runs.close_unclosed()) == sorted([running, pending])
     for rid, last in ((running, T0 + 8000), (pending, T0 + 4000)):
-        status, got = app2.jam.handle("GET", f"/api/piano/jam/runs/{rid}", {}, None)
+        _status, got = app2.jam.handle("GET", f"/api/piano/jam/runs/{rid}", {}, None)
         run, line = got["run"], got["events"][-1]
         S.validate_run(run)
-        assert run["stop_reason"] == "server-restart" and run["approx"] is True and run["stopped_epoch_ms"] == last
-        assert line["kind"] == "stop" and line["by"] == "server" and line["reason"] == "server-restart"
+        assert run["stop_reason"] == "server-restart"
+        assert run["approx"] is True
+        assert run["stopped_epoch_ms"] == last
+        assert line["kind"] == "stop"
+        assert line["by"] == "server"
+        assert line["reason"] == "server-restart"
     assert app2.jam.handle("GET", "/api/piano/jam", {}, None)[1]["run"] is None
 
 
@@ -672,7 +746,8 @@ def test_acks_are_idempotent_and_a_lost_stream_stops_the_run(jam):
     jam.epoch.t += 9000
     assert post(jam, path, dict(ack, bar=2, stopped="stream-lost", stop_bar=2))[0] == 200
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]
-    assert run["run"]["stop_reason"] == "stream-lost" and run["run"]["stop_bar"] == 2
+    assert run["run"]["stop_reason"] == "stream-lost"
+    assert run["run"]["stop_bar"] == 2
     assert [e["kind"] for e in run["events"]].count("ack") == 2
 
 
@@ -685,7 +760,8 @@ def test_marks_and_the_run_listing(jam):
     assert [r["run"] for r in get(jam, "/api/piano/jam/runs?card=lydian-four")[1]["runs"]] == [rid]
     assert get(jam, "/api/piano/jam/runs?card=other")[1]["runs"] == []
     got = get(jam, f"/api/piano/jam/runs/{rid}")[1]
-    assert got["events"][1]["kind"] == "mark" and got["alignment"] == []
+    assert got["events"][1]["kind"] == "mark"
+    assert got["alignment"] == []
     assert get(jam, "/api/piano/deck")[1]["cards"][0]["runs"] == 1
     assert get(jam, "/api/piano/jam/runs/20300101-000000-00000000")[0] == 404
 
@@ -699,8 +775,11 @@ def test_replay_answers_a_cue_and_never_broadcasts_it(jam):
     )
     last = jam.app.cues.status()["last_id"]
     status, reply = get(jam, f"/api/piano/replay?session={session}&at=0:00&seconds=2")
-    assert status == 200 and reply["cue"]["type"] == "sequence" and reply["cue"]["source"] == "replay"
-    assert reply["cue"]["steps"][0]["notes"] == [60] and jam.app.cues.status()["last_id"] == last
+    assert status == 200
+    assert reply["cue"]["type"] == "sequence"
+    assert reply["cue"]["source"] == "replay"
+    assert reply["cue"]["steps"][0]["notes"] == [60]
+    assert jam.app.cues.status()["last_id"] == last
     assert get(jam, "/api/piano/replay?session=20300101-000000-00000000&at=0:01")[0] == 404
     assert get(jam, f"/api/piano/replay?session={session}")[1]["field"] == "at"
 
@@ -716,6 +795,7 @@ def test_jam_posts_check_the_origin_and_the_body_and_stay_on_without_the_log(jam
     quiet = App([str(tmp_path / "lib2")], takes_root=tmp_path / "t2", performance_log=False, jam_root=tmp_path / "j2")
     quiet.jam.resolver = FixtureResolver()
     quiet.jam.deck.reader = quiet.jam.resolver.page_reads
-    status, reply = quiet.jam.handle("POST", "/api/piano/deck/cards", {}, {"card": load("card_lydian_four.json")})
-    assert status == 200 and quiet.jam.handle("GET", "/api/piano/deck", {}, None)[1]["rev"] == 1
+    status, _reply = quiet.jam.handle("POST", "/api/piano/deck/cards", {}, {"card": load("card_lydian_four.json")})
+    assert status == 200
+    assert quiet.jam.handle("GET", "/api/piano/deck", {}, None)[1]["rev"] == 1
     assert quiet.jam.handle("GET", "/api/piano/replay", {"session": ["x"], "at": ["0:01"]}, None)[0] == 404

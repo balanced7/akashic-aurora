@@ -282,8 +282,10 @@ def format_report() -> str:
     n_has = sum(1 for c in cases if c["counter_exists"])
     lines = [
         "=" * 64,
-        f"COUNTER-RETRIEVAL EVAL (Slice 0) — {len(cases)} cases "
-        f"({n_has} with a real counter, {len(cases) - n_has} silence controls)",
+        (
+            f"COUNTER-RETRIEVAL EVAL (Slice 0) — {len(cases)} cases "
+            f"({n_has} with a real counter, {len(cases) - n_has} silence controls)"
+        ),
         "=" * 64,
     ]
     for name, det in (
@@ -307,8 +309,10 @@ def format_report() -> str:
     lines += [
         "\n" + "-" * 64,
         "CORPUS COVERAGE — confirmation-by-omission (curated real-skew sample)",
-        f"  naive-flagged counter rate = {cov['density']:.3f}  "
-        f"({cov['n_with_counter']}/{cov['n_success']} successes; {cov['n_total']} records)",
+        (
+            f"  naive-flagged counter rate = {cov['density']:.3f}  "
+            f"({cov['n_with_counter']}/{cov['n_success']} successes; {cov['n_total']} records)"
+        ),
         "  Genuine counters are scarce by construction: the store is ~95% self-reported",
         "  successes with 0 anti-patterns, so a dissent-surfacer can only be as good as the",
         "  dissent that exists -> Slice 2 (write-side nudge) must grow this. NB this rate is",

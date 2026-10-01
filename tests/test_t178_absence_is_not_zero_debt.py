@@ -105,12 +105,14 @@ def test_k5_a_live_guard_absent_from_the_baseline_is_adopted_and_announced(monke
 def test_k6_a_real_baseline_still_refuses_a_rise():
     """W8's contract. The fix must not buy honesty about absence by losing the ratchet."""
     ok, msg = pc.ratchet_ok(baseline={"check_boundaries": 0}, live={"check_boundaries": 1})
-    assert ok is False and "0 -> 1" in msg
+    assert ok is False
+    assert "0 -> 1" in msg
 
 
 def test_k7_a_crashed_guard_still_fails():
     ok, msg = pc.ratchet_ok(baseline={"check_boundaries": 0}, live={"check_boundaries": -1})
-    assert ok is False and "did not RUN" in msg
+    assert ok is False
+    assert "did not RUN" in msg
 
 
 def test_k8_the_baseline_travels_with_the_repo():

@@ -50,4 +50,5 @@ def test_w7_bifrost_dashboard_registered_in_toolbox():
 
 def test_w7_bifrost_dashboard_returns_nonempty_string_never_raises():
     d = _tb().bifrost_dashboard()
-    assert isinstance(d, str) and d
+    assert isinstance(d, str)
+    assert d

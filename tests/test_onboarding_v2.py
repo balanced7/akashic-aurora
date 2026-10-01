@@ -291,10 +291,7 @@ def compare_results(old_metrics: dict, new_metrics: dict):
             change = new_val - old_val
             change_str = f"{change:+.1f}%"
         else:
-            if old_val == 0:
-                change_pct = 0 if new_val == 0 else 999
-            else:
-                change_pct = ((new_val - old_val) / old_val) * 100
+            change_pct = (0 if new_val == 0 else 999) if old_val == 0 else (new_val - old_val) / old_val * 100
             change_str = f"{change_pct:+.0f}%"
 
         old_str = f"{old_val:.1f} {unit}"

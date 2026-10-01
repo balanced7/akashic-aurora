@@ -78,7 +78,8 @@ def test_p1_wrap_sets_pointer(mem, capsys):
     rc = agent_cli.cmd_wrap(_wrap(grounding="chronicles/reflection-x.md"))
     assert rc == 0
     live = _pointer(mem)
-    assert len(live) == 1 and "chronicles/reflection-x.md" in live[0].decision
+    assert len(live) == 1
+    assert "chronicles/reflection-x.md" in live[0].decision
     assert "grounding pointer set" in capsys.readouterr().out
 
 
@@ -95,7 +96,9 @@ def test_p3_old_pointer_confesses_age(mem):
     _forge(mem, "ADR_gp_old0", "grounding-pointer", "chronicles/old-voice.md", old)
     head = agent_cli._orientation_header("claude")
     line = [l for l in head.splitlines() if "GROUND FIRST" in l][0]
-    assert "chronicles/old-voice.md" in line and "STALE?" in line and "12d" in line
+    assert "chronicles/old-voice.md" in line
+    assert "STALE?" in line
+    assert "12d" in line
 
 
 def test_p4_declared_absence(mem, capsys):

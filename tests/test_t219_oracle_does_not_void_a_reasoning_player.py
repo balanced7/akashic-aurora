@@ -94,7 +94,8 @@ def test_protocol_verdict_still_voids_on_observed_facts():
     """kimi's tripwire keeps its teeth -- moved, not removed, and now tied to a fact that
     actually indicates leakage rather than to a canary class."""
     broken = CO.protocol_verdict(seal_verified=False, archive_complete=True, key_leak_detected=None)
-    assert broken["validity"] == "VOID" and broken["voided"] is True
+    assert broken["validity"] == "VOID"
+    assert broken["voided"] is True
     leaked = CO.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=True)
     assert leaked["voided"] is True
 

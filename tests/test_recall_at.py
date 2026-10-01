@@ -58,7 +58,8 @@ def test_relevant_command_surfaces_the_matching_lesson():
     res = recall_at(command="edit core/primitives/consolidator.py now", learning_store=_STORE)
     srcs = [l["source"] for l in res["lessons"]]
     assert "learn:experiment:spine1_unify" in srcs, f"expected the consolidator lesson, got {srcs}"
-    assert res["faithful"] is True and res["shown"] >= 1
+    assert res["faithful"] is True
+    assert res["shown"] >= 1
     print(f"\n--- relevant ---\n  consolidator action -> {srcs} OK")
 
 
@@ -178,7 +179,8 @@ def test_full_record_fails_soft():
 
 def test_query_builder_drops_noise():
     q = _query_from("core/primitives/faithfulness.py", None)
-    assert "faithfulness" in q and "primitives" in q
+    assert "faithfulness" in q
+    assert "primitives" in q
     assert "core" not in q.split() and "py" not in q.split(), f"generic/short tokens leaked: {q}"
     print(f"--- query builder ---\n  '{q}' (dropped core/py) OK")
 
@@ -309,7 +311,9 @@ def test_render_formats_and_empties():
     }
     out = render(res)
     # a lesson with no provenance fields surfaces as [unverified] -- NOT framed as a settled fact
-    assert "[lock] cursor" in out and "[unverified]" in out and "(source: learn:experiment:spine1_unify)" in out
+    assert "[lock] cursor" in out
+    assert "[unverified]" in out
+    assert "(source: learn:experiment:spine1_unify)" in out
     assert len(out) <= 900
     assert render({"lessons": [], "locks": []}) == "", "empty result must render to ''"
     print("--- render ---\n  factual lock+lesson lines; empty -> '' OK")
@@ -367,7 +371,8 @@ def test_provenance_tag_resists_laundering():
             "locks": [],
         }
     )
-    assert "[unverified claude advice]" in out and "[worked" not in out
+    assert "[unverified claude advice]" in out
+    assert "[worked" not in out
     print("--- provenance tag ---\n  verified/partial/unverified/anti-pattern + advice flag; no laundering OK")
 
 
@@ -379,7 +384,8 @@ def test_suite_runs_with_isolated_recall_state():
     import core.recall.at_action as aa
 
     env = os.environ.get("AKASHIC_RECALL_STATE_DIR", "")
-    assert env and env == aa._CACHE_DIR
+    assert env
+    assert env == aa._CACHE_DIR
     assert "akashic_recall_test_" in aa._CACHE_DIR
 
 
@@ -394,7 +400,8 @@ def test_injection_ledger_roundtrip(tmp_path, monkeypatch):
     aa.log_injection("sess-1", "action", "c:z", [], 10)  # no sources -> dropped
     got = aa.recent_injections(1.0)
     assert [g["alt"] for g in got] == ["action", "plan"]
-    assert got[0]["s"] == ["learn:experiment:a"] and got[0]["chars"] == 350
+    assert got[0]["s"] == ["learn:experiment:a"]
+    assert got[0]["chars"] == 350
     assert aa.recent_injections(0.0) == [] or True  # zero-window edge must not raise
     print("--- injection ledger ---\n  log -> read roundtrip, drops incomplete entries OK")
 

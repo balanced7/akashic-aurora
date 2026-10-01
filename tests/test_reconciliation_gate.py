@@ -51,7 +51,8 @@ def test_unprotected_paths_pass_untouched(tmp_path):
 def test_protected_path_without_citation_fails(tmp_path):
     p = _run("rework the fold guard", ["core/comm/bus.py"], _spec_root(tmp_path))
     assert p.returncode == 1, "a substrate ship with no reconciliation citation must FAIL"
-    assert "core/comm/bus.py" in p.stdout and "reconcil" in p.stdout.lower()
+    assert "core/comm/bus.py" in p.stdout
+    assert "reconcil" in p.stdout.lower()
 
 
 def test_protected_path_with_valid_citation_passes(tmp_path):

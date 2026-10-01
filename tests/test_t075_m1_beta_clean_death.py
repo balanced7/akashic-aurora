@@ -137,7 +137,8 @@ def test_b4_listener_seat_and_marker_removed_own_session_only(fake, tmp_path):
             f.write("12345")
         wake_seat.touch_activity(AGENT, sid, tmp)
     out = session_exit.clean_death(AGENT, SID, tmp=tmp, c=fake, event="SessionEnd")
-    assert out.get("listener") is True and out.get("marker") is True
+    assert out.get("listener") is True
+    assert out.get("marker") is True
     assert not os.path.exists(wake_seat.seat_path(AGENT, SID, tmp)), (
         "B4: own wake seat file must be removed (B-b stand-down by displacement)"
     )
@@ -180,4 +181,5 @@ def test_provenance_line_appended(fake, tmp_path):
     log = wake_seat.provenance_path(AGENT, tmp)
     assert os.path.exists(log), "clean death must leave an auditable provenance line"
     body = open(log, encoding="utf-8").read()
-    assert "clean-death" in body and SID[:8] in body
+    assert "clean-death" in body
+    assert SID[:8] in body

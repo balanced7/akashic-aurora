@@ -80,7 +80,8 @@ def test_p1_a_recurring_uncited_directive_is_surfaced(db):
     assert rep["items"], "the watcher found nothing in a corpus that contains the case"
     top = rep["items"][0]
     assert "fence the migration path" in top["phrase"]
-    assert top["sessions"] >= 2 and top["utterances"] >= 2
+    assert top["sessions"] >= 2
+    assert top["utterances"] >= 2
     assert top["cited"] is False
 
 
@@ -92,7 +93,8 @@ def test_p1b_every_item_carries_addresses_that_resolve(db):
         assert item["refs"], "no refs = an unfalsifiable assertion about what he said"
         for ref in item["refs"]:
             ev = EYE.get_event(ref, db_path=db)
-            assert ev is not None and ev["voice"] == "operator"
+            assert ev is not None
+            assert ev["voice"] == "operator"
             assert item["phrase"] in " ".join(ev["text"].lower().split())
 
 

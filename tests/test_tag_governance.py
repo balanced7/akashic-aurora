@@ -44,7 +44,7 @@ def _setup():
 
 
 def test_higher_confidence_wins_lower_cannot():
-    store, gov, b = _setup()  # seeded ai-setup @ path (0.95)
+    _store, gov, b = _setup()  # seeded ai-setup @ path (0.95)
     changed, cur = gov.record(b.id, "stemroller", source="generic", at="2026-01-02T00:00:00")
     assert cur == "ai-setup" and changed is False, "I2: a generic (0.4) record can't beat path (0.95)"
     changed, cur = gov.record(b.id, "vision", source="path", at="2026-01-03T00:00:00")
@@ -52,7 +52,7 @@ def test_higher_confidence_wins_lower_cannot():
 
 
 def test_confirmed_is_sticky():
-    store, gov, b = _setup()
+    _store, gov, b = _setup()
     gov.confirm(b.id, "research", at="2026-01-02T00:00:00")
     # 50 higher-effort auto records of every kind can't dislodge a human confirmation
     for i in range(50):
@@ -125,7 +125,8 @@ def test_d3_tampered_nonfinite_confidence_cannot_degrade(monkeypatch=None):
     assert gov.current(b.id) == "ai-setup", "an injected inf opinion must not hijack current()"
     # the FACT (the beat's source/summary) is untouched -- we only refused to count the bad vote
     fact = BeatLog(store)._load(b.id)
-    assert fact.source == "git:abc" and fact.summary == "Slice 0 schema"
+    assert fact.source == "git:abc"
+    assert fact.summary == "Slice 0 schema"
 
 
 def test_crdt_convergence_order_independent():
@@ -138,7 +139,7 @@ def test_crdt_convergence_order_independent():
     ]
     finals = []
     for order in (records, list(reversed(records)), [records[2], records[0], records[3], records[1]]):
-        store, gov, b = _setup()
+        _store, gov, b = _setup()
         for value, source, at in order:
             gov.record(b.id, value, source=source, at=at)
         finals.append(gov.current(b.id))

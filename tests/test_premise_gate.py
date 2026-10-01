@@ -42,7 +42,8 @@ def ledger(monkeypatch):
 
 def test_g1_partition(ledger):
     settled, live = tl.settled_tasks("re T075 and T080 please advise, also T099")
-    assert settled == ["T075 DONE", "T080 PARKED"] and live == ["T099"]
+    assert settled == ["T075 DONE", "T080 PARKED"]
+    assert live == ["T099"]
     settled, live = tl.settled_tasks("what about T123?")
     assert settled == [] and live == ["T123"], "unknown ids read LIVE"
     assert tl.settled_tasks("no task numbers here") == ([], [])

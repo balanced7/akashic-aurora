@@ -91,7 +91,8 @@ def test_peek_mode_does_not_consume():
     fake = _FakeNudge(["[from deepseek] one fact"])
     lines = BP.steer_facts_lines("claude", nudge=fake, drain=False)
     assert lines, "peek still renders"
-    assert fake.drained == 0 and fake.steer_pending("claude") == 1
+    assert fake.drained == 0
+    assert fake.steer_pending("claude") == 1
 
 
 def test_fail_open_never_wedges_the_sync():

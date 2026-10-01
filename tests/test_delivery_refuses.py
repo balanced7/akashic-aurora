@@ -95,7 +95,8 @@ def test_a_real_body_still_posts_normally():
         post=_sent(calls),
     )
     assert out.ok and not out.partial, out
-    assert len(calls) == 1 and "a real body" in calls[0][1]
+    assert len(calls) == 1
+    assert "a real body" in calls[0][1]
 
 
 def test_forward_still_NEVER_RAISES_on_a_refusal():
@@ -167,7 +168,7 @@ from core.comm import discord_feed as DF
 def test_send_prefers_the_callers_own_seat_lane():
     """His lane with THIS seat is where he is reading. That must be the default, not an
     option I have to remember at 1am."""
-    url, source, note = DF.send_target("claude", seat_url="https://lane/vandor", global_url="https://global/hook")
+    url, source, _note = DF.send_target("claude", seat_url="https://lane/vandor", global_url="https://global/hook")
     assert url == "https://lane/vandor", (url, source)
     assert "lane" in source.lower() or "seat" in source.lower(), source
 
@@ -175,14 +176,14 @@ def test_send_prefers_the_callers_own_seat_lane():
 def test_a_fallback_to_global_is_ANNOUNCED_never_silent():
     """A silent fallback is how a reply ends up in the wrong room while the sender reads
     'posted'. If we cannot resolve the lane, the operator hears about it."""
-    url, source, note = DF.send_target("claude", seat_url="", global_url="https://global/hook")
+    url, _source, note = DF.send_target("claude", seat_url="", global_url="https://global/hook")
     assert url == "https://global/hook"
     assert note, "falling back to the global channel must produce a spoken note"
     assert "global" in note.lower(), note
 
 
 def test_no_target_at_all_REFUSES_rather_than_returning_something_falsy_and_quiet():
-    url, source, note = DF.send_target("claude", seat_url="", global_url="")
+    url, _source, note = DF.send_target("claude", seat_url="", global_url="")
     assert not url
     assert note and ("not configured" in note.lower() or "no " in note.lower()), note
 

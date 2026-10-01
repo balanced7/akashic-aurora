@@ -26,16 +26,16 @@ BIG, STEP = 4096.0, 512.0
 
 
 def _call(**kw):
-    base = dict(
-        name="python.exe",
-        pid=7,
-        rss=5000.0,
-        first_seen=4000.0,
-        last_alert=None,
-        peak=5000.0,
-        proc_alert_mb=BIG,
-        growth_alert_mb=STEP,
-    )
+    base = {
+        "name": "python.exe",
+        "pid": 7,
+        "rss": 5000.0,
+        "first_seen": 4000.0,
+        "last_alert": None,
+        "peak": 5000.0,
+        "proc_alert_mb": BIG,
+        "growth_alert_mb": STEP,
+    }
     base.update(kw)
     return mem_watch.process_alert(**base)
 
@@ -76,4 +76,5 @@ def test_os_memory_accounting_processes_are_not_leak_candidates():
 
 def test_the_alert_line_carries_peak_so_a_post_mortem_sees_a_decline():
     line = _call(peak=6000.0)
-    assert "peak=6000MB" in line and "rss=5000" in line
+    assert "peak=6000MB" in line
+    assert "rss=5000" in line

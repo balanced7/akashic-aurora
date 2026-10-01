@@ -75,7 +75,7 @@ def _register(r, fid="F001", by="claude", horizon=None):
 
 # ------------------------------------------------------- P1 append-only + pure fold
 def test_p1_duplicate_refused_log_only_grows_fold_is_pure(tmp_path):
-    r, clock = _reg(tmp_path, T0)
+    r, _clock = _reg(tmp_path, T0)
     _register(r)
     size_after_first = os.path.getsize(r.path)
     with pytest.raises(RegistryRefusal):
@@ -149,7 +149,7 @@ def test_p2_knowable_ts_is_derived_strict_and_unforgeable(tmp_path):
 
 # ------------------------------------------------------- P3 echo-ban + void carve-out
 def test_p3_agreement_refused_except_the_void_carveout(tmp_path):
-    r, clock = _reg(tmp_path, T0)
+    r, _clock = _reg(tmp_path, T0)
     _register(r)
     _register(r, fid="F002")
 

@@ -109,7 +109,8 @@ def test_m1_2_body_survives_transport_eviction():
         "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
         "an index of envelopes, not a mailbox."
     )
-    assert after["truncated"] is False and after["body_len"] == len(fields["content"])
+    assert after["truncated"] is False
+    assert after["body_len"] == len(fields["content"])
 
 
 # --------------------------------------------------------------- D2: one taxonomy
@@ -253,7 +254,8 @@ def test_m1_11_unknown_intent_is_refused_not_stored():
     fields = {"frm": "x", "to": "claude", "kind": "request", "ts": "1785500003", "content": "b"}
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500003-0", fields)
     out = mbx.declare_intent(NS, "claude", sha, "maybe_later", incarnation="s", client=client)
-    assert out["ok"] is False and "unknown intent" in out["reason"]
+    assert out["ok"] is False
+    assert "unknown intent" in out["reason"]
     assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None, "refused but stored"
 
 
@@ -293,7 +295,8 @@ def test_m1_13_whole_small_body_is_not_flagged_as_partial():
     fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500011", "content": "a complete short message"}
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500011-0", fields)
     got = mbx.body_of(NS, "claude", sha, client=client)
-    assert got["body_fragment"] is False and got["truncated"] is False
+    assert got["body_fragment"] is False
+    assert got["truncated"] is False
 
 
 def test_m1_14_rebuild_does_not_eat_bodies_whose_transport_is_gone():

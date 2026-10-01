@@ -26,13 +26,15 @@ def test_consecutive_traces_first_shown_rest_counted():
     out = _join([_m("trace", content=f"t{i}") for i in range(5)])
     assert "[trace] from deepseek: t0" in out
     assert "4 more trace(s) from deepseek" in out
-    assert "t1" not in out and "t4" not in out
+    assert "t1" not in out
+    assert "t4" not in out
     assert "--traces to expand" in out
 
 
 def test_singleton_trace_no_more_line():
     out = _join([_m("trace", content="lone")])
-    assert "lone" in out and "more" not in out
+    assert "lone" in out
+    assert "more" not in out
 
 
 def test_work_breaks_trace_run():
@@ -48,7 +50,8 @@ def test_work_breaks_trace_run():
     assert "[handoff] from claude: H" in out
     assert "2 more trace(s) from deepseek" in out
     assert "1 more trace(s) from deepseek" in out
-    assert "a2" not in out and "a3" not in out
+    assert "a2" not in out
+    assert "a3" not in out
 
 
 def test_mixed_trace_kinds_separate_runs():
@@ -83,7 +86,8 @@ def test_display_only_meta_folds_even_work_kind():
     out = _join(
         [_m("chat", meta={"display_only": True}, content="c1"), _m("chat", meta={"display_only": True}, content="c2")]
     )
-    assert "1 more chat(s)" in out and "c2" not in out
+    assert "1 more chat(s)" in out
+    assert "c2" not in out
 
 
 def test_accepts_message_objects_not_just_dicts():
@@ -92,7 +96,8 @@ def test_accepts_message_objects_not_just_dicts():
             self.kind, self.frm, self.content, self.meta = kind, frm, content, {}
 
     out = "\n".join(bp.render_collapsed([Msg("trace", "deepseek", "o1"), Msg("trace", "deepseek", "o2")]))
-    assert "o1" in out and "1 more trace(s) from deepseek" in out
+    assert "o1" in out
+    assert "1 more trace(s) from deepseek" in out
 
 
 def test_lossless_expand_shows_every_message():

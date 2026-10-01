@@ -76,7 +76,8 @@ def test_p1_a_range_past_the_byte_cap_returns_the_actual_lines(box, tmp_path):
         "the byte cap ate the file before the slice ran -- the requested range was never "
         "reachable, which is what forced a verifier to grep a ledger row by hand"
     )
-    assert "line-15002" in out and "line-15003" not in out
+    assert "line-15002" in out
+    assert "line-15003" not in out
 
 
 def test_p2_it_does_not_claim_an_empty_file(box, tmp_path):

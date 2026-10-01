@@ -31,7 +31,8 @@ def _clean_state():
 def test_init_and_dump_roundtrip():
     cm.init("a")
     d = cm.dump("a")
-    assert d["agent_id"] == "a" and "derived" in d
+    assert d["agent_id"] == "a"
+    assert "derived" in d
     assert d["total_tool_calls"] == 0
 
 
@@ -45,9 +46,13 @@ def test_record_functions_accumulate():
     cm.record_human_interjection("a")
     cm.record_context_refresh("a")
     d = cm.dump("a")
-    assert d["total_prompt_tokens"] == 10 and d["total_completion_tokens"] == 20
-    assert d["reasoning_tokens_coordination"] == 5 and d["reasoning_tokens_productive"] == 15
-    assert d["abandoned_tokens"] == 4 and d["human_interjections"] == 1 and d["context_refreshes"] == 1
+    assert d["total_prompt_tokens"] == 10
+    assert d["total_completion_tokens"] == 20
+    assert d["reasoning_tokens_coordination"] == 5
+    assert d["reasoning_tokens_productive"] == 15
+    assert d["abandoned_tokens"] == 4
+    assert d["human_interjections"] == 1
+    assert d["context_refreshes"] == 1
 
 
 # --- invariants on the counters + derived ratios ----------------------------------------------------
@@ -60,7 +65,8 @@ def test_tool_call_breakdown_equality():
         cm.record_tool_call("a", t)
     d = cm.dump("a")
     assert d["total_tool_calls"] == d["tool_calls_coordination"] + d["tool_calls_productive"]
-    assert d["tool_calls_coordination"] == 3 and d["tool_calls_productive"] == 3  # 3 coord tools above
+    assert d["tool_calls_coordination"] == 3
+    assert d["tool_calls_productive"] == 3
 
 
 def test_derived_ratios_are_correct_and_bounded():
@@ -70,8 +76,10 @@ def test_derived_ratios_are_correct_and_bounded():
     cm.record_completion_tokens("a", 100)
     cm.record_abandoned("a", 25)
     d = cm.dump("a")["derived"]
-    assert d["coordination_token_ratio"] == 0.75 and 0 <= d["coordination_token_ratio"] <= 1
-    assert d["waste_ratio"] == 0.25 and 0 <= d["waste_ratio"] <= 1
+    assert d["coordination_token_ratio"] == 0.75
+    assert 0 <= d["coordination_token_ratio"] <= 1
+    assert d["waste_ratio"] == 0.25
+    assert 0 <= d["waste_ratio"] <= 1
 
 
 def test_derived_properties_never_divide_by_zero():
@@ -96,7 +104,8 @@ def test_duplicate_file_read_detection():
     cm.record_file_read("a", "x.py")  # duplicate
     cm.record_file_read("a", "y.py")
     d = cm.dump("a")
-    assert d["total_file_reads"] == 3 and d["duplicate_file_reads"] == 1
+    assert d["total_file_reads"] == 3
+    assert d["duplicate_file_reads"] == 1
 
 
 def test_duplicate_detection_is_per_agent():
@@ -113,7 +122,8 @@ def test_hint_read_counts_separately_and_not_as_duplicate():
     cm.record_file_read("a", "x.py", from_hint=True)  # saved, not a real read
     cm.record_file_read("a", "x.py")  # first REAL read -> not a duplicate
     d = cm.dump("a")
-    assert d["file_reads_saved_by_hints"] == 1 and d["total_file_reads"] == 1
+    assert d["file_reads_saved_by_hints"] == 1
+    assert d["total_file_reads"] == 1
     assert d["duplicate_file_reads"] == 0
 
 
@@ -139,7 +149,8 @@ def test_reset_clears_one_agent_and_its_read_history():
     cm.init("b")
     cm.record_file_read("a", "x.py")
     cm.reset("a")
-    assert cm.dump("a") is None and cm.dump("b") is not None
+    assert cm.dump("a") is None
+    assert cm.dump("b") is not None
     # read-history cleared: re-init + re-read same path is not a duplicate
     cm.init("a")
     cm.record_file_read("a", "x.py")

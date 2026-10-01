@@ -203,7 +203,7 @@ def stress_corrupt_chapter_json():
     out, rc = _run_cli([f"--chapter={cid}"], store=s)
     assert rc == 2 or "ERROR" in out
     # Atlas should still work
-    out2, rc2 = _run_cli([], store=s)
+    _out2, rc2 = _run_cli([], store=s)
     assert rc2 == 0
     print("  stress-corrupt-chapter: corrupt chapter handled OK")
 
@@ -254,7 +254,7 @@ def stress_unicode_in_beats():
     c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir)
     c.chronicle_all(now="2026-06-27T12:00:00")
 
-    out, rc = _run_cli([], store=s)
+    _out, rc = _run_cli([], store=s)
     assert rc == 0
     # Just shouldn't crash
     out2, rc2 = _run_cli(["--json"], store=s)
@@ -285,11 +285,11 @@ def stress_chapter_with_no_beats():
     at = Atlas(generated_at="2026-01-01T00:00:00", summary="test", tracks=["ai-setup"])
     s.set("narr:atlas:current", json.dumps(at.to_dict()))
 
-    out, rc = _run_cli([], store=s)
+    _out, rc = _run_cli([], store=s)
     assert rc == 0
-    out2, rc2 = _run_cli(["--track=ai-setup"], store=s)
+    _out2, rc2 = _run_cli(["--track=ai-setup"], store=s)
     assert rc2 == 0
-    out3, rc3 = _run_cli(["--chapter=chapter_empty"], store=s)
+    _out3, rc3 = _run_cli(["--chapter=chapter_empty"], store=s)
     assert rc3 == 0
     print("  stress-empty-chapter: ghost chapter handled OK")
 
@@ -315,7 +315,7 @@ def stress_at_partial_match():
     c.chronicle_all(now="2026-06-28T15:00:00")
 
     # At the exact second of the first beat
-    out, rc = _run_cli(["--at=2026-06-27T10:00:00"], store=s)
+    _out, rc = _run_cli(["--at=2026-06-27T10:00:00"], store=s)
     assert rc == 0
     # At a time exactly between the two chapters
     out2, rc2 = _run_cli(["--at=2026-06-27T15:00:00"], store=s)
@@ -342,9 +342,9 @@ def stress_track_case_sensitivity():
     c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir)
     c.chronicle_all(now="2026-06-27T12:00:00")
 
-    out, rc = _run_cli(["--track=AI-SETUP"], store=s)
+    _out, rc = _run_cli(["--track=AI-SETUP"], store=s)
     assert rc == 2  # case-sensitive, should fail
-    out2, rc2 = _run_cli(["--track=ai-setup"], store=s)
+    _out2, rc2 = _run_cli(["--track=ai-setup"], store=s)
     assert rc2 == 0
     print("  stress-case: case-sensitive matching (expected behavior) OK")
 

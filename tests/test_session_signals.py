@@ -39,21 +39,29 @@ def _call(tool="Bash", target="", ok=True, at=""):
 
 def test_fold_empty_is_zeroed():
     s = fold_signals([])
-    assert s["total_calls"] == 0 and s["fail_count"] == 0 and s["progress_count"] == 0
-    assert s["reread_rate"] == 0.0 and s["repetition_rate"] == 0.0
-    assert s["calls_per_progress"] == 0 and s["tail_calls_after_last_progress"] == 0
-    assert s["duration_s"] == 0.0 and s["started_at"] == ""
+    assert s["total_calls"] == 0
+    assert s["fail_count"] == 0
+    assert s["progress_count"] == 0
+    assert s["reread_rate"] == 0.0
+    assert s["repetition_rate"] == 0.0
+    assert s["calls_per_progress"] == 0
+    assert s["tail_calls_after_last_progress"] == 0
+    assert s["duration_s"] == 0.0
+    assert s["started_at"] == ""
 
 
 def test_fold_reread_counts_only_repeat_path_touches():
     s = fold_signals([_call("Read", "p:a"), _call("Read", "p:b"), _call("Edit", "p:a")])
-    assert s["path_calls"] == 3 and s["distinct_paths"] == 2
-    assert s["reread_count"] == 1 and s["reread_rate"] == round(1 / 3, 4)
+    assert s["path_calls"] == 3
+    assert s["distinct_paths"] == 2
+    assert s["reread_count"] == 1
+    assert s["reread_rate"] == round(1 / 3, 4)
 
 
 def test_fold_repetition_is_consecutive_identical_action_only():
     s = fold_signals([_call("Read", "p:a"), _call("Read", "p:a"), _call("Bash", "c:x"), _call("Read", "p:a")])
-    assert s["repetition_count"] == 1 and s["repetition_rate"] == 0.25
+    assert s["repetition_count"] == 1
+    assert s["repetition_rate"] == 0.25
     assert s["max_target_touch"] == 3
 
 
@@ -66,8 +74,11 @@ def test_fold_flip_then_commit_is_progress_and_resets_fail_state():
         _call("Read", "p:tail"),  # churn after last progress
     ]
     s = fold_signals(calls)
-    assert s["flip_count"] == 1 and s["commit_count"] == 1 and s["progress_count"] == 2
-    assert s["fail_count"] == 1 and s["distinct_fail_targets"] == 1
+    assert s["flip_count"] == 1
+    assert s["commit_count"] == 1
+    assert s["progress_count"] == 2
+    assert s["fail_count"] == 1
+    assert s["distinct_fail_targets"] == 1
     assert s["calls_per_progress"] == 2.5
     assert s["tail_calls_after_last_progress"] == 1
 
@@ -77,16 +88,19 @@ def test_fold_commit_markers_and_failed_commit_not_progress():
         _call(target=f"c:{m} whatever", ok=True) for m in ("git commit", "py scripts/mirror.py", "py scripts/ship.py")
     ]
     s = fold_signals(ok_commits)
-    assert s["commit_count"] == 3 and s["progress_count"] == 3
+    assert s["commit_count"] == 3
+    assert s["progress_count"] == 3
     s2 = fold_signals([_call(target="c:git commit -m x", ok=False)])
-    assert s2["commit_count"] == 0 and s2["fail_count"] == 1
+    assert s2["commit_count"] == 0
+    assert s2["fail_count"] == 1
     assert s2["calls_per_progress"] == 1  # no progress -> the whole session's calls
 
 
 def test_fold_duration_from_timestamps():
     s = fold_signals([_call(at="2026-07-02T02:19:02.000Z"), _call(at="2026-07-02T02:20:00.700Z")])
     assert s["duration_s"] == 58.7
-    assert s["started_at"].startswith("2026-07-02T02:19:02") and s["ended_at"].startswith("2026-07-02T02:20:00")
+    assert s["started_at"].startswith("2026-07-02T02:19:02")
+    assert s["ended_at"].startswith("2026-07-02T02:20:00")
 
 
 def test_fold_tolerates_garbage_fields():
@@ -139,10 +153,14 @@ def test_parse_drops_unresulted_calls(tmp_path):
 def test_fixture_fold_end_to_end():
     calls, _ = hook.parse_transcript_calls(_TRANSCRIPT)
     s = fold_signals(calls)
-    assert s["total_calls"] == 4 and s["fail_count"] == 3 and s["distinct_fail_targets"] == 2
-    assert s["path_calls"] == 1 and s["reread_count"] == 0
+    assert s["total_calls"] == 4
+    assert s["fail_count"] == 3
+    assert s["distinct_fail_targets"] == 2
+    assert s["path_calls"] == 1
+    assert s["reread_count"] == 0
     assert s["max_target_touch"] == 2  # the probe command, tried twice
-    assert s["progress_count"] == 0 and s["calls_per_progress"] == 4
+    assert s["progress_count"] == 0
+    assert s["calls_per_progress"] == 4
     assert s["duration_s"] == 58.0  # at = the tool_use record's timestamp, not the result's
 
 
@@ -171,10 +189,13 @@ def test_emit_captures_once_then_watermarks(tmp_path, monkeypatch):
     hook.emit_session_signals(_payload())
     assert len(events) == 1
     kind, summary, kw = events[0]
-    assert kind == "session_signals" and kw["session_id"] == "sess-sig-1"
-    assert kw["detail"]["total_calls"] == 4 and kw["detail"]["fail_count"] == 3
+    assert kind == "session_signals"
+    assert kw["session_id"] == "sess-sig-1"
+    assert kw["detail"]["total_calls"] == 4
+    assert kw["detail"]["fail_count"] == 3
     assert kw["detail"]["window_truncated"] is False
-    assert "4 calls" in summary and "3 fails" in summary
+    assert "4 calls" in summary
+    assert "3 fails" in summary
     hook.emit_session_signals(_payload())  # same session, same size -> suppressed
     assert len(events) == 1
 

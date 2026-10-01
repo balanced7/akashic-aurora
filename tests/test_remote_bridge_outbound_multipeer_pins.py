@@ -115,8 +115,9 @@ def test_enqueue_remembers_which_peer_and_tick_honours_it():
     RR.enqueue(_msg("q-chr"), peer="chronos")
     spy = Spy()
     RR.tick(post=spy)
-    seen = {u: e for u, e in spy.calls}
-    assert "https://zad.invalid/xfer" in seen and "https://chr.invalid/xfer" in seen
+    seen = dict(spy.calls)
+    assert "https://zad.invalid/xfer" in seen
+    assert "https://chr.invalid/xfer" in seen
     import base64
 
     z = seen["https://zad.invalid/xfer"]

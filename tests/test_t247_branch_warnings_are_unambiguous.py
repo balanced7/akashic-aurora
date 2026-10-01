@@ -127,7 +127,7 @@ def test_every_branch_names_where_its_evidence_came_from(big_and_small):
 
     'no warnings' is only interpretable next to 'and here is what I was given'.
     """
-    root, big, small = big_and_small
+    root, _big, small = big_and_small
     out = ask_mod.ask_many(
         [{"prompt": "own", "files": [str(small)]}, "shared"],
         with_files=[str(small)],

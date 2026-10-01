@@ -73,7 +73,7 @@ def test_p1_route_records_targets_that_survive_to_the_next_boot(a_real_task):
 def test_p2_an_unroutable_id_refuses_loudly(a_real_task):
     """Recording a target nobody can work is worse than recording nothing: the shift would
     pre-chew for a task that does not exist and report success."""
-    rc, out = run("wrap", "--route", "T99999", "--commit")
+    _rc, out = run("wrap", "--route", "T99999", "--commit")
     assert "T99999" in out, "the refusal must NAME the id it could not route"
     low = out.lower()
     assert any(w in low for w in ("no such", "not found", "unknown", "refus")), f"and say why, got: {out[-300:]}"
@@ -95,7 +95,7 @@ def test_p3_each_routed_target_suggests_a_resident(a_real_task):
 def test_p4_a_suggestion_carries_its_receipts_and_is_labelled_a_suggestion(a_real_task):
     """An unreceipted suggestion is a vibe, and a suggestion rendered as a decision is the
     class T255 is open about."""
-    rc, out = run("wrap", "--route", a_real_task)
+    _rc, out = run("wrap", "--route", a_real_task)
     low = out.lower()
     assert "suggest" in low, "the render must label it a SUGGESTION, never an assignment"
     assert "because" in low or "matched" in low or "learn:" in low or "lesson" in low, (

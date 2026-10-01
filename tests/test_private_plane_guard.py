@@ -138,5 +138,7 @@ def test_p5_a_finding_names_the_marker_the_file_and_the_remedy(plane):
     tracked.parent.mkdir(parents=True, exist_ok=True)
     tracked.write_text("see synthetic-sample-dossier\n", encoding="utf-8")
     f = PP.scan([str(tracked)], root=plane)[0]
-    assert f["marker"] and f["path"] and f["line"]
+    assert f["marker"]
+    assert f["path"]
+    assert f["line"]
     assert f["remedy"], "a refusal that does not say what to do next gets bypassed"

@@ -24,6 +24,7 @@ import subprocess
 import sys
 
 import pytest
+import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -56,10 +57,8 @@ def fake_pin():
     with open(_FAKE_PIN, "w", encoding="utf-8") as f:
         f.write(_FAKE_BODY)
     yield "tests/test_zzz_rb99_fakepin.py"
-    try:
+    with contextlib.suppress(OSError):
         os.remove(_FAKE_PIN)
-    except OSError:
-        pass
 
 
 def test_h2_new_pin_with_source_fails(fake_pin):
@@ -68,19 +67,19 @@ def test_h2_new_pin_with_source_fails(fake_pin):
 
 
 def test_h2_registration_only_passes(fake_pin):
-    rc, out = _run(_H2, "RB-99 registration: pins committed BEFORE impl", fake_pin)
+    rc, _out = _run(_H2, "RB-99 registration: pins committed BEFORE impl", fake_pin)
     assert rc == 0, "registration-only ships are the law being followed"
 
 
 def test_h2_existing_pin_with_source_passes():
-    rc, out = _run(
+    rc, _out = _run(
         _H2, "RB-21 impl (harness-only pin fix)", "tests/test_rb21_consumer_seat.py", "core/comm/runner_lock.py"
     )
     assert rc == 0, "an EXISTING pin file in an impl ship is fine (harness fixes)"
 
 
 def test_h2_no_tests_staged_passes():
-    rc, out = _run(_H2, "docs fixup", "docs/ROADMAP.md")
+    rc, _out = _run(_H2, "docs fixup", "docs/ROADMAP.md")
     assert rc == 0
 
 
@@ -95,7 +94,7 @@ def test_h4_gate_language_without_citation_fails():
 
 
 def test_h4_gate_language_with_citation_passes():
-    rc, out = _run(
+    rc, _out = _run(
         _H4,
         "RB-99 landed: GATE GREEN per docs/library/report/20260711_rb-21-verify-gate-live-drill-deepseek-ve_0df0e2.md",
     )
@@ -103,7 +102,7 @@ def test_h4_gate_language_with_citation_passes():
 
 
 def test_h4_plain_message_passes():
-    rc, out = _run(_H4, "typo fix in the boot banner")
+    rc, _out = _run(_H4, "typo fix in the boot banner")
     assert rc == 0
 
 

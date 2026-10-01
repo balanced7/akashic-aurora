@@ -32,7 +32,8 @@ def test_consolidates_to_chronicle():
     cdir = tempfile.mkdtemp()
     report = consolidate_memory_into_chronicle(agent_memory=mem, chronicle_dir=cdir)
     assert report["from_records"] == 3, f"2 experiences + 1 reflection, got {report}"
-    assert report["lessons"] >= 1 and report["critic_ok"] is True
+    assert report["lessons"] >= 1
+    assert report["critic_ok"] is True
     # every lesson is traceable back to a raw record (lossy + lossless pointer)
     assert report["included_sources"], "lessons must carry source pointers"
     # the chronicle file was generated and is readable
@@ -56,7 +57,8 @@ def test_does_not_touch_raw_memory():
 def test_empty_memory_graceful():
     empty = AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "e.json")))
     report = consolidate_memory_into_chronicle(agent_memory=empty, chronicle_dir=tempfile.mkdtemp())
-    assert report["from_records"] == 0 and report["lessons"] == 0
+    assert report["from_records"] == 0
+    assert report["lessons"] == 0
     assert os.path.exists(report["chronicle"]), "still writes a valid (empty) chronicle"
     print("\n--- empty ---\n  empty memory -> valid empty chronicle OK")
 

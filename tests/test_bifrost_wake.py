@@ -48,7 +48,8 @@ def test_wait_returns_pending_immediately_without_consuming():
         b = Bus("bob", c, namespace=ns)
         a.send("bob", "chat", "wake up")
         got = b.wait(timeout_ms=2000)  # pending -> returns at once, advance=False
-        assert len(got) == 1 and got[0].content == "wake up"
+        assert len(got) == 1
+        assert got[0].content == "wake up"
         assert [m.content for m in b.inbox()] == ["wake up"], "detect-only: inbox still delivers it"
     finally:
         _cleanup(c, ns)
@@ -80,7 +81,8 @@ def test_wait_wakes_on_a_new_message():
         time.sleep(0.3)  # block first, then a message arrives
         a.send("bob", "chat", "incoming")
         t.join(6)
-        assert result.get("msgs") and result["msgs"][0].content == "incoming"
+        assert result.get("msgs")
+        assert result["msgs"][0].content == "incoming"
     finally:
         _cleanup(c, ns)
 

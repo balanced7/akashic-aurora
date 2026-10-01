@@ -80,7 +80,8 @@ def test_o2c_name_overlap_is_NOT_the_discriminator():
     this pin exists so nobody re-derives the overlap idea and 'fixes' it back."""
     clean = WD.classify("events:", True, _manifest(), n_source=4884, n_target=4)
     dirty = WD.classify("events:", True, _manifest(), n_source=4884, n_target=4700)
-    assert clean.severity == "report" and dirty.severity == "alarm"
+    assert clean.severity == "report"
+    assert dirty.severity == "alarm"
 
 
 def test_o3_a_carried_prefix_that_differs_is_ordinary_divergence():
@@ -145,7 +146,8 @@ def test_r3_identical_planes_say_identical_rather_than_going_quiet():
     """Absence of output is indistinguishable from a differ that failed to run."""
     rows = [WD.PlaneRow("artifact:", 1264, 1264, WD.classify("artifact:", True, _manifest()))]
     out = WD.render(rows, source="prod", target="alpha")
-    assert "artifact:" in out and ("identical" in out.lower() or "same" in out.lower())
+    assert "artifact:" in out
+    assert "identical" in out.lower() or "same" in out.lower()
 
 
 def test_r4_an_alarm_is_visually_distinct_from_ordinary_divergence():
@@ -167,7 +169,8 @@ def test_c1_ephemeral_singletons_collapse_into_one_row():
     rows = [WD.PlaneRow(f"t-w43-{i:08x}", 11, 0, WD.classify(f"t-w43-{i:08x}", False, _manifest())) for i in range(20)]
     rows.append(WD.PlaneRow("learn:", 1061, 1060, WD.classify("learn:", True, _manifest())))
     kept, collapsed = WD.collapse_minor(rows, manifest=_manifest())
-    assert len(kept) == 1 and kept[0].prefix == "learn:"
+    assert len(kept) == 1
+    assert kept[0].prefix == "learn:"
     assert collapsed["n_prefixes"] == 20
 
 
@@ -177,7 +180,8 @@ def test_c2_a_collapsed_group_is_counted_never_dropped():
     _, collapsed = WD.collapse_minor(rows, manifest=_manifest())
     assert collapsed["n_keys_source"] == 220
     out = WD.render([], source="prod", target="alpha", manifest=_manifest(), collapsed=collapsed)
-    assert "20" in out and "220" in out
+    assert "20" in out
+    assert "220" in out
 
 
 def test_c3_a_manifest_named_prefix_never_collapses_however_small():

@@ -37,8 +37,12 @@ def test_wish_appends_numbered_attributed(tmp_path):
     assert r.returncode == 0, r.stderr[:300]
     assert "filed W08" in r.stdout, f"expected next number 8 (max was 7): {r.stdout}"
     text = f.read_text(encoding="utf-8")
-    assert "- [ ] W08" in text and "(07-" in text and "pin-seat" in text
-    assert "a brand new wish" in text and "Trigger: it hurt." in text and "Land: T000." in text
+    assert "- [ ] W08" in text
+    assert "(07-" in text
+    assert "pin-seat" in text
+    assert "a brand new wish" in text
+    assert "Trigger: it hurt." in text
+    assert "Land: T000." in text
     open_sec = text.split("## Folded")[0]
     assert "W08" in open_sec, "new wish must land in Open, above the Folded anchor"
 
@@ -64,7 +68,8 @@ def test_wish_text_file_path(tmp_path):
     body = tmp_path / "body.md"
     body.write_text("a wish with --flag-shaped prose (parens, colons: yes)", encoding="utf-8")
     r = _run(f, "seat", "--text-file", str(body))
-    assert r.returncode == 0 and "filed W08" in r.stdout
+    assert r.returncode == 0
+    assert "filed W08" in r.stdout
     assert "--flag-shaped prose" in f.read_text(encoding="utf-8")
 
 

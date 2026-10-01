@@ -16,6 +16,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import locks
+import contextlib
 
 
 @pytest.fixture
@@ -26,15 +27,14 @@ def path():
     p = f"tests/_guard_{uuid.uuid4().hex[:8]}.tmp"
     yield p
     for a in ("claude", "deepseek"):
-        try:
+        with contextlib.suppress(Exception):
             locks.LockManager(a).release(p)
-        except Exception:
-            pass
 
 
 def test_first_writer_claims(path):
     g = locks.guard_write(path, "claude")
-    assert g["ok"] is True and g["claimed"] is True
+    assert g["ok"] is True
+    assert g["claimed"] is True
     assert g["held_by"] == "claude"
 
 
@@ -48,7 +48,8 @@ def test_reentrant_refresh(path):
 def test_peer_yields_not_clobbers(path):
     locks.guard_write(path, "claude")  # claude claims it
     g = locks.guard_write(path, "deepseek")  # deepseek must yield
-    assert g["ok"] is False and g["claimed"] is False
+    assert g["ok"] is False
+    assert g["claimed"] is False
     assert g["held_by"] == "claude"
     assert "yield" in g["reason"].lower()
 

@@ -26,7 +26,7 @@ def test_roster_is_plane_clean():
         "ruling",
     }
     assert not types & set(tx.CATEGORY_ROSTER)
-    assert not any(c.startswith("t1") or c.startswith("t0") for c in tx.CATEGORY_ROSTER)
+    assert not any(c.startswith(("t1", "t0")) for c in tx.CATEGORY_ROSTER)
 
 
 def test_every_roster_entry_has_classifier_rules():
@@ -41,7 +41,8 @@ def test_folds_resolve_into_roster_only():
 def test_classify_caps_and_orders():
     got = tx.classify("bus security audit drift on the packet lane")
     assert 1 <= len(got) <= tx.CATEGORY_CAP_PER_ATOM
-    assert "bus" in got and "audit" in got
+    assert "bus" in got
+    assert "audit" in got
 
 
 def test_classify_known_examples():

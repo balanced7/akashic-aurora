@@ -84,5 +84,6 @@ def test_manifest_declares_its_own_sampling(tmp_path):
     m = sb.analyse(str(clip), fps=10, width=160)
     for field in ("api", "sampling", "frames_examined", "segments", "picks", "not_measured"):
         assert field in m
-    assert m["sampling"]["fps"] == 10 and m["sampling"]["low"] > 0
+    assert m["sampling"]["fps"] == 10
+    assert m["sampling"]["low"] > 0
     assert any("SAMPLE" in note for note in m["not_measured"])

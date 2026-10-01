@@ -103,7 +103,8 @@ def test_lexicon_terms_are_read_from_the_lexicon(tmp_path):
 def test_the_domains_register_and_share_a_key_type():
     from core.coord import compare as CMP
 
-    assert "terms:code" in CMP.DOMAINS and "terms:lexicon" in CMP.DOMAINS
+    assert "terms:code" in CMP.DOMAINS
+    assert "terms:lexicon" in CMP.DOMAINS
     assert CMP.DOMAINS["terms:code"][1] == CMP.DOMAINS["terms:lexicon"][1]
 
 
@@ -118,7 +119,8 @@ def test_the_result_is_labelled_candidates_never_violations():
 
 def test_blindness_is_named(tree):
     """Heuristic extraction that does not confess its heuristics gets read as a census."""
-    assert TM.BLIND and len(TM.BLIND) >= 3
+    assert TM.BLIND
+    assert len(TM.BLIND) >= 3
 
 
 def test_the_known_positives_are_recorded_as_a_calibration_set():
@@ -155,7 +157,8 @@ def test_the_blind_list_does_not_claim_high_spread_is_safe():
     the 07-30 relationship design forbids. This pin makes the correction non-revertible."""
     blind = " ".join(TM.BLIND).lower()
     assert "mechanism is unknown" in blind
-    assert "falsified" in blind and "61 files" in blind
+    assert "falsified" in blind
+    assert "61 files" in blind
     assert "selection bias" in blind, "the calibration set is survivors-of-pain, not a sample"
     assert "socialised" not in blind or "falsified" in blind
 
@@ -164,7 +167,8 @@ def test_scoring_is_still_exercised_so_a_future_fix_is_measurable(tree):
     """The score stays computed -- the calibration set is only useful if the number it
     grades still exists."""
     got = TM.extract(root=str(tree), min_files=1)
-    assert "score" in got["drained"] and "dirs" in got["drained"]
+    assert "score" in got["drained"]
+    assert "dirs" in got["drained"]
     # The IDF property, stated as the test rather than assumed: a word in EVERY file
     # carries no information and scores 0, while a rarer word outranks it. (drained is in
     # all 3 fixture files; wakeable in 1.) My first assertion here demanded drained > 0

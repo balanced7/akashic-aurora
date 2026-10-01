@@ -161,7 +161,8 @@ def test_k12_the_manifest_records_how_the_universe_was_resolved(worktree):
     assert u.get("source") == "detector", (
         f"a real worktree must resolve its universe by ASKING the detector; got {u.get('source')!r}"
     )
-    assert isinstance(u.get("size"), int) and u["size"] > 0
+    assert isinstance(u.get("size"), int)
+    assert u["size"] > 0
 
     # Against the SHADOW's own detector, not this tree's. They legitimately differ: a worktree
     # holds only TRACKED files, so an untracked core module present here is absent there (that

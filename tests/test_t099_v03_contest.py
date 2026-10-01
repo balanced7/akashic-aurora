@@ -27,7 +27,7 @@ def _rig(prior=None, store=None):
     sent, notes = [], {}
     if prior:
         notes["toast:deepseek-toast-beta2-freeplay-2026-07-21"] = prior
-    rig = {
+    return {
         "bus_send": lambda to, kind, text: sent.append((to, kind, text)),
         "note_read": lambda t: notes.get(t),
         "note_write": lambda t, b: notes.__setitem__(t, b),
@@ -35,7 +35,6 @@ def _rig(prior=None, store=None):
         "_sent": sent,
         "_notes": notes,
     }
-    return rig
 
 
 def test_p1_verified_contest_lands_both_surfaces():
@@ -50,7 +49,8 @@ def test_p1_verified_contest_lands_both_surfaces():
     assert res["tier"] == "VERIFIED", res
     assert res["bus"] == "sent"
     assert ("appended" in res["note"]) or ("opened" in res["note"]), res["note"]
-    assert r["_sent"] and "CONTESTED VERIFIED" in r["_sent"][0][2]
+    assert r["_sent"]
+    assert "CONTESTED VERIFIED" in r["_sent"][0][2]
 
 
 def test_p2_bad_receipt_refuses_silently_nothing_sent():
@@ -59,7 +59,7 @@ def test_p2_bad_receipt_refuses_silently_nothing_sent():
         contest.send(
             "kimi", "deepseek", "no_such_exp", "credit", **{k: v for k, v in r.items() if not k.startswith("_")}
         )
-        assert False, "should have refused"
+        raise AssertionError("should have refused")
     except ValueError as e:
         assert "REFUSED" in str(e)
     assert r["_sent"] == [] and r["_notes"] == {}, "refusal must not write anywhere"
@@ -76,7 +76,8 @@ def test_p3_forced_contest_confesses_guess_both_artifacts():
         **{k: v for k, v in r.items() if not k.startswith("_")},
     )
     assert res["tier"] == "GUESS"
-    assert "GUESS" in r["_sent"][0][2] and "unverified" in r["_sent"][0][2]
+    assert "GUESS" in r["_sent"][0][2]
+    assert "unverified" in r["_sent"][0][2]
     body = list(r["_notes"].values())[0]
     assert "GUESS" in body
 
@@ -93,7 +94,8 @@ def test_p4_contest_appends_prior_body_preserved():
     )
     body = list(r["_notes"].values())[0]
     assert prior in body, "the original toast must survive verbatim"
-    assert "contested (VERIFIED)" in body and "by: kimi" in body
+    assert "contested (VERIFIED)" in body
+    assert "by: kimi" in body
 
 
 def test_p5_no_prior_toast_opens_thread_confessed():
@@ -123,7 +125,8 @@ def test_p6_guards_fire_before_any_write():
                 bad[3],
                 **{k: v for k, v in r.items() if not k.startswith("_")},
             )
-            assert False, f"should refuse: {bad[3][:20]}"
+            raise AssertionError(f"should refuse: {bad[3][:20]}")
         except ValueError:
             pass
-    assert r["_sent"] == [] and r["_notes"] == {}
+    assert r["_sent"] == []
+    assert r["_notes"] == {}

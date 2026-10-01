@@ -283,7 +283,7 @@ class TestRunMetricsIntegration:
         from core.coord.experiment import lock_gate as policy_fn
         from core.coord.experiment import parallel_useful as scenario_fn
 
-        vectors, scores = run_metrics(scenario_fn, policy_fn, n_runs=1)
+        vectors, _scores = run_metrics(scenario_fn, policy_fn, n_runs=1)
         # parallel_useful: 6 actions on api.py with 6 different intents
         # lock_gate admits only the first one (blocks rest on resource conflict)
         assert len(vectors[0]) == 1  # only first admitted, rest blocked by resource lock

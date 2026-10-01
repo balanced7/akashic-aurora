@@ -95,7 +95,8 @@ def test_k1_owner_matched_active_task_increments(monkeypatch, tmp_path):
     tid = tc.attribute_turn("alice", _row(), ledger=led)
     assert tid == "T900", "K1: the owner's ACTIVE task receives the attribution"
     acc = c.hgetall(f"{ns}:task_cost:T900")
-    assert int(acc.get("turns", 0)) == 1 and int(acc.get("tool_calls", 0)) == 3
+    assert int(acc.get("turns", 0)) == 1
+    assert int(acc.get("tool_calls", 0)) == 3
     assert tc.attribute_turn("carol", _row(), ledger=led) is None, "K1: an agent with no active task increments nothing"
     assert not c.exists(f"{ns}:task_cost:T902"), "K1: done tasks never accumulate"
 
@@ -120,7 +121,8 @@ def test_k3_finalize_stamps_and_deletes(monkeypatch, tmp_path):
         tc.attribute_turn("alice", _row(duration=1.0, tools=2), ledger=led)
     t = led.tasks["T900"]
     stamped = tc.finalize("T900", t)
-    assert t.get("cost_turns") == 3 and t.get("cost_tool_calls") == 6
+    assert t.get("cost_turns") == 3
+    assert t.get("cost_tool_calls") == 6
     assert not c.exists(f"{ns}:task_cost:T900"), "K3: accumulator deleted after finalize"
     t2 = _task("T950", "alice", "verifying")
     tc.finalize("T950", t2)
@@ -162,7 +164,8 @@ def test_k6_done_render_budget(monkeypatch, tmp_path):
     t.update(cost_turns=84, cost_duration_s=7612.4, cost_tool_calls=412, cost_tokens=156000)
     line = tc.cost_line(t)
     assert line and len(line) <= 120, "K6: one line, <=120 chars"
-    assert "84" in line and "turn" in line
+    assert "84" in line
+    assert "turn" in line
     t["cost_tokens"] = 10**12  # absurd width forces the drop order
     line2 = tc.cost_line(t)
     assert len(line2) <= 120, "K6: tokens drop first under budget pressure"
@@ -248,7 +251,7 @@ def test_k9_kimi_and_sol_pass_split_token_usage(relpath):
     )
     pairs = {
         key.value: value
-        for key, value in zip(expr.body.keys, expr.body.values)
+        for key, value in zip(expr.body.keys, expr.body.values, strict=False)
         if isinstance(key, ast.Constant) and isinstance(key.value, str)
     }
     assert set(pairs) == {"prompt", "completion"}, (

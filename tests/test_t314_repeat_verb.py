@@ -45,7 +45,7 @@ def test_repeat_verb_exists_on_the_door():
 def test_repeat_is_discoverable():
     """discover is how a seat finds a verb it does not already know exists -- which is the
     entire reason this one went unused for a month."""
-    rc, out = _cli("discover", "repeat")
+    _rc, out = _cli("discover", "repeat")
     assert "0 verb(s)" not in out, "discover cannot see the repeat verb; an undiscoverable door is the defect restated"
 
 
@@ -68,7 +68,7 @@ def test_report_surfaces_elapsed_since_the_lesson():
             "it is the number this verb exists to surface"
         )
     if rep["entries"]:
-        rc2, txt = _cli("repeat", "--report")
+        _rc2, txt = _cli("repeat", "--report")
         assert "elapsed" in txt.lower(), (
             "entries carry elapsed_s but the human-readable report hides it; a number only in "
             f"--json is a number nobody reads. Got: {txt[:300]}"
@@ -79,7 +79,7 @@ def test_report_names_no_rate():
     """repeat_report's own docstring pins this: no percentage, no key named a rate, because the
     count is a floor over what someone NOTICED and a rate would imply a denominator we do not
     have. The door must not reintroduce what the store refused."""
-    rc, out = _cli("repeat", "--report")
+    _rc, out = _cli("repeat", "--report")
     assert "%" not in out, f"the report printed a percentage over a floor: {out[:300]}"
 
 

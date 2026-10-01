@@ -59,14 +59,16 @@ def test_k2_baseline_blind_success_is_capability_not_protocol():
 
     assert got["capability_findings"] == ["u1"]
     assert got["by_class"]["undetectable"]["recall"] == 1.0
-    assert "voided" not in got and "void_reason" not in got
+    assert "voided" not in got
+    assert "void_reason" not in got
 
     integrity = C.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=False)
-    assert integrity["validity"] == "VALID" and integrity["voided"] is False
+    assert integrity["validity"] == "VALID"
+    assert integrity["voided"] is False
 
 
 @pytest.mark.parametrize(
-    "facts, validity, voided",
+    ("facts", "validity", "voided"),
     [
         ({"seal_verified": True, "archive_complete": True, "key_leak_detected": False}, "VALID", False),
         ({"seal_verified": False, "archive_complete": True, "key_leak_detected": False}, "VOID", True),

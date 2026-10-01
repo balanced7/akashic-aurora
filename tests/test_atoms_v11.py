@@ -32,7 +32,8 @@ def test_absent_schema_version_reads_as_v1(tmp_path):
     raw.pop("schema_version")
     fam.store.set(at.KEY_PREFIX + a["id"], __import__("json").dumps(raw))
     got = fam.get(a["id"])
-    assert got is not None and int(got.get("schema_version", 1)) == 1
+    assert got is not None
+    assert int(got.get("schema_version", 1)) == 1
 
 
 def test_newer_schema_version_refuses_loud(tmp_path):
@@ -110,7 +111,8 @@ def test_verify_backlink_index_clean_then_catches_tampering(tmp_path):
     assert fam.verify_backlink_index() == []
     fam.store.sadd(at._idx_key("cited-by", a["id"]), "art_20990101_phantom_000000")
     rows = fam.verify_backlink_index()
-    assert rows and any("INDEX-PHANTOM" in r for r in rows)
+    assert rows
+    assert any("INDEX-PHANTOM" in r for r in rows)
 
 
 # ---------------------------------------------------------------- resolution laws
@@ -121,7 +123,8 @@ def test_lineage_resolve_current_and_lineage_backlinks(tmp_path):
     v2 = fam.supersede(v1["id"], body="second version")
     assert fam.lineage(v2["id"]) == [v1["id"], v2["id"]]
     head = fam.resolve_current(v1["id"])
-    assert head is not None and head["id"] == v2["id"]
+    assert head is not None
+    assert head["id"] == v2["id"]
     direct = fam.backlinks(v2["id"])
     assert direct == []  # the decay the law exists to fix
     lineage = fam.backlinks(v2["id"], lineage=True)
@@ -185,7 +188,8 @@ def test_rebuild_parks_v2_lines_loudly(tmp_path, capsys):
     assert restored == 1  # the v1 corpus, in full
     assert fam.store.get(at.KEY_PREFIX + alien_id) is None  # v2 never reached the store
     out = capsys.readouterr().out
-    assert "PARKED" in out and "migrate_schema" in out
+    assert "PARKED" in out
+    assert "migrate_schema" in out
 
 
 def test_rebuild_mixed_corpus_v1_queryable_v2_parked(tmp_path, capsys):

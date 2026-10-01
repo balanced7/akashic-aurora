@@ -73,8 +73,10 @@ def test_by_peer_splits_the_fleet_number():
         _dead("a5", "kimi"),
     ]
     by = friction.fold(events, {}, now=2000.0)["agg"]["by_peer"]
-    assert by["deepseek"]["n_answered"] == 2 and by["deepseek"]["n_dead"] == 1
-    assert by["kimi"]["n_answered"] == 0 and by["kimi"]["n_dead"] == 2
+    assert by["deepseek"]["n_answered"] == 2
+    assert by["deepseek"]["n_dead"] == 1
+    assert by["kimi"]["n_answered"] == 0
+    assert by["kimi"]["n_dead"] == 2
     assert by["kimi"]["dead_rate"] == 1.0
     assert abs(by["deepseek"]["dead_rate"] - 1 / 3) < 1e-9
 
@@ -84,7 +86,8 @@ def test_by_peer_counts_open_episodes_too():
     nine open asks and zero closed is a distinct and visible situation."""
     open_recs = {"o1": {"to": "sol", "created": 1000.0, "attempt": 0}}
     by = friction.fold([], open_recs, now=2000.0)["agg"]["by_peer"]
-    assert by["sol"]["n_open"] == 1 and by["sol"]["n_closed"] == 0
+    assert by["sol"]["n_open"] == 1
+    assert by["sol"]["n_closed"] == 0
     assert by["sol"]["dead_rate"] is None, "a rate over zero closed is not a number"
 
 
@@ -100,7 +103,8 @@ def test_unknown_peer_never_becomes_a_bucket_named_none():
     """A malformed event without `to` must not create a peer literally called None."""
     ev = _answered("a1", None)
     by = friction.fold([ev], {}, now=2000.0)["agg"]["by_peer"]
-    assert None not in by and "None" not in by
+    assert None not in by
+    assert "None" not in by
 
 
 # --------------------------------------------------------------------------------------
@@ -117,9 +121,11 @@ def test_presence_effect_answers_the_arcs_question():
         _dead("a5", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
     ]
     pe = friction.fold(events, {}, now=2000.0)["agg"]["presence_effect"]
-    assert pe["ATTENDED"]["n"] == 3 and pe["ATTENDED"]["n_answered"] == 2
+    assert pe["ATTENDED"]["n"] == 3
+    assert pe["ATTENDED"]["n_answered"] == 2
     assert abs(pe["ATTENDED"]["answer_rate"] - 2 / 3) < 1e-9
-    assert pe["UNATTENDED"]["n"] == 2 and pe["UNATTENDED"]["n_answered"] == 0
+    assert pe["UNATTENDED"]["n"] == 2
+    assert pe["UNATTENDED"]["n_answered"] == 0
     assert pe["UNATTENDED"]["answer_rate"] == 0.0
 
 
@@ -139,7 +145,8 @@ def test_unobserved_episodes_are_excluded_not_bucketed_as_unattended():
     single most tempting error available here, so it is pinned."""
     events = [_dead(f"h{i}", "deepseek") for i in range(26)]
     pe = friction.fold(events, {}, now=2000.0)["agg"]["presence_effect"]
-    assert pe["UNATTENDED"]["n"] == 0 and pe["ATTENDED"]["n"] == 0
+    assert pe["UNATTENDED"]["n"] == 0
+    assert pe["ATTENDED"]["n"] == 0
     assert pe["n_unobserved"] == 26, "excluded, but COUNTED -- never silently dropped"
 
 
@@ -168,7 +175,9 @@ def test_totals_still_reconcile_with_v1():
         _dead("a3", "kimi"),
     ]
     agg = friction.fold(events, {}, now=2000.0)["agg"]
-    assert agg["n_answered"] == 1 and agg["n_dead"] == 2 and agg["n_closed"] == 3
+    assert agg["n_answered"] == 1
+    assert agg["n_dead"] == 2
+    assert agg["n_closed"] == 3
     assert sum(p["n_closed"] for p in agg["by_peer"].values()) == agg["n_closed"]
     observed = sum(agg["presence_effect"][k]["n"] for k in ("ATTENDED", "UNATTENDED"))
     assert observed + agg["presence_effect"]["n_unobserved"] == agg["n_closed"] - agg["n_echo"]

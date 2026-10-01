@@ -70,7 +70,8 @@ def test_i_v_vi_iv_loop_reads_as_c_major_with_its_chords_and_moves():
     assert perf.summarize(events) == s, "summarize must be deterministic"
 
     assert s["key"]["best"]["key"] == "C major"
-    assert s["key"]["runner_up"]["key"] != "C major" and s["key"]["best"]["r"] > s["key"]["runner_up"]["r"]
+    assert s["key"]["runner_up"]["key"] != "C major"
+    assert s["key"]["best"]["r"] > s["key"]["runner_up"]["r"]
     assert s["key"]["weights"] == "sounding seconds per pitch class"
 
     assert {c["chord"] for c in s["chords"]["top"]} == {"C", "G", "Am", "F"}
@@ -79,13 +80,17 @@ def test_i_v_vi_iv_loop_reads_as_c_major_with_its_chords_and_moves():
     assert moves == {("C", "G"): 4, ("G", "Am"): 4, ("Am", "F"): 4, ("F", "C"): 3}
     assert s["chords"]["changes"] == 15
 
-    assert s["duration_s"] == 32.0 and s["note_count"] == 64 and s["notes_per_minute"] == 120.0
-    assert s["range"]["lowest"] == {"midi": 41, "name": "F2"} and s["range"]["highest"] == {"midi": 60, "name": "C4"}
+    assert s["duration_s"] == 32.0
+    assert s["note_count"] == 64
+    assert s["notes_per_minute"] == 120.0
+    assert s["range"]["lowest"] == {"midi": 41, "name": "F2"}
+    assert s["range"]["highest"] == {"midi": 60, "name": "C4"}
     # 16 named chord events (the closing null is not a chord); spreads C 12, G 16, Am 15, F 16.
     assert s["voicing"] == {"chord_events": 16, "mean_notes_per_chord": 4.0, "mean_spread_semitones": 14.75}
     tempo = s["timing"]["rough_tempo"]
     assert tempo is None, "one onset every 2 s is 30 BPM, outside the 60-200 range"
-    assert s["timing"]["onsets"] == 16 and s["timing"]["ioi_histogram"]["at_or_over_max"] == 15
+    assert s["timing"]["onsets"] == 16
+    assert s["timing"]["ioi_histogram"]["at_or_over_max"] == 15
 
     assert 3 <= len(s["questions"]) <= 5
     # Each C -> G occurrence is 2 s of C plus 2 s of G: 16 s of a 32 s session. Ties go to the first move played.
@@ -101,7 +106,9 @@ def test_i_v_vi_iv_loop_reads_as_c_major_with_its_chords_and_moves():
     )
     assert not any(q.startswith("You spent") for q in s["questions"])
     nv = s["nashville"]
-    assert nv["key"]["key"] == "C major" and nv["key"]["estimate"] == "C major" and nv["key"]["rule"] is None
+    assert nv["key"]["key"] == "C major"
+    assert nv["key"]["estimate"] == "C major"
+    assert nv["key"]["rule"] is None
     assert nv["loops"] == [
         {
             "numbers": ["1", "5", "6m", "4"],
@@ -114,7 +121,8 @@ def test_i_v_vi_iv_loop_reads_as_c_major_with_its_chords_and_moves():
         }
     ]
     assert [(a["at"], a["key"]["key"]) for a in nv["areas"]] == [("0:00", "C major")]
-    assert nv["outside_key"]["count"] == 0 and nv["page"]["changes"] == []
+    assert nv["outside_key"]["count"] == 0
+    assert nv["page"]["changes"] == []
 
     numbers = s["numbers"]
     assert numbers["source"] == {"piano": 0, "analyzer": 16, "reader": "arsenal.nashville"}
@@ -226,8 +234,11 @@ def test_rough_tempo_uses_the_most_common_gap_cluster():
     timing = s["timing"]
     assert timing["onsets"] == 8
     tempo = timing["rough_tempo"]
-    assert tempo["label"] == "rough" and tempo["support"] == 5 and tempo["gaps_in_range"] == 6
-    assert tempo["ioi_ms"] == 500.0 and tempo["bpm"] == 120.0
+    assert tempo["label"] == "rough"
+    assert tempo["support"] == 5
+    assert tempo["gaps_in_range"] == 6
+    assert tempo["ioi_ms"] == 500.0
+    assert tempo["bpm"] == 120.0
     bins = {b["lo_ms"]: b["count"] for b in timing["ioi_histogram"]["bins"]}
     assert bins == {250: 1, 450: 1, 500: 4, 750: 1}
 
@@ -242,15 +253,17 @@ def test_questions_are_built_from_the_numbers_and_the_markdown_ends_with_them():
     }
     md = perf.render_markdown(doc)
     tail = question_lines(md)
-    assert 3 <= len(tail) <= 5 and all(re.match(r"^\d\. ", line) for line in tail)
-    assert "C major" in md and "C → G (1 → 5 in C major): 4 times, 50% of the session" in md
-    assert (
-        "## Nashville numbers" in md and "- Loop from 0:00: 1 → 5 → 6m → 4 (C, G, Am, F), 4 times back to back." in md
-    )
+    assert 3 <= len(tail) <= 5
+    assert all(re.match(r"^\d\. ", line) for line in tail)
+    assert "C major" in md
+    assert "C → G (1 → 5 in C major): 4 times, 50% of the session" in md
+    assert "## Nashville numbers" in md
+    assert "- Loop from 0:00: 1 → 5 → 6m → 4 (C, G, Am, F), 4 times back to back." in md
     assert "- Move 1 → 5 (C → G): 4 times, first at 0:00." in md
     assert "- Every chord that lasted 120 ms or more belongs to C major." in md
     assert glossary_terms(md) == ["Nashville numbers", "m", "loop"]  # only the terms the section used
-    assert "Down " in md and "Mean velocity 80.0" in md
+    assert "Down " in md
+    assert "Mean velocity 80.0" in md
     assert perf.summarize([])["questions"] == []
 
 
@@ -317,7 +330,9 @@ def test_zero_length_session_with_the_pedal_says_so_instead_of_a_share():
 
 def test_equal_pitch_classes_get_a_question_from_the_table():
     s = perf.summarize(DEGENERATE_SESSIONS["chromatic_cluster"])
-    assert s["key"] is None and s["chords"]["top"] == [] and s["pedal"]["presses"] == 0
+    assert s["key"] is None
+    assert s["chords"]["top"] == []
+    assert s["pedal"]["presses"] == 0
     assert s["timing"]["rough_tempo"] is None
     assert "You used 12 of the 12 pitch classes, each with the same share of time sounding." in " ".join(s["questions"])
 
@@ -427,17 +442,23 @@ def test_chord_numbers_come_from_the_shared_nashville_reader():
     assert perf.chord_number("C5", "C major", ["C5"]) is None
     assert perf.chord_number("C-E", "C major", ["C4", "E4"]) is None
     assert perf.chord_number("C Db D", "C major", ["C4", "Db4", "D4"]) is None
-    assert perf.chord_number("C", None, triad) is None and perf.chord_number("C", "C dorian", triad) is None
+    assert perf.chord_number("C", None, triad) is None
+    assert perf.chord_number("C", "C dorian", triad) is None
 
 
 def test_a_broken_numbers_reader_leaves_the_numbers_out_and_nothing_else(monkeypatch):
     monkeypatch.setattr(perf, "_numbers_reader", lambda: (None, "SyntaxError: half-written"))
     s = perf.summarize(loop_session(loops=1))
     assert s["numbers"]["source"] == {"piano": 0, "analyzer": 0, "reader": "unavailable (SyntaxError: half-written)"}
-    assert s["numbers"]["top"] == [] and s["chords"]["top"] and s["key"]["best"]["key"] == "C major"
-    assert s["nashville"]["key"]["key"] == "C major" and s["nashville"]["top"] == []  # the key needs no reader
+    assert s["numbers"]["top"] == []
+    assert s["chords"]["top"]
+    assert s["key"]["best"]["key"] == "C major"
+    assert s["nashville"]["key"]["key"] == "C major"
+    assert s["nashville"]["top"] == []
     md = perf.render_markdown({"session": "x", "opened_at": None, "closed_at": None, **s})
-    assert "## Nashville" not in md and "## Glossary" not in md and "## Chords" in md
+    assert "## Nashville" not in md
+    assert "## Glossary" not in md
+    assert "## Chords" in md
 
 
 def test_numbers_prefer_the_pianos_own_reading_and_flag_time_outside_the_key():
@@ -609,7 +630,8 @@ def test_the_leading_tone_rule_never_hands_a_minor_key_to_its_parallel_major():
     key = perf.estimate_key(weights)
     assert key["best"]["key"] == "A minor"
     nkey = perf.numbering_key(weights, key)
-    assert nkey["key"] == "A minor" and nkey["rule"] is None
+    assert nkey["key"] == "A minor"
+    assert nkey["rule"] is None
 
 
 TRIAD = {
@@ -644,7 +666,7 @@ def triad_loop(chords, key, loops=10, bar_ms=2400):
 
 
 @pytest.mark.parametrize(
-    "chords, estimate, want, minor_key, left_out",
+    ("chords", "estimate", "want", "minor_key", "left_out"),
     [
         (["Am", "G", "F", "G"], "G major", "C major", "A minor", "F"),
         (["Em", "D", "C", "D"], "D major", "G major", "E minor", "C"),
@@ -661,14 +683,17 @@ def test_the_home_chord_rule_numbers_an_aeolian_loop_in_the_key_the_piano_shows(
     nv = s["nashville"]
     rule = nv["key"]["rule"]
     assert s["key"]["best"]["key"] == estimate
-    assert nv["key"]["key"] == want and rule["name"] == "home chord" and rule["demoted"] == estimate
+    assert nv["key"]["key"] == want
+    assert rule["name"] == "home chord"
+    assert rule["demoted"] == estimate
     assert (rule["home_chord"], rule["minor_key"], rule["relative_major"], rule["left_out"]) == (
         chords[0],
         minor_key,
         want,
         left_out,
     )
-    assert rule["home_share"] >= 0.24 and rule["left_out_share"] >= perf.HOME_OUT
+    assert rule["home_share"] >= 0.24
+    assert rule["left_out_share"] >= perf.HOME_OUT
     assert [n["number"] for n in nv["top"]][:3] == ["5", "6m", "4"]
 
     md = perf.render_markdown({"session": "x", "opened_at": None, "closed_at": None, **s})
@@ -679,7 +704,9 @@ def test_the_home_chord_rule_numbers_an_aeolian_loop_in_the_key_the_piano_shows(
     ) in md
     assert f"so the numbers count from {want} instead, the way the piano's key tracker decides." in md
     terms = glossary_terms(md)
-    assert "home chord" in terms and "raised 7th" not in terms and terms.index("home chord") < terms.index("r")
+    assert "home chord" in terms
+    assert "raised 7th" not in terms
+    assert terms.index("home chord") < terms.index("r")
     assert any(
         q.startswith(f"Your notes weigh most like {estimate}")
         and q.endswith(f"Did {chords[0]} feel like home ({minor_key}), or were you thinking in {want}?")
@@ -720,7 +747,9 @@ def test_home_chords_counts_a_minor_triad_over_the_bass_under_any_name():
         {"t_ms": 5000, "kind": "chord", "chord": None, "notes": []},
     ]
     homes = perf.home_chords(events, 6000)
-    assert homes["chord_ms"] == 4000 and homes["minor_ms"][9] == 3000 and sum(homes["minor_ms"]) == 3000
+    assert homes["chord_ms"] == 4000
+    assert homes["minor_ms"][9] == 3000
+    assert sum(homes["minor_ms"]) == 3000
 
 
 def test_an_f_major_session_numbers_its_loop_and_flags_the_borrowed_b7_with_its_times():
@@ -729,7 +758,8 @@ def test_an_f_major_session_numbers_its_loop_and_flags_the_borrowed_b7_with_its_
     # The raw estimate hears D minor (F major's own notes, with Dm voiced low), but no C# ever sounds, so the key
     # tracker's leading-tone rule reads F major, and the numbers count from it.
     assert s["key"]["best"]["key"] == "D minor"
-    assert nv["key"]["key"] == "F major" and nv["key"]["estimate"] == "D minor"
+    assert nv["key"]["key"] == "F major"
+    assert nv["key"]["estimate"] == "D minor"
     assert nv["key"]["rule"] == {
         "name": "leading tone",
         "demoted": "D minor",
@@ -763,11 +793,14 @@ def test_an_f_major_session_numbers_its_loop_and_flags_the_borrowed_b7_with_its_
         ("4maj7", "1/3", 3, "0:09"),
     ]
     outside = nv["outside_key"]
-    assert outside["count"] == 2 and outside["seconds"] == 5.6 and outside["share_of_numbered_time"] == 0.1045
+    assert outside["count"] == 2
+    assert outside["seconds"] == 5.6
+    assert outside["share_of_numbered_time"] == 0.1045
     assert [
         (m["at"], m["number"], m["chord"], m["kind"], m["borrowed_from"], m["in_page_key"]) for m in outside["moments"]
     ] == [("0:48", "b7", "Eb", "borrowed", "F minor", False), ("0:52", "b7", "Eb", "borrowed", "F minor", False)]
-    assert nv["page"]["key_source"] == "key" and [k["key"] for k in nv["page"]["keys"]] == ["F major"]
+    assert nv["page"]["key_source"] == "key"
+    assert [k["key"] for k in nv["page"]["keys"]] == ["F major"]
 
     assert s["questions"][0] == (
         "At 0:48 you played a b7 (Eb) in F major, a borrowed chord (it belongs to F minor). "
@@ -782,8 +815,10 @@ def test_an_f_major_session_numbers_its_loop_and_flags_the_borrowed_b7_with_its_
     lines = md.splitlines()
     for line in [
         "## Nashville numbers",
-        "Your notes weigh most like D minor (r 0.91), but its raised 7th, C#, never sounded, so the numbers "
-        "count from F major instead, the way the piano's key tracker decides.",
+        (
+            "Your notes weigh most like D minor (r 0.91), but its raised 7th, C#, never sounded, so the numbers "
+            "count from F major instead, the way the piano's key tracker decides."
+        ),
         "- Loop from 0:00: 1/3 → 5/2 → 6m → 4maj7 (F/A, C/G, Dm, Bbmaj7), 4 times back to back.",
         "- b7 (Eb, outside the key): 10% of the numbered time, 5.6 s, first at 0:48.",
         "- At 0:48 and 0:52: b7 (Eb), borrowed from F minor, 5.6 s in all.",
@@ -802,8 +837,10 @@ def test_an_f_major_session_numbers_its_loop_and_flags_the_borrowed_b7_with_its_
         "raised 7th",
         "r",
     ]
-    assert "In F major, b7 is Eb." in md and "(F minor for F major)" in md
-    assert len(question_lines(md)) == len(s["questions"]) and "None" not in md
+    assert "In F major, b7 is Eb." in md
+    assert "(F minor for F major)" in md
+    assert len(question_lines(md)) == len(s["questions"])
+    assert "None" not in md
 
 
 def test_an_a_minor_session_numbers_from_the_minor_tonic():
@@ -815,7 +852,9 @@ def test_an_a_minor_session_numbers_from_the_minor_tonic():
     events += bar(t, "D", [38, 54, 57, 62], "A minor")
     s = perf.summarize(events)
     nv = s["nashville"]
-    assert nv["key"]["key"] == "A minor" and nv["key"]["rule"] is None and nv["minor_numbering"] == "tonic"
+    assert nv["key"]["key"] == "A minor"
+    assert nv["key"]["rule"] is None
+    assert nv["minor_numbering"] == "tonic"
     assert [(n["number"], n["chord"]) for n in nv["top"]] == [("1m", "Am"), ("4m", "Dm"), ("5", "E"), ("4", "D")]
     assert [(loop["numbers"], loop["count"]) for loop in nv["loops"]] == [(["1m", "4m", "5"], 4)]
     # E (with the raised 7th, G#) is the minor key's own 5; D major belongs to the parallel key, A major
@@ -827,7 +866,8 @@ def test_an_a_minor_session_numbers_from_the_minor_tonic():
         "What were you reaching for there?"
     )
     md = perf.render_markdown({"session": "x", "opened_at": None, "closed_at": None, **s})
-    assert "1 is the minor home chord itself, 1m" in md and "(A major for A minor)" in md
+    assert "1 is the minor home chord itself, 1m" in md
+    assert "(A major for A minor)" in md
 
 
 def test_a_key_change_on_the_page_is_reported_per_key_not_mixed_in():
@@ -853,7 +893,8 @@ def test_a_key_change_on_the_page_is_reported_per_key_not_mixed_in():
     nv = s["nashville"]
     assert nv["key"]["key"] == "C major"
     page = nv["page"]
-    assert page["key_source"] == "nns_key" and [(k["key"], k["first_at"]) for k in page["keys"]] == [
+    assert page["key_source"] == "nns_key"
+    assert [(k["key"], k["first_at"]) for k in page["keys"]] == [
         ("C major", "0:00"),
         ("D major", "0:32"),
     ]
@@ -886,13 +927,16 @@ def test_a_key_change_on_the_page_is_reported_per_key_not_mixed_in():
     lines = md.splitlines()
     for line in [
         "- At 0:32 the piano page's key changed from C major to D major.",
-        "- At 0:32: 2 (D), chromatic (in neither C major nor C minor), 2.0 s in all; the piano page showed "
-        "D major, where it belongs.",
+        (
+            "- At 0:32: 2 (D), chromatic (in neither C major nor C minor), 2.0 s in all; the piano page showed "
+            "D major, where it belongs."
+        ),
         "- From 0:32 the piano page numbered 4 chords in D major (first D: 1 there, 2 here).",
     ]:
         assert line in lines, line
     assert "- Counted in D major instead, the page's key from 0:32: 1 for 2.0 s, 5 for 2.0 s, 6m for 2.0 s" in md
-    assert "chromatic" in glossary_terms(md) and "borrowed" not in glossary_terms(md)
+    assert "chromatic" in glossary_terms(md)
+    assert "borrowed" not in glossary_terms(md)
 
 
 def test_a_session_that_moves_key_numbers_each_part_in_its_own_key():
@@ -921,13 +965,14 @@ def test_a_session_that_moves_key_numbers_each_part_in_its_own_key():
         f"D major from {move['at']}. Times are minutes:seconds from your first note."
     ) in md
     assert "- Loop from 0:00 in F major: 1 → 5 → 6m → 4 (F, C, Dm, Bb)" in md
-    assert "| at | key | number | chord | seconds |" in md and "| 0:00 | F major | 1 | F | 2.4 |" in md
+    assert "| at | key | number | chord | seconds |" in md
+    assert "| 0:00 | F major | 1 | F | 2.4 |" in md
     assert "the key that fits the whole session" not in md
 
 
 def test_a_long_pause_into_another_key_starts_the_new_part_where_playing_resumes():
     """Daniel's sessions change key across pauses of minutes: the new part starts at the first note after the pause."""
-    first = triad_loop(["F", "C", "Dm", "Bb"], "F major", loops=5) + [_pedal(48000, False)]
+    first = [*triad_loop(["F", "C", "Dm", "Bb"], "F major", loops=5), _pedal(48000, False)]
     second = [dict(e, t_ms=e["t_ms"] + 48000 + 218000) for e in triad_loop(["D", "A", "Bm", "G"], "D major", loops=5)]
     nv = perf.summarize(first + second)["nashville"]
     assert [(a["at"], a["key"]["key"]) for a in nv["areas"]] == [("0:00", "F major"), ("4:26", "D major")]
@@ -959,7 +1004,9 @@ def test_chord_moves_are_numbered_in_their_key_area_not_in_the_key_the_page_show
         "5 → 6m in D major",
     )
     md = perf.render_markdown({"session": "x", "opened_at": None, "closed_at": None, **s})
-    assert "in F major): 10 times" in md and "6 → 3" not in md and "3 → #4m" not in md
+    assert "in F major): 10 times" in md
+    assert "6 → 3" not in md
+    assert "3 → #4m" not in md
 
     both = perf.summarize(
         triad_loop(["Bb", "F", "Gm", "Eb"], "Bb major")
@@ -1001,7 +1048,8 @@ def test_a_session_in_several_keys_asks_about_a_part_not_about_the_blend_of_its_
             **perf.summarize(triad_loop(["C", "G", "Am", "F"], "C major")),
         }
     )
-    assert "for the whole session" not in one and "is a blend of its parts" not in one
+    assert "for the whole session" not in one
+    assert "is a blend of its parts" not in one
 
 
 def test_the_glossary_explains_the_lines_above_it_when_the_session_changes_key():
@@ -1017,20 +1065,16 @@ def test_the_glossary_explains_the_lines_above_it_when_the_session_changes_key()
             True,
         )
     )
-    assert (
-        terms["borrowed"].startswith("a chord from the parallel key of its part,")
-        and "(F minor for F major)" in terms["borrowed"]
-    )
+    assert terms["borrowed"].startswith("a chord from the parallel key of its part,")
+    assert "(F minor for F major)" in terms["borrowed"]
     assert terms["chromatic"] == (
         "a chord that belongs neither to the key of its part nor to that key's parallel key "
         "(in A minor, neither A minor nor A major)."
     )
     assert "(in a minor key, the minor home chord itself, 1m)" in terms["Nashville numbers"]
     one = dict(perf._glossary({"key": "F major", "mode": "major"}, [], {"borrowed", "chromatic"}))
-    assert (
-        one["chromatic"] == "a chord that belongs to neither F major nor F minor."
-        and "(F minor for F major)" in one["borrowed"]
-    )
+    assert one["chromatic"] == "a chord that belongs to neither F major nor F minor."
+    assert "(F minor for F major)" in one["borrowed"]
 
 
 def test_a_rule_whose_own_key_did_not_win_is_never_named_as_the_cause():
@@ -1039,7 +1083,8 @@ def test_a_rule_whose_own_key_did_not_win_is_never_named_as_the_cause():
     weights = [0, 9, 7, 0, 6, 0, 10, 5, 4, 6, 0, 7]  # C Db D Eb E F F# G Ab A Bb B: no E#, and G outweighs G#
     key = perf.estimate_key(weights)
     nkey = perf.numbering_key(weights, key)
-    assert key["best"]["key"] == "F# minor" and nkey["key"] == "D major"
+    assert key["best"]["key"] == "F# minor"
+    assert nkey["key"] == "D major"
     assert nkey["rule"] == {
         "name": "next best",
         "because": "leading tone",
@@ -1132,7 +1177,7 @@ def test_what_is_played_after_a_long_silence_is_not_carried_into_the_key_before_
     """An Eb major session, 27 s of silence, then 12 s in Ab (with its Db): the Ab stretch was joined back over the silence
     and numbered with what came before it (verifier, 2026-09-14). A short part after a long silence keeps its own key when
     the key before the silence leaves out more of it; the same key's chords after the silence still join."""
-    eb = triad_loop(["Eb", "Bb", "Cm", "Ab"], "Eb major", loops=13) + [_pedal(124800, False)]
+    eb = [*triad_loop(["Eb", "Bb", "Cm", "Ab"], "Eb major", loops=13), _pedal(124800, False)]
     ab = shifted(triad_loop(["Ab", "Db", "Eb", "Ab"], "Eb major", loops=1, bar_ms=3000), 124800 + 27000)
     areas = perf.summarize(eb + ab)["nashville"]["areas"]
     assert [(a["at"], a["key"]["key"]) for a in areas] == [("0:00", "Eb major"), ("2:31", "Ab major")]
@@ -1140,14 +1185,15 @@ def test_what_is_played_after_a_long_silence_is_not_carried_into_the_key_before_
     assert [a["key"]["key"] for a in perf.summarize(eb + same)["nashville"]["areas"]] == ["Eb major"]
 
     # an opening phrase in Db, 13 s of silence, then D major: the phrase is not numbered in D major
-    db = triad_loop(["Db", "Gb", "Ab", "Db"], "Db major", loops=1, bar_ms=2000) + [_pedal(8000, False)]
+    db = [*triad_loop(["Db", "Gb", "Ab", "Db"], "Db major", loops=1, bar_ms=2000), _pedal(8000, False)]
     d = shifted(triad_loop(["D", "A", "Bm", "G"], "D major"), 21000)
     areas = perf.summarize(db + d)["nashville"]["areas"]
     assert [(a["at"], a["key"]["key"]) for a in areas] == [("0:00", "Db major"), ("0:21", "D major")]
     # with no silence it still stands, since D major leaves out most of it (AREA_APART_FIT)
     db = triad_loop(["Db", "Gb", "Ab", "Db"], "Db major", loops=1, bar_ms=3000)
     areas = perf.summarize(db + shifted(triad_loop(["D", "A", "Bm", "G"], "D major"), 12000))["nashville"]["areas"]
-    assert [a["key"]["key"] for a in areas] == ["Db major", "D major"] and abs(areas[1]["start_s"] - 12) <= 2
+    assert [a["key"]["key"] for a in areas] == ["Db major", "D major"]
+    assert abs(areas[1]["start_s"] - 12) <= 2
 
 
 def test_a_pedal_held_through_a_long_pause_does_not_sound_the_last_chord_through_it():
@@ -1168,11 +1214,12 @@ def test_the_pages_key_is_carried_through_a_short_silence_but_not_a_long_one():
     length, most of it silence (verifier, 2026-09-14)."""
     loop = triad_loop(["F", "C", "Dm", "Bb"], "F major", loops=5, bar_ms=2000)
     rest = {"t_ms": 40000, "kind": "chord", "chord": None, "notes": [], "key": None}
-    short = perf.summarize(loop + [rest] + shifted(loop, 45000))["nashville"]["page"]["keys"]
+    short = perf.summarize([*loop, rest, *shifted(loop, 45000)])["nashville"]["page"]["keys"]
     assert [(k["key"], k["seconds"], k["segments"]) for k in short] == [("F major", 84.8, 1)]  # to the session's end
     notes = [_on(260000, 65), _off(262000, 65), _on(262000, 69), _off(270000, 69)]  # played later, with no chord events
-    long = perf.summarize(loop + [rest] + notes)["nashville"]["page"]
-    assert [(k["key"], k["seconds"]) for k in long["keys"]] == [("F major", 40.0)] and long["changes"] == []
+    long = perf.summarize([*loop, rest, *notes])["nashville"]["page"]
+    assert [(k["key"], k["seconds"]) for k in long["keys"]] == [("F major", 40.0)]
+    assert long["changes"] == []
 
 
 def test_a_cluster_between_two_chords_does_not_break_the_move_in_either_section():
@@ -1198,7 +1245,8 @@ def test_a_cluster_between_two_chords_does_not_break_the_move_in_either_section(
     s = perf.summarize(sorted(events, key=lambda e: e["t_ms"]))
     chords = {(p["from"], p["to"]): p["count"] for p in s["chords"]["progressions"]}
     numbers = {(p["from"], p["to"]): p["count"] for p in s["nashville"]["progressions"]}
-    assert chords[("F6", "G7")] == 3 and numbers[("4^6", "5^7")] == 3
+    assert chords[("F6", "G7")] == 3
+    assert numbers[("4^6", "5^7")] == 3
     assert not any("F A C D E" in move for move in chords)
 
 
@@ -1255,7 +1303,8 @@ def test_markdown_tables_leave_passing_shapes_out_but_keep_their_counts():
         f"the {len(short)} under 0.3 s are not listed):"
     ) in md
     rows = _md_table(md, "Timeline (")
-    assert len(rows) == len(timeline) - len(short) and not any("G7" in r for r in rows)
+    assert len(rows) == len(timeline) - len(short)
+    assert not any("G7" in r for r in rows)
 
     numbered = [seg for seg in s["nashville"]["timeline"] if seg["number"] is not None]
     assert [seg["number"] for seg in numbered if seg["seconds"] < 0.3] == ["5^7", "5^7"]
@@ -1333,10 +1382,12 @@ def test_the_glossary_gives_extended_shapes_their_own_meanings():
     ):
         assert term in terms and terms[term] != fallback, term
         assert terms[term].count(".") == 1 and len(terms[term]) < 120, "one line each"
-    assert "m" in terms and "^" in terms
+    assert "m" in terms
+    assert "^" in terms
     assert "/" not in terms and "6" not in terms, "6/9 is one shape, not a 6 chord over the 9"
     over = dict(perf._glossary(nkey, [("4^6/9/5", "F6/9/C")], set()))
-    assert "6/9" in over and "/" in over
+    assert "6/9" in over
+    assert "/" in over
 
 
 def test_clock_and_loop_helpers():
@@ -1359,7 +1410,8 @@ def test_clock_and_loop_helpers():
 def test_rough_tempo_stays_fast_on_an_hour_of_onsets():
     events = [_on(i * 500 + (i % 3) * 7, 60 + i % 12) for i in range(7200)]  # an hour at 120 BPM, a little jitter
     s = perf.summarize(events)
-    assert s["timing"]["rough_tempo"]["support"] == 7199 and round(s["timing"]["rough_tempo"]["bpm"]) == 120
+    assert s["timing"]["rough_tempo"]["support"] == 7199
+    assert round(s["timing"]["rough_tempo"]["bpm"]) == 120
 
 
 # ================================================================================================== routes
@@ -1387,27 +1439,33 @@ def _request(method, url, body=None, raw=None):
 def test_session_lifecycle_over_http(server):
     base, root = server
     status, opened = _request("POST", base + "/api/performance/open", {"meta": {"page": "test"}})
-    assert status == 200 and re.fullmatch(r"\d{8}-\d{6}-[0-9a-f]{8}", opened["session"])
+    assert status == 200
+    assert re.fullmatch(r"\d{8}-\d{6}-[0-9a-f]{8}", opened["session"])
     session = opened["session"]
     folder = root / session
     info = json.loads((folder / "session.json").read_text(encoding="utf-8"))
-    assert info["closed"] is False and info["event_count"] == 0 and info["meta"] == {"page": "test"}
-    assert "opened_at" in info and (folder / "events.jsonl").read_text(encoding="utf-8") == ""
+    assert info["closed"] is False
+    assert info["event_count"] == 0
+    assert info["meta"] == {"page": "test"}
+    assert "opened_at" in info
+    assert (folder / "events.jsonl").read_text(encoding="utf-8") == ""
 
     assert _request("GET", f"{base}/api/performance/{session}") == (200, {"session": session, "summary": None})
 
     events = loop_session(loops=2)
     status, body = _request("POST", f"{base}/api/performance/{session}/events", {"events": events[:30]})
-    assert status == 200 and body == {"accepted": 30}
+    assert status == 200
+    assert body == {"accepted": 30}
 
     # A malformed event refuses the whole batch: nothing from it is written.
     written = (folder / "events.jsonl").read_text(encoding="utf-8")
     status, body = _request(
         "POST",
         f"{base}/api/performance/{session}/events",
-        {"events": events[30:32] + [{"t_ms": 5, "kind": "on", "note": 60}]},
+        {"events": [*events[30:32], {"t_ms": 5, "kind": "on", "note": 60}]},
     )
-    assert status == 400 and "vel" in body["error"]
+    assert status == 400
+    assert "vel" in body["error"]
     assert (folder / "events.jsonl").read_text(encoding="utf-8") == written
     assert _request("POST", f"{base}/api/performance/{session}/events", {"nope": []})[0] == 400
     assert _request("POST", f"{base}/api/performance/{session}/events", raw=b"{not json")[0] == 400
@@ -1416,11 +1474,14 @@ def test_session_lifecycle_over_http(server):
     status, body = _request("POST", f"{base}/api/performance/{session}/close", {"events": events[30:]})
     assert status == 200
     summary = body["summary"]
-    assert summary["session"] == session and summary["key"]["best"]["key"] == "C major"
-    assert summary["duration_s"] == 16.0 and summary["opened_at"] == info["opened_at"]
+    assert summary["session"] == session
+    assert summary["key"]["best"]["key"] == "C major"
+    assert summary["duration_s"] == 16.0
+    assert summary["opened_at"] == info["opened_at"]
     assert json.loads((folder / "summary.json").read_text(encoding="utf-8")) == summary
     md = (folder / "summary.md").read_text(encoding="utf-8")
-    assert md.startswith(f"# Practice session {session}") and "## Questions for Daniel" in md
+    assert md.startswith(f"# Practice session {session}")
+    assert "## Questions for Daniel" in md
 
     listed = _request("GET", base + "/api/performance")[1]["sessions"]
     assert listed == [
@@ -1444,12 +1505,15 @@ def test_close_with_final_events_in_one_millisecond_under_the_pedal(server):
     final = DEGENERATE_SESSIONS["zero_ms_pedal_chord"]
     status, body = _request("POST", f"{base}/api/performance/{session}/close", {"events": final})
     assert status == 200, body
-    assert body["summary"]["pedal"]["presses"] == 1 and len(body["summary"]["questions"]) >= 3
+    assert body["summary"]["pedal"]["presses"] == 1
+    assert len(body["summary"]["questions"]) >= 3
     folder = root / session
     assert len((folder / "events.jsonl").read_text(encoding="utf-8").splitlines()) == len(final)
     info = json.loads((folder / "session.json").read_text(encoding="utf-8"))
-    assert info["closed"] is True and info["event_count"] == len(final)
-    assert (folder / "summary.md").is_file() and (folder / "summary.json").is_file()
+    assert info["closed"] is True
+    assert info["event_count"] == len(final)
+    assert (folder / "summary.md").is_file()
+    assert (folder / "summary.json").is_file()
     assert _request("POST", f"{base}/api/performance/{session}/close", {"events": final})[0] == 409
     assert len((folder / "events.jsonl").read_text(encoding="utf-8").splitlines()) == len(final)
 
@@ -1470,7 +1534,7 @@ def test_close_writes_a_roll_projection_beside_the_summary(tmp_path):
     store.close(session, [_on(500, 64), _off(900, 64)])
     roll = tmp_path / session / "roll.txt"
     assert roll.exists(), "close() wrote no roll.txt -- the projection is unwired again"
-    meta, notes, pedal, chords = unpack(roll.read_text(encoding="utf-8"))
+    meta, notes, pedal, _chords = unpack(roll.read_text(encoding="utf-8"))
     assert meta.get("session") == session
     assert [(n[1], n[2]) for n in notes] == [(60, 400), (64, 400)], (
         "the projection must carry the notes and their durations, not just exist"
@@ -1509,7 +1573,8 @@ def test_a_failed_close_writes_nothing_so_a_retry_stores_the_final_events_once(t
     with pytest.raises(RuntimeError):
         store.close(session, [_off(500, 60)])
     assert {name: (folder / name).read_bytes() for name in before} == before
-    assert not (folder / "summary.json").exists() and not (folder / "summary.md").exists()
+    assert not (folder / "summary.json").exists()
+    assert not (folder / "summary.md").exists()
 
     monkeypatch.undo()
     doc = store.close(session, [_off(500, 60)])
@@ -1517,13 +1582,14 @@ def test_a_failed_close_writes_nothing_so_a_retry_stores_the_final_events_once(t
     # score lane had never had). Every kind is counted whether or not it occurred, so a new kind
     # shows up here as a zero -- an additive change to the summary, asserted rather than assumed.
     assert doc["event_counts"] == {"on": 1, "off": 1, "pedal": 0, "chord": 0, "sound_end": 0, "metro": 0}
-    assert len(store.events(session)) == 2 and store.info(session)["event_count"] == 2
+    assert len(store.events(session)) == 2
+    assert store.info(session)["event_count"] == 2
     with pytest.raises(perf.BadEvent):  # a malformed final batch is refused before anything is written
         store.close(store.open(), [{"t_ms": 0, "kind": "on", "note": 60}])
 
 
 def test_unknown_sessions_bad_bodies_and_ordering(server):
-    base, root = server
+    base, _root = server
     ghost = "20260101-000000-00000000"
     assert _request("POST", f"{base}/api/performance/{ghost}/events", {"events": []})[0] == 404
     assert _request("POST", f"{base}/api/performance/{ghost}/close", {})[0] == 404
@@ -1542,7 +1608,9 @@ def test_unknown_sessions_bad_bodies_and_ordering(server):
     ) == (200, {"accepted": 1})
     sessions = _request("GET", base + "/api/performance")[1]["sessions"]
     assert [s["session"] for s in sessions] == [second, first]
-    assert sessions[0]["duration_s"] == 2.5 and sessions[0]["event_count"] == 1 and sessions[0]["closed"] is False
+    assert sessions[0]["duration_s"] == 2.5
+    assert sessions[0]["event_count"] == 1
+    assert sessions[0]["closed"] is False
 
 
 def test_uploads_are_idempotent_by_client_id_and_seq(server):
@@ -1553,7 +1621,10 @@ def test_uploads_are_idempotent_by_client_id_and_seq(server):
         base + "/api/performance/open",
         {"meta": {"buffered": True, "opened_at_client": "2026-09-13T21:00:00.000Z"}, "client_id": "mf1x2y-0a1b2c3d"},
     )
-    assert status == 200 and first["resumed"] is False and first["closed"] is False and first["last_seq"] == -1
+    assert status == 200
+    assert first["resumed"] is False
+    assert first["closed"] is False
+    assert first["last_seq"] == -1
     session = first["session"]
     again = _request("POST", base + "/api/performance/open", {"meta": {}, "client_id": "mf1x2y-0a1b2c3d"})[1]
     assert again == {"session": session, "resumed": True, "closed": False, "last_seq": -1}
@@ -1576,7 +1647,8 @@ def test_uploads_are_idempotent_by_client_id_and_seq(server):
 
     # the close carries the last batch under the next seq; resending it, or the batch, answers 409 with last_seq
     status, body = _request("POST", f"{base}/api/performance/{session}/close", {"events": events[20:], "seq": 2})
-    assert status == 200 and body["summary"]["meta"]["buffered"] is True
+    assert status == 200
+    assert body["summary"]["meta"]["buffered"] is True
     assert _request("POST", f"{base}/api/performance/{session}/close", {"events": events[20:], "seq": 2}) == (
         409,
         {"error": f"session {session} is already closed", "last_seq": 2},
@@ -1589,9 +1661,8 @@ def test_uploads_are_idempotent_by_client_id_and_seq(server):
         "last_seq": 2,
     }
     stored = (root / session / "events.jsonl").read_text(encoding="utf-8").splitlines()
-    assert len(stored) == len(events) and json.loads((root / session / "session.json").read_text())[
-        "event_count"
-    ] == len(events)
+    assert len(stored) == len(events)
+    assert json.loads((root / session / "session.json").read_text())["event_count"] == len(events)
     md = (root / session / "summary.md").read_text(encoding="utf-8")
     assert "Played from 2026-09-13 21:00:00 UTC by the browser's clock" in md
 
@@ -1602,7 +1673,8 @@ def test_a_close_whose_final_batch_already_arrived_does_not_store_it_twice(tmp_p
     assert store.append_batch(session, [_on(0, 60)], seq=0)["accepted"] == 1
     store.append_batch(session, [_off(400, 60)], seq=1)
     doc = store.close(session, [_off(400, 60)], seq=1)  # the beacon's batch had been uploaded already
-    assert doc["event_counts"]["off"] == 1 and len(store.events(session)) == 2
+    assert doc["event_counts"]["off"] == 1
+    assert len(store.events(session)) == 2
     with pytest.raises(perf.SessionClosed) as err:
         store.append_batch(session, [_on(500, 60)], seq=2)
     assert err.value.extra == {"last_seq": 1}
@@ -1653,7 +1725,10 @@ def test_cli_lists_sessions_and_prints_summaries(tmp_path, capsys):
 
     assert main(["performance", "list", "--root", str(tmp_path)]) == 0
     listing = capsys.readouterr().out
-    assert closed in listing and live in listing and "closed" in listing and "open" in listing
+    assert closed in listing
+    assert live in listing
+    assert "closed" in listing
+    assert "open" in listing
 
     assert main(["performance", "summary", closed, "--root", str(tmp_path)]) == 0
     printed = capsys.readouterr().out
@@ -1677,16 +1752,20 @@ def test_cli_prune_lists_first_and_deletes_only_with_yes(tmp_path, capsys):
     info = json.loads((tmp_path / old / "session.json").read_text(encoding="utf-8"))
     info["opened_ns"] -= 40 * 86400 * 10**9  # opened 40 days ago
     (tmp_path / old / "session.json").write_text(json.dumps(info), encoding="utf-8")
-    assert [r["session"] for r in store.older_than(30)] == [old] and store.older_than(50) == []
+    assert [r["session"] for r in store.older_than(30)] == [old]
+    assert store.older_than(50) == []
 
     assert main(["performance", "prune", "--older-than-days", "30", "--root", str(tmp_path)]) == 0
     out = capsys.readouterr().out
-    assert old in out and recent not in out and "--yes" in out
+    assert old in out
+    assert recent not in out
+    assert "--yes" in out
     assert (tmp_path / old).is_dir()
 
     assert main(["performance", "prune", "--older-than-days", "30", "--yes", "--root", str(tmp_path)]) == 0
     assert "deleted 1" in capsys.readouterr().out
-    assert not (tmp_path / old).exists() and (tmp_path / recent).is_dir()
+    assert not (tmp_path / old).exists()
+    assert (tmp_path / recent).is_dir()
     assert main(["performance", "prune", "--older-than-days", "30", "--root", str(tmp_path)]) == 0
     assert "nothing" in capsys.readouterr().out
     assert main(["performance", "prune", "--older-than-days", "-1", "--root", str(tmp_path)]) == 2

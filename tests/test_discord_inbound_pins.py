@@ -101,7 +101,8 @@ def test_p1_non_operator_word_reaches_but_never_commands(cfg):
         "the guest tier exists so a visitor is HEARD; a silent drop is the old wall"
     )
     m = bus.sent[0]
-    assert out["authority"] == "none" and m["meta"]["authority"] == "none"
+    assert out["authority"] == "none"
+    assert m["meta"]["authority"] == "none"
     assert m["meta"]["operator"] is False and m["meta"]["guest"] is True, (
         "a costume display name must not buy one inch of operator standing"
     )
@@ -150,9 +151,11 @@ def test_p15_a_second_operator_is_announced_not_ventriloquised(cfg):
         bus=bus,
         react=lambda e: None,
     )
-    assert out["acted"] is True and out.get("guest") is None
+    assert out["acted"] is True
+    assert out.get("guest") is None
     m = bus.sent[0]
-    assert m["meta"]["operator"] is True and m["meta"]["speaker"] == "simon"
+    assert m["meta"]["operator"] is True
+    assert m["meta"]["speaker"] == "simon"
     assert m["text"] == "[simon] hello fleet", "his own id has to mean his own NAME on the wire"
 
 
@@ -199,9 +202,11 @@ def test_p2_operator_message_rides_the_bus_as_him(cfg):
         bus=bus,
         react=lambda e: None,
     )
-    assert out["acted"] is True and len(bus.sent) == 1
+    assert out["acted"] is True
+    assert len(bus.sent) == 1
     m = bus.sent[0]
-    assert m["kind"] == "chat" and m["text"] == "hello fleet, from my phone"
+    assert m["kind"] == "chat"
+    assert m["text"] == "hello fleet, from my phone"
     assert m["meta"].get("source") == "discord", (
         "the discord stamp is the echo-guard's key — without it his words bounce back to his own phone through the feed"
     )
@@ -450,7 +455,8 @@ def test_p11_a_seat_channel_message_needs_no_mention(cfg, tmp_path, monkeypatch)
         bus=bus,
         react=lambda e: None,
     )
-    assert out["acted"] and not bus.sent
+    assert out["acted"]
+    assert not bus.sent
     assert bus.directed and bus.directed[0]["to"] == "claude", (
         "typing in #vandor IS addressing claude — the channel is the address, "
         "no @ required (his lane, his words, one seat)"
@@ -676,7 +682,8 @@ def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_
         react=lambda e: None,
         spawner=lambda task, mode="default": born.append(task) or 1,
     )
-    assert not born and "spawned" not in out
+    assert not born
+    assert "spawned" not in out
 
 
 def test_p19_a_broken_liveness_probe_never_claims_he_is_unreachable(cfg, tmp_path, monkeypatch):
@@ -730,9 +737,11 @@ def test_p20_an_at_mention_of_a_cold_vandor_also_offers_instead_of_spawning(cfg,
         spawner=lambda task, mode="default": born.append(task) or 5551,
         is_seat_reachable=lambda agent: False,
     )
-    assert bus.directed and bus.directed[0]["to"] == "claude"
+    assert bus.directed
+    assert bus.directed[0]["to"] == "claude"
     assert born == [], "an @-mention must not mint a seat either"
-    assert "--harness" in (out.get("cold_seat") or "") and "📭" in reacts
+    assert "--harness" in (out.get("cold_seat") or "")
+    assert "📭" in reacts
 
 
 # ---- P17-P19 / R1 applied to ATTRIBUTION: the id is the law ------------------
@@ -886,7 +895,8 @@ def test_p22_a_co_root_is_announced_while_the_primary_rides_bare(tmp_path, monke
         bus=b1,
         react=lambda e: None,
     )
-    assert b1.sent[0]["text"] == "hi" and b1.sent[0]["meta"]["speaker"] == "daniil"
+    assert b1.sent[0]["text"] == "hi"
+    assert b1.sent[0]["meta"]["speaker"] == "daniil"
     b2 = _Bus()
     m.handle_message(
         cfg,
@@ -897,5 +907,6 @@ def test_p22_a_co_root_is_announced_while_the_primary_rides_bare(tmp_path, monke
         bus=b2,
         react=lambda e: None,
     )
-    assert b2.sent[0]["text"] == "[simon] hi" and b2.sent[0]["meta"]["speaker"] == "simon"
+    assert b2.sent[0]["text"] == "[simon] hi"
+    assert b2.sent[0]["meta"]["speaker"] == "simon"
     assert b2.sent[0]["meta"]["operator"] is True, "a co-root is an operator, not a guest"

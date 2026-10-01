@@ -139,7 +139,8 @@ def test_the_bare_record_still_works_for_runners(fake_bus):
     pre = L._worklive_prefix()
     fake_bus.kv[pre + "kimi"] = _rec(1.0)
     age = L.worklive_beat_age("kimi")
-    assert age is not None and age < 10
+    assert age is not None
+    assert age < 10
 
 
 def test_absence_is_still_absence(fake_bus):

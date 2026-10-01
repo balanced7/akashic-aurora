@@ -148,7 +148,8 @@ def test_p4_matrix_agree_and_conflict(tmp_path):
         "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: DISAGREE\nB2: KEEP\n",
     )
     m = tl.matrix(opening, [c1, c2])
-    assert m["status"]["B1"] == "AGREE" and m["status"]["B2"] == "AGREE"
+    assert m["status"]["B1"] == "AGREE"
+    assert m["status"]["B2"] == "AGREE"
     assert m["status"]["Q1"] == "CONFLICT", "AGREE vs DISAGREE must read CONFLICT"
 
 
@@ -175,9 +176,11 @@ def test_p6_empty_research_dir_no_crash(tmp_path):
     os.makedirs(research)
     opening = _write(research, OPENING_NAME, OPENING_TEXT)
     m = tl.matrix(opening, tl.find_counters(opening, research))
-    assert m["rows"] and m["authors"] == []
+    assert m["rows"]
+    assert m["authors"] == []
     out = tl.render(m)
-    assert "0 agree / 0 conflict" in out and "0 partial" in out
+    assert "0 agree / 0 conflict" in out
+    assert "0 partial" in out
 
 
 def test_p7_author_derivation_both_filename_orders():

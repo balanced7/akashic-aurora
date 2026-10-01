@@ -117,7 +117,7 @@ def test_p5_a_declared_port_that_is_not_listening_renders_UNKNOWN_never_stale():
     'registry entry is stale'. Rendering the second is asserting absence as fact -- the T178 /
     T262 class. 8790 (sandbox console) and 18765 (MCP http) are registered and almost never
     listening, so this case is live on every run."""
-    rc, out = run_checker("--report")
+    _rc, out = run_checker("--report")
     low = out.lower()
     assert "unknown" in low, (
         "a registered-but-silent port must render UNKNOWN -- 'down' and 'stale' are "
@@ -129,7 +129,7 @@ def test_p5_a_declared_port_that_is_not_listening_renders_UNKNOWN_never_stale():
 
 
 def test_p6_an_unregistered_listener_is_reported_not_silently_passed():
-    rc, out = run_checker("--report")
+    _rc, out = run_checker("--report")
     assert "unregistered" in out.lower() or "UNREGISTERED" in out, (
         "the report must have a section for listeners nobody declared -- that absence is "
         "exactly what made 'which containers do we need?' unanswerable"
@@ -138,7 +138,7 @@ def test_p6_an_unregistered_listener_is_reported_not_silently_passed():
 
 def test_p7_the_gate_ratchets_like_check_wiring():
     """Fail on NEW drift only, fail open on a missing baseline, and name the ways out."""
-    rc, out = run_checker()
+    _rc, out = run_checker()
     assert "PASS" in out or "FAIL" in out, "the gate must render a verdict line"
     if "FAIL" in out:
         assert "baseline" in out.lower(), "a failure must name the baseline escape, like check_wiring"

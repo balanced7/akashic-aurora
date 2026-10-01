@@ -118,7 +118,7 @@ def test_p4_denominator_law_unknowable_never_enters_a_rate():
         _write_stage_via_producer(f"s-p4-{i}", "cmd", ok=True, sources=["learn:experiment:g"])
     rep = prevention.report(repeats={})
     assert "coverage" in rep, "a rate without its coverage is the confident-zero disease"
-    for key, val in rep.get("rates", {}).items():
+    for val in rep.get("rates", {}).values():
         assert 0.0 <= val <= 1.0
     settled = rep.get("settled", 0)
     assert rep["rates"] == {} or settled > 0, "no rate may be published on a fully-unsettled sample"

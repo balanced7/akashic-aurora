@@ -18,15 +18,15 @@ os.environ["AKASHIC_WIRE_DIR"] = tempfile.mkdtemp(prefix="wirebench-")
 
 from scripts.wire_journal import WireJournal  # noqa: E402
 
-SAMPLE = dict(
-    model="deepseek-chat",
-    status=200,
-    attempt=0,
-    stream=True,
-    system_fingerprint="fp_3a9c1b",
-    finish_reason="stop",
-    service_tier="default",
-    usage={
+SAMPLE = {
+    "model": "deepseek-chat",
+    "status": 200,
+    "attempt": 0,
+    "stream": True,
+    "system_fingerprint": "fp_3a9c1b",
+    "finish_reason": "stop",
+    "service_tier": "default",
+    "usage": {
         "prompt_tokens": 12000,
         "completion_tokens": 800,
         "total_tokens": 12800,
@@ -34,15 +34,15 @@ SAMPLE = dict(
         "prompt_cache_miss_tokens": 3000,
         "completion_tokens_details": {"reasoning_tokens": 300},
     },
-    headers={
+    "headers": {
         "x-ds-trace-id": "7d0a37b8dcabac6f7fa679e94984f73e",
         "x-cache": "Miss from cloudfront",
         "content-type": "text/event-stream",
         "server": "elb",
         "authorization": "SHOULD-NEVER-BE-KEPT",
     },
-    ms_first_byte=430,
-)
+    "ms_first_byte": 430,
+}
 
 
 def bench(n, threads):

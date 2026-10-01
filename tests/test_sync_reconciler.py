@@ -27,7 +27,8 @@ def test_reconcile_redis_down():
         store = HybridStore.create(port=63999, file_path=os.path.join(d, "s.json"))
         assert store.redis_available is False
         drift = store.check_drift()
-        assert drift["redis_available"] is False and drift["in_sync"] is False
+        assert drift["redis_available"] is False
+        assert drift["in_sync"] is False
         report = store.reconcile()
         assert report["status"] == "skipped"
         print("\n--- reconcile (Redis down) ---\n  safe no-op + drift report OK")

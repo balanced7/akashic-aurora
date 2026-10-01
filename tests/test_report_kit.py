@@ -69,7 +69,7 @@ def test_p2_both_themes_are_defined_and_the_override_wins_both_ways():
 def test_p3_the_kit_lives_in_exactly_one_file():
     """An improvement to the palette must propagate, not fork into a fourth variant."""
     hits = []
-    for dirpath, dirnames, filenames in os.walk(ROOT):
+    for dirpath, _dirnames, filenames in os.walk(ROOT):
         if any(x in dirpath for x in ("_archive", "ComfyUI-Zluda", ".git", "node_modules")):
             continue
         for f in filenames:
@@ -97,7 +97,8 @@ def test_p4_every_primitive_in_the_kit_is_documented_in_the_crib():
 def test_p5_an_empty_scaffold_is_still_valid_html():
     rc, out = gen("--title", "Empty")
     assert rc == 0
-    assert out.count('<div class="wrap">') == 1 and out.rstrip().endswith("</div>")
+    assert out.count('<div class="wrap">') == 1
+    assert out.rstrip().endswith("</div>")
     assert "<title>Empty</title>" in out, "the title names the tab and the gallery card"
     for tag in ("<!doctype", "<html", "<head>", "<body>"):
         assert tag not in out.lower(), f"the publisher supplies the skeleton -- {tag} would be nested inside it"
@@ -111,7 +112,7 @@ def test_p6_a_missing_title_refuses_loudly():
 
 def test_p7_the_scaffold_says_it_is_a_system_not_a_template():
     """The instruction that keeps the next report from copying the last one's shape."""
-    rc, out = gen("--title", "Shape")
+    _rc, out = gen("--title", "Shape")
     assert "system, not a template" in out.lower()
     assert "verified against the tree" in out.lower(), (
         "the numbers rule must ride the scaffold, where it is read at composing time"

@@ -361,7 +361,8 @@ def test_fixture_sessions_are_synthetic_and_dated_2030(name):
     d = FIX / name / "performance"
     assert [p.name for p in d.iterdir()] == [SESSIONS[name]]
     info = json.loads((d / SESSIONS[name] / "session.json").read_text(encoding="utf-8"))
-    assert info["session"].startswith("2030") and info["opened_at"].startswith("2030-")
+    assert info["session"].startswith("2030")
+    assert info["opened_at"].startswith("2030-")
 
 
 @needs_node
@@ -419,7 +420,7 @@ def test_a_pedal_change_just_after_the_strike_does_not_make_a_broken_chord_of_th
     late = windows_from(doc, starts[0])
     assert not [w for w in late if w["kind"] == "broken chord"], [(w["at"], w["name"]) for w in late]
     got = [(w["start_ms"], w["label"]) for w in late]
-    assert got == list(zip(starts, ["Bbmaj7", "Gm7", "A7", "Dm7"])), got
+    assert got == list(zip(starts, ["Bbmaj7", "Gm7", "A7", "Dm7"], strict=False)), got
 
 
 @needs_node

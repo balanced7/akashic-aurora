@@ -61,7 +61,8 @@ def test_only_the_armed_state_reads_as_reachable(monkeypatch):
     """The load-bearing one. Every NOT-armed state must read as not-reachable -- including
     'unknown', because "I could not tell" rendering as "you are fine" is the whole defect."""
     armed = _line(monkeypatch, "armed")
-    assert "ARMED" in armed and "UNREACHABLE" not in armed.upper()
+    assert "ARMED" in armed
+    assert "UNREACHABLE" not in armed.upper()
 
     for state in ("unarmed", "dead-seat", "unknown"):
         text = _line(monkeypatch, state)

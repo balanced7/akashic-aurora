@@ -141,7 +141,7 @@ def test_snapshot_projection_and_render_identities_name_different_things():
 
 def test_render_id_includes_visible_summary_and_bounds_for_off_edge_rows():
     base = [{"id": "T001", "title": "front", "status": "blocked"}]
-    expanded = base + [{"id": "T999", "title": "off edge", "status": "done"}]
+    expanded = [*base, {"id": "T999", "title": "off edge", "status": "done"}]
 
     def build(tasks):
         return build_program_world_snapshot(

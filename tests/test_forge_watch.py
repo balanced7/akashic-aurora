@@ -54,7 +54,8 @@ def test_rollback_on_new_noise_vote():
     out = apply_curation(rep, store=use, learning_store=ls)
     assert out["forge_rolled_back"] == ["watched"]
     rec = ls._load_experiment("watched")
-    assert rec.get("recommendation") == OLD_TEXT and not rec.get("forge_provisional")
+    assert rec.get("recommendation") == OLD_TEXT
+    assert not rec.get("forge_provisional")
     print("\n--- noise rollback ---\n  one noise vote on the variant -> text restored OK")
 
 
@@ -62,7 +63,8 @@ def test_rollback_on_credit_rate_regression():
     # baseline rate 2/10 = 0.2; then +10 fresh impressions with zero fresh credit
     ls, use = _fixture(baseline={"surfaced": 10, "helped": 2}, use_now={"surfaced": 20, "helped": 2})
     rep = curation_report(store=use, learning_store=ls)
-    assert rep["forge_rollback"] and "credit rate" in rep["forge_rollback"][0]["why"]
+    assert rep["forge_rollback"]
+    assert "credit rate" in rep["forge_rollback"][0]["why"]
     print("--- rate rollback ---\n  credited lesson goes quiet after the edit -> rollback OK")
 
 
@@ -75,7 +77,8 @@ def test_confirm_after_quiet_window():
     assert out["forge_confirmed"] == ["watched"]
     rec = ls._load_experiment("watched")
     assert rec.get("recommendation") == NEW_TEXT, "confirm keeps the variant"
-    assert not rec.get("forge_provisional") and rec.get("forge_confirmed")
+    assert not rec.get("forge_provisional")
+    assert rec.get("forge_confirmed")
     print("--- confirm ---\n  quiet window -> provisional cleared, variant kept OK")
 
 

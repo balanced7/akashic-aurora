@@ -57,7 +57,8 @@ def test_live_drainers_do_not_flag(monkeypatch):
     proc = AgentProcess(agent_id="x", status="running", drainers=[_stuck_thread(evt)])
     l._flag_dead_drainers(proc)
     evt.set()
-    assert proc.drainer_dead is False and notes == []
+    assert proc.drainer_dead is False
+    assert notes == []
 
 
 def test_exit_flush_clears_flag_and_is_clean_for_dead_drainers(monkeypatch):
@@ -87,4 +88,5 @@ def test_registry_surfaces_drainer_state(monkeypatch):
     l._specs = {"x": AgentSpec(agent_id="x", runtime="python_runner", description="", command=["py"])}
     l._procs = {"x": AgentProcess(agent_id="x", status="running", drainer_dead=True, drain_flush_timeout=True)}
     row = next(r for r in l.registry() if r["agent_id"] == "x")
-    assert row["drainer_dead"] is True and row["drain_flush_timeout"] is True
+    assert row["drainer_dead"] is True
+    assert row["drain_flush_timeout"] is True

@@ -306,7 +306,8 @@ def test_read_summary_success(tmp_path):
     p = tmp_path / "s.json"
     p.write_text(json.dumps({"exit_code": 0, "turns": 5, "verdict": "ok"}))
     s = read_summary(str(p))
-    assert s["turns"] == 5 and s["verdict"] == "ok"
+    assert s["turns"] == 5
+    assert s["verdict"] == "ok"
 
 
 def test_read_summary_absent(tmp_path):

@@ -80,9 +80,12 @@ class BeltRec:
 def test_p1_verbs_parse():
     p = agent_cli.build_parser()
     a = p.parse_args(["toast", "tclaude-doors", "deepseek", "some_receipt", "--credit", "saved me hops"])
-    assert a.fn is agent_cli.cmd_toast and a.to == "deepseek" and a.receipt == "some_receipt"
+    assert a.fn is agent_cli.cmd_toast
+    assert a.to == "deepseek"
+    assert a.receipt == "some_receipt"
     b = p.parse_args(["kit", "tclaude-doors", "--show"])
-    assert b.fn is agent_cli.cmd_kit and b.show
+    assert b.fn is agent_cli.cmd_kit
+    assert b.show
 
 
 def test_p2_toast_refuses_bad_receipt():
@@ -97,7 +100,8 @@ def test_p2_toast_refuses_bad_receipt():
     )
     rc = agent_cli.cmd_toast(ns, bus_send=bus, note_write=note, store=StoreStub())
     assert rc == 2
-    assert bus.sent == [] and note.written == []  # refusal = NOTHING lands
+    assert bus.sent == []
+    assert note.written == []
 
 
 def test_p3_toast_force_sends_guess():
@@ -113,9 +117,12 @@ def test_p3_toast_force_sends_guess():
     rc = agent_cli.cmd_toast(ns, bus_send=bus, note_write=note, store=StoreStub())
     assert rc == 0
     ((to, kind, text),) = bus.sent
-    assert to == "deepseek" and kind == "note" and "GUESS" in text
+    assert to == "deepseek"
+    assert kind == "note"
+    assert "GUESS" in text
     ((title, body),) = note.written
-    assert title.startswith("toast:") and "GUESS" in body
+    assert title.startswith("toast:")
+    assert "GUESS" in body
 
 
 def test_p4_toast_verified_receipt():
@@ -131,23 +138,27 @@ def test_p4_toast_verified_receipt():
     rc = agent_cli.cmd_toast(ns, bus_send=bus, note_write=note, store=StoreStub("real_lesson", "deepseek"))
     assert rc == 0
     ((_, _, text),) = bus.sent
-    assert "[VERIFIED]" in text and "real_lesson" in text
+    assert "[VERIFIED]" in text
+    assert "real_lesson" in text
 
 
 def test_p5_kit_install_self_substituted():
     belt = BeltRec()
     ns = Ns(agent_id="tclaude-doors", kit_name="recovery-kit", show=False, json=False)
     rc = agent_cli.cmd_kit(ns, belt=belt)
-    assert rc == 0 and len(belt.minted) >= 3  # the harvest has >= 3 entries
+    assert rc == 0
+    assert len(belt.minted) >= 3
     flat = json.dumps([s for _, s, _ in belt.minted])
-    assert "$SELF$" not in flat and "tclaude-doors" in flat
+    assert "$SELF$" not in flat
+    assert "tclaude-doors" in flat
 
 
 def test_p6_kit_show_installs_nothing(capsys):
     belt = BeltRec()
     ns = Ns(agent_id="tclaude-doors", kit_name="recovery-kit", show=True, json=False)
     rc = agent_cli.cmd_kit(ns, belt=belt)
-    assert rc == 0 and belt.minted == []
+    assert rc == 0
+    assert belt.minted == []
     assert "recovery-kit" in capsys.readouterr().out
 
 
@@ -155,4 +166,5 @@ def test_p7_overlong_credit_refuses():
     bus, note = BusRec(), NoteRec()
     ns = Ns(agent_id="tclaude-doors", to="deepseek", receipt="real_lesson", credit="x" * 500, force=False, json=False)
     rc = agent_cli.cmd_toast(ns, bus_send=bus, note_write=note, store=StoreStub("real_lesson", "deepseek"))
-    assert rc == 2 and bus.sent == []
+    assert rc == 2
+    assert bus.sent == []

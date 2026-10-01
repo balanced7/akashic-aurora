@@ -101,14 +101,14 @@ for i in range(4):
     bl.emit("commit", f"commit {i}", f"git:c{i}", at=f"2026-01-0{i + 1}T01:00:00", hint=RouteHint(paths=["core/x.py"]))
 ch = Chronicler(beat_log=bl, store=st)
 ch.chronicle_all(now="2026-02-01T00:00:00")
-keys1 = [k for k in st._data.get("kv", st._data).keys() if "narr:chapter:" in k] if isinstance(st._data, dict) else []
+keys1 = [k for k in st._data.get("kv", st._data) if "narr:chapter:" in k] if isinstance(st._data, dict) else []
 
 
 # FileStore stores under _data; find chapter keys
 def chapter_keys(s):
     d = s._data
     flat = d.get("kv") if isinstance(d, dict) and "kv" in d else d
-    return [k for k in flat.keys() if isinstance(k, str) and k.startswith("narr:chapter:")]
+    return [k for k in flat if isinstance(k, str) and k.startswith("narr:chapter:")]
 
 
 n1 = len(chapter_keys(st))
@@ -131,8 +131,9 @@ hr("PROBE E — TagHistory NaN / inf confidence corrupts the resolver")
 h = TagHistory()
 h.add("ai-setup", confidence=0.95, at="2026-01-01T00:00:00")
 # inject a NaN-confidence opinion via from_list (passes float() check)
-raw = h.to_list() + [
-    {"value": "stemroller", "confidence": float("nan"), "source": "x", "at": "2026-01-02T00:00:00", "confirmed": False}
+raw = [
+    *h.to_list(),
+    {"value": "stemroller", "confidence": float("nan"), "source": "x", "at": "2026-01-02T00:00:00", "confirmed": False},
 ]
 h2 = TagHistory.from_list(raw)
 cur = h2.current()
@@ -142,8 +143,9 @@ print(
     f"  -> {'VULNERABLE: NaN entry hijacked/blocked the resolver' if (cur is None or cur.value != 'ai-setup') else 'ok: NaN ignored, ai-setup wins'}"
 )
 # also inf
-raw2 = h.to_list() + [
-    {"value": "stemroller", "confidence": float("inf"), "source": "x", "at": "2026-01-02T00:00:00", "confirmed": False}
+raw2 = [
+    *h.to_list(),
+    {"value": "stemroller", "confidence": float("inf"), "source": "x", "at": "2026-01-02T00:00:00", "confirmed": False},
 ]
 cur2 = TagHistory.from_list(raw2).current()
 print(

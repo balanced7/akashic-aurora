@@ -81,13 +81,16 @@ def test_p2_builder_records_totals_and_ratio(tmp_path):
     try:
         _, meta = A.build_context([str(f)], budget_chars=100)
         inc = meta["included"][0]
-        assert inc["truncated"] is True and inc["chars"] == 100
+        assert inc["truncated"] is True
+        assert inc["chars"] == 100
         assert inc.get("chars_total") == 1000, (
             "P2: the builder reads the whole file; recording its total costs nothing and "
             "turns the clip warning into a NUMBER"
         )
         cov = A.coverage_from_meta(meta)
-        assert cov and abs(cov["ratio"] - 0.1) < 1e-9 and cov["chars_total"] == 1000
+        assert cov
+        assert abs(cov["ratio"] - 0.1) < 1e-9
+        assert cov["chars_total"] == 1000
 
         _, meta_full = A.build_context([str(f)], budget_chars=5000)
         cov_full = A.coverage_from_meta(meta_full)
@@ -120,7 +123,8 @@ def test_p3_route_journal_appends_one_line(tmp_path, monkeypatch):
     rec = json.loads(lines[0])
     for field in ("ts", "geometry", "n", "n_ok", "usd", "elapsed_s", "warnings_n"):
         assert field in rec, f"P3: route record must carry '{field}'"
-    assert rec["geometry"] == "partition" and rec["n"] == 2
+    assert rec["geometry"] == "partition"
+    assert rec["n"] == 2
 
 
 def test_p3b_dead_journal_never_wedges(tmp_path, monkeypatch):

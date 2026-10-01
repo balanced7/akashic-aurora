@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import runner_lock, session_exit, wake_seat
 from core.comm.bus import Bus
+import contextlib
 
 try:
     _ONLINE = bool(Bus("t086-probe").online)
@@ -52,18 +53,14 @@ def sid():
     yield s
     c = runner_lock._client()
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.delete(f"bifrost:session:ended:{s}")
-        except Exception:
-            pass
-    try:
+    with contextlib.suppress(Exception):
         os.remove(wake_seat.tombstone_path(s))
-    except Exception:
-        pass
 
 
 def _claim(agent, sid):
-    ok, gen, _ = runner_lock.claim_consumer(agent, f"session:{sid}")
+    ok, _gen, _ = runner_lock.claim_consumer(agent, f"session:{sid}")
     assert ok
     return f"session:{sid}"
 
@@ -75,7 +72,8 @@ def test_tombstoned_holder_freed_instantly_no_grace(agent, sid, tmp_path):
     _claim(agent, sid)
     assert wake_seat.write_tombstone(sid, str(tmp_path))
     v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))  # now ~= claim ts -> age ~0
-    assert v["freed"] and v["reason"].startswith("session-tombstoned")
+    assert v["freed"]
+    assert v["reason"].startswith("session-tombstoned")
     assert runner_lock.holder(agent) is None
 
 
@@ -83,7 +81,8 @@ def test_fresh_claim_without_tombstone_still_graced(agent, sid, tmp_path):
     """Control: absent a tombstone, grace protects exactly as before (C1-1 behavior kept)."""
     _claim(agent, sid)
     v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))
-    assert not v["freed"] and v["reason"].startswith("grace")
+    assert not v["freed"]
+    assert v["reason"].startswith("grace")
 
 
 def test_clean_death_writes_tombstone(agent, sid, tmp_path):
@@ -108,7 +107,8 @@ def test_reap_decision_kills_tombstoned_watcher():
         my_session="mysid",
         tombstoned=True,
     )
-    assert action == "kill" and "session-tombstoned" in reason
+    assert action == "kill"
+    assert "session-tombstoned" in reason
 
 
 def test_stop_hook_stands_down_for_tombstoned_session(sid):
@@ -142,7 +142,8 @@ def test_stale_marker_beats_live_listener(agent, sid, tmp_path):
     open(marker, "w").write("x")  # mtime = real now
     aged_now = time.time() + STALE + 60  # marker_age ~= STALE+60; claim age same
     v = runner_lock.free_if_dead(agent, now=aged_now, tmp=str(tmp_path), pid_alive=lambda p: True)
-    assert v["freed"] and v["reason"].startswith("renewal-stale")
+    assert v["freed"]
+    assert v["reason"].startswith("renewal-stale")
 
 
 def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
@@ -155,7 +156,8 @@ def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
     open(marker, "w").write("x")
     mid_now = time.time() + GRACE + 100  # marker_age ~= 400s: mid-band
     v = runner_lock.free_if_dead(agent, now=mid_now, tmp=str(tmp_path), pid_alive=lambda p: True)
-    assert not v["freed"] and v["reason"].startswith("listener-alive")
+    assert not v["freed"]
+    assert v["reason"].startswith("listener-alive")
 
 
 # ---------------------------------------------------------------- S1 watcher leg
@@ -199,7 +201,9 @@ def test_cycle_line_reports_elapsed(sid, tmp_path, capsys):
         "t086probe2", 1, 2000, api=_StubApi(), hb_path=hb, my_pid=os.getpid(), session_id=""
     )  # chunk 2s >= total 1s -> instant cycle
     out = capsys.readouterr().out
-    assert rc == 0 and "elapsed (configured" in out and "0.00h" in out
+    assert rc == 0
+    assert "elapsed (configured" in out
+    assert "0.00h" in out
 
 
 # ---------------------------------------------------------------- S1c: fail-open
@@ -208,7 +212,8 @@ def test_tombstone_probe_error_fails_open(agent, sid, tmp_path, monkeypatch):
     _claim(agent, sid)
     monkeypatch.setattr(wake_seat, "is_tombstoned", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe down")))
     v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))
-    assert not v["freed"] and v["reason"].startswith("grace")
+    assert not v["freed"]
+    assert v["reason"].startswith("grace")
 
 
 def test_kill_switch_disables_tombstones(sid, tmp_path, monkeypatch):

@@ -74,7 +74,8 @@ def test_k3_unclassified_cross_plane_collision_fails_but_a_classified_one_does_n
 def test_k4_orphans_are_the_kinds_in_one_policy_set_or_fewer():
     s = _sets(a__BUS_A=["handoff", "lonely"], b__BUS_B=["handoff"])
     orphans = dict(C.orphans(s, PLANES, plane="bus"))
-    assert "lonely" in orphans and orphans["lonely"] == 1
+    assert "lonely" in orphans
+    assert orphans["lonely"] == 1
     assert "handoff" not in orphans, "two sets is not an orphan"
 
 

@@ -56,15 +56,15 @@ def _s():
 
 
 def _claim(**kw):
-    base = dict(
-        player="p1",
-        dedupe_key="k1",
-        claim_class="needs-door",
-        outcome="confirmed",
-        confidence="high",
-        stream_id="1785850000000-0",
-        evidence=["core/comm/bus.py:120 no caller"],
-    )
+    base = {
+        "player": "p1",
+        "dedupe_key": "k1",
+        "claim_class": "needs-door",
+        "outcome": "confirmed",
+        "confidence": "high",
+        "stream_id": "1785850000000-0",
+        "evidence": ["core/comm/bus.py:120 no caller"],
+    }
     base.update(kw)
     return base
 
@@ -94,7 +94,8 @@ def test_s2_no_receipts_no_score_is_a_third_state():
     r = res["claims"][0]
     assert r["scored"] is False, "a claim with no evidence was scored"
     assert r["points"] == 0
-    assert r["reason"] and "evidence" in r["reason"].lower()
+    assert r["reason"]
+    assert "evidence" in r["reason"].lower()
     assert res["totals"].get("p1", 0) == 0
 
 
@@ -164,8 +165,10 @@ def test_s7_the_policy_is_swappable_data():
     c = [_claim(outcome="refuted", confidence="high")]
     a = s.score_round(c, policy="v1_doc")
     b = s.score_round(c, policy="v2_aixcc")
-    assert a["policy"] == "v1_doc" and b["policy"] == "v2_aixcc"
-    assert isinstance(a["totals"], dict) and isinstance(b["totals"], dict)
+    assert a["policy"] == "v1_doc"
+    assert b["policy"] == "v2_aixcc"
+    assert isinstance(a["totals"], dict)
+    assert isinstance(b["totals"], dict)
 
     with pytest.raises(ValueError):
         s.score_round(c, policy="not_a_policy")

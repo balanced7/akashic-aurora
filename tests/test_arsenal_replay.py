@@ -83,7 +83,7 @@ def test_link_resolves_latest_and_escapes_label_without_sending(take, monkeypatc
     assert "latest" not in data["url"]
 
 
-@pytest.mark.parametrize("seconds,speed", [(0, 1), (61, 1), (float("nan"), 1), (2, 0), (2, 3), (2, float("inf"))])
+@pytest.mark.parametrize(("seconds", "speed"), [(0, 1), (61, 1), (float("nan"), 1), (2, 0), (2, 3), (2, float("inf"))])
 def test_rejects_unbounded_excerpt(take, seconds, speed):
     store, session = take
     with pytest.raises(ValueError):

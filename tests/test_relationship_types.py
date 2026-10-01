@@ -91,7 +91,8 @@ def test_missing_name_returns_none():
 
 def test_get_relationships_by_domain_filters_and_sorts():
     domains = list_all_domains()
-    assert domains and domains == sorted(set(domains))  # unique + sorted
+    assert domains
+    assert domains == sorted(set(domains))
     dom = domains[0]
     rows = get_relationships_by_domain(dom)
     assert rows, f"domain {dom} should have members"

@@ -32,17 +32,22 @@ PORCELAIN = [
 
 def test_p1_bucket_math():
     b = agent_cli._bucket_tree(PORCELAIN)
-    assert b["modified"] == 2 and b["untracked"] == 5
-    assert b["dirs"]["research"] == 2 and b["dirs"]["tests"] == 2
-    assert b["dirs"]["core"] == 1 and b["dirs"]["scratch"] == 1
+    assert b["modified"] == 2
+    assert b["untracked"] == 5
+    assert b["dirs"]["research"] == 2
+    assert b["dirs"]["tests"] == 2
+    assert b["dirs"]["core"] == 1
+    assert b["dirs"]["scratch"] == 1
 
 
 def test_p2_soft_render_safe_default(capsys):
     status = {"ok": True, "dirty": 7, "ahead": 2, "branch": "master", "summary": "", "lines": PORCELAIN}
     assert agent_cli._warn_unmirrored(soft=True, status=status)
     out = capsys.readouterr().out
-    assert "2 modified" in out and "5 untracked" in out
-    assert "research 2" in out and "tests 2" in out
+    assert "2 modified" in out
+    assert "5 untracked" in out
+    assert "research 2" in out
+    assert "tests 2" in out
     assert "sibling" in out and "task list" in out, "the safe-default teaches claims"
     assert 'run `py scripts/mirror.py "msg"`' not in out, (
         "the unqualified sweep imperative is DEAD (kimi Q4: the 80% is the verb)"

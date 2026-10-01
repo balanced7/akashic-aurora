@@ -109,17 +109,17 @@ def test_ablation_gate_hybrid_beats_keyword_baseline():
         pytest.skip("embedding model unavailable")
     beats, hints, gold = _fixture_inputs()
     kw = ThemeAssigner()
-    kw_pred = [kw.assign(b, h) for b, h in zip(beats, hints)]
+    kw_pred = [kw.assign(b, h) for b, h in zip(beats, hints, strict=False)]
     disc = ThemeDiscoverer(tau=DEFAULT_TAU)  # real embedder, frozen tau
-    d_pred = [disc.assign(b, h) for b, h in zip(beats, hints)]
+    d_pred = [disc.assign(b, h) for b, h in zip(beats, hints, strict=False)]
 
-    kp, kr, kf = multilabel_prf(gold, kw_pred)
+    _kp, kr, kf = multilabel_prf(gold, kw_pred)
     dp, dr, df = multilabel_prf(gold, d_pred)
 
     assert dr > kr, f"recall must beat keyword baseline: {dr:.3f} vs {kr:.3f}"
     assert df >= kf, f"F1 must not regress: {df:.3f} vs {kf:.3f}"
     assert dp >= 0.80, f"precision must stay high (no spraying): {dp:.3f}"
-    recovered = sum(len((set(g) - set(kp_)) & set(dp_)) for g, kp_, dp_ in zip(gold, kw_pred, d_pred))
+    recovered = sum(len((set(g) - set(kp_)) & set(dp_)) for g, kp_, dp_ in zip(gold, kw_pred, d_pred, strict=False))
     assert recovered >= 3, f"must recover keyword-miss beats: {recovered}"
 
 
@@ -139,7 +139,8 @@ def test_ctfidf_picks_distinctive_terms():
             ["florence vision ocr", "image vision detection", "screenshot vision scan"],
         ]
     )
-    assert "voice" in terms[0] and "vision" in terms[1]
+    assert "voice" in terms[0]
+    assert "vision" in terms[1]
 
 
 def _discovery_fixture():
@@ -168,7 +169,8 @@ def test_discover_surfaces_net_new_themes_with_labels():
     found = d.discover(items, min_residual=6)
     assert len(found) == 2
     labels = " ".join(f["label"] for f in found)
-    assert "voice" in labels and "vision" in labels
+    assert "voice" in labels
+    assert "vision" in labels
     assert all(f["size"] == 4 for f in found)
 
 
@@ -181,7 +183,7 @@ def test_discover_cold_start_returns_nothing():
 def test_discover_excludes_beats_a_seed_claims():
     fe, items = _discovery_fixture()
     fe.table["seeded one"] = _unit([1, 0, 0, 0])  # matches seed alpha
-    items = items + [{"id": "seeded", "text": "seeded one"}]
+    items = [*items, {"id": "seeded", "text": "seeded one"}]
     d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
     found = d.discover(items, min_residual=6)
     assert "seeded" not in {bid for f in found for bid in f["beat_ids"]}

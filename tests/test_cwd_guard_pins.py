@@ -125,7 +125,7 @@ def _context(out: str) -> str:
 
 
 @pytest.mark.parametrize(
-    "tool, cwd, cmd",
+    ("tool", "cwd", "cmd"),
     [
         ("Bash", DRIFTED, "grep -rn foo scripts/ core/"),  # false-clean class (b095caa5)
         ("Bash", DRIFTED, "py agent_cli.py boot claude"),  # in scope by text (5b65b7ab)
@@ -137,12 +137,13 @@ def _context(out: str) -> str:
 def test_drift_speaks(hook, tool, cwd, cmd):
     line = hook._cwd_drift({"tool_name": tool, "tool_input": {"command": cmd}, "cwd": cwd})
     assert line.startswith("[cwd-guard]"), line
-    assert cwd in line and f"cd {CD}" in line  # names the drift AND the remedy
+    assert cwd in line
+    assert f"cd {CD}" in line
     assert "\n" not in line  # ONE loud line
 
 
 @pytest.mark.parametrize(
-    "tool, cwd, cmd",
+    ("tool", "cwd", "cmd"),
     [
         ("Bash", DRIFTED, f"cd {CD} && grep -rn foo scripts/"),  # anchored, remedy form
         ("Bash", DRIFTED, "py " + ROOT.replace("\\", "/") + "/agent_cli.py status"),  # anchored, absolute

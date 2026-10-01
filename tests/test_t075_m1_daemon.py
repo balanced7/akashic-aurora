@@ -186,7 +186,7 @@ def test_m1_p1_daemon_starts_holds_lock_registers_presence_and_survives(tmp_path
             "R-a2: the daemon must NEVER create its agent's cursor (no consume moves in wave 1)"
         )
     finally:
-        code, out = _kill(proc)
+        _code, _out = _kill(proc)
         _cleanup_ns(ns)
 
 

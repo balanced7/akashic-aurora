@@ -37,18 +37,21 @@ def test_ephemeral_rejects_durable_knowledge_families():
 # --- the 3-way classification (pure) ---
 def test_unknown_is_loud():
     out = "\n".join(R(["weird:unmapped:1"], set()))
-    assert "UNKNOWN" in out and "INVESTIGATE" in out
+    assert "UNKNOWN" in out
+    assert "INVESTIGATE" in out
 
 
 def test_ephemeral_is_quiet():
     out = "\n".join(R(["bifrost:cursor:1"], set()))
-    assert "expected Redis-only" in out and "no action" in out
+    assert "expected Redis-only" in out
+    assert "no action" in out
     assert "INVESTIGATE" not in out
 
 
 def test_durable_family_is_calm_not_loud():
     out = "\n".join(R(["events:raw:9"], {"events:raw"}))
-    assert "durable-family" in out and "Redis-ahead" in out
+    assert "durable-family" in out
+    assert "Redis-ahead" in out
     assert "investigate only if growing" in out
     assert "INVESTIGATE" not in out  # calm, not the loud unknown signal
 
@@ -84,7 +87,9 @@ def test_counts_are_lossless_and_ordered_most_severe_first():
     )  # 4 ephemeral
     lines = R(orphans, {"events:raw"})
     text = "\n".join(lines)
-    assert "2 UNKNOWN" in text and "3 durable-family" in text and "4 expected Redis-only" in text
+    assert "2 UNKNOWN" in text
+    assert "3 durable-family" in text
+    assert "4 expected Redis-only" in text
     # 2 + 3 + 4 == 9 == len(orphans): nothing dropped
     assert len(orphans) == 2 + 3 + 4
     # most-severe first: unknown line precedes durable precedes ephemeral

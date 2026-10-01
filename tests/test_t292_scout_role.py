@@ -119,7 +119,7 @@ def test_p1_claimed_row_and_live_lock_surface_with_citations():
     lk = LockManager("drill_holder").acquire("core/widget_frobnicator.py", note="t292 drill lock")
     assert lk.get("ok") or lk.get("mine"), f"drill lock not acquired: {lk}"
 
-    text, meta = S.build_pack()
+    text, _meta = S.build_pack()
     assert tid in text and "drill_owner" in text, (
         "P1: the claimed row surfaces WITH id and owner -- a scout that cannot cite the "
         "row cannot warn the caller off it"
@@ -136,7 +136,7 @@ def test_p2_done_row_answers_has_this_been_done():
     rc, out, err = run("task", "done", tid, "--commit", "deadbee", "--verified-by", "t292 drill")
     assert rc == 0, err or out
 
-    text, meta = S.build_pack()
+    text, _meta = S.build_pack()
     assert tid in text, (
         "P2: the DONE row is IN the pack -- 'has this been done' gets answered by the "
         "ledger row, never by a fresh proposal to rebuild it (the DONE-is-closed law)"
@@ -152,7 +152,7 @@ def test_p3_scout_memory_is_role_scoped_not_wearer_scoped():
         gist="intent.py exists and has no door",
         role=S.SCOUT_ROLE,
     )
-    text, meta = S.build_pack(for_wearer="p3_wearer_b")
+    text, _meta = S.build_pack(for_wearer="p3_wearer_b")
     assert "scout-p3-1" in text and "intent.py" in text, (
         "P3: wearer B reads wearer A's scout verdicts -- the role remembers, not the "
         "wearer (fence H-C3; without this the role is decoration)"

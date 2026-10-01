@@ -109,4 +109,5 @@ def test_prune_is_noop_on_empty_corpus():
     """A broken/empty corpus read must NOT classify every counter as a ghost and wipe the store."""
     st = _FakeStore({"recall:use:learn:experiment:real": json.dumps({"surfaced": 5})})
     res = prune_ghost_counters(store=st, learning_store=_FakeLearning([]))
-    assert res["pruned"] == [] and "recall:use:learn:experiment:real" in st.d
+    assert res["pruned"] == []
+    assert "recall:use:learn:experiment:real" in st.d

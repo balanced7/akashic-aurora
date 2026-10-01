@@ -205,7 +205,8 @@ def test_r5_sig_seen_before_second_work_packet(monkeypatch):
         seen += _kinds(api.work_drain(timeout_ms=800))
         if seen.count("handoff") >= 2:
             break
-    assert "nudge" in seen and "handoff" in seen
+    assert "nudge" in seen
+    assert "handoff" in seen
     assert seen.index("nudge") < len(seen) - 1 - seen[::-1].index("handoff"), (
         "P3: the sig packet must be drained BEFORE the second work packet (EF beats AF)"
     )

@@ -27,6 +27,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from core.comm.bus import Bus
+import contextlib
 
 RUNNER = os.path.join(REPO, "scripts", "bifrost_runner_deepseek.py")
 
@@ -44,15 +45,13 @@ def _fresh(prefix):
 
 def _cleanup(*buses):
     for b in buses:
-        try:
+        with contextlib.suppress(Exception):
             b._client.delete(
                 b._cursor_key(),
                 f"{b.ns}:generation:{b.agent_id}",
                 f"{b.ns}:runner:{b.agent_id}",
                 b._inbox_key(b.agent_id),
             )
-        except Exception:
-            pass
 
 
 def _run_runner(agent, killpoint=""):
@@ -233,7 +232,8 @@ def test_w2_death_before_send_answers_once_on_redelivery():
         p = _run_runner(runner_bus.agent_id, killpoint="post-phase-flip-pre-send")
         ref.tenure("post-phase-flip-pre-send")
         assert p.returncode == 137, p.stdout[-400:]
-        assert _echo_replies(sender) == [] and runner_bus.cursor()["inbox"] == "0"
+        assert _echo_replies(sender) == []
+        assert runner_bus.cursor()["inbox"] == "0"
         _reap_dead_lock(runner_bus.agent_id)
         p2 = _run_runner(runner_bus.agent_id)
         ref.tenure()
@@ -279,8 +279,10 @@ def test_timeout_multiplier_shrinks_the_lock_ttl():
         [
             sys.executable,
             "-c",
-            "from core.comm import runner_lock, liveness; import scripts.bifrost_runner_deepseek as r; "
-            "print(runner_lock.LOCK_TTL, liveness.WORKLIVE_TTL, r.REPLY_TIMEOUT_SEC)",
+            (
+                "from core.comm import runner_lock, liveness; import scripts.bifrost_runner_deepseek as r; "
+                "print(runner_lock.LOCK_TTL, liveness.WORKLIVE_TTL, r.REPLY_TIMEOUT_SEC)"
+            ),
         ],
         env=dict(os.environ, AKASHIC_TIMEOUT_MULTIPLIER="0.05"),
         capture_output=True,

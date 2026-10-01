@@ -36,7 +36,8 @@ def test_live_twin_holds_seat_no_listen(monkeypatch):
     called = []
     res = bp.standby("claude", "s1", listen=lambda a, s: called.append(1))
     assert res["decision"] == "twin-holds-seat"
-    assert not res["listened"] and not called  # never listen behind a live twin
+    assert not res["listened"]
+    assert not called
     assert any("NOT listening" in l for l in res["report"])
 
 
@@ -50,7 +51,8 @@ def test_clean_drain_then_listen(monkeypatch):
     order = []
     res = bp.standby("claude", "s1", listen=lambda a, s: order.append("listen") or 0)
     assert res["drained"] == 1
-    assert res["decision"] == "listen" and res["listened"]
+    assert res["decision"] == "listen"
+    assert res["listened"]
     assert res["listen_rc"] == 0
     drain_idx = next(i for i, l in enumerate(res["report"]) if "drained: 1" in l)
     listen_idx = next(i for i, l in enumerate(res["report"]) if "handing off" in l)
@@ -61,7 +63,8 @@ def test_report_only_when_no_listener(monkeypatch):
     monkeypatch.setattr(bp, "consume_inbox", _stub_consume({"seat_held": False, "consumed": []}))
     monkeypatch.setattr(bp, "collect_boot_bifrost", lambda a, limit=1: {"expect_lines": []})
     res = bp.standby("claude", "s1", listen=None)
-    assert res["decision"] == "report-only" and not res["listened"]
+    assert res["decision"] == "report-only"
+    assert not res["listened"]
     assert any("already clean" in l for l in res["report"])
 
 

@@ -56,6 +56,7 @@ from core.comm import (
     wake_seat,  # noqa: E402
 )
 from core.comm.bus import Bus  # noqa: E402
+import contextlib
 
 PY = sys.executable
 LEDGER = REPO / "research" / "reviewed" / "rb25-drill4-soak-ledger.json"
@@ -119,7 +120,7 @@ def _spawn_detached(argv, log_path):
     if os.name == "nt":
         flags = subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000008  # DETACHED_PROCESS
     p = subprocess.Popen(
-        [PY] + argv, cwd=str(REPO), env=_child_env(), stdout=f, stderr=subprocess.STDOUT, creationflags=flags
+        [PY, *argv], cwd=str(REPO), env=_child_env(), stdout=f, stderr=subprocess.STDOUT, creationflags=flags
     )
     return p.pid
 
@@ -417,10 +418,8 @@ def cmd_disarm(args):
         led.get("monitor_pid"),
     ):
         if pid:
-            try:
+            with contextlib.suppress(Exception):
                 subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
-            except Exception:
-                pass
     h = runner_lock.holder(RUNNER_ID) or {}
     if h.get("pid"):
         runner_lock.clear_if_pid(RUNNER_ID, h["pid"])

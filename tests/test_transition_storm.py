@@ -117,6 +117,7 @@ def test_format_state_render_path_is_structurally_bounded():
     view = state_view(now=time.time())
     rendered = format_state(agent="claude", now=time.time())
     elapsed = time.perf_counter() - t0
-    assert "proposed" in view and "counts" in view
+    assert "proposed" in view
+    assert "counts" in view
     assert rendered.strip(), "render produces the ledger block"
     assert elapsed < 5.0, "one view+render pass stays interactive on the real ledger"

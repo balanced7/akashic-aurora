@@ -83,7 +83,8 @@ def test_p1_save_writes_journal_and_projection(env):
     unqueryable or mortal."""
     journal, db = env
     rid = RT.save("first-string", STEPS, by="claude")
-    assert rid and rid.startswith("r_")
+    assert rid
+    assert rid.startswith("r_")
 
     lines = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
     assert any(l.get("route_id") == rid for l in lines), "journal holds the authored truth"
@@ -98,7 +99,7 @@ def test_p1_save_writes_journal_and_projection(env):
 def test_p2_same_content_saves_once(env):
     """deepseek's physics answer, preserved at the projection: the id is a content hash and
     a duplicate save (crash-redelivery, double-paste) is ONE route, not two."""
-    journal, db = env
+    _journal, db = env
     r1 = RT.save("first-string", STEPS, by="claude")
     r2 = RT.save("first-string", STEPS, by="claude")
     assert r1 == r2
@@ -110,7 +111,7 @@ def test_p2_same_content_saves_once(env):
 
 # ------------------------------------------------- P3: the walk returns the string
 def test_p3_walk_returns_steps_in_order_with_receipts(env):
-    journal, db = env
+    _journal, _db = env
     RT.save("first-string", STEPS, by="claude")
     walk = RT.walk("first-string")
     assert walk["name"] == "first-string"
@@ -125,7 +126,7 @@ def test_p4_dead_end_carries_the_refuted_hypothesis(env):
     """Half the value of a route is the pruned branch (Kepner-Tregoe IS-NOT; the fan's
     branch-5 finding #2). A dead end must carry WHAT was refuted and the receipt that
     refuted it -- otherwise the next walker re-explores."""
-    journal, db = env
+    _journal, _db = env
     RT.save("first-string", STEPS, by="claude")
     walk = RT.walk("first-string")
     dead = [s for s in walk["steps"] if s["type"] == "dead-end"]
@@ -139,7 +140,7 @@ def test_p5_projection_wipe_loses_nothing_authored(env):
     """The pin that amends the fence counter. eye.db is rebuildable-by-design; routes are
     authored. Wipe the projection entirely -- rebuild() restores every route from the
     tracked journal. If this pin ever breaks, routes have become mortal."""
-    journal, db = env
+    _journal, db = env
     rid = RT.save("first-string", STEPS, by="claude")
     con = sqlite3.connect(str(db))
     con.execute("DELETE FROM routes")
@@ -158,9 +159,10 @@ def test_p6_unresolvable_step_is_dangling_named_and_walkable_past(env):
     """His words are the policy (deepseek's fence answer adopted them verbatim): a step
     whose target cannot be resolved is marked dangling WITH its last-known address, and the
     walk continues -- degraded, named, never aborted."""
-    journal, db = env
-    steps = STEPS + [
-        {"type": "anchor", "target": "gone-session:999", "receipt": "gone-session:999", "note": "rotated away"}
+    _journal, _db = env
+    steps = [
+        *STEPS,
+        {"type": "anchor", "target": "gone-session:999", "receipt": "gone-session:999", "note": "rotated away"},
     ]
     RT.save("degraded-string", steps, by="claude")
     walk = RT.walk("degraded-string", resolve=True)
@@ -172,10 +174,12 @@ def test_p6_unresolvable_step_is_dangling_named_and_walkable_past(env):
 
 # ------------------------------------------------- P7: the register is listable
 def test_p7_list_shows_name_status_walkcount_steps(env):
-    journal, db = env
+    _journal, _db = env
     RT.save("first-string", STEPS, by="claude")
     rows = RT.list_routes()
     assert len(rows) == 1
     r = rows[0]
-    assert r["name"] == "first-string" and r["status"] == "active"
-    assert r["steps"] == len(STEPS) and r["walk_count"] == 0
+    assert r["name"] == "first-string"
+    assert r["status"] == "active"
+    assert r["steps"] == len(STEPS)
+    assert r["walk_count"] == 0

@@ -55,7 +55,7 @@ def test_event_routing_argv_beats_payload():
 
 
 @pytest.mark.parametrize(
-    "payload,want",
+    ("payload", "want"),
     [
         ({"command": "a"}, ("a", "")),
         ({"tool_input": {"command": "b"}}, ("b", "")),
@@ -82,19 +82,20 @@ def test_sessionstart_ships_identity_even_when_whisper_silent(monkeypatch, capsy
 def test_sessionstart_explicit_id_wins(monkeypatch, capsys):
     monkeypatch.setenv("AKASHIC_AGENT_ID", "someone")
     monkeypatch.setenv("AKASHIC_AUTOBOOT", "0")
-    rc, out = _run(cursor_sessionstart, {}, capsys)
+    _rc, out = _run(cursor_sessionstart, {}, capsys)
     assert json.loads(out)["env"]["AKASHIC_AGENT_ID"] == "someone"
 
 
 def test_beforeshell_and_pretooluse_fail_open_on_garbage(capsys):
     for mod in (cursor_beforeshell, cursor_pretooluse):
         rc, out = _run(mod, None, capsys, raw="not json")
-        assert rc == 0 and json.loads(out)["permission"] == "allow"
+        assert rc == 0
+        assert json.loads(out)["permission"] == "allow"
 
 
 def test_pretooluse_out_of_repo_path_is_allowed(capsys):
     elsewhere = "C:\\Somewhere\\Else\\f.py" if os.name == "nt" else "/somewhere/else/f.py"
-    rc, out = _run(cursor_pretooluse, {"file_path": elsewhere}, capsys)
+    _rc, out = _run(cursor_pretooluse, {"file_path": elsewhere}, capsys)
     assert json.loads(out)["permission"] == "allow", "the lock guard only speaks for this repo"
 
 
@@ -136,7 +137,8 @@ def test_posttooluse_failure_then_success_credit_sequence(monkeypatch, capsys):
         argv=["hook", "--event", "postToolUseFailure"],
     )
     rc2, _ = _run(cursor_posttooluse, {"conversation_id": sid, "command": cmd, "cwd": repo_root()}, capsys)
-    assert rc == 0 and rc2 == 0
+    assert rc == 0
+    assert rc2 == 0
     assert calls == [(sid, tgt, False), (sid, tgt, True)], (
         "the failure event is the DIRECT fail half; the next success completes the flip pair"
     )
@@ -147,14 +149,18 @@ def test_posttooluse_out_of_scope_and_kill_switch_are_silent(monkeypatch, capsys
     _wire_credit(monkeypatch, calls)
     elsewhere = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
     rc, out = _run(cursor_posttooluse, {"conversation_id": "c", "command": "echo hi", "cwd": elsewhere}, capsys)
-    assert rc == 0 and out == "" and calls == []
+    assert rc == 0
+    assert out == ""
+    assert calls == []
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "0")
     from agent.harness.scope import repo_root
 
     rc, out = _run(
         cursor_posttooluse, {"conversation_id": "c", "command": "py agent_cli.py list", "cwd": repo_root()}, capsys
     )
-    assert rc == 0 and out == "" and calls == []
+    assert rc == 0
+    assert out == ""
+    assert calls == []
 
 
 # --- 2. payload-pinned contracts (composer's captures are the ground truth) ------------------------

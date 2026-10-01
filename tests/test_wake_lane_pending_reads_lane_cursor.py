@@ -235,7 +235,8 @@ def test_seed_warning_names_the_lane_family_it_peeked(caplog, monkeypatch):
     with caplog.at_level(logging.WARNING, logger="bifrost"):
         got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got)
+    assert got
+    assert "chat" in _kinds(got)
     warned = " ".join(r.getMessage() for r in caplog.records)
     assert "wake-worthy" in warned, "seeding over non-empty pending must stay announced"
     assert "BIFROST_CONSUME_LANE=work" in warned, (

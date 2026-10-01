@@ -54,7 +54,8 @@ def test_build_context_marks_truncation_in_its_meta():
     assert meta["truncated"] is True, "bus.py is ~80k chars; it must clip at the 40k budget"
     assert "TRUNCATED" in ctx, "the HELPER's in-band notice is the half that already works"
     inc = meta["included"][0]
-    assert inc["truncated"] is True and inc["chars"] < 80000
+    assert inc["truncated"] is True
+    assert inc["chars"] < 80000
 
 
 def test_caller_is_told_when_its_evidence_was_clipped():

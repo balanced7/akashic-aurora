@@ -443,7 +443,7 @@ def run(manifests: list[Path], write: bool = True) -> dict:
             g[name] = {
                 "pass": not g["failed"][name],
                 "failed": len(g["failed"][name]),
-                "failed_labels": sorted(set(x for x in g["failed"][name] if x)),
+                "failed_labels": sorted({x for x in g["failed"][name] if x}),
             }
         del g["failed"]
     summary = {

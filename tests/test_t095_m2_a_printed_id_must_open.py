@@ -131,7 +131,8 @@ def test_m2_1_every_width_the_doors_print_is_a_width_that_opens():
     for w in PRINTED_WIDTHS:
         got = mbx.open(NS, "claude", sha64[:w], incarnation="pin-m2", client=client)
         assert got.get("ok"), f"64-hex packet sha refused at width {w}: {got.get('reason')!r}"
-        assert got["sha"] == sha64 and got["body"] == "packet basis"
+        assert got["sha"] == sha64
+        assert got["body"] == "packet basis"
 
 
 def test_m2_2_absent_is_reported_DIFFERENTLY_from_short():
@@ -226,10 +227,12 @@ def test_m2_5_the_exact_sha_still_works_unchanged():
     sha = _ingest(mbx, client, sid="1790215960175-0", content="exact still wins")
 
     r = mbx.resolve_sha(NS, "claude", sha, client=client)
-    assert r["how"] == "exact" and r["sha"] == sha
+    assert r["how"] == "exact"
+    assert r["sha"] == sha
 
     got = mbx.open(NS, "claude", sha, incarnation="pin-m2", client=client)
-    assert got.get("ok") and got["body"] == "exact still wins"
+    assert got.get("ok")
+    assert got["body"] == "exact still wins"
 
 
 def test_m2_6_a_capped_candidate_list_still_reports_the_TRUE_match_count():

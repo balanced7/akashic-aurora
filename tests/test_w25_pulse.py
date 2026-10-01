@@ -69,4 +69,5 @@ def test_p5_fleet_summary(patched):
 
 def test_p6_json(patched):
     out = format_pulse(pulse(), json_mode=True)
-    assert '"critical"' in out and '"stormy"' in out
+    assert '"critical"' in out
+    assert '"stormy"' in out

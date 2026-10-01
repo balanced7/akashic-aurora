@@ -29,7 +29,8 @@ def test_declared_but_never_read_is_silent(tmp_path):
         "void main() { outColor = vec4(v_uv, 0.0, 1.0); }\n",
     )
     row = P.coupling(p)
-    assert row["references"] == 0 and row["distinct"] == 0
+    assert row["references"] == 0
+    assert row["distinct"] == 0
     assert row["verdict"] == "silent"
 
 
@@ -43,7 +44,8 @@ def test_glow_only_is_cosmetic(tmp_path):
         " outColor = col; }\n",
     )
     row = P.coupling(p)
-    assert row["distinct"] == 2 and row["references"] == 2
+    assert row["distinct"] == 2
+    assert row["references"] == 2
     assert row["verdict"] == "cosmetic", row
 
 
@@ -57,7 +59,8 @@ def test_structural_use_is_listening_or_driven(tmp_path):
         " outColor = vec4(v_uv * z, w + v, 1.0); }\n",
     )
     row = P.coupling(p)
-    assert row["distinct"] == 7 and row["references"] == 7
+    assert row["distinct"] == 7
+    assert row["references"] == 7
     assert row["verdict"] == "driven", row
 
 

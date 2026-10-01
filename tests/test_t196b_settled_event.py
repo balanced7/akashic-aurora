@@ -112,7 +112,8 @@ def test_linked_settle_emits_once_with_both_ids(pair, monkeypatch):
     assert res["cleared"] == [orig]
     assert len(seen) == 1, "one settle transition -> exactly one durable-evidence emit"
     sender, oid, rid, rec = seen[0]
-    assert sender == s and oid == orig
+    assert sender == s
+    assert oid == orig
     assert rid, "the answering message id rides along -- the readout's answer pointer"
     assert isinstance(rec, dict) and rec.get("to") == r, (
         "the record (with created/attempt) is handed to the emit BEFORE deletion"
@@ -149,7 +150,7 @@ def test_event_shape_kind_refs_created(pair, monkeypatch):
     expectations.sweep(s, now=t0 + 5)
     settled = [c for c in calls if c[0] == "expectation_settled_answered"]
     assert len(settled) == 1, "kind is expectation_settled_answered"
-    kind, summary, kw = settled[0]
+    _kind, _summary, kw = settled[0]
     refs = kw.get("refs") or []
     assert len(refs) == 2 and refs[0] == str(orig), (
         "refs = [ask id, answer id], ask FIRST (stable order: attribution depends on it)"

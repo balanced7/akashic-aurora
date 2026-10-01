@@ -173,7 +173,8 @@ def test_reference_docs_never_appear():
 def test_empty_question_and_layer_narrowing():
     assert lookback("") == []
     only_git = lookback("wake listener detect consume", layers=["git"])
-    assert only_git and all(h["layer"] == "git" for h in only_git)
+    assert only_git
+    assert all(h["layer"] == "git" for h in only_git)
 
 
 def test_hits_carry_drill_pointers_and_status():

@@ -47,12 +47,16 @@ def test_o2_a_partial_without_a_reason_cannot_be_built():
     with pytest.raises(ValueError):
         BoundaryOutcome(ok=True, partial=True)
     o = BoundaryOutcome.partially("budget exhausted after 30 tool rounds", ref="msg-1")
-    assert o.partial and o.why and o.ref == "msg-1"
+    assert o.partial
+    assert o.why
+    assert o.ref == "msg-1"
 
 
 def test_o3_success_needs_no_reason():
     o = BoundaryOutcome.done(ref="1785818229175-0")
-    assert o.ok and o.why == "" and bool(o) is True
+    assert o.ok
+    assert o.why == ""
+    assert bool(o) is True
 
 
 def test_o4_partial_is_falsy():
@@ -70,7 +74,8 @@ def test_o5_caught_records_the_exception_without_reraising():
     except TypeError as e:
         o = BoundaryOutcome.caught(e, where="spawn_listener", ref="cdfb9126")
     assert o.ok is False
-    assert "TypeError" in o.why and "2 were given" in o.why
+    assert "TypeError" in o.why
+    assert "2 were given" in o.why
     assert o.ref == "cdfb9126"
     assert o.detail.get("exception") == "TypeError"
 
@@ -79,7 +84,9 @@ def test_o6_one_render_for_every_surface():
     assert BoundaryOutcome.done(ref="abc").line().startswith("OK")
     assert "FAILED" in BoundaryOutcome.failed("no live seat", ref="x").line()
     p = BoundaryOutcome.partially("budget exhausted", ref="m1").line()
-    assert p.startswith("PARTIAL") and "budget exhausted" in p and "ref=m1" in p
+    assert p.startswith("PARTIAL")
+    assert "budget exhausted" in p
+    assert "ref=m1" in p
 
 
 def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():

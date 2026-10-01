@@ -72,7 +72,8 @@ def test_h1_file_ahead_backfills_redis(store):
     _diverge(store)
     assert store.check_drift()["missing_in_redis"] == ["rb25d2:file-ahead"]
     rep = store.reconcile()
-    assert rep["status"] == "success" and rep["written"]["kv"] >= 1
+    assert rep["status"] == "success"
+    assert rep["written"]["kv"] >= 1
     assert store._redis.get("rb25d2:file-ahead") == "FILE_TRUTH", "File won, Redis backfilled"
 
 

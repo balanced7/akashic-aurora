@@ -22,9 +22,14 @@ H = 3600.0
 
 
 def _c(**kw):
-    d = dict(
-        transcript_mtime=NOW - 5 * H, tombstoned=False, seat_exists=False, marker_age_min=None, window_h=72.0, now=NOW
-    )
+    d = {
+        "transcript_mtime": NOW - 5 * H,
+        "tombstoned": False,
+        "seat_exists": False,
+        "marker_age_min": None,
+        "window_h": 72.0,
+        "now": NOW,
+    }
     d.update(kw)
     return classify_session(**d)
 
@@ -70,7 +75,8 @@ def test_n6_digest_extracts_the_layers_a_savepoint_needs():
     kinds = [r[1] for r in rows]
     assert kinds == ["USER", "ASST", "TOOL"]
     assert "Shader work sounds like fun!" in rows[0][2]
-    assert "WebFetch" in rows[2][2] and "shadertoy.com" in rows[2][2]
+    assert "WebFetch" in rows[2][2]
+    assert "shadertoy.com" in rows[2][2]
 
 
 def test_n7_digest_never_raises_on_garbage():
@@ -185,7 +191,8 @@ def test_n8_distill_honors_the_ask_boundary_contract(monkeypatch, tmp_path):
 
     monkeypatch.setattr(ask_mod, "ask", lambda *a, **k: Outcome("DEATH-DELTA: believed X"))
     r = nx.distill("a" * 36, run_ask=True)
-    assert r["ok"] and "believed X" in r["delta_head"]
+    assert r["ok"]
+    assert "believed X" in r["delta_head"]
 
     monkeypatch.setattr(ask_mod, "ask", lambda *a, **k: Outcome(None))
     r2 = nx.distill("a" * 36, run_ask=True)

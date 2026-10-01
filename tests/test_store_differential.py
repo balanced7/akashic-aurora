@@ -182,7 +182,7 @@ def test_zset_same_score_ordering_agrees(pair):
         ("zcard", (Z,)),
     ]
     _run(pair, seq)
-    d, r = pair
+    d, _r = pair
     assert d.zrange(Z, 0, -1) == ["zulu", "alpha", "bravo", "charlie"], (
         "score then lexicographic-by-member is the documented Redis order"
     )

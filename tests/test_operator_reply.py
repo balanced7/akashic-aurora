@@ -69,7 +69,8 @@ def test_an_empty_body_refuses_rather_than_posting_a_header():
     bus = FakeBus()
     for bad in ("", "   ", None):
         out = OR.reply(bad, sender="claude", bus=bus, failures=list)
-        assert out["ok"] is False and "empty" in out["why"].lower()
+        assert out["ok"] is False
+        assert "empty" in out["why"].lower()
     assert not bus.sent
 
 
@@ -115,7 +116,8 @@ def test_an_offline_bus_refuses_loudly():
     bus = FakeBus()
     bus.online = False
     out = OR.reply("anything", sender="claude", bus=bus, failures=list)
-    assert out["ok"] is False and "offline" in out["why"].lower()
+    assert out["ok"] is False
+    assert "offline" in out["why"].lower()
 
 
 def test_a_none_message_id_is_a_failure_not_a_success():

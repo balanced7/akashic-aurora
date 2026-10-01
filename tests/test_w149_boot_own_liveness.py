@@ -192,7 +192,8 @@ def test_p11_daemon_first_and_twin_holder_named(wired):
     wired.setattr("core.comm.wake_seat.watcher_state", never)
 
     line = _line()
-    assert "wakeable" in line and "daemon" in line
+    assert "wakeable" in line
+    assert "daemon" in line
 
     twin = "05fe0639-aaaa-bbbb-cccc-ddddeeeeffff"
     wired.setattr("core.comm.runner_lock.holder", lambda agent: {"token": f"session:{twin}"})
