@@ -82,7 +82,7 @@ def recall_block(
         )
         out = render(res)
         if out:
-            srcs = [l.get("source") for l in res.get("lessons", [])]
+            srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
             mark_seen(seen_key, srcs)
             target = normalize_target(path or None, command or None)
             mark_impression(session_key, target, srcs)
@@ -142,7 +142,7 @@ def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: str | Non
         out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
         if not out:
             return ""
-        srcs = [l.get("source") for l in res.get("lessons", [])]
+        srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
         mark_seen(seen_key, srcs)
         log_injection(session_key, "plan", "", srcs, len(out))
         return out

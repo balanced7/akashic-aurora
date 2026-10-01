@@ -126,30 +126,30 @@ def load_learnings_ranked_by_relevance(
     learnings = store.load_all_learnings_from_store()
     items = [
         {
-            "text": _text_of(l),
-            "importance": _importance_of(l),
-            "timestamp": l.get("timestamp"),
-            "source": l.get("experiment_name"),
-            "_learning": l,
+            "text": _text_of(lesson),
+            "importance": _importance_of(lesson),
+            "timestamp": lesson.get("timestamp"),
+            "source": lesson.get("experiment_name"),
+            "_learning": lesson,
         }
-        for l in learnings
+        for lesson in learnings
         # graduated = rule enforced by automation now; boot's ranked slots go to live knowledge
-        if not is_graduated(l)
+        if not is_graduated(lesson)
     ]
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
 
     results: list[dict[str, Any]] = []
     for s in ranked:
-        l = s.item["_learning"]
+        lesson = s.item["_learning"]
         results.append(
             {
                 "source": s.item["source"],  # pointer to the full record
-                "recommendation": l.get("recommendation", ""),
-                "what_tried": l.get("what_tried", ""),
-                "success": l.get("success", ""),
-                "confidence": l.get("confidence", ""),
-                "category": l.get("category", ""),
+                "recommendation": lesson.get("recommendation", ""),
+                "what_tried": lesson.get("what_tried", ""),
+                "success": lesson.get("success", ""),
+                "confidence": lesson.get("confidence", ""),
+                "category": lesson.get("category", ""),
                 "score": round(s.score, 4),
             }
         )

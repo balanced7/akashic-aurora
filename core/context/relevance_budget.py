@@ -156,7 +156,11 @@ def select_within_budget(
             return False
 
     scored = sorted(
-        ((score(l, task, now_f, credit), base_score(l, task), _ts(l), l) for l in lessons if not is_graduated(l)),
+        (
+            (score(lesson, task, now_f, credit), base_score(lesson, task), _ts(lesson), lesson)
+            for lesson in lessons
+            if not is_graduated(lesson)
+        ),
         key=lambda t: (t[0], t[2]),
         reverse=True,
     )
@@ -169,14 +173,14 @@ def select_within_budget(
     pool = relevant if relevant else scored[:3]
     out: list[dict[str, Any]] = []
     used = 0
-    for sc, _b, _t, l in pool:
+    for sc, _b, _t, lesson in pool:
         entry = {
-            "source": l.get("experiment_name"),
-            "recommendation": l.get("recommendation", ""),
-            "what_tried": l.get("what_tried", ""),
-            "success": l.get("success", ""),
-            "confidence": l.get("confidence", ""),
-            "category": l.get("category", ""),
+            "source": lesson.get("experiment_name"),
+            "recommendation": lesson.get("recommendation", ""),
+            "what_tried": lesson.get("what_tried", ""),
+            "success": lesson.get("success", ""),
+            "confidence": lesson.get("confidence", ""),
+            "category": lesson.get("category", ""),
             "score": round(float(sc), 4),
         }
         cost = len(render_entry(entry, max_chars=min(ENTRY_CLIP, cap)))

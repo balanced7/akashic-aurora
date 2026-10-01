@@ -28,6 +28,7 @@ Design notes:
 """
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -48,14 +49,17 @@ for _stream in (sys.stdout, sys.stderr):
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
 # its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
 # the defect class. Imported module-level: several commands render times.
-import contextlib
-
-from core.foundation.timeutil import render_iso
+from core.foundation.timeutil import render_iso  # noqa: E402  # after sys.path bootstrap and UTF-8 stream setup
 
 # W169 slice 1: the three recall verbs that owe agent_cli nothing live in core/recall/surface.py.
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
-from core.recall.surface import cmd_recall_at, cmd_recall_curate, cmd_recall_feedback, cmd_recall_prevention
+from core.recall.surface import (  # noqa: E402  # after sys.path bootstrap and UTF-8 stream setup
+    cmd_recall_at,
+    cmd_recall_curate,
+    cmd_recall_feedback,
+    cmd_recall_prevention,
+)
 
 
 def _pyl() -> str:
@@ -1854,7 +1858,7 @@ def _heal_render(lines, verbose: bool = False) -> list:
     banner, and the next banner that DOES matter gets skimmed too. Fold to one line;
     AKASHIC_HEAL_VERBOSE=1 restores the full render (the detail is never destroyed).
     """
-    kept = [l for l in (lines or []) if str(l).strip()]
+    kept = [ln for ln in (lines or []) if str(ln).strip()]
     if not kept or verbose:
         return list(kept)
     return [
@@ -2933,8 +2937,8 @@ def cmd_eye(args):
         span = ""
         if r["first_ts"] and r["last_ts"]:
             f = _dt.datetime.fromtimestamp(r["first_ts"]).strftime("%Y-%m-%d")
-            l = _dt.datetime.fromtimestamp(r["last_ts"]).strftime("%Y-%m-%d")
-            span = f"  span {f} -> {l}"
+            last_day = _dt.datetime.fromtimestamp(r["last_ts"]).strftime("%Y-%m-%d")
+            span = f"  span {f} -> {last_day}"
         print(f"[eye freq] {' | '.join(args.patterns)!r}")
         print(
             f"  VERDICT: {r['verdict'].upper()}  -- {r['operator_events']} operator "
@@ -3122,8 +3126,8 @@ def cmd_eye(args):
             span = "timeless"
             if srow["first_ts"]:
                 f = _dt.datetime.fromtimestamp(srow["first_ts"]).strftime("%m-%d")
-                l = _dt.datetime.fromtimestamp(srow["last_ts"]).strftime("%m-%d")
-                span = f"{f}->{l}"
+                last_day = _dt.datetime.fromtimestamp(srow["last_ts"]).strftime("%m-%d")
+                span = f"{f}->{last_day}"
             print(f"  {srow['session'][:24]:<24} {srow['events']:>6} ev ({srow['operator_events']} op)  {span}")
         print(f"[eye overview] {len(o['sessions'])} sessions")
         return 0
@@ -4817,10 +4821,10 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injectio
             lines.append(f"  - {subj}  (git:{sha})")
     if lessons:
         lines.append("Learned:")
-        for l in lessons[:max_per]:
-            rec = l.get("recommendation") or l.get("actual") or l.get("what_tried") or ""
+        for lesson in lessons[:max_per]:
+            rec = lesson.get("recommendation") or lesson.get("actual") or lesson.get("what_tried") or ""
             lines.append(
-                f"  - {l.get('experiment_name')}: {_clip(rec, 120)}  (learn:experiment:{l.get('experiment_name')})"
+                f"  - {lesson.get('experiment_name')}: {_clip(rec, 120)}  (learn:experiment:{lesson.get('experiment_name')})"
             )
     if notes:
         lines.append("Decided / noted:")
@@ -8993,13 +8997,13 @@ def build_parser():
     )
     dsc.set_defaults(fn=cmd_discover)
 
-    l = sub.add_parser("learn", help="record a lesson")
-    l.add_argument("agent_id")
+    learn_p = sub.add_parser("learn", help="record a lesson")
+    learn_p.add_argument("agent_id")
     # T253: not argparse-required any more, because --repeat-of does not take one. cmd_learn
     # still refuses a missing --experiment and prints a worked example, so the error TEACHES
     # instead of just rejecting.
-    l.add_argument("--experiment", default="")
-    l.add_argument(
+    learn_p.add_argument("--experiment", default="")
+    learn_p.add_argument(
         "--repeat-of",
         dest="repeat_of",
         default="",
@@ -9008,7 +9012,7 @@ def build_parser():
         "a lesson, not a new one. Use --tried for what happened. The count is "
         "a FLOOR (only what someone noticed), never a rate.",
     )
-    l.add_argument(
+    learn_p.add_argument(
         "--recall-outcome",
         dest="recall_outcome",
         default="",
@@ -9017,15 +9021,15 @@ def build_parser():
         "/ excluded_silent:antirepeat / excluded_silent:self_echo). FIRED means "
         "a reading failure; SUPPRESSED means a targeting failure -- opposite fixes.",
     )
-    l.add_argument("--tried", default="")
-    l.add_argument("--result", default="")
-    l.add_argument("--expected", default="")
-    l.add_argument("--recommend", default="")
-    l.add_argument("--category", default="")
-    l.add_argument("--success", default=None)
-    l.add_argument("--confidence", default=None)
-    l.add_argument("--json", action="store_true")
-    l.add_argument(
+    learn_p.add_argument("--tried", default="")
+    learn_p.add_argument("--result", default="")
+    learn_p.add_argument("--expected", default="")
+    learn_p.add_argument("--recommend", default="")
+    learn_p.add_argument("--category", default="")
+    learn_p.add_argument("--success", default=None)
+    learn_p.add_argument("--confidence", default=None)
+    learn_p.add_argument("--json", action="store_true")
+    learn_p.add_argument(
         "--anti-pattern",
         dest="anti_pattern",
         default="",
@@ -9035,21 +9039,21 @@ def build_parser():
     # offered by NO door, so both sat at EXACTLY 0.0% across 1120 records -- not culture, a
     # missing flag (measured 2026-08-25). Exactly-zero is a door signature; laziness produces
     # low-but-nonzero. Same class as --anti-pattern, which was added alone and left these.
-    l.add_argument(
+    learn_p.add_argument(
         "--root-cause",
         dest="root_cause",
         default="",
         help="WHY it failed, not what happened -- read by the dedup dimensions, "
         "infer_domain and the anti-pattern slug drafter (which PREFERS it)",
     )
-    l.add_argument(
+    learn_p.add_argument(
         "--files-affected",
         dest="files_affected",
         default="",
         help="comma/space-separated paths this lesson is about -- base_score tier "
         "0.7 matches a task's paths against them",
     )
-    l.set_defaults(fn=cmd_learn)
+    learn_p.set_defaults(fn=cmd_learn)
 
     wsh = sub.add_parser(
         "wish", help="file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)"

@@ -241,7 +241,7 @@ def render_boot_line() -> str:
     n = len(rec.get("failures", []))
     lanes_then = {f["lane"] for f in rec.get("failures", []) if f.get("lane")}
     now = _ledger_claims()
-    closed = sorted(l for l in lanes_then if now.get(l, "").lower() in ("done", "abandoned"))
+    closed = sorted(lane for lane in lanes_then if now.get(lane, "").lower() in ("done", "abandoned"))
     age_s = f"{age_h:.1f}h old" if age_h >= 0 else "age unknown"
     line = f"# suite baseline @{rec.get('sha', '?')[:7]} ({age_s}, by {rec.get('seat', '?')}): {n} known failure(s)"
     if closed:

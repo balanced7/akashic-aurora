@@ -58,10 +58,10 @@ def audit_stats(n: int, root: str = "") -> dict[str, Any]:
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
-        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
+        lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
         if not lines:
             continue
-        header, files = lines[0], [_norm(l) for l in lines[1:]]
+        header, files = lines[0], [_norm(ln) for ln in lines[1:]]
         added_tests = [f for f in files if f.startswith("tests/test_") and f.endswith(".py")]
         if not added_tests:
             continue

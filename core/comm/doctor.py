@@ -1021,7 +1021,7 @@ def format_unwedge(r: dict[str, Any], json_mode: bool = False) -> str:
         if dp:
             lines.append(f"  lane depths: {', '.join(dp)}")
     if ev.get("locks"):
-        lines.append(f"  held locks ({len(ev['locks'])}): {', '.join(str(l) for l in ev['locks'][:5])}")
+        lines.append(f"  held locks ({len(ev['locks'])}): {', '.join(str(lk) for lk in ev['locks'][:5])}")
     lines.append(f"  runner: {ev.get('runner_status', 'unknown')}")
     return "\n".join(lines)
 

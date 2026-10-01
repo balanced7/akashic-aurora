@@ -33,20 +33,20 @@ action. Anti-repeat (don't re-surface a lesson already shown this session) is ha
 
 from __future__ import annotations
 
-import json
-
-# T120 F2 (G11b): the ONE title-shaped-query heuristic. The CLI (cmd_recall), the
-# ToolBox (knowledge_recall), and the pin (test_t120_surface_honesty_bounds) all import
-# THIS — a second copy is the defect (same law as G5's one-derivation-function).
-# Shape: source-prefixed slug with content after the prefix, OR a 3+-token slug.
-TITLE_SHAPED_RE = r"^(?:(?:learn:experiment:|research:web:)\S+|\w{4,}(?:[\s_-]\w+){2,})$"
 import contextlib
+import json
 import os
 import re
 import tempfile
 import time
 from datetime import datetime
 from typing import Any
+
+# T120 F2 (G11b): the ONE title-shaped-query heuristic. The CLI (cmd_recall), the
+# ToolBox (knowledge_recall), and the pin (test_t120_surface_honesty_bounds) all import
+# THIS — a second copy is the defect (same law as G5's one-derivation-function).
+# Shape: source-prefixed slug with content after the prefix, OR a 3+-token slug.
+TITLE_SHAPED_RE = r"^(?:(?:learn:experiment:|research:web:)\S+|\w{4,}(?:[\s_-]\w+){2,})$"
 
 
 def _pyl() -> str:
@@ -1958,7 +1958,9 @@ def recall_at(
                 total -= lstats.get("faith_dropped", 0)
                 lessons = kept
         if count_surface and lessons:
-            bump_surfaced([l.get("source") for l in lessons])  # impression count (best-effort, feeds noise-decay)
+            bump_surfaced(
+                [lesson.get("source") for lesson in lessons]
+            )  # impression count (best-effort, feeds noise-decay)
         # R2 s0: EVERY exit records an outcome. empty_query ("nothing was even rankable")
         # is a different fact from floor_silent ("ranked; nothing cleared the floor") --
         # conflating them hides query-construction bugs behind an honest-looking silence.
@@ -2127,14 +2129,14 @@ def render(
         f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing"
         for lk in result.get("locks", [])
     ]
-    for l in result.get("lessons", []):
-        s = l.get("text", "")
-        lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")
+    for lesson in result.get("lessons", []):
+        s = lesson.get("text", "")
+        lines.append(f"{_provenance_tag(lesson)} {s} (source: {lesson.get('source')})")
     # Dissent line: the strongest genuine counter to the TOP lesson (Tier 1). Silent when none — a
     # manufactured counter would be a hallucinated disagreement, the exact failure we're avoiding.
     counter = result.get("counter")
     if counter and counter.get("text"):
-        shown_src = {l.get("source") for l in result.get("lessons", [])}
+        shown_src = {lesson.get("source") for lesson in result.get("lessons", [])}
         if counter.get("source") in shown_src:
             # the counter is one of the lessons already shown -> flag the disagreement, don't repeat text
             lines.append(f"[counter] the top lesson is disputed above by {counter.get('source')}")
@@ -2177,9 +2179,9 @@ def render(
             from core.foundation.timeutil import to_epoch
 
             ages = [
-                (time.time() - to_epoch(l.get("timestamp"))) / 86400.0
-                for l in result["lessons"]
-                if to_epoch(l.get("timestamp") or 0) > 0
+                (time.time() - to_epoch(lesson.get("timestamp"))) / 86400.0
+                for lesson in result["lessons"]
+                if to_epoch(lesson.get("timestamp") or 0) > 0
             ]
             oldest = max(ages) if ages else 0.0
             if oldest >= _STALE_CUE_DAYS:
@@ -2193,15 +2195,15 @@ def render(
     # surfaced lesson actually carries credibility markers. Keep this qualification in band.
     try:
 
-        def _has_marker(l):
-            use = l.get("_use") or {}
+        def _has_marker(lesson):
+            use = lesson.get("_use") or {}
             return (
                 use.get("helped")
                 or use.get("useful")
-                or str(l.get("success", "yes")).lower() not in ("", "yes", "true")
+                or str(lesson.get("success", "yes")).lower() not in ("", "yes", "true")
             )
 
-        if any(_has_marker(l) for l in result.get("lessons", [])):
+        if any(_has_marker(lesson) for lesson in result.get("lessons", [])):
             lines.append(
                 "[legend] worked=self-reported | helped=auto credit | useful=vote | "
                 "unverified=unconfirmed | anti-pattern=known-bad | advice=forward-looking"

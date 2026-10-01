@@ -1256,9 +1256,9 @@ class LearningStore:
             redis_up = bool(getattr(self.store, "redis_available", False))
             return {
                 "total_experiments": len(all_learnings),
-                "successful": len([l for l in all_learnings if l.get("success") == "yes"]),
-                "failed": len([l for l in all_learnings if l.get("success") == "no"]),
-                "partial": len([l for l in all_learnings if l.get("success") == "partial"]),
+                "successful": len([entry for entry in all_learnings if entry.get("success") == "yes"]),
+                "failed": len([entry for entry in all_learnings if entry.get("success") == "no"]),
+                "partial": len([entry for entry in all_learnings if entry.get("success") == "partial"]),
                 "redis_connected": redis_up,
             }
         except Exception as e:

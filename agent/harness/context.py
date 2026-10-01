@@ -459,5 +459,5 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         lines.extend(body)
     lines = lines[:budget]
     out = [f"[akashic] {lines[0]}"]
-    out.extend("  " + l for l in lines[1:])
+    out.extend("  " + ln for ln in lines[1:])
     return "\n".join(out)

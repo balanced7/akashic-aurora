@@ -20,19 +20,19 @@ Fenced design + reconciliation: docs/library/design/20260701_wave-2-design-claud
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import subprocess
-
-_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
-import contextlib
 import tempfile
 import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 
 # Names that identify a live harness ancestor (Claude Desktop engine, CLI engine, or a
 # node-hosted harness). Substring match, case-insensitive, on the process NAME only.

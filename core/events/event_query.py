@@ -25,12 +25,10 @@ which lives in System 4 where importing the TrackRouter is layering-legal.
 from typing import Any
 
 from core.events.event_log import EventLog, get_event_log
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 from core.primitives.ranker import Ranker
 
 _DEFAULT_SCAN = 20000  # how many recent events a query considers (briefing_loader precedent)
-
-
-from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class EventQuery:

@@ -23,13 +23,11 @@ Storage (on the Store, canonical or injected):
 import json
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 MAX_STRENGTH = 1.0
 LEARNING_RATE = 0.34
 HALF_LIFE_SECONDS = 30 * 24 * 3600  # 30 days
-
-
-from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class ReinforcedGraph:

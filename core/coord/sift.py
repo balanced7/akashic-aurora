@@ -418,7 +418,7 @@ def junction_pack(
                 "file": shown,
                 "line": i,
                 "text": line.strip()[:300],
-                "context": [l.strip()[:200] for l in lines[max(0, i - 1 - context) : i + context]],
+                "context": [ctx_line.strip()[:200] for ctx_line in lines[max(0, i - 1 - context) : i + context]],
             }
             if _matches(_WRITE_PATTERNS, term, line):
                 writes.append(rec)

@@ -20,6 +20,8 @@ import os
 import random
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import now_iso  # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch
 from core.narrative.schema import (
     BEAT_KINDS,
     DEFAULT_WEIGHT,
@@ -32,10 +34,6 @@ from core.narrative.schema import (
 
 TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
-
-
-from core.foundation.timeutil import now_iso  # unified tz-safe epoch (S5)
-from core.foundation.timeutil import to_epoch as _epoch
 
 
 class BeatLog:

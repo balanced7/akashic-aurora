@@ -24,15 +24,15 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 from typing import TYPE_CHECKING, Any
 
 from core.foundation.timeutil import now_iso
 
-EVIDENCE_LEVELS = ("VERIFIED", "INFER", "GUESS")
-import re as _re
-
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+EVIDENCE_LEVELS = ("VERIFIED", "INFER", "GUESS")
 
 _SLOT = _re.compile(r"\$([1-9])")
 DEFAULT_QUOTA = int(os.getenv("AKASHIC_TOOLBELT_QUOTA", "20"))

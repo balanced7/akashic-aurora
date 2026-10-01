@@ -162,7 +162,7 @@ def build_map(
     lessons = lessons or []
     notes = notes or []
     docs = docs or []
-    lesson_by_id = {l.get("id"): l for l in lessons if l.get("id")}
+    lesson_by_id = {lesson.get("id"): lesson for lesson in lessons if lesson.get("id")}
 
     from core.primitives.ranker import Ranker
 

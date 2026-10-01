@@ -96,13 +96,13 @@ def verify_receipt(to: str, receipt: str, *, store: Any | None = None) -> tuple[
     except Exception as e:
         return False, f"store scan failed ({type(e).__name__})"
     needle = rec.lower()
-    cands = [l for l in all_l if needle in str(l.get("experiment_name") or l.get("id") or "").lower()]
+    cands = [item for item in all_l if needle in str(item.get("experiment_name") or item.get("id") or "").lower()]
     if not cands:
         return False, f"no experiment matching {rec!r} in the store"
-    mine = [l for l in cands if str(l.get("agent_id") or "") == str(to)]
+    mine = [item for item in cands if str(item.get("agent_id") or "") == str(to)]
     if mine:
         return True, f"fuzzy id match ({len(mine)} record(s) for {to})"
-    owners = sorted({str(l.get("agent_id") or "?") for l in cands})
+    owners = sorted({str(item.get("agent_id") or "?") for item in cands})
     return False, f"matches exist but belong to {', '.join(owners)}, not {to}"
 
 

@@ -36,6 +36,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 logger = logging.getLogger("event_index")
 
@@ -43,9 +44,6 @@ TINDEX = "events:raw:tindex"
 BYID_PREFIX = "events:raw:byid:"
 BYREF_PREFIX = "events:raw:byref:"
 DEFAULT_MAXLEN = 100_000  # match the firehose (event_log.CANONICAL_MAXLEN)
-
-
-from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 def byid_key(event_id: str) -> str:
