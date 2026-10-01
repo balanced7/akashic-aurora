@@ -78,6 +78,30 @@ dev = [
 
 [tool.uv]
 package = false
+required-version = ">=0.12"
+# Supply-chain cooldown: resolve only releases at least 7 days old.
+exclude-newer = "7 days"
+default-groups = ["dev"]
+
+# Fallback (plan G1): these locked versions were younger than 7 days when the cooldown arrived
+# (2026-10-01), and without an override uv would downgrade them. Each line admits releases up to
+# that day for one package, so the lock the G0 oracle measured stays as it is. Delete each line
+# on its date: the locked version is then old enough for the global setting alone.
+[tool.uv.exclude-newer-package]
+av = "2026-10-01T12:00:00Z"                    # keeps 19.0.0; remove on or after 2026-10-07
+"charset-normalizer" = "2026-10-01T12:00:00Z"  # keeps 3.5.2; remove on or after 2026-10-08
+coverage = "2026-10-01T12:00:00Z"              # keeps 7.16.2; remove on or after 2026-10-05
+cryptography = "2026-10-01T12:00:00Z"          # keeps 50.0.2; remove on or after 2026-10-08
+filelock = "2026-10-01T12:00:00Z"              # keeps 4.0.7; remove on or after 2026-10-07
+"google-auth" = "2026-10-01T12:00:00Z"         # keeps 2.59.1; remove on or after 2026-10-08
+prek = "2026-10-01T12:00:00Z"                  # keeps 0.5.4; remove on or after 2026-10-06
+pyjwt = "2026-10-01T12:00:00Z"                 # keeps 2.15.1; remove on or after 2026-10-06
+regex = "2026-10-01T12:00:00Z"                 # keeps 2026.9.29; remove on or after 2026-10-07
+ruff = "2026-10-01T12:00:00Z"                  # keeps 0.16.9; remove on or after 2026-10-02
+"sse-starlette" = "2026-10-01T12:00:00Z"       # keeps 3.5.0; remove on or after 2026-10-06
+torch = "2026-10-01T12:00:00Z"                 # keeps 2.14.1; remove on or after 2026-10-08
+transformers = "2026-10-01T12:00:00Z"          # keeps 5.18.0; remove on or after 2026-10-08
+uvicorn = "2026-10-01T12:00:00Z"               # keeps 0.54.0; remove on or after 2026-10-03
 
 [tool.deptry]
 # Scope (plan G1.P1): [project].dependencies must equal what RUNTIME and SCRIPT code imports.
