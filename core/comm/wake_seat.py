@@ -59,11 +59,12 @@ def activity_marker_path(agent: str, session_id: str, tmp: Optional[str] = None)
 # (lesson detached_daemon_listener_holds_the_seat_but_cannot_wake_an_interactive_session;
 # Daniel 2026-10-01: "How do we take the discipline out of it and have an ergonomic solution
 # that just works."). The origin is stamped by the LAUNCHER through BIFROST_WAKE_ORIGIN and
-# written by the listener beside its seat; a seat with no origin record is UNKNOWN, and
-# unknown is not wakeable -- a false block costs one re-arm, a false pass costs deafness.
+# written by the listener beside its seat; a seat with no origin record, or an UNSTAMPED
+# launch, is UNKNOWN, and unknown is not wakeable -- a false block costs one re-arm, a
+# false pass costs deafness (Heimdall D6c: a silent default must never be a wakeable one).
 ORIGIN_HARNESS = "harness"   # harness-tracked parent: its exit re-invokes the session
 ORIGIN_DAEMON = "daemon"     # bifrost_daemon child: presence + consume, never a wake
-ORIGIN_DIRECT = "direct"     # bifrost_wake.py launched with no stamp -- the hook's own arm line
+ORIGIN_DIRECT = "direct"     # EXPLICIT stamp only: a launcher asserting a harness parent (D6c)
 ORIGIN_ENV = "BIFROST_WAKE_ORIGIN"
 WAKEABLE_ORIGINS = frozenset({ORIGIN_HARNESS, ORIGIN_DIRECT})
 

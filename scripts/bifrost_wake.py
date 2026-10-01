@@ -697,9 +697,12 @@ def main() -> int:
         pass
     # ORIGIN sidecar (2026-10-01): WHO launched this listener decides whether its exit can
     # start a turn. The launcher stamps BIFROST_WAKE_ORIGIN (bifrost-standby -> harness,
-    # bifrost_daemon -> daemon); an unstamped launch is `direct`. Written beside the seat so
-    # every seat reader keeps its bare-int contract. Same seat-first timing as the pid.
-    _origin = (os.environ.get("BIFROST_WAKE_ORIGIN") or "direct").strip() or "direct"
+    # bifrost_daemon -> daemon). An UNSTAMPED launch is `unknown` -- Heimdall's D6(c) in
+    # fences/wake-origin/half_a.md: a hand-launched bifrost_wake.py is a detached child
+    # whose exit notifies nobody, so defaulting it to a wakeable origin re-opens the hole;
+    # `direct` is reserved for a launcher that deliberately asserts a harness parent.
+    # Written beside the seat so every seat reader keeps its bare-int contract.
+    _origin = (os.environ.get("BIFROST_WAKE_ORIGIN") or "unknown").strip() or "unknown"
     try:
         from core.comm import wake_seat as _ws      # after the pid seat: the fast path is kept
         _ws.write_origin(a.agent, a.session or None, _origin, me)
