@@ -859,7 +859,7 @@ def o1_ran(run) -> int:
     return c.get("passed", 0) + c.get("failed", 0) + c.get("error", 0)
 
 
-def compare_o1(a, b) -> list:
+def compare_o1(a, b, partial=False) -> list:
     diffs = []
     for nid, t in sorted(a["tests"].items()):
         nb = b["tests"].get(nid)
@@ -1796,11 +1796,13 @@ def measure(ref: str) -> dict:
             out["ruff_stretch"] = stretch
             out["ruff_format"] = {}
             for ll in (100, 120):
-                r = _uvx("ruff", ["format", "--check", "--config",
+                # concise output: ruff 0.16.9's default "full" renderer panics on two files
+                # (ruff_annotate_snippets source_map.rs:185); the formatter itself does not
+                r = _uvx("ruff", ["format", "--check", "--output-format", "concise", "--config",
                                   str(_ruff_cfg(cfgdir, ["E"], line_length=ll)), *files], t)
                 text = r.stdout + r.stderr
                 out["ruff_format"]["line_length_%d" % ll] = {
-                    "would_reformat": len(re.findall(r"(?m)^Would reformat: ", text)),
+                    "would_reformat": len(re.findall(r"(?m): unformatted: File would be reformatted$", text)),
                     "errors": [ln for ln in text.splitlines() if ln.startswith("error")][:20],
                     "exit": r.returncode}
             pyr = cfgdir / "pyrightconfig.json"
@@ -1808,20 +1810,22 @@ def measure(ref: str) -> dict:
                 "include": [str(t / f) for f in files], "typeCheckingMode": "standard",
                 "pythonVersion": "3.12", "venvPath": str(t), "venv": ".venv",
                 "extraPaths": [str(t)]}), encoding="utf-8")
-            r = _uvx("basedpyright", ["-p", str(pyr), "--outputjson"], t)
-            try:
-                bp = json.loads(r.stdout)
-                by_rule = {}
-                for d in bp.get("generalDiagnostics", []):
-                    if d.get("severity") == "error":
-                        k = d.get("rule") or "unknown"
-                        by_rule[k] = by_rule.get(k, 0) + 1
-                out["basedpyright_standard"] = {
-                    "errors": bp["summary"]["errorCount"], "warnings": bp["summary"]["warningCount"],
-                    "files_analyzed": bp["summary"]["filesAnalyzed"],
-                    "by_rule": dict(sorted(by_rule.items(), key=lambda kv: -kv[1]))}
-            except (ValueError, KeyError):
-                out["basedpyright_standard"] = {"error": (r.stderr or r.stdout)[-500:]}
+            # text output: basedpyright 1.40.1 dies in V8 (exit 245/251, no message) while
+            # serialising --outputjson for this many diagnostics; the analysis itself completes
+            r = _uvx("basedpyright", ["-p", str(pyr)], t)
+            text = r.stdout + r.stderr
+            m = re.search(r"(?m)^(\d+) errors?, (\d+) warnings?", text)
+            by_rule = {}
+            for rule in re.findall(r"(?m)^\s+\S.*? - error: .*?\((report\w+)\)\s*$", text):
+                by_rule[rule] = by_rule.get(rule, 0) + 1
+            out["basedpyright_standard"] = {
+                "errors": int(m.group(1)) if m else None,
+                "warnings": int(m.group(2)) if m else None,
+                "exit": r.returncode,
+                "by_rule_single_line": dict(sorted(by_rule.items(), key=lambda kv: -kv[1])),
+                "note": "by_rule counts errors whose rule tag sits on the error line itself; "
+                        "multi-line messages put it on a continuation line and are counted "
+                        "in errors only"}
             r = _uvx("ty", ["check", "--python", str(venv_python(t)), "--output-format", "concise",
                             "--exit-zero", *files], t)
             m = re.search(r"Found (\d+) diagnostic", r.stdout + r.stderr)

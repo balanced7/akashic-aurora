@@ -351,3 +351,19 @@ def test_later_goal_waits_for_its_predecessor(tmp_path, monkeypatch):
     (tmp_path / "LEDGER.md").write_text("| G0 | CERTIFIED | a..b | | | |\n", encoding="utf-8")
     assert certify.prior_goal_certified(1)
     assert not certify.prior_goal_certified(2)
+
+
+def test_every_comparator_runs_through_compare_dirs(tmp_path):
+    """compare_dirs calls each comparator as (a, b, partial); a signature drift in any one of
+    them must fail here, not in the middle of a certificate."""
+    fixtures = {
+        "O1": _o1({"t::a": ["passed"]}), "O3": {"modules": {"m": {"status": "OK"}}},
+        "O4": _o4(), "O5": _o5(["f"]), "O6": {"checkers": {"c": {"rc": 0, "crashed": False}}},
+        "O7": {"commands": {"k": {"rc": 0, "lines": 1, "headings": []}}},
+        "O8": {"violations": []}, "O9": {"tests": {"t::a": 1}, "total": 1},
+        "O10": {"packages": {"core": 50.0}},
+    }
+    assert set(fixtures) == set(O.COMPARATORS)
+    _snap(tmp_path / "a", fixtures)
+    lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", intended=[])
+    assert ok and lines[-1] == "ORACLE: 10/10 EQUAL"
