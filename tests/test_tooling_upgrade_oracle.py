@@ -381,3 +381,23 @@ def test_oracle_records_are_not_archival_evidence(tmp_path, monkeypatch):
         subprocess.run(cmd, cwd=tmp_path, check=True)
     inv = O.build_inventory(tmp_path)
     assert inv["archival"] == ["research/old.py"]
+
+
+def test_public_id_hashes_parameter_text():
+    nid = "tests/test_x.py::test_k[fixture-value]"
+    pid = O.public_id(nid)
+    assert pid.startswith("tests/test_x.py::test_k[#") and "fixture-value" not in pid
+    assert O.public_id(pid) == pid and O.public_id("t.py::test_plain") == "t.py::test_plain"
+
+
+def test_o1_volatile_parametrize_ids_compare_by_count():
+    """Ids built from a timestamp differ every run; same count and passes is EQUAL, fewer is DIFF."""
+    a = {"runs": [{"counts": {"passed": 1}, "collect_errors": []}] * 2,
+         "tests": {"t::v[#1]": {"outcomes": ["passed", None], "class": "stable-pass"},
+                   "t::v[#2]": {"outcomes": [None, "passed"], "class": "stable-pass"}}}
+    assert "t::v" in O.volatile_bases(a)
+    b = {"runs": [{"counts": {"passed": 1}, "collect_errors": []}],
+         "tests": {"t::v[#3]": {"outcomes": ["passed"], "class": "stable-pass"}}}
+    assert O.compare_o1(a, b) == []
+    b["tests"]["t::v[#3]"]["outcomes"] = ["failed"]
+    assert [k for k, _ in O.compare_o1(a, b)] == ["volatile:t::v"]

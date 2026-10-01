@@ -837,6 +837,7 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
             t["reruns"].append(_final_outcome(d["results"].get(nid, {})))
     for t in tests.values():
         t["class"] = o1_class(t["outcomes"])
+    tests = {public_id(k): v for k, v in tests.items()}
     return {
         "runs": [{"exitstatus": d["exitstatus"], "duration_s": d["duration_s"],
                   "collect_errors": sorted(d["collect_errors"]), "counts": _counts(d),
@@ -880,9 +881,54 @@ def o1_ran(run) -> int:
     return c.get("passed", 0) + c.get("failed", 0) + c.get("error", 0)
 
 
+def public_id(nid: str) -> str:
+    """The node id as O1 stores it: parameter text replaced by its sha256 prefix. Parametrize
+    ids can carry fixture VALUES -- this repo's secret-scanner tests parametrize on fake
+    credential-shaped strings -- and copying them into a tracked snapshot moves them out of the
+    files check_secrets allowlists. Hashing keeps matching exact and the values where they are."""
+    if "[" in nid and nid.endswith("]") and "[#" not in nid:
+        base, params = nid.split("[", 1)
+        return "%s[#%s]" % (base, sha256_bytes(params[:-1].encode("utf-8"))[:12])
+    return nid
+
+
+def id_base(nid: str) -> str:
+    return nid.split("[", 1)[0]
+
+
+def _per_run(s) -> list:
+    """[{base: {id: outcome}}] for each run."""
+    out = [{} for _ in s["runs"]]
+    for nid, t in s["tests"].items():
+        for i, o in enumerate(t["outcomes"]):
+            if o is not None and i < len(out):
+                out[i].setdefault(id_base(nid), {})[nid] = o
+    return out
+
+
+def volatile_bases(s) -> set:
+    """Parametrized tests whose ids differ between runs of ONE snapshot (an id built from a
+    timestamp or a fresh signature): they can only be compared by count, never by id."""
+    runs = _per_run(s)
+    bases = set().union(*runs) if runs else set()
+    return {b for b in bases if len({frozenset(r.get(b, {})) for r in runs}) > 1}
+
+
 def compare_o1(a, b, partial=False) -> list:
     diffs = []
+    volatile = volatile_bases(a) | volatile_bases(b)
+    ra, rb = _per_run(a), _per_run(b)
+    for base in sorted(volatile):
+        cnt = lambda runs: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
+        ok = lambda runs: min((sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),  # noqa: E731
+                              default=0)
+        if cnt(rb) < cnt(ra):
+            diffs.append(("volatile:" + base, "collects %d < baseline %d per run" % (cnt(rb), cnt(ra))))
+        elif ok(rb) < ok(ra):
+            diffs.append(("volatile:" + base, "passes %d < baseline %d per run" % (ok(rb), ok(ra))))
     for nid, t in sorted(a["tests"].items()):
+        if id_base(nid) in volatile:
+            continue
         nb = b["tests"].get(nid)
         if nb is None or nb["class"] == "uncollected":
             diffs.append(("id:" + nid, "no longer collected"))
@@ -898,6 +944,19 @@ def compare_o1(a, b, partial=False) -> list:
     if ran(b) < ran(a):
         diffs.append(("run-count", "tests run %d < baseline %d (T7)" % (ran(b), ran(a))))
     return diffs
+
+
+def cmd_rekey_o1(args) -> int:
+    """Rewrite a stored O1.json's ids into public_id form (idempotent; no re-measurement)."""
+    p = snapshot_dir(args.label) / "O1.json"
+    data = load_json(p)
+    before = len(data["tests"])
+    data["tests"] = {public_id(k): v for k, v in data["tests"].items()}
+    if len(data["tests"]) != before:
+        raise RuntimeError("rekey collided: %d -> %d ids" % (before, len(data["tests"])))
+    dump_json(p, data)
+    print("rekeyed %s: %d ids" % (p.relative_to(ROOT), before))
+    return 0
 
 
 # ----------------------------------------------------------------------------- O2 AST equality
@@ -1920,6 +1979,8 @@ def main(argv=None) -> int:
     s.add_argument("--baseline", default="g0")
     sub.add_parser("mcp-stdio", help="list MCP tools by launching the .mcp.json server")
     sub.add_parser("assert-stdlib", help="oracle.py and certify.py import only the stdlib")
+    s = sub.add_parser("rekey-o1", help="hash parametrize text in a stored O1.json (idempotent)")
+    s.add_argument("label")
     s = sub.add_parser("measure", help="G0.P4 tool numbers (ruff, format, basedpyright, ty)")
     s.add_argument("label")
     s.add_argument("--ref", default=None)
@@ -1929,6 +1990,7 @@ def main(argv=None) -> int:
         "ast-equal": cmd_ast_equal, "impacted": cmd_impacted,
         "verify-snapshot": cmd_verify_snapshot, "selftest-d14": cmd_selftest_d14,
         "mcp-stdio": cmd_mcp_stdio, "assert-stdlib": cmd_assert_stdlib, "measure": cmd_measure,
+        "rekey-o1": cmd_rekey_o1,
     }[args.cmd](args)
 
 
