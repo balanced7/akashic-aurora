@@ -160,7 +160,7 @@ def tonic_pc(key: str) -> int:
 
 def degree_key(key: str, item: str) -> str:
     """A key item or variant key ("6 major"), a degree of the card key, spelled from the degree (6 of Gb is Eb)."""
-    letter, _acc, _mode = KEY_RE.match(key).groups()
+    letter, _key_acc, _mode = KEY_RE.match(key).groups()
     sign, degree, mode = DEGREE_RE.match(item).groups()
     degree = int(degree)
     new_letter = LETTERS[(LETTERS.index(letter) + degree - 1) % 7]

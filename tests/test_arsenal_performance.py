@@ -1536,7 +1536,7 @@ def test_close_writes_a_roll_projection_beside_the_summary(tmp_path):
     store.close(session, [_on(500, 64), _off(900, 64)])
     roll = tmp_path / session / "roll.txt"
     assert roll.exists(), "close() wrote no roll.txt -- the projection is unwired again"
-    meta, notes, _pedal, _chords = unpack(roll.read_text(encoding="utf-8"))
+    meta, notes, _pedal_events, _chords = unpack(roll.read_text(encoding="utf-8"))
     assert meta.get("session") == session
     assert [(n[1], n[2]) for n in notes] == [(60, 400), (64, 400)], (
         "the projection must carry the notes and their durations, not just exist"
