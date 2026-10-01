@@ -508,7 +508,10 @@ def build_inventory(tree_root: Path = ROOT) -> dict:
     changed = True
     while changed:
         changed = False
-        nonarch_files = [f for f in files if not (is_history(f) and (f in archival or not f.endswith(".py")))]
+        # The oracle's own records (inventory.json, snapshots, ledger) list every path by design;
+        # they are bookkeeping about the repo, not references from it, so they prove nothing.
+        nonarch_files = [f for f in files if not (is_history(f) and (f in archival or not f.endswith(".py")))
+                         and not (f.startswith("tooling-upgrade/") and not f.endswith(".py"))]
         for c in sorted(archival):
             importers = sorted(i for i in rev.get(c, ()) if i not in archival)
             refs = []

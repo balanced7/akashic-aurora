@@ -367,3 +367,17 @@ def test_every_comparator_runs_through_compare_dirs(tmp_path):
     _snap(tmp_path / "a", fixtures)
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", intended=[])
     assert ok and lines[-1] == "ORACLE: 10/10 EQUAL"
+
+
+def test_oracle_records_are_not_archival_evidence(tmp_path, monkeypatch):
+    """inventory.json and the snapshots name every path; if they counted as references, the
+    second inventory run would find no ARCHIVAL file at all."""
+    import subprocess
+    _write(tmp_path, "research/old.py", "x = 1\n")
+    _write(tmp_path, "core/live.py", "y = 2\n")
+    _write(tmp_path, "tooling-upgrade/inventory.json", '{"files": {"research/old.py": {}}}\n')
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x"]):
+        subprocess.run(cmd, cwd=tmp_path, check=True)
+    inv = O.build_inventory(tmp_path)
+    assert inv["archival"] == ["research/old.py"]
