@@ -27,3 +27,33 @@ phase = "G2.P4"
 cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "head"]
 expect = 0
 expect_stdout = "^ORACLE: 10/10 EQUAL$"
+
+# ---- added at the start of G2 (plan section 9 PRE-REGISTER), before any G2 change ----
+
+# A guardrail that scans source text must keep its coverage through the reformat: at G1 HEAD,
+# check_advertised_tools resolves 103 tools in 9 namespaces.
+[[check]]
+id = "G2.P2.advertised-tools-coverage"
+phase = "G2.P2"
+cmd = ["{python}", "scripts/checkers/check_advertised_tools.py"]
+expect = 0
+expect_stdout = "\\(103 tools, 9 namespace"
+
+[[check]]
+id = "G2.P3.gate-members"
+phase = "G2.P3"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-gate", "fmt-check", "lock-check", "deps", "guardrails", "test-fast"]
+expect = 0
+
+[[check]]
+id = "G2.P1.tamper"
+phase = "G2.P1"
+cmd = ["{python}", "tooling-upgrade/certify.py", "G2", "--tamper-only"]
+expect = 0
+
+[[check]]
+id = "G2.P4.fresh-clone-gate"
+phase = "G2.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "fresh-clone", "--gate"]
+expect = 0
+timeout_s = 7200
