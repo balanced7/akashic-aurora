@@ -86,7 +86,12 @@ $foreign = @('AKASHIC_CALLSIGN_HINT', 'AKASHIC_CALLSIGN_STATUS',
 # PER-SESSION variables, cleared for a different reason: they describe THIS session, so a seat
 # launched from inside one would inherit its identity and believe it is the same session -- sharing
 # a recall key and pointing at the wrong port. A seat must mint its own.
-$perSession = @('DSH_SESSION_ID', 'DSH_SESSION_JSONL', 'DSH_WEB_URL', 'DSH_SHELL')
+$perSession = @('DSH_SESSION_ID', 'DSH_SESSION_JSONL', 'DSH_WEB_URL', 'DSH_SHELL',
+                # 2026-10-01: Rill launched from a Claude Code shell inherited THAT session's id;
+                # his plugin's MCP door then filed his boot under claude's session id (roster
+                # row deepseek#bb86400e). The Claude Code session variables describe the
+                # launcher's session, never the seat's.
+                'CLAUDE_CODE_SESSION_ID', 'CLAUDE_SESSION_ID')
 $cleared = @()
 foreach ($name in ($foreign + $perSession)) {
     if (Test-Path "env:$name") {
