@@ -1,7 +1,8 @@
 # Lets `uv run` resolve Aurora's dependencies with nothing installed beforehand:
-#   uv run -p 3.12 agent_cli.py boot me --task "..."
-# The same list lives in requirements.txt for `pip install -r requirements.txt` (the Windows
-# `py` setup). Keep the two in step.
+#   uv run agent_cli.py boot me --task "..."   (Python: .python-version)
+# requirements.txt (+ requirements/gemini-web.txt) are GENERATED from this file and uv.lock for
+# `pip install -r requirements.txt` (the Windows `py` setup, CI): `uv run poe lock` relocks and
+# rewrites them, `uv run poe lock-check` fails when either is stale. Never edit them by hand.
 #
 # Nothing here needs a separately installed service: the Bifrost bus runs on an embedded,
 # SQLite-persisted Redis (core/foundation/embedded_redis.py) when no Redis server is present.
@@ -139,3 +140,17 @@ DEP004 = [
 [tool.poe.tasks.deps]
 help = "Dependency truth: deptry over RUNTIME and SCRIPT code (config: [tool.deptry])"
 cmd = "deptry . --config pyproject.toml"
+
+[tool.poe.tasks.lock]
+help = "Relock (uv lock), then regenerate the pip requirement files from the lock"
+sequence = [
+    { cmd = "uv lock" },
+    { cmd = "python scripts/generators/gen_requirements.py" },
+]
+
+[tool.poe.tasks.lock-check]
+help = "Fail if uv.lock is stale for pyproject.toml or a requirement file differs from the lock"
+sequence = [
+    { cmd = "uv lock --check" },
+    { cmd = "python scripts/generators/gen_requirements.py --check" },
+]
