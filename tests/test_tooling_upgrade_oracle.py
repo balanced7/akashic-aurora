@@ -401,3 +401,40 @@ def test_o1_volatile_parametrize_ids_compare_by_count():
     assert O.compare_o1(a, b) == []
     b["tests"]["t::v[#3]"]["outcomes"] = ["failed"]
     assert [k for k, _ in O.compare_o1(a, b)] == ["volatile:t::v"]
+
+
+# ----------------------------------------------------------------------------- G1 asserts
+
+def test_dev_group_must_be_exactly_the_plan_list():
+    import certify
+    dev = ["ruff>=0.1", "basedpyright", "ty", "pytest>=8", "pytest-cov", "pytest-xdist",
+           "pytest_randomly", "poethepoet", "prek", "deptry"]
+    good = {"project": {"dependencies": ["redis>=5"]},
+            "dependency-groups": {"dev": dev, "ml": ["x"], "browser": ["y"]}}
+    assert certify.dev_group_problems(good) == []
+    bad = {"project": {"dependencies": ["pytest>=8", "pre-commit>=3"]},
+           "dependency-groups": {"dev": dev[1:] + ["black"], "ml": []}}
+    msgs = " | ".join(certify.dev_group_problems(bad))
+    for frag in ("dev lacks ruff", "dev has black", "still has tool pytest", "pre-commit",
+                 "browser missing"):
+        assert frag in msgs
+
+
+def test_uv_settings():
+    import certify
+    good = {"tool": {"uv": {"package": False, "required-version": ">=0.12",
+                            "exclude-newer": "7 days", "default-groups": ["dev"]}}}
+    assert certify.uv_settings_problems(good) == []
+    assert len(certify.uv_settings_problems({"tool": {"uv": {"package": False,
+                                                              "required-version": ">=0.11"}}})) == 3
+
+
+def test_gate_members_order_and_ignore_fail():
+    import certify
+    ok = {"gate": {"sequence": ["lock-check", "deps", "guardrails", "test-fast"]}}
+    assert certify.gate_problems(ok, ["lock-check", "test-fast"]) == []
+    assert certify.gate_problems(ok, ["fmt-check"]) == ["gate lacks fmt-check"]
+    wrong = {"gate": {"sequence": ["deps", "lock-check", "echo"], "ignore_fail": True}}
+    msgs = " | ".join(certify.gate_problems(wrong, []))
+    assert "'echo' is not a plan gate task" in msgs and "order" in msgs and "ignore_fail" in msgs
+    assert certify.gate_problems({"gate": {"shell": "true || true"}}, []) == ["gate is not a sequence task"]

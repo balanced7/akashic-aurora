@@ -721,6 +721,76 @@ def cmd_assert_no_bare_py(args) -> int:
     return _report("NO BARE PY", problems)
 
 
+DEV_GROUP = ("ruff", "basedpyright", "ty", "pytest", "pytest-cov", "pytest-xdist", "pytest-randomly",
+             "poethepoet", "prek", "deptry")    # plan G1.P1, exactly
+
+
+def _req_name(spec: str) -> str:
+    return re.split(r"[\s<>=!~;\[@]", spec.strip(), maxsplit=1)[0].lower().replace("_", "-")
+
+
+def dev_group_problems(pp: dict) -> list:
+    groups = pp.get("dependency-groups", {})
+    dev = {_req_name(s) for s in groups.get("dev", []) if isinstance(s, str)}
+    problems = ["dev lacks %s" % n for n in DEV_GROUP if n not in dev]
+    problems += ["dev has %s (not in the plan's list)" % n for n in sorted(dev - set(DEV_GROUP))]
+    runtime = {_req_name(s) for s in pp.get("project", {}).get("dependencies", [])}
+    problems += ["[project].dependencies still has tool %s" % n for n in sorted(runtime & set(DEV_GROUP))]
+    problems += ["pre-commit is still declared (replaced by prek)" for g in
+                 [runtime] + [{_req_name(s) for s in v if isinstance(s, str)} for v in groups.values()]
+                 if "pre-commit" in g]
+    for g in ("ml", "browser"):
+        if g not in groups:
+            problems.append("optional group %s missing" % g)
+    return problems
+
+
+def cmd_assert_dev_group(args) -> int:
+    return _report("DEV GROUP", dev_group_problems(pyproject()))
+
+
+def uv_settings_problems(pp: dict) -> list:
+    uv = pp.get("tool", {}).get("uv", {})
+    problems = []
+    if uv.get("package") is not False:
+        problems.append("tool.uv.package is not false")
+    m = re.fullmatch(r">=\s*0\.(\d+)(\.\d+)?", str(uv.get("required-version", "")))
+    if not m or int(m.group(1)) < 12:
+        problems.append("tool.uv.required-version %r is not >=0.12 (the G0 uv minor)"
+                        % uv.get("required-version"))
+    if uv.get("exclude-newer") != "7 days":
+        problems.append("tool.uv.exclude-newer %r != '7 days'" % uv.get("exclude-newer"))
+    if uv.get("default-groups") != ["dev"]:
+        problems.append("tool.uv.default-groups %r != ['dev']" % uv.get("default-groups"))
+    return problems
+
+
+def cmd_assert_uv_settings(args) -> int:
+    return _report("UV SETTINGS", uv_settings_problems(pyproject()))
+
+
+def gate_problems(tasks: dict, members: list) -> list:
+    """`gate` is a sequence over gate tasks in plan order (G1.P6) that includes at least
+    `members`; tasks only ever join it."""
+    gate = tasks.get("gate")
+    seq = gate.get("sequence") if isinstance(gate, dict) else gate if isinstance(gate, list) else None
+    if not isinstance(seq, list):
+        return ["gate is not a sequence task"]
+    names = [s if isinstance(s, str) else s.get("ref", "") if isinstance(s, dict) else "" for s in seq]
+    problems = ["gate step %r is not a plan gate task" % n for n in names if n not in GATE_TASKS]
+    order = [n for n in GATE_TASKS if n in names]
+    if names != order:
+        problems.append("gate order %s differs from plan order %s" % (names, order))
+    problems += ["gate lacks %s" % m for m in members if m not in names]
+    if isinstance(gate, dict) and gate.get("ignore_fail"):
+        problems.append("gate sets ignore_fail")
+    return problems
+
+
+def cmd_assert_gate(args) -> int:
+    return _report("GATE MEMBERS", gate_problems(poe_tasks(), args.members))
+
+
 def cmd_assert_ratchet(args) -> int:
     """Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the
     counts committed in tooling-upgrade/ratchet.json."""
@@ -940,6 +1010,10 @@ def main(argv=None) -> int:
     sub.add_parser("assert-blame-ignore-revs", help="every listed SHA is a style: commit")
     sub.add_parser("assert-python-agrees", help=".python-version agrees with CI, hooks, settings")
     sub.add_parser("assert-no-bare-py", help="no executable surface launches a bare `py`")
+    sub.add_parser("assert-dev-group", help="dev group is exactly the plan's tool list (G1.P1)")
+    sub.add_parser("assert-uv-settings", help="[tool.uv] carries the G1.P3 settings")
+    s = sub.add_parser("assert-gate", help="poe gate: plan order, includes the given tasks")
+    s.add_argument("members", nargs="*")
     s = sub.add_parser("assert-ratchet", help="stretch rule families never rise")
     s.add_argument("goal")
     sub.add_parser("assert-latent-regressions", help="latent-bug tests fail on parent, pass on HEAD")
@@ -955,6 +1029,8 @@ def main(argv=None) -> int:
             "assert-blame-ignore-revs": cmd_assert_blame_ignore_revs,
             "assert-python-agrees": cmd_assert_python_agrees,
             "assert-no-bare-py": cmd_assert_no_bare_py, "assert-ratchet": cmd_assert_ratchet,
+            "assert-dev-group": cmd_assert_dev_group, "assert-uv-settings": cmd_assert_uv_settings,
+            "assert-gate": cmd_assert_gate,
             "assert-latent-regressions": cmd_assert_latent_regressions,
             "assert-ledger-entry": cmd_assert_ledger_entry, "assert-docs-uv": cmd_assert_docs_uv,
             "assert-ci-replay": cmd_assert_ci_replay}[a.cmd](a)
