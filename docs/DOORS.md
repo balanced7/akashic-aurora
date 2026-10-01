@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (107 verbs)
+## CLI door -- `py agent_cli.py <verb>` (108 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -105,6 +105,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `stats` | recall-value funnel: surfaced -> helped -> flips -> captured | `--hours` `--days` `--silence` `--json` |
 | `status` | honest system status | `--json` |
 | `story` | print narrative story views | `--chronicle` `--mark` `--session-end` `--track` `--theme` `--themes` `--at` `--chapter` `--beat` `--raw` `--json` |
+| `suite` | README-ONLY test-pipeline doors: diff / triage / rerun-failing / tail (projects over suite_baseline + pytest's lastfailed cache + the run log; writes nothing) | `<suite_sub>* {diff,triage,rerun-failing,tail}` |
 | `suite-baseline` | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) | `<agent_id>*` `--from-file` `--sha` `--check` `--show` `--whose` |
 | `sweep` | the awareness snapshot: bus, bench, health, moved -- one bounded read-only block | `<agent_id>` `--json` |
 | `tag-anti-pattern` | tag an EXISTING lesson as a reusable known-bad | `<agent_id>*` `--experiment*` `--name*` `--reason` `--json` |

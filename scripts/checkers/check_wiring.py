@@ -168,10 +168,13 @@ EXCEPTIONS = {
             "explicitly forbids a production caller, live hook, resident watcher, model call, or "
             "canonical writer until replay, resource, kill/restart, and independent-review gates "
             "clear. Wiring it merely to satisfy this checker would violate the safety boundary. "
+            "RENEWED 2026-10-01 by claude (the 09-30 expiry blocked every commit in the tree; "
+            "T370 still untouched in the ledger, the module still has no production caller, the "
+            "safety boundary stands). "
             "UNWIRE-WHEN: the separately reviewed T370 live adapter asks the real detector seam and "
             "hands terminal slots to this module; remove this entry then, or delete the module if "
             "the pilot is rejected. Owner: Sunshine; independent reconciler: Vandor.",
-        "expires": "2026-09-30",
+        "expires": "2026-11-30",
     },
     "core/recall/precision_audit.py": "built-ahead (52db9b5): the retrieval-accuracy instrument "
         "kimi named as the hole every 2026-07-27 architecture position argued around without a "

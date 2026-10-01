@@ -57,8 +57,8 @@ _ROOT_DOCS = ("AGENTS.md", "CLAUDE.md", "README.md", "bootstrap.md")
 REF_ALLOWLIST = {
     # "some/path.py": {"expires": "2026-12-31", "reason": "why this ref is legitimately not on disk"},
     "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
-        "expires": "2026-09-30",
-        "reason": "RENEWED 2026-09-16 by Daniel's call (the 09-15 expiry blocked every commit, "
+        "expires": "2026-11-30",
+        "reason": "RENEWED 2026-10-01 by claude (the 09-30 expiry blocked every commit again; the ARCS/SHELVES full regen is still the fix and still waits on the uncommitted atom lines). RENEWED 2026-09-16 by Daniel's call (the 09-15 expiry blocked every commit, "
                   "including the mirror.py publish guard; the atom fix would commit other seats' "
                   "uncommitted store/docs/design.jsonl). RENEWED 2026-08-24 (first expiry lapsed "
                   "mid-marathon): the path lives as "

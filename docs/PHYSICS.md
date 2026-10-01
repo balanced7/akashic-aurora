@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a7f916d8. A bound you discover by collision is not awareness -- this sheet
+> Derived at 53a73fea. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (263 names)
+## Configuration flags (264 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -175,6 +175,7 @@ Class: reference
 | `BIFROST_WAKE_DEADLINE_S` | `""` | scripts/bifrost_wake.py |
 | `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py, core/comm/bifrost_api.py |
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
+| `BIFROST_WAKE_ORIGIN` | `` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
 | `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +6 |
