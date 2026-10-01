@@ -24,6 +24,8 @@ Import target: ``core.recall.shadow_shelf`` (intended public module; does not ex
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:  # noqa: E402  (RED if absent)
@@ -151,7 +153,7 @@ def test_same_path_across_store_types_refuses(tmp_path):
     Obs(shared)
     try:
         Jud(shared)
-        raise AssertionError("opening a judgment store on the observation path must refuse loudly")
+        pytest.fail("opening a judgment store on the observation path must refuse loudly")
     except (ValueError, RuntimeError, OSError):
         pass
 
@@ -193,7 +195,7 @@ def test_judgment_missing_version_refuses(tmp_path):
             jud.append(
                 cohort_id="c", candidate_id="champion", candidate_version=bad_version, principal="e", pref="KEEP"
             )
-            raise AssertionError(f"candidate_version {bad_version!r} must be rejected")
+            pytest.fail(f"candidate_version {bad_version!r} must be rejected")
         except (ValueError, TypeError):
             pass
 
@@ -204,7 +206,7 @@ def test_judgment_appends_only_keep_or_drop(tmp_path):
     for bad in ("ADOPT", "PROMOTE", "useful", "", None, 1):
         try:
             jud.append(cohort_id="c", candidate_id="champion", candidate_version=1, principal="e", pref=bad)
-            raise AssertionError(f"pref {bad!r} must be rejected")
+            pytest.fail(f"pref {bad!r} must be rejected")
         except (ValueError, TypeError):
             pass
 

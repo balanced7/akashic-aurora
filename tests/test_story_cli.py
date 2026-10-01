@@ -10,6 +10,8 @@ import os
 import sys
 import tempfile
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -313,7 +315,7 @@ def test_story_ascii_safe():
         try:
             out.encode("cp1252")
         except UnicodeEncodeError as e:
-            raise AssertionError(f"output not cp1252-safe: {e}") from e
+            pytest.fail(f"output not cp1252-safe: {e}")
     print("  ascii-safe: output encodes to cp1252 OK")
 
 

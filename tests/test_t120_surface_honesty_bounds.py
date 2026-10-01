@@ -136,6 +136,9 @@ def test_peek_inbox_provides_pending_at_least():
     # We test via a mock path: the render_collapsed contract already surfaces
     # the gap marker when messages are windowed.
     # Integration test — requires live bus; contract validated by code review
+    from agent.bifrost_pull import peek_inbox
+
+    assert callable(peek_inbox), "agent.bifrost_pull must keep exposing peek_inbox"
 
 
 # ── TEST 3: boot emits truncation contours ──────────────────────────────

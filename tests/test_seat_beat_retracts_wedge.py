@@ -97,8 +97,9 @@ def test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not():
     Both halves are asserted on purpose. A fix that simply made the pager unable to fire would be
     worse than the false positive it replaced -- the whole value of a wedge page is that a real
     wedge still reaches somebody."""
-    from core.comm import liveness
+    from core.comm import doctor, liveness
 
+    assert doctor.__name__ == "core.comm.doctor", "the doctor module must import"
     with open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8") as fh:
         src = fh.read()
 
