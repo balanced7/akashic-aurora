@@ -926,7 +926,7 @@ def cmd_assert_ratchet(args) -> int:
         found = json.loads(r.stdout or "[]")
     except ValueError:
         return _report("RATCHET", ["ruff --output-format json unreadable"])
-    counts = {fam: 0 for fam in limits}
+    counts = dict.fromkeys(limits, 0)
     for d in found:
         code = d.get("code") or ""
         fam = max((f for f in limits if code.startswith(f)), key=len, default=None)

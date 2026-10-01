@@ -261,7 +261,7 @@ class ForecastRegistry:
             row = state[fid]
             v = row.get("verdict")
             if v:
-                a = by_author.setdefault(row.get("registered_by", "?"), {k: 0 for k in VERDICTS})
+                a = by_author.setdefault(row.get("registered_by", "?"), dict.fromkeys(VERDICTS, 0))
                 a[v] += 1
             elif float(row.get("horizon_ts", 0)) < now:
                 overdue.append(row)

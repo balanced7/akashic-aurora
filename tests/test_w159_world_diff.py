@@ -41,8 +41,8 @@ def _manifest(carried=("learn:", "mem:"), refused=("bifrost:", "events:")):
         "source_world": "prod",
         "target_world": "alpha",
         "seeded_at": "2026-08-14T02:00:00+00:00",
-        "carried": {p: 100 for p in carried},
-        "refused": {p: "reason" for p in refused},
+        "carried": dict.fromkeys(carried, 100),
+        "refused": dict.fromkeys(refused, "reason"),
         "total_carried": 100 * len(carried),
     }
 

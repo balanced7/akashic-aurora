@@ -262,7 +262,7 @@ def report(*, stage_dir: str | None = None, repeats: dict[str, list[dict[str, An
 
     per_lesson: dict[str, dict[str, int]] = {}
     for o in obs:
-        d = per_lesson.setdefault(o["source"], {v: 0 for v in VERDICTS})
+        d = per_lesson.setdefault(o["source"], dict.fromkeys(VERDICTS, 0))
         d[o["verdict"]] += 1
 
     return {

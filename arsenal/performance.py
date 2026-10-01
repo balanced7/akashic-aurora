@@ -1407,7 +1407,7 @@ def summarize(events) -> dict:
     evs = sorted(events, key=lambda e: e["t_ms"])  # stable: same-millisecond events keep their order
     duration_ms = max((e["t_ms"] for e in evs), default=0)
     minutes = duration_ms / 60000
-    counts = {k: 0 for k in KINDS}
+    counts = dict.fromkeys(KINDS, 0)
 
     sounding: dict[int, dict] = {}  # note -> {"t0", "held"}
     pc_ms = [0] * 12
@@ -1419,7 +1419,7 @@ def summarize(events) -> dict:
     chord_events: list[dict] = []
     chord_sizes: list[int] = []
     spreads: list[int] = []
-    endings = {by: 0 for by in SOUND_END_BY}
+    endings = dict.fromkeys(SOUND_END_BY, 0)
     spans: list[tuple] = []  # (start_ms, end_ms, pitch class) of every sound, for the key areas
 
     def end(note: int, t: int) -> None:

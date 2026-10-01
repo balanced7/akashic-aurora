@@ -79,7 +79,7 @@ def test_k2_branches_actually_run_concurrently():
     """A fan-out that serialises is not a fan-out. Five 0.4s branches must finish nearer 0.4s
     than 2.0s -- ask is I/O-bound, so the whole value here is overlap."""
     prompts = [f"q{i}" for i in range(5)]
-    delays = {p: 0.4 for p in prompts}
+    delays = dict.fromkeys(prompts, 0.4)
     t0 = time.time()
     o = A.ask_many(prompts, client=_Client(delays=delays), max_workers=5)
     elapsed = time.time() - t0

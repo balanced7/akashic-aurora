@@ -66,7 +66,7 @@ class _Bus:
         # VIRGIN lane hash: this seat has never consumed in lane mode, so the legacy family
         # is the authority and the peek above is the `since is None` branch (defer
         # 224ac54766 made the family choice explicit; these pins model the legacy family).
-        return {f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc")}
+        return dict.fromkeys(("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc"), "0")
 
 
 def _api(bus):
@@ -286,9 +286,9 @@ class _PhaseBus:
         return {}
 
     def read_lane_cursor(self):
-        return {
-            f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc")
-        }  # virgin: legacy family
+        return dict.fromkeys(
+            ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc"), "0"
+        )  # virgin: legacy family
 
 
 def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypatch):

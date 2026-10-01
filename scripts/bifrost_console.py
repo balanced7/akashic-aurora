@@ -97,7 +97,7 @@ def _render(pft):
 
 def _reader(client, my_id, stop):
     """Monitor every inbox + broadcast stream and render new messages (skip our own echo)."""
-    last = {s: "$" for s in _streams(client)}  # live-only: from when the console opened
+    last = dict.fromkeys(_streams(client), "$")  # live-only: from when the console opened
     while not stop.is_set():
         streams = _streams(client)
         for s in streams:

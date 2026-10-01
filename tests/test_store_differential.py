@@ -160,9 +160,9 @@ def test_seeded_soup_agrees(pair):
         else:
             seq.append(("delete", (rng.choice(kv_keys + h_keys + z_keys),)))
     _run(pair, seq)
-    typed = {k: "kv" for k in kv_keys}
-    typed.update({k: "hash" for k in h_keys})
-    typed.update({k: "zset" for k in z_keys})
+    typed = dict.fromkeys(kv_keys, "kv")
+    typed.update(dict.fromkeys(h_keys, "hash"))
+    typed.update(dict.fromkeys(z_keys, "zset"))
     _assert_final_state(pair, typed)
 
 

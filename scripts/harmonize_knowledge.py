@@ -216,7 +216,7 @@ def phase_rebuild():
     r.delete("learn:experiments:all")
     r.rpush("learn:experiments:all", *REAL)
     r.delete("learn:experiments:success")
-    r.zadd("learn:experiments:success", {n: 100.0 for n in REAL})
+    r.zadd("learn:experiments:success", dict.fromkeys(REAL, 100.0))
     r.delete(f"learn:agent:{REAL_AGENT}")
     r.rpush(f"learn:agent:{REAL_AGENT}", *REAL)
     for name in REAL:
@@ -231,7 +231,7 @@ def phase_rebuild():
     d["list"][f"learn:agent:{REAL_AGENT}"] = list(REAL)
     for name in REAL:
         d["set"][f"learn:category:{CATEGORY[name]}"] = [name]
-    d["zset"]["learn:experiments:success"] = {n: 100.0 for n in REAL}
+    d["zset"]["learn:experiments:success"] = dict.fromkeys(REAL, 100.0)
     STORE_FILE.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
 
     print(

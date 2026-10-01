@@ -328,7 +328,7 @@ class CueHub:
     def status(self) -> dict:
         """{listeners, last_id, caps: {jam1: n, deck1: n, ...}, pages: [{page_id, caps, since}]} (jam-spec 6)."""
         with self._lock:
-            caps = {c: 0 for c in KNOWN_CAPS}
+            caps = dict.fromkeys(KNOWN_CAPS, 0)
             pages: dict[str, dict] = {}
             for token in self._listeners:
                 meta = self._meta.get(token) or {"caps": (), "page_id": None, "since": 0}

@@ -60,7 +60,7 @@ def test_migration_rescores_to_unified_epoch():
     bl.emit("commit", "b", "git:b", at="2026-01-01T05:00:00", hint=RouteHint(paths=["core/x.py"]))
     # tamper the timeline scores to garbage (simulating old local-interpreted / stale scores)
     ids = store.zrange(TIMELINE, 0, -1)
-    store.zadd(TIMELINE, {bid: 999.0 for bid in ids})
+    store.zadd(TIMELINE, dict.fromkeys(ids, 999.0))
     rep = migrate_time_scores(store)
     assert rep["timeline"] == 2
     # every score now equals to_epoch(beat.at)
@@ -92,7 +92,7 @@ def test_migration_restores_window_query_after_skew():
     assert len(eq.events_in_window(*span)) == 4
     # tamper the tindex scores -> the window now misses them
     ids = store.zrange(TINDEX, 0, -1)
-    store.zadd(TINDEX, {eid: 1.0 for eid in ids})
+    store.zadd(TINDEX, dict.fromkeys(ids, 1.0))
     assert len(eq.events_in_window(*span)) == 0, "skewed scores break the window (the bug)"
     # migrate -> recall restored
     migrate_time_scores(store)

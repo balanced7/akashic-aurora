@@ -129,7 +129,7 @@ def fold(
     episodes: list[dict[str, Any]] = []
     durations: list[float] = []
     counts = {"answered": 0, "dead": 0, "echo": 0}
-    dead_by_verdict = {v: 0 for v in DEAD_VERDICTS}
+    dead_by_verdict = dict.fromkeys(DEAD_VERDICTS, 0)
     # T199 v2 accumulators. by_peer answers "which peer is broken" (one fleet rate hides
     # it); presence_effect answers "does a present peer actually answer", the question
     # T197 shipped autolaunch on and could not test.

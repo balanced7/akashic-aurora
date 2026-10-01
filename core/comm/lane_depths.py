@@ -36,7 +36,7 @@ def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> dict[str, in
         "trace": f"{ns}:trace",
         "sig": f"{ns}:sig",
     }
-    out = {k: 0 for k in keys}
+    out = dict.fromkeys(keys, 0)
     cli = _client(c, allow_fallback)
     if cli is None:
         return out

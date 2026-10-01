@@ -113,7 +113,7 @@ def score(runs: list[LensRun], min_verified: int = MIN_VERIFIED) -> dict[str, Le
 
     by: dict[str, dict[str, int]] = {}
     for r in latest.values():
-        d = by.setdefault(r.lens, {k: 0 for k in OUTCOMES})
+        d = by.setdefault(r.lens, dict.fromkeys(OUTCOMES, 0))
         d[r.outcome] += 1
 
     out: dict[str, LensScore] = {}
