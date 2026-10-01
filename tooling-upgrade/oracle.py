@@ -1143,11 +1143,12 @@ def surface_targets(inv: dict, modules=None):
     return out
 
 
-def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=None):
-    """O3 + O5 together: one fresh interpreter per module, 20 s each, in parallel."""
+def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=None, python=None):
+    """O3 + O5 together: one fresh interpreter per module, 20 s each, in parallel. `python`:
+    an interpreter other than the tree's own venv (drill trees share the main one, plan 13)."""
     targets = surface_targets(inv, modules)
     optional = sorted(optional_import_names(tree))
-    py = venv_python(tree)
+    py = python or venv_python(tree)
     probe = raw / "probe.py"
     probe.write_text(_PROBE, encoding="utf-8")
     work = raw / "probe"

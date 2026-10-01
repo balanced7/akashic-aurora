@@ -432,7 +432,7 @@ def _gate_d14(t):
     graph = oracle.RepoGraph(t, [f for f in oracle.tracked_files(t) if f.endswith(".py")])
     raw = Path(tempfile.mkdtemp(prefix="drill-d14-"))
     mods = {m for m in base["modules"] if m.startswith("core.")}
-    _o3, o5 = oracle.probe_modules(t, inv, graph, raw, mods)
+    _o3, o5 = oracle.probe_modules(t, inv, graph, raw, mods, python=oracle.venv_python(ROOT))
     oracle._rmtree(raw)
     return 1 if oracle.compare_o5(base, o5, partial=True) else 0
 
