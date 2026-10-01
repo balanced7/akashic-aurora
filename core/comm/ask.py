@@ -37,6 +37,7 @@ import os
 import re
 import time
 from pathlib import Path
+from typing import Any
 
 from core.outcome import BoundaryOutcome
 
@@ -352,7 +353,7 @@ def validate_geometry(geometry: str, *, fan_n: int, n_prompts: int, has_evidence
     return ""
 
 
-def coverage_from_meta(ctx_meta: Dict[str, Any] | None) -> Dict[str, Any] | None:
+def coverage_from_meta(ctx_meta: dict[str, Any] | None) -> dict[str, Any] | None:
     """The coverage NUMBER: chars sent / chars total across included files. None when no
     evidence rode. Ratio 1.0 is a claim about TRANSPORT of the named files only -- whether
     the files covered the source corpus is the caller's union assertion, not this field."""
@@ -372,7 +373,7 @@ def _route_journal_path() -> Path:
     return _REPO_ROOT / "state" / "route_journal.jsonl"
 
 
-def _route_journal(rec: Dict[str, Any]) -> None:
+def _route_journal(rec: dict[str, Any]) -> None:
     """One line per fan: the substrate for per-route funnel counters (fan vs solo
     tokens-per-confirmed-finding -- Daniil 2026-08-11, 'quantify the impact delta').
     Fail-open ALWAYS: a dead journal must never wedge an ask."""
@@ -385,7 +386,7 @@ def _route_journal(rec: Dict[str, Any]) -> None:
         pass
 
 
-def unusable_evidence_notice(ctx_meta: Dict[str, Any] | None) -> str:
+def unusable_evidence_notice(ctx_meta: dict[str, Any] | None) -> str:
     """What the caller must be told about evidence that did not arrive whole. "" when all did.
 
     T225, found by running the fan at its own door 2026-08-07. T218 closed this asymmetry for
@@ -474,7 +475,7 @@ def _file_chars(path) -> int | None:
         return None
 
 
-def attach_evidence(detail: Dict[str, Any], ctx_meta: Dict[str, Any] | None) -> None:
+def attach_evidence(detail: dict[str, Any], ctx_meta: dict[str, Any] | None) -> None:
     """Put the evidence meta AND its notice on the outcome, at the BOUNDARY (T242).
 
     T218/T225 built the notice and T237 gave JSON callers a discoverable `warnings` list --
@@ -1288,7 +1289,7 @@ def ask_many(
     #
     # This does not cost more. The pack is prepended to every branch body either way, so a
     # branch that declares a narrower need now pays for less than it did before.
-    _packs: Dict[Any, Any] = {}
+    _packs: dict[Any, Any] = {}
 
     def _pack_for(paths):
         key = tuple(paths) if paths else None

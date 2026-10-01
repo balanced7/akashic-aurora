@@ -32,6 +32,7 @@ pattern, so a flip is honored live without reimport:
                           this window is dropped LOUD with the missing seq(s) named.
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -193,7 +194,7 @@ def tool_args_within_mtu(name: str, args: Any) -> tuple[bool, str]:
     )
 
 
-# ------------------------------------------------------------------ lanes (T039a)
+# ------------------------------------------------------------------ lanes: T039a
 # Kind -> lane router. R6 rules this file the roster home (families/kinds are contracts,
 # not tunables); the lane CONTRACT (QoS/seat/wake/retention) lives in the LAW spec and the
 # governing design doc (docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md, Daniel gate 2026-07-13).
@@ -308,7 +309,7 @@ EPHEMERAL_PREFIXES = (
     "*:expect:*",
     "*:paged:*",
     "*:doctor_paged:*",
-    # telemetry (regenerable / bounded)
+    # telemetry keys, regenerable and bounded
     "*:turn_metrics:*",
     "*:delta:*",
     "*:engine:*",
@@ -760,19 +761,15 @@ class Reassembler:
             of = slot.get("of", 0)
             if of and len(slot["pieces"]) >= of:  # already-complete -> never resurrect
                 if self._persist is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         self._persist(str(wid), None)  # clean up the orphaned durable slot
-                    except Exception:
-                        pass
                 continue
             self._buf[str(wid)] = slot
 
     def _save(self, wid: str) -> None:
         if self._persist is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._persist(wid, self._buf.get(wid))  # slot when present, None once popped (delete)
-            except Exception:
-                pass
 
     def _mark_done(self, wid: str) -> None:
         self._done[wid] = None

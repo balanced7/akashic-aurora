@@ -398,7 +398,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
         # category error, and a false page trains the fleet to ignore the real one.
         # Window: the roster's own freshness law (cadence-derived, WORKLIVE_FRESH_S floor)
         # rather than PROGRESS_TTL, which is a runner-tick constant far below seat cadence.
-        # Pins: tests/test_doctor_wedge_vs_beat.py
+        # Pinned by tests/test_doctor_wedge_vs_beat.py
         # SOL'S NO-GO ON THE FIRST VERSION, and it is the load-bearing distinction:
         # a RUNNER's heartbeat runs on its OWN THREAD -- py-spy caught this live, deepseek's
         # MainThread blocked in streams.py flush while 'Thread-3 (_heartbeat)' kept beating.
@@ -414,7 +414,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
         # seat privilege -- reopening Sol's no-go one door over. Live receipt
         # 2026-08-17: an idle runner (0.00s CPU over 6s, no outbound socket,
         # empty backlog) rendered 'genuinely working' on beat evidence alone.
-        # Pins: tests/test_t347_doctor_beating_idle.py
+        # Pinned by tests/test_t347_doctor_beating_idle.py
         agent_s = str(agent)
         is_seat = bool(re.fullmatch(r"[^#]+#[0-9a-f]{8}", agent_s))
         is_runner_incarnation = ("#" in agent_s) and not is_seat
@@ -739,7 +739,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
     # non-stream Redis type makes every xadd fail upstream -- the exact cause of the
     # 2026-07-28 straggler class (deepseek's C counter-half diagnosis). The dual-write
     # net hides the loss, so ONLY an explicit TYPE probe surfaces it.
-    try:
+    with contextlib.suppress(Exception):
         out.extend(
             _f(
                 agent,
@@ -751,8 +751,6 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
             )
             for wt in _probe_lane_wrongtype(agent)
         )
-    except Exception:
-        pass
 
     # TWIN SESSIONS ON ONE AGENT ID (2026-07-28 incident). Two live sessions share a cursor:
     # exactly one may consume, and the seat goes to whoever refreshed most recently. A retiring
@@ -872,9 +870,7 @@ def unwedge(agent: str) -> dict[str, Any]:
 
     # --- SYNTHESIZE ---
     pages = [f for f in evidence["findings"] if f.get("grade") == "page"]
-    banners = [f for f in evidence["findings"] if f.get("grade") == "banner"]
     lh = evidence["lane_health"] or {}
-    depths = evidence["lane_depths"]
     runner = evidence["runner_status"]
     frozen = any(f["state"] == "frozen" for f in evidence["findings"])
     hard_wedge = any(f["state"] == "hard_wedge" for f in pages)
@@ -1622,7 +1618,7 @@ def _fmt_toks(n: int) -> str:
     return str(n)
 
 
-# ------------------------------------------------------------------ services (T081-W3)
+# ------------------------------------------------------------------ services: T081-W3
 def _tcp_up(host: str, port: int, timeout: float = 0.4) -> bool:
     """Is something accepting connections at host:port? A fast, dependency-free liveness probe."""
     import socket

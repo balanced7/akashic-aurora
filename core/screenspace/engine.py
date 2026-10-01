@@ -29,6 +29,7 @@ never the raw screen string.
 
 from __future__ import annotations
 
+import contextlib
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -187,10 +188,8 @@ def _ensure_tracker_started() -> None:
     if _tracker_started:
         return
     _tracker_started = True  # attempted once; start() is idempotent regardless
-    try:
+    with contextlib.suppress(Exception):  # fail-soft: cache reads return whatever is (or is not) cached
         _tracker.start()
-    except Exception:  # noqa: BLE001
-        pass  # fail-soft: cache reads return whatever is (or is not) cached
 
 
 # --------------------------------------------------------------------------- redaction

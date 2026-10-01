@@ -107,7 +107,7 @@ class EventLog:
             except Exception:
                 self.index = None
 
-    # --------------------------------------------------------------- capture (write)
+    # --------------------------------------------------------------- capture: write
     def capture(
         self,
         kind: str,

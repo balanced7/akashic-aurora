@@ -419,7 +419,7 @@ class BifrostAPI:
                 # OK-line, the FileStore silent copy) -- a component that stops reporting a
                 # problem while the problem persists.
                 self._pending_at_seed = len(live)
-                try:
+                with contextlib.suppress(Exception):
                     # Do NOT promise the next arm is fixed. _lane_since is PER-PROCESS and every
                     # arm is a NEW process, so this seed dies with the call that set it -- we
                     # return `live` immediately below and exit. The old text ("the watcher will
@@ -453,8 +453,6 @@ class BifrostAPI:
                         family,
                         getattr(self, "agent", "<agent>"),
                     )
-                except Exception:
-                    pass
                 return live
         nxt: dict[str, str] = {}
         msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt, streams=self._lane_streams())
@@ -655,10 +653,8 @@ class BifrostAPI:
         )
         for m in sig:
             seen.add(self._dedup_key(m))
-            try:
+            with contextlib.suppress(Exception):
                 m.meta["_lane_src"] = "sig"  # consumers must NOT advance work fields for these
-            except Exception:
-                pass
         out += sig
         sig_fields = {
             f: snxt[k] for f, k in (("sig_inbox", "inbox"), ("sig_bc", "bc")) if snxt.get(k) and snxt[k] != cur[f]
@@ -678,10 +674,8 @@ class BifrostAPI:
         )
         for m in work:
             seen.add(self._dedup_key(m))
-            try:
+            with contextlib.suppress(Exception):
                 m.meta["_lane_src"] = "work"  # the ONLY source whose ids advance inbox/bc
-            except Exception:
-                pass
         out += work
         if since_out is not None:
             since_out.update(wnxt)
@@ -768,10 +762,8 @@ class BifrostAPI:
                     file=sys.stderr,
                 )
             for m in stragglers:
-                try:
+                with contextlib.suppress(Exception):
                     m.meta["_lane_src"] = "legacy"  # consumed via shadow; never advances work fields
-                except Exception:
-                    pass
             out += stragglers
             sh_fields = {
                 f: pos[k]

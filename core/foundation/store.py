@@ -314,7 +314,7 @@ class RedisStore(Store):
             return bool(self._client.set(key, str(value), nx=True))
         return bool(self._client.eval(self._CAS_LUA, 1, key, str(expected), str(value)))
 
-    # expiry (TTL)
+    # TTL expiry
     def setex(self, key, seconds, value):
         return bool(self._client.setex(key, int(seconds), value))
 
@@ -972,7 +972,7 @@ class HybridStore(Store):
             return ok
         return self._file.cas(key, expected, value)
 
-    # expiry (TTL)
+    # TTL expiry
     def setex(self, key, seconds, value):
         return self._write("setex", key, seconds, value)
 
@@ -1111,7 +1111,7 @@ class HybridStore(Store):
                 # is the live authority (matches read-Redis-first and cas()), so we leave it
                 # alone and SAY we did. Backfilling a key Redis lacks stays exactly as it was.
                 #
-                # Pin: tests/test_heal_clobbers_richer_redis_list.py
+                # Pinned by tests/test_heal_clobbers_richer_redis_list.py
                 # Evidence: research/reviewed/index-blindness-RECURRENCE-2026-07-27.md
                 if self._redis.exists(k):
                     skipped["list"] += 1

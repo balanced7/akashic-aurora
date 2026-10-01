@@ -2030,10 +2030,8 @@ def recall_at(
         # R2 s0: the crash-empty is RECORDED as its own reason. An empty-from-crash that
         # renders identically to an empty-from-judgment is the confident-zero disease at
         # the meta level (recall_at_error_masks_as_confident_empty, landed as pin P4).
-        try:
+        with contextlib.suppress(Exception):  # the fail-soft contract outranks the record
             _record_outcome("silent", "error_empty", agent_id=agent_id or "")
-        except Exception:
-            pass  # the fail-soft contract outranks the record
         return {
             "path": path,
             "command": command,

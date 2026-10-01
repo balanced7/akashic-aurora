@@ -502,7 +502,7 @@ class ProjectContextManager:
             entry: Work log entry text
         """
 
-        work_log = self.store.lrange(self._key("work_log"), 0, 49)
+        self.store.lrange(self._key("work_log"), 0, 49)
 
         entry_data = {"entry": entry, "timestamp": datetime.now().isoformat()}
         self.store.lpush(self._key("work_log"), json.dumps(entry_data))

@@ -1824,7 +1824,7 @@ async def ask_gemini_panel(prompt: str, system: str = "", web_mode: str = "both"
     return await _athread(_body)
 
 
-# ---------------------------------------------------------------- diagnostics (test-only)
+# ---------------------------------------------------------------- diagnostics: test-only
 # Registered ONLY under the test/diag env so the production roster is unchanged. Routes
 # through the SAME _run + capture path as every CLI-delegating tool above, so the
 # concurrency fence (tests/test_mcp_concurrent_calls.py) measures the real dispatch physics.

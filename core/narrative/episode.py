@@ -199,10 +199,8 @@ def close_episode(
         if open_next:
             new_ch = open_episode(store, now=now_iso, track=ch.track)
         else:
-            try:
+            with contextlib.suppress(Exception):
                 store.delete(EPISODE_OPEN_KEY)  # session-end: no dangling open episode
-            except Exception:
-                pass
             new_ch = None
         return {
             "draft": {"chapter_id": ch.id, "title": ch.title, "description": ch.summary, "why": ch.why},

@@ -41,10 +41,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # make `core`/`a
 # a peer agent's em-dash rendered as U+FFFD mojibake at every boot (2026-07-02 friction log).
 # Authored output stays ASCII (module docstring); this keeps STORED text faithful in transit.
 for _stream in (sys.stdout, sys.stderr):
-    try:
+    with contextlib.suppress(
+        Exception
+    ):  # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
         _stream.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass  # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
 
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
 # its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
@@ -585,7 +585,7 @@ def cmd_boot(args):
     return 0 if res.get("status") == "success" else 1
 
 
-# -------------------------------------------------------------------------- delta (T052)
+# -------------------------------------------------------------------------- delta: T052
 def cmd_delta(args):
     """The delta door (T052/R1): what moved since this agent's last boot. --ack advances
     the seen mark to current positions (the explicit commit surface; boot auto-commits)."""
@@ -4701,10 +4701,8 @@ def cmd_note(args, *, mem=None):
         )
     except Exception:
         pass
-    try:
+    with contextlib.suppress(Exception):
         project_notes()  # keep the generated digest fresh
-    except Exception:
-        pass
     if args.json:
         print(
             json.dumps(

@@ -491,7 +491,7 @@ def main() -> int:
     r.add_argument("--command", default=None)
     r.set_defaults(fn=cmd_action_recall)
 
-    o = _build_outcome_parser(sub)
+    _build_outcome_parser(sub)
 
     pl = sub.add_parser("plan-recall")
     pl.add_argument("--session-key", required=True)

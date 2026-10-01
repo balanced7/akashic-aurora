@@ -1047,12 +1047,10 @@ def _ensure_indexed(client, ns: str, agent: str, msg: Any, sha: str) -> None:
     if body_of(ns, agent, sha, client=client) is not None:
         return
     fields, meta = _msg_fields(msg)
-    try:
+    with contextlib.suppress(Exception):  # the caller's open() reports the miss honestly
         _ingest_one(
             client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"), {**fields, "meta": json.dumps(meta)}
         )
-    except Exception:
-        pass  # the caller's open() reports the miss honestly
 
 
 def declare_for_message(

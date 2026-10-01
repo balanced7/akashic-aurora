@@ -163,9 +163,8 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
             k_old = max(1, want // 4)
             head, tail = merged[:k_old], merged[-(want - k_old) :]
             hidden = total - len(head) - len(tail)
-            windowed = True
         else:
-            head, tail, hidden, windowed = merged, [], 0, False
+            head, tail, hidden = merged, [], 0
         out: list[dict[str, Any]] = []
 
         def _row(m):

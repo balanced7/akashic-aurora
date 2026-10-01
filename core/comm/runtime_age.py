@@ -31,6 +31,7 @@ for.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
@@ -154,12 +155,10 @@ def start_time(pid: int) -> str:
         val = ""
     _START_CACHE[pid] = val
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             # empty is cached too ("" = unreadable pid): an unreadable pid re-probed
             # by every fresh process is the same regression wearing a failure mask.
             c.set(key, val, ex=3600)
-        except Exception:
-            pass
     return val
 
 

@@ -218,7 +218,7 @@ class SqliteStore(Store):
         except Exception:
             return False
 
-    # ------------------------------------------------- snapshot (reconciliation)
+    # ------------------------------------------------- snapshot: reconciliation
     def snapshot(self) -> dict[str, Any]:
         """Point-in-time copy of every structure + expiry, in EXACTLY FileStore's
         snapshot shape -- HybridStore.reconcile() and the migration verifier consume
@@ -284,7 +284,7 @@ class SqliteStore(Store):
                 e,
             )
 
-    # ------------------------------------------------------------ expiry (TTL)
+    # ------------------------------------------------------------ expiry: TTL
     def _now(self) -> float:
         return time.time()
 

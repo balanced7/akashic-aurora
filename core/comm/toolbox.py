@@ -30,6 +30,7 @@ import sys
 import time
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from core.comm import packet_spec
 
@@ -688,7 +689,7 @@ class ToolBox:
         agent_id: str | None = None,
         allow_write: bool = False,
         boot_text: str = "",
-        boot_sources: Optional[set] = None,
+        boot_sources: set | None = None,
     ):
         """If boot_sources is provided (the W6 sidecar), use it directly instead
         of regex-parsing boot_text (the R-P2 fix: structured sources beat regex)."""
@@ -1492,7 +1493,7 @@ class ToolBox:
         # rendering limit); the BYTES stop being destroyed on a path where the transport
         # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
         text, spill = packet_spec.spill_tool_text(raw_text)
-        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
+        meta: dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
         clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)  # P2: durable CLIPPED stamp rides on the envelope
@@ -1639,7 +1640,7 @@ class ToolBox:
         # rendering limit); the BYTES stop being destroyed on a path where the transport
         # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
         text, spill = packet_spec.spill_tool_text(raw_text)
-        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
+        meta: dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0}
         clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)  # P2: durable CLIPPED stamp
@@ -1670,7 +1671,7 @@ class ToolBox:
         # rendering limit); the BYTES stop being destroyed on a path where the transport
         # beneath (64KB MTU + auto-fragmentation) never needed us to drop anything.
         text, spill = packet_spec.spill_tool_text(raw_text)
-        meta: Dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True}
+        meta: dict[str, Any] = {"via": f"{self.agent_id}-tool", "hops": 0, "display_only": True}
         clip = spill or packet_spec.clip_stamp(raw_text)
         if clip:
             meta.update(clip)  # P2: durable CLIPPED stamp

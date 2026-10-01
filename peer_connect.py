@@ -67,7 +67,7 @@ def fail(msg: str) -> int:
     return 1
 
 
-# --------------------------------------------------------------------------- crypto (ours)
+# --------------------------------------------------------------------------- crypto: ours
 def sign(body: bytes, secret: bytes) -> str:
     return hmac.new(secret, body, hashlib.sha256).hexdigest()
 

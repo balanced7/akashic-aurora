@@ -14,6 +14,7 @@ Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d
 
 from __future__ import annotations
 
+import contextlib
 import sys
 
 
@@ -62,8 +63,6 @@ def self_bless_stdout() -> None:
         s = getattr(sys, name, None)
         if s is None or isinstance(s, _PipeImmune):
             continue
-        try:
+        with contextlib.suppress(Exception):  # non-reconfigurable stream: immunity still applies
             s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-        except Exception:
-            pass  # non-reconfigurable stream: immunity still applies
         setattr(sys, name, pipe_immune(s))

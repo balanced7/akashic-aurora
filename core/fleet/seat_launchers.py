@@ -100,7 +100,7 @@ _SEATS: dict[str, dict[str, Any]] = {
         "kind": "runner",
         "url": None,
         # ADDED 2026-08-28. He was the one seat with NO lever: revive.py cannot target him
-        # (DAEMON_AGENTS is deepseek/kimi, --target is app/redis/daemon/gateway), so
+        # (DAEMON_AGENTS holds deepseek/kimi, --target takes app/redis/daemon/gateway), so
         # `!spawn sunshine` fell through to the task path and would have launched a claude
         # session whose job was the word "sunshine" -- the 2026-08-24 defect this module
         # exists to kill, reproduced under a different name.

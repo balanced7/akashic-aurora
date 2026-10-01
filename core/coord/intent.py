@@ -118,14 +118,12 @@ def declare(agent: str, intent: str, scope=None, ttl: int = DEFAULT_TTL, client:
                 f"(duplicate work). Different intents on the same files are fine; this is the SAME intent."
             ),
         }
-    try:
+    with contextlib.suppress(Exception):  # advisory: never block a local agent on a Redis error
         c.set(
             _key(agent, intent),
             json.dumps({"agent": agent, "intent": str(intent), "scope": _norm_scope(scope), "ts": _now(), "ttl": ttl}),
             ex=ttl,
         )
-    except Exception:
-        pass  # advisory: never block a local agent on a Redis error
     return {"ok": True, "conflicts": [], "reason": ""}
 
 

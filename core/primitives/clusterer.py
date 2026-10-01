@@ -223,7 +223,7 @@ class Clusterer:
             return 0.0, None
         return 1.0 - inter, ([atom_ids[k] for k in ga], [atom_ids[k] for k in gb])
 
-    # ------------------------------------------------------------------ propose (flag-only)
+    # ------------------------------------------------------------------ propose: flag-only
     def propose(self, clustering: Clustering) -> list[Proposal]:
         """Flag-only merge/split candidates, worst-first by score. NEVER mutates."""
         out: list[Proposal] = []

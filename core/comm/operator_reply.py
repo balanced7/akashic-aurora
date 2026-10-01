@@ -40,6 +40,7 @@ WHAT THIS DOOR DOES DIFFERENTLY, and both halves are load-bearing:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import time
 from typing import TYPE_CHECKING, Any
@@ -127,10 +128,8 @@ def reply(
         bus = Bus(who)
     if not getattr(bus, "online", True):
         return {"ok": False, "why": "bus OFFLINE (Redis down) -- not sent", "delivery": "REFUSED", "id": None}
-    try:
+    with contextlib.suppress(Exception):  # registration is hygiene, not the delivery path
         bus.register()
-    except Exception:  # noqa: BLE001
-        pass  # registration is hygiene, not the delivery path
 
     mid = bus.send(target, kind, body, meta={"source": "reply-verb", "from_seat": who})
     if mid is None:

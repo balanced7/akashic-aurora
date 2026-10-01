@@ -458,10 +458,8 @@ def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
                 rec_settled = cands[0][1]
                 del recs[oid]
                 out["cleared"].append(oid)
-                try:  # T196b: same call-site guard as above
+                with contextlib.suppress(Exception):  # T196b: same call-site guard as above
                     _emit_settled(sender, oid, getattr(r, "id", None), rec_settled)
-                except Exception:
-                    pass
         for oid, rec in list(recs.items()):  # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue

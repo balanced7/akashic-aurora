@@ -28,6 +28,7 @@ desktop needed to prove the wiring).
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import threading
 from typing import TYPE_CHECKING
@@ -190,10 +191,8 @@ class ForegroundTracker:
         self._stop.set()
         self._wake.set()
         if self._hook and hasattr(ctypes, "windll"):
-            try:
+            with contextlib.suppress(Exception):
                 ctypes.windll.user32.UnhookWinEvent(self._hook)
-            except Exception:  # noqa: BLE001
-                pass
             self._hook = None
         if self._thread is not None:
             self._thread.join(timeout=1.0)

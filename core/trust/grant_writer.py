@@ -28,6 +28,7 @@ an available primitive, for an attacker OR for a full disk.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
@@ -76,10 +77,8 @@ def _write_doc(doc: dict) -> None:
             os.fsync(f.fileno())  # the swap is only atomic if the bytes are durable
         os.replace(tmp, str(path))
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)  # a failed write leaves NOTHING behind, not even litter
-        except OSError:
-            pass
         raise
     registry._CACHE["mtime"] = None  # the in-process cache must not serve the old answer
 

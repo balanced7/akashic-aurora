@@ -493,10 +493,8 @@ def serve(port: int, host: str = "127.0.0.1", path: Path | None = None) -> int:
         threading.Thread(target=srv.shutdown, daemon=True).start()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
+        with contextlib.suppress(ValueError, OSError):  # not the main thread
             signal.signal(sig, _stop)
-        except (ValueError, OSError):  # not the main thread
-            pass
     try:
         srv.serve_forever(poll_interval=0.2)
     finally:

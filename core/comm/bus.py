@@ -228,7 +228,7 @@ class Bus:
     def status(self) -> dict[str, Any]:
         return {"online": self.online, "agent_id": self.agent_id, "pending": self.pending()}
 
-    # ------------------------------------------------------------------ presence (B3)
+    # ------------------------------------------------------------------ presence: B3
     def register(self, ttl: int = PRESENCE_TTL, *, card: dict[str, Any] | None = None) -> bool:
         """Heartbeat: mark this agent online for `ttl` seconds, carrying an optional A2A-style Agent
         Card ({runtime_class, wake_mode, door, caps, ...}). The card is remembered so every later
@@ -751,8 +751,8 @@ class Bus:
         useless for spotting a repeat. Hash what a reader would call 'the same message':
         who, to whom, what kind, what content."""
         h = hashlib.sha256()
-        for field in (self.agent_id, str(to), str(kind), str(env.get("content", ""))):
-            h.update(field.encode("utf-8", "replace"))
+        for part in (self.agent_id, str(to), str(kind), str(env.get("content", ""))):
+            h.update(part.encode("utf-8", "replace"))
             h.update(b"\x00")
         return f"{self.ns}:reask:{to}:{h.hexdigest()[:32]}"
 
@@ -1247,9 +1247,9 @@ class Bus:
         except Exception:
             return cur
         out: dict[str, str] = {}
-        for field, shadow in (("inbox", "shadow_inbox"), ("bc", "shadow_bc")):
-            a, b = cur.get(field, "0"), lane.get(shadow, "0")
-            out[field] = a if self._sid_tuple(a) >= self._sid_tuple(b) else b
+        for cursor_field, shadow in (("inbox", "shadow_inbox"), ("bc", "shadow_bc")):
+            a, b = cur.get(cursor_field, "0"), lane.get(shadow, "0")
+            out[cursor_field] = a if self._sid_tuple(a) >= self._sid_tuple(b) else b
         return out
 
     def _read_cursor(self) -> dict[str, str]:
@@ -1315,11 +1315,11 @@ class Bus:
         worst = "OK_NOOP"
         rank = {"OK_NOOP": 0, "OK": 1, "ERROR": 2, "BACKWARDS": 3, "STALE_GENERATION": 4}
         key = cursor_key or self._cursor_key()
-        for field, val in (("inbox", inbox), ("bc", bc)):
+        for cursor_field, val in (("inbox", inbox), ("bc", bc)):
             if val is None:
                 continue
             try:
-                res = str(self._client.eval(self._ADVANCE_LUA, 1, key, int(generation), field, str(val)))
+                res = str(self._client.eval(self._ADVANCE_LUA, 1, key, int(generation), cursor_field, str(val)))
             except Exception:
                 res = "ERROR"
             if rank.get(res, 1) > rank.get(worst, 0):
@@ -1335,11 +1335,13 @@ class Bus:
             return "OFFLINE"
         worst = "OK_NOOP"
         rank = {"OK_NOOP": 0, "OK": 1, "ERROR": 2, "BACKWARDS": 3, "STALE_GENERATION": 4}
-        for field, val in (fields or {}).items():
+        for cursor_field, val in (fields or {}).items():
             if val is None:
                 continue
             try:
-                res = str(self._client.eval(self._ADVANCE_LUA, 1, cursor_key, int(generation), str(field), str(val)))
+                res = str(
+                    self._client.eval(self._ADVANCE_LUA, 1, cursor_key, int(generation), str(cursor_field), str(val))
+                )
             except Exception:
                 res = "ERROR"
             if rank.get(res, 1) > rank.get(worst, 0):
@@ -1436,12 +1438,12 @@ class Bus:
         fields: dict[str, str] = {}
         for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
             keys = self._lane_keys(lane)
-            for logical, field in (("inbox", fi), ("bc", fb)):
+            for logical, cursor_field in (("inbox", fi), ("bc", fb)):
                 try:
                     last = self._client.xrevrange(keys[logical], count=1)
-                    fields[field] = str(last[0][0]) if last else "0"
+                    fields[cursor_field] = str(last[0][0]) if last else "0"
                 except Exception:
-                    fields[field] = "0"
+                    fields[cursor_field] = "0"
         shared = self._read_cursor()
         if shared.get("inbox", "0") != "0" or shared.get("bc", "0") != "0":
             # MIGRANT: the shadow CONTINUES the pre-flip consumer's own progress --
@@ -1453,9 +1455,9 @@ class Bus:
             # net is its only delivery; every twin after them is the work lane's to deliver.
             # Without the record the net cannot tell that flip gap from a days-old twin the
             # work lane already delivered -- and re-delivered 285 of those on 2026-09-14.
-            for seed, field in (("flip_inbox", "inbox"), ("flip_bc", "bc")):
-                if fields.get(field, "0") != "0":
-                    fields[seed] = fields[field]
+            for seed, cursor_field in (("flip_inbox", "inbox"), ("flip_bc", "bc")):
+                if fields.get(cursor_field, "0") != "0":
+                    fields[seed] = fields[cursor_field]
         else:
             # NEWBORN (cfdcb65f storm find): BROADCAST history is room-noise -- bc
             # positions seed at tails (RB-25 F2 discipline; 44 replays caught live).

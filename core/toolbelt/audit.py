@@ -227,7 +227,6 @@ class VerbsDomain:
 
             entries = reg.get("entries", {})
             for name, entry in entries.items():
-                ref = f"{agent}:{name}"
                 rows.extend(self._check_entry(agent, name, entry))
 
         return rows
@@ -241,7 +240,6 @@ class VerbsDomain:
         tested_against = entry.get("tested_against")
         updated_at = entry.get("updated_at")
         steps = entry.get("steps", [])
-        kind = entry.get("kind", "alias")
 
         # ---- Rule 1: stale receipt ----
         if evidence == "VERIFIED" and tested_against:
