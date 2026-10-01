@@ -438,3 +438,17 @@ def test_gate_members_order_and_ignore_fail():
     msgs = " | ".join(certify.gate_problems(wrong, []))
     assert "'echo' is not a plan gate task" in msgs and "order" in msgs and "ignore_fail" in msgs
     assert certify.gate_problems({"gate": {"shell": "true || true"}}, []) == ["gate is not a sequence task"]
+
+
+def test_sha_pins(tmp_path):
+    import certify
+    wf = tmp_path / ".github" / "workflows"
+    wf.mkdir(parents=True)
+    (wf / "ci.yml").write_text(
+        "jobs:\n  a:\n    steps:\n"
+        "      - uses: actions/checkout@" + "a" * 40 + "  # v4.2.2\n"
+        "      - uses: ./local-action\n"
+        "      - uses: docker://alpine:3\n"
+        "      - uses: actions/setup-python@v5\n", encoding="utf-8")
+    problems = certify.sha_pin_problems(tmp_path)
+    assert len(problems) == 1 and "actions/setup-python@v5" in problems[0]
