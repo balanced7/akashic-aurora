@@ -619,7 +619,7 @@
   "research/reviewed/origin-prelog-2026-04-11/dump_april_redis.py",
   "research/reviewed/origin-prelog-2026-04-11/extract_opencode.py"
  ],
- "commit": "c8a63abf9c42c3757a6cd507b931a7d7d439ae00",
+ "commit": "a0be6d6408e93630579e8a816e0630b74ea7a297",
  "counts": {
   "ARCHIVAL": 261,
   "RUNTIME": 360,
@@ -18281,7 +18281,7 @@
    "argparse": true,
    "class": "TOOLING",
    "import_safe": true,
-   "lines": 1918,
+   "lines": 1936,
    "main_guard": true,
    "module": null,
    "parse_ok": true
