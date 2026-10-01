@@ -244,7 +244,8 @@ def test_unknown_never_guesses(pair):
 
 
 def test_door_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     # The ASK parser specifically -- a bare '"--status"' grep matched other verbs' flags
     # and made this pin green before the build, which is no pin at all.
     assert re.search(r'ask_p\.add_argument\(\s*"--status"', cli), (

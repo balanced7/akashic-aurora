@@ -206,7 +206,8 @@ def test_k9_archive_is_verbatim_and_refuses_git(tmp_path):
         "summary": {"arms": {}},
     }
     path = F.archive_calibration(record, archive_dir=str(tmp_path))
-    stored = json.loads(open(path, encoding="utf-8").read())
+    with open(path, encoding="utf-8") as fh:
+        stored = json.loads(fh.read())
     assert stored["call_plan"][0]["prompt"] == "verbatim prompt"
     assert stored["branches"][0]["answer"] == "verbatim answer"
 

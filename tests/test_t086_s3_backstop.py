@@ -59,7 +59,8 @@ def _sid() -> str:
 def test_s3a_fresh_arming_marker_suppresses_nag(agent):
     sid = _sid()
     m = os.path.join(__import__("tempfile").gettempdir(), f"bifrost_wake_{agent}_{sid}.arming")
-    open(m, "w").write(str(time.time()))
+    with open(m, "w") as fh:
+        fh.write(str(time.time()))
     try:
         r = _run_hook(agent, sid)
         assert '"decision": "block"' not in (r.stdout or "")

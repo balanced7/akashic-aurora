@@ -219,7 +219,8 @@ def test_ask_peer_is_durable_but_still_not_a_seat():
 
     from core.comm import ask as ask_mod
 
-    tree = ast.parse(open(ask_mod.__file__, encoding="utf-8").read())
+    with open(ask_mod.__file__, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     fn = next(n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "ask_peer")
 
     referenced = set()

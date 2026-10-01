@@ -96,7 +96,8 @@ def test_t4_single_tool_prefixes_are_not_a_namespace(tmp_path):
 
 def test_t5_agents_md_names_the_tool_surface_door():
     """The fix this file exists to protect. A read-only agent must find its door in the contract."""
-    text = open(os.path.join(ROOT, "AGENTS.md"), encoding="utf-8", errors="replace").read()
+    with open(os.path.join(ROOT, "AGENTS.md"), encoding="utf-8", errors="replace") as fh:
+        text = fh.read()
     assert "knowledge_boot" in text, (
         "AGENTS.md gives a shell command as step 1 and the default new agent has no shell -- "
         "it must name the tool-surface door too"

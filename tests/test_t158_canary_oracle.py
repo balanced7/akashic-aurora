@@ -67,8 +67,10 @@ def test_k3_the_key_is_sealed_and_tamper_evident(tmp_path):
     p = str(tmp_path / "key.json")
     c.seal(m, p)
     assert c.verify_seal(p) is True
-    raw = open(p, encoding="utf-8").read().replace('"catchable"', '"bait"', 1)
-    open(p, "w", encoding="utf-8").write(raw)
+    with open(p, encoding="utf-8") as fh:
+        raw = fh.read().replace('"catchable"', '"bait"', 1)
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(raw)
     assert c.verify_seal(p) is False, "a tampered answer key must not verify"
 
 

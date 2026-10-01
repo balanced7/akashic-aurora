@@ -36,7 +36,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-SRC = open(os.path.join(ROOT, "scripts", "arc_scorecard.py"), encoding="utf-8").read()
+with open(os.path.join(ROOT, "scripts", "arc_scorecard.py"), encoding="utf-8") as fh:
+    SRC = fh.read()
 
 
 def test_p1_a_self_reported_metric_renders_unrecorded_not_no_signal():

@@ -39,6 +39,7 @@ Run: py -m pytest tests/test_t156_wire_journal.py -q
 import json
 import os
 import sys
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -68,7 +69,7 @@ def test_w2_no_bodies_are_ever_written(tmp_path):
     j = _journal(tmp_path)
     secret = "SUPER-SECRET-PROMPT-CONTENT-9e1f"
     j.record(model="m", status=200, prompt_text=secret, response_text=secret)
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     assert secret not in raw, "a request/response BODY reached the journal -- metadata only"
     rows = j.read_all()
     assert rows, "a prefix HASH must still be recorded for cache forensics"

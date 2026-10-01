@@ -99,7 +99,8 @@ def test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not():
     wedge still reaches somebody."""
     from core.comm import liveness
 
-    src = open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8").read()
+    with open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8") as fh:
+        src = fh.read()
 
     # the seat carve-out and its guard must both still be present
     assert 'is_seat = "#" in str(agent)' in src, (

@@ -32,6 +32,7 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
@@ -266,7 +267,7 @@ def test_c1_no_body_reaches_disk_for_any_input_shape(tmp_path, payload):
     guarantee."""
     j = _j(tmp_path, sub=f"c1{abs(hash(str(payload)))}")
     j.record(model="m", status=200, **payload)
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     for marker in ("secret-alpha", "secret-beta", "secret-gamma", "secret-delta", "secret-epsilon"):
         assert marker not in raw, f"body content {marker!r} reached disk"
     assert "x" * 1000 not in raw, "a large body was written verbatim"
@@ -286,7 +287,7 @@ def test_c2_authorization_header_can_never_land(tmp_path):
             "x-ds-trace-id": "keep-me",
         },
     )
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     assert "SECRETKEY" not in raw, "a credential header reached disk"
     assert "keep-me" in raw, "the allowlisted header was dropped"
 

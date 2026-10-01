@@ -98,7 +98,8 @@ def test_p8_near_deadline_exit_writes_rearm_trigger(tmp_path, monkeypatch, capsy
     assert rc == 0, "a deadline self-cycle is a BENIGN ending (exit 0, Wave-2 contract)"
     trig = bw.rearm_trigger_path("claude", "s1", tmp=str(tmp_path))
     assert os.path.exists(trig), "P8: the near-deadline exit must write the re-arm trigger"
-    body = open(trig, encoding="utf-8").read()
+    with open(trig, encoding="utf-8") as fh:
+        body = fh.read()
     assert "re-arm" in body.lower(), "the trigger carries the instruction, not just a timestamp"
     assert "bifrost_wake" in body, "the trigger carries the instruction, not just a timestamp"
     assert "self-cycle" in out.lower()

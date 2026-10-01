@@ -106,7 +106,8 @@ def test_s3_score_is_evidence_never_a_key():
     """Structural: the scorer must not be able to reach the authority layer at all."""
     import ast
 
-    src = open(os.path.join(ROOT, "core", "season", "scoring.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "core", "season", "scoring.py"), encoding="utf-8") as fh:
+        src = fh.read()
     tree = ast.parse(src)
     imported = set()
     for n in ast.walk(tree):

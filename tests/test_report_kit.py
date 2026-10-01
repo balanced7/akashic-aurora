@@ -53,7 +53,8 @@ def test_p1_the_kit_is_inlined_and_nothing_is_fetched():
 
 
 def test_p2_both_themes_are_defined_and_the_override_wins_both_ways():
-    css = open(KIT, encoding="utf-8").read()
+    with open(KIT, encoding="utf-8") as fh:
+        css = fh.read()
     assert "prefers-color-scheme: light" in css, "the OS signal must be honoured"
     assert ':root[data-theme="dark"]' in css, "the viewer's toggle must be able to win in BOTH directions, not just one"
     assert ':root[data-theme="light"]' in css, (
@@ -89,7 +90,8 @@ def test_p4_every_primitive_in_the_kit_is_documented_in_the_crib():
     PURPOSE is unknown, and purpose is what stops it becoming decoration."""
     rc, crib = gen("--crib")
     assert rc == 0, crib
-    css = open(KIT, encoding="utf-8").read()
+    with open(KIT, encoding="utf-8") as fh:
+        css = fh.read()
     # Structural class selectors the kit defines (skip state/modifier and element helpers).
     defined = set(re.findall(r"^\.([a-z][a-z0-9-]+)\s*(?:\{|,)", css, re.M))
     skip = {"go", "hold", "stop", "num", "prose", "wrap", "ok", "no", "cl", "mo", "a", "b", "scroll", "v", "n", "rule"}

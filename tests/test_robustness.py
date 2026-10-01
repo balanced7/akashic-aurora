@@ -18,6 +18,7 @@ import string
 import sys
 import tempfile
 import threading
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -174,7 +175,8 @@ def test_filestore_corruption_resilience():
         p = os.path.join(d, "corrupt.json")
         with open(p, "w", encoding="utf-8") as f:
             f.write("{ this is not valid json @#$%")
-        original = open(p, encoding="utf-8").read()
+        with open(p, encoding="utf-8") as fh:
+            original = fh.read()
 
         s = FileStore(p)  # must not crash on load
         assert s.get("anything") is None, "corrupt file should read as empty"
@@ -182,7 +184,7 @@ def test_filestore_corruption_resilience():
         assert s.get("k") == "v", "a degraded store still serves its own writes"
 
         # The corrupt bytes survive: either still in place, or in the forensic copy.
-        on_disk = [open(os.path.join(d, f), encoding="utf-8", errors="replace").read() for f in os.listdir(d)]
+        on_disk = [Path(d, f).read_text(encoding="utf-8", errors="replace") for f in os.listdir(d)]
         assert any(original in blob for blob in on_disk), (
             "the unreadable bytes were destroyed -- this is the 2026-07-25 incident"
         )

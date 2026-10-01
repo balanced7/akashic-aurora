@@ -50,7 +50,8 @@ DAEMON = os.path.join(ROOT, "scripts", "bifrost_daemon.py")
 
 def test_a1_the_daemon_spawn_callable_matches_the_definition():
     """THE BUG. Read the real file: the arity the lambda passes must match the def."""
-    src = open(DAEMON, encoding="utf-8", errors="replace").read()
+    with open(DAEMON, encoding="utf-8", errors="replace") as fh:
+        src = fh.read()
     d = re.search(r"def _spawn_listener\(([^)]*)\)", src)
     assert d, "no _spawn_listener definition found"
     params = [p for p in (x.strip() for x in d.group(1).split(",")) if p and p != "self"]

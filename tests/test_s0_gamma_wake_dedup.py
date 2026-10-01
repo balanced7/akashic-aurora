@@ -134,7 +134,8 @@ def test_p5_sidecar_bounded_newest_kept(tmp_path):
     seen = str(tmp_path / "wake.seen")
     keys = [f"frm|ts{i}|kind" for i in range(bw.SEEN_CAP + 500)]
     bw.save_seen(seen, keys)
-    stored = json.load(open(seen, encoding="utf-8"))
+    with open(seen, encoding="utf-8") as fh:
+        stored = json.load(fh)
     assert len(stored) == bw.SEEN_CAP
     assert stored[-1] == keys[-1]
     assert keys[0] not in stored
@@ -148,7 +149,8 @@ def test_p6_detect_only_surface(tmp_path):
     assert _run(api, seen, tmp_path, session="sessP6aaaaa") == 0
     assert api.wake_calls >= 1
     # and the sidecar holds the canonical logical id -- BifrostAPI._dedup_key's fields
-    assert json.load(open(seen, encoding="utf-8")) == ["deepseek|T1|handoff"]
+    with open(seen, encoding="utf-8") as fh:
+        assert json.load(fh) == ["deepseek|T1|handoff"]
 
 
 def test_p7_tombstone_standdown_removes_sidecar(tmp_path, monkeypatch, capsys):

@@ -130,7 +130,8 @@ def test_p6_the_ledger_row_that_started_this_is_reachable():
     if not ledger.exists() or ledger.stat().st_size <= TB.MAX_FILE_BYTES:
         pytest.skip("ledger absent or no longer exceeds the cap")
     box = TB.ToolBox(Path(ROOT), allow_exec=False, trust="member", allow_secrets=False, confirm=None)
-    total = sum(1 for _ in open(ledger, encoding="utf-8", errors="replace"))
+    with open(ledger, encoding="utf-8", errors="replace") as fh:
+        total = sum(1 for _ in fh)
     mid = total // 2
     out = box.execute("read_file", {"path": "state/coord/tasks.json", "start_line": mid, "end_line": mid + 2})
     # POSITIVE assertion again: a bare "[truncated at ...]" notice is non-empty and contains no

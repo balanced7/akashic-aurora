@@ -45,7 +45,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-SRC = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+    SRC = fh.read()
 
 
 def _briefing_fn():

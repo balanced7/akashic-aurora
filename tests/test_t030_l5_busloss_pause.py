@@ -118,8 +118,10 @@ def test_bus_loss_guard_sequence():
 
 
 def test_pause_line_wired_to_render_paths():
-    pull = open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8").read()
-    doctor = open(os.path.join(_ROOT, "core", "comm", "doctor.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8") as fh:
+        pull = fh.read()
+    with open(os.path.join(_ROOT, "core", "comm", "doctor.py"), encoding="utf-8") as fh:
+        doctor = fh.read()
     assert "format_pause_line" in pull, "boot/bifrost-sync surface a leftover freeze"
     assert "format_pause_line" in doctor, "fleet doctor surfaces a leftover freeze"
 
@@ -128,7 +130,8 @@ def test_pause_line_wired_to_render_paths():
 
 
 def test_runner_wired():
-    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "BusLossGuard" in src, "the runner loop runs the dead-beat guard"
     lines = src.splitlines()
     idx = next(i for i, l in enumerate(lines) if "hit reply rate limit" in l)

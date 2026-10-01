@@ -51,6 +51,7 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -84,7 +85,8 @@ def test_p1_records_shard_by_agent(tmp_path):
     assert files, "nothing was written"
     owners = {}
     for p in files:
-        rows = [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
+        with open(p, encoding="utf-8") as fh:
+            rows = [json.loads(line) for line in fh if line.strip()]
         owners[p] = {r.get("agent") for r in rows}
 
     assert not any(len(v) > 1 for v in owners.values()), (
@@ -385,7 +387,7 @@ def test_p12_two_journals_on_one_shard_do_not_tear_the_file(tmp_path):
     a.flush()
     b.flush()
 
-    raw = "".join(open(p, encoding="utf-8").read() for p in a.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in a.files())
     bad = [ln for ln in raw.splitlines() if ln.strip() and not _parses(ln)]
     assert not bad, f"{len(bad)} torn line(s) from interleaved appends, e.g. {bad[:1]}"
 

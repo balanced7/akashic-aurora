@@ -215,7 +215,8 @@ def test_p2_every_runner_retracts_its_card_on_the_exit_path():
     assert runners, "no runner scripts found -- the enumeration itself is broken"
     missing = []
     for f in runners:
-        src = open(os.path.join(rd, f), encoding="utf-8", errors="replace").read()
+        with open(os.path.join(rd, f), encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
         beat_at = [m.start() for m in re.finditer(r"roster\.heartbeat\s*\(", src)]
         retire_at = [m.start() for m in re.finditer(r"retire_seat\s*\(", src)]
         derives = bool(re.search(r"seat_session_id\s*\(", src))

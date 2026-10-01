@@ -223,7 +223,8 @@ def test_janitor_idle_alive_immune_and_logged(tmp_path):
     assert "K7" in res[0][2]
     assert not killed
     assert os.path.exists(p)
-    log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
+    with open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8") as fh:
+        log = fh.read()
     assert "K7" in log, "the immunity decision is auditable from the log alone"
 
 
@@ -238,7 +239,8 @@ def test_janitor_true_orphan_reaped_with_both_factors(tmp_path):
     assert res[0][1] == "kill"
     assert killed == [10]
     assert not os.path.exists(p)
-    log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
+    with open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8") as fh:
+        log = fh.read()
     assert "stale" in log, "provenance carries BOTH factors"
     assert "broken" in log, "provenance carries BOTH factors"
 
@@ -334,6 +336,7 @@ def test_watch_unseated_embedder_keeps_watching(tmp_path):
 def test_provenance_appends_and_survives(tmp_path):
     ws.append_provenance(AGENT, "first decision", str(tmp_path))
     ws.append_provenance(AGENT, "second decision", str(tmp_path))
-    log = open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8").read()
+    with open(ws.provenance_path(AGENT, str(tmp_path)), encoding="utf-8") as fh:
+        log = fh.read()
     assert "first decision" in log
     assert "second decision" in log

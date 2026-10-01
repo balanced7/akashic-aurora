@@ -233,7 +233,8 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
 
 
 def test_door_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     assert re.search(r'ask_p\.add_argument\(\s*"--peer"', cli), (
         "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
     )

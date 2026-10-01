@@ -30,7 +30,8 @@ def test_p1_token_journal_new_day_creates_fresh(tmp_path):
     assert j.prompt_tokens == 0
     assert j.completion_tokens == 0
     j._save()
-    raw = json.loads(open(j._path, encoding="utf-8").read())
+    with open(j._path, encoding="utf-8") as fh:
+        raw = json.loads(fh.read())
     assert raw["agent"] == "deepseek"
     assert raw["date"] == time.strftime("%Y-%m-%d")
 

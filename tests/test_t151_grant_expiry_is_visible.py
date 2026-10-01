@@ -91,6 +91,7 @@ def test_x5_the_live_acl_shows_the_codex_root_time_box():
     ids = {r["agent_id"] for r in rows}
     import json
 
-    recs = json.load(open(os.path.join(ROOT, "security", "acl.json"), encoding="utf-8"))["grants"]
+    with open(os.path.join(ROOT, "security", "acl.json"), encoding="utf-8") as fh:
+        recs = json.load(fh)["grants"]
     boxed = {g["agent_id"] for g in recs if g.get("expires_at")}
     assert ids == boxed, f"reporter disagrees with the file: reported {ids}, time-boxed {boxed}"

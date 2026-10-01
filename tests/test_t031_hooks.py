@@ -125,8 +125,10 @@ def test_h3_scorecard_runs_and_reads_the_arc():
 
 
 def test_hooks_wired():
-    ship = open(os.path.join(_ROOT, "scripts", "ship.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "scripts", "ship.py"), encoding="utf-8") as fh:
+        ship = fh.read()
     assert "check_preregistration" in ship, "hook 2 rides the ship gate"
     assert "check_verbatim_citation" in ship, "hook 4 rides the ship gate"
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     assert "arc_scorecard" in cli, "hook 3 rides the wrap draft"

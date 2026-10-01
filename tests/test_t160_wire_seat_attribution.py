@@ -109,7 +109,8 @@ def test_a3_every_runner_stamps_its_seat_identity():
 
     missing = []
     for path in runners:
-        src = open(path, encoding="utf-8", errors="replace").read()
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
         # either the shared door, or an explicit env stamp -- both are honest ways to say who I am
         if not re.search(r"set_seat_agent\s*\(|BIFROST_AGENT", src):
             missing.append(os.path.basename(path))

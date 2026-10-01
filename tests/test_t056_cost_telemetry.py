@@ -203,7 +203,8 @@ def test_k8_scalar_token_total_never_becomes_confident_zero(monkeypatch, tmp_pat
 
 def _runner_record_token_exprs(relpath):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    source = open(os.path.join(root, relpath), encoding="utf-8").read()
+    with open(os.path.join(root, relpath), encoding="utf-8") as fh:
+        source = fh.read()
     tree = ast.parse(source, filename=relpath)
     out = []
     for node in ast.walk(tree):

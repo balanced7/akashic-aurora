@@ -90,7 +90,8 @@ def test_p5_the_names_stay_string_literals_so_check_wiring_can_see_them():
     """deepseek-red's A5 lesson: check_wiring matches ast.Constant string values, so any dispatch
     that COMPUTES a tool name ('eye_' + verb) goes invisible and the reachability guard silently
     stops covering this surface. Pinned at the source rather than trusted."""
-    src = open(os.path.join(ROOT, "core", "comm", "toolbox.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "core", "comm", "toolbox.py"), encoding="utf-8") as fh:
+        src = fh.read()
     literals = {n.value for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     for name in EYE_TOOLS:
         assert name in literals, (

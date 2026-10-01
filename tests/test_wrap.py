@@ -52,7 +52,8 @@ def test_write_last_session_draft_to_file():
     out = agent_cli.write_last_session_draft(path, commits, lessons, notes, trigger="PreCompact")
     assert out == path, "draft file is written"
     assert os.path.exists(path), "draft file is written"
-    text = open(path, encoding="utf-8").read()
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
     assert "Last-session draft" in text, text[:120]
     assert "PreCompact" in text, text[:120]
     assert "(git:abc123)" in text, "draft body + pointers present"

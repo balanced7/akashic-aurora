@@ -166,7 +166,8 @@ def test_reader_census_documented():
     p = os.path.join(
         REPO, "docs", "library", "design", "20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md"
     )  # migrated at P3
-    doc = open(p, encoding="utf-8").read()
+    with open(p, encoding="utf-8") as fh:
+        doc = fh.read()
     for reader in (
         "bifrost_api",
         "wake listener",

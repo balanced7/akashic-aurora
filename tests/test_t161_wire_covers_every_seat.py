@@ -123,7 +123,8 @@ def test_e5_every_seat_builds_an_instrumented_client():
         path = os.path.join(ROOT, "scripts", f"{seat}_chat.py")
         if not os.path.exists(path):
             continue
-        src = open(path, encoding="utf-8", errors="replace").read()
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
         m = re.search(r"def make_client\(.*?\n(?=\n\ndef |\n\n# |\Z)", src, re.S)
         body = m.group(0) if m else src
         # either it goes through the shared factory (instrumented by default) or it wires the

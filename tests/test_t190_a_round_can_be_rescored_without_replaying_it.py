@@ -92,7 +92,8 @@ def test_k1_archiving_returns_a_path_that_exists(tmp_path):
 
 def test_k2_the_record_carries_the_claims(tmp_path):
     path = A.archive_round(_record(("c00_aaa", "c01_bbb")), round_dir=str(tmp_path))
-    stored = json.loads(open(path, encoding="utf-8").read())
+    with open(path, encoding="utf-8") as fh:
+        stored = json.loads(fh.read())
     assert [c["_canary_id"] for c in stored["claims"]] == ["c00_aaa", "c01_bbb"], (
         "the claims are the whole point -- everything else is reconstructible"
     )
@@ -138,7 +139,8 @@ def test_k6_a_record_without_claims_is_a_named_failure(tmp_path):
     bad = _record()
     bad.pop("claims")
     path = os.path.join(str(tmp_path), "broken.json")
-    open(path, "w", encoding="utf-8").write(json.dumps(bad))
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(bad))
     with pytest.raises(ValueError) as e:
         A.replay_round(path)
     assert "claim" in str(e.value).lower(), (

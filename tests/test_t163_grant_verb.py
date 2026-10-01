@@ -157,7 +157,8 @@ def test_v6_a_failed_write_never_corrupts_the_acl(acl, monkeypatch):
     hardcoded floor, silently, at the worst possible moment.
     """
     g = _mod()
-    before = open(acl, encoding="utf-8").read()
+    with open(acl, encoding="utf-8") as fh:
+        before = fh.read()
 
     real = os.replace
 
@@ -169,7 +170,8 @@ def test_v6_a_failed_write_never_corrupts_the_acl(acl, monkeypatch):
         g.grant("newbie", role="member", by="claude", reason="r", hours=1)
     monkeypatch.setattr(os, "replace", real)
 
-    after = open(acl, encoding="utf-8").read()
+    with open(acl, encoding="utf-8") as fh:
+        after = fh.read()
     assert after == before, "a failed write left the ACL modified"
     json.loads(after)  # and still parseable -- the fallback must not trigger
 

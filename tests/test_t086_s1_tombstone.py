@@ -138,9 +138,11 @@ def test_stale_marker_beats_live_listener(agent, sid, tmp_path):
     listener pid is alive. Process liveness is not session liveness."""
     _claim(agent, sid)
     seat = wake_seat.seat_path(agent, sid, str(tmp_path))
-    open(seat, "w").write("99999")
+    with open(seat, "w") as fh:
+        fh.write("99999")
     marker = wake_seat.activity_marker_path(agent, sid, str(tmp_path))
-    open(marker, "w").write("x")  # mtime = real now
+    with open(marker, "w") as fh:
+        fh.write("x")  # mtime = real now
     aged_now = time.time() + STALE + 60  # marker_age ~= STALE+60; claim age same
     v = runner_lock.free_if_dead(agent, now=aged_now, tmp=str(tmp_path), pid_alive=lambda p: True)
     assert v["freed"]
@@ -152,9 +154,11 @@ def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
     (an idle-but-live session inside the lease window keeps its seat)."""
     _claim(agent, sid)
     seat = wake_seat.seat_path(agent, sid, str(tmp_path))
-    open(seat, "w").write("99999")
+    with open(seat, "w") as fh:
+        fh.write("99999")
     marker = wake_seat.activity_marker_path(agent, sid, str(tmp_path))
-    open(marker, "w").write("x")
+    with open(marker, "w") as fh:
+        fh.write("x")
     mid_now = time.time() + GRACE + 100  # marker_age ~= 400s: mid-band
     v = runner_lock.free_if_dead(agent, now=mid_now, tmp=str(tmp_path), pid_alive=lambda p: True)
     assert not v["freed"]
@@ -182,7 +186,8 @@ def test_watcher_stands_down_for_tombstoned_session(sid, tmp_path, capsys):
     spec.loader.exec_module(bw)
     assert wake_seat.write_tombstone(sid)  # default tempdir -- where watch() looks
     hb = str(tmp_path / "seat.pid")
-    open(hb, "w").write(str(os.getpid()))
+    with open(hb, "w") as fh:
+        fh.write(str(os.getpid()))
     rc = bw.watch("t086probe", 3600, 1000, api=_StubApi(), hb_path=hb, my_pid=os.getpid(), session_id=sid)
     assert rc == 0
     assert "session tombstoned" in capsys.readouterr().out
@@ -197,7 +202,8 @@ def test_cycle_line_reports_elapsed(sid, tmp_path, capsys):
     bw = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bw)
     hb = str(tmp_path / "seat2.pid")
-    open(hb, "w").write(str(os.getpid()))
+    with open(hb, "w") as fh:
+        fh.write(str(os.getpid()))
     rc = bw.watch(
         "t086probe2", 1, 2000, api=_StubApi(), hb_path=hb, my_pid=os.getpid(), session_id=""
     )  # chunk 2s >= total 1s -> instant cycle
@@ -219,7 +225,8 @@ def test_tombstone_probe_error_fails_open(agent, sid, tmp_path, monkeypatch):
 
 def test_kill_switch_disables_tombstones(sid, tmp_path, monkeypatch):
     """AKASHIC_TOMBSTONE=0: write refuses, read says False even with a tomb file present."""
-    open(wake_seat.tombstone_path(sid, str(tmp_path)), "w").write("x")
+    with open(wake_seat.tombstone_path(sid, str(tmp_path)), "w") as fh:
+        fh.write("x")
     monkeypatch.setenv("AKASHIC_TOMBSTONE", "0")
     assert not wake_seat.write_tombstone(sid, str(tmp_path))
     assert not wake_seat.is_tombstoned(sid, str(tmp_path))

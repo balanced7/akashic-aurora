@@ -60,7 +60,8 @@ def _producers_of(kind_literal):
     hits = []
     for path in KP._python_files(ROOT):
         try:
-            tree = ast.parse(open(path, encoding="utf-8").read())
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
         except (OSError, SyntaxError):
             continue
         for node in ast.walk(tree):
@@ -110,5 +111,6 @@ def test_k3_the_concept_survives_only_the_token_is_retired():
 
 
 def test_k4_the_cli_verb_is_the_only_ask_in_the_lexicon():
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert re.search(r'add_parser\(\s*["\']ask["\']', src), "the T171 verb must still be there"

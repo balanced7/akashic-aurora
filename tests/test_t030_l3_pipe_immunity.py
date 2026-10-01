@@ -117,7 +117,8 @@ def test_first_line_visible_within_one_second():
 
 
 def test_runner_wired_to_self_bless():
-    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "self_bless_stdout" in src, "the runner calls the blessing at startup"
 
 
@@ -125,5 +126,6 @@ def test_runner_wired_to_self_bless():
 
 
 def test_agents_md_carries_the_launch_rule():
-    src = open(os.path.join(_ROOT, "AGENTS.md"), encoding="utf-8").read().lower()
+    with open(os.path.join(_ROOT, "AGENTS.md"), encoding="utf-8") as fh:
+        src = fh.read().lower()
     assert "truncating pipe" in src, "the contract doc teaches: never launch a live runner through a truncating pipe"

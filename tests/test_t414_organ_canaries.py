@@ -157,7 +157,8 @@ def test_the_gate_ratchets_on_new_deaths_not_recorded_ones():
 
     bl = os.path.join(ROOT, "state", "ci", "organ_canary_baseline.json")
     assert os.path.exists(bl), "the ratchet has no baseline; the gate would fail on known debt"
-    keep = open(bl, encoding="utf-8").read()
+    with open(bl, encoding="utf-8") as fh:
+        keep = fh.read()
     recorded = (_json.loads(keep) or {}).get("dead") or {}
     assert recorded, "an empty baseline makes the gate stricter, not looser -- but records nothing"
     for name, reason in recorded.items():
@@ -185,10 +186,12 @@ def test_the_gate_ratchets_on_new_deaths_not_recorded_ones():
     try:
         d = _json.loads(keep)
         d["dead"].pop(victim)
-        open(bl, "w", encoding="utf-8", newline=chr(10)).write(_json.dumps(d, indent=2) + chr(10))
+        with open(bl, "w", encoding="utf-8", newline=chr(10)) as fh:
+            fh.write(_json.dumps(d, indent=2) + chr(10))
         without = _gate()
     finally:
-        open(bl, "w", encoding="utf-8", newline=chr(10)).write(keep)
+        with open(bl, "w", encoding="utf-8", newline=chr(10)) as fh:
+            fh.write(keep)
 
     assert "NEWLY" in without, (
         "un-recording a dead organ did not raise NEW debt -- the ratchet is decorative: " + without[-500:]

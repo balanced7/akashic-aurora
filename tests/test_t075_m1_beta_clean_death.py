@@ -184,6 +184,7 @@ def test_provenance_line_appended(fake, tmp_path):
     session_exit.clean_death(AGENT, SID, tmp=tmp, c=fake, event="SessionEnd")
     log = wake_seat.provenance_path(AGENT, tmp)
     assert os.path.exists(log), "clean death must leave an auditable provenance line"
-    body = open(log, encoding="utf-8").read()
+    with open(log, encoding="utf-8") as fh:
+        body = fh.read()
     assert "clean-death" in body
     assert SID[:8] in body

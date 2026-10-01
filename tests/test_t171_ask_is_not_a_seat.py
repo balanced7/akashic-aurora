@@ -142,7 +142,8 @@ def test_k6_ask_touches_no_seat_machinery():
     expectations ONLY, and still no lock, cursor, roster or heartbeat. Teeth kept, scope corrected;
     an amended law beats a red one nobody can act on (docs/CONDUCT.md's anti-fossil clause).
     """
-    tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
+    with open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     tree = _stateless_only(tree)
 
     forbidden = {

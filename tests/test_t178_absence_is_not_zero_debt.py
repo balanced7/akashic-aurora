@@ -86,7 +86,8 @@ def test_k4_ensure_baseline_materialises_a_missing_file_and_says_so(monkeypatch,
     created, note = pc.ensure_baseline(live={"check_boundaries": 0, "check_kind_policy": 2})
     assert created is True, "materialising in silence would be the same defect"
     assert note, "materialising in silence would be the same defect"
-    written = json.loads(open(target, encoding="utf-8").read())["counts"]
+    with open(target, encoding="utf-8") as fh:
+        written = json.loads(fh.read())["counts"]
     assert written == {"check_boundaries": 0, "check_kind_policy": 2}, (
         "adopt TODAY's debt: a commit cannot be blamed for debt that predates it"
     )
@@ -99,7 +100,8 @@ def test_k5_a_live_guard_absent_from_the_baseline_is_adopted_and_announced(monke
     created, note = pc.ensure_baseline(live={"check_boundaries": 0, "check_kind_policy": 2})
     assert created is True, "a NEW guard with no entry was silently never compared -- T177's fate"
     assert "check_kind_policy" in note
-    assert json.loads(open(target, encoding="utf-8").read())["counts"]["check_kind_policy"] == 2
+    with open(target, encoding="utf-8") as fh:
+        assert json.loads(fh.read())["counts"]["check_kind_policy"] == 2
 
 
 def test_k6_a_real_baseline_still_refuses_a_rise():

@@ -124,7 +124,8 @@ def test_p5_the_redrive_set_says_it_is_about_directed_sends():
     """agent_cli's set gates ONE thing: whether a DIRECTED send auto-arms a reply deadline.
     `blocker` stays out -- not as an oversight, as a consequence. Broadcasts have no single
     answerer to redrive, and the CLI already refuses to arm one."""
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "AUTO_REDRIVE_KINDS" in src, "the set must be named for the machinery it gates"
     assert "ASK_KINDS = {" not in src, "the old ambiguous name must be gone"
 
@@ -133,7 +134,8 @@ def test_p5b_the_broadcast_refusal_that_makes_blocker_n_a_still_stands():
     """P5's reasoning depends on this guard existing. If it ever goes, `blocker`'s absence
     from the redrive set stops being a consequence and becomes an unexamined exclusion --
     so the reason is pinned, not just the conclusion."""
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "has no single answerer to redrive" in src, (
         "the broadcast-cannot-be-redriven refusal is the premise of the n/a ruling"
     )
@@ -219,7 +221,8 @@ def test_p14_the_checker_manifest_knows_the_renamed_sets():
     """K-D in check_kind_policy FAILS a *KINDS set with no declared plane. The renames must
     land in that manifest in the SAME commit, or the guard that exists to catch exactly this
     fires on my own work -- which is the bedside test doing its job, twice before."""
-    src = open(os.path.join(ROOT, "scripts", "checkers", "check_kind_policy.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "scripts", "checkers", "check_kind_policy.py"), encoding="utf-8") as fh:
+        src = fh.read()
     tree = ast.parse(src)
     manifest: dict = {}
     for node in ast.walk(tree):

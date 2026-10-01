@@ -118,7 +118,8 @@ def test_p3_keyless_untouched(monkeypatch):
 
 def test_p4_page_text_names_its_signals():
     """Acceptance (T282): 'the detector names WHICH signal it keyed on in every page'."""
-    src = open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8").read()
+    with open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8") as fh:
+        src = fh.read()
     m = re.search(r'"hard_wedge",\s*"page"', src)
     i = m.start() if m else -1
     assert i > 0, "P4: hard_wedge page emission site missing"

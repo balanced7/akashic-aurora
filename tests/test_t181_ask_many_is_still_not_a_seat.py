@@ -142,7 +142,8 @@ def test_k8_ask_many_touches_no_seat_machinery():
     enforced with no exemptions on the fan path; the durable verb answers to its own narrower law
     in test_t197_peer_presence.py.
     """
-    tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
+    with open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     tree = ast.Module(
         body=[
             n

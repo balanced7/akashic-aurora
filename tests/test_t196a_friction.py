@@ -247,5 +247,6 @@ def test_gather_zero_writes():
 
 
 def test_door_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     assert re.search(r'add_parser\(\s*"friction"', cli), "agent_cli.py grew the friction verb"

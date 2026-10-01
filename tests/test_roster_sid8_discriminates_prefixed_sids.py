@@ -268,7 +268,8 @@ def test_p10_the_sync_verb_derives_its_mailbox_incarnation_from_the_env_through_
 
     full = "session-7ed91e83-1111-2222-3333-444444444444"
     assert agent_cli._sid8_of(full) == "7ed91e83"
-    src = open(agent_cli.__file__, encoding="utf-8", errors="replace").read()
+    with open(agent_cli.__file__, encoding="utf-8", errors="replace") as fh:
+        src = fh.read()
     assert re.search(r'_inc = \(\s*_sid8_of\(os\.environ\.get\("AKASHIC_SESSION8"\)\)', src)
 
 

@@ -180,7 +180,8 @@ def test_nonanswer_note_does_not_clear(pair):
 
 def test_runner_sends_nonanswers_as_notes():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
+    with open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert 'reply_kind = "note" if nonanswer else "reply"' in src, (
         "timeout/error outcomes ship as kind=note without the answers link (T026 doctrine)"
     )
@@ -190,8 +191,8 @@ def test_runner_sends_nonanswers_as_notes():
 
 
 def test_doors_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     assert "--expect-reply-within" in cli, "bifrost-send grew the flag"
-    assert "sweep" in open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8").read(), (
-        "the pull floor (bifrost-sync/boot) sweeps expectations at render"
-    )
+    with open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8") as fh:
+        assert "sweep" in fh.read(), "the pull floor (bifrost-sync/boot) sweeps expectations at render"

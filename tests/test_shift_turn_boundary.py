@@ -105,7 +105,8 @@ def test_all_four_runners_call_the_shared_function_not_a_copy():
         p = os.path.join(root, "scripts", r)
         if not os.path.exists(p):
             continue
-        src = open(p, encoding="utf-8").read()
+        with open(p, encoding="utf-8") as fh:
+            src = fh.read()
         if "turn_beat" not in src:
             missing.append(r)
         if "next_beat(" in src:  # a runner must never call the core directly

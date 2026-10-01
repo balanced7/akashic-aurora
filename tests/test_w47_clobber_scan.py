@@ -71,12 +71,13 @@ def test_p5_live_storm_block_reads_clean():
     # was_paused guard reads at the top and control.resume() fires ~30 lines below; the
     # function-scope tracking must find that guard so the fixed code reads CLEAN for the
     # pause/resume families (the fixed-window version cried wolf here -- the reason for A3).
-    src = open(
+    with open(
         os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "bifrost_runner_deepseek.py"
         ),
         encoding="utf-8",
-    ).read()
+    ) as fh:
+        src = fh.read()
     # isolate the storm ceremony: from '_was_paused = control.is_paused()' to '_storm.reset()'
     start = src.find("_was_paused = control.is_paused()")
     end = src.find("_storm.reset()", start)

@@ -181,7 +181,8 @@ def test_p4b_cli_refuses_before_any_model_call(tmp_path):
 
 # ---------------------------------------------------------------- P5: the rubric at the door
 def test_p5_help_carries_rubric_and_vocabulary():
-    src = open(ROOT / "agent_cli.py", encoding="utf-8").read()
+    with open(ROOT / "agent_cli.py", encoding="utf-8") as fh:
+        src = fh.read()
     m = re.search(r'add_parser\(\s*"ask"', src)
     i = m.start() if m else -1
     assert i > 0

@@ -56,7 +56,8 @@ def test_p2_record_read_roundtrip(qfile, monkeypatch):
     assert rec["sha"] == "abc1234"
     assert rec["seat"] == "claude"
     assert rec["at"]
-    stored = json.load(open(qfile, encoding="utf-8"))
+    with open(qfile, encoding="utf-8") as fh:
+        stored = json.load(fh)
     assert len(stored["failures"]) == 4
     assert stored["claims_at_snapshot"] == {"T067": "verifying"}
 

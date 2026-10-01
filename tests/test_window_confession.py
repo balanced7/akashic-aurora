@@ -74,7 +74,8 @@ def test_boot_and_cli_share_the_threshold_and_page_seams():
     """Structural guard (comprehensibility-immune-system style): agent_cli must not read
     the threshold env itself (boot silently used the default while the CLI read the env
     -- the RB-5 mismatch), and both renderers must page through promoted_page."""
-    src = open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "AKASHIC_ACK_UNHANDLED_HOURS" not in src, (
         "threshold env is read ONLY via promoter.unhandled_threshold_hours()"
     )

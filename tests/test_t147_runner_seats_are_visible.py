@@ -50,6 +50,7 @@ import os
 import re
 import sys
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -103,7 +104,8 @@ def test_r3_every_runner_publishes_the_seat_beat():
     assert runners, "no runner scripts found -- the enumeration itself is broken"
     missing = []
     for f in runners:
-        src = open(os.path.join(rd, f), encoding="utf-8", errors="replace").read()
+        with open(os.path.join(rd, f), encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
         if not re.search(r"roster\.heartbeat\s*\(", src):
             missing.append(f)
     assert not missing, (
@@ -118,9 +120,7 @@ def test_r4_the_bare_worklive_refresh_survives():
     rd = os.path.join(ROOT, "scripts")
     runners = sorted(f for f in os.listdir(rd) if f.startswith("bifrost_runner_") and f.endswith(".py"))
     dropped = [
-        f
-        for f in runners
-        if not re.search(r"worklive\(", open(os.path.join(rd, f), encoding="utf-8", errors="replace").read())
+        f for f in runners if not re.search(r"worklive\(", Path(rd, f).read_text(encoding="utf-8", errors="replace"))
     ]
     assert not dropped, f"runner(s) stopped refreshing the bare worklive key: {dropped}"
 
@@ -161,7 +161,7 @@ def test_r6_successive_incarnations_of_one_agent_get_distinct_seats():
         for f in runners
         if _re.search(
             r'f"\{args\.agent\}-\{os\.getpid\(\)\}"',
-            open(os.path.join(rd, f), encoding="utf-8", errors="replace").read(),
+            Path(rd, f).read_text(encoding="utf-8", errors="replace"),
         )
     ]
     assert not bad, f"agent-first fallback truncates to a shared sid8 across incarnations: {bad}"

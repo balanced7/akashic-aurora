@@ -40,7 +40,8 @@ def test_p1_defer_files_item(qfile):
     assert item["id"]
     assert item["needs"] == "exec"
     assert item["by"] == "kimi"
-    stored = json.load(open(qfile, encoding="utf-8"))
+    with open(qfile, encoding="utf-8") as fh:
+        stored = json.load(fh)
     assert len(stored["items"]) == 1
     assert stored["items"][0]["cmd"].startswith("py -m pytest")
 
@@ -59,7 +60,8 @@ def test_p3_done_items_stay_as_history(qfile):
     b = dq.add("deepseek", "cmd two", needs="write")
     dq.mark_done(a["id"], seat="claude", receipt="done")
     assert [i["id"] for i in dq.pending()] == [b["id"]]
-    stored = json.load(open(qfile, encoding="utf-8"))
+    with open(qfile, encoding="utf-8") as fh:
+        stored = json.load(fh)
     assert len(stored["items"]) == 2, "history never deleted"
 
 
@@ -85,7 +87,9 @@ def test_p4_capability_aware_render(qfile):
 def test_p5_file_always_valid_json(qfile):
     for i in range(4):
         dq.add("a", f"c{i}", needs="exec")
-        json.load(open(qfile, encoding="utf-8"))
+        with open(qfile, encoding="utf-8") as fh:
+            json.load(fh)
     it = dq.pending()[0]
     dq.mark_done(it["id"], seat="s", receipt="r")
-    json.load(open(qfile, encoding="utf-8"))
+    with open(qfile, encoding="utf-8") as fh:
+        json.load(fh)
