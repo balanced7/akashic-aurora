@@ -84,7 +84,7 @@ def capture_tagged(reason, tag=None, session_id=None):
             "screenshots:log",
             json.dumps({"session": sid, "reason": reason, "tag": tag, "timestamp": timestamp, "filepath": filepath}),
         )
-    except:
+    except Exception:
         pass
 
     return filepath
@@ -96,9 +96,7 @@ def get_session_screenshots(session_id=None):
     files = []
 
     if os.path.exists(SCREENSHOT_DIR):
-        for f in os.listdir(SCREENSHOT_DIR):
-            if f.startswith(sid):
-                files.append(f)
+        files.extend(f for f in os.listdir(SCREENSHOT_DIR) if f.startswith(sid))
 
     return sorted(files)
 
@@ -108,9 +106,7 @@ def get_recent_screenshots(count=10):
     files = []
 
     if os.path.exists(SCREENSHOT_DIR):
-        for f in os.listdir(SCREENSHOT_DIR):
-            if f.endswith(".png"):
-                files.append(f)
+        files.extend(f for f in os.listdir(SCREENSHOT_DIR) if f.endswith(".png"))
 
     return sorted(files, reverse=True)[:count]
 

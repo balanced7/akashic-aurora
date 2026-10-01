@@ -91,7 +91,7 @@ class GeminiBridgeMonitor:
 
             # Try to find input box
             wait = WebDriverWait(self.driver, 10)
-            input_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='textbox']")))
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='textbox']")))
             print("[monitor] Gemini page loaded successfully")
             return True
 
@@ -152,7 +152,7 @@ class GeminiBridgeMonitor:
                 if "data:" in self.driver.current_url:
                     print("[monitor] CRASH DETECTED during response wait!")
                     self.crashed = True
-                    context = self.capture_state()
+                    self.capture_state()
                     return None, True
 
                 # Look for response
@@ -163,7 +163,7 @@ class GeminiBridgeMonitor:
                         if len(text) > 10:
                             print(f"[monitor] Response received: {text[:50]}...")
                             return text, False
-                except:
+                except Exception:
                     pass
 
                 time.sleep(1)
@@ -186,7 +186,7 @@ class GeminiBridgeMonitor:
             # Simple check - can we get the window handles?
             _ = self.driver.window_handles
             return True
-        except:
+        except Exception:
             return False
 
     def disconnect(self):
@@ -216,7 +216,7 @@ def test_gemini_bridge():
 
         if crashed:
             print("Crash detected during query")
-            context = bridge.capture_state()
+            bridge.capture_state()
             print("Captured state for diagnosis")
         elif response:
             print("SUCCESS:", response[:100])

@@ -29,7 +29,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 
 try:
-    import redis
+    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -118,7 +118,6 @@ class RedisSyncPoller:
         if not os.path.exists(filepath):
             return [], 0
 
-        entries = []
         with open(filepath, encoding="utf-8") as f:
             lines = f.readlines()
 
@@ -210,7 +209,7 @@ class RedisSyncPoller:
                         session = entry.get("session", "")
                         if session:
                             sessions.add(session)
-                    except:
+                    except Exception:
                         continue
 
         if sessions:
@@ -268,14 +267,13 @@ class RedisSyncPoller:
                 entries, _ = self._read_log_file(backup_file, self.state.backup_session_position)
                 for entry in entries:
                     entry_type = entry.get("type", "")
-                    if entry_type in ("action", "chat", "error"):
-                        if self._sync_entry_to_redis(entry):
-                            if entry_type == "action":
-                                stats["actions"] += 1
-                            elif entry_type == "chat":
-                                stats["chats"] += 1
-                            else:
-                                stats["errors"] += 1
+                    if entry_type in ("action", "chat", "error") and self._sync_entry_to_redis(entry):
+                        if entry_type == "action":
+                            stats["actions"] += 1
+                        elif entry_type == "chat":
+                            stats["chats"] += 1
+                        else:
+                            stats["errors"] += 1
                     self.state.backup_session_position += 1
 
             # Sync errors_and_faults.jsonl

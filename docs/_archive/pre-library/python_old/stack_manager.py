@@ -117,7 +117,7 @@ def _run_ps(cmd: str, timeout: int = 15) -> tuple:
         return "", False
 
 
-def _run_cmd(cmd: str, timeout: int = 30, cwd: str = None) -> tuple:
+def _run_cmd(cmd: str, timeout: int = 30, cwd: str | None = None) -> tuple:
     try:
         p = subprocess.run(
             cmd,
@@ -348,7 +348,7 @@ SERVICES = {
 # ──────────────────────────────────────────────────────────────
 
 
-def resolve_tiers(services: dict = None) -> list:
+def resolve_tiers(services: dict | None = None) -> list:
     """Kahn's algorithm → list of parallel-safe launch tiers."""
     if services is None:
         services = SERVICES
@@ -389,7 +389,7 @@ class PortManager:
     def __init__(self):
         self.allocations: dict[str, list[int]] = {}  # service_name → [ports]
 
-    def scan_services(self, services: dict = None) -> dict[str, list[int]]:
+    def scan_services(self, services: dict | None = None) -> dict[str, list[int]]:
         """Extract port assignments from service configs."""
         if services is None:
             services = SERVICES
@@ -400,7 +400,7 @@ class PortManager:
                 result[name] = sorted(ports)
         return result
 
-    def detect_conflicts(self, services: dict = None) -> list[str]:
+    def detect_conflicts(self, services: dict | None = None) -> list[str]:
         """
         Check for port conflicts across services.
         Shared-purpose services (same runtime type group: wsl/docker)
@@ -421,7 +421,7 @@ class PortManager:
                 runtimes = {services[n].get("runtime", "") for n in names}
                 if len(runtimes) == 1:
                     # Same runtime = real conflict
-                    conflicts.append(f"Port {port}: {', '.join(names)} (same runtime={list(runtimes)[0]})")
+                    conflicts.append(f"Port {port}: {', '.join(names)} (same runtime={next(iter(runtimes))})")
                 # Different runtimes = alternative backends (not a conflict)
         return conflicts
 
@@ -578,7 +578,7 @@ class RoutingTable:
             sc = "G" if status == "healthy" else ("Y" if status == "starting" else "R")
             print(f" {name:<26} {endpoint:<30} {c(sc, status)}")
 
-    def sync_from_config(self, services: dict = None):
+    def sync_from_config(self, services: dict | None = None):
         """Register all services that have endpoint definitions."""
         if services is None:
             services = SERVICES
@@ -666,7 +666,7 @@ class ResourceTracker:
         except Exception:
             return {"total_mb": 0, "used_mb": 0, "free_mb": 0, "used_pct": 0}
 
-    def check_capacity(self, services: dict = None) -> list[str]:
+    def check_capacity(self, services: dict | None = None) -> list[str]:
         """
         Check if system has enough resources for all declared services.
         Returns list of warnings (empty = all good).
@@ -736,7 +736,7 @@ class MemoryMonitor:
         self.snapshots: dict[str, list] = defaultdict(list)  # name → [snapshots]
         self.max_snapshots = 30  # rolling window
 
-    def sample(self, services: dict = None) -> dict[str, dict]:
+    def sample(self, services: dict | None = None) -> dict[str, dict]:
         """Take a memory sample for all active services."""
         if services is None:
             services = SERVICES
@@ -846,7 +846,7 @@ class MemoryMonitor:
             pass
         return None
 
-    def check_limits(self, services: dict = None) -> list[str]:
+    def check_limits(self, services: dict | None = None) -> list[str]:
         """Check if any service exceeds its memory limit. Returns alerts."""
         if services is None:
             services = SERVICES
@@ -1071,7 +1071,7 @@ def _launch_one(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
 
 def cmd_status():
     """Show status of all services + resources + memory."""
-    ports = PortManager()
+    PortManager()
     resources = ResourceTracker()
     memory = MemoryMonitor()
     routes = RoutingTable()
@@ -1120,7 +1120,7 @@ def cmd_stop():
             runtime = cfg.get("runtime", "")
             try:
                 if runtime == "wsl":
-                    out, ok = _run_wsl(stop_cmd, timeout=10)
+                    _out, ok = _run_wsl(stop_cmd, timeout=10)
                 else:
                     _out, ok = _run_ps(stop_cmd, timeout=10)
                 icon = "\u2713" if ok else "\u26a0"

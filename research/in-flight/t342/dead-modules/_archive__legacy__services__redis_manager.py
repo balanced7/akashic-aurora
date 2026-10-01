@@ -95,7 +95,7 @@ def log(msg: str, level: LogLevel = LogLevel.INFO):
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(entry + "\n")
-    except:
+    except Exception:
         pass  # Never fail on logging
 
 
@@ -351,7 +351,7 @@ def get_redis_info() -> dict:
             try:
                 key, value = line.strip().split(":", 1)
                 info[key] = value
-            except:
+            except Exception:
                 pass
     return info
 
@@ -361,7 +361,7 @@ def get_redis_keys_count() -> int:
     output, _code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli DBSIZE")
     try:
         return int(output) if output.isdigit() else 0
-    except:
+    except Exception:
         return 0
 
 
@@ -386,7 +386,7 @@ def get_key_value(key: str, key_type: str) -> any:
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli LRANGE {key} 0 -1")
         try:
             return json.loads(output) if output else []
-        except:
+        except Exception:
             return output.split("\n") if output else []
     elif key_type == "set":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli SMEMBERS {key}")
@@ -403,7 +403,7 @@ def get_key_value(key: str, key_type: str) -> any:
                 if i + 1 < len(pairs):
                     result[pairs[i]] = pairs[i + 1]
             return result
-        except:
+        except Exception:
             return {}
     return None
 
@@ -723,7 +723,7 @@ def check_health() -> HealthStatus:
             try:
                 keys_part = db0_value.split(",")[0]  # "keys=30"
                 status.keys_count = int(keys_part.split("=")[1])
-            except:
+            except Exception:
                 status.keys_count = get_redis_keys_count()
         else:
             status.keys_count = get_redis_keys_count()
@@ -737,9 +737,9 @@ def check_health() -> HealthStatus:
             try:
                 ts = int(last_save)
                 status.rdb_last_save = datetime.fromtimestamp(ts).isoformat()
-            except:
+            except Exception:
                 pass
-    except:
+    except Exception:
         pass
 
     # Backup check

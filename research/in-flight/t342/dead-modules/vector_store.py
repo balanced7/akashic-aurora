@@ -191,7 +191,7 @@ class VectorStore:
         unique = hashlib.md5(str(time.time()).encode()).hexdigest()[:6]
         return f"vec_{timestamp}_{unique}"
 
-    def add_entry(self, key: str, model: str, text: str, metadata: dict[str, Any] = None) -> str:
+    def add_entry(self, key: str, model: str, text: str, metadata: dict[str, Any] | None = None) -> str:
         """
         Add a learning/log entry to the vector store.
 
@@ -260,7 +260,7 @@ class VectorStore:
 
         return self.add_entry(key=f"{model}:{key}", model=model, text=text, metadata=metadata)
 
-    def embed_log(self, action: str, description: str, data: dict = None) -> str:
+    def embed_log(self, action: str, description: str, data: dict | None = None) -> str:
         """
         Embed a log entry.
 
@@ -280,7 +280,7 @@ class VectorStore:
             key=f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}", model="session_logger", text=text, metadata=metadata
         )
 
-    def search(self, query: str, top_k: int = 5, model_filter: str = None) -> list[dict]:
+    def search(self, query: str, top_k: int = 5, model_filter: str | None = None) -> list[dict]:
         """
         Search for similar entries.
 
@@ -299,12 +299,12 @@ class VectorStore:
         if self.faiss_index is not None and len(self._id_to_key) > 0:
             try:
                 # Search FAISS
-                D, I = self.faiss_index.search(
+                D, indices = self.faiss_index.search(
                     np.array([query_vector], dtype=np.float32),
                     min(top_k * 2, len(self._id_to_key)),  # Over-fetch for filtering
                 )
 
-                for _i, (dist, idx) in enumerate(zip(D[0], I[0], strict=False)):
+                for _i, (dist, idx) in enumerate(zip(D[0], indices[0], strict=False)):
                     if idx < 0:
                         continue
 
@@ -345,7 +345,7 @@ class VectorStore:
 
         return results
 
-    def _fallback_search(self, query: str, top_k: int, model_filter: str = None) -> list[dict]:
+    def _fallback_search(self, query: str, top_k: int, model_filter: str | None = None) -> list[dict]:
         """Fallback text-based search when FAISS unavailable"""
         query_lower = query.lower()
         scores = []
@@ -380,7 +380,7 @@ class VectorStore:
 
         return results
 
-    def get_by_key(self, key: str, model: str = None) -> dict | None:
+    def get_by_key(self, key: str, model: str | None = None) -> dict | None:
         """Get entry by key"""
         for entry in self.entries.values():
             if entry.key == key and (model is None or entry.model == model):
@@ -389,7 +389,7 @@ class VectorStore:
                 return result
         return None
 
-    def get_recent(self, limit: int = 10, model_filter: str = None) -> list[dict]:
+    def get_recent(self, limit: int = 10, model_filter: str | None = None) -> list[dict]:
         """Get recent entries"""
         entries = list(self.entries.values())
 

@@ -102,7 +102,7 @@ class CDPBridge:
                 with urllib.request.urlopen(req, timeout=2) as response:
                     if response.status == 200:
                         return True
-            except:
+            except Exception:
                 pass
             time.sleep(0.5)
         return False
@@ -208,7 +208,7 @@ class CDPBridge:
                 ws.settimeout(1)
                 try:
                     msg = ws.recv()
-                    data = json.loads(msg)
+                    json.loads(msg)
 
                     # Look for response content in page
                     check_cmd = json.dumps(
@@ -294,11 +294,9 @@ class GeminiBridgeRemote:
     def disconnect(self):
         """Disconnect WITHOUT closing browser"""
         if self.driver:
-            try:
+            with contextlib.suppress(Exception):
                 # Don't quit() - we want to keep the browser open
                 self.driver.close()
-            except:
-                pass
             self.driver = None
 
     def health_check(self, timeout: int = DEFAULT_TIMEOUT) -> bool:
@@ -349,7 +347,7 @@ class GeminiBridgeRemote:
                 if element.is_displayed():
                     print(f"[gemini_bridge] Found input: {selector}")
                     return element
-            except:
+            except Exception:
                 continue
 
         return None
@@ -375,7 +373,7 @@ class GeminiBridgeRemote:
                     text = elements[-1].text
                     if len(text) > 20:
                         return text
-            except:
+            except Exception:
                 continue
 
         return None
@@ -583,7 +581,7 @@ class GeminiBridgeNew:
                             initial_response_received = True
                             print("[gemini_bridge] Initial response detected")
                             break
-                except:
+                except Exception:
                     pass
                 time.sleep(0.5)
 
@@ -599,7 +597,7 @@ class GeminiBridgeNew:
                         response = elements[-1].text
                         if len(response) > 10:
                             return response
-                except:
+                except Exception:
                     pass
                 time.sleep(2)
 

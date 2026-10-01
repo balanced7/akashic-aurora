@@ -56,7 +56,7 @@ def get_persistent_agent_id() -> str:
             with open(identity_file) as f:
                 data = json.load(f)
             return data.get("agent_id")
-        except:
+        except Exception:
             pass
 
     # Create new identity
@@ -85,7 +85,7 @@ class TerminalWaker:
             sock.send(b"BELL\n")
             sock.close()
             return True
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -122,7 +122,7 @@ class TerminalWaker:
             '''
             result = subprocess.run(["powershell", "-Command", script], capture_output=True, timeout=5)
             return result.returncode == 0
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -187,7 +187,7 @@ class RedisPubSub:
         try:
             self.client.publish(self._channel, json.dumps(msg))
             return True
-        except:
+        except Exception:
             return False
 
     def subscribe(self, callback: Callable[[dict], None]):
@@ -213,7 +213,7 @@ class RedisPubSub:
                     for cb in self._callbacks["*"]:
                         with contextlib.suppress(BaseException):
                             cb(data)
-            except:
+            except Exception:
                 pass
 
     def stop(self):
@@ -299,7 +299,7 @@ class MessageBroker:
                                     # Try to wake the specific agent
                                     TerminalWaker.wake_agent(to_agent, f"Message from {from_agent}")
 
-                        except:
+                        except Exception:
                             pass
 
                 self._last_message_check = datetime.now()
@@ -363,7 +363,7 @@ class MessageBroker:
             try:
                 with open(fpath) as f:
                     messages.append(json.load(f))
-            except:
+            except Exception:
                 pass
             if len(messages) >= limit:
                 break
@@ -440,7 +440,7 @@ class HeartbeatManager:
                     # There's a message for us!
                     # Wake up!
                     TerminalWaker.wake_agent(my_id, f"Message waiting: {msg.get('type')}")
-            except:
+            except Exception:
                 pass
 
     def stop(self):
@@ -493,7 +493,7 @@ class AgentCommService:
             process = psutil.Process(os.getpid())
             memory_info = process.memory_info()
             memory_mb = memory_info.rss / (1024 * 1024)
-        except:
+        except Exception:
             memory_mb = 0
 
         try:
@@ -501,7 +501,7 @@ class AgentCommService:
             s.connect(("8.8.8.8", 80))
             ip = s.getsockname()[0]
             s.close()
-        except:
+        except Exception:
             ip = "127.0.0.1"
 
         state = {
@@ -587,7 +587,7 @@ class AgentCommService:
                 last_hb = datetime.fromisoformat(state.get("last_heartbeat", "2000-01-01"))
                 if last_hb > cutoff:
                     agents.append(state)
-            except:
+            except Exception:
                 pass
 
         return sorted(agents, key=lambda x: x.get("last_heartbeat", ""), reverse=True)
@@ -656,7 +656,7 @@ class NotificationServer:
                 self._handle_client(client)
             except TimeoutError:
                 continue
-            except:
+            except Exception:
                 if self.running:
                     pass
 

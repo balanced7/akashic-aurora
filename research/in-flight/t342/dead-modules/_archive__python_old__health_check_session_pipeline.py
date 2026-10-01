@@ -64,8 +64,7 @@ def compressor_pids() -> list[dict]:
         if isinstance(data, dict):
             rows.append({"pid": data.get("ProcessId"), "cmd": data.get("CommandLine", "")})
         elif isinstance(data, list):
-            for item in data:
-                rows.append({"pid": item.get("ProcessId"), "cmd": item.get("CommandLine", "")})
+            rows.extend({"pid": item.get("ProcessId"), "cmd": item.get("CommandLine", "")} for item in data)
     except json.JSONDecodeError:
         pass
     return rows

@@ -108,7 +108,7 @@ class RedisHAManager:
                         redis_port = int(parts[1].strip())
                         if ip and redis_port:
                             return (ip, redis_port)
-                    except:
+                    except Exception:
                         pass
         return None
 
@@ -116,13 +116,13 @@ class RedisHAManager:
         """Check if a Redis instance is healthy"""
         try:
             if role == RedisRole.SENTINEL:
-                output, code = self._sentinel_command(host, port, "PING")
+                output, _code = self._sentinel_command(host, port, "PING")
             else:
                 output, _code = self._redis_command(host, port, "PING")
 
             if output == "PONG":
                 return True
-        except:
+        except Exception:
             pass
         return False
 

@@ -35,7 +35,7 @@ def _get_redis_client():
         r = redis.Redis(connection_pool=_get_redis_pool())
         r.ping()
         return r, True
-    except:
+    except Exception:
         return None, False
 
 
@@ -63,7 +63,7 @@ def get_summary():
                         "last_action": info.get("last_action", "none"),
                     }
                 )
-            except:
+            except Exception:
                 pass
 
         # Get last error
@@ -110,7 +110,7 @@ def get_session_log(session_id):
                 # Filter entries belonging to this session
                 if entry.get("session") == session_id:
                     log.append(entry)
-            except:
+            except Exception:
                 pass
 
     return log
@@ -131,7 +131,7 @@ def find_last_session():
                     info = json.loads(data)
                     if info.get("status") == "active":
                         active.append((sid, info))
-                except:
+                except Exception:
                     pass
 
             if active:
@@ -139,7 +139,7 @@ def find_last_session():
                 active.sort(key=lambda x: x[1].get("updated", ""), reverse=True)
                 return active[0][0]
 
-        except:
+        except Exception:
             pass
 
     # Fallback: find latest log entry in session_all.jsonl
@@ -151,7 +151,7 @@ def find_last_session():
                 try:
                     entry = json.loads(line)
                     last_session = entry.get("session")
-                except:
+                except Exception:
                     pass
         if last_session:
             return last_session
@@ -206,7 +206,7 @@ def recover():
             try:
                 data = json.loads(value)
                 print(f"  [{key}] {data.get('category', 'general')}: {data.get('key', key)}")
-            except:
+            except Exception:
                 print(f"  [{key}] {value[:50]}...")
     else:
         print("  No learnings stored")

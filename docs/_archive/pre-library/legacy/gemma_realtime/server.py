@@ -81,7 +81,7 @@ async def set_voice(engine: str = Form("kokoro"), voice: str = Form("af_heart"),
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...)):  # noqa: B008  # FastAPI parameter marker, evaluated once by design
     """Upload and analyze a file"""
     content = await file.read()
 
@@ -90,7 +90,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @app.post("/chat")
-async def chat_message(message: str = Form(...), files: list[UploadFile] = File(None)):
+async def chat_message(message: str = Form(...), files: list[UploadFile] = File(None)):  # noqa: B008  # FastAPI parameter marker, evaluated once by design
     """Text chat (non-voice)"""
     files_data = []
 
@@ -133,7 +133,6 @@ async def websocket_endpoint(websocket: WebSocket):
     print(f"[WS] Client connected. Total: {len(connected_clients)}")
 
     buffer = bytearray()
-    is_recording = False
     current_response = ""
 
     try:
@@ -249,11 +248,11 @@ def get_gui_html() -> str:
     <title>Gemma Voice AI</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0f0f0f; color: #fff; height: 100vh; display: flex; flex-direction: column;
         }
-        header { 
+        header {
             padding: 1rem; background: #1a1a1a; border-bottom: 1px solid #333;
             display: flex; justify-content: space-between; align-items: center;
         }
@@ -266,13 +265,13 @@ def get_gui_html() -> str:
         .message.user { align-self: flex-end; background: #0066ff; }
         .message.gemma { align-self: flex-start; background: #222; }
         .attachments { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        .attachment { 
+        .attachment {
             background: #333; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.8rem;
             display: flex; align-items: center; gap: 0.5rem;
         }
         .attachment .remove { cursor: pointer; color: #ff6666; }
 
-        #input-area { 
+        #input-area {
             padding: 1rem; background: #1a1a1a; border-top: 1px solid #333;
         }
         #message-box {

@@ -14,6 +14,7 @@ wakeable) and clears it on exit. Re-arm by launching it again.
   py scripts/heimdall.py deepseek   # watch for any agent -> the onboarding template
 """
 
+import contextlib
 import json
 import os
 import sys
@@ -23,9 +24,8 @@ import time
 REPO = r"E:\AI-Setup"
 sys.path.insert(0, REPO)
 os.chdir(REPO)
-import contextlib
 
-from core.comm.bus import Bus
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap + os.chdir(REPO) must precede it
 
 TOTAL_DEADLINE_S = 1800  # 30 min, then re-arm even if idle
 INNER_BLOCK_MS = 120_000  # 2-min inner blocks; loop if a batch is all noise

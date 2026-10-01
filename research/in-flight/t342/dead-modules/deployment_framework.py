@@ -100,7 +100,7 @@ class ComponentSpec:
 # ============================================================================
 
 
-def log(level: str, component: str, message: str, details: dict = None):
+def log(level: str, component: str, message: str, details: dict | None = None):
     """Enterprise logging with structured output."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     entry = {
@@ -118,7 +118,7 @@ def log(level: str, component: str, message: str, details: dict = None):
     try:
         with open(log_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
-    except:
+    except Exception:
         pass
 
 
@@ -152,7 +152,7 @@ def check_redis_health() -> HealthCheckResult:
 
     try:
         # Check container is running
-        output, code = run_docker(["ps", "--filter", f"name={CONTAINER_NAME}", "--format", "{{.Names}}"])
+        output, _code = run_docker(["ps", "--filter", f"name={CONTAINER_NAME}", "--format", "{{.Names}}"])
         duration_ms = (time.time() - start) * 1000
 
         if CONTAINER_NAME not in output:
@@ -166,7 +166,7 @@ def check_redis_health() -> HealthCheckResult:
             )
 
         # Check Redis responds to PING
-        output, code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "PING"])
+        output, _code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "PING"])
         if output != "PONG":
             return HealthCheckResult(
                 component=component,
@@ -178,7 +178,7 @@ def check_redis_health() -> HealthCheckResult:
             )
 
         # Check key count (should have some keys)
-        output, code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "DBSIZE"])
+        output, _code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "DBSIZE"])
         key_count = int(output) if output.isdigit() else 0
 
         # Check last save time
@@ -310,7 +310,7 @@ def check_gpu_clinfo() -> HealthCheckResult:
                     try:
                         mem_mb = int("".join(filter(str.isdigit, line.split("GLOBAL")[0])))
                         memory_gb = mem_mb / 1024
-                    except:
+                    except Exception:
                         pass
 
             return HealthCheckResult(
@@ -372,7 +372,7 @@ def check_ollama_inference() -> HealthCheckResult:
             duration_ms = (time.time() - start) * 1000
 
             if resp.status_code == 200:
-                data = resp.json()
+                resp.json()
                 return HealthCheckResult(
                     component=component,
                     status=ComponentStatus.HEALTHY,
@@ -550,7 +550,7 @@ class DeploymentManager:
         self._log_deployment(component_name, "deploy", False, post_check.message)
         return False
 
-    def _log_deployment(self, component: str, action: str, success: bool, error: str = None):
+    def _log_deployment(self, component: str, action: str, success: bool, error: str | None = None):
         """Log deployment action for observability."""
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -569,7 +569,7 @@ class DeploymentManager:
             log_key = f"deployment:log:{datetime.now().strftime('%Y%m%d')}"
             r.lpush(log_key, json.dumps(entry))
             r.expire(log_key, 86400 * 7)  # Keep 7 days
-        except:
+        except Exception:
             pass
 
     def get_system_health(self) -> tuple[ComponentStatus, dict]:
@@ -635,14 +635,14 @@ class FaultInjector:
         """Simulate Redis failure - stop container."""
         log("WARN", "fault_injection", "Stopping Redis container to test recovery...")
 
-        output, code = run_docker(["stop", "wsl-ai-redis"])
+        output, _code = run_docker(["stop", "wsl-ai-redis"])
 
         # Now verify health check catches it
         time.sleep(2)
 
         # Try to recover
         log("INFO", "fault_injection", "Attempting Redis recovery...")
-        output, code = run_docker(["start", "wsl-ai-redis"])
+        output, _code = run_docker(["start", "wsl-ai-redis"])
 
         # Wait for recovery
         for _i in range(10):

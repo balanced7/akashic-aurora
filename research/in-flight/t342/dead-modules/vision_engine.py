@@ -71,7 +71,7 @@ class VisionEngine:
     All in a single model, ~500MB footprint.
     """
 
-    def __init__(self, model_name: str = FLORENCE_MODEL, device: str = None):
+    def __init__(self, model_name: str = FLORENCE_MODEL, device: str | None = None):
         self.model_name = model_name
         self._dml_available = False
         self._pipeline = None
@@ -580,7 +580,7 @@ def extract_keyframes(video_path: str, max_frames: int = 8) -> list[Image.Image]
             return []
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.get(cv2.CAP_PROP_FPS)
 
         # Calculate frame interval
         interval = max(1, total_frames // (max_frames * 2))

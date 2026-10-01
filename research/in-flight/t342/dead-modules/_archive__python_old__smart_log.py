@@ -252,7 +252,7 @@ class TagVocab:
             try:
                 with open(TAG_VOCAB_FILE) as f:
                     self.vocab = json.load(f)
-            except:
+            except Exception:
                 self.vocab = {}
         self._seed()
 
@@ -368,7 +368,7 @@ class SmartLog:
             )
             self._redis.ping()
             self._redis_available = True
-        except:
+        except Exception:
             self._redis = None
             self._redis_available = False
 
@@ -395,7 +395,7 @@ class SmartLog:
             try:
                 with open(path, "a", encoding="utf-8") as f:
                     f.write(entry_json + "\n")
-            except:
+            except Exception:
                 pass
 
         if self._redis_available:
@@ -470,7 +470,7 @@ class SmartLog:
                 try:
                     with open(file_path) as f:
                         entries = json.load(f)
-                except:
+                except Exception:
                     pass
 
             entries.insert(0, chronicle_entry.to_dict())
@@ -480,7 +480,7 @@ class SmartLog:
 
         self._chronicles_created += 1
 
-    def log(self, type_: str, content: str, tags: list[str] = None, intent: str = "", efficacy: str = ""):
+    def log(self, type_: str, content: str, tags: list[str] | None = None, intent: str = "", efficacy: str = ""):
         """Log an entry - auto-chronicles if significant"""
         self.sequence += 1
 
@@ -502,7 +502,7 @@ class SmartLog:
         self._write_entry(entry)
         self._auto_chronicle(entry)
 
-    def action(self, content: str, tags: list[str] = None, intent: str = "", efficacy: str = ""):
+    def action(self, content: str, tags: list[str] | None = None, intent: str = "", efficacy: str = ""):
         """
         Log an action with optional intent and efficacy tracking.
 
@@ -513,18 +513,18 @@ class SmartLog:
         """
         self.log("action", content, tags, intent, efficacy)
 
-    def error(self, content: str, tags: list[str] = None, intent: str = ""):
+    def error(self, content: str, tags: list[str] | None = None, intent: str = ""):
         self.log("error", content, tags, intent, "failure")
 
-    def success(self, content: str, tags: list[str] = None, intent: str = ""):
+    def success(self, content: str, tags: list[str] | None = None, intent: str = ""):
         """Log a successful action"""
         self.log("success", content, tags, intent, "success")
 
-    def partial(self, content: str, tags: list[str] = None, intent: str = ""):
+    def partial(self, content: str, tags: list[str] | None = None, intent: str = ""):
         """Log a partially successful action"""
         self.log("partial", content, tags, intent, "partial")
 
-    def decision(self, title: str, rationale: list[str] = None, tags: list[str] = None):
+    def decision(self, title: str, rationale: list[str] | None = None, tags: list[str] | None = None):
         """Record a decision - auto-chronicles"""
         content = title
         if rationale:
@@ -552,7 +552,7 @@ class SmartLog:
             try:
                 with open(ADRS_FILE) as f:
                     entries = json.load(f)
-            except:
+            except Exception:
                 pass
 
         entries.insert(0, adr_entry.to_dict())
@@ -561,7 +561,7 @@ class SmartLog:
 
         self._chronicles_created += 1
 
-    def failure(self, symptom: str, fix: str = "", learnings: list[str] = None):
+    def failure(self, symptom: str, fix: str = "", learnings: list[str] | None = None):
         """Record a failure"""
         content = symptom
         if fix:
@@ -589,7 +589,7 @@ class SmartLog:
             try:
                 with open(FAILURES_FILE) as f:
                     entries = json.load(f)
-            except:
+            except Exception:
                 pass
 
         entries.insert(0, fl_entry.to_dict())
@@ -718,14 +718,15 @@ class SmartLog:
         ]
 
         if digest.actions:
-            key_actions = []
-            for e in self.entries:
-                if e.type in ["action", "success", "partial"] and e.content in digest.actions:
-                    key_actions.append(f"- [{e.action_type}] {e.content}")
+            key_actions = [
+                f"- [{e.action_type}] {e.content}"
+                for e in self.entries
+                if e.type in ["action", "success", "partial"] and e.content in digest.actions
+            ]
             lines.extend(["## Key Actions", *key_actions[:8], ""])
 
         if digest.learnings:
-            lines.extend(["## Decisions"] + [f"- {l}" for l in digest.learnings] + [""])
+            lines.extend(["## Decisions"] + [f"- {learning}" for learning in digest.learnings] + [""])
 
         lines.extend(["---", f"*Generated: {datetime.now().isoformat()}*"])
 
@@ -738,7 +739,7 @@ class SmartLog:
             try:
                 with open(INDEX_FILE) as f:
                     index = json.load(f)
-            except:
+            except Exception:
                 pass
 
         index.insert(0, asdict(digest))
@@ -756,15 +757,15 @@ def get_smart_log() -> SmartLog:
     return _smart_log
 
 
-def log(content: str, tags: list[str] = None):
+def log(content: str, tags: list[str] | None = None):
     get_smart_log().action(content, tags)
 
 
-def decision(title: str, rationale: list[str] = None, tags: list[str] = None):
+def decision(title: str, rationale: list[str] | None = None, tags: list[str] | None = None):
     get_smart_log().decision(title, rationale, tags)
 
 
-def failure(symptom: str, fix: str = "", learnings: list[str] = None):
+def failure(symptom: str, fix: str = "", learnings: list[str] | None = None):
     get_smart_log().failure(symptom, fix, learnings)
 
 
@@ -831,16 +832,12 @@ def cmd_search(query: str):
 
     if INDEX_FILE.exists():
         with open(INDEX_FILE) as f:
-            for s in json.load(f):
-                if query.lower() in s.get("summary", "").lower():
-                    results.append(("session", s))
+            results.extend(("session", s) for s in json.load(f) if query.lower() in s.get("summary", "").lower())
 
     for file_path in [MILESTONES_FILE, ADRS_FILE, FAILURES_FILE]:
         if file_path.exists():
             with open(file_path) as f:
-                for e in json.load(f):
-                    if query.lower() in e.get("title", "").lower():
-                        results.append(("chronicle", e))
+                results.extend(("chronicle", e) for e in json.load(f) if query.lower() in e.get("title", "").lower())
 
     print()
     print(f"=== SEARCH: '{query}' ({len(results)} results) ===")

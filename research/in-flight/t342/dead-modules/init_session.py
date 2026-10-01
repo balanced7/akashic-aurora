@@ -234,7 +234,7 @@ def initialize():
             from session_manager import get_session_manager
 
             print(get_session_manager().get_reprime_instructions())
-        except:
+        except Exception:
             print("""
 Run these commands before proceeding:
 1. from blackboard import init_blackboard

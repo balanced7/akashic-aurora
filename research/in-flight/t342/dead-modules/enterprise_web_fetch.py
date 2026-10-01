@@ -124,7 +124,7 @@ def get_from_cache(url: str, max_age_hours: int = 24) -> str | None:
     try:
         with open(cache_path, encoding="utf-8") as f:
             return f.read()
-    except:
+    except Exception:
         return None
 
 
@@ -144,7 +144,7 @@ def save_to_cache(url: str, content: str):
 
 
 def enterprise_fetch(
-    url: str, use_cache: bool = True, force_refresh: bool = False, fallback_urls: list = None
+    url: str, use_cache: bool = True, force_refresh: bool = False, fallback_urls: list | None = None
 ) -> WebFetchResult:
     """
     Enterprise web fetch with:
@@ -204,7 +204,7 @@ def enterprise_fetch(
 
                     try:
                         content = zlib.decompress(content)
-                    except:
+                    except Exception:
                         content = zlib.decompress(content, -zlib.MAX_WBITS)
                 elif content_encoding == "br":
                     import brotli
@@ -270,7 +270,7 @@ def enterprise_fetch(
     )
 
 
-def smart_fetch(url: str, category: str = None) -> WebFetchResult:
+def smart_fetch(url: str, category: str | None = None) -> WebFetchResult:
     """
     Smart fetch with category-specific fallback URLs.
 

@@ -67,7 +67,7 @@ def get_redis():
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
         r.ping()
         return r
-    except:
+    except Exception:
         return None
 
 
@@ -76,9 +76,9 @@ def get_device():
     if DIRECTML_AVAILABLE:
         try:
             dml = torch_directml.device()
-            test = torch.tensor([1.0], device=dml)
+            torch.tensor([1.0], device=dml)
             return dml, "DirectML"
-        except:
+        except Exception:
             pass
 
     if torch.cuda.is_available():

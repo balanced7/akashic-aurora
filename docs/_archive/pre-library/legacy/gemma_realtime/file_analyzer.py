@@ -95,7 +95,7 @@ class FileAnalyzer:
         try:
             # Will use existing Ollama with vision capabilities
             self.vision_available = True
-        except:
+        except Exception:
             self.vision_available = False
 
         print(f"[FileAnalyzer] Vision available: {self.vision_available}")
@@ -144,11 +144,11 @@ class FileAnalyzer:
 
             # Try to extract more info
             if "def " in text:
-                funcs = [l.strip() for l in lines if "def " in l and ":" in l]
+                funcs = [ln.strip() for ln in lines if "def " in ln and ":" in ln]
                 analysis["analysis"]["functions"] = funcs[:10]  # First 10
 
             if "class " in text:
-                classes = [l.strip() for l in lines if "class " in l and ":" in l]
+                classes = [ln.strip() for ln in lines if "class " in ln and ":" in ln]
                 analysis["analysis"]["classes"] = classes[:10]
 
             # Summary for LLM
@@ -187,14 +187,11 @@ First 500 chars: {text[:500]}"""
         if self.vision_available:
             try:
                 # Use Ollama with vision
-                import base64
-
-                b64 = base64.b64encode(data).decode()
 
                 # This would call Ollama with vision
                 result["needs_vision"] = True
                 result["summary"] += "\n[Needs vision model for detailed analysis]"
-            except:
+            except Exception:
                 pass
 
         return result

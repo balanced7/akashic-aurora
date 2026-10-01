@@ -34,12 +34,12 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 
 sys.path.insert(0, r"E:\AI-Setup")
 
 try:
-    import redis
+    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -151,7 +151,7 @@ class SessionMonitor:
                 raise ConnectionError("Redis not reachable")
             self.redis_client.ping()
             return True
-        except:
+        except Exception:
             self.redis_client = None
             return False
 
@@ -175,7 +175,7 @@ class SessionMonitor:
                         full_session = parts[1]
 
                         # Extract just the session ID part
-                        session_id = full_session if ":" in full_session else full_session
+                        session_id = full_session
 
                         # Determine if OpenCode
                         is_opencode = "opencode" in session_id.lower()
@@ -225,7 +225,7 @@ class SessionMonitor:
                             ts = entry.get("timestamp", "")
                             if ts:
                                 session_last_activity[session] = ts
-                    except:
+                    except Exception:
                         continue
 
             for session_id, count in session_counts.items():
@@ -253,9 +253,6 @@ class SessionMonitor:
 
     def _update_session_status(self, sessions: dict[str, SessionInfo]):
         """Update session logging status"""
-        now = datetime.now()
-        silence_threshold = now - timedelta(minutes=SILENCE_THRESHOLD_MINUTES)
-
         for session_id, info in sessions.items():
             # Determine if session is actively logging
             has_activity = False

@@ -187,7 +187,7 @@ class AgentCoordinator:
                 with open(identity_file) as f:
                     data = json.load(f)
                 return data.get("agent_id", f"agent_{uuid.uuid4().hex[:8]}")
-            except:
+            except Exception:
                 pass
         return f"agent_{uuid.uuid4().hex[:8]}"
 
@@ -206,16 +206,16 @@ class AgentCoordinator:
 
     def update_manifest(
         self,
-        intent: str = None,
-        scope: list[str] = None,
-        areas: list[str] = None,
+        intent: str | None = None,
+        scope: list[str] | None = None,
+        areas: list[str] | None = None,
         status: AgentStatus = None,
         priority: Priority = None,
-        eta_minutes: int = None,
-        current_task: str = None,
-        progress_percent: float = None,
-        blocked_by: list[str] = None,
-        waiting_for: list[str] = None,
+        eta_minutes: int | None = None,
+        current_task: str | None = None,
+        progress_percent: float | None = None,
+        blocked_by: list[str] | None = None,
+        waiting_for: list[str] | None = None,
     ) -> AgentManifest:
         """
         Update this agent's manifest and broadcast to others.
@@ -234,7 +234,7 @@ class AgentCoordinator:
             elif isinstance(status, str):
                 try:
                     manifest.status = AgentStatus(status.lower())
-                except:
+                except Exception:
                     manifest.status = AgentStatus.IDLE
             else:
                 manifest.status = AgentStatus.IDLE
@@ -244,7 +244,7 @@ class AgentCoordinator:
             elif isinstance(priority, str):
                 try:
                     manifest.priority = Priority(priority.lower())
-                except:
+                except Exception:
                     manifest.priority = Priority.NORMAL
             else:
                 manifest.priority = Priority.NORMAL
@@ -284,7 +284,7 @@ class AgentCoordinator:
             if comm.is_available:
                 comm.set_agent_id(self.agent_id)
                 comm.send_broadcast(msg_type="manifest_update", content=manifest.to_dict())
-        except:
+        except Exception:
             pass
 
     def get_manifest(self) -> AgentManifest:
@@ -318,7 +318,7 @@ class AgentCoordinator:
                     continue
 
                 manifests.append(manifest)
-            except:
+            except Exception:
                 pass
 
         return manifests
@@ -334,7 +334,7 @@ class AgentCoordinator:
             with open(manifest_file) as f:
                 data = json.load(f)
             return AgentManifest.from_dict(data)
-        except:
+        except Exception:
             return None
 
     # =========================================================================
@@ -381,10 +381,13 @@ class AgentCoordinator:
 
         # Check for conflicts
         existing = self._get_resource_lock(resource)
-        if existing and existing.lock_type == "exclusive" and existing.agent_id != self.agent_id:
-            # Check if expired
-            if datetime.fromisoformat(existing.expires_at) > now:
-                return None  # Can't lock - someone else has it
+        if (
+            existing
+            and existing.lock_type == "exclusive"
+            and existing.agent_id != self.agent_id
+            and datetime.fromisoformat(existing.expires_at) > now  # not expired yet
+        ):
+            return None  # Can't lock - someone else has it
 
         with open(lock_file, "w") as f:
             json.dump({**lock.__dict__, "priority": lock.priority.value}, f, indent=2)
@@ -411,7 +414,7 @@ class AgentCoordinator:
                     # Broadcast unlock
                     self._broadcast_lock(data, "released")
                     return True
-            except:
+            except Exception:
                 pass
 
         return False
@@ -435,7 +438,7 @@ class AgentCoordinator:
 
                     data["priority"] = Priority(data.get("priority", "normal"))
                     return ResourceLock(**data)
-            except:
+            except Exception:
                 pass
 
         return None
@@ -459,7 +462,7 @@ class AgentCoordinator:
                     continue
 
                 locks.append(ResourceLock(**data))
-            except:
+            except Exception:
                 pass
 
         return locks
@@ -480,7 +483,7 @@ class AgentCoordinator:
             if comm.is_available:
                 comm.set_agent_id(self.agent_id)
                 comm.send_broadcast(msg_type="lock_update", content={"action": action, "lock": lock_data})
-        except:
+        except Exception:
             pass
 
     # =========================================================================
@@ -500,35 +503,35 @@ class AgentCoordinator:
                 continue
 
             # Check file scope overlap
-            for file in scope:
-                if file in manifest.scope:
-                    conflicts.append(
-                        {
-                            "type": "file_conflict",
-                            "agent_id": manifest.agent_id,
-                            "file": file,
-                            "their_intent": manifest.intent,
-                            "their_status": manifest.status.value,
-                        }
-                    )
+            conflicts.extend(
+                {
+                    "type": "file_conflict",
+                    "agent_id": manifest.agent_id,
+                    "file": file,
+                    "their_intent": manifest.intent,
+                    "their_status": manifest.status.value,
+                }
+                for file in scope
+                if file in manifest.scope
+            )
 
             # Check area overlap
-            for area in areas:
-                if area in manifest.areas:
-                    conflicts.append(
-                        {
-                            "type": "area_conflict",
-                            "agent_id": manifest.agent_id,
-                            "area": area,
-                            "their_intent": manifest.intent,
-                            "their_status": manifest.status.value,
-                        }
-                    )
+            conflicts.extend(
+                {
+                    "type": "area_conflict",
+                    "agent_id": manifest.agent_id,
+                    "area": area,
+                    "their_intent": manifest.intent,
+                    "their_status": manifest.status.value,
+                }
+                for area in areas
+                if area in manifest.areas
+            )
 
         return conflicts
 
     def find_available_agents(
-        self, role: str = None, status: AgentStatus = None, not_busy: bool = True
+        self, role: str | None = None, status: AgentStatus = None, not_busy: bool = True
     ) -> list[AgentManifest]:
         """Find agents that match criteria"""
         matching = []
@@ -550,7 +553,7 @@ class AgentCoordinator:
     # =========================================================================
 
     def request_help(
-        self, help_type: str, description: str, scope: list[str] = None, priority: Priority = Priority.NORMAL
+        self, help_type: str, description: str, scope: list[str] | None = None, priority: Priority = Priority.NORMAL
     ) -> str | None:
         """
         Request help from another agent.
@@ -578,7 +581,7 @@ class AgentCoordinator:
                         "manifest": self._manifest.to_dict(),
                     },
                 )
-        except:
+        except Exception:
             pass
 
         return None
@@ -596,7 +599,7 @@ class AgentCoordinator:
                     msg_type="help_offer",
                     content={"offering_agent": self.agent_id, "help_type": help_type, "description": description},
                 )
-        except:
+        except Exception:
             pass
 
         return None
@@ -624,7 +627,7 @@ class AgentCoordinator:
             "active_locks": len(locks),
             "conflicts_detected": len(self.check_scoped_conflicts(self._manifest.scope, self._manifest.areas)),
             "agents": [m.to_dict() for m in manifests],
-            "locks": [l.__dict__ for l in locks],
+            "locks": [lock.__dict__ for lock in locks],
         }
 
     def print_status(self):
@@ -659,8 +662,8 @@ class AgentCoordinator:
 
         if status["locks"]:
             print("\nActive Locks:")
-            for l in status["locks"]:
-                print(f"  {l['resource']} - {l['lock_type']} by {l['agent_id'][:12]}")
+            for lock_info in status["locks"]:
+                print(f"  {lock_info['resource']} - {lock_info['lock_type']} by {lock_info['agent_id'][:12]}")
 
         print("=" * 60 + "\n")
 
@@ -675,7 +678,7 @@ def get_coordinator() -> AgentCoordinator:
     return AgentCoordinator()
 
 
-def declare_intent(intent: str, scope: list[str] = None, areas: list[str] = None):
+def declare_intent(intent: str, scope: list[str] | None = None, areas: list[str] | None = None):
     """Quick function to declare intent"""
     coord = get_coordinator()
     coord.update_manifest(intent=intent, scope=scope or [], areas=areas or [], status=AgentStatus.BUSY)
@@ -696,12 +699,12 @@ def check_conflicts(scope: list[str], areas: list[str]) -> list[dict]:
 
 def declare_operation(
     intent: str,
-    scope: list[str] = None,
-    areas: list[str] = None,
+    scope: list[str] | None = None,
+    areas: list[str] | None = None,
     alert_type: str = "intent_declared",
     eta_minutes: int = 0,
     risk_level: str = "low",
-    operations: list[str] = None,
+    operations: list[str] | None = None,
 ) -> dict | None:
     """
     Declare an operation that updates both manifest AND creates an operational alert.
@@ -752,7 +755,7 @@ def declare_operation(
         return None
 
 
-def complete_operation(alert_id: str = None, scope: list[str] = None):
+def complete_operation(alert_id: str | None = None, scope: list[str] | None = None):
     """
     Complete an operation - marks alert done and updates manifest to idle.
 
@@ -810,5 +813,5 @@ if __name__ == "__main__":
 
     # List locks
     print("\nActive locks:")
-    for l in coord.get_all_locks():
-        print(f"  {l.resource} by {l.agent_id}")
+    for held_lock in coord.get_all_locks():
+        print(f"  {held_lock.resource} by {held_lock.agent_id}")

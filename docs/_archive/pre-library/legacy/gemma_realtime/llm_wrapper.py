@@ -55,7 +55,7 @@ class StreamingLLM:
 
         # Check Ollama
         try:
-            resp = requests.get(f"{self.config.base_url}/api/tags", timeout=5)
+            resp = requests.get(f"{self.config.base_url}/api/tags", timeout=5)  # noqa: ASYNC210  # archived code: the blocking call stays (no behaviour change)
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
                 print(f"[LLM] Ollama ready with {len(models)} models")
@@ -72,7 +72,7 @@ class StreamingLLM:
         self,
         prompt: str,
         context: str = "",
-        files: list = None,
+        files: list | None = None,
         stream_callback: Callable | None = None,
         audio_callback: Callable | None = None,
     ) -> AsyncIterator[str]:
@@ -96,10 +96,10 @@ class StreamingLLM:
                 },
             }
 
-            async with asyncio.TaskGroup() as tg:
+            async with asyncio.TaskGroup():
 
                 async def generate():
-                    response = requests.post(
+                    response = requests.post(  # noqa: ASYNC210  # archived code: the blocking call stays (no behaviour change)
                         f"{self.config.base_url}/api/generate", json=payload, stream=True, timeout=120
                     )
 
@@ -133,7 +133,7 @@ class StreamingLLM:
         finally:
             self.is_generating = False
 
-    def _build_prompt(self, prompt: str, context: str = "", files: list = None) -> str:
+    def _build_prompt(self, prompt: str, context: str = "", files: list | None = None) -> str:
         """Build full prompt with context"""
         parts = []
 
@@ -141,9 +141,7 @@ class StreamingLLM:
             parts.append(f"Context: {context}")
 
         if files:
-            file_info = []
-            for f in files:
-                file_info.append(f"[File: {f.get('name', 'unknown')}]\n{f.get('content', '')[:500]}")
+            file_info = [f"[File: {f.get('name', 'unknown')}]\n{f.get('content', '')[:500]}" for f in files]
             parts.append("\n".join(file_info))
 
         parts.append(f"User: {prompt}")
@@ -193,10 +191,10 @@ class StreamingLLM:
             key = f"interrupted:{datetime.now().isoformat()}"
             data = {"response": response, "intent": intent, "timestamp": datetime.now().isoformat()}
             self.redis_client.set(key, json.dumps(data), ex=300)  # 5 min TTL
-        except:
+        except Exception:
             pass
 
-    async def resume(self, modified_prompt: str = None) -> str | None:
+    async def resume(self, modified_prompt: str | None = None) -> str | None:
         """Get saved interrupted response"""
         if not self.redis_client:
             return None
@@ -207,7 +205,7 @@ class StreamingLLM:
                 data = self.redis_client.get(key)
                 if data:
                     return json.loads(data).get("response")
-        except:
+        except Exception:
             pass
         return None
 

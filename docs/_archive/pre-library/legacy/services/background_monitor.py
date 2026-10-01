@@ -29,6 +29,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -54,7 +55,7 @@ class WindowsNotifier:
 
     SERVICE_NAME = "OpenCodeAgent"
 
-    URGENCY_COLORS = {
+    URGENCY_COLORS: ClassVar[dict[str, str]] = {
         "critical": "FF4444",  # Red
         "high": "FF8C00",  # Orange
         "normal": "58A6FF",  # Blue
@@ -68,7 +69,7 @@ class WindowsNotifier:
             escaped_title = title.replace('"', "'").replace("\n", " ")[:50]
             escaped_msg = message.replace('"', "'").replace("\n", " ")[:200]
 
-            color = WindowsNotifier.URGENCY_COLORS.get(urgency, "58A6FF")
+            _color = WindowsNotifier.URGENCY_COLORS.get(urgency, "58A6FF")
 
             script = f'''
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -130,7 +131,7 @@ class MessageInbox:
             try:
                 with open(inbox_file) as f:
                     messages = json.load(f)
-            except:
+            except Exception:
                 pass
 
         # Add new message
@@ -149,7 +150,7 @@ class MessageInbox:
             try:
                 with open(unread_file) as f:
                     unread = json.load(f)
-            except:
+            except Exception:
                 pass
 
         unread.append(message.get("msg_id", str(uuid.uuid4())))
@@ -174,7 +175,7 @@ class MessageInbox:
             with open(inbox_file) as f:
                 messages = json.load(f)
             return messages[-limit:]
-        except:
+        except Exception:
             return []
 
     @staticmethod
@@ -189,7 +190,7 @@ class MessageInbox:
             with open(unread_file) as f:
                 unread = json.load(f)
             return len(unread)
-        except:
+        except Exception:
             return 0
 
     @staticmethod
@@ -203,11 +204,11 @@ class MessageInbox:
         try:
             with open(latest_file) as f:
                 return json.load(f)
-        except:
+        except Exception:
             return None
 
     @staticmethod
-    def mark_read(agent_id: str, msg_ids: list[str] = None):
+    def mark_read(agent_id: str, msg_ids: list[str] | None = None):
         """Mark messages as read"""
         unread_file = os.path.join(MessageInbox.get_inbox_path(agent_id), "unread.json")
 
@@ -222,7 +223,7 @@ class MessageInbox:
 
             with open(unread_file, "w") as f:
                 json.dump(unread, f, indent=2)
-        except:
+        except Exception:
             pass
 
 
@@ -302,8 +303,6 @@ class BackgroundMonitor:
                     else:
                         content_str = str(content)[:100]
 
-                    title = f"OpenCode: {msg_type}"
-
                     # Handle coordination messages - update files silently
                     if msg_type == "manifest_update":
                         if isinstance(content, dict):
@@ -311,7 +310,7 @@ class BackgroundMonitor:
                             try:
                                 with open(manifest_file, "w") as f:
                                     json.dump(content, f, indent=2)
-                            except:
+                            except Exception:
                                 pass
 
                     elif msg_type == "lock_update":
@@ -378,7 +377,7 @@ class BackgroundMonitor:
                         state["last_heartbeat"] = datetime.now().isoformat()
                         with open(hb_file, "w") as f:
                             json.dump(state, f, indent=2)
-                except:
+                except Exception:
                     pass
 
     def start(self):
@@ -412,7 +411,7 @@ class BackgroundMonitor:
 # ============================================================================
 
 
-def check_inbox(agent_id: str = None) -> dict:
+def check_inbox(agent_id: str | None = None) -> dict:
     """
     Check inbox for messages - call this from OpenCode.
 
@@ -438,13 +437,13 @@ def get_my_agent_id() -> str:
             with open(identity_file) as f:
                 data = json.load(f)
             return data.get("agent_id", "unknown")
-        except:
+        except Exception:
             pass
 
     return "unknown"
 
 
-def mark_inbox_read(agent_id: str = None, msg_ids: list[str] = None):
+def mark_inbox_read(agent_id: str | None = None, msg_ids: list[str] | None = None):
     """Mark messages as read"""
     if not agent_id:
         agent_id = get_my_agent_id()

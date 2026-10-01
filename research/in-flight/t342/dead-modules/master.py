@@ -53,7 +53,7 @@ def get_vram_usage():
             for info in data.values():
                 if "vram_used" in info:
                     return float(info["vram_used"].replace("MB", "")) / 1024  # Convert to GB
-    except:
+    except Exception:
         pass
 
     try:
@@ -66,7 +66,7 @@ def get_vram_usage():
         )
         if result.returncode == 0:
             return float(result.stdout.strip()) / 1024  # MB to GB
-    except:
+    except Exception:
         pass
 
     return None
@@ -178,7 +178,7 @@ class Master:
 
     def check_vram(self):
         """Monitor VRAM usage with lifecycle manager"""
-        vram = get_vram_usage()
+        get_vram_usage()
 
         # Use lifecycle manager for smarter monitoring
         status = self.lifecycle.check_vram_and_warn()
@@ -194,12 +194,11 @@ class Master:
             log("vram_critical", "Forcing garbage collection", source="master")
             gc.collect()
 
-        if status["status"] == "emergency":
-            # Emergency: unload vision model if loaded
-            if self.lifecycle.vision_loaded:
-                log("vram_emergency", "Unloading vision model", source="master")
-                self.lifecycle.unload_vision_model()
-                gc.collect()
+        # Emergency: unload vision model if loaded
+        if status["status"] == "emergency" and self.lifecycle.vision_loaded:
+            log("vram_emergency", "Unloading vision model", source="master")
+            self.lifecycle.unload_vision_model()
+            gc.collect()
 
     def on_planning(self):
         """Generator is writing proposal"""
@@ -309,7 +308,7 @@ class Master:
 
             doc = ErrorDoc()
             doc.log_error("master", "task_failed", verdict.get("reason", "Unknown"), "high")
-        except:
+        except Exception:
             pass
 
         # Check if escalation is needed
@@ -345,9 +344,9 @@ class Master:
                             if data.get("type") == "vision_context":
                                 vision_data = data.get("vision", {})
                                 break
-                        except:
+                        except Exception:
                             pass
-        except:
+        except Exception:
             pass
 
         # Trigger escalation
@@ -448,7 +447,7 @@ def check_prerequisites():
             ["docker", "exec", "ai-redis", "redis-cli", "ping"], capture_output=True, text=True, timeout=5
         )
         checks.append(("Redis", "OK" if "PONG" in result.stdout else "FAILED"))
-    except:
+    except Exception:
         checks.append(("Redis", "NOT RESPONDING"))
 
     # Ollama
@@ -457,11 +456,11 @@ def check_prerequisites():
             ["docker", "exec", "ai-ollama", "ollama", "list"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
-            models = [l for l in result.stdout.split("\n") if "NAME" not in l and l.strip()]
+            models = [ln for ln in result.stdout.split("\n") if "NAME" not in ln and ln.strip()]
             checks.append(("Ollama", f"OK ({len(models)} models)"))
         else:
             checks.append(("Ollama", "FAILED"))
-    except:
+    except Exception:
         checks.append(("Ollama", "NOT RESPONDING"))
 
     # Blackboard

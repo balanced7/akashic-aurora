@@ -151,7 +151,7 @@ class AgentVectorStore:
                     data = json.load(f)
                     self.entries = data.get("entries", [])
                     self._id_counter = data.get("id_counter", 0)
-            except:
+            except Exception:
                 pass
 
     def _save(self):
@@ -266,7 +266,7 @@ class AgentCoordinator:
                     "session_id",
                     os.environ.get("OPENCODE_SESSION_ID", f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"),
                 )
-            except:
+            except Exception:
                 self.agent_id = f"agent_{uuid.uuid4().hex[:8]}"
                 self.session_id = os.environ.get(
                     "OPENCODE_SESSION_ID", f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -286,7 +286,7 @@ class AgentCoordinator:
                     f,
                     indent=2,
                 )
-        except:
+        except Exception:
             pass
 
         # System info
@@ -298,7 +298,7 @@ class AgentCoordinator:
 
         try:
             self.process = psutil.Process(self.pid)
-        except:
+        except Exception:
             self.process = None
 
         # Capabilities (can be extended)
@@ -312,7 +312,7 @@ class AgentCoordinator:
             ip = s.getsockname()[0]
             s.close()
             return ip
-        except:
+        except Exception:
             return "127.0.0.1"
 
     def _register_self(self):
@@ -325,7 +325,7 @@ class AgentCoordinator:
     # =========================================================================
 
     def register(
-        self, role: str = "general", status: str = "active", current_task: str = None, port: int = None
+        self, role: str = "general", status: str = "active", current_task: str | None = None, port: int | None = None
     ) -> AgentMetadata:
         """
         Register this agent with full metadata.
@@ -371,7 +371,7 @@ class AgentCoordinator:
 
         return metadata
 
-    def heartbeat(self, status: str = None, current_task: str = None):
+    def heartbeat(self, status: str | None = None, current_task: str | None = None):
         """Send heartbeat to indicate agent is alive"""
         update = {"heartbeat": True}
 
@@ -413,7 +413,7 @@ class AgentCoordinator:
                 last_hb = datetime.fromisoformat(info["last_heartbeat"]).timestamp()
                 if last_hb > cutoff and (include_self or info["agent_id"] != self.agent_id):
                     agents.append(info)
-            except:
+            except Exception:
                 pass
 
         return sorted(agents, key=lambda x: x.get("started_at", ""))
@@ -471,7 +471,7 @@ class AgentCoordinator:
         return msg_id
 
     def get_messages(
-        self, agent_id: str = None, msg_type: str = None, unread_only: bool = False, limit: int = 20
+        self, agent_id: str | None = None, msg_type: str | None = None, unread_only: bool = False, limit: int = 20
     ) -> list[dict]:
         """Get messages for this agent or another"""
         cutoff = datetime.now().timestamp() - 3600  # 1 hour expiry
@@ -506,12 +506,12 @@ class AgentCoordinator:
 
                 messages.append(msg)
 
-            except:
+            except Exception:
                 pass
 
         return sorted(messages, key=lambda x: x["timestamp"], reverse=True)[:limit]
 
-    def search_messages(self, query: str, top_k: int = 5, from_agent: str = None) -> list[dict]:
+    def search_messages(self, query: str, top_k: int = 5, from_agent: str | None = None) -> list[dict]:
         """
         VECTORIZED SEARCH: Find messages by semantic similarity.
         This is the FAST path for finding relevant messages.
@@ -571,7 +571,7 @@ class AgentCoordinator:
                 expires = datetime.fromisoformat(lock["expires_at"]).timestamp()
                 if expires > time.time() and lock.get("agent_id") != self.agent_id:
                     return False, lock.get("agent_id", "unknown")
-            except:
+            except Exception:
                 pass
 
         # Create lock

@@ -52,7 +52,7 @@ class KokoroTTS:
                 # Try GPU first, fall back to CPU
                 try:
                     self.engine = Kokoro(voice=self.config.voice, device="cuda")
-                except:
+                except Exception:
                     self.engine = Kokoro(voice=self.config.voice, device="cpu")
 
                 self._loaded = True
@@ -119,13 +119,13 @@ class EspeakTTS:
     async def load(self):
         """Check espeak availability"""
         try:
-            result = subprocess.run(["espeak-ng", "--version"], capture_output=True, timeout=5)
+            result = subprocess.run(["espeak-ng", "--version"], capture_output=True, timeout=5)  # noqa: ASYNC221  # archived code: the blocking call stays (no behaviour change)
             if result.returncode == 0:
                 self._loaded = True
                 print("[TTS] Espeak-ng available")
             else:
                 self._loaded = False
-        except:
+        except Exception:
             self._loaded = False
 
     async def speak(self, text: str) -> bytes:
@@ -148,7 +148,7 @@ class EspeakTTS:
             await proc.communicate()
 
             # Read the WAV file
-            with open("/tmp/espeak_output.wav", "rb") as f:
+            with open("/tmp/espeak_output.wav", "rb") as f:  # noqa: ASYNC230  # archived code: the blocking call stays (no behaviour change)
                 return f.read()
         except Exception as e:
             print(f"[TTS] Espeak error: {e}")

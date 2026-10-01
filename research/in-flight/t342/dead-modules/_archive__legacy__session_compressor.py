@@ -53,7 +53,7 @@ class SessionCompressor:
         for redis_inst, name in [(self.wsl_redis, "WSL"), (self.win_redis, "Windows")]:
             try:
                 redis_inst.execute_command("FT.INFO", "session_text_idx")
-                logger.info(f"{name}: text index exists")
+                logger.info("%s: text index exists", name)
             except Exception:
                 try:
                     redis_inst.execute_command(
@@ -72,9 +72,9 @@ class SessionCompressor:
                         "summary",
                         "TEXT",
                     )
-                    logger.info(f"{name}: created text index")
+                    logger.info("%s: created text index", name)
                 except Exception as e:
-                    logger.error(f"{name}: index creation failed: {e}")
+                    logger.error("%s: index creation failed: %s", name, e)
 
     def summarize_with_gemma(self, log_text):
         try:
@@ -104,7 +104,7 @@ class SessionCompressor:
                 return str(blob or "")
             if kt == "list":
                 lines = self.wsl_redis.lrange(log_key, 0, -1) or []
-                return "\n".join(str(l) for l in lines)
+                return "\n".join(str(ln) for ln in lines)
 
             kb = self.win_redis.type(log_key) if log_key else None
             kb_s = kb or ""
@@ -112,7 +112,7 @@ class SessionCompressor:
                 return str(self.win_redis.get(log_key) or "")
             if kb_s == "list":
                 lines = self.win_redis.lrange(log_key, 0, -1) or []
-                return "\n".join(str(l) for l in lines)
+                return "\n".join(str(ln) for ln in lines)
         except Exception as e:
             logger.warning("gather log %s (type=%s): %s", log_key, kt, e)
         return ""

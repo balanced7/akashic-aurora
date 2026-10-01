@@ -6,11 +6,14 @@ Handles WebSocket audio streams with VAD and processing
 
 import asyncio
 import io
-from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 import torchaudio
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass

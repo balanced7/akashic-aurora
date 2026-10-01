@@ -95,7 +95,7 @@ class Blackboard:
         if self._redis:
             try:
                 return self._redis.get(key)
-            except:
+            except Exception:
                 return None
         return None
 
@@ -146,7 +146,7 @@ class Blackboard:
             try:
                 os.remove(os.path.join(HISTORY_DIR, old_file))
                 print(f"[blackboard] Pruned history: {old_file}")
-            except:
+            except Exception:
                 pass
 
     def get_state(self) -> str:
@@ -217,7 +217,7 @@ class Blackboard:
         return True
 
     def submit_proposal(
-        self, agent: str, title: str, description: str, steps: list[dict], metadata: dict = None
+        self, agent: str, title: str, description: str, steps: list[dict], metadata: dict | None = None
     ) -> bool:
         """
         Submit a proposal with proper locking.
@@ -260,7 +260,7 @@ class Blackboard:
 
         return True
 
-    def submit_verdict(self, agent: str, status: str, reason: str, checks_performed: list[str] = None) -> bool:
+    def submit_verdict(self, agent: str, status: str, reason: str, checks_performed: list[str] | None = None) -> bool:
         """
         Submit audit verdict with proper locking.
         """
@@ -292,7 +292,7 @@ class Blackboard:
 
         return True
 
-    def mark_execution_complete(self, agent: str, success: bool, results: dict = None) -> bool:
+    def mark_execution_complete(self, agent: str, success: bool, results: dict | None = None) -> bool:
         """Mark execution complete"""
         current = self.get_state()
         if current != PHASE_EXECUTING:

@@ -77,7 +77,7 @@ def _recall_block(sid: str, path: str, command: str) -> str:
         )
         out = render(res)
         if out:
-            srcs = [l.get("source") for l in res.get("lessons", [])]
+            srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
             mark_seen(sid, srcs)
             target = normalize_target(path or None, command or None)
             mark_impression(sid, target, srcs)

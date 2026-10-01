@@ -86,11 +86,11 @@ class DirectivesComplianceChecker:
                     entry = json.loads(line)
                     if entry.get("action") == "verify" or "verify" in entry.get("action", ""):
                         verified_count += 1
-                except:
+                except Exception:
                     pass
 
             # If more than 10 actions but no verifications, flag it
-            action_count = sum(1 for l in recent_lines if "action" in l)
+            action_count = sum(1 for ln in recent_lines if "action" in ln)
             if action_count > 10 and verified_count == 0:
                 self.violations.append(
                     DirectiveViolation(
@@ -141,7 +141,7 @@ class DirectivesComplianceChecker:
                         if "health" in entry.get("action", "").lower():
                             health_check_found = True
                             break
-                    except:
+                    except Exception:
                         pass
 
                 if not health_check_found:
@@ -190,7 +190,7 @@ class DirectivesComplianceChecker:
                         # Just a warning - not a violation unless component failed
                         pass
 
-        except:
+        except Exception:
             pass
 
         return True  # This is observational
@@ -232,10 +232,10 @@ class DirectivesComplianceChecker:
                         )
                         return False
 
-                except:
+                except Exception:
                     pass
 
-        except:
+        except Exception:
             pass
 
         return True
@@ -266,14 +266,14 @@ class DirectivesComplianceChecker:
                         if "backup" in action or "restore" in action or "rollback" in action:
                             has_backup = True
                             break
-                    except:
+                    except Exception:
                         pass
 
                 if not has_backup:
                     # Warning only - not a violation if no changes made
                     pass
 
-        except:
+        except Exception:
             pass
 
         return True  # Observational
@@ -318,7 +318,7 @@ class DirectivesComplianceChecker:
                         data = entry.get("data", {})
                         if not data or len(data) == 0:
                             entries_without_data += 1
-                except:
+                except Exception:
                     pass
 
             # If more than 20% of actions lack data, flag it
@@ -367,7 +367,6 @@ class DirectivesComplianceChecker:
                 recent_lines = lines[-200:] if len(lines) > 200 else lines
 
                 kb_searches = 0
-                edits_without_search = 0
                 found_edit_without_search = False
 
                 for line in recent_lines:
@@ -379,10 +378,13 @@ class DirectivesComplianceChecker:
                         if "kb_search" in action or "knowledge_base" in action:
                             kb_searches += 1
 
-                        if any(x in action for x in ["edit", "create", "write"]) and "file" in desc:
-                            if kb_searches == 0:
-                                found_edit_without_search = True
-                    except:
+                        if (
+                            any(x in action for x in ["edit", "create", "write"])
+                            and "file" in desc
+                            and kb_searches == 0
+                        ):
+                            found_edit_without_search = True
+                    except Exception:
                         pass
 
                 if found_edit_without_search and kb_searches == 0:
@@ -397,7 +399,7 @@ class DirectivesComplianceChecker:
                     )
                     return False
 
-        except:
+        except Exception:
             pass
 
         return True
@@ -459,7 +461,7 @@ def check_compliance() -> dict[str, Any]:
     return checker.run_all_checks()
 
 
-def print_directives_report(compliance: dict = None):
+def print_directives_report(compliance: dict | None = None):
     """Print a human-readable directives compliance report"""
     if compliance is None:
         compliance = check_compliance()

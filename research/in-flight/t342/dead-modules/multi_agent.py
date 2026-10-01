@@ -230,7 +230,7 @@ def _get_redis_connection():
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True, socket_connect_timeout=2)
         r.ping()
         return r, True
-    except:
+    except Exception:
         return None, False
 
 
@@ -259,7 +259,7 @@ class AgentRegistry:
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
                 self._vector_store = get_vector_store()
-            except:
+            except Exception:
                 self._vector_store = None
 
     @classmethod
@@ -277,7 +277,7 @@ class AgentRegistry:
         return f"agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
     def register_agent(
-        self, role: str, session_id: str, session_unique: str, metadata: dict[str, Any] = None
+        self, role: str, session_id: str, session_unique: str, metadata: dict[str, Any] | None = None
     ) -> AgentInfo:
         """
         Register this agent in the registry.
@@ -350,7 +350,7 @@ class AgentRegistry:
             self._redis.expire(AGENT_HEARTBEAT_KEY, AGENT_TTL_SECONDS * 2)
 
             return True
-        except:
+        except Exception:
             return False
 
     def unregister_agent(self) -> bool:
@@ -365,7 +365,7 @@ class AgentRegistry:
             print(f"[agent_registry] Unregistered {self._current_agent_id}")
             self._current_agent_id = None
             return True
-        except:
+        except Exception:
             return False
 
     def get_active_agents(self, include_self: bool = False) -> list[AgentInfo]:
@@ -389,7 +389,7 @@ class AgentRegistry:
                         agents.append(AgentInfo.from_dict(json.loads(data)))
 
             return agents
-        except:
+        except Exception:
             return []
 
     def get_agent_by_role(self, role: str) -> list[AgentInfo]:
@@ -413,7 +413,7 @@ class AgentRegistry:
         try:
             cutoff = datetime.now().timestamp() - AGENT_TTL_SECONDS
             return len(self._redis.zrangebyscore(AGENT_HEARTBEAT_KEY, cutoff, "+inf"))
-        except:
+        except Exception:
             return 0
 
     def is_any_other_agent_active(self) -> bool:
@@ -434,7 +434,7 @@ class AgentRegistry:
                 if data:
                     return [AgentInfo.from_dict(json.loads(data))]
             return []
-        except:
+        except Exception:
             return []
 
 
@@ -463,7 +463,7 @@ class MessageBus:
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
                 self._vector_store = get_vector_store()
-            except:
+            except Exception:
                 self._vector_store = None
 
         self._agent_id = None
@@ -483,7 +483,12 @@ class MessageBus:
         return f"msg_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
     def send_message(
-        self, to_agent: str, msg_type: str, content: Any, metadata: dict[str, Any] = None, reply_to: str = None
+        self,
+        to_agent: str,
+        msg_type: str,
+        content: Any,
+        metadata: dict[str, Any] | None = None,
+        reply_to: str | None = None,
     ) -> Message | None:
         """
         Send message to another agent or broadcast.
@@ -559,7 +564,7 @@ class MessageBus:
             print(f"[message_bus] Send error: {e}")
             return None
 
-    def get_messages(self, agent_id: str = None, limit: int = 50) -> list[Message]:
+    def get_messages(self, agent_id: str | None = None, limit: int = 50) -> list[Message]:
         """Get messages for an agent (or sent by agent if agent_id provided)"""
         if not self._available:
             return []
@@ -577,7 +582,7 @@ class MessageBus:
                 with contextlib.suppress(BaseException):
                     messages.append(Message.from_dict(json.loads(msg_json)))
             return messages
-        except:
+        except Exception:
             return []
 
     def get_sent_messages(self, limit: int = 50) -> list[Message]:
@@ -597,7 +602,7 @@ class MessageBus:
                 with contextlib.suppress(BaseException):
                     messages.append(Message.from_dict(json.loads(msg_json)))
             return messages
-        except:
+        except Exception:
             return []
 
     def mark_message_read(self, msg_id: str) -> bool:
@@ -608,7 +613,7 @@ class MessageBus:
         try:
             self._redis.sadd(f"{MESSAGE_KEY_PREFIX}:read:{self._agent_id}", msg_id)
             return True
-        except:
+        except Exception:
             return False
 
     def is_message_read(self, msg_id: str) -> bool:
@@ -618,10 +623,12 @@ class MessageBus:
 
         try:
             return self._redis.sismember(f"{MESSAGE_KEY_PREFIX}:read:{self._agent_id}", msg_id)
-        except:
+        except Exception:
             return False
 
-    def search_messages(self, query: str, top_k: int = 5, msg_type: str = None, from_agent: str = None) -> list[dict]:
+    def search_messages(
+        self, query: str, top_k: int = 5, msg_type: str | None = None, from_agent: str | None = None
+    ) -> list[dict]:
         """
         Search messages semantically using vector store.
 
@@ -669,7 +676,7 @@ class MessageBus:
         try:
             messages = self.get_messages(limit=100)
             return sum(1 for m in messages if not self.is_message_read(m.msg_id))
-        except:
+        except Exception:
             return 0
 
 
@@ -698,7 +705,7 @@ class SharedWorkspace:
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
                 self._vector_store = get_vector_store()
-            except:
+            except Exception:
                 self._vector_store = None
 
         self._agent_id = None
@@ -786,7 +793,7 @@ class SharedWorkspace:
             if data:
                 return SharedItem.from_dict(json.loads(data))
             return None
-        except:
+        except Exception:
             return None
 
     def delete(self, key: str) -> bool:
@@ -812,7 +819,7 @@ class SharedWorkspace:
                 )
 
             return True
-        except:
+        except Exception:
             return False
 
     def lock(self, key: str, ttl: int = 300) -> bool:
@@ -846,7 +853,7 @@ class SharedWorkspace:
 
             print(f"[shared_workspace] Locked {key}")
             return True
-        except:
+        except Exception:
             return False
 
     def unlock(self, key: str) -> bool:
@@ -871,7 +878,7 @@ class SharedWorkspace:
 
             print(f"[shared_workspace] Unlocked {key}")
             return True
-        except:
+        except Exception:
             return False
 
     def search_items(self, query: str, top_k: int = 5) -> list[dict]:
@@ -885,7 +892,7 @@ class SharedWorkspace:
             )
 
             return [r for r in results if r["metadata"].get("type") == "shared_item"]
-        except:
+        except Exception:
             return []
 
     def get_history(self, key: str, limit: int = 20) -> list[SharedItem]:
@@ -901,7 +908,7 @@ class SharedWorkspace:
                 with contextlib.suppress(BaseException):
                     items.append(SharedItem.from_dict(json.loads(item_json)))
             return items
-        except:
+        except Exception:
             return []
 
     def get_all_keys(self) -> list[str]:
@@ -911,7 +918,7 @@ class SharedWorkspace:
 
         try:
             return self._redis.hkeys(SHARED_WORKSPACE_KEY)
-        except:
+        except Exception:
             return []
 
     def create_space(self, space_name: str, description: str = "") -> bool:
@@ -979,7 +986,7 @@ class SharedWorkspace:
                 with contextlib.suppress(BaseException):
                     spaces.append(json.loads(data))
             return spaces
-        except:
+        except Exception:
             return []
 
 
@@ -1000,11 +1007,11 @@ class HelpRequest:
         help_type: str,
         description: str,
         priority: str = "normal",
-        context: dict = None,
+        context: dict | None = None,
         status: str = "pending",
-        created_at: str = None,
-        responded_at: str = None,
-        helper_id: str = None,
+        created_at: str | None = None,
+        responded_at: str | None = None,
+        helper_id: str | None = None,
     ):
         self.request_id = request_id
         self.from_agent = from_agent
@@ -1048,7 +1055,7 @@ class HelpRequest:
 
 
 def create_help_request(
-    help_type: str, description: str, priority: str = "normal", context: dict = None
+    help_type: str, description: str, priority: str = "normal", context: dict | None = None
 ) -> HelpRequest | None:
     """
     Create a help request that other agents can respond to.
@@ -1094,7 +1101,7 @@ def create_help_request(
                     text=f"[{help_type}] {description}",
                     metadata={"type": "help_request", "help_type": help_type, "priority": priority, "from": agent_id},
                 )
-            except:
+            except Exception:
                 pass
 
         print(f"[help_request] Created: {request_id} ({help_type}) - {description[:50]}...")
@@ -1119,7 +1126,7 @@ def get_pending_help_requests(limit: int = 20) -> list[HelpRequest]:
                 requests.append(HelpRequest.from_dict(json.loads(req_json)))
 
         return [r for r in requests if r.status == "pending"]
-    except:
+    except Exception:
         return []
 
 
@@ -1143,14 +1150,16 @@ def respond_to_help_request(request_id: str, helper_id: str) -> bool:
                     r.lrem(HELP_REQUEST_KEY, 1, req_json)
                     r.lpush(HELP_REQUEST_KEY, json.dumps(req.to_dict()))
                     return True
-            except:
+            except Exception:
                 pass
         return False
-    except:
+    except Exception:
         return False
 
 
-def spawn_helper_agent(help_type: str, description: str, context: dict = None, auto_launch: bool = True) -> str | None:
+def spawn_helper_agent(
+    help_type: str, description: str, context: dict | None = None, auto_launch: bool = True
+) -> str | None:
     """
     Request a helper agent to spawn.
 
@@ -1215,7 +1224,7 @@ def _redis_connection_available() -> bool:
     try:
         _r, available = _get_redis_connection()
         return available
-    except:
+    except Exception:
         return False
 
 
@@ -1260,14 +1269,14 @@ def _backup_redis_if_needed(operation: str) -> bool:
                     if elapsed < 300:  # Less than 5 minutes since last backup
                         print(f"[redis_backup] Last backup {int(elapsed)}s ago - skipping")
                         return True
-        except:
+        except Exception:
             pass  # Catalog check failed, proceed with backup
 
         # Trigger Redis SAVE
         try:
             r.execute_command("SAVE")
             print(f"[redis_backup] Triggered SAVE before: {operation}")
-        except:
+        except Exception:
             pass  # SAVE failed, but don't block the operation
 
         return True

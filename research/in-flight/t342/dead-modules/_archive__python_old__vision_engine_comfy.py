@@ -59,7 +59,7 @@ def get_redis():
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
         r.ping()
         return r
-    except:
+    except Exception:
         return None
 
 
@@ -71,7 +71,7 @@ def check_comfyui_running() -> bool:
         with request.urlopen(f"{COMFYUI_URL}/system_stats", timeout=2) as resp:
             COMFYUI_AVAILABLE = resp.status == 200
             return COMFYUI_AVAILABLE
-    except:
+    except Exception:
         COMFYUI_AVAILABLE = False
         return False
 

@@ -41,8 +41,7 @@ if sys.platform == "win32":
     with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8")
 
-_BASE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_BASE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -61,6 +60,8 @@ from stack_manager import (
     resolve_tiers,
     wait_for_healthy,
 )
+
+_BASE = Path(__file__).resolve().parent
 
 # ──────────────────────────────────────────────────────────────
 # FASTAPI APP
@@ -213,7 +214,7 @@ async def api_restart_service(name: str):
             _run_wsl(stop_cmd, timeout=10)
         else:
             _run_ps(stop_cmd, timeout=10)
-        time.sleep(1)
+        time.sleep(1)  # noqa: ASYNC251  # archived code: the blocking call stays (no behaviour change)
     routes_tbl.update_status(name, "restarting")
     launch_service(name, cfg)
     healthy = wait_for_healthy(name, cfg, routes_tbl)
@@ -268,7 +269,7 @@ async def api_metrics_memory():
 
 
 @app.get("/api/metrics/history")
-async def api_metrics_history(service: str = None, limit: int = 20):
+async def api_metrics_history(service: str | None = None, limit: int = 20):
     """Historical memory snapshots from Redis or in-memory."""
     try:
         r = _redis()
@@ -357,8 +358,7 @@ async def api_troubleshoot_dep_graph():
                 "ports": cfg.get("ports", []),
             }
         )
-        for dep in cfg.get("depends", []):
-            edges.append({"from": dep, "to": name})
+        edges.extend({"from": dep, "to": name} for dep in cfg.get("depends", []))
 
     return {"nodes": nodes, "edges": edges, "tiers": [sorted(t) for t in tiers]}
 
@@ -510,8 +510,8 @@ async def api_ai_chat(request: Request):
     """
     try:
         body = await request.json()
-    except Exception:
-        raise HTTPException(400, "Expected JSON body")
+    except Exception as exc:
+        raise HTTPException(400, "Expected JSON body") from exc
 
     msg = (body.get("message") or "").strip()
     model = (body.get("model") or "gemma2:2b").strip()

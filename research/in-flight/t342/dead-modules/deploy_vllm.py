@@ -52,7 +52,7 @@ def check_rocm() -> bool:
     try:
         result = subprocess.run(["rocm-smi", "--showdrammouse"], capture_output=True, text=True, timeout=5)
         return result.returncode == 0
-    except:
+    except Exception:
         return False
 
 
@@ -62,7 +62,7 @@ def check_rocm_pytorch() -> bool:
         import torch
 
         return torch.cuda.is_available() and torch.version.hip
-    except:
+    except Exception:
         return False
 
 
@@ -78,7 +78,7 @@ def get_gpu_vram() -> float | None:
                 if "vram_used" in info:
                     vram_str = info.get("vram_total", "16384MB")
                     return float(vram_str.replace("MB", "")) / 1024
-    except:
+    except Exception:
         pass
     return None
 
@@ -92,11 +92,8 @@ def calculate_memory_fraction(model_name: str, vram_gb: float) -> float:
     - KV cache
     - Activation memory
     """
-    if model_name in MODELS:
-        model_vram = MODELS[model_name]["vram_gb"]
-    else:
-        # Estimate based on parameter count
-        model_vram = 8.0  # Default assumption
+    # Else estimate based on parameter count: 8.0 is the default assumption
+    _model_vram = MODELS[model_name]["vram_gb"] if model_name in MODELS else 8.0
 
     # Use 90% of available VRAM minus a small buffer
     buffer = 0.5  # GB buffer for system
@@ -205,7 +202,7 @@ def deploy_direct(model: str, port: int = API_PORT) -> int:
     return subprocess.run(cmd).returncode
 
 
-def test_connection(port: int = API_PORT) -> bool:
+def test_connection(port: int = API_PORT) -> bool:  # noqa: PT028  # not a pytest test: a helper named test_*
     """Test if vLLM server is responding"""
     import json
     import urllib.request

@@ -14,6 +14,7 @@ Author: Senior Systems Architect
 Version: 1.0 High-Performance
 """
 
+import contextlib
 import json
 import sys
 import threading
@@ -126,10 +127,8 @@ class FastAgentComm:
             self._available = True
 
             # Create consumer group if not exists
-            try:
+            with contextlib.suppress(Exception):  # Group already exists
                 self._redis.xgroup_create(STREAM_KEY, STREAM_GROUP, id="0", mkstream=True)
-            except:
-                pass  # Group already exists
 
             print("[fast_comm] Redis Streams connected")
         except Exception as e:
@@ -166,8 +165,8 @@ class FastAgentComm:
         msg_type: str,
         content: Any,
         priority: MessagePriority = MessagePriority.NORMAL,
-        metadata: dict = None,
-        reply_to: str = None,
+        metadata: dict | None = None,
+        reply_to: str | None = None,
     ) -> str | None:
         """
         Send direct message to specific agent.
@@ -205,7 +204,11 @@ class FastAgentComm:
             return None
 
     def send_broadcast(
-        self, msg_type: str, content: Any, priority: MessagePriority = MessagePriority.NORMAL, metadata: dict = None
+        self,
+        msg_type: str,
+        content: Any,
+        priority: MessagePriority = MessagePriority.NORMAL,
+        metadata: dict | None = None,
     ) -> str | None:
         """Broadcast to all agents"""
         if not self._available or not self._agent_id:
@@ -369,9 +372,9 @@ class FastAgentComm:
 
                     if msg.to_agent in [self._agent_id, "broadcast"]:
                         messages.append(msg)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
 
         return messages
@@ -396,7 +399,7 @@ class FastAgentComm:
                 "consumer_groups": len(groups),
                 "groups": groups,
             }
-        except:
+        except Exception:
             return {}
 
     def get_pending_count(self) -> int:
@@ -407,7 +410,7 @@ class FastAgentComm:
         try:
             pending = self._redis.xpending(STREAM_KEY, STREAM_GROUP)
             return pending.get("pending", 0)
-        except:
+        except Exception:
             return 0
 
     def cleanup_old(self, max_age_seconds: int = 3600):
@@ -432,7 +435,7 @@ class FastAgentComm:
         try:
             self._redis.ping()
             return True
-        except:
+        except Exception:
             return False
 
 

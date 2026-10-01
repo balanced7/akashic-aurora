@@ -63,9 +63,7 @@ class STTProcessor:
                 vad_parameters={"min_speech_duration": 0.3},
             )
 
-            text_parts = []
-            async for segment in segments:
-                text_parts.append(segment.text)
+            text_parts = [segment.text async for segment in segments]
 
             return " ".join(text_parts).strip()
 

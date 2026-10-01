@@ -90,13 +90,13 @@ class KnowledgeBase:
             self.client.ping()
             self.available = True
             return True
-        except:
+        except Exception:
             self.available = False
             return False
 
     # ============ MODEL MANAGEMENT ============
 
-    def register_model(self, name: str, description: str = "", capabilities: list[str] = None) -> bool:
+    def register_model(self, name: str, description: str = "", capabilities: list[str] | None = None) -> bool:
         """Register a new AI model in the knowledge base"""
         if not self.client:
             return False
@@ -126,7 +126,7 @@ class KnowledgeBase:
             return []
         try:
             return list(self.client.smembers(self.PREFIX_MODELS))
-        except:
+        except Exception:
             return []
 
     def get_model_info(self, name: str) -> dict | None:
@@ -136,7 +136,7 @@ class KnowledgeBase:
         try:
             data = self.client.hgetall(f"{self.PREFIX_MODEL_PREFIX}{name}")
             return data if data else None
-        except:
+        except Exception:
             return None
 
     def update_model_activity(self, name: str) -> bool:
@@ -146,12 +146,12 @@ class KnowledgeBase:
         try:
             self.client.hset(f"{self.PREFIX_MODEL_PREFIX}{name}", "last_active", datetime.now().isoformat())
             return True
-        except:
+        except Exception:
             return False
 
     # ============ LEARNING STORAGE ============
 
-    def write(self, model_name: str, key: str, value: Any, category: str = "general", ttl: int = None) -> bool:
+    def write(self, model_name: str, key: str, value: Any, category: str = "general", ttl: int | None = None) -> bool:
         """
         Write a learning/knowledge item.
 
@@ -218,7 +218,7 @@ class KnowledgeBase:
             if data and "value" in data:
                 return json.loads(data["value"])
             return None
-        except:
+        except Exception:
             return None
 
     def get_learning_metadata(self, key: str) -> dict | None:
@@ -231,10 +231,10 @@ class KnowledgeBase:
             data = self.client.hgetall(full_key)
             data.pop("value", None)  # Remove the actual value
             return data if data else None
-        except:
+        except Exception:
             return None
 
-    def search(self, pattern: str, category: str = None) -> list[dict]:
+    def search(self, pattern: str, category: str | None = None) -> list[dict]:
         """
         Search learnings by key pattern using pipeline for efficiency.
         OPTIMIZED: Uses Redis pipeline instead of N individual calls.
@@ -272,10 +272,10 @@ class KnowledgeBase:
                     results.append({"key": key_name, **data})
 
             return results
-        except:
+        except Exception:
             return []
 
-    def vector_search(self, query: str, top_k: int = 5, model: str = None) -> list[dict]:
+    def vector_search(self, query: str, top_k: int = 5, model: str | None = None) -> list[dict]:
         """
         Vector similarity search across all learnings.
         Uses FAISS for fast nearest-neighbor search.
@@ -338,7 +338,7 @@ class KnowledgeBase:
 
                         try:
                             value_obj = json.loads(value)
-                        except:
+                        except Exception:
                             value_obj = value
 
                         vs.embed_learning(model, key_name, value_obj, category)
@@ -369,7 +369,7 @@ class KnowledgeBase:
             }
             self.client.hset(f"{self.PREFIX_DOCS}:{doc_name}", mapping=doc_data)
             return True
-        except:
+        except Exception:
             return False
 
     def read_doc(self, doc_name: str) -> str | None:
@@ -380,7 +380,7 @@ class KnowledgeBase:
         try:
             data = self.client.hgetall(f"{self.PREFIX_DOCS}:{doc_name}")
             return data.get("content") if data else None
-        except:
+        except Exception:
             return None
 
     def get_all_docs(self) -> list[str]:
@@ -390,7 +390,7 @@ class KnowledgeBase:
 
         try:
             return [k.replace(f"{self.PREFIX_DOCS}:", "") for k in self.client.scan_iter(f"{self.PREFIX_DOCS}:*")]
-        except:
+        except Exception:
             return []
 
     # ============ CONTEXT SHARING ============
@@ -403,7 +403,7 @@ class KnowledgeBase:
         try:
             self.client.hset(self.PREFIX_CONTEXT, key, json.dumps(value))
             return True
-        except:
+        except Exception:
             return False
 
     def get_context(self, key: str) -> Any | None:
@@ -414,7 +414,7 @@ class KnowledgeBase:
         try:
             data = self.client.hget(self.PREFIX_CONTEXT, key)
             return json.loads(data) if data else None
-        except:
+        except Exception:
             return None
 
     def get_all_context(self) -> dict:
@@ -425,7 +425,7 @@ class KnowledgeBase:
         try:
             data = self.client.hgetall(self.PREFIX_CONTEXT)
             return {k: json.loads(v) for k, v in data.items()}
-        except:
+        except Exception:
             return {}
 
     # ============ MODEL CONTEXT ============
@@ -450,7 +450,7 @@ class KnowledgeBase:
                     learnings[lk] = data
 
             return {"info": info, "learnings": learnings}
-        except:
+        except Exception:
             return {}
 
     # ============ SYSTEM STATUS ============
@@ -468,7 +468,7 @@ class KnowledgeBase:
                 "docs": len(self.get_all_docs()),
                 "redis_version": self.client.info().get("redis_version", "unknown"),
             }
-        except:
+        except Exception:
             return {"status": "error"}
 
     def backup(self) -> dict:
@@ -482,15 +482,15 @@ class KnowledgeBase:
                 "learnings": {
                     k: self.read(k)
                     for k in [
-                        l.replace(self.PREFIX_LEARNING_PREFIX, "")
-                        for l in self.client.scan_iter(f"{self.PREFIX_LEARNING_PREFIX}*")
+                        key.replace(self.PREFIX_LEARNING_PREFIX, "")
+                        for key in self.client.scan_iter(f"{self.PREFIX_LEARNING_PREFIX}*")
                     ]
                 },
                 "docs": {d: self.read_doc(d) for d in self.get_all_docs()},
                 "context": self.get_all_context(),
                 "exported_at": datetime.now().isoformat(),
             }
-        except:
+        except Exception:
             return {}
 
 

@@ -140,7 +140,7 @@ class ModelLifecycleManager:
                 for info in data.values():
                     if "vram_used" in info:
                         return float(info["vram_used"].replace("MB", "")) / 1024
-        except:
+        except Exception:
             pass
 
         try:
@@ -153,7 +153,7 @@ class ModelLifecycleManager:
             )
             if result.returncode == 0:
                 return float(result.stdout.strip()) / 1024
-        except:
+        except Exception:
             pass
 
         return None

@@ -40,7 +40,7 @@ for name, host, port in services:
             r2 = redis.Redis(host=host, port=port, socket_connect_timeout=1)
             r2.ping()
             status = "UP"
-    except:
+    except Exception:
         status = "DOWN"
     print(f"  {name} ({host}:{port}): {status}")
 

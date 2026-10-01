@@ -30,6 +30,7 @@ Usage:
     data = load_data_from_ram_disk("temp.json")
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -53,9 +54,8 @@ os.makedirs(os.path.join(RAM_DISK, "cache"), exist_ok=True)
 os.makedirs(os.path.join(RAM_DISK, "temp"), exist_ok=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import contextlib
 
-from config import get_redis_config
+from config import get_redis_config  # noqa: E402  # sys.path bootstrap (after the RAM-disk makedirs)
 
 # Try to connect to Redis (fail-fast: this runs at import, so it must never
 # stall ~48s when Redis is down — gate on a raw-socket reachability probe).
@@ -142,7 +142,7 @@ def load_data_from_ram_disk(filename: str, subdir: str = "cache", use_cache: boo
             data = json.load(f)
         _ramdisk_cache[filename] = {"data": data, "time": time.time()}
         return data
-    except:
+    except Exception:
         return None
 
 
@@ -193,7 +193,7 @@ def delete_file_from_ram_disk(filename: str, subdir: str = "cache") -> bool:
             os.remove(filepath)
         _ramdisk_cache.pop(filename, None)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -245,7 +245,7 @@ def write_temporary_content_to_ram_disk(filename: str, content: str) -> str:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
         return filepath
-    except:
+    except Exception:
         return None
 
 
@@ -297,7 +297,7 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
                         data = json.loads(val)
                         _ram_cache[cache_key] = {"value": data, "time": time.time()}
                         return data
-                except:
+                except Exception:
                     pass
 
             # Execute function
@@ -357,7 +357,7 @@ def load_value_from_cache_hierarchy(key: str, default: Any = None) -> Any:
                 _ram_cache[key] = {"value": data, "time": time.time()}
                 _ramdisk_cache[key] = {"data": data, "time": time.time()}
                 return data
-        except:
+        except Exception:
             pass
 
     return default
@@ -419,7 +419,7 @@ def load_hash_field_from_redis(key: str, field: str, default: Any = None) -> Any
             val = _redis.hget(f"{CACHE_PREFIX}{key}", field)
             if val:
                 return json.loads(val) if val.startswith("{") else val
-        except:
+        except Exception:
             pass
     return default
 
@@ -445,7 +445,7 @@ def store_hash_field_in_redis(key: str, field: str, value: Any):
         try:
             val = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
             _redis.hset(f"{CACHE_PREFIX}{key}", field, val)
-        except:
+        except Exception:
             pass
 
 
@@ -510,7 +510,7 @@ def warm_session_cache_on_import():
             ctx = _redis.get("context:current")
             if ctx:
                 _context_cache = json.loads(ctx)
-        except:
+        except Exception:
             pass
 
     # Cache hot paths in all layers
@@ -544,7 +544,7 @@ def load_hot_module_from_cache(module_name: str):
         try:
             __import__(module_name)
             _hot_modules[module_name] = sys.modules.get(module_name)
-        except:
+        except Exception:
             return None
     return _hot_modules.get(module_name)
 
@@ -555,7 +555,7 @@ def get_hot_module(module_name: str):
     return load_hot_module_from_cache(module_name)
 
 
-def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: float = 5.0) -> dict:
+def execute_code_without_file_io(code: str, globals_dict: dict | None = None, timeout: float = 5.0) -> dict:
     """
     Execute Python code without file I/O.
 
@@ -593,7 +593,6 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
         }
 
     output = io.StringIO()
-    error_output = io.StringIO()
 
     try:
         exec_globals = {**globals_dict, "__builtins__": __builtins__}
@@ -608,7 +607,7 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
 
 
 # Backward compatibility alias
-def exec_fast(code: str, globals_dict: dict = None, timeout: float = 5.0) -> dict:
+def exec_fast(code: str, globals_dict: dict | None = None, timeout: float = 5.0) -> dict:
     """Deprecated: Use execute_code_without_file_io() instead"""
     return execute_code_without_file_io(code, globals_dict, timeout)
 

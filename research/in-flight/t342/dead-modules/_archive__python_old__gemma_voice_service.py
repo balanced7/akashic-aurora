@@ -127,7 +127,6 @@ def execute_code(code):
     result = {"success": False, "output": "", "error": ""}
 
     try:
-        output_lines = []
 
         class OutputCapture:
             def __init__(self):
@@ -166,7 +165,7 @@ def save_to_memory(key, value):
             r.set(f"learnings:{key}", json.dumps(value))
             r.set("learnings:last_updated", datetime.now().isoformat())
             return True
-        except:
+        except Exception:
             pass
     return False
 
@@ -179,7 +178,7 @@ def get_personality():
             data = r.get("ai:personality")
             if data:
                 return json.loads(data)
-        except:
+        except Exception:
             pass
 
     return {
@@ -297,12 +296,10 @@ def memory_search():
         return jsonify({"error": "Redis not connected"}), 500
 
     results = []
-    try:
-        for key in r.scan_iter("learnings:*"):
-            if query.lower() in key.lower():
-                results.append({"key": key, "value": r.get(key)})
-    except:
-        pass
+    with contextlib.suppress(Exception):
+        results.extend(
+            {"key": key, "value": r.get(key)} for key in r.scan_iter("learnings:*") if query.lower() in key.lower()
+        )
 
     return jsonify({"results": results[:20]})
 

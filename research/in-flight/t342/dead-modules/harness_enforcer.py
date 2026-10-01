@@ -119,7 +119,7 @@ class EscapeDetector:
         self.baseline_log_ratio = 1.0  # 1 log per action minimum
         self.baseline_verify_ratio = 0.2  # 1 verify per 5 actions minimum
 
-    def record_action(self, action: str, source: str = "system", data: dict = None):
+    def record_action(self, action: str, source: str = "system", data: dict | None = None):
         """Record an action for pattern analysis"""
         entry = {
             "action": action,
@@ -238,7 +238,7 @@ class HarnessEnforcer:
             from session_logger import SESSION_ID
 
             self._session_id = SESSION_ID
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -254,7 +254,7 @@ class HarnessEnforcer:
             try:
                 with open(HARNESS_STATE_FILE) as f:
                     self.state = json.load(f)
-            except:
+            except Exception:
                 self.state = {}
         else:
             self.state = {}
@@ -305,7 +305,7 @@ class HarnessEnforcer:
     # PRE-ACTION ENFORCEMENT
     # =========================================================================
 
-    def enforce_pre_action(self, action_type: str, details: dict = None) -> bool:
+    def enforce_pre_action(self, action_type: str, details: dict | None = None) -> bool:
         """
         CRITICAL: Called BEFORE any significant action.
         Returns True if action is allowed, False if blocked.
@@ -383,12 +383,12 @@ class HarnessEnforcer:
 
         return True
 
-    def enforce_verification(self, verification_type: str, result: bool, metrics: dict = None) -> bool:
+    def enforce_verification(self, verification_type: str, result: bool, metrics: dict | None = None) -> bool:
         """Called when verification is performed"""
         self.verify_count += 1
         self.detector.record_action(f"verify:{verification_type}")
 
-        if verification_type == "test" and result == False:
+        if verification_type == "test" and not result:
             self._log_escape(EscapeCondition.SKIP_TESTING, {"type": verification_type, "result": str(result)}, "MEDIUM")
 
         return result
@@ -487,7 +487,7 @@ class HarnessEnforcer:
                         # If triggered recently (within 2 hours) and few actions taken
                         if elapsed < 7200 and self.action_count < 20:
                             return True
-        except:
+        except Exception:
             pass
 
         return False
@@ -495,9 +495,7 @@ class HarnessEnforcer:
     def _check_workflow_compliance(self) -> bool:
         """Check if blackboard workflow is being followed"""
         if self.current_phase not in ["PLANNING", "REVIEW", "EXECUTING"]:
-            if self.action_count < 5:
-                return True  # Allow early actions
-            return False
+            return self.action_count < 5  # Allow early actions
         return True
 
     def _check_health_checks_done(self) -> bool:
@@ -579,7 +577,7 @@ class HarnessEnforcer:
             }
             with open(reprime_trigger, "w") as f:
                 json.dump(trigger_data, f, indent=2)
-        except:
+        except Exception:
             pass
 
     # =========================================================================

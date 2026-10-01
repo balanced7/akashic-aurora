@@ -46,7 +46,7 @@ def check_redis():
         r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True, socket_connect_timeout=2)
         r.ping()
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -89,11 +89,11 @@ def get_active_agents():
                 try:
                     info = json.loads(data)
                     agents.append(info)
-                except:
+                except Exception:
                     pass
 
         return agents
-    except:
+    except Exception:
         return []
 
 
@@ -201,10 +201,10 @@ def option_generator_analyst():
         return None, None
 
     print("\nRunning initialization for Generator...")
-    gen_result = run_initialization("generator")
+    run_initialization("generator")
 
     print("\nRunning initialization for Analyst...")
-    analyst_result = run_initialization("analyst")
+    run_initialization("analyst")
 
     print("\n" + "-" * 60)
     print("CURRENT AGENTS:")
@@ -368,7 +368,7 @@ def option_status():
             print(f"  Turn: {turn.decode() if turn else '0'}")
             print(f"  Proposal Ready: {proposal_ready == b'1' if proposal_ready else False}")
             print(f"  Verdict Ready: {verdict_ready == b'1' if verdict_ready else False}")
-        except:
+        except Exception:
             pass
 
         # Check message queues
@@ -380,7 +380,7 @@ def option_status():
             broadcast_len = r.llen("msg:broadcast")
             print("\nMessage Bus:")
             print(f"  Broadcast messages: {broadcast_len}")
-        except:
+        except Exception:
             pass
     else:
         print("\nStart Redis with: docker start wsl-ai-redis")

@@ -23,6 +23,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import datetime
+from typing import ClassVar
 
 import redis
 
@@ -46,7 +47,7 @@ def _get_redis_client():
         r = redis.Redis(connection_pool=_get_redis_pool())
         r.ping()
         return r, True
-    except:
+    except Exception:
         return None, False
 
 
@@ -54,7 +55,7 @@ class ErrorDoc:
     """Categorized error documentation"""
 
     # Define error categories
-    SYSTEMS = [
+    SYSTEMS: ClassVar[list[str]] = [
         "launcher",  # OpenCode_primed.bat issues
         "verification",  # Launch verification failures
         "logging",  # Session/backup logger issues
@@ -65,7 +66,7 @@ class ErrorDoc:
         "system",  # System-level issues
     ]
 
-    ERROR_TYPES = [
+    ERROR_TYPES: ClassVar[list[str]] = [
         "python_not_found",
         "window_not_found",
         "process_failed",
@@ -95,7 +96,7 @@ class ErrorDoc:
             try:
                 self.redis.rpush("errors:faults", json.dumps(entry))
                 self.redis.ltrim("errors:faults", -100, -1)
-            except:
+            except Exception:
                 pass
 
     def log_error(self, system, error_type, details, severity="medium"):
@@ -133,7 +134,7 @@ class ErrorDoc:
                     if info.get("status") == "active":
                         entry["session"] = sid
                         break
-            except:
+            except Exception:
                 pass
 
         # Invalidate cache on new error
@@ -150,10 +151,9 @@ class ErrorDoc:
                 for line in f:
                     try:
                         entry = json.loads(line)
-                        if entry.get("type") == "error_doc":
-                            if system is None or entry.get("system") == system:
-                                errors.append(entry)
-                    except:
+                        if entry.get("type") == "error_doc" and (system is None or entry.get("system") == system):
+                            errors.append(entry)
+                    except Exception:
                         pass
         return errors
 
@@ -252,7 +252,7 @@ def create_error_handling_guide():
 - **Fix**: Use full path to Python in BAT file (already done)
 - **Verify**: Run launch_verifier with extended timeout
 
-### Verification Issues  
+### Verification Issues
 - **Problem**: Launch appears to succeed but actually fails
 - **Check**: Use both process check AND screen OCR
 - **Fix**: Check for error keywords in screen text
