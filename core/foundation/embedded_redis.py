@@ -269,6 +269,7 @@ def _install_hooks() -> None:
     orig_run = bfs.BaseFakeSocket._run_command
 
     def _run_command(self, func, sig, args, from_script):
+        args = _complete_range_end(sig.name, args)
         prev = getattr(current, "write", False)
         current.write = sig.name in write_cmds
         try:
@@ -309,6 +310,27 @@ def _install_hooks() -> None:
     for name in ("info", "touch"):
         setattr(bfs.BaseFakeSocket, name, getattr(_AuroraExtras, name))
     bfs.BaseFakeSocket._aurora_hooked = True
+
+
+_SEQ_MAX = b"18446744073709551615"
+
+
+def _complete_range_end(name: str, args):
+    """Complete an INCOMPLETE stream id (bare milliseconds) used as a range's UPPER bound the way
+    Redis does: `<ms>` means `<ms>-<max seq>` there. fakeredis completes it as `<ms>-0`, so
+    `XREVRANGE k 1000 1000` returned only 1000-0 and silently dropped 1000-1, 1000-2 -- every
+    entry written in the same millisecond. The bus's lane-twin windows query exactly that way,
+    and missed twins re-delivered packets as legacy stragglers. Lower bounds are already right.
+    """
+    pos = 2 if name == "xrange" else 1 if name == "xrevrange" else None
+    if pos is None or len(args) <= pos:
+        return args
+    end = args[pos]
+    raw = end.encode() if isinstance(end, str) else bytes(end)
+    if raw.isdigit():
+        args = list(args)
+        args[pos] = raw + b"-" + _SEQ_MAX
+    return args
 
 
 def _write_commands() -> Set[str]:
