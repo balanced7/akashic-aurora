@@ -45,7 +45,7 @@ def _mk(p: Path, text: str) -> Path:
     return p
 
 
-@pytest.fixture()
+@pytest.fixture
 def rig(tmp_path):
     src = tmp_path / "projects" / "proj-a"
     a = _mk(src / "aaaaaaaa-1111.jsonl", '{"type":"user","t":1}\n')

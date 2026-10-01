@@ -63,7 +63,7 @@ SAMPLE = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 def acl_file(tmp_path, monkeypatch):
     p = tmp_path / "acl.json"
     p.write_text(json.dumps(SAMPLE, indent=2), encoding="utf-8")

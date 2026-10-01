@@ -40,7 +40,7 @@ class _FakeLog:
         return None
 
 
-@pytest.fixture()
+@pytest.fixture
 def tb(monkeypatch, tmp_path):
     from core.comm import toolbox as tbmod
 

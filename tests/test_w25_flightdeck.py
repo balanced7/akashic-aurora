@@ -40,7 +40,7 @@ def _setup_commits(monkeypatch):
     monkeypatch.setattr("subprocess.run", lambda *a, **kw: _R())
 
 
-@pytest.fixture()
+@pytest.fixture
 def patched(monkeypatch):
     monkeypatch.setattr(
         "core.comm.doctor.examine_fleet",

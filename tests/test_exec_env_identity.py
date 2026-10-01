@@ -40,7 +40,7 @@ def _capture_run(store):
     return fake_run
 
 
-@pytest.fixture()
+@pytest.fixture
 def box(monkeypatch):
     class _Trust:
         def has(self, cap):

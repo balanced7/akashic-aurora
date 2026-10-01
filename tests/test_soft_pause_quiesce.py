@@ -45,7 +45,7 @@ def _online():
     return Bus("t-softpause").online
 
 
-@pytest.fixture()
+@pytest.fixture
 def ns(monkeypatch):
     n = f"t-soft-{uuid.uuid4().hex[:8]}"
     monkeypatch.setenv("BIFROST_NAMESPACE", n)

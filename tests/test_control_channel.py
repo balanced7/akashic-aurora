@@ -21,7 +21,7 @@ import pytest
 from core.comm import control_channel as cc
 
 
-@pytest.fixture()
+@pytest.fixture
 def chan():
     # A port well away from the real base so a live runner cannot collide with the test.
     ch = cc.ControlChannel("testagent", port=cc.CONTROL_PORT_BASE + 900)

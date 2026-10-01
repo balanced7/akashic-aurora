@@ -22,7 +22,7 @@ except Exception:
 pytestmark = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offline")
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t076-{uuid.uuid4().hex[:8]}"
     yield aid

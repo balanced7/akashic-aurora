@@ -108,7 +108,7 @@ def _beats(ns: str):
     return {(r.get("agent"), r.get("sid8")): r for r in read_roster(ns)}
 
 
-@pytest.fixture()
+@pytest.fixture
 def ns():
     return f"hbwire{uuid.uuid4().hex[:8]}"
 

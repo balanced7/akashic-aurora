@@ -13,12 +13,12 @@ import pytest
 seal = pytest.importorskip("core.comm.bridge_seal")
 
 
-@pytest.fixture()
+@pytest.fixture
 def alice():
     return seal.generate_identity()
 
 
-@pytest.fixture()
+@pytest.fixture
 def bob():
     return seal.generate_identity()
 

@@ -14,7 +14,7 @@ import pytest
 from core.fleet import seat_model as SM
 
 
-@pytest.fixture()
+@pytest.fixture
 def store(tmp_path, monkeypatch):
     p = tmp_path / "seat_model.json"
     monkeypatch.setattr(SM, "STORE", p)

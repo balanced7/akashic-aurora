@@ -58,7 +58,7 @@ FENCE = "always fence the migration path before shipping it"
 HARVEST = "make the harvest ledger visible on every boot"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -236,7 +236,7 @@ def test_p7_the_watcher_has_no_write_path(db):
 # matching the 104 real sessions exactly. It was never persisted into `events`, so no
 # consumer could apply it. Three read the operator axis (directives, position, stats); all
 # three inherited the contamination. Persisting the flag fixes the class, not the site.
-@pytest.fixture()
+@pytest.fixture
 def db_with_fan(tmp_path):
     """Two real operator sessions, plus a three-voter fan carrying ONE authored brief --
     the live shape in miniature. The fan lives under `subagents/`, which is the marker

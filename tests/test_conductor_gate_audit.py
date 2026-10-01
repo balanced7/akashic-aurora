@@ -58,7 +58,7 @@ def _op_absent():
     return False
 
 
-@pytest.fixture()
+@pytest.fixture
 def prov(tmp_path, monkeypatch):
     """Redirect the audit log. If this fixture does not actually redirect, the pins
     below are writing into the production trail -- which is the very defect."""

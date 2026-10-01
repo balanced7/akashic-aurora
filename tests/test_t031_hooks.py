@@ -51,7 +51,7 @@ _FAKE_PIN = os.path.join(_ROOT, "tests", "test_zzz_rb99_fakepin.py")
 _FAKE_BODY = '"""RB-99 pins -- pre-registered acceptance (committed BEFORE impl)."""\n'
 
 
-@pytest.fixture()
+@pytest.fixture
 def fake_pin():
     with open(_FAKE_PIN, "w", encoding="utf-8") as f:
         f.write(_FAKE_BODY)

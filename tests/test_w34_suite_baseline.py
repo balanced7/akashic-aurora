@@ -36,7 +36,7 @@ FAILED tests/test_t068_r3_preflight.py::test_p9_double_fail_sends_anyway_loud
 """
 
 
-@pytest.fixture()
+@pytest.fixture
 def qfile(tmp_path, monkeypatch):
     p = str(tmp_path / "suite_baseline.json")
     monkeypatch.setattr(sb, "BASELINE_PATH", p)

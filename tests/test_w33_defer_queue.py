@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.coord import defer_queue as dq
 
 
-@pytest.fixture()
+@pytest.fixture
 def qfile(tmp_path, monkeypatch):
     p = str(tmp_path / "defer_queue.json")
     monkeypatch.setattr(dq, "QUEUE_PATH", p)

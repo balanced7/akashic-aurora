@@ -44,7 +44,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()

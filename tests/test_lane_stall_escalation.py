@@ -181,7 +181,7 @@ class FakeRedis:
         return L[a:] if b == -1 else L[a : b + 1]
 
 
-@pytest.fixture()
+@pytest.fixture
 def fake(monkeypatch):
     c = FakeRedis()
     monkeypatch.setenv("BIFROST_NAMESPACE", "t-lane-stall")

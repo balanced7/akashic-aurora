@@ -84,7 +84,7 @@ def exact(line, notes_by_slot, **per_slot):
 
 
 # ============================================================================================ the deck
-@pytest.fixture()
+@pytest.fixture
 def deck(tmp_path):
     return DeckStore(tmp_path / "jam")
 

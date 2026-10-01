@@ -82,7 +82,7 @@ def _isolate_state(tmp_path, monkeypatch):
     RR._reset_cache()
 
 
-@pytest.fixture()
+@pytest.fixture
 def outbox(tmp_path, monkeypatch):
     """A private outbox file per test — durability is pinned by re-reading from disk."""
     p = tmp_path / "outbox.jsonl"

@@ -31,7 +31,7 @@ from core.foundation.store import DictStore
 from core.learning.learning_store import LearningStore
 
 
-@pytest.fixture()
+@pytest.fixture
 def ls():
     store = DictStore()
     s = LearningStore(store=store)

@@ -32,7 +32,7 @@ def _online():
     return Bus("t-w16").online
 
 
-@pytest.fixture()
+@pytest.fixture
 def agents(monkeypatch):
     ns = _ns_env(monkeypatch)
     return ns

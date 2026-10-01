@@ -87,14 +87,14 @@ def _make_clip(path: Path, *, with_audio: bool) -> None:
     out.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def clip_with_audio(tmp_path) -> Path:
     path = tmp_path / "clip.mp4"
     _make_clip(path, with_audio=True)
     return path
 
 
-@pytest.fixture()
+@pytest.fixture
 def clip_no_audio(tmp_path) -> Path:
     path = tmp_path / "clip_silent.mp4"
     _make_clip(path, with_audio=False)

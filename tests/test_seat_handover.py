@@ -50,7 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 AGENT = "t-handover-agent"
 
 
-@pytest.fixture()
+@pytest.fixture
 def seat(monkeypatch, tmp_path):
     monkeypatch.setenv("BIFROST_NAMESPACE", f"t-handover-{os.getpid()}")
     monkeypatch.setenv("TEMP", str(tmp_path))
@@ -60,7 +60,7 @@ def seat(monkeypatch, tmp_path):
     return rl
 
 
-@pytest.fixture()
+@pytest.fixture
 def sid():
     """A session-id prefix unique PER RUN.
 

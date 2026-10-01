@@ -39,7 +39,7 @@ def _staged_files(work):
     return sorted(r.stdout.split())
 
 
-@pytest.fixture()
+@pytest.fixture
 def twin_repo(tmp_path):
     """A repo shared by two seats, with a local bare origin so mirror's push succeeds."""
     work = tmp_path / "work"

@@ -43,7 +43,7 @@ class _Bus:
         return list(type(self).msgs)
 
 
-@pytest.fixture()
+@pytest.fixture
 def patched(monkeypatch, tmp_path):
     _Bus.calls = []
     _Bus.msgs = [_Msg("request", "deepseek"), _Msg("note", "kimi"), _Msg("trace", "claude"), _Msg("reply", "deepseek")]

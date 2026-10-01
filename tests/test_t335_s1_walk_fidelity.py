@@ -79,7 +79,7 @@ def _seed_events(db_path, targets):
     con.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def tied(tmp_path, monkeypatch):
     """Both planes repointed together -- the module says they are repointable for exactly
     this reason, and a walk-fidelity pin that wrote to the live journal would be recording

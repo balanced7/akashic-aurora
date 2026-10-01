@@ -70,7 +70,7 @@ class FixtureResolver:
         return []
 
 
-@pytest.fixture()
+@pytest.fixture
 def jam(tmp_path):
     app = App([str(tmp_path / "library")], takes_root=tmp_path / "takes", performance_root=tmp_path / "perf")
     epoch = Epoch()

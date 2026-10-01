@@ -57,7 +57,7 @@ G = "session_gamma"
 D = "session_delta"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()

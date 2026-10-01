@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm.doctor import format_pulse, pulse
 
 
-@pytest.fixture()
+@pytest.fixture
 def patched(monkeypatch):
     monkeypatch.setattr("core.comm.doctor.known_agents", lambda: ["stormy", "busy", "calm", "legacy"])
 

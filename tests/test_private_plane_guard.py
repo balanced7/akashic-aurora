@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.trust import private_plane as PP  # noqa: E402
 
 
-@pytest.fixture()
+@pytest.fixture
 def plane(tmp_path):
     """A private plane holding one assessment, mirroring the live shape."""
     # SYNTHETIC identifiers on purpose. The first draft used the REAL atom id, and the guard

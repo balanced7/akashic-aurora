@@ -89,7 +89,7 @@ class _Bus:
         return f"bifrost:inbox:{agent}"
 
 
-@pytest.fixture()
+@pytest.fixture
 def silent_wired(monkeypatch):
     monkeypatch.setenv("AKASHIC_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/1/g")
     monkeypatch.setenv("AKASHIC_DISCORD_FORUM_WEBHOOK", "https://discord.com/api/webhooks/2/f")

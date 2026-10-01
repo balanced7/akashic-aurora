@@ -68,7 +68,7 @@ def _env(seat=None, door=None, **extra):
     return env
 
 
-@pytest.fixture()
+@pytest.fixture
 def pub_repo(tmp_path):
     """(work, bare): a work repo whose origin is a local bare repo, seed commit published."""
     work, bare = tmp_path / "work", tmp_path / "origin.git"

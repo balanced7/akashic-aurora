@@ -37,7 +37,7 @@ def _run_hook(agent: str, session_id: str):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t086s3-{uuid.uuid4().hex[:8]}"
     yield aid

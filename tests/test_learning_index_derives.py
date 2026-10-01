@@ -45,7 +45,7 @@ def _fresh_store():
     return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()
 
 
-@pytest.fixture()
+@pytest.fixture
 def ls(monkeypatch, tmp_path):
     monkeypatch.setenv("_AISETUP_TEST_ISOLATED", "1")
     monkeypatch.setenv("AI_SETUP", str(tmp_path))

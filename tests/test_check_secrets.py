@@ -45,7 +45,7 @@ def _git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True).stdout
 
 
-@pytest.fixture()
+@pytest.fixture
 def repo(tmp_path):
     r = tmp_path / "repo"
     r.mkdir()

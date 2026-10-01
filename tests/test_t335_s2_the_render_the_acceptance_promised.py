@@ -92,7 +92,7 @@ def _seed_events(db_path, targets):
     con.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def tied(tmp_path, monkeypatch):
     """Both planes repointed together. A render pin that walked the LIVE route would write
     fake traversals into the very record this row exists to make trustworthy -- the walk is a

@@ -17,7 +17,7 @@ from arsenal.serve import App, Server, clip_id_for  # noqa: E402
 PAYLOAD = bytes(range(256)) * 40  # 10240 bytes; not a real video, just bytes to stream
 
 
-@pytest.fixture()
+@pytest.fixture
 def server(tmp_path):
     library = tmp_path / "library"
     library.mkdir()

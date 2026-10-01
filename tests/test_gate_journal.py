@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm import door_probe as DP
 
 
-@pytest.fixture()
+@pytest.fixture
 def paths(tmp_path, monkeypatch):
     """Redirect BOTH sinks into tmp so a pin can never touch the live gate history."""
     cache = tmp_path / "door" / "last_probe.json"

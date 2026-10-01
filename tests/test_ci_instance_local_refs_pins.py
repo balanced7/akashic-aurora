@@ -67,7 +67,7 @@ def test_partition_routes_ignored_to_warn_and_the_rest_to_fail():
 
 
 # --------------------------------------------- the CI condition, reproduced on this box
-@pytest.fixture()
+@pytest.fixture
 def acl_looks_absent(monkeypatch):
     """Make security/acl.json look missing, exactly as it is in a fresh clone."""
     real_exists = os.path.exists

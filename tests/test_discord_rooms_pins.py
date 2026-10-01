@@ -52,7 +52,7 @@ class _Spy:
         return "789012345678"  # the thread id Discord would mint
 
 
-@pytest.fixture()
+@pytest.fixture
 def env(tmp_path, monkeypatch):
     reg = tmp_path / "discord_rooms.json"
     monkeypatch.setenv("AKASHIC_DISCORD_ROOMS_REGISTRY", str(reg))

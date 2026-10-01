@@ -1363,7 +1363,7 @@ def test_rough_tempo_stays_fast_on_an_hour_of_onsets():
 
 
 # ================================================================================================== routes
-@pytest.fixture()
+@pytest.fixture
 def server(tmp_path):
     root = tmp_path / "performance"
     srv = Server(0, App([str(tmp_path)], takes_root=tmp_path / "takes", performance_root=root))

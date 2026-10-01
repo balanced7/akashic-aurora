@@ -29,7 +29,7 @@ pytestmark = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offlin
 GRACE, STALE = 300, 900
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t083c1-{uuid.uuid4().hex[:8]}"
     yield aid

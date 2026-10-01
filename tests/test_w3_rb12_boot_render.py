@@ -31,7 +31,7 @@ from core.foundation.store import DictStore
 from core.learning.agent_memory import AgentMemory, Decision
 
 
-@pytest.fixture()
+@pytest.fixture
 def mem(monkeypatch):
     m = AgentMemory(store=DictStore())
     monkeypatch.setattr("core.learning.agent_memory.get_agent_memory", lambda: m)

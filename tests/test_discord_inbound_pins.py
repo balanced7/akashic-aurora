@@ -67,7 +67,7 @@ def _fake_callsigns(monkeypatch):
     monkeypatch.setattr(_R, "get", lambda a: {"callsign": table[a]} if a in table else None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def cfg(tmp_path, monkeypatch):
     idf = tmp_path / "operator_id"
     idf.write_text("111222333444555666\n", encoding="utf-8")

@@ -63,7 +63,7 @@ class _FakeBus:
         return f"bifrost:inbox:{agent}"
 
 
-@pytest.fixture()
+@pytest.fixture
 def wired(monkeypatch):
     monkeypatch.setenv("AKASHIC_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/1/g")
     monkeypatch.setenv("AKASHIC_DISCORD_FORUM_WEBHOOK", "https://discord.com/api/webhooks/2/f")

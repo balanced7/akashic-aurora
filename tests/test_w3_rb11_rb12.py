@@ -42,7 +42,7 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _BUILT, reason="RB-11/RB-12 pins pre-registered; impl pending (assertions frozen)")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mem():
     return AgentMemory(store=DictStore())
 

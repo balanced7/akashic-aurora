@@ -67,7 +67,7 @@ def _fresh_cache():
     return {"mtime": None, "grants": {}}
 
 
-@pytest.fixture()
+@pytest.fixture
 def floor_state(monkeypatch, tmp_path):
     """A fresh registry: empty mtime cache, once-flag cleared, ACL pointed into tmp_path.
     Returns the ACL path (not yet created -> MISSING)."""

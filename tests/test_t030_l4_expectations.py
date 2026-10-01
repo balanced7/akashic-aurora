@@ -51,7 +51,7 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     """(sender, recipient) with teardown of every touched key. Both cursors park at the
     live broadcast tail (harness-only, the RB-21 _quiesce lesson: a live runner's trace

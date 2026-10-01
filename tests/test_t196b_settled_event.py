@@ -55,7 +55,7 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     """(sender, recipient), teardown of every touched key (idiom: test_t030_l4)."""
     s = f"t196bsnd-{uuid.uuid4().hex[:8]}"

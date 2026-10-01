@@ -38,7 +38,7 @@ def _redis():
     return None
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     r = _redis()
     if r is None:

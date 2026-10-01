@@ -66,7 +66,7 @@ STEPS = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def env(tmp_path, monkeypatch):
     """Isolated journal + projection db."""
     journal = tmp_path / "routes.jsonl"

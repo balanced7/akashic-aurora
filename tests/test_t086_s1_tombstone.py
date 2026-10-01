@@ -33,7 +33,7 @@ GRACE, STALE = 300, 900
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t086s1-{uuid.uuid4().hex[:8]}"
     yield aid
@@ -46,7 +46,7 @@ def agent():
             pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def sid():
     s = f"t086sid{uuid.uuid4().hex[:10]}"
     yield s

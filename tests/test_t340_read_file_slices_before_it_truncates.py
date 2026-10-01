@@ -45,7 +45,7 @@ sys.path.insert(0, ROOT)
 from core.comm import toolbox as TB  # noqa: E402
 
 
-@pytest.fixture()
+@pytest.fixture
 def box(tmp_path):
     return TB.ToolBox(tmp_path, allow_exec=False, trust="member", allow_secrets=False, confirm=None)
 

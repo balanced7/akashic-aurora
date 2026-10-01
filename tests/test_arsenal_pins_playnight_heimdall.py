@@ -368,7 +368,7 @@ def test_list_presets_only_frag_files(tmp_path):
 # ---------------------------------------------------------------- GET /api/presets
 
 
-@pytest.fixture()
+@pytest.fixture
 def presets_server(tmp_path):
     from arsenal.serve import App, Server  # noqa: E402 (same pattern as test_arsenal_serve)
 

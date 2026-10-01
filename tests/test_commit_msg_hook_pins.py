@@ -50,7 +50,7 @@ HOOKS = ROOT / "scripts" / "githooks"
 MARKER = "synthetic-sample-dossier"
 
 
-@pytest.fixture()
+@pytest.fixture
 def plane(tmp_path):
     """A private plane holding one assessment, mirroring the live shape."""
     priv = tmp_path / "private" / "assessments"

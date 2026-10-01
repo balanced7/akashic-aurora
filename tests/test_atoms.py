@@ -66,7 +66,7 @@ class FakeStore:
         raise RuntimeError("cas conflict")
 
 
-@pytest.fixture()
+@pytest.fixture
 def fam(tmp_path):
     return at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path))
 

@@ -42,7 +42,7 @@ def run(argv, capsys):
     return code, out, err
 
 
-@pytest.fixture()
+@pytest.fixture
 def srv(tmp_path):
     app = App([str(tmp_path / "library")], takes_root=tmp_path / "takes", performance_root=tmp_path / "perf")
     app.cues = CueHub(heartbeat_s=0.3, id_base=0)

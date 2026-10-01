@@ -46,7 +46,7 @@ pytestmark = pytest.mark.skipif(not _W3_BUILT, reason="W3/RB-8 pins pre-register
 TITLE = "where-we-are"
 
 
-@pytest.fixture()
+@pytest.fixture
 def mem():
     return AgentMemory(store=DictStore())
 

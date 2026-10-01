@@ -39,7 +39,7 @@ def _mod():
     return secret_intake
 
 
-@pytest.fixture()
+@pytest.fixture
 def vault(tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(tmp_path))
     return tmp_path

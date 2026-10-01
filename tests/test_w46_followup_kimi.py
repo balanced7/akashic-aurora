@@ -94,7 +94,7 @@ from core.coord import defer_queue as dq
 from core.toolbelt import followup as fq
 
 
-@pytest.fixture()
+@pytest.fixture
 def stage(tmp_path, monkeypatch):
     """Repo root + queue both sandboxed to tmp_path (the dq.QUEUE_PATH pattern)."""
     monkeypatch.setattr(fq, "ROOT", str(tmp_path))

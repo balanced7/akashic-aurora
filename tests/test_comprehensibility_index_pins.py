@@ -66,7 +66,7 @@ def test_gitignored_answers_the_real_clean_checkout_shape():
 
 
 # ------------------------------------------------ 1. the index, not the filesystem
-@pytest.fixture()
+@pytest.fixture
 def throwaway_repo(tmp_path):
     """A real git repo holding ONE committed living doc that cites two paths, plus one tracked
     test. After the commit both cited targets are made to EXIST on disk: one UNTRACKED, one

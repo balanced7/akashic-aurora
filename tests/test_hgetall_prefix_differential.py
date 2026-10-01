@@ -20,7 +20,7 @@ from core.foundation.sqlite_store import SqliteStore
 from core.foundation.store import FileStore
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair(tmp_path):
     return FileStore(str(tmp_path / "d.json")), SqliteStore(str(tmp_path / "d.db"))
 

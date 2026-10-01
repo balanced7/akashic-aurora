@@ -27,7 +27,7 @@ from core.coord import task_ledger as tl
 TWO_H = 2 * 3600 * 1000
 
 
-@pytest.fixture()
+@pytest.fixture
 def ledger(monkeypatch):
     monkeypatch.setattr(
         tl,

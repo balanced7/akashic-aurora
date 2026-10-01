@@ -34,7 +34,7 @@ from core.comm.doctor import (  # noqa: E402
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def patched(monkeypatch):
     monkeypatch.setattr(
         "core.comm.doctor.examine_fleet",

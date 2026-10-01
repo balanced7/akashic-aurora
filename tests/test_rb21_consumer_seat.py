@@ -52,7 +52,7 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"rb21test-{uuid.uuid4().hex[:8]}"
     yield aid

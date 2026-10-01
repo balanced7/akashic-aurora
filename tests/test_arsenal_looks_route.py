@@ -28,7 +28,7 @@ def preset(pid="look-a", name="Moonlit practice", **settings):
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def looks(tmp_path):
     app = App([str(tmp_path / "library")], takes_root=tmp_path / "takes", performance_root=tmp_path / "perf")
     srv = Server(0, app)

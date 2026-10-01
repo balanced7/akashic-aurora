@@ -73,7 +73,7 @@ class _StubLog:
         return list(self._events)
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     s = f"t196dsnd-{uuid.uuid4().hex[:8]}"
     r = f"t196drcv-{uuid.uuid4().hex[:8]}"

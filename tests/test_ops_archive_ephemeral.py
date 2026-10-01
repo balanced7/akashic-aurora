@@ -66,7 +66,7 @@ class FakeRedis:
         self._s.setdefault(k, []).append((mid, payload))
 
 
-@pytest.fixture()
+@pytest.fixture
 def rig(tmp_path):
     r = FakeRedis(
         {

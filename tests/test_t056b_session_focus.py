@@ -41,7 +41,7 @@ def _client():
     return c
 
 
-@pytest.fixture()
+@pytest.fixture
 def env(monkeypatch, tmp_path):
     """A throwaway namespace, a throwaway ledger, and SF pointed at both."""
     ns = f"t056b_{uuid.uuid4().hex[:8]}"

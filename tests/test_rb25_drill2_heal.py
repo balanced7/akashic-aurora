@@ -42,7 +42,7 @@ pytestmark = pytest.mark.skipif(not _ONLINE, reason="drill needs a live Redis on
 _HAS_REPORT = hasattr(HybridStore, "heal_report")
 
 
-@pytest.fixture()
+@pytest.fixture
 def store():
     # check_drift/heal_report scan the FULL keyspace ("*"), so a shared db15 lets other
     # tests' residue leak into this drill's drift (exact-match assertions failed in the

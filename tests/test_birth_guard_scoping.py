@@ -38,7 +38,7 @@ STRANGER = "research/in-flight/stranger-position.md"  # REFUSE since the P3 flip
 MINE = "docs/MINE.md"  # crown doc -- allowed outright
 
 
-@pytest.fixture()
+@pytest.fixture
 def guard():
     spec = importlib.util.spec_from_file_location("birth_guard_under_test", GUARD_PATH)
     mod = importlib.util.module_from_spec(spec)

@@ -26,12 +26,12 @@ seal = pytest.importorskip("core.comm.bridge_seal", reason="bridge_seal not buil
 
 
 # --------------------------------------------------------------------------------------- fixtures
-@pytest.fixture()
+@pytest.fixture
 def alice():
     return seal.generate_identity()
 
 
-@pytest.fixture()
+@pytest.fixture
 def bob():
     return seal.generate_identity()
 

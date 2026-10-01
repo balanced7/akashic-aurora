@@ -59,7 +59,7 @@ needs_built = pytest.mark.skipif(not _BUILT, reason="ask_peer pending (pins froz
 needs_live = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offline")
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     s = f"t196csnd-{uuid.uuid4().hex[:8]}"
     r = f"t196crcv-{uuid.uuid4().hex[:8]}"

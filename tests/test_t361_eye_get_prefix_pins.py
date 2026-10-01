@@ -36,7 +36,7 @@ SESS_B = "feed0001-2222-4222-8222-222222222222"
 SESS_C = "cafe0002-3333-4333-8333-333333333333"  # unique at sid8
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     p = tmp_path / "eye.db"
     con = eye._connect(p)

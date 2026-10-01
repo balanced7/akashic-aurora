@@ -40,7 +40,7 @@ class Ns:
         return None
 
 
-@pytest.fixture()
+@pytest.fixture
 def mem(monkeypatch):
     m = AgentMemory(store=DictStore())
     monkeypatch.setattr("core.learning.agent_memory.get_agent_memory", lambda: m)
