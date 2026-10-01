@@ -33,7 +33,7 @@ TOOLBOX = os.path.join(ROOT, "core", "comm", "toolbox.py")
 # broken promise; AGENTS.md telling you to call one is.
 CONTRACT_DOCS = ("AGENTS.md", "README.md", "docs/DOORS.md")
 
-_TOOL_DEF = re.compile(r'_fn\("([a-z0-9_]+)"')
+_TOOL_DEF = re.compile(r'_fn\(\s*"([a-z0-9_]+)"')   # the call may wrap: _fn(\n    "name", ...)
 _MCP_DEF = re.compile(r"^\s*async def ([a-z][a-z0-9_]*)\(", re.M)
 
 # A token IMMEDIATELY FOLLOWED BY "(" -- i.e. written as a CALL. Both live false-positive classes
