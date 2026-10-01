@@ -27,6 +27,7 @@ import time
 from typing import Any
 
 from core.foundation.timeutil import now_iso
+import contextlib
 
 
 def _ns() -> str:
@@ -85,10 +86,8 @@ def active(agent: str | None = None, client: Any = None) -> list[dict[str, Any]]
         for k in c.keys(pattern) or []:
             raw = c.get(k)
             if raw:
-                try:
+                with contextlib.suppress(Exception):
                     out.append(json.loads(raw))
-                except Exception:
-                    pass
     except Exception:
         pass
     return out
@@ -173,10 +172,8 @@ def propose(agent: str, plan: dict[str, Any], client: Any = None) -> dict[str, A
         "estimate": str(plan.get("estimate", "")),
         "ts": _now(),
     }
-    try:
+    with contextlib.suppress(Exception):
         c.set(key, json.dumps(payload), ex=PROPOSAL_TTL)
-    except Exception:
-        pass
     return {"ok": True, "round": _round_state(c)}
 
 
@@ -199,10 +196,8 @@ def _round_state(c) -> dict[str, Any]:
         for k in c.keys(f"{_proposal_ns()}:{rid}:*") or []:
             raw = c.get(k)
             if raw:
-                try:
+                with contextlib.suppress(Exception):
                     proposals.append(json.loads(raw))
-                except Exception:
-                    pass
     except Exception:
         pass
     agents = sorted({p["agent"] for p in proposals})

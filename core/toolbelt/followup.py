@@ -186,10 +186,7 @@ def file_followup(
         if it["by"] == by and cmd in it["cmd"]:
             reused_defer = it["id"]
             break
-    if reused_defer:
-        defer_id = reused_defer
-    else:
-        defer_id = _dq.add(by, cmd, needs=needs, why=why)["id"]
+    defer_id = reused_defer or _dq.add(by, cmd, needs=needs, why=why)["id"]
 
     return {
         "qid": qid,

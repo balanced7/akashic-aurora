@@ -171,7 +171,7 @@ def score(
     """
     misses = misses or {}
     per_item: dict[str, list[str]] = {}
-    for who, marks in (labels or {}).items():
+    for marks in (labels or {}).values():
         for key, val in (marks or {}).items():
             v = str(val).lower().strip()
             if v in ("on", "off"):

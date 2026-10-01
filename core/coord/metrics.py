@@ -72,10 +72,7 @@ def is_monotonic_decreasing(entropies: list[float]) -> bool:
     A single value is trivially monotonic; fewer than 2 values is not enough data."""
     if len(entropies) < 2:
         return False
-    for i in range(len(entropies) - 1):
-        if entropies[i] < entropies[i + 1]:  # went UP — not monotonic decreasing
-            return False
-    return True
+    return all(entropies[i] >= entropies[i + 1] for i in range(len(entropies) - 1))
 
 
 # --- correctness (flat or rising?) ---

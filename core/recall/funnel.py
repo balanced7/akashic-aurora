@@ -25,6 +25,7 @@ Everything is fail-soft and injectable: a missing backend yields zeros, never a 
 import json
 from datetime import datetime, timedelta
 from typing import Any
+import contextlib
 
 # The Wave-A gate from docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md: "corpus growth rate measurably up
 # (target 30+ lessons in 30 days)". One place, so every renderer quotes the same bar.
@@ -64,10 +65,8 @@ def snapshot(
     if store is not None:
         try:
             for k in store.keys("recall:use:*"):
-                try:
+                with contextlib.suppress(Exception):
                     use[k[len("recall:use:") :]] = json.loads(store.get(k) or "{}")
-                except Exception:
-                    pass
         except Exception:
             pass
     surfaced = sum(int(u.get("surfaced", 0)) for u in use.values())
@@ -169,10 +168,8 @@ def triage(
     if store is not None:
         try:
             for k in store.keys("recall:use:*"):
-                try:
+                with contextlib.suppress(Exception):
                     use[k[len("recall:use:") :]] = json.loads(store.get(k) or "{}")
-                except Exception:
-                    pass
         except Exception:
             pass
     n_corpus = 0

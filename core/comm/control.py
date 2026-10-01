@@ -33,6 +33,7 @@ from datetime import datetime
 from typing import Any
 
 from core.foundation.timeutil import now_iso
+import contextlib
 
 
 def _pyl() -> str:
@@ -142,10 +143,8 @@ def clear_drain(agent: str) -> None:
     c = _client()
     if c is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         c.delete(_drain_key(agent))
-    except Exception:
-        pass
 
 
 # ------------------------------------------------------------------ pause
@@ -484,10 +483,8 @@ def get_activities() -> dict[str, Any]:
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:
-                try:
+                with contextlib.suppress(Exception):
                     out[agent] = json.loads(raw)
-                except Exception:
-                    pass
     except Exception:
         pass
     return out

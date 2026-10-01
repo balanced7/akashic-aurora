@@ -90,9 +90,8 @@ def wake_tier(m: Any, *, agent: str, incarnation: str = "", operator_ids: frozen
     # (to="*", kind=chat) is the read-only lounge Daniil asked for on 2026-08-31 -- "a
     # space to talk to everyone without having to worry about waking everyone at once" --
     # and is ambient by his own ruling. A DIRECTED operator message is never ambient.
-    if operator_ids and frm in operator_ids:
-        if not (kind == "chat" and to == "*"):
-            return OPERATOR
+    if operator_ids and frm in operator_ids and not (kind == "chat" and to == "*"):
+        return OPERATOR
 
     # Broadcasts are visibility, never directed ownership. A broadcast cannot open an
     # obligation on one seat, so it can never be tier 1 or 2, whatever its kind.

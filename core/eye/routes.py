@@ -341,7 +341,7 @@ def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False, by: str
             )
         rid, name, status, walk_count = row
         steps = []
-        for seq, sid, typ, target, receipt, note, is_not, outcome, sup in con.execute(
+        for _seq, sid, typ, target, receipt, note, is_not, outcome, sup in con.execute(
             "SELECT seq, id, type, target, receipt, note, is_not, outcome, "
             "superseded_by FROM route_steps WHERE route_id=? ORDER BY seq",
             (rid,),

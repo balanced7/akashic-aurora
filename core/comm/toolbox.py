@@ -996,7 +996,7 @@ class ToolBox:
     def eye_get(self, address):
         """Resolve session:line to the verbatim record -- the citation primitive."""
         if ":" not in str(address):
-            raise ValueError("an Eye address is 'session:line' -- got %r" % (address,))
+            raise ValueError("an Eye address is 'session:line' -- got {!r}".format(address))
         return self._agent_cli(["eye", "get", str(address)]) + self._eye_disclose("get", address)
 
     def eye_zoom(self, session):
@@ -1250,7 +1250,7 @@ class ToolBox:
             cmd += ["--fan", str(int(fan))]
         if int(max_tokens or 0) > 0:
             cmd += ["--max-tokens", str(int(max_tokens))]
-        return self._agent_cli(cmd + ["--json"])
+        return self._agent_cli([*cmd, "--json"])
 
     def friction(self, agent=None, window_h=168):
         """T200: the collaboration tax, read from evidence that already exists. Writes
@@ -2489,8 +2489,10 @@ class ToolBox:
 
         parts = [
             f"[web_fetch {env.get('final_url') or u}]",
-            f"  status={env.get('status')} cache={env.get('cache')} "
-            f"type={env.get('content_type')} bytes={env.get('bytes')} pdf={env.get('is_pdf')}",
+            (
+                f"  status={env.get('status')} cache={env.get('cache')} "
+                f"type={env.get('content_type')} bytes={env.get('bytes')} pdf={env.get('is_pdf')}"
+            ),
             f"  fetched_at={env.get('fetched_at')} sha256={(env.get('sha256') or '')[:16]}",
         ]
         if (env.get("final_url") or u) != u:

@@ -305,7 +305,7 @@ class Resolver:
             tip, path, inferred = end
             return (1 if (check_remote and self.visible(tip)) else 0, len(path), -inferred)
 
-        tip, path, inferred = max(ends, key=rank)
+        tip, path, _inferred = max(ends, key=rank)
         vis = self.visible(tip) if check_remote else None
         if check_remote and vis is None:
             return Resolution(
@@ -360,7 +360,7 @@ class Resolver:
                 stack.append(
                     (
                         new,
-                        path if expansion else path + [(cur, new, m.shown)],
+                        path if expansion else [*path, (cur, new, m.shown)],
                         seen | {new},
                         inferred + (0 if expansion or m.method == "recorded" else 1),
                     )

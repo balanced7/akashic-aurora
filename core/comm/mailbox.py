@@ -35,6 +35,7 @@ from collections.abc import Callable
 from typing import Any
 
 from core.comm import packet_spec
+import contextlib
 
 # ------------------------------------------------------------------ constants
 
@@ -148,9 +149,7 @@ def _is_mailbox_kind(kind: str, meta: dict[str, Any]) -> bool:
             return False
     except Exception:
         pass
-    if isinstance(meta, dict) and meta.get("display_only"):
-        return False
-    return True
+    return not (isinstance(meta, dict) and meta.get("display_only"))
 
 
 def _keys(ns: str, agent: str) -> dict[str, str]:
@@ -1275,10 +1274,8 @@ def maybe_retire_ghosts(
     if now - last < float(every_h) * 3600.0:
         return {"ok": True, "due": False, "retired": 0}
     res = retire_ghost_mail(ns, agent, client=client, dry_run=False, incarnation=incarnation)
-    try:
+    with contextlib.suppress(Exception):
         client.set(stamp, str(now))
-    except Exception:
-        pass
     # The stamp is set even on a failed sweep: retrying a broken scan on every boot of every session
     # would turn one fault into a permanent tax on startup.
     return {

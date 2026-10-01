@@ -277,7 +277,7 @@ def promoted(
         closed_tasks = _closed_task_ids()
         from datetime import datetime
 
-        for e, mid in zip(events, ids):
+        for e, mid in zip(events, ids, strict=False):
             e["acks"] = amap.get(mid, [])
             d = e.get("detail") or {}
             if now is None or e["acks"] or d.get("kind") not in FLAGGABLE_KINDS:

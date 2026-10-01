@@ -87,10 +87,7 @@ def salience(event: dict[str, Any]) -> int:
 
 
 def _already_beat(event: dict[str, Any]) -> bool:
-    for r in event.get("refs", []) or []:
-        if str(r).startswith(_ALREADY_BEAT_PREFIXES):
-            return True
-    return False
+    return any(str(r).startswith(_ALREADY_BEAT_PREFIXES) for r in event.get("refs", []) or [])
 
 
 def promote_salient(

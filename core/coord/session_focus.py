@@ -36,6 +36,7 @@ from __future__ import annotations
 import os
 import time
 from typing import Any
+import contextlib
 
 
 def _pyl() -> str:
@@ -176,10 +177,8 @@ def clear_focus(session_id: str) -> dict[str, Any]:
     st = current(session_id) or {}
     c = _client()
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.delete(_key(session_id))
-        except Exception:
-            pass
     return {
         "ok": True,
         "was": st.get("task"),
@@ -199,8 +198,13 @@ def current(session_id: str) -> dict[str, Any] | None:
         return None
     if not h:
         return None
-    g = lambda k, d="": h.get(k.encode()) or h.get(k) or d
-    dec = lambda v: v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
+
+    def g(k, d=""):
+        return h.get(k.encode()) or h.get(k) or d
+
+    def dec(v):
+        return v.decode() if isinstance(v, (bytes, bytearray)) else str(v)
+
     out = {"task": dec(g("task")), "agent": dec(g("agent")), "set_at": int(dec(g("set_at", "0")) or 0)}
     for f in ("calls", "hits", "misses", "streak", "nudges", "dismissed", "quiet"):
         try:
@@ -331,10 +335,8 @@ def quiet(session_id: str) -> dict[str, Any]:
     the focus IS right and the work legitimately ranges outside the declared files."""
     c = _client()
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.hset(_key(session_id), "quiet", "1")
-        except Exception:
-            pass
     return current(session_id) or {"ok": True}
 
 
@@ -348,7 +350,10 @@ def health() -> dict[str, Any]:
         for k in c.scan_iter(match=f"{_ns()}:focus:*", count=200):
             s += 1
             h = c.hgetall(k)
-            get = lambda f: int((h.get(f.encode()) or b"0").decode() or 0)
+
+            def get(f):
+                return int((h.get(f.encode()) or b"0").decode() or 0)
+
             n += get("nudges")
             d += get("dismissed")
     except Exception:

@@ -131,7 +131,7 @@ class LadderTracker:
             entries = self._c.xrange(self._inbox_key(str(to_agents[0])), min=mid, max=mid)
             if not entries:
                 return False
-            sid, fields = entries[0]
+            _sid, fields = entries[0]
             fields = {
                 (k.decode() if isinstance(k, bytes) else str(k)): (v.decode() if isinstance(v, bytes) else str(v))
                 for k, v in dict(fields).items()

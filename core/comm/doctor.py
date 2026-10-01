@@ -46,6 +46,7 @@ from typing import Any
 
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled
+import contextlib
 
 
 def _pyl() -> str:
@@ -826,15 +827,11 @@ def unwedge(agent: str) -> dict[str, Any]:
         "locks": [],
     }
     # 1) Doctor findings (the full examine)
-    try:
+    with contextlib.suppress(Exception):
         evidence["findings"] = examine(agent)
-    except Exception:
-        pass
     # 2) Lane health (W16 — age, depth, straggler)
-    try:
+    with contextlib.suppress(Exception):
         evidence["lane_health"] = _probe_lane_health(agent)
-    except Exception:
-        pass
     # 3) Lane depths (work, legacy, trace, sig XLEN + work backlog)
     try:
         from core.comm.lane_depths import lane_depths, work_backlog
@@ -1369,10 +1366,7 @@ def format_flightdeck(fd: dict[str, Any], json_mode: bool = False) -> str:
                 break
         # unwedge-style status from doctor_page
         dp = a.get("doctor_page")
-        if dp:
-            status = dp["state"][:20]
-        else:
-            status = "ok"
+        status = dp["state"][:20] if dp else "ok"
         # lane health
         lh = sec.get("lane_health", {}).get(aid) or {}
         lh_str = ""

@@ -37,6 +37,7 @@ import json
 import time
 import uuid
 from typing import Any
+import contextlib
 
 REHOME_MARK_TTL_S = 7 * 86400
 REHOME_CLAIM_TTL_S = 30
@@ -262,10 +263,8 @@ def reap(
                     continue
 
                 marked = False
-                try:
+                with contextlib.suppress(Exception):
                     marked = bool(client.set(mark, str(new_mid), ex=REHOME_MARK_TTL_S))
-                except Exception:
-                    pass
                 _release_claim(client, claim, token)
                 rec = {
                     "agent": agent,
@@ -293,8 +292,6 @@ def reap(
                 except Exception:
                     pass
         if safe_cursor != reaped_to:
-            try:
+            with contextlib.suppress(Exception):
                 client.hset(seat_cursor_key, "reaper", safe_cursor)
-            except Exception:
-                pass
     return out

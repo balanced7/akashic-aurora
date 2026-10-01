@@ -38,12 +38,18 @@ from typing import Any
 # Named blindness, structural rather than remembered -- the same law the friction reader
 # follows: a report that names no blindness is claiming omniscience.
 BLIND = [
-    "ATTENDED means a process is beating, NOT that it consumes the lane this ask rides "
-    "-- a healthy seat reading the wrong lane still never answers",
-    "readiness is polled, so a peer that comes up AFTER the wait still reads as "
-    "never_attended here; the durable expectation is what actually catches it",
-    "the launcher's own singleton gate is the only single-flight -- two callers racing "
-    "the same absent peer rely on runner_lock, not on anything in this module",
+    (
+        "ATTENDED means a process is beating, NOT that it consumes the lane this ask rides "
+        "-- a healthy seat reading the wrong lane still never answers"
+    ),
+    (
+        "readiness is polled, so a peer that comes up AFTER the wait still reads as "
+        "never_attended here; the durable expectation is what actually catches it"
+    ),
+    (
+        "the launcher's own singleton gate is the only single-flight -- two callers racing "
+        "the same absent peer rely on runner_lock, not on anything in this module"
+    ),
 ]
 
 

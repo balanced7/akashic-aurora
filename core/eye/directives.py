@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 from core.eye.index import _connect, utterance_key
+import contextlib
 
 # Phrase length in words. Short enough that a rephrasing still overlaps, long enough that
 # the match means something -- 5 words is the floor at which "fence the migration path"
@@ -433,18 +434,14 @@ def collect_durable(root: Path | None = None) -> list[str]:
     out: list[str] = []
     for rel in ("state/coord/tasks.json", "session_logs/learnings.jsonl"):
         p = root / rel
-        try:
+        with contextlib.suppress(Exception):
             out.append(p.read_text(encoding="utf-8", errors="replace"))
-        except Exception:
-            pass
     for sub in ("docs/library", "docs"):
         d = root / sub
         if not d.is_dir():
             continue
         for f in list(d.rglob("*.md"))[:2000]:
-            try:
+            with contextlib.suppress(Exception):
                 out.append(f.read_text(encoding="utf-8", errors="replace"))
-            except Exception:
-                pass
         break
     return out

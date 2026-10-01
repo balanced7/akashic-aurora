@@ -31,6 +31,7 @@ from collections.abc import Sequence
 
 from core.foundation.store import Store, create_store
 from core.primitives.ranker import keyword_relevance
+import contextlib
 
 logger = logging.getLogger("embedder")
 
@@ -110,7 +111,7 @@ class Embedder:
         if misses and self.available:  # `available` triggers the lazy load
             try:
                 vecs = self._encode([t for _, t, _ in misses])
-                for (i, _t, h), v in zip(misses, vecs):
+                for (i, _t, h), v in zip(misses, vecs, strict=False):
                     self._mem[h] = v
                     self._cache_put(h, v)
                     out[i] = v
@@ -128,7 +129,7 @@ class Embedder:
         va, vb = self.embed_many([a, b])
         if va is None or vb is None:
             return keyword_relevance(a, b)
-        return float(sum(x * y for x, y in zip(va, vb)))
+        return float(sum(x * y for x, y in zip(va, vb, strict=False)))
 
     def relevance(self, text: str, query: str) -> float:
         """Ranker.relevance_fn adapter -> [0,1]. Cosine (negatives clamped to 0); falls back to
@@ -138,7 +139,7 @@ class Embedder:
         vt, vq = self.embed_many([text, query])
         if vt is None or vq is None:
             return keyword_relevance(text, query)
-        cos = sum(x * y for x, y in zip(vt, vq))
+        cos = sum(x * y for x, y in zip(vt, vq, strict=False))
         return max(0.0, min(1.0, cos))
 
     # ------------------------------------------------------------------ cache
@@ -157,10 +158,8 @@ class Embedder:
     def _cache_put(self, h: str, vec: list[float]) -> None:
         if self.store is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self.store.set(self._cache_key(h), json.dumps(vec))
-        except Exception:
-            pass
 
 
 _INSTANCE: Embedder | None = None

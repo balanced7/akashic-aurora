@@ -45,6 +45,7 @@ from typing import Any
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
 from core.paths import data_root
+import contextlib
 
 # ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
 # The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,
@@ -944,10 +945,8 @@ class LearningStore:
         data = self.store.hgetall(f"learn:experiment:{exp_id}")
         for field in ("metrics", "files_affected"):
             if data and field in data and isinstance(data[field], str):
-                try:
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
                     data[field] = json.loads(data[field])
-                except (json.JSONDecodeError, TypeError):
-                    pass
         return data
 
     # ----- read: search -----
@@ -1230,10 +1229,8 @@ class LearningStore:
                 data = dict(data)
                 for field in ("metrics", "files_affected"):
                     if field in data and isinstance(data[field], str):
-                        try:
+                        with contextlib.suppress(json.JSONDecodeError, TypeError):
                             data[field] = json.loads(data[field])
-                        except (json.JSONDecodeError, TypeError):
-                            pass
                 results.append(data)
             return results
         except Exception as e:

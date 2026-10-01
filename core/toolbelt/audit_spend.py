@@ -41,6 +41,7 @@ import os
 import re
 import time
 from typing import TYPE_CHECKING, Any
+import contextlib
 
 if TYPE_CHECKING:  # annotations only; the RUNTIME import lives in SpendDomain.run
     from core.toolbelt.audit import Row
@@ -85,10 +86,8 @@ def _read_config_defaults(path: str) -> dict[str, float | None]:
         if out[key] is None:
             m = re.search(rf"^{key}\s*=\s*([\d.]+)\s*$", text, re.M)
             if m:
-                try:
+                with contextlib.suppress(ValueError):
                     out[key] = float(m.group(1))
-                except ValueError:
-                    pass
     return out
 
 
@@ -194,25 +193,24 @@ class SpendDomain:
                 )
 
         # ---- S2: config-vs-meter ------------------------------------------
-        if refuse is not None and budget is not None:
-            if float(budget) < float(refuse):
-                rows.append(
-                    Row(
-                        domain=self.name,
-                        entry_ref="kimi:headroom",
-                        belief_a=f"refuse at ${float(refuse):.0f}",
-                        source_b="kimi_chat.py",
-                        belief_b=f"budget ${float(budget):.2f}",
-                        source_a="kimi_spend.json",
-                        verdict="DRIFT",
-                        detail=(
-                            f"meter budget ${float(budget):.2f} is BELOW the refuse "
-                            f"line ${float(refuse):.0f} — the warn/refuse ladder can "
-                            f"never fire before the grant itself is exceeded"
-                        ),
-                        rule="config-vs-meter",
-                    )
+        if refuse is not None and budget is not None and float(budget) < float(refuse):
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:headroom",
+                    belief_a=f"refuse at ${float(refuse):.0f}",
+                    source_b="kimi_chat.py",
+                    belief_b=f"budget ${float(budget):.2f}",
+                    source_a="kimi_spend.json",
+                    verdict="DRIFT",
+                    detail=(
+                        f"meter budget ${float(budget):.2f} is BELOW the refuse "
+                        f"line ${float(refuse):.0f} — the warn/refuse ladder can "
+                        f"never fire before the grant itself is exceeded"
+                    ),
+                    rule="config-vs-meter",
                 )
+            )
 
         # ---- S3: reconcile-hygiene ----------------------------------------
         if seeded and last_recon:

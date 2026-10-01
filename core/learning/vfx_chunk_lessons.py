@@ -68,7 +68,7 @@ def _signal_for(meta: dict[str, Any]) -> dict[str, Any]:
 
     # what_tried carries the SHAPE (where this piece can go, where it came from) and the
     # recommendation carries the RULE, so the two halves land in the fields recall already ranks.
-    tried = "the %s chunk (%s%s)" % (name, kind, (", " + cat) if cat else "")
+    tried = "the {} chunk ({}{})".format(name, kind, (", " + cat) if cat else "")
     if origin:
         tried += ", from " + origin
 
@@ -80,7 +80,7 @@ def _signal_for(meta: dict[str, Any]) -> dict[str, Any]:
     # assumes a different authoring surface, and a projection has to bridge that rather than copy
     # text across. The clause is derived from the chunk's own declared metadata, so it states a
     # fact the header already carries -- it is a rendering, not an invention.
-    trigger = "Use when adding or ordering the %s chunk (%s%s) in a composition, before compiling: " % (
+    trigger = "Use when adding or ordering the {} chunk ({}{}) in a composition, before compiling: ".format(
         name,
         kind,
         (", " + cat) if cat else "",
@@ -163,8 +163,8 @@ def main(argv: list[str] | None = None) -> int:
         print("recall cache rebuilt: %d item(s)" % warm_cache(learning_store=ls))
     except Exception as exc:
         print(
-            "WARNING: adopted, but the recall cache did not rebuild (%s). "
-            'Run: py -c "from core.recall.at_action import warm_cache; warm_cache()"' % exc
+            "WARNING: adopted, but the recall cache did not rebuild ({}). "
+            'Run: py -c "from core.recall.at_action import warm_cache; warm_cache()"'.format(exc)
         )
     return 0
 

@@ -44,7 +44,7 @@ _BRIEF_SECTIONS = ("CHARTER", "INPUTS", "RULES OF ENGAGEMENT", "THE QUESTION", "
 # M1-CF: exactly one tag per verdict line. A verdict line = starts with V<number>.
 _CF_TAGS = ("CERTAIN", "DESIGN", "INFERRED", "UNCERTAIN")
 _VERDICT_RE = re.compile(r"^\s*V\d+[.)]\s", re.MULTILINE)
-_TAG_RE = re.compile(r"\[(%s)\]" % "|".join(_CF_TAGS))
+_TAG_RE = re.compile(r"\[({})\]".format("|".join(_CF_TAGS)))
 # M1-PV: file citations = repo-relative paths with an extension, optionally :line.
 _CITE_RE = re.compile(r"\b((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.[A-Za-z0-9]{1,6})(?::(\d+))?")
 

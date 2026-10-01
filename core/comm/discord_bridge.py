@@ -303,7 +303,7 @@ def chunk(text: str, max_len: int = DISCORD_MAX) -> list:
             current.clear()
 
     def _fits(line: str) -> bool:
-        joined = "\n".join(current + [line])
+        joined = "\n".join([*current, line])
         return len(joined) <= max_len
 
     i = 0
@@ -351,7 +351,7 @@ def chunk(text: str, max_len: int = DISCORD_MAX) -> list:
 
 
 def _len_joined(current: list, block_text: str) -> int:
-    return len("\n".join(current + [block_text]))
+    return len("\n".join([*current, block_text]))
 
 
 def _hard_split(text: str, max_len: int) -> list:

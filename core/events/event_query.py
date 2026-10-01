@@ -153,9 +153,7 @@ class EventQuery:
     def _match(e: dict[str, Any], *, kind: str | None, track: str | None) -> bool:
         if kind is not None and e.get("kind") != kind:
             return False
-        if track is not None and e.get("track") != track:
-            return False
-        return True
+        return not (track is not None and e.get("track") != track)
 
     @staticmethod
     def _to_item(e: dict[str, Any]) -> dict[str, Any]:

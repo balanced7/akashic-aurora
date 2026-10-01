@@ -531,42 +531,7 @@ def discord_help_text() -> str:
     !spawn <sentence> = a task for a fresh claude seat. A lever that swallows a
     sentence because it began with a name would be worse than the lever it replaced
     (seat_launchers.py module docstring)."""
-    return "\n".join(
-        [
-            "**Akashic Aurora — Discord commands**",
-            "",
-            "`!help` — this reference.",
-            "",
-            "`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).",
-            "    e.g. `!spawn vandor` — fresh Vandor seat.",
-            "`!spawn vandor --harness` — INTERACTIVE Claude Code session in its own window: "
-            "one you can watch and type into, and it persists.",
-            "`!spawn vandor --headless` — the one-shot `claude -p` worker: cheap, does the "
-            "task, exits. (What a bare spawn gives you.)",
-            "`!model` — which model new seats request + what each live session reports "
-            "running. `!model opus` pins; `!model default` unpins.",
-            "Talking to a live seat needs NO command: type in its channel (or @-mention it) "
-            "and the message wakes THAT session. Nothing is ever spawned behind your back — "
-            "if the seat is cold you get 📭 and choose the harness yourself.",
-            "`!spawn <task>` — spawn a claude seat to DO the task (any sentence).",
-            "    e.g. `!spawn take the handoff, prior seat wedged`",
-            "`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).",
-            "`!spawn <task> --dangerous` — break-glass: skip all permission gates (only when --arm is provably not enough).",
-            "",
-            "`!revive` — run the recovery reconciler (all rungs: redis, daemon, gateway).",
-            "`!revive <target>` — converge ONE rung. Targets: `redis` | `daemon` | `gateway`.",
-            "    e.g. `!revive daemon` — recycle daemon + its deepseek/kimi runners (picks up code changes).",
-            "    e.g. `!revive gateway` — revive the Discord pump (fixes 'Vandor not replying').",
-            "",
-            "`!status-deep` (or `!statusdeep`) — dry run: report health, heal nothing. Read-only; safe anytime.",
-            "",
-            "`@vandor` / `@heimdall` / `@navi` / `@rill` — summon THAT seat (directed, wakes it).",
-            "`@everyone` — summon every known seat at once (same directed wake, one per seat).",
-            "Plain text, no mention — lands as ambient chat everyone can read; nobody is woken for it.",
-            "",
-            "Heads-up: `!revive` is ROOT-only. `!spawn`/`!help`/`!status-deep` work for any operator.",
-        ]
-    )
+    return "**Akashic Aurora — Discord commands**\n\n`!help` — this reference.\n\n`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).\n    e.g. `!spawn vandor` — fresh Vandor seat.\n`!spawn vandor --harness` — INTERACTIVE Claude Code session in its own window: one you can watch and type into, and it persists.\n`!spawn vandor --headless` — the one-shot `claude -p` worker: cheap, does the task, exits. (What a bare spawn gives you.)\n`!model` — which model new seats request + what each live session reports running. `!model opus` pins; `!model default` unpins.\nTalking to a live seat needs NO command: type in its channel (or @-mention it) and the message wakes THAT session. Nothing is ever spawned behind your back — if the seat is cold you get 📭 and choose the harness yourself.\n`!spawn <task>` — spawn a claude seat to DO the task (any sentence).\n    e.g. `!spawn take the handoff, prior seat wedged`\n`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).\n`!spawn <task> --dangerous` — break-glass: skip all permission gates (only when --arm is provably not enough).\n\n`!revive` — run the recovery reconciler (all rungs: redis, daemon, gateway).\n`!revive <target>` — converge ONE rung. Targets: `redis` | `daemon` | `gateway`.\n    e.g. `!revive daemon` — recycle daemon + its deepseek/kimi runners (picks up code changes).\n    e.g. `!revive gateway` — revive the Discord pump (fixes 'Vandor not replying').\n\n`!status-deep` (or `!statusdeep`) — dry run: report health, heal nothing. Read-only; safe anytime.\n\n`@vandor` / `@heimdall` / `@navi` / `@rill` — summon THAT seat (directed, wakes it).\n`@everyone` — summon every known seat at once (same directed wake, one per seat).\nPlain text, no mention — lands as ambient chat everyone can read; nobody is woken for it.\n\nHeads-up: `!revive` is ROOT-only. `!spawn`/`!help`/`!status-deep` work for any operator."
 
 
 def handle_message(

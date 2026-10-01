@@ -452,7 +452,7 @@ class AtomFamily:
             fwd.append(cur["superseded"])
             cur = self.get(cur["superseded"])
             hops += 1
-        return list(reversed(back)) + [atom_id] + fwd
+        return [*list(reversed(back)), atom_id, *fwd]
 
     def resolve_current(self, atom_id: str) -> dict[str, Any] | None:
         """Resolve-forward: hand back the CURRENT head of atom_id's chain (never read a

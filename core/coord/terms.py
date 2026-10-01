@@ -44,10 +44,12 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 KNOWN_FORKED = ("drained", "unread", "wakeable", "fixed")
 
 BLIND = [
-    "MEASURED NEGATIVE RESULT: ranking by rarity x subsystem-spread does NOT find forked "
-    "semantics. Calibrated against the four known positives, they landed at the 71st, "
-    "94th, 76th and 13th percentile -- three of four in the bottom quartile, i.e. the "
-    "score is anti-correlated with truth. Do not trust this ranking as a detector",
+    (
+        "MEASURED NEGATIVE RESULT: ranking by rarity x subsystem-spread does NOT find forked "
+        "semantics. Calibrated against the four known positives, they landed at the 71st, "
+        "94th, 76th and 13th percentile -- three of four in the bottom quartile, i.e. the "
+        "score is anti-correlated with truth. Do not trust this ranking as a detector"
+    ),
     # CORRECTED 2026-08-07 by the next seat (session 69363f5a), within an hour of
     # inheriting this file. The original entry read: "forked words are LOW-spread ... a
     # word in 100 files has been read by everyone and its meaning was forced into
@@ -59,30 +61,44 @@ BLIND = [
     # as forked across 61 files and 13 subsystems -- the highest-spread term in the repo.
     # The harm was specific: a reader inherits "high spread = socialised", concludes
     # spread is safe, and skips the one word most worth checking.
-    "THE MECHANISM IS UNKNOWN. What is MEASURED is only the entry above: this ranking is "
-    "anti-correlated with the four known positives. The tempting explanation -- that high "
-    "spread socialises meaning -- is FALSIFIED: `open` is forked across 61 files and 13 "
-    "subsystems (W135). Do not infer that a widely-used term is safe",
-    "SELECTION BIAS in the calibration set, stated because it bounds every conclusion "
-    "drawn from it: the four known positives are known BECAUSE they cost me turns. They "
-    "are survivors-of-pain, not a random sample of forks. `open` and `home` were found by "
-    "a fan-out instead, and have no recorded cost -- which is NOT evidence they are cheap, "
-    "only that nothing recorded it. A live hypothesis worth testing (from the next seat): "
-    "spread may predict what a fork COSTS rather than WHETHER one happens, since a "
-    "low-spread fork has fewer readers to catch it",
-    "the four positives are also ordinary ENGLISH words used in specialised senses, "
-    "which is exactly why they fork -- so no rarity filter can separate them from "
-    "English, because they ARE English. Detection is a MEANING-level job (the fan); this "
-    "module's honest role is to supply the CORPUS, not the ranking",
-    "these are CANDIDATES, never a violation: a word discussed across files with no "
-    "LEXICON entry is worth a LOOK, and most undefined words are perfectly fine",
-    "extraction is heuristic -- comments and docstrings only, stopword-filtered, so it "
-    "misses concepts discussed only in code shape and invents nothing about meaning",
-    "spread counts FILES, not occurrences: local jargon used heavily in one module is "
-    "invisible here by design, and a term used once in six files outranks one used two "
-    "hundred times in one",
-    "a term present in LEXICON is treated as defined without checking that the code "
-    "AGREES with that definition -- this finds undefined vocabulary, not wrong definitions",
+    (
+        "THE MECHANISM IS UNKNOWN. What is MEASURED is only the entry above: this ranking is "
+        "anti-correlated with the four known positives. The tempting explanation -- that high "
+        "spread socialises meaning -- is FALSIFIED: `open` is forked across 61 files and 13 "
+        "subsystems (W135). Do not infer that a widely-used term is safe"
+    ),
+    (
+        "SELECTION BIAS in the calibration set, stated because it bounds every conclusion "
+        "drawn from it: the four known positives are known BECAUSE they cost me turns. They "
+        "are survivors-of-pain, not a random sample of forks. `open` and `home` were found by "
+        "a fan-out instead, and have no recorded cost -- which is NOT evidence they are cheap, "
+        "only that nothing recorded it. A live hypothesis worth testing (from the next seat): "
+        "spread may predict what a fork COSTS rather than WHETHER one happens, since a "
+        "low-spread fork has fewer readers to catch it"
+    ),
+    (
+        "the four positives are also ordinary ENGLISH words used in specialised senses, "
+        "which is exactly why they fork -- so no rarity filter can separate them from "
+        "English, because they ARE English. Detection is a MEANING-level job (the fan); this "
+        "module's honest role is to supply the CORPUS, not the ranking"
+    ),
+    (
+        "these are CANDIDATES, never a violation: a word discussed across files with no "
+        "LEXICON entry is worth a LOOK, and most undefined words are perfectly fine"
+    ),
+    (
+        "extraction is heuristic -- comments and docstrings only, stopword-filtered, so it "
+        "misses concepts discussed only in code shape and invents nothing about meaning"
+    ),
+    (
+        "spread counts FILES, not occurrences: local jargon used heavily in one module is "
+        "invisible here by design, and a term used once in six files outranks one used two "
+        "hundred times in one"
+    ),
+    (
+        "a term present in LEXICON is treated as defined without checking that the code "
+        "AGREES with that definition -- this finds undefined vocabulary, not wrong definitions"
+    ),
 ]
 
 #: Words that are structure rather than vocabulary. Deliberately generous: a false drop

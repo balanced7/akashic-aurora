@@ -430,21 +430,27 @@ def unusable_evidence_notice(ctx_meta: Dict[str, Any] | None) -> str:
         (
             "refused",
             "EVIDENCE REFUSED",
-            "-- these were NOT sent, so any answer grounded in them is void, not merely "
-            "degraded. The helper was told not to assume their contents. Pass a path inside "
-            "the repo, or copy the file in.",
+            (
+                "-- these were NOT sent, so any answer grounded in them is void, not merely "
+                "degraded. The helper was told not to assume their contents. Pass a path inside "
+                "the repo, or copy the file in."
+            ),
         ),
         (
             "missing",
             "EVIDENCE MISSING",
-            "-- these could not be read and were NOT sent. Check the path (a typo is the "
-            "common case) and re-ask; nothing about them was seen.",
+            (
+                "-- these could not be read and were NOT sent. Check the path (a typo is the "
+                "common case) and re-ask; nothing about them was seen."
+            ),
         ),
         (
             "skipped",
             "EVIDENCE SKIPPED",
-            "-- the per-call character budget was spent by earlier files before these were "
-            "reached. Reorder the file list, raise the budget, or split into two asks.",
+            (
+                "-- the per-call character budget was spent by earlier files before these were "
+                "reached. Reorder the file list, raise the budget, or split into two asks."
+            ),
         ),
     ):
         rows = ctx_meta.get(key) or []

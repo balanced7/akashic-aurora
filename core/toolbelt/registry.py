@@ -201,8 +201,10 @@ class Toolbelt:
 
     def render_list(self) -> str:
         rows = [
-            f"# toolbelt: {self.agent} -- {len(self.active())} active "
-            f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"
+            (
+                f"# toolbelt: {self.agent} -- {len(self.active())} active "
+                f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"
+            )
         ]
         by_family: dict[str, list] = {}
         for n in sorted(self.active()):

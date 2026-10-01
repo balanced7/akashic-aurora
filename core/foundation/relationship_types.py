@@ -716,7 +716,7 @@ def list_all_domains() -> list[str]:
     domains = set()
     for rel in RelationshipType:
         domains.add(rel.value.domain)
-    return sorted(list(domains))
+    return sorted(domains)
 
 
 def print_relationship_reference():

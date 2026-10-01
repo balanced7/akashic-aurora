@@ -53,6 +53,7 @@ import threading
 import time
 import zlib
 from collections.abc import Callable
+import contextlib
 
 # Loopback only, always. This is a control plane: it must never be reachable off-box.
 _HOST = "127.0.0.1"
@@ -175,14 +176,10 @@ class ControlChannel:
             # thread blocked in accept(), so the socket kept LISTENING until the accept
             # timeout and a quick restart could not bind. shutdown() wakes it (Windows aborts
             # the accept on close alone, so this is a no-op difference there).
-            try:
+            with contextlib.suppress(OSError):
                 self._sock.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
-            try:
+            with contextlib.suppress(Exception):
                 self._sock.close()
-            except Exception:
-                pass
             self._sock = None
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join(timeout=2.0)
@@ -202,15 +199,11 @@ class ControlChannel:
                 reply = self._dispatch(raw)
                 conn.sendall((reply + "\n").encode("utf-8"))
             except Exception as e:
-                try:
+                with contextlib.suppress(Exception):
                     conn.sendall(f"ERR {type(e).__name__}: {e}\n".encode())
-                except Exception:
-                    pass
             finally:
-                try:
+                with contextlib.suppress(Exception):
                     conn.close()
-                except Exception:
-                    pass
 
     def _dispatch(self, line: str) -> str:
         if not line:

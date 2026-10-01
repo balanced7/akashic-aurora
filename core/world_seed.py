@@ -66,8 +66,10 @@ OPTIONAL_PREFIXES = {
     ),
     "recall": (
         "recall:",
-        "derived ranking state; rebuildable from learn:, and importing it "
-        "gives the twin prod's tuning as though it had earned it",
+        (
+            "derived ranking state; rebuildable from learn:, and importing it "
+            "gives the twin prod's tuning as though it had earned it"
+        ),
     ),
 }
 
@@ -183,7 +185,7 @@ def write_manifest(dst, plan: SeedPlan, counts: dict[str, int], when: str) -> di
         "source_world": plan.source,
         "target_world": plan.target,
         "carried": {p: counts.get(p, 0) for p in plan.prefixes},
-        "refused": {p: why for p, why in plan.excluded.items()},
+        "refused": dict(plan.excluded.items()),
         "total_carried": sum(counts.get(p, 0) for p in plan.prefixes),
         "caveat": (
             "corpus-level provenance only -- individual keys carry no world stamp, "

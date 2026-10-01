@@ -46,6 +46,7 @@ import tempfile
 import time
 from datetime import datetime
 from typing import Any
+import contextlib
 
 
 def _pyl() -> str:
@@ -643,10 +644,8 @@ def credit_useful(source: str, domain: str, store: Any | None = None) -> dict[st
     if d and d not in doms:
         doms.append(d)
     use["useful_domains"] = doms
-    try:
+    with contextlib.suppress(Exception):
         st.set(_USE_PREFIX + str(source), json.dumps(use))
-    except Exception:
-        pass
     return use
 
 
@@ -1181,10 +1180,8 @@ def session_outcomes(session_id: str) -> list[dict[str, Any]]:
     try:
         with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
             for line in f:
-                try:
+                with contextlib.suppress(Exception):
                     out.append(json.loads(line))
-                except Exception:
-                    pass
     except Exception:
         pass
     return out
@@ -1283,10 +1280,8 @@ def session_flips(session_id: str) -> list[dict[str, Any]]:
     try:
         with open(os.path.join(_FLIP_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
             for line in f:
-                try:
+                with contextlib.suppress(Exception):
                     out.append(json.loads(line))
-                except Exception:
-                    pass
     except Exception:
         pass
     return out
@@ -1488,7 +1483,7 @@ def build_learn_nudge(target: str, credited: int, sources, agent_id: str | None 
         probed = False
         if probe is not None:
             try:
-                candidates = [c for c in (probe(target) or [])][:3]
+                candidates = list((probe(target) or []))[:3]
                 probed = True
             except Exception:
                 probed = False  # a probe fault must never license a gap claim

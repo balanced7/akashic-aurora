@@ -27,6 +27,7 @@ import os
 from typing import Any
 
 from core.foundation import filelock  # the OS-arbitrated sidecar lock save() serializes under
+import contextlib
 
 # repo root is two dirs up from core/coord/
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -367,10 +368,8 @@ class TaskLedger:
         (scripts/shift_daemon.py, which reuses its instance beat after beat) is refused
         forever. Best-effort: if the file cannot be read right now the instance stays as it
         was and the next save is refused again."""
-        try:
+        with contextlib.suppress(Exception):
             self.load()
-        except Exception:
-            pass
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------
     def get(self, tid: str) -> dict[str, Any] | None:
@@ -826,10 +825,8 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
     With `now` (P5), stale proposals are counted and listed for a verdict instead of passing
     as live intent."""
     stale_days = STALE_PROPOSED_DAYS
-    try:
+    with contextlib.suppress(ValueError, TypeError):
         stale_days = int(os.environ.get("AKASHIC_PROPOSED_STALE_DAYS", stale_days))
-    except (ValueError, TypeError):
-        pass
     v = state_view(path, client, now=now, stale_days=stale_days)
     c = v["counts"]
     if sum(c.values()) == 0:

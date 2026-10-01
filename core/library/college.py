@@ -720,13 +720,7 @@ def run_college(
             payload=payload,
             at=stamp,
         )
-        effects = extra_effects + [
-            {
-                "kind": "append",
-                "path": str(events_path),
-                "event_id": event["event_id"],
-            }
-        ]
+        effects = [*extra_effects, {"kind": "append", "path": str(events_path), "event_id": event["event_id"]}]
         return _view(
             course,
             course_dir,
@@ -751,8 +745,10 @@ def render_college(record: Mapping[str, Any]) -> str:
         + "  ".join(
             f"{name}={row.get('records', 'sealed' if row.get('sealed') else 0)}" for name, row in stages.items()
         ),
-        f"integrity events={'OK' if integrity.get('event_chain') else 'FAIL'}  "
-        f"lecture={('OK' if integrity.get('lecture') else 'FAIL') if integrity.get('lecture') is not None else 'UNSEALED'}",
+        (
+            f"integrity events={'OK' if integrity.get('event_chain') else 'FAIL'}  "
+            f"lecture={('OK' if integrity.get('lecture') else 'FAIL') if integrity.get('lecture') is not None else 'UNSEALED'}"
+        ),
     ]
     gaps = list(record.get("gaps") or [])
     lines.append("gaps none" if not gaps else "gaps " + " | ".join(gaps))

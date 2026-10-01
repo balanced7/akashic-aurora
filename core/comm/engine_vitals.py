@@ -21,6 +21,7 @@ import json
 import os
 import time
 from typing import Any
+import contextlib
 
 IDLE_AFTER_S = 300  # his Zone-1 table: active < 5m <= idle
 _TS_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -88,19 +89,13 @@ def gauge_snapshot(
             card = json.loads(raw) if raw else None
         except Exception:
             card = None
-        try:
+        with contextlib.suppress(Exception):
             out["daemon_live"] = bool(cli.exists(f"{_ns()}:daemon:{agent}"))
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             out["pages"] = len(cli.lrange(f"{_ns()}:pages", 0, -1) or [])
-        except Exception:
-            pass
     out["heartbeat"] = _heartbeat(card, now_f)
     if card:
-        try:
+        with contextlib.suppress(Exception):
             out["runtimes"] = dict(card.get("runtimes") or {})
-        except Exception:
-            pass
     out["tokens"] = _today_journal(agent, journal_dir)
     return out

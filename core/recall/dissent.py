@@ -212,7 +212,7 @@ def find_counter(
             return None
         cands = [c for c in candidates if c.get("source") != thesis.get("source")]
         if idf is None:
-            df = document_frequencies(list(cands) + [thesis])
+            df = document_frequencies([*list(cands), thesis])
             idf = _idf(df, n_docs if n_docs is not None else len(cands) + 1)
         t_tokens = _tokens(_text_of(thesis))
         best: dict[str, Any] | None = None

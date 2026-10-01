@@ -25,6 +25,7 @@ from core.narrative.beat_log import ROUTER_ACTIVE, BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store, persist_chapter_in_place
 from core.narrative.schema import Chapter
 from core.narrative.track_router import RouteHint
+import contextlib
 
 EPISODE_OPEN_KEY = "narr:episode:open"  # JSON {chapter_id, start, track} -- the one open episode
 _DEFAULT_TRACK = "ai-setup"
@@ -251,10 +252,8 @@ def close_open_episode_for_session_end(
 
 
 def _clear_open(store: Store) -> None:
-    try:
+    with contextlib.suppress(Exception):
         store.delete(EPISODE_OPEN_KEY)
-    except Exception:
-        pass
 
 
 def accept_episode(

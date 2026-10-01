@@ -100,10 +100,7 @@ def status(*, probe: bool = True) -> dict[str, Any]:
             # STATE IS A JUDGEMENT AND SAYS SO. "inert" is not a failure -- a peer with no key
             # or no route is configured-and-waiting, and painting that red teaches the reader
             # to ignore red.
-            if not keyed or not url:
-                state = "inert"
-            else:
-                state = "ready"
+            state = "inert" if not keyed or not url else "ready"
             out["peers"].append(
                 {
                     "name": name,
@@ -184,8 +181,7 @@ def act(
             return BoundaryOutcome.failed(f"{aid} is rated {spec['danger']} and needs confirm=true. {spec['what']}")
 
         if aid == "tick_outbox":
-            out = RR.tick()
-            return out
+            return RR.tick()
 
         if aid == "drain_parked":
             return _drain(bus_send)
@@ -267,9 +263,11 @@ def _process_table() -> list[dict[str, Any]]:
             "powershell",
             "-NoProfile",
             "-Command",
-            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
-            "Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, "
-            "CommandLine | ConvertTo-Json -Compress",
+            (
+                "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+                "Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, "
+                "CommandLine | ConvertTo-Json -Compress"
+            ),
         ],
         capture_output=True,
         encoding="utf-8",

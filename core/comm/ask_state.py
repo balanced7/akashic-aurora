@@ -44,8 +44,10 @@ STATES: dict[str, tuple] = {
     "CLOSED.DEAD": (True, "chase it or let it go -- redrives exhausted unanswered"),
     "UNKNOWN": (
         True,
-        "re-ask -- treat the old transaction as unresolvable (evidence "
-        "lost or trimmed: RB-30 flush, or maxlen outlived the ask)",
+        (
+            "re-ask -- treat the old transaction as unresolvable (evidence "
+            "lost or trimmed: RB-30 flush, or maxlen outlived the ask)"
+        ),
     ),
 }
 

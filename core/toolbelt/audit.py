@@ -418,8 +418,10 @@ def render(
 
     lines = [
         f"# audit — {len(rows)} row(s) across {len(by_domain)} domain(s)",
-        f"# verdicts: {verdict_counts['MATCH']} MATCH, "
-        f"{verdict_counts['DRIFT']} DRIFT, {verdict_counts['UNKNOWN']} UNKNOWN",
+        (
+            f"# verdicts: {verdict_counts['MATCH']} MATCH, "
+            f"{verdict_counts['DRIFT']} DRIFT, {verdict_counts['UNKNOWN']} UNKNOWN"
+        ),
         f"# ground-truth source: {ground_truth_source}",
         "",
     ]

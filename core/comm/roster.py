@@ -42,6 +42,7 @@ from typing import Any
 # The incarnation discriminator is derived by the bus (the organ that owns the key formats,
 # kimi F2) -- imported, never re-sliced here. bus imports nothing from this module.
 from core.comm.bus import sid8 as _sid8
+import contextlib
 
 WORKLIVE_TTL_S = int(os.environ.get("AKASHIC_WORKLIVE_TTL_S", "180") or 180)
 RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)  # S3: away-time that counts as a RESUME
@@ -163,14 +164,12 @@ def heartbeat(
         client.set(k, json.dumps(doc), ex=WORKLIVE_TTL_S)
         # kimi F1: the long-lived death witness -- when worklive TTLs away, this record
         # lets the roster render DEAD-with-last-beat instead of silent absence.
-        try:
+        with contextlib.suppress(Exception):
             client.set(
                 _seen_key(ns, agent, sid8),
                 json.dumps({"full_sid": full_sid, "beat_ts": now, "phase": str(phase)}),
                 ex=SEATSEEN_TTL_S,
             )
-        except Exception:
-            pass
         return {"ok": True, "resumed_after_s": (round(resumed_after, 1) if resumed_after else None)}
     except Exception:
         return {"ok": False, "resumed_after_s": None}
@@ -236,20 +235,16 @@ def _have_summary(client, ns: str, agent: str, sid8: str, *, bus_cache: dict[str
             b = Bus(str(agent), client=client, namespace=(None if ns == "bifrost" else ns))
             if bus_cache is not None:
                 bus_cache[cache_key] = b
-        try:
+        with contextlib.suppress(Exception):
             have["legacy_inbox_shared"] = str(b._read_cursor().get("inbox", "0"))
-        except Exception:
-            pass
         try:
             seat_cursor_key = b._seat_cursor_key(_sid8(sid8))
             have["seat_inbox"] = str(client.hget(seat_cursor_key, "seat") or "0")
             have["reaper"] = str(client.hget(seat_cursor_key, "reaper") or "0")
         except Exception:
             pass
-        try:
+        with contextlib.suppress(Exception):
             have["lane_inbox_shared"] = str((client.hgetall(b.lane_cursor_key(str(agent))) or {}).get("inbox", "0"))
-        except Exception:
-            pass
     except Exception:
         pass
     return have

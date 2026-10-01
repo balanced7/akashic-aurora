@@ -30,6 +30,7 @@ from typing import Any
 from core.comm import discord_bridge as DB
 from core.comm import discord_rooms as ROOMS
 from core.outcome import BoundaryOutcome
+import contextlib
 
 CURSOR_KEY = "bifrost:discord:feed_cursor"
 
@@ -56,10 +57,8 @@ def _decode(fields: dict[Any, Any]) -> dict[str, Any]:
         out[ks] = vs
     for field in ("content", "meta", "parts"):
         if isinstance(out.get(field), str):
-            try:
+            with contextlib.suppress(ValueError):
                 out[field] = json.loads(out[field])
-            except ValueError:
-                pass
     return out
 
 

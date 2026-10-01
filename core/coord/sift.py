@@ -253,12 +253,18 @@ def evidence_pack(
 
     blob = _render_blob(term, occ)
     blind = [
-        f"PLANE: this pack contains {sorted(want)} only. A term can be coherent in source "
-        f"and forked in docs, or the reverse, and this pack cannot see the difference",
-        "occurrences are LINE-level: a fork visible only across a function boundary or in "
-        "code shape rather than in a line containing the token is invisible here",
-        "comments, docstrings and code are not distinguished within a plane -- a term "
-        "discussed in a comment ranks the same as one executed",
+        (
+            f"PLANE: this pack contains {sorted(want)} only. A term can be coherent in source "
+            f"and forked in docs, or the reverse, and this pack cannot see the difference"
+        ),
+        (
+            "occurrences are LINE-level: a fork visible only across a function boundary or in "
+            "code shape rather than in a line containing the token is invisible here"
+        ),
+        (
+            "comments, docstrings and code are not distinguished within a plane -- a term "
+            "discussed in a comment ranks the same as one executed"
+        ),
         "case-insensitive matching, so a deliberate Type/value casing distinction reads as one term here",
     ]
     if off_plane:
@@ -442,13 +448,19 @@ def junction_pack(
 
     blob = _render_junction_blob(term, junctions)
     blind = [
-        "LEXICAL pairing: a write through an alias, a **kwargs read, or a value passed "
-        "through a helper is INVISIBLE here. These are CANDIDATE junctions for a reader to "
-        "adjudicate, never proof that two sites carry the same concept",
-        "a crossing is listed per (write-file, read-file) pair, so one busy writer produces "
-        "many rows -- row count is NOT a severity measure",
-        "write patterns are assignment-shaped and read patterns are access-shaped; a term "
-        "that travels only as a bare positional argument matches neither",
+        (
+            "LEXICAL pairing: a write through an alias, a **kwargs read, or a value passed "
+            "through a helper is INVISIBLE here. These are CANDIDATE junctions for a reader to "
+            "adjudicate, never proof that two sites carry the same concept"
+        ),
+        (
+            "a crossing is listed per (write-file, read-file) pair, so one busy writer produces "
+            "many rows -- row count is NOT a severity measure"
+        ),
+        (
+            "write patterns are assignment-shaped and read patterns are access-shaped; a term "
+            "that travels only as a bare positional argument matches neither"
+        ),
     ]
     if not junctions:
         why = (
@@ -816,12 +828,18 @@ def compare_dossiers(dossiers: Sequence[dict[str, Any]]) -> dict[str, Any]:
                 if undecided
                 else "no term was left undecided by every curator"
             ),
-            "a shared blind spot produces AGREEMENT, so agreement here is weaker evidence "
-            "than disagreement -- two curators can be identically wrong",
-            "verdict equality is compared as a STRING: two dossiers can agree on FORK while "
-            "disagreeing entirely about which senses forked",
-            "the flip rate measures the curation tier only; the evidence tier's own "
-            "artifact rate is a separate measurement (L2) and is not folded in here",
+            (
+                "a shared blind spot produces AGREEMENT, so agreement here is weaker evidence "
+                "than disagreement -- two curators can be identically wrong"
+            ),
+            (
+                "verdict equality is compared as a STRING: two dossiers can agree on FORK while "
+                "disagreeing entirely about which senses forked"
+            ),
+            (
+                "the flip rate measures the curation tier only; the evidence tier's own "
+                "artifact rate is a separate measurement (L2) and is not folded in here"
+            ),
         ],
     }
 

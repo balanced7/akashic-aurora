@@ -29,6 +29,7 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never fla
 import tempfile
 import time
 from collections.abc import Callable
+import contextlib
 
 # Names that identify a live harness ancestor (Claude Desktop engine, CLI engine, or a
 # node-hosted harness). Substring match, case-insensitive, on the process NAME only.
@@ -238,9 +239,8 @@ def clear_tombstone(session_id: str, tmp: str | None = None, c=None, namespace: 
             from core.comm.bus import get_bus
 
             cli = get_bus("control")._client
-        if cli is not None:
-            if cli.delete(_tombstone_key(session_id, namespace)):
-                existed = True
+        if cli is not None and cli.delete(_tombstone_key(session_id, namespace)):
+            existed = True
     except Exception:
         pass
     return existed
@@ -286,10 +286,8 @@ def append_provenance(agent: str, line: str, tmp: str | None = None, keep: int =
             # W153 K5': ROTATE, never discard -- both fence halves independently
             # chose rotation so "auditable from the log alone" stays true across
             # the current + previous window instead of being false by construction.
-            try:
+            with contextlib.suppress(Exception):
                 os.replace(path, path + ".1")
-            except Exception:
-                pass
     except Exception:
         pass
 
@@ -326,8 +324,10 @@ def process_snapshot(timeout_s: int = 10) -> dict[int, dict] | None:
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,"
-                "Name,CommandLine,CreationDate | ConvertTo-Json -Compress",
+                (
+                    "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,"
+                    "Name,CommandLine,CreationDate | ConvertTo-Json -Compress"
+                ),
             ],
             capture_output=True,
             text=True,
@@ -712,10 +712,8 @@ def janitor(
                     )
                     continue
             if action in ("kill", "clean"):
-                try:
+                with contextlib.suppress(Exception):
                     os.remove(path)
-                except Exception:
-                    pass
                 # W42: sweep the reaped session's SIDECARS too -- the gamma-a wake-dedup
                 # .seen (else it litters tempdir until reboot, the fence's "acceptable
                 # litter, file a WISH") and the .alive activity marker. Best-effort;
@@ -725,10 +723,8 @@ def janitor(
                         os.path.join(os.path.dirname(path), f"bifrost_wake_{agent}_{sid}.seen"),
                         activity_marker_path(agent, sid, tmp),
                     ):
-                        try:
+                        with contextlib.suppress(OSError):
                             os.remove(extra)
-                        except OSError:
-                            pass
             results.append((path, action, reason))
             append_provenance(agent, f"{action} seat {os.path.basename(path)}: {reason}", tmp)
         except Exception as e:

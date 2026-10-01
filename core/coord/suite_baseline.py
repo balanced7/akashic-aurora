@@ -194,10 +194,7 @@ def verdicts(current_nodes: list[str], *, now_sha: str | None = None, full_suite
 
     by_node: dict[str, Any] = {}
     for n in sorted(set(current_nodes)):
-        if n in base:
-            v = "INHERITED" if fresh else "LIKELY_INHERITED"
-        else:
-            v = "YOURS" if fresh else "UNKNOWN"
+        v = ("INHERITED" if fresh else "LIKELY_INHERITED") if n in base else "YOURS" if fresh else "UNKNOWN"
         by_node[n] = {"verdict": v, "next": VERDICT_NEXT[v]}
 
     counts: dict[str, int] = {}

@@ -16,6 +16,7 @@ event/domain primitives must not depend upward on it, so their own failures stay
 """
 
 from typing import Any
+import contextlib
 
 HEALTH_KEY = "narr:health"
 
@@ -49,7 +50,5 @@ def snapshot(store: Any) -> dict[str, Any]:
 
 def reset(store: Any) -> None:
     """Clear all counters (tests / a fresh measurement window). Never raises."""
-    try:
+    with contextlib.suppress(Exception):
         store.delete(HEALTH_KEY)
-    except Exception:
-        pass

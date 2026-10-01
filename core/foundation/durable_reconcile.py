@@ -185,7 +185,7 @@ def _probe(store, key) -> tuple[str | None, Any]:
         return "set", sorted(s)
     z = _quiet(lambda: store.zrange(key, 0, -1, withscores=True), [])
     if z:
-        return "zset", {m: sc for m, sc in z}
+        return "zset", dict(z)
     return None, None
 
 

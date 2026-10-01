@@ -45,12 +45,18 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 #: Named blindness, structural. A timeline that confesses nothing claims to be the whole
 #: story, and a whole story is exactly what a partial merge is not.
 BLIND = [
-    "only domains listed in coverage.read were consulted; a domain in coverage.failed "
-    "contributed NOTHING and its absence must not read as 'nothing happened there'",
-    "rows without a resolvable timestamp are kept and sorted LAST, never dropped and "
-    "never coerced to epoch 0 -- 'when unknown' is not 'did not happen'",
-    "clock skew between domains is not corrected: git commit times, event stamps and "
-    "file mtimes come from different writers and may disagree by seconds",
+    (
+        "only domains listed in coverage.read were consulted; a domain in coverage.failed "
+        "contributed NOTHING and its absence must not read as 'nothing happened there'"
+    ),
+    (
+        "rows without a resolvable timestamp are kept and sorted LAST, never dropped and "
+        "never coerced to epoch 0 -- 'when unknown' is not 'did not happen'"
+    ),
+    (
+        "clock skew between domains is not corrected: git commit times, event stamps and "
+        "file mtimes come from different writers and may disagree by seconds"
+    ),
 ]
 
 

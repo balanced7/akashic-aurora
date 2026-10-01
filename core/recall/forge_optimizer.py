@@ -122,8 +122,10 @@ def build_prompt(
         "",
         f"LESSON: {rec.get('experiment_name')}",
         f"CATEGORY: {rec.get('category') or 'uncategorized'}   SUCCESS: {rec.get('success')}",
-        f"AGGREGATES: surfaced={counters.get('surfaced', 0)} helped={counters.get('helped', 0)} "
-        f"useful={counters.get('useful', 0)} engaged={counters.get('engaged', 0)}",
+        (
+            f"AGGREGATES: surfaced={counters.get('surfaced', 0)} helped={counters.get('helped', 0)} "
+            f"useful={counters.get('useful', 0)} engaged={counters.get('engaged', 0)}"
+        ),
         f"MINED VOCABULARY: {', '.join(trigger_terms or []) or '(none -- no credited history)'}",
         "",
         f"INCUMBENT RECOMMENDATION:\n{rec.get('recommendation') or ''}",

@@ -110,11 +110,13 @@ _MUTATION = (
     r"\btouch\b",
     r"\bcp\b",
     r"\bcopy-item\b",
-    r"agent_cli\.py\s+(learn|wish|handoff|bifrost-send|task|doc|log|"
-    r"graduate|tag-anti-pattern|lock|unlock|capture|wrap|kata|note|"
-    r"recall-feedback|recall-curate|bifrost-ack|bifrost-drain|"
-    r"bifrost-skip-to-now|bifrost-nudge|stand-down|unwedge|defer|"
-    r"followup|toast|alias|run|bench|tool|episode|fence|triage)\b",
+    (
+        r"agent_cli\.py\s+(learn|wish|handoff|bifrost-send|task|doc|log|"
+        r"graduate|tag-anti-pattern|lock|unlock|capture|wrap|kata|note|"
+        r"recall-feedback|recall-curate|bifrost-ack|bifrost-drain|"
+        r"bifrost-skip-to-now|bifrost-nudge|stand-down|unwedge|defer|"
+        r"followup|toast|alias|run|bench|tool|episode|fence|triage)\b"
+    ),
     r"\bmirror\.py\b",
     r"\bsnapshot_knowledge\b",
     r"\bpip\s+install\b",
@@ -194,8 +196,10 @@ _ALLOWED_STAGE = (
     r"get-content\s+\S+.*",
     r"get-childitem(\s+\S+)*",
     # the knowledge system's own READ doors, optionally interpreter-launched
-    r"(?:pyw?(?:thon)?\s+)?agent_cli\.py\s+(?:notes|mailbox|recall\S*|status|stats|"
-    r"events|promoted)(\s+(?!--(?:retire|supersedes|fold|consume))\S+)*",
+    (
+        r"(?:pyw?(?:thon)?\s+)?agent_cli\.py\s+(?:notes|mailbox|recall\S*|status|stats|"
+        r"events|promoted)(\s+(?!--(?:retire|supersedes|fold|consume))\S+)*"
+    ),
     r"(?:pyw?(?:thon)?\s+)?agent_cli\.py\s+\S+(\s+\S+)*\s+--help",
     r"2>\s*&?\s*1",
     r"2>\s*\$?null",  # stderr merges are reads

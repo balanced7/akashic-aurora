@@ -48,6 +48,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+import contextlib
 
 # Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
 # ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.
@@ -224,10 +225,8 @@ def _drain_pipe(pipe, proc, attr):
     except Exception:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             pipe.close()
-        except Exception:
-            pass
 
 
 # RB-3 (T029): how long the exit flush waits per drainer before recording a timed-out flush.
@@ -578,10 +577,8 @@ class Launcher:
             (self._auto_revive.add if on else self._auto_revive.discard)(aid)
         r = _bus_redis()
         if r is not None:
-            try:
+            with contextlib.suppress(Exception):
                 (r.sadd if on else r.srem)(AUTO_REVIVE_KEY, aid)
-            except Exception:
-                pass
 
     def arm_revive(self, tag: str, on: bool = True) -> dict[str, Any]:
         """Opt in/out of automatic revive-on-wedge for this agent (default OFF -> observe-only).
@@ -764,10 +761,8 @@ class Launcher:
         tail, and the record keeps that honest. The live-risk flag clears here: it means
         dead-drainer-on-LIVE-child, and at exit drainers end by design."""
         for t in proc.drainers or []:
-            try:
+            with contextlib.suppress(Exception):
                 t.join(timeout=DRAIN_FLUSH_JOIN_SEC)
-            except Exception:
-                pass
         if any(t.is_alive() for t in (proc.drainers or [])):
             proc.drain_flush_timeout = True
         proc.drainer_dead = False

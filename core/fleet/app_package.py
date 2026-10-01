@@ -200,7 +200,7 @@ def clear_refusals(pkg: dict[str, Any] | None, proof: PayloadProof, *, elevated:
 def _ps(script: str, timeout: int = 60) -> str:
     try:
         r = subprocess.run(
-            _PS + [script], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
+            [*_PS, script], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
         )
         return r.stdout or ""
     except Exception as e:  # noqa: BLE001

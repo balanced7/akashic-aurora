@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 from typing import Any
+import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MIN_RELEVANCE = 0.2  # the arch-slice floor: must match THIS question, not merely be recent
@@ -550,10 +551,8 @@ def _count(layer: str, kept: int) -> None:
         st = create_store(prefer_redis=True)
 
         def bump(key, by):
-            try:
+            with contextlib.suppress(Exception):
                 st.set(key, str(int(st.get(key) or 0) + by))
-            except Exception:
-                pass
 
         if layer == LAYERS[0][0]:
             bump("lookback:queries", 1)

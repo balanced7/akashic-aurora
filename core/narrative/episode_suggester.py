@@ -42,6 +42,7 @@ from core.foundation.timeutil import to_epoch as _epoch
 from core.narrative.beat_log import BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store
 from core.narrative.episode import EPISODE_OPEN_KEY, content_beats, draft_fields
+import contextlib
 
 SUGGEST_STATE_KEY = "narr:episode:suggestion:state"  # {chapter_id, fingerprints, last_at, active}
 
@@ -161,10 +162,8 @@ def _load_state(store: Store) -> dict[str, Any]:
 
 
 def _save_state(store: Store, st: dict[str, Any]) -> None:
-    try:
+    with contextlib.suppress(Exception):
         store.set(SUGGEST_STATE_KEY, json.dumps(st))
-    except Exception:
-        pass
 
 
 def suggest(
@@ -226,7 +225,7 @@ def suggest(
             "confidence": cand["confidence"],
             "fingerprint": cand["fingerprint"],
         }
-        st["fingerprints"] = list(st.get("fingerprints", [])) + [cand["fingerprint"]]
+        st["fingerprints"] = [*list(st.get("fingerprints", [])), cand["fingerprint"]]
         st["last_at"] = now_iso
         st["active"] = suggestion
         _save_state(store, st)

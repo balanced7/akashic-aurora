@@ -36,32 +36,52 @@ TERMINAL_KINDS = {
 # Named blindness (no-silent-caps made structural). Static by design: these are facts
 # about the ANCHORS, not about any one report.
 BLIND = [
-    "answered/dead durations exist only where the terminal event carries `created` "
-    "(T196b, 2026-08-05) -- older episodes report duration None",
-    "answered episodes are visible only from T196b onward: before it, an answered ask "
-    "left no durable terminal event at all",
-    "commands are not counted: CLI door captures are selective (boot/handoff/decision/"
-    "learning), so operator keystrokes and shell work are invisible (fence C)",
-    "silent stalls are invisible: an ask that never redrives and never settles renders "
-    "as open, not as troubled (fence C2)",
-    "usefulness is not measured: time-to-settle says an answer ARRIVED, not that it "
-    "helped -- v2 candidates: re-ask window, self-reclamation rate (fence C2)",
-    "reads the per-agent event stream (an index): an event whose index write degraded "
-    "(T179 PARTIALLY) is on the canonical firehose but absent here",
-    "the peer partition rests on TWO POINT SAMPLES (attendance at ask, attendance at "
-    "death) and observes nothing in between: a peer that died and recovered inside the "
-    "window reads as `ignored`, and one that flapped repeatedly reads as whichever "
-    "state the two samples happened to catch (T197)",
-    "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
-    "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
-    "entitled to a verdict it never took",
-    "presence_effect is a CORRELATION and licenses no causal claim: the same conductor "
-    "who launches a peer also asks better-formed questions to peers worth launching, so "
-    "a higher attended answer-rate is not proof that launching caused it (T199)",
-    "Sol's collaboration-friction list is only PARTLY built: commands per task, "
-    "operator interventions, and recovery time are all still unmeasured -- none of the "
-    "three has a durable anchor yet, and time-to-first-useful-output is approximated by "
-    "time-to-settle, which says an answer ARRIVED, not that it helped",
+    (
+        "answered/dead durations exist only where the terminal event carries `created` "
+        "(T196b, 2026-08-05) -- older episodes report duration None"
+    ),
+    (
+        "answered episodes are visible only from T196b onward: before it, an answered ask "
+        "left no durable terminal event at all"
+    ),
+    (
+        "commands are not counted: CLI door captures are selective (boot/handoff/decision/"
+        "learning), so operator keystrokes and shell work are invisible (fence C)"
+    ),
+    (
+        "silent stalls are invisible: an ask that never redrives and never settles renders "
+        "as open, not as troubled (fence C2)"
+    ),
+    (
+        "usefulness is not measured: time-to-settle says an answer ARRIVED, not that it "
+        "helped -- v2 candidates: re-ask window, self-reclamation rate (fence C2)"
+    ),
+    (
+        "reads the per-agent event stream (an index): an event whose index write degraded "
+        "(T179 PARTIALLY) is on the canonical firehose but absent here"
+    ),
+    (
+        "the peer partition rests on TWO POINT SAMPLES (attendance at ask, attendance at "
+        "death) and observes nothing in between: a peer that died and recovered inside the "
+        "window reads as `ignored`, and one that flapped repeatedly reads as whichever "
+        "state the two samples happened to catch (T197)"
+    ),
+    (
+        "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
+        "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
+        "entitled to a verdict it never took"
+    ),
+    (
+        "presence_effect is a CORRELATION and licenses no causal claim: the same conductor "
+        "who launches a peer also asks better-formed questions to peers worth launching, so "
+        "a higher attended answer-rate is not proof that launching caused it (T199)"
+    ),
+    (
+        "Sol's collaboration-friction list is only PARTLY built: commands per task, "
+        "operator interventions, and recovery time are all still unmeasured -- none of the "
+        "three has a durable anchor yet, and time-to-first-useful-output is approximated by "
+        "time-to-settle, which says an answer ARRIVED, not that it helped"
+    ),
 ]
 
 

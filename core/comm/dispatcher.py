@@ -19,6 +19,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from core.comm.bus import BELL_NS, Bus
+import contextlib
 
 # Kinds/importance that justify spending a turn now (everything else waits for the next boot peek).
 ESCALATE_KINDS = {"request", "handoff", "question", "blocker"}
@@ -107,8 +108,6 @@ class Dispatcher:
                 elif once and msg is None:
                     break  # once + nothing within the timeout
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 ps.close()
-            except Exception:
-                pass
         return handled

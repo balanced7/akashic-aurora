@@ -1201,9 +1201,11 @@ class HybridStore(Store):
         if file_fams is None:  # classification unavailable -> all loud
             shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
             return [
-                f"{TAG} {len(orphans)} Redis-only key(s) have NO File record "
-                f"(classification unavailable -- ALL flagged): {shown}. "
-                f"Investigate -- a write that never reached the durable side."
+                (
+                    f"{TAG} {len(orphans)} Redis-only key(s) have NO File record "
+                    f"(classification unavailable -- ALL flagged): {shown}. "
+                    f"Investigate -- a write that never reached the durable side."
+                )
             ]
         from core.comm.packet_spec import is_ephemeral_key
 

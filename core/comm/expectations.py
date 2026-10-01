@@ -32,6 +32,7 @@ import os
 import re
 import time
 from typing import Any
+import contextlib
 
 # T076c: task ids an ask's text references -- the settle probe's extraction surface.
 _TASK_IDS = re.compile(r"\bT\d{3}\b")
@@ -435,10 +436,8 @@ def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
                 # T196b: guarded AT THE CALL SITE, not just inside the seam -- a broken
                 # emit (even one whose own try/except is gone) must never reach sweep's
                 # outer catch and poison the transition bookkeeping.
-                try:
+                with contextlib.suppress(Exception):
                     _emit_settled(sender, a, getattr(r, "id", None), rec_settled)
-                except Exception:
-                    pass
         for r in replies:  # 2) FIFO fallback: one clear per reply
             # T117: skip only replies whose link actually RESOLVED (or that already
             # settled an ask on a PRIOR sweep). A reply naming an id we do not hold
@@ -506,10 +505,8 @@ def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
                 # generation down. (_resolve_link follows aliases, so the redrive's
                 # lane sibling reaches the original in two hops.)
                 if new_mid:
-                    try:
+                    with contextlib.suppress(Exception):
                         c.set(f"{_ns()}:idalias:{new_mid}", oid, ex=172800)
-                    except Exception:
-                        pass
                 rec.update(
                     attempt=attempt,
                     redrives_left=int(rec.get("redrives_left", 0)) - 1,

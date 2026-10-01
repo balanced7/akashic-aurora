@@ -55,6 +55,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
+import contextlib
 
 
 def _connect():
@@ -251,10 +252,8 @@ def commit(claim: Claim, *, client=None) -> bool:
             f"{claim.msg_id} -- the claim was reclaimed; this side effect does not land"
         )
         return False
-    try:
+    with contextlib.suppress(Exception):
         client.xack(_stream_key(claim.ns, claim.agent), _group(claim.agent), claim.msg_id)
-    except Exception:
-        pass
     return True
 
 
@@ -264,10 +263,8 @@ def claim_state(ns: str, agent: str, msg_id: str, *, client=None) -> dict[str, A
     client = client or _connect()
     stream, group = _stream_key(ns, agent), _group(agent)
     holder = None
-    try:
+    with contextlib.suppress(Exception):
         holder = client.get(_fence_key(ns, agent, msg_id))
-    except Exception:
-        pass
     pel = []
     try:
         pel = client.xpending_range(stream, group, min=msg_id, max=msg_id, count=1) or []

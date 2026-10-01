@@ -68,7 +68,7 @@ def metric_key(namespace: str) -> str:
 
 
 def _labels() -> tuple[str, ...]:
-    return tuple(sorted(str(kind) for kind in packet_spec.KIND_LANE)) + (UNKNOWN_RULE,)
+    return (*tuple(sorted(str(kind) for kind in packet_spec.KIND_LANE)), UNKNOWN_RULE)
 
 
 def metric_field_schema() -> tuple[str, ...]:

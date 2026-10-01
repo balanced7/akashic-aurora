@@ -31,6 +31,7 @@ import time
 from datetime import UTC, datetime
 
 from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
+import contextlib
 
 
 def _now() -> str:
@@ -79,14 +80,12 @@ def _broadcast(kind: str, text: str, meta: dict) -> None:
 def _emit_resolved(tid: str, title: str, commit: str) -> None:
     """Announce a closure on the bus so waking agents see it in-stream too. Best-effort; the ledger
     is the real authority, so a bus failure never blocks the close."""
-    try:
+    with contextlib.suppress(Exception):
         _broadcast(
             "resolved",
             f"RESOLVED {tid}: {title} @ {commit} -- CLOSED, do not redo.",
             meta={"via": "conductor", "hops": 0, "task": tid, "commit": commit, "display_only": True},
         )
-    except Exception:
-        pass
 
 
 def _emit_ledger_update(task: dict, to_status: str, by: str = "") -> None:

@@ -89,8 +89,10 @@ def check_closure_evidence(text: str) -> list[str]:
     t = str(text or "")
     if _CLOSURE_RE.search(t) and not _EVIDENCE_RE.search(t):
         return [
-            "reply claims closure ('fixed'/'shipped'/...) but names no pin, task, "
-            "commit, or test -- add a reference (e.g. 'pins P1-P3 green, T068')"
+            (
+                "reply claims closure ('fixed'/'shipped'/...) but names no pin, task, "
+                "commit, or test -- add a reference (e.g. 'pins P1-P3 green, T068')"
+            )
         ]
     return []
 

@@ -101,7 +101,7 @@ def from_markdown(text: str, url: str | None = None, fallback_title: str = "Unti
     sections = []
     for path, body in raw:
         if not path or path[0] != title:
-            path = (title,) + path
+            path = (title, *path)
         sections.append(Section(path=path, text=body, anchor=slug(path[-1]) if len(path) > 1 else None))
     return Document(title=title, url=url, sections=sections)
 

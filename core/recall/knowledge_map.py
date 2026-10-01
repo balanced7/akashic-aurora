@@ -42,6 +42,7 @@ from core.recall.lookback import (
     _note_items,
     _stem_relevance,
 )
+import contextlib
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface
 ARCHIVE_STATUS = {"retired", "superseded", "historical", "benched", "graduated"}
@@ -267,10 +268,8 @@ def _count(m: dict[str, Any]) -> None:
         nodes = c.get("surface", 0) + c.get("neighborhood", 0) + c.get("archive", 0)
 
         def bump(key, by):
-            try:
+            with contextlib.suppress(Exception):
                 st.set(key, str(int(st.get(key) or 0) + by))
-            except Exception:
-                pass
 
         bump("knowledge_map:queries", 1)
         if nodes:

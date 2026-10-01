@@ -175,7 +175,7 @@ class ThemeDiscoverer:
                 flat_x.append(x)
         vecs = self.embedder.embed_many(flat_x)
         self._theme_vecs: dict[str, list[list[float]]] = {t: [] for t in self.seeds}
-        for t, v in zip(flat_t, vecs):
+        for t, v in zip(flat_t, vecs, strict=False):
             if v is not None:
                 self._theme_vecs[t].append(v)
         # "ok" only when every theme has at least one embedded exemplar
@@ -235,7 +235,7 @@ class ThemeDiscoverer:
         cl_texts = [[text_by_id[a] for a in c.atom_ids] for c in clustering.clusters]
         term_lists = _ctfidf_terms(cl_texts)
         out: list[dict[str, Any]] = []
-        for c, terms in zip(clustering.clusters, term_lists):
+        for c, terms in zip(clustering.clusters, term_lists, strict=False):
             out.append(
                 {
                     "label": " / ".join(terms) if terms else c.label[:40],

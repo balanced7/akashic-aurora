@@ -89,7 +89,7 @@ def sandboxed_run(
         "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "argv": args or [],
     }
-    argv = [sys.executable, path] + list(args or [])
+    argv = [sys.executable, path, *list(args or [])]
     out_dir = os.path.join(PLAY, agent, "out")
     os.makedirs(out_dir, exist_ok=True)
     try:

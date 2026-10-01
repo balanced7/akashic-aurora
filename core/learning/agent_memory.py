@@ -305,7 +305,7 @@ class AgentMemory:
             by_norm.setdefault(n, []).append(d)
         hits = []
         for norm, group in by_norm.items():
-            distinct = sorted(set(d.title for d in group))
+            distinct = sorted({d.title for d in group})
             if len(distinct) > 1:
                 hits.append(
                     {"title": norm, "stored_variants": distinct, "ids": [d.id for d in group], "count": len(group)}

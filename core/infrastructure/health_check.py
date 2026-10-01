@@ -257,10 +257,7 @@ class StartupTimer:
         duration_ms = (time.time() - self.start_time) * 1000
         success = exc_type is None
 
-        if exc_type:
-            details = f"{exc_type.__name__}: {exc_val}"
-        else:
-            details = None
+        details = f"{exc_type.__name__}: {exc_val}" if exc_type else None
 
         self.diagnostics.record_phase(self.phase_name, success, duration_ms, details)
         return False  # Don't suppress exceptions

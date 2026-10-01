@@ -33,6 +33,7 @@ from typing import Any
 from core.comm import packet_spec
 from core.comm import router as shadow_router
 from core.comm.blobs import get_blob_store
+import contextlib
 
 NS = "bifrost"
 DEFAULT_MAXLEN = 10_000
@@ -55,10 +56,8 @@ def _now() -> str:
 def _loud(msg: str) -> None:
     """A packet-integrity refusal/drop must be VISIBLE, never silent (the whole point of T043).
     Best-effort stderr; never raises (the transport must survive a logging failure)."""
-    try:
+    with contextlib.suppress(Exception):
         print(msg, file=sys.stderr, flush=True)
-    except Exception:
-        pass
 
 
 def _loads(s: Any) -> Any:
@@ -76,6 +75,7 @@ def _loads(s: Any) -> Any:
 # alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
 # the derivation must never discard entropy, so the negative lookahead keeps it.
 from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
+import contextlib
 
 # lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
 # every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).
@@ -509,10 +509,8 @@ class Bus:
         def observe_reply(outcome: str) -> None:
             if reply_decision is None:
                 return
-            try:
+            with contextlib.suppress(Exception):
                 shadow_router.record_observation(self._client, self.ns, reply_decision, outcome, family="reply")
-            except Exception:
-                pass
 
         env = {
             "frm": self.agent_id,
@@ -543,10 +541,8 @@ class Bus:
                         f"via the straggler net, delayed"
                     )
         legacy_mid: str | None = None
-        try:
+        with contextlib.suppress(Exception):
             legacy_mid = str(self._client.xadd(self._inbox_key(str(to)), env, maxlen=self.maxlen, approximate=True))
-        except Exception:
-            pass
         if lane_mid is None and legacy_mid is None:
             observe_reply("failure")
             return None  # both writes failed: the send failed
@@ -632,10 +628,8 @@ class Bus:
 
         # Shadow router: observe the decision (T060 N0 counters stay alive)
         decision = None
-        try:
+        with contextlib.suppress(Exception):
             decision = shadow_router.route(kind)
-        except Exception:
-            pass
 
         # Kill-switch: BIFROST_LANES_DUAL_WRITE=0 -> legacy-only (same gate as the old
         # advisory mirror; the T039a P0 soak became the C6-7 primary path, so the switch
@@ -647,10 +641,8 @@ class Bus:
             if lane == "trace":
                 # R5 + amend E: trace copy is unstamped except every Nth (global spot tick).
                 tick = 0
-                try:
+                with contextlib.suppress(Exception):
                     tick = int(self._client.incr(f"{self.ns}:trace:spotcount"))
-                except Exception:
-                    pass
                 if packet_spec.lane_wants_integrity("trace", tick=tick):
                     lane_env["spot_tick"] = str(tick)
                 else:
@@ -686,17 +678,13 @@ class Bus:
         # this is the PRIMARY-path outcome now, observed under the same family for
         # backward compat with T060's live counters)
         if decision is not None:
-            try:
+            with contextlib.suppress(Exception):
                 shadow_router.record_observation(self._client, self.ns, decision, lane_outcome, family="mirror")
-            except Exception:
-                pass
 
         # Legacy write: always attempted (fallback for mapped kinds; primary for unmapped)
         legacy_mid: str | None = None
-        try:
+        with contextlib.suppress(Exception):
             legacy_mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
-        except Exception:
-            pass
 
         # T108 slice 1: seat-stream mirror for incarnation-directed mail. Best-effort -- the
         # legacy copy is the fallback delivery (straggler net), so a failed mirror degrades to
@@ -830,10 +818,8 @@ class Bus:
         window = self._reask_window()
         if window <= 0 or not self._truthy_env("BIFROST_REASK_COLLAPSE", True):
             return
-        try:
+        with contextlib.suppress(Exception):
             self._client.set(self._reask_key(to, kind, env), str(mid), ex=window)
-        except Exception:
-            pass
 
     @staticmethod
     def _truthy_env(name: str, default: bool) -> bool:
@@ -858,10 +844,8 @@ class Bus:
         for fenv in packet_spec.fragment(env):
             # Lane write (if mapped, best-effort -- the advisory mirror survives here)
             if lane_key is not None:
-                try:
+                with contextlib.suppress(Exception):
                     self._client.xadd(lane_key, fenv, maxlen=packet_spec.lane_maxlen(lane), approximate=True)
-                except Exception:
-                    pass
             # Legacy write: the primary path for fragment consumers
             try:
                 legacy_id = str(self._client.xadd(stream, fenv, maxlen=self.maxlen, approximate=True))
@@ -1019,10 +1003,8 @@ class Bus:
             res = None
         finally:
             if temp is not None:
-                try:
+                with contextlib.suppress(Exception):
                     temp.close()
-                except Exception:
-                    pass
         now = time.time()
         if not res:  # idle read: still time out any stalled partial
             for wid, missing in self._reasm.sweep_expired(now):  # (pin 6: a quiet stream must
@@ -1089,7 +1071,7 @@ class Bus:
         for wid, missing in self._reasm.sweep_expired(now):  # pin 6/7: LOUD timeout, seq named
             self._fragment_timeout(wid, missing)
         # Sort messages (and their stream-tags) by id so newest-last
-        pairs = sorted(zip(out, out_streams), key=lambda p: p[0].id)
+        pairs = sorted(zip(out, out_streams, strict=False), key=lambda p: p[0].id)
         out = [p[0] for p in pairs]
         out_streams = [p[1] for p in pairs]
         returned = out[:limit]
@@ -1106,7 +1088,7 @@ class Bus:
             next_inbox, next_bc, next_seat = new_inbox, new_bc, new_seat
         else:
             next_inbox, next_bc, next_seat = cur["inbox"], cur["bc"], seat_cur
-            for m, stream_tag in zip(returned, out_streams[:limit]):
+            for m, stream_tag in zip(returned, out_streams[:limit], strict=False):
                 if stream_tag == "inbox":
                     next_inbox = m.id
                 elif stream_tag == "seat":
@@ -1132,10 +1114,8 @@ class Bus:
         # T108 slice 1: the seat cursor is OURS ALONE (per-incarnation key) -- a plain write,
         # no fence, no generation. That absence-of-machinery is the point of the design.
         if seat_key is not None and advance and next_seat != seat_cur:
-            try:
+            with contextlib.suppress(Exception):
                 self._client.hset(self._seat_cursor_key(my_sid8), "seat", next_seat)
-            except Exception:
-                pass
         return returned
 
     def _seat_seen(self, sha: str, *, mark: bool) -> bool:
@@ -1407,10 +1387,8 @@ class Bus:
         except Exception:
             h = {}
         if self._incarnation and not any(str(v) != "0" for v in h.values()):
-            try:
+            with contextlib.suppress(Exception):
                 h = self._client.hgetall(f"{self.ns}:cursor:lane:{self.agent_id}") or h
-            except Exception:
-                pass
         return {f: str(h.get(f, "0")) for f in self._LANE_CURSOR_FIELDS}
 
     def read_lane_flip_seed(self) -> dict[str, str]:

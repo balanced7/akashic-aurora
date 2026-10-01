@@ -98,8 +98,7 @@ class BoundaryDetector:
         for i in range(1, len(beats)):
             if self._is_boundary(beats, i):
                 cuts.add(i)
-        out = sorted(cuts)
-        return out
+        return sorted(cuts)
 
     def _is_boundary(self, beats: list[Beat], i: int) -> bool:
         """Would beat[i] start a new chapter given beat[i-1]?"""
@@ -109,9 +108,7 @@ class BoundaryDetector:
             return True
         if _hour_gap(prev.at, curr.at) >= self.min_gap_hours:
             return True
-        if curr.weight >= self.salience_weight:
-            return True
-        return False
+        return curr.weight >= self.salience_weight
 
 
 class Chronicler:
@@ -266,7 +263,7 @@ class Chronicler:
         commits_list = [b.source for b in beats if b.source.startswith("git:")]
         learnings_list = [b.source for b in beats if b.source.startswith("learn:")]
 
-        chapter = Chapter(
+        return Chapter(
             id=ch_id,
             track=track,
             title=title,
@@ -283,7 +280,6 @@ class Chronicler:
             valid_from=span_start,
             critic_ok=distillation.critic_ok,
         )
-        return chapter
 
     def _build_storyline(self, chapters: list[Chapter]) -> dict[str, list[str]]:
         """Group chapter IDs by track, in temporal order."""

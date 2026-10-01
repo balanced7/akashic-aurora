@@ -164,10 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--write", action="store_true", help="persist to store/docs/legacy_map.json")
     args = ap.parse_args(argv)
     fam = _atoms.AtomFamily(store=_default_store())
-    if args.write:
-        m = write_map(family=fam)
-    else:
-        m = build_map(family=fam)
+    m = write_map(family=fam) if args.write else build_map(family=fam)
     matched = sum(1 for r in m.values() if r.get("matched"))
     print(f"legacy_map: {matched}/{len(m)} deleted docs matched to one atom by suffix identity")
     for slug, rec in sorted(m.items()):

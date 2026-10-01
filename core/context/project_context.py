@@ -211,7 +211,7 @@ class ProjectContextManager:
         milestones = []
         data = self.store.hgetall(self._key("milestones"))
 
-        for m_id, m_json in data.items():
+        for m_json in data.values():
             m = Milestone(**json.loads(m_json))
             if status is None or m.status == status:
                 milestones.append(m)
@@ -321,7 +321,7 @@ class ProjectContextManager:
         tasks = []
         data = self.store.hgetall(self._key("tasks"))
 
-        for t_id, t_json in data.items():
+        for t_json in data.values():
             t = Task(**json.loads(t_json))
             if status and t.status != status:
                 continue
@@ -414,7 +414,7 @@ class ProjectContextManager:
         blockers = []
         data = self.store.hgetall(self._key("blockers"))
 
-        for b_id, b_json in data.items():
+        for b_json in data.values():
             b = Blocker(**json.loads(b_json))
             if status is None or b.status == status:
                 blockers.append(b)

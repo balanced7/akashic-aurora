@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any
+import contextlib
 
 DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000  # 6h of traffic is a session's story
 PER_STREAM_LIMIT = 400  # bounded read per stream; the window trims harder
@@ -182,7 +183,9 @@ def flow_trace(
     r = client if client is not None else _connect()
     if r is None:
         return {"flows": [], "counts": {"flows": 0, "nodes": 0, "copies": 0, "dropped_by_window": 0}, "offline": True}
-    dec = lambda x: x.decode() if isinstance(x, bytes) else x
+
+    def dec(x):
+        return x.decode() if isinstance(x, bytes) else x
 
     streams: list[str] = [f"{ns}:broadcast", f"{ns}:work:broadcast"]
     try:
@@ -228,10 +231,8 @@ def _count(out: dict[str, Any]) -> None:
         st = create_store(prefer_redis=True)
 
         def bump(key, by):
-            try:
+            with contextlib.suppress(Exception):
                 st.set(key, str(int(st.get(key) or 0) + by))
-            except Exception:
-                pass
 
         bump("flow_trace:queries", 1)
         if out.get("counts", {}).get("flows"):

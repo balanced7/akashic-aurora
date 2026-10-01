@@ -86,7 +86,7 @@ _TOO_GENERIC = {
     # artifact is untouched -- the protection a name confers is proportional to how distinctive
     # it is, and this one was never conferring much. Better long-term fix, Daniel's call because
     # private/ is his: rename that artifact to something distinctive.
-    "".join(("best-", "practices")),
+    "best-practices",
     "claude",
     "kimi",
     "deepseek",

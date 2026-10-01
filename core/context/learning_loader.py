@@ -77,7 +77,7 @@ def _confidence_base(raw: Any) -> int:
             val = float(s)
         except (TypeError, ValueError):
             return 3
-    if not (val == val) or val in (float("inf"), float("-inf")):  # NaN / inf
+    if val != val or val in (float("inf"), float("-inf")):  # NaN / inf
         return 3
     val = max(0.0, min(1.0, val))
     # Same three bands the categorical scale expresses, so the two type systems agree.

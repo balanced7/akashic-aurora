@@ -201,7 +201,7 @@ def respawn_self(argv: list[str] | None = None) -> bool:
     caller stands down afterwards; the runner lock's generation fencing hands
     the seat over exactly as it would after a crash."""
     try:
-        args = [sys.executable] + list(argv if argv is not None else sys.argv)
+        args = [sys.executable, *list(argv if argv is not None else sys.argv)]
         flags = 0
         if sys.platform == "win32":
             flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(

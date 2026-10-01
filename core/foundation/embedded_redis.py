@@ -47,6 +47,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+import contextlib
 
 logger = logging.getLogger("embedded_redis")
 
@@ -454,10 +455,8 @@ def _no_delay_handler(base):
 
     class _NoDelay(base):
         def setup(self):
-            try:
+            with contextlib.suppress(OSError):
                 self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            except OSError:
-                pass
             super().setup()
 
     return _NoDelay
@@ -487,10 +486,8 @@ def serve(port: int, host: str = "127.0.0.1", path: Path | None = None) -> int:
     flusher = threading.Thread(target=_PERSIST.run, name="embedded-redis-flush", daemon=True)
     flusher.start()
     pidfile = path.with_suffix(".pid")
-    try:
+    with contextlib.suppress(OSError):
         pidfile.write_text(f"{os.getpid()}\n", encoding="utf-8")
-    except OSError:
-        pass
     logger.info("embedded redis on %s:%s, %d key(s) loaded from %s", host, port, loaded, path)
 
     def _stop(*_):
@@ -506,10 +503,8 @@ def serve(port: int, host: str = "127.0.0.1", path: Path | None = None) -> int:
     finally:
         _PERSIST.stop()
         srv.server_close()
-        try:
+        with contextlib.suppress(OSError):
             pidfile.unlink()
-        except OSError:
-            pass
     return 0
 
 
@@ -533,9 +528,14 @@ def _spawn(port: int) -> None:
     env = dict(os.environ)
     root = str(_repo_root())
     env["PYTHONPATH"] = root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-    kwargs = dict(
-        cwd=root, stdin=subprocess.DEVNULL, stdout=open(log, "ab"), stderr=subprocess.STDOUT, close_fds=True, env=env
-    )
+    kwargs = {
+        "cwd": root,
+        "stdin": subprocess.DEVNULL,
+        "stdout": open(log, "ab"),
+        "stderr": subprocess.STDOUT,
+        "close_fds": True,
+        "env": env,
+    }
     if sys.platform == "win32":
         kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     else:

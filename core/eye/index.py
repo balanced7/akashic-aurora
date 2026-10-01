@@ -495,10 +495,7 @@ def _event_from(obj: dict[str, Any], seat: str | None = None) -> dict[str, Any] 
         msg = obj.get("message") or {}
         if msg.get("role") == "user":
             text = _texts_from_content(msg.get("content"))
-            if obj.get("isMeta") or any(m in text for m in _SYSTEM_MARKERS):
-                voice = "system"
-            else:
-                voice = "operator"
+            voice = "system" if obj.get("isMeta") or any(m in text for m in _SYSTEM_MARKERS) else "operator"
     elif typ == "queue-operation":
         for key in ("prompt", "text", "content"):
             v = obj.get(key)

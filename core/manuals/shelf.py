@@ -34,6 +34,7 @@ from pathlib import Path
 
 from core.manuals import chunk as chunk_mod
 from core.manuals import convert
+import contextlib
 
 SCHEMA_VERSION = "manuals.shelf/1"
 # Folded into every document's fingerprint: bump it when conversion or chunking changes, and
@@ -87,84 +88,82 @@ def _load_minilm():
     return embed
 
 
-_STOP = set(
-    [
-        "a",
-        "an",
-        "and",
-        "are",
-        "as",
-        "at",
-        "be",
-        "but",
-        "by",
-        "can",
-        "could",
-        "do",
-        "does",
-        "did",
-        "for",
-        "from",
-        "had",
-        "has",
-        "have",
-        "how",
-        "i",
-        "if",
-        "in",
-        "into",
-        "is",
-        "it",
-        "its",
-        "me",
-        "my",
-        "not",
-        "of",
-        "on",
-        "or",
-        "our",
-        "should",
-        "so",
-        "than",
-        "that",
-        "the",
-        "their",
-        "them",
-        "then",
-        "there",
-        "these",
-        "they",
-        "this",
-        "those",
-        "to",
-        "us",
-        "was",
-        "we",
-        "were",
-        "what",
-        "when",
-        "where",
-        "which",
-        "while",
-        "who",
-        "whom",
-        "why",
-        "will",
-        "with",
-        "would",
-        "you",
-        "your",
-        "many",
-        "much",
-        "any",
-        "some",
-        "about",
-        "use",
-        "using",
-        "used",
-        "need",
-    ]
-)
+_STOP = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "but",
+    "by",
+    "can",
+    "could",
+    "do",
+    "does",
+    "did",
+    "for",
+    "from",
+    "had",
+    "has",
+    "have",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "me",
+    "my",
+    "not",
+    "of",
+    "on",
+    "or",
+    "our",
+    "should",
+    "so",
+    "than",
+    "that",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "to",
+    "us",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "will",
+    "with",
+    "would",
+    "you",
+    "your",
+    "many",
+    "much",
+    "any",
+    "some",
+    "about",
+    "use",
+    "using",
+    "used",
+    "need",
+}
 
 
 def default_db_path() -> Path:
@@ -238,8 +237,10 @@ class SearchResult:
                 f"try synonyms, or `manual list` to see what is shelved"
             )
         out = [
-            f"manual search: {len(self.hits)} passage(s) for {self.query!r} "
-            f"(from {self.searched_chunks} chunks in [{where}])"
+            (
+                f"manual search: {len(self.hits)} passage(s) for {self.query!r} "
+                f"(from {self.searched_chunks} chunks in [{where}])"
+            )
         ]
         for i, h in enumerate(self.hits, 1):
             where_line = h.url or ""
@@ -347,7 +348,7 @@ class Shelf:
             vecs = np.asarray(fn([f"{crumb}\n{text}" for _, crumb, text in part]), dtype="float32")
             c.executemany(
                 "INSERT OR REPLACE INTO chunk_vecs(chunk_id, model, vec) VALUES (?,?,?)",
-                [(cid, tag, v.tobytes()) for (cid, _, _), v in zip(part, vecs)],
+                [(cid, tag, v.tobytes()) for (cid, _, _), v in zip(part, vecs, strict=False)],
             )
             c.commit()
         return len(ids)
@@ -405,7 +406,7 @@ class Shelf:
     @staticmethod
     def _mirror_url(root: Path, p: Path) -> str | None:
         """A page saved under a host-named folder (docs.example.com/guide/x.html) gets that url."""
-        parts = [root.name] + list(p.relative_to(root).parts)
+        parts = [root.name, *list(p.relative_to(root).parts)]
         for i, part in enumerate(parts[:-1]):
             if re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+", part.lower()):
                 return "https://" + "/".join(parts[i:])
@@ -418,10 +419,8 @@ class Shelf:
         rep = IngestReport(shelf=shelf)
         cfg_path = root / "_shelf.json"
         if html_selector is None and cfg_path.exists():
-            try:
+            with contextlib.suppress(OSError, json.JSONDecodeError):
                 html_selector = json.loads(cfg_path.read_text(encoding="utf-8")).get("html_selector")
-            except (OSError, json.JSONDecodeError):
-                pass
         urls = self._load_manifest(root)
         # "_manifest.json", "_index.json" and friends are a fetcher's metadata; an HTML page
         # that happens to start with "_" (One UI's _root.html) is content.

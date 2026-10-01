@@ -77,7 +77,7 @@ def _is_executable(line: str) -> bool:
     comments, def/class headers, and obvious docstring/prose (a line with no assignment,
     call-with-arg, or dot-call that just contains a family word in prose)."""
     s = line.strip()
-    if not s or s.startswith("#") or s.startswith(("def ", "class ", "async def ")):
+    if not s or s.startswith(("#", "def ", "class ", "async def ")):
         return False
     if s.startswith(('"""', "'''", '"', "'")):  # docstring / bare-string prose
         return False

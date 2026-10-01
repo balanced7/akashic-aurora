@@ -140,7 +140,9 @@ def migrate(json_path: Path, db_path: Path) -> tuple[dict[str, int], dict[str, i
             if remaining > 0 and store.exists(k):
                 store.expire(k, max(1, int(remaining)))
 
-        written = {b: _count(store, t) for b, t in zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"))}
+        written = {
+            b: _count(store, t) for b, t in zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"), strict=False)
+        }
 
         if written != src:
             raise SystemExit(

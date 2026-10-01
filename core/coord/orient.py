@@ -329,8 +329,10 @@ def render_orientation(scene: Mapping[str, Any]) -> str:
     aperture = scene.get("aperture") or {}
     effects = list(scene.get("effects") or [])
     lines = [
-        f"# orient subject={subject} target={target} density={aperture.get('density')} "
-        f"depth={aperture.get('depth')} effects={'none' if not effects else effects}"
+        (
+            f"# orient subject={subject} target={target} density={aperture.get('density')} "
+            f"depth={aperture.get('depth')} effects={effects if effects else 'none'}"
+        )
     ]
     focus = scene.get("focus")
     if focus:

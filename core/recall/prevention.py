@@ -53,12 +53,18 @@ VERDICTS = ("COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE")
 # Named beside every rate, per the stage log's own warning. A number without these invites the
 # steer the docstring forbids.
 CONFOUNDS = (
-    "exposure-bias: a lesson surfaces BECAUSE the matcher judged the moment risky, so surfaced "
-    "actions are not a random sample -- the control arm is not a matched control",
-    "self-inflation: the positive feedback loop credits whatever was surfaced at flip time "
-    "(resolve_action_outcome) with no causal check; this report deliberately ignores that counter",
-    "self-sealing demotion: a benched lesson stops surfacing, so it can never earn the credit "
-    "that would redeem it -- absence of exposure is not absence of value",
+    (
+        "exposure-bias: a lesson surfaces BECAUSE the matcher judged the moment risky, so surfaced "
+        "actions are not a random sample -- the control arm is not a matched control"
+    ),
+    (
+        "self-inflation: the positive feedback loop credits whatever was surfaced at flip time "
+        "(resolve_action_outcome) with no causal check; this report deliberately ignores that counter"
+    ),
+    (
+        "self-sealing demotion: a benched lesson stops surfacing, so it can never earn the credit "
+        "that would redeem it -- absence of exposure is not absence of value"
+    ),
     "COMPLIED is unprovable from this join: silence is UNKNOWABLE, never compliance",
 )
 

@@ -65,6 +65,7 @@ import time
 from typing import Any
 
 from core.foundation.store import Store
+import contextlib
 
 
 def _repo_root_str() -> str:
@@ -174,10 +175,8 @@ class SqliteStore(Store):
                         self._export_echo()
                     self.checkpoint()
                 finally:
-                    try:
+                    with contextlib.suppress(Exception):
                         self._conn.close()
-                    except Exception:
-                        pass
                     self._conn = None
 
     # ---------------------------------------------------- rider 1: WAL health
@@ -436,7 +435,7 @@ class SqliteStore(Store):
             if self._conn is None:
                 return {}
             self._evict_if_expired(key)
-            return {f: v for f, v in self._conn.execute("SELECT field,value FROM hash WHERE key=?", (key,))}
+            return dict(self._conn.execute("SELECT field,value FROM hash WHERE key=?", (key,)))
 
     # ----------------------------------------------------------------- list
     def _list_bounds(self, key: str):
@@ -732,8 +731,6 @@ class SqliteStore(Store):
                 self._conn.execute("COMMIT")
                 return True
             except Exception:
-                try:
+                with contextlib.suppress(Exception):
                     self._conn.execute("ROLLBACK")
-                except Exception:
-                    pass
                 return False

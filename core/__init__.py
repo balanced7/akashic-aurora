@@ -74,7 +74,7 @@ def _quiet_bootstrap() -> None:
         # normalised compare, same discipline as sitecustomize's _dedup: a raw string compare
         # would re-append a differently-spelled duplicate on every hop of a deep chain.
         if not any(os.path.normcase(os.path.normpath(p)) == key for p in cur):
-            os.environ["PYTHONPATH"] = os.pathsep.join([qdir] + cur)
+            os.environ["PYTHONPATH"] = os.pathsep.join([qdir, *cur])
     except Exception:
         pass
 

@@ -478,7 +478,7 @@ def grant_mandate_caps(successor_grant: registry.Grant, *, requested_caps, reque
     plus WRITE under a scope no wider than MANDATE_MAX_SCOPE. Returns (caps_set, scope_list).
     Raises PermissionError on any widening. This is the 'must never widen' door."""
     member = ROLE_TEMPLATES[MANDATE_MAX_ROLE]
-    allow_caps = {c for c in member["caps"]} | {Cap.WRITE}
+    allow_caps = set(member["caps"]) | {Cap.WRITE}
     eff = caps_from(requested_caps)
     extra = {c.value for c in eff} - {c.value for c in allow_caps}
     if extra:

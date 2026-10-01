@@ -26,6 +26,7 @@ from typing import Any
 
 from core.comm.timescale import scaled
 from core.foundation.timeutil import now_iso
+import contextlib
 
 
 def _ns() -> str:
@@ -108,10 +109,8 @@ def acquire_waiting(agent: str, token: str, ttl: int | None = None, wait_s: floa
         if time.time() >= deadline:
             return False
         if not announced and on_wait:
-            try:
+            with contextlib.suppress(Exception):
                 on_wait(holder(agent) or {})
-            except Exception:
-                pass
             announced = True
         time.sleep(1.0)
 

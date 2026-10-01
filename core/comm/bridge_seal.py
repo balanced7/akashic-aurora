@@ -52,6 +52,7 @@ from nacl import public, signing
 from nacl.exceptions import BadSignatureError, CryptoError
 
 from core.comm.remote_relay import BRIDGE_KINDS  # ONE allowlist; a copy is a future drift
+import contextlib
 
 ALG = "x25519-xsalsa20poly1305/ed25519-v1"
 WIRE_V = 1
@@ -519,10 +520,8 @@ class _FileLock:
     def __exit__(self, *exc):
         if self.fd is not None:
             os.close(self.fd)
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(str(self.path))
-        except OSError:
-            pass
         return False
 
 
@@ -583,10 +582,8 @@ class Chain:
                         raise
                     time.sleep(0.01)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(tmp)
-            except OSError:
-                pass
             raise
 
     # ---- outbound
@@ -651,7 +648,7 @@ class Chain:
             row["epoch"] = str(epoch or known_epoch)
 
             high = _as_int(row.get("high_water") or 0, what="stored high_water")
-            holes = set(_as_int(h, what="stored hole") for h in (row.get("holes") or []))
+            holes = {_as_int(h, what="stored hole") for h in (row.get("holes") or [])}
             newly_missing: list[int] = []
             chain_broken = False
 

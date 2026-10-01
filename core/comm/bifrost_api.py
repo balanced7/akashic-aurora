@@ -24,6 +24,7 @@ from typing import Any
 
 from core.comm import control, nudge
 from core.comm.bus import Bus
+import contextlib
 
 
 def _pyl() -> str:
@@ -724,7 +725,7 @@ class BifrostAPI:
                     and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)
                 ]
                 # W166: classify before claiming -- now against the packet's own twin window.
-                for m, (verdict, twin) in zip(cands, self._lane_twins(cands)):
+                for m, (verdict, twin) in zip(cands, self._lane_twins(cands), strict=False):
                     counts[verdict] += 1
                     if twin is not None:
                         if flip is None:
@@ -789,10 +790,8 @@ class BifrostAPI:
                 # The shadow cursor is a best-effort peek cursor, not a consumption contract:
                 # plain HSET, no generation fence. Uses the Bus's _client directly (same
                 # pattern as lane_flip_init which also writes the lane cursor hash raw).
-                try:
+                with contextlib.suppress(Exception):
                     self.bus._client.hset(lane_key, mapping=sh_fields)
-                except Exception:
-                    pass
         # T066 S4: receiver-side reply dedup over meta.reply_id. Delivery MARKS the id for
         # every reply; only a LEGACY-path copy of an already-seen id is DROPPED -- work-lane
         # copies always deliver, so RB-26 crash-redelivery (work cursor advances only after

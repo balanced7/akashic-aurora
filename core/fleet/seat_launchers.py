@@ -191,7 +191,7 @@ def launch_argv(
         # never reaches the launch line is not a capability -- the seat cannot tell the
         # difference between "policy" and "the lever forgot a flag". launch_flags is how a
         # registry entry states the posture its process must launch behind, opt-in per seat.
-        return ([sys.executable, script, "--agent", seat] + list(rec.get("launch_flags") or []), env, root)
+        return ([sys.executable, script, "--agent", seat, *list(rec.get("launch_flags") or [])], env, root)
 
     raise RuntimeError(f"unknown launcher kind {kind!r} for seat {seat!r}")
 
