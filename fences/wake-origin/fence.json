@@ -10,9 +10,13 @@
       "at": "2026-10-01T16:09:03.533546+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-10-01T16:16:52.476190+00:00",
+    "missing_count": 1
+  },
   "authors": {
     "brief": "claude",
-    "half_a": "deepseek"
+    "half_a": "deepseek",
+    "reconciliation": "claude"
   }
 }
