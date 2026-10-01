@@ -41,7 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.trust import private_plane as pp
 
-GENERIC = "best-practices"  # split so this pin does not trip the gate it tests
+GENERIC = "best-" + "practices"  # split so this pin does not trip the gate it tests
 
 
 def test_p1_a_generic_multiword_name_is_not_a_marker(tmp_path):
