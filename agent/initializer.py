@@ -209,8 +209,7 @@ def initialize_agent_with_minimal_output(agent_id: str, task_keyword: str = None
 
     if result["status"] == "success":
         return result["api"], result["state"], result["context"]
-    else:
-        raise RuntimeError(f"Initialization failed: {result['message']}")
+    raise RuntimeError(f"Initialization failed: {result['message']}")
 
 
 def initialize_agent_with_full_diagnostics(agent_id: str, task_keyword: str = None):

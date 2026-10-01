@@ -94,7 +94,7 @@ def make_client(api_key=None, base_url=BASE_URL):
 def fetch_balance(timeout=20):
     """Google has no Moonshot-style /users/me/balance -- fail-soft None.
     SpendMeter then runs on usage-derived totals only."""
-    return None
+    return
 
 
 class SpendMeter:

@@ -112,20 +112,19 @@ class FileAnalyzer:
         # Route to appropriate analyzer
         if ext in CODE_EXTENSIONS:
             return await self._analyze_code(file_data, filename)
-        elif ext in IMAGE_EXTENSIONS:
+        if ext in IMAGE_EXTENSIONS:
             return await self._analyze_image(file_data, filename)
-        elif ext in DOC_EXTENSIONS:
+        if ext in DOC_EXTENSIONS:
             return await self._analyze_pdf(file_data, filename)
-        elif ext in XLSX_EXTENSIONS:
+        if ext in XLSX_EXTENSIONS:
             return await self._analyze_spreadsheet(file_data, filename)
-        elif ext in DB_EXTENSIONS:
+        if ext in DB_EXTENSIONS:
             return await self._analyze_database(file_data, filename)
-        elif ext in AUDIO_EXTENSIONS:
+        if ext in AUDIO_EXTENSIONS:
             return await self._analyze_audio(filename)
-        elif ext in VIDEO_EXTENSIONS:
+        if ext in VIDEO_EXTENSIONS:
             return await self._analyze_video(filename)
-        else:
-            return await self._analyze_generic(file_data, filename)
+        return await self._analyze_generic(file_data, filename)
 
     async def _analyze_code(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze code files"""

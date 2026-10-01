@@ -573,18 +573,17 @@ class SignalEmitter:
                 "suggestion": "1. Read your briefing 2. Check cached decisions 3. Apply learnings 4. Start work",
                 "code": "briefing = api.get_startup_briefing()",
             }
-        elif context_size > 0:
+        if context_size > 0:
             return {
                 "situation": f"You have {context_size} relevant decisions/learnings loaded",
                 "suggestion": "1. Review decisions to reuse (save tokens) 2. Apply learnings 3. Start work",
                 "code": "decisions = api.get_startup_decisions(); learnings = api.get_startup_learnings()",
             }
-        else:
-            return {
-                "situation": "Cold start (no prior context)",
-                "suggestion": "1. Do your work 2. Record decisions 3. Record learnings 4. System learns for next agent",
-                "code": "api.decision(...); api.learning(...)",
-            }
+        return {
+            "situation": "Cold start (no prior context)",
+            "suggestion": "1. Do your work 2. Record decisions 3. Record learnings 4. System learns for next agent",
+            "code": "api.decision(...); api.learning(...)",
+        }
 
     # ===== Helper methods for Bootstrap API =====
 
@@ -709,12 +708,11 @@ api.completion(success=True, output={...})"""
         """Suggest what agent should do based on loaded context"""
         if self.startup_briefing:
             return "You have a briefing: READ IT FIRST"
-        elif len(self.startup_decisions or []) > 0:
+        if len(self.startup_decisions or []) > 0:
             return "You have cached decisions: REVIEW AND REUSE THEM"
-        elif len(self.startup_learnings or []) > 0:
+        if len(self.startup_learnings or []) > 0:
             return "You have learnings: APPLY THEM"
-        else:
-            return "Cold start: Do your work, record decisions/learnings for next agent"
+        return "Cold start: Do your work, record decisions/learnings for next agent"
 
     # ===== BACKWARD COMPATIBILITY: Deprecated names with wrappers =====
     # These methods are deprecated. Use semantic names instead.

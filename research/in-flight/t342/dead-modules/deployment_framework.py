@@ -246,7 +246,7 @@ def check_gpu_rocminfo() -> HealthCheckResult:
                 details={"gpu_found": True},
                 duration_ms=duration_ms,
             )
-        elif "Agent 2" in output and "GPU" in output:
+        if "Agent 2" in output and "GPU" in output:
             return HealthCheckResult(
                 component=component,
                 status=ComponentStatus.HEALTHY,
@@ -255,15 +255,14 @@ def check_gpu_rocminfo() -> HealthCheckResult:
                 details={"gpu_found": True},
                 duration_ms=duration_ms,
             )
-        else:
-            return HealthCheckResult(
-                component=component,
-                status=ComponentStatus.FAILED,
-                timestamp=datetime.now().isoformat(),
-                message="GPU not detected in rocminfo output",
-                details={"output_length": len(output)},
-                duration_ms=duration_ms,
-            )
+        return HealthCheckResult(
+            component=component,
+            status=ComponentStatus.FAILED,
+            timestamp=datetime.now().isoformat(),
+            message="GPU not detected in rocminfo output",
+            details={"output_length": len(output)},
+            duration_ms=duration_ms,
+        )
 
     except Exception as e:
         return HealthCheckResult(
@@ -322,15 +321,14 @@ def check_gpu_clinfo() -> HealthCheckResult:
                 details={"memory_gb": memory_gb},
                 duration_ms=duration_ms,
             )
-        else:
-            return HealthCheckResult(
-                component=component,
-                status=ComponentStatus.DEGRADED,
-                timestamp=datetime.now().isoformat(),
-                message="OpenCL GPU not detected",
-                details={"output_snippet": output[:500]},
-                duration_ms=duration_ms,
-            )
+        return HealthCheckResult(
+            component=component,
+            status=ComponentStatus.DEGRADED,
+            timestamp=datetime.now().isoformat(),
+            message="OpenCL GPU not detected",
+            details={"output_snippet": output[:500]},
+            duration_ms=duration_ms,
+        )
 
     except Exception as e:
         return HealthCheckResult(
@@ -383,15 +381,14 @@ def check_ollama_inference() -> HealthCheckResult:
                     details={"response_time_ms": duration_ms, "model": "llama3.2:3b"},
                     duration_ms=duration_ms,
                 )
-            else:
-                return HealthCheckResult(
-                    component=component,
-                    status=ComponentStatus.FAILED,
-                    timestamp=datetime.now().isoformat(),
-                    message=f"Inference failed with status {resp.status_code}",
-                    details={"response": resp.text[:500]},
-                    duration_ms=duration_ms,
-                )
+            return HealthCheckResult(
+                component=component,
+                status=ComponentStatus.FAILED,
+                timestamp=datetime.now().isoformat(),
+                message=f"Inference failed with status {resp.status_code}",
+                details={"response": resp.text[:500]},
+                duration_ms=duration_ms,
+            )
         except Exception as e:
             return HealthCheckResult(
                 component=component,
@@ -549,10 +546,9 @@ class DeploymentManager:
             log("INFO", component_name, "Deployment verified healthy")
             self._log_deployment(component_name, "deploy", True)
             return True
-        else:
-            log("ERROR", component_name, f"Deployment failed: {post_check.message}")
-            self._log_deployment(component_name, "deploy", False, post_check.message)
-            return False
+        log("ERROR", component_name, f"Deployment failed: {post_check.message}")
+        self._log_deployment(component_name, "deploy", False, post_check.message)
+        return False
 
     def _log_deployment(self, component: str, action: str, success: bool, error: str = None):
         """Log deployment action for observability."""

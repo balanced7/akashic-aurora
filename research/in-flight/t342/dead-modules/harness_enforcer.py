@@ -185,14 +185,13 @@ class EscapeDetector:
 
         if total_escapes == 0:
             return "LOW"
-        elif critical_escapes > 5:
+        if critical_escapes > 5:
             return "CRITICAL"
-        elif critical_escapes > 2:
+        if critical_escapes > 2:
             return "HIGH"
-        elif total_escapes < 5:
+        if total_escapes < 5:
             return "MEDIUM"
-        else:
-            return "HIGH"
+        return "HIGH"
 
 
 # ============================================================================

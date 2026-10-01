@@ -181,7 +181,7 @@ class EscalationManager:
 
         if matches >= 3:
             return "high"
-        elif matches >= 1:
+        if matches >= 1:
             return "medium"
         return "low"
 

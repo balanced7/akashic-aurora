@@ -66,10 +66,10 @@ class Row:
         v = self.verdict
         if v == "MATCH":
             return f"  {v:<7} {self.entry_ref:<24} {self.detail}"
-        elif v == "DRIFT":
+        if v == "DRIFT":
             return f"  {v:<7} {self.entry_ref:<24} [{self.rule}] {self.detail}"
-        else:  # UNKNOWN
-            return f"  {v:<7} {self.entry_ref:<24} {self.detail}"
+        # UNKNOWN
+        return f"  {v:<7} {self.entry_ref:<24} {self.detail}"
 
 
 # ---------------------------------------------------------------------------

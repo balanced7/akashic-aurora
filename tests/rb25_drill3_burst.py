@@ -86,9 +86,9 @@ def _resolve_target(kind_spec: str, runner_id: str, target_id: str) -> str:
     """Map the logical target in STORM_KINDS to an actual agent id."""
     if kind_spec == "runner":
         return runner_id
-    elif kind_spec == "target":
+    if kind_spec == "target":
         return target_id
-    elif kind_spec == "broadcast":
+    if kind_spec == "broadcast":
         return "*"
     raise ValueError(f"unknown target spec: {kind_spec}")
 

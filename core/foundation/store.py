@@ -256,7 +256,7 @@ class Store(ABC):
 
     def close(self) -> None:
         """Release resources. Default: no-op."""
-        return None
+        return
 
 
 # =====================================================================

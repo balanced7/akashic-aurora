@@ -383,7 +383,7 @@ def get_key_value(key: str, key_type: str) -> any:
     if key_type == "string":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli GET {key}")
         return output
-    elif key_type == "list":
+    if key_type == "list":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli LRANGE {key} 0 -1")
         try:
             return json.loads(output) if output else []
@@ -420,13 +420,12 @@ def get_container_status() -> dict:
         if CONTAINER_NAME in line:
             if "Up " in line or "running" in line.lower():
                 return {"exists": True, "running": True, "status": "running", "name": CONTAINER_NAME}
-            else:
-                return {
-                    "exists": True,
-                    "running": False,
-                    "status": line.split()[5] if len(line.split()) > 5 else "unknown",
-                    "name": CONTAINER_NAME,
-                }
+            return {
+                "exists": True,
+                "running": False,
+                "status": line.split()[5] if len(line.split()) > 5 else "unknown",
+                "name": CONTAINER_NAME,
+            }
 
     return {"running": False, "exists": False}
 

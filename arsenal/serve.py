@@ -313,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_header("Location", "/first-light")
                     self.send_header("Content-Length", "0")
                     self.end_headers()
-                    return
+                    return None
                 if path == "/favicon.ico":
                     return self._send(204, b"", "image/x-icon")
                 if path == "/first-light":
@@ -385,7 +385,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._looks("PUT")
             return self._json(404, {"error": f"no route for {method} {path}"})
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-            return  # the browser cancelled, usually a seek
+            return None  # the browser cancelled, usually a seek
         except Exception as exc:
             try:
                 self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
@@ -445,7 +445,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.end_headers()
         if self.command == "HEAD":
-            return
+            return None
         with open(path, "rb") as fh:
             fh.seek(start)
             remaining = length

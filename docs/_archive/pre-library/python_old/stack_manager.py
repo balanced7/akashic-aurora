@@ -895,14 +895,14 @@ def check_health(name: str, cfg: dict) -> bool:
         if htype == "wsl_alive":
             out, ok = _run_wsl("echo ALIVE", timeout=5)
             return ok and "ALIVE" in out
-        elif htype == "tcp":
+        if htype == "tcp":
             s = socket.create_connection((hc.get("host", "127.0.0.1"), hc.get("port", 6379)), timeout=3)
             s.close()
             return True
-        elif htype == "redis_ping":
+        if htype == "redis_ping":
             out, ok = _run_wsl(f"redis-cli -p {hc.get('port', 6379)} PING 2>/dev/null", timeout=5)
             return ok and "PONG" in out
-        elif htype == "http":
+        if htype == "http":
             import urllib.request
 
             req = urllib.request.Request(hc.get("url", ""))
@@ -913,7 +913,7 @@ def check_health(name: str, cfg: dict) -> bool:
                         return contains in resp.read().decode()
                     return True
             return False
-        elif htype == "process":
+        if htype == "process":
             pattern = hc.get("name", "")
             out, ok = _run_ps(
                 f"Get-Process python -ErrorAction SilentlyContinue | "
@@ -922,8 +922,7 @@ def check_health(name: str, cfg: dict) -> bool:
                 timeout=10,
             )
             return ok and out.strip() not in ("", "0")
-        else:
-            return True
+        return True
     except Exception:
         return False
 

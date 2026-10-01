@@ -37,7 +37,7 @@ class _FakeLog:
         self.events.append(
             {"kind": kind, "summary": summary, "detail": detail or {}, "agent_id": agent_id, "refs": refs or []}
         )
-        return None
+        return
 
 
 @pytest.fixture

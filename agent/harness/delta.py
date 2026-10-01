@@ -327,11 +327,10 @@ def render_full(agent: str) -> str:
             f"[delta {agent}] no mark yet (newborn) -- the mark writes at your next "
             f"boot; until then the full boot is the orientation"
         )
-    else:
-        cur = current_positions(agent)
-        parts = _sections(agent, mark, cur)
-        head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
-        text = "\n".join([head] + parts) if parts else f"[delta {agent}] no changes since your last boot"
+    cur = current_positions(agent)
+    parts = _sections(agent, mark, cur)
+    head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
+    text = "\n".join([head] + parts) if parts else f"[delta {agent}] no changes since your last boot"
     if c is not None:
         try:
             c.set(ckey, text, ex=RENDER_TTL_S)

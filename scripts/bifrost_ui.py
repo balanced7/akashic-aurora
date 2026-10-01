@@ -807,7 +807,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(_body)))
                 self.end_headers()
                 self.wfile.write(_body)
-                return
+                return None
         if path == "/aurora-shader.js":
             return self._static("scripts/aurora-shader.js", "application/javascript")
         if path == "/bifrost_viz.js":
@@ -1404,7 +1404,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/reload":
             self._json({"ok": True, "reloading": True})
             threading.Thread(target=lambda: (time.sleep(0.3), _reexec()), daemon=True).start()
-            return
+            return None
         if path == "/negotiate":
             return self._negotiate(data)
         if path == "/narration":

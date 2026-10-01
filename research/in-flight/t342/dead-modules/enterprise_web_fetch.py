@@ -240,7 +240,7 @@ def enterprise_fetch(
                 if e.code == 404:
                     # 404 is permanent failure - don't retry
                     break
-                elif e.code in (429, 503):
+                if e.code in (429, 503):
                     # Rate limited - retry with longer backoff
                     backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2**attempt) * random.uniform(1, 1.5))
                     time.sleep(backoff)

@@ -176,8 +176,7 @@ class TTSProcessor:
         """Generate speech audio"""
         if self.config.engine == "kokoro" and self.kokoro._loaded:
             return await self.kokoro.speak(text)
-        else:
-            return await self.espeak.speak(text)
+        return await self.espeak.speak(text)
 
     async def speak_streaming(self, text: str) -> AsyncIterator[bytes]:
         """Streaming speech"""

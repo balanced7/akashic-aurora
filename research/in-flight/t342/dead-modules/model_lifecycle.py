@@ -266,8 +266,7 @@ class ModelLifecycleManager:
                 self.vision_loaded = True
                 print("[lifecycle] Vision model loaded")
                 return True
-            else:
-                return False
+            return False
 
         except Exception as e:
             print(f"[lifecycle] Failed to load vision: {e}")
@@ -375,23 +374,21 @@ class ModelLifecycleManager:
                     "to_unload": [],
                     "reason": f"Available VRAM {available:.1f}GB >= {VRAM_VISION}GB needed",
                 }
-            else:
-                # Need to unload something
-                to_unload = self.get_models_to_unload("vision")
-                if to_unload:
-                    return {
-                        "action": "swap",
-                        "to_load": ["vision"],
-                        "to_unload": to_unload,
-                        "reason": f"Need {VRAM_VISION}GB, freeing {to_unload}",
-                    }
-                else:
-                    return {
-                        "action": "impossible",
-                        "to_load": [],
-                        "to_unload": [],
-                        "reason": "Cannot free enough VRAM for vision",
-                    }
+            # Need to unload something
+            to_unload = self.get_models_to_unload("vision")
+            if to_unload:
+                return {
+                    "action": "swap",
+                    "to_load": ["vision"],
+                    "to_unload": to_unload,
+                    "reason": f"Need {VRAM_VISION}GB, freeing {to_unload}",
+                }
+            return {
+                "action": "impossible",
+                "to_load": [],
+                "to_unload": [],
+                "reason": "Cannot free enough VRAM for vision",
+            }
 
         return {"action": "keep", "to_load": [], "to_unload": [], "reason": "Unknown priority"}
 

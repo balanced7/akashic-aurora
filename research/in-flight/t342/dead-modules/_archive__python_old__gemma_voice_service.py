@@ -265,8 +265,7 @@ def voice_output():
 
     if audio_b64:
         return jsonify({"audio": audio_b64, "format": "wav", "timestamp": datetime.now().isoformat()})
-    else:
-        return jsonify({"error": "TTS failed"}), 500
+    return jsonify({"error": "TTS failed"}), 500
 
 
 @app.route("/tts/speak", methods=["GET"])

@@ -860,14 +860,13 @@ def _kill_tree(pid: int, identity: str | None) -> dict[str, Any]:
         }
     if sys.platform == "win32":
         return _win_kill_tree(int(pid), str(identity))
-    else:
-        try:
-            os.killpg(int(pid), signal.SIGKILL)
-            ok, detail = True, "SIGKILL process group"
-        except ProcessLookupError:
-            ok, detail = True, "already dead"
-        except OSError as exc:
-            ok, detail = False, str(exc)
+    try:
+        os.killpg(int(pid), signal.SIGKILL)
+        ok, detail = True, "SIGKILL process group"
+    except ProcessLookupError:
+        ok, detail = True, "already dead"
+    except OSError as exc:
+        ok, detail = False, str(exc)
     deadline = time.monotonic() + 2.0
     while time.monotonic() < deadline and _process_info(pid)[0]:
         time.sleep(0.03)
