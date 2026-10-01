@@ -27,7 +27,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.doctor import (  # noqa: E402
+from core.comm.doctor import (
     FLIGHTDECK_COMPOSITION,
     flightdeck,
     format_flightdeck,

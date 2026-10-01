@@ -24,7 +24,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.fleet import seat_launchers as SL  # noqa: E402
+from core.fleet import seat_launchers as SL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

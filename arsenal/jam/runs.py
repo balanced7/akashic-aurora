@@ -1497,7 +1497,7 @@ def insert_settings(settings: list[dict], bar: int, partial: dict) -> list[dict]
     old_prev = in_effect
 
     def same(a, b):
-        return {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}  # noqa: E731
+        return {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}
 
     for s in settings:
         if s["from_bar"] <= bar:

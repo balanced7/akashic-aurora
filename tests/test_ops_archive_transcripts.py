@@ -36,7 +36,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.ops import archive_transcripts as ARC  # noqa: E402
+from scripts.ops import archive_transcripts as ARC
 
 if TYPE_CHECKING:
     from pathlib import Path

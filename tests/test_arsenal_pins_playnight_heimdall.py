@@ -370,7 +370,7 @@ def test_list_presets_only_frag_files(tmp_path):
 
 @pytest.fixture
 def presets_server(tmp_path):
-    from arsenal.serve import App, Server  # noqa: E402 (same pattern as test_arsenal_serve)
+    from arsenal.serve import App, Server
 
     pdir = tmp_path / "presets"
     pdir.mkdir()

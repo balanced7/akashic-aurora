@@ -42,7 +42,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust import private_plane as PP  # noqa: E402
+from core.trust import private_plane as PP
 
 
 @pytest.fixture

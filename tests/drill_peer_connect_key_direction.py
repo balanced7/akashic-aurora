@@ -143,7 +143,7 @@ def main() -> int:
         "observed: accept() admitted the INBOUND_KEY_FILE value and refused the other",
     )
 
-    import peer_connect as PC  # noqa: E402
+    import peer_connect as PC
 
     check(
         "peer_connect.SEND_KEY == remote_bridge_outbound.key",

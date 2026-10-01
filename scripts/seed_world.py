@@ -19,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from datetime import UTC
 
-import redis  # noqa: E402
+import redis
 
-from core import world_seed as S  # noqa: E402
-from core.world import WORLDS  # noqa: E402
+from core import world_seed as S
+from core.world import WORLDS
 
 
 def _client(world: str):

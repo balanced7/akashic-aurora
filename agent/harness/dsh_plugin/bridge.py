@@ -71,7 +71,7 @@ def _emit(obj) -> int:
 def _import_actions():
     """The shared orchestration module. Raises until claude lands it."""
     sys.path.insert(0, _repo())
-    from agent.harness.actions import outcome_block, plan_block, recall_block  # noqa: F401
+    from agent.harness.actions import outcome_block, plan_block, recall_block
 
     return recall_block, outcome_block, plan_block
 

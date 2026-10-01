@@ -30,7 +30,7 @@ import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import oracle  # noqa: E402  (sibling module, stdlib-only)
+import oracle
 
 HERE = oracle.HERE
 ROOT = oracle.ROOT

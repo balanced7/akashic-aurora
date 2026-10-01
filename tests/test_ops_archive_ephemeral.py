@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.ops import archive_ephemeral as EPH  # noqa: E402
+from scripts.ops import archive_ephemeral as EPH
 
 
 class FakeRedis:

@@ -57,7 +57,7 @@ os.environ.setdefault("AKASHIC_RECALL_STATE_DIR", tempfile.mkdtemp(prefix="akash
 # So this mirrors the recall-scratch decision immediately above -- isolate by default, and
 # make the escape hatch explicit rather than implicit-by-forgetting.
 if not os.environ.get("AKASHIC_TEST_USE_CANONICAL"):
-    import isolate_canonical  # noqa: F401,E402  (side-effect: temp AI_SETUP + db 15 + flush)
+    import isolate_canonical  # noqa: F401  (side-effect: temp AI_SETUP + db 15 + flush)
 else:
     # Deliberate operator override, e.g. reproducing a canonical-state incident. Loud, so
     # nobody discovers afterwards that a run touched real data.

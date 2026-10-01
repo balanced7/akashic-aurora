@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.ops.archive_ephemeral import _safe_name, export_bus  # noqa: E402
+from scripts.ops.archive_ephemeral import _safe_name, export_bus
 
 
 def test_safe_name_neutralizes_every_windows_invalid_character():

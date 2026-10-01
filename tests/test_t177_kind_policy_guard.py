@@ -125,7 +125,7 @@ def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
     import io
 
     sys.path.insert(0, os.path.join(ROOT, "scripts", "githooks"))
-    import pre_commit  # noqa: E402
+    import pre_commit
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

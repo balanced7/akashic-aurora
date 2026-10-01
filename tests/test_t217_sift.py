@@ -16,7 +16,7 @@ the real extractor over the real tree.
 
 from __future__ import annotations
 
-import pytest  # noqa: F401  (used by the pins below)
+import pytest
 
 # DELIBERATELY A HARD IMPORT. The first draft of this file used
 # pytest.importorskip(...) and the suite answered "exit 5, no tests ran" -- a RED pin that

@@ -20,7 +20,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus
 
 AGENT = "claude"  # a GRANTED id -- unknown ids are correctly quarantined by acl
 TAG = uuid.uuid4().hex[:8]
