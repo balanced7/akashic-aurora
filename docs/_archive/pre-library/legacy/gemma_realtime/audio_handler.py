@@ -6,9 +6,9 @@ Handles WebSocket audio streams with VAD and processing
 
 import asyncio
 import io
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Optional
-from collections.abc import Callable
 
 import numpy as np
 import torch

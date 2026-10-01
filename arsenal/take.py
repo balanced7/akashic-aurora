@@ -8,17 +8,17 @@ refused batch is written.
 
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 import os
 import re
 import threading
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .timebase import StaleEpoch, TimeRef
-import builtins
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "state" / "arsenal" / "takes"
 _TAKE_ID_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{8}$")

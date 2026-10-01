@@ -19,9 +19,9 @@ AgentMemory consolidation->chronicles loop. It embodies the compaction research:
 See docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md and docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
-from collections.abc import Callable
 
 # Fields to summarize from, in priority order (first present wins).
 _SUMMARY_FIELDS = ["recommendation", "decision", "description", "title", "summary", "text", "what_tried", "task"]

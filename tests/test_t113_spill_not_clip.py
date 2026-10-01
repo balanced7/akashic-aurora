@@ -44,7 +44,6 @@ destroy the tail -- clip what the reader SEES, keep what the sender SAID.
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import packet_spec

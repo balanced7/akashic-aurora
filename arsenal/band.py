@@ -154,8 +154,8 @@ import random
 import re
 import struct
 import sys
-from pathlib import Path
 from collections.abc import Iterable, Sequence
+from pathlib import Path
 
 from . import nashville as nv
 

@@ -17,9 +17,9 @@ import hashlib
 import inspect
 import json
 import math
-from datetime import datetime, UTC
-from typing import Any
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from core.primitives.epistemic import derive_epistemic_view
 

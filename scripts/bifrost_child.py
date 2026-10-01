@@ -26,8 +26,8 @@ import subprocess
 import threading
 import time
 import uuid
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 
 # ---------------------------------------------------------------- DaemonLock

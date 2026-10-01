@@ -35,10 +35,10 @@ import json
 import os
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 from typing import Any
-from collections.abc import Callable
 
 import redis
 

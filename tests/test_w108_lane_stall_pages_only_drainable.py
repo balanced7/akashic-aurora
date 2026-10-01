@@ -37,7 +37,6 @@ must survive; only the unactionable pages go.
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 DEEP_OLD_LANE = {"age_s": 70000.0, "depth": 18, "straggler": 0, "backlog_age_s": 70000.0}

@@ -37,8 +37,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 #: How stale the draft may get before a turn boundary refreshes it. Ten minutes bounds
 #: what an ungraceful death can destroy, while leaving the overwhelming majority of turns

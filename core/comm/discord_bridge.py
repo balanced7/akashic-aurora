@@ -32,9 +32,9 @@ from __future__ import annotations
 import os
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 from core.outcome import BoundaryOutcome
 

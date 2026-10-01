@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta, timezone
 
 from core.trust import registry
 from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from

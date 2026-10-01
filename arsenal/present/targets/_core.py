@@ -15,9 +15,9 @@ from __future__ import annotations
 import html
 import math
 import re
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
-from collections.abc import Sequence
 
 from .. import scene as sc
 

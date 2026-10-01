@@ -43,7 +43,6 @@ for everyone else, and it says which of the two answered.
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import runtime_age

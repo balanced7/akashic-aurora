@@ -45,8 +45,8 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 VERDICTS = ("COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE")
 

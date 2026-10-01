@@ -31,7 +31,6 @@ Run: py -m pytest tests/test_ship_baseline_gate.py -q
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import suite_baseline as sb  # noqa: E402

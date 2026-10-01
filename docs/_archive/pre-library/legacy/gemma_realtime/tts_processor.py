@@ -6,8 +6,8 @@ Text-to-speech using Kokoro and espeak-ng
 
 import asyncio
 import subprocess
-from dataclasses import dataclass
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
 
 @dataclass

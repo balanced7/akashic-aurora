@@ -23,10 +23,10 @@ import json
 import os
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from collections.abc import Callable
 
 # ============================================================================
 # CONFIGURATION

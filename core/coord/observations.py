@@ -7,9 +7,9 @@ its effects so a reader can distinguish looking from acting.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
-from collections.abc import Mapping
 
 from core.foundation.timeutil import now_iso
 

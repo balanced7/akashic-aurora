@@ -11,9 +11,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from fractions import Fraction
 from pathlib import Path
-from collections.abc import Callable
 
 import av
 import numpy as np

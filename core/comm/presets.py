@@ -26,9 +26,9 @@ THE CLAUSES IN THESE CONTRACTS ARE NOT STYLE. Each was measured this week:
 
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-from collections.abc import Callable
 
 __all__ = ["Preset", "build_prompts", "get", "known", "read_lens_file", "register"]
 

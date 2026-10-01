@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
 
 from . import MODULE_PROTOCOL
 from .mediatypes import MEMORY_DOMAINS, PORT_TYPES

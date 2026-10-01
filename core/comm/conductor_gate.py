@@ -62,12 +62,12 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import dataclass, field
 from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC
 
 from core.trust import registry
 from core.trust.capabilities import ROLE_TEMPLATES, Cap, caps_from
-from datetime import UTC
 
 # ---------------------------------------------------------------- configuration
 # Succession order: who becomes acting conductor when the conductor is provably absent.

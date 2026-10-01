@@ -16,8 +16,8 @@ Rules (deltas E1/E4):
 """
 
 import json
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from core.narrative.schema import Edge
 

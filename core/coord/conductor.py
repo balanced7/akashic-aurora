@@ -28,7 +28,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
 

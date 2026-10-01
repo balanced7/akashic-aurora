@@ -25,7 +25,6 @@ say the true state, keep the caveat, lead with what holds.
 
 import logging
 
-
 from core.comm import bifrost_api as A
 
 

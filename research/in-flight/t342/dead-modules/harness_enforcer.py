@@ -40,10 +40,10 @@ import json
 import os
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
-from collections.abc import Callable
 
 # ============================================================================
 # PATHS

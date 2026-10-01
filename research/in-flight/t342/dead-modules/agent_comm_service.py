@@ -20,8 +20,8 @@ import threading
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta
 from collections.abc import Callable
+from datetime import datetime, timedelta
 
 # ============================================================================
 # CONFIGURATION

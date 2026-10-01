@@ -14,10 +14,10 @@ import json
 import os
 import sqlite3
 import time
-from dataclasses import dataclass, field, replace
-from datetime import datetime, UTC
-from typing import Any
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
+from typing import Any
 
 ENVELOPE_CAP = 8 * 1024
 DEFAULT_WAL_PAUSE_BYTES = 100 * 1024 * 1024

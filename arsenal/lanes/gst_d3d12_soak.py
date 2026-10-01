@@ -30,7 +30,7 @@ import sys
 import threading
 import time
 from collections import deque
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")

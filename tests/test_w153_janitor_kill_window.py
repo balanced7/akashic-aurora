@@ -27,7 +27,6 @@ Reconciled contract highlights the pins encode:
 import os
 import time
 
-
 from core.comm import wake_seat as ws
 
 SID = "aaaabbbb-cccc-dddd-eeee-ffff00001111"

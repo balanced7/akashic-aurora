@@ -18,10 +18,10 @@ Key rules (docs/library/design/20260620_research-context-handling-compaction-and
 - **Lossy summary + lossless pointer:** every lesson keeps a `source` pointer to the raw record.
 """
 
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from collections.abc import Sequence
 
 from core.learning.agent_memory import AgentMemory, get_agent_memory
 from core.paths import data_root

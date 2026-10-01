@@ -12,7 +12,7 @@ no contention. Independent of, and concurrent with, whatever the shared runner i
 
 import os
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 # The Agent streams DeepSeek's thinking/tool-calls (which contain emoji) to stdout; on Windows the

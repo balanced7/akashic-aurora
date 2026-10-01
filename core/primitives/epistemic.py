@@ -23,10 +23,10 @@ implicit promotion.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any, Generic, TypeVar
-from collections.abc import Mapping
 
 
 class Authority(str, Enum):

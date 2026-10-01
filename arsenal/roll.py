@@ -27,8 +27,8 @@ two implementations of a format drift, which is a lesson this repo has paid for 
 
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import Iterable
+from typing import Any
 
 API = "roll/1"
 

@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 NOTE_TITLE_PREFIX = "toast:"
 MAX_BODY = 400  # gratitude is short; the leaderboard guard is distinct-users love

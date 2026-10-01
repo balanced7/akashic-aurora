@@ -23,8 +23,8 @@ durable-salient promoted stream.
 import os
 import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
 from collections.abc import Callable
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def _pyl() -> str:

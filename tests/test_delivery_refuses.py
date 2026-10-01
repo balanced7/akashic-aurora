@@ -28,7 +28,6 @@ Written before the implementation (M3). RED on arrival.
 
 from __future__ import annotations
 
-
 from core.comm import discord_bridge as DB
 
 

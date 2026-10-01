@@ -41,7 +41,6 @@ signals the doctor already computes (phase age, pulse age, beat age).
 
 from __future__ import annotations
 
-
 # The thread-stack signatures that NAME the disease. These are meaning, not
 # membership: a stack "blocked in a write/flush/socket-recv" is the T019
 # undrained-output family (the deepseek receipt, streams.py write+flush);

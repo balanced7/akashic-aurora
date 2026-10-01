@@ -45,8 +45,8 @@ import json
 import os
 import sys
 import tempfile
-from pathlib import Path
 from datetime import UTC
+from pathlib import Path
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

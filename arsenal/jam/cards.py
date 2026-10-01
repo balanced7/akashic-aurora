@@ -16,20 +16,20 @@ Card ids: seeds and Claude's cards are slugs; page saves are t-YYYYMMDD-HHMMSS-x
 
 from __future__ import annotations
 
+import builtins
 import copy
 import json
 import re
 import secrets
 import threading
 import time
-from datetime import datetime, UTC
-from pathlib import Path
 from collections.abc import Callable
+from datetime import UTC, datetime
+from pathlib import Path
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DECK_API
 from arsenal.jam import schemas as S
-import builtins
 
 PACKAGE = Path(__file__).resolve().parent
 DEFAULT_ROOT = PACKAGE.parents[1] / "state" / "arsenal" / "jam"

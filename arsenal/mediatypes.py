@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 PORT_TYPES = (
     "stream.video",
     "stream.audio",

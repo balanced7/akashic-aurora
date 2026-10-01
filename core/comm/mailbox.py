@@ -31,8 +31,8 @@ import json
 import os
 import re
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from core.comm import packet_spec
 

@@ -46,9 +46,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 PLANE_DIRNAME = "private"

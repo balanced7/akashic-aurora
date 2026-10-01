@@ -42,8 +42,8 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 # Repo root on path so the live-store dogfood (core.*) resolves when run directly as a script;
 # under pytest, conftest.py already does this. tests/ is on path either way, so `fixtures.*` works.

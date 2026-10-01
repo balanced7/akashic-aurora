@@ -43,8 +43,8 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any
 from collections.abc import Sequence
+from typing import Any
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Generic English/dev tokens carry no topic signal and cause spurious collisions; never weigh them.

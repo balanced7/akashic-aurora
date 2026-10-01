@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))

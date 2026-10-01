@@ -26,7 +26,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

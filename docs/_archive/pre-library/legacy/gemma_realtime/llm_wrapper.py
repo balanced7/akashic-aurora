@@ -7,10 +7,10 @@ Streaming Ollama integration with interrupt handling
 import asyncio
 import json
 import sys
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from collections.abc import AsyncIterator, Callable
 
 import redis
 import requests

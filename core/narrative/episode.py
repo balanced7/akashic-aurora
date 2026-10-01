@@ -15,8 +15,8 @@ Best-effort + fail-soft throughout: a bookend hiccup must never break boot, a CL
 
 import json
 import random
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import now_iso as _now_iso

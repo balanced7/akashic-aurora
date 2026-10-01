@@ -26,7 +26,7 @@ Each fixture pins one defect, red before the fix and green after it:
 import json
 import shutil
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest

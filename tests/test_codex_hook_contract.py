@@ -13,7 +13,6 @@ import json
 import os
 from pathlib import Path
 
-
 from agent.harness import registry
 from agent.harness.hooks import codex_common as common
 from agent.harness.hooks import codex_posttooluse as post

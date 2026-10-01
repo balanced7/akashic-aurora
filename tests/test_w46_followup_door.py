@@ -12,7 +12,6 @@ the module's laws are pinned by tests/test_w46_followup_kimi.py.
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli

@@ -26,8 +26,8 @@ import math
 import os
 import re
 import threading
-from pathlib import Path
 from collections.abc import Mapping
+from pathlib import Path
 from urllib.parse import urlsplit
 
 API = "arsenal.piano.looks/v1"

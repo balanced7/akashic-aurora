@@ -36,10 +36,10 @@ import statistics
 import subprocess
 import sys
 import threading
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
-from collections.abc import Sequence
 
 
 def _pyl() -> str:

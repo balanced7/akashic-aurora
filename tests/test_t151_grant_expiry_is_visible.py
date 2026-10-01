@@ -30,7 +30,7 @@ Run: py -m pytest tests/test_t151_grant_expiry_is_visible.py -q
 
 import os
 import sys
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)

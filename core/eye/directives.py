@@ -36,9 +36,9 @@ in this house landed on that law; this one inherits it rather than rediscovering
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable, Sequence
 
 from core.eye.index import _connect, utterance_key
 

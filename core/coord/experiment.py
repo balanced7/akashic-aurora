@@ -32,8 +32,8 @@ A/B/C. Policies: social (no gate), lock_gate (A0.1 semantics), intent_gate (prop
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections.abc import Callable
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)

@@ -32,8 +32,8 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 BUDGET_CHARS_DEFAULT = 2000
 ENTRY_CLIP = 240

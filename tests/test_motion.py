@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 
-
 from arsenal import motion as M
 
 

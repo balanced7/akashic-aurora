@@ -23,7 +23,6 @@ Run: py -m pytest tests/test_t197c_peer_ready.py -q
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import peer_ready as PR  # noqa: E402

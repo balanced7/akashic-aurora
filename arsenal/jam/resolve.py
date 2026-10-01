@@ -33,9 +33,9 @@ import shutil
 import subprocess
 import threading
 from collections import OrderedDict
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from collections.abc import Callable, Sequence
 
 from arsenal import nashville
 from arsenal.jam import DEF_API

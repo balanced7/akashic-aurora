@@ -23,7 +23,6 @@ Standalone-ish: depends on arsenal.floors (which is numpy+av only), adds no new 
 
 from __future__ import annotations
 
-
 import numpy as np
 
 from .floors import luma

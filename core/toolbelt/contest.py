@@ -35,8 +35,8 @@ I verify, I second, I contest -- in both directions.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
 from collections.abc import Callable
+from typing import Any, Dict, Optional
 
 # toast's verifier is the shared truth: a contest proves itself the same way a toast does.
 try:

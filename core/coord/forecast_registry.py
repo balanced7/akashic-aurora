@@ -48,8 +48,8 @@ import json
 import os
 import subprocess
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 VERDICTS = ("hit", "miss", "partial", "voided", "residual")
 

@@ -17,8 +17,8 @@ The module is deliberately strict:
 
 from __future__ import annotations
 
-from typing import Any
 from collections.abc import Callable, Mapping
+from typing import Any
 
 from core.primitives.epistemic import derive_epistemic_view
 

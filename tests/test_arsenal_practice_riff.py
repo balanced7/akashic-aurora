@@ -23,7 +23,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest

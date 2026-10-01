@@ -16,7 +16,6 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 

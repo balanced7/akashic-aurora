@@ -22,7 +22,6 @@ render. Laws it enforces by shape:
 
 from __future__ import annotations
 
-
 _STATUSES = ("loaded", "partial", "absent", "failed")
 
 

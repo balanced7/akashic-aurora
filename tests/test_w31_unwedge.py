@@ -11,7 +11,6 @@ P6  format_unwedge text/json modes
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.doctor import format_unwedge, unwedge

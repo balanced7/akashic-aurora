@@ -15,7 +15,6 @@ Run: py -m pytest tests/test_window_confession.py -q
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import context_hints, promoter

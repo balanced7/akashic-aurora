@@ -22,8 +22,8 @@ from __future__ import annotations
 import contextlib
 import os
 import time
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 
 try:  # Windows
     import msvcrt

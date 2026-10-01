@@ -44,9 +44,9 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
-from collections.abc import Iterable, Sequence
 
 from core.outcome import BoundaryOutcome
 

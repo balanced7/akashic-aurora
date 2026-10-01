@@ -31,6 +31,7 @@ Behaviour worth knowing (5.2):
 
 from __future__ import annotations
 
+import builtins
 import copy
 import json
 import math
@@ -48,7 +49,6 @@ from arsenal.jam import schemas as S
 from arsenal.jam import tempomap as T
 from arsenal.jam.cards import DeckError, DeckStore, now_iso
 from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, key_of, parse_line
-import builtins
 
 ENGINE = "groove/1"
 LEASE_MS = 30000

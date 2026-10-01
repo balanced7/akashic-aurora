@@ -34,10 +34,10 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE_DIR = ROOT / "state" / "jobs"

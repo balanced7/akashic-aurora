@@ -20,7 +20,6 @@ Run: py -m pytest tests/test_t078_w4_pager.py -q
 import os
 import sys
 
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:

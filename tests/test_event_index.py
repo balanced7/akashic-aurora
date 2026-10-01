@@ -21,12 +21,13 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from datetime import UTC
+
 from core.events.event_index import EventIndex
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
 from core.foundation.ledger import FileLedger
 from core.foundation.store import FileStore
-from datetime import UTC
 
 
 def _ledger():

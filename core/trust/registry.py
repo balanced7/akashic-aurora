@@ -15,7 +15,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from

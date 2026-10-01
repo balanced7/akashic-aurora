@@ -27,7 +27,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 from core.fleet import app_package as ap
 
 ROOT = Path(__file__).resolve().parents[1]

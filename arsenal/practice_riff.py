@@ -51,9 +51,9 @@ import subprocess
 import sys
 import time
 from bisect import bisect_left, bisect_right
-from datetime import datetime, UTC
-from pathlib import Path
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from pathlib import Path
 
 from . import nashville
 from . import practice as pr

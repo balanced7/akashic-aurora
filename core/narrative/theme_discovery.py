@@ -25,8 +25,8 @@ from __future__ import annotations
 import math
 import os
 import re
-from typing import Any
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 

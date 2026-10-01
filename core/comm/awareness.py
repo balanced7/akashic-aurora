@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from collections.abc import Callable, Mapping, Sequence
 
 from core.coord.observations import Observation, Snapshot
 

@@ -40,8 +40,8 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from core.comm import remote_relay as RR
 from core.outcome import BoundaryOutcome
