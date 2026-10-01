@@ -695,6 +695,16 @@ def main() -> int:
             f.write(str(me))
     except Exception:
         pass
+    # ORIGIN sidecar (2026-10-01): WHO launched this listener decides whether its exit can
+    # start a turn. The launcher stamps BIFROST_WAKE_ORIGIN (bifrost-standby -> harness,
+    # bifrost_daemon -> daemon); an unstamped launch is `direct`. Written beside the seat so
+    # every seat reader keeps its bare-int contract. Same seat-first timing as the pid.
+    _origin = (os.environ.get("BIFROST_WAKE_ORIGIN") or "direct").strip() or "direct"
+    try:
+        from core.comm import wake_seat as _ws      # after the pid seat: the fast path is kept
+        _ws.write_origin(a.agent, a.session or None, _origin, me)
+    except Exception:
+        _ws = None
     if a.session:
         _migrate_legacy_ghost(a.agent)
     clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
@@ -707,6 +717,8 @@ def main() -> int:
         try:
             if _hb_holder(hb) == me:
                 os.remove(hb)
+                if _ws is not None:
+                    _ws.remove_origin(a.agent, a.session or None, pid=me)
         except Exception:
             pass
 

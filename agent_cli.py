@@ -6460,7 +6460,10 @@ def cmd_bifrost_standby(args):
         # Blocking child, NOT detached: this CLI process is the harness-tracked parent (the T073
         # law -- a detached listener notifies nobody). Env pins the work lane (T045 cutover).
         import subprocess
-        env = {**os.environ, "BIFROST_WAKE_LANE": os.environ.get("BIFROST_WAKE_LANE", "work")}
+        env = {**os.environ, "BIFROST_WAKE_LANE": os.environ.get("BIFROST_WAKE_LANE", "work"),
+               # ORIGIN stamp (2026-10-01): THIS process is the harness-tracked parent, so the
+               # listener's exit starts a turn -- the stop hook passes only on this origin.
+               "BIFROST_WAKE_ORIGIN": "harness"}
         cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             "scripts", "bifrost_wake.py"), "--agent", agent_id]
         if session_id:
@@ -6812,6 +6815,78 @@ def cmd_suite_baseline(args):
     print(f"[suite-baseline] recorded {len(rec['failures'])} failure(s) @{rec['sha'][:7]} "
           f"({lanes} lane-classified) -- the next seat diffs instead of re-deriving")
     return 0
+
+
+def cmd_suite(args):
+    """suite <diff|triage|rerun-failing|tail>: the READ-ONLY test-pipeline doors (2026-10-01).
+
+    The post-hoc analysis already lives in core/coord/suite_baseline.py (delta/verdicts/classify);
+    this family is the delivery-timing half: make the run speakable (tail), the failure set
+    attributable (diff/triage), and the retry copy-paste (rerun-failing). ALL READS -- no shared
+    state is written, recording/tightening stay behind `suite-baseline`'/`ship_gate`s explicit flags.
+    """
+    from core.coord import suite_read as sr
+
+    sub = getattr(args, "suite_sub", None)
+    # --whose is shared with suite-baseline's shape: run the tests and attribute. We reuse the
+    # SAME attribution path but via the read door so `suite diff` == `suite-baseline --whose`'s
+    # verdict half, without the recording side-effect.
+    if sub == "diff":
+        from_file = getattr(args, "from_file", None)
+        if from_file:
+            try:
+                with open(from_file, encoding="utf-8") as f:
+                    nodes = sr_ingest(f.read())
+            except OSError as e:
+                print(f"[suite diff] unreadable {from_file}: {type(e).__name__}: {e}")
+                return 2
+        else:
+            nodes = sr.lastfailed_nodes()
+        if not nodes:
+            print("[suite diff] no failing nodes (no --from-file, and lastfailed cache empty)")
+            return 0
+        res = sr.diff(nodes, full_suite=(from_file is None))
+        print(sr.render_diff(res))
+        # A YOURS verdict is the only accusation that fails a gate; UNKNOWN never exits nonzero.
+        return 1 if res["counts"].get("YOURS") else 0
+
+    if sub == "triage":
+        nodes = sr.lastfailed_nodes()
+        from_file = getattr(args, "from_file", None)
+        if from_file:
+            try:
+                with open(from_file, encoding="utf-8") as f:
+                    nodes = sr_ingest(f.read())
+            except OSError as e:
+                print(f"[suite triage] unreadable {from_file}: {type(e).__name__}: {e}")
+                return 2
+        if not nodes:
+            print("[suite triage] no failing nodes to classify")
+            return 0
+        print(sr.render_triage(sr.triage(nodes)))
+        return 0
+
+    if sub == "rerun-failing":
+        nodes = sr.lastfailed_nodes()
+        run = bool(getattr(args, "run", False))
+        code, text = sr.rerun_command(nodes, run=run)
+        print(text)
+        return code
+
+    if sub == "tail":
+        lines = int(getattr(args, "lines", 20) or 20)
+        running, text = sr.tail(lines=lines)
+        print(text)
+        return 0 if running else 1
+
+    print("[suite] need a subcommand: diff | triage | rerun-failing | tail")
+    return 2
+
+
+def sr_ingest(text):
+    """FAILED node ids from pytest output -- the same receipt format suite_baseline reads."""
+    from core.coord import suite_baseline as _sb
+    return _sb.ingest_pytest(text)
 
 
 def cmd_bifrost_drain(args):
@@ -8858,6 +8933,32 @@ def build_parser():
                           "because 'I cannot tell' must not become an accusation. "
                           'e.g. --whose "tests/ -k ask"')
     sbp.set_defaults(fn=cmd_suite_baseline)
+
+    su = sub.add_parser("suite", help="README-ONLY test-pipeline doors: diff / triage / "
+                                      "rerun-failing / tail (projects over suite_baseline + "
+                                      "pytest's lastfailed cache + the run log; writes nothing)")
+    su_sub = su.add_subparsers(dest="suite_sub", required=True)
+    sud = su_sub.add_parser("diff", help="delta + YOURS/INHERITED/UNKNOWN verdicts for the "
+                                         "failing nodes (lastfailed by default, or --from-file)")
+    sud.add_argument("--from-file", dest="from_file", default=None,
+                     help="pytest output to ingest instead of lastfailed")
+    sud.set_defaults(fn=cmd_suite)
+    sut = su_sub.add_parser("triage", help="attribute failing nodes to their owning lane/task")
+    sut.add_argument("--from-file", dest="from_file", default=None,
+                     help="pytest output to ingest instead of lastfailed")
+    sut.set_defaults(fn=cmd_suite)
+    sur = su_sub.add_parser("rerun-failing", help="print (or --run) the exact failing-node "
+                                                  "selector from pytest's own lastfailed cache")
+    sur.add_argument("--run", action="store_true", dest="run",
+                     help="actually execute the selector (logs full output to state/, "
+                          "never holds the pipe); default prints only")
+    sur.add_argument("--from-file", dest="from_file", default=None,
+                     help="pytest output to ingest instead of lastfailed")
+    sur.set_defaults(fn=cmd_suite)
+    sul = su_sub.add_parser("tail", help="tail the newest suite run log (never owns a process "
+                                         "pipe; the FILE is the record)")
+    sul.add_argument("--lines", type=int, default=20, help="tail length (default 20)")
+    sul.set_defaults(fn=cmd_suite)
 
     dr = sub.add_parser("bifrost-drain", help="request a runner's GRACEFUL exit: finish "
                                               "current message -> release lock -> exit 0 "

@@ -49,6 +49,103 @@ def activity_marker_path(agent: str, session_id: str, tmp: Optional[str] = None)
     return os.path.join(tmp or tempfile.gettempdir(), f"bifrost_wake_{agent}_{session_id}.alive")
 
 
+# ---------------------------------------------------------------- listener ORIGIN (2026-10-01)
+# WHY THIS EXISTS. Two listeners can hold one seat file and look identical to every reader:
+# one launched by a harness-tracked parent (bifrost-standby as a run_in_background task, or
+# bifrost_wake.py launched the same way) whose EXIT STARTS A TURN, and one spawned by
+# bifrost_daemon --manage-listener, which holds the seat, consumes mail, and can wake
+# NOBODY -- a detached process notifies no harness. The stop hook read "seat pid alive" as
+# "wakeable" and passed, so an interactive session went deaf while every surface said armed
+# (lesson detached_daemon_listener_holds_the_seat_but_cannot_wake_an_interactive_session;
+# Daniel 2026-10-01: "How do we take the discipline out of it and have an ergonomic solution
+# that just works."). The origin is stamped by the LAUNCHER through BIFROST_WAKE_ORIGIN and
+# written by the listener beside its seat; a seat with no origin record is UNKNOWN, and
+# unknown is not wakeable -- a false block costs one re-arm, a false pass costs deafness.
+ORIGIN_HARNESS = "harness"   # harness-tracked parent: its exit re-invokes the session
+ORIGIN_DAEMON = "daemon"     # bifrost_daemon child: presence + consume, never a wake
+ORIGIN_DIRECT = "direct"     # bifrost_wake.py launched with no stamp -- the hook's own arm line
+ORIGIN_ENV = "BIFROST_WAKE_ORIGIN"
+WAKEABLE_ORIGINS = frozenset({ORIGIN_HARNESS, ORIGIN_DIRECT})
+
+
+def origin_path(agent: str, session_id: Optional[str] = None, tmp: Optional[str] = None) -> str:
+    """Sidecar beside the seat: the seat keeps its bare-int contract for every reader."""
+    base = tmp or tempfile.gettempdir()
+    if session_id:
+        return os.path.join(base, f"bifrost_wake_{agent}_{session_id}.origin")
+    return os.path.join(base, f"bifrost_wake_{agent}.origin")
+
+
+def write_origin(agent: str, session_id: Optional[str], origin: str, pid: int,
+                 tmp: Optional[str] = None) -> bool:
+    """Record `<origin>:<pid>`; best-effort, never raises (a stamp must not stop the arm)."""
+    try:
+        with open(origin_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
+            f.write(f"{(origin or ORIGIN_DIRECT).strip()}:{int(pid)}")
+        return True
+    except Exception:
+        return False
+
+
+def remove_origin(agent: str, session_id: Optional[str], pid: Optional[int] = None,
+                  tmp: Optional[str] = None) -> None:
+    """Remove the sidecar -- only if it still names `pid` when one is given (newest-wins:
+    a successor's stamp is never deleted by a retiring predecessor)."""
+    try:
+        p = origin_path(agent, session_id, tmp)
+        if pid is not None:
+            _, opid = read_origin(agent, session_id, tmp)
+            if opid is not None and opid != int(pid):
+                return
+        os.remove(p)
+    except Exception:
+        pass
+
+
+def read_origin(agent: str, session_id: Optional[str] = None,
+                tmp: Optional[str] = None) -> Tuple[str, Optional[int]]:
+    """(origin, pid) from the sidecar; ('none', None) when absent or unreadable."""
+    try:
+        raw = open(origin_path(agent, session_id, tmp), encoding="utf-8").read().strip()
+    except Exception:
+        return "none", None
+    if not raw:
+        return "none", None
+    origin, _, pid_s = raw.partition(":")
+    try:
+        pid = int(pid_s) if pid_s else None
+    except Exception:
+        pid = None
+    return (origin.strip() or "none"), pid
+
+
+def wake_origin_state(agent: str, session_id: Optional[str] = None,
+                      tmp: Optional[str] = None, pid_probe=None) -> Tuple[str, Optional[int]]:
+    """PURE: the seat's watcher_state refined by WHO launched the seated listener.
+
+      'armed-harness' / 'armed-direct'   seat alive, launched by a harness-tracked parent
+      'armed-daemon'                     seat alive, daemon child -- presence, NOT wake
+      'armed-unknown'                    seat alive, no origin record or a stale one
+      'none' / 'dead-seat' / 'unknown'   exactly watcher_state's own verdicts
+    """
+    state, pid = watcher_state(agent, session_id, tmp, pid_probe)
+    if state != "armed":
+        return state, pid
+    origin, opid = read_origin(agent, session_id, tmp)
+    if origin == "none" or (opid is not None and pid is not None and opid != pid):
+        return "armed-unknown", pid
+    if origin in (ORIGIN_HARNESS, ORIGIN_DAEMON, ORIGIN_DIRECT):
+        return f"armed-{origin}", pid
+    return "armed-unknown", pid
+
+
+def harness_armed(agent: str, session_id: Optional[str] = None,
+                  tmp: Optional[str] = None, pid_probe=None) -> bool:
+    """True only for a seat whose listener can START A TURN when it exits."""
+    state, _ = wake_origin_state(agent, session_id, tmp, pid_probe)
+    return state in {f"armed-{o}" for o in WAKEABLE_ORIGINS}
+
+
 def iter_seats(agent: str, tmp: Optional[str] = None) -> List[Tuple[str, Optional[str]]]:
     """All seat files for THIS agent: [(path, session_id_or_None_for_legacy)].
     Prefix-exact so agent 'claude' never enumerates 'claude-2' seats."""

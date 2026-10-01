@@ -359,7 +359,10 @@ def main(argv=None) -> int:
         sid8 = sid[:8] if len(sid) > 8 else sid
         if sid8 in listeners and listeners[sid8].alive:
             return True  # already seated
-        _env = dict(os.environ, BIFROST_WAKE_LANE="work")
+        # ORIGIN stamp (2026-10-01): a daemon child holds the seat and consumes, but a
+        # detached process can start NO turn -- it is presence, never wake. The stop hook
+        # reads this stamp and keeps demanding a harness-parented listener beside it.
+        _env = dict(os.environ, BIFROST_WAKE_LANE="work", BIFROST_WAKE_ORIGIN="daemon")
         if ns:
             _env["BIFROST_NAMESPACE"] = str(ns)
         lch = ManagedChild(

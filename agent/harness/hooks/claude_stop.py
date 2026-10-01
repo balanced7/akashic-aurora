@@ -168,6 +168,39 @@ def wake_armed(session_id: str = ""):
     return _pid_alive(pid)
 
 
+def wake_origin(session_id: str = "") -> str:
+    """The seated listener's ORIGIN state (core.comm.wake_seat.wake_origin_state): only a
+    listener launched by a harness-tracked parent can start a turn when it exits. A daemon
+    child holds the seat and consumes, and wakes nobody. 'armed-unknown' = no origin record
+    (a listener from before the stamp, or a stale sidecar) -- not wakeable by evidence."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+        from core.comm import wake_seat as _ws
+        agent = _seat(session_id) if session_id else AGENT
+        state, _ = _ws.wake_origin_state(agent, session_id or None, pid_probe=_pid_alive)
+        return state
+    except Exception:
+        return "unknown"
+
+
+def wake_armed_by_harness(session_id: str = "") -> bool:
+    """THE wakeability test (2026-10-01, Daniel: "take the discipline out of it"): seat pid
+    alive AND launched by a harness-tracked parent. Replaces wake_armed() as the gate: the
+    old test read a daemon-spawned seat as wakeable and let interactive sessions go deaf
+    with every surface saying armed. Fail-open ONLY on a detection error (state 'unknown'),
+    never on a known non-wake origin."""
+    state = wake_origin(session_id)
+    if state == "unknown":
+        return wake_armed(session_id)       # probe error -> the legacy answer, never a wedge
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+        from core.comm import wake_seat as _ws
+        agent = _seat(session_id) if session_id else AGENT
+        return bool(_ws.harness_armed(agent, session_id or None, pid_probe=_pid_alive))
+    except Exception:
+        return state in ("armed-harness", "armed-direct")
+
+
 def _rearm_trigger_fresh(session_id: str, max_age_s: float = 6 * 3600) -> bool:
     """A fresh .rearm trigger = the watcher CYCLED (planned, T073 P8), not died --
     the backstop message says so instead of crying wolf."""
@@ -336,25 +369,36 @@ def main():
     # a LIVE daemon owns wakeability -- this hook never blocks again while it runs; a
     # missing listener seat becomes a .rearm trigger the daemon answers within a tick.
     # Daemon down -> the ONCE-latched nag rides stderr and the legacy path decides.
+    # 2026-10-01 CORRECTION (Daniel: "How do we take the discipline out of it and have an
+    # ergonomic solution that just works"): a live daemon owns PRESENCE and CONSUME for this
+    # session, not WAKE -- its listener is a detached child and a detached child can start no
+    # turn. The A1 pass below therefore holds ONLY when the seated listener was launched by a
+    # harness-tracked parent (origin harness/direct); a daemon-parented seat falls through to
+    # the block, which names the one command that makes the session reachable. That turns the
+    # arm from a discipline into a gate the turn cannot end without.
     if os.getenv("AKASHIC_DAEMON_WAKE", "1") != "0":
         try:
             sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
             from core.comm import daemon_state
             _v = daemon_state.stop_hook_wake_verdict(AGENT, session_id)
             if _v.get("pass"):
-                print(_v.get("line", ""), file=sys.stderr)
-                _finish_nonwake_checks(payload)
-                return
-            if _v.get("nag"):
+                if wake_armed_by_harness(session_id):
+                    print(_v.get("line", ""), file=sys.stderr)
+                    _finish_nonwake_checks(payload)
+                    return
+                print((_v.get("line", "") + " -- BUT the seated listener is "
+                       f"{wake_origin(session_id)}: presence and consume, not wake; "
+                       "a harness-parented listener is still required"), file=sys.stderr)
+            elif _v.get("nag"):
                 print(_v.get("line", ""), file=sys.stderr)
         except Exception:
             pass   # fail-open to the legacy path -- the fast path is never a right
-    if not wake_armed(session_id):
+    if not wake_armed_by_harness(session_id):
         # T050 Q6 (the arm-vs-hook race): a JUST-launched watcher needs ~1-2s of python+import
         # startup before its seat exists -- five false blocks on 2026-07-13/14 were this race,
         # each spawning a redundant watcher into newest-wins churn. One grace recheck.
         time.sleep(1.5)
-    if not wake_armed(session_id):
+    if not wake_armed_by_harness(session_id):
         # T086-S3a: an ARMING ATTEMPT is in flight (standby touched its marker <90s ago) --
         # nagging now spawns exactly the redundant-watcher churn the nag exists to prevent
         # (live receipt 2026-07-16 ~09:16: the backstop fired mid-retry-loop).
@@ -395,16 +439,37 @@ def main():
                 open(guard, "w").write(str(now))
             except Exception:
                 pass
-            arm_cmd = f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent {AGENT}" + (
-                f" --session {session_id}" if session_id else "")   # T045: lane-mode watch
+            # ABSOLUTE path on purpose: the seat's cwd drifts off the repo root (observed
+            # repeatedly at E:\ instead of E:\AI-Setup), and a relative script path then
+            # resolves to a file that does not exist. The arm backgrounds cleanly and only
+            # fails ASYNCHRONOUSLY, so the seat reads "armed" and is silently unwakeable --
+            # the failure this hook exists to prevent, caused by the hook's own advice.
+            # The verb is bifrost-standby (2026-10-01): it consumes the work lane FIRST, so
+            # the listener never insta-fires on handled mail, then blocks as the listener's
+            # harness-tracked parent and stamps origin=harness -- the only origin this hook
+            # passes on.
+            _cli = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+                "agent_cli.py").replace("\\", "/")
+            arm_cmd = (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} "
+                       f"bifrost-standby {AGENT}" + (f" --session {session_id}" if session_id else ""))
             # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is
-            # long-lived (hours). Distinguish a planned deadline cycle from a death.
-            how = "cycled its deadline (planned)" if _rearm_trigger_fresh(session_id) \
-                else "died or was never armed"
+            # long-lived (hours). Distinguish a planned deadline cycle from a death, and name
+            # a daemon-parented seat for what it is.
+            _state = wake_origin(session_id)
+            if _state == "armed-daemon":
+                how = ("is the DAEMON's child (presence and consume only -- a detached "
+                       "process can start no turn)")
+            elif _state == "armed-unknown":
+                how = "holds the seat with no origin record (not wakeable by evidence)"
+            elif _rearm_trigger_fresh(session_id):
+                how = "cycled its deadline (planned)"
+            else:
+                how = "died or was never armed"
             print(json.dumps({"decision": "block", "reason": (
                 f"Your wake watcher {how} -- this session is not wakeable from idle "
                 f"(DeepSeek/Daniel can't reach you). Re-launch it ONCE: "
-                f"`{arm_cmd}` as a run_in_background task (harness-tracked; its completion "
+                f"`{arm_cmd}` as a Bash run_in_background task (harness-tracked; its completion "
                 "re-invokes you). It stays armed for HOURS -- this backstop should be rare. "
                 "Then stop.")}))
             return

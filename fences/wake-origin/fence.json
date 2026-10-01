@@ -1,0 +1,18 @@
+{
+  "id": "wake-origin",
+  "question": "Does the stop hook now refuse to end a turn unless a listener that can START A TURN (harness-parented) holds the seat, and does a daemon-parented seat block with the exact arm line -- so Claude Code wakeability from idle stops depending on the model remembering to arm? Builder: claude. Blind drill: Heimdall (D1-D6 in the brief).",
+  "tier": "lite",
+  "opened_by": "claude",
+  "opened_at": "2026-10-01T16:06:26.388110+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-01T16:09:03.533546+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude",
+    "half_a": "deepseek"
+  }
+}
