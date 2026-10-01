@@ -181,17 +181,17 @@ def python_launcher() -> str:
     """The command prefix that runs Aurora's Python on THIS machine, for commands shown to (or
     run by) an agent: `<launcher> scripts/x.py`, `<launcher> -m pytest`, `<launcher> agent_cli.py`.
 
-    Windows keeps the `py` launcher, exactly as before. Elsewhere `py` does not exist, so the
-    old literal sent every agent on Linux/macOS into a 'command not found' first. There `uv run`
-    is used when uv and the repo's pyproject are present -- it brings Aurora's dependencies with
-    it -- else plain `python3`. AKASHIC_PYTHON overrides for any other setup.
+    One launcher on every OS: `uv run` when uv and the repo's pyproject are present -- it brings
+    Aurora's locked dependencies with it. Without uv, Windows falls back to the `py` launcher
+    and everything else to plain `python3` (`py` does not exist there). AKASHIC_PYTHON
+    overrides for any other setup. scripts/githooks/pyrun is the same chain for shell scripts.
     """
     override = (os.getenv("AKASHIC_PYTHON") or "").strip()
     if override:
         return override
-    if os.name == "nt":
-        return "py"
     import shutil
     if shutil.which("uv") and (repo_root() / "pyproject.toml").exists():
         return "uv run"
+    if os.name == "nt":
+        return "py"
     return "python3"
