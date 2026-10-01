@@ -156,7 +156,7 @@ def test_thumbs_and_snaps_resolve_to_their_own_routes():
 
 def test_a_live_watcher_gets_only_what_it_has_not_seen():
     for i in range(3):
-        B._vfx_feed_add({"kind": "say", "text": "n%d" % i})
+        B._vfx_feed_add({"kind": "say", "text": f"n{i}"})
     r = B._vfx_feed_since(1)
     assert [e["text"] for e in r["entries"]] == ["n1", "n2"]
     assert r["last"] == 3
@@ -165,7 +165,7 @@ def test_a_live_watcher_gets_only_what_it_has_not_seen():
 
 def test_a_fresh_page_catches_up_without_replaying_the_day():
     for i in range(120):
-        B._vfx_feed_add({"kind": "say", "text": "n%d" % i})
+        B._vfx_feed_add({"kind": "say", "text": f"n{i}"})
     entries = B._vfx_feed_since(0)["entries"]
     assert len(entries) == 30, "since=0 is a reload; 120 entries would fire 120 image requests"
     assert entries[-1]["text"] == "n119", "the catch-up must be the NEWEST, not the oldest"
@@ -222,7 +222,7 @@ def test_a_corrupt_bench_file_does_not_stop_the_bench_opening(bench):
 
 def test_the_feed_does_not_grow_without_bound():
     for i in range(400):
-        B._vfx_feed_add({"kind": "say", "text": "n%d" % i})
+        B._vfx_feed_add({"kind": "say", "text": f"n{i}"})
     assert len(B._VFX_FEED) <= 300
     # ids keep climbing, so a watcher's cursor stays valid across a trim
     assert B._VFX_FEED[-1]["id"] == 400

@@ -27,7 +27,6 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-import pytest as _pytest
 
 from core.comm.bus import Bus  # noqa: E402
 
@@ -173,7 +172,7 @@ def test_pin3_never_beaten_orphan_stream_still_reaped():
     )
 
 
-@_pytest.mark.xfail(
+@pytest.mark.xfail(
     strict=False,
     reason=(
         "PRE-REGISTERED (kimi S4 fence, defect not delta): a re-homed DIRECTED ask must re-point "

@@ -179,7 +179,7 @@ def test_p7_have_summary_reads_through_the_bus_door():
     b.inbox(advance=True)  # real consume advances the seat cursor
     ro.heartbeat(ns, AGENT, SEAT_A, phase="sync")
     rows = ro.roster(ns)
-    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    mine = next(r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}")
     door_val = str(b._client.hget(b._seat_cursor_key(SEAT_A), "seat") or "0")
     assert str(mine["have"].get("seat_inbox")) == door_val != "0", (
         f"HAVE-SUMMARY DOOR MISMATCH: roster's seat_inbox={mine['have'].get('seat_inbox')} "
@@ -198,7 +198,7 @@ def test_p8_live_window_derives_from_the_seats_own_cadence():
     for i in range(6):  # establish ~2s cadence, ending 20s ago
         ro.heartbeat(ns, AGENT, SEAT_A, phase="building", _beat_ts=base + i * 2)
     rows = ro.roster(ns)
-    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    mine = next(r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}")
     assert mine["state"] == "STALE", (
         f"LIVE OVERCLAIMS (kimi F3): seat cadence ~2s, last beat ~20s ago, and the roster "
         f"still says {mine['state']} because a fixed 45s dial ignores the seat's own "

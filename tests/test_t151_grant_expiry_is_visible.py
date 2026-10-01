@@ -57,7 +57,7 @@ def test_x1_a_grant_expiring_inside_the_window_is_reported():
     rows = REG.expiring_grants(within_h=24, grants=_recs())
     ids = {r["agent_id"] for r in rows}
     assert "soon" in ids, "a grant lapsing in 6 hours is invisible to the fleet"
-    row = [r for r in rows if r["agent_id"] == "soon"][0]
+    row = next(r for r in rows if r["agent_id"] == "soon")
     assert row["expires_at"], "the report must name the deadline, not just the fact"
     assert row["expired"] is False
 

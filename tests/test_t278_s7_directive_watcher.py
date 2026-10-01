@@ -135,7 +135,7 @@ def test_p4_agent_echoes_and_duplicate_records_never_inflate_the_count(db):
     """Both fixtures echo the directive back in the agent's voice, and session b records
     the operator's line TWICE (queue-op + user). The count is HIS utterances."""
     rep = DIR.unheeded(db_path=db, durable_texts=[])
-    top = [i for i in rep["items"] if "fence the migration path" in i["phrase"]][0]
+    top = next(i for i in rep["items"] if "fence the migration path" in i["phrase"])
     assert top["utterances"] == 2, "two sessions, one utterance each -- not 4 records, not 2 echoes"
     assert top["sessions"] == 2
 

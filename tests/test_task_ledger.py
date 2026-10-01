@@ -99,7 +99,7 @@ def test_done_is_terminal(tmp_path):
     TL.start(L, t["id"], at="t3")
     TL.verifying(L, t["id"], at="t4")
     TL.done(L, t["id"], commit="cafe5150", verified_by="v", at="t5")
-    with pytest.raises(TL.LedgerError, match="terminal|illegal"):
+    with pytest.raises(TL.LedgerError, match=r"terminal|illegal"):
         L.transition(t["id"], TL.IN_PROGRESS, at="t6")
 
 

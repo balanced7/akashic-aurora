@@ -194,7 +194,7 @@ def test_p9_a_suspicious_empty_join_refuses_loudly():
         def repeat_report(self):
             return {"count": 24, "some_new_key": [{"of": "x"}]}  # 'entries' gone
 
-    with pytest.raises(RuntimeError, match="confident zero|REFUSING"):
+    with pytest.raises(RuntimeError, match=r"confident zero|REFUSING"):
         prevention.load_repeats(store=_ShapeChanged())
 
 

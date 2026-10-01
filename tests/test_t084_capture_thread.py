@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import json
 
+import pytest
+
 
 def _fields(frm, to, kind, content, ts, sha, meta=None):
     return {
@@ -223,12 +225,9 @@ def test_native_capture_requires_a_bound_subject(tmp_path):
     from core.comm.toolbox import ToolBox
 
     tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False)
-    try:
+    with pytest.raises(ValueError, match="subject is required") as exc:  # else: unbound ToolBox borrowed another seat
         tb.capture(thread="thread-7")
-    except ValueError as exc:
-        assert "subject is required" in str(exc)
-    else:
-        raise AssertionError("unbound ToolBox borrowed another seat")
+    assert "subject is required" in str(exc.value)
 
 
 def test_native_as_doc_refuses_missing_thread_without_calling_mint(monkeypatch, tmp_path):

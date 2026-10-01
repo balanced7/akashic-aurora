@@ -123,7 +123,7 @@ def test_deepseek_and_kimi_rungs_are_unchanged(monkeypatch):
     plan = revive.decide(obs, target="daemon")
     planned = sorted(p["agent"] for p in plan if p["organ"] == "daemon")
     assert planned == ["kimi"], f"only the dead agent is planned, got {planned}"
-    kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
+    kimi_cmd = next(p for p in plan if p.get("agent") == "kimi")["cmd"]
     assert "--spawn-runner" in kimi_cmd
     assert "--manage-listener" not in kimi_cmd
 
@@ -144,7 +144,7 @@ def test_resurrected_kimi_daemon_carries_its_OWN_runner_script(monkeypatch):
         ),
     )
     plan = revive.decide(obs, target="daemon")
-    kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
+    kimi_cmd = next(p for p in plan if p.get("agent") == "kimi")["cmd"]
     assert "--runner-script" in kimi_cmd, f"a resurrected kimi daemon must name its own runner script, got {kimi_cmd}"
     assert "bifrost_runner_kimi.py" in kimi_cmd, (
         f"a resurrected kimi daemon must name its own runner script, got {kimi_cmd}"

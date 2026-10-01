@@ -78,16 +78,15 @@ def test_p2_the_lod_pin(tmp_path):
     lines = []
     for i in range(120):
         who_line = (
-            '{"type":"user","isMeta":false,"timestamp":"2026-08-0%dT%02d:%02d:00.000Z",'
-            '"message":{"role":"user","content":"operator turn %d: a reasonably long '
+            f'{{"type":"user","isMeta":false,"timestamp":"2026-08-0{1 + (i // 60)}T{i % 24:02d}:{(i * 7) % 60:02d}:00.000Z",'
+            f'"message":{{"role":"user","content":"operator turn {i}: a reasonably long '
             "utterance about the synthetic corpus, padded with enough words that level "
-            'zero carries real weight for the ratio test %s"}}'
-            % (1 + (i // 60), (i % 24), (i * 7) % 60, i, "filler " * 30)
+            f'zero carries real weight for the ratio test {"filler " * 30}"}}}}'
         )
         agent_line = (
-            '{"type":"assistant","timestamp":"2026-08-0%dT%02d:%02d:30.000Z",'
-            '"message":{"role":"assistant","content":[{"type":"text","text":"agent reply '
-            '%d with its own long body %s"}]}}' % (1 + (i // 60), (i % 24), (i * 7) % 60, i, "response " * 40)
+            f'{{"type":"assistant","timestamp":"2026-08-0{1 + (i // 60)}T{i % 24:02d}:{(i * 7) % 60:02d}:30.000Z",'
+            f'"message":{{"role":"assistant","content":[{{"type":"text","text":"agent reply '
+            f'{i} with its own long body {"response " * 40}"}}]}}}}'
         )
         lines += [who_line, agent_line]
     (corpus / "session_long.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")

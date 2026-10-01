@@ -95,7 +95,7 @@ def test_p3_old_pointer_confesses_age(mem):
     old = (datetime.now() - timedelta(days=12)).isoformat()
     _forge(mem, "ADR_gp_old0", "grounding-pointer", "chronicles/old-voice.md", old)
     head = agent_cli._orientation_header("claude")
-    line = [ln for ln in head.splitlines() if "GROUND FIRST" in ln][0]
+    line = next(ln for ln in head.splitlines() if "GROUND FIRST" in ln)
     assert "chronicles/old-voice.md" in line
     assert "STALE?" in line
     assert "12d" in line

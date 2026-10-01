@@ -233,7 +233,7 @@ def test_threaded_door_smoke(mem):
 
     def racer(n):
         try:
-            mem.decide_with_retry(TITLE, "racer %d" % n)
+            mem.decide_with_retry(TITLE, f"racer {n}")
         except SupersedeRaceError as e:  # cap-exhaustion under heavy contention is LOUD, not silent
             errs.append(e)
         except Exception as e:

@@ -211,7 +211,7 @@ def test_k9_archive_is_verbatim_and_refuses_git(tmp_path):
     assert stored["call_plan"][0]["prompt"] == "verbatim prompt"
     assert stored["branches"][0]["answer"] == "verbatim answer"
 
-    with pytest.raises(ValueError, match="git|repositor"):
+    with pytest.raises(ValueError, match=r"git|repositor"):
         F.archive_calibration(record, archive_dir=os.path.join(ROOT, "research"))
 
 

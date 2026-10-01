@@ -59,7 +59,7 @@ def _run(pair, seq):
     for i, (method, args) in enumerate(seq):
         rv_d = getattr(d, method)(*args)
         rv_r = getattr(r, method)(*args)
-        assert rv_d == rv_r, "DIVERGENCE at op %d: %s%r -> dict=%r redis=%r" % (i, method, args, rv_d, rv_r)
+        assert rv_d == rv_r, f"DIVERGENCE at op {i}: {method!s}{args!r} -> dict={rv_d!r} redis={rv_r!r}"
 
 
 def _dump(store, typed_keys):
@@ -134,27 +134,27 @@ def test_cas_contention_schedule_agrees(pair):
 
 def test_seeded_soup_agrees(pair):
     rng = random.Random(4242)
-    kv_keys = [NS + "kv%d" % i for i in range(4)]
-    h_keys = [NS + "h%d" % i for i in range(3)]
-    z_keys = [NS + "z%d" % i for i in range(3)]
+    kv_keys = [NS + f"kv{i}" for i in range(4)]
+    h_keys = [NS + f"h{i}" for i in range(3)]
+    z_keys = [NS + f"z{i}" for i in range(3)]
     fields = ["f1", "f2", "f3"]
     seq = []
     for _ in range(220):
         roll = rng.random()
         if roll < 0.20:
-            seq.append(("set", (rng.choice(kv_keys), "v%d" % rng.randint(0, 9))))
+            seq.append(("set", (rng.choice(kv_keys), f"v{rng.randint(0, 9)}")))
         elif roll < 0.32:
             seq.append(("get", (rng.choice(kv_keys),)))
         elif roll < 0.44:
-            seq.append(("cas", (rng.choice(kv_keys), rng.choice([None, "v1", "v2", "v3"]), "c%d" % rng.randint(0, 9))))
+            seq.append(("cas", (rng.choice(kv_keys), rng.choice([None, "v1", "v2", "v3"]), f"c{rng.randint(0, 9)}")))
         elif roll < 0.58:
-            seq.append(("hset", (rng.choice(h_keys), rng.choice(fields), "hv%d" % rng.randint(0, 9))))
+            seq.append(("hset", (rng.choice(h_keys), rng.choice(fields), f"hv{rng.randint(0, 9)}")))
         elif roll < 0.68:
             seq.append(("hget", (rng.choice(h_keys), rng.choice(fields))))
         elif roll < 0.76:
             seq.append(("hgetall", (rng.choice(h_keys),)))
         elif roll < 0.88:
-            seq.append(("zadd", (rng.choice(z_keys), {"m%d" % rng.randint(0, 5): float(rng.randint(0, 4))})))
+            seq.append(("zadd", (rng.choice(z_keys), {f"m{rng.randint(0, 5)}": float(rng.randint(0, 4))})))
         elif roll < 0.96:
             seq.append(("zrangebyscore", (rng.choice(z_keys), "-inf", "+inf")))
         else:

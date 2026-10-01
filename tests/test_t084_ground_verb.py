@@ -12,6 +12,8 @@ import asyncio
 import json
 from types import SimpleNamespace
 
+import pytest
+
 RUNG_ORDER = [
     "declared",
     "reachable",
@@ -130,9 +132,6 @@ def test_toolbox_without_identity_requires_an_explicit_subject(tmp_path):
     from core.comm.toolbox import ToolBox
 
     tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False)
-    try:
+    with pytest.raises(ValueError, match="subject is required") as exc:  # else: unbound ToolBox borrowed an identity
         tb.ground("verb:sweep")
-    except ValueError as exc:
-        assert "subject is required" in str(exc)
-    else:
-        raise AssertionError("unbound ToolBox borrowed an identity")
+    assert "subject is required" in str(exc.value)

@@ -30,7 +30,7 @@ def test_d1_a_large_fused_verb_is_flagged_unverifiable():
 
 def test_d2_a_helper_seam_clears_it_however_large():
     """One call to a local helper is a seam: the answer exists somewhere inspectable."""
-    s = [v for v in D.survey(SEAMED_BIG) if v.name == "cmd_seamed"][0]
+    s = next(v for v in D.survey(SEAMED_BIG) if v.name == "cmd_seamed")
     assert s.helper_calls >= 1
     assert s.unverifiable is False
 

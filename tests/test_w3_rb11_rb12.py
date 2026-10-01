@@ -90,7 +90,7 @@ def test_chain_warning_boundary_51_not_49(mem):
         for i in range(count):
             _forge(
                 mem,
-                "ADR_%s_%08d" % (n[:2], i),
+                f"ADR_{n[:2]!s}_{i:08d}",
                 n,
                 t.replace(second=(i % 50), minute=i // 50).isoformat(),
                 superseded=(i < count - 1),
@@ -115,7 +115,7 @@ def test_default_read_path_does_not_scan_chains(mem):
 def test_same_timestamp_ties_are_stable_and_total(mem):
     ts = datetime(2026, 3, 3, 3, 3, 3).isoformat()
     for i, title in enumerate(["zeta-status", "alpha-status", "mid-status"]):
-        _forge(mem, "ADR_tie_%08d" % i, title, ts)
+        _forge(mem, f"ADR_tie_{i:08d}", title, ts)
     orders = [tuple(d.id for d in mem.get_decisions(days=3650)) for _ in range(5)]
     assert len(set(orders)) == 1, "same corpus -> identical order, five reads"
     titles = [d.title for d in mem.get_decisions(days=3650)]

@@ -15,6 +15,8 @@ Run: py -m pytest tests/test_t099_v02_toast.py -q
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -74,12 +76,10 @@ def test_unverified_receipt_refuses_loudly_no_surfaces():
 
     store = FakeStore([])
     sent, notes, bus, note = _recorders()
-    try:
+    with pytest.raises(ValueError, match="REFUSED") as e:  # else: a bad receipt must refuse
         toast.send("kimi", "deepseek", "no-such-lesson", "saved me hops", bus_send=bus, note_write=note, store=store)
-        raise AssertionError("a bad receipt must refuse")
-    except ValueError as e:
-        assert "REFUSED" in str(e)
-        assert "no experiment matching" in str(e)
+    assert "REFUSED" in str(e.value)
+    assert "no experiment matching" in str(e.value)
     assert not sent, "refusal touches neither surface"
     assert not notes, "refusal touches neither surface"
 
@@ -110,7 +110,9 @@ def test_receipt_owned_by_other_seat_never_verifies():
 
     store = FakeStore([{"experiment_name": "wake_watcher_insta_fires_lane_divergence", "agent_id": "claude"}])
     sent, notes, bus, note = _recorders()
-    try:
+    with pytest.raises(
+        ValueError, match="belongs to claude, not deepseek"
+    ) as e:  # else: crediting the wrong seat must refuse
         toast.send(
             "kimi",
             "deepseek",
@@ -120,9 +122,7 @@ def test_receipt_owned_by_other_seat_never_verifies():
             note_write=note,
             store=store,
         )
-        raise AssertionError("crediting the wrong seat must refuse")
-    except ValueError as e:
-        assert "belongs to claude, not deepseek" in str(e)
+    assert "belongs to claude, not deepseek" in str(e.value)
     assert not sent
     assert not notes
 

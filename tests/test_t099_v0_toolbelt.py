@@ -19,6 +19,8 @@ Run: py -m pytest tests/test_t099_v0_toolbelt.py -q
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 KNOWN = {"bifrost-pause", "bifrost-skip-to-now", "bifrost-resume", "doctor", "discover"}
@@ -46,11 +48,9 @@ def test_mint_resolve_round_trip(tmp_path):
 
 def test_sugar_only_unknown_verb_refuses(tmp_path):
     tb = _reg(tmp_path)
-    try:
+    with pytest.raises(ValueError, match=r"(?i)unknown verb") as e:  # else: minting a non-agent_cli step must refuse
         tb.mint("evil", [["rm", "-rf", "/"]])
-        raise AssertionError("minting a non-agent_cli step must refuse")
-    except ValueError as e:
-        assert "unknown verb" in str(e).lower()
+    assert "unknown verb" in str(e.value).lower()
 
 
 def test_honesty_label_defaults_guess_and_renders(tmp_path):
@@ -81,11 +81,9 @@ def test_quota_refuses_21st_active(tmp_path):
     tb = _reg(tmp_path)
     for i in range(20):
         tb.mint(f"a{i}", [["discover"]])
-    try:
+    with pytest.raises(ValueError, match=r"(?i)quota") as e:  # else: 21st active mint must refuse (junk-drawer guard)
         tb.mint("a20", [["discover"]])
-        raise AssertionError("21st active mint must refuse (junk-drawer guard)")
-    except ValueError as e:
-        assert "quota" in str(e).lower()
+    assert "quota" in str(e.value).lower()
 
 
 def test_run_executes_steps_in_order_via_injected_runner(tmp_path):
@@ -150,11 +148,11 @@ def test_macro_params_detected_and_substituted(tmp_path):
 def test_macro_refuses_missing_args_loudly(tmp_path):
     tb = _reg(tmp_path)
     tb.mint("park-one", [["bifrost-pause", "--by", "$1"]])
-    try:
+    with pytest.raises(
+        ValueError, match="expects 1 arg"
+    ) as e:  # else: a macro without its args must refuse, never run half-substituted
         tb.resolve("park-one", args=[])
-        raise AssertionError("a macro without its args must refuse, never run half-substituted")
-    except ValueError as e:
-        assert "expects 1 arg" in str(e)
+    assert "expects 1 arg" in str(e.value)
 
 
 def test_plain_combo_ignores_args_and_keeps_kind(tmp_path):

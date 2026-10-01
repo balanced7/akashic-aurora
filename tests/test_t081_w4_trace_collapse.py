@@ -210,9 +210,9 @@ def test_w4_integration_real_bus_traces_collapse():
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
     )
     if c is None:
-        import pytest as _p
+        import pytest
 
-        _p.skip("redis not available")
+        pytest.skip("redis not available")
 
     import uuid
 

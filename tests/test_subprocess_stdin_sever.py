@@ -126,6 +126,6 @@ def test_s3_boot_path_spawns_no_stdin_inheriting_child():
 
     assert buf.getvalue().strip(), "S3: boot rendered nothing -- the pin proved nothing"
     assert not leaks, (
-        "S3: %d spawn(s) on the BOOT path inherit stdin (C7-4 -- an MCP seat's boot "
-        "will hang until another frame arrives):\n  %s" % (len(leaks), "\n  ".join(leaks))
+        "S3: {} spawn(s) on the BOOT path inherit stdin (C7-4 -- an MCP seat's boot "
+        "will hang until another frame arrives):\n  {}".format(len(leaks), "\n  ".join(leaks))
     )

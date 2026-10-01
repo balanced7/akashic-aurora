@@ -120,9 +120,9 @@ def test_k6_duplicate_manifest_ids_and_broken_set_chains_refuse():
         C.score_v2(duplicate, set(), assigned=set(), judged=set())
 
     m = _manifest(_item("x", "catchable"))
-    with pytest.raises(ValueError, match="claimed.*judged"):
+    with pytest.raises(ValueError, match=r"claimed.*judged"):
         C.score_v2(m, {"x"}, assigned={"x"}, judged=set())
-    with pytest.raises(ValueError, match="judged.*assigned"):
+    with pytest.raises(ValueError, match=r"judged.*assigned"):
         C.score_v2(m, set(), assigned=set(), judged={"x"})
 
 

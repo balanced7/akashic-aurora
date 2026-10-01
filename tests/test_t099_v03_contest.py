@@ -8,6 +8,8 @@ P5  no prior toast -> contest opens the thread alone (confessed)
 P6  self-contest / empty credit / over-long credit -> refused before any write
 """
 
+import pytest
+
 import core.toolbelt.contest as contest
 
 
@@ -55,13 +57,11 @@ def test_p1_verified_contest_lands_both_surfaces():
 
 def test_p2_bad_receipt_refuses_silently_nothing_sent():
     r = _rig(store=FakeStore({}))
-    try:
+    with pytest.raises(ValueError, match="REFUSED") as e:  # else: should have refused
         contest.send(
             "kimi", "deepseek", "no_such_exp", "credit", **{k: v for k, v in r.items() if not k.startswith("_")}
         )
-        raise AssertionError("should have refused")
-    except ValueError as e:
-        assert "REFUSED" in str(e)
+    assert "REFUSED" in str(e.value)
     assert r["_sent"] == [], "refusal must not write anywhere"
     assert r["_notes"] == {}, "refusal must not write anywhere"
 
@@ -79,7 +79,7 @@ def test_p3_forced_contest_confesses_guess_both_artifacts():
     assert res["tier"] == "GUESS"
     assert "GUESS" in r["_sent"][0][2]
     assert "unverified" in r["_sent"][0][2]
-    body = list(r["_notes"].values())[0]
+    body = next(iter(r["_notes"].values()))
     assert "GUESS" in body
 
 
@@ -93,7 +93,7 @@ def test_p4_contest_appends_prior_body_preserved():
         "same seam saved my fence pass",
         **{k: v for k, v in r.items() if not k.startswith("_")},
     )
-    body = list(r["_notes"].values())[0]
+    body = next(iter(r["_notes"].values()))
     assert prior in body, "the original toast must survive verbatim"
     assert "contested (VERIFIED)" in body
     assert "by: kimi" in body

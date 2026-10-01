@@ -63,7 +63,7 @@ def test_p4_changed_entry_supersedes_history_retained(tmp_path):
     changed["entries"] = [dict(e) for e in kit.RECOVERY_KIT["entries"]]
     changed["entries"][2]["steps"] = [["doctor"]]  # vitals, narrower
     rep = kit.install(changed, b)
-    row = [e for e in rep["entries"] if e["name"] == "vitals"][0]
+    row = next(e for e in rep["entries"] if e["name"] == "vitals")
     assert "superseded" in row["result"], row
     assert "v2" in row["result"], row
     assert len(b.history("vitals")) == 1
