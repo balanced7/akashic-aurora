@@ -413,6 +413,21 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
 
 # ------------------------------------------------------------------------------ the server
 
+def _no_delay_handler(base):
+    """fakeredis writes each reply of a pipeline as its own small send. With Nagle on, the
+    second waits for the ACK of the first, which the client delays ~40ms because it is only
+    reading -- so EVERY pipeline of two or more commands cost ~41ms flat (measured), against
+    ~0.3ms for a single command. A real Redis sets TCP_NODELAY on client sockets; so do we."""
+    class _NoDelay(base):
+        def setup(self):
+            try:
+                self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            except OSError:
+                pass
+            super().setup()
+    return _NoDelay
+
+
 def serve(port: int, host: str = "127.0.0.1", path: Optional[Path] = None) -> int:
     """Run the server in this process until SIGTERM/SIGINT or SHUTDOWN. Returns an exit code."""
     global _PERSIST
@@ -426,6 +441,7 @@ def serve(port: int, host: str = "127.0.0.1", path: Optional[Path] = None) -> in
         logger.info("port %s:%s already taken (%s) -- not starting", host, port, e)
         return 0
     srv.daemon_threads = True
+    srv.RequestHandlerClass = _no_delay_handler(srv.RequestHandlerClass)
     _PERSIST = _Persistence(srv.fake_server, path)
     loaded = _PERSIST.load()
     if loaded == 0:
