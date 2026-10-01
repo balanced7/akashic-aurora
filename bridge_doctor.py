@@ -95,9 +95,9 @@ def main() -> int:
         import subprocess
 
         exe = shutil.which("tailscale") or os.path.join(
-            os.environ.get("ProgramFiles", ""),
+            os.environ.get("ProgramFiles", ""),  # noqa: SIM112  # Windows spelling; POSIX lookups are case-sensitive
             "Tailscale",
-            "tailscale.exe",  # noqa: SIM112  # Windows spelling; POSIX lookups are case-sensitive
+            "tailscale.exe",
         )
         my_ip = (
             subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10)
