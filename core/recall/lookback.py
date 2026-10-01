@@ -16,11 +16,11 @@ funnel instead of anecdotes (the recall-vNext lesson: telemetry first, tuning la
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import subprocess
 from typing import Any
-import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MIN_RELEVANCE = 0.2  # the arch-slice floor: must match THIS question, not merely be recent

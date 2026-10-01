@@ -29,9 +29,10 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+import contextlib
+
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
-import contextlib
 
 
 def _ls():

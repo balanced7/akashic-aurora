@@ -34,6 +34,7 @@ derive their keys through the Bus door (F2) with shared cursors LABELED as share
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
@@ -42,7 +43,6 @@ from typing import Any
 # The incarnation discriminator is derived by the bus (the organ that owns the key formats,
 # kimi F2) -- imported, never re-sliced here. bus imports nothing from this module.
 from core.comm.bus import sid8 as _sid8
-import contextlib
 
 WORKLIVE_TTL_S = int(os.environ.get("AKASHIC_WORKLIVE_TTL_S", "180") or 180)
 RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)  # S3: away-time that counts as a RESUME

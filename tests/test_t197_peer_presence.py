@@ -56,6 +56,7 @@ answer. A reader that guesses the past is the exact defect this arc exists to re
 Run: py -m pytest tests/test_t197_peer_presence.py -q
 """
 
+import contextlib
 import inspect
 import os
 import sys
@@ -63,7 +64,6 @@ import time
 import uuid
 
 import pytest
-import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

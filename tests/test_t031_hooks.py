@@ -19,12 +19,12 @@ Hook 4  scripts/checkers/check_verbatim_citation.py  (M6): a ship message that c
 Run: py -m pytest tests/test_t031_hooks.py -q
 """
 
+import contextlib
 import os
 import subprocess
 import sys
 
 import pytest
-import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

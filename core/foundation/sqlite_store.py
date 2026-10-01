@@ -57,6 +57,7 @@ WHAT THIS CLASS DOES NOT PROTECT (kimi's ROT-2 -- a fix must name its own covera
 
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import os
 import sqlite3
@@ -65,7 +66,6 @@ import time
 from typing import Any
 
 from core.foundation.store import Store
-import contextlib
 
 
 def _repo_root_str() -> str:

@@ -24,6 +24,7 @@ says so in the result.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import re
@@ -34,7 +35,6 @@ from pathlib import Path
 
 from core.manuals import chunk as chunk_mod
 from core.manuals import convert
-import contextlib
 
 SCHEMA_VERSION = "manuals.shelf/1"
 # Folded into every document's fingerprint: bump it when conversion or chunking changes, and

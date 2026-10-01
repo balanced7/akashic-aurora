@@ -13,6 +13,7 @@ for an optional LLM paraphrase (the Distiller pattern) -- core stays no-LLM by d
 Best-effort + fail-soft throughout: a bookend hiccup must never break boot, a CLI command, or a session.
 """
 
+import contextlib
 import json
 import random
 from collections.abc import Callable
@@ -25,7 +26,6 @@ from core.narrative.beat_log import ROUTER_ACTIVE, BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store, persist_chapter_in_place
 from core.narrative.schema import Chapter
 from core.narrative.track_router import RouteHint
-import contextlib
 
 EPISODE_OPEN_KEY = "narr:episode:open"  # JSON {chapter_id, start, track} -- the one open episode
 _DEFAULT_TRACK = "ai-setup"

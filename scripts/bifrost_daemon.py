@@ -60,10 +60,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Top-level so check_wiring's reachability graph SEES the edge — the feed beat below is the
 # production caller that makes the T223 bridge real (built != wired was this exact feature's
 # recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
+import contextlib
+
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
 from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
-import contextlib
 
 
 def _pyl() -> str:

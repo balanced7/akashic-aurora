@@ -32,6 +32,7 @@ Architecture tiers:
   Tier 4: session-compressor
 """
 
+import contextlib
 import json
 import shutil
 import socket
@@ -43,7 +44,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import psutil
-import contextlib
 
 # ── Platform setup ──
 if sys.platform == "win32":

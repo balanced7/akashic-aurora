@@ -25,6 +25,7 @@ BIFROST_MAX_REPLIES_PER_MIN.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
@@ -33,7 +34,6 @@ from datetime import datetime
 from typing import Any
 
 from core.foundation.timeutil import now_iso
-import contextlib
 
 
 def _pyl() -> str:

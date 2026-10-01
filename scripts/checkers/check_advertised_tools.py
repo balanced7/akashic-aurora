@@ -22,10 +22,10 @@ Run:  py scripts/checkers/check_advertised_tools.py           # gate over the co
       py scripts/checkers/check_advertised_tools.py --report  # also print the tool namespaces
 """
 
+import contextlib
 import os
 import re
 import sys
-import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOOLBOX = os.path.join(ROOT, "core", "comm", "toolbox.py")

@@ -10,11 +10,11 @@ no contention. Independent of, and concurrent with, whatever the shared runner i
   py scripts/runners/renew_deepseek_solo.py
 """
 
+import contextlib
 import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-import contextlib
 
 # The Agent streams DeepSeek's thinking/tool-calls (which contain emoji) to stdout; on Windows the
 # default cp1252 console encoding crashes on them. Force UTF-8 so a background run can't die on an emoji.

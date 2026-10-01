@@ -7,13 +7,13 @@ that same JSON. Validation refuses at connect time and says why in words a perso
 from __future__ import annotations
 
 import copy
+import itertools
 import re
 from dataclasses import dataclass
 
 from . import GRAPH_API
 from .mediatypes import PRODUCER_TYPES, check_caps
 from .registry import Registry, load_registry
-import itertools
 
 MODES = ("live_audio", "live_silent", "offline", "edit")
 

@@ -32,6 +32,7 @@ import is function-local + fail-soft: without coord, those two triggers silently
 switch/idle triggers still work. Best-effort everywhere; a suggester hiccup must never break a door.
 """
 
+import contextlib
 import json
 import os
 from datetime import datetime
@@ -42,7 +43,6 @@ from core.foundation.timeutil import to_epoch as _epoch
 from core.narrative.beat_log import BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store
 from core.narrative.episode import EPISODE_OPEN_KEY, content_beats, draft_fields
-import contextlib
 
 SUGGEST_STATE_KEY = "narr:episode:suggestion:state"  # {chapter_id, fingerprints, last_at, active}
 

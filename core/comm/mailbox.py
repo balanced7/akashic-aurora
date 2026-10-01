@@ -26,6 +26,7 @@ first so a chatty session can never evict an unhandled handoff.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -35,7 +36,6 @@ from collections.abc import Callable
 from typing import Any
 
 from core.comm import packet_spec
-import contextlib
 
 # ------------------------------------------------------------------ constants
 

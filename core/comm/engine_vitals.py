@@ -17,11 +17,11 @@ is the thing that's broken.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
 from typing import Any
-import contextlib
 
 IDLE_AFTER_S = 300  # his Zone-1 table: active < 5m <= idle
 _TS_FMT = "%Y-%m-%dT%H:%M:%S"

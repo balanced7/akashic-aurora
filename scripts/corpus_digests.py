@@ -26,11 +26,11 @@ answerable without another full read.
 """
 
 import argparse
+import contextlib
 import glob
 import json
 import os
 import sys
-import contextlib
 
 
 def _pyl() -> str:

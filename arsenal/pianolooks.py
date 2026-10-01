@@ -21,6 +21,7 @@ moved over the old one with os.replace, so a failed write leaves the previous fi
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import os
@@ -29,7 +30,6 @@ import threading
 from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import urlsplit
-import contextlib
 
 API = "arsenal.piano.looks/v1"
 PATH = "/api/piano/looks"

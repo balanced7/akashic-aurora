@@ -39,8 +39,9 @@ from pathlib import Path
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from core.comm.runner_lib import make_openai_compat_client
 import contextlib
+
+from core.comm.runner_lib import make_openai_compat_client
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "kimi.key"
 REPO_ROOT = Path(__file__).resolve().parent.parent

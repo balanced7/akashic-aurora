@@ -28,8 +28,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.revive import ReviveLocked, converge, decide  # noqa: E402
 import contextlib
+
+from scripts.revive import ReviveLocked, converge, decide  # noqa: E402
 
 
 def _obs(redis=True, daemon=True, runners=True, gateway=True):

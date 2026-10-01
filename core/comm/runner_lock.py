@@ -17,6 +17,7 @@ core/comm. Instance token varies by pid so a respawn never collides with its own
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
@@ -26,7 +27,6 @@ from typing import Any
 
 from core.comm.timescale import scaled
 from core.foundation.timeutil import now_iso
-import contextlib
 
 
 def _ns() -> str:

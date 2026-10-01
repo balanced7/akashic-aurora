@@ -23,9 +23,9 @@ cannot be printed: the decision never depends on the console.
 Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 """
 
+import contextlib
 import os
 import sys
-import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)

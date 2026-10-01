@@ -49,6 +49,7 @@ times as m:ss from the session start, each output ending with plain words for th
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import re
@@ -62,7 +63,6 @@ from pathlib import Path
 
 from . import nashville
 from .performance import PerformanceError, PerformanceStore, estimate_key
-import contextlib
 
 
 def _pyl() -> str:

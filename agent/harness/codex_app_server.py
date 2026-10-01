@@ -11,6 +11,7 @@ invoked only by :meth:`CodexAppServer.run_turn`.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import queue
@@ -23,7 +24,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-import contextlib
 
 
 class CodexAppServerError(RuntimeError):

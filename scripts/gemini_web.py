@@ -26,6 +26,7 @@ Requires: pip install playwright && playwright install chrome
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import subprocess
 import sys
@@ -34,7 +35,6 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Literal
-import contextlib
 
 
 def _pyl() -> str:

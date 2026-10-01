@@ -19,11 +19,11 @@ House door:  py agent_cli.py captions <url> [--out DIR] [--langs SPEC] [--keep-v
 
 from __future__ import annotations
 
+import contextlib
 import re
 import subprocess
 import sys
 from pathlib import Path
-import contextlib
 
 MISSING_YTDLP_HINT = (
     "yt-dlp is not importable from this interpreter. Install it into the fleet python:\n"

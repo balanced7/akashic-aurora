@@ -15,8 +15,8 @@ Layering: this is narrative (System 4). It is bumped only from narrative-layer c
 event/domain primitives must not depend upward on it, so their own failures stay in their logs.
 """
 
-from typing import Any
 import contextlib
+from typing import Any
 
 HEALTH_KEY = "narr:health"
 

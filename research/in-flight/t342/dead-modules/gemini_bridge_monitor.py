@@ -10,6 +10,8 @@ import traceback
 
 sys.path.insert(0, r"E:\AI-Setup")
 
+import contextlib
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -17,7 +19,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from vision_engine import capture_active_window, get_screen_context_for_analyst
-import contextlib
 
 CHROMEDRIVER_PATH = r"C:\Users\L5\.chromedriver-autoinstaller\chromedriver-win64\chromedriver.exe"
 DEBUGGING_PORT = "127.0.0.1:9222"

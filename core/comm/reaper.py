@@ -33,11 +33,11 @@ be the confident-zero in the organ built against stranding.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 import uuid
 from typing import Any
-import contextlib
 
 REHOME_MARK_TTL_S = 7 * 86400
 REHOME_CLAIM_TTL_S = 30

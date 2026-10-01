@@ -10,6 +10,7 @@ docs/library/report/20260717_t093-crash-path-reconciliation-fable-rec_c00255.md 
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
@@ -22,7 +23,6 @@ import pytest
 
 from scripts import run_job
 from scripts import ship as ship_module
-import contextlib
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"

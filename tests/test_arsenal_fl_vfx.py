@@ -9,6 +9,7 @@ pattern-mode loop wrap. Nothing here touches FL, Documents or the network; live-
 import ast
 import bisect
 import importlib.util
+import itertools
 import json
 import math
 import os
@@ -19,7 +20,6 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-import itertools
 
 ROOT = Path(__file__).resolve().parents[1]
 VFX_DIR = ROOT / "arsenal" / "fl" / "vfx"

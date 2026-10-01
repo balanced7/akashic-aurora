@@ -43,6 +43,7 @@ Choices this module makes where the spec leaves room (all written into the outpu
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import re
@@ -61,7 +62,6 @@ from .jam import DEF_API, RIFF_API, schemas
 from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
-import contextlib
 
 
 def _pyl() -> str:

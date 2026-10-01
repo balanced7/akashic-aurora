@@ -8,6 +8,7 @@ Only an allowlisted peer and an explicit message class can spend a Codex turn.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shlex
@@ -32,7 +33,6 @@ from core.comm.bus import Bus, Message
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt
-import contextlib
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})

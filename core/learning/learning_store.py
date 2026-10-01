@@ -35,6 +35,7 @@ Usage:
     recommendations = load_recommendations_from_store("code_optimization")
 """
 
+import contextlib
 import json
 import logging
 import re
@@ -45,7 +46,6 @@ from typing import Any
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
 from core.paths import data_root
-import contextlib
 
 # ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
 # The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,

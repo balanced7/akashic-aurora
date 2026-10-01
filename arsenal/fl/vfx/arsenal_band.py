@@ -40,8 +40,8 @@ try:
     import flvfx as vfx
 except ImportError:  # outside FL the pattern parsers below still work; the tests inject a mock flvfx
     vfx = None
-import sys
 import contextlib
+import sys
 
 try:
     import os

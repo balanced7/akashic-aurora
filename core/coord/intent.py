@@ -20,6 +20,7 @@ intent auto-expires, exactly like presence and locks.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -27,7 +28,6 @@ import time
 from typing import Any
 
 from core.foundation.timeutil import now_iso
-import contextlib
 
 
 def _ns() -> str:

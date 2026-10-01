@@ -36,6 +36,7 @@ Also a small CLI for offline rehearsal:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
 import itertools
 import json
@@ -44,7 +45,6 @@ import struct
 import sys
 import types
 from pathlib import Path
-import contextlib
 
 HERE = Path(__file__).resolve().parent
 BAND_SCRIPT = HERE / "arsenal_band.py"

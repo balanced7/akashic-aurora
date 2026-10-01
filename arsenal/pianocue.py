@@ -28,6 +28,7 @@ follows a page whose minor-key numbering (arsenal.piano.minor) is set to relativ
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import queue
 import re
@@ -40,7 +41,6 @@ import urllib.error
 import urllib.request
 from collections import deque
 from pathlib import Path
-import contextlib
 
 
 def _pyl() -> str:

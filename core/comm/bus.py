@@ -21,6 +21,7 @@ Read model: per-agent cursors (last-read stream id for inbox + broadcast) in a R
 catches up on exactly what it missed and never re-reads (offset semantics without consumer-group coupling).
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -33,7 +34,6 @@ from typing import Any
 from core.comm import packet_spec
 from core.comm import router as shadow_router
 from core.comm.blobs import get_blob_store
-import contextlib
 
 NS = "bifrost"
 DEFAULT_MAXLEN = 10_000
@@ -74,8 +74,9 @@ def _loads(s: Any) -> Any:
 # least 8 chars follows it: 'seat-0001' (4 hex) and '<pid>-<agent>' (digits first) are left
 # alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
 # the derivation must never discard entropy, so the negative lookahead keeps it.
-from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
 import contextlib
+
+from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
 
 # lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
 # every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).

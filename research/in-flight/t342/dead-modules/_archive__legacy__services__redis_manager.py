@@ -21,6 +21,7 @@ SURVIVABILITY DESIGN:
 10. Recovery testing - Verified restore procedures
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -32,7 +33,6 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-import contextlib
 
 # ============================================================================
 # CONFIGURATION - Enterprise Grade

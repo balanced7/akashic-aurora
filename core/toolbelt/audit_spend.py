@@ -36,12 +36,12 @@ RULES:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import time
 from typing import TYPE_CHECKING, Any
-import contextlib
 
 if TYPE_CHECKING:  # annotations only; the RUNTIME import lives in SpendDomain.run
     from core.toolbelt.audit import Row

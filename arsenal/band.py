@@ -145,6 +145,7 @@ $ARSENAL_BAND_STATE)
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import itertools
 import json
@@ -158,7 +159,6 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from . import nashville as nv
-import contextlib
 
 
 def _pyl() -> str:

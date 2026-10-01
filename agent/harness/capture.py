@@ -11,10 +11,10 @@ not the content), tempdir-only, fail-soft, kill switch AKASHIC_PAYLOAD_CAPTURE=0
 Callers own their directory (one per harness) so per-harness pinning stays trivial.
 """
 
+import contextlib
 import json
 import os
 import time
-import contextlib
 
 _CAP_MAX = 200
 _CAP_STR = 400

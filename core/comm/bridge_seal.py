@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import contextlib
 import errno
 import json
 import math
@@ -52,7 +53,6 @@ from nacl import public, signing
 from nacl.exceptions import BadSignatureError, CryptoError
 
 from core.comm.remote_relay import BRIDGE_KINDS  # ONE allowlist; a copy is a future drift
-import contextlib
 
 ALG = "x25519-xsalsa20poly1305/ed25519-v1"
 WIRE_V = 1

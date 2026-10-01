@@ -23,10 +23,10 @@ the live loader (`flow_trace`), the knowledge_map precedent.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from typing import Any
-import contextlib
 
 DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000  # 6h of traffic is a session's story
 PER_STREAM_LIMIT = 400  # bounded read per stream; the window trims harder

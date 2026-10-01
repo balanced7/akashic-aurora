@@ -37,6 +37,7 @@ Integration with the Bifrost UI (scripts/bifrost_ui.py):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import random
@@ -48,7 +49,6 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-import contextlib
 
 # Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
 # ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.

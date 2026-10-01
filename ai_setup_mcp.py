@@ -65,10 +65,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # renders 'door: MCP-native'. setdefault so an outer launcher can still override.
 os.environ.setdefault("AKASHIC_SEAT_DOOR", "mcp")
 
+import contextlib
+
 from mcp.server.fastmcp import FastMCP
 
 import agent_cli
-import contextlib
 
 
 def _pyl() -> str:

@@ -29,6 +29,7 @@ for notes and docs are reused verbatim from lookback -- one projection, two face
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from collections.abc import Callable
@@ -42,7 +43,6 @@ from core.recall.lookback import (
     _note_items,
     _stem_relevance,
 )
-import contextlib
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface
 ARCHIVE_STATUS = {"retired", "superseded", "historical", "benched", "graduated"}

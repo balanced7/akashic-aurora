@@ -28,6 +28,7 @@ Safe to re-run. It overwrites the key files with what you paste and nothing else
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -40,7 +41,6 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-import contextlib
 
 ROOT = Path(__file__).resolve().parent
 SECRETS = Path(os.getenv("AKASHIC_SECRETS_DIR") or (ROOT / ".secrets"))

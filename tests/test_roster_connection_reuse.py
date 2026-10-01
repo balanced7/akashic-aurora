@@ -29,12 +29,12 @@ one per row cannot. It says nothing about HOW the sharing is done, so a better d
 than the one that follows this pin is free to replace it.
 """
 
+import contextlib
 import os
 import sys
 import uuid
 
 import pytest
-import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

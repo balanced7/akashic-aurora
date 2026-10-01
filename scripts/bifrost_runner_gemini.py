@@ -40,10 +40,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
+import contextlib
+
 from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm.bus import Bus
-import contextlib
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -58,12 +59,13 @@ with contextlib.suppress(Exception):
 with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
+import contextlib
+
 from gemini_chat import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_COMPLETION_TOKENS, GeminiAgent, SpendMeter, load_key
 
 from core.comm import context_hints, nudge, runner_lock, self_restart
 from core.comm.timescale import scaled as _scaled
 from core.comm.toolbox import TOOLS, ToolBox  # K0 canonical seam -- first direct consumer
-import contextlib
 
 CARD = {
     "runtime_class": "api",

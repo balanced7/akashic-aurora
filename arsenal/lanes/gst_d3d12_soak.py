@@ -21,6 +21,7 @@ the result. Standard library only; headless (frames end in fakevideosink, no win
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import os
@@ -32,7 +33,6 @@ import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-import contextlib
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
 GST_LAUNCH = GST_ROOT / "bin" / "gst-launch-1.0.exe"

@@ -14,10 +14,10 @@ on the bus. Degrades gracefully: web-first auto mode falls back to the API bridg
 """
 
 import argparse
+import contextlib
 import os
 import subprocess
 import sys
-import contextlib
 
 # T152 (T150's fifth runner). T150 made every bifrost_runner_<provider>.py watchable but
 # enumerated by the prefix `bifrost_runner_`, which cannot see the member whose name IS the

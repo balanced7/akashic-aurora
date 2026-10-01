@@ -21,8 +21,9 @@ import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from scripts.wire_journal import WireJournal  # noqa: E402
 import contextlib
+
+from scripts.wire_journal import WireJournal  # noqa: E402
 
 THREADS = 20
 CALLS = 4000

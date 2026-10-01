@@ -20,13 +20,13 @@ Usage:
     summarize()                              # Auto-summarize if meaningful
 """
 
+import contextlib
 import json
 import re
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-import contextlib
 
 BASE_DIR = Path(r"E:\AI-Setup")
 ARCHIVE_DIR = BASE_DIR / "sessions"

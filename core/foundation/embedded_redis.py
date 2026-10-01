@@ -36,6 +36,7 @@ squat on the port Docker needs. A checkout with no Redis is `embedded`.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import logging
 import os
 import pickle
@@ -47,7 +48,6 @@ import sys
 import threading
 import time
 from pathlib import Path
-import contextlib
 
 logger = logging.getLogger("embedded_redis")
 

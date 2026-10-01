@@ -39,6 +39,7 @@ with the launcher and L4. Fail-open everywhere -- the doctor must never wedge a 
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import time
@@ -46,7 +47,6 @@ from typing import Any
 
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled
-import contextlib
 
 
 def _pyl() -> str:

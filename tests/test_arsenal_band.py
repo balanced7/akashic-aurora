@@ -17,9 +17,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import itertools
+
 from arsenal import band  # noqa: E402
 from arsenal.band import BandError  # noqa: E402
-import itertools
 
 LOOP_C = "Cmaj7 | Am7 | Dm7 | G7"
 

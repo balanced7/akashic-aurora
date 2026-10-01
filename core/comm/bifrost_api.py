@@ -18,13 +18,13 @@ a bus outage degrades to no-ops / empty, never an exception into the agent's loo
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 from typing import Any
 
 from core.comm import control, nudge
 from core.comm.bus import Bus
-import contextlib
 
 
 def _pyl() -> str:

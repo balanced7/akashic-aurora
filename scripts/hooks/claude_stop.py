@@ -26,6 +26,7 @@ bounding any misfire to a single nudge, NOT an ever-growing stopword list.
 Both checks fail OPEN (never wedge the session).
 """
 
+import contextlib
 import json
 import os
 import re
@@ -33,7 +34,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import contextlib
 
 # LEGACY, no-session paths only (below). Session-scoped paths resolve via _seat().
 # Default is NOT a peer name: a session with no env previously wrote bifrost_wake_claude.pid

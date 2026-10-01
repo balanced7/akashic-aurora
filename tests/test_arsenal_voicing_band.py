@@ -6,6 +6,7 @@ numbers and pitch classes that follow the key, the ring's wrap move, the lament'
 Nothing here reads Daniel's practice log: the lines are the spec's own text.
 """
 
+import itertools
 import json
 import shutil
 import statistics
@@ -16,7 +17,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
-import itertools
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))

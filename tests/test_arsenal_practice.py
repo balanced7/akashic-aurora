@@ -17,8 +17,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import practice as pr  # noqa: E402
 import itertools
+
+from arsenal import practice as pr  # noqa: E402
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="node is needed to run piano.js Theory.detect")

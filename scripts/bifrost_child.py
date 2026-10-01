@@ -20,6 +20,7 @@ contest -- docstring says it).
 from __future__ import annotations
 
 import collections
+import contextlib
 import json
 import os
 import subprocess
@@ -28,7 +29,6 @@ import time
 import uuid
 from collections.abc import Callable
 from typing import Any
-import contextlib
 
 
 # ---------------------------------------------------------------- DaemonLock

@@ -17,13 +17,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
-import contextlib
 
 # T150/T152 runner-family law (regressed out in the ear-v2 rewrite, caught by the
 # census guards via the 2026-08-22 baseline delta): line-buffered utf-8 streams

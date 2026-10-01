@@ -111,6 +111,8 @@ def make_client(api_key=None, base_url=BASE_URL):
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
+import contextlib
+
 from core.comm.toolbox import (  # noqa: F401,E402  (compat re-export)
     BINARY_SUFFIXES,
     CLARIFY_MAX_PER_TASK,
@@ -125,7 +127,6 @@ from core.comm.toolbox import (  # noqa: F401,E402  (compat re-export)
     ToolBox,
     _fn,
 )
-import contextlib
 
 # CLARIFY_TIMEOUT_S was missing from this list while the clarification-TIMEOUT branch below
 # uses it -- so the runner died with a NameError precisely when a clarification went

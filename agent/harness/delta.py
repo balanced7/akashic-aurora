@@ -20,11 +20,11 @@ loss degrades to today's full boot (C6). Raw bus positions are deliberately ABSE
 durable-salient promoted stream.
 """
 
+import contextlib
 import os
 import subprocess
 import time
 from collections.abc import Callable
-import contextlib
 
 
 def _pyl() -> str:

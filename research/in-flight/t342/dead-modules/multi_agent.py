@@ -43,8 +43,9 @@ from typing import Any, Optional
 
 sys.path.insert(0, r"E:\AI-Setup")
 
-import redis
 import contextlib
+
+import redis
 
 try:
     from vector_store import VectorStore as VectorStore

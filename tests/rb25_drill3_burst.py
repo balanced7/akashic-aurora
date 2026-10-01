@@ -53,8 +53,9 @@ import uuid
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
-from core.comm.bus import Bus
 import contextlib
+
+from core.comm.bus import Bus
 
 STORM_KINDS = [
     # (kind, count, to_target, description)

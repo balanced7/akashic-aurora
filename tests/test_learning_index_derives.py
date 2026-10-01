@@ -26,11 +26,11 @@ and ours is provably unreliable.
 Run: py -m pytest tests/test_learning_index_derives.py -q
 """
 
+import contextlib
 import os
 import sys
 
 import pytest
-import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

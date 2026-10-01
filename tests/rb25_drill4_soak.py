@@ -48,6 +48,8 @@ sys.path.insert(0, str(REPO))
 # control plane off the live bus. K4 still probes the LIVE firehose explicitly (see _firehose_len).
 os.environ.setdefault("BIFROST_NAMESPACE", "rb25soak")
 
+import contextlib
+
 import psutil  # noqa: E402
 
 from core.comm import (
@@ -56,7 +58,6 @@ from core.comm import (
     wake_seat,  # noqa: E402
 )
 from core.comm.bus import Bus  # noqa: E402
-import contextlib
 
 PY = sys.executable
 LEDGER = REPO / "research" / "reviewed" / "rb25-drill4-soak-ledger.json"

@@ -52,10 +52,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
+import contextlib
+
 from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm.bus import Bus
-import contextlib
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -99,8 +100,9 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # T014: reply timeout guard -- a hung API call must not wedge the runner forever.
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
-from core.comm.timescale import scaled as _scaled
 import contextlib
+
+from core.comm.timescale import scaled as _scaled
 
 
 def _pyl() -> str:

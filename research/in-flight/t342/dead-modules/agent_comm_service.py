@@ -12,6 +12,7 @@ Author: Senior Systems Architect
 Version: 2.0 Real-Time with Heartbeat
 """
 
+import contextlib
 import json
 import os
 import socket
@@ -22,7 +23,6 @@ import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime, timedelta
-import contextlib
 
 # ============================================================================
 # CONFIGURATION

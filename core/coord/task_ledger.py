@@ -22,12 +22,12 @@ Gates enforced here:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from typing import Any
 
 from core.foundation import filelock  # the OS-arbitrated sidecar lock save() serializes under
-import contextlib
 
 # repo root is two dirs up from core/coord/
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -17,10 +17,10 @@ Pre-registered per M3 (this file precedes the doctor). Hermetic: probes injected
 Run: py -m pytest tests/test_fleet_doctor.py -q
 """
 
+import contextlib
 import os
 import sys
 import time
-import contextlib
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

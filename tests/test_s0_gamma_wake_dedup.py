@@ -25,8 +25,9 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import bifrost_wake as bw
 import contextlib
+
+from scripts import bifrost_wake as bw
 
 
 class Msg:

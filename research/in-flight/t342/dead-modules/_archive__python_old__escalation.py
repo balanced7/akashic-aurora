@@ -14,6 +14,7 @@ Usage:
     esc.escalate(tier=Tier.GEMINI, context=my_context)
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -22,7 +23,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
-import contextlib
 
 # Paths
 ESCALATION_DIR = r"E:\AI-Setup\blackboard_data\escalations"

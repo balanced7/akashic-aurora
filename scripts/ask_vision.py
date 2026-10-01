@@ -36,13 +36,13 @@ HOUSE RULES FOR THE QUESTION (not enforced -- they are the discipline):
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import subprocess
 import sys
 import time
 from pathlib import Path
-import contextlib
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "state" / "coord" / "vision_answers.jsonl"

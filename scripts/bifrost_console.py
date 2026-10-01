@@ -26,8 +26,9 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import NS, Bus, _loads
 import contextlib
+
+from core.comm.bus import NS, Bus, _loads
 
 # ---- look: per-agent colors (Akashic Aurora palette) ---------------------------------------
 _FIXED = {

@@ -23,6 +23,7 @@ Default model: all-MiniLM-L6-v2 (384-d, ~80MB, fast on CPU). Override via EMBED_
 later refinement (just a `device=` change); CPU is the simplicity-first baseline.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -31,7 +32,6 @@ from collections.abc import Sequence
 
 from core.foundation.store import Store, create_store
 from core.primitives.ranker import keyword_relevance
-import contextlib
 
 logger = logging.getLogger("embedder")
 

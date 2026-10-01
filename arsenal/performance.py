@@ -16,6 +16,7 @@ from those numbers, ending with questions for Daniel that are generated from the
 from __future__ import annotations
 
 import builtins
+import itertools
 import json
 import math
 import re
@@ -27,7 +28,6 @@ from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
-import itertools
 
 API = "arsenal.performance/v0"
 SUMMARY_API = "arsenal.performance.summary/v0"

@@ -19,9 +19,10 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import contextlib
+
 from core.comm import runner_lock, session_exit, wake_seat
 from core.comm.bus import Bus
-import contextlib
 
 try:
     _ONLINE = bool(Bus("t086-probe").online)

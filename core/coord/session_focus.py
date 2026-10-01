@@ -33,10 +33,10 @@ counters exist so that is a measurement rather than an argument.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import time
 from typing import Any
-import contextlib
 
 
 def _pyl() -> str:

@@ -40,13 +40,13 @@ import json
 # THIS — a second copy is the defect (same law as G5's one-derivation-function).
 # Shape: source-prefixed slug with content after the prefix, OR a 3+-token slug.
 TITLE_SHAPED_RE = r"^(?:(?:learn:experiment:|research:web:)\S+|\w{4,}(?:[\s_-]\w+){2,})$"
+import contextlib
 import os
 import re
 import tempfile
 import time
 from datetime import datetime
 from typing import Any
-import contextlib
 
 
 def _pyl() -> str:

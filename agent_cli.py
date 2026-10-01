@@ -48,13 +48,14 @@ for _stream in (sys.stdout, sys.stderr):
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
 # its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
 # the defect class. Imported module-level: several commands render times.
+import contextlib
+
 from core.foundation.timeutil import render_iso
 
 # W169 slice 1: the three recall verbs that owe agent_cli nothing live in core/recall/surface.py.
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
 from core.recall.surface import cmd_recall_at, cmd_recall_curate, cmd_recall_feedback, cmd_recall_prevention
-import contextlib
 
 
 def _pyl() -> str:

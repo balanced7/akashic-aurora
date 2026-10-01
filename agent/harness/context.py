@@ -29,12 +29,12 @@ unflagged note claims nothing) and AGE, so a seat can tell a live signal from a 
 that may have outlived its truth.
 """
 
+import contextlib
 import os
 import time
 from datetime import datetime
 
 from agent.harness.scope import repo_root, session_in_scope
-import contextlib
 
 
 def _pyl() -> str:

@@ -47,10 +47,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
+import contextlib
+
 from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm.bus import Bus
-import contextlib
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -64,6 +65,8 @@ with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+
+import contextlib
 
 from sol_chat import (
     DEFAULT_EFFORT,
@@ -79,7 +82,6 @@ from sol_chat import (
 
 from core.comm import context_hints, nudge, runner_lock, self_restart
 from core.comm.timescale import scaled as _scaled
-import contextlib
 
 CARD = {
     "runtime_class": "api",

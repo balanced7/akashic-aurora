@@ -6,6 +6,7 @@ the configured library roots, addressed by id, with HTTP Range support so the br
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -30,7 +31,6 @@ from .presets import list_presets
 from .registry import load_registry
 from .take import TakeLedger
 from .timebase import StaleEpoch
-import contextlib
 
 HOST = "127.0.0.1"
 PACKAGE = Path(__file__).resolve().parent

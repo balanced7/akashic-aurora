@@ -18,13 +18,13 @@ Usage:
     response = query_active_session({"problem": "OCR failing"})
 """
 
+import contextlib
 import json
 import sys
 import time
 import urllib.error
 import urllib.request
 from typing import Any
-import contextlib
 
 # Optional imports
 try:

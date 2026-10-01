@@ -53,8 +53,9 @@ os.makedirs(os.path.join(RAM_DISK, "cache"), exist_ok=True)
 os.makedirs(os.path.join(RAM_DISK, "temp"), exist_ok=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import get_redis_config
 import contextlib
+
+from config import get_redis_config
 
 # Try to connect to Redis (fail-fast: this runs at import, so it must never
 # stall ~48s when Redis is down — gate on a raw-socket reachability probe).

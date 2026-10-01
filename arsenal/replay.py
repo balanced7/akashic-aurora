@@ -7,6 +7,7 @@ py -m arsenal.pianocue replay-link latest 3:43 --seconds 12 --label "The A bass"
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import sys
@@ -17,7 +18,6 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from .performance import PerformanceError, PerformanceStore
 from .pianocue import _note_spans, _utf8_streams, build_replay_cue, clock_text, parse_clock, validate_cue
 from .replay_harmony import harmony, theory_module
-import contextlib
 
 DEFAULT_PORT = 8796
 WEB = Path(__file__).resolve().parent / "web"

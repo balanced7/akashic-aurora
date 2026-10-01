@@ -25,6 +25,7 @@ Usage:
 """
 
 import base64
+import contextlib
 import json
 import os
 import sys
@@ -34,7 +35,6 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
-import contextlib
 
 # Fix Windows console encoding for Unicode box-drawing chars
 if sys.platform == "win32":

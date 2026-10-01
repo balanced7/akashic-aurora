@@ -47,13 +47,13 @@ was judged too fragile for v1.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import threading
 import time
 import zlib
 from collections.abc import Callable
-import contextlib
 
 # Loopback only, always. This is a control plane: it must never be reachable off-box.
 _HOST = "127.0.0.1"

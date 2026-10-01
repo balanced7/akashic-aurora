@@ -35,13 +35,13 @@ in this house landed on that law; this one inherits it rather than rediscovering
 
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
 from core.eye.index import _connect, utterance_key
-import contextlib
 
 # Phrase length in words. Short enough that a rephrasing still overlaps, long enough that
 # the match means something -- 5 words is the floor at which "fence the migration path"

@@ -27,12 +27,12 @@ Review: docs/library/report/20260711_t030-l4-design-review-deepseek-fenced-ga_6a
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import time
 from typing import Any
-import contextlib
 
 # T076c: task ids an ask's text references -- the settle probe's extraction surface.
 _TASK_IDS = re.compile(r"\bT\d{3}\b")

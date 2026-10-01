@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import signal
@@ -25,7 +26,6 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-import contextlib
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))

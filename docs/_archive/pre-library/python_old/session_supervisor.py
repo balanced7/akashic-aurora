@@ -10,6 +10,7 @@ Env:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
@@ -27,7 +28,6 @@ from config import (
     get_docker_redis_config,
     get_redis_config,
 )
-import contextlib
 
 ALLOW_INFRA_ENV = "BREAKTHROUGH_ALLOW_INFRA_START"
 
