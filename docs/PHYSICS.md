@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 3a8393bd. A bound you discover by collision is not awareness -- this sheet
+> Derived at 77db9be3. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (264 names)
+## Configuration flags (267 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -145,6 +145,7 @@ Class: reference
 | `AKASHIC_UNATTENDED_S` | `"300"` | core/comm/bus.py, core/comm/liveness.py |
 | `AKASHIC_VERB_FLOOR` | `"0.9"` | core/recall/at_action.py |
 | `AKASHIC_WAKE_MARKER_FRESH_MIN` | `""` | core/comm/wake_seat.py |
+| `AKASHIC_WAKE_RECEIPTS_DIR` | `` | core/comm/wake_seat.py |
 | `AKASHIC_WHISPER_LINES` | `""` | agent/harness/context.py |
 | `AKASHIC_WIRE` | `"1"` | scripts/deepseek_chat.py, scripts/wire_journal.py |
 | `AKASHIC_WIRE_DIR` | `` | scripts/wire_journal.py |
@@ -175,7 +176,9 @@ Class: reference
 | `BIFROST_WAKE_DEADLINE_S` | `""` | scripts/bifrost_wake.py |
 | `BIFROST_WAKE_LANE` | `"work"` | agent_cli.py, core/comm/bifrost_api.py |
 | `BIFROST_WAKE_LONGLIVED` | `"1"` | scripts/bifrost_wake.py |
-| `BIFROST_WAKE_ORIGIN` | `` | scripts/bifrost_wake.py |
+| `BIFROST_WAKE_MIN_TIER` | `` | agent_cli.py |
+| `BIFROST_WAKE_ORIGIN` | `"unknown"` | scripts/bifrost_wake.py |
+| `BIFROST_WAKE_SETTLE_S` | `"15"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
 | `CLAUDE_CODE_SESSION_ID` | `""` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +6 |
@@ -278,7 +281,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (325 numeric constants)
+## Mechanical bounds (326 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -569,6 +572,7 @@ Class: reference
 | `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
+| `WAKE_FLOOR_DEFAULT` | 2 | agent_cli.py |  |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |
 | `WARNING_MAX` | 300 | arsenal/jam/schemas.py |  |
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |

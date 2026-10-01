@@ -26,7 +26,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `bifrost-resume` | un-freeze bus auto-responders |  |
 | `bifrost-send` | send a message to another agent on the bus | `<agent_id>*` `<text>` `--text-file` `--to` `--kind` `--broadcast` `--answers` `--expect-reply-within` `--to-incarnation` `--json` |
 | `bifrost-skip-to-now` | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) | `<agent_id>*` `--by*` `--reason*` `--json` |
-| `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` |
+| `bifrost-standby` | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) | `<agent_id>*` `--session` `--no-listen` `--limit` `--min-tier {0,1,2,3}` |
 | `bifrost-sync` | Bifrost pull floor: presence + unread inbox peek | `<agent_id>*` `--limit` `--consume` `--digest` `--traces` `--json` |
 | `boop` | the smallest verb in the house: zero arguments, always answered | `--surface` `--agent` |
 | `boot` | print an agent's startup context | `<agent_id>*` `--task` `--json` `--sources-json` |
