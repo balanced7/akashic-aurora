@@ -45,6 +45,7 @@ import argparse
 import contextlib
 import json
 import os
+import subprocess as subprocess  # re-export: tests patch deepseek_chat.subprocess.run
 import sys
 import time
 from pathlib import Path
@@ -759,7 +760,7 @@ def main() -> int:
         print("NO_KEY: set DEEPSEEK_API_KEY or put it in .secrets/deepseek.key", file=sys.stderr)
         return 2
     try:
-        pass
+        from openai import OpenAI as OpenAI  # the probe: MISSING_DEP when openai is absent
     except Exception:
         print(f"MISSING_DEP: {_pyl()} -m pip install openai", file=sys.stderr)
         return 2
