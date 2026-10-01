@@ -17,6 +17,9 @@
 #
 # BYPASS: git push --no-verify  -- git's own escape hatch, deliberately not re-invented
 # here. If you need it, the thing you are pushing had better be the fix for this gate.
+# `py` is the Windows launcher. Elsewhere run Aurora's Python through uv (its dependencies
+# come with it), else python3 -- so every `py ...` line below works on any OS unchanged.
+command -v py >/dev/null 2>&1 || py() { if command -v uv >/dev/null 2>&1; then uv run "$@"; else python3 "$@"; fi; }
 set -u
 
 ROOT="$(git rev-parse --show-toplevel)"
