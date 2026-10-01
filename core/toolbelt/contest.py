@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 try:
     from core.toolbelt.toast import note_title, verify_receipt
 except Exception:  # pragma: no cover - toast is a sibling module; same package in prod
-    from toast import note_title, verify_receipt  # type: ignore
+    from toast import note_title, verify_receipt  # type: ignore[import-not-found]
 
 MAX_BODY = 240  # a second voice is shorter than the first; chorus, not solo.
 

@@ -548,8 +548,8 @@ def acting_conduct_grant(
 
     try:
         h = float(hours)
-    except (TypeError, ValueError):
-        raise ValueError("acting-conductor grant needs --hours (a time-boxed grant only)")
+    except (TypeError, ValueError) as err:
+        raise ValueError("acting-conductor grant needs --hours (a time-boxed grant only)") from err
     max_hours = _env_float("AKASHIC_CONDUCTOR_MANDATE_HOURS", MANDATE_MAX_HOURS)
     if h <= 0 or h > max_hours:
         raise PermissionError(

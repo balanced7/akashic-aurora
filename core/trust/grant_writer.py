@@ -231,11 +231,11 @@ def bootstrap(by: str = "operator") -> dict:
 
     try:
         doc = _read_doc()  # raises on missing/corrupt -- the refusal
-    except FileNotFoundError:
+    except FileNotFoundError as err:
         raise ValueError(
             "no ACL file to bootstrap -- bootstrap preserves THIS instance's grants, it never "
             "mints a fresh authority file from nothing; mint grants with `grant` first"
-        )
+        ) from err
     before = list(doc.get("grants", []))
     doc["_instance"] = {
         "hostname": socket.gethostname(),

@@ -29,7 +29,7 @@ from enum import Enum
 from typing import Any, Generic, TypeVar
 
 
-class Authority(str, Enum):
+class Authority(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """What kind of source can rule for this component's domain."""
 
     HUMAN_ANCHOR = "human_anchor"
@@ -40,7 +40,7 @@ class Authority(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ClaimKind(str, Enum):
+class ClaimKind(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """How the claim was produced; not whether the claim is true."""
 
     OBSERVED = "observed"
@@ -51,7 +51,7 @@ class ClaimKind(str, Enum):
     UNKNOWN = "unknown"
 
 
-class Currency(str, Enum):
+class Currency(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """Lifecycle currency backed by evidence, never merely wall-clock age."""
 
     CURRENT = "current"
@@ -61,7 +61,7 @@ class Currency(str, Enum):
     UNKNOWN = "unknown"
 
 
-class IdentityState(str, Enum):
+class IdentityState(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """This delivery's relationship to the stable logical thing."""
 
     NEW = "new"
@@ -71,7 +71,7 @@ class IdentityState(str, Enum):
     UNKNOWN = "unknown"
 
 
-class Risk(str, Enum):
+class Risk(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """Action posture carried by explicit policy/evidence."""
 
     ORDINARY = "ordinary"
@@ -80,7 +80,7 @@ class Risk(str, Enum):
     UNKNOWN = "unknown"
 
 
-class BasisStatus(str, Enum):
+class BasisStatus(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """Whether a named basis receipt is available to support a component.
 
     ``RECORDED`` means only that the receipt exists.  It is not a synonym for

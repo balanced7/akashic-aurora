@@ -41,7 +41,7 @@ import logging
 import re
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
@@ -321,11 +321,11 @@ class LearningStore:
 
     # Canonical success vocabulary. Every stored learning uses exactly one of
     # these three values so reads, scoring, and ranking are unambiguous.
-    SUCCESS_SCORES = {"yes": 100, "partial": 50, "no": 0}
+    SUCCESS_SCORES: ClassVar[dict[str, int]] = {"yes": 100, "partial": 50, "no": 0}
 
     # Maps the messy real-world representations that have shown up in signals
     # (booleans, prose, pass/fail) onto the canonical vocabulary above.
-    _SUCCESS_SYNONYMS = {
+    _SUCCESS_SYNONYMS: ClassVar[dict[str, str]] = {
         "yes": "yes",
         "true": "yes",
         "success": "yes",

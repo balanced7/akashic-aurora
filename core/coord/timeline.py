@@ -107,7 +107,7 @@ def _norm(row: dict[str, Any], domain: str) -> dict[str, Any]:
 def _events_rows(since: float | None = None, agent: str = "", **_) -> list[dict]:
     from core.events.event_log import EventLog
 
-    out = [
+    return [
         {
             "ts": ev.get("at"),
             "actor": ev.get("agent_id") or "",
@@ -117,7 +117,6 @@ def _events_rows(since: float | None = None, agent: str = "", **_) -> list[dict]
         }
         for ev in (EventLog().scan(agent=agent) if agent else EventLog().scan()) or []
     ]
-    return out
 
 
 def _git_rows(since: float | None = None, limit: int = 200, **_) -> list[dict]:

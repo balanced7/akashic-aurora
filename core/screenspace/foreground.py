@@ -148,7 +148,7 @@ class ForegroundTracker:
     def _resolve_name(self, hwnd: int) -> str | None:
         """Resolve an HWND to a window name via UIA, OFF the hook thread (§1.2)."""
         try:
-            import uiautomation as auto  # type: ignore
+            import uiautomation as auto  # type: ignore[import-not-found]
 
             control = auto.ControlFromHandle(hwnd)
             return control.Name if control else None

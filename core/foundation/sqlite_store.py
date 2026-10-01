@@ -396,7 +396,7 @@ class SqliteStore(Store):
             row = self._conn.execute("SELECT expires_at FROM expiry WHERE key=?", (key,)).fetchone()
             if not row:
                 return -1
-            return max(0, int(round(row[0] - self._now())))
+            return max(0, round(row[0] - self._now()))
 
     # ----------------------------------------------------------------- hash
     def hset(

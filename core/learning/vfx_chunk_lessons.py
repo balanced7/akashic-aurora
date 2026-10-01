@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     ls = get_learning_store_instance()
     n = adopt_chunk_lessons(ls, ns.chunks, force=ns.force)
     warned = sum(1 for m in _chunk_headers(ns.chunks) if _is_warning(str(m.get("note") or "")))
-    print("adopted %d chunk rule(s) into recall (domain=vfx), %d as anti-patterns" % (n, warned))
+    print(f"adopted {n} chunk rule(s) into recall (domain=vfx), {warned} as anti-patterns")
     # WARM THE CACHE, or this verb appears to do nothing. recall-at reads a prebuilt cache file, so
     # freshly adopted lessons stayed invisible at the surface that matters while every test passed --
     # cost a live debugging pass to notice. A write door that leaves a stale read path is only half
@@ -160,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from core.recall.at_action import warm_cache
 
-        print("recall cache rebuilt: %d item(s)" % warm_cache(learning_store=ls))
+        print(f"recall cache rebuilt: {warm_cache(learning_store=ls)} item(s)")
     except Exception as exc:
         print(
             f"WARNING: adopted, but the recall cache did not rebuild ({exc}). "

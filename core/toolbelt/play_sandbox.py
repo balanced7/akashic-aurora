@@ -52,8 +52,8 @@ def find_tool(ref: str) -> tuple[str, str, str]:
     """(agent, tool, script_path) or raises ValueError on bad ref / no tool."""
     try:
         agent, tool = ref.split("/", 1)
-    except ValueError:
-        raise ValueError(f"bad tool ref {ref!r} — use <agent>/<tool>")
+    except ValueError as err:
+        raise ValueError(f"bad tool ref {ref!r} — use <agent>/<tool>") from err
     agent = str(agent).strip()
     tool = str(tool).strip()
     if not agent or not tool or ".." in agent or ".." in tool or "/" in tool or "\\" in tool:
@@ -157,10 +157,9 @@ def list_tools(agent: str) -> list[str]:
     d = os.path.join(PLAY, agent)
     if not os.path.isdir(d):
         return []
-    tools = [
+    return [
         fn[:-3] for fn in sorted(os.listdir(d)) if fn.endswith(".py") and not fn.startswith("_") and fn != "__init__.py"
     ]
-    return tools
 
 
 def list_seats() -> list[str]:

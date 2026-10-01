@@ -91,7 +91,7 @@ def new_resource(
     summary: str = "",
     centroid: list[float] | None = None,
     confidence: float = 0.5,
-    id: str | None = None,
+    id: str | None = None,  # noqa: A002  # public API name
 ) -> Resource:
     """Mint a Resource with a fresh stable id and a computed version_hash."""
     r = Resource(

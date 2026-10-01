@@ -223,8 +223,8 @@ def build_orientation(
         raise ValueError(f"unknown depth {depth!r}; choose {sorted(_DEPTHS)}")
     try:
         per_stream = max(1, min(int(per_stream), 5000))
-    except (TypeError, ValueError):
-        raise ValueError("per_stream must be an integer in 1..5000")
+    except (TypeError, ValueError) as err:
+        raise ValueError("per_stream must be an integer in 1..5000") from err
 
     target_row = _parse_target(subject, target)
     seams = _default_providers()

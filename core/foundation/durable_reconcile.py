@@ -276,7 +276,7 @@ def apply(authority_store, durable_store, escrow_path) -> dict[str, Any]:
             json.dump(displaced, f, indent=1)
         os.replace(tmp, escrow_path)
 
-    for fam, key, src_t, src in to_copy:
+    for _fam, key, src_t, src in to_copy:
         if src_t == "hash":
             durable_store.hset(key, mapping=src)
         elif src_t == "kv":

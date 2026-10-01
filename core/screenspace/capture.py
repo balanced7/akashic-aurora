@@ -51,7 +51,7 @@ _declare_dpi_awareness()
 def _load_mss():
     """Lazy, fail-soft loader for the optional mss substrate."""
     try:
-        import mss  # type: ignore
+        import mss  # type: ignore[import-not-found]
 
         return mss
     except Exception:  # noqa: BLE001 — optional substrate; absence is a contract-relevant fact
@@ -99,7 +99,7 @@ class ScreenFrame:
 def _png_from_shot(shot_image) -> tuple[int, int, bytes]:
     """Drain one mss screenshot into raw RGB -> PNG bytes; returns (w, h, png)."""
     # shot_image is a PIL.Image in mss >= 6; older versions give a raw byte str.
-    from PIL import Image  # type: ignore
+    from PIL import Image  # type: ignore[import-not-found]
 
     img = shot_image if isinstance(shot_image, Image.Image) else Image.frombytes("RGB", shot_image.size, shot_image.rgb)
     if img.mode != "RGB":
@@ -120,11 +120,11 @@ def _resize_to_budget(pixels: bytes, width: int, height: int, budget: int):
         return pixels, width, height, False
     import io
 
-    from PIL import Image  # type: ignore
+    from PIL import Image  # type: ignore[import-not-found]
 
     scale = budget / float(long_edge)
-    nw = max(1, int(round(width * scale)))
-    nh = max(1, int(round(height * scale)))
+    nw = max(1, round(width * scale))
+    nh = max(1, round(height * scale))
     img = Image.open(io.BytesIO(pixels))
     img = img.resize((nw, nh), Image.LANCZOS)
     buf = io.BytesIO()

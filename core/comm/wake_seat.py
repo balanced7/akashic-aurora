@@ -697,7 +697,7 @@ def janitor(
                 pid_is_watcher,
                 marker_age,
                 fresh,
-                (lambda p=pid: chain_alive(p, snap or {})),
+                (lambda p=pid, s=snap: chain_alive(p, s or {})),
                 my_session,
                 tombstoned=tomb,
             )

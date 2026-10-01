@@ -88,7 +88,7 @@ def attribute_turn(agent: str, row: dict[str, Any], ledger=None) -> str | None:
             return None
         key = _acc_key(tid)
         c.hincrby(key, "turns", 1)
-        c.hincrby(key, "duration_cs", int(round(float(row.get("duration_s", 0) or 0) * 100)))
+        c.hincrby(key, "duration_cs", round(float(row.get("duration_s", 0) or 0) * 100))
         c.hincrby(key, "tool_calls", int(row.get("tool_count", 0) or 0))
         token_total = _token_total(row.get("tokens"))
         if token_total:
@@ -158,7 +158,7 @@ def cost_line(task: dict[str, Any]) -> str:
         parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools)} tool call(s)"]
         dur = task.get("cost_duration_s")
         if dur:
-            parts.append(f"{int(round(float(dur)))}s")
+            parts.append(f"{round(float(dur))}s")
         if tools and turns:
             parts.append(f"{int(tools)} tools")
         toks = task.get("cost_tokens")

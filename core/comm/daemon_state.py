@@ -239,10 +239,10 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
     stale.sort(key=lambda t: -t[1])
     oldest_sid, oldest_age = stale[0]
     return "wedged", (
-        "%d rearm trigger(s) for %s unconsumed past %.0fs -- oldest is session %s at %.0fs. "
+        f"{len(stale)} rearm trigger(s) for {agent!s} unconsumed past {tolerance_s:.0f}s -- "
+        f"oldest is session {oldest_sid!s} at {oldest_age:.0f}s. "
         "The daemon process may be perfectly alive; it is not doing its job. Remedy is a "
         "RESTART, not a spawn (a spawn beside a wedged daemon breeds duplicates)."
-        % (len(stale), agent, tolerance_s, oldest_sid, oldest_age)
     )
 
 

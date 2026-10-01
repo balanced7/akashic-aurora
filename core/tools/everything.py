@@ -128,10 +128,9 @@ def resolve_es() -> str | None:
     import os
 
     override = os.environ.get("ES_EXE")
-    if override and shutil.which(override) is None:
-        # ES_EXE may be an absolute path, not a bare name on PATH.
-        if __import__("os").path.isfile(override):
-            return override
+    # ES_EXE may be an absolute path, not a bare name on PATH.
+    if override and shutil.which(override) is None and __import__("os").path.isfile(override):
+        return override
     from_path = shutil.which("es") or shutil.which("es.exe") or (override and shutil.which(override))
     if from_path:
         return from_path
@@ -336,7 +335,7 @@ def _parse_csv_hits(text: str) -> list[Hit]:
         if not path:
             continue
         h = Hit(path=path, name=_basename(path))
-        for hdr, idx in (col or {}).items():
+        for hdr in col or {}:
             hf = name_of.get(hdr)
             if not hf:
                 continue
@@ -543,7 +542,7 @@ def search(
     timeout: float = 15.0,
     sort: str = "",
     columns: list[str] | None = None,
-    format: str = "",
+    format: str = "",  # noqa: A002  # public API name
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,
@@ -677,7 +676,7 @@ def search_page(
     timeout: float = 15.0,
     sort: str = "",
     columns: list[str] | None = None,
-    format: str = "",
+    format: str = "",  # noqa: A002  # public API name
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,

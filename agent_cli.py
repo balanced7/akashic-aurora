@@ -2435,9 +2435,9 @@ def _wish_find_block(doc, wid):
     if len(starts) > 1:
         where = ", ".join(str(i + 1) for i in starts)
         raise ValueError(
-            "%s is AMBIGUOUS: the ledger's id space has COLLIDED and %s appears %d times "
-            "(lines %s). Curating one of them silently is how a ledger starts lying about "
-            "its own history -- renumber first." % (wid, wid, len(starts), where)
+            f"{wid} is AMBIGUOUS: the ledger's id space has COLLIDED and {wid} appears {len(starts)} times "
+            f"(lines {where}). Curating one of them silently is how a ledger starts lying about "
+            "its own history -- renumber first."
         )
     i = starts[0]
     j = i + 1
@@ -2546,14 +2546,14 @@ def cmd_wish_curate(args):
         folded = len(_re.findall(r"^- \[x\] W\d+", doc, _re.M))
         declined = len(_re.findall(r"^- \[~\] W\d+", doc, _re.M))
         n = max(1, int(getattr(args, "count", 3) or 3))
-        print("# wishlist: %d open | %d folded | %d declined" % (total, folded, declined))
+        print(f"# wishlist: {total} open | {folded} folded | {declined} declined")
         if declined == 0:
             print("#   DECLINE HAS NEVER BEEN USED. With it unused, 'open' means both 'queued' and")
             print("#   'never', and the two render identically -- which is why filing stops.")
         print("#")
-        print("# the %d oldest open, awaiting a disposition:" % min(n, len(opens)))
+        print(f"# the {min(n, len(opens))} oldest open, awaiting a disposition:")
         for wid, who, head in opens[:n]:
-            print("  %-6s (%s) %s" % (wid, who, head.rstrip()))
+            print(f"  {wid!s:<6} ({who!s}) {head.rstrip()}")
         print()
         print("# dispose of one with:")
         print(f"#   {_pyl()} agent_cli.py wish-curate %s --id W## --as fold --task T### [--reason ...]" % args.agent_id)
@@ -6243,7 +6243,7 @@ def cmd_doctor_deploy() -> int:
 
     for name in ("agent_cli.py", "core", "scripts", "tests", "AGENTS.md"):
         ok = (root / name).exists()
-        print("  %-14s : %s" % (name, "ok" if ok else "MISSING"))
+        print(f"  {name:<14} : {'ok' if ok else 'MISSING'}")
         if not ok and name != "AGENTS.md":
             bad.append(f"{name} missing from the repo root -- this is not a complete checkout")
 
@@ -6299,7 +6299,7 @@ def cmd_doctor_deploy() -> int:
     if not bad:
         print("DEPLOY OK -- nothing blocking.")
         return 0
-    print("%d PROBLEM(S):" % len(bad))
+    print(f"{len(bad)} PROBLEM(S):")
     for b in bad:
         print(f"  - {b}")
     return 1
@@ -11499,7 +11499,7 @@ def cmd_capture(args):
                 f"stream {hits[0][0]})\n\nCaptured verbatim from the live bus "
                 f"(research-full-fidelity rule); no edits.\n\n---\n\n"
             )
-            for s, fr, kd, b in hits:
+            for _s, _fr, _kd, b in hits:
                 f.write(b + "\n")
         print(f"[capture] persisted {sum(len(b) for *_x, b in hits)} chars -> {args.persist}")
     return 0

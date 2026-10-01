@@ -250,7 +250,7 @@ def fold(
     def _pct(p: float) -> float | None:
         if not durations:
             return None  # a percentile of nothing is not a number
-        i = int(round(p * (len(durations) - 1)))
+        i = round(p * (len(durations) - 1))
         return durations[min(len(durations) - 1, max(0, i))]
 
     def _median(vals):

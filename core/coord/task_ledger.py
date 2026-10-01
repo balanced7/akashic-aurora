@@ -292,7 +292,7 @@ class TaskLedger:
             self._seq = int(data.get("seq", len(self.tasks)))
             self._base_rev = _rev_of(data)  # T270/77e485bb23: the watermark save() CASes against
         except Exception as e:
-            raise LedgerError(f"ledger unreadable at {self.path}: {e}")
+            raise LedgerError(f"ledger unreadable at {self.path}: {e}") from e
 
     _UNREADABLE = -1  # an anchor nobody can hold: never equal to a real rev, so never matched
 
@@ -542,16 +542,15 @@ class TaskLedger:
             # T250: compare NORMALISED, or " claude" and "Claude" review claude's own work.
             closer = (by or t.get("owner") or "").strip()
             same = bool(r) and bool(closer) and r.casefold() == closer.casefold()
-            if is_load_bearing(t.get("files")):
+            if is_load_bearing(t.get("files")) and not closer and not sv:
                 # A gate about IDENTITY must not run when it cannot establish who is acting.
                 # Before T250 an empty closer compared against "", so any reviewer name passed
                 # -- a check that reported success without having checked.
-                if not closer and not sv:
-                    raise LedgerError(
-                        f"done blocked: {tid} touches load-bearing paths and the CLOSER is "
-                        f"unknown (no --by, no owner), so independence cannot be established. "
-                        f"Pass --by <you>, or --self-verified '<why not>'."
-                    )
+                raise LedgerError(
+                    f"done blocked: {tid} touches load-bearing paths and the CLOSER is "
+                    f"unknown (no --by, no owner), so independence cannot be established. "
+                    f"Pass --by <you>, or --self-verified '<why not>'."
+                )
             if is_load_bearing(t.get("files")) and (not r or same):
                 if not sv:
                     who = f" (reviewed_by={r!r} is the closer)" if r else ""

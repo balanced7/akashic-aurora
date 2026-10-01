@@ -264,7 +264,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
             # policy this is 1.0, so v1_doc and v2_aixcc are byte-identical to before.
             credit = float(P.get("low_confidence_credit", 1.0))
             if is_low_conf and credit != 1.0:
-                pts = int(round(pts * credit))
+                pts = round(pts * credit)
                 detail["reason"] = (
                     detail["reason"] + "; " if detail["reason"] else ""
                 ) + f"low-confidence credit x{credit:g}"
@@ -276,7 +276,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
                     lag = _lag_hours(first_seen[key], c)
                     window = float(P["duplicate_decay_hours"]) or 1.0
                     frac = max(float(P["duplicate_decay_floor"]), 1.0 - (lag / window))
-                    pts = int(round(pts * frac))
+                    pts = round(pts * frac)
                     detail["reason"] = f"duplicate, decayed (lag {lag:.2f}h)"
                 else:
                     pts = P["duplicate"]
@@ -284,7 +284,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
             if P["uptime_weighted"]:
                 u = float(uptime.get(player, 1.0))
                 floor = float(P.get("uptime_floor", 0.0))
-                pts = int(round(pts * max(floor, min(1.0, u))))
+                pts = round(pts * max(floor, min(1.0, u)))
                 detail["reason"] = (
                     detail["reason"] + "; " if detail["reason"] else ""
                 ) + f"uptime x{max(floor, min(1.0, u)):.2f}"
@@ -318,7 +318,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
             elif P["graduated_penalty"]:
                 rate = refuted.get(player, 0) / max(1, seen.get(player, 1))
                 worst = float(P["graduated_penalty_max"])
-                detail.update(points=int(round(worst * rate)), reason=f"graduated penalty (refuted rate {rate:.2f})")
+                detail.update(points=round(worst * rate), reason=f"graduated penalty (refuted rate {rate:.2f})")
             else:
                 detail.update(points=P["refuted"], reason="refuted (flat)")
 

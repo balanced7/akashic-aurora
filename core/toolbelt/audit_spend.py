@@ -172,25 +172,28 @@ class SpendDomain:
         last_recon = meter.get("last_reconcile_ts")
 
         # ---- S1: brief-vs-config ------------------------------------------
-        if self._expect_refuse is not None and refuse is not None:
-            if abs(float(self._expect_refuse) - float(refuse)) > 1e-9:
-                rows.append(
-                    Row(
-                        domain=self.name,
-                        entry_ref="kimi:refuse-line",
-                        belief_a=f"refuse line ${float(self._expect_refuse):.0f}",
-                        source_a="operator belief (brief)",
-                        belief_b=f"refuse line ${float(refuse):.0f}",
-                        source_b="kimi_chat.py",
-                        verdict="DRIFT",
-                        detail=(
-                            f"the brief rides refuse=${float(self._expect_refuse):.0f} "
-                            f"but the config defaults to ${float(refuse):.0f} — the seat "
-                            f"and its charter disagree on where the wall is"
-                        ),
-                        rule="brief-vs-config",
-                    )
+        if (
+            self._expect_refuse is not None
+            and refuse is not None
+            and abs(float(self._expect_refuse) - float(refuse)) > 1e-9
+        ):
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:refuse-line",
+                    belief_a=f"refuse line ${float(self._expect_refuse):.0f}",
+                    source_a="operator belief (brief)",
+                    belief_b=f"refuse line ${float(refuse):.0f}",
+                    source_b="kimi_chat.py",
+                    verdict="DRIFT",
+                    detail=(
+                        f"the brief rides refuse=${float(self._expect_refuse):.0f} "
+                        f"but the config defaults to ${float(refuse):.0f} — the seat "
+                        f"and its charter disagree on where the wall is"
+                    ),
+                    rule="brief-vs-config",
                 )
+            )
 
         # ---- S2: config-vs-meter ------------------------------------------
         if refuse is not None and budget is not None and float(budget) < float(refuse):

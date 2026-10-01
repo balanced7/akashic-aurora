@@ -11,7 +11,7 @@ from __future__ import annotations
 from enum import Enum
 
 
-class Cap(str, Enum):
+class Cap(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """Atomic permissions. `str` base so a Cap serializes as its value in JSON."""
 
     READ = "read"  # read_file, list_directory, find_files, search_files

@@ -26,5 +26,5 @@ def scaled(seconds, *, floor=1):
         m = 1.0
     v = seconds * m
     if isinstance(seconds, int):
-        return max(int(floor), int(round(v)))
+        return max(int(floor), round(v))
     return max(float(floor), v)

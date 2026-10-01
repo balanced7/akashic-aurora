@@ -857,7 +857,7 @@ class Bus:
             self._ring_bell(to, first_legacy_mid, str(kind))
         return first_legacy_mid
 
-    _unmapped_loud_seen: set = set()  # once-per-kind-per-process throttle (class-level)
+    _unmapped_loud_seen: set = set()  # noqa: RUF012  # annotation_sensitive module; class-level throttle shared on purpose
 
     def _lane_write(self, env: dict[str, Any], *, to: str, kind: str) -> None:
         """DEPRECATED by C6-7: _emit() is now lane-first -- the lane write happens in _emit()

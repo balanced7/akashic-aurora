@@ -40,7 +40,7 @@ def capture(data, cap_dir: str, label: str = "unknown") -> None:
         return
     try:
         os.makedirs(cap_dir, exist_ok=True)
-        name = "%d_%s_%s.json" % (int(time.time() * 1000), label, os.getpid())
+        name = f"{int(time.time() * 1000)}_{label!s}_{os.getpid()}.json"
         with open(os.path.join(cap_dir, name), "w", encoding="utf-8") as f:
             json.dump(truncated(data), f, indent=1)
         stale = sorted(os.listdir(cap_dir))[:-_CAP_MAX]  # ms-epoch prefix -> lexical sort = oldest first

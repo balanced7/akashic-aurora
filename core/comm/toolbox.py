@@ -1013,7 +1013,7 @@ class ToolBox:
         timeout=15.0,
         sort="",
         columns="",
-        format="json",
+        format="json",  # noqa: A002  # public API name
         regex=False,
         case=False,
         word=False,
@@ -1413,7 +1413,7 @@ class ToolBox:
             _ground(str(target), subject=who, continuity=bool(continuity)), ensure_ascii=False, indent=2, default=str
         )
 
-    def capture(self, thread, as_doc=False, title="", cites=None, type="chronicle", arc="", per_stream=1000):
+    def capture(self, thread, as_doc=False, title="", cites=None, type="chronicle", arc="", per_stream=1000):  # noqa: A002  # public API name
         """Native, subject-bound thread capture; never shells through the CLI."""
         import json
 

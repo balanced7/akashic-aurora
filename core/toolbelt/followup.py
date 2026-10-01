@@ -82,7 +82,7 @@ def _rel(p: str, root: str) -> str:
 
 def _next_qid(text: str) -> str:
     nums = [int(n) for n in _QID_RE.findall(text)]
-    return "Q%d" % (max(nums) + 1 if nums else 1)
+    return f"Q{max(nums) + 1 if nums else 1}"
 
 
 def _atomic_write(path: str, text: str) -> None:

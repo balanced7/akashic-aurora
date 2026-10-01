@@ -501,7 +501,7 @@ class _FileLock:
             try:
                 self.fd = os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 return self
-            except FileExistsError:
+            except FileExistsError as err:
                 if time.time() > deadline:
                     try:  # a stale lock must not wedge the fleet
                         if time.time() - self.path.stat().st_mtime > self.timeout:
@@ -509,7 +509,7 @@ class _FileLock:
                             continue
                     except OSError:
                         pass
-                    raise ChainCorrupt(f"could not take the chain lock at {self.path}")
+                    raise ChainCorrupt(f"could not take the chain lock at {self.path}") from err
                 time.sleep(0.01)
             except OSError as e:
                 if e.errno == errno.EACCES:

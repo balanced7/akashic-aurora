@@ -55,7 +55,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from core.foundation import filelock
 from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
@@ -435,7 +435,7 @@ class HybridLedger(Ledger):
         backend = self._redis if self.redis_available else self._file
         return backend.consume(stream, after_id=after_id, count=count, block_ms=block_ms)
 
-    _backfilled: set = set()
+    _backfilled: ClassVar[set] = set()
 
     def _backfill_once(self, stream) -> None:
         """EMBEDDED backend only: a stream the file tier holds and Redis has never seen gets

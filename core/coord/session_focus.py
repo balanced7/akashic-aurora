@@ -351,7 +351,7 @@ def health() -> dict[str, Any]:
             s += 1
             h = c.hgetall(k)
 
-            def get(f):
+            def get(f, h=h):
                 return int((h.get(f.encode()) or b"0").decode() or 0)
 
             n += get("nudges")

@@ -75,10 +75,13 @@ def survey(source: str, prefix: str = "cmd_") -> list[VerbShape]:
                     helpers += 1
                 elif c.func.id in TERMINAL_WRITES:
                     writes += 1
-            elif isinstance(c, ast.Return) and c.value is not None:
+            elif (
+                isinstance(c, ast.Return)
+                and c.value is not None
+                and not (isinstance(c.value, ast.Constant) and c.value.value is None)
+            ):
                 # `return None` and a bare `return` are exits, not answers.
-                if not (isinstance(c.value, ast.Constant) and c.value.value is None):
-                    returns += 1
+                returns += 1
         out.append(
             VerbShape(
                 node.name,

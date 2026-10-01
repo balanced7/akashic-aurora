@@ -181,7 +181,7 @@ def estimate(agent: str, ask_kind: str) -> dict[str, Any] | None:
     if len(rows) >= MIN_N:
         durs = sorted(r["duration_s"] for r in rows)
         pts = sorted(int(r.get("progress_points", 0)) for r in rows)
-        p90_i = max(0, min(len(durs) - 1, int(round(0.9 * (len(durs) - 1)))))
+        p90_i = max(0, min(len(durs) - 1, round(0.9 * (len(durs) - 1))))
         est = {
             "median_s": statistics.median(durs),
             "p90_s": durs[p90_i],

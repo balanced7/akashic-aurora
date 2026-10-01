@@ -578,13 +578,12 @@ def ingest(paths: list[Path] | None = None, db_path: Path | None = None) -> dict
                 )
                 cur = con.execute("SELECT mtime, lines FROM ingest_state WHERE path=?", (str(f),)).fetchone()
                 done_lines = int(cur[1]) if cur else 0
-                if cur and float(cur[0]) == st.st_mtime and done_lines >= 0:
+                if cur and float(cur[0]) == st.st_mtime and done_lines >= 0 and st.st_mtime == float(cur[0]):
                     # unchanged since last run -> nothing to read
-                    if st.st_mtime == float(cur[0]):
-                        files_indexed += 1
-                        # still need to detect appended lines when mtime unchanged is
-                        # impossible (append changes mtime), so skip is safe
-                        continue
+                    files_indexed += 1
+                    # still need to detect appended lines when mtime unchanged is
+                    # impossible (append changes mtime), so skip is safe
+                    continue
                 n_line = 0
                 with open_transcript(f) as fh:
                     for n_line, raw in enumerate(fh, start=1):
@@ -687,11 +686,11 @@ def _parse_as_of(as_of: str | None) -> float | None:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt.timestamp()
-    except Exception:
+    except Exception as err:
         raise ValueError(
             f"as_of {as_of!r} is not a date this door reads -- ISO-8601 (YYYY-MM-DD or "
             f"full timestamp); got 0 rows is NOT the answer to a malformed selector"
-        )
+        ) from err
 
 
 def find(

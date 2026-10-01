@@ -41,7 +41,7 @@ from __future__ import annotations
 from enum import Enum
 
 
-class CanaryState(str, Enum):
+class CanaryState(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """What a POSITIVE CANARY READ actually observed -- the read, not the context."""
 
     READABLE = "readable"  # a property read off the foreground window came back non-empty
@@ -67,7 +67,7 @@ def _read_foreground_name() -> tuple[int | None, str | None]:
     detection.
     """
     try:
-        import uiautomation as auto  # type: ignore
+        import uiautomation as auto  # type: ignore[import-not-found]
 
         win = auto.GetForegroundControl()
         if win is None:
