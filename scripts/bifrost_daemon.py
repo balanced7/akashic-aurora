@@ -668,6 +668,17 @@ def main(argv=None) -> int:
                                 _ds.write_rearm_trigger(agent, _full_sid, tempfile.gettempdir())
                             elif _key != resume_said.get(_sid):
                                 _say(f"[daemon] resume-on-deaf hold agent={agent} sid={_sid}: {_why}")
+                                if _why.startswith("breaker"):
+                                    # Heimdall R6 item 5: "a human looks first" must REACH a
+                                    # human -- a daemon log line is not a page.
+                                    try:
+                                        from core.comm import pager as _pager
+                                        _pager.page(agent, f"resume-on-deaf BREAKER for {agent}#{_sid}: "
+                                                    f"{_why} -- drill: state/wake-resumes/{agent}.jsonl, "
+                                                    f"then clear with pager.clear_key('{agent}:resume_breaker')",
+                                                    key=f"{agent}:resume_breaker")
+                                    except Exception:
+                                        pass
                             resume_said[_sid] = _key
                     except Exception as _e:
                         _say(f"[daemon] resume-on-deaf error sid={_sid}: {type(_e).__name__}: {_e}")
