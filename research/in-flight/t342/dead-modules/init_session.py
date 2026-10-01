@@ -1,4 +1,4 @@
-"""
+r"""
 Init Session - Full Session Initialization
 ==========================================
 Run this at the START of every session for proper bootstrapping.

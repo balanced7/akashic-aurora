@@ -1,4 +1,4 @@
-"""
+r"""
 BreakThrough Stack - Unified Launcher
 ====================================
 Main entry point for the AI startup system.

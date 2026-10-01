@@ -1,6 +1,6 @@
 """
 Enterprise Redis Management System
-E:\AI-Setup\redis_manager.py
+E:\\AI-Setup\redis_manager.py
 ============================================================
 Built to mission-critical standards: fault tolerance, zero data loss,
 power-failure resilience, cryptographic integrity verification.

@@ -1,4 +1,4 @@
-"""
+r"""
 Screenshot Logger - Session-aware screenshot capture
 ====================================================
 Saves screenshots with timestamp + session ID + tag for easy identification.

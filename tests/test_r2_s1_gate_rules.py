@@ -140,7 +140,7 @@ def test_b4_matched_features_carry_no_raw_command():
 
 # --------------------------------------------------------------- C-pins: sol's s1a NO-GO
 def test_c1_a_write_verb_through_a_door_prefix_never_matches():
-    """sol's NO-GO: `recall-feedback` matched the door rule via the recall\S* pattern.
+    r"""sol's NO-GO: `recall-feedback` matched the door rule via the recall\S* pattern.
     It WRITES (a vote mutates the funnel). The write-verb exclusion must be the
     principle 'any mutating segment kills the match', not an enumerated list that
     rots as verbs are added."""
