@@ -791,6 +791,29 @@ def cmd_assert_gate(args) -> int:
     return _report("GATE MEMBERS", gate_problems(poe_tasks(), args.members))
 
 
+_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*['\"]?([^\s'\"#]+)")
+
+
+def sha_pin_problems(root: Path) -> list:
+    """Every workflow `uses:` names a 40-hex commit (local ./ actions and docker:// excepted)."""
+    problems = []
+    wf_dir = root / ".github" / "workflows"
+    for wf in sorted(wf_dir.glob("*.y*ml")) if wf_dir.exists() else []:
+        for i, ln in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+            m = _USES.match(ln)
+            if not m or m.group(1).startswith(("./", "docker://")):
+                continue
+            ref = m.group(1).rpartition("@")[2] if "@" in m.group(1) else ""
+            if not re.fullmatch(r"[0-9a-f]{40}", ref):
+                problems.append("%s:%d %s is not pinned to a commit SHA" % (
+                    wf.relative_to(root).as_posix(), i, m.group(1)))
+    return problems
+
+
+def cmd_assert_sha_pins(args) -> int:
+    return _report("SHA PINS", sha_pin_problems(ROOT))
+
+
 def cmd_assert_ratchet(args) -> int:
     """Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the
     counts committed in tooling-upgrade/ratchet.json."""
@@ -1011,6 +1034,7 @@ def main(argv=None) -> int:
     sub.add_parser("assert-python-agrees", help=".python-version agrees with CI, hooks, settings")
     sub.add_parser("assert-no-bare-py", help="no executable surface launches a bare `py`")
     sub.add_parser("assert-dev-group", help="dev group is exactly the plan's tool list (G1.P1)")
+    sub.add_parser("assert-sha-pins", help="every workflow uses: is pinned to a 40-hex SHA")
     sub.add_parser("assert-uv-settings", help="[tool.uv] carries the G1.P3 settings")
     s = sub.add_parser("assert-gate", help="poe gate: plan order, includes the given tasks")
     s.add_argument("members", nargs="*")
@@ -1030,7 +1054,7 @@ def main(argv=None) -> int:
             "assert-python-agrees": cmd_assert_python_agrees,
             "assert-no-bare-py": cmd_assert_no_bare_py, "assert-ratchet": cmd_assert_ratchet,
             "assert-dev-group": cmd_assert_dev_group, "assert-uv-settings": cmd_assert_uv_settings,
-            "assert-gate": cmd_assert_gate,
+            "assert-gate": cmd_assert_gate, "assert-sha-pins": cmd_assert_sha_pins,
             "assert-latent-regressions": cmd_assert_latent_regressions,
             "assert-ledger-entry": cmd_assert_ledger_entry, "assert-docs-uv": cmd_assert_docs_uv,
             "assert-ci-replay": cmd_assert_ci_replay}[a.cmd](a)

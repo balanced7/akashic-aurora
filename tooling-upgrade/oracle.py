@@ -1384,14 +1384,14 @@ def compare_o4(a, b, partial=False) -> list:
 
 # ----------------------------------------------------------------------------- O6 guardrails
 
-def surface_o6(tree: Path, raw: Path) -> dict:
+def surface_o6(tree: Path, raw: Path, python=None) -> dict:
     out = {}
     for p in sorted((tree / "scripts" / "checkers").glob("*.py")):
         if p.name.startswith("_"):
             continue
         progress("O6 %s" % p.stem)
         try:
-            r = run([venv_python(tree), p.relative_to(tree).as_posix()], cwd=tree,
+            r = run([python or venv_python(tree), p.relative_to(tree).as_posix()], cwd=tree,
                     env=oracle_env(), timeout=CHECKER_TIMEOUT_S)
             text = normalize_text(r.stdout + r.stderr, tree)
             item = {"rc": r.returncode, "crashed": "Traceback (most recent call last)" in text,
@@ -1748,7 +1748,20 @@ def cmd_verify_snapshot(args) -> int:
 
 def impacted(commit: str) -> list:
     changed = git("diff", "--name-only", commit + "^", commit, "--", "*.py").splitlines()
-    pys = [f for f in tracked_files() if f.endswith(".py")]
+    return _impacted_tests(changed, [f for f in tracked_files() if f.endswith(".py")])
+
+
+def worktree_impacted() -> list:
+    """The test-fast selection (G1.P6): the smoke set plus every test that imports, directly
+    or transitively, a .py changed or added since HEAD (uncommitted and untracked files)."""
+    changed = set(git("diff", "--name-only", "HEAD", "--", "*.py").split())
+    changed |= set(git("ls-files", "--others", "--exclude-standard", "--", "*.py").split())
+    changed = {c for c in changed if (ROOT / c).exists()}
+    pys = sorted({f for f in tracked_files() if f.endswith(".py")} | changed)
+    return _impacted_tests(sorted(changed), pys)
+
+
+def _impacted_tests(changed, pys) -> list:
     graph = RepoGraph(ROOT, pys)
     rev = graph.reverse()
     seen, stack = set(), [c for c in changed if c in graph.asts]
@@ -1767,6 +1780,36 @@ def cmd_impacted(args) -> int:
     for t in impacted(args.commit):
         print(t)
     return 0
+
+
+def cmd_test_fast(args) -> int:
+    """`poe test-fast`: the impacted selection (smoke set when nothing changed), REDIS_DB=15."""
+    tests = worktree_impacted()
+    progress("test-fast: %d test files: %s" % (len(tests), " ".join(tests)[:300]))
+    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *tests],
+                       cwd=str(ROOT), env=oracle_env(), stdin=subprocess.DEVNULL)
+    return r.returncode
+
+
+def cmd_guardrails(args) -> int:
+    """`poe guardrails`: every scripts/checkers/* run with its documented arguments (the one that
+    needs a commit message and paths, check_reconciliation_gate, is run by scripts/ship.py per
+    commit and recorded N/A here), each held to its g0 exit code: O6's rule, a checker may not
+    exit worse or newly crash. Many checkers were already red at g0; their repair is not G1's."""
+    raw = Path(tempfile.mkdtemp(prefix="aurora-guardrails-"))
+    try:
+        cur = surface_o6(ROOT, raw, sys.executable)
+    finally:
+        _rmtree(raw)
+    base = load_json(SNAPSHOTS / "g0" / "O6.json")
+    worse = dict(compare_o6(base, cur))
+    for name, r in sorted(cur["checkers"].items()):
+        b = base["checkers"].get(name, {})
+        verdict = "WORSE: " + worse["checker:" + name] if "checker:" + name in worse else "ok"
+        print("%-28s exit %-3s (g0 %s)%s  %s" % (name, r["rc"], b.get("rc", "-"),
+                                                 " N/A: " + r["na"] if r.get("na") else "", verdict))
+    print("GUARDRAILS: %s" % ("PASS (no checker worse than g0)" if not worse else "FAIL (%d worse)" % len(worse)))
+    return 1 if worse else 0
 
 
 # ----------------------------------------------------------------------------- self-tests
@@ -2017,6 +2060,8 @@ def main(argv=None) -> int:
     s = sub.add_parser("selftest-d14", help="remove a public core function; expect O5 DIFF")
     s.add_argument("--baseline", default="g0")
     sub.add_parser("mcp-stdio", help="list MCP tools by launching the .mcp.json server")
+    sub.add_parser("test-fast", help="pytest over the smoke set + tests impacted since HEAD")
+    sub.add_parser("guardrails", help="every scripts/checkers/* held to its g0 exit code")
     sub.add_parser("assert-stdlib", help="oracle.py and certify.py import only the stdlib")
     s = sub.add_parser("rekey-o1", help="hash parametrize text in a stored O1.json (idempotent)")
     s.add_argument("label")
@@ -2029,7 +2074,7 @@ def main(argv=None) -> int:
         "ast-equal": cmd_ast_equal, "impacted": cmd_impacted,
         "verify-snapshot": cmd_verify_snapshot, "selftest-d14": cmd_selftest_d14,
         "mcp-stdio": cmd_mcp_stdio, "assert-stdlib": cmd_assert_stdlib, "measure": cmd_measure,
-        "rekey-o1": cmd_rekey_o1,
+        "rekey-o1": cmd_rekey_o1, "test-fast": cmd_test_fast, "guardrails": cmd_guardrails,
     }[args.cmd](args)
 
 
