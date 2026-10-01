@@ -340,3 +340,14 @@ def test_drill_verdicts(tmp_path, monkeypatch, presence, clean, faulty, expected
 def test_certify_blanket_suppression_forms(form, is_blanket):
     import certify
     assert certify.blanket(form) is is_blanket
+
+
+def test_later_goal_waits_for_its_predecessor(tmp_path, monkeypatch):
+    """`certify.py G<n>` runs G<n>'s checks only once G<n-1> is CERTIFIED in the ledger."""
+    import certify
+    monkeypatch.setattr(certify, "HERE", tmp_path)
+    (tmp_path / "LEDGER.md").write_text("| G0.P1 | DONE | | | | |\n", encoding="utf-8")
+    assert not certify.prior_goal_certified(1)
+    (tmp_path / "LEDGER.md").write_text("| G0 | CERTIFIED | a..b | | | |\n", encoding="utf-8")
+    assert certify.prior_goal_certified(1)
+    assert not certify.prior_goal_certified(2)

@@ -809,6 +809,11 @@ def cmd_assert_ci_replay(args) -> int:
 
 # ----------------------------------------------------------------------------- certificate
 
+def prior_goal_certified(n: int) -> bool:
+    text = (HERE / "LEDGER.md").read_text(encoding="utf-8") if (HERE / "LEDGER.md").exists() else ""
+    return re.search(r"(?m)^\|\s*G%d\s*\|\s*(CERTIFIED|NO-GO|SKIPPED)\s*\|" % (n - 1), text) is not None
+
+
 def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     n = goal_num(goal)
     if tamper_only:
@@ -821,6 +826,19 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     data = load_checks(goal)
     checks = [c for c in data.get("check", []) if phase is None or c["phase"] == phase]
     passed, first_fail = 0, None
+    if n > 0 and not prior_goal_certified(n):
+        # Goals run in order: a later goal's checks, tamper rules and oracle comparison are not
+        # executed before its predecessor is certified (they would only measure work that does
+        # not exist yet). Drills still run -- that is the G0.P5 self-test `certify.py G7 --drills`.
+        print("CHECKS skipped: G%d is not CERTIFIED in tooling-upgrade/LEDGER.md, so %s has not "
+              "started; only the drills run." % (n - 1, goal))
+        if drills:
+            res = run_drills(goal)
+            missed = sum(1 for v in res.values() if v.startswith("MISSED"))
+            print("DRILLS: %d/%d BIT" % (len(res) - missed, len(res)))
+            print("DRILLS-MISSED %d/%d" % (missed, len(res)))
+        print("RESULT: %s NOT CERTIFIED: G%d not certified; %s not started" % (goal, n - 1, goal))
+        return 1
     for c in checks:
         ok, why, out = run_check(c)
         passed += ok
