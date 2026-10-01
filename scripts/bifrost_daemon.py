@@ -343,6 +343,7 @@ def main(argv=None) -> int:
     # ---- A1 listener management state -------------------------------------------
     listeners: Dict[str, ManagedChild] = {}     # sid[:8] -> ManagedChild
     next_marker_sweep: float = 0.0              # boot + hourly
+    resume_said: dict = {}                      # S2: last (verdict, reason) said per listener sid
 
     def _spawn_listener(sid: str, ns: _Opt[str] = None) -> bool:
         """Spawn a wake listener ManagedChild for sid. Reuses existing child if
@@ -368,7 +369,10 @@ def main(argv=None) -> int:
         lch = ManagedChild(
             [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                           "bifrost_wake.py"),
-             "--agent", agent, "--session", sid],
+             "--agent", agent, "--session", sid,
+             # S3: presence listeners exit (and S2 considers a resume) only for mail that
+             # NEEDS the seat -- operator, directed asks, answers to its own asks.
+             "--min-tier", "2"],
             env=_env,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             breaker_window_s=300,
@@ -630,8 +634,43 @@ def main(argv=None) -> int:
                         child = None
                         idle_mode = True
                         runner_down_since = None
+            if manage_listener:
+                try:   # S2 / Heimdall R4: settle in-flight resumes -- an early death is a FAILED
+                    #    receipt the breaker counts; a child alive past the floor leaves the registry
+                    from core.comm import resume_on_deaf as _rod_s
+                    for _rs, _st in _rod_s.settle_in_flight(agent):
+                        if _st == "dead":
+                            _say(f"[daemon] resume-on-deaf: resume for sid={_rs[:8]} DIED early "
+                                 f"(counted toward the breaker; see state/wake-resumes/{agent}.jsonl)")
+                        elif _st == "alive":
+                            _say(f"[daemon] resume-on-deaf: resume for sid={_rs[:8]} alive past the floor")
+                except Exception:
+                    pass
             for _sid, lch in list(listeners.items()):
-                lch.poll()
+                _code = lch.poll()
+                # ---- S2 (T420): RESUME-ON-DEAF. The daemon's own listener exiting 0 means
+                # mail arrived (or a deadline cycled) for a session this daemon holds presence
+                # for. If that session is EXPECTED-UP (its launcher said so), has had no
+                # harness-parented listener, and has been silent past the grace, the house
+                # re-opens it headlessly (`claude -p --resume <sid>`) under the vaulted token.
+                # Every hold is named; a resume leaves a .rearm trigger so presence returns.
+                if manage_listener and _code == 0:
+                    try:
+                        _largs = list(getattr(lch, "_args", []) or [])
+                        _full_sid = (_largs[_largs.index("--session") + 1]
+                                     if "--session" in _largs else "")
+                        if _full_sid:
+                            from core.comm import resume_on_deaf as _rod
+                            _v, _why = _rod.maybe_resume(agent, _full_sid)
+                            _key = (_sid, _v, _why[:40])
+                            if _v == "resume":
+                                _say(f"[daemon] RESUME-ON-DEAF agent={agent} sid={_sid}: {_why}")
+                                _ds.write_rearm_trigger(agent, _full_sid, tempfile.gettempdir())
+                            elif _key != resume_said.get(_sid):
+                                _say(f"[daemon] resume-on-deaf hold agent={agent} sid={_sid}: {_why}")
+                            resume_said[_sid] = _key
+                    except Exception as _e:
+                        _say(f"[daemon] resume-on-deaf error sid={_sid}: {type(_e).__name__}: {_e}")
 
             # ---- W102: idle-mode reclaim probe (once per heartbeat) ---------------
             # When the daemon booted under a foreign holder (bare runner, self-

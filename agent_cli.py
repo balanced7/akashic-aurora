@@ -5602,6 +5602,19 @@ def cmd_doctor(args):
                 print(f"  [{f['grade']:^9}] {f['line']}")
                 if f.get("drill"):
                     print(f"              arm: {f['drill']}")
+            try:   # S2 (T420): the launcher's expected-up declarations -- the roster the
+                #    daemon's resume-on-deaf rung reads; absence here means no resume, ever
+                from core.comm import resume_on_deaf as _rod
+                for _a in sorted({f["agent"] for f in _wf}):
+                    _exp = _rod.expected_sessions(_a)
+                    if _exp:
+                        print(f"  [dashboard] {_a}: expected-up by launcher: "
+                              + ", ".join(e["session_id"][:8] for e in _exp[-6:])
+                              + (f" (+{len(_exp) - 6} more)" if len(_exp) > 6 else "")
+                              + " -- resume-on-deaf applies to these only")
+                rep["wake_expected"] = {a: _rod.expected_sessions(a) for a in sorted({f["agent"] for f in _wf})}
+            except Exception:
+                pass
     except Exception:
         pass
     try:   # W54 (kimi F3): the activation gauge -- organ claims read the instrument, not anecdotes
@@ -6516,6 +6529,13 @@ def cmd_bifrost_standby(args):
         return subprocess.run(standby_listener_argv(agent_id, session_id, floor), env=env).returncode
 
     session = args.session or os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    try:   # S2 (T420): the LAUNCHER declares this session expected-up, out of band of the
+        #    listener it is about to parent -- the daemon's resume-on-deaf rung reads it.
+        from core.comm import resume_on_deaf as _rod
+        if session and not args.no_listen:
+            _rod.declare_expected(args.agent_id, session, by="harness", cwd=os.getcwd())
+    except Exception:
+        pass
     try:   # T086-S3a: stamp the arming attempt BEFORE the drain -- the stop-hook backstop
         #    suppresses its nag while this marker is fresh (<90s), so a standby mid-drain
         #    (or a retry loop between refusals) is never nagged into double-arming.
@@ -10254,6 +10274,11 @@ def cmd_stand_down(args):
               "(CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)")
         return 1
     ok = runner_lock.stand_down(args.agent, token)
+    try:   # S2 (T420): a session that stood down is no longer expected-up -- never resume it
+        from core.comm import resume_on_deaf as _rod
+        _rod.retract_expected(args.agent, token[len("session:"):] if token.startswith("session:") else token)
+    except Exception:
+        pass
     held = runner_lock.holder(args.agent)
     print(f"[stand-down] {args.agent}: seat yielded by {token} -- ok={ok}; "
           f"holder now {held.get('token') if held else 'NONE (successor may claim)'}")

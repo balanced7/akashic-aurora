@@ -1,0 +1,18 @@
+{
+  "id": "resume-on-deaf",
+  "question": "Does the daemon re-open an expected-up session that is deaf (silent past the grace, no listener able to start a turn) by a headless --resume turn under the vaulted token, with every hold named, a receipt per attempt and a .rearm trigger so presence returns?",
+  "tier": "lite",
+  "opened_by": "claude",
+  "opened_at": "2026-10-01T18:05:37.045083+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-01T18:05:37.674992+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude",
+    "half_a": "deepseek"
+  }
+}
