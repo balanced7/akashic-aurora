@@ -233,12 +233,8 @@ def _vfx_lease(worker, visible):
         holder_visible = bool(cur.get("visible"))
         # RULE 1, and it outranks everything: a tab that can actually draw displaces one that
         # cannot. Nothing else may promote a hidden tab over a visible one.
-        if (
-            visible
-            and not holder_visible
-            or visible == holder_visible
-            and cur["worker"] == "legacy"
-            and worker != "legacy"
+        if (visible and not holder_visible) or (
+            visible == holder_visible and cur["worker"] == "legacy" and worker != "legacy"
         ):
             pass
         else:
