@@ -262,7 +262,7 @@ def render_report():
     lines, oks = [], []
     lines.append("=" * 64)
     lines.append(
-        "NARRATIVE EVALUATION HARNESS (Slice 8) -- fixture: %d beats, %d tracks" % (len(gold_rows()), len(GOLD_TRACKS))
+        f"NARRATIVE EVALUATION HARNESS (Slice 8) -- fixture: {len(gold_rows())} beats, {len(GOLD_TRACKS)} tracks"
     )
     lines.append("=" * 64)
 
@@ -296,16 +296,16 @@ def render_report():
     ):
         lines.append(r)
         oks.append(ok)
-    lines.append("        (%d chapters across %d tracks)" % (ch["chapters"], ch["tracks"]))
+    lines.append(f"        ({int(ch['chapters'])} chapters across {int(ch['tracks'])} tracks)")
 
     lines.append("\n[Navigation -- Slice 4]")
     for r, ok in (_row("QA reachable %", nav["success_rate"], "==", NAV_BAR, "{:.1f}"),):
         lines.append(r)
         oks.append(ok)
-    lines.append("        (%d QA pairs, max %d drills)" % (nav["n"], nav["max_drills"]))
+    lines.append(f"        ({int(nav['n'])} QA pairs, max {int(nav['max_drills'])} drills)")
 
     lines.append("\n" + "=" * 64)
-    lines.append("RESULT: %d/%d bars met" % (sum(oks), len(oks)))
+    lines.append(f"RESULT: {int(sum(oks))}/{len(oks)} bars met")
     lines.append("=" * 64)
     return "\n".join(lines), all(oks)
 

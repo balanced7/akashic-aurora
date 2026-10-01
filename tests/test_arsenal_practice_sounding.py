@@ -288,7 +288,7 @@ def build_fixture(name: str, folder: Path) -> Path:
         "api": "arsenal.performance/v0",
         "session": sid,
         "opened_at": _iso(opened + 41),
-        "opened_ns": int(round(opened + 41)) * 1000000,
+        "opened_ns": round(opened + 41) * 1000000,
         "client_id": "lg-5d0a",
         "meta": {"page_id": "p-5d0a", "opened_at_client": _iso(opened), "buffered": False},
         "closed": True,

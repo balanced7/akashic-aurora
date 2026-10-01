@@ -42,7 +42,7 @@ class _FakeClient:
         s = self.streams.get(key, [])
         return list(reversed(s))[:count]
 
-    def xrange(self, key, min="-", count=100):
+    def xrange(self, key, min="-", count=100):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         s = self.streams.get(key, [])
         if min.startswith("("):
             floor = min[1:]

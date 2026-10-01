@@ -80,7 +80,7 @@ def test_full_assembly():
     assert s["project_state"]["current_work"]["task"] == "building aggregator"
     # source pointers preserved through assembly (traceability)
     assert all(d["source"] for d in s["decisions"])
-    assert all(l["source"] for l in s["learnings"])
+    assert all(learning["source"] for learning in s["learnings"])
     assert all(b["source"] for b in s["blockers"])
     assert s["briefing"]["source"]
     # budget accounting

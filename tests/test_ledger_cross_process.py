@@ -67,11 +67,7 @@ def _race(tmp_path, stream, writers, per_writer, maxlen="none"):
 
 
 def _rows(path: Path):
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            rows.append(json.loads(line))
-    return rows
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def test_concurrent_processes_lose_no_rows(tmp_path):

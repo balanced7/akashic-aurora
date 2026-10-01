@@ -87,8 +87,8 @@ def test_current_directive_renders_first_class():
     assert marker in head, "the current directive must be in the cold-start head"
     assert "DIRECTIVE" in head or "FOCUS" in head.upper(), "rendered with authority, not as a plain note"
     # above the NEXT list: the directive line precedes the first 'next:' line
-    di = next((i for i, l in enumerate(head.splitlines()) if marker in l), 99)
-    ni = next((i for i, l in enumerate(head.splitlines()) if l.strip().startswith("#   next:")), 100)
+    di = next((i for i, line in enumerate(head.splitlines()) if marker in line), 99)
+    ni = next((i for i, line in enumerate(head.splitlines()) if line.strip().startswith("#   next:")), 100)
     assert di < ni, "the directive is rendered ABOVE the raw NEXT list"
 
 

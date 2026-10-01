@@ -105,7 +105,7 @@ def test_p4_the_scorecard_reports_the_measured_rate(tmp_path, capsys):
     can never render as a healthy-looking count of commits that merely claimed the practice."""
     import importlib
 
-    sc = importlib.import_module("scripts.arc_scorecard")
+    importlib.import_module("scripts.arc_scorecard")
     src = Path(os.path.join(ROOT, "scripts", "arc_scorecard.py")).read_text(encoding="utf-8")
     assert "audit_stats" in src, (
         "the scorecard still renders M3 from self-report (commits whose MESSAGE mentions "

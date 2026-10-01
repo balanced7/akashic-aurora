@@ -902,7 +902,7 @@ def test_preview_is_not_replaced_without_force(tmp_path):
     old = tmp_path / "take tiktok-preview.jpg"
     old.write_bytes(b"old preview")
     for dry_run in (True, False):
-        with pytest.raises(tiktok.TikTokError, match="preview .* already exists; add --force"):
+        with pytest.raises(tiktok.TikTokError, match=r"preview .* already exists; add --force"):
             tiktok.process(src, tiktok.Options(dry_run=dry_run, preview=True), ffmpeg=FFMPEG)
     assert old.read_bytes() == b"old preview"
 
@@ -959,7 +959,7 @@ def test_latest_picks_the_newest_recording_but_not_our_outputs(tmp_path, monkeyp
     assert tiktok.latest_video(tmp_path).name == "newer.mov"
     empty = tmp_path / "empty"
     empty.mkdir()
-    with pytest.raises(tiktok.TikTokError, match="no .mp4"):
+    with pytest.raises(tiktok.TikTokError, match=r"no \.mp4"):
         tiktok.latest_video(empty)
     with pytest.raises(tiktok.TikTokError, match="does not exist"):
         tiktok.latest_video(tmp_path / "missing")

@@ -792,7 +792,7 @@ def test_replay_answers_a_cue_and_never_broadcasts_it(jam):
 
 
 def test_jam_posts_check_the_origin_and_the_body_and_stay_on_without_the_log(jam, tmp_path):
-    status, reply = call(
+    status, _reply = call(
         jam, "POST", "/api/piano/jam/owner", {"page_id": "p-a"}, headers={"Origin": "https://example.com"}
     )
     assert status == 403

@@ -144,7 +144,7 @@ def test_densest_instant_prefers_the_first_moment_of_maximum_sound():
     assert densest_instant(sounding, 0, 3000) == 800, "three sound at 800; only two again at 2000"
 
 
-def test_excerpt_reports_what_was_carried_in(take):
+def test_excerpt_reports_what_was_carried_in(take):  # noqa: F811  # pytest injects the imported fixture by name
     store, session = take
     data = replay.excerpt(store, session, "0:01", seconds=2)
     assert data["carried"] == {48: {"age_ms": 1000, "vel": 55}}, "struck at 0, pedal-held to 3 s: 1 s old at 0:01"

@@ -76,7 +76,7 @@ def fake_store():
 
 
 @pytest.fixture(autouse=True)
-def _isolated_outcomes(tmp_path, monkeypatch):
+def isolated_outcomes(tmp_path, monkeypatch):
     """Point the outcome sink at a temp dir so pins never pollute production streams
     (the 2026-07-02 hermeticity rule) -- and so assertions can read it back."""
     monkeypatch.setattr(A, "_OUTCOME_DIR", str(tmp_path), raising=False)
@@ -89,18 +89,16 @@ def _outcomes(tmp_path):
     rows = []
     p = tmp_path / "recall_outcomes.jsonl"
     if p.exists():
-        for line in p.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                rows.append(json.loads(line))
+        rows.extend(json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip())
     return rows
 
 
 # --------------------------------------------------------------- P1
-def test_p1_a_firing_call_records_fired(fake_store, _isolated_outcomes):
-    r = A.recall_at(
+def test_p1_a_firing_call_records_fired(fake_store, isolated_outcomes):
+    A.recall_at(
         command="frobnicate the r2 denominator pin with the frobnicator", learning_store=fake_store, min_relevance=0.0
     )
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows, "a recall_at call must leave an outcome row"
     last = rows[-1]
     assert last["outcome"] == "fired", last
@@ -108,13 +106,13 @@ def test_p1_a_firing_call_records_fired(fake_store, _isolated_outcomes):
 
 
 # --------------------------------------------------------------- P2 the slice
-def test_p2_a_floor_silent_call_records_floor_silent(fake_store, _isolated_outcomes):
+def test_p2_a_floor_silent_call_records_floor_silent(fake_store, isolated_outcomes):
     """The call ran, ranking ran, nothing cleared the floor. Today: no trace."""
     r = A.recall_at(
         command="frobnicate the r2 denominator pin", learning_store=fake_store, min_relevance=99.0
     )  # nothing clears
     assert not r.get("lessons"), "precondition: this call must be silent"
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows, (
         "SILENT AND INVISIBLE: a floor-silent call left no record. This is the exact "
         "gap -- 27%-should-be-silent is unverifiable when silence writes nothing."
@@ -124,9 +122,9 @@ def test_p2_a_floor_silent_call_records_floor_silent(fake_store, _isolated_outco
 
 
 # --------------------------------------------------------------- P3
-def test_p3_an_empty_query_records_empty_query(fake_store, _isolated_outcomes):
+def test_p3_an_empty_query_records_empty_query(fake_store, isolated_outcomes):
     A.recall_at(command="", path=None, learning_store=fake_store)
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows, rows[-1] if rows else None
     assert rows[-1]["outcome"] == "silent", rows[-1] if rows else None
     assert rows[-1]["reason"] == "empty_query", (
@@ -136,7 +134,7 @@ def test_p3_an_empty_query_records_empty_query(fake_store, _isolated_outcomes):
 
 
 # --------------------------------------------------------------- P4
-def test_p4_the_error_path_records_error_empty(_isolated_outcomes, monkeypatch):
+def test_p4_the_error_path_records_error_empty(isolated_outcomes, monkeypatch):
     """recall_at is fail-soft-to-empty BY CONTRACT. An empty-from-crash that renders
     identically to empty-from-judgment is confident-zero at the meta level."""
 
@@ -146,7 +144,7 @@ def test_p4_the_error_path_records_error_empty(_isolated_outcomes, monkeypatch):
     monkeypatch.setattr(A, "_lessons", _boom)
     r = A.recall_at(command="anything at all here", learning_store=None)
     assert not r.get("lessons"), "contract: fail-soft returns empty"
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows, f"a crash-empty must be distinguishable from a judged-empty: {rows[-1] if rows else None}"
     assert rows[-1]["reason"] == "error_empty", (
         f"a crash-empty must be distinguishable from a judged-empty: {rows[-1] if rows else None}"
@@ -154,7 +152,7 @@ def test_p4_the_error_path_records_error_empty(_isolated_outcomes, monkeypatch):
 
 
 # --------------------------------------------------------------- P5
-def test_p5_silence_rate_is_a_query(fake_store, _isolated_outcomes):
+def test_p5_silence_rate_is_a_query(fake_store, isolated_outcomes):
     A.recall_at(
         command="frobnicate the r2 denominator pin with the frobnicator", learning_store=fake_store, min_relevance=0.0
     )  # fired
@@ -169,7 +167,7 @@ def test_p5_silence_rate_is_a_query(fake_store, _isolated_outcomes):
 
 
 # --------------------------------------------------------------- P6
-def test_p6_recording_never_breaks_recall(fake_store, _isolated_outcomes, monkeypatch):
+def test_p6_recording_never_breaks_recall(fake_store, isolated_outcomes, monkeypatch):
     """Observability riding a hot path must never cost the caller its items."""
     monkeypatch.setattr(
         A, "_record_outcome", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("sink down")), raising=False
@@ -184,7 +182,7 @@ def test_p6_recording_never_breaks_recall(fake_store, _isolated_outcomes, monkey
 
 
 # --------------------------------------------------------------- P7 deepseek's review bonus
-def test_p7_the_outcome_row_carries_the_query_shape(fake_store, _isolated_outcomes):
+def test_p7_the_outcome_row_carries_the_query_shape(fake_store, isolated_outcomes):
     """deepseek's R2 review, the actionable line: "add query_shape to the slice-0
     outcome row so silent records are auditable against the census cases that
     justified them." The census's NONE-NEEDED reasons are SHAPE reasons (pure count,
@@ -193,14 +191,14 @@ def test_p7_the_outcome_row_carries_the_query_shape(fake_store, _isolated_outcom
     silence, and slice 1's gate rules will key on exactly this field."""
     A.recall_at(command="git commit -q -m done", learning_store=fake_store, min_relevance=99.0)  # silent
     A.recall_at(path=r"E:\AI-Setup\core\recall\at_action.py", learning_store=fake_store, min_relevance=99.0)  # silent
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert len(rows) >= 2
     assert rows[-2].get("query_shape") == "command", rows[-2]
     assert rows[-1].get("query_shape") == "path", rows[-1]
 
 
 # --------------------------------------------------------------- P8/P9 sol's fence
-def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, _isolated_outcomes):
+def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, isolated_outcomes):
     """Sol's R2-s0 fence, reproduced finding (1): a lesson that RANKED ABOVE THE FLOOR
     but was suppressed by exclude_sources (anti-repeat) records floor_silent -- so the
     reason column reports 'nothing relevant existed' when the truth is 'the relevant
@@ -210,7 +208,7 @@ def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, _isolated_outco
         command="frobnicate the r2 denominator pin with the frobnicator", learning_store=fake_store, min_relevance=0.0
     )
     assert r.get("lessons"), "precondition: this fires when not excluded"
-    shown = {l["source"] for l in r["lessons"]}
+    shown = {lesson["source"] for lesson in r["lessons"]}
 
     r2 = A.recall_at(
         command="frobnicate the r2 denominator pin with the frobnicator",
@@ -219,7 +217,7 @@ def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, _isolated_outco
         exclude_sources=shown,
     )
     assert not r2.get("lessons"), "precondition: anti-repeat suppresses everything"
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows[-1]["reason"] == "excluded_silent", (
         f"ANTI-REPEAT MASQUERADING AS FLOOR: items cleared the floor and were withheld "
         f"as already-shown, but the row says {rows[-1]['reason']!r} -- 'already shown' "
@@ -227,7 +225,7 @@ def test_p8_anti_repeat_silence_is_not_floor_silence(fake_store, _isolated_outco
     )
 
 
-def test_p9_faithfulness_rejection_is_not_floor_silence(fake_store, _isolated_outcomes, monkeypatch):
+def test_p9_faithfulness_rejection_is_not_floor_silence(fake_store, isolated_outcomes, monkeypatch):
     """Sol's fence, reproduced finding (2): lessons cleared the floor, then
     faithfulness_report rejected the render -- recall_at zeroes the items (correct:
     silence beats a fabricated hint) and then records floor_silent (wrong: the floor
@@ -239,12 +237,12 @@ def test_p9_faithfulness_rejection_is_not_floor_silence(fake_store, _isolated_ou
         command="frobnicate the r2 denominator pin with the frobnicator", learning_store=fake_store, min_relevance=0.0
     )
     assert not r.get("lessons"), "precondition: FAITH gate zeroes the items"
-    rows = _outcomes(_isolated_outcomes)
+    rows = _outcomes(isolated_outcomes)
     assert rows[-1]["reason"] == "unfaithful_silent", f"FAITH REJECTION MASQUERADING AS FLOOR: {rows[-1]}"
 
 
 # --------------------------------------------------------------- P10 the case-4 defect
-def test_p10_a_faithful_item_survives_unfaithful_neighbours(fake_store, _isolated_outcomes, monkeypatch):
+def test_p10_a_faithful_item_survives_unfaithful_neighbours(fake_store, isolated_outcomes, monkeypatch):
     """FOUND BY THE HARNESS + STAGE INSTRUMENTATION IN THEIR FIRST HOUR. Census case 4:
     the actual HIT ranks top-3 and is faithful at conf 1.00, but two higher-ranked
     neighbours fail faithfulness -- and the FAITH gate zeroes the WHOLE render.
@@ -290,7 +288,7 @@ def test_p10_a_faithful_item_survives_unfaithful_neighbours(fake_store, _isolate
     r = A.recall_at(
         command="frobnicate the r2 denominator pin with the frobnicator", learning_store=_Store(), min_relevance=0.0
     )
-    survivors = [l["source"] for l in (r.get("lessons") or [])]
+    survivors = [lesson["source"] for lesson in (r.get("lessons") or [])]
     assert any("good_hit" in s for s in survivors), (
         f"INNOCENT SILENCED: the faithful item died for its neighbour's sin. "
         f"survivors={survivors}, faithful={r.get('faithful')}"

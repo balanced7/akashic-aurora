@@ -58,7 +58,7 @@ def test_salience_clamped_0_5():
 
 def test_coverage_and_no_flood():
     store, eq = _ctx()
-    # high-salience (eligible)
+    # high salience, so eligible
     eq.log.capture("command", "error: the build failed", at="2026-06-22T10:00:00")
     eq.log.capture("file_edit", "fixed the crash bug", at="2026-06-22T10:05:00")
     eq.log.capture("milestone", "shipped slice 5", at="2026-06-22T10:10:00")

@@ -231,9 +231,8 @@ def test_f8_the_restore_drill_never_offers_the_empty_example_alone(floor_state, 
 
     monkeypatch.setattr(_sys, "argv", ["agent_cli.py", "doctor"])
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        with contextlib.suppress(SystemExit):
-            agent_cli.main()
+    with contextlib.redirect_stdout(buf), contextlib.suppress(SystemExit):
+        agent_cli.main()
     out = buf.getvalue()
     assert "BOOTSTRAP FLOOR IN FORCE" in out, out[:600]
     _drill_never_offers_the_example_copy_alone(out)

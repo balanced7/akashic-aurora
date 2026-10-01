@@ -37,6 +37,7 @@ Run: py -m pytest tests/test_ask_as_resident.py -q
 import os
 import subprocess
 import sys
+from typing import ClassVar
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
@@ -88,7 +89,7 @@ class _FakeCompletions:
             completion_tokens_details = None
 
         class _Resp:
-            choices = [_Choice()]
+            choices: ClassVar[list] = [_Choice()]
             usage = _Usage()
             model = kw.get("model", "fake")
             system_fingerprint = "fp_fake"

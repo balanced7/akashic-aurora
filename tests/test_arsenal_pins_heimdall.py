@@ -42,7 +42,7 @@ def test_exact_rational_over_long_runs():
     # 600 s at 1/90000 (the media timebase) is 54,000,000 ticks exactly.
     ten_min = timebase.TimeRef("media", 0, 54_000_000, timebase.tb(1, 90000))
     # exact rescale to film-frame timebase is not representable:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1001/30000"):
         ten_min.rescale(frames_tb, exact=True)
     # inexact rounds to 17982 frames:
     got = ten_min.rescale(frames_tb, exact=False)
@@ -59,19 +59,19 @@ def test_timebase_parse_and_format():
 
 
 def test_tb_rejects_nonpositive():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="timebase must be positive, got 0"):
         timebase.tb(0, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="timebase must be positive, got -1"):
         timebase.tb(-1, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="a timebase denominator must not be zero"):
         timebase.tb(1, 0)  # zero denominator -> ValueError (not ZeroDivisionError)
 
 
 def test_tb_rejects_above_one_second():
     # a timebase > 1 s per tick is a rate passed by mistake; refused with the inverse named
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"for a rate of 30000/1001 per second use tb\(1001, 30000\)"):
         timebase.tb(30000, 1001)  # 29.97 s/tick -- the rate mistake, inverted
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"for a rate of 48000/1 per second use tb\(1, 48000\)"):
         timebase.tb(48000, 1)  # 48000 s/tick
 
 
@@ -104,7 +104,7 @@ def test_timebase_accepts_int_and_fraction():
     b = timebase.TimeRef("media", 0, 48000, Fraction(1, 48000))
     assert b.seconds == Fraction(1)
     # an int timebase above 1 s/tick is refused (a rate passed by mistake)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"for a rate of 48000/1 per second use tb\(1, 48000\)"):
         timebase.TimeRef("media", 0, 1, 48000)
 
 
@@ -124,7 +124,7 @@ def test_rescale_exact():
 def test_rescale_exact_raises_when_inexact():
     # 1 tick at 1/7 s rescaled to 1/48000: 48000/7 is not an integer, so exact must refuse
     a = timebase.TimeRef("media", 0, 1, Fraction(1, 7))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1/48000"):
         a.rescale(Fraction(1, 48000), exact=True)
 
 
@@ -168,26 +168,26 @@ def test_clock_mismatch_on_compare():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     b = timebase.TimeRef("audio", 0, 0, Fraction(1, 48000))
     with pytest.raises(timebase.ClockMismatch):
-        a < b
+        _ = a < b
     with pytest.raises(timebase.ClockMismatch):
-        a == b
+        _ = a == b
 
 
 def test_stale_epoch_on_compare():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     b = timebase.TimeRef("media", 1, 0, Fraction(1, 48000))
     with pytest.raises(timebase.StaleEpoch):
-        a < b
+        _ = a < b
     with pytest.raises(timebase.StaleEpoch):
-        a == b
+        _ = a == b
 
 
 def test_compare_non_timeref_raises():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     with pytest.raises(TypeError):
-        a < 1
+        _ = a < 1
     with pytest.raises(TypeError):
-        a > 1
+        _ = a > 1
     # == returns False (not raises) for a non-TimeRef, per spec
     assert (a == 1) is False
     assert (a == "x") is False
@@ -253,7 +253,7 @@ def test_clock_lifecycle():
 
 def test_clock_domain_validated():
     timebase.Clock("x", "media")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown clock domain 'bogus'"):
         timebase.Clock("x", "bogus")
 
 
@@ -571,7 +571,7 @@ def test_validate_binding_range_outside_param(tmp_path):
 
 
 def test_validate_feature_suffix_allowed(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path, "ffmpeg.audio-features", engine="ffmpeg", outputs=[{"port": "features", "type": "analysis.features"}]
     )
@@ -715,7 +715,7 @@ def test_make_plan_keys(tmp_path):
 
 
 def test_plan_copy_on_engine_crossing_media_edge(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path,
         "ffmpeg.transcode",
@@ -748,7 +748,7 @@ def test_plan_same_engine_note(tmp_path):
     reg = _build_registry(tmp_path)
     g = graphmod.load_graph(_graph_obj())
     p = planmod.make_plan(g, reg)
-    e = [e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("fx.video")][0]
+    e = next(e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("fx.video"))
     assert e["copy"] is False
     assert "same engine" in e["note"]
 
@@ -761,7 +761,7 @@ def test_plan_licence_profile_core(tmp_path):
 
 
 def test_plan_licence_profile_gpl(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path,
         "gpl.decoder",
@@ -792,7 +792,7 @@ def test_plan_licence_profile_gpl(tmp_path):
 
 
 def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path,
         "agpl.mod",
@@ -808,7 +808,7 @@ def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
 
 
 def test_plan_lgpl_stays_core(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path,
         "lgpl.mod",
@@ -824,7 +824,7 @@ def test_plan_lgpl_stays_core(tmp_path):
 
 
 def test_plan_noassertion_warning(tmp_path):
-    reg = _build_registry(tmp_path)
+    _build_registry(tmp_path)
     _write_manifest(
         tmp_path,
         "mystery.mod",
@@ -897,7 +897,7 @@ def test_take_non_incremental_epoch_refused(tmp_path):
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     led.append(tid, [{"kind": "epoch", "t": _tr(epoch=1)}])
     # epoch event must have t.epoch == latest+1 == 2, not a jump to 5
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="an epoch event must carry epoch 2, got 5"):
         led.append(tid, [{"kind": "epoch", "t": _tr(epoch=5)}])
 
 
@@ -905,7 +905,7 @@ def test_take_newer_epoch_without_announcement_refused(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     # a normal event at epoch 2 arrives with NO epoch event having announced it
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="before any epoch event announced it"):
         led.append(tid, [{"kind": "play", "t": _tr(epoch=2)}])
     assert len(led.load(tid)["events"]) == 0
 
@@ -914,7 +914,7 @@ def test_take_epoch_field_must_agree(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     # top-level epoch field, when present, must agree with t.epoch
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="an epoch event must carry epoch 1, got 2"):
         led.append(tid, [{"kind": "epoch", "t": _tr(epoch=1), "epoch": 2}])
 
 
@@ -922,5 +922,5 @@ def test_take_write_to_closed_refused(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     led.close(tid, {"ok": True})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is closed"):
         led.append(tid, [{"kind": "play", "t": _tr()}])

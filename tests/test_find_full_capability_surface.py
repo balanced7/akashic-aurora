@@ -123,7 +123,7 @@ def test_journal_accepts_from_and_action_filter():
     assert "action" in sig.parameters
 
 
-# --------------------------------------------------------------------------- live-index (integration)
+# --------------------------------------------------------------------------- live index, integration
 
 
 def test_live_es_available_for_integration():

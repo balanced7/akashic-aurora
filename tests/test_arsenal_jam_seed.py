@@ -160,7 +160,7 @@ def tonic_pc(key: str) -> int:
 
 def degree_key(key: str, item: str) -> str:
     """A key item or variant key ("6 major"), a degree of the card key, spelled from the degree (6 of Gb is Eb)."""
-    letter, acc, _mode = KEY_RE.match(key).groups()
+    letter, _acc, _mode = KEY_RE.match(key).groups()
     sign, degree, mode = DEGREE_RE.match(item).groups()
     degree = int(degree)
     new_letter = LETTERS[(LETTERS.index(letter) + degree - 1) % 7]
@@ -518,18 +518,18 @@ def pointers():
     out = []
     for cid in IDS:
         card = CARDS[cid]
-        for chk in card.get("checks", []):
-            out.append(
-                (
-                    cid,
-                    f"check {chk['id']}",
-                    chk.get("variant"),
-                    chk["slot"],
-                    chk["role"],
-                    chk.get("relative_to", "root"),
-                    chk["say"],
-                )
+        out.extend(
+            (
+                cid,
+                f"check {chk['id']}",
+                chk.get("variant"),
+                chk["slot"],
+                chk["role"],
+                chk.get("relative_to", "root"),
+                chk["say"],
             )
+            for chk in card.get("checks", [])
+        )
         landing = card.get("landing")
         if landing:
             variant = landing.get("variant")

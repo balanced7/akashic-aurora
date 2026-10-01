@@ -65,7 +65,7 @@ def _lane(depth=0, backlog_age_s=None, age_s=None, straggler=0):
     return {"age_s": age_s, "depth": depth, "straggler": straggler, "backlog_age_s": backlog_age_s}
 
 
-# ---------------------------------------------------------------- GRADING (P1-P5)
+# ---------------------------------------------------------------- GRADING, P1 to P5
 def test_p1_aged_backlog_pages():
     """Undrained work past the page threshold is page-grade, with a drill-down."""
     from core.comm.doctor import examine
@@ -147,7 +147,7 @@ def test_p5_warn_band_is_visible_before_it_pages():
     assert stall["grade"] == "dashboard", "it observes before it pages"
 
 
-# ---------------------------------------------------------------- ROUTING (P6-P8)
+# ---------------------------------------------------------------- ROUTING, P6 to P8
 class FakeRedis:
     """Enough Redis for the dedup key + the pager list."""
 

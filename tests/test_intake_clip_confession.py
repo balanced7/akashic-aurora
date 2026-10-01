@@ -97,7 +97,7 @@ def _stored(mem, title):
 def test_5k_note_arg_stores_whole():
     """THE named acceptance: a >5k-char note tool-arg stores whole -- no silent clip,
     no lying [OK], no legacy ' ...[truncated]' marker."""
-    body = ("the quick brown clip probe sentence %04d. " % 7) * 130  # ~5.6k, word-boundary rich
+    body = (f"the quick brown clip probe sentence {7:04d}. ") * 130  # ~5.6k, word-boundary rich
     assert len(body) > 5000
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-5k", note=body))

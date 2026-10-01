@@ -16,7 +16,7 @@ import os
 import sys
 import tempfile
 
-import pytest as _pytest
+import pytest
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_TESTS)
@@ -152,7 +152,7 @@ if sys.platform == "win32" and not os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
 # by any seat is now safe by default.
 
 
-@_pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def _isolate_conductor_gate_provenance(tmp_path_factory, monkeypatch):
     try:
         from core.comm.conductor_gate import PROVENANCE_ENV, _reset_heartbeat

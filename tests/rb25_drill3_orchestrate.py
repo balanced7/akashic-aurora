@@ -113,10 +113,7 @@ def tag_of(content):
 def unconsumed(agent):
     """Non-destructive read of an agent's pending inbox (advance=False -> cursor untouched)."""
     b = Bus(agent)
-    out = []
-    for x in b.inbox(limit=3000, advance=False):
-        out.append({"frm": x.frm, "kind": str(x.kind), "tag": tag_of(x.content)})
-    return out
+    return [{"frm": x.frm, "kind": str(x.kind), "tag": tag_of(x.content)} for x in b.inbox(limit=3000, advance=False)]
 
 
 def main():
@@ -192,7 +189,7 @@ def main():
         }
 
         # -- 3. drive the frozen burst; read stdout until the pause ---------------------
-        note("starting burst (pause-at=%d)" % args.pause_at)
+        note(f"starting burst (pause-at={args.pause_at})")
         burst = subprocess.Popen(
             [
                 PY,

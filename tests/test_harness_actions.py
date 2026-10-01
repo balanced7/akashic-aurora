@@ -246,7 +246,7 @@ def test_resolve_action_outcome_stage_record_prefers_explicit_agent(monkeypatch,
     at.resolve_action_outcome("sess-1", "c:x", True, agent_id="dsh_agent")
     at.resolve_action_outcome("sess-1", "c:x", True)
 
-    recs = [json.loads(l) for l in (tmp_path / "sess-1.jsonl").read_text(encoding="utf-8").splitlines()]
+    recs = [json.loads(line) for line in (tmp_path / "sess-1.jsonl").read_text(encoding="utf-8").splitlines()]
     assert recs[0]["agent"] == "dsh_agent"
     assert recs[1]["agent"] == "claude"
 

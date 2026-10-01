@@ -20,7 +20,7 @@ exposes the keyword assigner's recall ceiling (the case for a future embedding T
 # theme vocabulary (matches core/narrative/theme_assigner.THEME_KEYWORDS ids)
 GOLD_THEME_VOCAB = ("routing", "logging", "evaluation", "design", "memory", "narrative")
 
-# (gold_track, kind, paths, category, task, summary, gold_themes)
+# Row fields, in order: gold_track, kind, paths, category, task, summary, gold_themes.
 _ROWS = [
     # ---- Segment A: ai-setup (knowledge harmonization) ----
     ("ai-setup", "commit", ["core/foundation/store.py"], "", "", "Add TTL + zset ops to Store", ("memory",)),

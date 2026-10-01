@@ -19,7 +19,7 @@ _ARSENAL_DIR = Path(__file__).resolve().parent.parent / "arsenal"
 
 def _load_analysis():
     try:
-        from arsenal import analysis  # type: ignore
+        from arsenal import analysis  # type: ignore[import-not-found]
 
         return analysis
     except ImportError:

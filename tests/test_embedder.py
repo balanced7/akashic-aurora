@@ -131,7 +131,7 @@ def test_ranker_seam_end_to_end():
         {"text": "the redis store persists agent coordination state", "importance": 3},
     ]
     q = "audio stem separation"
-    kw_top = Ranker().rank(items, q)[0].item["text"]
+    Ranker().rank(items, q)[0].item["text"]
     emb_top = Ranker(relevance_fn=emb.relevance).rank(items, q)[0].item["text"]
     assert emb_top.startswith("stemroller"), f"embedding seam should surface the audio item, got: {emb_top}"
 

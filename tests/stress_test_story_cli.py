@@ -259,7 +259,7 @@ def stress_unicode_in_beats():
     # Just shouldn't crash
     out2, rc2 = _run_cli(["--json"], store=s)
     assert rc2 == 0
-    data = json.loads(out2)
+    json.loads(out2)
     print("  stress-unicode: Unicode non-breaking OK")
 
 
@@ -363,11 +363,11 @@ def stress_concurrent_reads():
     for i in range(20):
         out, rc = _run_cli([], store=s)
         results[i] = (out, rc)
-    for i, (out, rc) in results.items():
+    for i, (_out, rc) in results.items():
         assert rc == 0, f"run {i} failed: rc={rc}"
     # All outputs should be identical (read-only)
-    first = list(results.values())[0][0]
-    for i, (out, rc) in results.items():
+    first = next(iter(results.values()))[0]
+    for i, (out, _rc) in results.items():
         assert out == first, f"run {i} output differs"
     print("  stress-concurrent: 20 concurrent reads -> identical output OK")
 

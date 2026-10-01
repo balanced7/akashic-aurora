@@ -210,9 +210,7 @@ def _make_package(tmp_path, payload: bytes, name="a.bin"):
     loc.mkdir()
     (loc / name).write_bytes(payload)
     blocks = [payload[i : i + ap.BLOCK_SIZE] for i in range(0, max(len(payload), 1), ap.BLOCK_SIZE)] or [b""]
-    els = "".join(
-        '<Block Hash="%s" Size="%d"/>' % (_b64.b64encode(_hl.sha256(b).digest()).decode(), len(b)) for b in blocks
-    )
+    els = "".join(f'<Block Hash="{_b64.b64encode(_hl.sha256(b).digest()).decode()}" Size="{len(b)}"/>' for b in blocks)
     (loc / "AppxBlockMap.xml").write_text(
         f'<?xml version="1.0" encoding="UTF-8"?>'
         f'<BlockMap xmlns="{_BM_NS}" HashMethod="http://www.w3.org/2001/04/xmlenc#sha256">'

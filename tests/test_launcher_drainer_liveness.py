@@ -35,47 +35,47 @@ def _stuck_thread(evt, name="drain-x-stderr"):
 
 
 def _quiet_launcher(monkeypatch):
-    l = Launcher()
+    launcher = Launcher()
     notes = []
-    monkeypatch.setattr(l, "_bus_note", lambda text: notes.append(text))
-    return l, notes
+    monkeypatch.setattr(launcher, "_bus_note", lambda text: notes.append(text))
+    return launcher, notes
 
 
 def test_dead_drainer_on_live_child_raises_flag(monkeypatch):
-    l, notes = _quiet_launcher(monkeypatch)
+    launcher, notes = _quiet_launcher(monkeypatch)
     proc = AgentProcess(agent_id="x", pid=123, status="running", drainers=[_dead_thread()])
-    l._flag_dead_drainers(proc)
+    launcher._flag_dead_drainers(proc)
     assert proc.drainer_dead is True, "dead drainer + live child = the risk state, flagged"
     assert len(notes) == 1, "exactly one supervisor note"
     assert "drain" in notes[0], "exactly one supervisor note"
-    l._flag_dead_drainers(proc)
+    launcher._flag_dead_drainers(proc)
     assert len(notes) == 1, "flag is once-only -- no note spam on later ticks"
 
 
 def test_live_drainers_do_not_flag(monkeypatch):
-    l, notes = _quiet_launcher(monkeypatch)
+    launcher, notes = _quiet_launcher(monkeypatch)
     evt = threading.Event()
     proc = AgentProcess(agent_id="x", status="running", drainers=[_stuck_thread(evt)])
-    l._flag_dead_drainers(proc)
+    launcher._flag_dead_drainers(proc)
     evt.set()
     assert proc.drainer_dead is False
     assert notes == []
 
 
 def test_exit_flush_clears_flag_and_is_clean_for_dead_drainers(monkeypatch):
-    l, _ = _quiet_launcher(monkeypatch)
+    launcher, _ = _quiet_launcher(monkeypatch)
     proc = AgentProcess(agent_id="x", drainers=[_dead_thread()], drainer_dead=True)
-    l._flush_drainers(proc)
+    launcher._flush_drainers(proc)
     assert proc.drainer_dead is False, "at exit the risk state no longer applies -- flag clears"
     assert proc.drain_flush_timeout is False
 
 
 def test_exit_flush_timeout_is_recorded(monkeypatch):
     monkeypatch.setattr(launcher_mod, "DRAIN_FLUSH_JOIN_SEC", 0.05)
-    l, _ = _quiet_launcher(monkeypatch)
+    launcher, _ = _quiet_launcher(monkeypatch)
     evt = threading.Event()
     proc = AgentProcess(agent_id="x", drainers=[_stuck_thread(evt)])
-    l._flush_drainers(proc)
+    launcher._flush_drainers(proc)
     evt.set()
     assert proc.drain_flush_timeout is True, (
         "a flush that outlives the join window is recorded -- the exit tail may be partial"
@@ -83,11 +83,11 @@ def test_exit_flush_timeout_is_recorded(monkeypatch):
 
 
 def test_registry_surfaces_drainer_state(monkeypatch):
-    l, _ = _quiet_launcher(monkeypatch)
-    monkeypatch.setattr(l, "_reload", lambda: None)
-    monkeypatch.setattr(l, "_armed_set", lambda: set())
-    l._specs = {"x": AgentSpec(agent_id="x", runtime="python_runner", description="", command=["py"])}
-    l._procs = {"x": AgentProcess(agent_id="x", status="running", drainer_dead=True, drain_flush_timeout=True)}
-    row = next(r for r in l.registry() if r["agent_id"] == "x")
+    launcher, _ = _quiet_launcher(monkeypatch)
+    monkeypatch.setattr(launcher, "_reload", lambda: None)
+    monkeypatch.setattr(launcher, "_armed_set", lambda: set())
+    launcher._specs = {"x": AgentSpec(agent_id="x", runtime="python_runner", description="", command=["py"])}
+    launcher._procs = {"x": AgentProcess(agent_id="x", status="running", drainer_dead=True, drain_flush_timeout=True)}
+    row = next(r for r in launcher.registry() if r["agent_id"] == "x")
     assert row["drainer_dead"] is True
     assert row["drain_flush_timeout"] is True

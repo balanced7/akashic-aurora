@@ -223,7 +223,7 @@ def test_census_never_reports_absence_it_could_not_measure():
     NOT RUNNING, which an operator reads as a measured verdict.
     """
     sp = _script_processes()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=r"process_snapshot\(\) returned None"):
         sp(None, GATEWAY_SCRIPT)
 
 

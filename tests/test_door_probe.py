@@ -120,7 +120,7 @@ def test_b4_every_non_green_verdict_teaches_a_recovery():
         level = getattr(first, "id", None)  # RED / UNKNOWN / GREEN as names
         if level not in {"RED", "UNKNOWN"}:
             continue
-        # _verdict(verdict, stage, elapsed, cause, detail="", recovery="")
+        # _verdict takes verdict, stage, elapsed and cause, then detail and recovery (both default to empty)
         recovery = (
             node.args[5] if len(node.args) >= 6 else next((k.value for k in node.keywords if k.arg == "recovery"), None)
         )

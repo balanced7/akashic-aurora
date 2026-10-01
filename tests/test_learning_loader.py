@@ -86,7 +86,7 @@ def test_source_pointers_present():
     assert all(r["source"] for r in out), "every entry must carry a source pointer (lossy+pointer rule)"
     # the pointer must resolve back to the full record in the store
     full = store.load_all_learnings_from_store()
-    names = {l["experiment_name"] for l in full}
+    names = {lesson["experiment_name"] for lesson in full}
     assert all(r["source"] in names for r in out), "source must resolve to a real record"
     print("\n--- source pointers ---\n  every entry traceable back to LearningStore OK")
 

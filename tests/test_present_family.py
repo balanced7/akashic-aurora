@@ -62,7 +62,7 @@ def test_four_targets_are_built_and_listed():
     assert set(targets.TARGETS) == set(BUILT)
     assert targets.resolve("slides") == "present.slides-html"
     assert targets.resolve("3d") == "present.three-js"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no built target 'hologram'"):
         targets.resolve("hologram")
 
 

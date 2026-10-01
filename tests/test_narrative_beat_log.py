@@ -63,7 +63,7 @@ def test_weight_defaults_and_override():
 
 def test_roundtrip_with_edges():
     log = _log()
-    b = log.emit(
+    log.emit(
         "learning",
         "themed",
         "learn:experiment:x",

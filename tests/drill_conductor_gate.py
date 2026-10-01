@@ -5,6 +5,7 @@ Run: py -m pytest tests/drill_conductor_gate.py -q
 """
 
 import inspect
+from typing import ClassVar
 
 import pytest
 
@@ -89,19 +90,19 @@ def test_P5_self_widening_refused():
 
 def test_P6_admin_grant_refused_by_allowlist():
     class FakeGrant:
-        caps = set()
-        path_scope = ["*"]
+        caps: ClassVar[set] = set()
+        path_scope: ClassVar[list] = ["*"]
 
-    with pytest.raises(PermissionError, match="admin.grant"):
+    with pytest.raises(PermissionError, match=r"admin\.grant"):
         grant_mandate_caps(FakeGrant(), requested_caps=["admin.grant"], requested_scope=["core/"])
 
 
 def test_P6_admin_approve_refused_by_allowlist():
     class FakeGrant:
-        caps = set()
-        path_scope = ["*"]
+        caps: ClassVar[set] = set()
+        path_scope: ClassVar[list] = ["*"]
 
-    with pytest.raises(PermissionError, match="admin.approve"):
+    with pytest.raises(PermissionError, match=r"admin\.approve"):
         grant_mandate_caps(FakeGrant(), requested_caps=["admin.approve"], requested_scope=["core/"])
 
 

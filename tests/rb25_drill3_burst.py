@@ -59,7 +59,7 @@ from core.comm.bus import Bus
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STORM_KINDS = [
-    # (kind, count, to_target, description)
+    # Row fields, in order: kind, count, to_target, description.
     # S1 material: directed requests that MUST be answered (runner targets)
     ("request", 12, "runner", "directed request to deepseek runner"),
     ("request", 8, "target", "directed request to second runner"),

@@ -89,8 +89,8 @@ def test_themes_lists_the_axes_available(tmp_path):
     # encoding incidental facts instead of the property under test.
     assert "recall" in r.stdout, r.stdout
     assert " of " in r.stdout, "the axis menu did not declare its bounds:\n" + r.stdout
-    lines = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith("[digests]")]
-    counts = [int(l.split()[0]) for l in lines]
+    lines = [line for line in r.stdout.splitlines() if line.strip() and not line.startswith("[digests]")]
+    counts = [int(line.split()[0]) for line in lines]
     assert counts == sorted(counts, reverse=True), "axes are not ordered most-used first"
 
 

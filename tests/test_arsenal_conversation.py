@@ -49,7 +49,7 @@ def test_publish_checks_all_clips_before_replacing_existing(setup):
     before = (store.root / "conversation.json").read_bytes()
     bad = copy.deepcopy(doc)
     bad["cards"][0]["clips"][0]["at"] = "9:00"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="excerpt ends beyond the logged take"):
         store.publish(bad)
     assert (store.root / "conversation.json").read_bytes() == before
 
@@ -91,7 +91,10 @@ def test_answer_is_attached_to_question_and_cut_without_mutating_log(setup):
 def test_refuses_invalid_or_empty_answers(setup, change):
     store, _, session, _ = setup
     body = {"id": "b" * 32, "card_id": "test-question", "session": session, "start_ms": 900, "end_ms": 1500}
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match=r"No played notes have reached this answer yet|an answer can span 0\.1 to 60 seconds|question card not found|response needs a unique id|response times must be finite milliseconds",
+    ):
         store.save_response({**body, **change})
     assert not store.responses()
 

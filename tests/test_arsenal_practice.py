@@ -599,7 +599,7 @@ def test_progressions_find_the_loop_and_moves_with_first_times(store, capsys):
         _run(capsys, "progressions", ids["loop"], "--root", root, "--json", "--exact", "--n", "4", "--min-count", 3)[1]
     )
     assert list(exact["moves"]) == ["4"]
-    assert [g["numbers"] for g in exact["moves"]["4"]][0] == ["1", "6m7", "4", "5^7"]
+    assert next(g["numbers"] for g in exact["moves"]["4"]) == ["1", "6m7", "4", "5^7"]
     code, out, _ = _run(capsys, "progressions", ids["loop"], "--root", root)
     assert code == 0
     assert "1 -> 6m -> 4 -> 5 (and round again): up to 4 times" in out
@@ -693,7 +693,7 @@ def test_parse_voicing_names_midi_and_stacked_notes():
     assert pr.parse_voicing(["56", "63"]) == ([56, 63], 0)
     assert pr.parse_voicing(["Ab", "C", "Eb", "G"]) == ([56, 60, 63, 67], -1)  # stacked upward from octave 3
     assert pr.parse_voicing(["Cb4", "B#3"])[0] == [59, 60]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not a note: 'H3'"):
         pr.parse_voicing(["H3"])
 
 
@@ -709,7 +709,7 @@ def test_name_gives_every_reading_numbered_in_the_key(capsys):
     assert data["analysed"]["name"] == "Abmaj9#11"
     assert data["key"] is None
     assert data["fits_keys"] == ["C minor", "Eb major"]
-    assert [r["name"] for r in data["readings"]][0] == "Abmaj9#11"
+    assert next(r["name"] for r in data["readings"]) == "Abmaj9#11"
     assert _run(capsys, "name", "H3")[0] == 2
     assert _run(capsys, "name", "C4", "--key", "Q lydian")[0] == 2
     single = json.loads(_run(capsys, "name", "E4", "--key", "C major", "--json")[1])
@@ -1470,7 +1470,7 @@ def test_an_impossible_event_time_is_dropped_not_allocated(tmp_path, capsys):
     root = tmp_path / "perf"
     now = datetime.now().astimezone()
     good = perform(pedalled_progression([EB, AB, BB7, EB], seconds=2.0, repeats=2)[0])
-    bad = good + [{"t_ms": 1.76e12, "kind": "off", "note": 60}]  # an epoch time logged by mistake
+    bad = [*good, {"t_ms": 1.76e12, "kind": "off", "note": 60}]  # an epoch time logged by mistake
     sid = _store(root, "20260104-100000-0000000a", bad, now - timedelta(minutes=5))
     started = time.monotonic()
     code, out, err = _run(capsys, "sessions", "--root", root)
@@ -1590,7 +1590,7 @@ def test_glossary_explains_carets_and_two_note_shapes():
     assert "two-note shape" not in "\n".join(pr.glossary("0:27-1:27 D major; 1^5 power"))
     assert pr.parse_clock("1:15") == 75000
     assert pr.parse_clock("75") == 75000
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not a time: '1:75'"):
         pr.parse_clock("1:75")
 
 

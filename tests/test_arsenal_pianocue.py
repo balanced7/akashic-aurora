@@ -193,7 +193,7 @@ def test_deck_and_jam_frames_share_the_id_sequence_and_the_ring(server):
         assert [back.block().split("\n")[1] for _ in range(2)] == ["event: cue", "event: jam"]
     finally:
         back.close()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="event kind must be one of cue, deck, jam"):
         hub.publish_event("chat", {})
 
 
@@ -531,7 +531,7 @@ def test_replay_holds_pedalled_notes_until_their_sound_ended(with_sound_end):
     fast = build_replay_cue(_session_events(with_sound_end), start_ms=1400, seconds=4, speed=2.0, at_text="0:01.4")
     assert [(s["at_ms"], s["hold_ms"]) for s in fast["steps"]] == [(0, 1300), (50, 1250), (1800, 200)]
     assert fast["label"] == "you, at 0:01.4"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="nothing sounds between 0:06 and 0:08"):
         build_replay_cue(_session_events(with_sound_end), start_ms=6000, seconds=2)
 
 
@@ -540,7 +540,7 @@ def test_parse_clock():
     assert parse_clock("0:01.4") == 1400
     assert parse_clock("1:02:03") == 3723000
     assert parse_clock("90") == 90000
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="not a time: 'five'"):
         parse_clock("five")
 
 
@@ -658,11 +658,11 @@ def _crowding(notes):
 
 def _match_cost(a, b):
     """Semitones moved: the smaller chord's notes matched one-to-one to the larger's, leftovers to their nearest."""
-    s, l = (a, b) if len(a) <= len(b) else (b, a)
+    s, longer = (a, b) if len(a) <= len(b) else (b, a)
     best = None
-    for idx in permutations(range(len(l)), len(s)):
-        cost = sum(abs(x - l[j]) for x, j in zip(s, idx, strict=False))
-        cost += sum(min(abs(m - n) for m in s) for j, n in enumerate(l) if j not in idx)
+    for idx in permutations(range(len(longer)), len(s)):
+        cost = sum(abs(x - longer[j]) for x, j in zip(s, idx, strict=False))
+        cost += sum(min(abs(m - n) for m in s) for j, n in enumerate(longer) if j not in idx)
         best = cost if best is None else min(best, cost)
     return best
 

@@ -105,7 +105,7 @@ def test_pin2_len_catches_truncation():
     _reset_dials()
     c, ns = _client(), _ns()
     try:
-        a = _bus("a", c, ns)
+        _a = _bus("a", c, ns)
         b = _bus("b", c, ns)
         # stamp a legit envelope, then TAMPER: shorten content but keep the stamped len/sha
         env = {

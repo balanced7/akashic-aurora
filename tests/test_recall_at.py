@@ -56,7 +56,7 @@ _STORE = _FakeStore(
 
 def test_relevant_command_surfaces_the_matching_lesson():
     res = recall_at(command="edit core/primitives/consolidator.py now", learning_store=_STORE)
-    srcs = [l["source"] for l in res["lessons"]]
+    srcs = [lesson["source"] for lesson in res["lessons"]]
     assert "learn:experiment:spine1_unify" in srcs, f"expected the consolidator lesson, got {srcs}"
     assert res["faithful"] is True
     assert res["shown"] >= 1
@@ -100,10 +100,10 @@ def test_dedup_by_source():
 
 def test_exclude_sources_anti_repeat():
     res1 = recall_at(command="edit the consolidator seam", learning_store=_STORE)
-    srcs1 = {l["source"] for l in res1["lessons"]}
+    srcs1 = {lesson["source"] for lesson in res1["lessons"]}
     assert "learn:experiment:spine1_unify" in srcs1, "first call should surface the consolidator lesson"
     res2 = recall_at(command="edit the consolidator seam", exclude_sources=srcs1, learning_store=_STORE)
-    assert all(l["source"] not in srcs1 for l in res2["lessons"]), "excluded sources must not reappear"
+    assert all(lesson["source"] not in srcs1 for lesson in res2["lessons"]), "excluded sources must not reappear"
     print("--- anti-repeat ---\n  sources shown once are excluded next time OK")
 
 

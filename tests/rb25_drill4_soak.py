@@ -320,7 +320,7 @@ def cmd_arm(args):
     take_checkpoint(led, "T0")
     do_sample(led)
     save(led)
-    ev = evaluate(led)
+    evaluate(led)
     t0 = led["checkpoints"][0]
     clean = t0["runner_alive"] and t0["watcher_alive"] and led["samples"][-1]["answered"]
     print(

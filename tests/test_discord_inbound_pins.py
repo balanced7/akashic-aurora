@@ -60,7 +60,7 @@ class _Bus:
 
 
 def _fake_callsigns(monkeypatch):
-    m = _mod()
+    _mod()
     from core.fleet import residents as _R
 
     table = {"claude": "Vandor", "deepseek": "Heimdall", "kimi": "Navi"}
@@ -383,7 +383,7 @@ def test_p7_a_none_from_the_bus_is_a_failure_not_a_receipt(cfg):
             return None  # Redis down: silence, not an exception
 
     reacts = []
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(Exception, match="accepted nothing") as exc:
         _mod().handle_message(
             cfg,
             author_id="111222333444555666",
@@ -405,7 +405,7 @@ def test_p5_missing_operator_id_refuses_to_build(tmp_path, monkeypatch):
     # wrong-reason. A fail-closed pin must starve every door it guards.
     monkeypatch.setenv("AKASHIC_DISCORD_OPERATOR_ID_FILE", str(tmp_path / "does_not_exist"))
     monkeypatch.setenv("AKASHIC_DISCORD_ROOTS_FILE", str(tmp_path / "no_roots_either"))
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(Exception, match="no root identity anywhere") as exc:
         _mod().build_config()
     assert "operator" in str(exc.value).lower(), (
         "no allowlist -> no inbound. Guessing an allowlist is the one unforgivable "
@@ -483,7 +483,7 @@ def test_p12_spawn_births_a_fresh_session(cfg, monkeypatch):
     honest scope: the sprout is not the harvest."""
     born = []
     bus, reacts = _Bus(), []
-    out = _mod().handle_message(
+    _mod().handle_message(
         cfg,
         author_id="111222333444555666",
         author_name="d",

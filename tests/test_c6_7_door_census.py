@@ -180,7 +180,6 @@ def test_b1_door_census_all_xadd_sites_registered():
     bus_xadds = [(ln, ctx) for ln, ctx in [_xadd_calls_in_file("core/comm/bus.py")][0] if True]
     # Actually let me redo this properly
     bus_xadds = _xadd_calls_in_file("core/comm/bus.py")
-    registered_methods = {e["method"] for e in DOOR_CENSUS.values() if e["file"] == "core/comm/bus.py"}
 
     # The number of xadd sites in bus.py should match what we know
     # (currently: _emit lane+legacy, _emit_fragments lane+legacy, send_reply lane+legacy,
@@ -343,7 +342,7 @@ def test_b3_mixed_sends_no_legacy_stragglers_on_work_drain():
         pytest.skip("redis not available")
 
     # Send mixed kinds: work-lane (reply, note, handoff, chat, inform),
-    # sig-lane (nudge, steer), trace-lane (trace)
+    # the sig lane (nudge, steer) and the trace lane (trace)
     kinds_sent = [
         ("reply", "peer", "the answer"),
         ("note", "peer", "FYI"),

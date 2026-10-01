@@ -260,9 +260,11 @@ def test_dynamic_tools_require_explicit_experimental_api_negotiation(tmp_path):
         "description": "fixture",
         "inputSchema": {"type": "object"},
     }
-    with CodexAppServer(command=command, cwd=tmp_path) as server:
-        with pytest.raises(CodexAppServerError, match="experimental_api=True"):
-            server.start_thread(dynamic_tools=[spec])
+    with (
+        CodexAppServer(command=command, cwd=tmp_path) as server,
+        pytest.raises(CodexAppServerError, match="experimental_api=True"),
+    ):
+        server.start_thread(dynamic_tools=[spec])
 
     traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     assert not any(item.get("method") == "thread/start" for item in traffic)
@@ -580,7 +582,7 @@ class ExactRedis:
         self.fields = fields
         self.calls = []
 
-    def xrange(self, key, min, max, count=None):
+    def xrange(self, key, min, max, count=None):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         self.calls.append((key, min, max, count))
         return [(self.mid, self.fields)] if min == self.mid and max == self.mid else []
 

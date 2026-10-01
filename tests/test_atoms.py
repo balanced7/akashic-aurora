@@ -95,7 +95,7 @@ def test_jsonl_appended_per_type(fam):
     fam.mint("report", "Fence report", "b", now=1000.0)
     path = os.path.join(fam.jsonl_dir, "report.jsonl")
     with open(path, encoding="utf-8") as f:
-        lines = [json.loads(l) for l in f if l.strip()]
+        lines = [json.loads(line) for line in f if line.strip()]
     assert len(lines) == 1
     assert lines[0]["header"]["type"] == "report"
 
@@ -132,7 +132,7 @@ def test_supersede_links_both_and_moves_indexes(fam):
     # append-only: the type JSONL now has 3 lines (mint, successor mint, flip)
     path = os.path.join(fam.jsonl_dir, "design.jsonl")
     with open(path, encoding="utf-8") as f:
-        assert sum(1 for l in f if l.strip()) == 3
+        assert sum(1 for line in f if line.strip()) == 3
 
 
 def test_set_arc_relabels_in_place_as_a_version_event(fam):
@@ -145,7 +145,7 @@ def test_set_arc_relabels_in_place_as_a_version_event(fam):
     assert a["id"] in fam.store.smembers("artifact:index:arc:SA-1")
     path = os.path.join(fam.jsonl_dir, "design.jsonl")
     with open(path, encoding="utf-8") as f:
-        assert [json.loads(l)["version"] for l in f if l.strip()] == [1, 2]  # append-only: mint, relabel
+        assert [json.loads(line)["version"] for line in f if line.strip()] == [1, 2]  # append-only: mint, relabel
     assert fam.set_arc(a["id"], " SA-1 ", now=3000.0)["version"] == 2  # unchanged label: no event
     fresh = at.AtomFamily(FakeStore(), jsonl_dir=fam.jsonl_dir)
     fresh.rebuild()

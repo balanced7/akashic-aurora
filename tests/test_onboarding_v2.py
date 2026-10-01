@@ -138,7 +138,7 @@ def test_old_approach():
     try:
         from coordinator_api import CoordinatorAPI
 
-        api = CoordinatorAPI("old_agent")
+        _api = CoordinatorAPI("old_agent")
         startup_ms = (time.time() - start) * 1000
         collector.record_startup_time(startup_ms)
     except Exception as e:
@@ -192,7 +192,7 @@ def test_new_approach():
         from startup_diagnostics import create_startup_diagnostics
 
         # Track startup with diagnostics
-        diag = create_startup_diagnostics("new_agent")
+        _diag = create_startup_diagnostics("new_agent")
         api = initialize("new_agent", task_keyword="implementation", load_context=True)
         startup_ms = (time.time() - start) * 1000
         collector.record_startup_time(startup_ms)

@@ -80,7 +80,7 @@ def test_a_broad_query_gets_a_flagged_answer_rather_than_false_silence():
     'I know nothing' about a corpus that plainly knows. Answer, but confess, and cap it."""
     ls = _store()
     for i in range(9):
-        _lesson(ls, "chunk_rule_%d" % i, "the vignette chunk", "normalise by the corner distance", domain="vfx")
+        _lesson(ls, f"chunk_rule_{i}", "the vignette chunk", "normalise by the corner distance", domain="vfx")
     got = ls.search_learnings_by_keyword("shader glow tile gap vignette tonemap hue palette wireframe", domain="vfx")
     assert got, "silence about knowledge we hold is the same sin as confidence about knowledge we lack"
     assert all(r.get("weak_match") for r in got), "a weak answer must say it is weak"
@@ -98,7 +98,7 @@ def test_a_confident_answer_is_never_flagged_weak():
 def test_stopwords_alone_cannot_summon_the_corpus():
     ls = _store()
     for i in range(5):
-        _lesson(ls, "lesson_%d" % i, "a thing that was tried", "a recommendation about the state")
+        _lesson(ls, f"lesson_{i}", "a thing that was tried", "a recommendation about the state")
     assert ls.search_learnings_by_keyword("a the of in on it is") == []
     assert ls.search_learnings_by_keyword("the state of the thing") != [], (
         "content terms must still retrieve; the floor is not a mute button"

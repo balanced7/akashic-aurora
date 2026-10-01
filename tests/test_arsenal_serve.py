@@ -132,8 +132,6 @@ def test_recordings_are_saved_into_the_library(server):
     refused = urllib.request.Request(
         base + "/api/recordings", data=b"x", method="POST", headers={"Content-Type": "text/plain"}
     )
-    try:
+    with pytest.raises(urllib.error.HTTPError) as error:  # a text/plain upload should be refused
         urllib.request.urlopen(refused, timeout=10)
-        raise AssertionError("a text/plain upload should be refused")
-    except urllib.error.HTTPError as error:
-        assert error.code == 415
+    assert error.value.code == 415

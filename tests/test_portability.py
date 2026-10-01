@@ -225,7 +225,7 @@ def test_p7_archiver_refuses_no_destinations_instead_of_reporting_ok(tmp_path):
 
     src = tmp_path / "s.jsonl"
     src.write_text("{}\n", encoding="utf-8")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no archive destinations configured"):
         arch.archive([src], [], receipt_dir=tmp_path / "r")
 
 

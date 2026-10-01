@@ -65,8 +65,8 @@ def _spy_events(monkeypatch):
 
 
 class _B:
-    def __init__(self, at, id="b1", track=None):
-        self.at, self.id, self.track = at, id, track
+    def __init__(self, at, beat_id="b1", track=None):
+        self.at, self.id, self.track = at, beat_id, track
 
 
 def _switched():

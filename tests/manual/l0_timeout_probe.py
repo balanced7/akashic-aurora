@@ -85,7 +85,6 @@ def run_case(name, mode, timeout, cap=15.0):
         box["elapsed"] = time.time() - t0
 
     th = threading.Thread(target=work, daemon=True)
-    t0 = time.time()
     th.start()
     th.join(cap)
     if th.is_alive():

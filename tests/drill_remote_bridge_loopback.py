@@ -30,6 +30,7 @@ which one leaked. A drill that cannot fail is a receipt, not a drill.
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import os
 import sys
@@ -197,10 +198,8 @@ def main() -> int:
         )
 
     finally:
-        try:
+        with contextlib.suppress(Exception):
             httpd.shutdown()
-        except Exception:  # noqa: BLE001
-            pass
 
     leaked = [n for n, ok, _ in _results if not ok]
     print(f"\n--- {len(_results) - len(leaked)}/{len(_results)} falsifiers held ---")

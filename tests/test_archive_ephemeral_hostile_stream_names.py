@@ -45,7 +45,7 @@ class _FakeRedis:
     def type(self, key):
         return "stream"
 
-    def xrange(self, key, min="-"):
+    def xrange(self, key, min="-"):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         if key == "bifrost:inbox:*":
             # simulate the incident class: ANY per-stream explosion, not just
             # the filename one -- the containment must be general.

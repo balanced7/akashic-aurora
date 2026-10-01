@@ -52,7 +52,7 @@ class FakeRedis:
     def xlen(self, k):
         return len(self._s.get(k, []))
 
-    def xrange(self, k, min="-", max="+", count=None):
+    def xrange(self, k, min="-", max="+", count=None):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         rows = self._s.get(k, [])
         if min != "-":
             floor = min[1:] if min.startswith("(") else min
@@ -85,7 +85,7 @@ def test_p1_streams_become_durable_jsonl_one_file_per_stream(rig):
     rep = EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
     f = rig["out"] / "bifrost_broadcast.jsonl"
     assert f.exists()
-    rows = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines()]
+    rows = [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()]
     assert [r["id"] for r in rows] == ["1000-0", "1001-0"]
     assert rows[0]["stream"] == "bifrost:broadcast"
     assert rows[0]["fields"]["content"] == "alpha", "the payload is kept whole, not summarised"
@@ -99,7 +99,9 @@ def test_p2_export_resumes_from_its_cursor_and_never_duplicates(rig):
     rig["r"].append("bifrost:broadcast", "1002-0", {"frm": "kimi", "content": "gamma"})
     rep = EPH.export_bus(rig["r"], rig["out"], cursor_file=rig["cursor"])
 
-    rows = [json.loads(l) for l in (rig["out"] / "bifrost_broadcast.jsonl").read_text(encoding="utf-8").splitlines()]
+    rows = [
+        json.loads(line) for line in (rig["out"] / "bifrost_broadcast.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assert [r["id"] for r in rows] == ["1000-0", "1001-0", "1002-0"], "appended, not rewritten"
     assert rep["entries_written"] == 1, "only the new entry"
 

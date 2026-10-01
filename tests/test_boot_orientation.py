@@ -100,7 +100,7 @@ def test_where_we_are_renders_single_clipped_line(monkeypatch):
 
     monkeypatch.setattr(am, "get_agent_memory", lambda: SimpleNamespace(get_decisions=lambda days=90: notes))
     head = agent_cli._orientation_header("claude")
-    wwa = next(l for l in head.split("\n") if l.startswith("# where-we-are:"))
+    wwa = next(line for line in head.split("\n") if line.startswith("# where-we-are:"))
     prefix = "# where-we-are: "
     content = wwa[len(prefix) :]
     assert "\n" not in wwa

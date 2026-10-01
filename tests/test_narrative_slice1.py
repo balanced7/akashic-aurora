@@ -109,7 +109,6 @@ def test_mark_titles_its_chapter():
     bl.emit("commit", "wip", "git:abc", at="2026-06-01T10:30:00", track="ai-setup", weight=2)
     c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp())
     c.chronicle_all(now="2026-06-02T00:00:00")
-    titles = []
     for _k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
         pass
     # load chapters via atlas/track listing

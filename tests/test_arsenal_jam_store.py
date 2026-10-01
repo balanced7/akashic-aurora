@@ -377,7 +377,7 @@ def test_the_chord_line_string_form_and_the_suffix_reader():
         {"n": "5^7sus4/1"},
     ]
     assert parse_line("1 4 | 5:2.5") == [{"n": "1"}, {"n": "4"}, {"n": "5", "beats": 2.5}]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="the chord line is empty"):
         parse_line(" | ")
     assert suffix_tones("m11") == {"root": 0, "third": 3, "fifth": 7, "seventh": 10, "ninth": 2, "eleventh": 5}
     assert suffix_tones("maj7#11") == {"root": 0, "third": 4, "fifth": 7, "seventh": 11, "eleventh": 6}

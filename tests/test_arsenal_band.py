@@ -180,7 +180,7 @@ def test_vlq_matches_the_smf_spec_table():
         assert encoded == bytes.fromhex(hexes)
         assert read_vlq(encoded, 0) == (n, len(encoded))
     for bad in (-1, 0x10000000):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="does not fit a variable-length quantity"):
             band.vlq(bad)
 
 
@@ -507,7 +507,7 @@ def test_f_to_d_drop_runs_in_triplets_only_into_the_key_drop_and_the_turnaround(
     assert tail[7] == [3.333, 3.667]
     assert all(tail[b] == [3] for b in (0, 1, 2, 4, 5, 6)), tail  # a plain step elsewhere
     for b, pc in ((3, 2), (7, 5)):  # D at the drop, F at the top
-        early = [n for n in notes if tick(n["beat"]) == tick(b * 4 + 3 + 2 / 3)][0]
+        early = next(n for n in notes if tick(n["beat"]) == tick(b * 4 + 3 + 2 / 3))
         assert tick(early["beat"]) in rides
         assert early["note"] % 12 == pc
     assert sounding(notes, 16)[0]["note"] % 12 == 2

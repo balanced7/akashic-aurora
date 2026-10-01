@@ -11,6 +11,7 @@ Redis-backed (the Lua script IS the unit under test); skips when the bus is offl
 Run: py -m pytest tests/test_bus_advance_guarded.py -q
 """
 
+import contextlib
 import os
 import sys
 import uuid
@@ -29,10 +30,8 @@ def bus():
     if not b.online:
         pytest.skip("redis not available")
     yield b
-    try:  # cursor/generation keys have no TTL -- leave nothing behind
+    with contextlib.suppress(Exception):  # cursor/generation keys have no TTL -- leave nothing behind
         b._client.delete(b._cursor_key(), f"{b.ns}:generation:{agent}", b._inbox_key(agent))
-    except Exception:
-        pass
 
 
 def test_generation_fence_refuses_stale_writer(bus):

@@ -171,9 +171,9 @@ def test_redis_down_file_fallback():
 
 
 def test_bad_invocation():
-    rc, _, err = run()  # no subcommand
+    rc, _, _err = run()  # no subcommand
     assert rc != 0, "no-subcommand must exit nonzero"
-    rc, _, err = run("learn", "agent_x")  # missing required --experiment
+    rc, _, _err = run("learn", "agent_x")  # missing required --experiment
     assert rc != 0, "missing --experiment must exit nonzero"
     rc, _, _err = run("nonsense")  # unknown subcommand
     assert rc != 0, "unknown subcommand must exit nonzero"

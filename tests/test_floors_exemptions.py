@@ -64,22 +64,22 @@ def test_the_shipped_table_is_empty_until_an_owner_declares_one():
 
 def test_a_declaration_without_a_reason_is_refused():
     bad = _decl(reason="")
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="reason is required") as err:
         F.validate_declarations(bad)
     assert "reason" in str(err.value)
 
 
 def test_a_declaration_without_an_owner_or_date_is_refused():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="owner is required"):
         F.validate_declarations(_decl(owner=""))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="date is required"):
         F.validate_declarations(_decl(date=""))
 
 
 def test_a_declaration_naming_an_unknown_floor_is_refused():
     """A typo'd floor name must be an ERROR, not a declaration that silently exempts nothing --
     that is the same disease (an absence rendering as normal) wearing a config file."""
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match=r"unknown floor name\(s\)") as err:
         F.validate_declarations(_decl(floors=["not_dead2", "definitely_not_a_floor"]))
     assert "definitely_not_a_floor" in str(err.value)
 

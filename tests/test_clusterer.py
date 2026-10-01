@@ -98,7 +98,7 @@ def test_ill_fitting_salient_member_is_ejected_not_absorbed():
         _atoms(table, importance={"a4": 5})
     )
     assert any(c.salient and c.atom_ids == ["a4"] for c in cl.clusters)
-    core = [c for c in cl.clusters if not c.salient][0]
+    core = next(c for c in cl.clusters if not c.salient)
     assert sorted(core.atom_ids) == ["a1", "a2", "a3"], "the core cluster is not polluted by a4"
 
 

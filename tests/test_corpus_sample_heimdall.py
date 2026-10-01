@@ -36,13 +36,13 @@ def test_print_seeded_sample():
 
     # Drop obvious non-lesson seed/test rows.
     DROP = {"newest", "t", "a", "r", "dup_exp", "dup"}
-    lessons = [l for l in lessons if l.get("experiment_name") not in DROP]
+    lessons = [lesson for lesson in lessons if lesson.get("experiment_name") not in DROP]
     total = len(lessons)
 
     # Reproducible: fixed seed, sorted-by-name population, then sample names.
     SEED = 20260826
     N = 56
-    names = sorted(l.get("experiment_name", "") for l in lessons)
+    names = sorted(lesson.get("experiment_name", "") for lesson in lessons)
     rng = random.Random(SEED)
     chosen = set(rng.sample(names, N))
 
@@ -51,9 +51,9 @@ def test_print_seeded_sample():
 
     # Print ALL 56 compactly: number + name + short REC. Full text readable, gist classifier-runable.
     shown = 0
-    for l in lessons:
-        if l.get("experiment_name") not in chosen:
+    for lesson in lessons:
+        if lesson.get("experiment_name") not in chosen:
             continue
-        rec = (l.get("recommendation") or "").strip().replace("\n", " ")
+        rec = (lesson.get("recommendation") or "").strip().replace("\n", " ")
         shown += 1
-        print(f"[{shown:02d}] {l.get('experiment_name')} :: {rec[:160]}")
+        print(f"[{shown:02d}] {lesson.get('experiment_name')} :: {rec[:160]}")

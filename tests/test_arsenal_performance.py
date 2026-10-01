@@ -35,15 +35,13 @@ def loop_session(loops=4, bar_ms=2000, pedal=True):
         for name, notes in progression:
             if pedal and t:
                 events.append({"t_ms": t, "kind": "pedal", "down": False, "value": 0})
-            for m in notes:
-                events.append({"t_ms": t, "kind": "on", "note": m, "vel": 80})
+            events.extend({"t_ms": t, "kind": "on", "note": m, "vel": 80} for m in notes)
             events.append(
                 {"t_ms": t, "kind": "chord", "chord": name, "notes": [spelled(m) for m in notes], "key": "C major"}
             )
             if pedal:
                 events.append({"t_ms": t + 100, "kind": "pedal", "down": True, "value": 127})
-            for m in notes:
-                events.append({"t_ms": t + bar_ms - 200, "kind": "off", "note": m})
+            events.extend({"t_ms": t + bar_ms - 200, "kind": "off", "note": m} for m in notes)
             t += bar_ms
     events.append({"t_ms": t, "kind": "pedal", "down": False, "value": 0})
     events.append({"t_ms": t, "kind": "chord", "chord": None, "notes": [], "key": None})
@@ -1538,7 +1536,7 @@ def test_close_writes_a_roll_projection_beside_the_summary(tmp_path):
     store.close(session, [_on(500, 64), _off(900, 64)])
     roll = tmp_path / session / "roll.txt"
     assert roll.exists(), "close() wrote no roll.txt -- the projection is unwired again"
-    meta, notes, pedal, _chords = unpack(roll.read_text(encoding="utf-8"))
+    meta, notes, _pedal, _chords = unpack(roll.read_text(encoding="utf-8"))
     assert meta.get("session") == session
     assert [(n[1], n[2]) for n in notes] == [(60, 400), (64, 400)], (
         "the projection must carry the notes and their durations, not just exist"

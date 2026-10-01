@@ -16,7 +16,7 @@ Identify events by their (unique) `summary`. When a real event exposes a missing
 add it HERE first -- it becomes a permanent regression anchor.
 """
 
-# (at, kind, agent, track, summary)
+# Row fields, in order: at, kind, agent, track, summary.
 _ROWS = [
     # ---- Day 1: ai-setup (vocab: ledger store redis chronicler bootstrap narrative) ----
     ("2026-06-20T09:00:00", "command", "claude", "ai-setup", "bootstrap booted the narrative chronicler"),

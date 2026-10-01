@@ -99,7 +99,7 @@ def test_h2_and_h2b_operator_report(store):
     _diverge(store)
     lines = store.heal_report()
     blob = " ".join(lines).lower()
-    assert any("backfill" in l.lower() for l in lines), "H2: the File->Redis heal is announced"
+    assert any("backfill" in line.lower() for line in lines), "H2: the File->Redis heal is announced"
     assert "rb25d2:redis-only" in blob or "missing_in_file" in blob or "orphan" in blob, (
         "H2b: the Redis-only gap is LOUD to the operator, not silently healed-around"
     )

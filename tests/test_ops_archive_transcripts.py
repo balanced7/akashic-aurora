@@ -30,13 +30,16 @@ from __future__ import annotations
 import json
 import os
 import sys
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.ops import archive_transcripts as ARC  # noqa: E402
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _mk(p: Path, text: str) -> Path:
@@ -129,11 +132,10 @@ def test_p5_verify_detects_a_corrupted_archive_copy_and_repairs_it(rig):
 def test_p6_one_unreachable_destination_does_not_cost_the_other(rig, tmp_path):
     """Two drives exist so that one can die. An unplugged drive must not abort the copy to
     the live one -- and must not be reported as if it had succeeded."""
-    dead = tmp_path / "nope" / "nested"  # parent missing AND uncreatable is simulated below
     rep = ARC.archive(rig["sources"], [ARC.UNREACHABLE_PROBE, rig["d1"]])
 
-    live = [d for d in rep["destinations"] if str(rig["d1"]) in d["path"]][0]
-    dead_d = [d for d in rep["destinations"] if d["path"] == str(ARC.UNREACHABLE_PROBE)][0]
+    live = next(d for d in rep["destinations"] if str(rig["d1"]) in d["path"])
+    dead_d = next(d for d in rep["destinations"] if d["path"] == str(ARC.UNREACHABLE_PROBE))
     assert live["copied"] == 2, "the reachable drive got its copy"
     assert dead_d["reachable"] is False
     assert dead_d["copied"] == 0

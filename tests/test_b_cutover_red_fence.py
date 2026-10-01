@@ -12,13 +12,16 @@ import json
 import os
 import sys
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation import migrate_to_sqlite as migration  # noqa: E402
 from core.foundation.sqlite_store import SqliteStore  # noqa: E402
 from core.foundation.store import FileStore, HybridStore, RedisStore, create_store  # noqa: E402
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _payload(**overrides):
@@ -166,7 +169,7 @@ def test_d5_sqlite_selector_reaches_both_hybrid_factory_branches(tmp_path, monke
         monkeypatch.setattr(
             RedisStore,
             "connect",
-            classmethod(lambda cls, **kwargs: cache),
+            classmethod(lambda cls, cache=cache, **kwargs: cache),
         )
         store = create_store(
             prefer_redis=True,

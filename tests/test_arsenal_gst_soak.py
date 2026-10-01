@@ -17,7 +17,7 @@ _LANE_FILE = Path(__file__).resolve().parent.parent / "arsenal" / "lanes" / "gst
 
 def _load_lane():
     try:
-        from arsenal.lanes import gst_d3d12_soak  # type: ignore
+        from arsenal.lanes import gst_d3d12_soak  # type: ignore[import-not-found]
 
         return gst_d3d12_soak
     except ImportError:

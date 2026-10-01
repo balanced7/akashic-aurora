@@ -113,7 +113,7 @@ class TestDrainCursorSkipFix:
 
             alice = Bus("alice", c, namespace=ns)
             bob = Bus("bob", c, namespace=ns)
-            carol = Bus("carol", c, namespace=ns)
+            _carol = Bus("carol", c, namespace=ns)
 
             # Mix: direct to bob + broadcast (which bob sees too)
             alice.send("bob", "chat", "d1")

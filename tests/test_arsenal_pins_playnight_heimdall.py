@@ -110,7 +110,7 @@ def test_parse_preset_url_uses_file(tmp_path):
 
 def test_line1_must_be_exact_version(tmp_path):
     # anything before #version breaks line 1
-    p = _write_preset(tmp_path, "bad", "precision highp float;\n" + _valid_body(), header="#version 300 es\n//! 300\n")
+    _write_preset(tmp_path, "bad", "precision highp float;\n" + _valid_body(), header="#version 300 es\n//! 300\n")
     # replace first line entirely: a BOM or leading whitespace-free alternative is invalid;
     # here we test a body that does NOT start with #version as line 1
     bad = tmp_path / "bad.frag"

@@ -110,7 +110,7 @@ def test_p4_an_allowlist_entry_carries_its_reason(repo):
     assert rep["allowed"] == 1, "a suppression is COUNTED, never silent"
     assert rep["allowlist_reasons"][0], "and it carries the reason forward into the report"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"allowlist entry 'canary\.py' has no reason"):
         CS.scan_tracked(repo, allowlist={"canary.py": ""})  # bare path, no reason
 
 

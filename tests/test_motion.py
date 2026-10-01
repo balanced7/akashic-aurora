@@ -18,9 +18,9 @@ def _seg(kind, start_s, end_s, peak=0.01):
         "kind": kind,
         "start_s": start_s,
         "end_s": end_s,
-        "duration_ms": int(round((end_s - start_s) * 1000)),
+        "duration_ms": round((end_s - start_s) * 1000),
         "peak_score": peak,
-        "frames": int(round((end_s - start_s) * 2)) + 1,
+        "frames": round((end_s - start_s) * 2) + 1,
     }
 
 

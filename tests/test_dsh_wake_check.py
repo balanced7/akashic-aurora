@@ -11,6 +11,7 @@ Run: py -m pytest tests/test_dsh_wake_check.py -q
 import json
 import os
 import sys
+from typing import ClassVar
 
 import pytest
 
@@ -26,8 +27,8 @@ class _Msg:
 
 
 class _Bus:
-    calls = []
-    msgs = []
+    calls: ClassVar[list] = []
+    msgs: ClassVar[list] = []
 
     def __init__(self, agent):
         self.agent = agent

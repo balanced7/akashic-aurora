@@ -82,7 +82,7 @@ def _k_from(gold_b: list[int]) -> int:
     return max(1, round((n / nseg) / 2))
 
 
-def windowdiff(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
+def windowdiff(gold_b: list[int], pred_b: list[int], k: int | None = None) -> float:
     """WindowDiff — slide a window; penalize where boundary counts differ.
     0 = perfect, ~1 = worst. (topic-segmentation standard)"""
     m = len(gold_b)
@@ -99,7 +99,7 @@ def windowdiff(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
     return errors / count if count else 0.0
 
 
-def pk(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
+def pk(gold_b: list[int], pred_b: list[int], k: int | None = None) -> float:
     """Pk — probability two positions k apart are wrongly judged same/different segment."""
 
     def seg_ids(b):

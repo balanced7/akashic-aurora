@@ -136,7 +136,7 @@ def test_chronicler_single_beat():
     report = c.chronicle_all()
     assert report["chapters"] == 1
     assert report["total_beats"] == 1
-    ch_key = chapter_key(f"chapter_{hashlib_mock(b.track, 0, '2026-06-27T10:00:00')}")
+    chapter_key(f"chapter_{hashlib_mock(b.track, 0, '2026-06-27T10:00:00')}")
     # Actually let's use the real key: the md5 of f"{track}_{seg_index}_{span_start}"
     import hashlib
 
@@ -160,7 +160,7 @@ def test_chronicler_shape():
     from core.narrative.track_router import RouteHint
 
     c = _chronicler()
-    beats = [
+    _beats = [
         c.beat_log.emit(
             "commit", "add store", "git:1", at="2026-06-27T10:00:00", hint=RouteHint(paths=["core/foundation/store.py"])
         ),
@@ -268,7 +268,7 @@ def test_chronicler_chronological_integrity():
     c.beat_log.emit("milestone", "second", "ledger:2", at="2026-06-27T11:00:00", weight=5)
     c.beat_log.emit("note", "third", "ledger:3", at="2026-06-27T12:00:00")
 
-    report = c.chronicle_all()
+    c.chronicle_all()
     raw_atlas = c.store.get("narr:atlas:current")
     assert raw_atlas is not None
     atlas = Atlas.from_dict(json.loads(raw_atlas))
@@ -380,7 +380,7 @@ def test_chronicler_skip_corrupt_beat():
     """A corrupt/invalid beat in the store is skipped, not fatal."""
     c = _chronicler()
     # Emit one valid beat
-    b = c.beat_log.emit("note", "valid", "ledger:1", at="2026-06-27T10:00:00")
+    c.beat_log.emit("note", "valid", "ledger:1", at="2026-06-27T10:00:00")
     # Manually inject a corrupt beat
     c.store.set("narr:beat:corrupt_beat", "not valid json{{{")
     c.store.zadd(TIMELINE, {"corrupt_beat": _epoch("2026-06-27T09:00:00")})

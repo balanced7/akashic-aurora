@@ -73,7 +73,6 @@ def test_s0_match_when_brief_config_meter_agree(tmp_path):
     meter = _meter(tmp_path, budget=105.0)
     d = SpendDomain(meter_path=meter, warn_at=80.0, refuse_at=95.0, expect_refuse=95.0)
     rows = d.run()
-    verdicts = {r.rule or "match": r.verdict for r in rows}
     assert all(r.verdict == "MATCH" for r in rows), (
         f"expected all-MATCH on agreeing surfaces, got {[(r.rule, r.detail) for r in rows]}"
     )

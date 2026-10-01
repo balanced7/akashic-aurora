@@ -55,7 +55,7 @@ def test_a_verdict_appends_a_journal_line(paths):
     _cache, journal = paths
     DP.write_verdict(_v())
     assert journal.exists(), "no gate journal was written"
-    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 1
     json.loads(lines[0])  # one JSON object per line, parseable alone
 
@@ -67,7 +67,7 @@ def test_the_journal_appends_and_never_truncates(paths):
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     DP.write_verdict(_v("GREEN", 2.84))
 
-    lines = [json.loads(l) for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 3, "a verdict overwrote history instead of appending"
     assert [r["verdict"] for r in lines] == ["GREEN", "RED", "GREEN"]
     assert lines[1]["elapsed_s"] == 5.29, "the RED reading must survive the GREEN that follows"
@@ -112,5 +112,5 @@ def test_journal_records_survive_across_processes(paths):
     DP.write_verdict(_v("GREEN", 2.5))
     journal.write_text(journal.read_text(encoding="utf-8"), encoding="utf-8")  # simulate reopen
     DP.write_verdict(_v("RED", 6.0, "response_path_slow"))
-    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 2

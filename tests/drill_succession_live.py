@@ -67,7 +67,7 @@ def d2_activates_when_all_three_hold():
 
 def d3_acting_conductor_can_mint_a_timeboxed_grant():
     v = cg.evaluate_succession(reap_fn=DEAD, att_fn=ALIVE_SUCC, op_present_fn=NO_OP)
-    rep = cg.acting_conduct_grant(
+    cg.acting_conduct_grant(
         successor=v.successor,
         agent_id=TARGET,
         role="member",

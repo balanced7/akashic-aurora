@@ -42,7 +42,7 @@ def test_18000_frames_at_29_97_is_exact():
 
 def test_ten_minutes_is_not_a_whole_number_of_29_97_frames():
     ten_minutes = TimeRef("media", 0, 600 * 90000, tb(1, 90000))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1001/30000"):
         ten_minutes.rescale(tb(1001, 30000))
     assert ten_minutes.rescale(tb(1001, 30000), exact=False).ticks == 17982
 
@@ -52,7 +52,7 @@ def test_a_rate_passed_as_a_timebase_is_refused():
         TimeRef("media", 0, 48000, 48000)
     with pytest.raises(ValueError, match=r"tb\(1001, 30000\)"):
         tb(30000, 1001)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="a timebase denominator must not be zero"):
         tb(1, 0)
     assert TimeRef("media", 0, 5, 1).seconds == 5
 
@@ -65,7 +65,7 @@ def test_bare_numbers_are_refused():
     with pytest.raises(TypeError):
         TimeRef("media", 0, 1, 0.5)
     with pytest.raises(TypeError):
-        TimeRef("media", 0, 1, tb(1, 48000)) < 1
+        _ = TimeRef("media", 0, 1, tb(1, 48000)) < 1
 
 
 def test_epochs_and_clocks_do_not_mix():
@@ -77,15 +77,15 @@ def test_epochs_and_clocks_do_not_mix():
     assert clock.is_current(after)
     assert clock.history == [(1, "seek")]
     with pytest.raises(StaleEpoch):
-        before < after
+        _ = before < after
     with pytest.raises(ClockMismatch):
-        TimeRef("audio", 1, 5, tb(1, 48000)) < after
+        _ = TimeRef("audio", 1, 5, tb(1, 48000)) < after
 
 
 def test_rescale_and_cross_timebase_equality():
     assert TimeRef("media", 0, 48000, tb(1, 48000)).rescale(tb(1, 1000)).ticks == 1000
     odd = TimeRef("media", 0, 1, tb(1, 48000))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1/1000"):
         odd.rescale(tb(1, 1000))
     assert odd.rescale(tb(1, 1000), exact=False).ticks == 0
     # exact halves tell half-to-even apart from half-up
@@ -290,11 +290,11 @@ def test_take_round_trip_and_epoch_rules(tmp_path):
         )
     with pytest.raises(StaleEpoch):
         ledger.append(take_id, [{"kind": "epoch", "epoch": 3, "reason": "skip", "t": _t(3, 0)}])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="before any epoch event announced it"):
         ledger.append(take_id, [{"kind": "midi", "t": _t(2, 0), "cc": 74, "value": 3}])
     assert [e["kind"] for e in ledger.load(take_id)["events"]] == ["play", "midi", "epoch"]
     ledger.close(take_id, {"latency_ms_p95": 12})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is closed"):
         ledger.append(take_id, [{"kind": "pause", "t": _t(1, 5)}])
     listed = ledger.list()
     assert listed[0]["take_id"] == take_id

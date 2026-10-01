@@ -74,7 +74,7 @@ def test_search_ranks_relevant_first():
     assert all(e["summary"] in qa["relevant"] for e in top)
 
 
-# ----------------------------------------------------------------- filters (exact)
+# ----------------------------------------------------------------- exact filters
 
 
 def test_filter_by_kind():

@@ -97,7 +97,7 @@ def t_map(segments):
 
     def t_of(beat: float) -> int:
         bar = math.floor(beat / M + 1e-9)
-        return int(round(tm.t_epoch(segments, M, bar, beat - bar * M) - OPEN_CLIENT_EPOCH))
+        return round(tm.t_epoch(segments, M, bar, beat - bar * M) - OPEN_CLIENT_EPOCH)
 
     return t_of
 
@@ -220,8 +220,8 @@ def claude_mirror_actions(run, lines):
     for i, e in enumerate(bridge_notes(run, lines)):
         lag = 2 + (i * 5) % 8
         acts += [
-            (int(round(e["epoch_ms"] - OPEN_CLIENT_EPOCH)) + lag, "on", e["midi"], e["vel"]),
-            (int(round(e["end_epoch_ms"] - OPEN_CLIENT_EPOCH)) + lag, "off", e["midi"], None),
+            (round(e["epoch_ms"] - OPEN_CLIENT_EPOCH) + lag, "on", e["midi"], e["vel"]),
+            (round(e["end_epoch_ms"] - OPEN_CLIENT_EPOCH) + lag, "off", e["midi"], None),
         ]
     return acts
 
@@ -455,7 +455,7 @@ def session_doc(events, meta, session=SESSION_ID, opened_epoch=OPEN_CLIENT_EPOCH
         "api": "arsenal.performance/v0",
         "session": session,
         "opened_at": _iso(opened),
-        "opened_ns": int(round(opened)) * 1000000,
+        "opened_ns": round(opened) * 1000000,
         "client_id": "lg-0a1c",
         "meta": meta,
         "closed": True,

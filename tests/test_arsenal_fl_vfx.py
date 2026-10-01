@@ -133,7 +133,7 @@ def assert_clean(host):
         assert off["host_tick"] >= on["host_tick"]
 
 
-def stamp_write(path, content, _n=[0]):
+def stamp_write(path, content, _n=[0]):  # noqa: B006  # deliberate: a call counter that persists across calls
     path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
     _n[0] += 1
     t = 1_700_000_000_000_000_000 + _n[0] * 1_000_000_000
@@ -326,7 +326,7 @@ def test_pattern_switches_land_on_bar_lines_only_and_cut_the_old_pattern_there()
         poll = band.poll_every
     assert [s[1] for s in switches] == [1, 0, 1, 0, 1]
     for (t, _idx, anchor_before, bar_before), (at, _) in zip(switches, changes, strict=False):
-        assert (t - anchor_before) % bar_before == 0, "switch at %d is mid-bar" % t
+        assert (t - anchor_before) % bar_before == 0, f"switch at {int(t)} is mid-bar"
         assert at <= t <= at + bar_before + poll
     bounds = [0] + [s[0] for s in switches] + [10**9]
     owners = [0] + [s[1] for s in switches]
@@ -1134,7 +1134,7 @@ def test_pattern_knob_value_round_trips_all_64_indexes(store, read):
 @pytest.mark.parametrize(("store", "read"), [("16bit", "floor"), ("float32", "floor"), ("float", "round")])
 def test_live_file_moves_the_pattern_knob_without_pulling_the_band_one_low(tmp_path, store, read):
     live = tmp_path / "arsenal_live.json"
-    sets = [pset("p%d" % i, {"bass": [(0, 1, 24 + i, 100)]}, length=4) for i in range(64)]
+    sets = [pset(f"p{i}", {"bass": [(0, 1, 24 + i, 100)]}, length=4) for i in range(64)]
     with Host(knob_store=store, knob_read=read, patterns=patterns_module(groove_a(), live_path=str(live))) as host:
         stamp_write(live, {"version": 1, "rev": 0, "current": 0, "patterns": sets})
         host.set(C_LIVE, 1)
@@ -1237,10 +1237,8 @@ def assert_rests_are_silent(host, rests):
             continue
         for r in rests:
             s = r * 384
-            assert not s <= on["tick"] < s + 384 - 48, "lane %d note at %d on rest bar %d" % (
-                on["output"],
-                on["tick"],
-                r,
+            assert not s <= on["tick"] < s + 384 - 48, (
+                f"lane {int(on['output'])} note at {int(on['tick'])} on rest bar {int(r)}"
             )
             if on["tick"] < s < on["tick"] + on["length"]:
                 assert off["host_tick"] <= on["host_tick"] + (s - on["tick"]) + gap, (on, off, r)

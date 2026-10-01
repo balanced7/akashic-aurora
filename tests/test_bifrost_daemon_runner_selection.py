@@ -141,7 +141,7 @@ def test_managed_runner_environment_can_pin_the_work_lane_without_dropping_base_
     assert env["KEEP_ME"] == "yes"
     assert env["BIFROST_CONSUME_LANE"] == "work"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid managed runner consume lane: 'mystery'"):
         daemon.managed_runner_env("sol", consume_lane="mystery", base={})
 
 
@@ -188,7 +188,7 @@ def test_managed_runner_can_select_sol_and_exclude_dedicated_discord_ingress(tmp
     ["../bifrost_runner_sol.py", "bifrost_daemon.py", "missing_runner.py"],
 )
 def test_managed_runner_override_refuses_traversal_nonrunner_and_missing_files(name, tmp_path):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid managed runner basename"):
         daemon.managed_runner_argv(
             "sol",
             str(tmp_path / "summary.json"),
