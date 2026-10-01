@@ -197,7 +197,8 @@ def test_emit_precompact_is_silent(tmp_path, monkeypatch):
 def test_emit_out_of_scope_is_silent(tmp_path, monkeypatch):
     _isolate(monkeypatch, tmp_path)
     events = _spy_capture(monkeypatch)
-    hook.emit_session_signals(_payload(cwd="C:\\some\\other\\project"))
+    other = "C:\\some\\other\\project" if os.name == "nt" else "/some/other/project"  # absolute here
+    hook.emit_session_signals(_payload(cwd=other))
     assert events == []
 
 

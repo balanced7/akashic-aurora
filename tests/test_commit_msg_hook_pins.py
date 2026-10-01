@@ -88,7 +88,11 @@ def test_p1_a_message_naming_a_marker_is_refused_and_teaches(plane, tmp_path, ca
 
 
 # ---------------------------------------------------------------- P2: clean passes
-def test_p2_a_clean_message_passes_silently(plane, tmp_path, capsys):
+def test_p2_a_clean_message_passes_silently(plane, tmp_path, capsys, monkeypatch):
+    # Hermetic about WHO commits: authored by the operator, the co-author credit (its own pins)
+    # has nothing to add -- otherwise this pin measured the machine's git identity, not the scan.
+    from scripts.githooks import coauthor
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", coauthor.OPERATOR_EMAIL)
     rc = _hook().main(
         ["commit_msg.py", _msgfile(tmp_path, "fix: tighten the door probe timeout\n")],
         root=plane)
