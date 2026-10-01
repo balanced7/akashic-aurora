@@ -27,6 +27,7 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196d_ask_state.py -q
 """
 
+import re
 import os
 import sys
 import time
@@ -236,6 +237,6 @@ def test_door_wired():
     cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
     # The ASK parser specifically -- a bare '"--status"' grep matched other verbs' flags
     # and made this pin green before the build, which is no pin at all.
-    assert 'ask_p.add_argument("--status"' in cli and 'ask_p.add_argument("--as"' in cli, (
-        "ask --status <id> --as <sender> renders the state row"
-    )
+    assert re.search(r'ask_p\.add_argument\(\s*"--status"', cli) and re.search(
+        r'ask_p\.add_argument\(\s*"--as"', cli
+    ), "ask --status <id> --as <sender> renders the state row"

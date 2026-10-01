@@ -33,6 +33,7 @@ Namespace-isolated (T039 precedent); throwaway namespaces are swept at teardown 
 24h seatseen witnesses do not outlive the run on the shared Redis.
 """
 
+import re
 import os
 import sys
 import uuid
@@ -263,7 +264,7 @@ def test_p10_the_sync_verb_derives_its_mailbox_incarnation_from_the_env_through_
     full = "session-7ed91e83-1111-2222-3333-444444444444"
     assert agent_cli._sid8_of(full) == "7ed91e83"
     src = open(agent_cli.__file__, encoding="utf-8", errors="replace").read()
-    assert '_inc = (_sid8_of(os.environ.get("AKASHIC_SESSION8"))' in src
+    assert re.search(r'_inc = \(\s*_sid8_of\(os\.environ\.get\("AKASHIC_SESSION8"\)\)', src)
 
 
 def test_p11_the_discriminator_is_eight_characters_of_entropy_not_the_whole_id():

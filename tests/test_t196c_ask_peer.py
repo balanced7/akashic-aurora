@@ -24,6 +24,7 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196c_ask_peer.py -q
 """
 
+import re
 import os
 import sys
 import threading
@@ -226,6 +227,6 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
 
 def test_door_wired():
     cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
-    assert 'ask_p.add_argument("--peer"' in cli and 'ask_p.add_argument("--wait"' in cli, (
-        "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
-    )
+    assert re.search(r'ask_p\.add_argument\(\s*"--peer"', cli) and re.search(
+        r'ask_p\.add_argument\(\s*"--wait"', cli
+    ), "ask --peer <seat> [--wait N] is the durable route on the SAME verb"

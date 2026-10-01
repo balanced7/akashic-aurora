@@ -36,6 +36,8 @@ the same fact never reaches the human who is about to conclude something from th
 
 from __future__ import annotations
 
+import re
+
 import sys
 from pathlib import Path
 
@@ -160,7 +162,7 @@ def test_both_cli_doors_render_the_widened_notice():
       T242      -- the boundary MINTS it, and this file never recomputes it
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    assert src.count('for _clip in (d.get("warnings") or []):') == 2, (
+    assert len(re.findall(r'for _clip in \(?d\.get\("warnings"\) or \[\]\)?:', src)) == 2, (
         "both the fan render and the single-ask render must emit the boundary's warnings"
     )
     assert "clipped_evidence_notice" not in src, "no CLI door should still reach for the retired CLIP-only name"

@@ -24,6 +24,8 @@ Run:  py -m pytest tests/test_spawn_prompt_requires_a_reply.py -v
 
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -33,7 +35,7 @@ SRC = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8
 def _spawn_prompt_block() -> str:
     """The literal source slice that builds `prompt` inside `_spawn`, isolated from the
     rest of the (large) file so a match elsewhere can never fake this pin green."""
-    start = SRC.index('prompt = (f"You were spawned by the operator')
+    start = re.search(r'prompt = \(\s*f"You were spawned by the operator', SRC).start()  # any line layout
     end = SRC.index(")\n", start)
     return SRC[start:end]
 

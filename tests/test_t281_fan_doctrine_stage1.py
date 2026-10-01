@@ -27,6 +27,8 @@ Run: py -m pytest tests/test_t281_fan_doctrine_stage1.py -q
 
 from __future__ import annotations
 
+import re
+
 import io
 import json
 import os
@@ -178,7 +180,8 @@ def test_p4b_cli_refuses_before_any_model_call(tmp_path):
 # ---------------------------------------------------------------- P5: the rubric at the door
 def test_p5_help_carries_rubric_and_vocabulary():
     src = io.open(ROOT / "agent_cli.py", encoding="utf-8").read()
-    i = src.find('add_parser("ask"')
+    m = re.search(r'add_parser\(\s*"ask"', src)
+    i = m.start() if m else -1
     assert i > 0
     block = src[i : i + 6000]
     assert "WHEN TO FAN" in block, "P5: the rubric headline rides the ask parser help"

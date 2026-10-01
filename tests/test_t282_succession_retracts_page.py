@@ -26,6 +26,8 @@ Run: py -m pytest tests/test_t282_succession_retracts_page.py -q
 
 from __future__ import annotations
 
+import re
+
 import io
 import json
 import os
@@ -121,7 +123,8 @@ def test_p3_keyless_untouched(monkeypatch):
 def test_p4_page_text_names_its_signals():
     """Acceptance (T282): 'the detector names WHICH signal it keyed on in every page'."""
     src = io.open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8").read()
-    i = src.find('"hard_wedge", "page"')
+    m = re.search(r'"hard_wedge",\s*"page"', src)
+    i = m.start() if m else -1
     assert i > 0, "P4: hard_wedge page emission site missing"
     body = src[i : i + 500]
     for marker in ("pulse", "beat", "phase"):
