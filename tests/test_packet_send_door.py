@@ -401,7 +401,7 @@ def test_pin9_corrupt_reply_never_clears_expectation():
             "kind": "reply",
             "content": '"here is X"',
             "ts": "t2",
-            "meta": '{{"answers": "{}"}}'.format(orig_id),
+            "meta": f'{{"answers": "{orig_id}"}}',
             "parts": "[]",
         }
         ps.stamp(reply)
@@ -418,7 +418,7 @@ def test_pin9_corrupt_reply_never_clears_expectation():
             "kind": "reply",
             "content": '"here is X"',
             "ts": "t3",
-            "meta": '{{"answers": "{}"}}'.format(orig_id),
+            "meta": f'{{"answers": "{orig_id}"}}',
             "parts": "[]",
         }
         ps.stamp(good)

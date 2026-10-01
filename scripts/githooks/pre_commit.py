@@ -332,8 +332,8 @@ def ensure_baseline(live=None) -> tuple:
     counts, status = _load_baseline()
     if status == "unreadable":
         return False, (
-            "baseline at {} is UNREADABLE -- refusing to overwrite it blindly. Fix "
-            "or delete it; a corrupt ratchet must not be silently replaced.".format(BASELINE_PATH)
+            f"baseline at {BASELINE_PATH} is UNREADABLE -- refusing to overwrite it blindly. Fix "
+            "or delete it; a corrupt ratchet must not be silently replaced."
         )
 
     # A guard that CRASHED reports -1. Adopting that as a debt level would launder a broken
@@ -364,12 +364,12 @@ def ensure_baseline(live=None) -> tuple:
 
     if status == "missing":
         return True, (
-            "no guardrail baseline existed -- created {} adopting today's debt {}. "
-            "Enforcement starts NOW; it was not running before this.".format(BASELINE_PATH, merged)
+            f"no guardrail baseline existed -- created {BASELINE_PATH} adopting today's debt {merged}. "
+            "Enforcement starts NOW; it was not running before this."
         )
     return True, (
-        "guardrail(s) with no baseline entry were never being compared: adopted {} at "
-        "today's level. They enforce from the next commit on.".format(adopt)
+        f"guardrail(s) with no baseline entry were never being compared: adopted {adopt} at "
+        "today's level. They enforce from the next commit on."
     )
 
 
@@ -385,10 +385,10 @@ def ratchet_ok(baseline=None, live=None):
         base, status = _load_baseline()
         if status != "present":
             return False, (
-                "no readable guardrail baseline at {} ({}). A MISSING baseline is "
+                f"no readable guardrail baseline at {BASELINE_PATH} ({status}). A MISSING baseline is "
                 "UNKNOWN debt, NEVER zero -- this gate used to pass here, which is "
                 "how it silently did not run on any fresh clone (T178). Let the hook "
-                "materialise one via ensure_baseline().".format(BASELINE_PATH, status)
+                "materialise one via ensure_baseline()."
             )
     else:
         base = baseline
@@ -402,7 +402,7 @@ def ratchet_ok(baseline=None, live=None):
     for name, was in base.items():
         is_now = now.get(name, 0)
         if is_now == -1:
-            worse.append("{}: the guardrail did not RUN (crash/missing) -- absence is not a pass".format(name))
+            worse.append(f"{name}: the guardrail did not RUN (crash/missing) -- absence is not a pass")
         elif is_now > was:
             worse.append("%s: %d -> %d violation(s)" % (name, was, is_now))
     if worse:

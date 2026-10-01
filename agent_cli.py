@@ -2428,7 +2428,7 @@ def _wish_find_block(doc, wid):
     head = _re.compile(r"^- \[[ x~]\] " + _re.escape(wid) + r"\b")
     starts = [i for i, ln in enumerate(lines) if head.match(ln)]
     if not starts:
-        raise ValueError("no wish {} in the ledger -- refusing rather than silently doing nothing".format(wid))
+        raise ValueError(f"no wish {wid} in the ledger -- refusing rather than silently doing nothing")
     if len(starts) > 1:
         where = ", ".join(str(i + 1) for i in starts)
         raise ValueError(
@@ -2468,7 +2468,7 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     from datetime import datetime as _dt
 
     if action not in _WISH_ACTIONS:
-        raise ValueError("action must be one of {}, not {!r}".format(_WISH_ACTIONS, action))
+        raise ValueError(f"action must be one of {_WISH_ACTIONS}, not {action!r}")
     if action == "fold" and not (task or "").strip():
         raise ValueError(
             "fold needs --task: a wish folds INTO something, and an unnamed "
@@ -2476,9 +2476,7 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
         )
     if action in ("decline", "keep") and not (reason or "").strip():
         raise ValueError(
-            "{} needs --reason: an undeclared {} is exactly the silent state this verb exists to end".format(
-                action, action
-            )
+            f"{action} needs --reason: an undeclared {action} is exactly the silent state this verb exists to end"
         )
     today = today or _dt.now().strftime("%m-%d")
     seat = seat or "unknown"
@@ -2488,21 +2486,19 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     if action == "fold":
         block[0] = block[0].replace("- [ ] ", "- [x] ", 1)
         extra = (" " + reason.strip()) if (reason or "").strip() else ""
-        block.append("  FOLDED {} ({}) -> {}.{}".format(today, seat, task.strip(), extra))
+        block.append(f"  FOLDED {today} ({seat}) -> {task.strip()}.{extra}")
         out = lines[:i] + block + lines[j:]
-        return "\n".join(out), "[wish-curate] {} FOLDED -> {}".format(wid, task.strip())
+        return "\n".join(out), f"[wish-curate] {wid} FOLDED -> {task.strip()}"
 
     if action == "keep":
-        block.append("  STILL OPEN {} ({}): {}".format(today, seat, reason.strip()))
+        block.append(f"  STILL OPEN {today} ({seat}): {reason.strip()}")
         out = lines[:i] + block + lines[j:]
         return "\n".join(out), (
-            "[wish-curate] {} stays OPEN with a dated reason -- 'open' is now a decision rather than a default".format(
-                wid
-            )
+            f"[wish-curate] {wid} stays OPEN with a dated reason -- 'open' is now a decision rather than a default"
         )
 
     block[0] = block[0].replace("- [ ] ", "- [~] ", 1)
-    block.append("  DECLINED {} ({}): {}".format(today, seat, reason.strip()))
+    block.append(f"  DECLINED {today} ({seat}): {reason.strip()}")
     rest = lines[:i] + lines[j:]
     doc2 = "\n".join(rest)
     if "## Declined" not in doc2:
@@ -2516,8 +2512,8 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     body = "\n".join(block)
     doc2 = head + "## Declined\n\n" + body + "\n" + tail.lstrip("\n")
     return doc2, (
-        "[wish-curate] {} DECLINED -- and that is the loop WORKING, not a loss. The charter "
-        "keeps it so it can still teach.".format(wid)
+        f"[wish-curate] {wid} DECLINED -- and that is the loop WORKING, not a loss. The charter "
+        "keeps it so it can still teach."
     )
 
 
@@ -2537,7 +2533,7 @@ def cmd_wish_curate(args):
 
     path = Path(os.getenv("AKASHIC_WISHLIST_FILE", str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
     if not path.exists():
-        print("[wish-curate] REFUSED: {} missing -- the ledger is git-tracked; restore it first".format(path))
+        print(f"[wish-curate] REFUSED: {path} missing -- the ledger is git-tracked; restore it first")
         return 2
     doc = path.read_text(encoding="utf-8")
 
@@ -2574,14 +2570,14 @@ def cmd_wish_curate(args):
             seat=args.agent_id,
         )
     except ValueError as e:
-        print("[wish-curate] REFUSED: {}".format(e))
+        print(f"[wish-curate] REFUSED: {e}")
         return 2
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     with contextlib.suppress(Exception):
         capture_event(
             "wish",
-            "{} curated {}: {}".format(args.agent_id, args.wish_id, action),
+            f"{args.agent_id} curated {args.wish_id}: {action}",
             agent_id=args.agent_id,
             detail={
                 "wish": args.wish_id,
@@ -6234,22 +6230,22 @@ def cmd_doctor_deploy() -> int:
     bad = []
     env_set = bool((os.getenv("AI_SETUP") or "").strip())
     print("# DEPLOY CHECK")
-    print("  repo root      : {}".format(root))
+    print(f"  repo root      : {root}")
     print("  derived from   : %s" % ("AI_SETUP env" if env_set else "this file (nothing to configure)"))
 
     warn = env_override_is_wrong()
     if warn:
         bad.append(
-            "AI_SETUP is set but wrong -- {}. It is being IGNORED (the root above was "
+            f"AI_SETUP is set but wrong -- {warn}. It is being IGNORED (the root above was "
             "derived instead), so anything reading AI_SETUP directly disagrees with "
-            "everything reading core.paths.".format(warn)
+            "everything reading core.paths."
         )
 
     for name in ("agent_cli.py", "core", "scripts", "tests", "AGENTS.md"):
         ok = (root / name).exists()
         print("  %-14s : %s" % (name, "ok" if ok else "MISSING"))
         if not ok and name != "AGENTS.md":
-            bad.append("{} missing from the repo root -- this is not a complete checkout".format(name))
+            bad.append(f"{name} missing from the repo root -- this is not a complete checkout")
 
     try:
         from core.comm.bus import get_bus
@@ -6257,7 +6253,7 @@ def cmd_doctor_deploy() -> int:
         get_bus("control")._client.ping()
         print("  redis          : reachable")
     except Exception as e:
-        print("  redis          : UNREACHABLE ({})".format(type(e).__name__))
+        print(f"  redis          : UNREACHABLE ({type(e).__name__})")
         bad.append(
             "Redis unreachable -- bus, roster, mailbox and locks are all dead without "
             "it. Start it before judging anything else on this list."
@@ -6295,8 +6291,8 @@ def cmd_doctor_deploy() -> int:
     if (quiet / "sitecustomize.py").exists() and not on_path:
         bad.append(
             "scripts/quiet is not on PYTHONPATH, so child processes pop console windows "
-            "that steal focus. Add PYTHONPATH={} to the env block of BOTH "
-            ".claude/settings.json files (repo AND user-level).".format(quiet)
+            f"that steal focus. Add PYTHONPATH={quiet} to the env block of BOTH "
+            ".claude/settings.json files (repo AND user-level)."
         )
 
     print("")
@@ -6305,7 +6301,7 @@ def cmd_doctor_deploy() -> int:
         return 0
     print("%d PROBLEM(S):" % len(bad))
     for b in bad:
-        print("  - {}".format(b))
+        print(f"  - {b}")
     return 1
 
 

@@ -59,7 +59,7 @@ def main(argv):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(want)
-        print("wrote {}".format(rel))
+        print(f"wrote {rel}")
     if stale:
         print(
             "STALE (hand-edited or not regenerated after uv lock): {} -- run: uv run poe lock".format(", ".join(stale))

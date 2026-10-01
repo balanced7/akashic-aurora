@@ -202,7 +202,7 @@ def parse_pattern_set(d, where="pattern"):
         or meter[0] < 1
         or meter[1] not in (1, 2, 4, 8, 16, 32)
     ):
-        raise PatternError(where + ": meter must be [beats, 1|2|4|8|16|32], got {!r}".format(meter))
+        raise PatternError(where + f": meter must be [beats, 1|2|4|8|16|32], got {meter!r}")
     bar_beats = meter[0] * 4.0 / meter[1]
     length = d.get("length_beats")
     if not _is_number(length) or length <= 0:
@@ -218,7 +218,7 @@ def parse_pattern_set(d, where="pattern"):
         raise PatternError(where + ": lanes must be an object")
     for name in lanes:
         if name not in LANES:
-            raise PatternError(where + ": unknown lane {!r} (lanes are bass, drums, comp, pad)".format(name))
+            raise PatternError(where + f": unknown lane {name!r} (lanes are bass, drums, comp, pad)")
     parsed = {}
     for lane in LANES:
         spec = lanes.get(lane)
@@ -227,7 +227,7 @@ def parse_pattern_set(d, where="pattern"):
             continue
         notes = spec.get("notes") if isinstance(spec, dict) else None
         if not isinstance(notes, list):
-            raise PatternError(where + ": lanes.{} must be an object with a notes list".format(lane))
+            raise PatternError(where + f": lanes.{lane} must be an object with a notes list")
         if len(notes) > MAX_NOTES_PER_LANE:
             raise PatternError(where + ": lanes.%s has more than %d notes" % (lane, MAX_NOTES_PER_LANE))
         out = []
@@ -298,7 +298,7 @@ def parse_drum_maps(obj, where="DRUM_MAPS"):
         for k, v in table.items():
             key = int(k) if isinstance(k, str) and k.isdigit() else k
             if not _is_int(key) or not _is_int(v) or not 0 <= key <= 127 or not 0 <= v <= 127:
-                raise PatternError(where + ": map {!r} must map notes 0-127 to notes 0-127".format(name))
+                raise PatternError(where + f": map {name!r} must map notes 0-127 to notes 0-127")
             clean[key] = v
         out.append((name, clean, False))
     return out
@@ -374,7 +374,7 @@ def _ascii(text):
 
 
 def _short(exc):
-    return _ascii("{}: {}".format(type(exc).__name__, exc))[:160]
+    return _ascii(f"{type(exc).__name__}: {exc}")[:160]
 
 
 class Compiled:
@@ -496,10 +496,7 @@ class Band:
         except Exception as exc:
             mod = sys.modules.get(PATTERN_MODULE)
             if mod is None:
-                self.module_status = "{} not importable ({}); playing the fallback groove".format(
-                    PATTERN_MODULE,
-                    _short(exc),
-                )
+                self.module_status = f"{PATTERN_MODULE} not importable ({_short(exc)}); playing the fallback groove"
                 self._log(self.module_status)
                 self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
                 return False
@@ -509,7 +506,7 @@ class Band:
             or not isinstance(patterns, (list, tuple))
             or not patterns
         ):
-            self.module_status = "{} has no version 1 PATTERNS list; playing the fallback groove".format(PATTERN_MODULE)
+            self.module_status = f"{PATTERN_MODULE} has no version 1 PATTERNS list; playing the fallback groove"
             self._log(self.module_status)
             self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
             return False

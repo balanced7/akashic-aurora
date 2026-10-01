@@ -996,7 +996,7 @@ class ToolBox:
     def eye_get(self, address):
         """Resolve session:line to the verbatim record -- the citation primitive."""
         if ":" not in str(address):
-            raise ValueError("an Eye address is 'session:line' -- got {!r}".format(address))
+            raise ValueError(f"an Eye address is 'session:line' -- got {address!r}")
         return self._agent_cli(["eye", "get", str(address)]) + self._eye_disclose("get", address)
 
     def eye_zoom(self, session):

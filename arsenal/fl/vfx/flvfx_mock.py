@@ -122,9 +122,9 @@ class ScriptDialog:
         self._group = None
 
     def _add(self, name, inp):
-        full = "{}: {}".format(self._group, name) if self._group else name
+        full = f"{self._group}: {name}" if self._group else name
         if full in self._inputs:
-            raise ValueError("duplicate input {!r}".format(full))
+            raise ValueError(f"duplicate input {full!r}")
         self._inputs[full] = inp
 
     def addInputKnob(self, name, default, lo, hi, hint=""):
@@ -139,7 +139,7 @@ class ScriptDialog:
     def addInputCombo(self, name, options, default, hint=""):
         opts = options.split(",") if isinstance(options, str) else list(options)
         if not opts:
-            raise ValueError("combo {!r} has no options".format(name))
+            raise ValueError(f"combo {name!r} has no options")
         self._add(name, _Input("combo", 0, len(opts) - 1, opts, int(min(max(default, 0), len(opts) - 1))))
 
     def addInputText(self, name, default="", hint=""):
@@ -251,7 +251,7 @@ def make_flvfx(host):
 
         def __setattr__(self, name, value):
             if type(self) is Voice and name not in VOICE_DEFAULTS:
-                raise AttributeError("vfx.Voice has no attribute {!r} (subclass it to add fields)".format(name))
+                raise AttributeError(f"vfx.Voice has no attribute {name!r} (subclass it to add fields)")
             object.__setattr__(self, name, value)
 
         def copyFrom(self, other):
@@ -269,7 +269,7 @@ def make_flvfx(host):
 
     def setOutputController(name, value):
         if name not in host.controllers:
-            raise KeyError("no output controller named {!r}".format(name))
+            raise KeyError(f"no output controller named {name!r}")
         host.controllers[name].append(value)
 
     class Dialog(ScriptDialog):
@@ -317,7 +317,7 @@ class Host:
             if not gaps or any(not isinstance(g, int) or g < 0 for g in gaps) or not any(gaps):
                 raise ValueError("gaps are whole tick counts, not all 0")
         if knob_store not in KNOB_STORES or knob_read not in KNOB_READS:
-            raise ValueError("knob_store is one of {}, knob_read one of {}".format(KNOB_STORES, KNOB_READS))
+            raise ValueError(f"knob_store is one of {KNOB_STORES}, knob_read one of {KNOB_READS}")
         self.tick_step = tick_step
         self.gaps = gaps
         self.buffer_samples = buffer_samples
@@ -701,7 +701,7 @@ def simulate(
                 )
             )
         for a in host.anomalies:
-            out("ANOMALY: {!r}".format(a))
+            out(f"ANOMALY: {a!r}")
         return 1 if host.anomalies else 0
 
 

@@ -163,8 +163,8 @@ def main(argv: list[str] | None = None) -> int:
         print("recall cache rebuilt: %d item(s)" % warm_cache(learning_store=ls))
     except Exception as exc:
         print(
-            "WARNING: adopted, but the recall cache did not rebuild ({}). "
-            'Run: py -c "from core.recall.at_action import warm_cache; warm_cache()"'.format(exc)
+            f"WARNING: adopted, but the recall cache did not rebuild ({exc}). "
+            'Run: py -c "from core.recall.at_action import warm_cache; warm_cache()"'
         )
     return 0
 

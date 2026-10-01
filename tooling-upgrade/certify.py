@@ -71,8 +71,8 @@ def goal_num(goal: str) -> int:
 
 
 def load_checks(goal: str, ref: str | None = None) -> dict:
-    rel = "tooling-upgrade/checks/{}.toml".format(goal)
-    text = git("show", "{}:{}".format(ref, rel)) if ref else (ROOT / rel).read_text(encoding="utf-8")
+    rel = f"tooling-upgrade/checks/{goal}.toml"
+    text = git("show", f"{ref}:{rel}") if ref else (ROOT / rel).read_text(encoding="utf-8")
     return tomllib.loads(text)
 
 
@@ -100,14 +100,14 @@ def checks_history_problems() -> list:
     expect_stdout from the commit that registered it; required_drills only grows."""
     problems = []
     for goal in GOALS:
-        rel = "tooling-upgrade/checks/{}.toml".format(goal)
+        rel = f"tooling-upgrade/checks/{goal}.toml"
         shas = git("log", "--format=%H", "--reverse", "--", rel, check=False).split()
         prev = None
         for sha in [*shas, "WORKTREE"]:
             try:
                 cur = load_checks(goal, None if sha == "WORKTREE" else sha)
             except (subprocess.SubprocessError, RuntimeError, OSError, tomllib.TOMLDecodeError) as e:
-                problems.append("{} at {} unreadable: {}".format(rel, sha[:9], str(e).splitlines()[0][:80]))
+                problems.append(f"{rel} at {sha[:9]} unreadable: {str(e).splitlines()[0][:80]}")
                 break
             if prev is not None:
                 new = {c["id"]: c for c in cur.get("check", [])}
@@ -119,23 +119,21 @@ def checks_history_problems() -> list:
                     elif any(c.get(k) != n.get(k) for k in keys):
                         problems.append("{}: check {} changed at {}".format(goal, c["id"], sha[:9]))
                 if not set(prev.get("required_drills", [])) <= set(cur.get("required_drills", [])):
-                    problems.append("{}: required_drills shrank at {}".format(goal, sha[:9]))
+                    problems.append(f"{goal}: required_drills shrank at {sha[:9]}")
             prev = cur
     return problems
 
 
 def cmd_assert_checks_files(args) -> int:
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
-    problems = [
-        "{} not committed".format(g) for g in GOALS if "tooling-upgrade/checks/{}.toml".format(g) not in tracked
-    ]
+    problems = [f"{g} not committed" for g in GOALS if f"tooling-upgrade/checks/{g}.toml" not in tracked]
     for g in GOALS:
         try:
             data = load_checks(g)
             if not data.get("check"):
-                problems.append("{} has no checks".format(g))
+                problems.append(f"{g} has no checks")
         except (OSError, tomllib.TOMLDecodeError) as e:
-            problems.append("{} unparseable: {}".format(g, e))
+            problems.append(f"{g} unparseable: {e}")
     problems += checks_history_problems()
     for p in problems:
         print("  ", p)
@@ -218,9 +216,9 @@ def t1():
     for name, task in poe_tasks().items():
         t = task_text(task)
         if re.search(r"\bruff (check|format)\b", t) and "--config pyproject.toml" not in t:
-            bad.append("poe task {} runs ruff without --config pyproject.toml".format(name))
+            bad.append(f"poe task {name} runs ruff without --config pyproject.toml")
         if "basedpyright" in t and "-p pyproject.toml" not in t:
-            bad.append("poe task {} runs basedpyright without -p pyproject.toml".format(name))
+            bad.append(f"poe task {name} runs basedpyright without -p pyproject.toml")
     return not bad, "; ".join(bad[:6]) or "one config home"
 
 
@@ -337,10 +335,10 @@ def t5():
     for pat, codes in pfi.items():
         allowed = ALLOWED_PER_FILE.get(pat)
         if allowed is None or not set(codes) <= allowed:
-            bad.append("{} = {} not a section-16 structural pattern".format(pat, codes))
-        line = next((ln for ln in text.splitlines() if ln.strip().startswith('"{}"'.format(pat))), "")
+            bad.append(f"{pat} = {codes} not a section-16 structural pattern")
+        line = next((ln for ln in text.splitlines() if ln.strip().startswith(f'"{pat}"')), "")
         if "#" not in line:
-            bad.append("{} has no comment".format(pat))
+            bad.append(f"{pat} has no comment")
     return not bad, "; ".join(bad) or "%d structural per-file ignores, all commented" % len(pfi)
 
 
@@ -349,13 +347,13 @@ def t6():
     bad = []
     for name in GATE_TASKS:
         if name not in tasks:
-            bad.append("task {} missing".format(name))
+            bad.append(f"task {name} missing")
             continue
         t = task_text(tasks[name])
-        bad += ["task {} contains {!r}".format(name, f) for f in GATE_FORBIDDEN if f in t]
+        bad += [f"task {name} contains {f!r}" for f in GATE_FORBIDDEN if f in t]
         r = run(["uv", "run", "--frozen", "poe", "-d", name])
         if r.returncode != 0:
-            bad.append("poe -d {} failed".format(name))
+            bad.append(f"poe -d {name} failed")
     return not bad, "; ".join(bad[:6]) or "gate tasks run the tools"
 
 
@@ -378,7 +376,7 @@ def tamper(goal: str):
         try:
             ok, msg = fn()
         except Exception as e:  # a crashing rule is a failing rule, never a passing one
-            ok, msg = False, "crashed: {}: {}".format(type(e).__name__, e)
+            ok, msg = False, f"crashed: {type(e).__name__}: {e}"
         active = n >= T_ACTIVE_FROM[t]
         results[t] = (active, ok, msg)
     return results
@@ -620,7 +618,7 @@ def run_drill(did: str, goal: str) -> str:
             return "MISSED (gate absent)"
         clean_rc = _exec(gate, t, goal)
         if clean_rc != 0:
-            return "MISSED (gate red before the fault: rc={})".format(clean_rc)
+            return f"MISSED (gate red before the fault: rc={clean_rc})"
         fault(t)
         rc = _exec(gate, t, goal)
         return "BIT" if rc != 0 else "MISSED"
@@ -632,8 +630,8 @@ def run_drills(goal: str, ids=None):
         try:
             out[did] = run_drill(did, goal)
         except Exception as e:  # a drill that cannot run proves nothing about the gate
-            out[did] = "MISSED (drill error: {}: {})".format(type(e).__name__, str(e)[:120])
-        print("{} {}  -- {}".format(did, out[did], DRILLS[did][0]), flush=True)
+            out[did] = f"MISSED (drill error: {type(e).__name__}: {str(e)[:120]})"
+        print(f"{did} {out[did]}  -- {DRILLS[did][0]}", flush=True)
     return out
 
 
@@ -686,7 +684,7 @@ def _report(name, problems) -> int:
 
 
 def commits_since_base():
-    out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", "{}..HEAD".format(oracle.g0_base()))
+    out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", f"{oracle.g0_base()}..HEAD")
     for rec in out.split("\x1e"):
         rec = rec.strip("\n")
         if rec:
@@ -707,7 +705,7 @@ def cmd_assert_mechanical_commits(args) -> int:
             if bad:
                 problems.append("{} {}: AST differs in {}".format(sha[:9], subject, ", ".join(bad[:3])))
             if not m:
-                problems.append("{} {}: class-B commit without Replay:".format(sha[:9], subject))
+                problems.append(f"{sha[:9]} {subject}: class-B commit without Replay:")
         if not m:
             continue
         n += 1
@@ -719,7 +717,7 @@ def cmd_assert_mechanical_commits(args) -> int:
             run(shlex.split(m.group(1)), cwd=t, env=env, timeout=3600)
             run(["git", "add", "-A"], cwd=t)
             if run(["git", "diff", "--cached", "--quiet", sha], cwd=t).returncode != 0:
-                problems.append("{} {}: replay differs from the commit".format(sha[:9], subject))
+                problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
         finally:
             oracle._rmtree(base)
             git("worktree", "prune", check=False)
@@ -736,7 +734,7 @@ def cmd_assert_blame_ignore_revs(args) -> int:
     for sha in shas:
         subj = git("log", "-1", "--format=%s", sha, check=False).strip()
         if not subj.startswith("style:"):
-            problems.append("{} is not a style: commit ({!r})".format(sha[:9], subj))
+            problems.append(f"{sha[:9]} is not a style: commit ({subj!r})")
     if not shas:
         problems.append("no revisions listed")
     return _report("BLAME-IGNORE-REVS", problems)
@@ -764,13 +762,13 @@ def cmd_assert_python_agrees(args) -> int:
             for m in pat.finditer(text):
                 if m.group(1) != pin_mm:
                     problems.append(
-                        "{} says {}, .python-version says {}".format(f.relative_to(ROOT).as_posix(), m.group(1), pin_mm)
+                        f"{f.relative_to(ROOT).as_posix()} says {m.group(1)}, .python-version says {pin_mm}"
                     )
     rp = pyproject().get("project", {}).get("requires-python", "")
     floor = re.search(r">=\s*(3\.\d+)", rp)
     if not floor or tuple(map(int, floor.group(1).split("."))) > tuple(map(int, pin_mm.split("."))):
-        problems.append("requires-python {!r} is not a floor at or below the pin {}".format(rp, pin_mm))
-    return _report("PYTHON AGREES (pin {})".format(pin_mm), problems)
+        problems.append(f"requires-python {rp!r} is not a floor at or below the pin {pin_mm}")
+    return _report(f"PYTHON AGREES (pin {pin_mm})", problems)
 
 
 def cmd_assert_no_bare_py(args) -> int:
@@ -789,7 +787,7 @@ def cmd_assert_no_bare_py(args) -> int:
             continue
         for m in re.finditer(r'"command"\s*:\s*"([^"]*)"', p.read_text(encoding="utf-8")):
             if re.search(r"(^|&&\s*|;\s*)py\s", m.group(1)) or m.group(1) == "py":
-                problems.append("{} command {!r}".format(rel, m.group(1)[:80]))
+                problems.append(f"{rel} command {m.group(1)[:80]!r}")
     for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
         for i, ln in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
             if re.search(r"(run:\s*|^\s*)py\s", ln):
@@ -818,10 +816,10 @@ def _req_name(spec: str) -> str:
 def dev_group_problems(pp: dict) -> list:
     groups = pp.get("dependency-groups", {})
     dev = {_req_name(s) for s in groups.get("dev", []) if isinstance(s, str)}
-    problems = ["dev lacks {}".format(n) for n in DEV_GROUP if n not in dev]
-    problems += ["dev has {} (not in the plan's list)".format(n) for n in sorted(dev - set(DEV_GROUP))]
+    problems = [f"dev lacks {n}" for n in DEV_GROUP if n not in dev]
+    problems += [f"dev has {n} (not in the plan's list)" for n in sorted(dev - set(DEV_GROUP))]
     runtime = {_req_name(s) for s in pp.get("project", {}).get("dependencies", [])}
-    problems += ["[project].dependencies still has tool {}".format(n) for n in sorted(runtime & set(DEV_GROUP))]
+    problems += [f"[project].dependencies still has tool {n}" for n in sorted(runtime & set(DEV_GROUP))]
     problems += [
         "pre-commit is still declared (replaced by prek)"
         for g in [runtime] + [{_req_name(s) for s in v if isinstance(s, str)} for v in groups.values()]
@@ -829,7 +827,7 @@ def dev_group_problems(pp: dict) -> list:
     ]
     for g in ("ml", "browser"):
         if g not in groups:
-            problems.append("optional group {} missing".format(g))
+            problems.append(f"optional group {g} missing")
     return problems
 
 
@@ -866,11 +864,11 @@ def gate_problems(tasks: dict, members: list) -> list:
     if not isinstance(seq, list):
         return ["gate is not a sequence task"]
     names = [s if isinstance(s, str) else s.get("ref", "") if isinstance(s, dict) else "" for s in seq]
-    problems = ["gate step {!r} is not a plan gate task".format(n) for n in names if n not in GATE_TASKS]
+    problems = [f"gate step {n!r} is not a plan gate task" for n in names if n not in GATE_TASKS]
     order = [n for n in GATE_TASKS if n in names]
     if names != order:
-        problems.append("gate order {} differs from plan order {}".format(names, order))
-    problems += ["gate lacks {}".format(m) for m in members if m not in names]
+        problems.append(f"gate order {names} differs from plan order {order}")
+    problems += [f"gate lacks {m}" for m in members if m not in names]
     if isinstance(gate, dict) and gate.get("ignore_fail"):
         problems.append("gate sets ignore_fail")
     return problems
@@ -938,7 +936,7 @@ def cmd_assert_ratchet(args) -> int:
         if fam:
             counts[fam] += 1
     problems = ["%s: %d > ratchet %d" % (f, counts[f], limits[f]) for f in sorted(limits) if counts[f] > limits[f]]
-    print("counts: {}".format(counts))
+    print(f"counts: {counts}")
     return _report("RATCHET", problems)
 
 
@@ -982,9 +980,9 @@ def cmd_assert_latent_regressions(args) -> int:
 
 def cmd_assert_ledger_entry(args) -> int:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8")
-    rows = [ln for ln in text.splitlines() if ln.startswith("| {}".format(args.phase))]
+    rows = [ln for ln in text.splitlines() if ln.startswith(f"| {args.phase}")]
     ok = any(re.search(r"\|\s*(DONE|CERTIFIED|NO-GO|SKIPPED)\s*\|", r) for r in rows)
-    return _report("LEDGER {}".format(args.phase), [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
+    return _report(f"LEDGER {args.phase}", [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
 
 
 def cmd_assert_docs_uv(args) -> int:
@@ -996,11 +994,11 @@ def cmd_assert_docs_uv(args) -> int:
         t = p.read_text(encoding="utf-8")
         for needle in ("uv sync", "uv run"):
             if needle not in t:
-                problems.append("{} never mentions `{}`".format(doc, needle))
+                problems.append(f"{doc} never mentions `{needle}`")
     t = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8") if (ROOT / "CONTRIBUTING.md").exists() else ""
     for needle in ("uv run poe gate", "uv run poe test", "--no-verify"):
         if needle not in t:
-            problems.append("CONTRIBUTING.md lacks `{}`".format(needle))
+            problems.append(f"CONTRIBUTING.md lacks `{needle}`")
     return _report("DOCS UV-PRIMARY", problems)
 
 
@@ -1100,7 +1098,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     if not worktree_clean():
         refusals.append("worktree dirty")
     if not on_branch():
-        refusals.append("HEAD not on {}".format(BRANCH))
+        refusals.append(f"HEAD not on {BRANCH}")
     hist = checks_history_problems()
     if hist:
         refusals.append("checks files changed after registration: " + hist[0])

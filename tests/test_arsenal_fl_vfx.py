@@ -205,7 +205,7 @@ def test_mock_names_are_attested_by_fl_factory_presets():
     assert set(mock.CONTEXT_NAMES) <= context_names
     assert set(mock.FORM_NAMES) - {"addInputText"} <= form_calls  # addInputText: Tutorial 2 and the manual
     for field in ("note", "velocity", "length", "output", "trigger", "release"):
-        assert re.search(r"\.{}\b".format(field), text), field
+        assert re.search(rf"\.{field}\b", text), field
 
 
 def test_dialog_controls_and_defaults():
@@ -1657,11 +1657,11 @@ def test_example_patterns_module_is_valid_and_plays_clean(monkeypatch):
 def test_reload_reimports_a_regenerated_module_file(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
     src = tmp_path / "arsenal_patterns.py"
-    stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{!r}]\n".format(groove_a()))
+    stamp_write(src, f"VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{groove_a()!r}]\n")
     with Host(patterns_dir=tmp_path) as host:
         start(host)
         host.run(384 + 20)
-        stamp_write(src, "VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{!r}, {!r}]\n".format(groove_b(), groove_a()))
+        stamp_write(src, f"VERSION = 1\nLIVE_PATH = None\nPATTERNS = [{groove_b()!r}, {groove_a()!r}]\n")
         host.set(C_RELOAD, 1)
         host.run(400)
         assert host.band.pattern["id"] == "groove-b"

@@ -216,7 +216,7 @@ def test_every_chunk_note_is_lesson_shaped_in_the_first_place():
             head = fh.readline().strip()
         assert head.startswith("//!"), f
         meta = json.loads(head[3:])
-        assert meta.get("note"), "{} has no note to adopt".format(f)
+        assert meta.get("note"), f"{f} has no note to adopt"
 
 
 def test_the_chunk_rules_become_retrievable_lessons():

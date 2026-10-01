@@ -211,8 +211,8 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
         names = _os.listdir(base)
     except Exception as e:  # noqa: BLE001
         return "unknown", (
-            "cannot read {} ({}) -- claiming neither direction rather than "
-            "reporting a health this probe did not observe".format(base, type(e).__name__)
+            f"cannot read {base} ({type(e).__name__}) -- claiming neither direction rather than "
+            "reporting a health this probe did not observe"
         )
     prefix = "bifrost_wake_"
     agent_parts = str(agent).split("_")
@@ -233,7 +233,7 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
         if age > tolerance_s:
             stale.append((parts[-1], age))
     if not stale:
-        return "working", "no stale rearm trigger for {}".format(agent)
+        return "working", f"no stale rearm trigger for {agent}"
     stale.sort(key=lambda t: -t[1])
     oldest_sid, oldest_age = stale[0]
     return "wedged", (

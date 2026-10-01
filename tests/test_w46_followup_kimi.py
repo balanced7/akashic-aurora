@@ -109,7 +109,7 @@ def _write(root, name, text):
 
 
 def _qline(qid, ask):
-    return re.compile(r"- {} \(\d{{4}}-\d{{2}}-\d{{2}}, kimi -> deepseek\) OPEN: {}".format(qid, re.escape(ask)))
+    return re.compile(rf"- {qid} \(\d{{4}}-\d{{2}}-\d{{2}}, kimi -> deepseek\) OPEN: {re.escape(ask)}")
 
 
 def test_p1_question_lands_inside_block_with_qid(stage):

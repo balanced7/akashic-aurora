@@ -46,10 +46,8 @@ def test_port_is_stable_across_processes():
     import sys
 
     src = (
-        "import sys; sys.path.insert(0, r'{}'); "
-        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))".format(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )
+        f"import sys; sys.path.insert(0, r'{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}'); "
+        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
     )
     out = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr[:300]

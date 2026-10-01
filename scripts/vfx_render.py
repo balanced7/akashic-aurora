@@ -72,7 +72,7 @@ def say(text, kind="say", label=""):
     try:
         r = _post("/vfx/feed", {"text": text, "kind": kind, "label": label, "from": "claude"})
     except urllib.error.URLError as exc:
-        print("the console is not running on {} ({})".format(BASE, exc), file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
         return 2
     return 0 if r.get("ok") else 1
 
@@ -104,7 +104,7 @@ def ingest(ns):
     try:
         r = _post("/vfx/ingest", {"name": ns.name, "src": src})
     except urllib.error.URLError as exc:
-        print("the console is not running on {} ({})".format(BASE, exc), file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
         return 2
     if not r.get("ok"):
         print("ingest failed: {}".format(r.get("error", "unknown")), file=sys.stderr)
@@ -113,9 +113,9 @@ def ingest(ns):
     # The notes go to stderr so the PATH stays the only thing on stdout -- the whole tool is built
     # around that path being pipeable into a Read.
     for n in r.get("notes", []):
-        print("  . {}".format(n), file=sys.stderr)
+        print(f"  . {n}", file=sys.stderr)
     for w in r.get("warnings", []):
-        print("  ! {}".format(w), file=sys.stderr)
+        print(f"  ! {w}", file=sys.stderr)
     print("stored design/vfx-sketches/%s.frag (%d bytes)" % (r["name"], r["bytes"]), file=sys.stderr)
 
     if ns.no_preview:
@@ -138,12 +138,12 @@ def submit(op, args, wait=90):
     try:
         job = _post("/vfx/job", {"op": op, "args": args})
     except urllib.error.URLError as exc:
-        print("the console is not running on {} ({})".format(BASE, exc), file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
         print(f"start it:  {_pyl()} scripts/bifrost_ui.py --port 8787", file=sys.stderr)
         return 2
 
     jid = job.get("id")
-    print("queued {} ({})".format(jid, op), file=sys.stderr)
+    print(f"queued {jid} ({op})", file=sys.stderr)
     deadline = time.time() + wait
     picked_up = False
     while time.time() < deadline:
@@ -165,7 +165,7 @@ def submit(op, args, wait=90):
             return 1
     # Distinguish "nobody is listening" from "the render is slow" -- they need opposite responses.
     if picked_up:
-        print("job {} was picked up but did not finish in {}s".format(jid, wait), file=sys.stderr)
+        print(f"job {jid} was picked up but did not finish in {wait}s", file=sys.stderr)
         return 3
     # And distinguish "no tab" from "a tab, but it is hidden". Both look identical from here -- a
     # job that never moves -- and the fixes are different sentences, so guessing wastes the very
@@ -184,7 +184,7 @@ def submit(op, args, wait=90):
             file=sys.stderr,
         )
     else:
-        print("no renderer attached: open {}/vfx in a browser and leave the tab open".format(BASE), file=sys.stderr)
+        print(f"no renderer attached: open {BASE}/vfx in a browser and leave the tab open", file=sys.stderr)
     return 3
 
 

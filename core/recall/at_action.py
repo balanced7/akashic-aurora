@@ -1483,7 +1483,7 @@ def build_learn_nudge(target: str, credited: int, sources, agent_id: str | None 
         probed = False
         if probe is not None:
             try:
-                candidates = list((probe(target) or []))[:3]
+                candidates = list(probe(target) or [])[:3]
                 probed = True
             except Exception:
                 probed = False  # a probe fault must never license a gap claim

@@ -297,12 +297,12 @@ def import_safe(tree) -> tuple[bool, str]:
                 name = ast.unparse(node.value.func)
                 if _SAFE_TOPLEVEL_CALLS.match(name):
                     continue
-                return False, "top-level call {}()".format(name)
+                return False, f"top-level call {name}()"
             if isinstance(node.value, (ast.Await, ast.Yield)):
                 return False, "top-level await"
             continue
         if isinstance(node, (ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith)):
-            return False, "top-level {} block".format(type(node).__name__)
+            return False, f"top-level {type(node).__name__} block"
     return True, ""
 
 
@@ -364,16 +364,16 @@ def static_signatures(tree) -> dict:
     sigs = {}
     for node in tree.body if tree else ():
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
-            full = "({})".format(ast.unparse(node.args))
+            full = f"({ast.unparse(node.args)})"
             if node.returns is not None:
                 full += " -> " + ast.unparse(node.returns)
-            bare_args = ast.parse("def f({}): pass".format(ast.unparse(node.args))).body[0].args
+            bare_args = ast.parse(f"def f({ast.unparse(node.args)}): pass").body[0].args
             for a in bare_args.posonlyargs + bare_args.args + bare_args.kwonlyargs:
                 a.annotation = None
             for a in (bare_args.vararg, bare_args.kwarg):
                 if a is not None:
                     a.annotation = None
-            sigs[node.name] = {"full": full, "bare": "({})".format(ast.unparse(bare_args))}
+            sigs[node.name] = {"full": full, "bare": f"({ast.unparse(bare_args)})"}
     return sigs
 
 
@@ -411,7 +411,7 @@ def annotation_triggers(tree) -> list[str]:
             for d in node.decorator_list:
                 d = d.func if isinstance(d, ast.Call) else d
                 if isinstance(d, ast.Attribute) and d.attr in ("tool", "resource", "prompt"):
-                    found.add("@*.{} decorator".format(d.attr))
+                    found.add(f"@*.{d.attr} decorator")
     return sorted(found)
 
 
@@ -839,7 +839,7 @@ def verify_checkout(tree: Path) -> None:
     run(["git", "update-index", "-q", "--really-refresh"], cwd=tree)
     bad = run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=tree).stdout.strip()
     if bad:
-        raise RuntimeError("run tree {} does not match its commit after checkout:\n{}".format(tree, bad[:2000]))
+        raise RuntimeError(f"run tree {tree} does not match its commit after checkout:\n{bad[:2000]}")
 
 
 @contextlib.contextmanager
@@ -1149,15 +1149,15 @@ def ast_equal(parent: str, commit: str, cwd=ROOT):
     for line in out.splitlines():
         status, path = line.split("\t", 1)
         if status != "M":
-            results.append((path, False, "status {} (a format commit only modifies)".format(status)))
+            results.append((path, False, f"status {status} (a format commit only modifies)"))
             continue
-        a = run(["git", "show", "{}:{}".format(parent, path)], cwd=cwd).stdout.encode("utf-8")
-        b = run(["git", "show", "{}:{}".format(commit, path)], cwd=cwd).stdout.encode("utf-8")
+        a = run(["git", "show", f"{parent}:{path}"], cwd=cwd).stdout.encode("utf-8")
+        b = run(["git", "show", f"{commit}:{path}"], cwd=cwd).stdout.encode("utf-8")
         try:
             ok = ast_fingerprint(a) == ast_fingerprint(b)
             results.append((path, ok, "" if ok else "AST differs"))
         except SyntaxError as e:
-            results.append((path, False, "unparseable: {}".format(e)))
+            results.append((path, False, f"unparseable: {e}"))
     return results
 
 
@@ -1174,7 +1174,7 @@ def format_commits(a_commit: str, b_commit: str, cwd=ROOT):
     """Class-B commits between two snapshots: subject `style: ...` (not `style(lint): ...`)."""
     if not a_commit or not b_commit or a_commit == b_commit:
         return []
-    out = git("log", "--format=%H %s", "{}..{}".format(a_commit, b_commit), cwd=cwd, check=False)
+    out = git("log", "--format=%H %s", f"{a_commit}..{b_commit}", cwd=cwd, check=False)
     return [ln.split(" ", 1)[0] for ln in out.splitlines() if ln.split(" ", 1)[1].startswith("style:")]
 
 
@@ -1359,7 +1359,7 @@ def compare_o5(a, b, partial=False) -> list:
                 diffs.append(("module:" + mod, "module surface gone"))
             continue
         for n in sorted(set(s["names"]) - set(sb["names"])):
-            diffs.append(("name:{}.{}".format(mod, n), "public name disappeared"))
+            diffs.append((f"name:{mod}.{n}", "public name disappeared"))
         if s.get("mode") != sb.get("mode"):
             continue
         for n, sig in sorted(s["sigs"].items()):
@@ -1367,9 +1367,9 @@ def compare_o5(a, b, partial=False) -> list:
             if sgb is None:
                 continue
             if sig["bare"] != sgb["bare"]:
-                diffs.append(("sig:{}.{}".format(mod, n), "{} -> {}".format(sig["bare"], sgb["bare"])))
+                diffs.append((f"sig:{mod}.{n}", "{} -> {}".format(sig["bare"], sgb["bare"])))
             elif sig["full"] != sgb["full"] and mod in sensitive:
-                diffs.append(("annot:{}.{}".format(mod, n), "annotation changed in an annotation-sensitive module"))
+                diffs.append((f"annot:{mod}.{n}", "annotation changed in an annotation-sensitive module"))
     return diffs
 
 
@@ -1479,7 +1479,7 @@ def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
                     cursor_msgs += 1
                 break
         if tools is None:
-            raise RuntimeError("no tools/list response within {}s".format(timeout))
+            raise RuntimeError(f"no tools/list response within {timeout}s")
         return tools
     finally:
         p.kill()
@@ -1500,7 +1500,7 @@ def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
                 err = normalize_text(r.stderr, tree).splitlines()
                 item["stderr_last"] = err[-1] if err else ""
         except subprocess.TimeoutExpired:
-            item = {"rc": None, "text": "", "na": "timeout under --help ({}s)".format(HELP_TIMEOUT_S)}
+            item = {"rc": None, "text": "", "na": f"timeout under --help ({HELP_TIMEOUT_S}s)"}
         after = git_status_set(tree)
         if after - before:
             item = {
@@ -1561,7 +1561,7 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
     for p in sorted((tree / "scripts" / "checkers").glob("*.py")):
         if p.name.startswith("_"):
             continue
-        progress("O6 {}".format(p.stem))
+        progress(f"O6 {p.stem}")
         try:
             r = run(
                 [python or venv_python(tree), p.relative_to(tree).as_posix()],
@@ -1578,7 +1578,7 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
             }
             if r.returncode == 2 and "usage:" in text and "required" in text:
                 item["na"] = "needs arguments"
-            (raw / ("O6-{}.log".format(p.stem))).write_text(text, encoding="utf-8")
+            (raw / (f"O6-{p.stem}.log")).write_text(text, encoding="utf-8")
         except subprocess.TimeoutExpired:
             item = {"rc": 999, "crashed": True, "lines": 0, "digest": "", "na": "timeout"}
         out[p.stem] = item
@@ -1688,11 +1688,11 @@ def test_strength(tree_root: Path, files=None) -> dict:
             continue
         for node in tree.body:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
-                out["{}::{}".format(f, node.name)] = assertion_count(node)
+                out[f"{f}::{node.name}"] = assertion_count(node)
             elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 for sub in node.body:
                     if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)) and sub.name.startswith("test"):
-                        out["{}::{}::{}".format(f, node.name, sub.name)] = assertion_count(sub)
+                        out[f"{f}::{node.name}::{sub.name}"] = assertion_count(sub)
     return {"tests": dict(sorted(out.items())), "total": sum(out.values())}
 
 
@@ -1780,7 +1780,7 @@ def compare_o10(a, b, partial=False) -> list:
     for pkg, p in sorted(a["packages"].items()):
         pb = b["packages"].get(pkg)
         if pb is None or pb < p - 0.5:
-            diffs.append(("cov:" + pkg, "{:.2f} -> {} (drop > 0.5 pp)".format(p, pb)))
+            diffs.append(("cov:" + pkg, f"{p:.2f} -> {pb} (drop > 0.5 pp)"))
     return diffs
 
 
@@ -1823,7 +1823,7 @@ def snapshot(
         def put(comp, data):
             data["_meta"] = dict(common, partial_modules=sorted(modules) if modules else None)
             dump_json(dest / (comp + ".json"), data)
-            progress("{} captured".format(comp))
+            progress(f"{comp} captured")
 
         if "O8" in components:
             put("O8", surface_o8(commit))
@@ -1928,7 +1928,7 @@ def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None
             continue
         fa, fb = a / (c + ".json"), b / (c + ".json")
         if not fa.exists() or not fb.exists():
-            lines.append("{} MISSING ({})".format(c, fa if not fa.exists() else fb))
+            lines.append(f"{c} MISSING ({fa if not fa.exists() else fb})")
             continue
         diffs = COMPARATORS[c](load_json(fa), load_json(fb), partial)
         covered = [
@@ -1962,7 +1962,7 @@ def cmd_snapshot(args) -> int:
     mods = set(args.modules.split(",")) if args.modules else None
     sel = tuple(args.select.split(",")) if args.select else ()
     dest = snapshot(args.label, args.ref, args.runs, args.reruns, comps, mods, select=sel, python=args.python)
-    print("snapshot written: {}".format(dest.relative_to(ROOT)))
+    print(f"snapshot written: {dest.relative_to(ROOT)}")
     return 0
 
 
@@ -1977,22 +1977,22 @@ def verify_snapshot(label: str, suite_runs: int) -> list:
     d = snapshot_dir(label)
     problems = []
     if not (d / "meta.json").exists():
-        return ["no meta.json in {}".format(d)]
+        return [f"no meta.json in {d}"]
     meta = load_json(d / "meta.json")
     for c in COMPONENTS:
         p = d / (c + ".json")
         if not p.exists():
-            problems.append("{} missing".format(c))
+            problems.append(f"{c} missing")
             continue
         m = load_json(p).get("_meta", {})
         if m.get("digest") != meta["digest"]:
-            problems.append("{} taken at a different tree than meta.json".format(c))
+            problems.append(f"{c} taken at a different tree than meta.json")
         if m.get("partial_modules"):
-            problems.append("{} is a partial (module-restricted) capture".format(c))
+            problems.append(f"{c} is a partial (module-restricted) capture")
         if m.get("dirty"):
-            problems.append("{} taken in a dirty tree".format(c))
+            problems.append(f"{c} taken in a dirty tree")
         if m.get("select"):
-            problems.append("{} ran a test SELECTION, not the full suite".format(c))
+            problems.append(f"{c} ran a test SELECTION, not the full suite")
     if (d / "O1.json").exists() and len(load_json(d / "O1.json")["runs"]) < suite_runs:
         problems.append("O1 has fewer than %d suite runs" % suite_runs)
     if not meta.get("raw_digests"):
@@ -2131,7 +2131,7 @@ def cmd_selftest_d14(args) -> int:
     diffs = compare_o5(base_o5, o5, partial=True)
     _rmtree(SNAPSHOTS / label)
     for k, why in diffs:
-        print("O5 DIFF {} ({})".format(k, why))
+        print(f"O5 DIFF {k} ({why})")
     hit = any(k == "name:{}.{}".format(picked["mod"], picked["fn"]) for k, _ in diffs)
     print("D14 SELF-TEST: %s" % ("O5 DIFF DETECTED" if hit else "MISSED"))
     return 0 if hit else 1
@@ -2160,10 +2160,10 @@ def cmd_assert_stdlib(args) -> int:
     for name in ("oracle.py", "certify.py"):
         p = HERE / name
         if not p.exists():
-            bad.append("{} missing".format(name))
+            bad.append(f"{name} missing")
             continue
         extra = imported_top_modules(p) - set(sys.stdlib_module_names) - {"__future__", "oracle"}
-        bad += ["{} imports {}".format(name, m) for m in sorted(extra)]
+        bad += [f"{name} imports {m}" for m in sorted(extra)]
     print("STDLIB-ONLY: %s" % ("PASS" if not bad else "FAIL " + "; ".join(bad)))
     return 1 if bad else 0
 
@@ -2208,7 +2208,7 @@ STRETCH = ["D", "ANN", "ARG", "FBT", "TRY", "PL"]
 
 
 def _uvx(tool, args, cwd, timeout=3600):
-    return run(["uvx", "{}@{}".format(tool, MEASURE_TOOLS[tool]), *args], cwd=cwd, env=oracle_env(), timeout=timeout)
+    return run(["uvx", f"{tool}@{MEASURE_TOOLS[tool]}", *args], cwd=cwd, env=oracle_env(), timeout=timeout)
 
 
 def _ruff_cfg(d: Path, select, target="py311", line_length=100) -> Path:

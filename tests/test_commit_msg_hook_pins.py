@@ -59,7 +59,7 @@ def plane(tmp_path):
         f"# A synthetic dossier\n\nname: {MARKER}\nfixture body, no real content.\n", encoding="utf-8"
     )
     (priv / "atoms-private.jsonl").write_text(
-        '{{"id": "art_20260101_{}_ff00aa", "title": "{}"}}\n'.format(MARKER, MARKER), encoding="utf-8"
+        f'{{"id": "art_20260101_{MARKER}_ff00aa", "title": "{MARKER}"}}\n', encoding="utf-8"
     )
     return tmp_path
 

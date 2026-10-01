@@ -136,7 +136,7 @@ def test_o4_equal_and_diff():
 
 
 def test_normalize_text_is_path_and_whitespace_neutral(tmp_path):
-    t = "usage:   {}/run.py   [-h]  \r\n\n\n".format(tmp_path)
+    t = f"usage:   {tmp_path}/run.py   [-h]  \r\n\n\n"
     assert O.normalize_text(t, tmp_path) == "usage: <ROOT>/run.py [-h]"
 
 

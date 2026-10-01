@@ -109,8 +109,8 @@ def main(argv=None, root=None):
         findings = scan_message(argv[1], root=root)
     except Exception as exc:
         _say(
-            "commit-msg WARNING: the private-plane message guard did not run ({}: {}). "
-            "Commit allowed; the gate is not protecting you.\n".format(type(exc).__name__, exc)
+            f"commit-msg WARNING: the private-plane message guard did not run ({type(exc).__name__}: {exc}). "
+            "Commit allowed; the gate is not protecting you.\n"
         )
         return 0
     if not findings:

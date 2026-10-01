@@ -134,13 +134,13 @@ def rewrite(src, name=""):
             "warnings": warnings,
         }
 
-    shim = "\n".join("#define {} {}".format(k, v) for k, v in SHIMS)
-    used = [k for k, _ in SHIMS if re.search(r"\b{}\b".format(k), body)]
+    shim = "\n".join(f"#define {k} {v}" for k, v in SHIMS)
+    used = [k for k, _ in SHIMS if re.search(rf"\b{k}\b", body)]
     if used:
         notes.append("mapped " + ", ".join(used) + " onto the bench's uniforms")
     notes.append("wrapped mainImage in a main() that writes outColor")
 
-    tag = ("// ingested: {}\n".format(name)) if name else ""
+    tag = (f"// ingested: {name}\n") if name else ""
     out = (
         PREAMBLE
         + "\n"
