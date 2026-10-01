@@ -32,8 +32,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.recall.lookback import (
     MIN_RELEVANCE,
@@ -43,6 +42,9 @@ from core.recall.lookback import (
     _note_items,
     _stem_relevance,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface
 ARCHIVE_STATUS = {"retired", "superseded", "historical", "benched", "graduated"}

@@ -29,7 +29,7 @@ from agent.harness.codex_app_server import (
     TurnResult,
 )
 from core.comm import packet_spec
-from core.comm.bus import Bus, Message
+from core.comm.bus import Bus, Message  # noqa: TC001  # runtime-evaluated annotations (annotation_sensitive module)
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt

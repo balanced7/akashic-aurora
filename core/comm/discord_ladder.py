@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
 from dataclasses import dataclass, field
 from typing import Any
 

@@ -19,7 +19,7 @@ import os
 _PREFIX = {"tool": "\U0001f527", "think": "\U0001f4ad"}  # 🔧 / 💭  -- match the DeepSeek runner
 
 
-def emit(kind: str, text: str, *, agent_id: str = None) -> bool:
+def emit(kind: str, text: str, *, agent_id: str | None = None) -> bool:
     """Broadcast one display-only trace line. `kind` in {"tool","think"}. Returns True iff sent.
     Never raises: the bus may be offline (returns None) or unimportable -- either way, no-op."""
     if os.getenv("AKASHIC_TRACE", "1") == "0":
@@ -44,7 +44,7 @@ def emit(kind: str, text: str, *, agent_id: str = None) -> bool:
 _ORDER = {"off": 0, "key": 1, "full": 2}
 
 
-def narrate(text: str, *, level: str = "key", agent_id: str = None) -> bool:
+def narrate(text: str, *, level: str = "key", agent_id: str | None = None) -> bool:
     """Deliberately stream a line of REASONING (💭) to the bus, GATED by the shared narration level
     (control.get_narration_level, toggled from the UI). `level` is the minimum verbosity at which this
     line shows: level="key" shows at key|full; level="full" shows only at full. The human dials the

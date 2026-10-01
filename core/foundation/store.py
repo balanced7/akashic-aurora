@@ -148,7 +148,7 @@ class Store(ABC):
     def sadd(self, key: str, *members: str) -> int: ...
 
     @abstractmethod
-    def smembers(self, key: str) -> set: ...
+    def smembers(self, key: str) -> set: ...  # noqa: A003  # annotation value must not change (Store.set is public API)
 
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...
@@ -454,8 +454,9 @@ class FileStore(Store):
         except Exception as e:
             self._degraded = f"unreadable: {e}"
             logger.error(
-                f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                f"In-memory operation continues; the file is left untouched."
+                "FileStore REFUSING TO PERSIST over %s: %s. In-memory operation continues; the file is left untouched.",
+                self._path,
+                e,
             )
             return
         if not raw.strip():
@@ -479,9 +480,12 @@ class FileStore(Store):
             kept = self._preserve_corrupt_bytes()
             if kept:
                 logger.error(
-                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                    f"Original bytes preserved at {kept}; in-memory operation continues. "
-                    f"Redis remains authoritative -- reconcile the mirror before trusting it."
+                    "FileStore REFUSING TO PERSIST over %s: %s. "
+                    "Original bytes preserved at %s; in-memory operation continues. "
+                    "Redis remains authoritative -- reconcile the mirror before trusting it.",
+                    self._path,
+                    e,
+                    kept,
                 )
             else:
                 # Never claim a side effect we did not verify. The old code logged
@@ -490,10 +494,13 @@ class FileStore(Store):
                 # Same genus as a census OK-line that reads healthy whether or not the work
                 # happened; caught by kimi, who had already found that shape twice today.
                 logger.error(
-                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                    f"PRESERVATION FAILED -- the corrupt bytes exist ONLY at {self._path} "
-                    f"and nothing else holds a copy. Back it up before any recovery attempt. "
-                    f"Redis remains authoritative."
+                    "FileStore REFUSING TO PERSIST over %s: %s. "
+                    "PRESERVATION FAILED -- the corrupt bytes exist ONLY at %s "
+                    "and nothing else holds a copy. Back it up before any recovery attempt. "
+                    "Redis remains authoritative.",
+                    self._path,
+                    e,
+                    self._path,
                 )
 
     def _preserve_corrupt_bytes(self) -> Path | None:
@@ -518,7 +525,7 @@ class FileStore(Store):
     def _flush(self) -> None:
         if self._degraded:
             # Fail CLOSED on persistence only. Reads and writes still work in memory.
-            logger.debug(f"FileStore not persisting ({self._degraded}); {self._path} left intact.")
+            logger.debug("FileStore not persisting (%s); %s left intact.", self._degraded, self._path)
             return
         tmp = self._temp_path()
         try:
@@ -539,7 +546,7 @@ class FileStore(Store):
                     time.sleep(0.02 * (attempt + 1))
             raise last if last else OSError("replace failed")
         except Exception as e:
-            logger.error(f"FileStore could not persist {self._path}: {e}")
+            logger.error("FileStore could not persist %s: %s", self._path, e)
         finally:
             try:
                 if tmp.exists():
@@ -933,7 +940,7 @@ class HybridStore(Store):
             try:
                 getattr(self._redis, method)(*args, **kwargs)
             except Exception as e:
-                logger.warning(f"HybridStore Redis write '{method}' failed: {e}")
+                logger.warning("HybridStore Redis write '%s' failed: %s", method, e)
         return result
 
     # key/value
@@ -1128,7 +1135,7 @@ class HybridStore(Store):
                     written["expire"] += 1
             return {"status": "success", "written": written, "skipped": skipped}
         except Exception as e:
-            logger.error(f"HybridStore reconcile failed: {e}")
+            logger.error("HybridStore reconcile failed: %s", e)
             return {"status": "error", "error": str(e), "written": written, "skipped": skipped}
 
     def heal_report(self) -> list[str]:

@@ -235,16 +235,16 @@ class Clusterer:
                     out.append(
                         Proposal("merge", [cl[i].id, cl[j].id], cos, f"centroids near-duplicate (cos={cos:.2f})")
                     )
-        for c in cl:
-            if c.split_score > 0 and c.split_parts:
-                out.append(
-                    Proposal(
-                        "split",
-                        [c.id],
-                        c.split_score,
-                        f"bimodal {len(c.split_parts[0])}+{len(c.split_parts[1])} (distinctness={c.split_score:.2f})",
-                    )
-                )
+        out.extend(
+            Proposal(
+                "split",
+                [c.id],
+                c.split_score,
+                f"bimodal {len(c.split_parts[0])}+{len(c.split_parts[1])} (distinctness={c.split_score:.2f})",
+            )
+            for c in cl
+            if c.split_score > 0 and c.split_parts
+        )
         out.sort(key=lambda p: -p.score)
         return out
 

@@ -45,10 +45,12 @@ never committed, reconstructible from source at any time.
 from __future__ import annotations
 
 import time
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.eye.index import _connect, get_event
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # The grammar's vocabulary (sec 5) is `fence | recall-firing | fan | supersession | manual`
 # -- minted for edges formed by MINDS reasoning. The transcript plane forms edges by three

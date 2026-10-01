@@ -16,10 +16,12 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-from collections.abc import Callable, Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm.bus import BELL_NS, Bus
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 # Kinds/importance that justify spending a turn now (everything else waits for the next boot peek).
 ESCALATE_KINDS = {"request", "handoff", "question", "blocker"}

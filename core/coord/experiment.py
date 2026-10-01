@@ -32,7 +32,7 @@ A/B/C. Policies: social (no gate), lock_gate (A0.1 semantics), intent_gate (prop
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
 from dataclasses import dataclass, field
 
 

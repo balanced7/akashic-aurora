@@ -339,8 +339,10 @@ def render_intent_shadow(shadow: Mapping[str, Any]) -> str:
             f"recipient_turns={cost.get('recipient_model_turns', {}).get('range')}"
         ),
     ]
-    for effect in shadow.get("proposed_effects") or []:
-        lines.append(f"  -> [{effect.get('certainty')}] {effect.get('id')}: {effect.get('claim')}")
+    lines.extend(
+        f"  -> [{effect.get('certainty')}] {effect.get('id')}: {effect.get('claim')}"
+        for effect in shadow.get("proposed_effects") or []
+    )
     lines.append("  preview effects=none")
     if shadow.get("blind"):
         lines.append("  blind: " + "; ".join(str(item) for item in shadow["blind"]))

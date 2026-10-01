@@ -17,10 +17,12 @@ The module is deliberately strict:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.primitives.epistemic import derive_epistemic_view
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
 
 
 def _pyl() -> str:

@@ -48,8 +48,10 @@ import json
 import os
 import subprocess
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 VERDICTS = ("hit", "miss", "partial", "voided", "residual")
 

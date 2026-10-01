@@ -251,7 +251,8 @@ def live_incarnations(
         if not sid or sid in by_sid or (my_session and sid == my_session):
             continue  # carded sids already counted -- cards win (R10)
         try:
-            ts = float(open(os.path.join(base, name)).read().strip())
+            with open(os.path.join(base, name)) as f:
+                ts = float(f.read().strip())
         except Exception:
             continue  # unreadable marker proves nothing -- skip
         age_min = max(0.0, (t_now - ts) / 60.0)

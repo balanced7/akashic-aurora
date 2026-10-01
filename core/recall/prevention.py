@@ -45,8 +45,10 @@ from __future__ import annotations
 import glob
 import json
 import os
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 VERDICTS = ("COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE")
 
@@ -177,18 +179,18 @@ def observe(
     for rec in rows:
         if not (rec.get("ok") and rec.get("surfaced") and not rec.get("flipped")):
             continue
-        for src in rec.get("s") or []:
-            candidates.append(
-                {
-                    "session": rec.get("_session", ""),
-                    "at": rec.get("at"),
-                    "target": rec.get("t", ""),
-                    "source": str(src),
-                    "verdict": "UNKNOWABLE",
-                    "evidence": [],
-                    "authority": "observation",
-                }
-            )
+        candidates.extend(
+            {
+                "session": rec.get("_session", ""),
+                "at": rec.get("at"),
+                "target": rec.get("t", ""),
+                "source": str(src),
+                "verdict": "UNKNOWABLE",
+                "evidence": [],
+                "authority": "observation",
+            }
+            for src in rec.get("s") or []
+        )
 
     # index candidates by source, ascending in time, for nearest-preceding attribution
     by_src: dict[str, list[dict[str, Any]]] = {}

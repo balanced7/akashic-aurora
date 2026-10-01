@@ -37,8 +37,10 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: How stale the draft may get before a turn boundary refreshes it. Ten minutes bounds
 #: what an ungraceful death can destroy, while leaving the overwhelming majority of turns

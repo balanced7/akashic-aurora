@@ -525,17 +525,17 @@ def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
 
 def format_sweep_lines(res: dict[str, list[str]]) -> list[str]:
     """Render-side: loud lines for what the sweep did (empty list = quiet)."""
-    lines = []
-    for oid in res.get("settled", []):
-        lines.append(
-            f"= settled {oid} (T076c: its referenced tasks are DONE in the ledger -- "
-            f"echo, not a live ask; durable event recorded)"
-        )
-    for oid in res.get("redriven", []):
-        lines.append(f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)")
-    for oid in res.get("dead", []):
-        lines.append(
-            f"!! EXPECTATION DEAD: {oid} unanswered after {REDRIVES} redrives "
-            f"-- durable event recorded; chase it or let it go"
-        )
+    lines = [
+        f"= settled {oid} (T076c: its referenced tasks are DONE in the ledger -- "
+        f"echo, not a live ask; durable event recorded)"
+        for oid in res.get("settled", [])
+    ]
+    lines.extend(
+        f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)" for oid in res.get("redriven", [])
+    )
+    lines.extend(
+        f"!! EXPECTATION DEAD: {oid} unanswered after {REDRIVES} redrives "
+        f"-- durable event recorded; chase it or let it go"
+        for oid in res.get("dead", [])
+    )
     return lines

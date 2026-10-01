@@ -329,7 +329,7 @@ class Attendance(tuple):
         return f"Attendance({self.state}, {self.reason!r}, beat_age_s={self.beat_age_s})"
 
 
-def attendance(agent: str, *, namespace: str = None, client=None, roster_rows=None) -> "Attendance":
+def attendance(agent: str, *, namespace: str | None = None, client=None, roster_rows=None) -> "Attendance":
     """THE liveness verdict. One answer, so surfaces cannot contradict each other (T155).
 
     Measured 2026-08-03/04: four surfaces gave four answers about one seat, and a directed brief
@@ -533,7 +533,7 @@ def progress_read(agent: str):
         return None
 
 
-def wedge_view(agent: str, wedge_s: float = None):
+def wedge_view(agent: str, wedge_s: float | None = None):
     """A reader's summary for the roster / watchdog (L3/L2): current phase, time-in-phase,
     beat age, and a heuristic ``wedged`` flag (in a non-idle phase past the threshold).
     Observe-only -- callers DISPLAY this; acting on it (kill/revive) is a later, gated layer.

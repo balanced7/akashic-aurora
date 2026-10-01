@@ -32,11 +32,13 @@ from __future__ import annotations
 import os
 import re
 import time
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 #: Discord's hard cap on a message body. Exceeding it is a rejected post, not a clipped one.
 DISCORD_MAX = 2000

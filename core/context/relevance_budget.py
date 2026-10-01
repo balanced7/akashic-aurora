@@ -32,8 +32,10 @@ from __future__ import annotations
 import os
 import re
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 BUDGET_CHARS_DEFAULT = 2000
 ENTRY_CLIP = 240

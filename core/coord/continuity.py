@@ -528,8 +528,7 @@ def build_profile(
     for region in regions:
         if region["state"] == "unknown" and batches[region["name"]].get("error"):
             failed += 1
-        for item in region["blind"]:
-            top_blind.append(f"{region['name']}: {item}")
+        top_blind.extend(f"{region['name']}: {item}" for item in region["blind"])
     if not designation:
         top_blind.append("designation: absent ratified registry projection; do not infer a name from any other region")
 
@@ -593,10 +592,8 @@ def render_profile(result: Mapping[str, Any]) -> str:
         )
         lines.append(f"  {region.get('claim')}")
         lines.append(f"  source: {region.get('source')}")
-        for item in region.get("items") or []:
-            lines.append(f"  - {_item_line(str(region.get('name')), item)}")
-        for blind in region.get("blind") or []:
-            lines.append(f"  BLIND: {blind}")
+        lines.extend(f"  - {_item_line(str(region.get('name')), item)}" for item in region.get("items") or [])
+        lines.extend(f"  BLIND: {blind}" for blind in region.get("blind") or [])
         lines.append(f"  drill: {region.get('drill')}")
     return "\n".join(lines)
 

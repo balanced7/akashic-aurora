@@ -37,8 +37,10 @@ from __future__ import annotations
 import os
 import subprocess
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -105,17 +107,16 @@ def _norm(row: dict[str, Any], domain: str) -> dict[str, Any]:
 def _events_rows(since: float | None = None, agent: str = "", **_) -> list[dict]:
     from core.events.event_log import EventLog
 
-    out = []
-    for ev in (EventLog().scan(agent=agent) if agent else EventLog().scan()) or []:
-        out.append(
-            {
-                "ts": ev.get("at"),
-                "actor": ev.get("agent_id") or "",
-                "kind": ev.get("kind") or "event",
-                "summary": ev.get("summary") or ev.get("message") or "",
-                "ref": ev.get("_ref") or ev.get("id") or "",
-            }
-        )
+    out = [
+        {
+            "ts": ev.get("at"),
+            "actor": ev.get("agent_id") or "",
+            "kind": ev.get("kind") or "event",
+            "summary": ev.get("summary") or ev.get("message") or "",
+            "ref": ev.get("_ref") or ev.get("id") or "",
+        }
+        for ev in (EventLog().scan(agent=agent) if agent else EventLog().scan()) or []
+    ]
     return out
 
 
@@ -156,16 +157,16 @@ def _task_rows(since: float | None = None, **_) -> list[dict]:
         data = json.load(f)
     out = []
     for t in data.get("tasks", []):
-        for ev in t.get("history") or t.get("events") or []:
-            out.append(
-                {
-                    "ts": ev.get("at") or ev.get("ts"),
-                    "actor": ev.get("by") or t.get("owner") or "",
-                    "kind": f"task:{ev.get('to') or ev.get('status') or 'change'}",
-                    "summary": f"{t.get('id')} {str(t.get('title') or '')[:120]}",
-                    "ref": str(t.get("id") or ""),
-                }
-            )
+        out.extend(
+            {
+                "ts": ev.get("at") or ev.get("ts"),
+                "actor": ev.get("by") or t.get("owner") or "",
+                "kind": f"task:{ev.get('to') or ev.get('status') or 'change'}",
+                "summary": f"{t.get('id')} {str(t.get('title') or '')[:120]}",
+                "ref": str(t.get("id") or ""),
+            }
+            for ev in t.get("history") or t.get("events") or []
+        )
     return out
 
 

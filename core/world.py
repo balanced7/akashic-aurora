@@ -50,7 +50,7 @@ physical separation buys nothing when the code dials the right number to the wro
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
 from dataclasses import dataclass, replace
 from pathlib import Path
 

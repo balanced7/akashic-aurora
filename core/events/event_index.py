@@ -80,7 +80,7 @@ class EventIndex:
             self._trim()
             return True
         except Exception as e:
-            logger.warning(f"index add failed (ignored): {type(e).__name__}: {e}")
+            logger.warning("index add failed (ignored): %s: %s", type(e).__name__, e)
             return False
 
     def _trim(self) -> None:

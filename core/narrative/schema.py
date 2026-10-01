@@ -90,9 +90,7 @@ def valid_relationship(type_name: str) -> bool:
 
 
 def _as_edges(raw: Any) -> list["Edge"]:
-    out: list[Edge] = []
-    for e in raw or []:
-        out.append(e if isinstance(e, Edge) else Edge(**e))
+    out: list[Edge] = [e if isinstance(e, Edge) else Edge(**e) for e in raw or []]
     return out
 
 

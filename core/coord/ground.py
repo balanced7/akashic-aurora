@@ -13,10 +13,12 @@ continuity evidence to become an identity verdict.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def _pyl() -> str:
@@ -537,8 +539,7 @@ def render(result: Mapping[str, Any]) -> str:
     for row in result.get("rungs") or []:
         lines.append(f"  {str(row.get('name')).upper():<11} {str(row.get('state')).upper():<8} {row.get('claim')}")
         lines.append(f"              source: {row.get('source')}")
-    for item in result.get("blind") or []:
-        lines.append(f"  BLIND: {item}")
+    lines.extend(f"  BLIND: {item}" for item in result.get("blind") or [])
     return "\n".join(lines)
 
 

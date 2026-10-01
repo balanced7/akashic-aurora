@@ -88,7 +88,8 @@ def board():
         if not fn.endswith(".json"):
             continue
         try:
-            doc = json.load(open(os.path.join(reg_dir, fn), encoding="utf-8"))
+            with open(os.path.join(reg_dir, fn), encoding="utf-8") as f:
+                doc = json.load(f)
         except Exception:
             continue
         for name, e in doc.get("entries", {}).items():

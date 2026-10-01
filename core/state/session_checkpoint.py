@@ -133,7 +133,7 @@ class SessionState:
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to save checkpoint: {e}")
+            self.logger.error("Failed to save checkpoint: %s", e)
             return False
 
     # Backward compatibility alias
@@ -254,7 +254,7 @@ class SessionState:
                     with open(checkpoint_file, encoding="utf-8") as f:
                         checkpoints.append(json.load(f))
                 except Exception as e:
-                    self.logger.warning(f"Could not load checkpoint {checkpoint_file}: {e}")
+                    self.logger.warning("Could not load checkpoint %s: %s", checkpoint_file, e)
         return checkpoints
 
     # Backward compatibility alias
@@ -277,10 +277,10 @@ class SessionState:
             if self.state_file.exists():
                 self.state_file.unlink()
             self._current_state = None
-            self.logger.info(f"[{self.agent_id}] Checkpoint cleared, session marked complete")
+            self.logger.info("[%s] Checkpoint cleared, session marked complete", self.agent_id)
             return True
         except Exception as e:
-            self.logger.error(f"Failed to clear checkpoint: {e}")
+            self.logger.error("Failed to clear checkpoint: %s", e)
             return False
 
     # Backward compatibility alias
@@ -339,7 +339,7 @@ class SessionState:
                 with open(self.state_file, encoding="utf-8") as f:
                     return json.load(f)
         except Exception as e:
-            self.logger.warning(f"Could not load state: {e}")
+            self.logger.warning("Could not load state: %s", e)
         return None
 
     # Backward compatibility alias for internal use

@@ -32,11 +32,13 @@ from __future__ import annotations
 import json
 import os
 import time
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.eye.connectome import _group, _steps
 from core.eye.index import _connect, get_event
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def whoami(agent: str = "claude") -> str:

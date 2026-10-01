@@ -704,9 +704,7 @@ def get_relationships_by_domain(domain: str) -> list[tuple]:
     domain_lower = domain.lower()
     results = []
 
-    for rel in RelationshipType:
-        if rel.value.domain.lower() == domain_lower:
-            results.append((rel.name, rel.value))
+    results.extend((rel.name, rel.value) for rel in RelationshipType if rel.value.domain.lower() == domain_lower)
 
     return sorted(results, key=lambda x: x[1].short_name)
 

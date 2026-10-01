@@ -204,12 +204,14 @@ def apply_curation(report: dict[str, Any] | None = None, *, store=None, learning
         report = report or curation_report(store=store, learning_store=learning_store)
         benched, unbenched = [], []
         for row in report.get("bench", []):
-            if learning_store.mark_benched(
+            done = learning_store.mark_benched(
                 row["name"], reason=f"curator: surfaced {row['surfaced']}x / 0 credit / {row['age_days']}d old"
-            ):
+            )
+            if done:
                 benched.append(row["name"])
         for row in report.get("unbench", []):
-            if learning_store.mark_benched(row["name"], undo=True):
+            done = learning_store.mark_benched(row["name"], undo=True)
+            if done:
                 unbenched.append(row["name"])
         ghosts = prune_ghost_counters(store=store, learning_store=learning_store)
         # Forge stamps (F4 + F2): rollbacks restore the pre-edit text (reversibility is the
@@ -217,7 +219,8 @@ def apply_curation(report: dict[str, Any] | None = None, *, store=None, learning
         # expiries clear stale unreviewed proposals (process-level learning rate).
         rolled, confirmed, expired = [], [], []
         for row in report.get("forge_rollback", []):
-            if learning_store.rollback_forge_edit(row["name"]):
+            done = learning_store.rollback_forge_edit(row["name"])
+            if done:
                 rolled.append(row["name"])
         for row in report.get("forge_confirm", []):
             try:
@@ -231,7 +234,8 @@ def apply_curation(report: dict[str, Any] | None = None, *, store=None, learning
             except Exception:
                 pass
         for row in report.get("forge_expire", []):
-            if learning_store.clear_forge_proposal(row["name"]):
+            done = learning_store.clear_forge_proposal(row["name"])
+            if done:
                 expired.append(row["name"])
         _invalidate_surface_cache()
         return {

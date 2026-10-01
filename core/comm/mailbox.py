@@ -32,10 +32,12 @@ import json
 import os
 import re
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm import packet_spec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ------------------------------------------------------------------ constants
 
@@ -859,7 +861,7 @@ def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> tuple[str | Non
     return None, _refusal(r, sha)
 
 
-def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> dict[str, Any]:
+def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> dict[str, Any]:  # noqa: A001  # public API name (mailbox.open)
     """Say SEEN, once, and hand back the full body. Writes exactly one receipt and nothing else.
 
     Idempotent per (message, incarnation): the field key IS the identity, so a retry, a redelivery,

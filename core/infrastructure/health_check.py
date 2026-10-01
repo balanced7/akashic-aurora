@@ -232,9 +232,9 @@ class StartupDiagnostics:
             report_file = log_dir / f"startup_diagnostics_{self.agent_id}.json"
             with open(report_file, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2)
-            self.logger.info(f"Diagnostics report saved to {report_file}")
+            self.logger.info("Diagnostics report saved to %s", report_file)
         except Exception as e:
-            self.logger.error(f"Could not save diagnostics: {e}")
+            self.logger.error("Could not save diagnostics: %s", e)
 
     # Backward compatibility alias
     def _save_report(self, report: dict[str, Any]) -> None:

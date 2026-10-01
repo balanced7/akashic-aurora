@@ -421,9 +421,9 @@ class LearningStore:
                     self._index_learning(signal)
                     imported += 1
             if imported:
-                self.logger.info(f"Imported {imported} legacy learning(s) from learnings.jsonl into Store")
+                self.logger.info("Imported %s legacy learning(s) from learnings.jsonl into Store", imported)
         except Exception as e:
-            self.logger.warning(f"Legacy learning import skipped: {e}")
+            self.logger.warning("Legacy learning import skipped: %s", e)
 
     # ----- write -----
     def persist_learning_derived_from_experiment(self, learning_signal: dict[str, Any]) -> bool:
@@ -441,10 +441,10 @@ class LearningStore:
         try:
             self._index_learning(learning_signal)
             exp = learning_signal.get("experiment_name", "unknown")
-            self.logger.info(f"Learning recorded: {exp} ({learning_signal.get('success')})")
+            self.logger.info("Learning recorded: %s (%s)", exp, learning_signal.get("success"))
             return True
         except Exception as e:
-            self.logger.error(f"Error recording learning: {e}")
+            self.logger.error("Error recording learning: %s", e)
             return False
 
     # Backward compatibility alias
@@ -512,7 +512,7 @@ class LearningStore:
             self.store.hset(f"learn:repeat:{rid}", mapping={k: str(v) for k, v in rec.items()})
             self.store.sadd(self.REPEAT_INDEX, rid)
         except Exception as e:
-            self.logger.warning(f"repeat not persisted: {e}")
+            self.logger.warning("repeat not persisted: %s", e)
         return rec
 
     # NOTE: there is deliberately no `repeat_count()`. The first draft had one, check_wiring
@@ -586,7 +586,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"tag_anti_pattern failed for {experiment_id}: {e}")
+            self.logger.error("tag_anti_pattern failed for %s: %s", experiment_id, e)
             return False
 
     def mark_graduated(self, experiment_id: str, enforced_by: str = "", *, undo: bool = False) -> bool:
@@ -614,7 +614,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"mark_graduated failed for {experiment_id}: {e}")
+            self.logger.error("mark_graduated failed for %s: %s", experiment_id, e)
             return False
 
     def mark_benched(self, experiment_id: str, reason: str = "", *, undo: bool = False) -> bool:
@@ -641,7 +641,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
+            self.logger.error("mark_benched failed for %s: %s", experiment_id, e)
             return False
 
     def mark_related(self, experiment_id: str, related: list[dict[str, Any]]) -> bool:
@@ -678,7 +678,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"mark_related failed for {experiment_id}: {e}")
+            self.logger.error("mark_related failed for %s: %s", experiment_id, e)
             return False
 
     def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: list[str]) -> bool:
@@ -705,7 +705,7 @@ class LearningStore:
             self.store.hset(key, mapping={"forge_rejected": json.dumps(buf[-8:])})
             return True
         except Exception as e:
-            self.logger.error(f"mark_forge_rejected failed for {experiment_id}: {e}")
+            self.logger.error("mark_forge_rejected failed for %s: %s", experiment_id, e)
             return False
 
     def stamp_forge_proposal(
@@ -734,7 +734,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"stamp_forge_proposal failed for {experiment_id}: {e}")
+            self.logger.error("stamp_forge_proposal failed for %s: %s", experiment_id, e)
             return False
 
     def clear_forge_proposal(self, experiment_id: str) -> bool:
@@ -746,7 +746,7 @@ class LearningStore:
             self.store.hset(key, mapping={"forge_proposal": ""})
             return True
         except Exception as e:
-            self.logger.error(f"clear_forge_proposal failed for {experiment_id}: {e}")
+            self.logger.error("clear_forge_proposal failed for %s: %s", experiment_id, e)
             return False
 
     def apply_forge_edit(
@@ -782,7 +782,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"apply_forge_edit failed for {experiment_id}: {e}")
+            self.logger.error("apply_forge_edit failed for %s: %s", experiment_id, e)
             return False
 
     def rollback_forge_edit(self, experiment_id: str) -> bool:
@@ -805,7 +805,7 @@ class LearningStore:
             )
             return True
         except Exception as e:
-            self.logger.error(f"rollback_forge_edit failed for {experiment_id}: {e}")
+            self.logger.error("rollback_forge_edit failed for %s: %s", experiment_id, e)
             return False
 
     def _rebuild_index(self) -> None:
@@ -916,7 +916,7 @@ class LearningStore:
             if experiment_id not in set(self.store.lrange("learn:experiments:all", 0, -1)):
                 self._rebuild_index()
         except Exception as e:  # never let indexing lose the record itself
-            self.logger.warning(f"index rebuild skipped for {experiment_id}: {e}")
+            self.logger.warning("index rebuild skipped for %s: %s", experiment_id, e)
         if experiment_id not in set(self.store.lrange(f"learn:agent:{agent_id}", 0, -1)):
             self.store.lpush(f"learn:agent:{agent_id}", experiment_id)
 
@@ -1013,7 +1013,7 @@ class LearningStore:
             weak.sort(key=lambda x: -x[0])
             return [dict(d, weak_match=True) for _, d in weak[:5]]
         except Exception as e:
-            self.logger.error(f"Error searching learnings: {e}")
+            self.logger.error("Error searching learnings: %s", e)
             return []
 
     # Backward compatibility alias
@@ -1065,7 +1065,7 @@ class LearningStore:
                 "experiments": results,
             }
         except Exception as e:
-            self.logger.error(f"Error analyzing patterns: {e}")
+            self.logger.error("Error analyzing patterns: %s", e)
             return {}
 
     # Backward compatibility alias
@@ -1106,7 +1106,7 @@ class LearningStore:
             results.sort(key=lambda x: severity_order.get(x["severity"], 0), reverse=True)
             return results
         except Exception as e:
-            self.logger.error(f"Error getting anti-patterns: {e}")
+            self.logger.error("Error getting anti-patterns: %s", e)
             return []
 
     # Backward compatibility alias
@@ -1148,7 +1148,7 @@ class LearningStore:
             recommendations.sort(key=lambda x: success_scores.get(x["success"], 0), reverse=True)
             return recommendations
         except Exception as e:
-            self.logger.error(f"Error getting recommendations: {e}")
+            self.logger.error("Error getting recommendations: %s", e)
             return []
 
     # Backward compatibility alias
@@ -1170,7 +1170,7 @@ class LearningStore:
                 categories[category] = self.analyze_learning_patterns_in_category(category)
             return categories
         except Exception as e:
-            self.logger.error(f"Error getting category summary: {e}")
+            self.logger.error("Error getting category summary: %s", e)
             return {}
 
     # Backward compatibility alias
@@ -1193,7 +1193,7 @@ class LearningStore:
                     results.append({"id": exp_id, **data})
             return results
         except Exception as e:
-            self.logger.error(f"Error getting agent learnings: {e}")
+            self.logger.error("Error getting agent learnings: %s", e)
             return []
 
     # Backward compatibility alias
@@ -1234,7 +1234,7 @@ class LearningStore:
                 results.append(data)
             return results
         except Exception as e:
-            self.logger.error(f"Error getting all learnings: {e}")
+            self.logger.error("Error getting all learnings: %s", e)
             return []
 
     # Backward compatibility alias

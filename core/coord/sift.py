@@ -44,7 +44,10 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import (  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
+    Iterable,
+    Sequence,
+)
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -500,10 +503,8 @@ def _render_junction_blob(term: str, junctions: Sequence[dict[str, Any]]) -> str
         lines.append("(none found -- see BLIND; the pairing is lexical)")
     for j in junctions:
         lines.append(f"--- {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
-        for w in j["writes"]:
-            lines.append(f"  WRITE {w['file']}:{w['line']}: {w['text']}")
-        for r in j["reads"]:
-            lines.append(f"  READ  {r['file']}:{r['line']}: {r['text']}")
+        lines.extend(f"  WRITE {w['file']}:{w['line']}: {w['text']}" for w in j["writes"])
+        lines.extend(f"  READ  {r['file']}:{r['line']}: {r['text']}" for r in j["reads"])
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -651,8 +652,7 @@ def curator_prompt(term: str, analyses: Sequence[dict[str, str]]) -> tuple[str, 
     rather than being copied down from tier 0.
     """
     parts = [f"=== ANALYSES OF {term!r} ==="]
-    for a in analyses:
-        parts.append(f"\n--- hat: {a['hat']} ---\n{a['answer']}")
+    parts.extend(f"\n--- hat: {a['hat']} ---\n{a['answer']}" for a in analyses)
     bundle = "\n".join(parts) + "\n"
     prompt = f"{bundle}\n\n{CURATOR_CONTRACT}"
     return prompt, _sha(bundle)

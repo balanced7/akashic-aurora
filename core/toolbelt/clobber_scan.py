@@ -79,9 +79,8 @@ def _is_executable(line: str) -> bool:
     s = line.strip()
     if not s or s.startswith(("#", "def ", "class ", "async def ")):
         return False
-    if s.startswith(('"""', "'''", '"', "'")):  # docstring / bare-string prose
-        return False
-    return True
+    # docstring / bare-string prose
+    return not s.startswith(('"""', "'''", '"', "'"))
 
 
 def scan(text: str) -> list[dict[str, Any]]:
@@ -133,6 +132,5 @@ def render(findings: list[dict[str, Any]]) -> str:
     if not findings:
         return "clobber-scan: clean -- no unguarded control-key writes"
     rows = [f"clobber-scan: {len(findings)} unguarded control-key write(s)"]
-    for f in findings:
-        rows.append(f"  L{f['line_no']} [{f['family']}]: {f['snippet']}")
+    rows.extend(f"  L{f['line_no']} [{f['family']}]: {f['snippet']}" for f in findings)
     return "\n".join(rows)

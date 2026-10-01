@@ -190,8 +190,7 @@ def flow_trace(
     streams: list[str] = [f"{ns}:broadcast", f"{ns}:work:broadcast"]
     try:
         for pat in (f"{ns}:work:inbox:*", f"{ns}:inbox:*"):
-            for k in r.scan_iter(match=pat, count=200):
-                streams.append(dec(k))
+            streams.extend(dec(k) for k in r.scan_iter(match=pat, count=200))
     except Exception:
         pass
 

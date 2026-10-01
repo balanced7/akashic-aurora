@@ -21,9 +21,11 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # The private shelf lives outside the repo so that no `git add -A` can sweep it in.
 # Override for tests or a different machine; the default is a sibling of the repo root.

@@ -114,11 +114,11 @@ def grant(
     role: str,
     by: str,
     reason: str,
-    hours: float = None,
+    hours: float | None = None,
     permanent: bool = False,
     caps=None,
     path_scope=None,
-    request_ref: str = None,
+    request_ref: str | None = None,
 ) -> dict:
     """Write one grant. Returns the record written. Raises rather than half-writing.
 

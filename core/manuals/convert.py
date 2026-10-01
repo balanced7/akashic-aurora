@@ -154,9 +154,7 @@ def _block(b: dict[str, Any], refs: dict[str, Any]) -> str:
         label = b.get("name") or (b.get("style") or "note").title()
         return f"{label}: " + _blocks(b.get("content", []), refs).replace("\n", " ")
     if t == "table":
-        rows = []
-        for row in b.get("rows", []):
-            rows.append(" | ".join(_blocks(cell, refs).replace("\n", " ") for cell in row))
+        rows = [" | ".join(_blocks(cell, refs).replace("\n", " ") for cell in row) for row in b.get("rows", [])]
         return "\n".join(rows)
     if t == "codeListing":
         return "```\n" + "\n".join(b.get("code", [])) + "\n```"

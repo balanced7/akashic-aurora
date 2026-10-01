@@ -277,9 +277,11 @@ class SqliteStore(Store):
             raise last if last else OSError("replace failed")
         except Exception as e:
             logging.getLogger(__name__).error(
-                f"SqliteStore echo export to {self._echo_path} FAILED ({e}) -- the "
-                f"JSON rollback twin is STALE; a rollback now loses writes since the "
-                f"last successful echo. check_dual_authority will flag the tear."
+                "SqliteStore echo export to %s FAILED (%s) -- the "
+                "JSON rollback twin is STALE; a rollback now loses writes since the "
+                "last successful echo. check_dual_authority will flag the tear.",
+                self._echo_path,
+                e,
             )
 
     # ------------------------------------------------------------ expiry (TTL)

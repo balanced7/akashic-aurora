@@ -280,10 +280,10 @@ def build_context(paths, *, budget_chars: int | None = None, root=None):
         # as whole, night of 2026-08-10) gets a mechanical field every caller can assert on.
         included.append({"path": str(full), "chars": len(body), "truncated": cut, "chars_total": len(text)})
 
-    for m in missing + refused:
-        parts.append(f"--- COULD NOT READ {m['path']} ({m['why']}) -- do not assume its contents ---")
-    for s in skipped:
-        parts.append(f"--- NOT INCLUDED {s['path']} ({s['why']}) ---")
+    parts.extend(
+        f"--- COULD NOT READ {m['path']} ({m['why']}) -- do not assume its contents ---" for m in missing + refused
+    )
+    parts.extend(f"--- NOT INCLUDED {s['path']} ({s['why']}) ---" for s in skipped)
 
     block = ""
     if parts:

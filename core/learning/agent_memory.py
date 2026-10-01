@@ -177,9 +177,9 @@ class AgentMemory:
         title: str,
         decision: str,
         context: str = "",
-        rationale: list[str] = None,
-        alternatives: list[dict] = None,
-        consequences: dict[str, list[str]] = None,
+        rationale: list[str] | None = None,
+        alternatives: list[dict] | None = None,
+        consequences: dict[str, list[str]] | None = None,
         session_id: str = "",
         supersedes: str | None = None,
         curated: bool | None = None,
@@ -219,7 +219,7 @@ class AgentMemory:
             self.store.hset(self.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(dec)))
             self.store.zadd(self.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
         except Exception as e:
-            logger.error(f"Failed to record decision: {e}")
+            logger.error("Failed to record decision: %s", e)
             return ""
         # Claim the title head. Claimable = fresh title, the id we expected to replace,
         # or a current head that no longer names an ACTIVE record (dangling after manual
@@ -237,7 +237,7 @@ class AgentMemory:
         except CASConflict:
             result = self.store.get(head_key)  # the cycle itself raced; whoever's there won
         except Exception as e:
-            logger.error(f"Head claim failed for '{title}': {e}")
+            logger.error("Head claim failed for '%s': %s", title, e)
             result = None
         if result != dec_id:
             # Lost: never leave our record active-but-unheaded (that IS the fork).
@@ -248,7 +248,7 @@ class AgentMemory:
             )
         if supersedes:
             self._retire_record(self.KEY_DECISIONS, supersedes)
-        logger.info(f"Decision {dec_id}: {title}")
+        logger.info("Decision %s: %s", dec_id, title)
         return dec_id
 
     def _is_active(self, dec_id: str) -> bool:
@@ -351,7 +351,7 @@ class AgentMemory:
             data = self.store.hget(self.KEY_DECISIONS, dec_id)
             return bool(data and json.loads(data).get("superseded"))
         except Exception as e:
-            logger.error(f"Failed to retire decision {dec_id}: {e}")
+            logger.error("Failed to retire decision %s: %s", dec_id, e)
             return False
 
     # ----- RB-10: all-retired-title detector -----
@@ -438,7 +438,7 @@ class AgentMemory:
             # at the store level per the differential harness finding).
             decisions.sort(key=lambda x: (x.created_at, x.title, x.id), reverse=True)
         except Exception as e:
-            logger.error(f"Failed to get decisions: {e}")
+            logger.error("Failed to get decisions: %s", e)
         return decisions
 
     # ----- experiences (episodic) -----
@@ -449,7 +449,7 @@ class AgentMemory:
         approach: str = "",
         result: str = "",
         score: float = 0,
-        learnings: list[str] = None,
+        learnings: list[str] | None = None,
         session_id: str = "",
         supersedes: str | None = None,
     ) -> str:
@@ -475,10 +475,10 @@ class AgentMemory:
             self.store.zadd(key, {exp_id: datetime.fromisoformat(created).timestamp()})
             if supersedes:
                 self._retire_record(self.KEY_EXPERIENCES, supersedes)
-            logger.info(f"Experience {exp_id}: {task[:40]}")
+            logger.info("Experience %s: %s", exp_id, task[:40])
             return exp_id
         except Exception as e:
-            logger.error(f"Failed to record experience: {e}")
+            logger.error("Failed to record experience: %s", e)
             return ""
 
     def get_similar(self, task: str, limit: int = 5) -> list[Experience]:
@@ -502,7 +502,7 @@ class AgentMemory:
                             if len(similar) >= limit:
                                 break
         except Exception as e:
-            logger.error(f"Failed to get similar experiences: {e}")
+            logger.error("Failed to get similar experiences: %s", e)
         return similar
 
     def load_all_experiences(self) -> list[Experience]:
@@ -521,7 +521,7 @@ class AgentMemory:
                         seen.add(exp_id)
                         out.append(Experience(**parsed))
         except Exception as e:
-            logger.error(f"Failed to load all experiences: {e}")
+            logger.error("Failed to load all experiences: %s", e)
         return out
 
     # ----- reflections (Reflexion loop) -----
@@ -549,7 +549,7 @@ class AgentMemory:
             self.store.zremrangebyrank(self.KEY_REFLECTION_INDEX, 0, -(self.MAX_REFLECTIONS + 1))
             return refl_id
         except Exception as e:
-            logger.error(f"Failed to reflect: {e}")
+            logger.error("Failed to reflect: %s", e)
             return ""
 
     def get_insights(self, min_confidence: float = 0.6) -> list[dict]:
@@ -563,12 +563,12 @@ class AgentMemory:
                     if r.get("confidence", 0) >= min_confidence:
                         insights.append(r)
         except Exception as e:
-            logger.error(f"Failed to get insights: {e}")
+            logger.error("Failed to get insights: %s", e)
         return insights
 
     # ----- approaches (procedural) -----
     def register_approach(
-        self, component: str, name: str, status: str, learnings: list[str] = None, evidence: dict = None
+        self, component: str, name: str, status: str, learnings: list[str] | None = None, evidence: dict | None = None
     ) -> str:
         """Register an approach (working/failed/in_progress) for a component."""
         app_id = f"{component}_{name[:20].lower().replace(' ', '_')}_{datetime.now().strftime('%m%d%H%M')}"
@@ -588,7 +588,7 @@ class AgentMemory:
             self.store.hset(self.KEY_APPROACH_BY_COMPONENT, field=component, value=",".join(parts))
             return app_id
         except Exception as e:
-            logger.error(f"Failed to register approach: {e}")
+            logger.error("Failed to register approach: %s", e)
             return ""
 
     def get_component_status(self, component: str) -> dict[str, list[dict]]:
@@ -606,7 +606,7 @@ class AgentMemory:
                     if status in result:
                         result[status].append(app)
         except Exception as e:
-            logger.error(f"Failed to get component status: {e}")
+            logger.error("Failed to get component status: %s", e)
         return result
 
     # ----- retrieval + stats -----
@@ -620,7 +620,7 @@ class AgentMemory:
                 if data:
                     recent_experiences.append(Experience(**json.loads(data)))
         except Exception as e:
-            logger.error(f"Failed to load recent experiences: {e}")
+            logger.error("Failed to load recent experiences: %s", e)
 
         return {
             "decisions": [asdict(d) for d in decisions[:5]],
@@ -654,7 +654,7 @@ class AgentMemory:
         root_cause: str,
         fix_applied: str = "",
         component: str = "system",
-        learnings: list[str] = None,
+        learnings: list[str] | None = None,
         session_id: str = "",
     ) -> str:
         """
@@ -676,7 +676,7 @@ class AgentMemory:
             try:
                 self.store.zadd(f"{self.PREFIX}:experience:by_task:{component}", {exp_id: datetime.now().timestamp()})
             except Exception as e:
-                logger.error(f"Failed to index failure by component: {e}")
+                logger.error("Failed to index failure by component: %s", e)
 
         refl_id = self.reflect(
             task=title[:100],
@@ -700,9 +700,9 @@ class AgentMemory:
             self.store.hset(f"{self.PREFIX}:failures:detailed", field=exp_id, value=json.dumps(failure_data))
             self.store.zadd(f"{self.PREFIX}:failures:index", {exp_id: datetime.now().timestamp()})
         except Exception as e:
-            logger.error(f"Failed to store failure detail: {e}")
+            logger.error("Failed to store failure detail: %s", e)
 
-        logger.info(f"Failure logged: {title[:50]}")
+        logger.info("Failure logged: %s", title[:50])
         return exp_id
 
 

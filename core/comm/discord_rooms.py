@@ -24,12 +24,14 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm.discord_bridge import DISCORD_MAX, _content_str, chunk, redact, should_forward
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _ROOT = Path(__file__).resolve().parents[2]
 

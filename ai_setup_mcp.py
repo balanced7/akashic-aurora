@@ -494,7 +494,7 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 @mcp.tool()
 async def find(
     query: str,
-    limit: int = None,
+    limit: int = None,  # noqa: RUF013  # MCP tool input schema (O4c) must stay byte-identical
     offset: int = 0,
     path: bool = False,
     no_sort: bool = False,

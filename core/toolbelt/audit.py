@@ -431,8 +431,7 @@ def render(
         d_d = sum(1 for r in domain_rows if r.verdict == "DRIFT")
         d_u = sum(1 for r in domain_rows if r.verdict == "UNKNOWN")
         lines.append(f"[{domain_name}] {len(domain_rows)} row(s) ({d_m}M/{d_d}D/{d_u}U)")
-        for r in domain_rows:
-            lines.append(r.render(ground=ground_truth_source))
+        lines.extend(r.render(ground=ground_truth_source) for r in domain_rows)
         lines.append("")
 
     return "\n".join(lines)

@@ -740,17 +740,17 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
     # 2026-07-28 straggler class (deepseek's C counter-half diagnosis). The dual-write
     # net hides the loss, so ONLY an explicit TYPE probe surfaces it.
     try:
-        for wt in _probe_lane_wrongtype(agent):
-            out.append(
-                _f(
-                    agent,
-                    "wrongtype_lane_key",
-                    "banner",
-                    f"{agent}: lane key WRONG TYPE -- {wt['key']} is "
-                    f"'{wt['actual_type']}', xadd fails upstream (straggler cause)",
-                    f"redis-cli TYPE {wt['key']}  | then rename/clear the key",
-                )
+        out.extend(
+            _f(
+                agent,
+                "wrongtype_lane_key",
+                "banner",
+                f"{agent}: lane key WRONG TYPE -- {wt['key']} is "
+                f"'{wt['actual_type']}', xadd fails upstream (straggler cause)",
+                f"redis-cli TYPE {wt['key']}  | then rename/clear the key",
             )
+            for wt in _probe_lane_wrongtype(agent)
+        )
     except Exception:
         pass
 
@@ -1440,8 +1440,7 @@ def format_flightdeck(fd: dict[str, Any], json_mode: bool = False) -> str:
     if commits:
         lines.append("")
         lines.append(f"── recent commits ({len(commits)}) ──")
-        for c in commits[:8]:
-            lines.append(f"  {c}")
+        lines.extend(f"  {c}" for c in commits[:8])
 
     # Single-agent detail
     if not fd.get("fleet"):
@@ -1454,8 +1453,7 @@ def format_flightdeck(fd: dict[str, Any], json_mode: bool = False) -> str:
             lines.append(f"  verdict: {uw['verdict']}")
             lines.append(f"  recommendation: {uw.get('recommendation', '')}")
             ev = uw.get("evidence", {})
-            for f in ev.get("findings", [])[:6]:
-                lines.append(f"    [{f['grade']}] {f['line']}")
+            lines.extend(f"    [{f['grade']}] {f['line']}" for f in ev.get("findings", [])[:6])
 
     return "\n".join(lines)
 

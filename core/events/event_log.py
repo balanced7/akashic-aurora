@@ -161,7 +161,7 @@ class EventLog:
             # followable id (reads resolve event:<RAW_STREAM>:<id> against it).
             eid = self.ledger.emit(RAW_STREAM, event, maxlen=CANONICAL_MAXLEN)
         except Exception as e:
-            logger.warning(f"capture failed: {type(e).__name__}: {e}")
+            logger.warning("capture failed: %s: %s", type(e).__name__, e)
             return BoundaryOutcome.caught(e, where="capture(canonical emit)")
 
         # ---- THE RECORD IS WRITTEN. Everything below is a convenience INDEX (T179) ----
@@ -187,7 +187,7 @@ class EventLog:
 
         if behind:
             why = "event IS on the canonical firehose; convenience index(es) behind -- " + "; ".join(behind)
-            logger.warning(f"capture partial: {why}")
+            logger.warning("capture partial: %s", why)
             return BoundaryOutcome.partially(why, ref=out["_ref"], **out)
         return BoundaryOutcome.done(ref=out["_ref"], **out)
 
@@ -268,7 +268,7 @@ class EventLog:
             try:
                 batch = self.ledger.consume(stream, after_id=after, count=_READ_BATCH)
             except Exception as e:
-                logger.warning(f"read of {stream} failed (partial): {type(e).__name__}: {e}")
+                logger.warning("read of %s failed (partial): %s: %s", stream, type(e).__name__, e)
                 break
             if not batch:
                 break

@@ -34,7 +34,7 @@ missing half refuses the whole operation.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
 from dataclasses import asdict, dataclass
 from pathlib import Path
 

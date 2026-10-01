@@ -37,11 +37,13 @@ from __future__ import annotations
 
 import contextlib
 import re
-from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.eye.index import _connect, utterance_key
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 # Phrase length in words. Short enough that a rephrasing still overlaps, long enough that
 # the match means something -- 5 words is the floor at which "fence the migration path"
@@ -204,9 +206,7 @@ def _marker_starts(text: str) -> list[int]:
         mtok = _tokens(marker)
         if not mtok:
             continue
-        for i in range(len(words) - len(mtok) + 1):
-            if words[i : i + len(mtok)] == mtok:
-                starts.append(i)
+        starts.extend(i for i in range(len(words) - len(mtok) + 1) if words[i : i + len(mtok)] == mtok)
     return sorted(set(starts))
 
 

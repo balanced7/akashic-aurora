@@ -170,17 +170,20 @@ def _check_half(text: str) -> list[str]:
     problems = []
     if not _VERDICT_RE.search(text):
         problems.append("no verdict lines found (expected V1./V2./... items)")
-    for line in text.splitlines():
-        if re.match(r"^\s*V\d+[.)]\s", line) and not _TAG_RE.search(line):
-            problems.append(f"M1-CF tag missing on verdict: {line.strip()[:80]!r} (tag with one of {list(_CF_TAGS)})")
+    problems.extend(
+        f"M1-CF tag missing on verdict: {line.strip()[:80]!r} (tag with one of {list(_CF_TAGS)})"
+        for line in text.splitlines()
+        if re.match(r"^\s*V\d+[.)]\s", line) and not _TAG_RE.search(line)
+    )
     return problems
 
 
 def _check_reconciliation(fence_id: str, text: str, state: dict[str, Any], by: str) -> list[str]:
-    problems = []
-    for h in ("half_a", "half_b"):
-        if h not in state["seals"]:
-            problems.append(f"order: {h} is not sealed yet (reconciliation comes LAST)")
+    problems = [
+        f"order: {h} is not sealed yet (reconciliation comes LAST)"
+        for h in ("half_a", "half_b")
+        if h not in state["seals"]
+    ]
     if not state.get("pv"):
         problems.append("M1-PV has not run (run_pv / fence pv) -- verify evidence before reading arguments")
     else:

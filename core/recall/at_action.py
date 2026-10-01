@@ -2123,9 +2123,10 @@ def render(
             f"({result.get('error')}). This is NOT 'no relevant lessons' -- the check did "
             "not run, so treat this action as unadvised and re-run recall if it matters."
         )
-    lines: list[str] = []
-    for lk in result.get("locks", []):
-        lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
+    lines: list[str] = [
+        f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing"
+        for lk in result.get("locks", [])
+    ]
     for l in result.get("lessons", []):
         s = l.get("text", "")
         lines.append(f"{_provenance_tag(l)} {s} (source: {l.get('source')})")

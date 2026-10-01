@@ -258,13 +258,13 @@ class FileLedger(Ledger):
                     return new_id
             except Exception as e:
                 if new_id is not None:  # the row is on disk; only the trim step failed
-                    logger.warning(f"FileLedger appended {path.name}#{new_id} but could not trim: {e}")
+                    logger.warning("FileLedger appended %s#%s but could not trim: %s", path.name, new_id, e)
                     return new_id
                 # Loud, never raising: emit sits on hot paths in every seat. A lock timeout
                 # (10 s of contention) or a disk error loses this one event WITH a log line.
                 # Return the newest id already on disk, read without the lock -- never "0",
                 # which a caller would take as a cursor and replay the whole stream from.
-                logger.error(f"FileLedger could not append to {path}: {e}")
+                logger.error("FileLedger could not append to %s: %s", path, e)
                 try:
                     return str(self._tail_state(path)[0])
                 except Exception:
@@ -338,7 +338,7 @@ class FileLedger(Ledger):
                     f.write(json.dumps(r) + "\n")
             os.replace(tmp, path)
         except OSError as e:
-            logger.warning(f"FileLedger trim of {path.name} deferred to a later emit: {e}")
+            logger.warning("FileLedger trim of %s deferred to a later emit: %s", path.name, e)
             with contextlib.suppress(OSError):
                 tmp.unlink()
 
@@ -426,7 +426,7 @@ class HybridLedger(Ledger):
                 # Return the Redis id, since reads will come from Redis.
                 return self._redis.emit(stream, event, maxlen=maxlen)
             except Exception as e:
-                logger.warning(f"HybridLedger Redis emit failed: {e}")
+                logger.warning("HybridLedger Redis emit failed: %s", e)
         return file_id
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):
@@ -464,7 +464,7 @@ class HybridLedger(Ledger):
                     pipe.xadd(stream, {"data": json.dumps(rec.get("event"))})
                 pipe.execute()
         except Exception as e:
-            logger.warning(f"HybridLedger backfill of {stream!r} skipped: {e}")
+            logger.warning("HybridLedger backfill of %r skipped: %s", stream, e)
 
     def close(self):
         if self._redis is not None:

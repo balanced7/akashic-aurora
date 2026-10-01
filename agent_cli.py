@@ -2341,16 +2341,14 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             f"{len(blocked)} blocked | {prop} -- "
             "RULE: DONE is closed, the ledger beats old messages (details: task list)"
         )
-        for t in active[:3]:
-            lines.append(
-                f"#   {t['id']} - {_clip(t['title'], 90)}  ({t['status']}"
-                + (f", {t['owner']}" if t.get("owner") else "")
-                + ")"
-            )
-        for t in nxt[:2]:
-            lines.append(f"#   next: {t['id']} - {_clip(t['title'], 90)}")
-        for t in blocked[:3]:
-            lines.append(f"#   BLOCKED: {t['id']} - {_clip(t['title'], 70)}")
+        lines.extend(
+            f"#   {t['id']} - {_clip(t['title'], 90)}  ({t['status']}"
+            + (f", {t['owner']}" if t.get("owner") else "")
+            + ")"
+            for t in active[:3]
+        )
+        lines.extend(f"#   next: {t['id']} - {_clip(t['title'], 90)}" for t in nxt[:2])
+        lines.extend(f"#   BLOCKED: {t['id']} - {_clip(t['title'], 70)}" for t in blocked[:3])
         _gaps.report("task-ledger", "loaded")
     except Exception as _e:
         # This bare pass hid the HIGHEST-precedence source in the house failing
@@ -3158,7 +3156,8 @@ def cmd_eye(args):
             if not args.name or not args.steps_file:
                 print("[eye route] save needs NAME and --steps-file (a JSON array of steps)", file=sys.stderr)
                 return 2
-            steps = _json.loads(open(args.steps_file, encoding="utf-8").read())
+            with open(args.steps_file, encoding="utf-8") as f:
+                steps = _json.loads(f.read())
             rid = _RT.save(args.name, steps, by=args.by)
             print(
                 f"[eye route] tied: {args.name!r} = {rid} ({len(steps)} step(s)) -- "
@@ -3453,7 +3452,7 @@ def cmd_ask(args):
                 print(f"could not stage the background prompt: {e}", file=sys.stderr)
                 return 1
         try:
-            fh = open(out_path, "w", encoding="utf-8")
+            fh = open(out_path, "w", encoding="utf-8")  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC
             flags = 0
             if os.name == "nt":
                 flags = (
@@ -4825,8 +4824,7 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injectio
             )
     if notes:
         lines.append("Decided / noted:")
-        for d in notes[:max_per]:
-            lines.append(f"  - {d.title}: {_clip(d.decision, 120)}  (mem:decision:{d.id})")
+        lines.extend(f"  - {d.title}: {_clip(d.decision, 120)}  (mem:decision:{d.id})" for d in notes[:max_per])
     if flips:
         from core.recall.at_action import learn_command_for
 
@@ -4844,8 +4842,7 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injectio
         gaps = [t for t, fl in by_target.items() if not int(fl.get("credited", 0) or 0)]
         if gaps:
             lines.append(f"Corpus gaps ({len(gaps)} uncredited flip target(s) -- no stored lesson helped):")
-            for t in gaps[:max_per]:
-                lines.append(f"  - {_clip(_human_flip_target(t), 100)}")
+            lines.extend(f"  - {_clip(_human_flip_target(t), 100)}" for t in gaps[:max_per])
     if injections:
         # W54 activation gauge (kimi F3): family-grouped firing rate at the reflective moment --
         # a "proven" claim about an organ must quote this number, not an anecdote.
@@ -8228,7 +8225,10 @@ def cmd_shell_home(args):
             f.write(target.replace("\\", "/"))
         hook_state = "already installed"
         try:
-            body = open(bashrc, encoding="utf-8", errors="replace").read() if os.path.exists(bashrc) else ""
+            body = ""
+            if os.path.exists(bashrc):
+                with open(bashrc, encoding="utf-8", errors="replace") as f:
+                    body = f.read()
             if _SHELL_HOME_MARK not in body:
                 with open(bashrc, "a", encoding="utf-8") as f:
                     f.write(_SHELL_HOME_HOOK)
@@ -8241,8 +8241,12 @@ def cmd_shell_home(args):
         return 0
     cur = ""
     if os.path.exists(home_file):
-        cur = open(home_file, encoding="ascii", errors="replace").read().strip()
-    hooked = os.path.exists(bashrc) and _SHELL_HOME_MARK in open(bashrc, encoding="utf-8", errors="replace").read()
+        with open(home_file, encoding="ascii", errors="replace") as f:
+            cur = f.read().strip()
+    hooked = False
+    if os.path.exists(bashrc):
+        with open(bashrc, encoding="utf-8", errors="replace") as f:
+            hooked = _SHELL_HOME_MARK in f.read()
     print(f"shell is at : {os.getcwd()}")
     print(f"home mapping: {cur or '(none -- fresh harness shells land at the session launch dir)'}")
     print(f"profile hook: {'installed' if hooked else 'absent'}")

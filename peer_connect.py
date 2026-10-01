@@ -159,7 +159,7 @@ def write_config() -> None:
 
 
 def tailnet_ip() -> str:
-    exe = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe")
+    exe = shutil.which("tailscale") or os.path.join(os.environ.get("PROGRAMFILES", ""), "Tailscale", "tailscale.exe")
     try:
         out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
@@ -207,7 +207,7 @@ def start_listener(host: str, port: int):
     argv = [sys.executable, str(script), "--host", host, "--port", str(port), "--peer", OUR_NAME]
     flags = 0x00000008 | 0x00000200 if os.name == "nt" else 0
     logf = (
-        open(ROOT / "state" / "logs" / "remote-bridge-listener.log", "ab")
+        open(ROOT / "state" / "logs" / "remote-bridge-listener.log", "ab")  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC
         if (ROOT / "state" / "logs").exists()
         else subprocess.DEVNULL
     )

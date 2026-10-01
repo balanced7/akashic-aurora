@@ -30,7 +30,10 @@ from __future__ import annotations
 
 import ctypes
 import threading
-from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # WinEvent constants ------------------------------------------------------------------
 EVENT_SYSTEM_FOREGROUND = 0x0003

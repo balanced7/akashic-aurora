@@ -23,13 +23,15 @@ import hashlib
 import json
 import os
 import re
-from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.foundation import filelock
 from core.paths import repo_root
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
 
 SCHEMA = "college.record.v1"
 EVENT_SCHEMA = "college.event.v1"

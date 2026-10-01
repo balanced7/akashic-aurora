@@ -48,13 +48,15 @@ import json
 import os
 import threading
 import time
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm import discord_bridge
 from core.foundation import filelock
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _pyl() -> str:

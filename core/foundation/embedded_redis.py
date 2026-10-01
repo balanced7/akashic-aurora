@@ -235,8 +235,7 @@ class _Persistence:
             by_id = {id(d): (n, d) for n, d in self.server.dbs.items()}
             if full:
                 for n, d in by_id.values():
-                    for key in list(d._dict):
-                        upserts.append((n, key, pickle.dumps(d._dict[key], protocol=4)))
+                    upserts.extend((n, key, pickle.dumps(d._dict[key], protocol=4)) for key in list(d._dict))
             else:
                 for db_id, key in dirty:
                     if db_id not in by_id:
@@ -531,7 +530,7 @@ def _spawn(port: int) -> None:
     kwargs = {
         "cwd": root,
         "stdin": subprocess.DEVNULL,
-        "stdout": open(log, "ab"),
+        "stdout": open(log, "ab"),  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC
         "stderr": subprocess.STDOUT,
         "close_fds": True,
         "env": env,

@@ -53,7 +53,10 @@ import socket
 import threading
 import time
 import zlib
-from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Loopback only, always. This is a control plane: it must never be reachable off-box.
 _HOST = "127.0.0.1"

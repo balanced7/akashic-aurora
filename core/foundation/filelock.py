@@ -20,10 +20,13 @@ correctness property a hand-rolled lock file cannot give you.
 from __future__ import annotations
 
 import contextlib
-import os
 import time
-from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import os
+    from collections.abc import Iterator
 
 try:  # Windows
     import msvcrt

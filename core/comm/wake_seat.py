@@ -29,7 +29,10 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never fla
 import contextlib
 import tempfile
 import time
-from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Names that identify a live harness ancestor (Claude Desktop engine, CLI engine, or a
 # node-hosted harness). Substring match, case-insensitive, on the process NAME only.
@@ -167,7 +170,8 @@ def touch_activity(agent: str, session_id: str, tmp: str | None = None) -> None:
 def activity_age_min(agent: str, session_id: str, now: float | None = None, tmp: str | None = None) -> float | None:
     """Minutes since the session's last hook firing; None when no marker exists."""
     try:
-        ts = float(open(activity_marker_path(agent, session_id, tmp)).read().strip())
+        with open(activity_marker_path(agent, session_id, tmp)) as f:
+            ts = float(f.read().strip())
         return max(0.0, ((now if now is not None else time.time()) - ts) / 60.0)
     except Exception:
         return None
@@ -651,7 +655,8 @@ def janitor(
                 # same garbage past the gate is just garbage; fall through and
                 # reap_decision cleans it (the janitor never goes hoarder).
                 try:
-                    raw = open(path, encoding="utf-8", errors="replace").read().strip()
+                    with open(path, encoding="utf-8", errors="replace") as f:
+                        raw = f.read().strip()
                     age_min = ((now if now is not None else time.time()) - os.path.getmtime(path)) / 60.0
                 except Exception:
                     raw, age_min = "", None

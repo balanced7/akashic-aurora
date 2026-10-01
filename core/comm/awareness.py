@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.coord.observations import Observation, Snapshot
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
 
 DEFAULT_ORDER = ("bus", "bench", "route", "moved")
 

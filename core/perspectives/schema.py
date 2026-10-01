@@ -48,16 +48,15 @@ class Lens:
     goal: str = ""
 
     def validate(self) -> list[str]:
-        problems = []
-        for f in self.factor_weights:
-            if f not in FACTORS:
-                problems.append(f"factor '{f}' not in {FACTORS}")
+        problems = [f"factor '{f}' not in {FACTORS}" for f in self.factor_weights if f not in FACTORS]
         for f, v in self.factor_weights.items():
             if not isinstance(v, (int, float)):
                 problems.append(f"factor '{f}' weight must be numeric")
-        for rel in self.relation_weights:
-            if not valid_relationship(rel):
-                problems.append(f"relation '{rel}' is not a real relationship short-name")
+        problems.extend(
+            f"relation '{rel}' is not a real relationship short-name"
+            for rel in self.relation_weights
+            if not valid_relationship(rel)
+        )
         return problems
 
     def to_dict(self) -> dict[str, Any]:
@@ -78,10 +77,9 @@ class Map:
     direction: str = "both"  # forward | backward | both
 
     def validate(self) -> list[str]:
-        problems = []
-        for d in self.relation_domains:
-            if d not in VALID_DOMAINS:
-                problems.append(f"domain '{d}' not in {sorted(VALID_DOMAINS)}")
+        problems = [
+            f"domain '{d}' not in {sorted(VALID_DOMAINS)}" for d in self.relation_domains if d not in VALID_DOMAINS
+        ]
         if self.direction not in ("forward", "backward", "both"):
             problems.append(f"direction '{self.direction}' invalid")
         return problems

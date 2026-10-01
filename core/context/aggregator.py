@@ -136,8 +136,7 @@ def assemble_context(
             }
         )
     for kind in ("decisions", "learnings", "blockers"):
-        for entry in fitted.get(kind, []):
-            skeleton_items.append({**entry, "kind": kind})
+        skeleton_items.extend({**entry, "kind": kind} for entry in fitted.get(kind, []))
     briefing = fitted.get("briefing")
     if briefing:
         skeleton_items.insert(

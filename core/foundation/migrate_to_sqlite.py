@@ -236,13 +236,11 @@ def verify(json_path: Path, db_path: Path) -> tuple[bool, list]:
         snap = store.snapshot()
         for bucket in _BUCKETS:
             src_keys = {k for k in (data.get(bucket) or {}) if k not in dead}
-            for k in snap[bucket]:
-                if k not in src_keys:
-                    problems.append(f"{bucket}[{k}]: target-only (source does not hold it)")
+            problems.extend(
+                f"{bucket}[{k}]: target-only (source does not hold it)" for k in snap[bucket] if k not in src_keys
+            )
         live_expiry = {k for k, ts in (data.get("__expiry__") or {}).items() if k not in dead and float(ts) > now}
-        for k in snap["expiry"]:
-            if k not in live_expiry:
-                problems.append(f"expiry[{k}]: target-only expiry row")
+        problems.extend(f"expiry[{k}]: target-only expiry row" for k in snap["expiry"] if k not in live_expiry)
     finally:
         store.close()
     return (not problems), problems

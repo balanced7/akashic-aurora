@@ -1,7 +1,8 @@
 import json
 import re
 
-d = json.load(open("state/coord/tasks.json", encoding="utf-8"))
+with open("state/coord/tasks.json", encoding="utf-8") as _f:
+    d = json.load(_f)
 tasks = d.get("tasks", d) if isinstance(d, dict) else d
 if isinstance(tasks, dict):
     tasks = list(tasks.values())
@@ -22,8 +23,7 @@ print()
 edges = []
 for t in tasks:
     title = t.get("title", "") or ""
-    for m in pat.finditer(title):
-        edges.append((t.get("id", ""), m.group(0), title))
+    edges.extend((t.get("id", ""), m.group(0), title) for m in pat.finditer(title))
 print("RAW T-citation occurrences in titles:", len(edges))
 print()
 # deps field content

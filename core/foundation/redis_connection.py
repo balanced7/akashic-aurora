@@ -187,7 +187,7 @@ def probe_redis_reachable(
         sock.close()
         result = True
     except Exception as e:
-        logger.debug(f"Redis not reachable at {host}:{port}: {type(e).__name__}: {e}")
+        logger.debug("Redis not reachable at %s:%s: %s: %s", host, port, type(e).__name__, e)
         result = False
     _REACHABILITY_CACHE[key] = (time.monotonic(), result)
     return result
@@ -301,5 +301,5 @@ def connect_to_redis_with_fail_fast(
         client.ping()
         return client
     except Exception as e:
-        logger.warning(f"Redis reachable but PING failed at {host}:{port}: {e}")
+        logger.warning("Redis reachable but PING failed at %s:%s: %s", host, port, e)
         return None

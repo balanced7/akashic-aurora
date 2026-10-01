@@ -40,11 +40,13 @@ from __future__ import annotations
 import os
 import re
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm import remote_relay as RR
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _reachable(url: str, timeout: float = 4.0) -> bool | None:

@@ -45,7 +45,8 @@ def gather():
             if not fn.endswith(".json"):
                 continue
             try:
-                doc = json.load(open(os.path.join(reg_dir, fn), encoding="utf-8"))
+                with open(os.path.join(reg_dir, fn), encoding="utf-8") as f:
+                    doc = json.load(f)
             except Exception:
                 continue
             for name, e in sorted(doc.get("entries", {}).items()):
@@ -61,9 +62,13 @@ def gather():
                     )
     wishes = []
     try:
-        for ln in open(os.path.join(ROOT, "docs", "WISHLIST.md"), encoding="utf-8").read().splitlines():
-            if today() in ln or "2026-07-20" in ln:
-                wishes.append(ln.strip("- [ ]").strip())
+        with open(os.path.join(ROOT, "docs", "WISHLIST.md"), encoding="utf-8") as f:
+            text = f.read()
+        wishes.extend(
+            ln.strip("- [ ]").strip()  # noqa: B005  # strips the char set "- []" by design
+            for ln in text.splitlines()
+            if today() in ln or "2026-07-20" in ln
+        )
     except Exception:
         pass
     return commits, verbs, wishes

@@ -406,9 +406,11 @@ class AtomFamily:
         (never the serving path)."""
         out: list[dict[str, Any]] = []
         for atom in self.find():
-            for c in atom.get("citations_out", []):
-                if c.get("target") == atom_id:
-                    out.append({"source": atom["id"], "rel": c.get("rel"), "status": atom["header"]["status"]})
+            out.extend(
+                {"source": atom["id"], "rel": c.get("rel"), "status": atom["header"]["status"]}
+                for c in atom.get("citations_out", [])
+                if c.get("target") == atom_id
+            )
         return out
 
     def verify_backlink_index(self) -> list[str]:
@@ -426,10 +428,8 @@ class AtomFamily:
         for t in sorted(targets):
             believed = set(self.store.smembers(_idx_key("cited-by", t)))
             actual = truth.get(t, set())
-            for missing in sorted(actual - believed):
-                rows.append(f"INDEX-MISSING cited-by:{t} lacks {missing}")
-            for phantom in sorted(believed - actual):
-                rows.append(f"INDEX-PHANTOM cited-by:{t} claims {phantom}")
+            rows.extend(f"INDEX-MISSING cited-by:{t} lacks {missing}" for missing in sorted(actual - believed))
+            rows.extend(f"INDEX-PHANTOM cited-by:{t} claims {phantom}" for phantom in sorted(believed - actual))
         return rows
 
     # ---------- resolution laws (v1.1) ----------

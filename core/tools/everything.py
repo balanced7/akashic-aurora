@@ -405,9 +405,7 @@ def _parse_json_hits(text: str) -> list[Hit]:
     try:
         decoded = json.loads(text)
         if isinstance(decoded, list):
-            for rec in decoded:
-                if isinstance(rec, dict) and _record_path(rec):
-                    hits.append(_hit_from_record(rec))
+            hits.extend(_hit_from_record(rec) for rec in decoded if isinstance(rec, dict) and _record_path(rec))
             return hits
         if isinstance(decoded, dict) and _record_path(decoded):
             hits.append(_hit_from_record(decoded))
@@ -454,7 +452,7 @@ def _hit_from_record(rec: dict) -> Hit:
 def walk_search(
     query: str,
     *,
-    max_results: int = None,
+    max_results: int | None = None,
     match_path: bool = False,
     roots=None,
     budget_s: float = 25.0,
@@ -672,7 +670,7 @@ def search(
 def search_page(
     query: str,
     *,
-    limit: int = None,
+    limit: int | None = None,
     offset: int = 0,
     match_path: bool = False,
     sort_by_name: bool = True,

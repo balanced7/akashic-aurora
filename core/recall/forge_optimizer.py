@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 MAX_TARGETS_PER_PASS = 2  # locked design decision 1
 PROPOSAL_TTL_DAYS = 7.0  # unreviewed proposals expire (curator sweeps)

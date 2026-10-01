@@ -42,8 +42,10 @@ from __future__ import annotations
 
 import os
 import time
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Who "the operator" is when nobody says otherwise. A default, never a truth claim --
 #: whoever holds the root id is not necessarily this name (the same discipline

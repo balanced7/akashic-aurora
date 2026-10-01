@@ -149,7 +149,7 @@ class SignalEmitter:
             self.signal_ledger.append_signal(signal)
             return True
         except Exception as e:
-            logging.error(f"Failed to emit signal: {e}")
+            logging.error("Failed to emit signal: %s", e)  # noqa: LOG015  # root-logger routing kept as-is
             return False
 
     def emit_action_triggering_work(self, action_name: str, details: dict[str, Any] | None = None) -> None:
@@ -336,9 +336,9 @@ class SignalEmitter:
             store = get_learning_store()
             learning_signal = {**data, "agent_id": self.agent_id, "timestamp": datetime.utcnow().isoformat()}
             store.record_learning(learning_signal)
-            self.logger.info(f"Learning indexed: {experiment_name} ({success})")
+            self.logger.info("Learning indexed: %s (%s)", experiment_name, success)
         except Exception as e:
-            self.logger.warning(f"Could not index learning directly: {e}")
+            self.logger.warning("Could not index learning directly: %s", e)
 
     def load_context_derived_from_startup_sources(self) -> dict[str, Any] | None:
         """

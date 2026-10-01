@@ -63,16 +63,16 @@ def _gather_mem_items(agent_memory) -> list:
                 text=text, source=exp.id, kind="experience", importance=4 if exp.success else 3, timestamp=exp.timestamp
             )
         )
-    for refl in mem.get_insights(min_confidence=0.0):
-        items.append(
-            Consolidator.item(
-                text=refl.get("what_would_help") or refl.get("what_went_wrong", ""),
-                source=refl.get("id"),
-                kind="reflection",
-                importance=3,
-                timestamp=refl.get("created_at"),
-            )
+    items.extend(
+        Consolidator.item(
+            text=refl.get("what_would_help") or refl.get("what_went_wrong", ""),
+            source=refl.get("id"),
+            kind="reflection",
+            importance=3,
+            timestamp=refl.get("created_at"),
         )
+        for refl in mem.get_insights(min_confidence=0.0)
+    )
     return items
 
 

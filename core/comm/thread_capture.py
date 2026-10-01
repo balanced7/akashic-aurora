@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LINK_FIELDS = (
@@ -326,8 +328,7 @@ def render_transcript(snapshot: Mapping[str, Any], *, title: str) -> str:
         f"- truncated: {'yes' if bounds.get('truncated') else 'no'}",
         "",
     ]
-    for blind in snapshot.get("blind") or []:
-        lines.append(f"> BLIND: {blind}")
+    lines.extend(f"> BLIND: {blind}" for blind in snapshot.get("blind") or [])
     if snapshot.get("blind"):
         lines.append("")
     for row in snapshot.get("messages") or []:
@@ -462,14 +463,13 @@ def render_capture(snapshot: Mapping[str, Any]) -> str:
             f"truncated={'yes' if bounds.get('truncated') else 'no'}"
         ),
     ]
-    for row in snapshot.get("messages") or []:
-        lines.append(
-            f"  {row.get('ts') or '?'}  {row.get('frm') or '?'} -> "
-            f"{row.get('to') or '?'} [{row.get('kind') or '?'}] "
-            f"{str(row.get('content') or '')[:120]}"
-        )
-    for blind in snapshot.get("blind") or []:
-        lines.append(f"  BLIND: {blind}")
+    lines.extend(
+        f"  {row.get('ts') or '?'}  {row.get('frm') or '?'} -> "
+        f"{row.get('to') or '?'} [{row.get('kind') or '?'}] "
+        f"{str(row.get('content') or '')[:120]}"
+        for row in snapshot.get("messages") or []
+    )
+    lines.extend(f"  BLIND: {blind}" for blind in snapshot.get("blind") or [])
     return "\n".join(lines)
 
 

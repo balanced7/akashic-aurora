@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.eye.index import _connect
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _first_sentence(text: str, cap: int = 220) -> str:

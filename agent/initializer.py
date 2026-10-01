@@ -104,7 +104,7 @@ def derive_agent_context_from_startup_sources(
         from core.signals.coordinator_api import initialize
         from core.state.session_checkpoint import SessionState
 
-        logger.info(f"Initializing agent: {agent_id}")
+        logger.info("Initializing agent: %s", agent_id)
 
         # Create diagnostics tracker
         diag = create_startup_diagnostics(agent_id)
@@ -156,7 +156,7 @@ def derive_agent_context_from_startup_sources(
             diag.print_report()
 
         elapsed = (time.time() - start_time) * 1000
-        logger.info(f"Initialization complete in {elapsed:.1f}ms")
+        logger.info("Initialization complete in %.1fms", elapsed)
 
         return {
             "api": api,
@@ -197,7 +197,7 @@ def derive_agent_context_from_startup_sources(
         }
 
 
-def initialize_agent_with_minimal_output(agent_id: str, task_keyword: str = None):
+def initialize_agent_with_minimal_output(agent_id: str, task_keyword: str | None = None):
     """
     Initialize agent quickly without verbose output.
 
@@ -212,7 +212,7 @@ def initialize_agent_with_minimal_output(agent_id: str, task_keyword: str = None
     raise RuntimeError(f"Initialization failed: {result['message']}")
 
 
-def initialize_agent_with_full_diagnostics(agent_id: str, task_keyword: str = None):
+def initialize_agent_with_full_diagnostics(agent_id: str, task_keyword: str | None = None):
     """
     Initialize agent with full error handling, logging, and diagnostics.
 
@@ -238,12 +238,12 @@ def initialize_and_load_context(
     return derive_agent_context_from_startup_sources(agent_id, task_keyword, redis_host, redis_port, verbose)
 
 
-def quick_initialize(agent_id: str, task_keyword: str = None):
+def quick_initialize(agent_id: str, task_keyword: str | None = None):
     """Deprecated: Use initialize_agent_with_minimal_output() instead"""
     return initialize_agent_with_minimal_output(agent_id, task_keyword)
 
 
-def robust_initialize(agent_id: str, task_keyword: str = None):
+def robust_initialize(agent_id: str, task_keyword: str | None = None):
     """Deprecated: Use initialize_agent_with_full_diagnostics() instead"""
     return initialize_agent_with_full_diagnostics(agent_id, task_keyword)
 

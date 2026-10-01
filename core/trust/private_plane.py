@@ -46,9 +46,11 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 PLANE_DIRNAME = "private"
@@ -228,21 +230,20 @@ def scan_text(text: str, label: str = "text", root: Path | None = None) -> list[
     if not marks or not text:
         return []
     low = str(text).lower()
-    out: list[dict[str, Any]] = []
-    for m in sorted(marks):
-        if m in low:
-            out.append(
-                {
-                    "path": label,
-                    "marker": m,
-                    "line": 0,
-                    "remedy": (
-                        f"this {label} names {m!r}, which identifies private-plane "
-                        "content. Describe the work without naming the artifact -- "
-                        "existence metadata is a leak even when no body is published."
-                    ),
-                }
-            )
+    out: list[dict[str, Any]] = [
+        {
+            "path": label,
+            "marker": m,
+            "line": 0,
+            "remedy": (
+                f"this {label} names {m!r}, which identifies private-plane "
+                "content. Describe the work without naming the artifact -- "
+                "existence metadata is a leak even when no body is published."
+            ),
+        }
+        for m in sorted(marks)
+        if m in low
+    ]
     return out
 
 

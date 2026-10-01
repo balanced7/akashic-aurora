@@ -25,12 +25,14 @@ from __future__ import annotations
 import math
 import os
 import re
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from core.primitives.embedder import Embedder, get_embedder
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 _TOKEN = re.compile(r"[a-z][a-z0-9_]{2,}")
 # generic words that shouldn't become theme labels (c-TF-IDF already downweights cross-cluster

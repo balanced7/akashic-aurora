@@ -83,7 +83,7 @@ class Embedder:
             self._model = SentenceTransformer(self.model_name, device="cpu")
             self._available = True
         except Exception as e:
-            logger.warning(f"embedder unavailable ({type(e).__name__}: {e}); using keyword fallback")
+            logger.warning("embedder unavailable (%s: %s); using keyword fallback", type(e).__name__, e)
             self._available = False
 
     # ------------------------------------------------------------------ embed
@@ -116,7 +116,7 @@ class Embedder:
                     self._cache_put(h, v)
                     out[i] = v
             except Exception as e:
-                logger.warning(f"encode failed ({type(e).__name__}: {e}); leaving as fallback")
+                logger.warning("encode failed (%s: %s); leaving as fallback", type(e).__name__, e)
         return out
 
     def _encode(self, texts: list[str]) -> list[list[float]]:

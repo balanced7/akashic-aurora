@@ -199,7 +199,8 @@ def _pid_alive(pid):
 
 def wake_armed(session_id: str = ""):
     try:
-        pid = int(open(_seat_path(session_id)).read().strip())
+        with open(_seat_path(session_id)) as f:
+            pid = int(f.read().strip())
     except Exception:
         return False
     return _pid_alive(pid)
@@ -235,15 +236,17 @@ def _promise_block(payload: dict):
     except Exception:
         return None
     try:
-        if open(PROMISE_LATCH).read().strip() == session_id:
+        with open(PROMISE_LATCH) as f:
+            latched = f.read().strip()
+        if latched == session_id:
             return None  # already bounced this session -- once is a nudge, twice is a wedge
     except Exception:
         pass
     excerpt = promise_shaped(final_paragraph(last_assistant_text(transcript)))
     if not excerpt:
         return None
-    with contextlib.suppress(Exception):
-        open(PROMISE_LATCH, "w").write(session_id)
+    with contextlib.suppress(Exception), open(PROMISE_LATCH, "w") as f:
+        f.write(session_id)
     return (
         f"Turn-ending check: your final paragraph reads as a promise of future work "
         f'("{excerpt}..."). Do that work NOW with tool calls, or end on the outcome and '
@@ -455,12 +458,13 @@ def main():
         guard = _loop_guard_path(session_id)
         now = time.time()
         try:
-            last = float(open(guard).read().strip())
+            with open(guard) as f:
+                last = float(f.read().strip())
         except Exception:
             last = 0.0
         if now - last >= 25:  # loop guard: never block twice within 25s
-            with contextlib.suppress(Exception):
-                open(guard, "w").write(str(now))
+            with contextlib.suppress(Exception), open(guard, "w") as f:
+                f.write(str(now))
             arm_cmd = f"BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py --agent {AGENT}" + (
                 f" --session {session_id}" if session_id else ""
             )  # T045: lane-mode watch

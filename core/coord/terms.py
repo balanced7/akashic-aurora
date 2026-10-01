@@ -285,10 +285,7 @@ _SKIP_DIRS = {
 def _prose_of(src: str) -> str:
     """Comments plus docstrings -- the places a codebase discusses a concept rather than
     naming one. Identifiers are deliberately excluded: `wakeable` never was one."""
-    out = []
-    for line in src.splitlines():
-        if "#" in line:
-            out.append(line.split("#", 1)[1])
+    out = [line.split("#", 1)[1] for line in src.splitlines() if "#" in line]
     try:
         tree = ast.parse(src)
     except SyntaxError:

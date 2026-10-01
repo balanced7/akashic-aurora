@@ -157,10 +157,9 @@ def list_tools(agent: str) -> list[str]:
     d = os.path.join(PLAY, agent)
     if not os.path.isdir(d):
         return []
-    tools = []
-    for fn in sorted(os.listdir(d)):
-        if fn.endswith(".py") and not fn.startswith("_") and fn != "__init__.py":
-            tools.append(fn[:-3])
+    tools = [
+        fn[:-3] for fn in sorted(os.listdir(d)) if fn.endswith(".py") and not fn.startswith("_") and fn != "__init__.py"
+    ]
     return tools
 
 

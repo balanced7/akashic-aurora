@@ -194,9 +194,7 @@ def _library_paths() -> list[str]:
             d = os.path.join(lib, type_dir)
             if not os.path.isdir(d):
                 continue
-            for n in sorted(os.listdir(d)):
-                if n.endswith(".md"):
-                    out.append(os.path.join(d, n))
+            out.extend(os.path.join(d, n) for n in sorted(os.listdir(d)) if n.endswith(".md"))
     except OSError:
         pass
     return out
@@ -406,7 +404,8 @@ def _chapter_items() -> list[dict[str, Any]]:
         import json
 
         idx = os.path.join(ROOT, "chronicles", "story.index.json")
-        data = json.load(open(idx, encoding="utf-8"))
+        with open(idx, encoding="utf-8") as f:
+            data = json.load(f)
         chapters = data.get("chapters") or data if isinstance(data, list) else data.get("chapters", [])
     except Exception:
         return []

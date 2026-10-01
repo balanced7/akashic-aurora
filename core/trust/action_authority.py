@@ -13,8 +13,10 @@ but the returned preview state is ``unknown`` rather than an invented allow.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 # Values, not enum member names: these are also the strings rendered by ground
 # and security/acl.json.  Nudge/steer require BUS_SEND as well as their special

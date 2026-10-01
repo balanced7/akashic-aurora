@@ -27,10 +27,12 @@ is trivially 100% today -- this critic is the forward gate for an LLM writer tha
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.primitives.distiller import _SUMMARY_FIELDS, _source_of
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Line-final source capture (paren-safe: a source like learn:experiment:...(prior art) is whole).
 _SOURCE_RE = re.compile(r"\(source:\s*(.+)\)\s*$")

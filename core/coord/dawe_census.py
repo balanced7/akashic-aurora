@@ -107,8 +107,9 @@ def render(shapes: list[VerbShape]) -> str:
             f"  {len(flagged)} verb(s), {sum(s.body_lines for s in flagged):,} lines: "
             f"large AND no helper seam AND no value-returning path"
         )
-        for s in flagged:
-            out.append(f"    {s.body_lines:>5}  {s.name:<24} :{s.lineno:<6} {s.terminal_writes} terminal write(s)")
+        out.extend(
+            f"    {s.body_lines:>5}  {s.name:<24} :{s.lineno:<6} {s.terminal_writes} terminal write(s)" for s in flagged
+        )
     out.append(
         f"  ({len(fused_small)} more are fused but under {BIG_ENOUGH_TO_HIDE} lines -- "
         f"small enough to read whole, so fusion costs nothing there)"

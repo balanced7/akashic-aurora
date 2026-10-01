@@ -180,7 +180,7 @@ def is_load_bearing(files) -> bool:
     exactly that. A guard believed to be a wall is more dangerous than one known to be a bump.
 
     The same threat model covers a second bypass a reviewer found and I am not fixing: a
-    homoglyph path (`сore/x.py` with a Cyrillic U+0441) fails segment equality and slips
+    homoglyph path (`\u0441ore/x.py` with a Cyrillic U+0441) fails segment equality and slips
     through. Defeating that means confusable-detection, and NFKC does not even solve it -- a
     large mechanism against an attacker this gate has already conceded, while the honest
     omission it exists to catch is caught. Both limits are here so the next reader inherits the

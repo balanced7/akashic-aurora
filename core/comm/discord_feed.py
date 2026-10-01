@@ -25,12 +25,14 @@ from __future__ import annotations
 
 import contextlib
 import json
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.comm import discord_bridge as DB
 from core.comm import discord_rooms as ROOMS
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 CURSOR_KEY = "bifrost:discord:feed_cursor"
 
