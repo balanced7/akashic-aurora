@@ -775,7 +775,7 @@ def _owner_alive(o: dict) -> bool:
 
 
 @contextlib.contextmanager
-def run_tree(ref: str):
+def run_tree(ref: str, python: str | None = None):
     """A detached throwaway worktree of `ref` with its own frozen venv. Removed afterwards by
     deleting the directory and pruning (never a forced git operation).
 
@@ -796,8 +796,9 @@ def run_tree(ref: str):
     tree = base / "aurora-oracle"
     git("worktree", "add", "--detach", str(tree), ref)
     try:
-        run(["uv", "sync", "--frozen", "--quiet"], cwd=tree, env=oracle_env(), check=True,
-            timeout=1800)
+        # `python`: measure a candidate interpreter (plan G1.P2) without committing a pin.
+        run(["uv", "sync", "--frozen", "--quiet"] + (["--python", python] if python else []),
+            cwd=tree, env=oracle_env(), check=True, timeout=1800)
         yield tree
     finally:
         _rmtree(base)
@@ -1566,19 +1567,21 @@ def compare_o10(a, b, partial=False) -> list:
 # ----------------------------------------------------------------------------- snapshot / compare
 
 def snapshot(label: str, ref: str = "HEAD", runs: int = 3, reruns: int = 2, components=None,
-             modules=None, tree: Path | None = None, mutate=None, select=()) -> Path:
+             modules=None, tree: Path | None = None, mutate=None, select=(),
+             python: str | None = None) -> Path:
     components = components or list(COMPONENTS)
     dest = SNAPSHOTS / label
     raw = dest / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     commit = git("rev-parse", ref).strip()
-    ctx = run_tree(commit) if tree is None else contextlib.nullcontext(tree)
+    ctx = run_tree(commit, python) if tree is None else contextlib.nullcontext(tree)
     with ctx as t:
         if mutate:
             mutate(t)
         dirty = bool(git_status_set(t))
         inv = build_inventory(t)
         graph = RepoGraph(t, [f for f in tracked_files(t) if f.endswith(".py")])
+        tree_python = run([venv_python(t), "-c", "import sys;print(sys.version.split()[0])"]).stdout.strip()
         common = {"commit": commit, "digest": relevant_digest(commit), "dirty": dirty,
                   "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "select": list(select)}
 
@@ -1614,6 +1617,7 @@ def snapshot(label: str, ref: str = "HEAD", runs: int = 3, reruns: int = 2, comp
     meta = load_json(meta_path) if meta_path.exists() else {}
     meta.update({"label": label, "commit": commit, "digest": common["digest"], "dirty": dirty,
                  "python": run([sys.executable, "-c", "import sys;print(sys.version.split()[0])"]).stdout.strip(),
+                 "tree_python": tree_python,
                  "platform": sys.platform, "uv": run(["uv", "--version"]).stdout.strip()})
     meta.setdefault("components", {})
     for c in components:
@@ -1692,7 +1696,8 @@ def cmd_snapshot(args) -> int:
     comps = args.components.split(",") if args.components else None
     mods = set(args.modules.split(",")) if args.modules else None
     sel = tuple(args.select.split(",")) if args.select else ()
-    dest = snapshot(args.label, args.ref, args.runs, args.reruns, comps, mods, select=sel)
+    dest = snapshot(args.label, args.ref, args.runs, args.reruns, comps, mods, select=sel,
+                    python=args.python)
     print("snapshot written: %s" % dest.relative_to(ROOT))
     return 0
 
@@ -1995,6 +2000,7 @@ def main(argv=None) -> int:
     s.add_argument("--components")
     s.add_argument("--modules", help="restrict O3/O5 to these modules (impacted oracle)")
     s.add_argument("--select", help="test paths for O1/O10 (smoke only; verify-snapshot rejects it)")
+    s.add_argument("--python", help="interpreter for the tree's venv (G1.P2 candidates)")
     s = sub.add_parser("compare", help="compare two snapshots component by component")
     s.add_argument("a")
     s.add_argument("b")
