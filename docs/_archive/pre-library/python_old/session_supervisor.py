@@ -17,7 +17,7 @@ import subprocess
 import urllib.request
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import redis
 

@@ -29,7 +29,6 @@ records attributable, so the extension is now safe and worth having.
 Run: py -m pytest tests/test_t161_wire_covers_every_seat.py -q
 """
 
-import glob
 import os
 import re
 import sys

@@ -27,7 +27,6 @@ Reconciled contract highlights the pins encode:
 import os
 import time
 
-import pytest
 
 from core.comm import wake_seat as ws
 

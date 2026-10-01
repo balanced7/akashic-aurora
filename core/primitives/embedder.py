@@ -27,7 +27,6 @@ import hashlib
 import json
 import logging
 import os
-from typing import List, Optional
 from collections.abc import Sequence
 
 from core.foundation.store import Store, create_store

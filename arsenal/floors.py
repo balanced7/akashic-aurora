@@ -18,7 +18,6 @@ Standalone: numpy + av only, no arsenal.* imports (the analysis.py rule).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import av
 import numpy as np

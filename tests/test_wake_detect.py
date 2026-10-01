@@ -12,7 +12,6 @@ Run: py -m pytest tests/test_wake_detect.py -q
 
 import os
 import sys
-import threading
 import time
 import uuid
 

@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # ── constants ──────────────────────────────────────────────────────────
 HINT_MAX_PER_AGENT = 8  # ring buffer cap per receiving agent

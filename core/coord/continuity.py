@@ -13,9 +13,9 @@ resident record, lesson, note, atom, or event is written by this view.
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Callable, Iterable, Mapping
 
 

@@ -35,7 +35,7 @@ import subprocess
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:

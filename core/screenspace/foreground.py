@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import ctypes
 import threading
-from typing import List, Optional
 from collections.abc import Callable
 
 # WinEvent constants ------------------------------------------------------------------

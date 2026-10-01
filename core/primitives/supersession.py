@@ -18,7 +18,7 @@ and are treated as active — so it's safe to adopt incrementally.
 See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Iterable
 
 

@@ -31,7 +31,6 @@ seat is auditable and never mistaken for a lock expiry.
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 
 def clean_death(agent: str, session_id: str, tmp: str | None = None, c=None, event: str = "SessionEnd") -> dict:

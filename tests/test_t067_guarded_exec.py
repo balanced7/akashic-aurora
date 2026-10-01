@@ -80,7 +80,6 @@ def test_g2_shell_metacharacters_refused_even_inside_a_family():
 # ---------------------------------------------------------------- G3 isolated env forced
 def test_g3_pytest_family_forces_isolation_env(monkeypatch):
     seen = {}
-    import subprocess as sp
 
     def fake_run(argv, **kw):
         seen["argv"], seen["env"] = argv, kw.get("env")

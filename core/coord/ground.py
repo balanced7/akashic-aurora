@@ -13,10 +13,10 @@ continuity evidence to become an identity verdict.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-from collections.abc import Iterable, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 
 def _pyl() -> str:

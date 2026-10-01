@@ -30,8 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from dataclasses import dataclass
 
 
 def _declare_dpi_awareness() -> None:

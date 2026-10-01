@@ -10,9 +10,7 @@ P6  format_unwedge text/json modes
 
 import os
 import sys
-import time
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

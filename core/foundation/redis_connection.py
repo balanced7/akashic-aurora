@@ -25,7 +25,7 @@ import logging
 import os
 import socket
 import time
-from typing import Any, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("redis_connection")
 

@@ -37,8 +37,6 @@ which either define it, render it to docs, or validate its schema). It is docume
 wearing the costume of configuration. These pins make `world` answer.
 """
 
-import os
-
 import pytest
 
 from core import world as W

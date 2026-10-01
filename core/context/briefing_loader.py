@@ -9,7 +9,7 @@ handed to me." It replays the signal ledger for HANDOFF signals targeting this
 agent and returns the latest one's payload (task, context, blockers).
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _consumed(handoff: dict[str, Any], agent: str, learning_store: Any = None) -> bool:

@@ -24,7 +24,7 @@ candidates that say why, not confirmed bugs).
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 # control-plane key FAMILIES whose unconditional mutation can strand fleet state.
 _CONTROL_FAMILIES = ("pause", "halt", "cursor", "expect", "drain", "resume")

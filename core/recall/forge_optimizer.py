@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Callable
 
 MAX_TARGETS_PER_PASS = 2  # locked design decision 1

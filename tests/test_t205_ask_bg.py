@@ -23,7 +23,6 @@ the same reading.
 Run: py -m pytest tests/test_t205_ask_bg.py -q
 """
 
-import json
 import os
 import sys
 import time

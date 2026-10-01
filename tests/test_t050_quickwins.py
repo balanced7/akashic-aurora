@@ -15,7 +15,6 @@ Run: py -m pytest tests/test_t050_quickwins.py -q
 
 import os
 import sys
-import types
 import uuid
 
 import pytest
@@ -24,7 +23,6 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from pathlib import Path
 
 import bifrost_runner_deepseek as runner
 import bifrost_wake

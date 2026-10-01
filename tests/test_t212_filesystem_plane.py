@@ -29,7 +29,6 @@ Run: py -m pytest tests/test_t212_filesystem_plane.py -q
 
 import os
 import sys
-import time
 
 import pytest
 

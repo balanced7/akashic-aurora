@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import List
 
 PRESET_DIR = Path(__file__).resolve().parent / "web" / "presets"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")

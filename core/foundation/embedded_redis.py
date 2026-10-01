@@ -47,7 +47,6 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Optional, Set, Tuple
 
 logger = logging.getLogger("embedded_redis")
 

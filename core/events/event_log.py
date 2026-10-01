@@ -33,7 +33,7 @@ into hot paths (commits, CLI verbs, sessions) can never break them.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from core.foundation.ledger import Ledger, create_ledger
 from core.foundation.timeutil import now_iso

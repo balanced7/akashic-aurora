@@ -251,7 +251,6 @@ def test_straggler_report_names_sender_and_ids():
     """
     # This is a design assertion verified by code review of the straggler
     # report format in bifrost_api.py:369-372.
-    import ast
     import inspect
 
     from core.comm import bifrost_api

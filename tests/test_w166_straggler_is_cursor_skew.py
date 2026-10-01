@@ -37,8 +37,6 @@ The classifier and render below are unchanged; twins are now found per packet, a
 the flip seed is no longer re-delivered.
 """
 
-import pytest
-
 from core.comm import bifrost_api as A
 
 

@@ -18,7 +18,7 @@ separately beside it.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Same-package reuse: snapshot is the public read-only record view; ANSWER_KINDS is the
 # settle vocabulary; _client/_ns are the coordination-plane accessors (private by

@@ -10,7 +10,6 @@ default title (T016 F1a; the title default is pinned here too).
 Run: py -m pytest tests/test_notes_supersession.py -q
 """
 
-import json
 import os
 import sys
 

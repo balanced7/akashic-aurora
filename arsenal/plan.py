@@ -7,7 +7,6 @@ measurements.
 from __future__ import annotations
 
 import re
-from typing import Dict, List
 
 from .graph import Graph
 from .mediatypes import MEDIA_PORT_TYPES

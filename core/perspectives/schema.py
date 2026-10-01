@@ -14,7 +14,7 @@ vocabulary (no invented relation names). See docs/library/design/20260709_perspe
 """
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.relationship_types import RelationshipType, get_relationship_by_name
 

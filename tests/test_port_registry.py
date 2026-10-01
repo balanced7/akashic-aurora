@@ -39,7 +39,6 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
 
 CHECKER = os.path.join(ROOT, "scripts", "checkers", "check_ports.py")
 

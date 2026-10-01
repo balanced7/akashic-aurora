@@ -47,7 +47,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
 # ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.

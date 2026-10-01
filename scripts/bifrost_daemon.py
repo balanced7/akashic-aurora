@@ -348,9 +348,6 @@ def managed_runner_env(
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
-    from typing import Dict, Optional
-    from typing import Optional as _Opt
-
     from core.comm import daemon_state as _ds
     from core.comm import runner_lock
     from core.comm.bus import Bus

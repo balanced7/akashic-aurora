@@ -21,7 +21,6 @@ would hide the attempt, and a feed that quietly widens is worse than one that ca
 from __future__ import annotations
 
 import re
-from typing import List
 
 # A namespace is a bare token: the live shapes are 'bifrost' (default), the
 # BIFROST_NAMESPACE env value, 'sandbox', and the 'test-*' drill convention.

@@ -15,8 +15,8 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone, UTC
-from typing import Any, Optional
+from datetime import datetime, UTC
+from typing import Any
 from collections.abc import Callable, Iterable, Mapping
 
 ENVELOPE_CAP = 8 * 1024

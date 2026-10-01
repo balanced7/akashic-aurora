@@ -9,7 +9,6 @@ TOOLS HUNT LEADERBOARD → DEEPSEEK TOOLBELT:
 Every verb: MINT (GUESS) → KATA (grammar-prove) → LEVEL UP (VERIFIED).
 """
 
-import os
 import shutil
 import tempfile
 

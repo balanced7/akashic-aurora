@@ -31,7 +31,7 @@ import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # T076c: task ids an ask's text references -- the settle probe's extraction surface.
 _TASK_IDS = re.compile(r"\bT\d{3}\b")

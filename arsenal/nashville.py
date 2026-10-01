@@ -36,7 +36,6 @@ bass ({degree, acc, text} or None), upper (the interval's top note, same shape, 
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional
 
 LETTERS = "CDEFGAB"
 LETTER_PC = (0, 2, 4, 5, 7, 9, 11)  # also the major scale, degree 1..7

@@ -23,7 +23,6 @@ import contextlib
 import os
 import time
 from pathlib import Path
-from typing import Union
 from collections.abc import Iterator
 
 try:  # Windows

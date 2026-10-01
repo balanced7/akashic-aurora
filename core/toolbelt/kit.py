@@ -32,8 +32,7 @@ layer can callsign it Operation TAHITI when the revive ceremony wants poetry (G3
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-from collections.abc import Callable
+from typing import Any
 
 # ---------------------------------------------------------------- the first kit
 # The recovery-arc's floor, one install away. Every entry is a verb that already

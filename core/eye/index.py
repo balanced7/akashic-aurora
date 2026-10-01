@@ -21,13 +21,12 @@ The index is a projection: state/eye/eye.db (WAL), rebuildable, never committed.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sqlite3
 import time
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_DB = _REPO_ROOT / "state" / "eye" / "eye.db"

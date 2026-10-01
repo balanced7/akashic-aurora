@@ -13,7 +13,6 @@ import json
 import os
 from fractions import Fraction
 from pathlib import Path
-from typing import Optional
 from collections.abc import Callable
 
 import av

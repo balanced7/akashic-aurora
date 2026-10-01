@@ -15,7 +15,7 @@ not in core/events (a domain primitive must not depend upward on the narrative).
 
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from core.events.event_query import EventQuery, get_event_query
 from core.foundation.store import Store, create_store

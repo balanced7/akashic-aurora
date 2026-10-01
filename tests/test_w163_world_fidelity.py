@@ -29,8 +29,6 @@ would be trusted. Each plane reports PRESENT, ABSENT or UNKNOWN, and UNKNOWN is 
 -- not a hopeful PRESENT.
 """
 
-import pytest
-
 from core.coord import world_fidelity as F
 
 

@@ -30,8 +30,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone, UTC
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, UTC
+from typing import Any
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

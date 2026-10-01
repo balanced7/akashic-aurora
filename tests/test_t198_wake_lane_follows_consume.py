@@ -14,8 +14,6 @@ class -- every probe run from inside was clean.
 Run: py -m pytest tests/test_t198_wake_lane_follows_consume.py -q
 """
 
-import pytest
-
 from core.comm import bifrost_api as API
 
 

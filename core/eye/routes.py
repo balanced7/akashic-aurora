@@ -54,9 +54,9 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 

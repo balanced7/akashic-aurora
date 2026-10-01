@@ -38,7 +38,6 @@ Run: py -m pytest tests/test_t160_wire_seat_attribution.py -q
 """
 
 import glob
-import json
 import os
 import re
 import sys

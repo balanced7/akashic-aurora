@@ -17,7 +17,6 @@ See docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052
 
 import json
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 from collections.abc import Callable
 
 from core.foundation.store import Store, create_store

@@ -49,7 +49,6 @@ def test_p3_durable_allowlist_passes():
 def test_p4_live_core_comm_is_clean():
     # the systemic proof: after this slice registered activity/pages/reply_seen/seat/
     # session, the live transport keyspace has NO unclassified family.
-    from pathlib import Path
 
     offenders = {}
     commdir = cb.ROOT / "core" / "comm"

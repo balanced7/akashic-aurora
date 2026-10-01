@@ -26,7 +26,7 @@ import math
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Callable
 
 # Weighted blend of the four signals (each normalized to 0..1). Tune per caller.

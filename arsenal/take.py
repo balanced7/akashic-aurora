@@ -14,9 +14,8 @@ import os
 import re
 import threading
 import time
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, List
 
 from .timebase import StaleEpoch, TimeRef
 import builtins

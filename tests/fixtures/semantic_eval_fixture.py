@@ -19,7 +19,7 @@ Two datasets, one per route the gate will serve:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from fixtures.counter_fixture import gold_cases
 

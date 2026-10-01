@@ -23,14 +23,12 @@ Version: 1.0 Background Monitor
 import argparse
 import json
 import os
-import socket
 import subprocess
 import sys
 import threading
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, r"E:\AI-Setup")
 

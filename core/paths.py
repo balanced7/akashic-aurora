@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 # Files/dirs that together identify the repo root and nothing else.
 _MARKERS = ("agent_cli.py", "core")

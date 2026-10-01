@@ -27,8 +27,7 @@ in loop 3 (engaged / wrap votes), which automatically makes benching fairer over
 from __future__ import annotations
 
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 BENCH_MIN_SURFACED = 10  # exposure floor: it had its chances...
 BENCH_MIN_AGE_DAYS = 10.0  # ...and its time. Both, or it stays.

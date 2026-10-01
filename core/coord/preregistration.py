@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

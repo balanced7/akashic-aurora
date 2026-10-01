@@ -33,7 +33,7 @@ it is reading the lane your message went to (the wrong-lane class is real and se
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Named blindness, structural rather than remembered -- the same law the friction reader
 # follows: a report that names no blindness is claiming omniscience.

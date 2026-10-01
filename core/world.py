@@ -52,7 +52,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Optional
 from collections.abc import Mapping
 
 from core.paths import repo_root

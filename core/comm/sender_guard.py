@@ -23,7 +23,6 @@ seats legitimately look like `codex_frontier_019f6e7e`, so shape decides, not si
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 #: What a seat id may contain. Anything else is prose, a path, or a shell accident.
 _ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")

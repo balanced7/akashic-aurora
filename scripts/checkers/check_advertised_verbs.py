@@ -32,7 +32,6 @@ check_door_parity's known-gaps list.
 from __future__ import annotations
 
 import ast
-import io
 import os
 import re
 import sys

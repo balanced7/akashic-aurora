@@ -13,7 +13,6 @@ diagram's <svg>, since a plain browser draws no <x-connector>.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
 
 from .. import scene as sc
 from . import _core as C

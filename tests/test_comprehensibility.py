@@ -10,7 +10,6 @@ Design: docs/library/design/20260701_the-comprehensibility-immune-system-desi_33
 import os
 import sys
 
-import pytest
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))

@@ -40,7 +40,6 @@ import urllib.error
 import urllib.request
 from collections import deque
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 
 def _pyl() -> str:

@@ -24,8 +24,8 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
-from collections.abc import Iterable, Iterator, Sequence
+from typing import Any
+from collections.abc import Iterator
 
 SCHEMA = "present.scene.v1"
 

@@ -20,7 +20,7 @@ See docs/library/design/20260620_research-context-handling-compaction-and_e5960c
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Callable
 
 # Fields to summarize from, in priority order (first present wins).

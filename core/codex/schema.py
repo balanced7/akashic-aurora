@@ -21,7 +21,7 @@ pre-build review (deltas E1-E2):
 import hashlib
 import uuid
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from core.narrative.schema import Edge, _as_edges  # the 66-type-validated edge (same layer)
 

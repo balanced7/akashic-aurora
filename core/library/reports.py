@@ -22,7 +22,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Iterable
 
 # The private shelf lives outside the repo so that no `git add -A` can sweep it in.

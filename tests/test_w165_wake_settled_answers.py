@@ -26,8 +26,6 @@ wake-worthy. Trading missed mail for a saved re-arm is the worse bug by a wide m
 existing code says so in its own comment two lines above.
 """
 
-import pytest
-
 from core.comm import expectations as E
 
 

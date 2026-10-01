@@ -39,7 +39,6 @@ the 2026-09-23 §1 ratification, and its same-day amendment.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, Tuple
 
 
 class CanaryState(str, Enum):

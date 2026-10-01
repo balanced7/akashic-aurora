@@ -5,14 +5,9 @@ Text-to-speech using Kokoro and espeak-ng
 """
 
 import asyncio
-import base64
-import io
-import json
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 
 
 @dataclass

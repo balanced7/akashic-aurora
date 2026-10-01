@@ -22,7 +22,6 @@ New design/plan docs belong in docs/; retired docs belong in _archive/. The root
 Run: py scripts/checkers/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
 """
 
-import os
 import sys
 from pathlib import Path
 

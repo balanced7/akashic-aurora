@@ -12,8 +12,6 @@ Design pattern follows TrackRouter (keyword rules + Tier 0 heuristic first),
 but multi-label instead of first-match.
 """
 
-from typing import List, Optional, Tuple
-
 # --- keyword tuples -> theme id ---
 # Derived from real beat data analysis: 7 existing beats cluster into 6 themes.
 THEME_KEYWORDS: list[tuple[tuple[str, ...], str]] = [

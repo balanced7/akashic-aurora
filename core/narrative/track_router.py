@@ -17,7 +17,6 @@ baseline on the fixture (ARI) or it doesn't ship.
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 from re import Pattern
 
 

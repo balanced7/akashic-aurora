@@ -9,7 +9,6 @@ the benchmark metrics from the relevant research fields. Reused across slices.
 
 import math
 from collections import Counter, defaultdict
-from typing import List, Tuple
 from collections.abc import Iterable, Sequence
 
 

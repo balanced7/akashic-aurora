@@ -15,9 +15,6 @@ The LLM half of distillation (the death-delta ask) is a grounded-ask passthrough
 unpinned here -- its honesty comes from the ask door's own contract.
 """
 
-import time
-from types import SimpleNamespace as SN
-
 from scripts.necropsy import classify_session, digest_transcript_text
 
 NOW = 1_800_000_000.0

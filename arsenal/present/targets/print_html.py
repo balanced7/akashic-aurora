@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import List, Optional
 
 from .. import scene as sc
 from . import _core as C

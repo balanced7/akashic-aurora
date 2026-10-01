@@ -18,15 +18,13 @@ voicing bridge unavailable; 5 conflict (the card or run changed underneath: run 
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import List, Optional, Tuple
-from urllib.parse import parse_qs, quote, urlencode
+from urllib.parse import quote, urlencode
 
 from arsenal.jam import schemas as S
 from arsenal.jam.resolve import midi_name, parse_line, parse_notes

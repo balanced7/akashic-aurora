@@ -11,8 +11,6 @@ Uses throwaway namespaces ('test_ctrl_a'/'test_ctrl_b') only -- it never reads o
 the real 'bifrost' control keys, so running it cannot disturb a live fleet.
 """
 
-import os
-
 import pytest
 
 from core.comm import control

@@ -26,9 +26,9 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 

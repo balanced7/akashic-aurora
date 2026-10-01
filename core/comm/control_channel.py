@@ -52,7 +52,6 @@ import socket
 import threading
 import time
 import zlib
-from typing import Dict, Optional
 from collections.abc import Callable
 
 # Loopback only, always. This is a control plane: it must never be reachable off-box.

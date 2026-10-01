@@ -42,8 +42,7 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
-from collections.abc import Callable
+from typing import Any
 
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled

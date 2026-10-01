@@ -47,7 +47,6 @@ import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
 
 from core.fleet import residents as R  # noqa: E402
 from core.fleet import scout as S  # noqa: E402

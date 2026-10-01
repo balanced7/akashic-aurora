@@ -337,7 +337,7 @@ def test_dsh_epoch_milliseconds_parse():
     ev = _event_from(DSH_OPERATOR)
     assert ev is not None and ev["ts"], "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
     # 1790300029000 ms -> 2026-09-24 local. Assert the year rather than an exact instant.
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     year = datetime.fromtimestamp(ev["ts"], tz=UTC).year
     assert year == 2026, f"timestamp decoded to year {year} -- ms was probably read as seconds"

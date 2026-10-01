@@ -44,7 +44,7 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:

@@ -28,7 +28,6 @@ import argparse
 import os
 import subprocess
 import sys
-from typing import Optional
 
 # Configuration
 VLLM_IMAGE = "rocm/vllm:latest"

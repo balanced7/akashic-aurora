@@ -26,7 +26,7 @@ import argparse
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_HERE))

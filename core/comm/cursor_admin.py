@@ -22,7 +22,7 @@ Cites: T076 task text + docs/library/report/20260716_t086-seat-wake-hook-lifecyc
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 
 def skip_to_now(agent: str, by: str, reason: str) -> dict[str, Any]:

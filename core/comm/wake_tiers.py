@@ -43,7 +43,7 @@ arm.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # ---------------------------------------------------------------- the ladder
 OPERATOR = 0  # the human. Never queues behind fleet traffic, never starved.

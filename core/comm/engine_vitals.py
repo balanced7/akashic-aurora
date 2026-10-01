@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 IDLE_AFTER_S = 300  # his Zone-1 table: active < 5m <= idle
 _TS_FMT = "%Y-%m-%dT%H:%M:%S"

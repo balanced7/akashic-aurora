@@ -28,7 +28,6 @@ Run: py -m pytest tests/test_rb25_amendment2.py -q
 """
 
 import inspect
-import io
 import os
 import sys
 

@@ -13,11 +13,8 @@ the drill asserts the revocation landed. A drill that leaves authority behind is
 not a receipt.
 """
 
-import io
-import json
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

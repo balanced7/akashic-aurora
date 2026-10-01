@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _HEADING_RE = re.compile(r"^##\s+(.*)$")
 # a code path is a backtick-wrapped token ending in '/', e.g. `core/comm/` -- present in the heading

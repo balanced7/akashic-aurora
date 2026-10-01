@@ -5,7 +5,6 @@ read from the clock), so every case is deterministic. Run: py -m pytest tests/te
 """
 
 import os
-import tempfile
 
 import pytest
 

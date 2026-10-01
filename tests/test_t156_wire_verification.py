@@ -28,7 +28,6 @@ So this file verifies three things the feature pins structurally cannot:
 Run: py -m pytest tests/test_t156_wire_verification.py -q
 """
 
-import json
 import os
 import sys
 import threading

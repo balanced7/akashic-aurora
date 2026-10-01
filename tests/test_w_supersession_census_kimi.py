@@ -2,10 +2,8 @@
 Rides the pytest door (exec allowlist). Prints machine-readable counts + the
 current-stamped inventory so the megaread pass classifies against ground truth."""
 
-import json
 import os
 import re
-import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_RE = re.compile(r"^Status:\s*(\w+)", re.M)

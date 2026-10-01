@@ -15,7 +15,7 @@ never get a silent "" it could mistake for the answer.
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 from core.fleet import model_roster as roster
 

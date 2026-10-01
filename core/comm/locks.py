@@ -21,10 +21,9 @@ crash. Keys:
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ns-isolation GLOBAL (2026-07-12, deliberate -- do NOT scope to BIFROST_NAMESPACE): advisory PATH
 # LOCKS protect the SHARED FILESYSTEM, which is one resource across ALL namespaces. Scoping would let

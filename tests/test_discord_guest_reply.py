@@ -21,8 +21,6 @@ CONTRACT UNDER TEST:
     2000-char cap, the runner's existing clip discipline).
 """
 
-import pytest
-
 from core.comm import discord_guest_reply as G
 
 

@@ -39,7 +39,6 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 #: Everything's own suggested install roots (checked when it is not on PATH), built from the

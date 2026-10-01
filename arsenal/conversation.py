@@ -7,7 +7,7 @@ import json
 import math
 import re
 import threading
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 
 from .performance import PerformanceStore

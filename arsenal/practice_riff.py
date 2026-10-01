@@ -51,9 +51,8 @@ import subprocess
 import sys
 import time
 from bisect import bisect_left, bisect_right
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from collections.abc import Sequence
 
 from . import nashville

@@ -26,7 +26,7 @@ Proposals (the curator, C5, decides what to do with them):
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from collections.abc import Sequence
 
 import numpy as np

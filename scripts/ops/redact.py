@@ -39,9 +39,8 @@ import argparse
 import json
 import re
 import subprocess
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = _REPO_ROOT / ".secrets" / "redaction-manifest.json"

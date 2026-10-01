@@ -42,7 +42,6 @@ tells you nothing about whether your twin will behave.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 #: Tier order. A world may only be seeded FROM a strictly higher tier.
 TIERS = {"prod": 3, "beta": 2, "alpha": 1}

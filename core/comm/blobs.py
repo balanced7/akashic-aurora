@@ -17,9 +17,7 @@ Safety (design delta F2 -- the failure modes a naive media-by-reference hits):
 """
 
 import hashlib
-import os
 from pathlib import Path
-from typing import Optional
 
 
 def _repo_root_str() -> str:

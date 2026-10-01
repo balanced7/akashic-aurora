@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-from typing import List
 
 #: Calls that write to a terminal rather than returning a value.
 TERMINAL_WRITES = {"print", "echo", "pprint"}

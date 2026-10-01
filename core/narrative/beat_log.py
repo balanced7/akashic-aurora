@@ -18,7 +18,6 @@ into `learn`/`mirror` can't break those commands.
 import json
 import os
 import random
-from typing import List, Optional
 
 from core.foundation.store import Store, create_store
 from core.narrative.schema import (

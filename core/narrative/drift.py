@@ -21,7 +21,6 @@ FAIL-OPEN: any spine error returns coherent=True, so a drift-check machinery fau
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 from core.narrative.track_router import RouteHint, get_track_router
 

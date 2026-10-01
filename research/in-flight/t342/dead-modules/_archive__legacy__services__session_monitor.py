@@ -26,7 +26,6 @@ Redis Keys:
     opencode:*              - OpenCode-specific sessions
 """
 
-import hashlib
 import json
 import os
 import signal
@@ -36,8 +35,6 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 sys.path.insert(0, r"E:\AI-Setup")
 

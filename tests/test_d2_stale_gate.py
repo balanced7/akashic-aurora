@@ -8,8 +8,6 @@ filtered own-broadcasts). The clock is always passed in (repo law: the caller ow
 Run: py -m pytest tests/test_d2_stale_gate.py -q
 """
 
-import os
-
 from core.comm import packet_spec as PS
 
 NOW = 1_784_500_000_000  # fixed epoch-ms

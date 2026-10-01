@@ -26,7 +26,7 @@ promoted to domain-general. That is the existing funnel measured across a bounda
 from __future__ import annotations
 
 import re
-from typing import Any, Dict
+from typing import Any
 
 DEFAULT_DOMAIN = "system"
 

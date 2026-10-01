@@ -92,7 +92,6 @@ def test_kill_switch_silences_it_entirely():
 def test_all_four_runners_call_the_shared_function_not_a_copy():
     """The rule-of-three enforcement: four call sites, one implementation. If a runner
     grows its own next_beat block, this fails and points at the copy."""
-    import io
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     runners = [

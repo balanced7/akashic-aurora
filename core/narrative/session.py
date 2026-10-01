@@ -21,8 +21,6 @@ A single marker key tracks the open session:
 Best-effort throughout: a hiccup here must never block boot or any CLI command.
 """
 
-from typing import Optional
-
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import now_iso as _now_iso  # aliased: locals below are named now_iso
 from core.narrative.beat_log import BeatLog

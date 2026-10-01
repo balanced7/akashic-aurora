@@ -29,7 +29,6 @@ import os
 import re
 import threading
 import time
-from typing import Optional
 
 from core.comm.timescale import scaled as _scaled
 

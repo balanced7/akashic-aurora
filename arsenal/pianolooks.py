@@ -27,7 +27,6 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import Optional, Tuple
 from collections.abc import Mapping
 from urllib.parse import urlsplit
 

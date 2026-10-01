@@ -18,8 +18,6 @@ THE TWO PROPERTIES THESE PINS PROTECT:
 Run: py -m pytest tests/test_operator_reply.py -q
 """
 
-import pytest
-
 from core.comm import operator_reply as OR
 
 

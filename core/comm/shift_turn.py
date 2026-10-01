@@ -24,7 +24,7 @@ reach for at 3am when the loop is doing something you did not intend.
 """
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 _OFF = {"action": "idle", "task": None, "reason": "shift loop disabled (AKASHIC_SHIFT_LOOP=0)"}
 

@@ -30,9 +30,6 @@ guard is its own fenced slice, and it is named in the handoff rather than half-b
 """
 
 import importlib
-import os
-
-import pytest
 
 
 def _fresh(monkeypatch, **env):

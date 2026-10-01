@@ -46,7 +46,7 @@ import struct
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from nacl import public, signing
 from nacl.exceptions import BadSignatureError, CryptoError

@@ -10,7 +10,7 @@ Pure mtime reader; never raises (F3) -- the board renders through anything.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 
 def _default_dir() -> str:

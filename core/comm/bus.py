@@ -24,12 +24,11 @@ catches up on exactly what it missed and never re-reads (offset semantics withou
 import hashlib
 import json
 import os
-import re
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
-from typing import Any, Dict, List, Optional
+from datetime import datetime, UTC
+from typing import Any
 
 from core.comm import packet_spec
 from core.comm import router as shadow_router

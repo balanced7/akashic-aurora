@@ -18,9 +18,9 @@ takes the note (a title attribute, a footnote) instead of the aside.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .. import scene as sc
 from . import _core as C

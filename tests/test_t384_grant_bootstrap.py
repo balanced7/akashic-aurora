@@ -23,8 +23,7 @@ import os
 import shutil
 import subprocess
 import sys
-import uuid
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

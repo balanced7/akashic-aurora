@@ -8,7 +8,6 @@ import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os
 import pathlib as _pl
 import sys
 import time

@@ -18,8 +18,6 @@ a boulder is not more hammers.
 Run: py -m pytest tests/test_bifrost_send_sender_guard.py -q
 """
 
-import pytest
-
 from core.comm import sender_guard as SG
 
 

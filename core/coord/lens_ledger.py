@@ -51,7 +51,6 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 #: The only outcomes that produce a rate. The other two are deliberately outside it.
 SCORED = frozenset({"confirmed", "refuted"})

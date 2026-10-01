@@ -39,7 +39,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # verdict vocabulary (case-insensitive); first match after the q-id anchor wins.
 _VERDICTS = (

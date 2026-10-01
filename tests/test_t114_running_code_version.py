@@ -45,7 +45,6 @@ liveness but not what is alive.
 
 import os
 import sys
-import time
 import uuid
 
 import pytest

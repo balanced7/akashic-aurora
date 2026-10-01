@@ -9,7 +9,7 @@ import json
 import re
 import shutil
 import sys
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 import pytest

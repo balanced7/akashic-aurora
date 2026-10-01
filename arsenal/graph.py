@@ -9,7 +9,6 @@ from __future__ import annotations
 import copy
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 from . import GRAPH_API
 from .mediatypes import PRODUCER_TYPES, check_caps

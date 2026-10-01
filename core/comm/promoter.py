@@ -16,7 +16,7 @@ with kind=`bifrost_msg`, ref `bifrost:<msg_id>`, and detail {frm,to,kind,content
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 SALIENT_KINDS = frozenset({"handoff", "decision", "completion", "blocker"})
 PROMOTED_KIND = "bifrost_msg"

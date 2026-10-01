@@ -22,7 +22,7 @@ routing a raw event to a Track / linking it to a Beat is the BRIDGE concern (Sli
 which lives in System 4 where importing the TrackRouter is layering-legal.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.events.event_log import EventLog, get_event_log
 from core.primitives.ranker import Ranker

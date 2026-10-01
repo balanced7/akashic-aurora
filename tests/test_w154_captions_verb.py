@@ -13,8 +13,6 @@ teaching error when yt-dlp is absent. The network half is a thin yt-dlp
 passthrough, deliberately unpinned (their contract, not ours).
 """
 
-import pytest
-
 from scripts.yt_captions import MISSING_YTDLP_HINT, clean_vtt_text
 
 VTT = """WEBVTT

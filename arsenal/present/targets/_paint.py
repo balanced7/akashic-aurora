@@ -16,7 +16,7 @@ Ops (short keys keep the page small):
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from collections.abc import Sequence
 
 from .. import scene as sc

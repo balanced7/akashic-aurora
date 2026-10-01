@@ -18,7 +18,7 @@ runner lane redelivers on crash; a guest must not receive the same answer twice)
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 #: Discord's message cap is 2000; the runner already clips at 1900 (stillbirth confessor).
 MAX_POST_CHARS = 1900

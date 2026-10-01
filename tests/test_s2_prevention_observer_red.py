@@ -27,7 +27,6 @@ THE TWO CORRECTIONS THAT ARE PINNED, NOT ASSUMED
 from __future__ import annotations
 
 import json
-import os
 import time
 
 import pytest

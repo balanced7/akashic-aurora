@@ -32,7 +32,7 @@ must never break capture (the Ledger write already succeeded; the event is safe 
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Iterable
 
 from core.foundation.store import Store, create_store

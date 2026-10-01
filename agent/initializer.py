@@ -28,7 +28,7 @@ This module handles:
 import logging
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 

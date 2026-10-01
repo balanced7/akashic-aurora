@@ -23,10 +23,9 @@ implying a receipt would hide the change it exists to reveal.
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.comm.seat_identity import sid8 as _sid8
 

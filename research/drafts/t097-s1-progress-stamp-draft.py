@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 _KEY_PREFIX = "progress:"
 _TTL_S = 2 * 60 * 60  # stamps expire; a vanished key reads as "no stamp", never stale truth

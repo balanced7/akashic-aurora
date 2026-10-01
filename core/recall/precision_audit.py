@@ -62,7 +62,7 @@ import json
 import os
 import random
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Same root the recall hooks WRITE to (agent/harness/*): a reader on a different temp dir reads nothing.
 _DEFAULT_IMP = os.path.join(

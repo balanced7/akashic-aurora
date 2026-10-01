@@ -45,7 +45,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 
 def _pyl() -> str:

@@ -25,7 +25,6 @@ Design binds pinned here (flagged for deepseek's verify, T073 precedent):
 Run: py -m pytest tests/test_t075_m1_beta_clean_death.py -q   (no live Redis needed)
 """
 
-import json
 import os
 import sys
 

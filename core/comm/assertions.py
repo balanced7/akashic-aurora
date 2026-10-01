@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 # path/with/slashes.ext:line -- the fence_workspace citation shape, line REQUIRED
 # (a bare path has no bounds to verify; prose mentions of files stay unflagged).

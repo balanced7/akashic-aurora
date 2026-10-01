@@ -16,8 +16,8 @@ ranking. G1 adds the confidence-gated write path on top of this.
 """
 
 import math
-from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass
+from typing import Any
 
 # Router basis (and other sources) -> a confidence in [0,1]. Higher = more trustworthy.
 BASIS_CONFIDENCE = {

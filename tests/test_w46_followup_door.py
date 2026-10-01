@@ -9,11 +9,9 @@ the module's laws are pinned by tests/test_w46_followup_kimi.py.
   P3  a missing verdict file refuses loudly (rc 2), nothing filed
 """
 
-import json
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

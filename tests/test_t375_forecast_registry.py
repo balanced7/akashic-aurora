@@ -34,7 +34,6 @@ Run: py -m pytest tests/test_t375_forecast_registry.py -q
 
 import os
 import sys
-import time
 
 import pytest
 

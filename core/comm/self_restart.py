@@ -37,7 +37,7 @@ import subprocess
 import sys
 import time
 import zlib
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _PROC_START = time.time()
 

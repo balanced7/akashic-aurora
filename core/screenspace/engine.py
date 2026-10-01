@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 from core.screenspace import (
     canary,  # §1 amended ruling: positive canary read (uia_available)

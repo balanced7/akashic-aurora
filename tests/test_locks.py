@@ -9,7 +9,6 @@ Run: py -m pytest tests/test_locks.py -q
 """
 
 import fnmatch
-import json
 import os
 import sys
 

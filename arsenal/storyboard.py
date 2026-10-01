@@ -17,10 +17,8 @@ Standalone by the same rule as analysis.py: numpy + av only, no arsenal.* import
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional
 
 import av
 import numpy as np

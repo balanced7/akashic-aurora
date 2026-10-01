@@ -21,9 +21,8 @@ import argparse
 import os
 import re
 import sys
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # T104-M1 depth
 

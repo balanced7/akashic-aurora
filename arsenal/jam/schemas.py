@@ -37,7 +37,6 @@ import copy
 import json
 import math
 import re
-from typing import Dict, List, Optional, Tuple
 from collections.abc import Iterable, Sequence
 
 from arsenal import nashville

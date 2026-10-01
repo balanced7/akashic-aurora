@@ -21,7 +21,6 @@ import json
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import List, Optional
 
 from .. import scene as sc
 from . import _core as C

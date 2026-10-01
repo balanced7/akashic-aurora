@@ -41,7 +41,6 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = Path(__file__).resolve().parents[1]

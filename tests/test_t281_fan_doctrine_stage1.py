@@ -27,14 +27,12 @@ Run: py -m pytest tests/test_t281_fan_doctrine_stage1.py -q
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

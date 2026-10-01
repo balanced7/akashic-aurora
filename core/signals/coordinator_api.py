@@ -16,18 +16,15 @@ Signal Types:
   - COMPLETION: Task finished (concludes work) → marks outcome
 """
 
-import json
 import logging
 
 # Persistence goes through the AgentSignalLedger (Redis Streams when up, File
 # always); this module never touches redis directly.
-import os
 import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 from core.paths import data_root

@@ -59,7 +59,6 @@ from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
 from itertools import combinations
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from . import nashville
 from .performance import PerformanceError, PerformanceStore, estimate_key

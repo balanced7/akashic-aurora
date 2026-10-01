@@ -19,7 +19,7 @@ lessons, and the Codex -- inherits it. One seam, not three.
 Semantic Relationship: Summary consolidated_from Items (ranked, distilled, pointer-traceable)
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.primitives.distiller import Distillation, Distiller
 from core.primitives.faithfulness import faithfulness_critic

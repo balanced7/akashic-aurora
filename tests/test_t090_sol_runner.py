@@ -7,7 +7,6 @@ deepseek runner's genus implementation -- these pins prove SOL'S wiring of it: p
 bounces once, markers confess in sol's name, clean answers pass untouched.
 """
 
-import json
 import os
 import sys
 import time

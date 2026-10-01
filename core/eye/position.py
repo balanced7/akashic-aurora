@@ -33,7 +33,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.eye.connectome import _group, _steps
 from core.eye.index import _connect, get_event

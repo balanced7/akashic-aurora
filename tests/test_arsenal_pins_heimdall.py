@@ -23,7 +23,6 @@ Pin coverage (the ones that matter):
 
 import json
 from fractions import Fraction
-from pathlib import Path
 
 import pytest
 

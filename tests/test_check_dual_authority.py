@@ -11,9 +11,7 @@ firing on P1's shape, the class-preventer has regressed to decoration.
 """
 
 import os
-import time
 
-import pytest
 
 from scripts.checkers.check_dual_authority import classify
 

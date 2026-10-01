@@ -10,7 +10,6 @@ The ritual:
   3. story --chapter         # current chapter
 """
 
-import os
 import tempfile
 
 import agent_cli

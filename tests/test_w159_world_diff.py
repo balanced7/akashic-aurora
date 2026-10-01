@@ -31,8 +31,6 @@ finding the tool can make -- something bypassed the seed. That is not hypothetic
 bifrost:* keys the seed exists to refuse. Nothing noticed until a human looked.
 """
 
-import pytest
-
 from core.coord import world_diff as WD
 
 # ------------------------------------------------------------------ the oracle

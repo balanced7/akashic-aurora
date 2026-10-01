@@ -40,7 +40,7 @@ import json
 import os
 import re
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # annotations only; the RUNTIME import lives in SpendDomain.run
     from core.toolbelt.audit import Row

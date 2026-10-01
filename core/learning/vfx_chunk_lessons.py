@@ -23,10 +23,9 @@ project's own finding, a field nothing fills stays empty until something depends
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.paths import repo_root
 

@@ -36,7 +36,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from collections.abc import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -13,7 +13,6 @@ BUILD REFINEMENTS (flagged, T073 precedent):
       DELIBERATE act (it feeds the whisper's DIRECTIVE line), not a distillation.
 """
 
-import io
 import os
 import sys
 import tempfile

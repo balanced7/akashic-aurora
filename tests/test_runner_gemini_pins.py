@@ -4,13 +4,9 @@ PINS FIRST — bifrost_runner_gemini.py birth tier, quarantine shape.
 Run:  py -m pytest tests/test_runner_gemini_pins.py -v
 """
 
-import json
 import os
 import subprocess
 import sys
-import tempfile
-import time
-from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.join(os.path.dirname(HERE), "scripts")

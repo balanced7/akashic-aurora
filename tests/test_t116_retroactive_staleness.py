@@ -43,7 +43,6 @@ for everyone else, and it says which of the two answered.
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

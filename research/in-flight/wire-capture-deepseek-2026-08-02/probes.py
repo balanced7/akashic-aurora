@@ -5,11 +5,8 @@ Run: py research/in-flight/wire-capture-deepseek-2026-08-02/probes.py
 
 from __future__ import annotations
 
-import itertools
 import json
-import os
 import pathlib
-import pprint
 import sys
 import time
 

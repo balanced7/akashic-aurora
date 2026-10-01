@@ -8,10 +8,6 @@ and `missing()` came back empty. The property the whole design exists to provide
 attacker by the retirement path.
 """
 
-import base64
-import json
-import math
-
 import pytest
 
 seal = pytest.importorskip("core.comm.bridge_seal")

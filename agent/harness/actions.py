@@ -47,7 +47,6 @@ Kill switches: AKASHIC_RECALL_AT_ACTION=0 (action altitude), AKASHIC_PLAN_RECALL
 
 import os
 import tempfile
-from typing import Optional
 
 
 def _nudge_dir() -> str:

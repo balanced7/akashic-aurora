@@ -41,7 +41,7 @@ in and what to do about it. Same shape as T197 -- observe, report, never gate.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 #: Only a trailing session-shaped suffix is an incarnation marker. Same rule and same
 #: regex shape as liveness._INCARNATION_SUFFIX (T155), for the same reason: `codex_root`

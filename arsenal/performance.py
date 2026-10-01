@@ -23,10 +23,9 @@ import shutil
 import threading
 import time
 from bisect import bisect_left, bisect_right
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from fractions import Fraction
 from pathlib import Path
-from typing import Dict, List, Optional
 import builtins
 
 API = "arsenal.performance/v0"

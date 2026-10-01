@@ -135,7 +135,7 @@ def test_flat_latency_at_scale():
     """Range-scan beats full replay: a 1-event window over a 100k index must be fast and
     return exactly 1 -- the whole point of the index (no O(n) scan per query)."""
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     store = _store()
     idx = EventIndex(store, maxlen=200_000)

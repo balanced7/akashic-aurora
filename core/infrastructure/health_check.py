@@ -12,11 +12,9 @@ health report with recommendations for optimization.
 
 import json
 import logging
-import os
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.paths import data_root
 

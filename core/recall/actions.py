@@ -58,7 +58,7 @@ Return-shape contract (subset of recall_at's dict the plugin may rely on):
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 # The ONE kill switch for the whole recall channel. Mirrored (not imported, because the CLINICAL
 # contract is that an external plugin re-states it) across every harness hook and the CLI verb.

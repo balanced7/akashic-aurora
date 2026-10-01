@@ -9,7 +9,7 @@ and doesn't re-reason it. Each entry carries a `source` pointer to the full reco
 """
 
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.learning.agent_memory import AgentMemory, get_agent_memory
 from core.primitives.ranker import Ranker

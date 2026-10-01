@@ -50,7 +50,6 @@ import argparse
 import os
 import subprocess
 import sys
-from datetime import datetime
 
 
 def _pyl() -> str:

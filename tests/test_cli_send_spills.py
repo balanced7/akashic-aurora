@@ -35,7 +35,6 @@ import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
 
 # Comfortably over the tool door's rendering bound, so the spill path must engage.
 BIG = "THE-BODY " + ("x" * 40000) + " END-MARKER"

@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from collections.abc import Callable
 
 from core.comm.discord_bridge import DISCORD_MAX, _content_str, chunk, redact, should_forward

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models.json")
 

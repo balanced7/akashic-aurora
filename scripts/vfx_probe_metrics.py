@@ -15,12 +15,9 @@ Run: py scripts/vfx_probe_metrics.py
 
 from __future__ import annotations
 
-import json
 import os
 import struct
-import sys
 import zlib
-from collections import defaultdict
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent

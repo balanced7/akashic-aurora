@@ -37,7 +37,7 @@ import sys
 import time
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional
+from typing import Any
 from collections.abc import Callable
 
 import redis
@@ -575,7 +575,6 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
         Dictionary with success status, result, and stdout
     """
     import io
-    from contextlib import redirect_stderr, redirect_stdout
 
     if globals_dict is None:
         globals_dict = {

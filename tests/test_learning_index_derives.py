@@ -28,7 +28,6 @@ Run: py -m pytest tests/test_learning_index_derives.py -q
 
 import os
 import sys
-import time
 
 import pytest
 

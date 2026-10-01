@@ -34,7 +34,6 @@ Run: py -m pytest tests/test_t210_semantic_discover.py -q
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

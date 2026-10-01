@@ -13,7 +13,7 @@ but the returned preview state is ``unknown`` rather than an invented allow.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any
 from collections.abc import Mapping
 
 # Values, not enum member names: these are also the strings rendered by ground

@@ -38,13 +38,11 @@ Version: 3.0 - Enhanced Escape Prevention
 
 import json
 import os
-import sys
 import time
-import traceback
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from collections.abc import Callable
 
 # ============================================================================

@@ -31,7 +31,7 @@ whole arc exists to stop building those.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any
 
 
 def _pyl() -> str:

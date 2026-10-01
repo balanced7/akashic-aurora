@@ -21,8 +21,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 
 def _alive(tmp, agent, sid):
     p = os.path.join(tmp, f"bifrost_wake_{agent}_{sid}.alive")

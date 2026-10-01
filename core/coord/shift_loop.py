@@ -25,7 +25,7 @@ directly, it only DECIDES; the existing ledger claim gate stays the single door.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 # ---------------------------------------------------------------- shift-state note
 # One durable title, supersedes on re-write. NOT append-only: "current shift state" is one

@@ -32,7 +32,6 @@ then implement.
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -79,7 +78,6 @@ def test_s1_p2_jitter_uses_crc32_not_python_hash():
     trap would break pytest's own bytecode cache (pathlib hashes).
     """
     import inspect
-    import zlib
 
     src = inspect.getsource(SR.rotation_jitter_s)
     assert "crc32" in src, (

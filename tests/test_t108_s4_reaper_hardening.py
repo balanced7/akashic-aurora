@@ -29,7 +29,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from types import SimpleNamespace
 
 import pytest

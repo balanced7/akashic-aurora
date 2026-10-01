@@ -29,12 +29,10 @@ Behaviour pins run the REAL pack actions through the rules (pack = tripwire):
   B4  a rule match returns matched_features with NO raw command text.
 """
 
-import io
 import os
 import re
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

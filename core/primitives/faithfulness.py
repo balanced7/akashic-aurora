@@ -27,7 +27,7 @@ is trivially 100% today -- this critic is the forward gate for an LLM writer tha
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from collections.abc import Sequence
 
 from core.primitives.distiller import _SUMMARY_FIELDS, _source_of

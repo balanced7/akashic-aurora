@@ -49,7 +49,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 from collections.abc import Callable
 
 from core.comm import discord_bridge

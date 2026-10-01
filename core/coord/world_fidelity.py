@@ -31,7 +31,6 @@ hopeful PRESENT.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
 #: Loudest first -- ordering IS the feature in an at-a-glance render.
 STATUS_ORDER = {"absent": 0, "partial": 1, "unknown": 2, "present": 3}

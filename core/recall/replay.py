@@ -21,7 +21,7 @@ match that context", not "would it have shown in that exact session".
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # --- pre-registered criteria constants (sec.9 F0; change only via a design-doc edit) ---
 FIDELITY_REQUIRED = 1.0  # criterion 1: replay agrees with live matcher (sampled)

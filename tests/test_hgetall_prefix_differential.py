@@ -14,9 +14,6 @@ Same contract, different algorithm, different side effects. That is exactly the 
 differential harness was built to catch.
 """
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from core.foundation.sqlite_store import SqliteStore

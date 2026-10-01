@@ -21,8 +21,8 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any
+from collections.abc import Callable, Mapping, Sequence
 
 
 class CodexAppServerError(RuntimeError):

@@ -32,7 +32,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import pytest
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

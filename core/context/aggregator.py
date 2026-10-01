@@ -15,7 +15,7 @@ pointer, so the assembled block is fully traceable back to the raw records.
 
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.context.blocker_loader import load_blockers_preventing_progress
 from core.context.briefing_loader import load_briefing_from_previous_handoff

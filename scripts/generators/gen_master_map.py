@@ -13,7 +13,6 @@ Run:  py scripts/generators/gen_master_map.py            # writes docs/MAP.md
 """
 
 import os
-import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth

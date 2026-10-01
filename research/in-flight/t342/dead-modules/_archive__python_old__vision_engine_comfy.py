@@ -17,13 +17,9 @@ import hashlib
 import io
 import json
 import os
-import shutil
 import time
-import urllib.error
-import uuid
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib import parse, request
 
 try:

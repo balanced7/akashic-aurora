@@ -18,7 +18,6 @@ Run: py -m pytest tests/test_t048_recall_surfaces.py -q
 import json
 import os
 import sys
-from pathlib import Path
 
 import pytest
 

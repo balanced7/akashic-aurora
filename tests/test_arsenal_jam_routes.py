@@ -4,7 +4,6 @@ and the server-restart close, exercised over HTTP against a server on a free por
 The resolver here hands back the J0 fixture defs, so these tests need no node; tests/test_arsenal_jam_store.py
 covers resolving. Every clock value is synthetic (2030)."""
 
-import copy
 import http.client
 import json
 import random

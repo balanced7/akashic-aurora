@@ -9,7 +9,7 @@ in the way. Each entry carries a `source` pointer to the full blocker record.
 """
 
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.primitives.ranker import Ranker
 

@@ -18,7 +18,6 @@ Design rules this enforces (docs/library/design/20260709_narrative-spine-design-
 """
 
 import json
-from typing import List, Optional
 
 from core.foundation.timeutil import now_iso as _now_iso  # aliased: locals below are named now_iso
 from core.narrative.schema import Chapter, Edge, Track, chapter_key, track_key

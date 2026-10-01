@@ -23,7 +23,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
 
 MISSING_YTDLP_HINT = (
     "yt-dlp is not importable from this interpreter. Install it into the fleet python:\n"

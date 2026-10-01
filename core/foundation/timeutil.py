@@ -21,7 +21,7 @@ scripts/migrate_time_scores.py. This module is now the one clock end to end: now
 writes stamps, to_epoch() compares them, render_iso() is the single display door.
 """
 
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from typing import Any
 
 

@@ -32,7 +32,6 @@ their purpose. metrics that don't serve a purpose or mislead are not great."
 """
 
 import os
-import tempfile
 
 import pytest
 

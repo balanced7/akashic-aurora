@@ -31,7 +31,6 @@ Run: py -m pytest tests/test_t376_s5_wedge_discriminator.py -q
 import os
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

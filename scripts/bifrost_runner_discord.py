@@ -57,7 +57,6 @@ for _stream in (sys.stdout, sys.stderr):
         pass  # older/odd streams: keep going, the bus is the record
 
 from pathlib import Path
-from typing import Optional
 
 from core.comm.discord_inbound import (
     EarConfigError,

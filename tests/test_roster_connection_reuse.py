@@ -31,7 +31,6 @@ than the one that follows this pin is free to replace it.
 
 import os
 import sys
-import time
 import uuid
 
 import pytest

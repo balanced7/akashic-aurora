@@ -28,7 +28,6 @@ import subprocess
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import tempfile
 import time
-from typing import Dict, List, Optional, Tuple
 from collections.abc import Callable
 
 # Names that identify a live harness ancestor (Claude Desktop engine, CLI engine, or a

@@ -28,8 +28,8 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone, UTC
-from typing import Any, Dict, List
+from datetime import datetime, UTC
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:

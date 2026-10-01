@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import av
 import numpy as np
-import pytest
 
 from arsenal import floors as F
 

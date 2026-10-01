@@ -26,7 +26,6 @@ Run: py -m pytest tests/test_t282_succession_retracts_page.py -q
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
@@ -34,7 +33,6 @@ import sys
 import time
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

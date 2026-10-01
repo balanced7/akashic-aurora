@@ -19,9 +19,8 @@ This is deterministic, like experiment.py: no randomness, pure structural measur
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import log2
-from typing import Dict, FrozenSet, List, Tuple
 
 # --- approach vectors ---
 

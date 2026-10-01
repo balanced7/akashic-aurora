@@ -15,8 +15,6 @@ Run: py -m pytest tests/test_s0_gamma_play_sandbox.py -q
 import json
 import os
 import sys
-import time
-import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -96,7 +94,6 @@ def test_sandboxed_run_captures_output():
 
 def test_receipt_persisted_to_runs():
     """After sandboxed_run(), a receipt JSON exists in the runs directory."""
-    import tempfile
 
     monkeypatch_setenv = os.environ.get("PYTEST_CURRENT_TEST")  # just verify we're in pytest
     # Use the REAL PLAY directory for this test (data/play) — sandboxed_run writes to it

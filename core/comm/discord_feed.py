@@ -24,7 +24,7 @@ read plus at most one file stat.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 from collections.abc import Callable
 
 from core.comm import discord_bridge as DB

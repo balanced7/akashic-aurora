@@ -63,7 +63,6 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 from collections.abc import Callable
 
 from core.trust import registry
@@ -584,7 +583,7 @@ def acting_conduct_grant(
         "reason": str(reason).strip(),
         "_acting_conductor": True,  # provenance: this mint was a recovery substitute
     }
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     rec["expires_at"] = (datetime.now(UTC) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
     if request_ref:

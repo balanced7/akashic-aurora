@@ -42,7 +42,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any
 from collections.abc import Callable
 
 # Repo root on path so the live-store dogfood (core.*) resolves when run directly as a script;

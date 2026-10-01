@@ -22,7 +22,6 @@ Run: py -m pytest tests/test_t284_door_contract_wording.py -q
 
 from __future__ import annotations
 
-import io
 import os
 import re
 import sys

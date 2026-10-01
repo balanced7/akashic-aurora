@@ -19,7 +19,7 @@ UNDER-report is the only permitted error direction (C5).
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 FIELDS = ("turns", "duration_cs", "tool_calls", "tokens")  # duration in centiseconds (int HINCRBY)
 COST_KEYS = ("cost_turns", "cost_duration_s", "cost_tool_calls", "cost_tokens")

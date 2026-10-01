@@ -11,7 +11,6 @@ prints its NO_KEY notice and the panel continues with whoever is available.
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path

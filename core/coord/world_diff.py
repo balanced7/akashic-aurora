@@ -46,7 +46,6 @@ outcome for a plane the seed refuses, and only the manifest makes that legible.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 #: Severity vocabulary, ordered loudest-first for rendering.
 SEVERITY_ORDER = {"alarm": 0, "report": 1, "unknown": 2, "silent": 3}

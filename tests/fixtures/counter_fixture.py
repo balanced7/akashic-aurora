@@ -43,7 +43,7 @@ that scarcity is itself the finding (confirmation-by-omission), and it forces mo
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def L(name: str, success: str, rec: str, *, anti_pattern: str = "", agent: str = "synthetic") -> dict[str, Any]:

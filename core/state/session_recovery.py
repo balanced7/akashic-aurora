@@ -22,11 +22,8 @@ Usage:
 """
 
 import json
-import sys
 from collections import Counter, defaultdict
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional
 
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.

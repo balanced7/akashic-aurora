@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 from collections.abc import Iterable, Sequence
 
 from core.eye.index import _connect, utterance_key

@@ -22,8 +22,8 @@ Usage:
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 # Paths
 LOG_DIR = r"E:\AI-Setup\session_logs"

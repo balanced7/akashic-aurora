@@ -33,7 +33,6 @@ Run: py -m pytest tests/test_t200_ask_friction_mcp_twins.py -q
 """
 
 import ast
-import inspect
 import os
 import sys
 

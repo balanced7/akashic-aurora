@@ -18,7 +18,6 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import __version__, pianolooks

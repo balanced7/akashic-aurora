@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 #: Default silence budget: how long a declared-active run may go unstamped before it is wrong.
 DEFAULT_GRACE_S = 1800.0

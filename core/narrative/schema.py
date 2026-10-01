@@ -23,7 +23,7 @@ Render target (Slice 3): chronicles/story.md (Obsidian-compatible) + chronicles/
 """
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.relationship_types import get_relationship_by_name
 

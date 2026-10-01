@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from arsenal.jam import tempomap
 

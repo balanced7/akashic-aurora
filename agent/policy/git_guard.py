@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import re
 import shlex
-from typing import Tuple
 
 
 def _pyl() -> str:

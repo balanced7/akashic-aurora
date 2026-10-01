@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, Dict, Generic, Optional, Tuple, Type, TypeVar
+from typing import Any, Generic, TypeVar
 from collections.abc import Mapping
 
 

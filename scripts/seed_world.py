@@ -66,7 +66,7 @@ def main() -> int:
         counts[prefix] = sum(1 for _ in src.scan_iter(match=f"{prefix}*", count=500))
 
     if args.apply:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         S.write_manifest(dst, plan, counts, datetime.now(UTC).isoformat(timespec="seconds"))
 

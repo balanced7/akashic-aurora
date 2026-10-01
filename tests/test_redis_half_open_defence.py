@@ -19,8 +19,6 @@ cover a connection that dies WHILE ALREADY BLOCKED in a read. That path is still
 (socket_timeout was set to 6.5s and demonstrably did not fire) and remains open.
 """
 
-import os
-
 import pytest
 
 from core.foundation.redis_connection import connect_to_redis_with_fail_fast

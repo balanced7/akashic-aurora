@@ -32,7 +32,6 @@ Written before the implementation (M3). RED on arrival.
 
 from __future__ import annotations
 
-import time
 
 import pytest
 

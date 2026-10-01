@@ -53,7 +53,7 @@ behaviour for an organ that proposes, and the reason it must never be the thing 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, FrozenSet, List, Optional, Set
+from typing import Any
 
 # --------------------------------------------------------------------------- the verdict
 

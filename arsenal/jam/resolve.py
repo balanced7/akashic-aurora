@@ -35,7 +35,6 @@ import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from collections.abc import Callable, Sequence
 
 from arsenal import nashville

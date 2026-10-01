@@ -11,12 +11,8 @@ Measured baselines, same 3-process shape:
     SqliteStore: 450 attempted, 450 survived, 0 lost
 """
 
-import json
-import os
-import sqlite3
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest

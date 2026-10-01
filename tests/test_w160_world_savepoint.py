@@ -26,8 +26,6 @@ can only restore what was committed, so uncommitted work is outside what the lab
 promise. Recording that honestly at SAVE time is cheaper than discovering it at restore.
 """
 
-import pytest
-
 from core.coord import world_savepoint as SP
 
 

@@ -26,10 +26,9 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 
 from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
 

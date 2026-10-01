@@ -34,7 +34,6 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from typing import Optional
 
 # A seat id is a short kebab/underscore token. Anything else is refused rather than trusted:
 # an id is used to build Redis keys and file names, so it is an injection surface.

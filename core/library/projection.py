@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict
+from typing import Any
 
 from core.paths import repo_root as _repo_root
 

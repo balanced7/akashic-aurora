@@ -32,7 +32,6 @@ that may have outlived its truth.
 import os
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
 
 from agent.harness.scope import repo_root, session_in_scope
 

@@ -22,7 +22,6 @@ Pin labeling: [observed RED] = I verified the current code fails this.
                                  runner restart).
 """
 
-import json
 import os
 import re
 import sys

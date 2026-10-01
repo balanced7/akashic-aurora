@@ -5,8 +5,6 @@ a scene uses (invariant I6). Pure-Python; no Redis, no renderer, no network.
 
 from __future__ import annotations
 
-import copy
-import json
 import os
 from pathlib import Path
 

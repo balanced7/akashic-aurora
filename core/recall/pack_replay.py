@@ -39,7 +39,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 PACK_PATH = os.path.join("research", "in-flight", "demand-census-fresh-pack-seed2-2026-07-28.md")
 

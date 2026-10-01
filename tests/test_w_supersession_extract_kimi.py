@@ -3,7 +3,6 @@ so the megaread classifies from evidence, not filenames. Output is the megaread 
 
 import os
 import re
-import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_RE = re.compile(r"^Status:\s*(\w+)", re.M)
