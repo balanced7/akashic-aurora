@@ -25,6 +25,7 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
 | G0.P3 | DONE | e674063d..5e51c2df | A: 1 round | VERDICT: PASS | oracle.py + certify.py (stdlib only), 47 unit tests (EQUAL + DIFF per component, drill verdicts); checks G0 (13) and G1-G7 (40) registered before their work; G1-G7 checks are never executed before their goal starts (operator instruction, c844fff4). Advisories ADV-009..012 |
 | G0.P4 | DONE | 3c1ae5dc..986bc018 | A: 1 round | VERDICT: PASS | g0 at d5f0615d: 3 suite runs of ~850 s, each 7,267 passed / 105 failed / 7 errors / 71 skipped / 23 xfailed (7,273 stable-pass, 111 stable-fail, 1 flaky); coverage agent 67.12, arsenal 85.35, core 73.90, scripts 34.54; 73 MCP tools; 5,897 public names; 15,537 assertions in 6,229 tests. Tools (scope 1,354 files, 333,907 lines): ruff target set 33,011 findings (stretch ANN 21,755, D 16,480, PL 7,695, ARG 1,664, TRY 1,569, FBT 911); ruff format would change 1,324 files at line length 100, 1,318 at 120; basedpyright standard 3,175 errors; ty 2,532. Ruff 0.16.9 renderer panic bisected to 2 files, formatter fine, no exclusion (ADV-005). g0 test ids rekeyed to hashed parameter text (ADV-016) |
 | G0.P5 | DONE | c844fff4..141c1691 | A: 1 round | VERDICT: PASS | `certify.py G7 --drills`: 15/15 MISSED (gate absent), G7 checks never executed; `compare g0 g0`: ORACLE 10/10 EQUAL; selftest-d14: removing core.codex.lifecycle.is_active gives O5 DIFF. Snapshot steps now stream their logs (ADV-017) |
+| G1.P1 | DONE | f9a89292..8d176759 (+ 245a91bb oracle --python) | A: 1 round | VERDICT: PASS | pre-registered 6 more G1 checks (6ab54739); pytest-randomly held off by `-p no:randomly` until G5.P1; [project].dependencies minus pytest and pre-commit, dev = the plan's 10 tools (prek replaces pre-commit), no locked runtime version moved; deptry clean over RUNTIME+SCRIPT (tests/ and the docs/, research/ history trees out: their imports were already unimportable at g0, O3), 26 sys.path siblings first-party, ignores with reasons (flvfx, bifrost, lupa, ml/browser lazy imports). Full oracle at 8d176759: 10/10 EQUAL (1 suite run). Commit types follow commitlint (no `build` type: plan `build(deps)` -> `chore(deps)`, D-G1-1) |
 
 ## Decisions
 
@@ -42,3 +43,6 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
 - **D-G0-3 (commit scopes).** The plan's `docs(plan)` / `chore(tooling)` / `test(tooling)` scopes
   are not in the commitlint scope enum (changelog.config.js), and G0 may not edit that file, so
   G0 commits use no scope (`chore: ...`, `test: ...`), which commitlint accepts.
+- **D-G1-1 (commit types).** commitlint.config.ts enforces changelog.config.js types, which have
+  no `build`; the plan's `build(deps|python|tasks)` commits use `chore(deps)` / `chore(config)` /
+  `chore(tools)` instead (fcb7507a was reworded to 2ed8a4ec before any verification, I3).
