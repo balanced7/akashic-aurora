@@ -174,7 +174,7 @@ class FastAgentComm:
         Returns message ID if successful.
         """
         if not self._available or not self._agent_id:
-            print(f"[fast_comm] Cannot send - not connected")
+            print("[fast_comm] Cannot send - not connected")
             return None
 
         msg = FastMessage(
@@ -347,7 +347,7 @@ class FastAgentComm:
                     except Exception as e:
                         print(f"[fast_comm] Parse error: {e}")
 
-        except Exception as e:
+        except Exception:
             pass  # No messages available
 
         return messages

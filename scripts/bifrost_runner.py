@@ -207,8 +207,8 @@ def main() -> int:
     api = BifrostAPI(args.agent) if lane_mode else None
     if lane_mode:
         if bus.lane_flip_if_migrating():
-            print(f"[runner] lane flip: cursor seeded at lane tails (A4 ritual)")
-        print(f"[runner] CONSUME LANE: work (T045 stage 2 cutover live)")
+            print("[runner] lane flip: cursor seeded at lane tails (A4 ritual)")
+        print("[runner] CONSUME LANE: work (T045 stage 2 cutover live)")
     print(
         f"[runner] {args.agent} online as {card['runtime_class']}/{card['wake_mode']} "
         f"(provider={args.provider}, model={args.model}). Waiting for messages... (Ctrl-C to stop)"

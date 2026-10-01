@@ -271,7 +271,7 @@ Error Detection: {request.vision_data.get("error_detection", {})}
 """
 
         if request.tracebacks:
-            prompt += f"\n## Recent Tracebacks\n"
+            prompt += "\n## Recent Tracebacks\n"
             for tb in request.tracebacks[-3:]:
                 prompt += f"```\n{tb}\n```\n"
 

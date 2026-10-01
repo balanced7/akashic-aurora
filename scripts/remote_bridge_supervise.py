@@ -156,7 +156,7 @@ def main(argv=None) -> int:
     child.on_exit = _on_child_exit
 
     print(f"[{_stamp()}] supervising the bridge door on {a.host}:{a.port}", flush=True)
-    print(f"  backoff + circuit breaker via ManagedChild; exit 0 is a DELIBERATE stop and is NOT respawned", flush=True)
+    print("  backoff + circuit breaker via ManagedChild; exit 0 is a DELIBERATE stop and is NOT respawned", flush=True)
     print(f"  the listener's output tail is printed here on every exit and appended to {child_log}", flush=True)
 
     child.spawn()

@@ -305,7 +305,7 @@ class MessageBroker:
 
                 self._last_message_check = datetime.now()
 
-            except Exception as e:
+            except Exception:
                 pass
 
             time.sleep(MESSAGE_POLL_INTERVAL)

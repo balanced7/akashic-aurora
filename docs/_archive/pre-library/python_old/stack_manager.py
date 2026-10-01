@@ -823,9 +823,9 @@ class MemoryMonitor:
 
             elif runtime == "docker":
                 out, ok = _run_cmd(
-                    f"docker stats --no-stream --format "
-                    f'"{{{{.MemUsage}}}} {{{{.CPUPerc}}}}" '
-                    f'$(docker ps --filter "name=redis|sentinel" -q) 2>nul',
+                    "docker stats --no-stream --format "
+                    '"{{.MemUsage}} {{.CPUPerc}}" '
+                    '$(docker ps --filter "name=redis|sentinel" -q) 2>nul',
                     timeout=10,
                 )
                 if ok and out.strip():

@@ -319,7 +319,7 @@ class SessionState:
         if notes:
             print(f"Notes: {notes}")
 
-        print(f"\nRecovery: Run initialize() to reload context")
+        print("\nRecovery: Run initialize() to reload context")
         print(f"         Then resume from {state.get('progress', 0)}%\n")
         print(f"{'=' * 70}\n")
 
@@ -423,9 +423,9 @@ class CheckpointRecovery:
         if recovery_plan["blockers_to_address"]:
             print(f"Blockers to address: {recovery_plan['blockers_to_address']}")
 
-        print(f"\nTo resume:")
+        print("\nTo resume:")
         print(f"  1. initialize('{agent_id}')")
-        print(f"  2. context = api.load_context_derived_from_startup_sources()")
+        print("  2. context = api.load_context_derived_from_startup_sources()")
         print(f"  3. state = SessionState('{agent_id}').load_checkpoint_created_after_crash()")
         print(f"  4. Resume from progress: {recovery_plan['resume_from_progress']}%\n")
         print(f"{'=' * 70}\n")

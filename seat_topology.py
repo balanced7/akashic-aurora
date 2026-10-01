@@ -177,25 +177,25 @@ def main(argv=None) -> int:
         in_dsh = bool(os.getenv("DSH_SESSION_ID"))
         if not in_dsh:
             say(
-                f"  not inside a DSH host (DSH_SESSION_ID unset) — this check does not apply "
-                f"to this process. Run it from INSIDE the DSH session to judge the stamp."
+                "  not inside a DSH host (DSH_SESSION_ID unset) — this check does not apply "
+                "to this process. Run it from INSIDE the DSH session to judge the stamp."
             )
         elif env_id and env_id != key:
             say(f"  >>> OBSERVE-ONLY: AKASHIC_AGENT_ID={env_id!r} != SESSION_KEY={key!r}.")
             say(
-                f"      The plugin injects NOTHING while captures and presence keep running, "
-                f"so the seat looks entirely alive. Present and deaf."
+                "      The plugin injects NOTHING while captures and presence keep running, "
+                "so the seat looks entirely alive. Present and deaf."
             )
             say(
                 f"      Fix: set AKASHIC_AGENT_ID={key!r}, or change the constant to your "
                 f"seat id. Do NOT leave it unset-and-hope — the real failure is INHERITANCE."
             )
         elif env_id:
-            say(f"  stamp matches the constant — plugin is ACTIVE, not observing")
+            say("  stamp matches the constant — plugin is ACTIVE, not observing")
         else:
             say(
-                f"  AKASHIC_AGENT_ID unset here (active by default, but a spawned child will "
-                f"inherit whatever its parent wore)"
+                "  AKASHIC_AGENT_ID unset here (active by default, but a spawned child will "
+                "inherit whatever its parent wore)"
             )
     else:
         say("  no DSH plugin in this checkout")

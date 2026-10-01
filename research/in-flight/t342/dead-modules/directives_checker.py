@@ -156,7 +156,7 @@ class DirectivesComplianceChecker:
                     )
                     return False
 
-        except Exception as e:
+        except Exception:
             pass  # Non-critical check
 
         return True

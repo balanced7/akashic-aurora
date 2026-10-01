@@ -268,11 +268,11 @@ def main():
     print("---")
     print(f"STORM COMPLETE: {sent_count} sent, {ledger['lost_count']} lost, ledger -> {ledger_path}")
     print("Post-storm verification (operator):")
-    print(f"  S1: check every request mid in the ledger has a reply or is unconsumed")
-    print(f"  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit")
-    print(f"  S3: check successor cursor > corpse's last committed cursor")
-    print(f"  S4: check twin watcher transcripts for RB-21 teaching shape on loser")
-    print(f"  S5: check no duplicate replies for handoff mids within sentinel TTL")
+    print("  S1: check every request mid in the ledger has a reply or is unconsumed")
+    print("  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit")
+    print("  S3: check successor cursor > corpse's last committed cursor")
+    print("  S4: check twin watcher transcripts for RB-21 teaching shape on loser")
+    print("  S5: check no duplicate replies for handoff mids within sentinel TTL")
 
 
 if __name__ == "__main__":

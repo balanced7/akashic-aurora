@@ -107,7 +107,7 @@ def write_data_to_ram_disk(filename: str, data: Any, subdir: str = "cache") -> b
             json.dump(data, f)
         _ramdisk_cache[filename] = {"data": data, "time": time.time()}
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 

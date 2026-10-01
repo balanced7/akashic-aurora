@@ -327,17 +327,17 @@ def compare_results(old_metrics: dict, new_metrics: dict):
         avg_decision_reuse = new_metrics["decision_reuse_rate_pct"]
         avg_efficiency = new_metrics["token_efficiency_pct"]
 
-        print(f"\nOVERALL EFFECTIVENESS:")
+        print("\nOVERALL EFFECTIVENESS:")
         print(f"  - Decision Reuse:        {avg_decision_reuse:.1f}% (target: 30-40%)")
         print(f"  - Token Efficiency:      {avg_efficiency:.1f}% (target: 25-40%)")
         print(f"  - Context Availability:  {new_metrics['context_availability_pct']:.1f}% (target: >80%)")
 
         if avg_decision_reuse >= 30 and avg_efficiency >= 25:
-            print(f"\n  [OK] SYSTEM IS WORKING - Goals met!")
+            print("\n  [OK] SYSTEM IS WORKING - Goals met!")
         elif avg_decision_reuse >= 20 and avg_efficiency >= 15:
-            print(f"\n  [~] SYSTEM IS WORKING - Partial success")
+            print("\n  [~] SYSTEM IS WORKING - Partial success")
         else:
-            print(f"\n  [!] SYSTEM NEEDS WORK - Below targets")
+            print("\n  [!] SYSTEM NEEDS WORK - Below targets")
     else:
         print("No improvements detected. Check implementation.")
 

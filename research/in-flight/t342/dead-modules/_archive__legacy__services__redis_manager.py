@@ -912,8 +912,8 @@ def print_status_report():
     stats = catalog.get_stats()
 
     # Health Status
-    print(f"\n  REDIS HEALTH")
-    print(f"  " + ("-" * 66))
+    print("\n  REDIS HEALTH")
+    print("  " + ("-" * 66))
     conn_status = "CONNECTED" if health.connected else "FAILED"
     health_score = health.health_score
     print(f"  Connection:      {conn_status:<20} Health Score: {health_score}/100")
@@ -924,8 +924,8 @@ def print_status_report():
     print(f"  Last RDB Save:   {health.rdb_last_save or 'N/A'}")
 
     # Backup Status
-    print(f"\n  BACKUP STATUS")
-    print(f"  " + ("-" * 66))
+    print("\n  BACKUP STATUS")
+    print("  " + ("-" * 66))
 
     latest = catalog.get_latest()
     if latest:
@@ -939,11 +939,11 @@ def print_status_report():
         print(f"  Verified:        {verified_str}")
         print(f"  Tier:            {latest.retention_tier}")
     else:
-        print(f"  NO BACKUPS FOUND - CRITICAL!")
+        print("  NO BACKUPS FOUND - CRITICAL!")
 
     # Catalog Stats
-    print(f"\n  BACKUP CATALOG")
-    print(f"  " + ("-" * 66))
+    print("\n  BACKUP CATALOG")
+    print("  " + ("-" * 66))
     print(f"  Total Backups:   {stats['total']}")
     print(f"  Total Size:      {stats['total_size_bytes'] / (1024 * 1024):.1f} MB")
     print(f"  Verified:        {stats['verified_count']}")
@@ -953,20 +953,20 @@ def print_status_report():
 
     # Alerts
     if health.alerts:
-        print(f"\n  ALERTS")
-        print(f"  " + ("-" * 66))
+        print("\n  ALERTS")
+        print("  " + ("-" * 66))
         for alert in health.alerts:
             print(f"  ! {alert}")
 
     if health.issues:
-        print(f"\n  ISSUES")
-        print(f"  " + ("-" * 66))
+        print("\n  ISSUES")
+        print("  " + ("-" * 66))
         for issue in health.issues:
             print(f"  X {issue}")
 
     # Storage
-    print(f"\n  STORAGE LOCATIONS")
-    print(f"  " + ("-" * 66))
+    print("\n  STORAGE LOCATIONS")
+    print("  " + ("-" * 66))
     print(f"  Primary:   {PRIMARY_BACKUP_DIR}")
     print(f"  Secondary: {SECONDARY_BACKUP_DIR}")
 

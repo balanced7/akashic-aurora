@@ -34,7 +34,7 @@ try:
         print("GPU tensor operations: SUCCESS")
 
         # Test memory access
-        print(f"\n=== Memory Test ===")
+        print("\n=== Memory Test ===")
         print(f"Memory reserved: {torch.cuda.memory_reserved(0) / 1e9:.2f} GB")
         print(f"Memory allocated: {torch.cuda.memory_allocated(0) / 1e9:.2f} GB")
 

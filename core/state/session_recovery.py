@@ -104,7 +104,7 @@ class SessionRecovery:
                     content = f.read()
                     session_name = filepath.stem.replace("SESSION_SUMMARY_", "")
                     self.summaries[session_name] = content[:500] + "..."
-            except Exception as e:
+            except Exception:
                 pass
 
     # Backward compatibility alias
@@ -251,25 +251,25 @@ class SessionRecovery:
         print("=" * 70)
 
         state = self.load_session_state_from_disk()
-        print(f"\nCurrent Session State:")
+        print("\nCurrent Session State:")
         print(f"  Session ID: {state.get('session_id', 'N/A')}")
         print(f"  Unique ID: {state.get('unique_id', 'N/A')}")
         print(f"  Started: {state.get('started_at', 'N/A')}")
         print(f"  Last Update: {state.get('updated_at', 'N/A')}")
 
-        print(f"\nSession Log Files:")
+        print("\nSession Log Files:")
         for name, filepath in self.session_files.items():
             exists = "[OK]" if filepath.exists() else "[MISSING]"
             print(f"  {exists} {name}: {filepath.name}")
 
-        print(f"\nRecent Sessions (last 5):")
+        print("\nRecent Sessions (last 5):")
         recent = self.load_recent_sessions_ordered_by_timestamp(5)
         for session_id, timestamp, count in recent:
             print(f"  - {session_id}")
             print(f"    Time: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"    Entries: {count}")
 
-        print(f"\nMost Recent Session Details:")
+        print("\nMost Recent Session Details:")
         if recent:
             latest_session_id = recent[0][0]
             summary = self.derive_conversation_summary_from_entries(latest_session_id)
@@ -281,11 +281,11 @@ class SessionRecovery:
             print(f"  Duration: {summary['first_timestamp']} to {summary['last_timestamp']}")
 
             if summary["topics"]:
-                print(f"  Top Topics/Actions:")
+                print("  Top Topics/Actions:")
                 for topic, count in summary["topics"].items():
                     print(f"    - {topic} ({count}x)")
 
-            print(f"\n  Recent Messages:")
+            print("\n  Recent Messages:")
             for msg in summary["messages"][-3:]:
                 role_str = f"[{msg['role'].upper()}]"
                 print(f"    {role_str} {msg['content']}")

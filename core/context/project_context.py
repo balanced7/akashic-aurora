@@ -675,7 +675,7 @@ class ProjectContextManager:
 
         active_tasks = tasks_data.get("active_list", [])
         if active_tasks:
-            print(f"  Active:")
+            print("  Active:")
             for t in active_tasks[:5]:
                 print(f"    - {t['title']}")
 

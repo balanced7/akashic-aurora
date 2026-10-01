@@ -105,7 +105,7 @@ def main(argv=None) -> int:
         return 1
 
     print(f"OK  {len(data):,} bytes -> {out}")
-    print(f"    verified: the bytes hash to their own ref, so this IS what was sent")
+    print("    verified: the bytes hash to their own ref, so this IS what was sent")
     return 0
 
 

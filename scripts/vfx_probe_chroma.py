@@ -46,7 +46,7 @@ def load_png(path):
     try:
         im = Image.open(path).convert("RGBA")
         return im.width, im.height, np.array(im)
-    except Exception as e:
+    except Exception:
         return None, None, None
 
 
@@ -291,7 +291,7 @@ def main():
             )
             print(f"    chrom_hist {sparkline(r.get('chroma_histogram_16'))}")
         else:
-            print(f"    CHROMA     (no signal -- <100 opaque pixels)")
+            print("    CHROMA     (no signal -- <100 opaque pixels)")
         print()
 
     # Pairwise deltas -- the core of Proposal A: "did it change?"
@@ -318,7 +318,7 @@ def main():
             print(f"    chroma_delta    = {chr_d}  ({chr_d * 100:.1f}% pixels >5 chroma diff)")
             if lum_d is not None and lum_d < 0.01 and chr_d is not None and chr_d > 0.01:
                 print(f"    ★ FINDING: luminance says 'no change', chroma says {chr_d * 100:.1f}% changed.")
-                print(f"      The first probe was blind to this. A chroma-aware probe is NOT.")
+                print("      The first probe was blind to this. A chroma-aware probe is NOT.")
             print()
 
     # ---- Feed render (a single render -- what does it surface?) ----
@@ -335,8 +335,8 @@ def main():
         # Solid-colour detection (Proposal F)
         if r["bloom_frac_0.9"] is not None and r["bloom_frac_0.9"] < 0.001:
             print(
-                f"  ★ WARNING: render appears nearly uniform (bloom < 0.1%). "
-                f"Proposal F would flag this as a possible silent failure."
+                "  ★ WARNING: render appears nearly uniform (bloom < 0.1%). "
+                "Proposal F would flag this as a possible silent failure."
             )
         print()
 
@@ -385,12 +385,12 @@ def main():
         print(f"  Average chroma delta    across the triplet: {avg_chr:.4f} ({avg_chr * 100:.1f}%)")
         if avg_chr > avg_lum * 2:
             print(f"  ★ Chroma delta is {avg_chr / avg_lum:.1f}x the luminance delta.")
-            print(f"    Proposal A is validated: luminance-only metrics are BLIND to this change.")
-            print(f"    The agent NEEDS chroma to answer 'did it change?' without a human.")
+            print("    Proposal A is validated: luminance-only metrics are BLIND to this change.")
+            print("    The agent NEEDS chroma to answer 'did it change?' without a human.")
         elif avg_chr > avg_lum:
             print(f"  Chroma delta is {avg_chr / avg_lum:.1f}x luminance. Mild validation.")
         else:
-            print(f"  Luminance delta exceeds chroma. Huh -- unexpected. Look at the PNGs.")
+            print("  Luminance delta exceeds chroma. Huh -- unexpected. Look at the PNGs.")
     print()
     print("If the chroma numbers differ where the luminance numbers agree, Proposal A is right:")
     print("structured render output MUST include chroma. The first probe proved the blind spot;")

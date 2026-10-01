@@ -446,12 +446,12 @@ def evaluate_succession(
         )
     if not successors_alive:
         return _refuse(
-            f"conductor absence is NOT conductor-specific: no other successor is ATTENDED "
-            f"(deepseek/kimi dark) -- refusing to hand authority to a possible next casualty"
+            "conductor absence is NOT conductor-specific: no other successor is ATTENDED "
+            "(deepseek/kimi dark) -- refusing to hand authority to a possible next casualty"
         )
     if present:
         return _refuse(
-            f"operator present (recent inbound evidence) -- the human's word is the authority; succession stands down"
+            "operator present (recent inbound evidence) -- the human's word is the authority; succession stands down"
         )
 
     successor = successors_alive[0]  # first in order who is actually alive

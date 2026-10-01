@@ -448,8 +448,8 @@ def junction_pack(
         "adjudicate, never proof that two sites carry the same concept",
         "a crossing is listed per (write-file, read-file) pair, so one busy writer produces "
         "many rows -- row count is NOT a severity measure",
-        f"write patterns are assignment-shaped and read patterns are access-shaped; a term "
-        f"that travels only as a bare positional argument matches neither",
+        "write patterns are assignment-shaped and read patterns are access-shaped; a term "
+        "that travels only as a bare positional argument matches neither",
     ]
     if not junctions:
         why = (

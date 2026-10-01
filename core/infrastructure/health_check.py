@@ -150,19 +150,19 @@ class StartupDiagnostics:
                 print(f"     {phase['details']}")
 
         if report.get("slow_phases"):
-            print(f"\nSLOW PHASES (>100ms):")
+            print("\nSLOW PHASES (>100ms):")
             for phase in report["slow_phases"]:
                 print(f"  WARN {phase['phase']}: {phase['duration_ms']:.0f}ms")
 
         if report.get("failed_phases"):
-            print(f"\nFAILED PHASES:")
+            print("\nFAILED PHASES:")
             for phase in report["failed_phases"]:
                 print(f"  FAIL {phase['phase']}")
                 if phase["details"]:
                     print(f"       {phase['details']}")
 
         if report["recommendations"]:
-            print(f"\nRECOMMENDATIONS:")
+            print("\nRECOMMENDATIONS:")
             for i, rec in enumerate(report["recommendations"], 1):
                 print(f"  {i}. {rec}")
 

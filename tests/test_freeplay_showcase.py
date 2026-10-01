@@ -129,6 +129,6 @@ def test_toolbelt_roster():
         agent_cli._kata_apply(tb, name, results)
 
     print(f"\n{tb.render_list()}")
-    print(f"\n  >>> 3 VERBS, ALL VERIFIED. The toolbelt is armed. <<<")
+    print("\n  >>> 3 VERBS, ALL VERIFIED. The toolbelt is armed. <<<")
 
     shutil.rmtree(tmp, ignore_errors=True)

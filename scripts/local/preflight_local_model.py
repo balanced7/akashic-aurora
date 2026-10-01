@@ -76,7 +76,7 @@ def main():
     # 2. model present
     try:
         tags = [m.get("name", "") for m in _req(f"{host}/api/tags").get("models", [])]
-    except Exception as e:
+    except Exception:
         tags = []
     check(
         f"model {model} pulled",

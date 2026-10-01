@@ -148,7 +148,7 @@ def test_flat_latency_at_scale():
     target = base + 50_000
     # Build the iso as tz-aware UTC so to_epoch round-trips back to `target` (the zset score).
     iso = datetime.fromtimestamp(target, tz=UTC).isoformat()
-    store.set(f"events:raw:byid:id50000", json.dumps({"id": "id50000", "at": iso, "summary": "needle"}))
+    store.set("events:raw:byid:id50000", json.dumps({"id": "id50000", "at": iso, "summary": "needle"}))
     t0 = time.perf_counter()
     got = idx.window(iso, iso)  # 1-event-wide window deep in the middle
     dt = time.perf_counter() - t0

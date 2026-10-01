@@ -474,7 +474,7 @@ class HarnessEnforcer:
 
             return True
 
-        except Exception as e:
+        except Exception:
             # If can't check, don't block - just warn
             return True
 

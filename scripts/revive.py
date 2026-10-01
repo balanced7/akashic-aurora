@@ -261,7 +261,7 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
     # gateway rung), and > 1 is a DUPLICATE defect that must be NAMED so a root
     # reading a phone sees which fault, not "healthy".
     gw_detail = (
-        f"1 gateway process"
+        "1 gateway process"
         if gateway_n == 1
         else f"{gateway_n} gateway process(es)"
         + (

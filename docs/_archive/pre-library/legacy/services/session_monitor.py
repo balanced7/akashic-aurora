@@ -199,7 +199,7 @@ class SessionMonitor:
                                 "first_seen", datetime.now().isoformat()
                             ),
                         )
-                except Exception as e:
+                except Exception:
                     continue
         except Exception as e:
             print(f"[Monitor] Error getting sessions: {e}")
@@ -401,7 +401,7 @@ class SessionMonitor:
         # Get fresh data
         stats = self.poll()
 
-        print(f"\n  Summary:")
+        print("\n  Summary:")
         print(f"    Total sessions tracked:   {stats['total_sessions']}")
         print(f"    OpenCode sessions:        {stats['opencode_sessions']}")
         print(f"    Sessions logging:         {stats['logging']}")
@@ -409,7 +409,7 @@ class SessionMonitor:
         print(f"    Nudged this run:          {stats['nudged']}")
 
         if self.state.silent_sessions:
-            print(f"\n  Silent OpenCode Sessions (NOT logging):")
+            print("\n  Silent OpenCode Sessions (NOT logging):")
             for sid in self.state.silent_sessions:
                 saved = self.state.sessions_tracked.get(sid, {})
                 nudge_count = saved.get("nudged", 0)

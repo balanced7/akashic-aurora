@@ -56,7 +56,7 @@ def test_campfire_mint_and_kata():
 
     # ---- Clean and confirm
     assert tb.get("campfire")["evidence"] == "VERIFIED"
-    print(f"\n  >>> CAMPFIRE IS VERIFIED. The fleet can gather. <<<")
+    print("\n  >>> CAMPFIRE IS VERIFIED. The fleet can gather. <<<")
 
     # cleanup
     import shutil

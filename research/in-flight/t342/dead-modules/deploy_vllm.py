@@ -203,7 +203,7 @@ def deploy_direct(model: str, port: int = API_PORT) -> int:
         "42",
     ]
 
-    print(f"[vLLM] Starting server...")
+    print("[vLLM] Starting server...")
     print(f"[vLLM] Command: {' '.join(cmd)}")
 
     return subprocess.run(cmd).returncode
@@ -270,7 +270,7 @@ def main():
     print("vLLM AMD ROCm Deployment")
     print("=" * 50)
 
-    print(f"\n[1] Checking ROCm...")
+    print("\n[1] Checking ROCm...")
     if not check_rocm():
         print("[!] ROCm not detected. Install ROCm 6.0+")
         sys.exit(1)
@@ -281,21 +281,21 @@ def main():
         print(f"[OK] GPU VRAM: {vram:.1f} GB")
 
     if args.direct:
-        print(f"\n[2] Deploying vLLM directly...")
+        print("\n[2] Deploying vLLM directly...")
         sys.exit(deploy_direct(args.model, args.port))
     else:
-        print(f"\n[2] Generating Docker command...")
+        print("\n[2] Generating Docker command...")
         cmd = generate_docker_run(args.model, args.port, args.tensor_parallel, args.enforce_eager)
         print(cmd)
 
-        print(f"\n[3] To deploy, run:")
+        print("\n[3] To deploy, run:")
         print(f"    {cmd}")
 
-        print(f"\n[4] Or use docker-compose:")
+        print("\n[4] Or use docker-compose:")
         print(f"    python {sys.argv[0]} --compose --model '{args.model}'")
-        print(f"    docker-compose -f vllm-docker-compose.yml up -d")
+        print("    docker-compose -f vllm-docker-compose.yml up -d")
 
-        print(f"\n[5] Test with:")
+        print("\n[5] Test with:")
         print(f"    curl http://localhost:{args.port}/v1/models")
 
 

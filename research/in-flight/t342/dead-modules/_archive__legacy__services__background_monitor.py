@@ -91,7 +91,7 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
 '''
             subprocess.run(["powershell", "-Command", script], capture_output=True, timeout=5)
             return True
-        except Exception as e:
+        except Exception:
             return False
 
 
@@ -261,7 +261,7 @@ class BackgroundMonitor:
             )
             if self._redis is None:
                 raise ConnectionError("Redis not reachable at localhost:6379")
-            print(f"[monitor] Redis connected")
+            print("[monitor] Redis connected")
         except Exception as e:
             print(f"[monitor] Redis connection failed: {e}")
             self._redis = None
@@ -361,10 +361,10 @@ class BackgroundMonitor:
                     elif to_agent == self.agent_id and NOTIFY_DIRECT:
                         WindowsNotifier.show("Direct Message", content_str[:80], "normal")
 
-                except Exception as e:
+                except Exception:
                     pass  # Skip malformed messages
 
-        except Exception as e:
+        except Exception:
             pass  # Polling error, will retry
 
     def _heartbeat_loop(self):
@@ -407,7 +407,7 @@ class BackgroundMonitor:
         self.running = False
         if self.thread:
             self.thread.join(timeout=2)
-        print(f"[monitor] Stopped")
+        print("[monitor] Stopped")
 
 
 # ============================================================================

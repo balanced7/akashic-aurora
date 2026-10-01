@@ -479,7 +479,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                         f"{agent}: HARD WEDGE -- keyed on: non-idle phase '{phase}' "
                         f"aged {int(stuck)}s + DEAD pulse + {beat_desc} "
                         "(worker died inside the turn; not self-healing)",
-                        f"py-spy dump --pid <runner-pid>  |  relaunch the runner",
+                        "py-spy dump --pid <runner-pid>  |  relaunch the runner",
                     )
                 )
         elif non_idle and stuck >= liveness.APPROACHING_WEDGE_S and not alive_signal:
@@ -1078,7 +1078,7 @@ def pulse(agents: list[str] | None = None) -> dict[str, Any]:
         summary = (
             f"pulse: {critical_n} CRITICAL ({', '.join(zones['critical'])})"
             + (f", {elevated_n} elevated" if elevated_n else "")
-            + f" — storm territory; pressure is building"
+            + " — storm territory; pressure is building"
         )
     elif elevated_n:
         summary = (

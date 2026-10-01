@@ -27,7 +27,7 @@ if result["ok"]:
     print(f"   Running agents: {result['running']}")
     print(f"   Online agents:  {result['online']}")
     print(f"\n   Resume tomorrow with: {_pyl()} scripts/snapshot.py --resume")
-    print(f"   Or from the Bifrost UI: click 🔄 Resume")
+    print("   Or from the Bifrost UI: click 🔄 Resume")
 else:
     print(f"❌ FAILED: {result.get('error', 'unknown')}")
 

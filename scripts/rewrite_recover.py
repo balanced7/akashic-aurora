@@ -448,7 +448,7 @@ def cmd_census(args):
     print()
     print(f"  CURRENT      a clone sees it       : {len(buckets[CURRENT]):,}")
     print(f"  TRANSLATED   a map reaches a live commit : {len(buckets[TRANSLATED]):,}")
-    print(f"  DEAD END     a map answers, with a SHA no")
+    print("  DEAD END     a map answers, with a SHA no")
     print(f"               clone can fetch      : {len(buckets['translated-to-nowhere']):,}")
     print(f"  DROPPED      removed on purpose   : {len(buckets[DROPPED]):,}")
     print(f"  AMBIGUOUS    refused              : {len(buckets[AMBIGUOUS]):,}")

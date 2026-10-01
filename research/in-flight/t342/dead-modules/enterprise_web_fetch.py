@@ -331,7 +331,7 @@ if __name__ == "__main__":
     result = smart_fetch(args.url, args.category)
 
     print(f"\n{'=' * 60}")
-    print(f"Web Fetch Result")
+    print("Web Fetch Result")
     print(f"{'=' * 60}")
     print(f"Success:     {result.success}")
     print(f"Status:      {result.status_code or 'N/A'}")

@@ -99,7 +99,7 @@ class RedisHAManager:
     def get_current_master_via_sentinel(self) -> tuple[str, int] | None:
         """Get current master address from Sentinel"""
         for host, port in self.sentinel_clients:
-            output, code = self._sentinel_command(host, port, f"SENTINEL get-master-addr-by-name akasha")
+            output, code = self._sentinel_command(host, port, "SENTINEL get-master-addr-by-name akasha")
             if code == 0 and output:
                 parts = output.split("\n")
                 if len(parts) >= 2:

@@ -643,7 +643,7 @@ class AgentCoordinator:
         print(f"My Status: {status['my_manifest']['status']}")
         print(f"My Scope: {', '.join(status['my_manifest']['scope']) or 'None'}")
 
-        print(f"\nSystem:")
+        print("\nSystem:")
         print(f"  Total Agents: {status['total_agents']}")
         print(f"  Busy: {status['busy_agents']}")
         print(f"  Idle: {status['idle_agents']}")

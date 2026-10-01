@@ -147,7 +147,7 @@ def derive_agent_context_from_startup_sources(
 
             if checkpoint_exists:
                 checkpoint = state.load_checkpoint()
-                print(f"\n  RECOVERY INFO:")
+                print("\n  RECOVERY INFO:")
                 print(f"    Task: {checkpoint.get('task')}")
                 print(f"    Progress: {checkpoint.get('progress')}%")
                 print(f"    Blockers: {checkpoint.get('blockers', [])}")

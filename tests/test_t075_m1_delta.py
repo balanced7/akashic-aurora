@@ -132,7 +132,7 @@ def test_f1_drainer_ring_collects_output(monkeypatch, tmp_path):
     on_exit receives ring contents, not a partial post-mortem pipe read."""
     child_script = tmp_path / "child_chatty.py"
     lines = "\n".join(f"line {i}" for i in range(50))
-    child_script.write_text(f"import sys\nfor i in range(50): print(f'line {{i}}')\nsys.exit(0)\n")
+    child_script.write_text("import sys\nfor i in range(50): print(f'line {i}')\nsys.exit(0)\n")
 
     exited = []
 

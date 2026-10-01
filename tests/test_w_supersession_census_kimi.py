@@ -52,4 +52,4 @@ def test_census():
     with open(inv, "w", encoding="utf-8") as f:
         for rel, _ in cur:
             f.write(rel + "\n")
-    print(f"[census] inventory written: scratch/supersession_current_inventory.txt")
+    print("[census] inventory written: scratch/supersession_current_inventory.txt")

@@ -305,7 +305,7 @@ if __name__ == "__main__":
 
     # Get summary (uses cache)
     summary = doc.get_summary()
-    print(f"\nError Summary (cached):")
+    print("\nError Summary (cached):")
     print(f"  Total: {summary['total']}")
     print(f"  By System: {summary['by_system']}")
     print(f"  By Severity: {summary['by_severity']}")
