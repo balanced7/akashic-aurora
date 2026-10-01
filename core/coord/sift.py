@@ -114,7 +114,6 @@ _NOISE_DIRS = {
     "refs",
     "requirements",
     "assets",
-    "__pycache__",
 }
 
 
