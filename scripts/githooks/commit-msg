@@ -3,9 +3,10 @@
 # git hands this stage the LIVE message file as $1. pre-commit runs BEFORE git writes that
 # file, so a message scan there read the previous commit's message; this stage is the one
 # place where the message being committed is the message that gets scanned. Tracked, shared
-# across worktrees via core.hooksPath (py scripts/githooks/install_git_hooks.py).
+# across worktrees via core.hooksPath (uv run scripts/githooks/install_git_hooks.py).
 # Bypass: git commit --no-verify (skips pre-commit too) -- say so out loud if you use it.
-# `py` is the Windows launcher. Elsewhere run Aurora's Python through uv (its dependencies
-# come with it), else python3 -- so every `py ...` line below works on any OS unchanged.
-command -v py >/dev/null 2>&1 || py() { if command -v uv >/dev/null 2>&1; then uv run "$@"; else python3 "$@"; fi; }
-py scripts/githooks/commit_msg.py "$1"
+# Python runs through pyrun, the chain of scripts/githooks/pyrun inlined so this shim also
+# works alone: $AKASHIC_PYTHON, else uv run --frozen --quiet (Aurora's locked dependencies come
+# with it), else the Windows `py` launcher, else python3.
+pyrun() { if [ -n "${AKASHIC_PYTHON:-}" ]; then $AKASHIC_PYTHON "$@"; elif command -v uv >/dev/null 2>&1; then uv run --frozen --quiet python "$@"; elif command -v py >/dev/null 2>&1; then py "$@"; else python3 "$@"; fi; }
+pyrun scripts/githooks/commit_msg.py "$1"

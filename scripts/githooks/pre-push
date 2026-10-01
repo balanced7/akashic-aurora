@@ -17,9 +17,10 @@
 #
 # BYPASS: git push --no-verify  -- git's own escape hatch, deliberately not re-invented
 # here. If you need it, the thing you are pushing had better be the fix for this gate.
-# `py` is the Windows launcher. Elsewhere run Aurora's Python through uv (its dependencies
-# come with it), else python3 -- so every `py ...` line below works on any OS unchanged.
-command -v py >/dev/null 2>&1 || py() { if command -v uv >/dev/null 2>&1; then uv run "$@"; else python3 "$@"; fi; }
+# Python runs through pyrun, the chain of scripts/githooks/pyrun inlined so this shim also
+# works alone: $AKASHIC_PYTHON, else uv run --frozen --quiet (Aurora's locked dependencies come
+# with it), else the Windows `py` launcher, else python3.
+pyrun() { if [ -n "${AKASHIC_PYTHON:-}" ]; then $AKASHIC_PYTHON "$@"; elif command -v uv >/dev/null 2>&1; then uv run --frozen --quiet python "$@"; elif command -v py >/dev/null 2>&1; then py "$@"; else python3 "$@"; fi; }
 set -u
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -29,7 +30,7 @@ echo "[door-gate] the MCP door must answer before anything ships"
 
 # --- 1. the live door, always (~2s). Cheap, and it is the only check that can see the
 #        door as it actually is in THIS environment rather than as the source implies.
-if ! py -m core.comm.door_probe; then
+if ! pyrun -m core.comm.door_probe; then
     echo ""
     echo "[door-gate] BLOCKED: the MCP door is not healthy."
     echo "[door-gate] Every MCP seat boots through this path -- pushing now ships a"
@@ -42,7 +43,7 @@ fi
 CHANGED="$(git diff --name-only origin/master..HEAD 2>/dev/null || git diff --name-only HEAD~1..HEAD 2>/dev/null || echo FORCE)"
 if [ "$CHANGED" = "FORCE" ] || echo "$CHANGED" | grep -qE '(^agent_cli\.py|^ai_setup_mcp\.py|^core/.*\.py|^tests/test_(subprocess_stdin_sever|t078_w3_mcp_door)\.py)'; then
     echo "[door-gate] door-relevant code moved -- running the door pins (~40s)"
-    if ! py -m pytest tests/test_subprocess_stdin_sever.py tests/test_t078_w3_mcp_door.py -q; then
+    if ! pyrun -m pytest tests/test_subprocess_stdin_sever.py tests/test_t078_w3_mcp_door.py -q; then
         echo ""
         echo "[door-gate] BLOCKED: a door pin is red."
         echo "[door-gate] S3 names the exact file:line if a spawn on the boot path"
@@ -62,7 +63,7 @@ fi
 #        invisible from outside: every spot-check of a KNOWN lesson name passes while keyword
 #        search answers from a fraction of the corpus. Third instance this week of a correct,
 #        current detector that no gate ran (W69).
-if ! py scripts/repair_learning_index.py --check; then
+if ! pyrun scripts/repair_learning_index.py --check; then
     echo ""
     echo "[index-gate] BLOCKED: lesson records exist that recall cannot see."
     echo "[index-gate] Every recall read path takes MEMBERSHIP from learn:experiments:all,"
@@ -81,7 +82,7 @@ fi
 #        scheduled task, because 8,000 blobs cost 20s and a gate nobody waits for is a gate
 #        that gets bypassed. Findings are MASKED -- printing a key here would publish it
 #        into this log and into the archived session transcript.
-if ! py scripts/checkers/check_secrets.py; then
+if ! pyrun scripts/checkers/check_secrets.py; then
     echo ""
     echo "[secret-gate] BLOCKED: credential-shaped content is staged for a PUBLIC remote."
     echo "[secret-gate] ROTATE THE CREDENTIAL FIRST, then remove it. Rotation is the only"

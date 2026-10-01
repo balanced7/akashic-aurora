@@ -3,7 +3,8 @@
 # Git can no longer say: T411 inverted author AND committer to the operator, so the seat
 # exists only in the environment at the moment of the commit. Fail-open by design -- a
 # commit that already happened must never be undone by its own bookkeeping.
-# `py` is the Windows launcher. Elsewhere run Aurora's Python through uv (its dependencies
-# come with it), else python3 -- so every `py ...` line below works on any OS unchanged.
-command -v py >/dev/null 2>&1 || py() { if command -v uv >/dev/null 2>&1; then uv run "$@"; else python3 "$@"; fi; }
-py scripts/githooks/post_commit.py
+# Python runs through pyrun, the chain of scripts/githooks/pyrun inlined so this shim also
+# works alone: $AKASHIC_PYTHON, else uv run --frozen --quiet (Aurora's locked dependencies come
+# with it), else the Windows `py` launcher, else python3.
+pyrun() { if [ -n "${AKASHIC_PYTHON:-}" ]; then $AKASHIC_PYTHON "$@"; elif command -v uv >/dev/null 2>&1; then uv run --frozen --quiet python "$@"; elif command -v py >/dev/null 2>&1; then py "$@"; else python3 "$@"; fi; }
+pyrun scripts/githooks/post_commit.py
