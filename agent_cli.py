@@ -5590,6 +5590,20 @@ def cmd_doctor(args):
             print(f"  [{f['grade']:^9}] {f['line']}")
             if f.get("drill"):
                 print(f"              start: {f['drill']}")
+    try:   # S5 (T423): who can be reached from idle -- listener origin, since when, what wakes cost;
+        from core.comm import wake_seat as _wake   # PAGE on a live session with no harness listener
+        _cli = os.path.abspath(__file__).replace("\\", "/")
+        _wf = _wake.wake_findings(arm_hint=lambda a, s: (
+            f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} bifrost-standby {a} --session {s}"))
+        rep["wake"] = _wf
+        if _wf:
+            print("## WAKE (who can be reached from idle -- origin, since, cost)")
+            for f in _wf:
+                print(f"  [{f['grade']:^9}] {f['line']}")
+                if f.get("drill"):
+                    print(f"              arm: {f['drill']}")
+    except Exception:
+        pass
     try:   # W54 (kimi F3): the activation gauge -- organ claims read the instrument, not anecdotes
         from core.recall.at_action import injections_by_family
         print("## ACTIVATION (recall injections by lesson family, 24h)")

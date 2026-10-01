@@ -181,6 +181,131 @@ def append_wake_receipt(agent: str, receipt: Dict, base: Optional[str] = None) -
         return False
 
 
+# ---------------------------------------------------------------- wake OBSERVABILITY (S5, 2026-10-01)
+# Daniel's ladder property (5): doctor shows per seat who launched the listener, since when, and
+# what the wakes cost; and PAGES when a session that is demonstrably alive has had no listener
+# that can start a turn. A heartbeat proves presence and cannot prove absence (the standing
+# lesson): the EXPECTATION here is the session's own activity marker, touched at every hook
+# firing -- a seat alive within the hour that is not reachable from idle is a finding, not a gap.
+WAKE_PAGE_AFTER_MIN = 10.0      # unarmed this long with the session alive -> page
+WAKE_STALE_AFTER_MIN = 60.0     # alive marker older than this -> the session is gone, janitor's job
+
+
+def agents_with_seats(tmp: Optional[str] = None) -> List[str]:
+    """Agents that have ANY seat file in the tempdir (exact-component split, as iter_seats)."""
+    base = tmp or tempfile.gettempdir()
+    found: List[str] = []
+    try:
+        for name in os.listdir(base):
+            if name.startswith("bifrost_wake_") and name.endswith(".pid"):
+                parts = name[len("bifrost_wake_"):-4].split("_")
+                agent = "_".join(parts[:-1]) if len(parts) > 1 else parts[0]
+                if agent and agent not in found:
+                    found.append(agent)
+    except Exception:
+        pass
+    return sorted(found)
+
+
+def wake_tag(agent: str, session_id: Optional[str], tmp: Optional[str] = None) -> str:
+    """One word for a roster row: armed-harness / armed-daemon / armed-unknown / dead-seat /
+    unarmed (watcher_state's own vocabulary; 'unarmed' is a measured absence of a seat file,
+    never a probe failure, which is 'unknown')."""
+    try:
+        state, _ = wake_origin_state(agent, session_id or None, tmp)
+        return state
+    except Exception:
+        return "unknown"
+
+
+def wake_observations(agent: str, tmp: Optional[str] = None, now: Optional[float] = None,
+                      pid_probe=None) -> List[Dict]:
+    """PURE read, one row per session seat of `agent`: state, origin, pid, armed_since (seat
+    file mtime), alive_age_min (activity marker; None = no marker ever)."""
+    t = now if now is not None else time.time()
+    rows: List[Dict] = []
+    for path, sid in iter_seats(agent, tmp):
+        state, pid = wake_origin_state(agent, sid, tmp, pid_probe)
+        origin, _ = read_origin(agent, sid, tmp)
+        try:
+            armed_since = os.path.getmtime(path)
+        except Exception:
+            armed_since = None
+        alive = activity_age_min(agent, sid, now=t, tmp=tmp) if sid else None
+        rows.append({"agent": agent, "session_id": sid or "", "state": state, "origin": origin,
+                     "pid": pid, "armed_since": armed_since, "alive_age_min": alive})
+    # sessions with an activity marker but NO seat file at all are the loudest case
+    try:
+        base = tmp or tempfile.gettempdir()
+        seen = {r["session_id"] for r in rows}
+        prefix = f"bifrost_wake_{agent}_"
+        for name in os.listdir(base):
+            if name.startswith(prefix) and name.endswith(".alive"):
+                sid = name[len(prefix):-len(".alive")]
+                if sid and sid not in seen and "_" not in sid:
+                    rows.append({"agent": agent, "session_id": sid, "state": "unarmed", "origin": "none",
+                                 "pid": None, "armed_since": None,
+                                 "alive_age_min": activity_age_min(agent, sid, now=t, tmp=tmp)})
+    except Exception:
+        pass
+    return rows
+
+
+def wake_findings(agents: Optional[List[str]] = None, tmp: Optional[str] = None,
+                  now: Optional[float] = None, receipts_base: Optional[str] = None,
+                  pid_probe=None, arm_hint=None) -> List[Dict]:
+    """Doctor-shaped findings ({agent, state, grade, line, drill}) for reachability from idle.
+
+      page       a session alive within WAKE_STALE_AFTER_MIN, unarmed (no harness-parented
+                 listener) for more than WAKE_PAGE_AFTER_MIN
+      dashboard  reachable seats (origin + since + alive age); unarmed inside the grace
+                 (a turn may be running); stale seats the janitor owns; the 24 h receipt counts
+    arm_hint(agent, sid) -> the exact arm line for the drill (the caller knows its cwd)."""
+    t = now if now is not None else time.time()
+    out: List[Dict] = []
+    for agent in (agents if agents is not None else agents_with_seats(tmp)):
+        rows = wake_observations(agent, tmp, t, pid_probe)
+        for r in rows:
+            sid8 = (r["session_id"] or "legacy")[:8]
+            alive = r["alive_age_min"]
+            alive_txt = (f"alive {alive:.0f}m ago" if alive is not None else "no activity marker")
+            reachable = r["state"] in {f"armed-{o}" for o in WAKEABLE_ORIGINS}
+            drill = (arm_hint(agent, r["session_id"]) if (arm_hint and r["session_id"]) else
+                     f"py agent_cli.py bifrost-standby {agent} --session {r['session_id']}")
+            if reachable:
+                since = (time.strftime("%H:%M", time.localtime(r["armed_since"]))
+                         if r["armed_since"] else "?")
+                out.append({"agent": agent, "state": "wake_reachable", "grade": "dashboard",
+                            "line": f"{agent}#{sid8}: reachable from idle -- {r['state']} since {since}, {alive_txt}",
+                            "drill": ""})
+            elif alive is None:
+                continue                                  # no evidence of a live session: not a finding
+            elif alive <= WAKE_PAGE_AFTER_MIN:
+                out.append({"agent": agent, "state": "wake_unarmed_grace", "grade": "dashboard",
+                            "line": f"{agent}#{sid8}: unarmed ({r['state']}) but {alive_txt} -- inside the "
+                                    f"{WAKE_PAGE_AFTER_MIN:.0f} min grace, a turn may be running",
+                            "drill": drill})
+            elif alive <= WAKE_STALE_AFTER_MIN:
+                out.append({"agent": agent, "state": "wake_deaf", "grade": "page",
+                            "line": f"{agent}#{sid8}: DEAF -- session {alive_txt} but NOT reachable from idle "
+                                    f"({r['state']}: no harness-parented listener) for > "
+                                    f"{WAKE_PAGE_AFTER_MIN:.0f} min; mail queues until someone arms it",
+                            "drill": drill})
+            else:
+                out.append({"agent": agent, "state": "wake_seat_stale", "grade": "dashboard",
+                            "line": f"{agent}#{sid8}: seat records stale ({r['state']}, {alive_txt}) -- "
+                                    f"the session is gone; janitor",
+                            "drill": ""})
+        s = wake_receipts_summary(agent, since_s=24 * 3600, now=t, base=receipts_base)
+        if s["wakes"] or rows:
+            out.append({"agent": agent, "state": "wake_cost", "grade": "dashboard",
+                        "line": f"{agent}: wakes 24h {s['wakes']} ({s['with_mail']} with mail, "
+                                f"{s['quiet']} quiet, {s['cycled']} deadline cycles; "
+                                f"{s['held_below_floor']} held below floor)",
+                        "drill": ""})
+    return out
+
+
 def wake_receipts_summary(agent: str, since_s: float = 24 * 3600, now: Optional[float] = None,
                           base: Optional[str] = None) -> Dict[str, int]:
     """Counts over the window: wakes (listener exits), with_mail, quiet, cycled,

@@ -415,6 +415,17 @@ def render_roster(ns: str, *, client=None) -> List[str]:
         have = ",".join(f"{k}@{str(v)[-9:]}" for k, v in (r.get("have") or {}).items())
         out.append(f"  [{r['state']:5}] {r['seat']:24} phase={r['phase']:10} beat={age:>7} "
                    f"seq={r['seq']:<5} have: {have}")
+        # S5 (T423): the wake column -- WHO launched this seat's listener decides whether its
+        # exit can start a turn (armed-harness) or only hold presence (armed-daemon). Only a
+        # seat that HAS a seat file earns the line; 'none' stays silent here because a runner
+        # seat never arms a listener and the doctor's WAKE section carries the absence verdict.
+        try:
+            from core.comm import wake_seat as _ws
+            _tag = _ws.wake_tag(r["agent"], r.get("full_sid") or r["sid8"])
+            if _tag not in ("unarmed", "unknown"):
+                out.append(f"          wake: {_tag}")
+        except Exception:
+            pass
         # T114: a seat can be perfectly alive and running the defect you already fixed.
         # Only STALE earns a line -- current is the silent default, unknown says so plainly.
         if r.get("code_state") == "stale":
@@ -426,5 +437,6 @@ def render_roster(ns: str, *, client=None) -> List[str]:
     out.append(f"  checked:     {ns}:worklive:<agent>#<sid8> keys (TTL {WORKLIVE_TTL_S}s, "
                f"fresh<= {FRESH_S:g}s) + cursor positions (have-summary)")
     out.append("  NOT checked: process liveness (a beating loop can host a wedged model) | "
-               "wake watcher armed | runner locks | role-queue claims -- doctor covers those")
+               "runner locks | role-queue claims -- doctor covers those; the wake line above "
+               "reads the seat's origin sidecar (S5), doctor's WAKE section grades it")
     return out
