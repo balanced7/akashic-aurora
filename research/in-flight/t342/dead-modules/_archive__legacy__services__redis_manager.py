@@ -123,9 +123,9 @@ class BackupMetadata:
     checksum_sha256: str
     checksum_algorithm: str
     primary_path: str
-    secondary_path: Optional[str]
+    secondary_path: str | None
     verified: bool
-    verified_timestamp: Optional[str]
+    verified_timestamp: str | None
     retention_tier: str  # hourly, daily, weekly
     compressed: bool
     compression_ratio: float
@@ -152,11 +152,11 @@ class HealthStatus:
     keys_count: int
     memory_used_mb: float
     aof_enabled: bool
-    rdb_last_save: Optional[str]
-    last_backup_age_seconds: Optional[float]
+    rdb_last_save: str | None
+    last_backup_age_seconds: float | None
     backup_healthy: bool
-    issues: List[str]
-    alerts: List[str]
+    issues: list[str]
+    alerts: list[str]
 
     @property
     def health_score(self) -> int:
@@ -179,7 +179,7 @@ class BackupCatalog:
     CATALOG_FILE = os.path.join(PRIMARY_BACKUP_DIR, "backup_catalog.json")
 
     def __init__(self):
-        self.backups: List[BackupMetadata] = []
+        self.backups: list[BackupMetadata] = []
         self._lock = threading.Lock()
         self._load()
 
@@ -187,7 +187,7 @@ class BackupCatalog:
         """Load catalog from disk."""
         if os.path.exists(self.CATALOG_FILE):
             try:
-                with open(self.CATALOG_FILE, "r") as f:
+                with open(self.CATALOG_FILE) as f:
                     data = json.load(f)
                     self.backups = [BackupMetadata.from_dict(b) for b in data.get("backups", [])]
                 log(f"Loaded catalog with {len(self.backups)} entries")
@@ -231,20 +231,20 @@ class BackupCatalog:
             self._apply_retention()
             self._save()
 
-    def get_latest(self) -> Optional[BackupMetadata]:
+    def get_latest(self) -> BackupMetadata | None:
         """Get most recent backup."""
         if not self.backups:
             return None
         return max(self.backups, key=lambda b: b.timestamp_unix)
 
-    def get_by_id(self, backup_id: str) -> Optional[BackupMetadata]:
+    def get_by_id(self, backup_id: str) -> BackupMetadata | None:
         """Get backup by ID."""
         for b in self.backups:
             if b.backup_id == backup_id:
                 return b
         return None
 
-    def get_all(self) -> List[BackupMetadata]:
+    def get_all(self) -> list[BackupMetadata]:
         """Get all backups sorted by age."""
         return sorted(self.backups, key=lambda b: b.timestamp_unix, reverse=True)
 
@@ -291,7 +291,7 @@ class BackupCatalog:
                 except Exception as e:
                     log(f"Failed to delete {path}: {e}", LogLevel.WARN)
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get catalog statistics."""
         if not self.backups:
             return {
@@ -323,7 +323,7 @@ class BackupCatalog:
 # ============================================================================
 
 
-def run_wsl(command: str, timeout: int = 30) -> Tuple[str, int]:
+def run_wsl(command: str, timeout: int = 30) -> tuple[str, int]:
     """Execute command in WSL2 with timeout."""
     cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + command.split()
     try:
@@ -346,7 +346,7 @@ def check_redis_connection() -> bool:
     return output == "PONG"
 
 
-def get_redis_info() -> Dict:
+def get_redis_info() -> dict:
     """Get Redis INFO as dict."""
     output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli INFO")
     if code != 0:
@@ -372,7 +372,7 @@ def get_redis_keys_count() -> int:
         return 0
 
 
-def get_all_keys_with_types() -> List[Tuple[str, str]]:
+def get_all_keys_with_types() -> list[tuple[str, str]]:
     """Get all keys with their types."""
     output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli KEYS '*'")
     keys = [k for k in output.split("\n") if k]
@@ -415,7 +415,7 @@ def get_key_value(key: str, key_type: str) -> any:
     return None
 
 
-def get_container_status() -> Dict:
+def get_container_status() -> dict:
     """Get Docker container status."""
     output, code = run_wsl(f"docker ps -a --filter name={CONTAINER_NAME}")
     if not output or "wsl-ai-redis" not in output:
@@ -451,7 +451,7 @@ def compute_checksum(file_path: str) -> str:
     return sha256.hexdigest()
 
 
-def export_redis_to_dict() -> Tuple[Dict, int]:
+def export_redis_to_dict() -> tuple[dict, int]:
     """Export all Redis data to dict. Returns (data, total_size)."""
     keys_with_types = get_all_keys_with_types()
 
@@ -475,7 +475,7 @@ def export_redis_to_dict() -> Tuple[Dict, int]:
     return data, total_size
 
 
-def create_backup() -> Optional[BackupMetadata]:
+def create_backup() -> BackupMetadata | None:
     """
     Create enterprise-grade backup with:
     - Atomic write
@@ -575,7 +575,7 @@ def verify_backup_integrity(backup_path: str) -> bool:
 
     try:
         # Load and validate JSON
-        with open(backup_path, "r") as f:
+        with open(backup_path) as f:
             data = json.load(f)
 
         # Verify required fields (new format)
@@ -632,7 +632,7 @@ def restore_redis(backup_path: str, verify_first: bool = True) -> bool:
 
     try:
         # Load backup
-        with open(backup_path, "r") as f:
+        with open(backup_path) as f:
             data = json.load(f)
 
         keys_restored = 0

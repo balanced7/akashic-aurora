@@ -31,7 +31,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 from core.recall.lookback import (
     MIN_RELEVANCE,
@@ -47,7 +48,7 @@ ARCHIVE_STATUS = {"retired", "superseded", "historical", "benched", "graduated"}
 PER_LAYER = 6
 
 
-def _safe(fn: Callable[[], List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def _safe(fn: Callable[[], list[dict[str, Any]]]) -> list[dict[str, Any]]:
     try:
         return fn() or []
     except Exception:
@@ -55,7 +56,7 @@ def _safe(fn: Callable[[], List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------- corpus adapter (lessons)
-def _lesson_status(rec: Dict[str, Any]) -> str:
+def _lesson_status(rec: dict[str, Any]) -> str:
     """current | benched | graduated. The store's predicates own the field contract --
     benched/graduated hold ISO timestamps when set, so only is_benched/is_graduated may
     read them (a truthy-string compare reads every timestamp as false)."""
@@ -68,12 +69,12 @@ def _lesson_status(rec: Dict[str, Any]) -> str:
     return "current"
 
 
-def _lesson_items() -> List[Dict[str, Any]]:
+def _lesson_items() -> list[dict[str, Any]]:
     """Every lesson as a graph node carrying its related_to edges. Notes and docs come from
     lookback's adapters unchanged; lessons need the edge projection, which is ours."""
     from core.learning.learning_store import get_learning_store
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for rec in get_learning_store().load_all_learnings_from_store():
         name = str(rec.get("experiment_name") or "").strip()
         if not name:
@@ -110,7 +111,7 @@ def _lesson_items() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------- node projection
-def _node(item: Dict[str, Any], kind: str, score: Optional[float], q: str) -> Dict[str, Any]:
+def _node(item: dict[str, Any], kind: str, score: float | None, q: str) -> dict[str, Any]:
     text = str(item.get("text", ""))
     title = (item.get("id") or (text.split("\n", 1)[0] if text else "") or item.get("source", "")).strip()[:80]
     return {
@@ -129,15 +130,15 @@ def _node(item: Dict[str, Any], kind: str, score: Optional[float], q: str) -> Di
 # ---------------------------------------------------------------- the walk (pure, testable)
 def build_map(
     topic: str,
-    lessons: List[Dict[str, Any]],
-    notes: List[Dict[str, Any]],
-    docs: List[Dict[str, Any]],
+    lessons: list[dict[str, Any]],
+    notes: list[dict[str, Any]],
+    docs: list[dict[str, Any]],
     *,
     per_layer: int = PER_LAYER,
     min_relevance: float = MIN_RELEVANCE,
-    relevance_fn: Optional[Callable[[str, str], float]] = None,
-    now: Optional[float] = None,
-) -> Dict[str, Any]:
+    relevance_fn: Callable[[str, str], float] | None = None,
+    now: float | None = None,
+) -> dict[str, Any]:
     """Walk the neighborhood of `topic` over already-loaded corpus item lists.
 
     Returns {topic, surface[], neighborhood[], archive[], counts{}}. Each node:
@@ -170,8 +171,8 @@ def build_map(
     ranker = Ranker(relevance_fn=relevance_fn)
 
     # L1 surface (current) + L3 archive (on-topic but retired), split by currency.
-    surface: List[Dict[str, Any]] = []
-    archive: List[Dict[str, Any]] = []
+    surface: list[dict[str, Any]] = []
+    archive: list[dict[str, Any]] = []
     for items, kind in ((lessons, "lesson"), (notes, "note"), (docs, "doc")):
         kept = 0
         arch_kept = 0
@@ -196,10 +197,10 @@ def build_map(
     surface_rank = {sid: i for i, sid in enumerate(surface_lesson_order)}
 
     # L2 neighborhood: WALK the related_to edges from the surface lessons, both directions.
-    neighborhood: List[Dict[str, Any]] = []
+    neighborhood: list[dict[str, Any]] = []
     seen = set(surface_ids)
 
-    def _add(rec: Dict[str, Any], frm: str, edge: Dict[str, Any], direction: str) -> None:
+    def _add(rec: dict[str, Any], frm: str, edge: dict[str, Any], direction: str) -> None:
         node = _node(rec, "lesson", None, q)
         node["via"] = {
             "from": frm,
@@ -241,8 +242,8 @@ def build_map(
 
 # ---------------------------------------------------------------- the loader (live corpora)
 def knowledge_map(
-    topic: str, *, per_layer: int = PER_LAYER, min_relevance: float = MIN_RELEVANCE, now: Optional[float] = None
-) -> Dict[str, Any]:
+    topic: str, *, per_layer: int = PER_LAYER, min_relevance: float = MIN_RELEVANCE, now: float | None = None
+) -> dict[str, Any]:
     """Walk the LIVE knowledge neighborhood of `topic`. Loads lessons (with edges), notes,
     and docs fail-soft, then delegates to `build_map`. Accrues a per-topic funnel count so
     the next audit of this surface has numbers, not anecdotes (the lookback pattern)."""
@@ -254,7 +255,7 @@ def knowledge_map(
     return m
 
 
-def _count(m: Dict[str, Any]) -> None:
+def _count(m: dict[str, Any]) -> None:
     """Best-effort funnel: queries + total nodes walked. Kill switch AKASHIC_KMAP_NO_COUNT=1."""
     if os.environ.get("AKASHIC_KMAP_NO_COUNT") == "1":
         return

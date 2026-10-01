@@ -42,10 +42,10 @@ HINT_BLOCK_HEADER = (
 
 # ── in-memory store (lives on the runner process; cleared on restart) ──
 # agent_id -> deque of (key, value, from_agent, ts) tuples
-_hints: Dict[str, deque] = {}
+_hints: dict[str, deque] = {}
 # agent_id -> hints the full ring evicted since last take_dropped() (RB-5/RB-6, T029:
 # a bounded read must SAY what it dropped -- the deque evicts silently on its own)
-_dropped: Dict[str, int] = {}
+_dropped: dict[str, int] = {}
 
 
 def push(agent: str, key: str, value: str, *, from_agent: str = "?") -> bool:
@@ -88,7 +88,7 @@ def take_dropped(agent: str) -> int:
     return _dropped.pop(str(agent), 0)
 
 
-def drain(agent: str) -> List[Dict[str, Any]]:
+def drain(agent: str) -> list[dict[str, Any]]:
     """Drain ALL pending hints for `agent`, clearing the ring.
 
     Call this ONCE per model turn, before composing the prompt.  Returns a list of
@@ -103,7 +103,7 @@ def drain(agent: str) -> List[Dict[str, Any]]:
         return []
 
     now = time.time()
-    hints: List[Dict[str, Any]] = []
+    hints: list[dict[str, Any]] = []
     while buf:
         key, value, from_agent, ts = buf[0]
         if now - ts > HINT_TTL_SECONDS:
@@ -119,7 +119,7 @@ def drain(agent: str) -> List[Dict[str, Any]]:
     return hints
 
 
-def format_for_prompt(hints: List[Dict[str, Any]], dropped: int = 0) -> str:
+def format_for_prompt(hints: list[dict[str, Any]], dropped: int = 0) -> str:
     """Render a list of hint dicts (from drain()) as a compact block for system-prompt or
     user-prompt injection. `dropped` (from take_dropped()) confesses ring overflow: the
     block reports the loss instead of narrowing silently (RB-5/RB-6, T029).

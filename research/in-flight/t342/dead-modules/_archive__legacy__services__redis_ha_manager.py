@@ -70,16 +70,16 @@ class RedisHAManager:
     """
 
     def __init__(self):
-        self.instances: Dict[str, RedisInstance] = {}
-        self.current_master: Optional[RedisInstance] = None
-        self.sentinel_clients: List[Tuple[str, int]] = [
+        self.instances: dict[str, RedisInstance] = {}
+        self.current_master: RedisInstance | None = None
+        self.sentinel_clients: list[tuple[str, int]] = [
             ("127.0.0.1", SENTINEL1_PORT),
             ("127.0.0.1", SENTINEL2_PORT),
             ("127.0.0.1", SENTINEL3_PORT),
         ]
         self._lock = threading.Lock()
 
-    def _run_wsl(self, cmd: List[str], timeout: int = 30) -> Tuple[str, int]:
+    def _run_wsl(self, cmd: list[str], timeout: int = 30) -> tuple[str, int]:
         """Execute command in WSL2"""
         full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + cmd
         try:
@@ -90,15 +90,15 @@ class RedisHAManager:
         except Exception as e:
             return str(e), -1
 
-    def _redis_command(self, host: str, port: int, cmd: str) -> Tuple[str, int]:
+    def _redis_command(self, host: str, port: int, cmd: str) -> tuple[str, int]:
         """Run redis-cli command"""
         return self._run_wsl(["redis-cli", "-h", host, "-p", str(port), cmd])
 
-    def _sentinel_command(self, host: str, port: int, cmd: str) -> Tuple[str, int]:
+    def _sentinel_command(self, host: str, port: int, cmd: str) -> tuple[str, int]:
         """Run sentinel command"""
         return self._run_wsl(["redis-cli", "-p", str(port), cmd])
 
-    def get_current_master_via_sentinel(self) -> Optional[Tuple[str, int]]:
+    def get_current_master_via_sentinel(self) -> tuple[str, int] | None:
         """Get current master address from Sentinel"""
         for host, port in self.sentinel_clients:
             output, code = self._sentinel_command(host, port, f"SENTINEL get-master-addr-by-name akasha")
@@ -128,7 +128,7 @@ class RedisHAManager:
             pass
         return False
 
-    def get_replication_status(self, host: str, port: int) -> Dict[str, Any]:
+    def get_replication_status(self, host: str, port: int) -> dict[str, Any]:
         """Get replication info from a Redis instance"""
         output, code = self._redis_command(host, port, "INFO replication")
         if code != 0:
@@ -141,7 +141,7 @@ class RedisHAManager:
                 result[key] = value
         return result
 
-    def get_sentinel_master_info(self, host: str, port: int) -> Dict[str, Any]:
+    def get_sentinel_master_info(self, host: str, port: int) -> dict[str, Any]:
         """Get master info from Sentinel"""
         output, code = self._sentinel_command(host, port, "SENTINEL master akasha")
         if code != 0:
@@ -155,7 +155,7 @@ class RedisHAManager:
                     result[parts[0]] = parts[1]
         return result
 
-    def get_all_sentinel_info(self) -> List[Dict[str, Any]]:
+    def get_all_sentinel_info(self) -> list[dict[str, Any]]:
         """Get info from all Sentinels"""
         results = []
         for host, port in self.sentinel_clients:
@@ -165,7 +165,7 @@ class RedisHAManager:
             results.append(info)
         return results
 
-    def get_system_health(self) -> Dict[str, Any]:
+    def get_system_health(self) -> dict[str, Any]:
         """Get comprehensive health of the Redis HA system"""
         health = {
             "timestamp": datetime.now().isoformat(),
@@ -394,7 +394,7 @@ def get_sentinel_client(host: str = "127.0.0.1", port: int = 26379):
     return connect_to_redis_with_fail_fast(host=host, port=port, timeout_seconds=5, decode_responses=False)
 
 
-def get_current_master_from_sentinel(host: str = "127.0.0.1", port: int = 26379) -> Optional[Tuple[str, int]]:
+def get_current_master_from_sentinel(host: str = "127.0.0.1", port: int = 26379) -> tuple[str, int] | None:
     """Get current master address from Sentinel"""
     try:
         client = get_sentinel_client(host, port)

@@ -101,8 +101,8 @@ def _match_excerpt(text: str, query: str, width: int = 180) -> str:
     return prefix + flat[start : start + width]
 
 
-def _matched_counts(text: str, qwords: set) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _matched_counts(text: str, qwords: set) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for w in re.findall(r"[a-z0-9]+", text.lower()):
         if len(w) > 3:
             t = w[:6]
@@ -111,7 +111,7 @@ def _matched_counts(text: str, qwords: set) -> Dict[str, int]:
     return counts
 
 
-def _build_idf_relevance(texts: List[str]):
+def _build_idf_relevance(texts: list[str]):
     """S5 fix, second mechanism (probe C3 root cause): process-meta docs match a question's
     FUNCTION stems ('project', 'instead', 'corrected', 'editing') which appear corpus-wide,
     and out-cover the true rationale doc that matches only the topic stems. Weight each
@@ -122,7 +122,7 @@ def _build_idf_relevance(texts: List[str]):
     import math
 
     n = len(texts) or 1
-    df: Dict[str, int] = {}
+    df: dict[str, int] = {}
     for t in texts:
         for s in _stems(t):
             df[s] = df.get(s, 0) + 1
@@ -180,14 +180,14 @@ def _doc_class(head: str) -> str:
     return ""
 
 
-def _library_paths() -> List[str]:
+def _library_paths() -> list[str]:
     """docs/library/<type>/*.md -- the projection plane the corpus MOVED to (425cf52).
 
     The migration preserved bytes as atoms and projections under docs/library/, but the
     docs sweep never followed, so a governing doc became unreachable even though its
     content sits in the tree (T109: the retrieval plane must follow the corpus)."""
     lib = os.path.join(ROOT, "docs", "library")
-    out: List[str] = []
+    out: list[str] = []
     try:
         for type_dir in sorted(os.listdir(lib)):
             d = os.path.join(lib, type_dir)
@@ -201,7 +201,7 @@ def _library_paths() -> List[str]:
     return out
 
 
-def _legacy_slug_for(proj_rel: str, legacy: Dict[str, Any]) -> str:
+def _legacy_slug_for(proj_rel: str, legacy: dict[str, Any]) -> str:
     """The original slug a library projection inherited, if the legacy map names it.
 
     The map is original_slug -> {art_id, path, ...}; a projection's filename embeds the
@@ -215,7 +215,7 @@ def _legacy_slug_for(proj_rel: str, legacy: Dict[str, Any]) -> str:
     return ""
 
 
-def _docs_items() -> List[Dict[str, Any]]:
+def _docs_items() -> list[dict[str, Any]]:
     out = []
     docs = os.path.join(ROOT, "docs")
     paths = [os.path.join(docs, n) for n in sorted(os.listdir(docs)) if n.endswith(".md") and n not in REFERENCE_DOCS]
@@ -265,10 +265,10 @@ def _docs_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _charter_paths() -> List[str]:
+def _charter_paths() -> list[str]:
     """charters/*.md and charters/<seat>/*.md -- every seat's CHARTER/INTERIORITY/QUESTIONS."""
     root = os.path.join(ROOT, "charters")
-    out: List[str] = []
+    out: list[str] = []
     try:
         for n in sorted(os.listdir(root)):
             p = os.path.join(root, n)
@@ -281,7 +281,7 @@ def _charter_paths() -> List[str]:
     return out
 
 
-def _charter_items() -> List[Dict[str, Any]]:
+def _charter_items() -> list[dict[str, Any]]:
     """The corpus of what was MEANT -- its own layer, not a tenant of `docs`.
 
     Every other layer records what was DONE (docs, research, notes, promoted, chapters, git).
@@ -321,7 +321,7 @@ def _charter_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _research_items() -> List[Dict[str, Any]]:
+def _research_items() -> list[dict[str, Any]]:
     out = []
     rr = os.path.join(ROOT, "research", "reviewed")
     try:
@@ -350,7 +350,7 @@ def _research_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _note_items() -> List[Dict[str, Any]]:
+def _note_items() -> list[dict[str, Any]]:
     try:
         from core.learning.agent_memory import get_agent_memory
 
@@ -374,7 +374,7 @@ def _note_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _promoted_items() -> List[Dict[str, Any]]:
+def _promoted_items() -> list[dict[str, Any]]:
     try:
         from core.comm.promoter import promoted
 
@@ -400,7 +400,7 @@ def _promoted_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _chapter_items() -> List[Dict[str, Any]]:
+def _chapter_items() -> list[dict[str, Any]]:
     try:
         import json
 
@@ -428,7 +428,7 @@ def _chapter_items() -> List[Dict[str, Any]]:
     return out
 
 
-def _git_items(limit: int = 250) -> List[Dict[str, Any]]:
+def _git_items(limit: int = 250) -> list[dict[str, Any]]:
     try:
         raw = subprocess.run(
             ["git", "log", f"-{limit}", "--format=%H%x1f%ct%x1f%s%x1f%b%x1e"],
@@ -480,9 +480,9 @@ def lookback(
     *,
     per_layer: int = PER_LAYER,
     min_relevance: float = MIN_RELEVANCE,
-    now: Optional[float] = None,
+    now: float | None = None,
     layers: Any = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Layered rationale hits for `question`, best-first WITHIN each layer, layers in
     doctrine order (docs -> research -> notes -> promoted -> chapters -> git). Each hit:
     {layer, source, status, score, excerpt, drill}. Show-nothing floor per the arch-slice
@@ -493,7 +493,7 @@ def lookback(
     from core.primitives.ranker import Ranker
 
     wanted = set(layers) if layers else None
-    loaded: List[Any] = []
+    loaded: list[Any] = []
     for name, loader in LAYERS:
         if wanted and name not in wanted:
             continue
@@ -508,7 +508,7 @@ def lookback(
     except Exception:
         rel_fn = _stem_relevance
     ranker = Ranker(relevance_fn=rel_fn)
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for name, items in loaded:
         try:
             if not items:

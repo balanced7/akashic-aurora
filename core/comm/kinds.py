@@ -74,7 +74,7 @@ class KindVerdict:
     kind: str
     dimension: str
     classified: bool
-    value: Optional[bool] = None
+    value: bool | None = None
     why: str = ""
 
     def __post_init__(self) -> None:
@@ -96,7 +96,7 @@ class KindVerdict:
 # we considered it" from "we never considered it" -- the distinction the organ is for. When
 # universe is None the dimension's universe is the union of all known kinds.
 
-_BUS_UNIVERSE: FrozenSet[str] = frozenset(
+_BUS_UNIVERSE: frozenset[str] = frozenset(
     {
         # asks / answers
         "request",
@@ -137,7 +137,7 @@ _BUS_UNIVERSE: FrozenSet[str] = frozenset(
 # genus this whole organ exists to close. All ten seed from bus-plane policy sets today; an
 # event- or beat-plane dimension declares its own and resolve() will refuse to answer it with
 # a bus question.
-_DIMENSIONS: Dict[str, Dict[str, Any]] = {
+_DIMENSIONS: dict[str, dict[str, Any]] = {
     "wake_worthy": {
         "members": frozenset({"request", "handoff", "reply", "blocker", "question", "completion", "nudge"}),
         "plane": "bus_kind",
@@ -219,11 +219,11 @@ _DIMENSIONS: Dict[str, Dict[str, Any]] = {
 # groups by identifier inherits every lie its identifiers tell -- the mirror of W134's
 # finding about token-level checkers, one level up. What settled it was not the registry but
 # ENUMERATING THE PRODUCERS: ask who emits the kind before asking who agrees about it.
-_FORKS: Dict[str, List[Dict[str, Any]]] = {}
+_FORKS: dict[str, list[dict[str, Any]]] = {}
 
 # The three planes that all say "kind" and mean different taxonomies. `note` is a member of
 # all three WITH OPPOSITE POLICIES, which is the collision the T176 row names.
-_PLANES: Dict[str, FrozenSet[str]] = {
+_PLANES: dict[str, frozenset[str]] = {
     "bus_kind": _BUS_UNIVERSE,
     "event_kind": frozenset({"tool_call", "file_edit", "command", "observation", "message", "note"}),
     "beat_kind": frozenset({"session", "note", "commit", "learning", "decision", "milestone", "mark"}),
@@ -233,11 +233,11 @@ _PLANES: Dict[str, FrozenSet[str]] = {
 # --------------------------------------------------------------------------- resolution
 
 
-def dimensions() -> List[str]:
+def dimensions() -> list[str]:
     return sorted(_DIMENSIONS)
 
 
-def members(dimension: str) -> Set[str]:
+def members(dimension: str) -> set[str]:
     """The live membership of one dimension, as a plain set (parity surface for P3)."""
     d = _DIMENSIONS.get(dimension)
     if d is None:
@@ -245,7 +245,7 @@ def members(dimension: str) -> Set[str]:
     return set(d["members"])
 
 
-def universe(dimension: str) -> Set[str]:
+def universe(dimension: str) -> set[str]:
     d = _DIMENSIONS.get(dimension)
     if d is None:
         raise KeyError(f"unknown dimension {dimension!r}")
@@ -257,7 +257,7 @@ def universe(dimension: str) -> Set[str]:
 # has said bus/event/beat since T177. Two spellings of one vocabulary is the very fork this
 # slice is closing, so the door NORMALIZES and accepts both forever rather than electing a
 # winner and breaking the other caller -- the house rule for an open boundary.
-_PLANE_ALIASES: Dict[str, str] = {"bus": "bus_kind", "event": "event_kind", "beat": "beat_kind"}
+_PLANE_ALIASES: dict[str, str] = {"bus": "bus_kind", "event": "event_kind", "beat": "beat_kind"}
 
 
 def _normalize_plane(plane: Any) -> str:
@@ -317,29 +317,29 @@ def resolve(kind: str, dimension: str, *, plane: str) -> KindVerdict:
     )
 
 
-def planes() -> Dict[str, Set[str]]:
+def planes() -> dict[str, set[str]]:
     return {name: set(v) for name, v in _PLANES.items()}
 
 
-def plane_collisions() -> Dict[str, List[str]]:
+def plane_collisions() -> dict[str, list[str]]:
     """Kinds that exist on more than one plane. `note` is the load-bearing case: a bus note
     is skipped from pending, an event note is a captured record, a beat note is narrative --
     three policies, one word, and no duplicate identifier anywhere to grep for."""
-    seen: Dict[str, List[str]] = {}
+    seen: dict[str, list[str]] = {}
     for plane, ks in _PLANES.items():
         for k in ks:
             seen.setdefault(k, []).append(plane)
     return {k: sorted(v) for k, v in seen.items() if len(v) > 1}
 
 
-def forks() -> Dict[str, Dict[str, Any]]:
+def forks() -> dict[str, dict[str, Any]]:
     """Concepts registered more than once with DIFFERENT memberships. Reported, never
     merged: a fork is a question for the operator, and this organ proposes."""
-    out: Dict[str, Dict[str, Any]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for concept, variants in _FORKS.items():
         sets = [v["members"] for v in variants]
-        union: Set[str] = set().union(*sets)
-        intersection: Set[str] = set(sets[0]).intersection(*sets[1:])
+        union: set[str] = set().union(*sets)
+        intersection: set[str] = set(sets[0]).intersection(*sets[1:])
         differs = sorted(union - intersection)
         if not differs:
             continue
@@ -355,7 +355,7 @@ def forks() -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def coverage() -> Dict[str, Any]:
+def coverage() -> dict[str, Any]:
     """The frame that must ship with the number: per-dimension membership, the universe it
     was decided against, and where each live set actually lives."""
     dims = {}

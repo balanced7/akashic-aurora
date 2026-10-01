@@ -7,7 +7,7 @@ import json
 import math
 import re
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from .performance import PerformanceStore
@@ -69,7 +69,7 @@ class ConversationStore:
                 clip.update(session=data["session"], seconds=data["seconds"])
                 if not isinstance(clip.get("label"), str) or not 1 <= len(clip["label"]) <= 160:
                     raise ValueError("each clip needs a short label")
-        clean.update(api=API, updated_at=datetime.now(timezone.utc).isoformat())
+        clean.update(api=API, updated_at=datetime.now(UTC).isoformat())
         with self.lock:
             self._write(self.root / "conversation.json", clean)
         return clean
@@ -132,7 +132,7 @@ class ConversationStore:
                 "question": card["question"],
                 "note": note,
                 "note_count": len(ons),
-                "saved_at": datetime.now(timezone.utc).isoformat(),
+                "saved_at": datetime.now(UTC).isoformat(),
                 "replay": {**identity, "seconds": (end - start) / 1000, "speed": 1, "cue": cue},
             }
             self._write(path, data)

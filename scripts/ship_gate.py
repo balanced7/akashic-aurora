@@ -67,12 +67,12 @@ DEFAULT_STALE_S = 48 * 3600  # announce: the list is getting old
 DEFAULT_TTL_S = 168 * 3600  # one week
 
 
-def _baseline_nodes() -> List[str]:
+def _baseline_nodes() -> list[str]:
     rec = sb.read()
     return [f["node"] for f in (rec or {}).get("failures", [])]
 
 
-def _age_s(rec: Optional[Dict[str, Any]], now: Optional[float]) -> Optional[float]:
+def _age_s(rec: dict[str, Any] | None, now: float | None) -> float | None:
     if not rec or not rec.get("at"):
         return None
     try:
@@ -83,16 +83,16 @@ def _age_s(rec: Optional[Dict[str, Any]], now: Optional[float]) -> Optional[floa
 
 
 def evaluate(
-    current_nodes: List[str],
+    current_nodes: list[str],
     *,
-    now: Optional[float] = None,
+    now: float | None = None,
     stale_after_s: float = DEFAULT_STALE_S,
     ttl_s: float = DEFAULT_TTL_S,
     tighten: bool = False,
-    collected: Optional[List[str]] = None,
+    collected: list[str] | None = None,
     seat: str = "ship_gate",
     sha: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Judge a suite run against the baseline. Returns the verdict; never raises.
 
     tighten=True performs the RATCHET: fixed failures are removed from the baseline as a side
@@ -131,7 +131,7 @@ def evaluate(
     if expired:
         blocked = True  # the deferral lapsed: inherited failures are owned now
 
-    lines: List[str] = []
+    lines: list[str] = []
     if expired:
         lines.append(
             f"BLOCKED: baseline EXPIRED ({int(age / 3600)}h old, TTL "
@@ -150,7 +150,7 @@ def evaluate(
             lanes = sb.classify(inherited)
         except Exception:
             lanes = {}
-        tally: Dict[str, int] = {}
+        tally: dict[str, int] = {}
         for n in inherited:
             tally[lanes.get(n) or "unowned"] = tally.get(lanes.get(n) or "unowned", 0) + 1
         who = ", ".join(f"{k}:{v}" for k, v in sorted(tally.items()))
@@ -200,7 +200,7 @@ def evaluate(
     }
 
 
-def evaluate_pytest_output(text: str, **kw) -> Dict[str, Any]:
+def evaluate_pytest_output(text: str, **kw) -> dict[str, Any]:
     """Convenience for the ship path: parse a pytest run, then judge it."""
     return evaluate(sb.ingest_pytest(text or ""), **kw)
 

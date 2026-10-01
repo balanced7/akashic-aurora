@@ -26,20 +26,20 @@ SUPPORTED = {".md", ".markdown", ".txt", ".json", ".html", ".htm", ".pdf"}
 
 @dataclass
 class Section:
-    path: Tuple[str, ...]  # (document title, heading, subheading, ...)
+    path: tuple[str, ...]  # (document title, heading, subheading, ...)
     text: str
-    anchor: Optional[str] = None  # fragment for the source url, when the format has one
-    page: Optional[int] = None  # 1-based, PDFs only
+    anchor: str | None = None  # fragment for the source url, when the format has one
+    page: int | None = None  # 1-based, PDFs only
 
 
 @dataclass
 class Document:
     title: str
-    url: Optional[str]
-    sections: List[Section] = field(default_factory=list)
+    url: str | None
+    sections: list[Section] = field(default_factory=list)
 
 
-def to_document(path, url: Optional[str] = None, html_selector: Optional[str] = None) -> Document:
+def to_document(path, url: str | None = None, html_selector: str | None = None) -> Document:
     p = Path(path)
     ext = p.suffix.lower()
     if ext == ".json":
@@ -68,11 +68,11 @@ def slug(text: str) -> str:
     return re.sub(r"[\s_]+", "-", s)
 
 
-def from_markdown(text: str, url: Optional[str] = None, fallback_title: str = "Untitled") -> Document:
-    title: Optional[str] = None
-    stack: List[Tuple[int, str]] = []
-    raw: List[Tuple[Tuple[str, ...], str]] = []
-    buf: List[str] = []
+def from_markdown(text: str, url: str | None = None, fallback_title: str = "Untitled") -> Document:
+    title: str | None = None
+    stack: list[tuple[int, str]] = []
+    raw: list[tuple[tuple[str, ...], str]] = []
+    buf: list[str] = []
     in_code = False
 
     def flush():
@@ -113,7 +113,7 @@ def is_docc(data: Any) -> bool:
     return isinstance(data, dict) and "primaryContentSections" in data and "metadata" in data
 
 
-def _inline(items: List[Dict[str, Any]], refs: Dict[str, Any]) -> str:
+def _inline(items: list[dict[str, Any]], refs: dict[str, Any]) -> str:
     out = []
     for it in items or []:
         t = it.get("type")
@@ -135,11 +135,11 @@ def _inline(items: List[Dict[str, Any]], refs: Dict[str, Any]) -> str:
     return "".join(out)
 
 
-def _blocks(blocks: List[Dict[str, Any]], refs: Dict[str, Any]) -> str:
+def _blocks(blocks: list[dict[str, Any]], refs: dict[str, Any]) -> str:
     return "\n".join(x for x in (_block(b, refs) for b in blocks or []) if x.strip())
 
 
-def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
+def _block(b: dict[str, Any], refs: dict[str, Any]) -> str:
     t = b.get("type")
     if t == "paragraph":
         return _inline(b.get("inlineContent", []), refs)
@@ -192,7 +192,7 @@ def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
     return ""
 
 
-def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
+def from_docc(data: dict[str, Any], url: str | None = None) -> Document:
     refs = data.get("references") or {}
     title = (data.get("metadata") or {}).get("title") or "Untitled"
     # The page's own identifier names its human page, and it beats any url handed in: a
@@ -209,17 +209,17 @@ def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
     # ancestors inside the page's own documentation bundle are kept; the catalogue root above
     # it ("Technologies") names nothing an agent would search for.
     own_bundle = ((data.get("identifier") or {}).get("url") or "").split("/", 3)[:3]
-    ancestors: List[str] = []
+    ancestors: list[str] = []
     for ident in ((data.get("hierarchy") or {}).get("paths") or [[]])[0]:
         if ident.split("/", 3)[:3] != own_bundle:
             continue
         name = (refs.get(ident) or {}).get("title")
         if name and name != title:
             ancestors.append(name)
-    sections: List[Section] = []
-    stack: List[Tuple[int, str]] = [(1, title)]
-    buf: List[str] = []
-    anchor: Optional[str] = None
+    sections: list[Section] = []
+    stack: list[tuple[int, str]] = [(1, title)]
+    buf: list[str] = []
+    anchor: str | None = None
 
     def flush():
         body = "\n".join(x for x in buf if x.strip()).strip()
@@ -251,7 +251,7 @@ _CHROME = ["script", "style", "noscript", "template", "svg", "nav", "footer", "a
 
 
 def from_html(
-    html: str, url: Optional[str] = None, fallback_title: str = "Untitled", selector: Optional[str] = None
+    html: str, url: str | None = None, fallback_title: str = "Untitled", selector: str | None = None
 ) -> Document:
     from bs4 import BeautifulSoup
     from markdownify import markdownify
@@ -278,13 +278,13 @@ def from_html(
 # ---- PDF -------------------------------------------------------------------------
 
 
-def from_pdf(path, url: Optional[str] = None) -> Document:
+def from_pdf(path, url: str | None = None) -> Document:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
     meta_title = getattr(reader.metadata, "title", None) if reader.metadata else None
     title = (meta_title or Path(path).stem).strip()
-    marks: List[Tuple[int, int, str]] = []  # (page_index, level, title)
+    marks: list[tuple[int, int, str]] = []  # (page_index, level, title)
 
     def walk(items, level):
         for it in items:
@@ -302,8 +302,8 @@ def from_pdf(path, url: Optional[str] = None) -> Document:
         marks = []
     marks.sort(key=lambda m: (m[0], m[1]))
 
-    sections: List[Section] = []
-    stack: List[Tuple[int, str]] = []
+    sections: list[Section] = []
+    stack: list[tuple[int, str]] = []
     mi = 0
     for i, page in enumerate(reader.pages):
         while mi < len(marks) and marks[mi][0] <= i:

@@ -48,7 +48,8 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 VERDICTS = ("hit", "miss", "partial", "voided", "residual")
 
@@ -59,10 +60,10 @@ class RegistryRefusal(Exception):
     """A refused write, loudly -- the registry never guesses."""
 
 
-def fold(events: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def fold(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Registry state as a pure function of the event log. Never mutates its
     input; later a cache or index sits BEHIND this seam, not instead of it."""
-    state: Dict[str, Dict[str, Any]] = {}
+    state: dict[str, dict[str, Any]] = {}
     for ev in events:
         kind = ev.get("kind")
         if kind == "register":
@@ -78,7 +79,7 @@ def fold(events: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return state
 
 
-def _resolve_default(ref: str) -> Optional[Any]:
+def _resolve_default(ref: str) -> Any | None:
     """evidence_ref -> the artifact's OWN timestamp (seconds), _REGISTER_PLANE
     for forecast refs, or None for anything this v1 cannot resolve.
 
@@ -119,14 +120,14 @@ class ForecastRegistry:
         path: str,
         *,
         now_fn: Callable[[], float] = time.time,
-        resolver: Callable[[str], Optional[Any]] = _resolve_default,
+        resolver: Callable[[str], Any | None] = _resolve_default,
     ):
         self.path = path
         self._now = now_fn
         self._resolve = resolver
 
     # ------------------------------------------------------------- plumbing
-    def _events(self) -> List[Dict[str, Any]]:
+    def _events(self) -> list[dict[str, Any]]:
         if not os.path.exists(self.path):
             return []
         out = []
@@ -140,12 +141,12 @@ class ForecastRegistry:
                         continue  # a torn tail line never poisons the fold
         return out
 
-    def _append(self, event: Dict[str, Any]) -> None:
+    def _append(self, event: dict[str, Any]) -> None:
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False, default=str) + "\n")
 
-    def state(self) -> Dict[str, Dict[str, Any]]:
+    def state(self) -> dict[str, dict[str, Any]]:
         return fold(self._events())
 
     # ------------------------------------------------------------- register
@@ -155,11 +156,11 @@ class ForecastRegistry:
         id: str,
         task_ref: str,
         registered_by: str,
-        expectation: Dict[str, Any],
+        expectation: dict[str, Any],
         horizon_ts: float,
         mechanism: str,
         dies_when: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Register a bet BEFORE its outcome is knowable. registered_at is
         stamped by the door's clock -- backdating is not a parameter."""
         fid = str(id).strip()
@@ -192,7 +193,7 @@ class ForecastRegistry:
     # ------------------------------------------------------------- score
     def score(
         self, forecast_id: str, *, scored_by: str, observed: str, evidence_ref: str, verdict: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Score a bet against an OUTCOME artifact. There is deliberately no
         timestamp parameter: outcome_knowable_ts is derived by resolving
         evidence_ref, or the score refuses."""
@@ -208,7 +209,7 @@ class ForecastRegistry:
         if verdict not in VERDICTS:
             raise RegistryRefusal(f"verdict {verdict!r} not in {VERDICTS}")
 
-        knowable_ts: Optional[float]
+        knowable_ts: float | None
         if verdict == "voided":
             # the sole no-artifact path: a void is about the bet, not the world
             knowable_ts = None
@@ -248,13 +249,13 @@ class ForecastRegistry:
         return event
 
     # ------------------------------------------------------------- render
-    def calibration(self) -> Dict[str, Any]:
+    def calibration(self) -> dict[str, Any]:
         """The fleet's engineering-bet hit rate, plus the nag: overdue bets.
         rate = hit / all scored non-void verdicts (partial and residual count
         against, exactly so near-misses cannot inflate the number)."""
         state = self.state()
-        by_author: Dict[str, Dict[str, Any]] = {}
-        overdue: List[Dict[str, Any]] = []
+        by_author: dict[str, dict[str, Any]] = {}
+        overdue: list[dict[str, Any]] = []
         now = float(self._now())
         for fid in sorted(state):
             row = state[fid]

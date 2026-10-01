@@ -34,7 +34,8 @@ import os
 import sys
 import tempfile
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 
 def _pyl() -> str:
@@ -51,7 +52,7 @@ MARKER_MAX_AGE_S = 24 * 3600  # ruling R1: age gate
 REARM_SUFFIX = ".rearm"
 
 
-def _ns(ns: Optional[str] = None) -> str:
+def _ns(ns: str | None = None) -> str:
     return ns or os.environ.get("BIFROST_NAMESPACE", "bifrost")
 
 
@@ -66,7 +67,7 @@ def _client(c=None):
         return None
 
 
-def daemon_is_live(agent: str, c=None, ns: Optional[str] = None) -> bool:
+def daemon_is_live(agent: str, c=None, ns: str | None = None) -> bool:
     """One Redis EXISTS on <ns>:daemon:<agent>. False on any doubt (fail toward
     the legacy path -- the fast path is an optimization, never a right)."""
     cli = _client(c)
@@ -87,7 +88,7 @@ RUNNER_DAEMON_SERVICES = (
 )
 
 
-def _any_daemon_live(cli, ns: str) -> Optional[bool]:
+def _any_daemon_live(cli, ns: str) -> bool | None:
     """Is ANY <ns>:daemon:* key live? The discord pump election is ONE fleet-wide key
     (discord_feed._PUMP_LOCK_KEY), so one live daemon anywhere hosts every seat's outbound.
     None = cannot tell -- rendered as UNKNOWN, never as a confident claim either way."""
@@ -106,7 +107,7 @@ def _any_daemon_live(cli, ns: str) -> Optional[bool]:
     return None
 
 
-def relaunch_hint(agent: str, runner_script: Optional[str] = None) -> str:
+def relaunch_hint(agent: str, runner_script: str | None = None) -> str:
     """The supervised relaunch for a RUNNER seat. The flag IS the brain: a flagless launch is
     alpha mode, which takes runner_lock ITSELF and therefore REFUSES under a live bare runner
     (M1-P11 no-steal) -- the refusal the 2026-08-26 finder hit. The daemon's --runner-script
@@ -121,9 +122,7 @@ def relaunch_hint(agent: str, runner_script: Optional[str] = None) -> str:
     return cmd + " --runner-consume-lane work"
 
 
-def standalone_warning(
-    agent: str, c=None, ns: Optional[str] = None, runner_script: Optional[str] = None
-) -> Optional[str]:
+def standalone_warning(agent: str, c=None, ns: str | None = None, runner_script: str | None = None) -> str | None:
     """One LOUD line for a runner that just took bifrost:runner:<agent> with no daemon over
     it; None when <ns>:daemon:<agent> is live (a managed child, or a W102 idle-watcher that
     holds its own lock, keeps the pump beat and reclaims when this runner's lock frees).
@@ -163,12 +162,12 @@ def standalone_warning(
 
 
 # ---------------------------------------------------------------- rearm triggers
-def rearm_path(agent: str, session_id: str, tmp: Optional[str] = None) -> str:
+def rearm_path(agent: str, session_id: str, tmp: str | None = None) -> str:
     base = tmp or tempfile.gettempdir()
     return os.path.join(base, f"bifrost_wake_{agent}_{session_id}{REARM_SUFFIX}")
 
 
-def write_rearm_trigger(agent: str, session_id: str, tmp: Optional[str] = None) -> bool:
+def write_rearm_trigger(agent: str, session_id: str, tmp: str | None = None) -> bool:
     try:
         with open(rearm_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
             f.write(str(time.time()))
@@ -245,7 +244,7 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
     )
 
 
-def consume_rearms(agent: str, spawn_fn: Callable[[str], bool], tmp: Optional[str] = None) -> int:
+def consume_rearms(agent: str, spawn_fn: Callable[[str], bool], tmp: str | None = None) -> int:
     """Daemon-side: for each of OWN agent's .rearm triggers, call spawn_fn(sid);
     truthy result clears the trigger, falsy/raising leaves it for the next tick.
     Returns the number of successful consumes."""
@@ -294,7 +293,7 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool], tmp: Optional[st
 
 # ---------------------------------------------------------------- marker janitor (R1)
 def sweep_stale_markers(
-    agent: str, tmp: Optional[str] = None, now: Optional[float] = None, max_age_s: int = MARKER_MAX_AGE_S
+    agent: str, tmp: str | None = None, now: float | None = None, max_age_s: int = MARKER_MAX_AGE_S
 ) -> int:
     """Remove OWN agent's .alive markers that are BOTH seatless and older than
     the age gate. Never touches a marker whose sid still holds a .pid seat
@@ -326,7 +325,7 @@ def sweep_stale_markers(
     return removed
 
 
-def rearm_trigger_path(agent: str, session_id: str = "", tmp: Optional[str] = None) -> str:
+def rearm_trigger_path(agent: str, session_id: str = "", tmp: str | None = None) -> str:
     """Mirror of bifrost_wake.rearm_trigger_path -- one shape, two readers (T380: never
     compute one shared derived key twice from different inputs)."""
     base = tmp or tempfile.gettempdir()
@@ -335,7 +334,7 @@ def rearm_trigger_path(agent: str, session_id: str = "", tmp: Optional[str] = No
 
 
 # ------------------------------------------------- restart re-arm (2026-09-06 incident)
-def rearm_orphaned_sessions(agent: str, tmp: Optional[str] = None) -> int:
+def rearm_orphaned_sessions(agent: str, tmp: str | None = None) -> int:
     """At daemon STARTUP, re-arm the listeners this daemon's own restart orphaned.
 
     THE INCIDENT (live, unattended, 2026-09-06 ~03:52). The claude autopilot daemon
@@ -395,14 +394,14 @@ def rearm_orphaned_sessions(agent: str, tmp: Optional[str] = None) -> int:
 
 
 # ---------------------------------------------------------------- stop-hook verdict
-def _nag_latch_path(agent: str, session_id: str, tmp: Optional[str] = None) -> str:
+def _nag_latch_path(agent: str, session_id: str, tmp: str | None = None) -> str:
     base = tmp or tempfile.gettempdir()
     return os.path.join(base, f"bifrost_wake_{agent}_{session_id}.daemon_nag")
 
 
 def stop_hook_wake_verdict(
-    agent: str, session_id: str, c=None, ns: Optional[str] = None, tmp: Optional[str] = None
-) -> Dict[str, Any]:
+    agent: str, session_id: str, c=None, ns: str | None = None, tmp: str | None = None
+) -> dict[str, Any]:
     """The A1 predicate the stop hook consults BEFORE its legacy wake logic.
 
     {"pass": True, "line": ...}         daemon live -> never block; a missing
@@ -448,11 +447,11 @@ def stop_hook_wake_verdict(
 
 
 # ---------------------------------------------------------------- card runtimes (P5)
-def build_runtimes(children: Dict[str, Any]) -> Dict[str, str]:
+def build_runtimes(children: dict[str, Any]) -> dict[str, str]:
     """{'runner': 'live'|'down'|'blocked', ...} from ManagedChild-shaped objects
     (alive/tripped attributes). 'blocked' = circuit breaker tripped -- a louder
     fact than 'down' (restarting has STOPPED; a human owns the next move)."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for name, ch in (children or {}).items():
         try:
             if getattr(ch, "tripped", False):

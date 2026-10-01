@@ -66,7 +66,7 @@ def _s(m: Any, attr: str) -> str:
     return str(getattr(m, attr, "") or "")
 
 
-def wake_tier(m: Any, *, agent: str, incarnation: str = "", operator_ids: Optional[frozenset] = None) -> int:
+def wake_tier(m: Any, *, agent: str, incarnation: str = "", operator_ids: frozenset | None = None) -> int:
     """How much does this message outrank other mail for THIS seat? Lower is louder.
 
     Deliberately total: every message resolves to a tier, and the unlisted case is

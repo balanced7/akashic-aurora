@@ -59,7 +59,7 @@ _SWITCH_WINDOW = 3  # switch looks at the last N routed beats...
 _SWITCH_MIN_BEATS = 2  # ...and needs >=2 of them, unanimous, on a non-episode track
 
 
-def _now(now: Optional[str]) -> str:
+def _now(now: str | None) -> str:
     return now or datetime.utcnow().isoformat()
 
 
@@ -67,8 +67,8 @@ def _now(now: Optional[str]) -> str:
 
 
 def evaluate(
-    *, chapter_track: str, span_start: str, beats: List[Any], task_events: List[Tuple[str, str, float]], now: str
-) -> Optional[Dict[str, Any]]:
+    *, chapter_track: str, span_start: str, beats: list[Any], task_events: list[tuple[str, str, float]], now: str
+) -> dict[str, Any] | None:
     """All four triggers over already-loaded state -> the single strongest candidate
     {reason, confidence, fingerprint}, or None. `task_events` = (kind, task_id, at_epoch) with
     kind in {"new-objective", "impl-complete"}. Pure + deterministic; noise gates first.
@@ -86,7 +86,7 @@ def evaluate(
     if now_ep - start_ep < MIN_SPAN_S or len(beats) < MIN_BEATS:
         return None
 
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
 
     for kind, tid, at_ep in task_events:
         if kind in CONFIDENCE and start_ep <= at_ep <= now_ep:
@@ -122,14 +122,14 @@ def evaluate(
     return max(candidates, key=lambda c: c["confidence"])  # ties: first wins (dict order above)
 
 
-def _task_events(ledger_path: Optional[str]) -> List[Tuple[str, str, float]]:
+def _task_events(ledger_path: str | None) -> list[tuple[str, str, float]]:
     """Task-ledger history -> trigger events. Lateral coord read (see module docstring); fail-soft
     to [] so a missing/broken ledger only degrades these two triggers."""
     try:
         from core.coord.task_ledger import LEDGER_PATH, read_ledger
 
         led = read_ledger(ledger_path or LEDGER_PATH, client=None)  # git file = truth; no Redis dep
-        out: List[Tuple[str, str, float]] = []
+        out: list[tuple[str, str, float]] = []
         for t in led.get("tasks", []):
             for h in t.get("history", []):
                 to, at = h.get("to"), h.get("at")
@@ -151,7 +151,7 @@ def _task_events(ledger_path: Optional[str]) -> List[Tuple[str, str, float]]:
 # ---- stateful shell: dedup + cooldown + standing suggestion + bus emission -------------------------
 
 
-def _load_state(store: Store) -> Dict[str, Any]:
+def _load_state(store: Store) -> dict[str, Any]:
     try:
         raw = store.get(SUGGEST_STATE_KEY)
         st = json.loads(raw) if raw else {}
@@ -160,7 +160,7 @@ def _load_state(store: Store) -> Dict[str, Any]:
         return {}
 
 
-def _save_state(store: Store, st: Dict[str, Any]) -> None:
+def _save_state(store: Store, st: dict[str, Any]) -> None:
     try:
         store.set(SUGGEST_STATE_KEY, json.dumps(st))
     except Exception:
@@ -168,8 +168,8 @@ def _save_state(store: Store, st: Dict[str, Any]) -> None:
 
 
 def suggest(
-    store: Optional[Store] = None, *, now: Optional[str] = None, ledger_path: Optional[str] = None
-) -> Optional[Dict[str, Any]]:
+    store: Store | None = None, *, now: str | None = None, ledger_path: str | None = None
+) -> dict[str, Any] | None:
     """The advisory suggestion for the OPEN episode, or None. Idempotent at read time: the standing
     suggestion is returned on every poll until it is replaced (stronger trigger, post-cooldown),
     invalidated (idle broken by new activity), or the episode closes (chapter id changes). Emits one
@@ -246,7 +246,7 @@ def suggest(
         return None
 
 
-def _public(suggestion: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _public(suggestion: dict[str, Any] | None) -> dict[str, Any] | None:
     """The contract view (#6): draft fields + reason/confidence; the fingerprint stays internal."""
     if not suggestion:
         return None

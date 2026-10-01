@@ -44,7 +44,7 @@ def default_path() -> str:
 
 
 # ---------------------------------------------------------------- the decidable half (pinned)
-def verdict(expectation: Any, *, now: Optional[float] = None) -> Optional[str]:
+def verdict(expectation: Any, *, now: float | None = None) -> str | None:
     """The alarm line, or None for silence. Pure: hand it a dict, get a decision.
 
     Fails toward SILENCE on anything malformed. A watcher that alarms on its own parse errors
@@ -83,7 +83,7 @@ def verdict(expectation: Any, *, now: Optional[float] = None) -> Optional[str]:
 
 
 # ---------------------------------------------------------------- the file half
-def load(path: Any) -> Optional[Dict[str, Any]]:
+def load(path: Any) -> dict[str, Any] | None:
     try:
         with open(str(path), encoding="utf-8") as fh:
             return json.load(fh)
@@ -91,7 +91,7 @@ def load(path: Any) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _write(path: Any, doc: Dict[str, Any]) -> Dict[str, Any]:
+def _write(path: Any, doc: dict[str, Any]) -> dict[str, Any]:
     p = str(path)
     os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
     tmp = p + ".tmp"
@@ -102,8 +102,8 @@ def _write(path: Any, doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def declare(
-    path: Any, *, who: str, what: str, grace_s: float = DEFAULT_GRACE_S, now: Optional[float] = None
-) -> Dict[str, Any]:
+    path: Any, *, who: str, what: str, grace_s: float = DEFAULT_GRACE_S, now: float | None = None
+) -> dict[str, Any]:
     """Open an expectation. From here until stand_down, silence is a finding."""
     now = float(now if now is not None else time.time())
     return _write(
@@ -120,7 +120,7 @@ def declare(
     )
 
 
-def checkpoint(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, Any]]:
+def checkpoint(path: Any, *, now: float | None = None) -> dict[str, Any] | None:
     """Say 'still here'. Cheap by design -- a heavy checkpoint would not get called."""
     doc = load(path)
     if not isinstance(doc, dict):
@@ -129,7 +129,7 @@ def checkpoint(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, 
     return _write(path, doc)
 
 
-def stand_down(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, Any]]:
+def stand_down(path: Any, *, now: float | None = None) -> dict[str, Any] | None:
     """Close the expectation. After this, silence is correct again."""
     doc = load(path)
     if not isinstance(doc, dict):
@@ -139,7 +139,7 @@ def stand_down(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, 
     return _write(path, doc)
 
 
-def mark_alarmed(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, Any]]:
+def mark_alarmed(path: Any, *, now: float | None = None) -> dict[str, Any] | None:
     doc = load(path)
     if not isinstance(doc, dict):
         return None

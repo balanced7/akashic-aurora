@@ -32,13 +32,14 @@ layer can callsign it Operation TAHITI when the revive ceremony wants poetry (G3
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 # ---------------------------------------------------------------- the first kit
 # The recovery-arc's floor, one install away. Every entry is a verb that already
 # exists on some belt tonight (cross-seat harvest, authors attributed in `why`).
 # Evidence labels are honest: only entries with a real kata pin claim VERIFIED.
-RECOVERY_KIT: Dict[str, Any] = {
+RECOVERY_KIT: dict[str, Any] = {
     "name": "recovery-kit",
     "version": 2,  # v2 2026-07-21: pause steps carry --ttl 120 (RB-30 self-heal) -- the
     # first install-dogfood caught v1 SILENTLY STRIPPING the TTL graduation
@@ -101,20 +102,20 @@ RECOVERY_KIT: Dict[str, Any] = {
 }
 
 
-def _self_substitute(steps: List[List[str]], agent: str) -> List[List[str]]:
+def _self_substitute(steps: list[list[str]], agent: str) -> list[list[str]]:
     """$SELF$ is the kit's one macro: the installing seat's name. Kits install the SAME
     ritual on every belt; the only thing that changes is who it's for. ($1..$9 stay
     reserved for MACROS; a kit is not a macro.)"""
     return [[agent if str(tok) == "$SELF$" else str(tok) for tok in s] for s in steps]
 
 
-def install(kit: Dict[str, Any], belt: Any, *, agent: Optional[str] = None) -> Dict[str, Any]:
+def install(kit: dict[str, Any], belt: Any, *, agent: str | None = None) -> dict[str, Any]:
     """Install a kit into a Toolbelt. Returns a per-entry report; never raises on a
     refused entry (the refusal lands in the report, the rest still install).
     belt = a core.toolbelt.registry.Toolbelt for the installing seat (INJECTED, so
     tests pass a recorder belt)."""
     seat = str(agent or getattr(belt, "agent", "?"))
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "kit": kit.get("name", "?"),
         "version": kit.get("version", 1),
         "seat": seat,
@@ -123,7 +124,7 @@ def install(kit: Dict[str, Any], belt: Any, *, agent: Optional[str] = None) -> D
     }
     for spec in kit.get("entries", []):
         name = str(spec.get("name", ""))
-        row: Dict[str, Any] = {"name": name}
+        row: dict[str, Any] = {"name": name}
         try:
             steps = _self_substitute(spec.get("steps", []), seat)
             prior = None
@@ -154,7 +155,7 @@ def install(kit: Dict[str, Any], belt: Any, *, agent: Optional[str] = None) -> D
     return report
 
 
-def render_report(rep: Dict[str, Any]) -> str:
+def render_report(rep: dict[str, Any]) -> str:
     rows = [f"# kit install: {rep['kit']} v{rep['version']} -> {rep['seat']}'s belt"]
     for e in rep["entries"]:
         mark = "ok" if not e["result"].startswith("REFUSED") else "REFUSED"

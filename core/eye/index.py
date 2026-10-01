@@ -25,7 +25,7 @@ import os
 import re
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -142,7 +142,7 @@ def is_subagent_path(path: Any) -> bool:
 _SCHEMA_VERSION = 6
 
 
-def utterance_key(session: str, text: str) -> Tuple[str, str]:
+def utterance_key(session: str, text: str) -> tuple[str, str]:
     """THE UTTERANCE LAW, in one place: an utterance is not a row, it is the SET of records
     carrying it -- and two records carry the same utterance when they hold the same text in
     the same session.
@@ -193,7 +193,7 @@ def session_id_for(path: Any) -> str:
     return stem
 
 
-def seat_for_path(path: Any) -> Optional[str]:
+def seat_for_path(path: Any) -> str | None:
     """Whose session is this? Returns a seat id, or None for the operator's own plane.
 
     T407, and the answer to a question the records themselves cannot settle. A member seat
@@ -246,7 +246,7 @@ def open_transcript(path: Any):
     return io.TextIOWrapper(reader, encoding="utf-8", errors="replace")
 
 
-def default_corpus() -> List[Path]:
+def default_corpus() -> list[Path]:
     """The transcript manifest: every session JSONL the harness still holds, PLUS the
     rescued archive.
 
@@ -258,7 +258,7 @@ def default_corpus() -> List[Path]:
     return sorted(p for _label, _base, files in _corpus_roots() for p in files)
 
 
-def _corpus_roots() -> List[Any]:
+def _corpus_roots() -> list[Any]:
     """(label, files) per root, deduped by filename, in precedence order.
 
     T313. Three faults fixed here, all of the same family -- a reader that could not see what a
@@ -280,7 +280,7 @@ def _corpus_roots() -> List[Any]:
 
     Dedup is by FILENAME and precedence is live > archive > rescued: the live copy is the one
     still being appended to, so an archived copy of the same session must never shadow it."""
-    roots: List[Any] = []
+    roots: list[Any] = []
     seen: set = set()
 
     def _take(label: str, base: Path, files) -> None:
@@ -325,7 +325,7 @@ def _corpus_roots() -> List[Any]:
     return [(lbl, base, files) for lbl, base, files in roots]
 
 
-def corpus_coverage() -> Dict[str, Any]:
+def corpus_coverage() -> dict[str, Any]:
     """What the corpus definition actually reached -- the frame that must ship with the number.
 
     Lesson a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read, whose own
@@ -349,7 +349,7 @@ def corpus_coverage() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- schema
-def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
+def _connect(db_path: Path | None) -> sqlite3.Connection:
     p = Path(db_path) if db_path else _DEFAULT_DB
     p.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(p))
@@ -423,7 +423,7 @@ def _texts_from_content(content: Any) -> str:
     return ""
 
 
-def _parse_ts(raw: Any) -> Optional[float]:
+def _parse_ts(raw: Any) -> float | None:
     """ISO strings (Claude Code) and numeric epochs (DSH) both resolve to seconds.
 
     A None here is not an error and never raises -- it becomes TIME-FOG, the share every
@@ -443,7 +443,7 @@ def _parse_ts(raw: Any) -> Optional[float]:
         return None
 
 
-def _dsh_event(obj: Dict[str, Any], typ: str) -> Tuple[str, str]:
+def _dsh_event(obj: dict[str, Any], typ: str) -> tuple[str, str]:
     """(text, voice) for a DSH record, or ("", _) when it carries no utterance.
 
     Only two of DSH's eighteen record types are speech. The live session holds 58,889
@@ -483,7 +483,7 @@ def _dsh_event(obj: Dict[str, Any], typ: str) -> Tuple[str, str]:
     return "", "system"
 
 
-def _event_from(obj: Dict[str, Any], seat: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def _event_from(obj: dict[str, Any], seat: str | None = None) -> dict[str, Any] | None:
     """One JSONL record -> one event dict (or None when it carries no text).
 
     `seat` is the provenance stamp from the source path (T407): None for the operator's own
@@ -558,7 +558,7 @@ def _event_from(obj: Dict[str, Any], seat: Optional[str] = None) -> Optional[Dic
 
 
 # ---------------------------------------------------------------- ingest
-def ingest(paths: Optional[List[Path]] = None, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def ingest(paths: list[Path] | None = None, db_path: Path | None = None) -> dict[str, Any]:
     """Index the manifest incrementally. The report IS the coverage contract."""
     manifest = [Path(p) for p in (paths if paths is not None else default_corpus())]
     con = _connect(db_path)
@@ -680,7 +680,7 @@ def ingest(paths: Optional[List[Path]] = None, db_path: Optional[Path] = None) -
 
 
 # ---------------------------------------------------------------- S1: the grammar door
-def _parse_as_of(as_of: Optional[str]) -> Optional[float]:
+def _parse_as_of(as_of: str | None) -> float | None:
     """The grammar's 422 rule at this door: a malformed as_of REFUSES with the expected
     shape -- zero rows is never the answer to a malformed selector."""
     if not as_of:
@@ -691,7 +691,7 @@ def _parse_as_of(as_of: Optional[str]) -> Optional[float]:
             s += "T23:59:59+00:00"
         dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.timestamp()
     except Exception:
         raise ValueError(
@@ -701,15 +701,15 @@ def _parse_as_of(as_of: Optional[str]) -> Optional[float]:
 
 
 def find(
-    q: Optional[str] = None,
+    q: str | None = None,
     *,
     who: str = "",
     kind: str = "",
     session: str = "",
-    as_of: Optional[str] = None,
+    as_of: str | None = None,
     limit: int = 20,
-    db_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    db_path: Path | None = None,
+) -> dict[str, Any]:
     """The grammar door (T280, first tenant): facets AND together, q is the phrase
     fallback within the faceted slice, as_of applies the one-sentence temporal law, and
     the ENVELOPE carries degraded honesty + its own token price.
@@ -776,11 +776,11 @@ def find(
             else None
         ),
         "tokens_returned": sum(r["tokens"] or 0 for r in out),
-        "as_of": (datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat() if cutoff is not None else None),
+        "as_of": (datetime.fromtimestamp(cutoff, tz=UTC).isoformat() if cutoff is not None else None),
     }
 
 
-def freq(patterns: List[str], db_path: Optional[Path] = None, max_refs_per_session: int = 5) -> Dict[str, Any]:
+def freq(patterns: list[str], db_path: Path | None = None, max_refs_per_session: int = 5) -> dict[str, Any]:
     """S3 -- the frequency axis (HIS axis). A pattern FAMILY (phrasings OR'd, deduped by
     event) becomes counts, sessions, span, per-session refs, and a MECHANICAL verdict.
 
@@ -801,7 +801,7 @@ def freq(patterns: List[str], db_path: Optional[Path] = None, max_refs_per_sessi
     this verb retires that class of hand-count. No LLM anywhere in the path."""
     con = _connect(db_path)
     try:
-        seen: Dict[str, Dict[str, Any]] = {}
+        seen: dict[str, dict[str, Any]] = {}
         for pat in patterns:
             phrase = '"' + str(pat).replace('"', " ") + '"'
             rows = con.execute(
@@ -826,13 +826,13 @@ def freq(patterns: List[str], db_path: Optional[Path] = None, max_refs_per_sessi
             continue
         _utt_seen.add(k)
         ops.append(e)
-    by_voice: Dict[str, int] = {}
+    by_voice: dict[str, int] = {}
     for e in events:
         by_voice[e["voice"]] = by_voice.get(e["voice"], 0) + 1
     op_sessions = sorted({e["session"] for e in ops})
 
     _op_ids = {e["event_id"] for e in ops}
-    per_session: List[Dict[str, Any]] = []
+    per_session: list[dict[str, Any]] = []
     for s in sorted({e["session"] for e in events}):
         evs = [e for e in events if e["session"] == s]
         per_session.append(
@@ -869,7 +869,7 @@ def freq(patterns: List[str], db_path: Optional[Path] = None, max_refs_per_sessi
     }
 
 
-def stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
+def stats(db_path: Path | None = None) -> dict[str, Any]:
     """S5 -- crisp numerics (fence r1 C3: numbers first). TIME-FOG is the share of events
     with no parseable ts: every as_of query is blind to exactly that fraction, so the
     number rides every stats read instead of hiding in a reason string."""
@@ -895,7 +895,7 @@ def stats(db_path: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
-def overview(db_path: Optional[Path] = None) -> Dict[str, Any]:
+def overview(db_path: Path | None = None) -> dict[str, Any]:
     """S5 -- the structural region map: sessions as places, each with its counts and span.
     A session whose events are all timeless shows first_ts=None -- shown, never faked."""
     con = _connect(db_path)
@@ -915,7 +915,7 @@ def overview(db_path: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
-def get_event(event_id: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def get_event(event_id: str, db_path: Path | None = None) -> dict[str, Any] | None:
     """The address resolves to the verbatim record -- the resolver primitive (T288).
 
     T361: the resolver speaks the house sid8 dialect. boot prints `session ed728d23`,

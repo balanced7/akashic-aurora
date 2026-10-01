@@ -89,8 +89,8 @@ def valid_relationship(type_name: str) -> bool:
     return bool(type_name) and get_relationship_by_name(type_name) is not None
 
 
-def _as_edges(raw: Any) -> List["Edge"]:
-    out: List[Edge] = []
+def _as_edges(raw: Any) -> list["Edge"]:
+    out: list[Edge] = []
     for e in raw or []:
         out.append(e if isinstance(e, Edge) else Edge(**e))
     return out
@@ -122,20 +122,20 @@ class Beat:
     summary: str
     source: str  # followable pointer: learn:experiment:X | git:<sha> | ledger:<stream>:<id> | path:Ln
     weight: int = 1  # narrative salience 0..5
-    track: Optional[str] = None  # set by the TrackRouter (later slice)
-    themes: List[str] = field(default_factory=list)
-    relates: List[Edge] = field(default_factory=list)
-    chapter: Optional[str] = None  # back-link (bidirectional provenance)
+    track: str | None = None  # set by the TrackRouter (later slice)
+    themes: list[str] = field(default_factory=list)
+    relates: list[Edge] = field(default_factory=list)
+    chapter: str | None = None  # back-link (bidirectional provenance)
     # tag governance (G0): the append-only history of track opinions (TagEntry dicts).
     # `track` above is the cached current value; tag_history is the auditable record.
     # Empty for beats predating G0 (backward-compatible). See core/narrative/tagging.py.
-    tag_history: List[Dict[str, Any]] = field(default_factory=list)
+    tag_history: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Beat":
+    def from_dict(cls, d: dict[str, Any]) -> "Beat":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -149,29 +149,29 @@ class Chapter:
     track: str
     title: str
     span_start: str
-    span_end: Optional[str] = None
+    span_end: str | None = None
     summary: str = ""
     # Session-bookends: an episode IS a Chapter (DeepSeek review 2026-07-07). `why` = the episode's
     # INTENT (distinct from `summary` = what happened); `final` marks a draft accepted+immutable
     # (mutable pre-final phase until the user/agent accepts). Both default-safe for old chapters.
     why: str = ""
     final: bool = False
-    beats: List[str] = field(default_factory=list)
-    learnings: List[str] = field(default_factory=list)
-    commits: List[str] = field(default_factory=list)
-    relates: List[Edge] = field(default_factory=list)
+    beats: list[str] = field(default_factory=list)
+    learnings: list[str] = field(default_factory=list)
+    commits: list[str] = field(default_factory=list)
+    relates: list[Edge] = field(default_factory=list)
     parent: str = ATLAS_KEY
     # bi-temporal (Zep): valid-in-world vs recorded-in-system; supersede, don't delete.
-    valid_from: Optional[str] = None
-    valid_to: Optional[str] = None
-    recorded_at: Optional[str] = None
+    valid_from: str | None = None
+    valid_to: str | None = None
+    recorded_at: str | None = None
     critic_ok: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Chapter":
+    def from_dict(cls, d: dict[str, Any]) -> "Chapter":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -185,15 +185,15 @@ class Track:
     title: str
     domain: str = ""
     created_at: str = ""
-    chapters: List[str] = field(default_factory=list)
-    relates: List[Edge] = field(default_factory=list)
-    centroid: Optional[List[float]] = None  # Tier-1 routing embedding (later slice)
+    chapters: list[str] = field(default_factory=list)
+    relates: list[Edge] = field(default_factory=list)
+    centroid: list[float] | None = None  # Tier-1 routing embedding (later slice)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Track":
+    def from_dict(cls, d: dict[str, Any]) -> "Track":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -206,15 +206,15 @@ class Theme:
     id: str  # slug, e.g. "local-first"
     title: str
     description: str = ""
-    beats: List[str] = field(default_factory=list)  # multi-label
+    beats: list[str] = field(default_factory=list)  # multi-label
     created_at: str = ""
-    relates: List[Edge] = field(default_factory=list)
+    relates: list[Edge] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Theme":
+    def from_dict(cls, d: dict[str, Any]) -> "Theme":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -226,14 +226,14 @@ class Atlas:
 
     generated_at: str = ""
     summary: str = ""
-    tracks: List[str] = field(default_factory=list)
-    relates: List[Edge] = field(default_factory=list)
+    tracks: list[str] = field(default_factory=list)
+    relates: list[Edge] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Atlas":
+    def from_dict(cls, d: dict[str, Any]) -> "Atlas":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -242,7 +242,7 @@ class Atlas:
 # ============================ validation ============================
 
 
-def validate_edge(edge: Edge) -> List[str]:
+def validate_edge(edge: Edge) -> list[str]:
     problems = []
     if not edge.target:
         problems.append("edge has no target")
@@ -251,7 +251,7 @@ def validate_edge(edge: Edge) -> List[str]:
     return problems
 
 
-def validate_beat(beat: Beat) -> List[str]:
+def validate_beat(beat: Beat) -> list[str]:
     """Schema-level checks (no I/O). Empty list = valid."""
     problems = []
     if beat.kind not in BEAT_KINDS:

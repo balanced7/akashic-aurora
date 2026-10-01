@@ -15,7 +15,7 @@ from core.learning.agent_memory import AgentMemory, get_agent_memory
 from core.primitives.ranker import Ranker
 
 
-def _text_of(d: Dict[str, Any]) -> str:
+def _text_of(d: dict[str, Any]) -> str:
     parts = [d.get("title", ""), d.get("decision", ""), d.get("context", "")]
     parts += [str(r) for r in (d.get("rationale") or [])]
     return " ".join(p for p in parts if p)
@@ -25,11 +25,11 @@ def load_decisions_applicable_to_task(
     task: str,
     top_k: int = 5,
     *,
-    agent_memory: Optional[AgentMemory] = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
+    agent_memory: AgentMemory | None = None,
+    ranker: Ranker | None = None,
+    now: float | None = None,
     days: int = 365,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Load the `top_k` decisions most applicable to `task`, ranked.
 

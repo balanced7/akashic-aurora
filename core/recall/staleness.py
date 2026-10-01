@@ -73,9 +73,9 @@ _JUDGEMENT = (
 )
 
 
-def extract_checkable_claims(text: str) -> List[Dict[str, Any]]:
+def extract_checkable_claims(text: str) -> list[dict[str, Any]]:
     """Locate count/absence claims that name an artifact. Judgement is left alone."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for raw in re.split(r"(?<=[.!?])\s+|--\s+|\n", str(text or "")):
         s = " ".join(raw.split())
         if len(s) < 12:
@@ -106,7 +106,7 @@ def extract_checkable_claims(text: str) -> List[Dict[str, Any]]:
     return out
 
 
-def _resolve_artifact(artifact: str) -> Optional[Path]:
+def _resolve_artifact(artifact: str) -> Path | None:
     """Map a claim's artifact name onto a real file at HEAD, or None."""
     a = str(artifact or "").strip()
     if not a:
@@ -125,7 +125,7 @@ def _resolve_artifact(artifact: str) -> Optional[Path]:
     return hits[0] if len(hits) == 1 else None
 
 
-def recheck_claim(claim: Dict[str, Any]) -> Dict[str, Any]:
+def recheck_claim(claim: dict[str, Any]) -> dict[str, Any]:
     """Re-read the artifact and ask whether the absence still holds.
 
     Three outcomes, never two: still_holds True/False when checked, and None with
@@ -148,7 +148,7 @@ def recheck_claim(claim: Dict[str, Any]) -> Dict[str, Any]:
         return {"checked": False, "still_holds": None, "evidence": "", "why": f"could not read {path.name}: {e}"}
 
     words = [w for w in re.findall(r"[a-z0-9]+", needle) if len(w) > 3]
-    hits: List[str] = []
+    hits: list[str] = []
     for line in text.splitlines():
         low = line.lower()
         if words and all(w in low for w in words):
@@ -171,7 +171,7 @@ def recheck_claim(claim: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def sweep(limit: int = 50, corpus: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+def sweep(limit: int = 50, corpus: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Read the lesson corpus, extract checkable claims, re-check them, report.
 
     The report carries its own frame: how many lessons were examined, how many held a
@@ -203,7 +203,7 @@ def sweep(limit: int = 50, corpus: Optional[List[Dict[str, Any]]] = None) -> Dic
     rows = rows[-int(limit) :] if limit else rows
 
     examined = checkable = 0
-    stale: List[Dict[str, Any]] = []
+    stale: list[dict[str, Any]] = []
     for r in rows:
         examined += 1
         blob = " ".join(str(r.get(f, "")) for f in ("actual", "recommendation", "what_tried", "result"))

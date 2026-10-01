@@ -179,7 +179,7 @@ def cmd_wake_check(a) -> int:
         wm = {"inbox": "0", "bc": "0"}
         try:
             if os.path.exists(wm_path):
-                with open(wm_path, "r", encoding="utf-8") as fh:
+                with open(wm_path, encoding="utf-8") as fh:
                     wm = json.load(fh)
         except Exception:
             wm = {"inbox": "0", "bc": "0"}
@@ -237,7 +237,7 @@ def _read_dsh_lines(transcript_path: str, max_bytes: int = 16 * 1024 * 1024):
                     chunks.append(chunk)
             text = b"".join(chunks).decode("utf-8", errors="ignore")
         else:
-            with open(transcript_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(transcript_path, encoding="utf-8", errors="ignore") as f:
                 text = f.read()
     except Exception:
         return [], False

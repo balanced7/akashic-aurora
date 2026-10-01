@@ -49,8 +49,8 @@ def _key_prefix() -> str:
     return f"{_ns()}:turn_metrics:"
 
 
-_est_cache: Dict[str, Any] = {}
-_pulse_counts: Dict[str, int] = {}
+_est_cache: dict[str, Any] = {}
+_pulse_counts: dict[str, int] = {}
 
 
 # ------------------------------------------------------------------ small pieces
@@ -87,7 +87,7 @@ def _client():
         return None
 
 
-def _push_row(key: str, row: Dict[str, Any], cap: int) -> None:
+def _push_row(key: str, row: dict[str, Any], cap: int) -> None:
     c = _client()
     if c is None:
         return
@@ -124,7 +124,7 @@ def record(
     outcome: str,
     prompt_len: int = 0,
     tool_count: int = 0,
-    tokens: Optional[Dict[str, int]] = None,
+    tokens: dict[str, int] | None = None,
 ) -> None:
     """One turn's facts, at turn close. Best-effort, never raises into the turn."""
     try:
@@ -169,7 +169,7 @@ def record(
 
 
 # ------------------------------------------------------------------ estimate
-def estimate(agent: str, ask_kind: str) -> Optional[Dict[str, Any]]:
+def estimate(agent: str, ask_kind: str) -> dict[str, Any] | None:
     """{median_s, p90_s, median_points, n, confidence} for the bucket, or None when
     n < MIN_N (below that the bars show elapsed-only -- no invented ETA)."""
     key = _key(agent, ask_kind)
@@ -194,7 +194,7 @@ def estimate(agent: str, ask_kind: str) -> Optional[Dict[str, Any]]:
     return est
 
 
-def pct_estimate(points_seen: int, est: Optional[Dict[str, Any]]) -> Optional[int]:
+def pct_estimate(points_seen: int, est: dict[str, Any] | None) -> int | None:
     """min(95, points/median_points*100) -- never claims done while running; None
     without history (no invented percentages, M8)."""
     if not est or not est.get("median_points"):
@@ -203,7 +203,7 @@ def pct_estimate(points_seen: int, est: Optional[Dict[str, Any]]) -> Optional[in
 
 
 # ------------------------------------------------------------------ live view
-def progress_view(agent: str, *, peek: bool = True, _wl=None) -> Optional[Dict[str, Any]]:
+def progress_view(agent: str, *, peek: bool = True, _wl=None) -> dict[str, Any] | None:
     """The bar card's data for one agent, or None when no turn is live. `peek` leaves
     the pulse counter intact (the /status poll must not consume the turn's count)."""
     try:

@@ -54,12 +54,12 @@ AV = ROOT / "scripts" / "agent-avatar.js"
 
 @pytest.fixture(scope="module")
 def ui() -> str:
-    return io.open(UI, encoding="utf-8").read()
+    return open(UI, encoding="utf-8").read()
 
 
 @pytest.fixture(scope="module")
 def av() -> str:
-    return io.open(AV, encoding="utf-8").read()
+    return open(AV, encoding="utf-8").read()
 
 
 def _mount_body(ui: str) -> str:

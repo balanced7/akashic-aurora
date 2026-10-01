@@ -99,7 +99,7 @@ class EfficiencySnapshot:
             return float(self.human_interjections) if self.human_interjections > 0 else 0.0
         return round(self.human_interjections / self.total_tool_calls, 4)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "started_at": self.started_at,
@@ -129,7 +129,7 @@ class EfficiencySnapshot:
 
 # ── per-agent store ────────────────────────────────────────────────────
 
-_store: Dict[str, EfficiencySnapshot] = {}
+_store: dict[str, EfficiencySnapshot] = {}
 _lock = threading.Lock()
 _enabled = True
 
@@ -146,7 +146,7 @@ def init(agent_id: str) -> EfficiencySnapshot:
     return snap
 
 
-def _snap(agent_id: str) -> Optional[EfficiencySnapshot]:
+def _snap(agent_id: str) -> EfficiencySnapshot | None:
     if not _enabled:
         return None
     with _lock:
@@ -240,13 +240,13 @@ def record_turn_complete(agent_id: str):
 
 # ── duplicate read tracking (per-agent path -> last read timestamp) ────
 
-_last_reads: Dict[str, Dict[str, float]] = {}
+_last_reads: dict[str, dict[str, float]] = {}
 
 
 # ── snapshot / dump ─────────────────────────────────────────────────────
 
 
-def dump(agent_id: str) -> Optional[Dict[str, Any]]:
+def dump(agent_id: str) -> dict[str, Any] | None:
     """Snapshot current metrics for one agent (for the experiment harness to collect)."""
     if s := _snap(agent_id):
         record_turn_complete(agent_id)
@@ -254,7 +254,7 @@ def dump(agent_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def dump_all() -> Dict[str, Dict[str, Any]]:
+def dump_all() -> dict[str, dict[str, Any]]:
     """Snapshot ALL agents' metrics."""
     return {aid: dump(aid) for aid in list(_store.keys()) if dump(aid)}
 

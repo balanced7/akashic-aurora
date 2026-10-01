@@ -24,7 +24,7 @@ from core.foundation.timeutil import now_iso
 DEFAULT_WINDOW_SECONDS = 1800  # +/- 30 min around a point (Beat / timestamp)
 
 
-def _parse_iso(s) -> Optional[datetime]:
+def _parse_iso(s) -> datetime | None:
     try:
         return datetime.fromisoformat(str(s))
     except (ValueError, TypeError):
@@ -45,7 +45,7 @@ def parse_window(spec, default: int = DEFAULT_WINDOW_SECONDS) -> int:
         return default
 
 
-def resolve_span(ref: str, *, store: Store, window_seconds: int = DEFAULT_WINDOW_SECONDS) -> Optional[Tuple[str, str]]:
+def resolve_span(ref: str, *, store: Store, window_seconds: int = DEFAULT_WINDOW_SECONDS) -> tuple[str, str] | None:
     """Resolve a chapter id / beat id / ISO timestamp to an (start_iso, end_iso) span.
 
     - chapter id -> its [span_start, span_end] (open chapter -> end = now)
@@ -80,21 +80,21 @@ def resolve_span(ref: str, *, store: Store, window_seconds: int = DEFAULT_WINDOW
     return None
 
 
-def _around(t: datetime, window_seconds: int) -> Tuple[str, str]:
+def _around(t: datetime, window_seconds: int) -> tuple[str, str]:
     return ((t - timedelta(seconds=window_seconds)).isoformat(), (t + timedelta(seconds=window_seconds)).isoformat())
 
 
 def events_around(
     ref: str,
     *,
-    store: Optional[Store] = None,
+    store: Store | None = None,
     window_seconds: int = DEFAULT_WINDOW_SECONDS,
-    kind: Optional[str] = None,
-    agent: Optional[str] = None,
-    track: Optional[str] = None,
-    limit: Optional[int] = None,
-    event_query: Optional[EventQuery] = None,
-) -> Dict[str, Any]:
+    kind: str | None = None,
+    agent: str | None = None,
+    track: str | None = None,
+    limit: int | None = None,
+    event_query: EventQuery | None = None,
+) -> dict[str, Any]:
     """The raw events under a chapter / beat / timestamp. Returns {span, events}. Never raises."""
     try:
         store = store if store is not None else create_store()
@@ -112,10 +112,10 @@ def events_around(
 def raw_for_beat(
     beat_id: str,
     *,
-    store: Optional[Store] = None,
+    store: Store | None = None,
     window_seconds: int = DEFAULT_WINDOW_SECONDS,
-    event_query: Optional[EventQuery] = None,
-) -> Dict[str, Any]:
+    event_query: EventQuery | None = None,
+) -> dict[str, Any]:
     """A Beat's own raw atom (if its `source` is an event: pointer) PLUS the raw events
     around its time. Returns {atom, span, events}. Never raises."""
     try:

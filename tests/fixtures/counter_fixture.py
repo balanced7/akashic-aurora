@@ -46,10 +46,10 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 
-def L(name: str, success: str, rec: str, *, anti_pattern: str = "", agent: str = "synthetic") -> Dict[str, Any]:
+def L(name: str, success: str, rec: str, *, anti_pattern: str = "", agent: str = "synthetic") -> dict[str, Any]:
     """A minimal lesson record shaped like what the LearningStore yields
     (experiment_name / success / recommendation / anti_pattern / agent_id)."""
-    r: Dict[str, Any] = {"experiment_name": name, "success": success, "recommendation": rec, "agent_id": agent}
+    r: dict[str, Any] = {"experiment_name": name, "success": success, "recommendation": rec, "agent_id": agent}
     if anti_pattern:
         r["anti_pattern"] = anti_pattern
     return r
@@ -58,12 +58,12 @@ def L(name: str, success: str, rec: str, *, anti_pattern: str = "", agent: str =
 def _case(
     cid: str,
     origin: str,
-    thesis: Dict[str, Any],
-    corpus: List[Dict[str, Any]],
-    counter_sources: List[str],
-    kind: Optional[str],
+    thesis: dict[str, Any],
+    corpus: list[dict[str, Any]],
+    counter_sources: list[str],
+    kind: str | None,
     why: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # The thesis is always searchable within its own corpus (a detector must not count the
     # thesis as its own counter -- that is a detector responsibility, asserted in the harness).
     pool = [thesis] + [c for c in corpus if c["experiment_name"] != thesis["experiment_name"]]
@@ -130,7 +130,7 @@ _DEPLOY = L(
 )
 
 
-GOLD_CASES: List[Dict[str, Any]] = [
+GOLD_CASES: list[dict[str, Any]] = [
     # ============ HAS-COUNTER: opposite_success (thesis worked / counter failed, same topic) ============
     _case(
         "syn-opp-blocking",
@@ -456,7 +456,7 @@ GOLD_CASES: List[Dict[str, Any]] = [
 ]
 
 
-def gold_cases() -> List[Dict[str, Any]]:
+def gold_cases() -> list[dict[str, Any]]:
     """The full labeled eval set (real + synthetic)."""
     return [dict(c) for c in GOLD_CASES]
 
@@ -464,7 +464,7 @@ def gold_cases() -> List[Dict[str, Any]]:
 # --- SAMPLE_CORPUS: a faithful sample of the real store's outcome skew, for the coverage
 # report. Mirrors the measured distribution (mostly self-reported 'yes', a few 'no'/'partial',
 # ZERO populated anti_pattern) so the counter-density number is representative, not cherry-picked.
-SAMPLE_CORPUS: List[Dict[str, Any]] = [
+SAMPLE_CORPUS: list[dict[str, Any]] = [
     _EMBED_SEAM,
     _EMBED_LOST,
     _RECALL_V1,
@@ -484,6 +484,6 @@ SAMPLE_CORPUS: List[Dict[str, Any]] = [
 ]
 
 
-def sample_corpus() -> List[Dict[str, Any]]:
+def sample_corpus() -> list[dict[str, Any]]:
     """A representative real-skew corpus for the counter-density (confirmation-by-omission) report."""
     return [dict(r) for r in SAMPLE_CORPUS]

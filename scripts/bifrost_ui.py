@@ -480,7 +480,7 @@ VFX_GRAPHS = os.path.join(REPO, "design", "vfx-graphs.json")
 
 def _vfx_graphs_read():
     try:
-        with open(VFX_GRAPHS, "r", encoding="utf-8") as fh:
+        with open(VFX_GRAPHS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -509,7 +509,7 @@ VFX_GROUPS = os.path.join(REPO, "design", "vfx-groups.json")
 
 def _vfx_groups_read():
     try:
-        with open(VFX_GROUPS, "r", encoding="utf-8") as fh:
+        with open(VFX_GROUPS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -548,7 +548,7 @@ def _vfx_chunks_read():
         return out
     for fn in names:
         try:
-            with open(os.path.join(VFX_CHUNKS, fn), "r", encoding="utf-8") as fh:
+            with open(os.path.join(VFX_CHUNKS, fn), encoding="utf-8") as fh:
                 txt = fh.read()
             head, _, body = txt.partition("\n")
             meta = json.loads(head[3:].strip()) if head.startswith("//!") else {}
@@ -563,7 +563,7 @@ def _vfx_chunks_read():
 
 def _vfx_compos_read():
     try:
-        with open(VFX_COMPOS, "r", encoding="utf-8") as fh:
+        with open(VFX_COMPOS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -615,7 +615,7 @@ def _vfx_sketch_read(name):
         return {"ok": False, "error": "bad name"}
     path, safe = r
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return {"ok": True, "name": safe, "src": fh.read()}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
@@ -697,7 +697,7 @@ _BENCH_DEFAULT = {
 def _vfx_bench_read():
     out = dict(_BENCH_DEFAULT)
     try:
-        with open(VFX_BENCH, "r", encoding="utf-8") as fh:
+        with open(VFX_BENCH, encoding="utf-8") as fh:
             d = json.load(fh)
         if isinstance(d, dict):
             out.update({k: d[k] for k in _BENCH_KEYS if k in d})
@@ -736,7 +736,7 @@ VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
 
 def _vfx_presets_read():
     try:
-        with open(VFX_PRESETS, "r", encoding="utf-8") as fh:
+        with open(VFX_PRESETS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except FileNotFoundError:
@@ -1252,7 +1252,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(400)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
-            self.wfile.write(f"invalid namespace: {ns!r} — a room name is a bare token".encode("utf-8"))
+            self.wfile.write(f"invalid namespace: {ns!r} — a room name is a bare token".encode())
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")

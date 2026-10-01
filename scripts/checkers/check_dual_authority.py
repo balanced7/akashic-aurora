@@ -61,7 +61,7 @@ DEFAULT_WINDOW_HOURS = 24.0
 DEFAULT_WAL_ALERT_BYTES = 4 * 1024 * 1024
 
 
-def _mtime(p: Path) -> Optional[float]:
+def _mtime(p: Path) -> float | None:
     try:
         return os.path.getmtime(p)
     except OSError:
@@ -79,14 +79,14 @@ def classify(
     backend_env: str = "",
     window_hours: float = DEFAULT_WINDOW_HOURS,
     wal_alert_bytes: int = DEFAULT_WAL_ALERT_BYTES,
-    now: Optional[float] = None,
-) -> List[Dict[str, str]]:
+    now: float | None = None,
+) -> list[dict[str, str]]:
     """Pure classification: [(severity, code, line)] as dicts. No printing, no exit --
     the doctor and the CLI wrap this; the pins call it directly."""
     now = time.time() if now is None else now
     json_path, db_path = Path(json_path), Path(db_path)
     jm, dm = _mtime(json_path), _mtime(db_path)
-    findings: List[Dict[str, str]] = []
+    findings: list[dict[str, str]] = []
 
     if jm is not None and dm is not None:
         lag_h = abs(jm - dm) / 3600.0
@@ -134,7 +134,7 @@ def classify(
     return findings
 
 
-def _defaults() -> Dict[str, Path]:
+def _defaults() -> dict[str, Path]:
     base = Path(_repo_root_str()) / "session_logs"
     return {"json": base / "store_state.json", "db": base / "store_state.db"}
 

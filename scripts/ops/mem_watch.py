@@ -45,7 +45,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 
 def _pyl() -> str:
@@ -86,7 +86,7 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _rotate(path: str) -> None:

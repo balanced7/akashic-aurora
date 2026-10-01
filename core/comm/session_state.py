@@ -35,7 +35,7 @@ def _now() -> str:
     return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
-def save(label: str = "") -> Dict[str, Any]:
+def save(label: str = "") -> dict[str, Any]:
     """Capture the current Bifrost session state. Returns the snapshot dict + path.
 
     Captures:
@@ -48,7 +48,7 @@ def save(label: str = "") -> Dict[str, Any]:
     os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
     # ── Gather state ──────────────────────────────────────────────────
-    agents: List[Dict[str, Any]] = []
+    agents: list[dict[str, Any]] = []
     try:
         from core.comm.launcher import get_launcher
 
@@ -56,7 +56,7 @@ def save(label: str = "") -> Dict[str, Any]:
     except Exception:
         pass
 
-    presence: List[Dict[str, Any]] = []
+    presence: list[dict[str, Any]] = []
     try:
         from core.comm.bus import Bus
 
@@ -64,7 +64,7 @@ def save(label: str = "") -> Dict[str, Any]:
     except Exception:
         pass
 
-    activities: Dict[str, Any] = {}
+    activities: dict[str, Any] = {}
     try:
         from core.comm import control
 
@@ -72,7 +72,7 @@ def save(label: str = "") -> Dict[str, Any]:
     except Exception:
         pass
 
-    pause: Dict[str, Any] = {}
+    pause: dict[str, Any] = {}
     try:
         from core.comm import control
 
@@ -138,7 +138,7 @@ def save(label: str = "") -> Dict[str, Any]:
     }
 
 
-def load(path: Optional[str] = None) -> Dict[str, Any]:
+def load(path: str | None = None) -> dict[str, Any]:
     """Load a saved snapshot. Defaults to latest.json."""
     target = Path(path) if path else LATEST
     if not target.exists():
@@ -150,7 +150,7 @@ def load(path: Optional[str] = None) -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
+def resume(path: str | None = None, *, label: str = "") -> dict[str, Any]:
     """Read a snapshot and relaunch the agents that were running.
 
     Spawns each running agent via the launcher. Returns which succeeded and which failed.
@@ -218,7 +218,7 @@ def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
     }
 
 
-def list_snapshots() -> List[Dict[str, Any]]:
+def list_snapshots() -> list[dict[str, Any]]:
     """All saved snapshots, newest first."""
     if not SNAPSHOT_DIR.exists():
         return []

@@ -123,7 +123,7 @@ def scan_static(root: str) -> list[dict]:
     for rel in tracked_py:
         full = os.path.join(root, rel)
         try:
-            with open(full, "r", encoding="utf-8", errors="replace") as fh:
+            with open(full, encoding="utf-8", errors="replace") as fh:
                 tree = ast.parse(fh.read(), filename=rel)
         except (OSError, SyntaxError):
             continue  # unparseable tracked code is a different wound; the drill catches it

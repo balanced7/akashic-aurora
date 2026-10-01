@@ -108,7 +108,7 @@ class CDPBridge:
             time.sleep(0.5)
         return False
 
-    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> Optional[str]:
+    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> str | None:
         """
         Query Gemini via CDP by injecting JavaScript.
         """
@@ -359,7 +359,7 @@ class GeminiBridgeRemote:
 
         return None
 
-    def _find_response(self) -> Optional[str]:
+    def _find_response(self) -> str | None:
         """Find the latest Gemini response"""
         if not self.driver:
             return None
@@ -385,7 +385,7 @@ class GeminiBridgeRemote:
 
         return None
 
-    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> Optional[str]:
+    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> str | None:
         """
         Send query to Gemini and get response.
 
@@ -560,7 +560,7 @@ class GeminiBridgeNew:
             print(f"[gemini_bridge] Health check failed: {e}")
             return False
 
-    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> Optional[str]:
+    def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> str | None:
         """Send query - same interface as GeminiBridgeRemote"""
         if not self.driver:
             if not self.connect():
@@ -628,7 +628,7 @@ class GeminiBridgeNew:
 
 
 # Convenience functions
-def query_active_session(payload_json: Dict[str, Any]) -> Optional[str]:
+def query_active_session(payload_json: dict[str, Any]) -> str | None:
     """
     Connect to already-open Brave and query Gemini.
 
@@ -660,7 +660,7 @@ Task: Provide an architectural strategy for the local Analyst.
         return None
 
 
-def query_new_session(prompt: str) -> Optional[str]:
+def query_new_session(prompt: str) -> str | None:
     """Fallback: Launch new Brave and query"""
     try:
         with GeminiBridgeNew(headless=True) as bridge:
@@ -670,7 +670,7 @@ def query_new_session(prompt: str) -> Optional[str]:
         return None
 
 
-def query_gemini_architect(payload_json: Dict[str, Any]) -> Optional[str]:
+def query_gemini_architect(payload_json: dict[str, Any]) -> str | None:
     """
     Query Gemini as Senior Architect.
 

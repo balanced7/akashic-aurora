@@ -37,7 +37,7 @@ TOKEN_BUDGET = 0.40  # textual learning rate (design decision 1, locked)
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
 
-def _tokens(text: str) -> List[str]:
+def _tokens(text: str) -> list[str]:
     return _TOKEN_RE.findall(str(text or "").lower())
 
 
@@ -45,7 +45,7 @@ def _would_surface(rel: float, floor: float) -> bool:
     return rel > floor  # mirrors _lessons' strict `<= min_relevance -> skip`
 
 
-def _variant_item(incumbent: Dict[str, Any], new_recommendation: str) -> Dict[str, Any]:
+def _variant_item(incumbent: dict[str, Any], new_recommendation: str) -> dict[str, Any]:
     """The incumbent's projection with ONLY the text/trigger swapped. Mined trigger_terms
     stay -- they are keyed to the SOURCE's credit history, not to the old wording -- and
     provenance fields are carried untouched (an edit may never upgrade success/agent_id)."""
@@ -57,7 +57,7 @@ def _variant_item(incumbent: Dict[str, Any], new_recommendation: str) -> Dict[st
     return v
 
 
-def _relevance_fn(items: List[Dict[str, Any]]):
+def _relevance_fn(items: list[dict[str, Any]]):
     from core.recall.at_action import _trigger_aware_relevance
 
     by_text = {str(it.get("text") or ""): it for it in items}
@@ -83,16 +83,16 @@ def gate_edit(
     experiment_name: str,
     new_recommendation: str,
     *,
-    learning_store: Optional[Any] = None,
-    events: Optional[List[Dict[str, Any]]] = None,
-    injections: Optional[List[Dict[str, Any]]] = None,
-    min_relevance: Optional[float] = None,
-) -> Dict[str, Any]:
+    learning_store: Any | None = None,
+    events: list[dict[str, Any]] | None = None,
+    injections: list[dict[str, Any]] | None = None,
+    min_relevance: float | None = None,
+) -> dict[str, Any]:
     """Adjudicate replacing `experiment_name`'s recommendation with `new_recommendation`.
     Returns the full verdict report; never raises (errors -> FAIL with reason). Stamps the
     rejected-edit buffer on FAIL (durable negative feedback -- advisory prints evaporate)."""
     source = f"learn:experiment:{experiment_name}"
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "experiment": experiment_name,
         "source": source,
         "verdict": "FAIL",
@@ -217,7 +217,7 @@ def gate_edit(
             )
 
         inc_hits = var_hits = 0
-        inc_hit_targets: List[str] = []
+        inc_hit_targets: list[str] = []
         for tgt in noise:
             q = _context_query(tgt)
             if not q:
@@ -316,9 +316,7 @@ def gate_edit(
     return report
 
 
-def _stamp_rejected(
-    experiment_name: str, draft: str, reasons: List[str], *, learning_store: Optional[Any] = None
-) -> bool:
+def _stamp_rejected(experiment_name: str, draft: str, reasons: list[str], *, learning_store: Any | None = None) -> bool:
     from core.learning.learning_store import get_learning_store
 
     ls = learning_store or get_learning_store()
@@ -326,7 +324,7 @@ def _stamp_rejected(
 
 
 def apply_edit(
-    experiment_name: str, new_recommendation: str, gate_report: Dict[str, Any], *, learning_store: Optional[Any] = None
+    experiment_name: str, new_recommendation: str, gate_report: dict[str, Any], *, learning_store: Any | None = None
 ) -> bool:
     """HUMAN-GATED apply (trust ladder): only ever called after a PASS the operator has seen.
     Reversible by construction -- the incumbent text is retained on the record."""
@@ -335,7 +333,7 @@ def apply_edit(
     from core.learning.learning_store import get_learning_store
 
     ls = learning_store or get_learning_store()
-    baseline: Dict[str, Any] = {}
+    baseline: dict[str, Any] = {}
     try:  # counters snapshot for the F4 watch -- best-effort (an empty baseline just
         # means the watch falls back to its noise/age triggers)
         from core.recall.at_action import _load_use, _store

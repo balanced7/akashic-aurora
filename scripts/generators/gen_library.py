@@ -21,7 +21,7 @@ import argparse
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Optional
 
@@ -63,7 +63,7 @@ _RE_SUPERSEDED = re.compile(r"(?:superseded by|superseded-by)\s*:?\s*(.+)", re.I
 _RE_HEADING = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 
 
-def _safe_read(path: Path) -> Optional[str]:
+def _safe_read(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")[:8000]
     except Exception:
@@ -217,12 +217,12 @@ def build_census(entries):
 
 
 def render_shelves(by_type):
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# SHELVES — per-type census (auto-generated)",
         "",
         "Status: current  ",
-        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(UTC).strftime('%Y-%m-%d')}",
         "",
         f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "",
@@ -397,12 +397,12 @@ def _build_arc_census(entries):
 
 
 def render_arcs(by_arc):
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# ARCS — per-arc index (auto-generated)",
         "",
         "Status: current  ",
-        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(UTC).strftime('%Y-%m-%d')}",
         "",
         f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "",
@@ -553,7 +553,7 @@ def main(argv=None) -> int:
         return 0
 
     entries = _atoms_as_entries() if args.from_store else walk_docs()
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     # 1) SHELVES.md (type census)
     if not args.readmes:

@@ -37,7 +37,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 #: How stale the draft may get before a turn boundary refreshes it. Ten minutes bounds
 #: what an ungraceful death can destroy, while leaving the overwhelming majority of turns
@@ -65,8 +66,8 @@ def max_age_s() -> float:
 def should_refresh(
     path: str,
     *,
-    now: Optional[float] = None,
-    max_age: Optional[float] = None,
+    now: float | None = None,
+    max_age: float | None = None,
     getmtime: Callable[[str], float] = os.path.getmtime,
     exists: Callable[[str], bool] = os.path.isfile,
 ) -> bool:
@@ -93,8 +94,8 @@ def should_refresh(
 
 
 def refresh(
-    path: str, *, write: Callable[[], Any], now: Optional[float] = None, max_age: Optional[float] = None, **probe
-) -> Dict[str, Any]:
+    path: str, *, write: Callable[[], Any], now: float | None = None, max_age: float | None = None, **probe
+) -> dict[str, Any]:
     """Refresh the draft if it is stale. NEVER RAISES.
 
     `write` is the caller's zero-arg draft writer (in production, the same

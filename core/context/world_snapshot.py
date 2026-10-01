@@ -20,9 +20,10 @@ import argparse
 import copy
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 from core.primitives.epistemic import derive_epistemic_view
 
@@ -49,7 +50,7 @@ _TASK_STATUS_VOCABULARY = frozenset(
 
 
 def _utc_now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
 
 def _text(value: Any) -> str:
@@ -98,9 +99,9 @@ def _bounded_text(value: Any, limit: int = 240) -> tuple[str, int, bool]:
     return text[: limit - 1].rstrip() + "…", full_chars, True
 
 
-def _bounded_text_list(values: Any, *, item_limit: int = 8, text_limit: int = 160) -> tuple[List[str], int, bool]:
+def _bounded_text_list(values: Any, *, item_limit: int = 8, text_limit: int = 160) -> tuple[list[str], int, bool]:
     if isinstance(values, (str, bytes)) or values is None:
-        raw: List[Any] = [] if values is None else [values]
+        raw: list[Any] = [] if values is None else [values]
     else:
         try:
             raw = list(values)
@@ -111,7 +112,7 @@ def _bounded_text_list(values: Any, *, item_limit: int = 8, text_limit: int = 16
     return bounded, len(raw), was_truncated
 
 
-def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> Dict[str, Any]:
+def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> dict[str, Any]:
     source = _json_clone(raw)
     required = ("name", "plane", "authority", "revision")
     missing = [field for field in required if not _text(source.get(field))]
@@ -131,7 +132,7 @@ def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> Dict[
     return normalized
 
 
-def _normalize_capability(name: str, raw: Any) -> Dict[str, Any]:
+def _normalize_capability(name: str, raw: Any) -> dict[str, Any]:
     capability = _json_clone(raw) if isinstance(raw, Mapping) else {}
     state = _text(capability.get("state")).upper()
     if state == "SUPPORTED":
@@ -156,7 +157,7 @@ def _normalize_capability(name: str, raw: Any) -> Dict[str, Any]:
     }
 
 
-def _normalize_item(raw: Mapping[str, Any], known_sources: set[str]) -> Dict[str, Any]:
+def _normalize_item(raw: Mapping[str, Any], known_sources: set[str]) -> dict[str, Any]:
     item = _json_clone(raw)
     organ = _text(item.get("organ"))
     if not organ:
@@ -218,10 +219,10 @@ def assemble_world_snapshot(
     sources: Sequence[Mapping[str, Any]],
     items: Sequence[Mapping[str, Any]],
     capabilities: Mapping[str, Any],
-    generated_at: Optional[str] = None,
+    generated_at: str | None = None,
     max_items: int = 64,
     projection_label: str = "source projection",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Assemble one deterministic, bounded read model from named observations.
 
     The caller owns all reads.  This function performs no I/O and mutates none
@@ -267,7 +268,7 @@ def assemble_world_snapshot(
             for source in normalized_sources
         ],
     }
-    snapshot: Dict[str, Any] = {
+    snapshot: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "projection_version": PROJECTION_VERSION,
         "snapshot_id": _hash_id("ws_", source_state),
@@ -334,7 +335,7 @@ def _task_attention(status: str) -> str:
     }.get(status, "ATTENTION")
 
 
-def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> Dict[str, Any]:
+def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> dict[str, Any]:
     if status == "blocked":
         risk = {"value": "blocked", "basis": ["field:task.status=blocked"]}
     elif status not in _TASK_STATUS_VOCABULARY:
@@ -360,7 +361,7 @@ def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> Dic
     }
 
 
-def _uncheckable(blocked_by: str, reason: str) -> Dict[str, str]:
+def _uncheckable(blocked_by: str, reason: str) -> dict[str, str]:
     return {"state": "UNCHECKABLE", "blocked_by": blocked_by, "reason": reason}
 
 
@@ -383,7 +384,7 @@ def _read_arcs_register(path: Any, client: Any = None) -> Mapping[str, Any]:
     return data
 
 
-def _arc_membership_capability(register: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+def _arc_membership_capability(register: Mapping[str, Any] | None) -> dict[str, Any]:
     """Capability over the A1-A15 arc register.
 
     SUPPORTED only when the register parses AND names at least one arc, with a
@@ -420,8 +421,8 @@ def _program_capabilities(
     ledger_supported: bool,
     ledger_basis: str = "",
     ledger_error: str = "",
-    arcs_register: Optional[Mapping[str, Any]] = None,
-) -> Dict[str, Any]:
+    arcs_register: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if ledger_supported:
         task_state = {"state": "SUPPORTED", "basis": [ledger_basis]}
         attention = {
@@ -461,14 +462,14 @@ def _program_capabilities(
 def build_program_world_snapshot(
     *,
     subject: str = "akashic-aurora-program",
-    ledger_path: Optional[str] = None,
-    ledger_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
-    arcs_register_path: Optional[str] = None,
-    arcs_register_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
-    checked_at: Optional[str] = None,
-    generated_at: Optional[str] = None,
+    ledger_path: str | None = None,
+    ledger_reader: Callable[..., Mapping[str, Any]] | None = None,
+    arcs_register_path: str | None = None,
+    arcs_register_reader: Callable[..., Mapping[str, Any]] | None = None,
+    checked_at: str | None = None,
+    generated_at: str | None = None,
     max_items: int = 64,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Read the git-durable task ledger and build the first live projection.
 
     Redis is explicitly disabled for this authority read.  Unwired organs are
@@ -482,13 +483,13 @@ def build_program_world_snapshot(
     reader = ledger_reader or _read_task_ledger_file
     arcs_path = arcs_register_path or str(_ARCS_REGISTER_PATH)
     arcs_reader = arcs_register_reader or _read_arcs_register
-    sources: List[Dict[str, Any]] = []
-    items: List[Dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     ledger_supported = False
     ledger_basis = ""
     ledger_error = ""
-    ledger: Optional[Mapping[str, Any]] = None
-    arcs_register: Optional[Mapping[str, Any]] = None
+    ledger: Mapping[str, Any] | None = None
+    arcs_register: Mapping[str, Any] | None = None
     try:
         candidate = _json_clone(reader(path, client=None))
         if not isinstance(candidate, Mapping) or not isinstance(candidate.get("tasks", []), list):
@@ -568,7 +569,7 @@ def build_program_world_snapshot(
     )
 
 
-def project_operational_brief(snapshot: Mapping[str, Any], *, max_items: int = 8) -> Dict[str, Any]:
+def project_operational_brief(snapshot: Mapping[str, Any], *, max_items: int = 8) -> dict[str, Any]:
     """Project a compact operational orientation packet from one snapshot.
 
     This deliberately is *not* an identity or relationship-continuity capsule.
@@ -584,7 +585,7 @@ def project_operational_brief(snapshot: Mapping[str, Any], *, max_items: int = 8
     focus = rows[:max_items]
     source_refs = sorted({ref for item in focus for ref in item.get("source_refs", []) if _text(ref)})
     sources = [_json_clone(source) for source in snapshot.get("sources", []) if source.get("name") in source_refs]
-    brief: Dict[str, Any] = {
+    brief: dict[str, Any] = {
         "schema_version": BRIEF_SCHEMA_VERSION,
         "purpose": "operational_orientation",
         "identity_authority": "none",
@@ -609,7 +610,7 @@ def project_operational_brief(snapshot: Mapping[str, Any], *, max_items: int = 8
     return brief
 
 
-def main(argv: Optional[Iterable[str]] = None) -> int:
+def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Read-only WorldSnapshot SUBJECT / ATTENTION projection")
     parser.add_argument("--subject", default="akashic-aurora-program")
     parser.add_argument("--ledger-path", default=None)

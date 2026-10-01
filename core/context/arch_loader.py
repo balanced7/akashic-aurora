@@ -37,15 +37,15 @@ def _repo_docs_dir() -> str:
     )  # depth: core/context/ (T104-M3 move, class-6 fix)
 
 
-def _parse_sections(md_path: str) -> List[Dict[str, str]]:
+def _parse_sections(md_path: str) -> list[dict[str, str]]:
     """Split an architecture markdown into its H2 sections: {heading, body, path}. Fail-soft -> []."""
-    out: List[Dict[str, str]] = []
+    out: list[dict[str, str]] = []
     try:
         with open(md_path, encoding="utf-8") as f:
             lines = f.readlines()
     except Exception:
         return out
-    cur: Optional[Dict[str, str]] = None
+    cur: dict[str, str] | None = None
     for ln in lines:
         m = _HEADING_RE.match(ln.rstrip("\n"))
         if m:
@@ -67,9 +67,9 @@ def load_arch_slice(
     *,
     top_k: int = 3,
     min_relevance: float = 0.2,
-    now: Optional[float] = None,
-    docs_dir: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    now: float | None = None,
+    docs_dir: str | None = None,
+) -> list[dict[str, Any]]:
     """The few architecture subsystems most relevant to `task`, each with its code path.
 
     Returns a small list of {heading, path, source}, best-first. Empty task, no parseable sections, or
@@ -93,7 +93,7 @@ def load_arch_slice(
         {"text": s["heading"] + "\n" + s["body"], "importance": 3, "heading": s["heading"], "path": s["path"]}
         for s in subsystems
     ]
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for sc in Ranker().rank(items, query=task, now=now):
         if sc.components.get("relevance", 0.0) < min_relevance:
             continue  # show-nothing floor: the section must actually match THIS task

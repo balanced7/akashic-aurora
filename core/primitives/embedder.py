@@ -27,7 +27,8 @@ import hashlib
 import json
 import logging
 import os
-from typing import List, Optional, Sequence
+from typing import List, Optional
+from collections.abc import Sequence
 
 from core.foundation.store import Store, create_store
 from core.primitives.ranker import keyword_relevance
@@ -44,13 +45,13 @@ def _hash(text: str) -> str:
 class Embedder:
     """Text -> vector, with a Store cache and a keyword fallback. Never raises into callers."""
 
-    def __init__(self, model_name: Optional[str] = None, store: Optional[Store] = None, *, cache: bool = True):
+    def __init__(self, model_name: str | None = None, store: Store | None = None, *, cache: bool = True):
         self.model_name = model_name or os.getenv("EMBED_MODEL", DEFAULT_MODEL)
         self.store = store if store is not None else (create_store() if cache else None)
         self._tag = self.model_name.split("/")[-1]
         self._model = None
         self._tried = False  # have we attempted to load the model?
-        self._available: Optional[bool] = None
+        self._available: bool | None = None
         self._mem: dict = {}  # in-process cache: hash -> vector
 
     # ------------------------------------------------------------------ model
@@ -86,15 +87,15 @@ class Embedder:
             self._available = False
 
     # ------------------------------------------------------------------ embed
-    def embed(self, text: str) -> Optional[List[float]]:
+    def embed(self, text: str) -> list[float] | None:
         """One text -> a unit vector (list of floats), or None if the model is unavailable."""
         return self.embed_many([text])[0]
 
-    def embed_many(self, texts: Sequence[str]) -> List[Optional[List[float]]]:
+    def embed_many(self, texts: Sequence[str]) -> list[list[float] | None]:
         """Batch embed. Cache hits avoid the model entirely; only the misses are encoded
         (in one batch) and then cached. Returns a vector (or None on fallback) per input."""
         texts = [str(t or "") for t in texts]
-        out: List[Optional[List[float]]] = [None] * len(texts)
+        out: list[list[float] | None] = [None] * len(texts)
         misses = []  # (index, text, hash)
         for i, t in enumerate(texts):
             h = _hash(t)
@@ -118,7 +119,7 @@ class Embedder:
                 logger.warning(f"encode failed ({type(e).__name__}: {e}); leaving as fallback")
         return out
 
-    def _encode(self, texts: List[str]) -> List[List[float]]:
+    def _encode(self, texts: list[str]) -> list[list[float]]:
         arr = self._model.encode(texts, normalize_embeddings=True)
         return [[float(x) for x in row] for row in arr]
 
@@ -145,7 +146,7 @@ class Embedder:
     def _cache_key(self, h: str) -> str:
         return f"embed:{self._tag}:{h}"
 
-    def _cache_get(self, h: str) -> Optional[List[float]]:
+    def _cache_get(self, h: str) -> list[float] | None:
         if self.store is None:
             return None
         try:
@@ -154,7 +155,7 @@ class Embedder:
         except Exception:
             return None
 
-    def _cache_put(self, h: str, vec: List[float]) -> None:
+    def _cache_put(self, h: str, vec: list[float]) -> None:
         if self.store is None:
             return
         try:
@@ -163,10 +164,10 @@ class Embedder:
             pass
 
 
-_INSTANCE: Optional[Embedder] = None
+_INSTANCE: Embedder | None = None
 
 
-def get_embedder(store: Optional[Store] = None) -> Embedder:
+def get_embedder(store: Store | None = None) -> Embedder:
     """Module singleton (lazy). Pass `store` for an isolated Embedder (tests/trial)."""
     global _INSTANCE
     if store is not None:

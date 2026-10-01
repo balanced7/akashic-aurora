@@ -24,7 +24,8 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
+from collections.abc import Iterable, Iterator, Sequence
 
 SCHEMA = "present.scene.v1"
 
@@ -107,14 +108,14 @@ VERDICTS = ("left", "right", "none")
 
 
 # ---------------------------------------------------------------- templates: regions in logical units
-def _r(name: str, left: int, top: int, width: int, height: int, *accepts: str) -> Dict[str, Any]:
+def _r(name: str, left: int, top: int, width: int, height: int, *accepts: str) -> dict[str, Any]:
     return {"name": name, "left": left, "top": top, "width": width, "height": height, "accepts": accepts}
 
 
 _NOTE = _r("note", 0, 0, 0, 0, "note")  # takes no space on any target
 _FOOTER = _r("footer", 128, 982, 1664, 34, "receipt")  # layout.md: one 24px row at bottom:64
 
-TEMPLATES: Dict[str, Dict[str, Any]] = {
+TEMPLATES: dict[str, dict[str, Any]] = {
     "cover": {
         "background": "dark",
         "regions": [_r("stack", 128, 128, 1664, 824, "label", "headline", "statement"), _FOOTER, _NOTE],
@@ -227,7 +228,7 @@ def load(path) -> dict:
         raise ValueError(f"{p}: not valid JSON ({e.msg} at line {e.lineno} column {e.colno})") from None
 
 
-def validate(scene: Any) -> List[str]:
+def validate(scene: Any) -> list[str]:
     """Refusals, in words a person can act on. An empty list means the scene is renderable.
 
     Refusal codes: E01 unknown template / kind / role / tone / mark; E02 region not in the
@@ -238,7 +239,7 @@ def validate(scene: Any) -> List[str]:
     (edge or bus to an unknown node, lane or label reference to an unknown id, malformed path);
     E08 table shape (shares, ragged rows); E09 nesting a kind a group or comparison cannot hold.
     """
-    problems: List[str] = []
+    problems: list[str] = []
     if not isinstance(scene, dict):
         return ["deck: E01 the scene is not a JSON object"]
     if scene.get("schema") != SCHEMA:
@@ -253,7 +254,7 @@ def validate(scene: Any) -> List[str]:
         problems.append("deck: E06 slides must be a non-empty list")
         return problems
 
-    ids: List[str] = []
+    ids: list[str] = []
     for i, slide in enumerate(slides):
         if not isinstance(slide, dict):
             problems.append(f"deck: E01 slide #{i + 1} is not an object")
@@ -304,7 +305,7 @@ def validate(scene: Any) -> List[str]:
     return problems
 
 
-def lint(scene: Any) -> List[str]:
+def lint(scene: Any) -> list[str]:
     """Warnings (never refusals): craft limits a renderer can still render past.
 
     W01 diagram headline over 38 characters; W02 label over 40 or receipt over 110 characters;
@@ -314,7 +315,7 @@ def lint(scene: Any) -> List[str]:
     (receipts belong in the footer); W08 a table wider than 4 columns; W09 a slide with
     no receipt on a template that has a footer.
     """
-    out: List[str] = []
+    out: list[str] = []
     if not isinstance(scene, dict):
         return out
     for slide in scene.get("slides") or []:
@@ -372,9 +373,9 @@ def lint(scene: Any) -> List[str]:
     return out
 
 
-def used_kinds(scene: Any) -> Set[str]:
+def used_kinds(scene: Any) -> set[str]:
     """Every atom kind the deck uses, nested ones included (what a target must cover)."""
-    kinds: Set[str] = set()
+    kinds: set[str] = set()
     for slide in (scene.get("slides") or []) if isinstance(scene, dict) else []:
         for atom in iter_atoms(slide):
             if isinstance(atom.get("kind"), str):
@@ -382,13 +383,13 @@ def used_kinds(scene: Any) -> Set[str]:
     return kinds
 
 
-def coverage(scene: Any, manifest: Any) -> List[str]:
+def coverage(scene: Any, manifest: Any) -> list[str]:
     """Invariant I6: a render target must say, per atom kind the deck uses, what it preserves,
     how it degrades, or what it drops; naming none of the three is refused at plan time (unknown
     is not a yes). `manifest` is an arsenal.module/v0 dict with an `atoms` table
     {kind: {preserves?, degrades?, drops?}}, each a non-empty sentence.
     """
-    problems: List[str] = []
+    problems: list[str] = []
     if not isinstance(manifest, dict):
         return ["target: the manifest is not an object"]
     target = manifest.get("id", "?")
@@ -424,8 +425,8 @@ def iter_atoms(slide: Any) -> Iterator[dict]:
 
 
 # ================================================================ internals
-def _check_tokens(tokens: Any) -> List[str]:
-    out: List[str] = []
+def _check_tokens(tokens: Any) -> list[str]:
+    out: list[str] = []
     if tokens is None:
         return out
     if not isinstance(tokens, dict):
@@ -451,9 +452,9 @@ def _check_tokens(tokens: Any) -> List[str]:
     return out
 
 
-def _check_template_overrides(overrides: Any) -> List[str]:
+def _check_template_overrides(overrides: Any) -> list[str]:
     """A deck may override REGION GEOMETRY of a family template, never its accepts."""
-    out: List[str] = []
+    out: list[str] = []
     if overrides is None:
         return out
     if not isinstance(overrides, dict):
@@ -476,12 +477,12 @@ def _check_template_overrides(overrides: Any) -> List[str]:
     return out
 
 
-def _regions(template: str) -> Dict[str, Dict[str, Any]]:
+def _regions(template: str) -> dict[str, dict[str, Any]]:
     return {r["name"]: r for r in TEMPLATES[template]["regions"]}
 
 
-def _slide_ids(slide: dict) -> List[str]:
-    ids: List[str] = []
+def _slide_ids(slide: dict) -> list[str]:
+    ids: list[str] = []
     for atom in iter_atoms(slide):
         if isinstance(atom.get("id"), str):
             ids.append(atom["id"])
@@ -493,8 +494,8 @@ def _slide_ids(slide: dict) -> List[str]:
     return ids
 
 
-def _check_slide(slide: dict, sid: str) -> List[str]:
-    out: List[str] = []
+def _check_slide(slide: dict, sid: str) -> list[str]:
+    out: list[str] = []
     pre = f"slide {sid}"
     tpl = slide.get("template")
     if tpl not in TEMPLATES:
@@ -522,8 +523,8 @@ def _check_slide(slide: dict, sid: str) -> List[str]:
         out.append(f"{pre}: E05 atoms must be a non-empty list (at least a note)")
         return out
     regions = _regions(tpl)
-    seen_ids: Set[str] = set()
-    notes: List[int] = []
+    seen_ids: set[str] = set()
+    notes: list[int] = []
     for i, atom in enumerate(atoms):
         where = f"{pre}: atom #{i + 1}"
         if not isinstance(atom, dict):
@@ -569,8 +570,8 @@ def _check_slide(slide: dict, sid: str) -> List[str]:
     return out
 
 
-def _atom_ids(atom: dict) -> List[str]:
-    ids: List[str] = []
+def _atom_ids(atom: dict) -> list[str]:
+    ids: list[str] = []
     if isinstance(atom.get("id"), str):
         ids.append(atom["id"])
     if atom.get("kind") == "diagram":
@@ -591,10 +592,10 @@ def _atom_ids(atom: dict) -> List[str]:
     return ids
 
 
-def _check_units(value: Any, where: str, top: bool = False, path: str = "", in_code: bool = False) -> List[str]:
+def _check_units(value: Any, where: str, top: bool = False, path: str = "", in_code: bool = False) -> list[str]:
     """E03: no target unit in any string, no renderer key anywhere. Code lines are exempt:
     they quote source verbatim, and a quoted stylesheet is content, not layout."""
-    out: List[str] = []
+    out: list[str] = []
     if isinstance(value, dict):
         kind = value.get("kind") if top else None
         for key, v in value.items():
@@ -619,8 +620,8 @@ def _check_units(value: Any, where: str, top: bool = False, path: str = "", in_c
     return out
 
 
-def _check_runs(runs: Any, where: str, field: str) -> List[str]:
-    out: List[str] = []
+def _check_runs(runs: Any, where: str, field: str) -> list[str]:
+    out: list[str] = []
     if isinstance(runs, str):
         return out  # sugar: one plain run
     if not isinstance(runs, list) or not runs:
@@ -637,7 +638,7 @@ def _check_runs(runs: Any, where: str, field: str) -> List[str]:
     return out
 
 
-def _check_tone(atom: dict, where: str, field: str = "tone") -> List[str]:
+def _check_tone(atom: dict, where: str, field: str = "tone") -> list[str]:
     tone = atom.get(field)
     if tone is not None and tone not in TOKEN_ROLES["tone"]:
         return [
@@ -646,7 +647,7 @@ def _check_tone(atom: dict, where: str, field: str = "tone") -> List[str]:
     return []
 
 
-def _need_str(atom: dict, where: str, *fields: str) -> List[str]:
+def _need_str(atom: dict, where: str, *fields: str) -> list[str]:
     return [
         f"{where}: E01 needs {f!r} as a non-empty string"
         for f in fields
@@ -654,9 +655,9 @@ def _need_str(atom: dict, where: str, *fields: str) -> List[str]:
     ]
 
 
-def _check_fields(atom: dict, where: str, nested: bool) -> List[str]:
+def _check_fields(atom: dict, where: str, nested: bool) -> list[str]:
     kind = atom["kind"]
-    out: List[str] = []
+    out: list[str] = []
     if nested and kind not in NESTED_KINDS:
         return [f"{where}: E09 {kind!r} cannot be nested; a group or a comparison side holds {', '.join(NESTED_KINDS)}"]
     if kind == "headline":
@@ -756,8 +757,8 @@ def _check_fields(atom: dict, where: str, nested: bool) -> List[str]:
     return out
 
 
-def _check_table(atom: dict, where: str) -> List[str]:
-    out: List[str] = []
+def _check_table(atom: dict, where: str) -> list[str]:
+    out: list[str] = []
     cols = atom.get("columns")
     if not isinstance(cols, list) or not cols:
         return [f"{where}: E08 table needs columns: [{{title, share}}]"]
@@ -792,8 +793,8 @@ def _check_table(atom: dict, where: str) -> List[str]:
     return out
 
 
-def _check_bars(atom: dict, where: str) -> List[str]:
-    out: List[str] = []
+def _check_bars(atom: dict, where: str) -> list[str]:
+    out: list[str] = []
     series = atom.get("series")
     if not isinstance(series, list) or not series:
         return [f"{where}: E01 bars needs series: [{{label, value, caption?, tone?}}]"]
@@ -828,8 +829,8 @@ def _inside(x: Any, y: Any, w: Any = 0, h: Any = 0) -> bool:
     )
 
 
-def _check_diagram(atom: dict, where: str) -> List[str]:
-    out: List[str] = []
+def _check_diagram(atom: dict, where: str) -> list[str]:
+    out: list[str] = []
     for key in atom:
         if key in _PICTURE_KEYS:
             out.append(
@@ -845,7 +846,7 @@ def _check_diagram(atom: dict, where: str) -> List[str]:
             f"{where}: E04 diagram draws nothing (no nodes, no paths); a picture pasted in its place is refused, draw the geometry"
         )
         return out
-    lane_ids: Set[str] = set()
+    lane_ids: set[str] = set()
     for i, lane in enumerate(atom.get("lanes") or []):
         if not isinstance(lane, dict) or not isinstance(lane.get("id"), str):
             out.append(f"{where}: E07 lanes[{i}] needs an id")
@@ -856,7 +857,7 @@ def _check_diagram(atom: dict, where: str) -> List[str]:
                 f"{where}: E03 lane {lane['id']!r} (y {lane.get('y')!r}, h {lane.get('h')!r}) is outside the 1664x700 host"
             )
         out += _check_tone(lane, where)
-    node_ids: Set[str] = set()
+    node_ids: set[str] = set()
     for i, n in enumerate(nodes):
         if not isinstance(n, dict) or not isinstance(n.get("id"), str):
             out.append(f"{where}: E07 nodes[{i}] needs an id")

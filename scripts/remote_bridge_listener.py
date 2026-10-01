@@ -75,7 +75,7 @@ MAX_BODY_BYTES = 256 * 1024
 
 #: The ONE refusal the wire ever sees. Names no policy, no peer, no mechanism — see the module
 #: docstring on why this is not a violation of errors-that-teach but an application of it.
-FLAT_REFUSAL: Dict[str, str] = {"status": "refused"}
+FLAT_REFUSAL: dict[str, str] = {"status": "refused"}
 
 _ACCEPTED = {"status": "accepted"}
 
@@ -168,7 +168,7 @@ def bind_banner(host: Any) -> str:
     return f"[UNKNOWN] {host} could not be classified"
 
 
-def bind_allowed(host: Any, *, allow_public: bool) -> Tuple[bool, str]:
+def bind_allowed(host: Any, *, allow_public: bool) -> tuple[bool, str]:
     """May we bind here? NEVER RAISES.
 
     Loopback and private-network addresses are permitted outright; only a genuinely public
@@ -206,9 +206,9 @@ def handle_request(
     path: str,
     body: bytes,
     *,
-    secret: Optional[bytes] = None,
+    secret: bytes | None = None,
     peer: str = "",
-) -> Tuple[int, Dict[str, Any], str]:
+) -> tuple[int, dict[str, Any], str]:
     """The whole door as a PURE FUNCTION: (status, wire_body, log_line). NEVER RAISES.
 
     Pure so the pins run with no port, no thread and no network. A listener whose tests need a
@@ -240,8 +240,8 @@ def handle_request(
 
 
 def handle_blob(
-    method: str, path: str, body: bytes, *, secret: Optional[bytes] = None, blobs: Any = None
-) -> Tuple[int, Any, str]:
+    method: str, path: str, body: bytes, *, secret: bytes | None = None, blobs: Any = None
+) -> tuple[int, Any, str]:
     """The blob door: a SIGNED request naming a ref, answered with bytes. NEVER RAISES.
 
     Same auth as /xfer -- signed envelope, replay window, flat refusal -- because a second
@@ -296,7 +296,7 @@ class _Handler(BaseHTTPRequestHandler):
     server_version = "akashic-bridge/1.0"
     peer_name = ""
 
-    def _respond(self, status: int, payload: Dict[str, Any], log: str) -> None:
+    def _respond(self, status: int, payload: dict[str, Any], log: str) -> None:
         raw = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")

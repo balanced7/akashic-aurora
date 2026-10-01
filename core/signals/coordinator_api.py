@@ -115,7 +115,7 @@ class SignalEmitter:
         self.startup_decisions = []
         self.startup_learnings = []
 
-    def _emit_signal_causing_state_change(self, signal_type: SignalType, data: Dict[str, Any]) -> bool:
+    def _emit_signal_causing_state_change(self, signal_type: SignalType, data: dict[str, Any]) -> bool:
         """
         Internal method: emit signal that causes state changes.
 
@@ -155,7 +155,7 @@ class SignalEmitter:
             logging.error(f"Failed to emit signal: {e}")
             return False
 
-    def emit_action_triggering_work(self, action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def emit_action_triggering_work(self, action_name: str, details: dict[str, Any] | None = None) -> None:
         """
         Emit action signal triggering work in progress.
 
@@ -176,7 +176,7 @@ class SignalEmitter:
         self._emit_signal_causing_state_change(SignalType.ACTION, data)
 
     def emit_decision_referenced_by_agents(
-        self, decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
+        self, decision_name: str, outcome: str, reason: str | None = None, reasoning: str | None = None
     ) -> None:
         """
         Emit decision signal that future agents can reference.
@@ -204,8 +204,8 @@ class SignalEmitter:
         self,
         blocker_name: str,
         severity: str = "medium",
-        description: Optional[str] = None,
-        impact: Optional[str] = None,
+        description: str | None = None,
+        impact: str | None = None,
     ) -> None:
         """
         Emit blocker signal indicating obstacle preventing progress.
@@ -232,8 +232,8 @@ class SignalEmitter:
         self,
         target_agent: str,
         task: str,
-        context: Optional[Dict[str, Any]] = None,
-        blockers: Optional[List[str]] = None,
+        context: dict[str, Any] | None = None,
+        blockers: list[str] | None = None,
     ) -> None:
         """
         Emit handoff signal transferring work to another agent.
@@ -257,7 +257,7 @@ class SignalEmitter:
         self._emit_signal_causing_state_change(SignalType.HANDOFF, data)
 
     def emit_completion_signal_concluding_work(
-        self, success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None
+        self, success: bool, output: dict[str, Any] | None = None, learned: str | None = None
     ) -> None:
         """
         Emit completion signal concluding work.
@@ -286,10 +286,10 @@ class SignalEmitter:
         actual_outcome: str,
         category: str,
         success: str,
-        metrics: Optional[Dict[str, Any]] = None,
-        root_cause: Optional[str] = None,
-        recommendation: Optional[str] = None,
-        anti_pattern: Optional[str] = None,
+        metrics: dict[str, Any] | None = None,
+        root_cause: str | None = None,
+        recommendation: str | None = None,
+        anti_pattern: str | None = None,
         confidence: str = "medium",
     ) -> None:
         """
@@ -343,7 +343,7 @@ class SignalEmitter:
         except Exception as e:
             self.logger.warning(f"Could not index learning directly: {e}")
 
-    def load_context_derived_from_startup_sources(self) -> Optional[Dict[str, Any]]:
+    def load_context_derived_from_startup_sources(self) -> dict[str, Any] | None:
         """
         Load context derived from startup sources.
 
@@ -365,7 +365,7 @@ class SignalEmitter:
         """
         return self.startup_context
 
-    def load_briefing_from_previous_handoff(self) -> Optional[Dict[str, Any]]:
+    def load_briefing_from_previous_handoff(self) -> dict[str, Any] | None:
         """
         Load briefing from previous handoff.
 
@@ -375,7 +375,7 @@ class SignalEmitter:
         """
         return self.startup_briefing
 
-    def load_decisions_referenced_in_cache(self) -> List[Dict[str, Any]]:
+    def load_decisions_referenced_in_cache(self) -> list[dict[str, Any]]:
         """
         Load decisions cached for reference.
 
@@ -385,7 +385,7 @@ class SignalEmitter:
         """
         return self.startup_decisions or []
 
-    def load_learnings_applicable_to_task(self) -> List[Dict[str, Any]]:
+    def load_learnings_applicable_to_task(self) -> list[dict[str, Any]]:
         """
         Load learnings applicable to current task.
 
@@ -395,7 +395,7 @@ class SignalEmitter:
         """
         return self.startup_learnings or []
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get current session statistics"""
         return {
             "agent_id": self.agent_id,
@@ -409,7 +409,7 @@ class SignalEmitter:
     # ===== BOOTSTRAP API: Self-Describing System =====
     # These methods make the system discoverable without documentation
 
-    def get_bootstrap_info(self) -> Dict[str, Any]:
+    def get_bootstrap_info(self) -> dict[str, Any]:
         """
         Returns complete self-describing system information.
         Agents use this to discover what they can do, without reading documentation.
@@ -434,7 +434,7 @@ class SignalEmitter:
             },
         }
 
-    def get_context_summary(self) -> Dict[str, Any]:
+    def get_context_summary(self) -> dict[str, Any]:
         """
         Returns what context is available to this agent.
         Shows briefing, decisions, learnings, checkpoints without reading any files.
@@ -466,7 +466,7 @@ class SignalEmitter:
             },
         }
 
-    def get_method_example(self, method_name: str) -> Dict[str, Any]:
+    def get_method_example(self, method_name: str) -> dict[str, Any]:
         """Returns copy-paste code example for any method"""
         examples = {
             "action": {
@@ -566,7 +566,7 @@ class SignalEmitter:
         }
         return examples.get(method_name, {"error": f"Unknown method: {method_name}"})
 
-    def get_next_action_suggestion(self) -> Dict[str, Any]:
+    def get_next_action_suggestion(self) -> dict[str, Any]:
         """Suggests what agent should do next based on context"""
         context_size = len(self.startup_decisions or []) + len(self.startup_learnings or [])
 
@@ -591,7 +591,7 @@ class SignalEmitter:
 
     # ===== Helper methods for Bootstrap API =====
 
-    def _describe_signals(self) -> Dict[str, Dict[str, Any]]:
+    def _describe_signals(self) -> dict[str, dict[str, Any]]:
         """Describe all available signal types"""
         return {
             "DECISION": {
@@ -626,7 +626,7 @@ class SignalEmitter:
             },
         }
 
-    def _describe_context(self) -> Dict[str, Dict[str, Any]]:
+    def _describe_context(self) -> dict[str, dict[str, Any]]:
         """Describe what context is available"""
         return {
             "briefing": {
@@ -653,7 +653,7 @@ class SignalEmitter:
             },
         }
 
-    def _describe_methods(self) -> Dict[str, str]:
+    def _describe_methods(self) -> dict[str, str]:
         """Describe all available API methods"""
         return {
             "action": "Log an action you're performing",
@@ -672,7 +672,7 @@ class SignalEmitter:
             "get_method_example": "Get code example for any method",
         }
 
-    def _describe_capabilities(self) -> Dict[str, str]:
+    def _describe_capabilities(self) -> dict[str, str]:
         """Describe system capabilities"""
         return {
             "cross_agent_learning": "Decisions and learnings shared between agents",
@@ -723,12 +723,12 @@ api.completion(success=True, output={...})"""
     # These methods are deprecated. Use semantic names instead.
     # Kept for backward compatibility with existing code.
 
-    def action(self, action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def action(self, action_name: str, details: dict[str, Any] | None = None) -> None:
         """Deprecated: Use emit_action_triggering_work() instead"""
         self.emit_action_triggering_work(action_name, details)
 
     def decision(
-        self, decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
+        self, decision_name: str, outcome: str, reason: str | None = None, reasoning: str | None = None
     ) -> None:
         """Deprecated: Use emit_decision_referenced_by_agents() instead"""
         self.emit_decision_referenced_by_agents(decision_name, outcome, reason, reasoning)
@@ -737,8 +737,8 @@ api.completion(success=True, output={...})"""
         self,
         blocker_name: str,
         severity: str = "medium",
-        description: Optional[str] = None,
-        impact: Optional[str] = None,
+        description: str | None = None,
+        impact: str | None = None,
     ) -> None:
         """Deprecated: Use emit_blocker_preventing_progress() instead"""
         self.emit_blocker_preventing_progress(blocker_name, severity, description, impact)
@@ -747,13 +747,13 @@ api.completion(success=True, output={...})"""
         self,
         target_agent: str,
         task: str,
-        context: Optional[Dict[str, Any]] = None,
-        blockers: Optional[List[str]] = None,
+        context: dict[str, Any] | None = None,
+        blockers: list[str] | None = None,
     ) -> None:
         """Deprecated: Use emit_handoff_to_target_agent() instead"""
         self.emit_handoff_to_target_agent(target_agent, task, context, blockers)
 
-    def completion(self, success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None) -> None:
+    def completion(self, success: bool, output: dict[str, Any] | None = None, learned: str | None = None) -> None:
         """Deprecated: Use emit_completion_signal_concluding_work() instead"""
         self.emit_completion_signal_concluding_work(success, output, learned)
 
@@ -765,10 +765,10 @@ api.completion(success=True, output={...})"""
         actual_outcome: str,
         category: str,
         success: str,
-        metrics: Optional[Dict[str, Any]] = None,
-        root_cause: Optional[str] = None,
-        recommendation: Optional[str] = None,
-        anti_pattern: Optional[str] = None,
+        metrics: dict[str, Any] | None = None,
+        root_cause: str | None = None,
+        recommendation: str | None = None,
+        anti_pattern: str | None = None,
         confidence: str = "medium",
     ) -> None:
         """Deprecated: Use derive_learning_from_experiment() instead"""
@@ -786,19 +786,19 @@ api.completion(success=True, output={...})"""
             confidence,
         )
 
-    def get_startup_context(self) -> Optional[Dict[str, Any]]:
+    def get_startup_context(self) -> dict[str, Any] | None:
         """Deprecated: Use load_context_derived_from_startup_sources() instead"""
         return self.load_context_derived_from_startup_sources()
 
-    def get_startup_briefing(self) -> Optional[Dict[str, Any]]:
+    def get_startup_briefing(self) -> dict[str, Any] | None:
         """Deprecated: Use load_briefing_from_previous_handoff() instead"""
         return self.load_briefing_from_previous_handoff()
 
-    def get_startup_decisions(self) -> List[Dict[str, Any]]:
+    def get_startup_decisions(self) -> list[dict[str, Any]]:
         """Deprecated: Use load_decisions_referenced_in_cache() instead"""
         return self.load_decisions_referenced_in_cache()
 
-    def get_startup_learnings(self) -> List[Dict[str, Any]]:
+    def get_startup_learnings(self) -> list[dict[str, Any]]:
         """Deprecated: Use load_learnings_applicable_to_task() instead"""
         return self.load_learnings_applicable_to_task()
 
@@ -807,14 +807,14 @@ api.completion(success=True, output={...})"""
 CoordinatorAPI = SignalEmitter
 
 # Global instance for easy access
-_global_api: Optional[SignalEmitter] = None
+_global_api: SignalEmitter | None = None
 
 
 def initialize(
     agent_id: str,
     redis_host: str = DEFAULT_REDIS_HOST,
     redis_port: int = DEFAULT_REDIS_PORT,
-    task_keyword: Optional[str] = None,
+    task_keyword: str | None = None,
     load_context: bool = True,
 ) -> SignalEmitter:
     """
@@ -889,34 +889,34 @@ def get_api() -> SignalEmitter:
 # These use the global SignalEmitter instance for easy access
 
 
-def emit_action_triggering_work(action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
+def emit_action_triggering_work(action_name: str, details: dict[str, Any] | None = None) -> None:
     """Emit action signal (convenience function using global API)"""
     get_api().emit_action_triggering_work(action_name, details)
 
 
 def emit_decision_referenced_by_agents(
-    decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None
+    decision_name: str, outcome: str, reason: str | None = None, reasoning: str | None = None
 ) -> None:
     """Emit decision signal (convenience function using global API)"""
     get_api().emit_decision_referenced_by_agents(decision_name, outcome, reason, reasoning)
 
 
 def emit_blocker_preventing_progress(
-    blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None
+    blocker_name: str, severity: str = "medium", description: str | None = None, impact: str | None = None
 ) -> None:
     """Emit blocker signal (convenience function using global API)"""
     get_api().emit_blocker_preventing_progress(blocker_name, severity, description, impact)
 
 
 def emit_handoff_to_target_agent(
-    target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None
+    target_agent: str, task: str, context: dict[str, Any] | None = None, blockers: list[str] | None = None
 ) -> None:
     """Emit handoff signal (convenience function using global API)"""
     get_api().emit_handoff_to_target_agent(target_agent, task, context, blockers)
 
 
 def emit_completion_signal_concluding_work(
-    success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None
+    success: bool, output: dict[str, Any] | None = None, learned: str | None = None
 ) -> None:
     """Emit completion signal (convenience function using global API)"""
     get_api().emit_completion_signal_concluding_work(success, output, learned)
@@ -929,10 +929,10 @@ def derive_learning_from_experiment(
     actual_outcome: str,
     category: str,
     success: str,
-    metrics: Optional[Dict[str, Any]] = None,
-    root_cause: Optional[str] = None,
-    recommendation: Optional[str] = None,
-    anti_pattern: Optional[str] = None,
+    metrics: dict[str, Any] | None = None,
+    root_cause: str | None = None,
+    recommendation: str | None = None,
+    anti_pattern: str | None = None,
     confidence: str = "medium",
 ) -> None:
     """Derive and emit learning signal (convenience function using global API)"""
@@ -955,31 +955,31 @@ def derive_learning_from_experiment(
 # These are deprecated. Use semantic versions above instead.
 
 
-def action(action_name: str, details: Optional[Dict[str, Any]] = None) -> None:
+def action(action_name: str, details: dict[str, Any] | None = None) -> None:
     """Deprecated: Use emit_action_triggering_work() instead"""
     get_api().action(action_name, details)
 
 
-def decision(decision_name: str, outcome: str, reason: Optional[str] = None, reasoning: Optional[str] = None) -> None:
+def decision(decision_name: str, outcome: str, reason: str | None = None, reasoning: str | None = None) -> None:
     """Deprecated: Use emit_decision_referenced_by_agents() instead"""
     get_api().decision(decision_name, outcome, reason, reasoning)
 
 
 def blocker(
-    blocker_name: str, severity: str = "medium", description: Optional[str] = None, impact: Optional[str] = None
+    blocker_name: str, severity: str = "medium", description: str | None = None, impact: str | None = None
 ) -> None:
     """Deprecated: Use emit_blocker_preventing_progress() instead"""
     get_api().blocker(blocker_name, severity, description, impact)
 
 
 def request_handoff(
-    target_agent: str, task: str, context: Optional[Dict[str, Any]] = None, blockers: Optional[List[str]] = None
+    target_agent: str, task: str, context: dict[str, Any] | None = None, blockers: list[str] | None = None
 ) -> None:
     """Deprecated: Use emit_handoff_to_target_agent() instead"""
     get_api().request_handoff(target_agent, task, context, blockers)
 
 
-def completion(success: bool, output: Optional[Dict[str, Any]] = None, learned: Optional[str] = None) -> None:
+def completion(success: bool, output: dict[str, Any] | None = None, learned: str | None = None) -> None:
     """Deprecated: Use emit_completion_signal_concluding_work() instead"""
     get_api().completion(success, output, learned)
 
@@ -991,10 +991,10 @@ def learning(
     actual_outcome: str,
     category: str,
     success: str,
-    metrics: Optional[Dict[str, Any]] = None,
-    root_cause: Optional[str] = None,
-    recommendation: Optional[str] = None,
-    anti_pattern: Optional[str] = None,
+    metrics: dict[str, Any] | None = None,
+    root_cause: str | None = None,
+    recommendation: str | None = None,
+    anti_pattern: str | None = None,
     confidence: str = "medium",
 ) -> None:
     """Deprecated: Use derive_learning_from_experiment() instead"""

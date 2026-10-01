@@ -98,7 +98,7 @@ def _int_field(obj: dict, field: str, where: str, lo: int, hi: int, default: int
     return value
 
 
-def _text_field(obj: dict, field: str, where: str) -> Optional[str]:
+def _text_field(obj: dict, field: str, where: str) -> str | None:
     value = obj.get(field)
     if value is None:
         return None
@@ -109,7 +109,7 @@ def _text_field(obj: dict, field: str, where: str) -> Optional[str]:
     return value
 
 
-def _notes_field(obj: dict, where: str) -> List[int]:
+def _notes_field(obj: dict, where: str) -> list[int]:
     notes = obj.get("notes")
     if not isinstance(notes, list) or not notes:
         raise CueError(f"{where}notes must be a non-empty list of MIDI note numbers {NOTE_MIN}..{NOTE_MAX}")
@@ -234,15 +234,15 @@ class CueHub:
         replay_max_age_s: float = REPLAY_MAX_AGE_S,
         heartbeat_s: float = HEARTBEAT_S,
         clock=time.monotonic,
-        id_base: Optional[int] = None,
+        id_base: int | None = None,
     ):
         self.replay_max_age_s = replay_max_age_s
         self.heartbeat_s = heartbeat_s
         self._clock = clock
         self._lock = threading.Lock()
         self._ring: deque = deque(maxlen=ring)  # (id, monotonic time, frame bytes)
-        self._listeners: Dict[int, "queue.SimpleQueue"] = {}
-        self._meta: Dict[int, dict] = {}  # token -> {caps, page_id, since}: what each stream announced
+        self._listeners: dict[int, queue.SimpleQueue] = {}
+        self._meta: dict[int, dict] = {}  # token -> {caps, page_id, since}: what each stream announced
         self._next_token = 0
         self.id_base = int(time.time() * 1000) if id_base is None else int(id_base)
         self._last_id = self.id_base
@@ -253,7 +253,7 @@ class CueHub:
         """One event-stream frame: "id: N / event: <kind> / data: {id, <kind>: payload, sent_at}". A cue frame keeps
         exactly the bytes it always had."""
         data = json.dumps({"id": cue_id, kind: cue, "sent_at": sent_at}, separators=(",", ":"))
-        return f"id: {cue_id}\nevent: {kind}\ndata: {data}\n\n".encode("utf-8")
+        return f"id: {cue_id}\nevent: {kind}\ndata: {data}\n\n".encode()
 
     def publish(self, cue: dict) -> dict:
         return self.publish_event("cue", cue)
@@ -273,8 +273,8 @@ class CueHub:
             return {"id": cue_id, "listeners": len(self._listeners)}
 
     def subscribe(
-        self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
-    ) -> Tuple[int, "queue.SimpleQueue", List[bytes]]:
+        self, last_event_id: int | None = None, caps=(), page_id: str | None = None
+    ) -> tuple[int, queue.SimpleQueue, list[bytes]]:
         """Register a listener. Returns (token, queue, backlog): the backlog holds the replayed frames.
 
         Nothing is replayed without a Last-Event-ID (a freshly opened page must not play old cues). An id below this
@@ -285,8 +285,8 @@ class CueHub:
         return token, q, backlog
 
     def open_stream(
-        self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
-    ) -> Tuple[int, "queue.SimpleQueue", bytes]:
+        self, last_event_id: int | None = None, caps=(), page_id: str | None = None
+    ) -> tuple[int, queue.SimpleQueue, bytes]:
         """subscribe() for an event stream: returns (token, queue, preamble), the bytes to write before live frames.
 
         The preamble is "retry: 1000" with an "id:" line, then the replayed frames. The id is the cursor just before
@@ -296,11 +296,11 @@ class CueHub:
         token, q, backlog, cursor = self._subscribe(last_event_id, caps, page_id)
         return token, q, f"retry: 1000\nid: {cursor}\n\n".encode("ascii") + b"".join(backlog)
 
-    def _subscribe(self, last_event_id: Optional[int], caps=(), page_id: Optional[str] = None):
+    def _subscribe(self, last_event_id: int | None, caps=(), page_id: str | None = None):
         with self._lock:
             token = self._next_token
             self._next_token += 1
-            q: "queue.SimpleQueue" = queue.SimpleQueue()
+            q: queue.SimpleQueue = queue.SimpleQueue()
             if self._closed:
                 q.put(None)
             self._listeners[token] = q
@@ -330,7 +330,7 @@ class CueHub:
         """{listeners, last_id, caps: {jam1: n, deck1: n, ...}, pages: [{page_id, caps, since}]} (jam-spec 6)."""
         with self._lock:
             caps = {c: 0 for c in KNOWN_CAPS}
-            pages: Dict[str, dict] = {}
+            pages: dict[str, dict] = {}
             for token in self._listeners:
                 meta = self._meta.get(token) or {"caps": (), "page_id": None, "since": 0}
                 for c in meta["caps"]:
@@ -374,14 +374,14 @@ def clock_text(ms: int) -> str:
     return f"{s // 60}:{s % 60:02d}" if s < 3600 else f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}"
 
 
-def _note_spans(events: List[dict]) -> List[dict]:
+def _note_spans(events: list[dict]) -> list[dict]:
     """Every note-on with the time its sound ended: the piano's own sound_end when it logged one, else the next
     strike of that note, else inferred from off and the sustain pedal (as performance.summarize does)."""
     evs = sorted(events, key=lambda e: e["t_ms"])
     end_ms = max((e["t_ms"] for e in evs), default=0)
-    spans: List[dict] = []
-    open_by_note: Dict[int, dict] = {}  # note -> the span still waiting for its end
-    held: Dict[int, bool] = {}  # note -> key still down (for sessions without sound_end)
+    spans: list[dict] = []
+    open_by_note: dict[int, dict] = {}  # note -> the span still waiting for its end
+    held: dict[int, bool] = {}  # note -> key still down (for sessions without sound_end)
     pedal_down = False
     has_sound_end = any(e["kind"] == "sound_end" for e in evs)
 
@@ -423,7 +423,7 @@ def _note_spans(events: List[dict]) -> List[dict]:
     return spans
 
 
-def _chord_marks(events: List[dict]) -> List[dict]:
+def _chord_marks(events: list[dict]) -> list[dict]:
     return sorted(
         (e for e in events if e["kind"] == "chord" and e.get("chord") and e.get("detect_kind") == "chord"),
         key=lambda e: e["t_ms"],
@@ -431,12 +431,12 @@ def _chord_marks(events: List[dict]) -> List[dict]:
 
 
 def build_replay_cue(
-    events: List[dict],
+    events: list[dict],
     start_ms: int,
     seconds: float = 8.0,
     speed: float = 1.0,
-    at_text: Optional[str] = None,
-    session: Optional[str] = None,
+    at_text: str | None = None,
+    session: str | None = None,
 ) -> dict:
     """A sequence cue rebuilt from logged note events: one play step per strike inside the window, each held until
     its sound ended (pedal-held notes too), clipped to the window's end. Notes still sounding at the window's start
@@ -449,7 +449,7 @@ def build_replay_cue(
     marks = _chord_marks(events)
     mark_times = [m["t_ms"] for m in marks]
 
-    def chord_at(t: int) -> Optional[dict]:
+    def chord_at(t: int) -> dict | None:
         from bisect import bisect_right
 
         i = bisect_right(mark_times, t + 25) - 1  # the page logs the chord a few ms after the strike
@@ -482,7 +482,7 @@ def build_replay_cue(
             )
     at_text = at_text or clock_text(start_ms)
     if carried:
-        by_end: Dict[int, List[dict]] = {}
+        by_end: dict[int, list[dict]] = {}
         for span in carried:
             by_end.setdefault(min(span["end_ms"], end_ms), []).append(span)
         mark = chord_at(start_ms)
@@ -514,13 +514,13 @@ class VoicingError(RuntimeError):
 
 
 def voice(
-    items: List[str],
-    key: Optional[str] = None,
+    items: list[str],
+    key: str | None = None,
     voicing: str = "close",
-    octave: Optional[int] = None,
+    octave: int | None = None,
     voice_lead: bool = False,
     minor: str = "tonic",
-) -> List[dict]:
+) -> list[dict]:
     """Run arsenal/pianocue_voicing.mjs on a batch. Each result has input, name, number, notes (MIDI), names,
     roundtrip {detected, match, page_name, page_number}, warnings; or error. minor: "tonic" (the page's default) or
     "relative" (minor keys numbered from their relative major, as the page's arsenal.piano.minor pref can be)."""
@@ -560,7 +560,7 @@ _NUMBER = re.compile(r"(?:#{1,2}|b{1,2})?[1-7](?!\d)\S*")
 _SUFFIX = re.compile(r"(?:maj|min|m|M|dim|aug|sus|add|alt|[-+#b()^/°øo\d])*")
 
 
-def _token_readings(token: str) -> Tuple[bool, bool]:
+def _token_readings(token: str) -> tuple[bool, bool]:
     """(can be a note, can be a chord or number) for one token."""
     t = _BEATS.sub("", token).replace("♭", "b").replace("♯", "#").replace("Δ", "maj")
     if re.fullmatch(r"\d{2,3}|[089]", t):
@@ -576,7 +576,7 @@ def _token_readings(token: str) -> Tuple[bool, bool]:
     return bool(re.fullmatch(r"\d", rest)), chord
 
 
-def _reads_as_chords(tokens: List[str]) -> bool:
+def _reads_as_chords(tokens: list[str]) -> bool:
     """Whether several tokens are several chords rather than one group of notes. Chords, when every token reads as a
     chord or number and none is a note that is not also a chord: "Dm7 G7", "C7 F7", "E7 A7", "G7 C" are chords, "Ab2 Eb3
     G3" and "57 60 64" are notes. One exception keeps a voicing written in octave 5 or 6 whole: when every token is a
@@ -589,7 +589,7 @@ def _reads_as_chords(tokens: List[str]) -> bool:
     return True
 
 
-def split_progression(text: str) -> List[str]:
+def split_progression(text: str) -> list[str]:
     """Chords or numbers separated by "|" or spaces. Without a "|", every whitespace-separated token is an item. With
     one, a segment of several chord names or numbers gives each its own item ("Abmaj9#11 Bb7sus4/Eb | Ebmaj9" is three
     chords, "Dm7 G7 | Cmaj7" three, "1 4 | 5" three numbers), and a segment of notes is one item, so explicit notes can
@@ -597,7 +597,7 @@ def split_progression(text: str) -> List[str]:
     _reads_as_chords): "C7 F7 | Bb7" is three chords, though C7 and F7 are also notes."""
     if "|" not in text:
         return text.split()
-    items: List[str] = []
+    items: list[str] = []
     for seg in text.split("|"):
         toks = seg.split()
         if not toks:
@@ -614,7 +614,7 @@ class ServerError(RuntimeError):
     pass
 
 
-def _request(port: int, method: str, path: str, body: Optional[dict] = None, timeout: float = 10.0):
+def _request(port: int, method: str, path: str, body: dict | None = None, timeout: float = 10.0):
     url = f"http://127.0.0.1:{port}{path}"
     data = json.dumps(body).encode("utf-8") if body is not None else None
     req = urllib.request.Request(
@@ -657,7 +657,7 @@ def cue_status(port: int) -> dict:
 
 
 # ========================================================================================================= CLI
-def _format_result(r: dict, key: Optional[str]) -> List[str]:
+def _format_result(r: dict, key: str | None) -> list[str]:
     if r.get("error"):
         return [f"  {r['input']}: {r['error']}"]
     head = r["name"] or r["input"]
@@ -680,7 +680,7 @@ def _format_result(r: dict, key: Optional[str]) -> List[str]:
     return lines
 
 
-def _chord_detail(r: dict, key: Optional[str], custom_label: bool = False) -> Optional[str]:
+def _chord_detail(r: dict, key: str | None, custom_label: bool = False) -> str | None:
     """The line under the label. A typed Nashville number is shown as typed ("#4 in Eb major"), even when the page
     numbers the chord another way (the CLI prints that as a note). Explicit notes under Claude's own --label also say
     what the page reads them as ("Cm9/Ab · 4maj9#11 in Eb major")."""
@@ -702,7 +702,7 @@ def _finish(sent: dict, port: int, out) -> int:
     return 0
 
 
-def _voiced(args, items: List[str], voice_lead: bool = False) -> Optional[List[dict]]:
+def _voiced(args, items: list[str], voice_lead: bool = False) -> list[dict] | None:
     try:
         results = voice(
             items, key=args.key, voicing=args.voicing, octave=args.octave, voice_lead=voice_lead, minor=args.minor
@@ -754,7 +754,7 @@ def _cmd_play(args, hover: bool, out) -> int:
     return _finish(sent, args.port, out)
 
 
-def _cmd_play_several(args, items: List[str], hover: bool, out) -> int:
+def _cmd_play_several(args, items: list[str], hover: bool, out) -> int:
     """play or hover with several chords ("hover F#m7b5 Bbmaj7#11"): one after another as a sequence, each for --hold
     seconds (default 2.5; a hover holds until the next begins, a play leaves a 40 ms breath). --hold 0 gives no chord a
     length, so it is refused with the progression to send instead."""

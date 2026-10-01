@@ -55,7 +55,7 @@ GAP: what it does not cover
 NEAREST MISS: the closest thing that is NOT it, and why it is not"""
 
 
-def _ask(prompt: str, files: List[str], **kw):
+def _ask(prompt: str, files: list[str], **kw):
     """Seam. Injected in pins so the taxonomy is testable without spending a call."""
     from core.comm.ask import ask
 
@@ -67,7 +67,7 @@ def _field(text: str, name: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-def _verb_table() -> Optional[str]:
+def _verb_table() -> str | None:
     """The generated verb list, written where --with can reach it. Best-effort: if it
     cannot be produced, the module index alone still answers most questions."""
     try:
@@ -83,7 +83,7 @@ def _verb_table() -> Optional[str]:
         return None
 
 
-def find(query: str, *, files: Optional[List[str]] = None) -> Dict[str, Any]:
+def find(query: str, *, files: list[str] | None = None) -> dict[str, Any]:
     """Does this system already do X? Never raises; never invents an absence.
 
     Returns exists (yes|partially|no|UNKNOWN), what, gap, nearest_miss, confident,
@@ -92,7 +92,7 @@ def find(query: str, *, files: Optional[List[str]] = None) -> Dict[str, Any]:
     a "no", which is the only direction that can cost real work.
     """
 
-    def _unknown(why: str, **extra) -> Dict[str, Any]:
+    def _unknown(why: str, **extra) -> dict[str, Any]:
         return {
             "exists": "UNKNOWN",
             "what": "",

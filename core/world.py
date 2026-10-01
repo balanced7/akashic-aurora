@@ -52,7 +52,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Mapping, Optional
+from typing import Optional
+from collections.abc import Mapping
 
 from core.paths import repo_root
 
@@ -71,10 +72,10 @@ class WorldRefusal(RuntimeError):
 @dataclass(frozen=True)
 class World:
     name: str
-    redis_port: Optional[int]
-    ui_port: Optional[int]
+    redis_port: int | None
+    ui_port: int | None
     redis_db: int = 0
-    container: Optional[str] = None
+    container: str | None = None
     #: How this instance was decided: override | marker | derived | unresolved.
     source: str = "derived"
     #: The sentence a human gets when they ask why. Never empty.
@@ -156,7 +157,7 @@ UNKNOWN = World(
 )
 
 
-def owner_of_port(port: int) -> Optional[str]:
+def owner_of_port(port: int) -> str | None:
     """Which world owns `port`, per config.PORT_REGISTRY -- the field, finally consulted."""
     try:
         import config
@@ -168,7 +169,7 @@ def owner_of_port(port: int) -> Optional[str]:
     return ALIASES.get(entry.get("world"), entry.get("world"))
 
 
-def _from_name(leaf: str) -> Optional[str]:
+def _from_name(leaf: str) -> str | None:
     """Read a world out of a directory leaf: AI-Setup-Alpha -> alpha, AI-Setup -> prod.
 
     Case-insensitive and separator-agnostic on purpose: a human who clones to `-alpha`
@@ -186,7 +187,7 @@ def _from_name(leaf: str) -> Optional[str]:
     return None
 
 
-def checkout_of(world: str, root: Optional[Path] = None, env: Optional[Mapping[str, str]] = None) -> Path:
+def checkout_of(world: str, root: Path | None = None, env: Mapping[str, str] | None = None) -> Path:
     """Where `world`'s checkout lives, DERIVED from this one rather than pinned to a drive.
 
     The worlds are sibling checkouts sharing one base name: AI-Setup / AI-Setup-Beta /
@@ -216,7 +217,7 @@ def checkout_of(world: str, root: Optional[Path] = None, env: Optional[Mapping[s
     return next((c for c in candidates if c.is_dir()), candidates[0])
 
 
-def resolve(root: Optional[Path] = None, env: Optional[Mapping[str, str]] = None) -> World:
+def resolve(root: Path | None = None, env: Mapping[str, str] | None = None) -> World:
     """Resolve the world. Never raises -- an unresolvable checkout gets UNKNOWN."""
     env = os.environ if env is None else env
     root = Path(root) if root is not None else repo_root()
@@ -253,7 +254,7 @@ def resolve(root: Optional[Path] = None, env: Optional[Mapping[str, str]] = None
     )
 
 
-_cached: Optional[World] = None
+_cached: World | None = None
 
 
 def current() -> World:

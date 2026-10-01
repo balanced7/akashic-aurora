@@ -77,14 +77,14 @@ class Hit:
 
     path: str
     name: str = ""
-    size: Optional[int] = None
+    size: int | None = None
     date_modified: str = ""
     date_created: str = ""
     date_accessed: str = ""
     extension: str = ""
     attributes: str = ""
-    run_count: Optional[int] = None
-    raw: Optional[dict] = None
+    run_count: int | None = None
+    raw: dict | None = None
 
     @property
     def mtime(self) -> str:
@@ -95,13 +95,13 @@ class Hit:
 @dataclass
 class SearchResult:
     query: str
-    paths: List[str] = field(default_factory=list)
+    paths: list[str] = field(default_factory=list)
     ok: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     #: Structured per-hit records (the full capability surface). Populated when
     #: format='json' is requested; `paths` remains the bare-path projection for
     #: backward-compatible callers and rendering.
-    hits: List[Hit] = field(default_factory=list)
+    hits: list[Hit] = field(default_factory=list)
     #: WHICH ENGINE ANSWERED. "everything" is the indexed whole-machine answer;
     #: "walk" is the bounded fallback. A caller that cannot tell them apart will read a
     #: bounded miss as machine-wide absence, which is the failure this whole module exists
@@ -112,7 +112,7 @@ class SearchResult:
     #: never "not on this machine".
     exhaustive: bool = True
     scanned_dirs: int = 0
-    roots: List[str] = field(default_factory=list)
+    roots: list[str] = field(default_factory=list)
     elapsed_s: float = 0.0
 
     @property
@@ -120,7 +120,7 @@ class SearchResult:
         return len(self.paths)
 
 
-def resolve_es() -> Optional[str]:
+def resolve_es() -> str | None:
     """Return the full path to ``es.exe``, or None if it cannot be found.
 
     Order: an explicit ``ES_EXE`` env override (for a non-default install), then
@@ -272,7 +272,7 @@ def resolve_preset(name: str):
     return PRESETS.get(str(name or "").strip().lower())
 
 
-def _parse_csv_hits(text: str) -> List[Hit]:
+def _parse_csv_hits(text: str) -> list[Hit]:
     """Parse es.exe -csv output into Hit records (the same shape _parse_json_hits yields).
 
     es.exe -csv emits a header row then one row per hit; the path is the ``Filename``
@@ -284,7 +284,7 @@ def _parse_csv_hits(text: str) -> List[Hit]:
     import csv as _csv
     import io as _io
 
-    hits: List[Hit] = []
+    hits: list[Hit] = []
     text = (text or "").strip()
     if not text:
         return hits
@@ -385,7 +385,7 @@ def _build_query_flags(
     return argv
 
 
-def _parse_json_hits(text: str) -> List[Hit]:
+def _parse_json_hits(text: str) -> list[Hit]:
     """Parse es.exe -json output into structured Hit records.
 
     es.exe -json emits a SINGLE JSON ARRAY (verified live against 1.1.0.38), each
@@ -397,7 +397,7 @@ def _parse_json_hits(text: str) -> List[Hit]:
     Tolerates BOTH the array form and line-delimited JSON (defensive: different es.exe
     builds have emitted both; the array form is authoritative for 1.1.0.38).
     """
-    hits: List[Hit] = []
+    hits: list[Hit] = []
     text = (text or "").strip()
     if not text:
         return hits
@@ -545,15 +545,15 @@ def search(
     sort_by_name: bool = True,
     timeout: float = 15.0,
     sort: str = "",
-    columns: Optional[List[str]] = None,
+    columns: list[str] | None = None,
     format: str = "",
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,
     dirs_only: bool = False,
     files_only: bool = False,
-    scope: Optional[str] = None,
-    attributes: Optional[str] = None,
+    scope: str | None = None,
+    attributes: str | None = None,
 ) -> SearchResult:
     """Search the Everything index for ``query`` and return full paths.
 
@@ -679,15 +679,15 @@ def search_page(
     sort_by_name: bool = True,
     timeout: float = 15.0,
     sort: str = "",
-    columns: Optional[List[str]] = None,
+    columns: list[str] | None = None,
     format: str = "",
     regex: bool = False,
     case: bool = False,
     whole_word: bool = False,
     dirs_only: bool = False,
     files_only: bool = False,
-    scope: Optional[str] = None,
-    attributes: Optional[str] = None,
+    scope: str | None = None,
+    attributes: str | None = None,
 ) -> SearchResult:
     """Search the Everything index and return a PAGED slice of the ranked result.
 

@@ -58,7 +58,7 @@ _BASE_SALIENCE = {
 }
 
 # content boosts (each group adds at most once; final score is clamped to 0..5)
-_BOOST: List[Tuple[Tuple[str, ...], int]] = [
+_BOOST: list[tuple[tuple[str, ...], int]] = [
     (("error", "fail", "failed", "broke", "broken", "bug", "crash", "traceback", "exception"), 1),
     (("fix", "fixed", "resolved", "repair", "patch"), 1),
     (("decide", "decision", "decided", "chose", "chosen", "adopt"), 1),
@@ -71,7 +71,7 @@ _BOOST: List[Tuple[Tuple[str, ...], int]] = [
 _ALREADY_BEAT_PREFIXES = ("beat:", "git:", "learn:experiment:")
 
 
-def salience(event: Dict[str, Any]) -> int:
+def salience(event: dict[str, Any]) -> int:
     """Tier-0 importance score (0..5) for a raw event -- kind prior + content boosts.
 
     Deliberately simple and deterministic (the honest baseline the Nemori critique warns
@@ -86,7 +86,7 @@ def salience(event: Dict[str, Any]) -> int:
     return max(0, min(5, score))
 
 
-def _already_beat(event: Dict[str, Any]) -> bool:
+def _already_beat(event: dict[str, Any]) -> bool:
     for r in event.get("refs", []) or []:
         if str(r).startswith(_ALREADY_BEAT_PREFIXES):
             return True
@@ -94,14 +94,14 @@ def _already_beat(event: Dict[str, Any]) -> bool:
 
 
 def promote_salient(
-    store: Optional[Store] = None,
-    event_query: Optional[EventQuery] = None,
+    store: Store | None = None,
+    event_query: EventQuery | None = None,
     *,
     threshold: int = DEFAULT_THRESHOLD,
     max_promote: int = DEFAULT_MAX_PROMOTE,
     scan: int = DEFAULT_SCAN,
-    agent: Optional[str] = None,
-) -> Dict[str, int]:
+    agent: str | None = None,
+) -> dict[str, int]:
     """Scan recent raw events; promote the salient, not-yet-promoted ones into Beats.
 
     Rate-limited three ways (Generative-Agents-style): a salience THRESHOLD, a per-run CAP
@@ -120,7 +120,7 @@ def promote_salient(
         candidates = eq.log.scan(agent=agent, limit=scan)
         report["scanned"] = len(candidates)
 
-        scored: List[Tuple[int, Dict[str, Any]]] = []
+        scored: list[tuple[int, dict[str, Any]]] = []
         for e in candidates:
             ref = e.get("_ref")
             if not ref:

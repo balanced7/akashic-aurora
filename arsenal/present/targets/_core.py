@@ -16,12 +16,13 @@ import html
 import math
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Sequence
 
 from .. import scene as sc
 
 # ---------------------------------------------------------------- the family's defaults by role
-DEFAULT_PALETTE: Dict[str, str] = {
+DEFAULT_PALETTE: dict[str, str] = {
     "dark": "#13202B",
     "light": "#F6F7F5",
     "accent": "#C8762E",
@@ -35,7 +36,7 @@ DEFAULT_PALETTE: Dict[str, str] = {
     "line_on_dark": "#2C4356",
     "tint": "#FBF3EA",
 }
-DEFAULT_TYPE: Dict[str, int] = {
+DEFAULT_TYPE: dict[str, int] = {
     "display": 160,
     "h1": 80,
     "h2": 64,
@@ -53,13 +54,13 @@ DEFAULT_TYPE: Dict[str, int] = {
     "node": 24,
     "label": 24,
 }
-DEFAULT_FONTS: Dict[str, Any] = {
+DEFAULT_FONTS: dict[str, Any] = {
     "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600"
     "&family=JetBrains+Mono:wght@400;500&display=swap",
     "families": ["IBM Plex Sans", "JetBrains Mono"],
 }
 #: per type role: (weight, line-height, face, letter-spacing in logical units)
-TYPE_STYLE: Dict[str, Tuple[int, float, str, int]] = {
+TYPE_STYLE: dict[str, tuple[int, float, str, int]] = {
     "display": (600, 1.0, "sans", -4),
     "h1": (600, 1.1, "sans", -2),
     "h2": (600, 1.1, "sans", -1),
@@ -122,7 +123,7 @@ def tokens(scene: dict) -> dict:
     return {"palette": palette, "type": sizes, "faces": faces, "families": families, "href": href}
 
 
-def surface(background: str, palette: Dict[str, str]) -> Dict[str, str]:
+def surface(background: str, palette: dict[str, str]) -> dict[str, str]:
     """What each role means on this background (projection idiom: colours by surface)."""
     p = palette
     common = {
@@ -164,7 +165,7 @@ def surface(background: str, palette: Dict[str, str]) -> Dict[str, str]:
     }
 
 
-def tone_colour(tone: Optional[str], surf: Dict[str, str], default: Optional[str] = None) -> str:
+def tone_colour(tone: str | None, surf: dict[str, str], default: str | None = None) -> str:
     """The text or stroke colour a tone names. Ghost draws in accent (dashed, by the caller);
     muted is the surface's muted; None is the caller's default."""
     if tone == "accent" or tone == "ghost":
@@ -181,7 +182,7 @@ def slide_background(slide: dict) -> str:
 
 
 # ---------------------------------------------------------------- deck walking
-def ordered_slides(scene: dict) -> List[dict]:
+def ordered_slides(scene: dict) -> list[dict]:
     slides = [s for s in scene.get("slides") or [] if isinstance(s, dict)]
     order = scene.get("order")
     if not order:
@@ -190,25 +191,25 @@ def ordered_slides(scene: dict) -> List[dict]:
     return [by_id[i] for i in order if i in by_id]
 
 
-def section_starts(scene: dict) -> Dict[str, str]:
+def section_starts(scene: dict) -> dict[str, str]:
     """{slide_id: section description} for every slide that starts a section."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for sec in (scene.get("sections") or {}).values():
         if isinstance(sec, dict) and isinstance(sec.get("start"), str):
             out[sec["start"]] = str(sec.get("description") or "")
     return out
 
 
-def note_of(slide: dict) -> Optional[dict]:
+def note_of(slide: dict) -> dict | None:
     for a in slide.get("atoms") or []:
         if isinstance(a, dict) and a.get("kind") == "note":
             return a
     return None
 
 
-def cue_map(slide: dict) -> Dict[str, str]:
+def cue_map(slide: dict) -> dict[str, str]:
     note = note_of(slide)
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for c in (note or {}).get("cues") or []:
         if isinstance(c, dict) and isinstance(c.get("atom_id"), str):
             out[c["atom_id"]] = str(c.get("text") or "")
@@ -225,8 +226,8 @@ def duration_s(slide: dict) -> float:
     return max(8.0, words / 2.5)
 
 
-def atoms_by_region(slide: dict) -> Dict[str, List[dict]]:
-    out: Dict[str, List[dict]] = {}
+def atoms_by_region(slide: dict) -> dict[str, list[dict]]:
+    out: dict[str, list[dict]] = {}
     for a in slide.get("atoms") or []:
         if isinstance(a, dict):
             out.setdefault(a.get("region"), []).append(a)
@@ -234,11 +235,11 @@ def atoms_by_region(slide: dict) -> Dict[str, List[dict]]:
 
 
 # ---------------------------------------------------------------- runs
-def runs_list(runs: Any) -> List[Tuple[str, str]]:
+def runs_list(runs: Any) -> list[tuple[str, str]]:
     """[(text, mark)] for a runs payload; a bare string is one plain run."""
     if isinstance(runs, str):
         return [(runs, "plain")]
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     for r in runs or []:
         if isinstance(r, str):
             out.append((r, "plain"))
@@ -263,11 +264,11 @@ def est_lines(text: str, width: float, size: float, weight: int = 400) -> int:
 
 
 # ---------------------------------------------------------------- diagram geometry (I8)
-def _box(n: dict) -> Tuple[float, float, float, float]:
+def _box(n: dict) -> tuple[float, float, float, float]:
     return float(n["x"]), float(n["y"]), float(n["w"]), float(n["h"])
 
 
-def _mid(n: dict, side: str) -> Tuple[float, float]:
+def _mid(n: dict, side: str) -> tuple[float, float]:
     x, y, w, h = _box(n)
     return {"left": (x, y + h / 2), "right": (x + w, y + h / 2), "top": (x + w / 2, y), "bottom": (x + w / 2, y + h)}[
         side
@@ -286,7 +287,7 @@ def _overlap_y(a: dict, b: dict) -> bool:
     return ay < by + bh and by < ay + ah
 
 
-def edge_points(a: dict, b: dict, route: Optional[str]) -> Tuple[float, float, float, float]:
+def edge_points(a: dict, b: dict, route: str | None) -> tuple[float, float, float, float]:
     """Where a connector from node a to node b starts and ends (diagrams.md, "Draw connectors
     from edge point to edge point"). Straight: side edges when the boxes are beside each other,
     top/bottom edges when one is above the other; when the source's centre line falls inside
@@ -327,7 +328,7 @@ def edge_points(a: dict, b: dict, route: Optional[str]) -> Tuple[float, float, f
     return (ax + aw if dx >= 0 else ax, y, bx if dx >= 0 else bx + bw, y)
 
 
-def polyline(conn: dict) -> List[Tuple[float, float]]:
+def polyline(conn: dict) -> list[tuple[float, float]]:
     """The points a routed connector visits (hv: across then down; vh: down then across;
     elbow: three legs bending at the midpoint of the longer run)."""
     x1, y1, x2, y2 = conn["x1"], conn["y1"], conn["x2"], conn["y2"]
@@ -345,7 +346,7 @@ def polyline(conn: dict) -> List[Tuple[float, float]]:
     return [(x1, y1), (x2, y2)]
 
 
-def shorten(points: Sequence[Tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> List[Tuple[float, float]]:
+def shorten(points: Sequence[tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> list[tuple[float, float]]:
     """Pull a headed line's end(s) back a few units so the arrowhead touches the box edge
     instead of poking into it."""
     pts = [tuple(p) for p in points]
@@ -380,7 +381,7 @@ def _conn(x1, y1, x2, y2, *, head="end", route="straight", dashed=False, tone=No
     }
 
 
-def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
+def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
     """diagram-recipes.md, Rows: a drop from each parent, a bar 24 before the children's edge,
     one stub per child carrying the head. The recipe is vertical; it is mirrored when the
     children sit beside the parents (the same numbers turned on their side)."""
@@ -407,7 +408,7 @@ def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
             below, above = kcy >= scy, kcy < scy
         else:
             right, left = kcx >= scx, kcx < scx
-    parts: List[dict] = []
+    parts: list[dict] = []
 
     def stub_kw(sink: dict) -> dict:
         s = stubs.get(sink.get("id")) or {}
@@ -452,7 +453,7 @@ def diagram_geometry(diagram: dict) -> dict:
     """Everything a renderer draws, in host units: lanes, nodes, connectors (edges and bus
     parts resolved to endpoints), paths (as given) and labels."""
     nodes = {n["id"]: n for n in diagram.get("nodes") or [] if isinstance(n, dict) and "id" in n}
-    connectors: List[dict] = []
+    connectors: list[dict] = []
     for e in diagram.get("edges") or []:
         if not isinstance(e, dict) or e.get("from") not in nodes or e.get("to") not in nodes:
             continue

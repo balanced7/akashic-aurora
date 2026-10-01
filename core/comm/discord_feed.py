@@ -24,7 +24,8 @@ read plus at most one file stat.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 from core.comm import discord_bridge as DB
 from core.comm import discord_rooms as ROOMS
@@ -41,14 +42,14 @@ def configured() -> bool:
     return bool(DB.webhook_url() or ROOMS.forum_url())
 
 
-def _decode(fields: Dict[Any, Any]) -> Dict[str, Any]:
+def _decode(fields: dict[Any, Any]) -> dict[str, Any]:
     """Envelope fields arrive as flat (possibly bytes) pairs — and bus._emit
     json.dumps's content/meta/parts with ensure_ascii, so an em-dash rides as a
     literal backslash-u2014 inside a QUOTED string. The phone is not a JSON
     parser (live receipt 2026-08-18: first-light rendered on Daniil's screen
     with wrapping quotes and raw escapes). Decode every field that parses;
     leave anything that doesn't exactly as it came."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for k, v in fields.items():
         ks = k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
         vs = v.decode(errors="replace") if isinstance(v, (bytes, bytearray)) else v
@@ -102,7 +103,7 @@ def seat_channel_url(agent: str) -> str:
     return ""
 
 
-def _streams(bus: Any) -> List[str]:
+def _streams(bus: Any) -> list[str]:
     keys = [f"{bus.ns}:broadcast"]
     try:
         agents = sorted(bus.known_agents())
@@ -113,7 +114,7 @@ def _streams(bus: Any) -> List[str]:
     return keys
 
 
-def _post_failure_loud(path: str, msg: Dict[str, Any], mid: str, exc: Exception) -> None:
+def _post_failure_loud(path: str, msg: dict[str, Any], mid: str, exc: Exception) -> None:
     """A failed Discord post is a FINDING, never a shrug: stderr line + durable
     event, so the doctor and the next post-mortem can see exactly which reply
     died on which path. Never raises (the pump's beat survives the confession)."""
@@ -142,7 +143,7 @@ def _post_failure_loud(path: str, msg: Dict[str, Any], mid: str, exc: Exception)
         pass
 
 
-def _forward_global(msg: Dict[str, Any]) -> bool:
+def _forward_global(msg: dict[str, Any]) -> bool:
     """The default global path: the seat speaks AS ITSELF (rung 2 of person-hood,
     Daniil 2026-08-18: 'show up as your own person in the chat'). Reuses the rooms
     transport, which already carries a username; the manual `discord test/send`
@@ -175,7 +176,7 @@ def _forward_global(msg: Dict[str, Any]) -> bool:
 
 
 def pump(
-    bus: Any, *, post: Optional[Callable[..., Any]] = None, room_post: Optional[Callable[..., Any]] = None
+    bus: Any, *, post: Callable[..., Any] | None = None, room_post: Callable[..., Any] | None = None
 ) -> BoundaryOutcome:
     """One feed beat: forward everything new on the legacy plane, then advance."""
     if not configured():
@@ -300,7 +301,7 @@ _PUMP_LOCK_TTL = 8
 
 
 def pump_if_owner(
-    bus: Any, *, post: Optional[Callable[..., Any]] = None, room_post: Optional[Callable[..., Any]] = None
+    bus: Any, *, post: Callable[..., Any] | None = None, room_post: Callable[..., Any] | None = None
 ) -> BoundaryOutcome:
     """`pump()`, but only for whichever daemon wins a short-lived election this beat.
 
@@ -328,7 +329,7 @@ def pump_if_owner(
         runner_lock.release(_PUMP_LOCK_KEY, token)
 
 
-def send_target(agent: str, *, seat_url: Optional[str] = None, global_url: Optional[str] = None) -> tuple:
+def send_target(agent: str, *, seat_url: str | None = None, global_url: str | None = None) -> tuple:
     """Where a MANUAL `discord send` from `agent` should post: (url, source, note).
 
     THE DEFECT THIS RETIRES (2026-08-25). The manual verb resolved its target as the

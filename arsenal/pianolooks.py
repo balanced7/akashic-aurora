@@ -27,7 +27,8 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import Mapping, Optional, Tuple
+from typing import Optional, Tuple
+from collections.abc import Mapping
 from urllib.parse import urlsplit
 
 API = "arsenal.piano.looks/v1"
@@ -57,7 +58,7 @@ class LooksError(Exception):
 
 
 # ------------------------------------------------------------------ requests
-def request_problem(method: str, headers: Mapping[str, str], port: int) -> Optional[Tuple[int, str]]:
+def request_problem(method: str, headers: Mapping[str, str], port: int) -> tuple[int, str] | None:
     """(status, message) when a looks request must be refused before its body is looked at, else None."""
     host = (headers.get("Host") or "").strip()
     try:
@@ -95,7 +96,7 @@ def _refuse_constant(name: str):
     raise ValueError(f"{name} is not a number JSON allows")
 
 
-def parse_body(raw: bytes) -> Tuple[int, list]:
+def parse_body(raw: bytes) -> tuple[int, list]:
     """The PUT body as (rev, presets), checked; LooksError(400) for anything else."""
     try:
         body = json.loads(raw.decode("utf-8"), parse_constant=_refuse_constant)

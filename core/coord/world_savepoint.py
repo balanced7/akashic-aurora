@@ -36,7 +36,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import List, Optional, Tuple
+from collections.abc import Callable
 
 
 def _pyl() -> str:
@@ -92,7 +93,7 @@ class Savepoint:
     world: str
     label: str
     git_sha: str
-    knowledge_snapshot: Optional[str]
+    knowledge_snapshot: str | None
     saved_at: str
     #: Tracked files modified at save time. git can only restore what was COMMITTED, so
     #: uncommitted work sits outside what this label is able to promise.
@@ -163,8 +164,8 @@ def can_restore(
     snapshot_exists: Callable[[str], bool],
     tree_dirty: int,
     consent: bool = False,
-    into_world: Optional[str] = None,
-) -> Tuple[bool, str]:
+    into_world: str | None = None,
+) -> tuple[bool, str]:
     """Verify EVERYTHING before touching ANYTHING. Returns (ok, why-not).
 
     The ordering is the contract: a half-applied restore leaves a world whose code and
@@ -215,7 +216,7 @@ def can_restore(
 # ------------------------------------------------------------------ persistence
 
 
-def read(path: Path) -> List[Savepoint]:
+def read(path: Path) -> list[Savepoint]:
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
@@ -223,12 +224,12 @@ def read(path: Path) -> List[Savepoint]:
     return [Savepoint(**d) for d in raw]
 
 
-def write(path: Path, points: List[Savepoint]) -> None:
+def write(path: Path, points: list[Savepoint]) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps([asdict(p) for p in points], indent=2), encoding="utf-8")
 
 
-def append(path: Path, sp: Savepoint) -> List[Savepoint]:
+def append(path: Path, sp: Savepoint) -> list[Savepoint]:
     """Add or SUPERSEDE by label -- two points sharing one name is a name that does not point."""
     points = [p for p in read(path) if p.label != sp.label]
     points.append(sp)

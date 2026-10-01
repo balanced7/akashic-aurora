@@ -63,7 +63,7 @@ def footnote_scale(scene: dict) -> float:
     return max(MIN_SCALE, min(MAX_SCALE, round(s, 3)))
 
 
-def footnote_overflow(scene: dict) -> Optional[str]:
+def footnote_overflow(scene: dict) -> str | None:
     """A sentence naming the slide whose note cannot fit its footnote even at MIN_SCALE, or
     None when every note fits (by the estimate)."""
     who, longest, lines, rows, need = _footnote_need(scene)
@@ -102,7 +102,7 @@ def _css(tk: dict, scale: float, footnotes: bool) -> str:
     )
 
 
-def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> str:
+def document(scene: dict, tk: dict | None = None, footnotes: bool = True) -> str:
     tk = tk or C.tokens(scene)
     starts = C.section_starts(scene)
     if footnotes:
@@ -110,7 +110,7 @@ def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> 
         if overflow:
             raise RuntimeError(f"present.pdf refuses: {overflow}")
     scale = footnote_scale(scene) if footnotes else 1.0
-    pages: List[str] = []
+    pages: list[str] = []
     for slide in C.ordered_slides(scene):
         sid = slide["id"]
         section = slides_html.section_html(
@@ -119,7 +119,7 @@ def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> 
         foot = ""
         if footnotes:
             note = C.note_of(slide)
-            lines: List[str] = []
+            lines: list[str] = []
             if starts.get(sid):
                 lines.append(f'<p class="section">{esc(starts[sid])}</p>')
             lines.append(f"<p>{esc((note or {}).get('script', ''))}</p>")
@@ -133,6 +133,6 @@ def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> 
     )
 
 
-def render(scene: dict, out_dir, footnotes: bool = True, **opts) -> List[Path]:
+def render(scene: dict, out_dir, footnotes: bool = True, **opts) -> list[Path]:
     """Write <out_dir>/print.html. The PDF is the browser's print of it; nothing is launched."""
     return [C.write_bytes(Path(out_dir) / "print.html", document(scene, footnotes=bool(footnotes)))]

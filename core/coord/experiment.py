@@ -33,7 +33,8 @@ A/B/C. Policies: social (no gate), lock_gate (A0.1 semantics), intent_gate (prop
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Tuple
+from typing import Dict, List, Tuple
+from collections.abc import Callable
 
 
 @dataclass(frozen=True)
@@ -45,36 +46,36 @@ class Action:
 
 @dataclass
 class Outcome:
-    admitted: List[Action] = field(default_factory=list)
-    blocked: List[Action] = field(default_factory=list)
+    admitted: list[Action] = field(default_factory=list)
+    blocked: list[Action] = field(default_factory=list)
 
 
 # --- policies: (action, already_admitted) -> True to ADMIT, False to BLOCK ---
-def social(a: Action, admitted: List[Action]) -> bool:
+def social(a: Action, admitted: list[Action]) -> bool:
     """No gate: admit everything. Max exploration, but same-resource writes clobber."""
     return True
 
 
-def lock_gate(a: Action, admitted: List[Action]) -> bool:
+def lock_gate(a: Action, admitted: list[Action]) -> bool:
     """A0.1 guard_write semantics: block if the RESOURCE is already held. Prevents clobber, but also
     blocks same-resource-different-intent (parallel-useful) work -- the exclusivity bias."""
     return not any(x.resource == a.resource for x in admitted)
 
 
-def intent_gate(a: Action, admitted: List[Action]) -> bool:
+def intent_gate(a: Action, admitted: list[Action]) -> bool:
     """Proposed Policy 0: block only DUPLICATE intent. Same resource + different intent proceeds in
     parallel; a genuine collision (same resource AND same intent) is blocked."""
     return not any(x.intent == a.intent for x in admitted)
 
 
-POLICIES: Dict[str, Callable[[Action, List[Action]], bool]] = {
+POLICIES: dict[str, Callable[[Action, list[Action]], bool]] = {
     "social": social,
     "lock_gate": lock_gate,
     "intent_gate": intent_gate,
 }
 
 
-def run(scenario: List[Action], policy: Callable[[Action, List[Action]], bool]) -> Outcome:
+def run(scenario: list[Action], policy: Callable[[Action, list[Action]], bool]) -> Outcome:
     """Process actions in order; the policy admits or blocks each against what's already admitted."""
     out = Outcome()
     for a in scenario:
@@ -82,7 +83,7 @@ def run(scenario: List[Action], policy: Callable[[Action, List[Action]], bool]) 
     return out
 
 
-def score(scenario: List[Action], outcome: Outcome) -> Dict[str, float]:
+def score(scenario: list[Action], outcome: Outcome) -> dict[str, float]:
     """The A/B/C evaluator (+ W, the duplicate-waste cost). All fields always reported.
 
     Delivery model (stated honestly): DIFFERENT intents on the same resource are assumed to occupy
@@ -104,27 +105,27 @@ def score(scenario: List[Action], outcome: Outcome) -> Dict[str, float]:
     }
 
 
-def evaluate(scenario: List[Action], policy_name: str) -> Dict[str, float]:
+def evaluate(scenario: list[Action], policy_name: str) -> dict[str, float]:
     return score(scenario, run(scenario, POLICIES[policy_name]))
 
 
-def compare(scenario: List[Action]) -> Dict[str, Dict[str, float]]:
+def compare(scenario: list[Action]) -> dict[str, dict[str, float]]:
     """A/B/C for every policy on one scenario -- the head-to-head table."""
     return {name: evaluate(scenario, name) for name in POLICIES}
 
 
 # --- scenario generators (deterministic; no randomness) ---
-def collision_heavy(n: int = 6) -> List[Action]:
+def collision_heavy(n: int = 6) -> list[Action]:
     """Every pair targets the SAME resource AND intent -- pure duplicate waste. Gates should win on A."""
     return [Action(f"ag{i % 2}", "api.py", "add-rate-limiting") for i in range(n)]
 
 
-def parallel_useful(n: int = 6) -> List[Action]:
+def parallel_useful(n: int = 6) -> list[Action]:
     """Same resource, DIFFERENT intents -- genuine parallel work. lock_gate should tank on C here."""
     return [Action(f"ag{i % 2}", "api.py", f"feature-{i}") for i in range(n)]
 
 
-def mixed() -> List[Action]:
+def mixed() -> list[Action]:
     """A realistic mix: some duplicate waste, some parallel-useful, some fully distinct."""
     return [
         Action("claude", "ui.py", "restyle-composer"),

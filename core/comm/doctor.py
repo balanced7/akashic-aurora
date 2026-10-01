@@ -42,7 +42,8 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled
@@ -154,7 +155,7 @@ def _probe_backlog(agent: str) -> int:
         return 0
 
 
-def _probe_stalled_since(agent: str, present: bool) -> Optional[float]:
+def _probe_stalled_since(agent: str, present: bool) -> float | None:
     """Cross-invocation hysteresis: first-seen timestamp of the CURRENT stall, kept in
     a small key; cleared the moment the stall clears. Returns the first-seen epoch
     while stalled, else None."""
@@ -173,7 +174,7 @@ def _probe_stalled_since(agent: str, present: bool) -> Optional[float]:
         return time.time()
 
 
-def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
+def _probe_lane_health(agent: str) -> dict[str, Any] | None:
     """W16 (deepseek, 2026-07-21): per-agent lane cursor health -- age, depth, straggler
     count. Uses W43 effective_cursor() as the building block. Returns None when the agent
     has no lane cursor (legacy-only consumer) or Redis is down. The three gauges answer
@@ -248,14 +249,14 @@ def _probe_lane_health(agent: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _probe_lane_wrongtype(agent: str) -> List[Dict[str, str]]:
+def _probe_lane_wrongtype(agent: str) -> list[dict[str, str]]:
     """T122 scope 2 (G7): probe each lane stream key's Redis TYPE. A lane key holding a
     non-stream type makes every xadd fail upstream -- the packet then exists legacy-only
     and surfaces as a straggler at some consumer's drain (the 2026-07-28 class, per
     deepseek's C counter-half). The dual-write net hides the loss; only TYPE tells.
     Probes directed (to=agent) + broadcast keys for every lane. Missing keys are fine
     (type 'none'); anything else non-stream is a finding. Never raises."""
-    out: List[Dict[str, str]] = []
+    out: list[dict[str, str]] = []
     try:
         from core.comm import packet_spec as ps
         from core.comm.bus import Bus
@@ -302,7 +303,7 @@ def _present_no_worklive(agent: str) -> bool:
     return False
 
 
-def _probe_halted(agent: str) -> Optional[Dict[str, Any]]:
+def _probe_halted(agent: str) -> dict[str, Any] | None:
     try:
         from core.comm import control
 
@@ -325,7 +326,7 @@ def _probe_bench_count(agent: str) -> int:
         return 0
 
 
-def _default_probes() -> Dict[str, Any]:
+def _default_probes() -> dict[str, Any]:
     # EVERY ambient reader goes through this seam. token_cost and bench_count used to
     # reach past it straight to the filesystem, which made "healthy fleet = zero
     # findings" fail on any day a runner had logged turns -- a pin that is red for
@@ -348,11 +349,11 @@ def _default_probes() -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------ examination
-def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """All findings for one agent, graded page|banner|dashboard. Never raises."""
     p = {**_default_probes(), **(probes or {})}
     now = p["now"]
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         wl = p["worklive"](agent) or {}
         prog = p["progress"](agent)
@@ -812,13 +813,13 @@ def _f(agent, state, grade, line, drill):
     return {"agent": agent, "state": state, "grade": grade, "line": line, "drill": drill}
 
 
-def unwedge(agent: str) -> Dict[str, Any]:
+def unwedge(agent: str) -> dict[str, Any]:
     """W31 (deepseek, why-am-i-wedged, 2026-07-21): one-verb diagnostic — synthesize all
     doctor findings + lane health + lane depths + runner presence into ONE verdict and
     recommendation. READ-ONLY (v1 — acting is v2 behind a flag). The answer to 'why is
     this agent stuck?' that replaces 3+ manual tool calls. Returns {'agent', 'status',
     'verdict', 'recommendation', 'evidence'}."""
-    evidence: Dict[str, Any] = {
+    evidence: dict[str, Any] = {
         "findings": [],
         "lane_health": None,
         "lane_depths": {},
@@ -923,7 +924,7 @@ def unwedge(agent: str) -> Dict[str, Any]:
         # page-grade lane_stall in its own evidence. A drill-down that argues against
         # the page it was sent to explain is worse than no drill-down: it is the
         # kimi mistake (presence read as progress) inside the tool built to catch it.
-        waited = int((lh.get("backlog_age_s") or 0))
+        waited = int(lh.get("backlog_age_s") or 0)
         status, verdict, rec = (
             "stalled",
             (
@@ -990,7 +991,7 @@ def unwedge(agent: str) -> Dict[str, Any]:
     return {"agent": agent, "status": status, "verdict": verdict, "recommendation": rec, "evidence": evidence}
 
 
-def format_unwedge(r: Dict[str, Any], json_mode: bool = False) -> str:
+def format_unwedge(r: dict[str, Any], json_mode: bool = False) -> str:
     """Render unwedge result as a compact text report with evidence drill-downs."""
     if json_mode:
         import json as _json
@@ -1029,7 +1030,7 @@ def format_unwedge(r: Dict[str, Any], json_mode: bool = False) -> str:
     return "\n".join(lines)
 
 
-def pulse(agents: Optional[List[str]] = None) -> Dict[str, Any]:
+def pulse(agents: list[str] | None = None) -> dict[str, Any]:
     """W25 pulse (deepseek, LIFEWORKERS, 2026-07-21): the pressure-map companion to
     vitals. Reads work_backlog for every known agent (or the named list), classifies
     each into a pressure zone, and returns a fleet-level summary. READ-only v1.
@@ -1040,8 +1041,8 @@ def pulse(agents: Optional[List[str]] = None) -> Dict[str, Any]:
             agents = known_agents()
         except Exception:
             agents = []
-    zones: Dict[str, List[str]] = {"critical": [], "elevated": [], "normal": [], "absent": []}
-    readings: Dict[str, Dict[str, Any]] = {}
+    zones: dict[str, list[str]] = {"critical": [], "elevated": [], "normal": [], "absent": []}
+    readings: dict[str, dict[str, Any]] = {}
     try:
         from core.comm.bus import Bus
         from core.comm.lane_depths import work_backlog
@@ -1095,7 +1096,7 @@ def pulse(agents: Optional[List[str]] = None) -> Dict[str, Any]:
     return {"agents": agents, "zones": zones, "readings": readings, "summary": summary}
 
 
-def format_pulse(p: Dict[str, Any], json_mode: bool = False) -> str:
+def format_pulse(p: dict[str, Any], json_mode: bool = False) -> str:
     """Render pulse result as a compact pressure map."""
     if json_mode:
         import json as _json
@@ -1131,7 +1132,7 @@ FLIGHTDECK_COMPOSITION = (
 )
 
 
-def _last_turn(agent: str, *, now: Optional[float] = None, log=None) -> Optional[Dict[str, Any]]:
+def _last_turn(agent: str, *, now: float | None = None, log=None) -> dict[str, Any] | None:
     """The most recent COMPLETED turn for an agent, from the turn_metrics firehose.
     Returns {"ask_kind", "duration_s", "age_s"} or None when there is no turn history.
     This is "what did they just do" -- the firehose's own record, not the live phase.
@@ -1169,7 +1170,7 @@ def _last_turn(agent: str, *, now: Optional[float] = None, log=None) -> Optional
     }
 
 
-def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dict[str, Any]:
+def flightdeck(agent: str | None = None, *, commit_hours: float = 6.0) -> dict[str, Any]:
     """W25 flightdeck (deepseek, LIFEWORKERS, 2026-07-21): the cockpit one-pager —
     compose doctor + pulse + unwedge + lane-health + locks + recent commits into one
     fleet-at-a-glance view. READ-only v1. No --agent: fleet-wide compact lines. With
@@ -1179,7 +1180,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     new; it ARRANGES what already exists into one glance. The result carries
     `composed_of` (the recipe above) so the cockpit says what it is a view over, and a
     pin keeps that declaration honest against the sections actually built."""
-    out: Dict[str, Any] = {"fleet": True, "agents": [], "sections": {}}
+    out: dict[str, Any] = {"fleet": True, "agents": [], "sections": {}}
     # 1) Doctor — the whole fleet
     try:
         dr = examine_fleet()
@@ -1205,7 +1206,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
         out["sections"]["pulse"] = {"error": "pulse unavailable"}
 
     # 3) Lane-health rows (W16) — per-agent
-    lh_rows: Dict[str, Any] = {}
+    lh_rows: dict[str, Any] = {}
     try:
         for a_row in out["agents"]:
             aid = a_row["id"]
@@ -1216,7 +1217,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     out["sections"]["lane_health"] = lh_rows
 
     # 4) Locks — per-agent
-    lk_rows: Dict[str, list] = {}
+    lk_rows: dict[str, list] = {}
     try:
         from core.comm import locks
 
@@ -1254,7 +1255,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     # expectations.snapshot(agent) is the armed open-ask record for that SENDER; a
     # deadline already past reads as overdue, attempt>0 reads as redriving. This is the
     # lens that separates "runner alive" from "answers actually landing".
-    asks_rows: Dict[str, Any] = {}
+    asks_rows: dict[str, Any] = {}
     try:
         import time as _time
 
@@ -1266,7 +1267,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
             try:
                 recs = _snapshot(aid)
                 n_open = len(recs)
-                n_redriving = sum(1 for r in recs.values() if int((r.get("attempt") or 0)) > 0)
+                n_redriving = sum(1 for r in recs.values() if int(r.get("attempt") or 0) > 0)
                 deadlines = [float(r["deadline_ts"]) for r in recs.values() if r.get("deadline_ts") is not None]
                 n_overdue = sum(1 for d in deadlines if d < _now)
                 asks_rows[aid] = {
@@ -1284,7 +1285,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     # 7) In-flight turns — turn_metrics.progress_view (elapsed into the current
     # reasoning session). None means "no live turn" (idle) — an honest absence, never a
     # fabricated turn. This is the "N seconds into the reasoning session" gauge.
-    turns_rows: Dict[str, Any] = {}
+    turns_rows: dict[str, Any] = {}
     try:
         from core.comm import turn_metrics as _tm
 
@@ -1301,7 +1302,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     # 8) Last completed turn — the firehose's most recent turn_metrics per agent. The
     # "what did they just do" signal (kind + duration + seconds-ago) that answers "are
     # they doing anything" without reading the live phase.
-    last_rows: Dict[str, Any] = {}
+    last_rows: dict[str, Any] = {}
     try:
         for a_row in out["agents"]:
             aid = a_row["id"]
@@ -1332,7 +1333,7 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     return out
 
 
-def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
+def format_flightdeck(fd: dict[str, Any], json_mode: bool = False) -> str:
     """Render flightdeck as a compact cockpit view."""
     if json_mode:
         import json as _json
@@ -1466,7 +1467,7 @@ def format_flightdeck(fd: Dict[str, Any], json_mode: bool = False) -> str:
     return "\n".join(lines)
 
 
-def _stale_code_line(agent: str) -> Optional[Dict[str, Any]]:
+def _stale_code_line(agent: str) -> dict[str, Any] | None:
     """T116: how much of the repo this agent's RUNNING PROCESS cannot contain.
 
     Prefers T114's self-reported stamp (ground truth); falls back to process start time
@@ -1485,7 +1486,7 @@ def _stale_code_line(agent: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
+def _token_cost_line(agent: str, journal_dir: str = "") -> dict[str, Any] | None:
     import json as _json
     import os as _os
     import time as _time
@@ -1642,7 +1643,7 @@ def _tcp_up(host: str, port: int, timeout: float = 0.4) -> bool:
         return False
 
 
-def _svc_finding(name: str, up: bool, detail: str, remedy: str) -> Dict[str, Any]:
+def _svc_finding(name: str, up: bool, detail: str, remedy: str) -> dict[str, Any]:
     """A service finding in the shared finding shape: LIVE renders dashboard-grade w/ no drill;
     DOWN renders banner-grade carrying the one-line start command (never a page -- a down
     service is setup, not a work emergency)."""
@@ -1650,12 +1651,12 @@ def _svc_finding(name: str, up: bool, detail: str, remedy: str) -> Dict[str, Any
     return _f(name, f"service_{'live' if up else 'down'}", "dashboard" if up else "banner", line, "" if up else remedy)
 
 
-def examine_services() -> List[Dict[str, Any]]:
+def examine_services() -> list[dict[str, Any]]:
     """T081-W3: fleet-INFRASTRUCTURE liveness -- the processes a seat needs but agent diagnosis
     (examine) never covers: the bus backend, the UI console, the presence daemon. Each LIVE/DOWN
     with a one-line start command for anything DOWN -- the 'what's running?' answer boot couldn't
     give (P2). Fail-open per probe: a probe that raises drops its own line, never the section."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:  # 1) Redis -- the bus backend everything rides
         c = _client()
         up = False
@@ -1714,7 +1715,7 @@ def examine_services() -> List[Dict[str, Any]]:
     return out
 
 
-def known_agents() -> List[str]:
+def known_agents() -> list[str]:
     """Union of ids with a worklive record, a runner lock, presence, OR a durable inbox holding
     RECENT unconsumed mail. That last source is the fix for the 2026-07-12 gap: worklive/runner/
     presence are ALL TTL'd, so a dead-runner agent decays out of view within a minute even though its
@@ -1748,7 +1749,7 @@ def known_agents() -> List[str]:
     return sorted(i for i in ids if not i.startswith(("t-", "drill-")))
 
 
-def _open_watches() -> Dict[str, Any]:
+def _open_watches() -> dict[str, Any]:
     """Ruling 369243, observability half (defer 2955dae7eb): the open-watch count against the
     cap, through the ledger's own git-only door. The gate half (task_ledger's two-watch gate,
     2026-09-04) made the cap bind by REFUSAL -- and until this read the count was visible only
@@ -1763,7 +1764,7 @@ def _open_watches() -> Dict[str, Any]:
         return {"open": None, "cap": None, "ids": [], "over": False, "silent": [], "error": str(e) or type(e).__name__}
 
 
-def _watch_segment(w: Dict[str, Any]) -> str:
+def _watch_segment(w: dict[str, Any]) -> str:
     """The summary's one segment: 'watches 2/2 [T079, T385]', or 'watches ?/2 (ledger error: ...)'.
     The error rides whole on one line, never clipped: a diagnostic that points away from its
     evidence is the failure class this module exists to end."""
@@ -1776,7 +1777,7 @@ def _watch_segment(w: Dict[str, Any]) -> str:
     return f"{seg} [{', '.join(ids)}]" if ids else seg
 
 
-def _watch_finding(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _watch_finding(w: dict[str, Any]) -> dict[str, Any] | None:
     """Dashboard-grade when MORE rows than the cap are open in SILENCE (no pauses=, no
     operator_ruling= recorded). The gate refuses exactly that, so the state exists only when the
     ledger was widened around it -- a hand edit, an older writer -- and it must not render as
@@ -1803,8 +1804,8 @@ def _watch_finding(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def examine_fleet(
-    agents: Optional[List[str]] = None, *, probes: Optional[Dict[str, Any]] = None, page_notes: bool = False
-) -> Dict[str, Any]:
+    agents: list[str] | None = None, *, probes: dict[str, Any] | None = None, page_notes: bool = False
+) -> dict[str, Any]:
     """The doctor's round: findings across the fleet + the one-line summary.
 
     Page-grade findings ALWAYS escalate to the pager (the human-facing channel),
@@ -1817,7 +1818,7 @@ def examine_fleet(
     'watches 2/2 [T079, T385]'), so the cap is visible on every boot BEFORE it refuses;
     the dict behind it rides the report as rep["watches"] (--json gets it whole)."""
     agents = agents if agents is not None else known_agents()
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     for a in agents:
         findings.extend(examine(a, probes=probes))
     watches = _open_watches()  # ruling 369243: the cap, visible before it refuses
@@ -1849,13 +1850,13 @@ def examine_fleet(
     return {"agents": agents, "findings": findings, "pages": pages, "summary": summary, "watches": watches}
 
 
-def _page_key(f: Dict[str, Any]) -> str:
+def _page_key(f: dict[str, Any]) -> str:
     """What a page is ABOUT: (agent, state). Stable across re-observations, so the same
     condition escalates once and retracts once."""
     return f"{f.get('agent')}:{f.get('state')}"
 
 
-def _reconcile_pages(pages: List[Dict[str, Any]], agents: List[str]) -> None:
+def _reconcile_pages(pages: list[dict[str, Any]], agents: list[str]) -> None:
     """Retract escalations whose condition is GONE.
 
     An escalation channel that cannot retract stops being read. Live receipt (2026-07-27):
@@ -1924,7 +1925,7 @@ def _reconcile_pages(pages: List[Dict[str, Any]], agents: List[str]) -> None:
         pass
 
 
-def _first_this_window(c, prefix: str, f: Dict[str, Any]) -> bool:
+def _first_this_window(c, prefix: str, f: dict[str, Any]) -> bool:
     """True when this (channel, agent, state) has not fired inside PAGE_DEDUP_TTL.
     Fail-OPEN toward emitting: no dedup store is a reason to page twice, never a
     reason to stay silent."""
@@ -1936,7 +1937,7 @@ def _first_this_window(c, prefix: str, f: Dict[str, Any]) -> bool:
         return True
 
 
-def _emit_pages(pages: List[Dict[str, Any]], *, notes: bool = True) -> None:
+def _emit_pages(pages: list[dict[str, Any]], *, notes: bool = True) -> None:
     """Route page-grade findings OUT of the doctor, to two channels.
 
     ORDER IS LOAD-BEARING (2026-07-26). The pager goes FIRST and stands alone: it is

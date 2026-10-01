@@ -21,7 +21,8 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Deque, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Deque, Dict, List, Optional
+from collections.abc import Callable, Iterable, Mapping, Sequence
 
 
 class CodexAppServerError(RuntimeError):
@@ -31,7 +32,7 @@ class CodexAppServerError(RuntimeError):
 @dataclass(frozen=True)
 class ThreadHandle:
     thread_id: str
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -40,18 +41,18 @@ class TurnResult:
     turn_id: str
     status: str
     text: str
-    token_usage: Dict[str, Any]
-    raw: Dict[str, Any]
+    token_usage: dict[str, Any]
+    raw: dict[str, Any]
 
 
 @dataclass(frozen=True)
 class _Notification:
     seq: int
     method: str
-    params: Dict[str, Any]
+    params: dict[str, Any]
 
 
-def resolve_codex_binary(explicit: Optional[os.PathLike[str] | str] = None) -> Path:
+def resolve_codex_binary(explicit: os.PathLike[str] | str | None = None) -> Path:
     """Resolve the app-managed Codex executable without pinning its version hash."""
     if explicit:
         path = Path(explicit).expanduser().resolve()
@@ -78,7 +79,7 @@ def resolve_codex_binary(explicit: Optional[os.PathLike[str] | str] = None) -> P
     raise CodexAppServerError("Could not resolve Codex. Set AKASHIC_CODEX_BINARY or install/open Codex Desktop.")
 
 
-def default_command(*, trust_vetted_hooks: bool = True) -> List[str]:
+def default_command(*, trust_vetted_hooks: bool = True) -> list[str]:
     command = [str(resolve_codex_binary())]
     if trust_vetted_hooks:
         command.append("--dangerously-bypass-hook-trust")
@@ -92,12 +93,12 @@ class CodexAppServer:
     def __init__(
         self,
         *,
-        command: Optional[Sequence[str]] = None,
-        cwd: Optional[os.PathLike[str] | str] = None,
-        env: Optional[Mapping[str, str]] = None,
+        command: Sequence[str] | None = None,
+        cwd: os.PathLike[str] | str | None = None,
+        env: Mapping[str, str] | None = None,
         request_timeout: float = 30.0,
         notification_limit: int = 2048,
-        request_handlers: Optional[Mapping[str, Callable[[Dict[str, Any]], Mapping[str, Any]]]] = None,
+        request_handlers: Mapping[str, Callable[[dict[str, Any]], Mapping[str, Any]]] | None = None,
         experimental_api: bool = False,
     ) -> None:
         self.command = list(command) if command is not None else default_command()
@@ -108,8 +109,8 @@ class CodexAppServer:
         self.request_handlers = dict(request_handlers or {})
         self.experimental_api = bool(experimental_api)
 
-        self._process: Optional[subprocess.Popen[str]] = None
-        self._pending: Dict[int, queue.Queue[Any]] = {}
+        self._process: subprocess.Popen[str] | None = None
+        self._pending: dict[int, queue.Queue[Any]] = {}
         self._pending_lock = threading.Lock()
         self._write_lock = threading.Lock()
         self._next_id = 1
@@ -118,13 +119,13 @@ class CodexAppServer:
         self._dead = threading.Event()
 
         self._notification_condition = threading.Condition()
-        self._notifications: Deque[_Notification] = deque(maxlen=self._notification_limit)
+        self._notifications: deque[_Notification] = deque(maxlen=self._notification_limit)
         self._notification_seq = 0
-        self._stdout_thread: Optional[threading.Thread] = None
-        self._stderr_thread: Optional[threading.Thread] = None
+        self._stdout_thread: threading.Thread | None = None
+        self._stderr_thread: threading.Thread | None = None
         self.stdout_reader_starts = 0
-        self.stderr_tail: Deque[str] = deque(maxlen=100)
-        self.protocol_noise: Deque[str] = deque(maxlen=100)
+        self.stderr_tail: deque[str] = deque(maxlen=100)
+        self.protocol_noise: deque[str] = deque(maxlen=100)
 
     # ------------------------------------------------------------------ lifecycle
     @property
@@ -133,7 +134,7 @@ class CodexAppServer:
             raise CodexAppServerError("App Server has not been started")
         return self._process
 
-    def start(self) -> "CodexAppServer":
+    def start(self) -> CodexAppServer:
         if self._started:
             return self
         if self._closed:
@@ -173,7 +174,7 @@ class CodexAppServer:
         self._started = True
 
         try:
-            initialize_params: Dict[str, Any] = {"clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}}
+            initialize_params: dict[str, Any] = {"clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}}
             if self.experimental_api:
                 initialize_params["capabilities"] = {"experimentalApi": True}
             self.request(
@@ -209,7 +210,7 @@ class CodexAppServer:
                 process.wait(timeout=3)
         self._fail_pending(CodexAppServerError("Codex App Server closed"))
 
-    def __enter__(self) -> "CodexAppServer":
+    def __enter__(self) -> CodexAppServer:
         return self.start()
 
     def __exit__(self, _exc_type: Any, _exc: Any, _tb: Any) -> None:
@@ -235,10 +236,10 @@ class CodexAppServer:
     def request(
         self,
         method: str,
-        params: Optional[Mapping[str, Any]] = None,
+        params: Mapping[str, Any] | None = None,
         *,
-        timeout: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
         if not self._started:
             self.start()
         with self._pending_lock:
@@ -266,7 +267,7 @@ class CodexAppServer:
             with self._pending_lock:
                 self._pending.pop(request_id, None)
 
-    def notify(self, method: str, params: Optional[Mapping[str, Any]] = None) -> None:
+    def notify(self, method: str, params: Mapping[str, Any] | None = None) -> None:
         if not self._started:
             self.start()
         self._send({"method": method, "params": dict(params or {})})
@@ -329,7 +330,7 @@ class CodexAppServer:
         self,
         request_id: Any,
         method: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
     ) -> None:
         """Answer a reverse JSON-RPC request without blocking the sole stdout reader."""
         handler = self.request_handlers.get(method)
@@ -397,7 +398,7 @@ class CodexAppServer:
         with self._notification_condition:
             return self._notification_seq
 
-    def _record_notification(self, method: str, params: Dict[str, Any]) -> None:
+    def _record_notification(self, method: str, params: dict[str, Any]) -> None:
         with self._notification_condition:
             self._notification_seq += 1
             self._notifications.append(_Notification(self._notification_seq, method, params))
@@ -408,8 +409,8 @@ class CodexAppServer:
         method: str,
         *,
         after: int = 0,
-        predicate: Optional[Callable[[Dict[str, Any]], bool]] = None,
-    ) -> List[Dict[str, Any]]:
+        predicate: Callable[[dict[str, Any]], bool] | None = None,
+    ) -> list[dict[str, Any]]:
         with self._notification_condition:
             return [
                 item.params
@@ -422,9 +423,9 @@ class CodexAppServer:
         method: str,
         *,
         after: int = 0,
-        predicate: Optional[Callable[[Dict[str, Any]], bool]] = None,
+        predicate: Callable[[dict[str, Any]], bool] | None = None,
         timeout: float = 300.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         deadline = time.monotonic() + float(timeout)
         with self._notification_condition:
             while True:
@@ -447,16 +448,16 @@ class CodexAppServer:
         *,
         ephemeral: bool = True,
         sandbox: str = "read-only",
-        cwd: Optional[os.PathLike[str] | str] = None,
-        model: Optional[str] = None,
-        developer_instructions: Optional[str] = None,
+        cwd: os.PathLike[str] | str | None = None,
+        model: str | None = None,
+        developer_instructions: str | None = None,
         approval_policy: str = "never",
-        personality: Optional[str] = None,
-        dynamic_tools: Optional[Sequence[Mapping[str, Any]]] = None,
+        personality: str | None = None,
+        dynamic_tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> ThreadHandle:
         if dynamic_tools and not self.experimental_api:
             raise CodexAppServerError("dynamic_tools require experimental_api=True during App Server initialization")
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "ephemeral": bool(ephemeral),
             "sandbox": sandbox,
             "approvalPolicy": approval_policy,
@@ -487,12 +488,12 @@ class CodexAppServer:
         thread_id: str,
         *,
         sandbox: str = "read-only",
-        cwd: Optional[os.PathLike[str] | str] = None,
-        model: Optional[str] = None,
-        developer_instructions: Optional[str] = None,
+        cwd: os.PathLike[str] | str | None = None,
+        model: str | None = None,
+        developer_instructions: str | None = None,
         approval_policy: str = "never",
-        personality: Optional[str] = None,
-        dynamic_tools: Optional[Sequence[Mapping[str, Any]]] = None,
+        personality: str | None = None,
+        dynamic_tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> ThreadHandle:
         """Load one persisted Codex thread without starting a model turn.
 
@@ -504,7 +505,7 @@ class CodexAppServer:
             raise CodexAppServerError("thread/resume requires a non-empty thread id")
         if dynamic_tools and not self.experimental_api:
             raise CodexAppServerError("dynamic_tools require experimental_api=True during App Server initialization")
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "threadId": requested_id,
             "sandbox": sandbox,
             "approvalPolicy": approval_policy,
@@ -536,7 +537,7 @@ class CodexAppServer:
         self,
         thread_id: str,
         *,
-        last_turn_id: Optional[str] = None,
+        last_turn_id: str | None = None,
         ephemeral: bool = False,
     ) -> ThreadHandle:
         """Copy stored history into a new thread owned by this App Server host.
@@ -548,7 +549,7 @@ class CodexAppServer:
         source_id = str(thread_id or "").strip()
         if not source_id:
             raise CodexAppServerError("thread/fork requires a non-empty source thread id")
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "threadId": source_id,
             "ephemeral": bool(ephemeral),
         }
@@ -574,14 +575,14 @@ class CodexAppServer:
         thread_id: str,
         prompt: str,
         *,
-        effort: Optional[str] = "low",
-        model: Optional[str] = None,
-        additional_context: Optional[Mapping[str, str]] = None,
-        sandbox_policy: Optional[Mapping[str, Any]] = None,
+        effort: str | None = "low",
+        model: str | None = None,
+        additional_context: Mapping[str, str] | None = None,
+        sandbox_policy: Mapping[str, Any] | None = None,
         timeout: float = 600.0,
     ) -> TurnResult:
         cursor = self.notification_cursor
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "threadId": str(thread_id),
             "input": [{"type": "text", "text": str(prompt)}],
         }
@@ -603,7 +604,7 @@ class CodexAppServer:
             raise CodexAppServerError(f"turn/start response has no turn id: {json.dumps(started, ensure_ascii=False)}")
         tid = str(turn_id)
 
-        def same_turn(value: Dict[str, Any]) -> bool:
+        def same_turn(value: dict[str, Any]) -> bool:
             event_tid = value.get("turnId")
             nested = value.get("turn")
             if event_tid is None and isinstance(nested, dict):

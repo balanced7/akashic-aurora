@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 from core.trust import registry
 from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from
@@ -42,7 +42,7 @@ MAX_HOURS = 24 * 365
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _read_doc() -> dict:
@@ -161,7 +161,7 @@ def grant(
 
     expires_at = None
     if not permanent:
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        expires_at = (datetime.now(UTC) + timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     rec = {
         "agent_id": agent_id,

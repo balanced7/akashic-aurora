@@ -46,7 +46,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Shaped credentials, by issuer. Each has a fixed prefix and a length floor, which is what
 # makes them low-false-positive: an accidental match is close to impossible.
-PATTERNS: Dict[str, "re.Pattern[bytes]"] = {
+PATTERNS: dict[str, re.Pattern[bytes]] = {
     "openai/deepseek key": re.compile(rb"\bsk-[A-Za-z0-9_-]{20,}"),
     "anthropic key": re.compile(rb"\bsk-ant-[A-Za-z0-9_-]{20,}"),
     "github pat": re.compile(rb"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}"),
@@ -71,7 +71,7 @@ PATTERNS: Dict[str, "re.Pattern[bytes]"] = {
 #
 # NOTHING THAT IS ACTUALLY A CREDENTIAL BELONGS HERE. The response to a real key in
 # history is to rotate it and rewrite history, never to add a line to this dict.
-BENIGN_FINGERPRINTS: Dict[str, str] = {
+BENIGN_FINGERPRINTS: dict[str, str] = {
     # VERIFIED, not assumed: this fingerprint was computed from the live canary in
     # tests/test_t156_wire_journal.py and matched the history hits exactly, proving the
     # two historical blobs hold that identical string and nothing else.
@@ -81,7 +81,7 @@ BENIGN_FINGERPRINTS: Dict[str, str] = {
 }
 
 # path -> WHY it is allowed. A bare path is refused (see _check_allowlist).
-DEFAULT_ALLOWLIST: Dict[str, str] = {
+DEFAULT_ALLOWLIST: dict[str, str] = {
     "tests/test_t156_wire_journal.py": "deliberate canary string 'SUPER-SECRET-PROMPT-CONTENT-…' asserting the wire "
     "journal records METADATA ONLY and never prompt content -- the hit is the proof",
     "scripts/checkers/check_secrets.py": "this file: the detection patterns themselves match their own description",
@@ -124,7 +124,7 @@ def mask(raw: bytes) -> str:
     return f"{s[:6]}…{s[-3:]} ({len(s)} chars)"
 
 
-def _check_allowlist(allowlist: Optional[Dict[str, str]]) -> Dict[str, str]:
+def _check_allowlist(allowlist: dict[str, str] | None) -> dict[str, str]:
     if not allowlist:
         return {}
     for path, reason in allowlist.items():
@@ -145,7 +145,7 @@ def fingerprint(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def _scan_bytes(data: bytes) -> List[tuple]:
+def _scan_bytes(data: bytes) -> list[tuple]:
     out = []
     for kind, pat in PATTERNS.items():
         m = pat.search(data)
@@ -155,15 +155,15 @@ def _scan_bytes(data: bytes) -> List[tuple]:
 
 
 def scan_tracked(
-    root: Optional[Path] = None, allowlist: Optional[Dict[str, str]] = None, staged_only: bool = False
-) -> Dict[str, Any]:
+    root: Path | None = None, allowlist: dict[str, str] | None = None, staged_only: bool = False
+) -> dict[str, Any]:
     """Every file git tracks (or only what is staged). The fast lane -- fit for a hook."""
     root = Path(root) if root else _REPO_ROOT
     allow = _check_allowlist(allowlist)
     cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"] if staged_only else ["git", "ls-files"]
     listing = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True).stdout
     findings, scanned, allowed = [], 0, 0
-    reasons: List[str] = []
+    reasons: list[str] = []
     for rel in listing.splitlines():
         rel = rel.strip()
         if not rel or Path(rel).suffix.lower() in _SKIP_SUFFIXES:
@@ -200,7 +200,7 @@ def scan_tracked(
     }
 
 
-def scan_history(root: Optional[Path] = None, allowlist: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+def scan_history(root: Path | None = None, allowlist: dict[str, str] | None = None) -> dict[str, Any]:
     """Every blob the object store holds, including ones no branch references.
 
     A deleted file is still published on a public remote -- this is the mode that sees it.
@@ -257,7 +257,7 @@ def scan_history(root: Optional[Path] = None, allowlist: Optional[Dict[str, str]
     }
 
 
-def render(rep: Dict[str, Any]) -> None:
+def render(rep: dict[str, Any]) -> None:
     where = {"tracked": "tracked files", "staged": "staged files", "history": "blobs in history"}[rep["mode"]]
     if rep["ok"]:
         print(
@@ -279,7 +279,7 @@ def render(rep: Dict[str, Any]) -> None:
     print("    on a public remote the blob stays fetchable until history is rewritten.")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--root", default="")
     ap.add_argument("--history", action="store_true", help="scan every blob ever committed, not just the working tree")

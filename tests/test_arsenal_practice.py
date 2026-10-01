@@ -9,7 +9,7 @@ import json
 import re
 import shutil
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 import pytest
@@ -469,7 +469,7 @@ def test_session_start_prefers_the_page_clock_and_today_uses_it(tmp_path):
         meta={
             "page": "piano",
             "buffered": True,
-            "opened_at_client": (now - timedelta(days=3)).astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "opened_at_client": (now - timedelta(days=3)).astimezone(UTC).isoformat().replace("+00:00", "Z"),
         },
     )
     fresh = _store(root, "20260101-090001-0000000b", [], now)

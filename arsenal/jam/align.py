@@ -28,7 +28,7 @@ ERROR_MS = {"L1": 2, "L2": 2, "L3": 50, "L4": 150}
 OVERLAP_SLACK_MS = 5000
 
 
-def epoch_ms_of(iso) -> Optional[float]:
+def epoch_ms_of(iso) -> float | None:
     if not isinstance(iso, str) or not iso:
         return None
     try:
@@ -41,7 +41,7 @@ def _num(x) -> bool:
     return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
-def session_window(info: dict) -> Tuple[Optional[float], Optional[float]]:
+def session_window(info: dict) -> tuple[float | None, float | None]:
     """(start, end) of a session in epoch ms: its open time (client clock first) plus its last event time."""
     meta = info.get("meta") or {}
     start = epoch_ms_of(meta.get("opened_at_client")) or epoch_ms_of(info.get("opened_at"))
@@ -50,7 +50,7 @@ def session_window(info: dict) -> Tuple[Optional[float], Optional[float]]:
     return start, start + max(0, int(info.get("last_t_ms") or 0))
 
 
-def run_window(run: dict, events: List[dict]) -> Tuple[Optional[float], Optional[float]]:
+def run_window(run: dict, events: list[dict]) -> tuple[float | None, float | None]:
     start = run.get("start_epoch_ms")
     if start is None:
         return None, None
@@ -78,7 +78,7 @@ def _result(method: str, info: dict, run: dict, anchor: dict, **extra) -> dict:
     return out
 
 
-def align_session(run: dict, events: List[dict], info: dict) -> dict:
+def align_session(run: dict, events: list[dict], info: dict) -> dict:
     session = info.get("session")
     base = {
         "session": session,
@@ -126,7 +126,7 @@ def bar_t_ms(alignment: dict, run: dict, bar: int, beat: float = 0) -> float:
     return tempomap.session_t_ms(run["segments"], run["beats_per_bar"], bar, beat, alignment["anchor"])
 
 
-def overlapping(run: dict, events: List[dict], store, slack_ms: float = OVERLAP_SLACK_MS) -> List[str]:
+def overlapping(run: dict, events: list[dict], store, slack_ms: float = OVERLAP_SLACK_MS) -> list[str]:
     rs, re_ = run_window(run, events)
     if rs is None:
         return []
@@ -142,7 +142,7 @@ def overlapping(run: dict, events: List[dict], store, slack_ms: float = OVERLAP_
     return out
 
 
-def align(run: dict, events: List[dict], store, session: Optional[str] = None) -> List[dict]:
+def align(run: dict, events: list[dict], store, session: str | None = None) -> list[dict]:
     if store is None:
         return [{"session": session, "run": run.get("run"), "method": None, "refused": True, "reason": "no log"}]
     sessions = [session] if session else overlapping(run, events, store)

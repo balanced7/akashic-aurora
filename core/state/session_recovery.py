@@ -54,8 +54,8 @@ class SessionRecovery:
             "events": self.logs_dir / "session_events_canonical.jsonl",
             "errors": self.logs_dir / "errors_and_faults.jsonl",
         }
-        self.sessions: Dict[str, List[Dict]] = defaultdict(list)
-        self.summaries: Dict[str, str] = {}
+        self.sessions: dict[str, list[dict]] = defaultdict(list)
+        self.summaries: dict[str, str] = {}
 
     def load_sessions_from_local_files(self) -> None:
         """
@@ -73,7 +73,7 @@ class SessionRecovery:
                 continue
 
             try:
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     lines = f.readlines()
                     for line in lines:
                         try:
@@ -103,7 +103,7 @@ class SessionRecovery:
         summary_files = list(self.logs_dir.glob("SESSION_SUMMARY_*.md"))
         for filepath in summary_files:
             try:
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     content = f.read()
                     session_name = filepath.stem.replace("SESSION_SUMMARY_", "")
                     self.summaries[session_name] = content[:500] + "..."
@@ -115,7 +115,7 @@ class SessionRecovery:
         """Deprecated internal: Use _load_summaries_from_markdown_files() instead"""
         return self._load_summaries_from_markdown_files()
 
-    def load_session_state_from_disk(self) -> Dict:
+    def load_session_state_from_disk(self) -> dict:
         """
         Load current session state from disk storage.
 
@@ -127,17 +127,17 @@ class SessionRecovery:
             return {}
 
         try:
-            with open(SESSION_STATE_FILE, "r") as f:
+            with open(SESSION_STATE_FILE) as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return {}
 
     # Backward compatibility alias
-    def load_session_state(self) -> Dict:
+    def load_session_state(self) -> dict:
         """Deprecated: Use load_session_state_from_disk() instead"""
         return self.load_session_state_from_disk()
 
-    def load_recent_sessions_ordered_by_timestamp(self, limit: int = 5) -> List[tuple]:
+    def load_recent_sessions_ordered_by_timestamp(self, limit: int = 5) -> list[tuple]:
         """
         Load most recent sessions ordered by timestamp.
 
@@ -169,11 +169,11 @@ class SessionRecovery:
         return sorted(sessions_by_time, key=lambda x: x[1], reverse=True)[:limit]
 
     # Backward compatibility alias
-    def get_recent_sessions(self, limit: int = 5) -> List[tuple]:
+    def get_recent_sessions(self, limit: int = 5) -> list[tuple]:
         """Deprecated: Use load_recent_sessions_ordered_by_timestamp() instead"""
         return self.load_recent_sessions_ordered_by_timestamp(limit)
 
-    def derive_conversation_summary_from_entries(self, session_id: str) -> Dict:
+    def derive_conversation_summary_from_entries(self, session_id: str) -> dict:
         """
         Derive conversation summary from session entries.
 
@@ -237,7 +237,7 @@ class SessionRecovery:
         return summary
 
     # Backward compatibility alias
-    def get_conversation_summary(self, session_id: str) -> Dict:
+    def get_conversation_summary(self, session_id: str) -> dict:
         """Deprecated: Use derive_conversation_summary_from_entries() instead"""
         return self.derive_conversation_summary_from_entries(session_id)
 

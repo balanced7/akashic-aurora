@@ -38,7 +38,8 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 REPLIED_WINDOW_S = 15 * 60  # unlinked-reply correlation horizon (fence counter b)
 ENTRY_TTL_S = 24 * 3600  # unsettled entries expire; no unbounded growth
@@ -49,7 +50,7 @@ _TERMINAL = ("answered", "replied", "dead")
 class _Entry:
     mid: str
     sha: str
-    to_agents: List[str]
+    to_agents: list[str]
     channel_id: str
     discord_msg_id: str
     stage: str = "landed"  # landed -> thinking -> (answered|replied|dead)
@@ -70,13 +71,13 @@ class LadderTracker:
         *,
         ns: str = "bifrost",
         operator: str = "daniil",
-        events_reader: Optional[Callable[[], List[Dict[str, Any]]]] = None,
+        events_reader: Callable[[], list[dict[str, Any]]] | None = None,
     ):
         self._c = client
         self.ns = ns
         self.operator = operator
         self._events_reader = events_reader
-        self._entries: Dict[str, _Entry] = {}
+        self._entries: dict[str, _Entry] = {}
         self._parser = None  # lazy Bus handle, used ONLY for _to_msg parsing
         # first contact: tail-init, settle nothing from the archive (feed pattern)
         self._op_cursor = self._tail(self._operator_inbox_key())
@@ -110,7 +111,7 @@ class LadderTracker:
         return "0-0"
 
     # ---------------------------------------------------------------- track
-    def track(self, mid: str, *, to_agents: List[str], channel_id: str, discord_msg_id: str) -> bool:
+    def track(self, mid: str, *, to_agents: list[str], channel_id: str, discord_msg_id: str) -> bool:
         """Register one relayed operator message. The identity sha is derived by
         parsing the stream record through Bus._to_msg -- the SAME seam every
         consumer rides -- then mailbox._identity_for_message. Two prior forks
@@ -149,8 +150,8 @@ class LadderTracker:
         return True
 
     # ---------------------------------------------------------------- poll
-    def poll(self) -> List[Dict[str, Any]]:
-        ops: List[Dict[str, Any]] = []
+    def poll(self) -> list[dict[str, Any]]:
+        ops: list[dict[str, Any]] = []
         self._sweep_expired()
         if not self._entries:
             # cursor still advances so a later track() never replays the gap
@@ -162,7 +163,7 @@ class LadderTracker:
         return ops
 
     # thinking: seen receipt exists for any addressed seat
-    def _poll_thinking(self) -> List[Dict[str, Any]]:
+    def _poll_thinking(self) -> list[dict[str, Any]]:
         out = []
         try:
             from core.comm.mailbox import seen_by
@@ -182,8 +183,8 @@ class LadderTracker:
         return out
 
     # answered (strict link) / replied (labeled heuristic, window-capped)
-    def _poll_answers(self) -> List[Dict[str, Any]]:
-        out: List[Dict[str, Any]] = []
+    def _poll_answers(self) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
         key = self._operator_inbox_key()
         try:
             new = self._c.xrange(key, min="(" + self._op_cursor, max="+")
@@ -222,8 +223,8 @@ class LadderTracker:
         return out
 
     # dead: expectation_dead names a tracked mid
-    def _poll_dead(self) -> List[Dict[str, Any]]:
-        out: List[Dict[str, Any]] = []
+    def _poll_dead(self) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
         if self._events_reader is None:
             return out
         try:
@@ -242,7 +243,7 @@ class LadderTracker:
         return out
 
     # ---------------------------------------------------------------- helpers
-    def _op(self, op: str, e: _Entry) -> Dict[str, Any]:
+    def _op(self, op: str, e: _Entry) -> dict[str, Any]:
         return {"op": op, "channel_id": e.channel_id, "discord_msg_id": e.discord_msg_id, "mid": e.mid}
 
     def _sweep_expired(self) -> None:
@@ -251,7 +252,7 @@ class LadderTracker:
             self._entries.pop(mid, None)
 
 
-def _meta_of(fields: Dict[str, str]) -> Dict[str, Any]:
+def _meta_of(fields: dict[str, str]) -> dict[str, Any]:
     try:
         m = json.loads(fields.get("meta") or "{}")
         return m if isinstance(m, dict) else {}

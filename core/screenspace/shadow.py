@@ -49,10 +49,10 @@ class Pulse:
     higher ladder level and belongs to engine.peek / the text/walk increment.
     """
 
-    foreground: Optional[str] = None
+    foreground: str | None = None
     focus_path: list = None
     roster_delta: list = None
-    elevated: Optional[bool] = None
+    elevated: bool | None = None
     activity: int = 0
     gen: int = 0
     stale_ms: int = 0

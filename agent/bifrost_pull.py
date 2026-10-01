@@ -39,7 +39,7 @@ def _content_str(content: Any) -> str:
         return str(content)
 
 
-def register_presence(agent_id: str) -> Dict[str, Any]:
+def register_presence(agent_id: str) -> dict[str, Any]:
     """Mark agent online + list who else is ATTENDING. Never raises.
 
     T155. `Bus.presence()` lists `{ns}:presence:*` REGISTRATION keys -- it answers "who registered
@@ -85,7 +85,7 @@ def register_presence(agent_id: str) -> Dict[str, Any]:
         }
 
 
-def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
     """Unread direct+broadcast mail; advance=False so cursor is unchanged.
 
     FRESHNESS WINDOW (pins: tests/test_sync_peek_freshness.py; kimi's Q4, adopted 3/3):
@@ -166,7 +166,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
             windowed = True
         else:
             head, tail, hidden, windowed = merged, [], 0, False
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
 
         def _row(m):
             d = m.to_dict() if hasattr(m, "to_dict") else {}
@@ -217,7 +217,7 @@ def _session_holder_token() -> str:
     return runner_lock.session_holder_token() or "session:anon-cli"
 
 
-def _seat_teach(agent_id: str, info: Dict[str, Any], ttl: int, *, fenced: bool = False) -> str:
+def _seat_teach(agent_id: str, info: dict[str, Any], ttl: int, *, fenced: bool = False) -> str:
     mode = "fenced MID-DRAIN (a successor claimed the seat during this read)" if fenced else "held"
     age = ""
     try:
@@ -236,7 +236,7 @@ def _seat_teach(agent_id: str, info: Dict[str, Any], ttl: int, *, fenced: bool =
     )
 
 
-def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
+def consume_inbox(agent_id: str, limit: int = 20) -> dict[str, Any]:
     """Read and advance the per-agent cursor -- through the RB-21 consumer seat.
 
     ONE return shape for every caller (deepseek review Q3, Option A):
@@ -297,7 +297,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
                 "teach": teach,
                 "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek],
             }
-        status: Dict[str, str] = {}
+        status: dict[str, str] = {}
         from core.comm.bifrost_api import BifrostAPI
 
         if BifrostAPI.consume_lane_enabled():
@@ -305,7 +305,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
             # same generation fence, but reads ride work_drain and advances hit the LANE hash.
             api = BifrostAPI(str(agent_id))
             api.bus.lane_flip_if_migrating()
-            nxt: Dict[str, str] = {}
+            nxt: dict[str, str] = {}
             msgs = api.work_drain(timeout_ms=1, limit=max(1, limit), since_out=nxt, generation=gen)
             if nxt.get("inbox") or nxt.get("bc"):
                 status["status"] = api.bus.advance_to(
@@ -427,7 +427,7 @@ def steer_facts_lines(agent_id: str, nudge=None, drain: bool = True) -> list:
     return out
 
 
-def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
+def stale_notice_lines(res: dict[str, Any], agent_id: str) -> list[str]:
     """W65: the honest tail EVERY consume door must render.
 
     consume_inbox already reports what it parked to the bench and skipped while the
@@ -454,7 +454,7 @@ def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
     return out
 
 
-def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
+def peek_locks(agent_id: str) -> list[dict[str, Any]]:
     """Advisory path-locks currently held (C2 awareness). Never raises."""
     try:
         from core.comm.locks import LockManager
@@ -464,7 +464,7 @@ def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
         return []
 
 
-def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
+def collect_boot_bifrost(agent_id: str, limit: int = 8) -> dict[str, Any]:
     """Presence + unread peek + held locks for boot() / bifrost-sync.
     RB-30: a leftover pause is surfaced LOUDLY here (the pull floor every turn touches)."""
     pres = register_presence(agent_id)
@@ -498,7 +498,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         pause_line = format_pause_line(pause_status())
     except Exception:
         pass
-    expect_lines: List[str] = []
+    expect_lines: list[str] = []
     try:
         # RB-29 (T030 L4): the render-time expectation sweep -- redrive overdue asks,
         # declare the exhausted ones DEAD loudly. No daemon; this pull floor IS the clock.
@@ -564,7 +564,7 @@ def clip_pointer(msg: Any, *, clipped: bool = True) -> str:
     )
 
 
-def format_inbox_line(msg: Dict[str, Any], max_len: int = 2000) -> str:
+def format_inbox_line(msg: dict[str, Any], max_len: int = 2000) -> str:
     frm = msg.get("frm", "?")
     kind = msg.get("kind", "?")
     full = _content_str(msg.get("content"))
@@ -608,7 +608,7 @@ _NEEDS_ATTENTION_KINDS = frozenset({"request", "question", "handoff", "blocker"}
 _TRACE_KINDS = frozenset({"trace", "steer", "nudge", "ledger_update", "resolved"})
 
 
-def kind_summary(messages) -> Dict[str, int]:
+def kind_summary(messages) -> dict[str, int]:
     """W02: bucket unread by what the seat must DO -- asks (need a reply), fyi (read
     only), traces (telemetry/control). Unknown kinds -> fyi (fail toward showing)."""
     out = {"asks": 0, "fyi": 0, "traces": 0}
@@ -736,7 +736,7 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
     return out
 
 
-def format_digest_line(msg: Dict[str, Any]) -> str:
+def format_digest_line(msg: dict[str, Any]) -> str:
     """Ultra-compact one-liner for a cheap scan: kind, sender, a 64-char teaser.
     The full body is one drill away (`bifrost-sync` without --digest, or --json)."""
     frm = msg.get("frm", "?")
@@ -746,7 +746,7 @@ def format_digest_line(msg: Dict[str, Any]) -> str:
     return f"  {ts} [{kind}] {frm}> {teaser}"
 
 
-def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False) -> None:
+def print_boot_bifrost_section(block: dict[str, Any], show_traces: bool = False) -> None:
     print("\n## UNREAD BIFROST (live bus)")
     if block.get("pause_line"):
         print(f"  {block['pause_line']}")  # RB-30: a frozen fleet announces itself first
@@ -790,7 +790,7 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
         print(f"  {ln}")  # W4: trace-class telemetry folded (--traces to expand)
 
 
-def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20) -> Dict[str, Any]:
+def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20) -> dict[str, Any]:
     """T084-CL-2: the turn-end ritual as ONE decision function -- drain (if the seat is ours to
     take), report seat state, then hand off to the LISTENER (injected callable) only when it is
     safe and non-redundant to listen. Encodes tonight's hard-won ordering laws:
@@ -805,7 +805,7 @@ def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20
     harness-tracked `bifrost-standby` background task = drain + report + armed seat, and the
     listener's exit re-invokes the harness. Never spawns detached (the T073 untracked-process
     root cause)."""
-    out: Dict[str, Any] = {"drained": 0, "listened": False, "decision": "", "report": []}
+    out: dict[str, Any] = {"drained": 0, "listened": False, "decision": "", "report": []}
     rep = out["report"]
     res = consume_inbox(agent_id, limit=limit)
     if res.get("seat_held"):
@@ -839,7 +839,7 @@ def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20
     return out
 
 
-def print_boot_locks_section(block: Dict[str, Any], agent_id: str = "") -> None:
+def print_boot_locks_section(block: dict[str, Any], agent_id: str = "") -> None:
     """Awareness: who holds which advisory path-locks (only prints if any are held)."""
     locks = block.get("locks") or []
     if not locks:
@@ -850,7 +850,7 @@ def print_boot_locks_section(block: Dict[str, Any], agent_id: str = "") -> None:
         print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}")
 
 
-def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = False) -> str:
+def format_promoted_events(events: list[dict[str, Any]], *, json_out: bool = False) -> str:
     if json_out:
         return json.dumps(events, indent=2, default=str)
     if not events:
@@ -870,7 +870,7 @@ def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = Fal
     return "\n".join(lines)
 
 
-def format_console_events(events: List[Dict[str, Any]], *, json_out: bool = False) -> str:
+def format_console_events(events: list[dict[str, Any]], *, json_out: bool = False) -> str:
     """Render durable console control-plane events (interjection/bus_control/file_drop) for the CLI."""
     if json_out:
         return json.dumps(events, indent=2, default=str)

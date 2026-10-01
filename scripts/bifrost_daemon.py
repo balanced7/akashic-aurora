@@ -302,7 +302,7 @@ def managed_runner_argv(
     return command
 
 
-def foreign_holder_after_exit(agent: str, exited_pid) -> "Optional[dict]":
+def foreign_holder_after_exit(agent: str, exited_pid) -> Optional[dict]:
     """R9 (watcher-controls, 2026-09-29): the runner child has just exited. If the runner lock is now held by a
     runner this daemon did not spawn -- a bare token, i.e. the child's own stale-code successor after a push, or a
     hand-launched runner -- the seat is manned and a respawn would only fail the lock, count as a crash, trip the
@@ -377,10 +377,10 @@ def main(argv=None) -> int:
     manage_listener = bool(args.manage_listener)
 
     # ---- A1 listener management state -------------------------------------------
-    listeners: Dict[str, ManagedChild] = {}  # sid[:8] -> ManagedChild
+    listeners: dict[str, ManagedChild] = {}  # sid[:8] -> ManagedChild
     next_marker_sweep: float = 0.0  # boot + hourly
 
-    def _spawn_listener(sid: str, ns: _Opt[str] = None) -> bool:
+    def _spawn_listener(sid: str, ns: str | None = None) -> bool:
         """Spawn a wake listener ManagedChild for sid. Reuses existing child if
         already alive. N1: benign exit = no auto-respawn (next .rearm trigger).
 
@@ -419,7 +419,7 @@ def main(argv=None) -> int:
         return False
 
     # ---- delta path: daemon lock (bifrost:daemon:<agent>) + runner child ----------
-    child: _Opt[ManagedChild] = None
+    child: ManagedChild | None = None
     dlock = None
     idle_mode = False  # W102: daemon alive but runner spawning deferred
     summary_file = args.summary_file or os.path.join(
@@ -617,7 +617,7 @@ def main(argv=None) -> int:
     bus.register(card=card)
 
     # T077 A3: runner-down visibility + 10-min re-escalation
-    runner_down_since: Optional[float] = None
+    runner_down_since: float | None = None
     runner_last_escalation: float = 0.0
     RE_ESCALATION_S = 600  # 10 minutes
 

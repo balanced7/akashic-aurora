@@ -30,7 +30,7 @@ import sys
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
@@ -479,7 +479,7 @@ def sample_until_exit(proc: subprocess.Popen, t0: float, timeout_s: float) -> di
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _run_text(argv: list[str], timeout_s: float = 60.0) -> tuple[int | None, str, str]:
@@ -560,7 +560,7 @@ def collect_file_facts(path: Path) -> dict:
     facts = {
         "path": str(path),
         "size_bytes": stat.st_size,
-        "mtime_utc": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(timespec="seconds"),
+        "mtime_utc": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(timespec="seconds"),
     }
     code, out, err = _run_text([str(GST_DISCOVERER), path.as_posix()], timeout_s=120.0)
     duration = re.search(r"Duration:\s*(\S+)", out) if code == 0 else None

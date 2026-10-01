@@ -42,7 +42,8 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
+from collections.abc import Callable
 
 # Repo root on path so the live-store dogfood (core.*) resolves when run directly as a script;
 # under pytest, conftest.py already does this. tests/ is on path either way, so `fixtures.*` works.
@@ -50,7 +51,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fixtures.counter_fixture import L, gold_cases, sample_corpus
 
-Detector = Callable[[Dict[str, Any], List[Dict[str, Any]]], Tuple[bool, List[str]]]
+Detector = Callable[[dict[str, Any], list[dict[str, Any]]], tuple[bool, list[str]]]
 
 # --- stable, implementation-independent tokenizer. Mirrors the production keyword_relevance
 # (lowercase alnum, length>3, no stemming) ON PURPOSE: the eval must reproduce recall's real
@@ -141,25 +142,25 @@ def salient_tokens(text: str) -> set:
     return {t for t in _TOKEN_RE.findall((text or "").lower()) if len(t) > 3 and t not in _STOP}
 
 
-def _text(rec: Dict[str, Any]) -> str:
+def _text(rec: dict[str, Any]) -> str:
     return " ".join(str(rec.get(f, "")) for f in ("recommendation", "actual", "what_tried"))
 
 
-def _is_success(rec: Dict[str, Any]) -> bool:
+def _is_success(rec: dict[str, Any]) -> bool:
     return str(rec.get("success", "")).lower() in ("yes", "true")
 
 
-def _is_failure(rec: Dict[str, Any]) -> bool:
+def _is_failure(rec: dict[str, Any]) -> bool:
     return str(rec.get("success", "")).lower() in ("no", "false", "partial")
 
 
 # ----------------------------------------------------------------------------- detectors
-def null_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+def null_detector(thesis: dict[str, Any], corpus: list[dict[str, Any]]) -> tuple[bool, list[str]]:
     """Today's recall: surfaces the top supporter, never a counter."""
     return False, []
 
 
-def naive_reference_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+def naive_reference_detector(thesis: dict[str, Any], corpus: list[dict[str, Any]]) -> tuple[bool, list[str]]:
     """A simple, honest floor (NOT the Slice 1 design). Flags a corpus record as a counter when it
     shares >=2 salient tokens with the thesis AND either (a) reports the opposite outcome or
     (b) carries a populated anti_pattern. Cannot see conflicting recommendations between two
@@ -167,7 +168,7 @@ def naive_reference_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]
     tname = thesis.get("experiment_name")
     ttok = salient_tokens(_text(thesis))
     t_success = _is_success(thesis)
-    found: List[str] = []
+    found: list[str] = []
     for rec in corpus:
         if rec.get("experiment_name") == tname:
             continue  # never count the thesis as its own counter
@@ -180,13 +181,13 @@ def naive_reference_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]
     return bool(found), found
 
 
-def dissent_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tuple[bool, List[str]]:
+def dissent_detector(thesis: dict[str, Any], corpus: list[dict[str, Any]]) -> tuple[bool, list[str]]:
     """The REAL Slice 1 finder (core/recall/dissent.find_counter), adapted to the fixture record
     shape (experiment_name -> source). Requires an explicit stance signal (anti_pattern / link) plus
     a TF-IDF topic gate; opposite outcome alone never fires."""
     from core.recall.dissent import find_counter
 
-    def adapt(r: Dict[str, Any]) -> Dict[str, Any]:
+    def adapt(r: dict[str, Any]) -> dict[str, Any]:
         return {
             **r,
             "source": r.get("source") or r.get("experiment_name"),
@@ -198,13 +199,13 @@ def dissent_detector(thesis: Dict[str, Any], corpus: List[Dict[str, Any]]) -> Tu
 
 
 # ----------------------------------------------------------------------------- metrics
-def evaluate(cases: List[Dict[str, Any]], detector: Detector) -> Dict[str, Any]:
+def evaluate(cases: list[dict[str, Any]], detector: Detector) -> dict[str, Any]:
     """Score a detector against the gold cases. Recall is over cases (did it find a real counter
     when one existed); precision is over surface events (of what it surfaced, how much was real)."""
     tp = fn = tn = fp = 0  # fp = false-balance (surfaced when it shouldn't have)
     surface_events = surface_hits = 0
-    per_kind: Dict[str, List[int]] = {}  # kind -> [hits, total]
-    rows: List[Dict[str, Any]] = []
+    per_kind: dict[str, list[int]] = {}  # kind -> [hits, total]
+    rows: list[dict[str, Any]] = []
     for c in cases:
         surfaced, srcs = detector(c["thesis"], c["corpus"])
         gold = set(c["counter_sources"])
@@ -251,7 +252,7 @@ def evaluate(cases: List[Dict[str, Any]], detector: Detector) -> Dict[str, Any]:
     }
 
 
-def counter_density(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+def counter_density(records: list[dict[str, Any]]) -> dict[str, Any]:
     """Confirmation-by-omission, as a number: of the self-reported successes in `records`, what
     fraction have >=1 lexically discoverable counter (shared tokens + opposite outcome or an
     anti_pattern)? A LOWER bound — it can't see same-vocabulary-free or same-success conflicts, so

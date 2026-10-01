@@ -16,7 +16,7 @@ from typing import List, Optional, Tuple
 
 # --- keyword tuples -> theme id ---
 # Derived from real beat data analysis: 7 existing beats cluster into 6 themes.
-THEME_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
+THEME_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (("trackrouter", "route", "routing", "domain switch", "active track", "ari", "windowdiff"), "routing"),
     (("beatlog", "emit", "hook", "mirror"), "logging"),
     (("test", "benchmark", "metric", "fixture", "acceptance bar", "verification"), "evaluation"),
@@ -33,7 +33,7 @@ class ThemeAssigner:
     match gets an empty theme list (which is valid).
     """
 
-    def __init__(self, keywords: Optional[List[Tuple[Tuple[str, ...], str]]] = None):
+    def __init__(self, keywords: list[tuple[tuple[str, ...], str]] | None = None):
         self.keywords = keywords or THEME_KEYWORDS
         # Word-boundary matching (D2): a theme keyword must match as a whole word, not inside
         # a larger one. Multi-label, so we check every group (not first-match).
@@ -41,7 +41,7 @@ class ThemeAssigner:
 
         self._theme_re = [(compile_keyword_group(kws), theme_id) for kws, theme_id in self.keywords]
 
-    def assign(self, beat, hint=None) -> List[str]:
+    def assign(self, beat, hint=None) -> list[str]:
         """Return all theme IDs whose keywords appear (as whole words) in the beat's text."""
         text = self._text_of(beat, hint)
         return [theme_id for rx, theme_id in self._theme_re if rx.search(text)]
@@ -63,7 +63,7 @@ class ThemeAssigner:
         return " ".join(parts)
 
 
-_INSTANCE: Optional[ThemeAssigner] = None
+_INSTANCE: ThemeAssigner | None = None
 
 
 def get_theme_assigner() -> ThemeAssigner:

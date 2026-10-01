@@ -69,7 +69,7 @@ _TAIL_CHUNK = 64 * 1024
 _TAIL_LIMIT = 4 * 1024 * 1024
 
 # An event as handed to/from callers, paired with its cursor id.
-Event = Tuple[str, Dict[str, Any]]
+Event = tuple[str, dict[str, Any]]
 
 
 class Ledger(ABC):
@@ -83,7 +83,7 @@ class Ledger(ABC):
     """
 
     @abstractmethod
-    def emit(self, stream: str, event: Dict[str, Any], maxlen: Optional[int] = None) -> str:
+    def emit(self, stream: str, event: dict[str, Any], maxlen: int | None = None) -> str:
         """
         Append an event to a stream. Returns the new event's cursor id.
 
@@ -95,7 +95,7 @@ class Ledger(ABC):
         ...
 
     @abstractmethod
-    def consume(self, stream: str, after_id: str = "0", count: int = 100, block_ms: int = 0) -> List[Event]:
+    def consume(self, stream: str, after_id: str = "0", count: int = 100, block_ms: int = 0) -> list[Event]:
         """
         Replay events appended after `after_id`, oldest first.
 
@@ -130,7 +130,7 @@ class RedisLedger(Ledger):
     so a down Redis yields an unavailable ledger (is_available() == False).
     """
 
-    def __init__(self, client: Optional[Any]):
+    def __init__(self, client: Any | None):
         self._client = client
 
     @classmethod
@@ -161,7 +161,7 @@ class RedisLedger(Ledger):
     def consume(self, stream, after_id="0", count=100, block_ms=0):
         block = block_ms if block_ms > 0 else None
         raw = self._client.xread({stream: after_id}, count=count, block=block)
-        events: List[Event] = []
+        events: list[Event] = []
         for _stream, messages in raw or []:
             for message_id, fields in messages:
                 try:
@@ -209,7 +209,7 @@ class FileLedger(Ledger):
     attempted, so a failed trim costs disk, never data.
     """
 
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: str | None = None):
         base = Path(base_dir) if base_dir else data_root() / "session_logs" / "ledger"
         base.mkdir(parents=True, exist_ok=True)
         self._base = base
@@ -223,12 +223,12 @@ class FileLedger(Ledger):
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", stream)
         return self._base / f"{safe}.jsonl"
 
-    def _read_records(self, stream: str) -> List[Dict[str, Any]]:
+    def _read_records(self, stream: str) -> list[dict[str, Any]]:
         path = self._stream_path(stream)
         if not path.exists():
             return []
         records = []
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -271,7 +271,7 @@ class FileLedger(Ledger):
                     return "0"
 
     @staticmethod
-    def _tail_state(path: Path) -> Tuple[int, bool]:
+    def _tail_state(path: Path) -> tuple[int, bool]:
         """(the id of the newest complete record, whether the file ends mid-line).
 
         Reads backwards from the end in chunks, skipping torn or foreign lines. Falls back to
@@ -307,7 +307,7 @@ class FileLedger(Ledger):
         return max((int(r["id"]) for r in records if "id" in r), default=0), torn
 
     @staticmethod
-    def _head_id(path: Path) -> Optional[int]:
+    def _head_id(path: Path) -> int | None:
         """Id of the oldest complete record, from the first lines only; None if unknown."""
         with contextlib.suppress(OSError):
             with open(path, "rb") as f:
@@ -344,10 +344,10 @@ class FileLedger(Ledger):
                 tmp.unlink()
 
     @staticmethod
-    def _parse_file(path: Path) -> List[Dict[str, Any]]:
+    def _parse_file(path: Path) -> list[dict[str, Any]]:
         records = []
         with contextlib.suppress(FileNotFoundError):
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -368,12 +368,12 @@ class FileLedger(Ledger):
         with self._lock:
             return self._collect_after(stream, after_id, count)
 
-    def _collect_after(self, stream: str, after_id: str, count: int) -> List[Event]:
+    def _collect_after(self, stream: str, after_id: str, count: int) -> list[Event]:
         try:
             cursor = int(after_id)
         except (TypeError, ValueError):
             cursor = 0
-        events: List[Event] = []
+        events: list[Event] = []
         for r in self._read_records(stream):
             if int(r["id"]) > cursor:
                 events.append((r["id"], r["event"]))
@@ -397,7 +397,7 @@ class HybridLedger(Ledger):
     `after_id` stays consistent with what consume() will read.
     """
 
-    def __init__(self, redis_ledger: Optional[RedisLedger], file_ledger: FileLedger):
+    def __init__(self, redis_ledger: RedisLedger | None, file_ledger: FileLedger):
         self._redis = redis_ledger
         self._file = file_ledger
 
@@ -407,7 +407,7 @@ class HybridLedger(Ledger):
         host: str = DEFAULT_REDIS_HOST,
         port: int = DEFAULT_REDIS_PORT,
         timeout_seconds: float = 2.0,
-        base_dir: Optional[str] = None,
+        base_dir: str | None = None,
         db: int = DEFAULT_REDIS_DB,
     ) -> "HybridLedger":
         rj = RedisLedger.connect(host=host, port=port, timeout_seconds=timeout_seconds, db=db)
@@ -481,7 +481,7 @@ def create_ledger(
     host: str = DEFAULT_REDIS_HOST,
     port: int = DEFAULT_REDIS_PORT,
     timeout_seconds: float = 2.0,
-    base_dir: Optional[str] = None,
+    base_dir: str | None = None,
     db: int = DEFAULT_REDIS_DB,
 ) -> Ledger:
     """

@@ -93,12 +93,12 @@ class SeedRefusal(RuntimeError):
 class SeedPlan:
     source: str
     target: str
-    include: List[str] = field(default_factory=list)
-    prefixes: List[str] = field(default_factory=list)
+    include: list[str] = field(default_factory=list)
+    prefixes: list[str] = field(default_factory=list)
     #: prefix -> reason, for everything deliberately left behind.
-    excluded: Dict[str, str] = field(default_factory=dict)
+    excluded: dict[str, str] = field(default_factory=dict)
 
-    def render(self, counts: Optional[Dict[str, int]] = None, applied: bool = False) -> str:
+    def render(self, counts: dict[str, int] | None = None, applied: bool = False) -> str:
         head = "SEEDED" if applied else "PLAN (dry run -- pass apply=True to write)"
         lines = [f"{head}: {self.source} -> {self.target}"]
         lines.append("  CARRIED:")
@@ -112,7 +112,7 @@ class SeedPlan:
         return "\n".join(lines)
 
 
-def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedPlan:
+def plan(source: str, target: str, include: list[str] | None = None) -> SeedPlan:
     """Build and validate a seed plan. Raises SeedRefusal rather than guessing."""
     include = list(include or [])
 
@@ -157,7 +157,7 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
     return SeedPlan(source=source, target=target, include=include, prefixes=prefixes, excluded=excluded)
 
 
-def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> dict:
+def write_manifest(dst, plan: SeedPlan, counts: dict[str, int], when: str) -> dict:
     """Record in the TARGET what it inherited, from where, and when.
 
     THE HOLE THIS PARTIALLY FILLS, stated plainly because it is only partially filled.
@@ -195,7 +195,7 @@ def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> di
     return doc
 
 
-def read_manifest(client) -> Optional[dict]:
+def read_manifest(client) -> dict | None:
     """What this world inherited, or None if its memory is all its own.
 
     ZERO IS NOT NO -- AND THAT IS WHY A CONNECTION FAILURE PROPAGATES HERE.

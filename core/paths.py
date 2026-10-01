@@ -44,7 +44,7 @@ from typing import Optional
 # Files/dirs that together identify the repo root and nothing else.
 _MARKERS = ("agent_cli.py", "core")
 
-_cached: Optional[Path] = None
+_cached: Path | None = None
 
 
 def _cache_enabled() -> bool:
@@ -65,7 +65,7 @@ def _looks_like_root(p: Path) -> bool:
         return False
 
 
-def repo_root(start: Optional[str] = None, *, use_env: bool = True) -> Path:
+def repo_root(start: str | None = None, *, use_env: bool = True) -> Path:
     """The CODE root. Order: AI_SETUP override (only if it IS a repo) -> derived from this
     file -> cwd walk. For session_logs/, coordinator_logs/ and every other piece of instance
     state use data_root(): a bare data dir is REJECTED here by design.
@@ -132,7 +132,7 @@ def data_root_str() -> str:
     return str(data_root())
 
 
-def env_override_is_wrong() -> Optional[str]:
+def env_override_is_wrong() -> str | None:
     """AI_SETUP set but not pointing at a repo -> the reason, else None.
 
     Split out so `doctor` can REPORT it. A silently ignored misconfiguration is how a broken
@@ -154,7 +154,7 @@ def env_override_is_wrong() -> Optional[str]:
     return None
 
 
-def env_paths(name: str) -> "list[Path]":
+def env_paths(name: str) -> list[Path]:
     """Absolute paths from the env var `name`, separated by os.pathsep (';' on Windows, ':'
     elsewhere). For locations that are genuinely MACHINE-SPECIFIC -- a second physical disk,
     a tool installed somewhere odd -- and so cannot be derived the way repo_root() is.

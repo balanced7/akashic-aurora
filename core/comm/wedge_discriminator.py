@@ -91,12 +91,12 @@ def _has(stack: str, markers: tuple) -> bool:
 
 
 def classify(
-    stack: Optional[str],
+    stack: str | None,
     *,
-    phase_age_s: Optional[float],
-    pulse_age_s: Optional[float],
-    beat_age_s: Optional[float],
-    wedge_floor_s: Optional[float] = None,
+    phase_age_s: float | None,
+    pulse_age_s: float | None,
+    beat_age_s: float | None,
+    wedge_floor_s: float | None = None,
 ) -> str:
     """Classify a runner's state as 'wedged' | 'thinking' | 'instrument_fault'.
 

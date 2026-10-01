@@ -62,7 +62,7 @@ class SyncState:
 class RedisSyncPoller:
     def __init__(self):
         self.state = SyncState()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self.running = False
         self._lock = threading.Lock()
         self._load_state()
@@ -71,7 +71,7 @@ class RedisSyncPoller:
         """Load sync state from file"""
         if os.path.exists(SYNC_STATE_FILE):
             try:
-                with open(SYNC_STATE_FILE, "r") as f:
+                with open(SYNC_STATE_FILE) as f:
                     data = json.load(f)
                     self.state = SyncState(**data)
                 print(f"[RedisSync] Loaded state: last sync={self.state.last_sync}")
@@ -121,7 +121,7 @@ class RedisSyncPoller:
             return [], 0
 
         entries = []
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             lines = f.readlines()
 
         current_lines = len(lines)
@@ -136,7 +136,7 @@ class RedisSyncPoller:
 
         return new_entries, current_lines
 
-    def _entry_key(self, entry: Dict) -> str:
+    def _entry_key(self, entry: dict) -> str:
         """Generate a unique key for an entry to avoid duplicates"""
         parts = [
             entry.get("type", ""),
@@ -148,7 +148,7 @@ class RedisSyncPoller:
         ]
         return hashlib.md5("|".join(parts).encode()).hexdigest()[:12]
 
-    def _sync_entry_to_redis(self, entry: Dict) -> bool:
+    def _sync_entry_to_redis(self, entry: dict) -> bool:
         """Sync a single entry to Redis"""
         if not self.state.redis_available or self.redis_client is None:
             return False
@@ -201,11 +201,11 @@ class RedisSyncPoller:
         if not self.state.redis_available:
             return
 
-        sessions: Set[str] = set()
+        sessions: set[str] = set()
         log_file = os.path.join(SESSION_LOG_DIR, "session_all.jsonl")
 
         if os.path.exists(log_file):
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
@@ -226,7 +226,7 @@ class RedisSyncPoller:
             except Exception as e:
                 print(f"[RedisSync] Failed to sync sessions: {e}")
 
-    def poll(self) -> Dict:
+    def poll(self) -> dict:
         """Poll session logs for new entries and sync to Redis"""
         stats = {"actions": 0, "chats": 0, "errors": 0, "sessions_synced": False}
 
@@ -303,7 +303,7 @@ class RedisSyncPoller:
 
         return stats
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get current sync status"""
         return {
             "running": self.running,
@@ -335,7 +335,7 @@ class SyncRunner:
     def __init__(self):
         self.poller = RedisSyncPoller()
         self._shutdown_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
     def _run_loop(self):
         """Main polling loop"""
@@ -399,7 +399,7 @@ class SyncRunner:
 
 
 # Global runner instance
-_runner: Optional[SyncRunner] = None
+_runner: SyncRunner | None = None
 
 
 def _signal_handler(signum, frame):

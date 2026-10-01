@@ -69,7 +69,7 @@ except Exception:
 def _iso(epoch):
     import datetime
 
-    return datetime.datetime.fromtimestamp(epoch, datetime.timezone.utc).isoformat()
+    return datetime.datetime.fromtimestamp(epoch, datetime.UTC).isoformat()
 
 
 # --- P1: the seams exist (RED today: no friction module, no snapshot) ---

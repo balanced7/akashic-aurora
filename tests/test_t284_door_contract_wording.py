@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = io.open(ROOT / "ai_setup_mcp.py", encoding="utf-8").read()
+SRC = open(ROOT / "ai_setup_mcp.py", encoding="utf-8").read()
 
 
 def _instructions_block() -> str:

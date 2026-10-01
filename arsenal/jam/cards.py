@@ -22,13 +22,15 @@ import re
 import secrets
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
+from collections.abc import Callable
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DECK_API
 from arsenal.jam import schemas as S
+import builtins
 
 PACKAGE = Path(__file__).resolve().parent
 DEFAULT_ROOT = PACKAGE.parents[1] / "state" / "arsenal" / "jam"
@@ -55,7 +57,7 @@ MOMENT_TEXT = {
 class DeckError(Exception):
     """A refused deck request: status is the HTTP status, field the offending field (400), extra more body fields."""
 
-    def __init__(self, message: str, status: int = 400, field: Optional[str] = None, **extra):
+    def __init__(self, message: str, status: int = 400, field: str | None = None, **extra):
         super().__init__(message)
         self.status = status
         self.field = field
@@ -63,7 +65,7 @@ class DeckError(Exception):
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 def clock_text(ms: float) -> str:
@@ -100,7 +102,7 @@ def kept_id(source_id: str) -> str:
     return f"k-{source_id[:41].rstrip('-')}-{secrets.token_hex(2)}"
 
 
-def template_id(now: Optional[float] = None) -> str:
+def template_id(now: float | None = None) -> str:
     return f"t-{time.strftime('%Y%m%d-%H%M%S', time.localtime(now))}-{secrets.token_hex(2)}"
 
 
@@ -117,7 +119,7 @@ def numbers_text(items) -> str:
 
 
 class DeckStore:
-    def __init__(self, root=None, reader: Optional[Callable[[dict], List[dict]]] = None):
+    def __init__(self, root=None, reader: Callable[[dict], builtins.list[dict]] | None = None):
         self.root = Path(root) if root else DEFAULT_ROOT
         self.reader = reader
         self._lock = threading.RLock()
@@ -151,7 +153,7 @@ class DeckStore:
         except (OSError, ValueError):
             return {"api": DECK_API, "rev": 0, "order": []}
 
-    def _bump(self, order: Optional[List[str]] = None) -> int:
+    def _bump(self, order: builtins.list[str] | None = None) -> int:
         doc = self.deck()
         doc["rev"] += 1
         if order is not None:
@@ -173,7 +175,7 @@ class DeckStore:
         except DeckError:
             return False
 
-    def all(self) -> List[dict]:
+    def all(self) -> builtins.list[dict]:
         if not self.cards_dir.is_dir():
             return []
         cards = []
@@ -197,7 +199,7 @@ class DeckStore:
             raise DeckError(f"{ref!r} matches {len(ids)} cards: {', '.join(ids[:8])}", 400, "card")
         raise DeckError(f"no card {ref}", 404)
 
-    def list(self, group=None, kind=None, tag=None, by=None, archived: bool = False) -> List[dict]:
+    def list(self, group=None, kind=None, tag=None, by=None, archived: bool = False) -> builtins.list[dict]:
         out = []
         for c in self.all():
             if group and c.get("group") != group or kind and c.get("kind") != kind:
@@ -229,7 +231,7 @@ class DeckStore:
             "runs": runs,
         }
 
-    def doc(self, runs_by_card: Optional[Dict[str, int]] = None, **filters) -> dict:
+    def doc(self, runs_by_card: dict[str, int] | None = None, **filters) -> dict:
         deck = self.deck()
         runs_by_card = runs_by_card or {}
         return {
@@ -239,7 +241,7 @@ class DeckStore:
             "cards": [self.summary(c, runs_by_card.get(c["id"], 0)) for c in self.list(**filters)],
         }
 
-    def trash(self) -> List[dict]:
+    def trash(self) -> builtins.list[dict]:
         out = []
         if self.trash_dir.is_dir():
             for path in sorted(self.trash_dir.glob("*.json")):
@@ -263,7 +265,7 @@ class DeckStore:
         return out
 
     # ------------------------------------------------------------------------------------------ writes
-    def _finish(self, card: dict) -> List[str]:
+    def _finish(self, card: dict) -> builtins.list[str]:
         """Validate a card about to be stored, read its chords through the bridge, and return warnings."""
         _schema(S.validate_card, card)
         if self.reader is not None:
@@ -279,7 +281,7 @@ class DeckStore:
                 )
         return warnings
 
-    def create(self, card: dict, by: str = "claude", source: Optional[dict] = None) -> dict:
+    def create(self, card: dict, by: str = "claude", source: dict | None = None) -> dict:
         if not isinstance(card, dict):
             raise DeckError("card must be a JSON object", 400, "card")
         if by not in S.AUTHORS:
@@ -341,7 +343,7 @@ class DeckStore:
             old = self.get(card_id)
             if old["rev"] != if_rev:
                 raise DeckError(f"rev changed: card {card_id} is at rev {old['rev']}", 409, rev=old["rev"])
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")[:-3] + "Z"
+            stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")[:-3] + "Z"
             target = self.trash_dir / f"{card_id}.rev{old['rev']}.{stamp}.json"
             self.trash_dir.mkdir(parents=True, exist_ok=True)
             self._path(card_id).replace(target)
@@ -366,7 +368,7 @@ class DeckStore:
             deck_rev = self._bump([x for x in self.deck()["order"] if x != card_id] + [card_id])
         return {"id": card_id, "rev": c["rev"], "card": c, "warnings": warnings, "deck_rev": deck_rev}
 
-    def keep(self, card_id: str, by: str = "daniel", key: Optional[str] = None) -> dict:
+    def keep(self, card_id: str, by: str = "daniel", key: str | None = None) -> dict:
         """A copy in Daniel's Kept group, with source {kind: kept, from: {id, rev}}; key moves it (numbers move with
         the key, exact notes shift by the nearest interval)."""
         from arsenal.jam.resolve import ResolveError, key_of, shift_notes, shift_of
@@ -539,7 +541,7 @@ class DeckStore:
         return self.root / MOMENTS_FILE
 
     def seed(
-        self, doc: dict, moments: Optional[dict] = None, update: bool = False, dry_run: bool = False, by: str = "claude"
+        self, doc: dict, moments: dict | None = None, update: bool = False, dry_run: bool = False, by: str = "claude"
     ) -> dict:
         """Install the seed deck (7.1): ids not in the deck are installed; with update, seed cards nobody edited
         (source.kind seed and rev 1) are replaced; everything else is kept. Moment links merge in by card id."""
@@ -592,7 +594,7 @@ class DeckStore:
         return result
 
 
-def load_seed(path: Optional[Path] = None) -> dict:
+def load_seed(path: Path | None = None) -> dict:
     path = Path(path) if path else SEED_FILE
     try:
         return json.loads(path.read_text(encoding="utf-8"))

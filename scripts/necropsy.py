@@ -36,9 +36,9 @@ def classify_session(
     transcript_mtime: float,
     tombstoned: bool,
     seat_exists: bool,
-    marker_age_min: Optional[float],
+    marker_age_min: float | None,
     window_h: float = WINDOW_H_DEFAULT,
-    now: Optional[float] = None,
+    now: float | None = None,
 ) -> str:
     """'unclean' | 'clean' | 'live' | 'out-of-window'. Pure.
 
@@ -54,7 +54,7 @@ def classify_session(
     return "clean" if tombstoned else "unclean"
 
 
-def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: Optional[float] = None) -> List[dict]:
+def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: float | None = None) -> list[dict]:
     """All unclean deaths in the window, newest first. Read-only; never writes.
 
     Transcript universe: the eye's corpus (live harness dirs + rescued archive --
@@ -66,7 +66,7 @@ def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: Optio
     from core.eye.index import default_corpus
 
     now_f = float(now if now is not None else time.time())
-    out: List[dict] = []
+    out: list[dict] = []
     for p in default_corpus():
         if "recovered" in str(p):
             continue
@@ -99,7 +99,7 @@ def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: Optio
     return out
 
 
-def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 1500) -> List[Tuple[str, str, str]]:
+def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 1500) -> list[tuple[str, str, str]]:
     """Transcript JSONL text -> [(timestamp, KIND, content)]. KIND in USER/ASST/TOOL.
     The 08-13 salvage digester, promoted. Never raises; garbage lines skip."""
 
@@ -107,7 +107,7 @@ def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 150
         s = " ".join(str(s).split())
         return s if len(s) <= n else s[:n] + "..."
 
-    rows: List[Tuple[str, str, str]] = []
+    rows: list[tuple[str, str, str]] = []
     for line in (text or "").splitlines():
         line = line.strip()
         if not line.startswith("{"):

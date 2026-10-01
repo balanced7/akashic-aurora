@@ -17,8 +17,9 @@ import hashlib
 import inspect
 import json
 import math
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple
+from datetime import datetime, timezone, UTC
+from typing import Any, Dict, Optional, Tuple
+from collections.abc import Callable, Mapping
 
 from core.primitives.epistemic import derive_epistemic_view
 
@@ -28,10 +29,10 @@ _TEXT_PREVIEW_CHARS = 240
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def _parse_action(target: str) -> Tuple[str, str]:
+def _parse_action(target: str) -> tuple[str, str]:
     raw = str(target or "").strip()
     if ":" not in raw:
         raise ValueError("intent shadow action must be typed as toolbox:<verb>")
@@ -46,7 +47,7 @@ def _parse_action(target: str) -> Tuple[str, str]:
     return door, name
 
 
-def _toolbox_contract(name: str) -> Tuple[Mapping[str, Any], Any]:
+def _toolbox_contract(name: str) -> tuple[Mapping[str, Any], Any]:
     """Ask the advertised ToolBox schema and callable; never copy their args."""
     from core.comm.toolbox import TOOLS, ToolBox
 
@@ -57,9 +58,9 @@ def _toolbox_contract(name: str) -> Tuple[Mapping[str, Any], Any]:
     return row, method
 
 
-def _normalize_arguments(name: str, arguments: Mapping[str, Any] | None) -> Dict[str, Any]:
+def _normalize_arguments(name: str, arguments: Mapping[str, Any] | None) -> dict[str, Any]:
     if arguments is None:
-        supplied: Dict[str, Any] = {}
+        supplied: dict[str, Any] = {}
     elif isinstance(arguments, Mapping):
         supplied = dict(arguments)
     else:
@@ -101,7 +102,7 @@ def _default_resolve_recipient(raw: str) -> str:
         ) from exc
 
 
-def _content_view(text: Any) -> Dict[str, Any]:
+def _content_view(text: Any) -> dict[str, Any]:
     raw = str(text or "")
     return {
         "chars": len(raw),
@@ -111,15 +112,15 @@ def _content_view(text: Any) -> Dict[str, Any]:
     }
 
 
-def _argument_view(arguments: Mapping[str, Any]) -> Dict[str, Any]:
+def _argument_view(arguments: Mapping[str, Any]) -> dict[str, Any]:
     return {key: (_content_view(value) if key == "text" else value) for key, value in arguments.items()}
 
 
-def _effect(effect_id: str, certainty: str, claim: str, basis: str) -> Dict[str, str]:
+def _effect(effect_id: str, certainty: str, claim: str, basis: str) -> dict[str, str]:
     return {"id": effect_id, "certainty": certainty, "claim": claim, "basis": basis}
 
 
-def _action_profile(name: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
+def _action_profile(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
     delivery = [
         _effect("bifrost.message.enqueue", "expected", "lane/legacy delivery is appended", "core.comm.bus.Bus._emit"),
         _effect("wake.bell.publish", "expected", "the recipient doorbell is rung", "core.comm.bus.Bus._ring_bell"),
@@ -198,7 +199,7 @@ def _action_profile(name: str, arguments: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _epistemic(authority: Mapping[str, Any], name: str) -> Dict[str, Any]:
+def _epistemic(authority: Mapping[str, Any], name: str) -> dict[str, Any]:
     sources = [str(item) for item in authority.get("source") or [] if str(item)]
     known = authority.get("state") in {"observed", "refused"} and bool(sources)
     risk = "blocked" if authority.get("allowed") is False else "attention_required"
@@ -218,10 +219,10 @@ def build_intent_shadow(
     target: str,
     arguments: Mapping[str, Any] | None = None,
     *,
-    authorize: Optional[Callable[[str, str, Mapping[str, Any]], Mapping[str, Any]]] = None,
-    resolve_recipient: Optional[Callable[[str], str]] = None,
-    observed_at: Optional[str] = None,
-) -> Dict[str, Any]:
+    authorize: Callable[[str, str, Mapping[str, Any]], Mapping[str, Any]] | None = None,
+    resolve_recipient: Callable[[str], str] | None = None,
+    observed_at: str | None = None,
+) -> dict[str, Any]:
     """Build one ``intent.shadow.v1`` without executing the proposed action."""
     subject = str(subject or "").strip()
     if not subject:
@@ -259,7 +260,7 @@ def build_intent_shadow(
     content = str(normalized.get("text") or "")
     commit_reason = str(profile["risk_reason"])
 
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "schema": "intent.shadow.v1",
         "subject": subject,
         "observed_at": observed_at or _utc(),

@@ -33,7 +33,8 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 from core.outcome import BoundaryOutcome
 
@@ -222,7 +223,7 @@ def post_via_pool(urls: list, content: str, post_fn: Callable[[str, str], Any]) 
     """
     import requests
 
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
     for u in urls:
         if not u:
             continue
@@ -239,7 +240,7 @@ def post_via_pool(urls: list, content: str, post_fn: Callable[[str, str], Any]) 
     raise RuntimeError("discord post_via_pool: no pipe configured")
 
 
-def should_forward(msg: Dict[str, Any]) -> bool:
+def should_forward(msg: dict[str, Any]) -> bool:
     """Is this worth a phone buzz? Allowlist by kind, plus any human sender."""
     frm = str(msg.get("frm") or "").lower()
     if frm in _OPERATORS:
@@ -375,7 +376,7 @@ def _hard_split(text: str, max_len: int) -> list:
     return out
 
 
-def render_parts(msg: Dict[str, Any]) -> list:
+def render_parts(msg: dict[str, Any]) -> list:
     """One or more Discord posts for a message: the head rides every part, and a body
     over the cap becomes N whole-line parts — none truncated, none carrying a shell
     handle. This is what makes a long message readable top-to-bottom from a phone."""
@@ -393,7 +394,7 @@ def render_parts(msg: Dict[str, Any]) -> list:
     return [head + p for p in parts]
 
 
-def render(msg: Dict[str, Any]) -> str:
+def render(msg: dict[str, Any]) -> str:
     """Backward-compatible single-render: the FIRST part of render_parts. Kept because a
     caller asking for one string is asking for one string; the multi-post path (forward)
     iterates render_parts directly."""
@@ -409,11 +410,11 @@ def _content_str(c: Any) -> str:
 
 
 def forward(
-    msg: Dict[str, Any],
+    msg: dict[str, Any],
     *,
-    url: Optional[str] = None,
+    url: str | None = None,
     force: bool = False,
-    post: Optional[Callable[[str, str], bool]] = None,
+    post: Callable[[str, str], bool] | None = None,
 ) -> BoundaryOutcome:
     """Post one message to the channel. NEVER RAISES.
 

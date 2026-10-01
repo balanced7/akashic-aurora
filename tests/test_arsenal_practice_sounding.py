@@ -26,7 +26,7 @@ Each fixture pins one defect, red before the fix and green after it:
 import json
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 import pytest
@@ -275,7 +275,7 @@ BUILDERS = {
 
 
 def _iso(epoch_ms: float) -> str:
-    return datetime.fromtimestamp(epoch_ms / 1000, timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.fromtimestamp(epoch_ms / 1000, UTC).isoformat(timespec="milliseconds")
 
 
 def build_fixture(name: str, folder: Path) -> Path:

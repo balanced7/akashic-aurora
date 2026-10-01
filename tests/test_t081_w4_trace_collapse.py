@@ -45,7 +45,7 @@ class _M:
     id: str = "0-0"
     to: str = "deepseek"
     ts: str = "2026-07-16T00:00:00"
-    meta: Dict[str, Any] = None
+    meta: dict[str, Any] = None
 
     def __post_init__(self):
         if self.meta is None:
@@ -69,7 +69,7 @@ def _make_toolbox(agent_id="deepseek", allow_write=False):
     )
 
 
-def _render(msgs: List[_M]) -> str:
+def _render(msgs: list[_M]) -> str:
     """Call the shared render_collapsed + join, same as bifrost_inbox does post-refactor."""
     from agent.bifrost_pull import render_collapsed
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -100,7 +100,7 @@ def cmd_save(label: str) -> int:
         knowledge_snapshot=snap,
         dirty_at_save=authored,
         generated_at_save=generated,
-        saved_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        saved_at=datetime.now(UTC).isoformat(timespec="seconds"),
     )
     SP.append(STORE, sp)
     print(f"[savepoint] {sp.render()}")

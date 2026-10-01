@@ -13,7 +13,8 @@ import json
 import os
 from fractions import Fraction
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 import av
 import numpy as np
@@ -65,7 +66,7 @@ def _format_tb(frac) -> str:
     return f"{frac.numerator}/{frac.denominator}"
 
 
-def _color_field(value, unspecified: int) -> Optional[int]:
+def _color_field(value, unspecified: int) -> int | None:
     """Pass a real PyAV colour int through as-is; the documented 'unspecified' sentinel
     (or PyAV itself returning None) becomes None. Never a guessed/default value."""
     if value is None or value == unspecified:
@@ -196,7 +197,7 @@ def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 
 
 
 def _cache_path(abspath: str, size: int, mtime_ns: int) -> Path:
-    key = hashlib.sha1(f"{abspath}|{size}|{mtime_ns}".encode("utf-8")).hexdigest()
+    key = hashlib.sha1(f"{abspath}|{size}|{mtime_ns}".encode()).hexdigest()
     return CACHE_DIR / f"{key}.json"
 
 
@@ -232,7 +233,7 @@ def _no_audio_result(abspath: str, size: int, mtime_ns: int) -> dict:
     }
 
 
-def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = None) -> dict:
+def audio_features(path: str, *, progress: Callable[[float], None] | None = None) -> dict:
     """Mono 48kHz band/rms/flux features, hop 480 / window 2048 / Hann, cached on disk.
 
     start_ticks is the first audio frame's pts rescaled EXACTLY (fractions.Fraction, never

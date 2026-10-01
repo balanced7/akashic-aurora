@@ -86,7 +86,7 @@ def _embedded_backend() -> bool:
         return False
 
 
-def _procs() -> List[str]:
+def _procs() -> list[str]:
     try:
         r = subprocess.run(
             ["tasklist", "/FO", "CSV", "/V"],
@@ -102,7 +102,7 @@ def _procs() -> List[str]:
         return []
 
 
-def _cmdlines() -> Optional[str]:
+def _cmdlines() -> str | None:
     """Full python command lines (tasklist hides args; wmic-era fallback).
 
     Returns None when the process table could NOT BE READ -- a timeout, a shell failure,
@@ -154,8 +154,8 @@ def _cmdlines() -> Optional[str]:
         return None  # timeout / spawn failure: unreadable, NOT empty
 
 
-def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
-    out: Dict[str, Dict[str, Any]] = {}
+def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
     if include_app:
         # Cheap probe: status only. The 629 MB block-map verification is part of the
         # HEAL, never of a probe that a scheduled task runs every few minutes.
@@ -278,12 +278,12 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
 _DEPS = {"app": (), "redis": (), "daemon": ("redis",), "gateway": ()}
 
 
-def decide(observed: Dict[str, Dict[str, Any]], target: Optional[str] = None) -> List[Dict[str, Any]]:
+def decide(observed: dict[str, dict[str, Any]], target: str | None = None) -> list[dict[str, Any]]:
     """PURE: the heal plan for this observation. Healthy rungs are skipped;
     a rung whose dependency is unhealthy is DEFERRED (the next converge sees
     a healthier world and plans further). Runners are never healed directly
     -- the daemon owns its children."""
-    plan: List[Dict[str, Any]] = []
+    plan: list[dict[str, Any]] = []
     for organ in _ORDER:
         if target and organ != target:
             continue
@@ -360,8 +360,8 @@ def decide(observed: Dict[str, Dict[str, Any]], target: Optional[str] = None) ->
 
 
 def unreachable_report(
-    observed: Dict[str, Dict[str, Any]], plan: List[Dict[str, Any]], target: Optional[str] = None
-) -> List[str]:
+    observed: dict[str, dict[str, Any]], plan: list[dict[str, Any]], target: str | None = None
+) -> list[str]:
     """Name every organ that is DOWN and that this run will NOT heal, and say why.
 
     THE SENTENCE THIS EXISTS TO PRODUCE. On 2026-08-24 Daniil ran !revive twice while
@@ -376,7 +376,7 @@ def unreachable_report(
     anything this ladder can reach.
     """
     planned = {s.get("organ") for s in plan}
-    lines: List[str] = []
+    lines: list[str] = []
     for organ in _ORDER + ("runners",):
         if target and organ != target:
             continue
@@ -398,7 +398,7 @@ def unreachable_report(
 
 
 # ---------------------------------------------------------------------- heal
-def _heal_app(step: Dict[str, Any]) -> bool:
+def _heal_app(step: dict[str, Any]) -> bool:
     """Sol's 2026-08-24 repair, as a rung: prove the payload, clear ONLY the stale
     status bit, then prove recovery BY LAUNCHING -- never by re-reading the field we
     just wrote.
@@ -408,7 +408,7 @@ def _heal_app(step: Dict[str, Any]) -> bool:
     just that something did not happen."""
     from core.fleet import app_package as ap
 
-    receipt: List[str] = []
+    receipt: list[str] = []
     step["receipt"] = receipt
     pkg = step.get("pkg") or ap.query_package()
     elevated = ap.is_elevated()
@@ -437,7 +437,7 @@ def _heal_app(step: Dict[str, Any]) -> bool:
     return recovered
 
 
-def _heal_step(step: Dict[str, Any]) -> bool:
+def _heal_step(step: dict[str, Any]) -> bool:
     kind = step.get("kind")
     try:
         if kind == "msix-repair":
@@ -533,7 +533,7 @@ def _drop_lock() -> None:
         pass
 
 
-def converge(target: Optional[str] = None, observe_only: bool = False) -> Dict[str, Any]:
+def converge(target: str | None = None, observe_only: bool = False) -> dict[str, Any]:
     say = lambda s: print(s, flush=True)  # noqa: E731
     observed = observe()
     for organ in ("app", "redis", "daemon", "runners", "gateway"):
@@ -542,7 +542,7 @@ def converge(target: Optional[str] = None, observe_only: bool = False) -> Dict[s
         say(f"[revive] SAW {mark} {organ}: {row.get('detail')}")
     plan = decide(observed, target=target)
     unreachable = unreachable_report(observed, plan, target=target)
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "observed": observed,
         "plan": plan,
         "healed": [],

@@ -14,18 +14,19 @@ import os
 import re
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Dict, List
 
 from .timebase import StaleEpoch, TimeRef
+import builtins
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "state" / "arsenal" / "takes"
 _TAKE_ID_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{8}$")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 class TakeLedger:
@@ -80,7 +81,7 @@ class TakeLedger:
             self._write(take_id, take)
         return take_id
 
-    def append(self, take_id: str, events: List[dict]) -> int:
+    def append(self, take_id: str, events: builtins.list[dict]) -> int:
         if not isinstance(events, list):
             raise ValueError("events must be a list")
         with self._lock:
@@ -88,7 +89,7 @@ class TakeLedger:
             if take.get("closed"):
                 raise ValueError(f"take {take_id} is closed")
             latest = int(take.get("latest_epoch", 0))
-            lines: List[str] = []
+            lines: list[str] = []
             for i, event in enumerate(events):
                 if not isinstance(event, dict) or "kind" not in event or "t" not in event:
                     raise ValueError(f"event {i} needs a kind and a t")
@@ -131,7 +132,7 @@ class TakeLedger:
             raw = (self._dir(take_id) / "events.jsonl").read_text(encoding="utf-8")
         return {"take": take, "events": [json.loads(line) for line in raw.splitlines() if line.strip()]}
 
-    def list(self) -> List[Dict]:
+    def list(self) -> builtins.list[dict]:
         if not self.root.is_dir():
             return []
         out = []

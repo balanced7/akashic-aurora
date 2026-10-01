@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 from core.foundation.timeutil import now_iso
 
@@ -44,7 +45,7 @@ class Toolbelt:
     """One agent's authored-verb registry. Load-on-init (projection), save-on-write (truth)."""
 
     def __init__(
-        self, agent: str, *, root: str = "", known_verbs: Optional[Callable[[], set]] = None, quota: int = DEFAULT_QUOTA
+        self, agent: str, *, root: str = "", known_verbs: Callable[[], set] | None = None, quota: int = DEFAULT_QUOTA
     ):
         self.agent = str(agent)
         self.root = root or default_root()
@@ -54,7 +55,7 @@ class Toolbelt:
         self._doc = self._load()
 
     # ---------------------------------------------------------------- persistence
-    def _load(self) -> Dict[str, Any]:
+    def _load(self) -> dict[str, Any]:
         if not os.path.exists(self.path):
             return {"agent": self.agent, "entries": {}, "history": []}
         with open(self.path, encoding="utf-8") as f:
@@ -71,14 +72,14 @@ class Toolbelt:
     def mint(
         self,
         name: str,
-        steps: List[List[str]],
+        steps: list[list[str]],
         *,
         kind: str = "alias",
         evidence: str = "GUESS",
-        tested_against: Optional[str] = None,
+        tested_against: str | None = None,
         why: str = "",
         family: str = "UNSORTED",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create or supersede an authored verb. Sugar-only validated HERE, at mint time."""
         name = str(name).strip()
         if not name or " " in name:
@@ -150,7 +151,7 @@ class Toolbelt:
         self._save()
 
     # ---------------------------------------------------------------- reading
-    def _require(self, name: str) -> Dict[str, Any]:
+    def _require(self, name: str) -> dict[str, Any]:
         e = self._doc["entries"].get(str(name))
         if not e or e.get("status", "active") != "active":
             raise KeyError(
@@ -159,16 +160,16 @@ class Toolbelt:
             )
         return e
 
-    def get(self, name: str) -> Dict[str, Any]:
+    def get(self, name: str) -> dict[str, Any]:
         return self._require(name)
 
-    def active(self) -> List[str]:
+    def active(self) -> list[str]:
         return [n for n, e in self._doc["entries"].items() if e.get("status", "active") == "active"]
 
-    def history(self, name: str) -> List[Dict[str, Any]]:
+    def history(self, name: str) -> list[dict[str, Any]]:
         return [h for h in self._doc["history"] if h["name"] == str(name)]
 
-    def resolve(self, name: str, args: Optional[List[str]] = None) -> List[List[str]]:
+    def resolve(self, name: str, args: list[str] | None = None) -> list[list[str]]:
         """Resolve a macro's steps: $SELF$ -> the running seat, then $1..$N positional slots.
 
         $SELF$ IS SUBSTITUTED HERE, AT THE ORGAN, and not at either call site. The shipped
@@ -203,7 +204,7 @@ class Toolbelt:
             f"# toolbelt: {self.agent} -- {len(self.active())} active "
             f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"
         ]
-        by_family: Dict[str, list] = {}
+        by_family: dict[str, list] = {}
         for n in sorted(self.active()):
             by_family.setdefault(self._doc["entries"][n].get("family", "UNSORTED"), []).append(n)
         for fam in sorted(by_family):
@@ -218,9 +219,7 @@ class Toolbelt:
         return "\n".join(rows)
 
     # ---------------------------------------------------------------- execution
-    def resolve_and_run(
-        self, name: str, *, runner: Callable[[List[str]], int], args: Optional[List[str]] = None
-    ) -> int:
+    def resolve_and_run(self, name: str, *, runner: Callable[[list[str]], int], args: list[str] | None = None) -> int:
         """Run each step through `runner(argv) -> rc`, stopping at the first non-zero rc.
         The runner is INJECTED (the CLI passes a subprocess invoker; pins pass a recorder)."""
         for argv in self.resolve(name, args=args):

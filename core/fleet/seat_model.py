@@ -40,7 +40,7 @@ REPORT_TTL_SEC = 900
 
 #: The roster the operator picks from. Full ids are accepted too (see `pin`) -- the vendor
 #: ships models faster than we alias them, and our lag must never block his choice.
-MODELS: Dict[str, Dict[str, str]] = {
+MODELS: dict[str, dict[str, str]] = {
     "fable": {"id": "claude-fable-5", "label": "Fable 5"},
     "opus": {"id": "claude-opus-5", "label": "Opus 5"},
     "sonnet": {"id": "claude-sonnet-5", "label": "Sonnet 5"},
@@ -57,7 +57,7 @@ def _label_for(model_id: str) -> str:
     return model_id  # a raw id the roster has not aliased: show it verbatim
 
 
-def resolve() -> Dict[str, Any]:
+def resolve() -> dict[str, Any]:
     """The pin, or the honest absence of one. NEVER raises -- a broken config file must not
     wedge every spawn (that would turn a preference into an outage)."""
     try:
@@ -76,7 +76,7 @@ def resolve() -> Dict[str, Any]:
         return {"pinned": False, "model": None, "label": DEFAULT_LABEL, "by": "", "at": ""}
 
 
-def model_flag() -> List[str]:
+def model_flag() -> list[str]:
     """The argv fragment for a launch. Empty when unpinned -- inherit, never guess."""
     st = resolve()
     return ["--model", st["model"]] if st["pinned"] else []
@@ -96,7 +96,7 @@ def resolve_model_id(alias_or_id: str) -> str:
     )
 
 
-def pin(alias_or_id: str, *, by: str) -> Dict[str, Any]:
+def pin(alias_or_id: str, *, by: str) -> dict[str, Any]:
     """Pin the model future spawns request. Accepts a roster alias or a full model id."""
     model = resolve_model_id(alias_or_id)
     STORE.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +105,7 @@ def pin(alias_or_id: str, *, by: str) -> Dict[str, Any]:
     return resolve()
 
 
-def unpin(*, by: str) -> Dict[str, Any]:
+def unpin(*, by: str) -> dict[str, Any]:
     """Return to the CLI default. Recorded as an act, not a deletion."""
     STORE.parent.mkdir(parents=True, exist_ok=True)
     STORE.write_text(
@@ -162,13 +162,13 @@ def report(agent: str, session: str, model: str, *, harness: str = "", c=None) -
         return False
 
 
-def running(agent: str = "claude", c=None) -> List[Dict[str, Any]]:
+def running(agent: str = "claude", c=None) -> list[dict[str, Any]]:
     """Every live session's self-reported model for `agent`. Empty means NOBODY REPORTED --
     which is a different fact from 'nobody is running', and the render must say so."""
     cli = _client(c)
     if cli is None:
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         pattern = _REPORT_KEY.format(agent=agent, session="*")
         for key in cli.scan_iter(match=pattern) if hasattr(cli, "scan_iter") else []:

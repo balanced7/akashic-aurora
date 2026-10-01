@@ -63,11 +63,11 @@ class AgentVectorStore:
     EMBEDDING_DIM = 64
 
     def __init__(self):
-        self.entries: List[Dict] = []
+        self.entries: list[dict] = []
         self._id_counter = 0
         self._load()
 
-    def _hash_embedding(self, text: str) -> List[float]:
+    def _hash_embedding(self, text: str) -> list[float]:
         """Create deterministic hash-based embedding"""
         import numpy as np
 
@@ -84,7 +84,7 @@ class AgentVectorStore:
             vec = vec / norm
         return vec.tolist()
 
-    def _cosine_sim(self, a: List[float], b: List[float]) -> float:
+    def _cosine_sim(self, a: list[float], b: list[float]) -> float:
         """Calculate cosine similarity"""
         import numpy as np
 
@@ -92,7 +92,7 @@ class AgentVectorStore:
         b_arr = np.array(b)
         return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr) + 1e-8))
 
-    def add(self, text: str, metadata: Dict) -> str:
+    def add(self, text: str, metadata: dict) -> str:
         """Add entry with embedding"""
         entry_id = f"vec_{self._id_counter:08d}"
         self._id_counter += 1
@@ -112,7 +112,7 @@ class AgentVectorStore:
 
         return entry_id
 
-    def search(self, query: str, top_k: int = 5, filter_fn=None) -> List[Dict]:
+    def search(self, query: str, top_k: int = 5, filter_fn=None) -> list[dict]:
         """Search by semantic similarity"""
         query_emb = self._hash_embedding(query)
 
@@ -129,7 +129,7 @@ class AgentVectorStore:
 
         return results[:top_k]
 
-    def get_recent(self, limit: int = 20, filter_fn=None) -> List[Dict]:
+    def get_recent(self, limit: int = 20, filter_fn=None) -> list[dict]:
         """Get recent entries"""
         entries = list(self.entries)
 
@@ -140,7 +140,7 @@ class AgentVectorStore:
 
         return entries[:limit]
 
-    def get_by_agent(self, agent_id: str, limit: int = 10) -> List[Dict]:
+    def get_by_agent(self, agent_id: str, limit: int = 10) -> list[dict]:
         """Get messages from specific agent"""
         return self.get_recent(limit, filter_fn=lambda e: e["metadata"].get("from_agent") == agent_id)
 
@@ -149,7 +149,7 @@ class AgentVectorStore:
         idx_file = os.path.join(VECTOR_INDEX_DIR, "messages.json")
         if os.path.exists(idx_file):
             try:
-                with open(idx_file, "r") as f:
+                with open(idx_file) as f:
                     data = json.load(f)
                     self.entries = data.get("entries", [])
                     self._id_counter = data.get("id_counter", 0)
@@ -188,12 +188,12 @@ class AgentMetadata:
 
     # Network
     ip_address: str
-    port: Optional[int] = None
+    port: int | None = None
 
     # Status
     status: str = "initializing"
-    current_task: Optional[str] = None
-    capabilities: List[str] = ""
+    current_task: str | None = None
+    capabilities: list[str] = ""
     last_heartbeat: str = ""
     started_at: str = ""
 
@@ -201,11 +201,11 @@ class AgentMetadata:
     learnings_count: int = 0
     violations_count: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "AgentMetadata":
+    def from_dict(cls, d: dict) -> "AgentMetadata":
         return cls(**d)
 
 
@@ -261,7 +261,7 @@ class AgentCoordinator:
 
         if os.path.exists(identity_file):
             try:
-                with open(identity_file, "r") as f:
+                with open(identity_file) as f:
                     identity = json.load(f)
                 self.agent_id = identity.get("agent_id", f"agent_{uuid.uuid4().hex[:8]}")
                 self.session_id = identity.get(
@@ -382,7 +382,7 @@ class AgentCoordinator:
             # Update state file
             state_file = os.path.join(STATE_DIR, f"{self.agent_id}.json")
             if os.path.exists(state_file):
-                with open(state_file, "r") as f:
+                with open(state_file) as f:
                     state = json.load(f)
                 state["status"] = status
                 state["last_heartbeat"] = datetime.now().isoformat()
@@ -397,7 +397,7 @@ class AgentCoordinator:
     # ACTIVE AGENTS
     # =========================================================================
 
-    def get_active_agents(self, include_self: bool = True) -> List[Dict]:
+    def get_active_agents(self, include_self: bool = True) -> list[dict]:
         """Get all active agents"""
         agents = []
         cutoff = datetime.now().timestamp() - 60  # 60 second timeout
@@ -408,7 +408,7 @@ class AgentCoordinator:
 
             fpath = os.path.join(STATE_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     info = json.load(f)
 
                 # Check heartbeat
@@ -421,11 +421,11 @@ class AgentCoordinator:
 
         return sorted(agents, key=lambda x: x.get("started_at", ""))
 
-    def get_agent(self, agent_id: str) -> Optional[Dict]:
+    def get_agent(self, agent_id: str) -> dict | None:
         """Get specific agent info"""
         fpath = os.path.join(STATE_DIR, f"{agent_id}.json")
         if os.path.exists(fpath):
-            with open(fpath, "r") as f:
+            with open(fpath) as f:
                 return json.load(f)
         return None
 
@@ -433,7 +433,7 @@ class AgentCoordinator:
     # MESSAGING
     # =========================================================================
 
-    def send_message(self, msg_type: MessageType, content: Dict, to_agent: str = "broadcast") -> str:
+    def send_message(self, msg_type: MessageType, content: dict, to_agent: str = "broadcast") -> str:
         """
         Send a vectorized message.
         Stores in both file and vector store for fast search.
@@ -475,7 +475,7 @@ class AgentCoordinator:
 
     def get_messages(
         self, agent_id: str = None, msg_type: str = None, unread_only: bool = False, limit: int = 20
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Get messages for this agent or another"""
         cutoff = datetime.now().timestamp() - 3600  # 1 hour expiry
 
@@ -486,7 +486,7 @@ class AgentCoordinator:
 
             fpath = os.path.join(MESSAGES_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     msg = json.load(f)
 
                 # Check expiry
@@ -514,7 +514,7 @@ class AgentCoordinator:
 
         return sorted(messages, key=lambda x: x["timestamp"], reverse=True)[:limit]
 
-    def search_messages(self, query: str, top_k: int = 5, from_agent: str = None) -> List[Dict]:
+    def search_messages(self, query: str, top_k: int = 5, from_agent: str = None) -> list[dict]:
         """
         VECTORIZED SEARCH: Find messages by semantic similarity.
         This is the FAST path for finding relevant messages.
@@ -534,12 +534,12 @@ class AgentCoordinator:
             if msg_id:
                 msg_file = os.path.join(MESSAGES_DIR, f"{msg_id}.json")
                 if os.path.exists(msg_file):
-                    with open(msg_file, "r") as f:
+                    with open(msg_file) as f:
                         enriched.append({**json.load(f), "score": r["score"]})
 
         return enriched
 
-    def get_recent_messages(self, limit: int = 10) -> List[Dict]:
+    def get_recent_messages(self, limit: int = 10) -> list[dict]:
         """Get recent messages for this agent"""
         return self.get_messages(limit=limit)
 
@@ -547,7 +547,7 @@ class AgentCoordinator:
         """Mark message as read"""
         msg_file = os.path.join(MESSAGES_DIR, f"{msg_id}.json")
         if os.path.exists(msg_file):
-            with open(msg_file, "r") as f:
+            with open(msg_file) as f:
                 msg = json.load(f)
 
             if self.agent_id not in msg.get("read_by", []):
@@ -560,7 +560,7 @@ class AgentCoordinator:
     # TASK COORDINATION
     # =========================================================================
 
-    def claim_task(self, task: str, timeout: int = 60) -> Tuple[bool, str]:
+    def claim_task(self, task: str, timeout: int = 60) -> tuple[bool, str]:
         """
         Claim a task (with lock).
         Returns (success, lock_id)
@@ -570,7 +570,7 @@ class AgentCoordinator:
         # Check existing lock
         if os.path.exists(lock_file):
             try:
-                with open(lock_file, "r") as f:
+                with open(lock_file) as f:
                     lock = json.load(f)
 
                 expires = datetime.fromisoformat(lock["expires_at"]).timestamp()
@@ -608,12 +608,12 @@ class AgentCoordinator:
 
         self.send_message(msg_type=MessageType.TASK_RELEASE, content={"task": task, "agent_id": self.agent_id})
 
-    def get_task_lock(self, task: str) -> Optional[Dict]:
+    def get_task_lock(self, task: str) -> dict | None:
         """Get lock info for a task"""
         lock_file = os.path.join(LOCKS_DIR, f"task_{hashlib.md5(task.encode()).hexdigest()[:8]}.lock")
 
         if os.path.exists(lock_file):
-            with open(lock_file, "r") as f:
+            with open(lock_file) as f:
                 return json.load(f)
         return None
 
@@ -636,14 +636,14 @@ class AgentCoordinator:
     # LEARNINGS SHARING
     # =========================================================================
 
-    def share_learning(self, learning: Dict):
+    def share_learning(self, learning: dict):
         """Share a learning with all agents"""
         self.send_message(
             msg_type=MessageType.LEARNING,
             content={"learning": learning, "shared_by": self.agent_id, "timestamp": datetime.now().isoformat()},
         )
 
-    def get_learnings(self, since_minutes: int = 60) -> List[Dict]:
+    def get_learnings(self, since_minutes: int = 60) -> list[dict]:
         """Get recent learnings from all agents"""
         messages = self.get_messages(msg_type=MessageType.LEARNING.value, limit=20)
 
@@ -661,7 +661,7 @@ class AgentCoordinator:
     # STATUS & INFO
     # =========================================================================
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get full status of this agent and system"""
         active = self.get_active_agents()
 
@@ -726,7 +726,7 @@ def get_coordinator() -> AgentCoordinator:
     return AgentCoordinator.get_instance()
 
 
-def coordinate() -> Dict:
+def coordinate() -> dict:
     """One-shot coordination - register and get system status"""
     coord = get_coordinator()
     coord.heartbeat()

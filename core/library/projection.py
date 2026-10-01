@@ -47,7 +47,7 @@ def _iso(ts: Any) -> str:
         return "null"
 
 
-def frontmatter(atom: Dict[str, Any]) -> str:
+def frontmatter(atom: dict[str, Any]) -> str:
     h = atom["header"]
     lines = ["---"]
     lines.append(f"akashic_id: {_yaml_escape(atom['id'])}")
@@ -86,14 +86,14 @@ def frontmatter(atom: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def projection_relpath(atom: Dict[str, Any]) -> str:
+def projection_relpath(atom: dict[str, Any]) -> str:
     """docs/library/<type>/<id-minus-prefix>.md -- type + slug + hash only (one-facet law:
     the path never encodes arc/category/status; re-categorizing never moves a file)."""
     fname = atom["id"][len("art_") :] + ".md"
     return os.path.join(DEFAULT_LIBRARY_DIR, atom["header"]["type"], fname)
 
 
-def render_atom(atom: Dict[str, Any], repo_root: str = "") -> str:
+def render_atom(atom: dict[str, Any], repo_root: str = "") -> str:
     """Write the atom's single projection file; returns the absolute path."""
     rel = projection_relpath(atom)
     path = os.path.join(repo_root or str(_repo_root()), rel)

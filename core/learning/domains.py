@@ -30,7 +30,7 @@ from typing import Any, Dict
 
 DEFAULT_DOMAIN = "system"
 
-DOMAINS: Dict[str, Dict[str, Any]] = {
+DOMAINS: dict[str, dict[str, Any]] = {
     "system": {
         "triggers": ["file path", "shell command", "tool call"],
         "keys": ["text over code and tooling vocabulary"],
@@ -127,7 +127,7 @@ _PATH_HINTS = (
 _WORD = re.compile(r"[a-z0-9_]+")
 
 
-def _text_of(record: Dict[str, Any]) -> str:
+def _text_of(record: dict[str, Any]) -> str:
     if not isinstance(record, dict):
         return str(record or "")
     parts = [
@@ -146,7 +146,7 @@ def _text_of(record: Dict[str, Any]) -> str:
     return " ".join(parts).lower()
 
 
-def infer_domain(record: Dict[str, Any]) -> str:
+def infer_domain(record: dict[str, Any]) -> str:
     """Best-effort domain for a lesson that did not declare one.
 
     Deliberately biased toward DEFAULT_DOMAIN. The backfill runs over ~840 existing lessons that

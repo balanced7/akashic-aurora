@@ -54,7 +54,7 @@ _ALIASES = {
 #: actually raised a dead seat and which has only been shown to be safe when the seat is
 #: already up. It is read by the caller and shown to the operator; it must never be set
 #: from the armchair.
-_SEATS: Dict[str, Dict[str, Any]] = {
+_SEATS: dict[str, dict[str, Any]] = {
     "rill": {
         "seat": "dsh_agent",
         "callsign": "Rill",
@@ -133,7 +133,7 @@ _SEATS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def resolve_seat(word: str) -> Optional[Dict[str, Any]]:
+def resolve_seat(word: str) -> dict[str, Any] | None:
     """The seat a BARE name refers to, or None. Pure.
 
     None means "this is a task, not a seat" -- which is the historical behaviour and must
@@ -150,14 +150,14 @@ def resolve_seat(word: str) -> Optional[Dict[str, Any]]:
 
 
 def launch_argv(
-    rec: Dict[str, Any], *, root: str, which=shutil.which, dsh_home: Optional[str] = None
-) -> Tuple[List[str], Dict[str, str], str]:
+    rec: dict[str, Any], *, root: str, which=shutil.which, dsh_home: str | None = None
+) -> tuple[list[str], dict[str, str], str]:
     """(argv, env-overlay, cwd) for a resolved seat. Raises if the launcher is unavailable,
     because a lever that pretends is the thing this whole day was about."""
     kind = rec.get("kind")
     seat = str(rec.get("seat"))
     # EVERY seat states its own identity. Never inherited -- see the module docstring.
-    env: Dict[str, str] = {"AKASHIC_AGENT_ID": seat, "BIFROST_CONSUME_LANE": "work"}
+    env: dict[str, str] = {"AKASHIC_AGENT_ID": seat, "BIFROST_CONSUME_LANE": "work"}
 
     if kind == "dsh":
         home = dsh_home or os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh")
@@ -196,7 +196,7 @@ def launch_argv(
     raise RuntimeError(f"unknown launcher kind {kind!r} for seat {seat!r}")
 
 
-def launch_note(rec: Dict[str, Any]) -> str:
+def launch_note(rec: dict[str, Any]) -> str:
     """The line the operator gets. Names what is PROVEN and what is merely wired -- an
     undrilled lever must not read like a drilled one."""
     who = f"{rec.get('callsign')} ({rec.get('seat')})"
@@ -236,7 +236,7 @@ _ALIASES.update({"vandor": "vandor", "claude": "vandor"})
 SPAWN_FLAGS = ("--repair", "--seat", "--status", "--harness", "--headless")
 
 
-def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
+def parse_spawn_target(text: str) -> tuple[dict[str, Any] | None, set]:
     """(seat, flags) for an operator's `!spawn` argument. Pure.
 
     A seat resolves only when what REMAINS after removing known flags is a bare name,
@@ -247,7 +247,7 @@ def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
     return resolve_seat(rest), flags
 
 
-def claude_permission_flags(mode: str = "default") -> List[str]:
+def claude_permission_flags(mode: str = "default") -> list[str]:
     """The CLI permission flags a spawned claude seat launches with.
 
     THIS IS THE ONE THAT KEEPS BITING. A seat spawned read-only cannot arm its own wake
@@ -272,8 +272,8 @@ def claude_permission_flags(mode: str = "default") -> List[str]:
 
 
 def harness_argv(
-    *, root: str, task: str, model_flag: Optional[List[str]] = None, which=shutil.which
-) -> Tuple[List[str], Dict[str, Any]]:
+    *, root: str, task: str, model_flag: list[str] | None = None, which=shutil.which
+) -> tuple[list[str], dict[str, Any]]:
     """argv + Popen kwargs for an INTERACTIVE Claude Code Vandor (ruling 2026-09-04).
 
     The difference from the headless spawn is the whole point, so it is stated here rather
@@ -292,7 +292,7 @@ def harness_argv(
     native = _P(exe).with_name("node_modules") / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
     argv0 = str(native) if native.exists() else exe
     argv = [argv0, *(model_flag or []), *claude_permission_flags("arm"), task]
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "cwd": str(root),
         "creationflags": (
             getattr(subprocess, "CREATE_NEW_CONSOLE", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -303,7 +303,7 @@ def harness_argv(
 
 def claude_seat_plan(
     *, app_healthy: bool, app_repairable: bool, app_detail: str, live_seats: int, flags: set
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """What `!spawn vandor` should DO, given the world. Pure.
 
     When the app is missing, this REPORTS AND OFFERS rather than acting. Package surgery

@@ -66,7 +66,7 @@ def cdn_url(version: str = THREE_VERSION, verify: bool = False) -> str:
 
 
 def deck_data(
-    scene: dict, tk: Optional[dict] = None, *, three: str, autoplay: bool = False, plane_gap: float = DEFAULT_GAP
+    scene: dict, tk: dict | None = None, *, three: str, autoplay: bool = False, plane_gap: float = DEFAULT_GAP
 ) -> dict:
     tk = tk or C.tokens(scene)
     starts = C.section_starts(scene)
@@ -289,9 +289,9 @@ var DECK = __DECK__;
 
 def page(
     scene: dict,
-    tk: Optional[dict] = None,
+    tk: dict | None = None,
     *,
-    three: Optional[str] = None,
+    three: str | None = None,
     autoplay: bool = False,
     plane_gap: float = DEFAULT_GAP,
 ) -> str:
@@ -318,7 +318,7 @@ def render(
     plane_gap: float = DEFAULT_GAP,
     three_version: str = THREE_VERSION,
     **opts,
-) -> List[Path]:
+) -> list[Path]:
     """Write <out_dir>/index.html (one page, one external script, under 200 KB)."""
     three = cdn_url(three_version, verify=bool(verify_cdn))
     html = page(scene, three=three, autoplay=autoplay, plane_gap=float(plane_gap))

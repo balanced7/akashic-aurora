@@ -23,10 +23,11 @@ import shutil
 import threading
 import time
 from bisect import bisect_left, bisect_right
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from fractions import Fraction
 from pathlib import Path
 from typing import Dict, List, Optional
+import builtins
 
 API = "arsenal.performance/v0"
 SUMMARY_API = "arsenal.performance.summary/v0"
@@ -191,7 +192,7 @@ def _last_seq(info: dict) -> int:
 
 # ================================================================================================ store
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 class PerformanceStore:
@@ -220,7 +221,7 @@ class PerformanceStore:
     def _write(self, session: str, info: dict) -> None:
         self._write_text(self._dir(session) / "session.json", json.dumps(info, indent=2, sort_keys=True, default=str))
 
-    def _append_locked(self, session: str, info: dict, events: List[dict]) -> int:
+    def _append_locked(self, session: str, info: dict, events: builtins.list[dict]) -> int:
         validate_events(events)  # the whole batch first: nothing from a refused batch is written
         if not events:
             return 0
@@ -231,11 +232,11 @@ class PerformanceStore:
         info["duration_s"] = round(info["last_t_ms"] / 1000, 3)
         return len(events)
 
-    def _events_locked(self, session: str) -> List[dict]:
+    def _events_locked(self, session: str) -> builtins.list[dict]:
         raw = (self._dir(session) / "events.jsonl").read_text(encoding="utf-8")
         return [json.loads(line) for line in raw.splitlines() if line.strip()]
 
-    def _infos(self) -> List[dict]:
+    def _infos(self) -> builtins.list[dict]:
         """Every readable session.json under the root (unordered)."""
         if not self.root.is_dir():
             return []
@@ -252,10 +253,10 @@ class PerformanceStore:
         return out
 
     # ------------------------------------------------------------------------------------------- API
-    def open(self, meta: Optional[dict] = None, client_id: Optional[str] = None) -> str:
+    def open(self, meta: dict | None = None, client_id: str | None = None) -> str:
         return self.open_session(meta, client_id)["session"]
 
-    def open_session(self, meta: Optional[dict] = None, client_id: Optional[str] = None) -> dict:
+    def open_session(self, meta: dict | None = None, client_id: str | None = None) -> dict:
         """Returns {session}; with a client_id also {resumed, closed, last_seq}, and an earlier session opened with
         that client_id is returned instead of a new one, so a client that lost the first answer cannot open twice."""
         if meta is None:
@@ -303,10 +304,10 @@ class PerformanceStore:
             out.update(resumed=False, closed=False, last_seq=-1)
         return out
 
-    def append(self, session: str, events, seq: Optional[int] = None) -> int:
+    def append(self, session: str, events, seq: int | None = None) -> int:
         return self.append_batch(session, events, seq)["accepted"]
 
-    def append_batch(self, session: str, events, seq: Optional[int] = None) -> dict:
+    def append_batch(self, session: str, events, seq: int | None = None) -> dict:
         """Returns {accepted}; with a seq also {duplicate, last_seq}. A seq at or below the last stored one is skipped."""
         _check_seq(seq)
         with self._lock:
@@ -325,7 +326,7 @@ class PerformanceStore:
                 out.update(duplicate=False, last_seq=seq)
             return out
 
-    def close(self, session: str, events=None, seq: Optional[int] = None) -> dict:
+    def close(self, session: str, events=None, seq: int | None = None) -> dict:
         """Append any final events (a pagehide beacon carries them), then write summary.json and summary.md.
 
         Everything that depends on the content (validation, the summary, both renders) runs before the first
@@ -390,7 +391,7 @@ class PerformanceStore:
                 summary = json.loads((self._dir(session) / "summary.json").read_text(encoding="utf-8"))
             return {"session": session, "summary": summary}
 
-    def events(self, session: str) -> List[dict]:
+    def events(self, session: str) -> builtins.list[dict]:
         with self._lock:
             self._read(session)
             return self._events_locked(session)
@@ -415,7 +416,7 @@ class PerformanceStore:
             }
         return render_markdown(doc)
 
-    def list(self) -> List[Dict]:
+    def list(self) -> builtins.list[dict]:
         rows = [
             (
                 int(info.get("opened_ns", 0)),
@@ -433,12 +434,12 @@ class PerformanceStore:
         rows.sort(key=lambda row: (row[0], row[1]), reverse=True)  # the id starts with the local open time
         return [row[2] for row in rows]
 
-    def latest(self) -> Optional[str]:
+    def latest(self) -> str | None:
         """The newest session's id, or None when there are none."""
         rows = self.list()
         return rows[0]["session"] if rows else None
 
-    def older_than(self, days: float, now_ns: Optional[int] = None) -> List[Dict]:
+    def older_than(self, days: float, now_ns: int | None = None) -> builtins.list[dict]:
         """Sessions opened (by the server's clock) more than `days` ago, oldest first. Nothing is deleted here."""
         cutoff = (time.time_ns() if now_ns is None else now_ns) - int(days * 86400 * 1_000_000_000)
         rows = [info for info in self._infos() if int(info.get("opened_ns", 0)) < cutoff]
@@ -465,7 +466,7 @@ def _r(x, places: int = 4):
     return None if x is None else round(float(x), places)
 
 
-def _pearson(xs: List[float], ys: List[float]) -> float:
+def _pearson(xs: list[float], ys: list[float]) -> float:
     n = len(xs)
     mx, my = sum(xs) / n, sum(ys) / n
     sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
@@ -478,7 +479,7 @@ def _key_name(tonic: int, mode: str) -> str:
     return (MAJOR_KEY_NAMES if mode == "major" else MINOR_KEY_NAMES)[tonic] + " " + mode
 
 
-def estimate_key(weights: List[float]) -> Optional[dict]:
+def estimate_key(weights: list[float]) -> dict | None:
     """Krumhansl-Kessler: correlate the 12 pitch-class weights with all 24 rotated profiles."""
     if len(weights) != 12 or sum(weights) <= 0:
         return None
@@ -508,14 +509,14 @@ def _leading_tone(minor_key: str) -> str:
     return letter + ("#" * acc if acc > 0 else "b" * -acc)
 
 
-def _out_share(weights: List[float], tonic: int, mode: str) -> float:
+def _out_share(weights: list[float], tonic: int, mode: str) -> float:
     """Share of the weight outside a key's scale, a minor key's leading tone counted in (nashville.js outShare)."""
     scale = (0, 2, 4, 5, 7, 9, 11) if mode == "major" else (0, 2, 3, 5, 7, 8, 10, 11)
     total = sum(weights)
     return sum(w for pc, w in enumerate(weights) if (pc - tonic) % 12 not in scale) / total if total > 0 else 0.0
 
 
-def home_chords(chord_events: List[dict], duration_ms: int, reader=None) -> dict:
+def home_chords(chord_events: list[dict], duration_ms: int, reader=None) -> dict:
     """How long each minor chord sounded, for the home-chord rule, as the piano key tracker counts it (nashville.js
     homeChordOf): chord_ms is the time any chord sounded, minor_ms[tonic] the time a minor chord on that tonic did. A
     minor triad over the bass counts under any name (with the pedal down, melody notes rename an Am bar C6/9/A, Cadd9/A
@@ -567,7 +568,7 @@ def _leading_tone_score(r: float, tonic_w: float, lt_w: float, r_rel: float, r_p
     return score
 
 
-def numbering_key(weights: List[float], key: Optional[dict], homes: Optional[dict] = None) -> Optional[dict]:
+def numbering_key(weights: list[float], key: dict | None, homes: dict | None = None) -> dict | None:
     """The key the Nashville numbers count from: the Krumhansl-Kessler scores re-ranked by the piano key tracker's
     leading-tone and home-chord rules (nashville.js rankKeys at full maturity), so the summary settles where the HUD does.
 
@@ -585,7 +586,7 @@ def numbering_key(weights: List[float], key: Optional[dict], homes: Optional[dic
     """
     if not key:
         return None
-    r_of: Dict[tuple, float] = {}
+    r_of: dict[tuple, float] = {}
     for tonic in range(12):
         rotated = [weights[(i + tonic) % 12] for i in range(12)]
         for mode, profile in (("major", KK_MAJOR), ("minor", KK_MINOR)):
@@ -664,7 +665,7 @@ def numbering_key(weights: List[float], key: Optional[dict], homes: Optional[dic
     return out
 
 
-def _centred(profile: List[float]) -> List[float]:
+def _centred(profile: list[float]) -> list[float]:
     mean = sum(profile) / len(profile)
     norm = math.sqrt(sum((p - mean) ** 2 for p in profile))
     return [(p - mean) / norm for p in profile]
@@ -673,11 +674,11 @@ def _centred(profile: List[float]) -> List[float]:
 _KK_MAJOR_Z, _KK_MINOR_Z = _centred(KK_MAJOR), _centred(KK_MINOR)
 
 
-def _pc_timelines(spans: List[tuple]) -> List[tuple]:
+def _pc_timelines(spans: list[tuple]) -> list[tuple]:
     """Per pitch class, the merged stretches it sounds in (spans are (start_ms, end_ms, pc)) and their running totals."""
     out = []
     for pc in range(12):
-        merged: List[list] = []
+        merged: list[list] = []
         for a, b in sorted((a, b) for a, b, p in spans if p == pc and b > a):
             if merged and a <= merged[-1][1]:
                 merged[-1][1] = max(merged[-1][1], b)
@@ -696,7 +697,7 @@ def _sounded_before(timeline: tuple, t: float) -> float:
     return totals[i - 1] + min(t, merged[i - 1][1]) - merged[i - 1][0] if i else 0.0
 
 
-def _area_scores(hist: List[float]) -> List[float]:
+def _area_scores(hist: list[float]) -> list[float]:
     """The 24 keys' scores for one step of the key path (index tonic * 2, + 1 for minor): Krumhansl-Kessler r under the
     leading-tone rule, plus AREA_FIT_WEIGHT times (the share of the sounding time inside the key's scale - 1)."""
     mean = sum(hist) / 12
@@ -720,11 +721,11 @@ def _area_scores(hist: List[float]) -> List[float]:
     return out
 
 
-def _area_path(rows: List[Optional[List[float]]]) -> List[int]:
+def _area_path(rows: list[list[float] | None]) -> list[int]:
     """Viterbi over the 24 keys: the most total score, less AREA_SWITCH_PENALTY per change. A row of None scores
     every key alike."""
-    score: List[float] = [0.0] * 24
-    back: List[List[int]] = []
+    score: list[float] = [0.0] * 24
+    back: list[list[int]] = []
     for row in rows:
         top = max(range(24), key=lambda k: score[k])
         back.append([k if score[k] >= score[top] - AREA_SWITCH_PENALTY else top for k in range(24)])
@@ -738,8 +739,8 @@ def _area_path(rows: List[Optional[List[float]]]) -> List[int]:
 
 
 def key_areas(
-    spans: List[tuple], chord_events: List[dict], duration_ms: int, nkey: Optional[dict], reader=None
-) -> List[dict]:
+    spans: list[tuple], chord_events: list[dict], duration_ms: int, nkey: dict | None, reader=None
+) -> list[dict]:
     """The session's key areas, [{start_ms, end_ms, key}] with key a numbering_key result. A session in one key is one
     area numbered in nkey, the session's own numbering key. A session that moves (F major, then D major) is numbered
     part by part, each in the key that fits it, instead of in one key that neither part is in.
@@ -759,7 +760,7 @@ def key_areas(
     if not nkey or not spans or duration_ms < 2 * AREA_MIN_MS:
         return whole
     lines = _pc_timelines(spans)
-    rows: List[Optional[List[float]]] = []
+    rows: list[list[float] | None] = []
     for k in range(math.ceil(duration_ms / AREA_FRAME_MS)):
         centre = (k + 0.5) * AREA_FRAME_MS
         lo, hi = max(0.0, centre - AREA_CONTEXT_MS / 2), min(float(duration_ms), centre + AREA_CONTEXT_MS / 2)
@@ -767,7 +768,7 @@ def key_areas(
         heard = sum(hist) >= AREA_MIN_HEARD_MS and sum(1 for h in hist if h > 0) >= 3
         rows.append(_area_scores(hist) if heard else None)
     onsets = sorted({a for a, _, _ in spans})
-    parts: List[dict] = []
+    parts: list[dict] = []
     for k, state in enumerate(_area_path(rows)):
         if parts and parts[-1]["state"] == state:
             continue
@@ -785,7 +786,7 @@ def key_areas(
         parts.append({"state": state, "start_ms": t if parts else 0, "end_ms": duration_ms})
 
     # when anything sounds, and where playing resumes after a long silence
-    cover: List[list] = []
+    cover: list[list] = []
     for a, b in sorted((a, b) for a, b, _ in spans if b > a):
         if cover and a <= cover[-1][1]:
             cover[-1][1] = max(cover[-1][1], b)
@@ -800,7 +801,7 @@ def key_areas(
     def played(part: dict) -> float:
         return _sounded_before(sounding, part["end_ms"]) - _sounded_before(sounding, part["start_ms"])
 
-    cut: List[dict] = []
+    cut: list[dict] = []
     for part in parts:
         edges = (
             [part["start_ms"]] + sorted(t for t in resumes if part["start_ms"] < t < part["end_ms"]) + [part["end_ms"]]
@@ -820,14 +821,14 @@ def key_areas(
     for part in parts:
         part["gap"] = part["start_ms"] in resumes  # a long silence ends where this part starts
 
-    def weights_in(a: int, b: int) -> List[float]:
+    def weights_in(a: int, b: int) -> list[float]:
         w = [0.0] * 12
         for s0, s1, pc in spans:
             if s1 > a and s0 < b:
                 w[pc] += min(s1, b) - max(s0, a)
         return w
 
-    def left_out(w: List[float], state: int) -> float:
+    def left_out(w: list[float], state: int) -> float:
         return _out_share(w, state // 2, "minor" if state % 2 else "major")
 
     def join(i: int, j: int, state: int) -> None:
@@ -896,7 +897,7 @@ def key_areas(
     return [{"start_ms": part["start_ms"], "end_ms": part["end_ms"], "key": part["key"]} for part in parts]
 
 
-def _key_change_at(ordered: List[dict], p: dict, q: dict, duration_ms: int, reader) -> int:
+def _key_change_at(ordered: list[dict], p: dict, q: dict, duration_ms: int, reader) -> int:
     """Where the key change between key areas p and q goes: the chord start within AREA_SNAP_MS of it (or the change itself)
     that leaves the least chord time outside p's key before it and q's key after it, the nearest one on a tie. Bb major's
     Cm7 F7 Bbmaj7, then Eb major's Fm7 Bb7 Ebmaj7: the path changed at the Ebmaj7, so Fm7 read as a borrowed 5m7 in Bb."""
@@ -919,7 +920,7 @@ def _key_change_at(ordered: List[dict], p: dict, q: dict, duration_ms: int, read
     return min({b} | {t for t, _, _, _ in flags}, key=lambda c: (outside_ms(c), abs(c - b), c))
 
 
-def _pc_names(key: Optional[dict]) -> List[str]:
+def _pc_names(key: dict | None) -> list[str]:
     if not key:
         return PC_NEUTRAL
     best = key["best"]
@@ -930,7 +931,7 @@ def _pc_names(key: Optional[dict]) -> List[str]:
     return PC_NEUTRAL if fifths == 0 else PC_SHARP if fifths < 6 else PC_FLAT
 
 
-def _percentile(sorted_values: List[int], p: int) -> float:
+def _percentile(sorted_values: list[int], p: int) -> float:
     """Linear interpolation between closest ranks (numpy's default), computed exactly."""
     n = len(sorted_values)
     rank = Fraction(p * (n - 1), 100)
@@ -939,23 +940,23 @@ def _percentile(sorted_values: List[int], p: int) -> float:
     return float(sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * (rank - lo))
 
 
-def _acc(text: Optional[str]) -> int:
+def _acc(text: str | None) -> int:
     return len(text) * (1 if text.startswith("#") else -1) if text else 0
 
 
-def _parse_note(name: str) -> Optional[int]:
+def _parse_note(name: str) -> int | None:
     m = _NOTE_RE.match(name)
     if not m:
         return None
     return (int(m.group(3)) + 1) * 12 + _LETTER_PC[m.group(1)] + _acc(m.group(2))
 
 
-def _pitch_class(name: str) -> Optional[int]:
+def _pitch_class(name: str) -> int | None:
     m = _PC_NAME_RE.match(name) if isinstance(name, str) else None
     return None if not m else (_LETTER_PC[m.group(1)] + _acc(m.group(2))) % 12
 
 
-def _mean(values) -> Optional[float]:
+def _mean(values) -> float | None:
     values = list(values)
     return sum(values) / len(values) if values else None
 
@@ -971,7 +972,7 @@ def _numbers_reader():
         return None, f"{type(exc).__name__}: {exc}"
 
 
-def _read_as(notes, detect_kind) -> Optional[str]:
+def _read_as(notes, detect_kind) -> str | None:
     """How to read a chord event's name: the page's own detect kind when it sent one, else "note" when `notes` hold
     a single pitch class (piano.js names a note repeated in octaves like a major chord, "C"), else by the name."""
     if detect_kind in ("chord", "interval", "note", "cluster"):
@@ -981,7 +982,7 @@ def _read_as(notes, detect_kind) -> Optional[str]:
     return None
 
 
-def _shape_kind(event: dict, reader) -> Optional[str]:
+def _shape_kind(event: dict, reader) -> str | None:
     """How a chord event's shape reads: "chord", "note", "interval" or "cluster" (the page's detect_kind when it sent one,
     else by its notes and name), None for silence. Without a reader every name counts as a chord."""
     if event.get("chord") is None:
@@ -993,7 +994,7 @@ def _shape_kind(event: dict, reader) -> Optional[str]:
     return parsed["kind"] if parsed else "cluster"
 
 
-def shape_number(chord: Optional[str], key: Optional[str], notes=None, reader=None, detect_kind=None) -> Optional[dict]:
+def shape_number(chord: str | None, key: str | None, notes=None, reader=None, detect_kind=None) -> dict | None:
     """Any shape's number as the piano page writes it, single notes and intervals too: the reader's result dict,
     or None for silence, a cluster, an unreadable key, or no reader."""
     if reader is None:
@@ -1004,7 +1005,7 @@ def shape_number(chord: Optional[str], key: Optional[str], notes=None, reader=No
     return reader.nashville_from_name(chord, key, kind=kind) or None
 
 
-def chord_number(chord: Optional[str], key: Optional[str], notes=None, reader=None, detect_kind=None) -> Optional[dict]:
+def chord_number(chord: str | None, key: str | None, notes=None, reader=None, detect_kind=None) -> dict | None:
     """A chord event's Nashville number in a key, as arsenal.nashville writes it: {"number", "outside_key"}, or None
     for silence, a single note, an interval, a cluster, an unreadable key, or no reader.
 
@@ -1018,10 +1019,10 @@ def chord_number(chord: Optional[str], key: Optional[str], notes=None, reader=No
     return {"number": got["text"], "outside_key": not got["diatonic"]}
 
 
-def _segments(marks: List[tuple], duration_ms: int) -> List[dict]:
+def _segments(marks: list[tuple], duration_ms: int) -> list[dict]:
     """marks are (t_ms, label, first) in time order. Consecutive identical labels merge (keeping the first
     mark's `first` dict); each segment lasts until the next label, and the last one until the session ends."""
-    segments: List[dict] = []
+    segments: list[dict] = []
     for t, label, first in marks:
         if segments and segments[-1]["label"] == label:
             continue
@@ -1033,8 +1034,8 @@ def _segments(marks: List[tuple], duration_ms: int) -> List[dict]:
     return segments
 
 
-def _time_by_label(segments: List[dict]) -> Dict:
-    by_label: Dict = {}
+def _time_by_label(segments: list[dict]) -> dict:
+    by_label: dict = {}
     for s in segments:
         if s["label"] is None:
             continue
@@ -1044,10 +1045,10 @@ def _time_by_label(segments: List[dict]) -> Dict:
     return by_label
 
 
-def _moves(segments: List[dict]) -> tuple:
+def _moves(segments: list[dict]) -> tuple:
     """Runs are non-null segments of at least MIN_MOVE_MS with identical neighbours joined; moves are run bigrams,
     ordered by count, then time, then first occurrence. Returns (runs, [((from, to), slot), ...])."""
-    runs: List[dict] = []
+    runs: list[dict] = []
     for s in segments:
         ms = s["end_ms"] - s["start_ms"]
         if s["label"] is None or ms < MIN_MOVE_MS:
@@ -1056,7 +1057,7 @@ def _moves(segments: List[dict]) -> tuple:
             runs[-1]["ms"] += ms
         else:
             runs.append({"label": s["label"], "ms": ms, "first": s["first"]})
-    moves: Dict[tuple, dict] = {}
+    moves: dict[tuple, dict] = {}
     for i, (a, b) in enumerate(zip(runs, runs[1:])):
         slot = moves.setdefault(
             (a["label"], b["label"]),
@@ -1068,7 +1069,7 @@ def _moves(segments: List[dict]) -> tuple:
     return runs, ordered
 
 
-def _move_numbers(numbered: Dict[str, tuple]) -> Optional[str]:
+def _move_numbers(numbered: dict[str, tuple]) -> str | None:
     """A chord move's numbers in each key area it was played in ({key: (from, to)}, first played first): "1 → 5 in F major",
     or "4 → 1 in Bb major; 1 → 5 in Eb major" when the same two chords moved in two keys. None when never numbered."""
     return "; ".join(f"{a} → {b} in {k}" for k, (a, b) in numbered.items()) or None
@@ -1087,7 +1088,7 @@ def _parallel_key(key_name: str) -> str:
     return f"{tonic} {'minor' if mode == 'major' else 'major'}"
 
 
-def _same_key(a: Optional[str], b: Optional[str], reader) -> bool:
+def _same_key(a: str | None, b: str | None, reader) -> bool:
     if not a or not b:
         return False
     if reader is None:
@@ -1096,11 +1097,11 @@ def _same_key(a: Optional[str], b: Optional[str], reader) -> bool:
     return bool(pa and pb and (pa["tonic"], pa["mode"]) == (pb["tonic"], pb["mode"]))
 
 
-def _loops(runs: List[dict]) -> List[dict]:
+def _loops(runs: list[dict]) -> list[dict]:
     """3- and 4-number cycles: n different numbers whose run is repeated back to back (the next n runs, or the
     previous n, are the same). Rotations of one cycle count as one loop, shown in the rotation played most."""
     labels = [r["label"] for r in runs]
-    found: Dict[tuple, dict] = {}
+    found: dict[tuple, dict] = {}
     for n in LOOP_LENGTHS:
         for i in range(len(labels) - n + 1):
             gram = tuple(labels[i : i + n])
@@ -1110,7 +1111,7 @@ def _loops(runs: List[dict]) -> List[dict]:
                 continue
             slot = found.setdefault(gram, {"count": 0, "first": i})
             slot["count"] += 1
-    best: Dict[tuple, tuple] = {}
+    best: dict[tuple, tuple] = {}
     for gram, slot in found.items():
         cycle = min(gram[k:] + gram[:k] for k in range(len(gram)))
         held = best.get(cycle)
@@ -1130,7 +1131,7 @@ def _loops(runs: List[dict]) -> List[dict]:
     ]
 
 
-def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms: int) -> dict:
+def _nashville(chord_events: list[dict], areas: list[dict], reader, duration_ms: int) -> dict:
     """Every chord numbered in the key of its key area (key_areas: the session's numbering_key, unless the session moves
     to another key), beside what the piano page showed live: its key (nns_key, or key from a page that sent none) and
     its own numbers (nns). Where the page counted in another key, its numbers are reported per key and never mixed in.
@@ -1138,7 +1139,7 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
     starts = [a["start_ms"] for a in areas]
     names = [a["key"]["key"] if a["key"] else None for a in areas]
 
-    def key_at(t_ms: int) -> Optional[str]:
+    def key_at(t_ms: int) -> str | None:
         return names[max(0, bisect_right(starts, t_ms) - 1)]
 
     marks = []
@@ -1234,7 +1235,7 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
     key_marks.reverse()
     key_times = [t for t, _, _ in key_marks]
 
-    def page_key_at(t_ms: int) -> Optional[str]:
+    def page_key_at(t_ms: int) -> str | None:
         i = bisect_right(key_times, t_ms)
         return key_marks[i - 1][1] if i else None
 
@@ -1244,7 +1245,7 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
 
     # edge_key names the key of the neighbouring key area when the chord belongs there and sounds within AREA_SNAP_MS of
     # the change: a key change caught a chord late, not a colour to ask about.
-    def edge_key(s: dict) -> Optional[str]:
+    def edge_key(s: dict) -> str | None:
         i = max(0, bisect_right(starts, s["start_ms"]) - 1)
         for j, near in ((i - 1, s["start_ms"] - areas[i]["start_ms"]), (i + 1, areas[i]["end_ms"] - s["start_ms"])):
             if 0 <= j < len(areas) and names[j] and near <= AREA_SNAP_MS:
@@ -1274,7 +1275,7 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
                 "edge_key": edge_key(s),
             }
         )
-    grouped: Dict[tuple, dict] = {}
+    grouped: dict[tuple, dict] = {}
     for s, moment in zip(outside, moments):
         g = grouped.setdefault(s["label"], dict(moment, count=0, ms=0, start_ms=s["start_ms"], times=[]))
         g["count"] += 1
@@ -1303,7 +1304,7 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
 
     # the page: how long each key held, and its own numbers
     key_segments = [s for s in _segments(key_marks, duration_ms) if s["label"] is not None]
-    held_keys: Dict[str, dict] = {}
+    held_keys: dict[str, dict] = {}
     for s in key_segments:
         slot = held_keys.setdefault(s["label"], {"ms": 0, "segments": 0, "start_ms": s["start_ms"]})
         slot["ms"] += span(s)
@@ -1327,8 +1328,8 @@ def _nashville(chord_events: List[dict], areas: List[dict], reader, duration_ms:
     # summary's number for the same shape, read the way the page read it (detect_kind), in the key this summary counts
     # that moment in. A name this summary cannot read at all is counted as unread, never as a disagreement.
     compared = in_key = agree = unread = 0
-    differ: List[dict] = []
-    other: Dict = {}
+    differ: list[dict] = []
+    other: dict = {}
     for e in chord_events:
         if e.get("chord") is None or not isinstance(e.get("nns"), str) or not e["nns"]:
             continue
@@ -1409,18 +1410,18 @@ def summarize(events) -> dict:
     minutes = duration_ms / 60000
     counts = {k: 0 for k in KINDS}
 
-    sounding: Dict[int, dict] = {}  # note -> {"t0", "held"}
+    sounding: dict[int, dict] = {}  # note -> {"t0", "held"}
     pc_ms = [0] * 12
     pc_count = [0] * 12
-    vels: List[int] = []
-    onsets: List[int] = []
+    vels: list[int] = []
+    onsets: list[int] = []
     lowest = highest = None
     pedal_down, pedal_since, pedal_spans = False, 0, []
-    chord_events: List[dict] = []
-    chord_sizes: List[int] = []
-    spreads: List[int] = []
+    chord_events: list[dict] = []
+    chord_sizes: list[int] = []
+    spreads: list[int] = []
     endings = {by: 0 for by in SOUND_END_BY}
-    spans: List[tuple] = []  # (start_ms, end_ms, pitch class) of every sound, for the key areas
+    spans: list[tuple] = []  # (start_ms, end_ms, pitch class) of every sound, for the key areas
 
     def end(note: int, t: int) -> None:
         start = sounding.pop(note)
@@ -1517,8 +1518,8 @@ def summarize(events) -> dict:
         else [{"start_ms": 0, "end_ms": duration_ms, "key": nkey}]
     )
     area_starts = [a["start_ms"] for a in areas]
-    number_of: List[Optional[dict]] = []
-    area_numbers: List[Optional[dict]] = []  # each chord's number in its key area, as the Nashville section reads it
+    number_of: list[dict | None] = []
+    area_numbers: list[dict | None] = []  # each chord's number in its key area, as the Nashville section reads it
     from_piano = from_analyzer = 0
     for e in chord_events:
         chord, reading = e.get("chord"), None
@@ -1574,7 +1575,7 @@ def summarize(events) -> dict:
     # A move's numbers are read in the key area it was played in, the keys the Nashville section numbers in. They used to
     # come from the key the page showed at the move's first occurrence, which lags a key change or is a passing key, so
     # the Chords section and question 2 taught numbers in a key the music had left (verifier, 2026-09-14).
-    in_areas: Dict[tuple, Dict[str, tuple]] = {}
+    in_areas: dict[tuple, dict[str, tuple]] = {}
     for a, b in zip(runs, runs[1:]):
         na, nb = a["first"].get("area"), b["first"].get("area")
         if na and nb and na["key"] == nb["key"]:
@@ -1605,7 +1606,7 @@ def summarize(events) -> dict:
     number_segments = _segments(number_marks, duration_ms)
     by_number = _time_by_label(number_segments)
     numbered_ms = sum(v["ms"] for v in by_number.values())
-    keys_ms: Dict[str, int] = {}
+    keys_ms: dict[str, int] = {}
     outside_ms, outside_by_chord = 0, {}
     for s in number_segments:
         if s["label"] is None:
@@ -1689,12 +1690,12 @@ def summarize(events) -> dict:
     }
 
     # ---- timing
-    groups: List[int] = []
+    groups: list[int] = []
     for t in onsets:  # onsets are already in time order
         if not groups or t - groups[-1] > ONSET_MERGE_MS:
             groups.append(t)
     iois = [b - a for a, b in zip(groups, groups[1:])]
-    bins: Dict[int, int] = {}
+    bins: dict[int, int] = {}
     for gap in iois:
         if gap < IOI_MAX_MS:
             lo = gap // IOI_BIN_MS * IOI_BIN_MS
@@ -1776,11 +1777,11 @@ def _secs(seconds: float) -> str:
     return f"{int(seconds // 60)} min {int(round(seconds % 60))} s"
 
 
-def questions(s: dict) -> List[str]:
+def questions(s: dict) -> list[str]:
     """Three to five questions for Daniel, each built from one number in the summary (none for a silent session)."""
     if not s.get("note_count"):
         return []
-    out: List[str] = []
+    out: list[str] = []
     anchored = _nashville_question(s)
     if anchored:
         out.append(anchored[1])  # one question per session anchored to a time he can replay (spec 6.5)
@@ -1912,7 +1913,7 @@ def questions(s: dict) -> List[str]:
     return out[:5]
 
 
-def _nashville_question(s: dict) -> Optional[tuple]:
+def _nashville_question(s: dict) -> tuple | None:
     """(kind, question) anchored to a time: a chord outside its key first, then a change of key (between this summary's
     key areas, else on the piano page), then the main loop, move or number. None when nothing with any length was
     numbered."""
@@ -2001,7 +2002,7 @@ def _pitch_class_question(s: dict) -> str:
 
 def render_markdown(doc: dict) -> str:
     """summary.md: a readable account built only from the summary's numbers."""
-    lines: List[str] = []
+    lines: list[str] = []
     add = lines.append
     session = doc.get("session") or "(unsaved)"
     add(f"# Practice session {session}")
@@ -2180,19 +2181,19 @@ def _count(n: int) -> str:
     return "once" if n == 1 else f"{n} times"
 
 
-def _n(n: int, word: str, plural: Optional[str] = None) -> str:
+def _n(n: int, word: str, plural: str | None = None) -> str:
     """'1 note', '2 notes': a count with its noun (plural: when it is not the noun plus s)."""
     return f"{n} {word if n == 1 else plural or word + 's'}"
 
 
-def _listed(shown: int, total: int, word: str, plural: Optional[str] = None) -> str:
+def _listed(shown: int, total: int, word: str, plural: str | None = None) -> str:
     """A table heading's count: 'first 24 of 581 segments', 'all 5 segments', 'the one segment'."""
     if total == 1:
         return f"the one {word}"
     return f"first {shown} of {_n(total, word, plural)}" if shown < total else f"all {_n(total, word, plural)}"
 
 
-def _none_listed(total: int, word: str, plural: Optional[str] = None) -> str:
+def _none_listed(total: int, word: str, plural: str | None = None) -> str:
     """The line that replaces a table whose every row is a passing shape."""
     if total == 1:
         return f"the one {word} lasted under {MD_MIN_ROW_S:g} s, so it is not listed."
@@ -2206,14 +2207,14 @@ def _short_rows(n: int) -> str:
     return f"; {'the one' if n == 1 else f'the {n}'} under {MD_MIN_ROW_S:g} s {'is' if n == 1 else 'are'} not listed"
 
 
-def _times(times: List[str], count: int) -> str:
+def _times(times: list[str], count: int) -> str:
     """'0:48', '0:48 and 0:52', '0:48, 0:52 and 1:10', with 'and N more' past the listed ones."""
     if count > len(times):
         return ", ".join(times) + f" and {count - len(times)} more"
     return times[0] if len(times) == 1 else ", ".join(times[:-1]) + " and " + times[-1]
 
 
-def _nashville_markdown(doc: dict, add) -> List[tuple]:
+def _nashville_markdown(doc: dict, add) -> list[tuple]:
     """The Nashville numbers section, one line per fact with the time to replay it. Returns the glossary entries
     for the terms the section used (none when there was nothing to number)."""
     nv = doc.get("nashville") or {}
@@ -2228,9 +2229,9 @@ def _nashville_markdown(doc: dict, add) -> List[tuple]:
     def where(row: dict) -> str:  # the key a line is counted in, when the session has more than one
         return f" in {row['key']}" if several and row.get("key") else ""
 
-    shown: List[tuple] = []  # (number, chord, key) the section wrote, for the glossary
+    shown: list[tuple] = []  # (number, chord, key) the section wrote, for the glossary
     used = set()
-    examples: Dict[str, str] = {}  # "borrowed" / "chromatic" -> the key of the first such line, for the glossary
+    examples: dict[str, str] = {}  # "borrowed" / "chromatic" -> the key of the first such line, for the glossary
     add("## Nashville numbers")
     if several:
         add(
@@ -2338,7 +2339,7 @@ def _nashville_markdown(doc: dict, add) -> List[tuple]:
     if len(changes) > 6:
         add(f"- {_n(len(changes) - 6, 'more key change')} after that.")
     first_shown = {pk["key"]: pk["first_at"] for pk in page.get("keys", [])}
-    elsewhere: Dict[str, List[dict]] = {}
+    elsewhere: dict[str, list[dict]] = {}
     for n in (doc.get("numbers") or {}).get("top", []):
         if n["key"] not in keys_here:
             elsewhere.setdefault(n["key"], []).append(n)
@@ -2446,12 +2447,12 @@ _EXTENSIONS = {  # the chord-shape marks after a number, in plain words with a C
 
 def _glossary(
     nkey: dict,
-    shown: List[tuple],
+    shown: list[tuple],
     used: set,
-    examples: Optional[dict] = None,
-    modes: Optional[set] = None,
+    examples: dict | None = None,
+    modes: set | None = None,
     several: bool = False,
-) -> List[tuple]:
+) -> list[tuple]:
     """(term, plain words) for each term the Nashville section wrote, once each, in a fixed order. examples: the key of the
     first borrowed and chromatic line (so each entry explains a line above it, not the longest key area); modes: the modes
     of the session's key areas; several: the session has more than one key area."""

@@ -29,7 +29,7 @@ def _count_legacy():
     )
     names = set()
     if os.path.exists(legacy):
-        with open(legacy, "r", encoding="utf-8") as f:
+        with open(legacy, encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue

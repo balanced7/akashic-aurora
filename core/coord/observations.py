@@ -8,7 +8,8 @@ its effects so a reader can distinguish looking from acting.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+from collections.abc import Mapping
 
 from core.foundation.timeutil import now_iso
 
@@ -21,14 +22,14 @@ class Observation:
     subject: str
     status: str
     summary: str
-    source: Tuple[str, ...]
+    source: tuple[str, ...]
     observed_at: str = field(default_factory=now_iso)
-    total: Optional[int] = None
+    total: int | None = None
     total_relation: str = "unknown"
-    shown: Optional[int] = None
+    shown: int | None = None
     order: str = "unspecified"
     truncated: bool = False
-    effects: Tuple[str, ...] = ()
+    effects: tuple[str, ...] = ()
     details: Mapping[str, Any] = field(default_factory=dict)
     drill: str = ""
 
@@ -40,7 +41,7 @@ class Observation:
         object.__setattr__(self, "source", tuple(self.source or ()))
         object.__setattr__(self, "effects", tuple(self.effects or ()))
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "subject": self.subject,
@@ -63,9 +64,9 @@ class Observation:
 class Snapshot:
     kind: str
     subject: str
-    observations: Tuple[Observation, ...]
+    observations: tuple[Observation, ...]
     observed_at: str = field(default_factory=now_iso)
-    effects: Tuple[str, ...] = ()
+    effects: tuple[str, ...] = ()
     schema_version: str = "observation.snapshot.v1"
 
     def __post_init__(self) -> None:
@@ -88,7 +89,7 @@ class Snapshot:
         else:
             object.__setattr__(self, "effects", tuple(self.effects))
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
             "kind": self.kind,

@@ -35,14 +35,14 @@ from core.paths import repo_root
 _WARNING_MARKS = ("WARNING", "NEVER", "must not", "never touch", "not good enough")
 
 
-def _chunk_headers(chunk_dir: str) -> List[Dict[str, Any]]:
+def _chunk_headers(chunk_dir: str) -> list[dict[str, Any]]:
     out = []
     for fname in sorted(os.listdir(chunk_dir)):
         if not fname.endswith(".glsl"):
             continue
         path = os.path.join(chunk_dir, fname)
         try:
-            with io.open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 head = fh.readline().strip()
             if not head.startswith("//!"):
                 continue
@@ -60,7 +60,7 @@ def _is_warning(note: str) -> bool:
     return any(m.lower() in low for m in _WARNING_MARKS)
 
 
-def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
+def _signal_for(meta: dict[str, Any]) -> dict[str, Any]:
     name = str(meta["name"])
     note = str(meta["note"])
     kind = str(meta.get("kind") or "")
@@ -103,7 +103,7 @@ def _signal_for(meta: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _fingerprint(sig: Dict[str, Any]) -> str:
+def _fingerprint(sig: dict[str, Any]) -> str:
     return hashlib.sha1(
         (sig["recommendation"] + "|" + sig["what_tried"] + "|" + sig["anti_pattern"]).encode("utf-8")
     ).hexdigest()[:12]
@@ -139,7 +139,7 @@ def adopt_chunk_lessons(learning_store, chunk_dir: str, force: bool = False) -> 
     return len(metas)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     import argparse
 
     from core.learning.learning_store import get_learning_store_instance

@@ -29,13 +29,13 @@ import argparse
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _ledger(client="auto", path=None) -> TL.TaskLedger:

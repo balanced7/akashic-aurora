@@ -68,7 +68,7 @@ def _cmd_check(args) -> int:
     return 1 if refusals else 0
 
 
-def _present_manifests() -> Dict[str, dict]:
+def _present_manifests() -> dict[str, dict]:
     from arsenal.registry import load_registry  # a door may reach the registry; scene.py may not
 
     reg = load_registry()
@@ -104,12 +104,12 @@ def _cmd_targets(args) -> int:
     return 0
 
 
-def _slide_table(scene: dict, manifest: dict) -> Dict[str, Dict[str, List[str]]]:
+def _slide_table(scene: dict, manifest: dict) -> dict[str, dict[str, list[str]]]:
     """Per slide: which of its atom kinds the target preserves, degrades and drops (from the
     manifest's atoms table). A kind may appear in more than one column: 'preserves as pixels,
     drops selectable text' is both."""
     table = manifest.get("atoms") or {}
-    out: Dict[str, Dict[str, List[str]]] = {}
+    out: dict[str, dict[str, list[str]]] = {}
     for slide in scene.get("slides") or []:
         kinds = sorted({a.get("kind") for a in scene_mod.iter_atoms(slide) if isinstance(a.get("kind"), str)})
         row = {"preserved": [], "degraded": [], "dropped": []}
@@ -125,7 +125,7 @@ def _slide_table(scene: dict, manifest: dict) -> Dict[str, Dict[str, List[str]]]
     return out
 
 
-def _drop_only(scene: dict, manifest: dict) -> List[str]:
+def _drop_only(scene: dict, manifest: dict) -> list[str]:
     table = manifest.get("atoms") or {}
     out = []
     for kind in sorted(scene_mod.used_kinds(scene)):

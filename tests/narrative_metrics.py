@@ -9,7 +9,8 @@ the benchmark metrics from the relevant research fields. Reused across slices.
 
 import math
 from collections import Counter, defaultdict
-from typing import Iterable, List, Sequence, Tuple
+from typing import List, Tuple
+from collections.abc import Iterable, Sequence
 
 
 def _comb2(x: int) -> int:
@@ -71,18 +72,18 @@ def accuracy(gold: Sequence, pred: Sequence) -> float:
     return sum(1 for g, p in zip(gold, pred) if g == p) / len(gold)
 
 
-def boundaries(labels: Sequence) -> List[int]:
+def boundaries(labels: Sequence) -> list[int]:
     """Per-position label sequence -> boundary array (1 where label changes)."""
     return [1 if labels[i] != labels[i + 1] else 0 for i in range(len(labels) - 1)]
 
 
-def _k_from(gold_b: List[int]) -> int:
+def _k_from(gold_b: list[int]) -> int:
     n = len(gold_b) + 1
     nseg = sum(gold_b) + 1
     return max(1, round((n / nseg) / 2))
 
 
-def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
+def windowdiff(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
     """WindowDiff — slide a window; penalize where boundary counts differ.
     0 = perfect, ~1 = worst. (topic-segmentation standard)"""
     m = len(gold_b)
@@ -99,7 +100,7 @@ def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
     return errors / count if count else 0.0
 
 
-def pk(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
+def pk(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
     """Pk — probability two positions k apart are wrongly judged same/different segment."""
 
     def seg_ids(b):
@@ -124,7 +125,7 @@ def pk(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
     return errors / count if count else 0.0
 
 
-def boundary_f1(gold_b: List[int], pred_b: List[int], tol: int = 1) -> float:
+def boundary_f1(gold_b: list[int], pred_b: list[int], tol: int = 1) -> float:
     """F1 of boundary positions, matched within +/- tol."""
     gold_idx = [i for i, x in enumerate(gold_b) if x]
     pred_idx = [i for i, x in enumerate(pred_b) if x]
@@ -144,7 +145,7 @@ def boundary_f1(gold_b: List[int], pred_b: List[int], tol: int = 1) -> float:
 def multilabel_prf(
     gold_sets: Iterable[Iterable[str]],
     pred_sets: Iterable[Iterable[str]],
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Micro-averaged precision / recall / F1 over (item, label) membership pairs.
 
     The correct metric for MULTI-LABEL assignment (themes): NMI assumes a partition,

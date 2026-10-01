@@ -57,7 +57,7 @@ def _ensure_schema(con) -> None:
         marked_at REAL NOT NULL, moved_at REAL NOT NULL, inherited_from TEXT)""")
 
 
-def _row(con, seat: str) -> Optional[Dict[str, Any]]:
+def _row(con, seat: str) -> dict[str, Any] | None:
     r = con.execute(
         "SELECT seat, addr, trail, marked_at, moved_at, inherited_from FROM position WHERE seat=?", (seat,)
     ).fetchone()
@@ -73,7 +73,7 @@ def _row(con, seat: str) -> Optional[Dict[str, Any]]:
     }
 
 
-def where(seat: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def where(seat: str, db_path: Path | None = None) -> dict[str, Any] | None:
     """This seat's standpoint, or None. None means NO POSITION -- never a default root:
     a fabricated standpoint would make `since=` report an interval the seat never lived."""
     con = _connect(db_path)
@@ -84,7 +84,7 @@ def where(seat: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]
         con.close()
 
 
-def go(seat: str, addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def go(seat: str, addr: str, db_path: Path | None = None) -> dict[str, Any]:
     """Move. The previous standpoint is pushed onto the trail so `back` can undo it.
 
     A move to an address that does not resolve REFUSES with the expected shape (the
@@ -114,7 +114,7 @@ def go(seat: str, addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
         con.close()
 
 
-def back(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def back(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """Pop the trail. At the origin this is a no-op that SAYS it is one, rather than
     silently staying put and letting the caller believe it moved."""
     con = _connect(db_path)
@@ -136,7 +136,7 @@ def back(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
         con.close()
 
 
-def inherit(seat: str, from_seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def inherit(seat: str, from_seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """Succession, explicitly. The predecessor is left untouched -- being inherited FROM is
     not a move -- and the inheritor's row records where the standpoint came from, so a
     later `since=` can be read for what it is: an interval that began at the handover."""
@@ -163,7 +163,7 @@ def inherit(seat: str, from_seat: str, db_path: Optional[Path] = None) -> Dict[s
         con.close()
 
 
-def look(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def look(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """The standpoint rendered -- THE default verb, so it must stay cheap.
 
     Neighbours are SILHOUETTES (one clipped line each), never full bodies: the whole point
@@ -242,7 +242,7 @@ def look(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     return view
 
 
-def since(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def since(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """The ambient delta: what arrived while this seat was away.
 
     Anchored on THIS seat's mark, which is why the key is the incarnation. The mark moves

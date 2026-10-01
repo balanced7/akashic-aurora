@@ -95,7 +95,7 @@ def ingest(ns):
     elif ns.file == "-":
         src = sys.stdin.read()
     elif ns.file:
-        with open(ns.file, "r", encoding="utf-8") as fh:
+        with open(ns.file, encoding="utf-8") as fh:
             src = fh.read()
     else:
         print("ingest needs --file PATH (or - for stdin) or --text", file=sys.stderr)
@@ -289,14 +289,14 @@ def main() -> int:
         raw = args.pop("json", None)
         f = args.pop("file", None)
         if f:
-            with open(f, "r", encoding="utf-8") as fh:
+            with open(f, encoding="utf-8") as fh:
                 raw = fh.read()
         if not raw:
             print("script needs --file or --json", file=sys.stderr)
             return 2
         args["steps"] = json.loads(raw)
     if ns.op == "graph" and args.get("file"):
-        with open(args.pop("file"), "r", encoding="utf-8") as fh:
+        with open(args.pop("file"), encoding="utf-8") as fh:
             args["graph"] = json.load(fh)
     return submit(ns.op, args)
 

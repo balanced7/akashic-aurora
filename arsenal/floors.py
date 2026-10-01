@@ -39,7 +39,7 @@ def load_rgb(path) -> np.ndarray:
     raise ValueError(f"no frame decoded from {path}")
 
 
-def crop(rgb: np.ndarray, region: Optional[Tuple[float, float, float, float]]) -> np.ndarray:
+def crop(rgb: np.ndarray, region: tuple[float, float, float, float] | None) -> np.ndarray:
     if region is None:
         return rgb
     h, w = rgb.shape[0], rgb.shape[1]
@@ -151,19 +151,19 @@ SETS = {
 #:             "floors": ["not_dead"],                       # scoped: never a mute button
 #:             "reason": "why this absence is expected",
 #:             "owner": "who says so", "date": "YYYY-MM-DD"}}
-EXEMPTIONS: Dict[str, dict] = {}
+EXEMPTIONS: dict[str, dict] = {}
 
 _REQUIRED_DECLARATION_FIELDS = ("reason", "owner", "date")
 
 
-def _as_declarations(declarations) -> Dict[str, dict]:
+def _as_declarations(declarations) -> dict[str, dict]:
     """None means the shipped table; anything empty means NONE. Those are different requests,
     and the difference is what lets a lane ask for today's raw red."""
     if declarations is None:
         return dict(EXEMPTIONS)
     if isinstance(declarations, dict):
         return dict(declarations)
-    out: Dict[str, dict] = {}
+    out: dict[str, dict] = {}
     for spec in declarations:
         if not isinstance(spec, dict) or "id" not in spec:
             raise ValueError("each exemption must be a dict carrying an 'id'")
@@ -172,7 +172,7 @@ def _as_declarations(declarations) -> Dict[str, dict]:
     return out
 
 
-def validate_declarations(declarations=None) -> Dict[str, dict]:
+def validate_declarations(declarations=None) -> dict[str, dict]:
     """Refuse a declaration that cannot say WHY, WHO and WHEN, and refuse a floor name this
     module does not have. Both refusals are the same refusal: an exemption that silently
     exempts nothing, or silently explains nothing, is the disease the mechanism exists to cure
@@ -204,7 +204,7 @@ def validate_declarations(declarations=None) -> Dict[str, dict]:
     return decls
 
 
-def _declaration_for(path, floor: str, decls: Dict[str, dict]):
+def _declaration_for(path, floor: str, decls: dict[str, dict]):
     """The first declaration (in table order) whose path substrings appear in this frame's path
     AND whose scope names this floor. Returns (id, spec) or None."""
     needle = str(path).replace("\\", "/")
@@ -214,7 +214,7 @@ def _declaration_for(path, floor: str, decls: Dict[str, dict]):
     return None
 
 
-def check(path, *, region=None, floors: Optional[List[str]] = None, exemptions=None, **kw) -> dict:
+def check(path, *, region=None, floors: list[str] | None = None, exemptions=None, **kw) -> dict:
     """Run the named floors (default: all) over one frame. Returns a receipt-shaped dict.
 
     Thresholds are filtered per floor by SIGNATURE (inspect), so passing min_contrast to a
@@ -238,7 +238,7 @@ def check(path, *, region=None, floors: Optional[List[str]] = None, exemptions=N
             results.append(fn(rgb, region=region, **kwargs))
         except Exception as exc:  # a broken floor is a FAILED floor, loudly
             results.append({"floor": name, "pass": False, "error": f"{type(exc).__name__}: {exc}"})
-    applied: List[str] = []
+    applied: list[str] = []
     for res in results:
         if res["pass"]:
             continue
@@ -270,13 +270,13 @@ def check(path, *, region=None, floors: Optional[List[str]] = None, exemptions=N
     }
 
 
-def check_many(paths, *, region=None, floors: Optional[List[str]] = None, exemptions=None, **kw) -> List[dict]:
+def check_many(paths, *, region=None, floors: list[str] | None = None, exemptions=None, **kw) -> list[dict]:
     return [check(p, region=region, floors=floors, exemptions=exemptions, **kw) for p in paths]
 
 
 def sweep(
-    directory, *, pattern: str = "*.jpg", region=None, floors: Optional[List[str]] = None, exemptions=None, **kw
-) -> List[dict]:
+    directory, *, pattern: str = "*.jpg", region=None, floors: list[str] | None = None, exemptions=None, **kw
+) -> list[dict]:
     """Every matching frame under a directory (recursive), sorted -- the batch form a lane or
     a census report uses. Recursive because receipts live in per-run subdirectories."""
     d = Path(directory)
@@ -286,7 +286,7 @@ def sweep(
     return check_many(sorted(set(paths)), region=region, floors=floors, exemptions=exemptions, **kw)
 
 
-def summarise(receipts: List[dict]) -> dict:
+def summarise(receipts: list[dict]) -> dict:
     """Counts and the failure leaderboard. A census is only honest if it says how many frames
     it looked at, how many it could not read, and which floor does most of the failing.
 
@@ -294,14 +294,14 @@ def summarise(receipts: List[dict]) -> dict:
     layer up, at the reporting surface."""
     failed = [r for r in receipts if not r["pass"]]
     unreadable = [r for r in receipts if any("error" in res for res in r["results"])]
-    by_floor: Dict[str, int] = {}
+    by_floor: dict[str, int] = {}
     for receipt in failed:
         for res in receipt["results"]:
             if not res["pass"]:
                 by_floor[res["floor"]] = by_floor.get(res["floor"], 0) + 1
     exempt_frames = [r for r in receipts if r.get("verdict") == "exempt"]
-    exempted_floors: Dict[str, int] = {}
-    used: Dict[str, int] = {}
+    exempted_floors: dict[str, int] = {}
+    used: dict[str, int] = {}
     declared: set = set()
     applied: set = set()
     for receipt in receipts:

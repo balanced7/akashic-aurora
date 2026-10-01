@@ -88,7 +88,7 @@ class BoundaryDetector:
         self.min_gap_hours = min_gap_hours
         self.salience_weight = salience_weight
 
-    def detect(self, beats: List[Beat]) -> List[int]:
+    def detect(self, beats: list[Beat]) -> list[int]:
         """Return cut indices marking chapter start positions.
 
         Each index i means: a new chapter starts at beat i.
@@ -106,7 +106,7 @@ class BoundaryDetector:
         out = sorted(cuts)
         return out
 
-    def _is_boundary(self, beats: List[Beat], i: int) -> bool:
+    def _is_boundary(self, beats: list[Beat], i: int) -> bool:
         """Would beat[i] start a new chapter given beat[i-1]?"""
         prev = beats[i - 1]
         curr = beats[i]
@@ -137,13 +137,13 @@ class Chronicler:
 
     def __init__(
         self,
-        beat_log: Optional[BeatLog] = None,
-        store: Optional[Store] = None,
-        ranker: Optional[Ranker] = None,
-        distiller: Optional[Distiller] = None,
-        boundary_detector: Optional[BoundaryDetector] = None,
+        beat_log: BeatLog | None = None,
+        store: Store | None = None,
+        ranker: Ranker | None = None,
+        distiller: Distiller | None = None,
+        boundary_detector: BoundaryDetector | None = None,
         token_budget: int = TOKEN_BUDGET,
-        chronicle_dir: Optional[str] = None,
+        chronicle_dir: str | None = None,
     ):
         self.beat_log = beat_log or get_beat_log()
         self.store = store or create_store()
@@ -159,15 +159,15 @@ class Chronicler:
 
     # ---- public API ----
 
-    def chronicle_window(self, start_iso: str, end_iso: str, now: Optional[str] = None) -> Dict[str, Any]:
+    def chronicle_window(self, start_iso: str, end_iso: str, now: str | None = None) -> dict[str, Any]:
         """Chronicle all Beats in [start_iso, end_iso). Returns report dict."""
         beats = self.beat_log.in_window(start_iso, end_iso)
         return self._chronicle(beats, start_iso, end_iso, now=now)
 
-    def chronicle_all(self, now: Optional[str] = None) -> Dict[str, Any]:
+    def chronicle_all(self, now: str | None = None) -> dict[str, Any]:
         """Full rebuild from all stored beats. Idempotent (same data → same output)."""
         raw = self.store.zrange(TIMELINE, 0, -1)
-        beats: List[Beat] = []
+        beats: list[Beat] = []
         for bid in raw:
             b = self._load_beat(bid)
             if b is not None:
@@ -181,21 +181,21 @@ class Chronicler:
 
     def _chronicle(
         self,
-        beats: List[Beat],
+        beats: list[Beat],
         start_iso: str,
         end_iso: str,
-        now: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        now: str | None = None,
+    ) -> dict[str, Any]:
         if not beats:
             return self._empty_report()
 
         now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
-        by_track: Dict[str, List[Beat]] = defaultdict(list)
+        by_track: dict[str, list[Beat]] = defaultdict(list)
         for b in beats:
             by_track[b.track or "unknown"].append(b)
 
-        chapters: List[Chapter] = []
+        chapters: list[Chapter] = []
         for track, track_beats in sorted(by_track.items()):
             track_beats.sort(key=lambda x: to_epoch(x.at))
             cuts = self.boundary_detector.detect(track_beats)
@@ -231,9 +231,9 @@ class Chronicler:
     def _build_chapter(
         self,
         track: str,
-        beats: List[Beat],
+        beats: list[Beat],
         seg_index: int,
-        now: Optional[str] = None,
+        now: str | None = None,
     ) -> Chapter:
         """Distill a segment of Beats into a Chapter (mid view).
 
@@ -290,19 +290,19 @@ class Chronicler:
         )
         return chapter
 
-    def _build_storyline(self, chapters: List[Chapter]) -> Dict[str, List[str]]:
+    def _build_storyline(self, chapters: list[Chapter]) -> dict[str, list[str]]:
         """Group chapter IDs by track, in temporal order."""
-        by_track: Dict[str, List[str]] = defaultdict(list)
+        by_track: dict[str, list[str]] = defaultdict(list)
         for ch in chapters:
             by_track[ch.track].append(ch.id)
         return dict(by_track)
 
     def _build_atlas(
         self,
-        chapters: List[Chapter],
+        chapters: list[Chapter],
         start_iso: str,
         end_iso: str,
-        now: Optional[str] = None,
+        now: str | None = None,
     ) -> Atlas:
         """The broad view across all Tracks over the window."""
         tracks = sorted({ch.track for ch in chapters})
@@ -319,7 +319,7 @@ class Chronicler:
 
     # ---- persistence ----
 
-    def _persist(self, chapters: List[Chapter], atlas: Atlas) -> None:
+    def _persist(self, chapters: list[Chapter], atlas: Atlas) -> None:
         """Write chapters, back-links, track refs, and atlas to the Store.
 
         Chapters keep their deterministic ids (regenerate-in-place); track lists are
@@ -343,7 +343,7 @@ class Chronicler:
             except Exception:
                 continue
 
-        by_track: Dict[str, List[str]] = defaultdict(list)
+        by_track: dict[str, list[str]] = defaultdict(list)
         for ch in chapters:
             by_track[ch.track].append(ch.id)
         for track_id, cids in by_track.items():
@@ -354,7 +354,7 @@ class Chronicler:
 
         # Theme index: accumulate EVERY member beat (a theme is multi-beat AND
         # cross-track), loading each Theme once per run then writing it back.
-        theme_cache: Dict[str, Theme] = {}
+        theme_cache: dict[str, Theme] = {}
         for ch in chapters:
             for bid in ch.beats:
                 raw = self.store.get(beat_key(bid))
@@ -390,10 +390,10 @@ class Chronicler:
     def _render(
         self,
         atlas: Atlas,
-        chapters: List[Chapter],
-        storyline: Dict[str, List[str]],
-        now: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        chapters: list[Chapter],
+        storyline: dict[str, list[str]],
+        now: str | None = None,
+    ) -> dict[str, Any]:
         """Write chronicles/story.md + chronicles/story.index.json.
 
         Returns dict with paths + faithfulness + coverage metrics.
@@ -459,7 +459,7 @@ class Chronicler:
     # extracted whole, not truncated at its first ')' -- the latter false-flagged faithfulness.
     _SOURCE_RE = re.compile(r"\(source:\s*(.+)\)\s*$", re.M)
 
-    def _compute_metrics(self, chapters: List[Chapter]) -> tuple:
+    def _compute_metrics(self, chapters: list[Chapter]) -> tuple:
         """Compute faithfulness and coverage -- the two real acceptance bars.
 
         Faithfulness (bar = 100%): EVERY `(source: X)` claim in a chapter summary
@@ -504,7 +504,7 @@ class Chronicler:
         coverage_pct = (covered / high_weight * 100) if high_weight > 0 else 100.0
         return faithful, round(coverage_pct, 1)
 
-    def _load_beat(self, beat_id: str) -> Optional[Beat]:
+    def _load_beat(self, beat_id: str) -> Beat | None:
         raw = self.store.get(beat_key(beat_id))
         if not raw:
             return None
@@ -513,7 +513,7 @@ class Chronicler:
         except (ValueError, TypeError):
             return None
 
-    def _empty_report(self) -> Dict[str, Any]:
+    def _empty_report(self) -> dict[str, Any]:
         return {
             "chapters": 0,
             "tracks": 0,

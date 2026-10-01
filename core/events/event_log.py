@@ -53,7 +53,7 @@ _MAX_DETAIL_CHARS = 8000  # raw is rich, but a single payload is still bounded
 _READ_BATCH = 1000
 
 
-def per_agent_stream(agent_id: Optional[str]) -> str:
+def per_agent_stream(agent_id: str | None) -> str:
     """The per-agent raw stream name (sanitized so it maps to one safe ledger key)."""
     raw = agent_id or "unknown"
     safe = "".join(c if (c.isalnum() or c in "._-") else "_" for c in str(raw))
@@ -92,7 +92,7 @@ class EventLog:
     Semantic Relationship: EventLog records RawEvents (full-fidelity, cross-agent)
     """
 
-    def __init__(self, ledger: Optional[Ledger] = None, store: Optional["object"] = None):
+    def __init__(self, ledger: Ledger | None = None, store: Optional["object"] = None):
         self.ledger = ledger if ledger is not None else create_ledger()
         # Optional time index (Slice V1): a Store-backed read-model that makes window
         # queries a range-scan instead of a capped replay (fixes silent recall loss). It's
@@ -113,12 +113,12 @@ class EventLog:
         kind: str,
         summary: str,
         *,
-        detail: Optional[Dict[str, Any]] = None,
-        agent_id: Optional[str] = None,
+        detail: dict[str, Any] | None = None,
+        agent_id: str | None = None,
         session_id: str = "",
-        refs: Optional[List[str]] = None,
-        track: Optional[str] = None,
-        at: Optional[str] = None,
+        refs: list[str] | None = None,
+        track: str | None = None,
+        at: str | None = None,
     ) -> BoundaryOutcome:
         """Append one raw event to events:raw (+ the per-agent stream).
 
@@ -192,18 +192,18 @@ class EventLog:
         return BoundaryOutcome.done(ref=out["_ref"], **out)
 
     # --------------------------------------------------------------- read
-    def recent(self, limit: int = 20, *, agent: Optional[str] = None) -> List[Dict[str, Any]]:
+    def recent(self, limit: int = 20, *, agent: str | None = None) -> list[dict[str, Any]]:
         """The newest `limit` raw events (firehose, or one agent's stream), newest-first."""
         stream = per_agent_stream(agent) if agent else RAW_STREAM
         events = self._read_all(stream)
         return list(reversed(events))[: max(0, limit)]
 
-    def count(self, *, agent: Optional[str] = None) -> int:
+    def count(self, *, agent: str | None = None) -> int:
         """How many raw events are on the firehose (or one agent's stream)."""
         stream = per_agent_stream(agent) if agent else RAW_STREAM
         return len(self._read_all(stream))
 
-    def scan(self, *, agent: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def scan(self, *, agent: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
         """All raw events OLDEST-first (firehose, or one agent's stream); the read surface
         the query layer filters/ranks over. `limit` keeps the newest `limit` events."""
         stream = per_agent_stream(agent) if agent else RAW_STREAM
@@ -223,7 +223,7 @@ class EventLog:
         except Exception:
             return 0
 
-    def get(self, ref: str) -> Optional[Dict[str, Any]]:
+    def get(self, ref: str) -> dict[str, Any] | None:
         """Resolve a followable `event:<stream>:<id>` pointer to its stored raw event."""
         return self.resolve(ref)[0]
 
@@ -256,13 +256,13 @@ class EventLog:
         return None, f"no event {eid} on {stream} (never existed, or the stream was reset)"
 
     # --------------------------------------------------------------- internals
-    def _read_all(self, stream: str) -> List[Dict[str, Any]]:
+    def _read_all(self, stream: str) -> list[dict[str, Any]]:
         """Replay a whole stream oldest-first, attaching each event's id + followable ref.
 
         O(n) by design -- the Ledger is replay-only (no reverse range), and the stream is
         bounded by maxlen. Slice 3 adds time-window / indexed queries for hot paths.
         """
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         after = "0"
         while True:
             try:
@@ -349,7 +349,7 @@ def capture_event(kind: str, summary: str, **kwargs) -> BoundaryOutcome:
         return BoundaryOutcome.caught(e, where="capture_event(singleton)")
 
 
-_INSTANCE: Optional[EventLog] = None
+_INSTANCE: EventLog | None = None
 
 
 def reset_event_log_singleton() -> None:
@@ -358,7 +358,7 @@ def reset_event_log_singleton() -> None:
     _INSTANCE = None
 
 
-def get_event_log(ledger: Optional[Ledger] = None) -> EventLog:
+def get_event_log(ledger: Ledger | None = None) -> EventLog:
     """Module singleton (lazy). Pass `ledger` for an isolated EventLog (tests/trial).
 
     When ``_AISETUP_TEST_ISOLATED`` is set (see tests/isolate_canonical.py), never cache a

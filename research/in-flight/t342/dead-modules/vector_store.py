@@ -85,11 +85,11 @@ class VectorEntry:
     key: str
     model: str
     text: str  # Combined text for embedding
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     created_at: str
     vector: np.ndarray = field(default_factory=lambda: np.zeros(EMBEDDING_DIM, dtype=np.float32))
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "id": self.id,
             "key": self.key,
@@ -113,9 +113,9 @@ class VectorStore:
     _instance: Optional["VectorStore"] = None
 
     def __init__(self):
-        self.entries: Dict[str, VectorEntry] = {}
+        self.entries: dict[str, VectorEntry] = {}
         self.faiss_index = None
-        self._id_to_key: Dict[int, str] = {}  # FAISS ID -> entry key
+        self._id_to_key: dict[int, str] = {}  # FAISS ID -> entry key
         self._next_id = 0
         self._load_index()
 
@@ -136,7 +136,7 @@ class VectorStore:
 
                 # Load metadata
                 if os.path.exists(VECTOR_META_FILE):
-                    with open(VECTOR_META_FILE, "r") as f:
+                    with open(VECTOR_META_FILE) as f:
                         meta = json.load(f)
                         self._next_id = meta.get("next_id", 0)
 
@@ -191,7 +191,7 @@ class VectorStore:
         unique = hashlib.md5(str(time.time()).encode()).hexdigest()[:6]
         return f"vec_{timestamp}_{unique}"
 
-    def add_entry(self, key: str, model: str, text: str, metadata: Dict[str, Any] = None) -> str:
+    def add_entry(self, key: str, model: str, text: str, metadata: dict[str, Any] = None) -> str:
         """
         Add a learning/log entry to the vector store.
 
@@ -262,7 +262,7 @@ class VectorStore:
 
         return self.add_entry(key=f"{model}:{key}", model=model, text=text, metadata=metadata)
 
-    def embed_log(self, action: str, description: str, data: Dict = None) -> str:
+    def embed_log(self, action: str, description: str, data: dict = None) -> str:
         """
         Embed a log entry.
 
@@ -282,7 +282,7 @@ class VectorStore:
             key=f"log_{datetime.now().strftime('%Y%m%d_%H%M%S')}", model="session_logger", text=text, metadata=metadata
         )
 
-    def search(self, query: str, top_k: int = 5, model_filter: str = None) -> List[Dict]:
+    def search(self, query: str, top_k: int = 5, model_filter: str = None) -> list[dict]:
         """
         Search for similar entries.
 
@@ -349,7 +349,7 @@ class VectorStore:
 
         return results
 
-    def _fallback_search(self, query: str, top_k: int, model_filter: str = None) -> List[Dict]:
+    def _fallback_search(self, query: str, top_k: int, model_filter: str = None) -> list[dict]:
         """Fallback text-based search when FAISS unavailable"""
         query_lower = query.lower()
         scores = []
@@ -384,7 +384,7 @@ class VectorStore:
 
         return results
 
-    def get_by_key(self, key: str, model: str = None) -> Optional[Dict]:
+    def get_by_key(self, key: str, model: str = None) -> dict | None:
         """Get entry by key"""
         for entry in self.entries.values():
             if entry.key == key:
@@ -394,7 +394,7 @@ class VectorStore:
                     return result
         return None
 
-    def get_recent(self, limit: int = 10, model_filter: str = None) -> List[Dict]:
+    def get_recent(self, limit: int = 10, model_filter: str = None) -> list[dict]:
         """Get recent entries"""
         entries = list(self.entries.values())
 
@@ -406,7 +406,7 @@ class VectorStore:
 
         return [{**e.to_dict(), "score": 1.0, "rank": i + 1} for i, e in enumerate(entries[:limit])]
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get vector store statistics"""
         return {
             "total_entries": len(self.entries),

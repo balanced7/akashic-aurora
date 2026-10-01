@@ -48,7 +48,7 @@ BOOT_CAP = 3
 KNOWN_NEEDS = ("exec", "write", "net")
 
 
-def _load() -> Dict[str, Any]:
+def _load() -> dict[str, Any]:
     try:
         with open(QUEUE_PATH, encoding="utf-8") as f:
             doc = json.load(f)
@@ -59,7 +59,7 @@ def _load() -> Dict[str, Any]:
     return {"v": 1, "items": []}
 
 
-def _save(doc: Dict[str, Any]) -> None:
+def _save(doc: dict[str, Any]) -> None:
     """Atomic replace (K0 lesson): multiple seats file/discharge; a torn write must be
     unrepresentable. tmp rides the same directory so os.replace stays same-volume."""
     os.makedirs(os.path.dirname(QUEUE_PATH), exist_ok=True)
@@ -69,7 +69,7 @@ def _save(doc: Dict[str, Any]) -> None:
     os.replace(tmp, QUEUE_PATH)
 
 
-def add(by: str, cmd: str, *, needs: str = "exec", why: str = "") -> Dict[str, Any]:
+def add(by: str, cmd: str, *, needs: str = "exec", why: str = "") -> dict[str, Any]:
     """File one awaiting-capability command. `needs` names the capability the filing
     seat lacked (KNOWN_NEEDS teaches; unknown values pass through loudly-visible)."""
     cmd = str(cmd or "").strip()
@@ -92,11 +92,11 @@ def add(by: str, cmd: str, *, needs: str = "exec", why: str = "") -> Dict[str, A
     return item
 
 
-def pending() -> List[Dict[str, Any]]:
+def pending() -> list[dict[str, Any]]:
     return [i for i in _load()["items"] if not i.get("done_by")]
 
 
-def mark_done(item_id: str, *, seat: str, receipt: str) -> Dict[str, Any]:
+def mark_done(item_id: str, *, seat: str, receipt: str) -> dict[str, Any]:
     """Discharge with a receipt (REQUIRED): what happened when the capable seat ran it.
     The item stays in the file forever — the queue is also the discharge ledger."""
     if not str(receipt or "").strip():
@@ -114,7 +114,7 @@ def mark_done(item_id: str, *, seat: str, receipt: str) -> Dict[str, Any]:
     raise KeyError(f"no pending item with id {item_id!r} (see: defer <you> --list)")
 
 
-def render_boot_section(*, agent_caps: Set[str]) -> str:
+def render_boot_section(*, agent_caps: set[str]) -> str:
     """The boot surface. Caps-holders see the capped list; others one dim line; an
     empty queue renders nothing (never a standing header for a standing-empty queue)."""
     items = pending()

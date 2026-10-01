@@ -34,7 +34,7 @@ NO_GO_UNREPLAYABLE = 0.50  # criterion 5: majority-unreplayable = premise fails
 FALLBACK_MIN_RETENTION_DAYS = 14.0  # criterion 4: thinner ledger -> capture-side accrual
 
 
-def flip_events(*, events: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+def flip_events(*, events: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Durable flip events (kind='flip') from the firehose, oldest-first; or an injected
     list for tests. Each: {target, credited, sources, at, agent_id}. Fail-soft to []."""
     if events is None:
@@ -44,7 +44,7 @@ def flip_events(*, events: Optional[List[Dict[str, Any]]] = None) -> List[Dict[s
             events = get_event_log().scan()
         except Exception:
             return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for ev in events or []:
         if not isinstance(ev, dict) or ev.get("kind") != "flip":
             continue
@@ -72,9 +72,9 @@ def flip_events(*, events: Optional[List[Dict[str, Any]]] = None) -> List[Dict[s
     return out
 
 
-def credited_contexts(*, events: Optional[List[Dict[str, Any]]] = None) -> Dict[str, List[str]]:
+def credited_contexts(*, events: list[dict[str, Any]] | None = None) -> dict[str, list[str]]:
     """source -> [target, ...] where that source was CREDITED (axis-1 validation set)."""
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for f in flip_events(events=events):
         if f["credited"] <= 0:
             continue
@@ -85,10 +85,10 @@ def credited_contexts(*, events: Optional[List[Dict[str, Any]]] = None) -> Dict[
     return out
 
 
-def durable_surface_entries() -> List[Dict[str, Any]]:
+def durable_surface_entries() -> list[dict[str, Any]]:
     """The F0b durable surface stream (recall:surface), oldest-first; [] before F0b shipped
     or when the store is down. Same entry shape as the temp ledger ({at, alt, t, s, chars})."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         from core.events.event_log import get_event_log
         from core.recall.at_action import SURFACE_STREAM
@@ -111,8 +111,8 @@ def durable_surface_entries() -> List[Dict[str, Any]]:
 
 
 def surfaced_contexts(
-    hours: float = 24.0 * 14, *, injections: Optional[List[Dict[str, Any]]] = None
-) -> Dict[str, List[str]]:
+    hours: float = 24.0 * 14, *, injections: list[dict[str, Any]] | None = None
+) -> dict[str, list[str]]:
     """source -> [target, ...] for axis-2: the UNION of the durable surface stream (F0b,
     grows from 2026-07-09 on) and the 7-day temp injection ledger (pre-F0b coverage +
     belt-and-suspenders). Injected `injections` (tests) bypass both live reads."""
@@ -123,7 +123,7 @@ def surfaced_contexts(
             injections = list(durable_surface_entries()) + list(recent_injections(hours) or [])
         except Exception:
             return {}
-    out: Dict[str, List[str]] = {}
+    out: dict[str, list[str]] = {}
     for inj in injections or []:
         if not isinstance(inj, dict):
             continue
@@ -137,7 +137,7 @@ def surfaced_contexts(
     return out
 
 
-def parse_target(target: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_target(target: str) -> tuple[str | None, str | None]:
     """Invert at_action.normalize_target: 'p:<path>' / 'c:<command>' -> (path, command).
     Unknown shapes -> (None, None) = unreplayable (criterion 5 counts these)."""
     t = str(target or "")
@@ -149,8 +149,8 @@ def parse_target(target: str) -> Tuple[Optional[str], Optional[str]]:
 
 
 def replay(
-    target: str, *, learning_store: Optional[Any] = None, limit: int = 25, min_relevance: Optional[float] = None
-) -> List[Dict[str, Any]]:
+    target: str, *, learning_store: Any | None = None, limit: int = 25, min_relevance: float | None = None
+) -> list[dict[str, Any]]:
     """Run the LIVE matcher pipeline (query builder -> trigger-aware relevance -> floor)
     over one historical target. Same code path recall_at uses, minus per-session state --
     so agreement with production is by construction, and a mismatch means wiring drift."""
@@ -171,12 +171,12 @@ def replay(
 
 
 def fidelity_check(
-    sample: Optional[List[Dict[str, Any]]] = None,
+    sample: list[dict[str, Any]] | None = None,
     hours: float = 48.0,
     sample_limit: int = 60,
     *,
-    learning_store: Optional[Any] = None,
-) -> Dict[str, Any]:
+    learning_store: Any | None = None,
+) -> dict[str, Any]:
     """Criterion 1: for a RECENT window of real injection-ledger entries, replaying each
     entry's target must re-surface the sources the live matcher actually pushed. Recent on
     purpose -- counters and mined vocabulary drift over weeks, sessions add exclusions;
@@ -190,7 +190,7 @@ def fidelity_check(
             sample = []
     sample = list(sample or [])[-max(1, int(sample_limit)) :]
     checked = agreed = 0
-    mismatches: List[Dict[str, Any]] = []
+    mismatches: list[dict[str, Any]] = []
     for inj in sample:
         if not isinstance(inj, dict):
             continue
@@ -213,7 +213,7 @@ def fidelity_check(
     }
 
 
-def _replayable_share(events: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+def _replayable_share(events: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Share of flip targets that resolve to a non-empty live query (criteria 3b / 5)."""
     flips = flip_events(events=events)
     total = replayable = 0
@@ -232,10 +232,10 @@ def _replayable_share(events: Optional[List[Dict[str, Any]]] = None) -> Dict[str
     return {"flips": total, "replayable": replayable, "share": (replayable / total) if total else None}
 
 
-def _rehab_candidates(*, store=None, learning_store=None) -> List[str]:
+def _rehab_candidates(*, store=None, learning_store=None) -> list[str]:
     """Rehab class (sec.5): surfaced >= 10, zero credit -- the Forge's primary edit targets.
     (Age-independent here: the audit asks about DATA coverage, not bench timing.)"""
-    out: List[str] = []
+    out: list[str] = []
     try:
         from core.learning.learning_store import get_learning_store, is_benched, is_graduated
         from core.recall.at_action import _load_use, _store
@@ -257,11 +257,11 @@ def _rehab_candidates(*, store=None, learning_store=None) -> List[str]:
 
 def audit(
     *,
-    events: Optional[List[Dict[str, Any]]] = None,
-    injections: Optional[List[Dict[str, Any]]] = None,
-    learning_store: Optional[Any] = None,
-    store: Optional[Any] = None,
-) -> Dict[str, Any]:
+    events: list[dict[str, Any]] | None = None,
+    injections: list[dict[str, Any]] | None = None,
+    learning_store: Any | None = None,
+    store: Any | None = None,
+) -> dict[str, Any]:
     """The F0 data-sufficiency audit, judged against the pre-registered criteria (sec.9 F0).
     Pure read; returns numbers + per-criterion verdicts. Injectable for tests."""
     cred = credited_contexts(events=events)

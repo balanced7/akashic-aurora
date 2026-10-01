@@ -26,7 +26,8 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 
 def _pyl() -> str:
@@ -80,7 +81,7 @@ class EarConfigError(RuntimeError):
     """Refusal at the gate: inbound must never start on a guessed allowlist."""
 
 
-def _load_people() -> Dict[str, Dict[str, str]]:
+def _load_people() -> dict[str, dict[str, str]]:
     """The additional-people registry, or {} when the house has only its operator.
 
     A malformed ROW is dropped alone rather than taking the ear down with it: a typo in
@@ -94,7 +95,7 @@ def _load_people() -> Dict[str, Dict[str, str]]:
         return {}
     if not isinstance(raw, dict):
         return {}
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for key, val in raw.items():
         sid = str(key).strip()
         if not sid.isdigit() or not (15 <= len(sid) <= 22):
@@ -109,7 +110,7 @@ def _load_people() -> Dict[str, Dict[str, str]]:
     return out
 
 
-def _load_roots() -> Dict[str, Dict[str, str]]:
+def _load_roots() -> dict[str, dict[str, str]]:
     """The co-root registry, or {} when the house has only its founding operator.
 
     Same row-level tolerance as _load_people: one rotten row is dropped alone, because a
@@ -121,7 +122,7 @@ def _load_roots() -> Dict[str, Dict[str, str]]:
         return {}
     if not isinstance(raw, dict):
         return {}
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for key, val in raw.items():
         sid = str(key).strip()
         if not sid.isdigit() or not (15 <= len(sid) <= 22):
@@ -138,11 +139,11 @@ def _load_roots() -> Dict[str, Dict[str, str]]:
     return out
 
 
-def _people_of(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+def _people_of(cfg: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Who the ear knows -- tolerant of a cfg built before R1 v2 (every pin hand-builds
     one from a single id). The root operator is ALWAYS present at operator tier, so no
     registry edit and no registry typo can ever lock him out of his own house."""
-    people: Dict[str, Dict[str, str]] = {}
+    people: dict[str, dict[str, str]] = {}
     for sid, row in (cfg.get("people") or {}).items():
         people[str(sid)] = dict(row)
     roots = [str(x) for x in (cfg.get("roots") or {})]
@@ -163,7 +164,7 @@ def _people_of(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
     return people
 
 
-def build_config() -> Dict[str, Any]:
+def build_config() -> dict[str, Any]:
     """Read the operator id, refusing LOUDLY on absence or malformation.
 
     An absent allowlist must not resolve to 'allow' (the obvious sin) and must not
@@ -241,7 +242,7 @@ SPAWN_ALREADY_UP_MARKERS = (
 _SPAWN_ADDR_RE = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}:\d{2,5}")
 
 
-def spawn_already_up_reason(log_text: str) -> Optional[str]:
+def spawn_already_up_reason(log_text: str) -> str | None:
     """Did the spawn refuse because the seat is ALREADY alive on its port?
 
     None means no already-up marker was found -- the caller falls through to
@@ -261,7 +262,7 @@ def spawn_already_up_reason(log_text: str) -> Optional[str]:
 CREDENTIAL_CLIFF_DAYS = 7.0
 
 
-def spawn_credential_refusal(vault_token: str, cli_logged_in: Optional[bool]) -> Optional[str]:
+def spawn_credential_refusal(vault_token: str, cli_logged_in: bool | None) -> str | None:
     """Can a fresh seat authenticate at all? None means yes (or we cannot tell).
 
     T366, from the day it cost him: with no credential anywhere, !spawn spent 16 seconds
@@ -284,7 +285,7 @@ def spawn_credential_refusal(vault_token: str, cli_logged_in: Optional[bool]) ->
     return None
 
 
-def credential_horizon_days(creds: Dict[str, Any], now_ms: int) -> Optional[float]:
+def credential_horizon_days(creds: dict[str, Any], now_ms: int) -> float | None:
     """Days until the REFRESH token dies -- the clock that actually ends resuscitation.
 
     The access token expires every few hours and rolls over silently, which is why nobody
@@ -301,7 +302,7 @@ def credential_horizon_days(creds: Dict[str, Any], now_ms: int) -> Optional[floa
     return (float(exp) - float(now_ms)) / 86_400_000.0
 
 
-def credential_warning(days: Optional[float], cliff: float = CREDENTIAL_CLIFF_DAYS) -> Optional[str]:
+def credential_warning(days: float | None, cliff: float = CREDENTIAL_CLIFF_DAYS) -> str | None:
     """The line worth surfacing BEFORE he reaches for the lever. Silent when there is
     nothing to say -- a warning that fires at 28 days out teaches people to ignore it."""
     if days is None:
@@ -321,7 +322,7 @@ def credential_warning(days: Optional[float], cliff: float = CREDENTIAL_CLIFF_DA
     return None
 
 
-def spawn_stillborn_reason(exit_code: Optional[int], log_text: str, max_len: int = 300) -> Optional[str]:
+def spawn_stillborn_reason(exit_code: int | None, log_text: str, max_len: int = 300) -> str | None:
     """Did the spawned seat LIVE? None means yes; a string is the reason it did not.
 
     `exit_code` is None while the child is still breathing after its grace window --
@@ -373,8 +374,8 @@ def _seat_words(log_text: str, max_len: int = 1700) -> str:
 
 
 def spawn_closing_report(
-    exit_code: Optional[int], log_text: str, *, elapsed_s: float, deadline_s: float, max_len: int = 1900
-) -> Optional[str]:
+    exit_code: int | None, log_text: str, *, elapsed_s: float, deadline_s: float, max_len: int = 1900
+) -> str | None:
     """What to tell the requester about a spawn that has finished -- or overstayed.
 
     THE DEFECT THIS RETIRES (2026-08-24): the gateway read the child's entire output,
@@ -410,7 +411,7 @@ def spawn_closing_report(
     return said[:max_len]
 
 
-def _rooms_reverse() -> Dict[str, str]:
+def _rooms_reverse() -> dict[str, str]:
     """thread_id -> ask_id, from the rooms registry. The registry maps the route;
     message content never does (R3)."""
     from core.comm.discord_rooms import _reg_path
@@ -419,7 +420,7 @@ def _rooms_reverse() -> Dict[str, str]:
         reg = json.loads(_reg_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for ask_id, rec in reg.items():
         tid = str((rec or {}).get("thread_id") or "")
         if tid:
@@ -427,12 +428,12 @@ def _rooms_reverse() -> Dict[str, str]:
     return out
 
 
-def _mention_map() -> Dict[str, str]:
+def _mention_map() -> dict[str, str]:
     """role-name (lowercased) -> agent id, fed by the residents registry — never a
     second hand-kept roster. Agent ids map to themselves so @claude works alongside
     @Vandor; a role the registry doesn't know is simply not an address."""
     agents = ("claude", "deepseek", "kimi", "codex")
-    out: Dict[str, str] = {a: a for a in agents}
+    out: dict[str, str] = {a: a for a in agents}
     try:
         from core.fleet import residents as _R
 
@@ -451,7 +452,7 @@ def _mention_map() -> Dict[str, str]:
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
 
-def _seat_channels() -> Dict[str, Any]:
+def _seat_channels() -> dict[str, Any]:
     path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -486,8 +487,8 @@ COLD_SEAT_NOTICE = (
 
 
 def _auto_wake(
-    agent: str, task: str, spawner: Optional[Callable[..., Any]], is_seat_reachable: Optional[Callable[[str], bool]]
-) -> Optional[str]:
+    agent: str, task: str, spawner: Callable[..., Any] | None, is_seat_reachable: Callable[[str], bool] | None
+) -> str | None:
     """Reach the seat that EXISTS; never conjure one behind his back.
 
     HISTORY, because this function's meaning was inverted by ruling and the old shape is
@@ -569,7 +570,7 @@ def discord_help_text() -> str:
 
 
 def handle_message(
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     *,
     author_id: str,
     author_name: str,
@@ -578,13 +579,13 @@ def handle_message(
     bus: Any,
     react: Callable[[str], Any],
     role_mentions: Any = None,
-    spawner: Optional[Callable[[str], Any]] = None,
-    message_id: Optional[str] = None,
-    reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
-    attachments: Optional[list] = None,
-    is_seat_reachable: Optional[Callable[[str], bool]] = None,
+    spawner: Callable[[str], Any] | None = None,
+    message_id: str | None = None,
+    reviver: Callable[[str | None, bool], Any] | None = None,
+    attachments: list | None = None,
+    is_seat_reachable: Callable[[str], bool] | None = None,
     mentions_everyone: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -633,7 +634,7 @@ def handle_message(
                 f"(name {author_name!r} is costume; the levers stay "
                 f"behind R1 -- reach, never authority)",
             }
-        gmeta: Dict[str, Any] = {
+        gmeta: dict[str, Any] = {
             "source": "discord",
             "operator": False,
             "guest": True,
@@ -814,7 +815,7 @@ def handle_message(
         react("🌱")
         return {"acted": True, "spawned": str(pid), "id": None, "mode": spawn_mode}
 
-    meta: Dict[str, Any] = {"source": "discord", "operator": True, "speaker": speaker}
+    meta: dict[str, Any] = {"source": "discord", "operator": True, "speaker": speaker}
     if message_id:
         # T376 S3a: same law as the guest path -- the relay self-identifies by
         # its Discord message id so double-relay dies at the bus door.

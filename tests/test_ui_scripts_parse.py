@@ -31,7 +31,7 @@ NODE = shutil.which("node")
 
 def _page_constant():
     """The PAGE template exactly as served: AST-extract, zero import side effects."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
@@ -47,7 +47,7 @@ def _page_constant():
 
 def _static_js_routes():
     """Every scripts/*.js file do_GET serves via _static -- new modules auto-join the pin."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         src = fh.read()
     paths = re.findall(r'_static\("(scripts/[^"]+\.js)"', src)
     assert paths, "no _static scripts/*.js routes found -- the static serve path moved; re-anchor this pin."
@@ -86,5 +86,5 @@ def test_static_module_scripts_parse(tmp_path):
     for rel in _static_js_routes():
         fpath = os.path.join(REPO, rel.replace("/", os.sep))
         assert os.path.exists(fpath), f"{rel} is routed in do_GET but missing on disk"
-        with open(fpath, "r", encoding="utf-8") as fh:
+        with open(fpath, encoding="utf-8") as fh:
             _parse_check(fh.read(), rel, tmp_path)

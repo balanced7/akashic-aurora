@@ -43,7 +43,7 @@ def _client():
         return None
 
 
-def _active_task_for(agent: str, ledger=None) -> Optional[str]:
+def _active_task_for(agent: str, ledger=None) -> str | None:
     """The ONE task owned by `agent` in IN_PROGRESS or VERIFYING, else None. The
     one-in-progress serialize gate (task_ledger.py:195-199) makes this at most one."""
     try:
@@ -76,7 +76,7 @@ def _token_total(tokens: Any) -> int:
     return 0
 
 
-def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str]:
+def attribute_turn(agent: str, row: dict[str, Any], ledger=None) -> str | None:
     """HOT PATH (called from turn_metrics.record, inside its fail-open try): attribute
     one turn's facts to the agent's active task. Returns the tid or None. Never raises."""
     try:
@@ -98,7 +98,7 @@ def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str
         return None
 
 
-def finalize(tid: str, task: Dict[str, Any]) -> Dict[str, Any]:
+def finalize(tid: str, task: dict[str, Any]) -> dict[str, Any]:
     """COLD PATH (called at the DONE transition): accumulator -> durable cost_* keys on
     the task dict; the Redis key is deleted. Missing/empty accumulator -> {} and the
     task is untouched (absent honesty, K3/K7; a verifying bounce that already finalized
@@ -141,7 +141,7 @@ def _fmt_tokens(n: int) -> str:
     return f"{n} tok"
 
 
-def cost_line(task: Dict[str, Any]) -> str:
+def cost_line(task: dict[str, Any]) -> str:
     """RETRO-ONLY render: '' unless the task is DONE and carries cost_turns (K5/K7).
     One line, <=LINE_BUDGET chars; under pressure tokens drop first, then duration --
     the turn count always renders (K6). Never raises."""

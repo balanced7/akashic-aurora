@@ -201,7 +201,7 @@ def key_name_of(tonic: int, mode: str) -> str:
     return (MAJOR_KEY_NAMES if mode == "major" else MINOR_KEY_NAMES)[tonic % 12] + " " + mode
 
 
-def parse_key(key_name) -> Optional[Dict]:
+def parse_key(key_name) -> dict | None:
     """'F major', 'C# minor', 'Bbm', 'A' (major) -> {tonic, mode, name, bias}, or None when unreadable."""
     if key_name is None:
         return None
@@ -220,7 +220,7 @@ def parse_key(key_name) -> Optional[Dict]:
     return {"tonic": tonic, "mode": mode, "name": f"{_name(sp)} {mode}", "bias": bias_of(tonic, mode, sp)}
 
 
-def _key_context(key) -> Optional[Dict]:
+def _key_context(key) -> dict | None:
     if isinstance(key, dict):
         if isinstance(key.get("name"), str):
             k = parse_key(key["name"])
@@ -235,7 +235,7 @@ def _key_context(key) -> Optional[Dict]:
     return {**k, "sp": _parse_note(k["name"])[0]}
 
 
-def parse_chord(name, kind: Optional[str] = None) -> Optional[Dict]:
+def parse_chord(name, kind: str | None = None) -> dict | None:
     """A chord name as Theory.detect writes one -> {kind, root, suffix, bass, upper}, spellings as (letter, acc).
 
     'Fmaj7/A', 'Bbm7b5', 'C6/9/E', 'C5' (power chord), 'C-E' (interval), 'E4' (a note with its octave).
@@ -283,7 +283,7 @@ def _scale_offset(sp, ctx) -> int:
     return best
 
 
-def _degree_from(sp, tonic_sp) -> Dict:
+def _degree_from(sp, tonic_sp) -> dict:
     d = (sp[0] - tonic_sp[0]) % 7
     acc = _signed(_pc(sp) - (_pc(tonic_sp) + LETTER_PC[d]))
     return {"degree": d + 1, "acc": acc, "text": _acc_text(acc) + str(d + 1)}
@@ -294,7 +294,7 @@ def _relative_major(ctx):
     return letter, _signed(ctx["tonic"] + 3 - LETTER_PC[letter])
 
 
-def _respell(sp, ctx, minor: str = "tonic", family: Optional[str] = None):
+def _respell(sp, ctx, minor: str = "tonic", family: str | None = None):
     """The spelling numbers are read from: the one closest to the key's scale (double sharps and flats too: G dim
     in G# minor is F## dim, 7°). Enharmonic ties go to the chart degree, then to the fewer accidentals in the
     degree, then to the spelling given. family: FAMILY of a chord root's suffix, or None for a note, bass or interval."""
@@ -326,7 +326,7 @@ def _respell(sp, ctx, minor: str = "tonic", family: Optional[str] = None):
     return min(ties, key=rank)  # min keeps the first of equals, as the JS stable sort does
 
 
-def spell_in_key(sp, key, minor: str = "tonic", suffix: Optional[str] = None) -> Optional[Dict]:
+def spell_in_key(sp, key, minor: str = "tonic", suffix: str | None = None) -> dict | None:
     """A spelling (letter, acc) as it reads in a key: {letter, acc, in_scale}, or None without a readable key.
     The twin of nashville.js spellInKey (which piano.js uses to spell chord names in the shown key)."""
     ctx = _key_context(key)
@@ -337,14 +337,14 @@ def spell_in_key(sp, key, minor: str = "tonic", suffix: Optional[str] = None) ->
     return {"letter": s[0], "acc": s[1], "in_scale": _scale_offset(s, ctx) == 0}
 
 
-def _number_spelled(s, ctx, minor: str) -> Dict:
+def _number_spelled(s, ctx, minor: str) -> dict:
     """{degree, acc, text} of a spelling already read in the key, plus tonic-numbered tdeg/tacc for the diatonic test."""
     t = _degree_from(s, ctx["sp"])
     out = _degree_from(s, _relative_major(ctx)) if ctx["mode"] == "minor" and minor == "relative" else t
     return {**out, "tdeg": t["degree"], "tacc": t["acc"]}
 
 
-def _number(sp, ctx, minor: str, family: Optional[str] = None) -> Dict:
+def _number(sp, ctx, minor: str, family: str | None = None) -> dict:
     return _number_spelled(_respell(sp, ctx, minor, family), ctx, minor)
 
 
@@ -371,7 +371,7 @@ def _spell_from(sp, steps: int, root_sp, ctx, minor: str):
     return own if _scale_offset(moved, ctx) != 0 and _scale_offset(own, ctx) == 0 else moved
 
 
-def _pub(n) -> Optional[Dict]:
+def _pub(n) -> dict | None:
     return {"degree": n["degree"], "acc": n["acc"], "text": n["text"]} if n else None
 
 
@@ -404,7 +404,7 @@ def _join_suffix(base: str, suffix: str) -> str:
     return base + "-^" + m.group(1) if m else base + suffix
 
 
-def _build(chord: Dict, ctx: Dict, minor: str, minor_mark: str) -> Dict:
+def _build(chord: dict, ctx: dict, minor: str, minor_mark: str) -> dict:
     minor = "relative" if minor == "relative" else "tonic"
     minor_mark = "m" if minor_mark is None else str(minor_mark)
     kind = chord["kind"]
@@ -460,8 +460,8 @@ def _build(chord: Dict, ctx: Dict, minor: str, minor_mark: str) -> Dict:
 
 
 def nashville_from_name(
-    chord_name, key_name, minor: str = "tonic", minor_mark: str = "m", kind: Optional[str] = None
-) -> Optional[Dict]:
+    chord_name, key_name, minor: str = "tonic", minor_mark: str = "m", kind: str | None = None
+) -> dict | None:
     """Number a chord name ('Fmaj7/A') in a key ('F major', or a {tonic, mode, name} dict). None for a cluster or no key."""
     ctx = _key_context(key_name)
     chord = parse_chord(chord_name, kind)

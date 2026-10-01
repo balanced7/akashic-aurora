@@ -105,7 +105,7 @@ def get_session_log(session_id):
         return []
 
     log = []
-    with open(log_file, "r", encoding="utf-8") as f:
+    with open(log_file, encoding="utf-8") as f:
         for line in f:
             try:
                 entry = json.loads(line)
@@ -148,7 +148,7 @@ def find_last_session():
     log_file = os.path.join(LOG_DIR, "session_all.jsonl")
     if os.path.exists(log_file):
         last_session = None
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             for line in f:
                 try:
                     entry = json.loads(line)

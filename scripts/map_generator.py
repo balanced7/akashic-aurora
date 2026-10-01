@@ -28,7 +28,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any, Dict, List
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,7 +45,7 @@ class MapRefusal(Exception):
 
 
 # --------------------------------------------------------------------- pure
-def build_map(data: Dict[str, Any]) -> str:
+def build_map(data: dict[str, Any]) -> str:
     for k in _REQUIRED_STAMP:
         if k not in data:
             raise MapRefusal(
@@ -54,7 +54,7 @@ def build_map(data: Dict[str, Any]) -> str:
             )
     e = _html.escape
     page_grades = int(data.get("page_grades") or 0)
-    parts: List[str] = []
+    parts: list[str] = []
     parts.append(
         "<style>"
         "body{background:#0b0e14;color:#cdd6e4;font-family:Segoe UI,system-ui,"
@@ -134,9 +134,9 @@ def build_map(data: Dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------- i/o
-def gather_map_data() -> Dict[str, Any]:
+def gather_map_data() -> dict[str, Any]:
     """READ verbs only; never the Eye position family (half_a C3)."""
-    data: Dict[str, Any] = {"generated_ts": datetime.now(timezone.utc).isoformat()}
+    data: dict[str, Any] = {"generated_ts": datetime.now(UTC).isoformat()}
     try:
         r = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=10
@@ -209,7 +209,7 @@ def gather_map_data() -> Dict[str, Any]:
     data["page_grades"] = page_grades
     data["dashboard_count"] = dashboard
 
-    badges: List[Dict[str, Any]] = []
+    badges: list[dict[str, Any]] = []
     newest_event = ""
     try:
         from core.comm.bus import Bus
@@ -233,7 +233,7 @@ def gather_map_data() -> Dict[str, Any]:
     rp = os.path.join(ROOT, "state", "eye", "routes.jsonl")
     if os.path.exists(rp):
         try:
-            now = datetime.now(timezone.utc).timestamp()
+            now = datetime.now(UTC).timestamp()
             for line in open(rp, encoding="utf-8", errors="replace"):
                 line = line.strip()
                 if not line:

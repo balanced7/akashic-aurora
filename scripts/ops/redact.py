@@ -69,7 +69,7 @@ _SKIP_SUFFIXES = {
 _SKIP_DIRS = ("refs/design-inspiration/", "docs/_archive/", "ComfyUI-Zluda/")
 
 
-def load_manifest(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_manifest(path: Path | None = None) -> dict[str, Any]:
     p = Path(path) if path else MANIFEST
     if not p.exists():
         raise FileNotFoundError(
@@ -88,7 +88,7 @@ def load_manifest(path: Optional[Path] = None) -> Dict[str, Any]:
     return man
 
 
-def _tracked(root: Path) -> List[str]:
+def _tracked(root: Path) -> list[str]:
     out = subprocess.run(["git", "ls-files"], cwd=str(root), capture_output=True, text=True).stdout
     files = []
     for rel in out.splitlines():
@@ -106,14 +106,14 @@ def shape(pattern: str) -> str:
     return f"{pattern[0]}{'*' * max(0, len(pattern) - 2)}{pattern[-1]}" if len(pattern) > 2 else "**"
 
 
-def scan(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def scan(root: Path | None = None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     """Count every target across the tree. Nothing is written."""
     root = Path(root) if root else _REPO_ROOT
     man = manifest or load_manifest()
     ceiling = int(man.get("max_hits_per_target", 400))
     files = _tracked(root)
 
-    per_target: List[Dict[str, Any]] = []
+    per_target: list[dict[str, Any]] = []
     for t in man["targets"]:
         rx = re.compile(re.escape(t["pattern"]), re.IGNORECASE)
         hits, where = 0, []
@@ -140,7 +140,7 @@ def scan(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None)
     return {"scanned": len(files), "ceiling": ceiling, "targets": per_target}
 
 
-def apply(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def apply(root: Path | None = None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     root = Path(root) if root else _REPO_ROOT
     man = manifest or load_manifest()
     pre = scan(root, man)
@@ -169,7 +169,7 @@ def apply(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None
     }
 
 
-def render(rep: Dict[str, Any]) -> None:
+def render(rep: dict[str, Any]) -> None:
     print(f"[redact] {rep['scanned']:,} tracked text file(s) | refusal ceiling {rep['ceiling']} hits/target")
     for t in rep["targets"]:
         flag = "  REFUSED (too common to be a name)" if t["refused"] else ""
@@ -180,7 +180,7 @@ def render(rep: Dict[str, Any]) -> None:
         print(f"        why: {t['why']}")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--verify", action="store_true")

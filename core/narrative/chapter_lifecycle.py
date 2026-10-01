@@ -29,11 +29,11 @@ def is_active_chapter(ch: Chapter) -> bool:
     return not ch.valid_to
 
 
-def active_chapters(chapters: List[Chapter]) -> List[Chapter]:
+def active_chapters(chapters: list[Chapter]) -> list[Chapter]:
     return [ch for ch in chapters if is_active_chapter(ch)]
 
 
-def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
+def load_chapter_from_store(store, chapter_id: str) -> Chapter | None:
     raw = store.get(chapter_key(chapter_id))
     if not raw:
         return None
@@ -43,7 +43,7 @@ def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
         return None
 
 
-def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+def persist_chapter_in_place(store, chapter: Chapter, *, now: str | None = None) -> Chapter:
     """Write ``chapter`` under its deterministic id, preserving bi-temporal anchors.
 
     ``valid_from`` is set the first time the chapter is seen and never moved;
@@ -66,7 +66,7 @@ def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = No
     return chapter
 
 
-def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: str | None = None) -> Chapter:
     """Explicit correction: a *different*-id chapter supersedes ``old_id``.
 
     Closes the old chapter's validity interval, links the two with the real
@@ -117,7 +117,7 @@ def write_learning_chapter_backlinks(store, chapter: Chapter) -> int:
     return linked
 
 
-def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> Track:
+def rebuild_track_chapter_list(store, track_id: str, current_ids: list[str]) -> Track:
     """Set a Track's chapter list to active, resolvable chapters only, newest-first.
 
     Merges the ids produced this run with any pre-existing ones (so a windowed
@@ -135,7 +135,7 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> 
     if track is None:
         track = Track(id=track_id, title=track_id, chapters=[])
 
-    merged: List[str] = []
+    merged: list[str] = []
     seen = set()
     for cid in list(track.chapters or []) + list(current_ids):
         if cid in seen:

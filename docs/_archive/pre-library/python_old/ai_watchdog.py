@@ -22,7 +22,7 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -35,7 +35,7 @@ DEFAULT_INTERVAL = float(os.environ.get("AI_WATCHDOG_INTERVAL", "45"))
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _compressor_running() -> bool:
@@ -70,10 +70,10 @@ def _redis_client():
         return None
 
 
-def _canonical_stream_snapshot(r) -> Dict[str, Any]:
+def _canonical_stream_snapshot(r) -> dict[str, Any]:
     from config import SESSION_EVENTS_STREAM
 
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "stream": SESSION_EVENTS_STREAM,
         "reachable": False,
         "xlen": None,
@@ -107,7 +107,7 @@ def _canonical_stream_snapshot(r) -> Dict[str, Any]:
     return out
 
 
-def _canonical_jsonl_snapshot() -> Dict[str, Any]:
+def _canonical_jsonl_snapshot() -> dict[str, Any]:
     from config import CANONICAL_EVENTS_JSONL
 
     p = CANONICAL_EVENTS_JSONL
@@ -123,9 +123,9 @@ def _canonical_jsonl_snapshot() -> Dict[str, Any]:
     return snap
 
 
-def _legacy_opencode_log_hints(r) -> Dict[str, Any]:
+def _legacy_opencode_log_hints(r) -> dict[str, Any]:
     """Cheap hint: OpenCode sessions with empty legacy LIST logs."""
-    out: Dict[str, Any] = {"scanned_keys": 0, "opencode_empty_logs": []}
+    out: dict[str, Any] = {"scanned_keys": 0, "opencode_empty_logs": []}
     if r is None:
         return out
     empty: list[str] = []
@@ -152,12 +152,12 @@ def _legacy_opencode_log_hints(r) -> Dict[str, Any]:
     return out
 
 
-def _port_section(sync_ports: bool) -> Dict[str, Any]:
+def _port_section(sync_ports: bool) -> dict[str, Any]:
     from stack_manager.config import SERVICES
     from stack_manager.ports import PortManager
 
     pm = PortManager()
-    section: Dict[str, Any] = {
+    section: dict[str, Any] = {
         "service_port_map": pm.scan_services(),
         "conflicts": pm.detect_conflicts(),
         "host_ports_declared": pm.scan_host_ports(),
@@ -180,11 +180,11 @@ def collect_report(
     ensure_infra: bool = False,
     infra_tier: str = "standard",
     infra_agent: str = "ai_watchdog",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Single observability payload (ports + logging + infra)."""
     from session_supervisor import allow_infra_start, ensure_infra, infra_status
 
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "timestamp": _utc_now_iso(),
         "compressor_process": _compressor_running(),
         "infra_status": infra_status(),
@@ -224,7 +224,7 @@ def collect_report(
     return report
 
 
-def _persist(report: Dict[str, Any]) -> None:
+def _persist(report: dict[str, Any]) -> None:
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)

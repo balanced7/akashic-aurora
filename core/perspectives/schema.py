@@ -42,12 +42,12 @@ class Lens:
     """A value-set tuning what gets surfaced. Reuses the Ranker; never mutates data."""
 
     name: str
-    factor_weights: Dict[str, float] = field(default_factory=dict)  # relevance/importance/recency/strength
-    relation_weights: Dict[str, float] = field(default_factory=dict)  # short_name -> weight
-    seed: Optional[str] = None  # focus node id (personalization, for spreading activation later)
+    factor_weights: dict[str, float] = field(default_factory=dict)  # relevance/importance/recency/strength
+    relation_weights: dict[str, float] = field(default_factory=dict)  # short_name -> weight
+    seed: str | None = None  # focus node id (personalization, for spreading activation later)
     goal: str = ""
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         problems = []
         for f in self.factor_weights:
             if f not in FACTORS:
@@ -60,11 +60,11 @@ class Lens:
                 problems.append(f"relation '{rel}' is not a real relationship short-name")
         return problems
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Lens":
+    def from_dict(cls, d: dict[str, Any]) -> "Lens":
         return cls(**dict(d))
 
 
@@ -73,11 +73,11 @@ class Map:
     """A structural projection: which relationship-type domains form the traversed graph."""
 
     name: str
-    relation_domains: List[str] = field(default_factory=list)  # subset of VALID_DOMAINS
-    node_kinds: List[str] = field(default_factory=list)  # beat kinds to include ([] = all)
+    relation_domains: list[str] = field(default_factory=list)  # subset of VALID_DOMAINS
+    node_kinds: list[str] = field(default_factory=list)  # beat kinds to include ([] = all)
     direction: str = "both"  # forward | backward | both
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         problems = []
         for d in self.relation_domains:
             if d not in VALID_DOMAINS:
@@ -86,11 +86,11 @@ class Map:
             problems.append(f"direction '{self.direction}' invalid")
         return problems
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Map":
+    def from_dict(cls, d: dict[str, Any]) -> "Map":
         return cls(**dict(d))
 
 

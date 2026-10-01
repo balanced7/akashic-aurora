@@ -19,7 +19,7 @@ def _default_dir() -> str:
     )
 
 
-def fence_phase(slug: str, reviewed_dir: str = "") -> Dict[str, Any]:
+def fence_phase(slug: str, reviewed_dir: str = "") -> dict[str, Any]:
     d = reviewed_dir or _default_dir()
     slug_l = str(slug).lower()
     halves, recon = set(), []

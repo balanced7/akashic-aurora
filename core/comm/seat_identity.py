@@ -44,11 +44,11 @@ _PREFIX = "akashic_seat_"
 _SUFFIX = ".id"
 
 
-def _dir(binding_dir: Optional[str]) -> str:
+def _dir(binding_dir: str | None) -> str:
     return binding_dir if binding_dir else tempfile.gettempdir()
 
 
-def _path(session_id: str, binding_dir: Optional[str]) -> str:
+def _path(session_id: str, binding_dir: str | None) -> str:
     return os.path.join(_dir(binding_dir), f"{_PREFIX}{session_id}{_SUFFIX}")
 
 
@@ -94,7 +94,7 @@ def valid(agent_id: str) -> bool:
     return bool(agent_id) and bool(_ID_RE.match(str(agent_id).strip()))
 
 
-def declare(agent_id: str, session_id: str, binding_dir: Optional[str] = None) -> bool:
+def declare(agent_id: str, session_id: str, binding_dir: str | None = None) -> bool:
     """Bind THIS session to a seat name. Idempotent; last declaration wins.
 
     Returns False rather than raising on any failure -- a seat that cannot write its binding
@@ -114,7 +114,7 @@ def declare(agent_id: str, session_id: str, binding_dir: Optional[str] = None) -
         return False
 
 
-def declared(session_id: str, binding_dir: Optional[str] = None) -> Optional[str]:
+def declared(session_id: str, binding_dir: str | None = None) -> str | None:
     """The binding alone, with no env fallback. None when this session never declared."""
     if not session_id:
         return None
@@ -126,7 +126,7 @@ def declared(session_id: str, binding_dir: Optional[str] = None) -> Optional[str
         return None
 
 
-def resolve(session_id: str, binding_dir: Optional[str] = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
+def resolve(session_id: str, binding_dir: str | None = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
     """binding -> env -> unknown-<sid8>. NEVER raises, NEVER returns a peer's name on a guess.
 
     Backward compatible by construction: with no binding file and the env set, this returns
@@ -145,7 +145,7 @@ def resolve(session_id: str, binding_dir: Optional[str] = None, env_var: str = "
     return unknown_id(session_id)
 
 
-def resolved_from(session_id: str, binding_dir: Optional[str] = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
+def resolved_from(session_id: str, binding_dir: str | None = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
     """Which branch answered: 'binding' | 'env' | 'unknown'. For doors that must SHOW their
     work -- a surface that cannot say where an identity came from is how this defect hid."""
     if declared(session_id, binding_dir):
@@ -219,7 +219,7 @@ def git_identity_env(agent_id) -> dict:
     }
 
 
-def clear(session_id: str, binding_dir: Optional[str] = None) -> bool:
+def clear(session_id: str, binding_dir: str | None = None) -> bool:
     """Drop this session's binding (its own only -- a sibling's is unreachable from here)."""
     try:
         os.remove(_path(session_id, binding_dir))

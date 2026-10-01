@@ -54,7 +54,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -79,15 +79,15 @@ DEPTHS = ("listed", "resolved", "drilled")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _canon_steps(steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _canon_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Normalize author-supplied steps: only known keys, only known types, receipts required.
 
     A step without a receipt is an unfalsifiable claim about the past -- refused at the
     door rather than discovered at walk time."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, s in enumerate(steps):
         typ = str(s.get("type", ""))
         if typ not in STEP_TYPES:
@@ -110,7 +110,7 @@ def _canon_steps(steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-def _route_id(name: str, steps: List[Dict[str, Any]]) -> str:
+def _route_id(name: str, steps: list[dict[str, Any]]) -> str:
     """Content-hash id (deepseek's physics answer): the same authored content is the same
     route, however many times a crash or a double-paste replays the save."""
     blob = json.dumps({"name": name, "steps": steps}, sort_keys=True, ensure_ascii=False)
@@ -140,7 +140,7 @@ def _connect() -> sqlite3.Connection:
     return con
 
 
-def _project_walk(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
+def _project_walk(con: sqlite3.Connection, rec: dict[str, Any]) -> None:
     """T335: one route_walked journal record -> one route_walks row, and the total moves
     ONLY when a row was really inserted. INSERT OR IGNORE plus rowcount is what makes a
     replayed journal idempotent here -- an unconditional `walk_count + 1` would inflate the
@@ -162,7 +162,7 @@ def _project_walk(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
         con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE route_id=?", (rec["route_id"],))
 
 
-def _project(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
+def _project(con: sqlite3.Connection, rec: dict[str, Any]) -> None:
     """One journal record -> projection rows. INSERT OR IGNORE keeps replays idempotent."""
     con.execute(
         "INSERT OR IGNORE INTO routes(route_id, name, status, walk_count, by, at, "
@@ -196,7 +196,7 @@ def _project(con: sqlite3.Connection, rec: Dict[str, Any]) -> None:
         )
 
 
-def save(name: str, steps: List[Dict[str, Any]], *, by: str) -> str:
+def save(name: str, steps: list[dict[str, Any]], *, by: str) -> str:
     """Tie a string: journal first (the durable truth), projection second (the queryable
     copy). Returns the content-hash route id either way -- saving the same content twice
     is one route (P2)."""
@@ -269,7 +269,7 @@ def rebuild() -> int:
     return n
 
 
-def _resolve(step: Dict[str, Any]) -> str:
+def _resolve(step: dict[str, Any]) -> str:
     """'current' when the target address resolves in the Eye's events table; 'dangling'
     otherwise -- WITH the last-known address preserved. Degradation is named, never
     silent, and never fatal (his sentence is the policy)."""
@@ -290,7 +290,7 @@ def _resolve(step: Dict[str, Any]) -> str:
         return "dangling"
 
 
-def _drill(step: Dict[str, Any]) -> Optional[str]:
+def _drill(step: dict[str, Any]) -> str | None:
     """T335: fetch a leg's BODY, which is what distinguishes reading a route from reading
     its table of contents. Returns the text, or None when the address does not resolve --
     and the None is the point: legs_drilled counts bodies obtained, never legs attempted."""
@@ -311,7 +311,7 @@ def _drill(step: Dict[str, Any]) -> Optional[str]:
         return None
 
 
-def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False, by: str = "") -> Dict[str, Any]:
+def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False, by: str = "") -> dict[str, Any]:
     """Re-walk a saved string: steps in authored order, receipts attached, and (with
     resolve=True) each leg's resolution named. With drill=True each leg's BODY is read.
 
@@ -417,7 +417,7 @@ def walk(name_or_id: str, *, resolve: bool = False, drill: bool = False, by: str
     }
 
 
-def walks(name_or_id: str) -> Dict[str, Any]:
+def walks(name_or_id: str) -> dict[str, Any]:
     """T335: the honest read side. Never a bare total -- a count without its scope is not a
     coverage claim, which is the frame this house already enforces on every other number.
 
@@ -443,7 +443,7 @@ def walks(name_or_id: str) -> Dict[str, Any]:
         ]
     finally:
         con.close()
-    by_depth: Dict[str, int] = {}
+    by_depth: dict[str, int] = {}
     for r in records:
         by_depth[r["depth"]] = by_depth.get(r["depth"], 0) + 1
     return {
@@ -455,7 +455,7 @@ def walks(name_or_id: str) -> Dict[str, Any]:
     }
 
 
-def list_routes() -> List[Dict[str, Any]]:
+def list_routes() -> list[dict[str, Any]]:
     """The register: name, status, walks, step count -- the strings that exist."""
     con = _connect()
     try:

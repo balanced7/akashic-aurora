@@ -33,7 +33,7 @@ if str(ROOT) not in sys.path:
 
 from core.library import reports as rs  # noqa: E402
 
-Response = Tuple[int, str, bytes]
+Response = tuple[int, str, bytes]
 
 _FAMILY = None
 _FAMILY_TRIED = False
@@ -59,11 +59,11 @@ def family():
     return _FAMILY
 
 
-def _json(payload: Dict[str, Any], status: int = 200) -> Response:
+def _json(payload: dict[str, Any], status: int = 200) -> Response:
     return status, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
-def _one(query: Dict[str, Any], key: str, default: Optional[str] = None) -> Optional[str]:
+def _one(query: dict[str, Any], key: str, default: str | None = None) -> str | None:
     """Query values arrive as lists from parse_qs; take the first, keep the type honest."""
     val = query.get(key, default)
     if isinstance(val, list):
@@ -71,7 +71,7 @@ def _one(query: Dict[str, Any], key: str, default: Optional[str] = None) -> Opti
     return val
 
 
-def handle(path: str, query: Optional[Dict[str, Any]] = None) -> Optional[Response]:
+def handle(path: str, query: dict[str, Any] | None = None) -> Response | None:
     query = query or {}
     if path == "/reports":
         return 200, "text/html; charset=utf-8", PAGE.encode("utf-8")

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
+from collections.abc import Iterable
 
 from . import MODULE_PROTOCOL
 from .mediatypes import MEMORY_DOMAINS, PORT_TYPES
@@ -14,12 +15,12 @@ ENGINES = ("arsenal", "browser", "ffmpeg", "gstreamer", "mpv", "external")
 
 
 class ManifestError(ValueError):
-    def __init__(self, problems: List[str]):
+    def __init__(self, problems: list[str]):
         super().__init__("; ".join(problems))
         self.problems = problems
 
 
-def validate_manifest(m: dict, source: str = "manifest") -> List[str]:
+def validate_manifest(m: dict, source: str = "manifest") -> list[str]:
     problems = []
     for key in ("id", "version", "protocol", "engine"):
         if not m.get(key):
@@ -58,32 +59,32 @@ def validate_manifest(m: dict, source: str = "manifest") -> List[str]:
 
 
 class Registry:
-    def __init__(self, manifests: Dict[str, dict]):
+    def __init__(self, manifests: dict[str, dict]):
         self._manifests = dict(manifests)
 
     def get(self, module_id: str) -> dict:
         return self._manifests[module_id]
 
-    def ids(self) -> List[str]:
+    def ids(self) -> list[str]:
         return sorted(self._manifests)
 
-    def port(self, module_id: str, name: str, side: str) -> Optional[dict]:
+    def port(self, module_id: str, name: str, side: str) -> dict | None:
         """The port dict on 'inputs' or 'outputs', or None."""
         for port in self.get(module_id).get(side, []):
             if port.get("port") == name:
                 return port
         return None
 
-    def param(self, module_id: str, name: str) -> Optional[dict]:
+    def param(self, module_id: str, name: str) -> dict | None:
         for param in self.get(module_id).get("params", []):
             if param.get("name") == name:
                 return param
         return None
 
 
-def load_registry(dirs: Optional[Iterable] = None) -> Registry:
-    manifests: Dict[str, dict] = {}
-    problems: List[str] = []
+def load_registry(dirs: Iterable | None = None) -> Registry:
+    manifests: dict[str, dict] = {}
+    problems: list[str] = []
     for directory in [Path(d) for d in (dirs or [DEFAULT_DIR])]:
         for path in sorted(directory.glob("*.json")):
             manifest = json.loads(path.read_text(encoding="utf-8"))

@@ -90,14 +90,14 @@ FALLBACK_URLS = {
 @dataclass
 class WebFetchResult:
     success: bool
-    content: Optional[str]
-    status_code: Optional[int]
-    error: Optional[str]
+    content: str | None
+    status_code: int | None
+    error: str | None
     url_final: str
     cache_hit: bool
     attempts: int
-    headers_sent: Dict
-    headers_received: Dict
+    headers_sent: dict
+    headers_received: dict
 
 
 # ============================================================================
@@ -111,7 +111,7 @@ def get_cache_path(url: str) -> str:
     return os.path.join(CACHE_DIR, f"{url_hash}.cache")
 
 
-def get_from_cache(url: str, max_age_hours: int = 24) -> Optional[str]:
+def get_from_cache(url: str, max_age_hours: int = 24) -> str | None:
     """Retrieve cached content if fresh enough."""
     cache_path = get_cache_path(url)
     if not os.path.exists(cache_path):
@@ -123,7 +123,7 @@ def get_from_cache(url: str, max_age_hours: int = 24) -> Optional[str]:
         return None
 
     try:
-        with open(cache_path, "r", encoding="utf-8") as f:
+        with open(cache_path, encoding="utf-8") as f:
             return f.read()
     except:
         return None
@@ -286,7 +286,7 @@ def smart_fetch(url: str, category: str = None) -> WebFetchResult:
 # ============================================================================
 
 
-def fetch_github_api(path: str) -> Optional[Dict]:
+def fetch_github_api(path: str) -> dict | None:
     """Fetch from GitHub API - most reliable for repo info."""
     url = f"https://api.github.com{path}"
     headers = DEFAULT_HEADERS.copy()
@@ -304,7 +304,7 @@ def fetch_github_api(path: str) -> Optional[Dict]:
         return None
 
 
-def fetch_github_readme(repo: str) -> Optional[str]:
+def fetch_github_readme(repo: str) -> str | None:
     """Fetch README from GitHub repo."""
     for branch in ["main", "master"]:
         url = f"https://raw.githubusercontent.com/{repo}/{branch}/README.md"

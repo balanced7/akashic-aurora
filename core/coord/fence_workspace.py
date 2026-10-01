@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any, Dict, List, Optional, Tuple
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -54,7 +54,7 @@ def _root() -> str:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _dir(fence_id: str) -> str:
@@ -67,7 +67,7 @@ def _state_path(fence_id: str) -> str:
     return os.path.join(_dir(fence_id), "fence.json")
 
 
-def _load(fence_id: str) -> Dict[str, Any]:
+def _load(fence_id: str) -> dict[str, Any]:
     p = _state_path(fence_id)
     if not os.path.exists(p):
         raise ValueError(f"no such fence {fence_id!r} (open it first: fence open)")
@@ -75,13 +75,13 @@ def _load(fence_id: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-def _save(fence_id: str, state: Dict[str, Any]) -> None:
+def _save(fence_id: str, state: dict[str, Any]) -> None:
     with open(_state_path(fence_id), "w", encoding="utf-8") as f:
         json.dump(state, f, indent=2)
 
 
 # ---------------------------------------------------------------- the door verbs
-def open_fence(fence_id: str, *, question: str, tier: str = "full", by: str = "") -> Dict[str, Any]:
+def open_fence(fence_id: str, *, question: str, tier: str = "full", by: str = "") -> dict[str, Any]:
     """Create the workspace. Idempotent for the same id (re-open returns existing state)."""
     d = _dir(fence_id)
     if os.path.exists(_state_path(fence_id)):
@@ -130,14 +130,14 @@ def read_slot(fence_id: str, slot: str) -> str:
 
 
 # ---------------------------------------------------------------- M1-PV
-def run_pv(fence_id: str, *, repo_root: Optional[str] = None) -> Dict[str, Any]:
+def run_pv(fence_id: str, *, repo_root: str | None = None) -> dict[str, Any]:
     """The pre-reconciliation verification pass, mechanical: glob every file citation in
     BOTH halves against the live repo. Line numbers beyond the file's length count as
     MISSING (fabricated detail). Writes pv_report.json -- machine-written, never by hand."""
     root = repo_root or _REPO_ROOT
     state = _load(fence_id)
-    missing: List[str] = []
-    verified: List[str] = []
+    missing: list[str] = []
+    verified: list[str] = []
     for slot in ("half_a", "half_b"):
         text = read_slot(fence_id, slot)
         for m in _CITE_RE.finditer(text):
@@ -161,12 +161,12 @@ def run_pv(fence_id: str, *, repo_root: Optional[str] = None) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- seal-time checks
-def _check_brief(text: str) -> List[str]:
+def _check_brief(text: str) -> list[str]:
     up = text.upper()
     return [f"M1-BRIEF section missing: {s}" for s in _BRIEF_SECTIONS if s not in up]
 
 
-def _check_half(text: str) -> List[str]:
+def _check_half(text: str) -> list[str]:
     problems = []
     if not _VERDICT_RE.search(text):
         problems.append("no verdict lines found (expected V1./V2./... items)")
@@ -176,7 +176,7 @@ def _check_half(text: str) -> List[str]:
     return problems
 
 
-def _check_reconciliation(fence_id: str, text: str, state: Dict[str, Any], by: str) -> List[str]:
+def _check_reconciliation(fence_id: str, text: str, state: dict[str, Any], by: str) -> list[str]:
     problems = []
     for h in ("half_a", "half_b"):
         if h not in state["seals"]:
@@ -205,7 +205,7 @@ def _check_reconciliation(fence_id: str, text: str, state: Dict[str, Any], by: s
     return problems
 
 
-def seal(fence_id: str, slot: str, *, by: str = "") -> Tuple[bool, List[str]]:
+def seal(fence_id: str, slot: str, *, by: str = "") -> tuple[bool, list[str]]:
     """Seal a slot: run its mechanical checks; on pass, freeze it. Returns (ok, problems)."""
     state = _load(fence_id)
     if slot not in _SLOT_FILES:
@@ -228,7 +228,7 @@ def seal(fence_id: str, slot: str, *, by: str = "") -> Tuple[bool, List[str]]:
     return True, []
 
 
-def fence_status(fence_id: str) -> Dict[str, Any]:
+def fence_status(fence_id: str) -> dict[str, Any]:
     """Render-ready state: slots present/sealed, authors, PV summary."""
     state = _load(fence_id)
     slots = {}
@@ -249,7 +249,7 @@ def fence_status(fence_id: str) -> Dict[str, Any]:
     }
 
 
-def list_fences() -> List[Dict[str, Any]]:
+def list_fences() -> list[dict[str, Any]]:
     root = _root()
     out = []
     try:

@@ -146,7 +146,7 @@ class ErrorDoc:
         """Get errors filtered by system"""
         errors = []
         if os.path.exists(ERROR_LOG):
-            with open(ERROR_LOG, "r", encoding="utf-8") as f:
+            with open(ERROR_LOG, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)

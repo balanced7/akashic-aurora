@@ -44,7 +44,8 @@ import traceback
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 # ============================================================================
 # PATHS
@@ -110,17 +111,17 @@ class EscapeDetector:
     """
 
     def __init__(self):
-        self.escape_counts: Dict[str, int] = defaultdict(int)
-        self.action_history: List[Dict] = []
+        self.escape_counts: dict[str, int] = defaultdict(int)
+        self.action_history: list[dict] = []
         self.last_action_time: float = time.time()
-        self.action_sequence: List[str] = []
+        self.action_sequence: list[str] = []
         self.max_sequence_length = 100
 
         # Baselines for anomaly detection
         self.baseline_log_ratio = 1.0  # 1 log per action minimum
         self.baseline_verify_ratio = 0.2  # 1 verify per 5 actions minimum
 
-    def record_action(self, action: str, source: str = "system", data: Dict = None):
+    def record_action(self, action: str, source: str = "system", data: dict = None):
         """Record an action for pattern analysis"""
         entry = {
             "action": action,
@@ -217,8 +218,8 @@ class HarnessEnforcer:
 
     def __init__(self):
         self.detector = EscapeDetector()
-        self.state: Dict[str, Any] = {}
-        self.escape_violations: List[Dict] = []
+        self.state: dict[str, Any] = {}
+        self.escape_violations: list[dict] = []
         self.load_state()
 
         # Counters for pattern detection
@@ -232,7 +233,7 @@ class HarnessEnforcer:
         # Phase tracking
         self.current_phase = "IDLE"
         self.required_phases = ["IDLE", "PLANNING", "REVIEW", "EXECUTING", "VERIFYING", "DONE"]
-        self.phase_sequence: List[str] = []
+        self.phase_sequence: list[str] = []
 
         # Session tracking
         self._session_id = None
@@ -264,7 +265,7 @@ class HarnessEnforcer:
         """Load harness state from disk"""
         if os.path.exists(HARNESS_STATE_FILE):
             try:
-                with open(HARNESS_STATE_FILE, "r") as f:
+                with open(HARNESS_STATE_FILE) as f:
                     self.state = json.load(f)
             except:
                 self.state = {}
@@ -276,7 +277,7 @@ class HarnessEnforcer:
         with open(HARNESS_STATE_FILE, "w") as f:
             json.dump(self.state, f, indent=2)
 
-    def _log_escape(self, escape: EscapeCondition, details: Dict, severity: str = "HIGH"):
+    def _log_escape(self, escape: EscapeCondition, details: dict, severity: str = "HIGH"):
         """Log an escape condition to file"""
         entry = {
             "timestamp": datetime.now().isoformat(),
@@ -317,7 +318,7 @@ class HarnessEnforcer:
     # PRE-ACTION ENFORCEMENT
     # =========================================================================
 
-    def enforce_pre_action(self, action_type: str, details: Dict = None) -> bool:
+    def enforce_pre_action(self, action_type: str, details: dict = None) -> bool:
         """
         CRITICAL: Called BEFORE any significant action.
         Returns True if action is allowed, False if blocked.
@@ -398,7 +399,7 @@ class HarnessEnforcer:
 
         return True
 
-    def enforce_verification(self, verification_type: str, result: bool, metrics: Dict = None) -> bool:
+    def enforce_verification(self, verification_type: str, result: bool, metrics: dict = None) -> bool:
         """Called when verification is performed"""
         self.verify_count += 1
         self.detector.record_action(f"verify:{verification_type}")
@@ -492,7 +493,7 @@ class HarnessEnforcer:
             # Check session_manager's reprime trigger
             reprime_trigger = r"E:\AI-Setup\blackboard_data\reprime_trigger.json"
             if os.path.exists(reprime_trigger):
-                with open(reprime_trigger, "r") as f:
+                with open(reprime_trigger) as f:
                     trigger = json.load(f)
                     triggered_at = trigger.get("triggered_at", "")
 
@@ -633,7 +634,7 @@ class HarnessEnforcer:
     # STATUS REPORTING
     # =========================================================================
 
-    def get_compliance_report(self) -> Dict:
+    def get_compliance_report(self) -> dict:
         """Get current compliance status"""
         return {
             "action_count": self.action_count,

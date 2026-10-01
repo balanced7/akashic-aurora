@@ -41,8 +41,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # pid -> ISO start time (or ""). A process's start time cannot change, so this is a
 # constant per pid; re-probing per doctor tick would spend a subprocess to re-learn it.
-_START_CACHE: Dict[int, str] = {}
-_HEAD_SHA: Optional[str] = None
+_START_CACHE: dict[int, str] = {}
+_HEAD_SHA: str | None = None
 
 
 def _git(*args: str, timeout: int = 5) -> str:
@@ -164,7 +164,7 @@ def start_time(pid: int) -> str:
     return val
 
 
-def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> Dict[str, Any]:
+def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> dict[str, Any]:
     """The verdict for one process, with its provenance attached.
 
     Order matters: a self-reported stamp is EVIDENCE and an age estimate is an upper
@@ -204,7 +204,7 @@ def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> Dict[str, A
     }
 
 
-def for_agent(agent: str, *, client=None) -> Dict[str, Any]:
+def for_agent(agent: str, *, client=None) -> dict[str, Any]:
     """Resolve `agent`'s runner pid from its lock, then describe it. Never raises: the
     doctor calls this on a hot path, and an observability probe that can break the
     diagnostic is worse than no probe."""
@@ -230,7 +230,7 @@ def for_agent(agent: str, *, client=None) -> Dict[str, Any]:
         }
 
 
-def line(agent: str, verdict: Optional[Dict[str, Any]] = None) -> str:
+def line(agent: str, verdict: dict[str, Any] | None = None) -> str:
     """One operator-facing sentence, or "" when there is nothing to say. States the
     fact and its provenance, and never converts an upper bound into an accusation."""
     v = verdict if verdict is not None else for_agent(agent)

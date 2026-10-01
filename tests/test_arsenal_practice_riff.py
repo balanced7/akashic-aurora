@@ -23,7 +23,7 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 import pytest
@@ -433,7 +433,7 @@ def make_run(
 
 
 def _iso(epoch_ms: float) -> str:
-    return datetime.fromtimestamp(epoch_ms / 1000, timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.fromtimestamp(epoch_ms / 1000, UTC).isoformat(timespec="milliseconds")
 
 
 def session_meta(kind: str, opened_epoch: float = OPEN_CLIENT_EPOCH) -> dict:
@@ -591,7 +591,7 @@ def build_long_session(folder: Path, runs: int = 4, reps: int = 5) -> Path:
 
 
 # ================================================================================================ helpers
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _fixture_doc_json(name: str, rebuild=None) -> str:
     f = FIX / name
     return json.dumps(riff.riff(RUN_ID, root=f / "performance", jam_root=f / "jam", rebuild=rebuild))

@@ -16,7 +16,8 @@ Ops (short keys keep the page small):
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Sequence
 
 from .. import scene as sc
 from . import _core as C
@@ -29,19 +30,19 @@ FOOTER_Y = 982
 
 
 class Painter:
-    def __init__(self, tk: dict, surf: Dict[str, str]):
+    def __init__(self, tk: dict, surf: dict[str, str]):
         self.tk = tk
         self.surf = surf
-        self.ops: List[dict] = []
+        self.ops: list[dict] = []
 
-    def probe(self) -> "Painter":
+    def probe(self) -> Painter:
         return Painter(self.tk, self.surf)
 
     def size(self, role: str) -> int:
         return int(self.tk["type"][role])
 
     def rect(self, x, y, w, h, fill=None, stroke=None, sw=1, dashed=False, r=0) -> None:
-        op: Dict[str, Any] = {"t": "rect", "x": _n(x), "y": _n(y), "w": _n(w), "h": _n(h)}
+        op: dict[str, Any] = {"t": "rect", "x": _n(x), "y": _n(y), "w": _n(w), "h": _n(h)}
         if fill:
             op["f"] = fill
         if stroke:
@@ -54,8 +55,8 @@ class Painter:
             op["r"] = r
         self.ops.append(op)
 
-    def line(self, pts: Sequence[Tuple[float, float]], colour: str, sw=2, dashed=False, head="none") -> None:
-        op: Dict[str, Any] = {"t": "line", "p": [[_n(x), _n(y)] for x, y in pts], "c": colour, "h": head}
+    def line(self, pts: Sequence[tuple[float, float]], colour: str, sw=2, dashed=False, head="none") -> None:
+        op: dict[str, Any] = {"t": "line", "p": [[_n(x), _n(y)] for x, y in pts], "c": colour, "h": head}
         if sw != 2:
             op["sw"] = sw
         if dashed:
@@ -68,7 +69,7 @@ class Painter:
         y,
         w,
         runs: Any,
-        role: Optional[str] = None,
+        role: str | None = None,
         *,
         size=None,
         weight=None,
@@ -93,7 +94,7 @@ class Painter:
         face = face or "sans"
         rl = [[t.upper() if upper else t, m] for t, m in C.runs_list(runs)]
         text = "".join(t for t, _ in rl)
-        op: Dict[str, Any] = {
+        op: dict[str, Any] = {
             "t": "text",
             "x": _n(x),
             "y": _n(y),
@@ -180,14 +181,14 @@ def _list(p: Painter, a: dict, x, y, w, nested: bool) -> float:
 def _table(p: Painter, a: dict, x, y, w) -> float:
     size = p.size(a.get("role") or "caption")
     cols = a.get("columns") or []
-    xs: List[float] = []
+    xs: list[float] = []
     cx = x
     for c in cols:
         xs.append(cx)
         cx += w * float(c.get("share", 0)) / 100
     pad_x, pad_y = 0.6 * size, 0.35 * size
 
-    def row_h(cells: List[str], weight: int) -> float:
+    def row_h(cells: list[str], weight: int) -> float:
         lines = max(
             C.est_lines(t, (xs[i + 1] if i + 1 < len(xs) else x + w) - xs[i] - 2 * pad_x, size, weight)
             for i, t in enumerate(cells)
@@ -262,7 +263,7 @@ def _bars(p: Painter, a: dict, x, y, w) -> float:
     return BAR_ROW
 
 
-def _card_paint(p: Painter, tone: Optional[str]) -> Tuple[str, str, int, bool, Optional[str]]:
+def _card_paint(p: Painter, tone: str | None) -> tuple[str, str, int, bool, str | None]:
     s = p.surf
     if tone == "accent":
         return s["tint"], s["accent"], 2, False, s["tint_text"]
@@ -362,7 +363,7 @@ def _group(p: Painter, a: dict, x, y, w) -> float:
     pad = 40 if framed else 0
     cols = len(items) if arr == "row" else (1 if arr == "column" else int(a.get("columns") or 3))
     cw = (w - 32 * (cols - 1)) / cols
-    rows: List[List[dict]] = [items[i : i + cols] for i in range(0, len(items), cols)]
+    rows: list[list[dict]] = [items[i : i + cols] for i in range(0, len(items), cols)]
     cy = y
     for row in rows:
         heights = [_measure(p, item, cw - 2 * pad, "body", nested=True) + 2 * pad for item in row]
@@ -443,7 +444,7 @@ def paint_atom(
 
 
 # ---------------------------------------------------------------- the slide
-def paint_slide(scene: dict, slide: dict, tk: Optional[dict] = None, section: Optional[str] = None) -> dict:
+def paint_slide(scene: dict, slide: dict, tk: dict | None = None, section: str | None = None) -> dict:
     """The draw list for one slide, plus what a viewer shows around it (title, note, section)."""
     tk = tk or C.tokens(scene)
     surf = C.surface(C.slide_background(slide), tk["palette"])
@@ -455,7 +456,7 @@ def paint_slide(scene: dict, slide: dict, tk: Optional[dict] = None, section: Op
     by = C.atoms_by_region(slide)
     gap = C.DIAGRAM_GAP if tpl == "diagram" else C.GAP
 
-    def stack(atoms: List[dict], region: str, y: float) -> float:
+    def stack(atoms: list[dict], region: str, y: float) -> float:
         for a in atoms:
             y += paint_atom(p, a, L, y, W, region, tpl=tpl) + gap
         return y

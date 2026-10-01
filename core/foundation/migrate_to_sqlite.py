@@ -68,18 +68,18 @@ def _default_db() -> Path:
     return Path(_repo_root_str()) / "session_logs" / "store_state.db"
 
 
-def load_json(path: Path) -> Dict:
+def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def census(data: Dict) -> Dict[str, int]:
+def census(data: dict) -> dict[str, int]:
     return {b: len(data.get(b, {}) or {}) for b in _BUCKETS}
 
 
-def _expired_keys(data: Dict, now: float) -> set:
+def _expired_keys(data: dict, now: float) -> set:
     """Keys whose __expiry__ lies in the past: tombstones, not data."""
     return {k for k, ts in (data.get("__expiry__") or {}).items() if float(ts) <= now}
 
@@ -91,7 +91,7 @@ def _drop_sidecars(db_path: Path) -> None:
             p.unlink()
 
 
-def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, int]]:
+def migrate(json_path: Path, db_path: Path) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
     """Shadow-build the target and swap it in. Returns (live source census,
     written census, skipped-expired census); the caller enforces the census law.
 
@@ -103,9 +103,9 @@ def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, i
     data = load_json(json_path)
     dead = _expired_keys(data, now)
 
-    live: Dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead} for b in _BUCKETS}
+    live: dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead} for b in _BUCKETS}
     src = census(live)
-    skipped = {b: len((data.get(b) or {})) - len(live[b]) for b in _BUCKETS}
+    skipped = {b: len(data.get(b) or {}) - len(live[b]) for b in _BUCKETS}
 
     shadow_path = Path(str(db_path) + ".shadow")
     if shadow_path.exists():
@@ -181,7 +181,7 @@ def _count(store: SqliteStore, table: str) -> int:
     return store._conn.execute(f"SELECT COUNT(DISTINCT key) FROM {table}").fetchone()[0]
 
 
-def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
+def verify(json_path: Path, db_path: Path) -> tuple[bool, list]:
     """BIDIRECTIONAL, value-level comparison. Forward: every live source value equal
     in the target (a logically expired source key must instead be ABSENT). Backward:
     every target key, member, and expiry row must be claimed by the live source --
@@ -192,7 +192,7 @@ def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
     data = load_json(json_path)
     dead = _expired_keys(data, now)
     store = SqliteStore(str(db_path))
-    problems: List[str] = []
+    problems: list[str] = []
 
     try:
         # ---- forward: live source values present and equal; expired absent ----

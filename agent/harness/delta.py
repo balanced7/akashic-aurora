@@ -23,7 +23,8 @@ durable-salient promoted stream.
 import os
 import subprocess
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 
 def _pyl() -> str:
@@ -63,7 +64,7 @@ def _redis():
 
 
 # ---------------------------------------------------------------- position sources
-def _git(*args: str) -> Optional[str]:
+def _git(*args: str) -> str | None:
     try:
         # C7-4: sever stdin -- a child inheriting the door's stdin wedges the MCP boot
         # path (the class the stdin-sever pin guards); close_fds per the same pin.
@@ -84,7 +85,7 @@ def _git_head() -> str:
     return _git("rev-parse", "HEAD") or "?"
 
 
-def _git_log_range(frm: str, to: str) -> Optional[List[str]]:
+def _git_log_range(frm: str, to: str) -> list[str] | None:
     """Oneline subjects with author initials, oldest range capped upstream. None on any
     git failure (unknown sha, backwards range) -- the caller classifies."""
     out = _git("log", f"{frm}..{to}", "--pretty=format:%h %an: %s", f"--max-count={200}")
@@ -105,7 +106,7 @@ def _git_has_commit(sha: str) -> bool:
         return False
 
 
-def _git_is_forward(mark_sha: str, head_sha: str) -> Optional[bool]:
+def _git_is_forward(mark_sha: str, head_sha: str) -> bool | None:
     """True = mark is an ancestor of HEAD (normal forward motion); False = backwards or
     diverged or unknown sha (all deserve the loud path); None never returned -- errors
     classify as False because 'cannot prove forward' and 'moved backwards' get the same
@@ -142,7 +143,7 @@ def _notes_head() -> str:
         from core.learning.agent_memory import get_agent_memory
 
         mem = get_agent_memory()
-        stamps: List[str] = []
+        stamps: list[str] = []
         for pull in (lambda: mem.get_decisions(days=90), lambda: mem.get_experiences(days=90)):
             try:
                 stamps += [str(x.created_at) for x in (pull() or [])]
@@ -169,8 +170,8 @@ def _promoted_id() -> str:
         return "?"
 
 
-def current_positions(agent: str) -> Dict[str, str]:
-    out: Dict[str, str] = {}
+def current_positions(agent: str) -> dict[str, str]:
+    out: dict[str, str] = {}
     for field, fn in (
         ("git_commit", _git_head),
         ("ledger_seq", _ledger_seq),
@@ -195,7 +196,7 @@ class DeltaMark:
     def key(self) -> str:
         return f"{_ns()}:delta:mark:{self.agent}"
 
-    def read(self) -> Optional[Dict[str, str]]:
+    def read(self) -> dict[str, str] | None:
         c = _redis()
         if c is None:
             return None
@@ -205,7 +206,7 @@ class DeltaMark:
             return None
         return {f: str(h.get(f, "?")) for f in FIELDS} if h else None
 
-    def write(self, positions: Dict[str, str]) -> bool:
+    def write(self, positions: dict[str, str]) -> bool:
         c = _redis()
         if c is None:
             return False
@@ -222,8 +223,8 @@ def _moved(mark_v: str, cur_v: str) -> bool:
     return mark_v != cur_v and "?" not in (mark_v, cur_v)
 
 
-def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str]:
-    parts: List[str] = []
+def _sections(agent: str, mark: dict[str, str], cur: dict[str, str]) -> list[str]:
+    parts: list[str] = []
     # git -- range attempt first (P3's monkeypatch seam), classify on failure (P4)
     if _moved(mark["git_commit"], cur["git_commit"]):
         lines = _git_log_range(mark["git_commit"], cur["git_commit"])
@@ -272,7 +273,7 @@ def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str
     return parts
 
 
-def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> Tuple[str, Callable[[], bool]]:
+def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> tuple[str, Callable[[], bool]]:
     """(text, commit_fn). Text is "" for newborns (no mark -> full boot unchanged, C3)
     and for an unmoved world (P6 zero-cost silence). commit_fn stamps the mark at
     CURRENT positions -- call it only after delivery (mark-lag)."""
@@ -295,7 +296,7 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> Tuple[str, Cal
             f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- "
             f"full: {_pyl()} agent_cli.py delta {agent}]"
         )
-        keep: List[str] = [head]
+        keep: list[str] = [head]
         for p in parts:
             if len("\n".join(keep + [p, counts])) > budget:
                 break

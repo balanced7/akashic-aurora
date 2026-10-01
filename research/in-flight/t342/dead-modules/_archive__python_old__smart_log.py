@@ -53,7 +53,7 @@ class SessionEntry:
     action_type: str = "working"  # analyzing, planning, coding, etc.
     intent: str = ""  # WHY we're doing this
     efficacy: str = ""  # DID IT WORK? (success, failure, partial)
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     sequence: int = 0
     session: str = ""
 
@@ -67,12 +67,12 @@ class SessionDigest:
     started_at: str
     ended_at: str
     duration_min: int
-    tags: List[str]
+    tags: list[str]
     summary: str
-    actions: List[str] = field(default_factory=list)
-    learnings: List[str] = field(default_factory=list)
-    action_types: Dict[str, int] = field(default_factory=dict)  # coding: 5, testing: 3, etc.
-    efficacy: Dict[str, int] = field(default_factory=dict)  # success: 5, failure: 1, etc.
+    actions: list[str] = field(default_factory=list)
+    learnings: list[str] = field(default_factory=list)
+    action_types: dict[str, int] = field(default_factory=dict)  # coding: 5, testing: 3, etc.
+    efficacy: dict[str, int] = field(default_factory=dict)  # success: 5, failure: 1, etc.
     chronicles_created: int = 0
 
 
@@ -111,7 +111,7 @@ ACTION_TYPES = {
 
 
 # Extract action type from content
-def detect_action_type(content: str) -> List[str]:
+def detect_action_type(content: str) -> list[str]:
     """Detect action types from content"""
     content_lower = content.lower()
     detected = []
@@ -247,10 +247,10 @@ class TagVocab:
         return cls._instance
 
     def _load(self):
-        self.vocab: Dict[str, int] = {}
+        self.vocab: dict[str, int] = {}
         if TAG_VOCAB_FILE.exists():
             try:
-                with open(TAG_VOCAB_FILE, "r") as f:
+                with open(TAG_VOCAB_FILE) as f:
                     self.vocab = json.load(f)
             except:
                 self.vocab = {}
@@ -284,7 +284,7 @@ class TagVocab:
         with open(TAG_VOCAB_FILE, "w") as f:
             json.dump(self.vocab, f, indent=2)
 
-    def extract(self, text: str) -> List[str]:
+    def extract(self, text: str) -> list[str]:
         words = re.findall(r"\b[a-z][a-z0-9_-]+\b", text.lower())
         return [w for w in words if len(w) >= 3 and w not in STOP_WORDS and not w.isdigit()]
 
@@ -293,11 +293,11 @@ class TagVocab:
             self.vocab[tag] = self.vocab.get(tag, 0) + 1
         self._save()
 
-    def match(self, text: str) -> List[str]:
+    def match(self, text: str) -> list[str]:
         tags = self.extract(text)
         return [t for t in tags if self.vocab.get(t, 0) >= 1]
 
-    def suggest(self, text: str) -> Dict[str, List[str]]:
+    def suggest(self, text: str) -> dict[str, list[str]]:
         tags = self.extract(text)
         known = [t for t in tags if self.vocab.get(t, 0) >= 1]
         potential = [t for t in tags if t not in known]
@@ -349,7 +349,7 @@ class SmartLog:
         return cls._instance
 
     def _init(self):
-        self.entries: List[SessionEntry] = []
+        self.entries: list[SessionEntry] = []
         self.sequence = 0
         self.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.started_at = datetime.now().isoformat()
@@ -404,13 +404,13 @@ class SmartLog:
             except:
                 pass
 
-    def _auto_tag(self, content: str) -> List[str]:
+    def _auto_tag(self, content: str) -> list[str]:
         suggested = self._vocab.suggest(content)
         for tag in suggested["known"]:
             self._tag_counts[tag] += 1
         return suggested["known"]
 
-    def _detect_chronicle_type(self, content: str) -> Optional[str]:
+    def _detect_chronicle_type(self, content: str) -> str | None:
         """Detect if this should create a chronicle entry"""
         content_lower = content.lower()
 
@@ -470,7 +470,7 @@ class SmartLog:
             entries = []
             if file_path.exists():
                 try:
-                    with open(file_path, "r") as f:
+                    with open(file_path) as f:
                         entries = json.load(f)
                 except:
                     pass
@@ -482,7 +482,7 @@ class SmartLog:
 
         self._chronicles_created += 1
 
-    def log(self, type_: str, content: str, tags: List[str] = None, intent: str = "", efficacy: str = ""):
+    def log(self, type_: str, content: str, tags: list[str] = None, intent: str = "", efficacy: str = ""):
         """Log an entry - auto-chronicles if significant"""
         self.sequence += 1
 
@@ -504,7 +504,7 @@ class SmartLog:
         self._write_entry(entry)
         self._auto_chronicle(entry)
 
-    def action(self, content: str, tags: List[str] = None, intent: str = "", efficacy: str = ""):
+    def action(self, content: str, tags: list[str] = None, intent: str = "", efficacy: str = ""):
         """
         Log an action with optional intent and efficacy tracking.
 
@@ -515,18 +515,18 @@ class SmartLog:
         """
         self.log("action", content, tags, intent, efficacy)
 
-    def error(self, content: str, tags: List[str] = None, intent: str = ""):
+    def error(self, content: str, tags: list[str] = None, intent: str = ""):
         self.log("error", content, tags, intent, "failure")
 
-    def success(self, content: str, tags: List[str] = None, intent: str = ""):
+    def success(self, content: str, tags: list[str] = None, intent: str = ""):
         """Log a successful action"""
         self.log("success", content, tags, intent, "success")
 
-    def partial(self, content: str, tags: List[str] = None, intent: str = ""):
+    def partial(self, content: str, tags: list[str] = None, intent: str = ""):
         """Log a partially successful action"""
         self.log("partial", content, tags, intent, "partial")
 
-    def decision(self, title: str, rationale: List[str] = None, tags: List[str] = None):
+    def decision(self, title: str, rationale: list[str] = None, tags: list[str] = None):
         """Record a decision - auto-chronicles"""
         content = title
         if rationale:
@@ -552,7 +552,7 @@ class SmartLog:
         entries = []
         if ADRS_FILE.exists():
             try:
-                with open(ADRS_FILE, "r") as f:
+                with open(ADRS_FILE) as f:
                     entries = json.load(f)
             except:
                 pass
@@ -563,7 +563,7 @@ class SmartLog:
 
         self._chronicles_created += 1
 
-    def failure(self, symptom: str, fix: str = "", learnings: List[str] = None):
+    def failure(self, symptom: str, fix: str = "", learnings: list[str] = None):
         """Record a failure"""
         content = symptom
         if fix:
@@ -589,7 +589,7 @@ class SmartLog:
         entries = []
         if FAILURES_FILE.exists():
             try:
-                with open(FAILURES_FILE, "r") as f:
+                with open(FAILURES_FILE) as f:
                     entries = json.load(f)
             except:
                 pass
@@ -624,7 +624,7 @@ class SmartLog:
         meaningful = [e for e in self.entries if self._is_significant(e)]
         return len(meaningful) >= SIGNIFICANCE_THRESHOLD
 
-    def summarize(self) -> Optional[SessionDigest]:
+    def summarize(self) -> SessionDigest | None:
         """Auto-summarize session if meaningful"""
         if not self._should_summarize():
             print(f"[SmartLog] Trivial session ({len(self.entries)} entries) - no digest")
@@ -738,7 +738,7 @@ class SmartLog:
         index = []
         if INDEX_FILE.exists():
             try:
-                with open(INDEX_FILE, "r") as f:
+                with open(INDEX_FILE) as f:
                     index = json.load(f)
             except:
                 pass
@@ -748,7 +748,7 @@ class SmartLog:
             json.dump(index, f, indent=2)
 
 
-_smart_log: Optional[SmartLog] = None
+_smart_log: SmartLog | None = None
 
 
 def get_smart_log() -> SmartLog:
@@ -758,15 +758,15 @@ def get_smart_log() -> SmartLog:
     return _smart_log
 
 
-def log(content: str, tags: List[str] = None):
+def log(content: str, tags: list[str] = None):
     get_smart_log().action(content, tags)
 
 
-def decision(title: str, rationale: List[str] = None, tags: List[str] = None):
+def decision(title: str, rationale: list[str] = None, tags: list[str] = None):
     get_smart_log().decision(title, rationale, tags)
 
 
-def failure(symptom: str, fix: str = "", learnings: List[str] = None):
+def failure(symptom: str, fix: str = "", learnings: list[str] = None):
     get_smart_log().failure(symptom, fix, learnings)
 
 
@@ -783,7 +783,7 @@ def cmd_summary():
         print("No sessions archived.")
         return
 
-    with open(INDEX_FILE, "r") as f:
+    with open(INDEX_FILE) as f:
         sessions = json.load(f)
 
     print()
@@ -805,7 +805,7 @@ def cmd_chronicles():
 
     for file_path, label in [(MILESTONES_FILE, "Milestones"), (ADRS_FILE, "Decisions"), (FAILURES_FILE, "Failures")]:
         if file_path.exists():
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 entries = json.load(f)
             print(f"{label} ({len(entries)}):")
             for e in entries[:5]:
@@ -832,14 +832,14 @@ def cmd_search(query: str):
     results = []
 
     if INDEX_FILE.exists():
-        with open(INDEX_FILE, "r") as f:
+        with open(INDEX_FILE) as f:
             for s in json.load(f):
                 if query.lower() in s.get("summary", "").lower():
                     results.append(("session", s))
 
     for file_path in [MILESTONES_FILE, ADRS_FILE, FAILURES_FILE]:
         if file_path.exists():
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 for e in json.load(f):
                     if query.lower() in e.get("title", "").lower():
                         results.append(("chronicle", e))

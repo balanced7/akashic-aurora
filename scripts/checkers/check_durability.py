@@ -103,14 +103,14 @@ def _git(root: Any, *args: str) -> str:
     return p.stdout
 
 
-def untracked_pins(root: Any = ROOT) -> List[str]:
+def untracked_pins(root: Any = ROOT) -> list[str]:
     """Test pins that exist on disk and not in git -- invisible to the suite baseline, to a
     fixed-revision review, and to every prior-art search anyone runs."""
     out = _git(root, "ls-files", "--others", "--exclude-standard", "--", PIN_GLOB)
     return sorted(line.strip() for line in out.splitlines() if line.strip())
 
 
-def unpushed_commits(root: Any = ROOT) -> List[Dict[str, str]]:
+def unpushed_commits(root: Any = ROOT) -> list[dict[str, str]]:
     """Commits that exist only on this disk.
 
     An outside reviewer is structurally incapable of seeing these, which is exactly why a
@@ -134,7 +134,7 @@ def unpushed_commits(root: Any = ROOT) -> List[Dict[str, str]]:
     return rows
 
 
-def uncommitted_durable_state(root: Any = ROOT) -> List[Dict[str, Any]]:
+def uncommitted_durable_state(root: Any = ROOT) -> list[dict[str, Any]]:
     """Declared durability-authority files whose working copy differs from git.
 
     The measured instance: the task ledger 577 lines ahead of git while every seat is told at
@@ -163,14 +163,14 @@ def uncommitted_durable_state(root: Any = ROOT) -> List[Dict[str, Any]]:
     return rows
 
 
-def load_baseline() -> List[str]:
+def load_baseline() -> list[str]:
     try:
         return sorted(json.loads(BASELINE.read_text(encoding="utf-8")).get("untracked_pins", []))
     except Exception:
         return []
 
 
-def new_since(root: Any = ROOT, baseline: Optional[List[str]] = None) -> List[str]:
+def new_since(root: Any = ROOT, baseline: list[str] | None = None) -> list[str]:
     """Untracked pins that are NOT in the frozen population -- the only gate-able signal.
 
     The ratchet exists because 42 already existed the day this was written. A gate that fails
@@ -180,7 +180,7 @@ def new_since(root: Any = ROOT, baseline: Optional[List[str]] = None) -> List[st
     return [p for p in untracked_pins(root) if p not in known]
 
 
-def sweep(root: Any = ROOT) -> Dict[str, Any]:
+def sweep(root: Any = ROOT) -> dict[str, Any]:
     """The whole answer, with its frame.
 
     ZERO IS NOT NO. If git cannot answer, this returns unknown=True and a verdict that says
@@ -222,7 +222,7 @@ def sweep(root: Any = ROOT) -> Dict[str, Any]:
     }
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
         "--gate", action="store_true", help="exit 1 on a NEW untracked pin (ratchet against the frozen baseline)"

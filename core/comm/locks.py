@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -38,7 +38,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _connect():
@@ -72,7 +72,7 @@ def _lock_key(path: str) -> str:
 class LockManager:
     """An agent's handle on the advisory path-locks. One per agent identity."""
 
-    def __init__(self, agent_id: str, client: Optional[Any] = None):
+    def __init__(self, agent_id: str, client: Any | None = None):
         self.agent_id = str(agent_id or "unknown")
         self._client = client if client is not None else _connect()
 
@@ -83,7 +83,7 @@ class LockManager:
     def _next_token(self) -> int:
         return int(self._client.incr(SEQ_KEY))
 
-    def acquire(self, path: str, ttl: int = DEFAULT_TTL, note: str = "") -> Dict[str, Any]:
+    def acquire(self, path: str, ttl: int = DEFAULT_TTL, note: str = "") -> dict[str, Any]:
         """Claim `path`. Returns {ok, online, mine, token, held_by, path}. Re-claiming a
         lock you already hold refreshes its TTL (re-entrant) and keeps your token.
         `note` (T050 Q5): WHY the lock exists -- rendered by `locks` so a peer diagnoses a
@@ -165,7 +165,7 @@ class LockManager:
             pass
         return False
 
-    def holder(self, path: str) -> Optional[Dict[str, Any]]:
+    def holder(self, path: str) -> dict[str, Any] | None:
         if not self.online:
             return None
         try:
@@ -174,7 +174,7 @@ class LockManager:
         except Exception:
             return None
 
-    def validate_token(self, path: str, token: Any, agent: Optional[str] = None) -> bool:
+    def validate_token(self, path: str, token: Any, agent: str | None = None) -> bool:
         """The fencing check for a commit gate: True iff `path` is CURRENTLY held by
         `agent` (default: me) with exactly `token`. A stale token (lock expired and
         reclaimed by a peer) returns False."""
@@ -182,10 +182,10 @@ class LockManager:
         who = agent or self.agent_id
         return bool(h and h.get("agent") == who and h.get("token") == token)
 
-    def list_locks(self) -> List[Dict[str, Any]]:
+    def list_locks(self) -> list[dict[str, Any]]:
         if not self.online:
             return []
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         try:
             for key in self._client.scan_iter(f"{NS}:lock:*"):
                 if key.endswith(":_seq"):
@@ -198,7 +198,7 @@ class LockManager:
         return sorted(out, key=lambda d: d.get("path", ""))
 
 
-def path_conflict(path: str, agent: str, client: Optional[Any] = None) -> Dict[str, Any]:
+def path_conflict(path: str, agent: str, client: Any | None = None) -> dict[str, Any]:
     """Would `agent` editing `path` collide with a peer's advisory lock?
     Returns {conflict: bool, held_by, reason}. Fail-open: no Redis / no lock -> no conflict."""
     lm = LockManager(agent, client=client)
@@ -218,8 +218,8 @@ def path_conflict(path: str, agent: str, client: Optional[Any] = None) -> Dict[s
 
 
 def guard_write(
-    path: str, agent: str, ttl: int = DEFAULT_TTL, client: Optional[Any] = None, note: str = ""
-) -> Dict[str, Any]:
+    path: str, agent: str, ttl: int = DEFAULT_TTL, client: Any | None = None, note: str = ""
+) -> dict[str, Any]:
     """The ONE environmental write-gate an agent calls BEFORE editing `path` (A0.1).
 
     Turns coordination from social (negotiate: 'stand down please') into environmental (read shared

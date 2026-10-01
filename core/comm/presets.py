@@ -27,7 +27,8 @@ THE CLAUSES IN THESE CONTRACTS ARE NOT STYLE. Each was measured this week:
 import os
 import re
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 __all__ = ["Preset", "register", "get", "known", "build_prompts", "read_lens_file"]
 
@@ -38,14 +39,14 @@ class Preset:
 
     name: str
     contract: str
-    parse: Callable[[str], Dict[str, Any]]
+    parse: Callable[[str], dict[str, Any]]
     describe: str = ""
 
 
-_REGISTRY: Dict[str, Preset] = {}
+_REGISTRY: dict[str, Preset] = {}
 
 
-def register(name: str, *, contract: str, parse: Optional[Callable] = None, describe: str = "") -> Preset:
+def register(name: str, *, contract: str, parse: Callable | None = None, describe: str = "") -> Preset:
     """Add a preset. REFUSES a contract with no parser -- that is the drift this module exists
     to prevent, and refusing is the only thing that actually prevents it."""
     if not contract or not str(contract).strip():
@@ -67,7 +68,7 @@ def get(name: str) -> Preset:
     return _REGISTRY[name]
 
 
-def known() -> List[str]:
+def known() -> list[str]:
     return sorted(_REGISTRY)
 
 
@@ -95,7 +96,7 @@ def _section(text: str, head: str) -> str:
     return (rest[:nxt] if nxt is not None else rest).strip()
 
 
-def _items(block: str) -> List[str]:
+def _items(block: str) -> list[str]:
     """One entry per bullet or numbered line; a bare paragraph counts as one entry."""
     out = []
     for ln in block.splitlines():
@@ -109,7 +110,7 @@ def _items(block: str) -> List[str]:
     return out
 
 
-def _parse_findings(answer: str) -> Dict[str, Any]:
+def _parse_findings(answer: str) -> dict[str, Any]:
     """FINDINGS / REASONING / CHECK / BLIND -> structured, or ok=False with the raw text kept.
 
     An answer that ignores the contract is REPORTED, never dropped. A paid branch vanishing into
@@ -160,7 +161,7 @@ register(
 
 
 # ------------------------------------------------------------------ lens plumbing
-def build_prompts(preset_name: str, lenses) -> List[str]:
+def build_prompts(preset_name: str, lenses) -> list[str]:
     """One branch per lens, each with the contract appended.
 
     THE LENS LEADS AND THE CONTRACT FOLLOWS, deliberately: the question is what the helper
@@ -188,7 +189,7 @@ def build_prompts(preset_name: str, lenses) -> List[str]:
     return out
 
 
-def read_lens_file(path: str) -> List[str]:
+def read_lens_file(path: str) -> list[str]:
     """One lens per line. Blank lines and # comments are skipped so a lens file can be
     annotated with WHY each lens is there -- which is the part that rots first."""
     with open(path, encoding="utf-8") as f:

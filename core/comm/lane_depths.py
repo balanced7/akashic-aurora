@@ -29,7 +29,7 @@ def _client(c=None, allow_fallback: bool = True):
         return None
 
 
-def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> Dict[str, int]:
+def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> dict[str, int]:
     ns = _ns()
     keys = {
         "work": f"{ns}:work:inbox:{agent}",

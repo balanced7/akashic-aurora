@@ -47,17 +47,17 @@ class GuestReplyTracker:
     """
 
     def __init__(self) -> None:
-        self._tracked: Dict[str, Any] = {}
+        self._tracked: dict[str, Any] = {}
         self._posted: set = set()
 
     def track(self, bus_id: str, channel_key: Any) -> None:
         """Register a guest message by its bus id, so replies to it can find their way out."""
         self._tracked[str(bus_id)] = channel_key
 
-    def poll(self, msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def poll(self, msgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Return the POST ops for this batch: {channel_key, frm, text} per reply that
         answers a tracked guest. Never raises; a malformed message is a no-op, not a crash."""
-        ops: List[Dict[str, Any]] = []
+        ops: list[dict[str, Any]] = []
         for m in msgs or []:
             if not isinstance(m, dict):
                 continue

@@ -588,7 +588,7 @@ def check():
     fails, gaps = [], []
     mcp_alias_targets = set(CLI_MCP_ALIASES.values())
     # 1. every real verb on an ENFORCED door must be classified (the ratchet: no new drift)
-    for v in sorted((cli | mcp | tb)):
+    for v in sorted(cli | mcp | tb):
         if v not in MANIFEST and v not in mcp_alias_targets:
             door = "CLI" if v in cli else ("MCP" if v in mcp else "ToolBox")
             fails.append(

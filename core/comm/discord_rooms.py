@@ -25,7 +25,8 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 from core.comm.discord_bridge import DISCORD_MAX, _content_str, chunk, redact, should_forward
 from core.outcome import BoundaryOutcome
@@ -53,14 +54,14 @@ AVATAR_BASE = "https://raw.githubusercontent.com/balanced7/akashic-aurora/master
 ICONS_FILE = _ROOT / "state" / "coord" / "discord_personas.json"
 
 
-def _icons() -> Dict[str, Any]:
+def _icons() -> dict[str, Any]:
     try:
         return json.loads(ICONS_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def persona(frm: str) -> Dict[str, Optional[str]]:
+def persona(frm: str) -> dict[str, str | None]:
     """username + avatar for a seat, from the registry + its own icon pick.
     Ratification names the resident; placement separately permits its generated face."""
     agent = str(frm or "").strip()
@@ -109,7 +110,7 @@ def _reg_path() -> Path:
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
 
-def _seats_registry() -> Dict[str, Any]:
+def _seats_registry() -> dict[str, Any]:
     path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -117,7 +118,7 @@ def _seats_registry() -> Dict[str, Any]:
         return {"mode": "forum", "channels": {}}
 
 
-def _default_create_thread(name: str) -> Optional[str]:
+def _default_create_thread(name: str) -> str | None:
     """TEXT-mode thread mint via the bot token (admin-granted). Isolated so pins
     run offline; returns the thread id or None (and None is a refusal upstream —
     an unregistered room would mint twins forever)."""
@@ -146,20 +147,20 @@ def _default_create_thread(name: str) -> Optional[str]:
     return str(r.json().get("id") or "") or None
 
 
-def _load_reg() -> Dict[str, Any]:
+def _load_reg() -> dict[str, Any]:
     try:
         return json.loads(_reg_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def _save_reg(reg: Dict[str, Any]) -> None:
+def _save_reg(reg: dict[str, Any]) -> None:
     p = _reg_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(reg, indent=1), encoding="utf-8")
 
 
-def _render_room(msg: Dict[str, Any]) -> str:
+def _render_room(msg: dict[str, Any]) -> str:
     """Body + kind tag; the author line is carried by the webhook username instead of
     markdown (rooms show the speaker natively — that is what 'native expression' buys).
     Single-part render kept for callers that want one string; post_to_room and the feed
@@ -167,7 +168,7 @@ def _render_room(msg: Dict[str, Any]) -> str:
     return render_room_parts(msg)[0]
 
 
-def render_room_parts(msg: Dict[str, Any]) -> list:
+def render_room_parts(msg: dict[str, Any]) -> list:
     """One or more room posts for a message: the kind tag rides every part, and a body
     over the cap becomes N whole-line parts (chunk()) — no truncation, no shell handle.
     T364: a `bifrost-fetch --get` tail is a command Daniil cannot run from a phone, so
@@ -187,11 +188,11 @@ def _default_post(
     url: str,
     content: str,
     *,
-    thread_id: Optional[str] = None,
-    thread_name: Optional[str] = None,
-    username: Optional[str] = None,
-    avatar_url: Optional[str] = None,
-) -> Optional[str]:
+    thread_id: str | None = None,
+    thread_name: str | None = None,
+    username: str | None = None,
+    avatar_url: str | None = None,
+) -> str | None:
     """The only network call in this module, isolated so every pin runs offline.
     Returns the thread id Discord minted (wait=true => the created forum post's
     channel_id IS the thread id), or None when the response carries none."""
@@ -199,10 +200,10 @@ def _default_post(
 
     from core.comm.discord_bridge import post_with_rate_limit_retry
 
-    params: Dict[str, str] = {"wait": "true"}
+    params: dict[str, str] = {"wait": "true"}
     if thread_id:
         params["thread_id"] = str(thread_id)
-    payload: Dict[str, Any] = {"content": content}
+    payload: dict[str, Any] = {"content": content}
     if username:
         payload["username"] = username
     if avatar_url:
@@ -220,11 +221,11 @@ def _default_post(
 
 
 def post_to_room(
-    msg: Dict[str, Any],
+    msg: dict[str, Any],
     *,
-    url: Optional[str] = None,
+    url: str | None = None,
     force: bool = False,
-    post: Optional[Callable[..., Optional[str]]] = None,
+    post: Callable[..., str | None] | None = None,
 ) -> BoundaryOutcome:
     """Route one message to its ask's room, creating the room on first contact.
 

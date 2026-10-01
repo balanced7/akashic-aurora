@@ -94,7 +94,7 @@ def uptime_s() -> float:
 
 def should_restart(
     *, stamped_sha: str, head_sha: str, commits_behind: int, uptime_s: float, in_flight: bool, jitter_s: float = 0.0
-) -> Optional[str]:
+) -> str | None:
     """A reason string when the ceremony should fire, else None.
 
     Pure decision core -- every input is passed in so pins never need a repo,
@@ -137,7 +137,7 @@ def should_restart(
 # children, FATAL for a long-lived runner, whose HEAD would freeze at its own boot
 # value and the ceremony would never fire. The self-restart feature would itself be
 # the day's disease: an instrument frozen at its own birth. Short-TTL re-resolve.
-_HEAD_CACHE: Dict[str, Any] = {"sha": "", "at": 0.0}
+_HEAD_CACHE: dict[str, Any] = {"sha": "", "at": 0.0}
 _HEAD_TTL_S = 60.0
 
 
@@ -167,7 +167,7 @@ def fresh_head_sha() -> str:
     return str(_HEAD_CACHE.get("sha") or "")
 
 
-def gather(agent: str) -> Dict[str, Any]:
+def gather(agent: str) -> dict[str, Any]:
     """The live inputs for should_restart, best-effort. Reads the process's OWN
     stamp (this import IS the running code) and a FRESH head (P9). Any hole ->
     empty strings, which the decision core reads as keep-running."""
@@ -194,7 +194,7 @@ def gather(agent: str) -> Dict[str, Any]:
     return out
 
 
-def respawn_self(argv: Optional[List[str]] = None) -> bool:
+def respawn_self(argv: list[str] | None = None) -> bool:
     """Spawn a fresh copy of this process: same interpreter, same argv, INHERITED
     environment (the lane env must survive -- dropping it once cost a 6.5h lane
     stall). Detached + windowless on Windows, same pattern as launcher.py. The
@@ -221,7 +221,7 @@ def respawn_self(argv: Optional[List[str]] = None) -> bool:
         return False
 
 
-def maybe_self_restart(agent: str, *, in_flight: bool = False) -> Optional[str]:
+def maybe_self_restart(agent: str, *, in_flight: bool = False) -> str | None:
     """The one-call integration point for runner turn boundaries. Returns the
     reason if a respawn was LAUNCHED (caller must then stand down cleanly),
     else None. Never raises.

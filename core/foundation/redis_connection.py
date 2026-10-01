@@ -50,7 +50,7 @@ except ImportError:
     REDIS_LIBRARY_AVAILABLE = False
 
 
-def _resolve_default_redis_endpoint() -> Tuple[str, int]:
+def _resolve_default_redis_endpoint() -> tuple[str, int]:
     """
     The single source of truth for "where is Redis?", resolved once.
 
@@ -236,7 +236,7 @@ def connect_to_redis_with_fail_fast(
     decode_responses: bool = True,
     probe_timeout_seconds: float = 0.5,
     db: int = DEFAULT_REDIS_DB,
-) -> Optional[Any]:
+) -> Any | None:
     """
     Connect to Redis, returning a live client or None — never hangs.
 

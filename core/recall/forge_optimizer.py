@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 MAX_TARGETS_PER_PASS = 2  # locked design decision 1
 PROPOSAL_TTL_DAYS = 7.0  # unreviewed proposals expire (curator sweeps)
@@ -31,11 +32,11 @@ _RATIONALE_RE = re.compile(r"RATIONALE:\s*(.+)", re.I)
 
 
 # --------------------------------------------------------------------- selection
-def select_targets(limit: int = MAX_TARGETS_PER_PASS, *, store=None, learning_store=None) -> List[Dict[str, Any]]:
+def select_targets(limit: int = MAX_TARGETS_PER_PASS, *, store=None, learning_store=None) -> list[dict[str, Any]]:
     """Curator-named rehab targets (surfaced >= 10, zero credit, active), minus lessons
     already provisional or carrying an unexpired pending proposal. Ordered by surfaced
     desc (the biggest surface-cost first). Fail-soft to []."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         from core.learning.learning_store import get_learning_store, is_benched, is_graduated
         from core.recall.at_action import _load_use, _store
@@ -61,7 +62,7 @@ def select_targets(limit: int = MAX_TARGETS_PER_PASS, *, store=None, learning_st
     return out[: max(0, int(limit))]
 
 
-def _proposal_pending(rec: Dict[str, Any]) -> bool:
+def _proposal_pending(rec: dict[str, Any]) -> bool:
     try:
         prop = json.loads(str(rec.get("forge_proposal") or "") or "null")
     except Exception:
@@ -78,7 +79,7 @@ def _proposal_pending(rec: Dict[str, Any]) -> bool:
 
 # --------------------------------------------------------------------- payload
 def build_prompt(
-    rec: Dict[str, Any], *, counters: Optional[Dict[str, Any]] = None, trigger_terms: Optional[List[str]] = None
+    rec: dict[str, Any], *, counters: dict[str, Any] | None = None, trigger_terms: list[str] | None = None
 ) -> str:
     """The BLINDED optimizer prompt for one lesson. Contains the record, aggregates,
     mined vocabulary, and the rejected buffer -- and none of the replay contexts."""
@@ -143,7 +144,7 @@ def build_prompt(
     return "\n".join(parts)
 
 
-def parse_reply(text: str) -> Dict[str, str]:
+def parse_reply(text: str) -> dict[str, str]:
     """Extract {draft, rationale} from an optimizer reply; {} when the markers are absent
     (a malformed reply is DROPPED, never guessed at -- the gate can only judge what the
     markers delimit)."""
@@ -164,10 +165,10 @@ def run_pass(
     limit: int = MAX_TARGETS_PER_PASS,
     store=None,
     learning_store=None,
-    events: Optional[List[Dict[str, Any]]] = None,
-    injections: Optional[List[Dict[str, Any]]] = None,
-    min_relevance: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    events: list[dict[str, Any]] | None = None,
+    injections: list[dict[str, Any]] | None = None,
+    min_relevance: float | None = None,
+) -> list[dict[str, Any]]:
     """One optimizer pass: select -> prompt -> propose_fn (the injected model call) ->
     parse -> Tier-0 gate -> stamp pending proposal (PASS / UNMEASURABLE only; FAIL is
     closed by the gate's rejected buffer). Returns a row per target for the operator."""
@@ -178,12 +179,12 @@ def run_pass(
     ls = learning_store or get_learning_store()
     st = store or _store()
 
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     items_by_source = {it.get("source"): it for it in _cached_items(learning_store)}
     for tgt in select_targets(limit, store=st, learning_store=ls):
         name = tgt["experiment_name"]
         source = f"learn:experiment:{name}"
-        row: Dict[str, Any] = {"experiment": name, "surfaced": tgt["surfaced"]}
+        row: dict[str, Any] = {"experiment": name, "surfaced": tgt["surfaced"]}
         try:
             counters = _load_use(st, source)
             terms = (items_by_source.get(source) or {}).get("trigger_terms") or []
@@ -222,9 +223,9 @@ def run_pass(
     return rows
 
 
-def pending_proposals(*, learning_store=None) -> List[Dict[str, Any]]:
+def pending_proposals(*, learning_store=None) -> list[dict[str, Any]]:
     """All unexpired pending proposals, newest first (the --forge-proposals listing)."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         from core.learning.learning_store import get_learning_store
 

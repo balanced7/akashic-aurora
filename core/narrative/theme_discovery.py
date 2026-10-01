@@ -25,7 +25,8 @@ from __future__ import annotations
 import math
 import os
 import re
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -71,21 +72,21 @@ _STOP = {
 }
 
 
-def _ctfidf_terms(clusters_texts: Sequence[Sequence[str]], topk: int = 3) -> List[List[str]]:
+def _ctfidf_terms(clusters_texts: Sequence[Sequence[str]], topk: int = 3) -> list[list[str]]:
     """Class-based TF-IDF (BERTopic-style, no LLM): the words that distinguish each CLUSTER
     from the others. Returns the top-k distinctive terms per cluster."""
     toks = [[w for w in _TOKEN.findall(" ".join(ts).lower()) if w not in _STOP] for ts in clusters_texts]
     if not toks:
         return []
-    global_freq: Dict[str, int] = {}
+    global_freq: dict[str, int] = {}
     for tl in toks:
         for w in tl:
             global_freq[w] = global_freq.get(w, 0) + 1
     A = (sum(len(tl) for tl in toks) / len(toks)) or 1.0
-    out: List[List[str]] = []
+    out: list[list[str]] = []
     for tl in toks:
         n = len(tl) or 1
-        tf: Dict[str, int] = {}
+        tf: dict[str, int] = {}
         for w in tl:
             tf[w] = tf.get(w, 0) + 1
         weights = {w: (c / n) * math.log(1 + A / global_freq[w]) for w, c in tf.items()}
@@ -98,7 +99,7 @@ DEFAULT_TAU = 0.44
 
 # Several SHORT exemplar phrases per theme; a beat's theme score is the MAX cosine over them
 # (short exemplars match short beat summaries far better than one long multi-concept phrase).
-EXEMPLARS: Dict[str, List[str]] = {
+EXEMPLARS: dict[str, list[str]] = {
     "routing": [
         "track routing",
         "which domain does this belong to",
@@ -156,10 +157,10 @@ class ThemeDiscoverer:
 
     def __init__(
         self,
-        embedder: Optional[Embedder] = None,
+        embedder: Embedder | None = None,
         *,
         tau: float = DEFAULT_TAU,
-        seeds: Optional[Dict[str, List[str]]] = None,
+        seeds: dict[str, list[str]] | None = None,
         keyword_assigner=None,
     ):
         self.embedder = embedder or get_embedder()
@@ -173,7 +174,7 @@ class ThemeDiscoverer:
                 flat_t.append(t)
                 flat_x.append(x)
         vecs = self.embedder.embed_many(flat_x)
-        self._theme_vecs: Dict[str, List[List[float]]] = {t: [] for t in self.seeds}
+        self._theme_vecs: dict[str, list[list[float]]] = {t: [] for t in self.seeds}
         for t, v in zip(flat_t, vecs):
             if v is not None:
                 self._theme_vecs[t].append(v)
@@ -191,7 +192,7 @@ class ThemeDiscoverer:
             self._kw = get_theme_assigner()
         return self._kw
 
-    def scores(self, text: str) -> Dict[str, float]:
+    def scores(self, text: str) -> dict[str, float]:
         """Per-theme MAX-over-exemplars cosine (for sweeps / the residual boundary). {} if no model."""
         if not self._ok or not text:
             return {}
@@ -200,11 +201,11 @@ class ThemeDiscoverer:
             return {}
         return {t: max(_cos(v, sv) for sv in vs) for t, vs in self._theme_vecs.items()}
 
-    def route(self, text: str) -> List[str]:
+    def route(self, text: str) -> list[str]:
         """Pure-embedding themes: every theme whose max-exemplar cosine >= tau (sorted)."""
         return sorted(t for t, s in self.scores(text).items() if s >= self.tau)
 
-    def assign(self, beat, hint=None) -> List[str]:
+    def assign(self, beat, hint=None) -> list[str]:
         """Multi-label theme ids = keyword themes UNION confident embedding themes. Falls back to
         keyword-only when the embedding model is unavailable (== the baseline; never loses theming)."""
         from core.narrative.theme_assigner import ThemeAssigner
@@ -215,7 +216,7 @@ class ThemeDiscoverer:
         return sorted(set(kw) | set(self.route(ThemeAssigner._text_of(beat, hint))))
 
     # ------------------------------------------------------------------ V6b: discover net-new themes
-    def discover(self, items: Sequence[Dict[str, Any]], *, min_residual: int = 6) -> List[Dict[str, Any]]:
+    def discover(self, items: Sequence[dict[str, Any]], *, min_residual: int = 6) -> list[dict[str, Any]]:
         """Cluster the RESIDUAL beats (no seed theme claims them) to surface NET-NEW themes not in
         the seed vocabulary, labeled by c-TF-IDF (no LLM). `items`: dicts with id/text/[importance].
         Returns [{label, terms, beat_ids, size, cohesion}]. Empty below the cold-start floor or
@@ -233,7 +234,7 @@ class ThemeDiscoverer:
         text_by_id = {it["id"]: str(it.get("text", "")) for it in residual}
         cl_texts = [[text_by_id[a] for a in c.atom_ids] for c in clustering.clusters]
         term_lists = _ctfidf_terms(cl_texts)
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for c, terms in zip(clustering.clusters, term_lists):
             out.append(
                 {
@@ -247,7 +248,7 @@ class ThemeDiscoverer:
         return out
 
 
-_INSTANCE: Optional[ThemeDiscoverer] = None
+_INSTANCE: ThemeDiscoverer | None = None
 
 
 def get_theme_discoverer() -> ThemeDiscoverer:
@@ -257,7 +258,7 @@ def get_theme_discoverer() -> ThemeDiscoverer:
     return _INSTANCE
 
 
-def select_theme_assigner(embedder: Optional[Embedder] = None):
+def select_theme_assigner(embedder: Embedder | None = None):
     """The spine's write-path theme assigner (V6c). DETERMINISTIC by config: embedding theming is
     OPT-IN via `AKASHIC_EMBED_THEMES=1` -- so the same beat always themes the same way for a given
     configuration, and a short-lived CLI write never pays a cold model load by surprise.

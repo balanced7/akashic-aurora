@@ -91,7 +91,7 @@ DEFAULT_SYSTEM = (
 )
 
 
-def _load_key() -> Optional[str]:
+def _load_key() -> str | None:
     """Env first, then the gitignored key file -- the same order and the same two sources
     scripts/deepseek_chat.py uses. Resolved HERE so core does not have to reach into scripts
     for a credential; runner_lib takes explicit parameters precisely so callers own this.
@@ -147,7 +147,7 @@ _VENDORS = (
 )
 
 
-def _vendor_for(model: Optional[str]) -> dict:
+def _vendor_for(model: str | None) -> dict:
     """Which vendor serves this model. Unknown models fall back to DeepSeek, deliberately:
     an unrecognised name must not become a no-vendor that fails at call time with a confusing
     endpoint error. The fallback is the door's historical behaviour, unchanged."""
@@ -158,7 +158,7 @@ def _vendor_for(model: Optional[str]) -> dict:
     return _VENDORS[-1]
 
 
-def _load_key_for(vendor: dict) -> Optional[str]:
+def _load_key_for(vendor: dict) -> str | None:
     """_load_key generalised over vendors: env first, then the gitignored key file, same order.
 
     The DEFAULT vendor delegates to _load_key() rather than reimplementing it, and that is a
@@ -179,7 +179,7 @@ def _load_key_for(vendor: dict) -> Optional[str]:
         return None
 
 
-def _usd(model: str, prompt_tokens: int, completion_tokens: int) -> Optional[float]:
+def _usd(model: str, prompt_tokens: int, completion_tokens: int) -> float | None:
     """Cost in USD, or None when the model has no sourced rate.
 
     None is a DESIGNED state, not a failure: runner_token_journal's own comment says an absent
@@ -214,7 +214,7 @@ DEFAULT_CONTEXT_CHARS = int(os.getenv("AKASHIC_ASK_CONTEXT_CHARS", "40000"))
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def build_context(paths, *, budget_chars: Optional[int] = None, root=None):
+def build_context(paths, *, budget_chars: int | None = None, root=None):
     """Inline source files for a helper to reason about. Returns (block, meta) (T203).
 
     THE PROBLEM THIS SOLVES, measured on this session's own fences: four times a helper was
@@ -353,7 +353,7 @@ def validate_geometry(geometry: str, *, fan_n: int, n_prompts: int, has_evidence
     return ""
 
 
-def coverage_from_meta(ctx_meta: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def coverage_from_meta(ctx_meta: Dict[str, Any] | None) -> Dict[str, Any] | None:
     """The coverage NUMBER: chars sent / chars total across included files. None when no
     evidence rode. Ratio 1.0 is a claim about TRANSPORT of the named files only -- whether
     the files covered the source corpus is the caller's union assertion, not this field."""
@@ -386,7 +386,7 @@ def _route_journal(rec: Dict[str, Any]) -> None:
         pass
 
 
-def unusable_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
+def unusable_evidence_notice(ctx_meta: Dict[str, Any] | None) -> str:
     """What the caller must be told about evidence that did not arrive whole. "" when all did.
 
     T225, found by running the fan at its own door 2026-08-07. T218 closed this asymmetry for
@@ -462,14 +462,14 @@ def unusable_evidence_notice(ctx_meta: Optional[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _file_chars(path) -> Optional[int]:
+def _file_chars(path) -> int | None:
     try:
         return len(Path(path).read_text(encoding="utf-8", errors="replace"))
     except (OSError, TypeError):
         return None
 
 
-def attach_evidence(detail: Dict[str, Any], ctx_meta: Optional[Dict[str, Any]]) -> None:
+def attach_evidence(detail: Dict[str, Any], ctx_meta: Dict[str, Any] | None) -> None:
     """Put the evidence meta AND its notice on the outcome, at the BOUNDARY (T242).
 
     T218/T225 built the notice and T237 gave JSON callers a discoverable `warnings` list --
@@ -509,15 +509,15 @@ def attach_evidence(detail: Dict[str, Any], ctx_meta: Optional[Dict[str, Any]]) 
 def ask(
     prompt: str,
     *,
-    system: Optional[str] = None,
-    model: Optional[str] = None,
-    max_tokens: Optional[int] = None,
+    system: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
     client=None,
     with_files=None,
     context_root=None,
     continue_on_cut: bool = False,
     max_continuations: int = 2,
-    as_resident: Optional[str] = None,
+    as_resident: str | None = None,
 ) -> BoundaryOutcome:
     """Ask a helper one question, synchronously. Never raises.
 
@@ -1095,7 +1095,7 @@ def _diagnose(peer: str, peer_state: str):
     )
 
 
-def _fan_client(client, model: Optional[str] = None):
+def _fan_client(client, model: str | None = None):
     """ONE client for the whole fan, or a named configuration failure for the whole fan.
 
     Shared deliberately: the SDK's httpx client is thread-safe and pools connections, so N
@@ -1133,11 +1133,11 @@ def _fan_client(client, model: Optional[str] = None):
 def ask_many(
     prompts,
     *,
-    system: Optional[str] = None,
-    model: Optional[str] = None,
-    max_tokens: Optional[int] = None,
+    system: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
     client=None,
-    max_workers: Optional[int] = None,
+    max_workers: int | None = None,
     with_files=None,
     context_root=None,
     continue_on_cut: bool = False,

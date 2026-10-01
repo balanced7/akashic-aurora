@@ -15,7 +15,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Optional
 
@@ -63,12 +63,12 @@ class Grant:
     role: str
     caps: set = field(default_factory=set)  # set[Cap]
     path_scope: list = field(default_factory=list)  # glob prefixes for WRITE ([]=none, ["*"]=full)
-    bus_send_kinds: Optional[set] = None  # None = all kinds; a set = allowlist
+    bus_send_kinds: set | None = None  # None = all kinds; a set = allowlist
     granted_by: str = "root"
     granted_at: str = ""
-    expires_at: Optional[str] = None  # ISO ts; None = permanent
+    expires_at: str | None = None  # ISO ts; None = permanent
     reason: str = ""
-    request_ref: Optional[str] = None
+    request_ref: str | None = None
 
     def has(self, c: Cap) -> bool:
         return c in self.caps
@@ -116,7 +116,7 @@ _CACHE: dict = {"mtime": None, "grants": {}}
 # elevated role with nothing saying so. Same trapdoor shape T151 fixed for grant expiry.
 # The POLICY stays (the floor is the availability guarantee); only the silence goes: the fault is
 # recorded here, resolve() says so ONCE per process on stderr, and acl_status() feeds doctor.
-_ACL_FAULT: Optional[dict] = None  # {"kind": "missing"|"unreadable"|"corrupt", "path", "detail"}
+_ACL_FAULT: dict | None = None  # {"kind": "missing"|"unreadable"|"corrupt", "path", "detail"}
 _FLOOR_WARNED = False  # once per process; re-armed when a later _load() succeeds
 
 
@@ -256,7 +256,7 @@ def expiring_grants(within_h: float = 48.0, grants=None) -> list:
         return getattr(rec, name, None)
 
     out = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for rec in recs or []:
         try:
             raw = _field(rec, "expires_at")
@@ -266,7 +266,7 @@ def expiring_grants(within_h: float = 48.0, grants=None) -> list:
             try:
                 exp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
                 if exp.tzinfo is None:
-                    exp = exp.replace(tzinfo=timezone.utc)
+                    exp = exp.replace(tzinfo=UTC)
                 hours_left = (exp - now).total_seconds() / 3600.0
             except Exception:
                 out.append(
@@ -321,14 +321,14 @@ def acl_status() -> dict:
         }
 
 
-def _expired(expires_at: Optional[str]) -> bool:
+def _expired(expires_at: str | None) -> bool:
     if not expires_at:
         return False
     try:
         exp = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
         if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        return datetime.now(timezone.utc) >= exp
+            exp = exp.replace(tzinfo=UTC)
+        return datetime.now(UTC) >= exp
     except Exception:
         return True  # unparseable expiry -> treat as expired (fail closed)
 
@@ -339,7 +339,7 @@ def grants() -> list:
     return list(loaded.values()) if loaded else []
 
 
-def get(agent_id: str) -> Optional[Grant]:
+def get(agent_id: str) -> Grant | None:
     """One agent's STORED grant from the file, or None if unregistered / file unreadable."""
     loaded = _load()
     return loaded.get(agent_id) if loaded else None

@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -35,7 +35,7 @@ AGENT_ID = "renew-recorder"
 
 def _outfile() -> str:
     os.makedirs(OUT_DIR, exist_ok=True)
-    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    day = datetime.now(UTC).strftime("%Y%m%d")
     return os.path.join(OUT_DIR, f"bus-{day}.jsonl")
 
 
@@ -49,7 +49,7 @@ def _record(fh, m) -> None:
         "kind": m.kind,  # "tool", "say", "think", ... (trace.emit uses "tool")
         "content": m.content,  # the tool summary string (parse Read/Edit targets from here)
         "meta": m.meta,
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
     }
     fh.write(json.dumps(row, default=str, ensure_ascii=False) + "\n")
 

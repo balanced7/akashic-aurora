@@ -27,7 +27,8 @@ import sys
 import threading
 import time
 import uuid
-from typing import Any, Callable, Deque, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
+from collections.abc import Callable
 
 
 # ---------------------------------------------------------------- DaemonLock
@@ -131,10 +132,10 @@ class ManagedChild:
 
     def __init__(
         self,
-        args: List[str],
-        env: Optional[Dict[str, str]] = None,
-        cwd: Optional[str] = None,
-        on_blocker: Optional[Callable[[], None]] = None,
+        args: list[str],
+        env: dict[str, str] | None = None,
+        cwd: str | None = None,
+        on_blocker: Callable[[], None] | None = None,
         breaker_window_s: float = 300.0,
         breaker_max: int = 3,
     ):
@@ -151,8 +152,8 @@ class ManagedChild:
         self._on_blocker = on_blocker
         self._breaker_window_s = breaker_window_s
         self._breaker_max = breaker_max
-        self._proc: Optional[subprocess.Popen] = None
-        self._crashes: Deque[float] = collections.deque()
+        self._proc: subprocess.Popen | None = None
+        self._crashes: collections.deque[float] = collections.deque()
         self._tripped = False
         self._tripped_at: float = 0.0
         self._backoff_idx = 0
@@ -160,12 +161,12 @@ class ManagedChild:
         # F2: non-blocking backoff -- spawn only when now >= this timestamp
         self._next_spawn_at: float = 0.0
         # F1: drainer thread + bounded ring buffer (stdout pipe -> ring)
-        self._ring: Deque[str] = collections.deque(maxlen=_RING_LINES)
-        self._drainer: Optional[threading.Thread] = None
+        self._ring: collections.deque[str] = collections.deque(maxlen=_RING_LINES)
+        self._drainer: threading.Thread | None = None
         self._drainer_done = threading.Event()
         # exit hooks
-        self.on_exit: Optional[Callable[[int, Optional[str]], None]] = None
-        self.last_summary: Optional[Dict[str, Any]] = None
+        self.on_exit: Callable[[int, str | None], None] | None = None
+        self.last_summary: dict[str, Any] | None = None
 
     # -- public ------------------------------------------------------------
 
@@ -185,10 +186,10 @@ class ManagedChild:
         return self._tripped
 
     @property
-    def pid(self) -> Optional[int]:
+    def pid(self) -> int | None:
         return self._proc.pid if self._proc else None
 
-    def spawn(self) -> Optional[subprocess.Popen]:
+    def spawn(self) -> subprocess.Popen | None:
         """Launch the child. Returns the Popen handle, or None if the circuit breaker
         is tripped, the previous child is still alive, or backoff hasn't elapsed yet."""
         if self.tripped:
@@ -231,7 +232,7 @@ class ManagedChild:
         self._drainer.start()
         return self._proc
 
-    def poll(self) -> Optional[int]:
+    def poll(self) -> int | None:
         """Check the child. Returns its exit code if it exited since last poll,
         None if still running (or never spawned). On exit, calls on_exit(code, tail)
         and runs the non-blocking restart/backoff/breaker logic (F2).
@@ -323,7 +324,7 @@ class ManagedChild:
 
 
 # ---------------------------------------------------------------- summary helpers
-def read_summary(path: str) -> Optional[Dict[str, Any]]:
+def read_summary(path: str) -> dict[str, Any] | None:
     """Read a runner's exit summary JSON. None when absent or unreadable."""
     try:
         if not os.path.exists(path):
@@ -334,7 +335,7 @@ def read_summary(path: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def format_summary_for_prompt(s: Dict[str, Any]) -> str:
+def format_summary_for_prompt(s: dict[str, Any]) -> str:
     """One-liner suitable for the runner's system prompt / the daemon's card summary."""
     verdict = str(s.get("verdict") or "?").upper()
     turns = s.get("turns", "?")

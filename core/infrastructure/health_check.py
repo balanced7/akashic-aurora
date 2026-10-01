@@ -38,11 +38,11 @@ class StartupDiagnostics:
         """Initialize diagnostics collector"""
         self.agent_id = agent_id
         self.start_time = time.time()
-        self.phases: List[Dict[str, Any]] = []
+        self.phases: list[dict[str, Any]] = []
         self.logger = logger
 
     def record_startup_phase_with_metrics(
-        self, phase_name: str, success: bool, duration_ms: float, details: Optional[str] = None
+        self, phase_name: str, success: bool, duration_ms: float, details: str | None = None
     ) -> None:
         """
         Record a startup phase.
@@ -66,7 +66,7 @@ class StartupDiagnostics:
         )
 
     # Backward compatibility alias
-    def record_phase(self, phase_name: str, success: bool, duration_ms: float, details: Optional[str] = None) -> None:
+    def record_phase(self, phase_name: str, success: bool, duration_ms: float, details: str | None = None) -> None:
         """Deprecated: Use record_startup_phase_with_metrics() instead"""
         return self.record_startup_phase_with_metrics(phase_name, success, duration_ms, details)
 
@@ -86,7 +86,7 @@ class StartupDiagnostics:
         """Deprecated: Use get_total_startup_time_in_milliseconds() instead"""
         return self.get_total_startup_time_in_milliseconds()
 
-    def generate_startup_diagnostics_report(self) -> Dict[str, Any]:
+    def generate_startup_diagnostics_report(self) -> dict[str, Any]:
         """
         Generate complete startup diagnostics report.
 
@@ -125,7 +125,7 @@ class StartupDiagnostics:
         return report
 
     # Backward compatibility alias
-    def generate_report(self) -> Dict[str, Any]:
+    def generate_report(self) -> dict[str, Any]:
         """Deprecated: Use generate_startup_diagnostics_report() instead"""
         return self.generate_startup_diagnostics_report()
 
@@ -178,7 +178,7 @@ class StartupDiagnostics:
         """Deprecated: Use print_diagnostic_report_for_agent() instead"""
         return self.print_diagnostic_report_for_agent()
 
-    def _derive_recommendations_from_diagnostics(self, report: Dict[str, Any]) -> List[str]:
+    def _derive_recommendations_from_diagnostics(self, report: dict[str, Any]) -> list[str]:
         """
         Generate recommendations based on diagnostics.
 
@@ -217,11 +217,11 @@ class StartupDiagnostics:
         return recommendations
 
     # Backward compatibility alias
-    def _generate_recommendations(self, report: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(self, report: dict[str, Any]) -> list[str]:
         """Deprecated: Use _derive_recommendations_from_diagnostics() instead"""
         return self._derive_recommendations_from_diagnostics(report)
 
-    def _persist_diagnostics_report_to_file(self, report: Dict[str, Any]) -> None:
+    def _persist_diagnostics_report_to_file(self, report: dict[str, Any]) -> None:
         """
         Save diagnostics report to file.
 
@@ -239,7 +239,7 @@ class StartupDiagnostics:
             self.logger.error(f"Could not save diagnostics: {e}")
 
     # Backward compatibility alias
-    def _save_report(self, report: Dict[str, Any]) -> None:
+    def _save_report(self, report: dict[str, Any]) -> None:
         """Deprecated: Use _persist_diagnostics_report_to_file() instead"""
         return self._persist_diagnostics_report_to_file(report)
 
@@ -315,7 +315,7 @@ def check_infrastructure_health(
     redis_host: str = "localhost",
     redis_port: int = 6379,
     timeout_seconds: float = 2.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Probe ancillary infrastructure and report what is available.
 
@@ -337,7 +337,7 @@ def check_infrastructure_health(
             "checked_at": ISO timestamp,
         }
     """
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "redis": {"available": False, "latency_ms": None, "error": None},
         "healthy": False,
         "checked_at": datetime.utcnow().isoformat(),

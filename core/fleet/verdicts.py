@@ -85,9 +85,9 @@ def _corrupt_row(where: str, index: int, raw: str) -> None:
     )
 
 
-def _rows(key: str) -> List[Dict[str, Any]]:
+def _rows(key: str) -> list[dict[str, Any]]:
     raw = _store().lrange(key, 0, -1) or []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
@@ -113,7 +113,7 @@ def file_verdict(
     geometry: str = "",
     role: str = "",
     cold_twin_of: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Record what a branch answered. One verdict per ask_id -- dedup is idempotency
     (the LearningStore law: a second write with the same key is a retry, not a sibling).
 
@@ -164,7 +164,7 @@ def file_verdict(
     return rec
 
 
-def adjudicate(*, ask_id: str, outcome: str, by: str, receipt: str = "") -> Dict[str, Any]:
+def adjudicate(*, ask_id: str, outcome: str, by: str, receipt: str = "") -> dict[str, Any]:
     """Record what a NON-AUTHOR established about a filed verdict.
 
     OPERATOR-ONLY BY DEFAULT (fence r2 H-C1): `by` must be in adjudicators() and must not
@@ -223,11 +223,11 @@ def adjudicate(*, ask_id: str, outcome: str, by: str, receipt: str = "") -> Dict
 
 def verdicts(
     *,
-    agent: Optional[str] = None,
-    role: Optional[str] = None,
-    shape: Optional[str] = None,
-    cold_twin_of: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    agent: str | None = None,
+    role: str | None = None,
+    shape: str | None = None,
+    cold_twin_of: str | None = None,
+) -> list[dict[str, Any]]:
     """Every verdict matching every given filter, oldest first. A filter nothing matches
     returns [] -- never the unfiltered log (the degraded answer must be a SUBSET)."""
     out = []
@@ -244,7 +244,7 @@ def verdicts(
     return out
 
 
-def calibration(*, shape: Optional[str] = None, resident: Optional[str] = None) -> Dict[str, Any]:
+def calibration(*, shape: str | None = None, resident: str | None = None) -> dict[str, Any]:
     """COUNTS ONLY: per (shape, resident) cell and per-shape pool -- filed, adjudicated,
     confirmed, refuted. The latest adjudication per ask_id wins (append-only projection).
 
@@ -252,12 +252,12 @@ def calibration(*, shape: Optional[str] = None, resident: Optional[str] = None) 
     (fence r2, convergent H-C2 + N-C2). RC2 renders rates behind its own n-floors; this
     function hands it honest integers.
     """
-    latest: Dict[str, Dict[str, Any]] = {}
+    latest: dict[str, dict[str, Any]] = {}
     for a in _rows(_ADJUD_KEY):
         latest[a.get("ask_id")] = a  # oldest-first scan -> last write wins
 
-    cells: Dict[Tuple[str, str], Dict[str, int]] = {}
-    shapes: Dict[str, Dict[str, int]] = {}
+    cells: dict[tuple[str, str], dict[str, int]] = {}
+    shapes: dict[str, dict[str, int]] = {}
     for v in verdicts(shape=shape, agent=resident):
         key = (v.get("question_shape") or "undeclared", v.get("agent_id") or "?")
         cell = cells.setdefault(key, {"filed": 0, "adjudicated": 0, "confirmed": 0, "refuted": 0})

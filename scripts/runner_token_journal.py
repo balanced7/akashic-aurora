@@ -54,7 +54,7 @@ from typing import Any, Dict, List, Optional
 # `source`. Do NOT approximate one vendor with another's number -- an absent
 # entry is a designed, visible state, and the unpriced line on the doctor
 # dashboard exists to ask for exactly this edit.
-PRICES: Dict[str, Dict[str, Any]] = {
+PRICES: dict[str, dict[str, Any]] = {
     "deepseek-v4-pro": {
         "prompt": 0.55,
         "cached_prompt": 0.055,
@@ -76,14 +76,14 @@ PRICES: Dict[str, Dict[str, Any]] = {
 # fallback: an agent absent from this map stays unpriced. A catch-all default
 # is how the original defect was written -- kimi's turns reached DeepSeek's
 # table through exactly that door.
-AGENT_DEFAULT_MODEL: Dict[str, str] = {
+AGENT_DEFAULT_MODEL: dict[str, str] = {
     "deepseek": "deepseek-v4-pro",
 }
 
 UNKNOWN_MODEL = "unknown"
 
 
-def price_of(model: str) -> Optional[Dict[str, Any]]:
+def price_of(model: str) -> dict[str, Any] | None:
     """The rate card for `model`, or None if we cannot source one. None is a
     legitimate answer and callers must RENDER it, never substitute."""
     return PRICES.get(str(model or "").strip())
@@ -94,7 +94,7 @@ class TokenJournal:
     Thread-safe enough: the runner is single-threaded per turn-close (the
     record path runs in the main loop)."""
 
-    def __init__(self, agent: str, journal_dir: Optional[str] = None):
+    def __init__(self, agent: str, journal_dir: str | None = None):
         self._agent = str(agent)
         base = journal_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "state")
         os.makedirs(base, exist_ok=True)
@@ -105,7 +105,7 @@ class TokenJournal:
         self.cached_prompt_tokens: int = 0
         self.model: str = ""  # first seen; kept for compat
         # model -> {turns, prompt, cached_prompt, completion}
-        self.models: Dict[str, Dict[str, int]] = {}
+        self.models: dict[str, dict[str, int]] = {}
         self._load()
 
     # -- public ----------------------------------------------------------
@@ -156,7 +156,7 @@ class TokenJournal:
             b.get("prompt", 0) + b.get("completion", 0) for model, b in self.models.items() if price_of(model) is None
         )
 
-    def unpriced_models(self) -> List[str]:
+    def unpriced_models(self) -> list[str]:
         """Which models the rate table is missing -- the shopping list for
         whoever fills it in."""
         return sorted(m for m in self.models if price_of(m) is None)
@@ -180,7 +180,7 @@ class TokenJournal:
         counters reset at the next _load() of the new path."""
         return os.path.join(self._base, f"runner_{self._agent}_{self.today()}.json")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         # Every pre-T110 key is preserved so existing readers keep working; the
         # new keys are additive. `model` no longer falls back to a vendor name
         # we were never told -- it reports the dominant model or UNKNOWN.

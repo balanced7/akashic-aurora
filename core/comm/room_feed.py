@@ -41,7 +41,7 @@ def valid_namespace(ns) -> bool:
     return isinstance(ns, str) and bool(_NS_RE.match(ns))
 
 
-def streams_for(client, ns: str) -> List[str]:
+def streams_for(client, ns: str) -> list[str]:
     """Feed streams for room `ns`: its per-agent inboxes plus its broadcast.
 
     Returns [] for a well-formed room nobody is beating in -- an empty room is not a
@@ -57,7 +57,7 @@ def streams_for(client, ns: str) -> List[str]:
             r"([A-Za-z0-9][A-Za-z0-9_-]{0,63}) -- no ':', no globs, no whitespace. "
             "An unvalidated namespace reaches Redis as a KEYS pattern."
         )
-    out: List[str] = []
+    out: list[str] = []
     try:
         out.extend(str(k) for k in (client.keys(f"{ns}:{_INBOX_SUFFIX}:*") or []))
         bc = f"{ns}:{_BROADCAST_SUFFIX}"

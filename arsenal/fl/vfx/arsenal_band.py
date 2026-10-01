@@ -376,7 +376,7 @@ def _short(exc):
     return _ascii("%s: %s" % (type(exc).__name__, exc))[:160]
 
 
-class Compiled(object):
+class Compiled:
     """One pattern laid out in ticks: loop and bar length, the events starting at each tick of the loop, and the
     comp and pad events in start order (held, for striking a chord again after a dropout bar)."""
 
@@ -408,7 +408,7 @@ class Compiled(object):
         self.held = held
 
 
-class _Entry(object):
+class _Entry:
     """The band's own record of one voice it triggered: which note on which output, from which band tick to which,
     and in which onTick call."""
 
@@ -419,7 +419,7 @@ class _Entry(object):
         self.start, self.end, self.alive, self.call, self.vel = start, end, True, call, vel
 
 
-class Band(object):
+class Band:
     def __init__(self):
         self.log = []
         self.switches = []  # (tick or None when stopped, index, anchor before, bar ticks before)
@@ -576,7 +576,7 @@ class Band(object):
                 sig = (st.st_mtime_ns, st.st_size)
                 if sig == self.live_sig:
                     return
-            f = open(path, "r", encoding="utf-8")
+            f = open(path, encoding="utf-8")
             try:
                 text = f.read()
             finally:

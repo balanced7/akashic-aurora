@@ -31,7 +31,7 @@ class IntakeError(RuntimeError):
 
 #: The vault's vocabulary. A name not in this table is refused BEFORE any path math —
 #: path traversal is not blocked here, it is UNREPRESENTABLE here.
-TARGETS: Dict[str, str] = {
+TARGETS: dict[str, str] = {
     "discord_bot.token": "Discord bot token (Developer Portal -> Bot -> Reset Token)",
     "discord_operator_id": "Daniil's numeric Discord user id — the R1 allowlist",
     "discord_webhook.url": "the #aurora global-feed webhook (pipe 1 of the pool)",
@@ -68,7 +68,7 @@ def secrets_dir() -> Path:
     return Path(os.getenv("AKASHIC_SECRETS_DIR") or (_ROOT / ".secrets"))
 
 
-def save_secret(target: str, value: str) -> Dict[str, Any]:
+def save_secret(target: str, value: str) -> dict[str, Any]:
     """Write one credential to its allowlisted file. Returns a transcript-safe receipt."""
     if target not in TARGETS:
         raise IntakeError(
@@ -117,10 +117,10 @@ def save_secret(target: str, value: str) -> Dict[str, Any]:
     return {"target": target, "bytes": len(cleaned.encode("utf-8")), "path": str(path)}
 
 
-def inventory() -> Dict[str, Any]:
+def inventory() -> dict[str, Any]:
     """What the vault holds — sizes only, never a byte of content."""
     d = secrets_dir()
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for name, desc in sorted(TARGETS.items()):
         p = d / name
         out[name] = {

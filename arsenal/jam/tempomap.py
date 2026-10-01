@@ -31,7 +31,8 @@ Pure: nothing here reads a clock. Page time is perf = epoch - offset; session ti
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import Dict, List, Optional
+from collections.abc import Mapping, Sequence
 
 EPS_BEATS = 1e-5
 EPS_MS = 1e-3
@@ -89,7 +90,7 @@ def t_epoch(segments: Sequence[dict], beats_per_bar: int, bar: int, beat: float 
     return s["epoch_ms"] + (bar - s["from_bar"]) * bar_ms(s["bpm"], beats_per_bar) + beat * 60000 / s["bpm"]
 
 
-def bar_at(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float) -> Dict:
+def bar_at(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float) -> dict:
     """{bar, beat}: the bar sounding at epoch_ms and the beat position inside it (0 <= beat < beats_per_bar)."""
     _check(segments, beats_per_bar)
     s = segment_at_epoch(segments, epoch_ms)
@@ -141,7 +142,7 @@ def cycle_beat(segments: Sequence[dict], beats_per_bar: int, bar: int, beat: flo
     return r
 
 
-def slot_at(slots: Sequence[dict], cycle_beat_value: float) -> Optional[int]:
+def slot_at(slots: Sequence[dict], cycle_beat_value: float) -> int | None:
     """The index of the last slot with at_beat <= cycle_beat (slots are ordered by at_beat), or None before the first."""
     found = None
     for i, sl in enumerate(slots):
@@ -152,7 +153,7 @@ def slot_at(slots: Sequence[dict], cycle_beat_value: float) -> Optional[int]:
     return found
 
 
-def position(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float, defs) -> Dict:
+def position(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float, defs) -> dict:
     """Everything the strip and jam status show for one instant: {bar, beat, pass, cycle_beat, slot, rest,
     counting_in, def_version, bpm}. rest is true in a rest gap, before the first slot, and while counting in."""
     at = bar_at(segments, beats_per_bar, epoch_ms)
@@ -179,7 +180,7 @@ def position(segments: Sequence[dict], beats_per_bar: int, epoch_ms: float, defs
     }
 
 
-def first_segment(start_epoch_ms: float, bpm: float, count_in: int = 1, def_version: int = 1) -> Dict:
+def first_segment(start_epoch_ms: float, bpm: float, count_in: int = 1, def_version: int = 1) -> dict:
     """A run's first segment: the count-in starts at start_epoch_ms, so bar 0 is count_in bars later (9.2)."""
     return {
         "from_bar": -count_in,
@@ -194,10 +195,10 @@ def add_segment(
     segments: Sequence[dict],
     beats_per_bar: int,
     bar: int,
-    bpm: Optional[float] = None,
-    def_version: Optional[int] = None,
-    def_from_bar: Optional[int] = None,
-) -> List[dict]:
+    bpm: float | None = None,
+    def_version: int | None = None,
+    def_from_bar: int | None = None,
+) -> list[dict]:
     """A new list with a change at bar `bar`: its epoch is t_epoch(bar) under the segment in effect there. Fields left
     None keep the last segment's; a new def_version starts its cycle at `bar` unless def_from_bar says otherwise. A
     change on the last segment's own bar replaces that segment (same epoch). The input list is not modified."""
@@ -238,7 +239,7 @@ def next_line(
     at: str = "bar",
     defs=None,
     lead_ms: float = CHANGE_LEAD_MS,
-) -> Dict:
+) -> dict:
     """The landing rule (C3, 9.4): {bar, beat, epoch_ms} where a change the server received at received_epoch_ms
     takes effect. `now`: at once. `beat`, `bar`, `pass`: the first beat line, bar line or pass top (needs defs) at least
     one beat, at the tempo sounding on receipt, plus lead_ms after it."""

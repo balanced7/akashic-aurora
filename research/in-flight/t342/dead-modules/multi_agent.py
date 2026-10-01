@@ -102,10 +102,10 @@ class AgentInfo:
     started_at: str
     last_heartbeat: str
     status: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    vector_id: Optional[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    vector_id: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "agent_id": self.agent_id,
             "role": self.role,
@@ -118,7 +118,7 @@ class AgentInfo:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "AgentInfo":
+    def from_dict(cls, d: dict) -> "AgentInfo":
         return cls(
             agent_id=d["agent_id"],
             role=d["role"],
@@ -140,12 +140,12 @@ class Message:
     to_agent: str  # "all" for broadcast
     msg_type: str  # task_request, task_response, query, broadcast, alert
     content: str
-    vector_id: Optional[str] = None
+    vector_id: str | None = None
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    reply_to: Optional[str] = None  # msg_id this is replying to
+    metadata: dict[str, Any] = field(default_factory=dict)
+    reply_to: str | None = None  # msg_id this is replying to
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "msg_id": self.msg_id,
             "from_agent": self.from_agent,
@@ -159,7 +159,7 @@ class Message:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "Message":
+    def from_dict(cls, d: dict) -> "Message":
         return cls(
             msg_id=d["msg_id"],
             from_agent=d["from_agent"],
@@ -185,10 +185,10 @@ class SharedItem:
     updated_at: str
     version: int
     locked: bool
-    locked_by: Optional[str] = None
-    vector_id: Optional[str] = None
+    locked_by: str | None = None
+    vector_id: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "item_id": self.item_id,
             "key": self.key,
@@ -203,7 +203,7 @@ class SharedItem:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "SharedItem":
+    def from_dict(cls, d: dict) -> "SharedItem":
         return cls(
             item_id=d["item_id"],
             key=d["key"],
@@ -252,8 +252,8 @@ class AgentRegistry:
     def __init__(self):
         self._redis, self._available = _get_redis_connection()
         self._vector_store = None
-        self._current_agent_id: Optional[str] = None
-        self._agent_info: Optional[AgentInfo] = None
+        self._current_agent_id: str | None = None
+        self._agent_info: AgentInfo | None = None
 
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
@@ -276,7 +276,7 @@ class AgentRegistry:
         return f"agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
     def register_agent(
-        self, role: str, session_id: str, session_unique: str, metadata: Dict[str, Any] = None
+        self, role: str, session_id: str, session_unique: str, metadata: dict[str, Any] = None
     ) -> AgentInfo:
         """
         Register this agent in the registry.
@@ -367,7 +367,7 @@ class AgentRegistry:
         except:
             return False
 
-    def get_active_agents(self, include_self: bool = False) -> List[AgentInfo]:
+    def get_active_agents(self, include_self: bool = False) -> list[AgentInfo]:
         """Get all active agents (heartbeat within TTL)"""
         if not self._available:
             return []
@@ -393,16 +393,16 @@ class AgentRegistry:
         except:
             return []
 
-    def get_agent_by_role(self, role: str) -> List[AgentInfo]:
+    def get_agent_by_role(self, role: str) -> list[AgentInfo]:
         """Get all active agents with specific role"""
         all_agents = self.get_active_agents(include_self=True)
         return [a for a in all_agents if a.role == role]
 
-    def get_current_agent(self) -> Optional[AgentInfo]:
+    def get_current_agent(self) -> AgentInfo | None:
         """Get this agent's info"""
         return self._agent_info
 
-    def get_current_agent_id(self) -> Optional[str]:
+    def get_current_agent_id(self) -> str | None:
         """Get this agent's ID"""
         return self._current_agent_id
 
@@ -421,7 +421,7 @@ class AgentRegistry:
         """Check if any OTHER agent is active"""
         return len(self.get_active_agents(include_self=False)) > 0
 
-    def detect_conflicts(self, resource: str) -> List[AgentInfo]:
+    def detect_conflicts(self, resource: str) -> list[AgentInfo]:
         """Check if resource is locked by another agent"""
         if not self._available:
             return []
@@ -484,8 +484,8 @@ class MessageBus:
         return f"msg_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
     def send_message(
-        self, to_agent: str, msg_type: str, content: Any, metadata: Dict[str, Any] = None, reply_to: str = None
-    ) -> Optional[Message]:
+        self, to_agent: str, msg_type: str, content: Any, metadata: dict[str, Any] = None, reply_to: str = None
+    ) -> Message | None:
         """
         Send message to another agent or broadcast.
 
@@ -560,7 +560,7 @@ class MessageBus:
             print(f"[message_bus] Send error: {e}")
             return None
 
-    def get_messages(self, agent_id: str = None, limit: int = 50) -> List[Message]:
+    def get_messages(self, agent_id: str = None, limit: int = 50) -> list[Message]:
         """Get messages for an agent (or sent by agent if agent_id provided)"""
         if not self._available:
             return []
@@ -583,11 +583,11 @@ class MessageBus:
         except:
             return []
 
-    def get_sent_messages(self, limit: int = 50) -> List[Message]:
+    def get_sent_messages(self, limit: int = 50) -> list[Message]:
         """Get messages sent by this agent"""
         return self.get_messages(agent_id=self._agent_id, limit=limit)
 
-    def get_broadcasts(self, limit: int = 50) -> List[Message]:
+    def get_broadcasts(self, limit: int = 50) -> list[Message]:
         """Get recent broadcast messages"""
         if not self._available:
             return []
@@ -626,7 +626,7 @@ class MessageBus:
         except:
             return False
 
-    def search_messages(self, query: str, top_k: int = 5, msg_type: str = None, from_agent: str = None) -> List[Dict]:
+    def search_messages(self, query: str, top_k: int = 5, msg_type: str = None, from_agent: str = None) -> list[dict]:
         """
         Search messages semantically using vector store.
 
@@ -723,7 +723,7 @@ class SharedWorkspace:
         """Generate unique item ID"""
         return f"item_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
-    def put(self, key: str, value: Any, force: bool = False) -> Optional[SharedItem]:
+    def put(self, key: str, value: Any, force: bool = False) -> SharedItem | None:
         """
         Put an item in shared workspace.
 
@@ -782,7 +782,7 @@ class SharedWorkspace:
             print(f"[shared_workspace] Put error: {e}")
             return None
 
-    def get(self, key: str) -> Optional[SharedItem]:
+    def get(self, key: str) -> SharedItem | None:
         """Get an item from shared workspace"""
         if not self._available:
             return None
@@ -880,7 +880,7 @@ class SharedWorkspace:
         except:
             return False
 
-    def search_items(self, query: str, top_k: int = 5) -> List[Dict]:
+    def search_items(self, query: str, top_k: int = 5) -> list[dict]:
         """Search shared items semantically"""
         if not self._vector_store:
             return []
@@ -894,7 +894,7 @@ class SharedWorkspace:
         except:
             return []
 
-    def get_history(self, key: str, limit: int = 20) -> List[SharedItem]:
+    def get_history(self, key: str, limit: int = 20) -> list[SharedItem]:
         """Get version history of an item"""
         if not self._available:
             return []
@@ -912,7 +912,7 @@ class SharedWorkspace:
         except:
             return []
 
-    def get_all_keys(self) -> List[str]:
+    def get_all_keys(self) -> list[str]:
         """Get all keys in shared workspace"""
         if not self._available:
             return []
@@ -975,7 +975,7 @@ class SharedWorkspace:
             print(f"[shared_workspace] Failed to create space: {e}")
             return False
 
-    def get_spaces(self) -> List[Dict]:
+    def get_spaces(self) -> list[dict]:
         """Get all spaces"""
         if not self._available:
             return []
@@ -1010,7 +1010,7 @@ class HelpRequest:
         help_type: str,
         description: str,
         priority: str = "normal",
-        context: Dict = None,
+        context: dict = None,
         status: str = "pending",
         created_at: str = None,
         responded_at: str = None,
@@ -1027,7 +1027,7 @@ class HelpRequest:
         self.responded_at = responded_at
         self.helper_id = helper_id
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "request_id": self.request_id,
             "from_agent": self.from_agent,
@@ -1042,7 +1042,7 @@ class HelpRequest:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "HelpRequest":
+    def from_dict(cls, d: dict) -> "HelpRequest":
         return cls(
             request_id=d["request_id"],
             from_agent=d["from_agent"],
@@ -1058,8 +1058,8 @@ class HelpRequest:
 
 
 def create_help_request(
-    help_type: str, description: str, priority: str = "normal", context: Dict = None
-) -> Optional[HelpRequest]:
+    help_type: str, description: str, priority: str = "normal", context: dict = None
+) -> HelpRequest | None:
     """
     Create a help request that other agents can respond to.
 
@@ -1114,7 +1114,7 @@ def create_help_request(
         return None
 
 
-def get_pending_help_requests(limit: int = 20) -> List[HelpRequest]:
+def get_pending_help_requests(limit: int = 20) -> list[HelpRequest]:
     """Get pending help requests"""
     if not _redis_connection_available():
         return []
@@ -1162,9 +1162,7 @@ def respond_to_help_request(request_id: str, helper_id: str) -> bool:
         return False
 
 
-def spawn_helper_agent(
-    help_type: str, description: str, context: Dict = None, auto_launch: bool = True
-) -> Optional[str]:
+def spawn_helper_agent(help_type: str, description: str, context: dict = None, auto_launch: bool = True) -> str | None:
     """
     Request a helper agent to spawn.
 
@@ -1264,7 +1262,7 @@ def _backup_redis_if_needed(operation: str) -> bool:
             if os.path.exists(catalog_path):
                 import json as json_module
 
-                with open(catalog_path, "r") as f:
+                with open(catalog_path) as f:
                     catalog = json_module.load(f)
                 last_backup = catalog.get("last_backup", {})
                 if last_backup:
@@ -1316,7 +1314,7 @@ def get_shared_workspace() -> SharedWorkspace:
 # ============================================================================
 
 
-def initialize_multi_agent(session_id: str, session_unique: str, role: str = "general") -> Dict:
+def initialize_multi_agent(session_id: str, session_unique: str, role: str = "general") -> dict:
     """
     Initialize multi-agent system for this instance.
 

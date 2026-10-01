@@ -59,7 +59,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BINDINGS_PATH = ROOT / "data" / "lexicon-bindings.json"
 
 
-def load_bindings(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_bindings(path: Path | None = None) -> dict[str, Any]:
     """The table, minus its README block. {} when absent -- an unconfigured guard is a state."""
     p = Path(path or BINDINGS_PATH)
     try:
@@ -69,18 +69,18 @@ def load_bindings(path: Optional[Path] = None) -> Dict[str, Any]:
     return {k: v for k, v in raw.items() if not k.startswith("_")}
 
 
-def _read(rel: str) -> Optional[str]:
+def _read(rel: str) -> str | None:
     try:
         return (ROOT / rel).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
 
 
-def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Any]:
+def audit_bindings(bindings: dict[str, Any] | None = None) -> list[Any]:
     """Cross-read the binding table (belief) against the live tree (ground truth)."""
     tbl = load_bindings() if bindings is None else bindings
-    rows: List[Any] = []
-    seen_mech: Dict[str, str] = {}  # "file::pattern" -> first concept that claimed it
+    rows: list[Any] = []
+    seen_mech: dict[str, str] = {}  # "file::pattern" -> first concept that claimed it
 
     for concept, rec in sorted(tbl.items()):
         mechs = rec.get("mechanisms") or []
@@ -236,5 +236,5 @@ class LexiconDomain:
     def __init__(self, ground_truth_source: str = "bindings"):
         self._ground = ground_truth_source
 
-    def run(self) -> List[Any]:
+    def run(self) -> list[Any]:
         return audit_bindings()

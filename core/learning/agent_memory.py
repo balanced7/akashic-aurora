@@ -85,17 +85,17 @@ class Decision:
     status: str
     context: str
     decision: str
-    rationale: List[str]
-    alternatives: List[Dict]
-    consequences: Dict[str, List[str]]
+    rationale: list[str]
+    alternatives: list[dict]
+    consequences: dict[str, list[str]]
     created_at: str
     session_id: str = ""
-    supersedes: Optional[str] = None  # id of the decision this one replaces
+    supersedes: str | None = None  # id of the decision this one replaces
     superseded: bool = False  # set True when a newer decision supersedes it
     # T074 W2: provenance of the CONTENT -- True = hand-curated (an agent/human wrote it
     # deliberately), False = mechanically distilled (wrap/hooks), None = legacy/unflagged.
     # None renders age-only downstream: the flag beats inference, absence claims nothing.
-    curated: Optional[bool] = None
+    curated: bool | None = None
 
 
 @dataclass
@@ -106,10 +106,10 @@ class Experience:
     result: str
     success: bool
     score: float
-    learnings: List[str]
+    learnings: list[str]
     timestamp: str
     session_id: str = ""
-    supersedes: Optional[str] = None
+    supersedes: str | None = None
     superseded: bool = False
 
 
@@ -149,7 +149,7 @@ class AgentMemory:
 
     MAX_REFLECTIONS = 50  # keep only the newest N reflections in the index
 
-    def __init__(self, store: Optional[Store] = None):
+    def __init__(self, store: Store | None = None):
         self.store = store if store is not None else create_store(prefer_redis=True)
 
     @property
@@ -177,12 +177,12 @@ class AgentMemory:
         title: str,
         decision: str,
         context: str = "",
-        rationale: List[str] = None,
-        alternatives: List[Dict] = None,
-        consequences: Dict[str, List[str]] = None,
+        rationale: list[str] = None,
+        alternatives: list[dict] = None,
+        consequences: dict[str, list[str]] = None,
         session_id: str = "",
-        supersedes: Optional[str] = None,
-        curated: Optional[bool] = None,
+        supersedes: str | None = None,
+        curated: bool | None = None,
     ) -> str:
         """Record an architectural decision. If `supersedes` is given, the named prior
         decision is retired (Supersession), so reads/ranking surface only this.
@@ -227,7 +227,7 @@ class AgentMemory:
         # sentinel by design; reconciled Q4).
         head_key = HEAD_KEY_PREFIX + title
 
-        def _claim(current: Optional[str]) -> Optional[str]:
+        def _claim(current: str | None) -> str | None:
             if current is None or current == supersedes or not self._is_active(current):
                 return dec_id
             return None  # a foreign ACTIVE head owns this title -- lose cleanly
@@ -259,7 +259,7 @@ class AgentMemory:
         except Exception:
             return False
 
-    def _resolve_head(self, title_n: str) -> Optional[str]:
+    def _resolve_head(self, title_n: str) -> str | None:
         """Current ACTIVE head id for a normalized title. Reads the sentinel; when it is
         missing, dangling, or names a retired record, falls back to the newest ACTIVE
         record by scan (the RB-8 lazy bootstrap for pre-head corpora). None = fresh."""
@@ -281,7 +281,7 @@ class AgentMemory:
         HERE and not in decide() so a conflict never re-generates ids or rewrites bodies
         wastefully (reconciled Wave 3 spec)."""
         title_n = normalize_title(title)
-        last: Optional[SupersedeRaceError] = None
+        last: SupersedeRaceError | None = None
         for _ in range(max(1, retries)):
             head = self._resolve_head(title_n)
             try:
@@ -291,7 +291,7 @@ class AgentMemory:
         raise last
 
     # ----- RB-9: normalization collision scan -----
-    def find_normalization_collisions(self) -> List[Dict]:
+    def find_normalization_collisions(self) -> list[dict]:
         """Scan active decisions for title pairs that normalize-equal but STORED different.
         RB-9 (W3): flags pre-existing near-duplicates for manual ruling; never auto-merges.
         FULL-corpus scan: legacy twins are old by nature (pre-RB-9 writes), so a lookback
@@ -299,7 +299,7 @@ class AgentMemory:
         tests/test_w3_rb9_rb10.py with 2026-01 forgeries). Doctor/boot frequency, never
         the default read path. Returns {title, stored_variants, ids, count} per collision."""
         decisions = self.get_decisions(days=3650)
-        by_norm: Dict[str, List[Decision]] = {}
+        by_norm: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_norm.setdefault(n, []).append(d)
@@ -355,13 +355,13 @@ class AgentMemory:
             return False
 
     # ----- RB-10: all-retired-title detector -----
-    def get_retired_titles(self) -> List[Dict]:
+    def get_retired_titles(self) -> list[dict]:
         """Return titles whose every record is retired (vanished groups). Additive surface:
         default get_decisions() unchanged. Time-bounded to 90 days per the FM2 mitigation;
         older vanished groups surface only via --all. Each entry: {title, last_active_id,
         retired_count, last_retired_at}."""
         decisions = self.get_decisions(days=90, include_superseded=True)
-        by_title: Dict[str, List[Decision]] = {}
+        by_title: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_title.setdefault(n, []).append(d)
@@ -398,7 +398,7 @@ class AgentMemory:
         return True
 
     # ----- RB-11: chain-length warning -----
-    def get_long_chains(self, threshold: int | None = None) -> List[Dict]:
+    def get_long_chains(self, threshold: int | None = None) -> list[dict]:
         """Return titles whose superseded chain length exceeds the threshold (default
         CHAIN_WARN_THRESHOLD=50). Render-side only -- never on the default read path.
         FULL-corpus count: a chain that took months to grow is precisely the pathology
@@ -407,7 +407,7 @@ class AgentMemory:
         2026-07-11). Each entry: {title, count, oldest_id, newest_id}."""
         t = threshold if threshold is not None else CHAIN_WARN_THRESHOLD
         decisions = self.get_decisions(days=3650, include_superseded=True)
-        by_title: Dict[str, List[Decision]] = {}
+        by_title: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_title.setdefault(n, []).append(d)
@@ -420,7 +420,7 @@ class AgentMemory:
         long.sort(key=lambda c: -c["count"])
         return long
 
-    def get_decisions(self, days: int = 30, include_superseded: bool = False) -> List[Decision]:
+    def get_decisions(self, days: int = 30, include_superseded: bool = False) -> list[Decision]:
         """Get decisions from the last `days`, newest first. Active (not superseded) only by
         default; `include_superseded=True` is the archaeology path (notes --all)."""
         decisions = []
@@ -449,9 +449,9 @@ class AgentMemory:
         approach: str = "",
         result: str = "",
         score: float = 0,
-        learnings: List[str] = None,
+        learnings: list[str] = None,
         session_id: str = "",
-        supersedes: Optional[str] = None,
+        supersedes: str | None = None,
     ) -> str:
         """Record an experience. If `supersedes` is given, the named prior
         experience is retired (Supersession)."""
@@ -481,7 +481,7 @@ class AgentMemory:
             logger.error(f"Failed to record experience: {e}")
             return ""
 
-    def get_similar(self, task: str, limit: int = 5) -> List[Experience]:
+    def get_similar(self, task: str, limit: int = 5) -> list[Experience]:
         """Find similar past experiences (keyword overlap; richer retrieval is Phase C)."""
         similar = []
         seen = set()
@@ -505,7 +505,7 @@ class AgentMemory:
             logger.error(f"Failed to get similar experiences: {e}")
         return similar
 
-    def load_all_experiences(self) -> List[Experience]:
+    def load_all_experiences(self) -> list[Experience]:
         """All active (not superseded) experiences, newest first across success+failure."""
         out, seen = [], set()
         try:
@@ -552,7 +552,7 @@ class AgentMemory:
             logger.error(f"Failed to reflect: {e}")
             return ""
 
-    def get_insights(self, min_confidence: float = 0.6) -> List[Dict]:
+    def get_insights(self, min_confidence: float = 0.6) -> list[dict]:
         """Get actionable insights from recent reflections above a confidence floor."""
         insights = []
         try:
@@ -568,7 +568,7 @@ class AgentMemory:
 
     # ----- approaches (procedural) -----
     def register_approach(
-        self, component: str, name: str, status: str, learnings: List[str] = None, evidence: Dict = None
+        self, component: str, name: str, status: str, learnings: list[str] = None, evidence: dict = None
     ) -> str:
         """Register an approach (working/failed/in_progress) for a component."""
         app_id = f"{component}_{name[:20].lower().replace(' ', '_')}_{datetime.now().strftime('%m%d%H%M')}"
@@ -591,7 +591,7 @@ class AgentMemory:
             logger.error(f"Failed to register approach: {e}")
             return ""
 
-    def get_component_status(self, component: str) -> Dict[str, List[Dict]]:
+    def get_component_status(self, component: str) -> dict[str, list[dict]]:
         """Get all approaches for a component, grouped by status."""
         result = {"working": [], "failed": [], "in_progress": []}
         try:
@@ -610,7 +610,7 @@ class AgentMemory:
         return result
 
     # ----- retrieval + stats -----
-    def get_context(self, query: str = "") -> Dict[str, Any]:
+    def get_context(self, query: str = "") -> dict[str, Any]:
         """Assemble relevant memory for a task: decisions, experiences, insights, stats."""
         decisions = self.get_decisions(days=30)
         recent_experiences = []
@@ -629,7 +629,7 @@ class AgentMemory:
             "stats": self.get_stats(),
         }
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Overall memory statistics."""
         try:
             decisions = self.store.zcard(self.KEY_DECISION_INDEX)
@@ -654,7 +654,7 @@ class AgentMemory:
         root_cause: str,
         fix_applied: str = "",
         component: str = "system",
-        learnings: List[str] = None,
+        learnings: list[str] = None,
         session_id: str = "",
     ) -> str:
         """
@@ -707,10 +707,10 @@ class AgentMemory:
 
 
 # Global instance
-_agent_memory: Optional[AgentMemory] = None
+_agent_memory: AgentMemory | None = None
 
 
-def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
+def get_agent_memory(store: Store | None = None) -> AgentMemory:
     """
     Get or create the global AgentMemory instance.
 

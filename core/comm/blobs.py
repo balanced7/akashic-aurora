@@ -46,14 +46,14 @@ def _default_base() -> Path:
 
 
 class BlobStore:
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: str | None = None):
         self.base = Path(base_dir) if base_dir else _default_base()
 
     def _path(self, sha: str) -> Path:
         return self.base / sha
 
     @staticmethod
-    def _sha_of_ref(ref: str) -> Optional[str]:
+    def _sha_of_ref(ref: str) -> str | None:
         """The hash a ref names -- or None unless it is EXACTLY what put() mints (_SHA_LEN lowercase
         hex). Everything after `blob:` used to be joined onto the store's base unvalidated, so
         `blob:../../../../etc/passwd` read /etc/passwd through the signed /blob door (it only
@@ -86,7 +86,7 @@ class BlobStore:
     def put_path(self, path) -> str:
         return self.put(Path(path).read_bytes())
 
-    def get(self, ref: str) -> Optional[bytes]:
+    def get(self, ref: str) -> bytes | None:
         """The bytes for a ref, or None if the ref is missing/garbage (never raises)."""
         sha = self._sha_of_ref(ref)
         if not sha:
@@ -102,7 +102,7 @@ class BlobStore:
         return bool(sha) and self._path(sha).exists()
 
 
-_INSTANCE: Optional[BlobStore] = None
+_INSTANCE: BlobStore | None = None
 
 
 def get_blob_store() -> BlobStore:

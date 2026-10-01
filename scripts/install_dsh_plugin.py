@@ -46,7 +46,7 @@ def _stamp_env(env_path: str, stamps: dict, dry: bool) -> list:
     """Update KEY=VALUE lines in-place, append missing; preserve everything else."""
     lines = []
     if os.path.exists(env_path):
-        lines = io.open(env_path, encoding="utf-8").read().splitlines()
+        lines = open(env_path, encoding="utf-8").read().splitlines()
     seen, out, changes = set(), [], []
     for ln in lines:
         key = ln.split("=", 1)[0].strip() if "=" in ln and not ln.lstrip().startswith("#") else None
@@ -66,7 +66,7 @@ def _stamp_env(env_path: str, stamps: dict, dry: bool) -> list:
             out.append(f"{key}={val}")
     if changes and not dry:
         os.makedirs(os.path.dirname(env_path), exist_ok=True)
-        io.open(env_path, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
+        open(env_path, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
     return changes
 
 

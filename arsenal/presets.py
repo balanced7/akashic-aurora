@@ -53,7 +53,7 @@ def _strip_comments(text: str) -> str:
 
 def parse_preset(path) -> dict:
     path = Path(path)
-    problems: List[str] = []
+    problems: list[str] = []
     info = {
         "id": path.stem,
         "file": path.name,
@@ -91,7 +91,7 @@ def parse_preset(path) -> dict:
     return info
 
 
-def _check_header(header: dict, stem: str, info: dict, problems: List[str]) -> None:
+def _check_header(header: dict, stem: str, info: dict, problems: list[str]) -> None:
     if header.get("id") != stem:
         problems.append(f"header id {header.get('id')!r} must equal the file name {stem!r}")
     for key in ("name", "author"):
@@ -134,7 +134,7 @@ def _check_header(header: dict, stem: str, info: dict, problems: List[str]) -> N
             info["params"].append({"k": k, "name": name.strip(), "default": default})
 
 
-def _check_source(body: str, problems: List[str]) -> None:
+def _check_source(body: str, problems: list[str]) -> None:
     if re.search(r"\b(mediump|lowp)\b", body):
         problems.append("use highp only (no mediump or lowp)")
     if not re.search(r"^\s*precision\s+highp\s+float\s*;", body, re.MULTILINE):
@@ -157,7 +157,7 @@ def _check_source(body: str, problems: List[str]) -> None:
             problems.append(f"a loop bound uses a uniform ({match.group(1).strip()}); bounds must be constant")
 
 
-def list_presets(directory=None) -> List[dict]:
+def list_presets(directory=None) -> list[dict]:
     directory = Path(directory) if directory else PRESET_DIR
     if not directory.is_dir():
         return []
@@ -219,7 +219,7 @@ def coupling(path) -> dict:
     }
 
 
-def coupling_table(directory=None) -> List[dict]:
+def coupling_table(directory=None) -> list[dict]:
     """The whole bank's listening profile, most-coupled first (ties broken by name)."""
     directory = Path(directory) if directory else PRESET_DIR
     if not directory.is_dir():

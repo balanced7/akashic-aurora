@@ -16,7 +16,8 @@ Rules (deltas E1/E4):
 """
 
 import json
-from typing import Any, Callable, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 
 from core.narrative.schema import Edge
 
@@ -28,7 +29,7 @@ def is_active(node: Any) -> bool:
     return not getattr(node, "superseded", False)
 
 
-def stamp(node: Any, *, now: str, origin: Optional[str] = None) -> Any:
+def stamp(node: Any, *, now: str, origin: str | None = None) -> Any:
     """Set `valid_from` once (the origin), refresh `recorded_at`. Never moves the origin."""
     if not getattr(node, "valid_from", None):
         node.valid_from = origin or now
@@ -36,9 +37,7 @@ def stamp(node: Any, *, now: str, origin: Optional[str] = None) -> Any:
     return node
 
 
-def regenerate_in_place(
-    store, node: Any, key_fn: Callable[[str], str], *, now: str, origin: Optional[str] = None
-) -> Any:
+def regenerate_in_place(store, node: Any, key_fn: Callable[[str], str], *, now: str, origin: str | None = None) -> Any:
     """Persist `node` under its STABLE id, preserving a prior `valid_from`. Idempotent: if the
     stored node has the same `version_hash`, only `recorded_at` would change, so we skip the write
     to keep re-runs byte-stable."""

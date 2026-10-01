@@ -24,7 +24,7 @@ import shutil
 import subprocess
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -35,7 +35,7 @@ import pytest
 # bomb that turns P6 red the day the date passes and blames the door. Stamped in the exact
 # form grant_writer writes ("%Y-%m-%dT%H:%M:%SZ") so the fixture stays byte-shaped like a
 # real acl.json. P0 pins the invariant.
-_EXPIRES_AT = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+_EXPIRES_AT = (datetime.now(UTC) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 SAMPLE = {
     "_comment": "test acl",

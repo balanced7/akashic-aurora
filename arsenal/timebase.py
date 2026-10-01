@@ -110,7 +110,7 @@ class TimeRef:
     def seconds(self) -> Fraction:
         return self.ticks * self.timebase
 
-    def rescale(self, timebase, *, exact: bool = True) -> "TimeRef":
+    def rescale(self, timebase, *, exact: bool = True) -> TimeRef:
         target = _as_timebase(timebase)
         q = self.seconds / target
         if q.denominator != 1:
@@ -164,7 +164,7 @@ class TimeRef:
         return {"clock": self.clock, "epoch": self.epoch, "ticks": self.ticks, "timebase": format_tb(self.timebase)}
 
     @classmethod
-    def from_json(cls, d: dict) -> "TimeRef":
+    def from_json(cls, d: dict) -> TimeRef:
         return cls(d["clock"], d["epoch"], d["ticks"], parse_tb(d["timebase"]))
 
 
@@ -199,14 +199,14 @@ class Clock:
         self.name = name
         self.domain = domain
         self._epoch = 0
-        self._history: List[Tuple[int, str]] = []
+        self._history: list[tuple[int, str]] = []
 
     @property
     def epoch(self) -> int:
         return self._epoch
 
     @property
-    def history(self) -> List[Tuple[int, str]]:
+    def history(self) -> list[tuple[int, str]]:
         return list(self._history)
 
     def bump_epoch(self, reason: str) -> int:

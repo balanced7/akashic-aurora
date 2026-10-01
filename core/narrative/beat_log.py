@@ -42,7 +42,7 @@ from core.foundation.timeutil import to_epoch as _epoch
 class BeatLog:
     """Append-and-read narrative Beats on a time-ordered timeline."""
 
-    def __init__(self, store: Optional[Store] = None):
+    def __init__(self, store: Store | None = None):
         self.store = store if store is not None else create_store()
 
     def emit(
@@ -51,13 +51,13 @@ class BeatLog:
         summary: str,
         source: str,
         *,
-        weight: Optional[int] = None,
-        at: Optional[str] = None,
-        track: Optional[str] = None,
-        themes: Optional[List[str]] = None,
-        relates: Optional[List[Edge]] = None,
+        weight: int | None = None,
+        at: str | None = None,
+        track: str | None = None,
+        themes: list[str] | None = None,
+        relates: list[Edge] | None = None,
         hint=None,
-    ) -> Optional[Beat]:
+    ) -> Beat | None:
         """Append a Beat. Requires a followable `source` (lossless-pointer rule).
         If `track` is not given, the TrackRouter infers it from `hint`/context (Slice 2).
         Returns the Beat, or None on a refusal (no source / invalid). Never raises."""
@@ -154,7 +154,7 @@ class BeatLog:
 
             bump(self.store, "route:error")  # a silent routing failure now leaves a trace
 
-    def _load(self, beat_id: str) -> Optional[Beat]:
+    def _load(self, beat_id: str) -> Beat | None:
         raw = self.store.get(beat_key(beat_id))
         if not raw:
             return None
@@ -163,11 +163,11 @@ class BeatLog:
         except (ValueError, TypeError):
             return None
 
-    def recent(self, limit: int = 20) -> List[Beat]:
+    def recent(self, limit: int = 20) -> list[Beat]:
         ids = self.store.zrange(TIMELINE, 0, max(0, limit - 1), desc=True)  # newest first
         return [b for b in (self._load(i) for i in ids) if b]
 
-    def in_window(self, start_iso: str, end_iso: str) -> List[Beat]:
+    def in_window(self, start_iso: str, end_iso: str) -> list[Beat]:
         ids = self.store.zrangebyscore(TIMELINE, _epoch(start_iso), _epoch(end_iso))
         return [b for b in (self._load(i) for i in ids) if b]
 
@@ -175,7 +175,7 @@ class BeatLog:
         return self.store.zcard(TIMELINE)
 
 
-_INSTANCE: Optional[BeatLog] = None
+_INSTANCE: BeatLog | None = None
 
 
 def reset_beat_log_singleton() -> None:
@@ -184,7 +184,7 @@ def reset_beat_log_singleton() -> None:
     _INSTANCE = None
 
 
-def get_beat_log(store: Optional[Store] = None) -> BeatLog:
+def get_beat_log(store: Store | None = None) -> BeatLog:
     """Module singleton (lazy). Pass `store` to get an isolated BeatLog (tests/trial).
 
     When ``_AISETUP_TEST_ISOLATED`` is set (see tests/isolate_canonical.py), never

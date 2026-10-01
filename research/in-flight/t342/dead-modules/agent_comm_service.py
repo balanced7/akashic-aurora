@@ -27,7 +27,8 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 # ============================================================================
 # CONFIGURATION
@@ -58,7 +59,7 @@ def get_persistent_agent_id() -> str:
 
     if os.path.exists(identity_file):
         try:
-            with open(identity_file, "r") as f:
+            with open(identity_file) as f:
                 data = json.load(f)
             return data.get("agent_id")
         except:
@@ -184,7 +185,7 @@ class RedisPubSub:
             self.client = None
             return False
 
-    def publish(self, msg: Dict) -> bool:
+    def publish(self, msg: dict) -> bool:
         """Publish message to channel"""
         if not self.client:
             return False
@@ -195,7 +196,7 @@ class RedisPubSub:
         except:
             return False
 
-    def subscribe(self, callback: Callable[[Dict], None]):
+    def subscribe(self, callback: Callable[[dict], None]):
         """Subscribe to messages"""
         self._callbacks["*"].append(callback)
 
@@ -256,7 +257,7 @@ class MessageBroker:
 
         self._start_polling()
 
-    def _on_redis_message(self, msg: Dict):
+    def _on_redis_message(self, msg: dict):
         """Handle Redis pub/sub message"""
         msg_id = msg.get("id")
         if msg_id and msg_id not in self._seen_message_ids:
@@ -285,7 +286,7 @@ class MessageBroker:
 
                     if mod_time > self._last_message_check:
                         try:
-                            with open(fpath, "r") as f:
+                            with open(fpath) as f:
                                 msg = json.load(f)
 
                             msg_id = msg.get("id")
@@ -316,7 +317,7 @@ class MessageBroker:
 
             time.sleep(MESSAGE_POLL_INTERVAL)
 
-    def _dispatch(self, msg: Dict):
+    def _dispatch(self, msg: dict):
         """Dispatch to callbacks"""
         msg_type = msg.get("type", "*")
 
@@ -326,7 +327,7 @@ class MessageBroker:
             except:
                 pass
 
-    def publish(self, msg_type: str, content: Dict, to_agent: str = "broadcast") -> str:
+    def publish(self, msg_type: str, content: dict, to_agent: str = "broadcast") -> str:
         """Publish a message"""
         msg_id = f"msg_{uuid.uuid4().hex[:12]}"
 
@@ -358,11 +359,11 @@ class MessageBroker:
 
         return msg_id
 
-    def subscribe(self, msg_type: str, callback: Callable[[Dict], None]):
+    def subscribe(self, msg_type: str, callback: Callable[[dict], None]):
         """Subscribe to message type"""
         self._callbacks[msg_type].append(callback)
 
-    def get_recent(self, limit: int = 20) -> List[Dict]:
+    def get_recent(self, limit: int = 20) -> list[dict]:
         """Get recent messages"""
         messages = []
         for fname in sorted(os.listdir(MESSAGES_DIR), reverse=True):
@@ -370,7 +371,7 @@ class MessageBroker:
                 continue
             fpath = os.path.join(MESSAGES_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     messages.append(json.load(f))
             except:
                 pass
@@ -444,7 +445,7 @@ class HeartbeatManager:
 
             fpath = os.path.join(MESSAGES_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     msg = json.load(f)
 
                 if msg.get("to_agent") == my_id:
@@ -532,7 +533,7 @@ class AgentCommService:
         with open(state_file, "w") as f:
             json.dump(state, f, indent=2)
 
-    def _on_message(self, msg: Dict):
+    def _on_message(self, msg: dict):
         """Handle incoming message"""
         to_agent = msg.get("to_agent", "broadcast")
 
@@ -550,7 +551,7 @@ class AgentCommService:
         # Update message count
         state_file = os.path.join(STATE_DIR, f"{self.agent_id}.json")
         if os.path.exists(state_file):
-            with open(state_file, "r") as f:
+            with open(state_file) as f:
                 state = json.load(f)
             state["message_count"] = state.get("message_count", 0) + 1
             state["last_message_from"] = msg.get("from_agent")
@@ -562,15 +563,15 @@ class AgentCommService:
         if msg_type == "ping":
             self.send_message("pong", {"original_time": content.get("time")}, msg.get("from_agent"))
 
-    def send_message(self, msg_type: str, content: Dict, to_agent: str = "broadcast") -> str:
+    def send_message(self, msg_type: str, content: dict, to_agent: str = "broadcast") -> str:
         """Send a message"""
         return self.broker.publish(msg_type, content, to_agent)
 
-    def send_personal_message(self, to_agent: str, msg_type: str, content: Dict) -> str:
+    def send_personal_message(self, to_agent: str, msg_type: str, content: dict) -> str:
         """Send message to specific agent"""
         return self.send_message(msg_type, content, to_agent)
 
-    def broadcast(self, msg_type: str, content: Dict) -> str:
+    def broadcast(self, msg_type: str, content: dict) -> str:
         """Broadcast to all agents"""
         return self.send_message(msg_type, content, "broadcast")
 
@@ -580,7 +581,7 @@ class AgentCommService:
         # In a real system, we'd wait for response
         return True
 
-    def get_active_agents(self) -> List[Dict]:
+    def get_active_agents(self) -> list[dict]:
         """Get all active agents"""
         agents = []
         watchdog = 60  # 60 seconds timeout
@@ -592,7 +593,7 @@ class AgentCommService:
 
             fpath = os.path.join(STATE_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     state = json.load(f)
 
                 last_hb = datetime.fromisoformat(state.get("last_heartbeat", "2000-01-01"))
@@ -665,7 +666,7 @@ class NotificationServer:
             try:
                 client, addr = self._sock.accept()
                 self._handle_client(client)
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except:
                 if self.running:

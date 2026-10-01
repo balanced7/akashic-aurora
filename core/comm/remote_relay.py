@@ -49,7 +49,8 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
+from collections.abc import Callable
 
 from core.comm import discord_bridge
 from core.foundation import filelock
@@ -122,7 +123,7 @@ INBOX_FILE_DEFAULT = _ROOT / "state" / "coord" / "remote_bridge_inbox.jsonl"
 
 #: Parsed-file cache keyed by path, invalidated on stat change. Real (tick may run on a timer
 #: and would otherwise re-parse every pass) and honest (_reset_cache simulates a fresh process).
-_FILE_CACHE: Dict[str, Tuple[Tuple[int, int], list]] = {}
+_FILE_CACHE: dict[str, tuple[tuple[int, int], list]] = {}
 
 # Serialises read-modify-write on the jsonl logs. The threading lock is the cheap
 # in-process guard (the listener is one process with many request threads); the
@@ -235,7 +236,7 @@ def _append_row(path: Path, row: dict, *, key: str = "id") -> bool:
         return True
 
 
-def _config() -> Dict[str, Any]:
+def _config() -> dict[str, Any]:
     try:
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -375,7 +376,7 @@ def blob_matches_ref(data, ref: str) -> bool:
     return hashlib.sha256(bytes(data)).hexdigest()[: len(want)] == want
 
 
-def file_announcement(path, *, blobs=None) -> Dict[str, Any]:
+def file_announcement(path, *, blobs=None) -> dict[str, Any]:
     """Stage a file and describe it. Returns the NOTICE, never the payload.
 
     A 1.5MB corpus does not become a 1.5MB message: the bytes go to the content-addressed blob
@@ -402,7 +403,7 @@ def file_announcement(path, *, blobs=None) -> Dict[str, Any]:
     }
 
 
-def render_file_announcement(ann: Dict[str, Any]) -> str:
+def render_file_announcement(ann: dict[str, Any]) -> str:
     """One line for every surface that shows a ref — inbox, watcher, relay, doctor.
 
     Each of those readers must see the DOOR beside the pointer. Enumerating the surfaces and
@@ -420,7 +421,7 @@ def sign(payload_bytes: bytes, secret: bytes) -> str:
     return _hmac.new(secret, payload_bytes, hashlib.sha256).hexdigest()
 
 
-def _stable_id(msg: Dict[str, Any]) -> str:
+def _stable_id(msg: dict[str, Any]) -> str:
     """The id used for dedupe + outbox cursor. Prefers the message's own id; falls back
     to a content hash so a message without an id still gets a stable address (never an
     ever-fresh uuid — that would make redelivery un-dedupeable)."""
@@ -431,7 +432,7 @@ def _stable_id(msg: Dict[str, Any]) -> str:
     return "h:" + hashlib.sha256(raw).hexdigest()[:16]
 
 
-def _allowed(msg: Dict[str, Any]) -> bool:
+def _allowed(msg: dict[str, Any]) -> bool:
     """The BRIDGE allowlist, by KIND ONLY — see BRIDGE_KINDS for why this is not
     discord_bridge.should_forward().
 
@@ -450,7 +451,7 @@ def _allowed(msg: Dict[str, Any]) -> bool:
     return str(msg.get("kind") or "") in BRIDGE_KINDS
 
 
-def _payload(msg: Dict[str, Any]) -> Dict[str, Any]:
+def _payload(msg: dict[str, Any]) -> dict[str, Any]:
     """The projected surface a remote peer is allowed to see. Narrow on purpose: a peer
     never touches our inbox, lanes, Redis, or any control verb — it gets the same
     FORWARD_KINDS slice Discord gets, redacted, with reasoning stripped."""
@@ -464,7 +465,7 @@ def _payload(msg: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def render(msg: Dict[str, Any]) -> bytes:
+def render(msg: dict[str, Any]) -> bytes:
     """One canonically-signed payload (JSON + HMAC). Canonical ordering (sort_keys) so the
     sender and verifier compute the same signature. Never raises on a malformed message."""
     try:
@@ -473,7 +474,7 @@ def render(msg: Dict[str, Any]) -> bytes:
         return json.dumps({"v": 1, "frm": "?", "kind": "?", "content": ""}, sort_keys=True).encode("utf-8")
 
 
-def build_envelope(msg: Dict[str, Any], secret: bytes) -> Dict[str, str]:
+def build_envelope(msg: dict[str, Any], secret: bytes) -> dict[str, str]:
     """The wire envelope: base64 body + its HMAC, so the verifier does not need to re-serialize
     byte-for-byte. Pure; the transport (push) and verify (v1) both consume this shape."""
     body = render(msg)
@@ -481,11 +482,11 @@ def build_envelope(msg: Dict[str, Any], secret: bytes) -> Dict[str, str]:
 
 
 def push(
-    msg: Dict[str, Any],
+    msg: dict[str, Any],
     *,
-    url: Optional[str] = None,
-    post: Optional[Callable[[str, Dict[str, str]], Any]] = None,
-    secret: Optional[bytes] = None,
+    url: str | None = None,
+    post: Callable[[str, dict[str, str]], Any] | None = None,
+    secret: bytes | None = None,
     peer: str = "",
 ) -> BoundaryOutcome:
     """Push one message to the remote peer's relay. NEVER RAISES.
@@ -541,7 +542,7 @@ def push(
     return BoundaryOutcome.done(ref=_stable_id(msg), chars=len(envelope["body"]))
 
 
-def _default_post(url: str, envelope: Dict[str, str]) -> Any:
+def _default_post(url: str, envelope: dict[str, str]) -> Any:
     """The only network call in this module, isolated so every pin runs offline.
 
     STDLIB ONLY, ON PURPOSE. This used `requests`, which is not in the standard library --
@@ -600,7 +601,7 @@ def verify(body_b64: str, sig: str, secret: bytes, *, within_s: int = SKEW_WINDO
 # =============================================================================================
 
 
-def enqueue(msg: Dict[str, Any], *, secret: Optional[bytes] = None, peer: str = "") -> BoundaryOutcome:
+def enqueue(msg: dict[str, Any], *, secret: bytes | None = None, peer: str = "") -> BoundaryOutcome:
     """Park one message for delivery. NEVER RAISES.
 
     REFUSES AT THE DOOR, not at the tick. A message that can never be delivered (wrong kind)
@@ -640,9 +641,9 @@ def pending() -> list:
 
 def tick(
     *,
-    post: Optional[Callable[[str, Dict[str, str]], Any]] = None,
-    url: Optional[str] = None,
-    secret: Optional[bytes] = None,
+    post: Callable[[str, dict[str, str]], Any] | None = None,
+    url: str | None = None,
+    secret: bytes | None = None,
     limit: int = 50,
 ) -> BoundaryOutcome:
     """Attempt delivery of the backlog. NEVER RAISES. Reports what actually happened.
@@ -701,10 +702,10 @@ def tick(
 # =============================================================================================
 
 #: Last message admitted, for pins and for the drain verb's "what just arrived" line.
-_LAST_ADMITTED: Dict[str, Any] = {}
+_LAST_ADMITTED: dict[str, Any] = {}
 
 
-def last_admitted() -> Dict[str, Any]:
+def last_admitted() -> dict[str, Any]:
     """The most recently admitted message, AS PARKED (provenance rewritten, content redacted)."""
     return dict(_LAST_ADMITTED)
 
@@ -716,7 +717,7 @@ def admitted_count(mid: str) -> int:
 
 
 def accept(
-    envelope: Dict[str, str], *, secret: Optional[bytes] = None, peer: str = "", within_s: int = SKEW_WINDOW_S
+    envelope: dict[str, str], *, secret: bytes | None = None, peer: str = "", within_s: int = SKEW_WINDOW_S
 ) -> BoundaryOutcome:
     """Admit (or refuse) one inbound envelope from the remote peer. NEVER RAISES.
 

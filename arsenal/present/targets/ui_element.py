@@ -25,7 +25,7 @@ DEFAULT_WIDTH = 400
 
 
 def fragment(
-    scene: dict, slide: dict, width: int = DEFAULT_WIDTH, tk: Optional[dict] = None, prefix: str = "present"
+    scene: dict, slide: dict, width: int = DEFAULT_WIDTH, tk: dict | None = None, prefix: str = "present"
 ) -> str:
     """The panel for one slide at `width` logical units wide (height follows 16:9)."""
     if not isinstance(width, (int, float)) or width <= 0:
@@ -54,7 +54,7 @@ def fragment(
     )
 
 
-def render(scene: dict, out_dir, width: int = DEFAULT_WIDTH, slide: Optional[str] = None, **opts) -> List[Path]:
+def render(scene: dict, out_dir, width: int = DEFAULT_WIDTH, slide: str | None = None, **opts) -> list[Path]:
     """Write <out_dir>/<slide id>.html for one slide (`slide=<id>`) or for every slide."""
     out = Path(out_dir)
     tk = C.tokens(scene)
@@ -63,7 +63,7 @@ def render(scene: dict, out_dir, width: int = DEFAULT_WIDTH, slide: Optional[str
         slides = [s for s in slides if s.get("id") == slide]
         if not slides:
             raise ValueError(f"no slide {slide!r} in the scene")
-    written: List[Path] = []
+    written: list[Path] = []
     for s in slides:
         written.append(C.write_bytes(out / f"{s['id']}.html", fragment(scene, s, int(width), tk) + "\n"))
     return written

@@ -49,7 +49,7 @@ def _ms(eid: Any) -> int:
         return 0
 
 
-def _norm(e: Dict[str, Any]) -> Dict[str, Any]:
+def _norm(e: dict[str, Any]) -> dict[str, Any]:
     """Defensive normalization -- malformed entries degrade, never crash (pin F5)."""
     meta = e.get("meta")
     if isinstance(meta, (bytes, str)):
@@ -78,7 +78,7 @@ def _norm(e: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------- the walk (pure, testable)
-def build_flows(entries: List[Dict[str, Any]], *, window_ms: int = DEFAULT_WINDOW_MS) -> Dict[str, Any]:
+def build_flows(entries: list[dict[str, Any]], *, window_ms: int = DEFAULT_WINDOW_MS) -> dict[str, Any]:
     """Group raw stream entries into causal flows.
 
     Returns {flows: [{flow, root, span_ms, nodes}], counts{}}. Each node:
@@ -95,9 +95,9 @@ def build_flows(entries: List[Dict[str, Any]], *, window_ms: int = DEFAULT_WINDO
 
     # Duplicate collapse: same content hash + same (frm,to,kind) = one logical message
     # observed N times. sha-less entries NEVER collapse (pin F5) -- no hash, no identity.
-    nodes: List[Dict[str, Any]] = []
-    by_key: Dict[Any, Dict[str, Any]] = {}
-    id_map: Dict[str, Dict[str, Any]] = {}
+    nodes: list[dict[str, Any]] = []
+    by_key: dict[Any, dict[str, Any]] = {}
+    id_map: dict[str, dict[str, Any]] = {}
     for n in sorted(kept, key=lambda x: x["ms"]):
         key = (n["sha"], n["frm"], n["to"], n["kind"]) if n["sha"] else object()
         node = by_key.get(key)
@@ -125,7 +125,7 @@ def build_flows(entries: List[Dict[str, Any]], *, window_ms: int = DEFAULT_WINDO
 
     # Causal linking via meta.answers. Guards: no self-link, parent must precede the
     # child in time (a later "parent" would cycle the tree -- treat as missing).
-    roots: List[Dict[str, Any]] = []
+    roots: list[dict[str, Any]] = []
     for node in nodes:
         ans = str(node["meta"].get("answers") or "")
         parent = id_map.get(ans) if ans else None
@@ -136,7 +136,7 @@ def build_flows(entries: List[Dict[str, Any]], *, window_ms: int = DEFAULT_WINDO
                 node["answers_missing"] = ans
             roots.append(node)
 
-    def _finish(node: Dict[str, Any], root_ms: int) -> int:
+    def _finish(node: dict[str, Any], root_ms: int) -> int:
         node["offset_ms"] = node["ms"] - root_ms
         node["lanes"] = sorted(node["lanes"])
         node.pop("meta", None)
@@ -157,20 +157,20 @@ def build_flows(entries: List[Dict[str, Any]], *, window_ms: int = DEFAULT_WINDO
     }
 
 
-def _tree_size(node: Dict[str, Any]) -> int:
+def _tree_size(node: dict[str, Any]) -> int:
     return 1 + sum(_tree_size(c) for c in node["children"])
 
 
 # ---------------------------------------------------------------- the loader (live streams)
 def flow_trace(
-    agent: Optional[str] = None,
+    agent: str | None = None,
     *,
     window_ms: int = DEFAULT_WINDOW_MS,
     per_stream: int = PER_STREAM_LIMIT,
-    namespace: Optional[str] = None,
+    namespace: str | None = None,
     client: Any = None,
-    skip_kinds: Optional[set] = None,
-) -> Dict[str, Any]:
+    skip_kinds: set | None = None,
+) -> dict[str, Any]:
     """Scan the live lane streams (work + legacy inboxes, both broadcasts) and build
     flows. `agent` filters to flows touching that agent. `skip_kinds` (default: trace)
     drops narration chatter BEFORE the walk -- pre-lane trace copies in legacy inboxes
@@ -184,7 +184,7 @@ def flow_trace(
         return {"flows": [], "counts": {"flows": 0, "nodes": 0, "copies": 0, "dropped_by_window": 0}, "offline": True}
     dec = lambda x: x.decode() if isinstance(x, bytes) else x
 
-    streams: List[str] = [f"{ns}:broadcast", f"{ns}:work:broadcast"]
+    streams: list[str] = [f"{ns}:broadcast", f"{ns}:work:broadcast"]
     try:
         for pat in (f"{ns}:work:inbox:*", f"{ns}:inbox:*"):
             for k in r.scan_iter(match=pat, count=200):
@@ -193,7 +193,7 @@ def flow_trace(
         pass
 
     skip = {"trace"} if skip_kinds is None else set(skip_kinds)
-    entries: List[Dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
     for s in dict.fromkeys(streams):  # order-preserving dedupe
         try:
             for eid, fields in r.xrevrange(s, count=per_stream):
@@ -218,7 +218,7 @@ def flow_trace(
     return out
 
 
-def _count(out: Dict[str, Any]) -> None:
+def _count(out: dict[str, Any]) -> None:
     """Best-effort funnel: queries + flows rendered. Kill switch AKASHIC_FLOW_NO_COUNT=1."""
     if os.environ.get("AKASHIC_FLOW_NO_COUNT") == "1":
         return

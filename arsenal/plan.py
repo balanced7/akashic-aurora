@@ -26,7 +26,7 @@ def _is_gpl(licence: str) -> bool:
 def make_plan(graph: Graph, registry: Registry) -> dict:
     graph.require_valid(registry)
 
-    nodes: List[dict] = []
+    nodes: list[dict] = []
     for name, node in graph.nodes.items():
         manifest = registry.get(node["use"])
         nodes.append(
@@ -40,8 +40,8 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
         )
     engine = {n["name"]: n["engine"] for n in nodes}
 
-    edges: List[dict] = []
-    warnings: List[str] = []
+    edges: list[dict] = []
+    warnings: list[str] = []
     for src, dst in graph.edges:
         s_node, s_port = src.split(".")[:2]
         d_node = dst.split(".")[0]
@@ -88,14 +88,14 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
 
 
 def _longest_path_ms(graph: Graph, registry: Registry) -> int:
-    base: Dict[str, int] = {
+    base: dict[str, int] = {
         name: int((registry.get(node["use"]).get("latency_ms") or {}).get("base", 0))
         for name, node in graph.nodes.items()
     }
-    preds: Dict[str, List[str]] = {n: [] for n in graph.nodes}
+    preds: dict[str, list[str]] = {n: [] for n in graph.nodes}
     for s, d in graph.node_edges():
         preds[d].append(s)
-    memo: Dict[str, int] = {}
+    memo: dict[str, int] = {}
 
     def total(n: str) -> int:
         if n not in memo:

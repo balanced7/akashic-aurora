@@ -25,10 +25,10 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
-def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
+def skip_to_now(agent: str, by: str, reason: str) -> dict[str, Any]:
     """Advance every consume cursor for `agent` to its stream tail. Returns a report dict:
     {"ok": bool, "refused": str, "before": {...}, "after": {...}}. Never raises."""
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "ok": False,
         "agent": str(agent),
         "by": str(by),
@@ -59,7 +59,7 @@ def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
         c = b._client
         out["before"] = {"shared": b.cursor(), "lane": b.read_lane_cursor()}
         tails = b.tail()  # legacy inbox/bc concrete tails
-        lane_fields: Dict[str, str] = {}
+        lane_fields: dict[str, str] = {}
         for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
             keys = b._lane_keys(lane)
             for logical, field in (("inbox", fi), ("bc", fb)):

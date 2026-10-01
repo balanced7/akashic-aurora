@@ -21,7 +21,7 @@ scripts/migrate_time_scores.py. This module is now the one clock end to end: now
 writes stamps, to_epoch() compares them, render_iso() is the single display door.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 
 
@@ -39,7 +39,7 @@ def to_epoch(iso: Any) -> float:
     except (ValueError, TypeError):
         return 0.0
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.timestamp()
 
 
@@ -51,7 +51,7 @@ def hours_between(a: Any, b: Any) -> float:
 def now_iso() -> str:
     """The one write-side stamp (T119 G5): aware UTC ISO, self-describing on the wire.
     to_epoch() is its exact inverse; legacy naive rows keep working (naive == UTC)."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def render_iso(value: Any, *, tz: str = "local") -> str:
@@ -68,13 +68,13 @@ def render_iso(value: Any, *, tz: str = "local") -> str:
         if isinstance(value, datetime):
             dt = value
         elif isinstance(value, (int, float)) and not isinstance(value, bool):
-            dt = datetime.fromtimestamp(float(value), tz=timezone.utc)
+            dt = datetime.fromtimestamp(float(value), tz=UTC)
         else:
             dt = datetime.fromisoformat(str(value).strip())
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)  # naive == UTC: one law, one door
+            dt = dt.replace(tzinfo=UTC)  # naive == UTC: one law, one door
         if str(tz).strip().lower() == "utc":
-            return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         local = dt.astimezone()  # machine-local zone
         label = local.strftime("%Z")
         if label and " " in label:  # "Eastern Daylight Time" -> "EDT"

@@ -50,7 +50,7 @@ def _parse_at(s: str) -> datetime | None:
         return None
 
 
-def fold_signals(calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+def fold_signals(calls: list[dict[str, Any]]) -> dict[str, Any]:
     """Fold an ordered per-session call list into the signal aggregates (see module docstring).
 
     Pure + total: bad/missing fields degrade to neutral values, never raise. Rates are 0.0 when
@@ -67,7 +67,7 @@ def fold_signals(calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     seen_paths: set = set()
     failed_open: set = set()  # targets with an unresolved failure (flip pending)
     fail_targets: set = set()
-    touch: Dict[str, int] = {}  # per-target hit count (any tool, targeted calls only)
+    touch: dict[str, int] = {}  # per-target hit count (any tool, targeted calls only)
     prev_key = None
     last_progress_idx = -1  # call index of the newest commit-or-flip
     first_at = last_at = None

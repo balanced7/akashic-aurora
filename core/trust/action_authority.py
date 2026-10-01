@@ -13,12 +13,13 @@ but the returned preview state is ``unknown`` rather than an invented allow.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Tuple
+from typing import Any, Dict, Tuple
+from collections.abc import Mapping
 
 # Values, not enum member names: these are also the strings rendered by ground
 # and security/acl.json.  Nudge/steer require BUS_SEND as well as their special
 # capability because the real door checks both the special gate and kind gate.
-TOOLBOX_BUS_REQUIREMENTS: Dict[str, Tuple[str, ...]] = {
+TOOLBOX_BUS_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "bifrost_send": ("bus.send",),
     "bifrost_nudge": ("bus.send", "bus.nudge"),
     "bifrost_steer": ("bus.send", "bus.steer"),
@@ -32,7 +33,7 @@ _FIXED_KIND = {
 }
 
 
-def requirements_for_toolbox_action(action: str) -> Tuple[str, ...]:
+def requirements_for_toolbox_action(action: str) -> tuple[str, ...]:
     """Mechanically declared capability requirements for one ToolBox action."""
     return TOOLBOX_BUS_REQUIREMENTS.get(str(action or ""), ())
 
@@ -41,7 +42,7 @@ def evaluate_toolbox_bus_action(
     subject: str,
     action: str,
     arguments: Mapping[str, Any] | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return the real ToolBox Bifrost authorization decision without acting.
 
     ``execution_error`` is deliberately the exact string the ToolBox method

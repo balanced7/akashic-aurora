@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -54,7 +54,7 @@ CAVEAT = (
 _ADDR = "{session}:{line}"
 
 
-def _utc(ts: Any) -> Optional[float]:
+def _utc(ts: Any) -> float | None:
     """ISO string or epoch -> epoch seconds, naive treated as UTC (spine_d4)."""
     if ts is None:
         return None
@@ -65,7 +65,7 @@ def _utc(ts: Any) -> Optional[float]:
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.timestamp()
 
 
@@ -75,7 +75,7 @@ def _eye_con(db_path=None):
     return eye._connect(db_path)  # reuse the store; a second surface is the sin
 
 
-def _newest_operator_event(con, like_any: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+def _newest_operator_event(con, like_any: list[str] | None = None) -> dict[str, Any] | None:
     """Newest kind='user' operator event, optionally matching any phrase.
 
     kind='user' (not queue-operation twins) is the dispatch-brief guard: agent
@@ -83,7 +83,7 @@ def _newest_operator_event(con, like_any: Optional[List[str]] = None) -> Optiona
     legend) and ride the queue plane hardest.
     """
     wheres = ["e.voice = 'operator'", "e.type = 'user'", "e.ts IS NOT NULL"]
-    params: List[Any] = []
+    params: list[Any] = []
     if like_any:
         ors = " OR ".join("lower(e.text) LIKE ?" for _ in like_any)
         wheres.append(f"({ors})")
@@ -105,7 +105,7 @@ def _newest_operator_event(con, like_any: Optional[List[str]] = None) -> Optiona
     }
 
 
-def _ledger_moves(since_ts: float) -> List[Dict[str, Any]]:
+def _ledger_moves(since_ts: float) -> list[dict[str, Any]]:
     import json
 
     path = ROOT / "state" / "coord" / "tasks.json"
@@ -136,8 +136,8 @@ def _ledger_moves(since_ts: float) -> List[Dict[str, Any]]:
 _COMMIT_HARD_BOUND = 500
 
 
-def _commits_since(since_ts: float) -> List[str]:
-    iso = datetime.fromtimestamp(since_ts, tz=timezone.utc).isoformat()
+def _commits_since(since_ts: float) -> list[str]:
+    iso = datetime.fromtimestamp(since_ts, tz=UTC).isoformat()
     try:
         out = subprocess.run(
             ["git", "log", f"--since={iso}", "--format=%h %s"],
@@ -164,7 +164,7 @@ def _commits_since(since_ts: float) -> List[str]:
     return rows
 
 
-def _proposed_doors(limit: int = 5) -> List[Dict[str, str]]:
+def _proposed_doors(limit: int = 5) -> list[dict[str, str]]:
     import json
 
     path = ROOT / "state" / "coord" / "tasks.json"
@@ -185,7 +185,7 @@ def _proposed_doors(limit: int = 5) -> List[Dict[str, str]]:
     ]
 
 
-def _question_doors() -> List[Dict[str, str]]:
+def _question_doors() -> list[dict[str, str]]:
     path = ROOT / "charters" / "daniel" / "QUESTIONS.md"
     if not path.exists():
         return []
@@ -207,15 +207,15 @@ def _question_doors() -> List[Dict[str, str]]:
 
 
 def build_reentry(
-    now: Optional[float] = None, show_open_loops: bool = False, since: Optional[str] = None, db_path=None
-) -> Dict[str, Any]:
+    now: float | None = None, show_open_loops: bool = False, since: str | None = None, db_path=None
+) -> dict[str, Any]:
     """Assemble the render structure. Diff, filter, dereference — nothing else."""
     con = _eye_con(db_path)
     try:
         last = _newest_operator_event(con)
         since_ts = _utc(since) if since else (last["ts"] if last else None)
         if since_ts is None:
-            since_ts = (now or datetime.now(tz=timezone.utc).timestamp()) - 86400.0
+            since_ts = (now or datetime.now(tz=UTC).timestamp()) - 86400.0
         door = _newest_operator_event(con, like_any=list(REACHING_PHRASES))
         from core.eye import index as eye
 
@@ -223,10 +223,10 @@ def build_reentry(
     finally:
         con.close()
 
-    built: Dict[str, Any] = {
+    built: dict[str, Any] = {
         "since": {
             "ts": since_ts,
-            "iso": datetime.fromtimestamp(since_ts, tz=timezone.utc).isoformat(),
+            "iso": datetime.fromtimestamp(since_ts, tz=UTC).isoformat(),
             "last_word": ({"text": last["text"], "addr": last["addr"]} if last else None),
         },
         "evidence": {
@@ -274,8 +274,8 @@ def _trim(text: str, cap: int = 420) -> str:
     return text if len(text) <= cap else text[:cap].rstrip() + " …"
 
 
-def render_reentry(built: Dict[str, Any]) -> str:
-    L: List[str] = []
+def render_reentry(built: dict[str, Any]) -> str:
+    L: list[str] = []
     add = L.append
     add("# re-entry — assembled for Daniil")
     add(f"  (since your last word, {built['since']['iso']})")

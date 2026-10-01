@@ -78,11 +78,11 @@ class PayloadProof:
     files: int
     blocks: int
     bytes: int
-    mismatches: List[str] = field(default_factory=list)
+    mismatches: list[str] = field(default_factory=list)
     declared_files: int = 0
     declared_blocks: int = 0
     #: set when the READ ITSELF failed. Distinct from "read fine, found nothing wrong".
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def complete(self) -> bool:
@@ -115,14 +115,14 @@ def proof_receipt(proof: PayloadProof) -> str:
 
 
 # ------------------------------------------------------------------- THE DOOR
-def clear_refusals(pkg: Optional[Dict[str, Any]], proof: PayloadProof, *, elevated: bool) -> List[str]:
+def clear_refusals(pkg: dict[str, Any] | None, proof: PayloadProof, *, elevated: bool) -> list[str]:
     """Every reason NOT to clear `PackageStatus.Modified`, named. Empty list == may
     proceed.
 
     This is the door, not a check-then-proceed. The design effort lives here because
     this is the half that carries information; the caller's pass path is one `if`.
     """
-    out: List[str] = []
+    out: list[str] = []
 
     # -- the package itself ---------------------------------------------------
     if not pkg:
@@ -218,7 +218,7 @@ def is_elevated() -> bool:
     return out.lower().startswith("true")
 
 
-def query_package(name: str = PACKAGE_NAME) -> Optional[Dict[str, Any]]:
+def query_package(name: str = PACKAGE_NAME) -> dict[str, Any] | None:
     """The installed package, or None. None means ABSENT and is treated as a refusal
     upstream -- never as 'nothing wrong'."""
     out = _ps(
@@ -271,7 +271,7 @@ def verify_payload(install_location: str, max_seconds: float = 600.0) -> Payload
 
     deadline = time.time() + max_seconds
     files = blocks = total_bytes = 0
-    mismatches: List[str] = []
+    mismatches: list[str] = []
 
     for fel in decl_files:
         if time.time() > deadline:
@@ -357,7 +357,7 @@ def verify_recovered(full_name: str, *, settle_s: float = 20.0, process_name: st
 
 
 # ------------------------------------------------------------- the rung's face
-def observe_app(name: str = PACKAGE_NAME) -> Dict[str, Any]:
+def observe_app(name: str = PACKAGE_NAME) -> dict[str, Any]:
     """The revive-ladder observation for this rung. Cheap: status only, no hashing --
     the 629 MB verification is part of the HEAL, not the every-few-minutes probe."""
     import os

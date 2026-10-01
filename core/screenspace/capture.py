@@ -69,17 +69,17 @@ class ScreenFrame:
     """
 
     available: bool = False
-    pixels: Optional[bytes] = None  # PNG bytes when available
+    pixels: bytes | None = None  # PNG bytes when available
     width: int = 0
     height: int = 0
     dpi_scale: float = 1.0
     ts_ms: int = 0
     source: str = "mss"
     sha256: str = ""
-    long_edge_budget: Optional[int] = None  # the budget that was applied
+    long_edge_budget: int | None = None  # the budget that was applied
     resized: bool = False  # True if we downscaled
-    refuse_reason: Optional[str] = None  # set when available=False
-    transient_path: Optional[str] = None  # only when caller persists
+    refuse_reason: str | None = None  # set when available=False
+    transient_path: str | None = None  # only when caller persists
 
     def to_dict(self) -> dict:
         """Structured form (never a bare string) — the §4.1 provenance surface."""
@@ -97,7 +97,7 @@ class ScreenFrame:
         }
 
 
-def _png_from_shot(shot_image) -> Tuple[int, int, bytes]:
+def _png_from_shot(shot_image) -> tuple[int, int, bytes]:
     """Drain one mss screenshot into raw RGB -> PNG bytes; returns (w, h, png)."""
     # shot_image is a PIL.Image in mss >= 6; older versions give a raw byte str.
     from PIL import Image  # type: ignore
@@ -133,7 +133,7 @@ def _resize_to_budget(pixels: bytes, width: int, height: int, budget: int):
     return buf.getvalue(), nw, nh, True
 
 
-def screen(region=None, downscale_budget: Optional[int] = None) -> ScreenFrame:
+def screen(region=None, downscale_budget: int | None = None) -> ScreenFrame:
     """One-shot full-screen (or region) capture -> ScreenFrame.
 
     Args:

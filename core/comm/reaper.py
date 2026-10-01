@@ -89,7 +89,7 @@ def _later_stream_id(left: Any, right: Any) -> str:
     return str(left if _stream_id_tuple(left) >= _stream_id_tuple(right) else right)
 
 
-def _provably_dead(row: Dict[str, Any], *, client=None, ns: Optional[str] = None) -> bool:
+def _provably_dead(row: dict[str, Any], *, client=None, ns: str | None = None) -> bool:
     """DEAD by the roster's witness, or tombstoned by record. STALE is NOT dead --
     a wedged-but-beating loop resumes (S3); reaping it would rob a live seat (the
     exact failure kimi's slice-1 cut deferred the reaper to avoid)."""
@@ -110,12 +110,12 @@ ORPHAN_MIN_AGE_S = 240.0  # worklive TTL (180) + grace: a stream this old with N
 # arrived before its first boot-beat: NEVER robbed.
 
 
-def _orphan_rows(client, ns: str, known: set, min_age_s: float) -> List[Dict[str, Any]]:
+def _orphan_rows(client, ns: str, known: set, min_age_s: float) -> list[dict[str, Any]]:
     """kimi's S4 seam: seats that died BEFORE their first-ever heartbeat leave no worklive,
     no seatseen witness, no roster row -- invisible to a roster-only reaper, and they are
     exactly the seats most likely to strand. Detect them by their SEAT STREAMS: a stream
     whose newest entry is older than the age floor, with no witness of life, is an orphan."""
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     try:
         streams = [str(k) for k in client.keys(f"{ns}:inbox:*")]
     except Exception:
@@ -154,15 +154,15 @@ def _orphan_rows(client, ns: str, known: set, min_age_s: float) -> List[Dict[str
 
 
 def reap(
-    ns: str, *, client=None, limit_per_seat: int = 50, _orphan_min_age_s: Optional[float] = None
-) -> List[Dict[str, Any]]:
+    ns: str, *, client=None, limit_per_seat: int = 50, _orphan_min_age_s: float | None = None
+) -> list[dict[str, Any]]:
     """Re-home every provably-dead seat's unread directed mail. Returns re-home records.
     Idempotent; loud; never raises. The one re-homing writer (Law C).
     Covers BOTH death shapes: witnessed deaths (roster DEAD / tombstone) AND never-beaten
     orphan streams (kimi's seam -- crash-before-first-beat), age-discriminated so a
     just-born seat is never robbed."""
     client = client or _connect()
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         from core.comm import roster as _roster
         from core.comm.bus import Bus

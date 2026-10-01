@@ -36,7 +36,7 @@ from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch
 class ReinforcedGraph:
     def __init__(
         self,
-        store: Optional[Store] = None,
+        store: Store | None = None,
         learning_rate: float = LEARNING_RATE,
         half_life_seconds: float = HALF_LIFE_SECONDS,
     ):
@@ -92,7 +92,7 @@ class ReinforcedGraph:
     def strength(self, a: str, b: str, *, now) -> float:
         return self._decayed(self._load(a, b), now)
 
-    def neighbors(self, a: str, *, now, top_k: int = 10) -> List[Tuple[str, float]]:
+    def neighbors(self, a: str, *, now, top_k: int = 10) -> list[tuple[str, float]]:
         """Strongest current associations of `a`, decayed-to-now, strongest first."""
         nbrs = self.store.smembers(f"persp:assoc:node:{a}")
         scored = [(n, self.strength(a, n, now=now)) for n in nbrs]
@@ -101,10 +101,10 @@ class ReinforcedGraph:
         return scored[:top_k]
 
 
-_INSTANCE: Optional[ReinforcedGraph] = None
+_INSTANCE: ReinforcedGraph | None = None
 
 
-def get_reinforced_graph(store: Optional[Store] = None) -> ReinforcedGraph:
+def get_reinforced_graph(store: Store | None = None) -> ReinforcedGraph:
     # T069 reconciled spec: injection -> fresh; _AISETUP_TEST_ISOLATED -> fresh per
     # call, cache untouched (stateless wrapper); canonical -> lazy singleton.
     import os

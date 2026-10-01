@@ -156,7 +156,7 @@ def test_emit_survives_a_reader_holding_the_file_open(tmp_path):
     """On Windows os.replace fails while another handle is open; an append must not."""
     led = FileLedger(str(tmp_path))
     led.emit("held", {"i": 0}, maxlen=3)
-    with open(tmp_path / "held.jsonl", "r", encoding="utf-8") as reader:
+    with open(tmp_path / "held.jsonl", encoding="utf-8") as reader:
         reader.readline()
         for i in range(1, 6):
             led.emit("held", {"i": i}, maxlen=3)

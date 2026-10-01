@@ -36,7 +36,7 @@ class DirectiveViolation:
     directive: str
     severity: str
     description: str
-    evidence: Dict
+    evidence: dict
     timestamp: str
 
 
@@ -46,8 +46,8 @@ class DirectivesComplianceChecker:
     """
 
     def __init__(self):
-        self.violations: List[DirectiveViolation] = []
-        self.checks_performed: List[str] = []
+        self.violations: list[DirectiveViolation] = []
+        self.checks_performed: list[str] = []
 
     def check_test_before_deploy(self) -> bool:
         """
@@ -74,7 +74,7 @@ class DirectivesComplianceChecker:
 
         # Check for verify_logs calls in recent log
         try:
-            with open(log_file, "r") as f:
+            with open(log_file) as f:
                 lines = f.readlines()
 
             recent_lines = lines[-100:] if len(lines) > 100 else lines
@@ -129,7 +129,7 @@ class DirectivesComplianceChecker:
 
         try:
             if os.path.exists(log_file):
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     lines = f.readlines()
 
                 recent_lines = lines[-200:] if len(lines) > 200 else lines
@@ -180,7 +180,7 @@ class DirectivesComplianceChecker:
 
         try:
             if os.path.exists(log_file):
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     content = f.read().lower()
 
                 # Check if fallback patterns exist in recent logs
@@ -210,7 +210,7 @@ class DirectivesComplianceChecker:
             return True  # No errors is good
 
         try:
-            with open(log_file, "r") as f:
+            with open(log_file) as f:
                 lines = f.readlines()
 
             recent_errors = lines[-50:] if len(lines) > 50 else lines
@@ -252,7 +252,7 @@ class DirectivesComplianceChecker:
 
         try:
             if os.path.exists(log_file):
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     lines = f.readlines()
 
                 recent_lines = lines[-100:] if len(lines) > 100 else lines
@@ -301,7 +301,7 @@ class DirectivesComplianceChecker:
             return False
 
         try:
-            with open(log_file, "r") as f:
+            with open(log_file) as f:
                 lines = f.readlines()
 
             recent_lines = lines[-100:] if len(lines) > 100 else lines
@@ -361,7 +361,7 @@ class DirectivesComplianceChecker:
 
         try:
             if os.path.exists(log_file):
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     lines = f.readlines()
 
                 recent_lines = lines[-200:] if len(lines) > 200 else lines
@@ -402,7 +402,7 @@ class DirectivesComplianceChecker:
 
         return True
 
-    def run_all_checks(self) -> Dict[str, Any]:
+    def run_all_checks(self) -> dict[str, Any]:
         """Run all directive checks"""
         results = {
             "compliant": True,
@@ -453,13 +453,13 @@ class DirectivesComplianceChecker:
         return results
 
 
-def check_compliance() -> Dict[str, Any]:
+def check_compliance() -> dict[str, Any]:
     """Run all directive compliance checks"""
     checker = DirectivesComplianceChecker()
     return checker.run_all_checks()
 
 
-def print_directives_report(compliance: Dict = None):
+def print_directives_report(compliance: dict = None):
     """Print a human-readable directives compliance report"""
     if compliance is None:
         compliance = check_compliance()

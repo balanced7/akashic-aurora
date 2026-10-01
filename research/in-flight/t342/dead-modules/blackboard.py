@@ -93,7 +93,7 @@ class Blackboard:
             except:
                 pass
 
-    def _get_redis_flag(self, key: str) -> Optional[str]:
+    def _get_redis_flag(self, key: str) -> str | None:
         """Get Redis flag"""
         if self._redis:
             try:
@@ -156,7 +156,7 @@ class Blackboard:
         """Get current phase"""
         if not os.path.exists(STATE_FILE):
             return PHASE_IDLE
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
         return state.get("phase", PHASE_IDLE)
 
@@ -164,11 +164,11 @@ class Blackboard:
         """Get current turn number"""
         if not os.path.exists(STATE_FILE):
             return 0
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
         return state.get("turn", 0)
 
-    def get_proposal(self) -> Dict:
+    def get_proposal(self) -> dict:
         """Get current proposal (only if ready flag is set)"""
         # Check if proposal is ready to read
         ready = self._get_redis_flag(REDIS_PROPOSAL_READY)
@@ -177,10 +177,10 @@ class Blackboard:
 
         if not os.path.exists(PAYLOAD_FILE):
             return {}
-        with open(PAYLOAD_FILE, "r") as f:
+        with open(PAYLOAD_FILE) as f:
             return json.load(f)
 
-    def get_verdict(self) -> Dict:
+    def get_verdict(self) -> dict:
         """Get current verdict (only if ready flag is set)"""
         # Check if verdict is ready to read
         ready = self._get_redis_flag(REDIS_VERDICT_READY)
@@ -189,12 +189,12 @@ class Blackboard:
 
         if not os.path.exists(VERDICT_FILE):
             return {"status": "PENDING", "reason": ""}
-        with open(VERDICT_FILE, "r") as f:
+        with open(VERDICT_FILE) as f:
             return json.load(f)
 
     def _save_state(self, phase: str):
         """Save state to file"""
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
         state["phase"] = phase
         with open(STATE_FILE, "w") as f:
@@ -202,7 +202,7 @@ class Blackboard:
 
     def _increment_turn(self):
         """Increment turn counter"""
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
         state["turn"] = state.get("turn", 0) + 1
         with open(STATE_FILE, "w") as f:
@@ -220,7 +220,7 @@ class Blackboard:
         return True
 
     def submit_proposal(
-        self, agent: str, title: str, description: str, steps: List[Dict], metadata: Dict = None
+        self, agent: str, title: str, description: str, steps: list[dict], metadata: dict = None
     ) -> bool:
         """
         Submit a proposal with proper locking.
@@ -263,7 +263,7 @@ class Blackboard:
 
         return True
 
-    def submit_verdict(self, agent: str, status: str, reason: str, checks_performed: List[str] = None) -> bool:
+    def submit_verdict(self, agent: str, status: str, reason: str, checks_performed: list[str] = None) -> bool:
         """
         Submit audit verdict with proper locking.
         """
@@ -295,7 +295,7 @@ class Blackboard:
 
         return True
 
-    def mark_execution_complete(self, agent: str, success: bool, results: Dict = None) -> bool:
+    def mark_execution_complete(self, agent: str, success: bool, results: dict = None) -> bool:
         """Mark execution complete"""
         current = self.get_state()
         if current != PHASE_EXECUTING:
@@ -347,7 +347,7 @@ class Blackboard:
         with open(history_file, "w") as f:
             json.dump(archive, f, indent=2)
 
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE) as f:
             state = json.load(f)
         state["phase"] = PHASE_IDLE
         with open(STATE_FILE, "w") as f:
@@ -377,13 +377,13 @@ class Blackboard:
         self.initialize(force=True)
         return True
 
-    def get_fault_learnings(self) -> List[Dict]:
+    def get_fault_learnings(self) -> list[dict]:
         """Get fault learnings from errors_and_faults.jsonl"""
         faults = []
         fault_file = r"E:\AI-Setup\session_logs\errors_and_faults.jsonl"
 
         if os.path.exists(fault_file):
-            with open(fault_file, "r") as f:
+            with open(fault_file) as f:
                 for line in f:
                     try:
                         faults.append(json.loads(line.strip()))
@@ -408,7 +408,7 @@ class Blackboard:
         """Clear verdict ready flag (after reading)"""
         self._set_redis_flag(REDIS_VERDICT_READY, "0")
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get full blackboard status"""
         return {
             "state": self.get_state(),
@@ -420,7 +420,7 @@ class Blackboard:
             "fault_learnings_count": len(self.get_fault_learnings()),
         }
 
-    def wait_for_verdict(self, timeout=300, poll_interval=1) -> Dict:
+    def wait_for_verdict(self, timeout=300, poll_interval=1) -> dict:
         """Wait for analyst verdict by polling Redis flag"""
         start = time.time()
 
@@ -433,7 +433,7 @@ class Blackboard:
 
         return {"status": "TIMEOUT", "reason": "Waited too long for verdict"}
 
-    def wait_for_proposal(self, timeout=300, poll_interval=1) -> Dict:
+    def wait_for_proposal(self, timeout=300, poll_interval=1) -> dict:
         """Wait for generator proposal (for Analyst)"""
         start = time.time()
 

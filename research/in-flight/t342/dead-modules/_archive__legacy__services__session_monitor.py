@@ -79,8 +79,8 @@ class MonitorState:
     """State for the session monitor"""
 
     last_check: str = ""
-    sessions_tracked: Dict[str, dict] = field(default_factory=dict)
-    silent_sessions: List[str] = field(default_factory=list)
+    sessions_tracked: dict[str, dict] = field(default_factory=dict)
+    silent_sessions: list[str] = field(default_factory=list)
     nudged_this_session: int = 0
 
 
@@ -110,7 +110,7 @@ class SessionMonitor:
 
     def __init__(self):
         self.state = MonitorState()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self.running = False
         self._lock = threading.Lock()
         self._load_state()
@@ -119,7 +119,7 @@ class SessionMonitor:
         """Load state from file"""
         if os.path.exists(STATE_FILE):
             try:
-                with open(STATE_FILE, "r") as f:
+                with open(STATE_FILE) as f:
                     data = json.load(f)
                     self.state = MonitorState(**data)
             except Exception as e:
@@ -158,7 +158,7 @@ class SessionMonitor:
             self.redis_client = None
             return False
 
-    def _get_opencode_sessions_from_redis(self) -> Dict[str, SessionInfo]:
+    def _get_opencode_sessions_from_redis(self) -> dict[str, SessionInfo]:
         """Get OpenCode sessions from Redis"""
         sessions = {}
 
@@ -211,7 +211,7 @@ class SessionMonitor:
 
         return sessions
 
-    def _get_sessions_from_files(self) -> Dict[str, SessionInfo]:
+    def _get_sessions_from_files(self) -> dict[str, SessionInfo]:
         """Get sessions from log files"""
         sessions = {}
 
@@ -223,7 +223,7 @@ class SessionMonitor:
             session_counts = defaultdict(int)
             session_last_activity = {}
 
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
@@ -259,7 +259,7 @@ class SessionMonitor:
 
         return sessions
 
-    def _update_session_status(self, sessions: Dict[str, SessionInfo]):
+    def _update_session_status(self, sessions: dict[str, SessionInfo]):
         """Update session logging status"""
         now = datetime.now()
         silence_threshold = now - timedelta(minutes=SILENCE_THRESHOLD_MINUTES)
@@ -295,7 +295,7 @@ class SessionMonitor:
                 "is_logging": info.is_logging,
             }
 
-    def poll(self) -> Dict:
+    def poll(self) -> dict:
         """Poll and update session status"""
         stats = {"total_sessions": 0, "opencode_sessions": 0, "logging": 0, "silent": 0, "nudged": 0}
 
@@ -331,7 +331,7 @@ class SessionMonitor:
 
         return stats
 
-    def nudge_silent_sessions(self) -> List[str]:
+    def nudge_silent_sessions(self) -> list[str]:
         """Nudge silent OpenCode sessions to start logging"""
         nudged = []
 
@@ -386,7 +386,7 @@ class SessionMonitor:
         """Get primer text for non-logging sessions"""
         return PRIMER_MESSAGE
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get current status"""
         return {
             "last_check": self.state.last_check,
@@ -434,7 +434,7 @@ class MonitorRunner:
     def __init__(self):
         self.monitor = SessionMonitor()
         self._shutdown_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._nudge_counter = 0
 
     def _run_loop(self):
@@ -490,7 +490,7 @@ class MonitorRunner:
 
 
 # Global runner
-_runner: Optional[MonitorRunner] = None
+_runner: MonitorRunner | None = None
 
 
 def _signal_handler(signum, frame):

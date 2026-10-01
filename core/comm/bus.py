@@ -28,7 +28,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any, Dict, List, Optional
 
 from core.comm import packet_spec
@@ -50,7 +50,7 @@ def bell_channel(to: str) -> str:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _loud(msg: str) -> None:
@@ -105,7 +105,7 @@ class Part:
 
     content_type: str  # text/plain | application/json | image/png | ...
     inline: Any = None  # the value, when carried inline
-    ref: Optional[str] = None  # a blob ref, when stored out-of-band
+    ref: str | None = None  # a blob ref, when stored out-of-band
 
     @property
     def is_ref(self) -> bool:
@@ -117,11 +117,11 @@ class Part:
             return (blobs or get_blob_store()).get(self.ref)
         return self.inline
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"content_type": self.content_type, "inline": self.inline, "ref": self.ref}
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Part":
+    def from_dict(cls, d: dict[str, Any]) -> "Part":
         return cls(
             content_type=d.get("content_type", "application/octet-stream"), inline=d.get("inline"), ref=d.get("ref")
         )
@@ -140,7 +140,7 @@ def media_part(data, content_type: str, *, blobs=None) -> Part:
     return Part(content_type, ref=(blobs or get_blob_store()).put(data))
 
 
-def file_part(path, *, content_type: Optional[str] = None, blobs=None) -> Part:
+def file_part(path, *, content_type: str | None = None, blobs=None) -> Part:
     import mimetypes
 
     ct = content_type or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
@@ -155,10 +155,10 @@ class Message:
     kind: str  # chat | request | response | handoff | note | ...
     content: Any
     ts: str
-    meta: Dict[str, Any] = field(default_factory=dict)
-    parts: List[Part] = field(default_factory=list)  # A2A parts (inline or blob refs)
+    meta: dict[str, Any] = field(default_factory=dict)
+    parts: list[Part] = field(default_factory=list)  # A2A parts (inline or blob refs)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "frm": self.frm,
@@ -177,12 +177,12 @@ class Bus:
     def __init__(
         self,
         agent_id: str,
-        client: Optional[Any] = None,
+        client: Any | None = None,
         *,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         maxlen: int = DEFAULT_MAXLEN,
-        promote: Optional[bool] = None,
-        incarnation: Optional[str] = None,
+        promote: bool | None = None,
+        incarnation: str | None = None,
     ):
         self.agent_id = str(agent_id or "unknown")
         # T108 slice 2 (deepseek's proposal): when a caller declares WHICH incarnation
@@ -194,14 +194,14 @@ class Bus:
         # a runner's MODEL never reads -- it reaches the ManagedChild ring, not the turn.
         # Record it here so the calling door can say so in the string the model DOES read.
         # Reset on every send: a stale flag would report a collapse that did not happen.
-        self.last_reask: Optional[str] = None
+        self.last_reask: str | None = None
         self.ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
         self.maxlen = maxlen
         self._client = client if client is not None else _connect()
         # B2: durably project salient kinds by default -- but NOT under pytest, so transport tests
         # never leak into the canonical firehose. Pass promote=True/False to force the behavior.
         self._promote = (os.getenv("PYTEST_CURRENT_TEST") is None) if promote is None else bool(promote)
-        self._card: Dict[str, Any] = {}  # the agent's A2A-style card (runtime_class/wake_mode/door/caps)
+        self._card: dict[str, Any] = {}  # the agent's A2A-style card (runtime_class/wake_mode/door/caps)
         self._last_degraded_warn = 0.0  # T043: rate-limit the integrity-disabled LOUD warning
         # T043: consumer-side fragment reassembly, DURABLY backed (survives restart -> the LOUD
         # timeout still fires; see packet_spec.Reassembler). Rehydrate any in-flight partial now.
@@ -227,11 +227,11 @@ class Bus:
         except Exception:
             return False
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         return {"online": self.online, "agent_id": self.agent_id, "pending": self.pending()}
 
     # ------------------------------------------------------------------ presence (B3)
-    def register(self, ttl: int = PRESENCE_TTL, *, card: Optional[Dict[str, Any]] = None) -> bool:
+    def register(self, ttl: int = PRESENCE_TTL, *, card: dict[str, Any] | None = None) -> bool:
         """Heartbeat: mark this agent online for `ttl` seconds, carrying an optional A2A-style Agent
         Card ({runtime_class, wake_mode, door, caps, ...}). The card is remembered so every later
         heartbeat (incl. the auto-touch on send/inbox) refreshes WITH it. Returns True if recorded."""
@@ -250,14 +250,14 @@ class Bus:
         """Refresh presence as a side effect of using the bus (sending/reading = being active)."""
         self.register()
 
-    def presence(self) -> List[Dict[str, Any]]:
+    def presence(self) -> list[dict[str, Any]]:
         """The agents currently online (presence keys not yet expired), with their Agent Card fields
         (runtime_class/wake_mode/door/caps) if registered. Backward-compatible with bare-timestamp
         presence records. Sorted by id."""
         if not self.online:
             return []
         try:
-            out: List[Dict[str, Any]] = []
+            out: list[dict[str, Any]] = []
             for k in self._client.keys(f"{self.ns}:presence:*") or []:
                 agent = str(k).rsplit(":", 1)[-1]
                 raw = self._client.get(k)
@@ -305,7 +305,7 @@ class Bus:
         return sid8(sid)
 
     # ------------------------------------------------------------------ send
-    def _resolve_recipient(self, to: Any, meta: Optional[Dict[str, Any]]):
+    def _resolve_recipient(self, to: Any, meta: dict[str, Any] | None):
         """Callsign -> agent id, carrying a receipt of the name actually typed.
 
         2026-08-20: `doctor` read `vandor: OFFLINE -- 2 unread but the agent is GONE`. Two
@@ -336,10 +336,10 @@ class Bus:
         kind: str,
         content: Any = None,
         *,
-        parts: Optional[List[Part]] = None,
-        meta: Optional[Dict[str, Any]] = None,
+        parts: list[Part] | None = None,
+        meta: dict[str, Any] | None = None,
         allow_frag: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Direct message to one agent's inbox (optionally with `parts` -- inline or media-by-ref).
         Returns the message id, or None if the bus is offline OR the packet exceeds the MTU and
         `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). By default
@@ -441,7 +441,7 @@ class Bus:
             pass
         return msg
 
-    def _warn_if_operator_unreachable(self, to: str, discord_feed_module) -> Optional[str]:
+    def _warn_if_operator_unreachable(self, to: str, discord_feed_module) -> str | None:
         """The operator-inbox half of `_warn_if_unattended`: warn only when the feed pump
         itself has nowhere to forward the message, never on the human's absence of a beat."""
         try:
@@ -468,10 +468,10 @@ class Bus:
         kind: str,
         content: Any = None,
         *,
-        parts: Optional[List[Part]] = None,
-        meta: Optional[Dict[str, Any]] = None,
+        parts: list[Part] | None = None,
+        meta: dict[str, Any] | None = None,
         allow_frag: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Fan-out to every agent (each reads it from its own cursor). Returns the message id or None
         (None also on an oversize refuse-loud when allow_frag is False -- T043). By default
         oversize payloads are auto-fragmented (P2 auto-chunk)."""
@@ -479,7 +479,7 @@ class Bus:
             self._bc_key, to=BROADCAST_TO, kind=kind, content=content, parts=parts, meta=meta, allow_frag=allow_frag
         )
 
-    def send_reply(self, to: str, content: Any = None, *, meta: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def send_reply(self, to: str, content: Any = None, *, meta: dict[str, Any] | None = None) -> str | None:
         """T066 S1-S3: the reply-path send -- lane-FIRST, legacy fallback. Replies are the
         one kind whose consumers are ALREADY lane-mode (T045 stage 2), so the advisory
         dual-write of `_emit` is not enough: a silently failed lane mirror strands the reply
@@ -529,7 +529,7 @@ class Bus:
             return self.send(to, "reply", content, meta=meta, allow_frag=True)
         packet_spec.stamp(env, length=length, sha=sha)
         lane_key = packet_spec.lane_stream_key(self.ns, "work", to=str(to))
-        lane_mid: Optional[str] = None
+        lane_mid: str | None = None
         for attempt in (1, 2):  # S2: exactly one retry
             try:
                 lane_mid = str(
@@ -543,7 +543,7 @@ class Bus:
                         f"falling back to legacy-only; lane consumers will get this reply "
                         f"via the straggler net, delayed"
                     )
-        legacy_mid: Optional[str] = None
+        legacy_mid: str | None = None
         try:
             legacy_mid = str(self._client.xadd(self._inbox_key(str(to)), env, maxlen=self.maxlen, approximate=True))
         except Exception:
@@ -556,7 +556,7 @@ class Bus:
         self._ring_bell(str(to), lane_mid or legacy_mid, "reply")
         return lane_mid or legacy_mid
 
-    def is_duplicate_reply(self, reply_id: str, *, ttl_s: Optional[int] = None) -> bool:
+    def is_duplicate_reply(self, reply_id: str, *, ttl_s: int | None = None) -> bool:
         """T066 S4: receiver-side reply dedup. First sight MARKS the id (SET NX + TTL) and
         reports False; a repeat within the TTL reports True. Fail-open: offline or a Redis
         error reports False -- deliver rather than drop (losing a reply is the worse bug).
@@ -577,11 +577,11 @@ class Bus:
         to: str,
         kind: str,
         content: Any,
-        parts: Optional[List[Part]] = None,
+        parts: list[Part] | None = None,
         meta=None,
         allow_frag: bool = True,
-        mirror_stream: Optional[str] = None,
-    ) -> Optional[str]:
+        mirror_stream: str | None = None,
+    ) -> str | None:
         """C6-7: lane-first send door (generalizes send_reply's pattern to ALL kinds).
 
         For a mapped kind, the LANE write happens FIRST (with one retry on transient failure)
@@ -628,7 +628,7 @@ class Bus:
 
         # --- C6-7 lane-first router ---
         lane = packet_spec.lane_for(str(kind))
-        lane_mid: Optional[str] = None
+        lane_mid: str | None = None
         lane_outcome: str = "unmapped"
 
         # Shadow router: observe the decision (T060 N0 counters stay alive)
@@ -693,7 +693,7 @@ class Bus:
                 pass
 
         # Legacy write: always attempted (fallback for mapped kinds; primary for unmapped)
-        legacy_mid: Optional[str] = None
+        legacy_mid: str | None = None
         try:
             legacy_mid = str(self._client.xadd(stream, env, maxlen=self.maxlen, approximate=True))
         except Exception:
@@ -759,7 +759,7 @@ class Bus:
         except Exception:
             return Bus._REASK_WINDOW_S
 
-    def _reask_key(self, to: str, kind: str, env: Dict[str, Any]) -> str:
+    def _reask_key(self, to: str, kind: str, env: dict[str, Any]) -> str:
         """Identity of the ASK, not of the packet. packet_spec's sha covers ts and meta
         (meta carries frm_incarnation), so it differs on every send of the same words --
         useless for spotting a repeat. Hash what a reader would call 'the same message':
@@ -770,7 +770,7 @@ class Bus:
             h.update(b"\x00")
         return f"{self.ns}:reask:{to}:{h.hexdigest()[:32]}"
 
-    def _reask_original(self, *, to: str, kind: str, env: Dict[str, Any]) -> Optional[str]:
+    def _reask_original(self, *, to: str, kind: str, env: dict[str, Any]) -> str | None:
         """The id of the still-live original this send would duplicate, or None to
         deliver normally.
 
@@ -823,7 +823,7 @@ class Bus:
         except Exception:
             return None  # fail OPEN
 
-    def _reask_remember(self, *, to: str, kind: str, env: Dict[str, Any], mid: str) -> None:
+    def _reask_remember(self, *, to: str, kind: str, env: dict[str, Any], mid: str) -> None:
         """Record which id this ask landed as, so the next identical send can collapse
         onto it. Best-effort: losing this only costs a duplicate."""
         if not mid or self._client is None or to == BROADCAST_TO:
@@ -843,7 +843,7 @@ class Bus:
             return default
         return str(raw).strip().lower() not in ("0", "false", "no", "off", "")
 
-    def _emit_fragments(self, stream: str, env: Dict[str, Any], *, to: str, kind: str) -> Optional[str]:
+    def _emit_fragments(self, stream: str, env: dict[str, Any], *, to: str, kind: str) -> str | None:
         """Split an oversize payload into MTU-safe fragment packets and xadd each (T043 pin 5).
         Every fragment is len+sha-stamped and carries frag={seq,of,whole_id,whole_len,whole_sha}
         so the consumer can reassemble and detect a missing piece (pin 6). Rings the bell ONCE
@@ -855,7 +855,7 @@ class Bus:
         lane = packet_spec.lane_for(str(kind))
         target = None if to == BROADCAST_TO else str(to)
         lane_key = packet_spec.lane_stream_key(self.ns, lane, to=target) if lane else None
-        first_legacy_mid: Optional[str] = None
+        first_legacy_mid: str | None = None
         for fenv in packet_spec.fragment(env):
             # Lane write (if mapped, best-effort -- the advisory mirror survives here)
             if lane_key is not None:
@@ -877,7 +877,7 @@ class Bus:
 
     _unmapped_loud_seen: set = set()  # once-per-kind-per-process throttle (class-level)
 
-    def _lane_write(self, env: Dict[str, Any], *, to: str, kind: str) -> None:
+    def _lane_write(self, env: dict[str, Any], *, to: str, kind: str) -> None:
         """DEPRECATED by C6-7: _emit() is now lane-first -- the lane write happens in _emit()
         itself. This stub exists for backward compat; the T039a P0 advisory mirror is retired.
         The shadow_router mirror-family counters that lived here are also retired -- lane delivery
@@ -901,8 +901,8 @@ class Bus:
         *,
         advance: bool = True,
         generation: int = 0,
-        commit_status_out: Optional[Dict[str, str]] = None,
-    ) -> List[Message]:
+        commit_status_out: dict[str, str] | None = None,
+    ) -> list[Message]:
         """New messages for this agent (direct + broadcast), oldest-first, from the per-agent cursor.
 
         `advance=True` moves the cursor past what's returned (so the next call won't re-read). An agent's
@@ -924,10 +924,10 @@ class Bus:
         *,
         limit: int = 50,
         advance: bool = False,
-        since: Optional[Dict[str, str]] = None,
-        since_out: Optional[Dict[str, str]] = None,
-        streams: Optional[Dict[str, str]] = None,
-    ) -> List[Message]:
+        since: dict[str, str] | None = None,
+        since_out: dict[str, str] | None = None,
+        streams: dict[str, str] | None = None,
+    ) -> list[Message]:
         """BLOCK until a new message arrives (or `timeout_ms` elapses; 0 = forever), then return it.
 
         The event-driven wake primitive: an idle agent (or a backgrounded watcher) blocks here at ~0
@@ -977,12 +977,12 @@ class Bus:
         block,
         limit: int,
         advance: bool,
-        since: Optional[Dict[str, str]] = None,
-        since_out: Optional[Dict[str, str]] = None,
+        since: dict[str, str] | None = None,
+        since_out: dict[str, str] | None = None,
         generation: int = 0,
-        commit_status_out: Optional[Dict[str, str]] = None,
-        streams: Optional[Dict[str, str]] = None,
-    ) -> List[Message]:
+        commit_status_out: dict[str, str] | None = None,
+        streams: dict[str, str] | None = None,
+    ) -> list[Message]:
         if not self.online:
             return []
         self._touch()
@@ -999,7 +999,7 @@ class Bus:
         # (no contention by construction -- no RB-21 fence needed). Only on the plain consume
         # path: `since` (watcher-owned positions) and `streams` (lane retarget) opt out.
         my_sid8 = self._my_sid8()  # named so it can never shadow the module-level sid8()
-        seat_key: Optional[str] = None
+        seat_key: str | None = None
         seat_cur = "0"
         if my_sid8 and since is None and streams is None:
             seat_key = self._seat_inbox_key(self.agent_id, my_sid8)
@@ -1033,11 +1033,11 @@ class Bus:
         if not packet_spec.integrity_enabled():  # kill-switch off: delivering UNVERIFIED -> LOUD (pin 4)
             self._integrity_degraded_warn()
         new_inbox, new_bc, new_seat = cur["inbox"], cur["bc"], seat_cur
-        out: List[Message] = []
+        out: list[Message] = []
         # Track which stream each message came from so we can fix the cursor AFTER truncation.
         # (The old code used the last-read id -- even for entries skipped by out[:limit] -- causing
         # a cursor-skip when the stream had more entries than limit. T014 Defect 1.)
-        out_streams: List[str] = []  # "inbox" | "bc" | "seat" (parallel to out)
+        out_streams: list[str] = []  # "inbox" | "bc" | "seat" (parallel to out)
         for stream, entries in res or []:
             is_bc = stream == keys["bc"]
             is_seat = seat_key is not None and stream == seat_key
@@ -1227,12 +1227,12 @@ class Bus:
         return sum(1 for m in msgs if _beyond(m))
 
     # ------------------------------------------------------------------ cursor
-    def tail(self) -> Dict[str, str]:
+    def tail(self) -> dict[str, str]:
         """The CONCRETE last-entry id of this agent's inbox + the broadcast stream ("0" when
         empty/unreadable). The safe 'start from NOW' frontier for a local since-cursor: unlike
         the "$" sentinel (which skips anything landing between two blocking reads), a
         materialized id makes every later arrival detectable (P0 review fold-in)."""
-        out: Dict[str, str] = {}
+        out: dict[str, str] = {}
         for stream, key in (("inbox", self._inbox_key(self.agent_id)), ("bc", self._bc_key)):
             try:
                 last = self._client.xrevrange(key, count=1)
@@ -1241,7 +1241,7 @@ class Bus:
                 out[stream] = "0"
         return out
 
-    def cursor(self) -> Dict[str, str]:
+    def cursor(self) -> dict[str, str]:
         """A read-only snapshot of this agent's shared read-cursor ({"inbox": id, "bc": id}).
         Does not create or touch the key -- the seed for a watcher's local `since` position."""
         return self._read_cursor()
@@ -1254,7 +1254,7 @@ class Bus:
         except ValueError:
             return (0, 0)
 
-    def effective_cursor(self) -> Dict[str, str]:
+    def effective_cursor(self) -> dict[str, str]:
         """W43 (kimi's cursor-divergence find, 2026-07-21): the agent's TRUE consumed
         frontier on the LEGACY streams -- per-field max of the shared cursor and the lane
         cursor's SHADOW fields (work_drain's legacy straggler-net position). A lane-mode
@@ -1269,13 +1269,13 @@ class Bus:
             lane = self.read_lane_cursor()
         except Exception:
             return cur
-        out: Dict[str, str] = {}
+        out: dict[str, str] = {}
         for field, shadow in (("inbox", "shadow_inbox"), ("bc", "shadow_bc")):
             a, b = cur.get(field, "0"), lane.get(shadow, "0")
             out[field] = a if self._sid_tuple(a) >= self._sid_tuple(b) else b
         return out
 
-    def _read_cursor(self) -> Dict[str, str]:
+    def _read_cursor(self) -> dict[str, str]:
         try:
             h = self._client.hgetall(self._cursor_key()) or {}
         except Exception:
@@ -1316,10 +1316,10 @@ class Bus:
     def advance_to(
         self,
         *,
-        inbox: Optional[str] = None,
-        bc: Optional[str] = None,
+        inbox: str | None = None,
+        bc: str | None = None,
         generation: int = 0,
-        cursor_key: Optional[str] = None,
+        cursor_key: str | None = None,
     ) -> str:
         """Commit the shared read-cursor PAST handled work (RB-26: commit-after-processing;
         the at-least-once half of the idempotent-consumer pattern). Guarded by the fencing
@@ -1349,7 +1349,7 @@ class Bus:
                 worst = res
         return worst
 
-    def advance_cursor_fields(self, cursor_key: str, fields: Dict[str, str], generation: int = 0) -> str:
+    def advance_cursor_fields(self, cursor_key: str, fields: dict[str, str], generation: int = 0) -> str:
         """Per-field guarded advance on an arbitrary cursor hash -- the sig/shadow sibling
         of advance_to(cursor_key=): same Lua (stale generation + backwards refused at the
         resource), arbitrary field names (sig_inbox/sig_bc/shadow_inbox/shadow_bc). WORK
@@ -1370,7 +1370,7 @@ class Bus:
         return worst
 
     # ------------------------------------------------ T045 stage 2: LANE consumer cursor
-    def lane_cursor_key(self, agent: Optional[str] = None) -> str:
+    def lane_cursor_key(self, agent: str | None = None) -> str:
         """'{ns}:cursor:lane:{agent}' -- the lane consumer's DURABLE cursor hash (fence Q1,
         deepseek proposal adopted 2026-07-14). Fields mirror the shared cursor: inbox/bc =
         WORK-lane positions (the at-least-once surface, advanced via advance_to(cursor_key=)
@@ -1391,7 +1391,7 @@ class Bus:
 
     _LANE_CURSOR_FIELDS = ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc")
 
-    def read_lane_cursor(self) -> Dict[str, str]:
+    def read_lane_cursor(self) -> dict[str, str]:
         """All lane-cursor fields with '0' defaults (virgin = drain-from-start semantics --
         a truly-new post-strangler agent's lane holds only real mail, pin R7; MIGRATING
         agents run lane_cursor_flip_init() at the flip instead).
@@ -1415,7 +1415,7 @@ class Bus:
                 pass
         return {f: str(h.get(f, "0")) for f in self._LANE_CURSOR_FIELDS}
 
-    def read_lane_flip_seed(self) -> Dict[str, str]:
+    def read_lane_flip_seed(self) -> dict[str, str]:
         """The WORK positions lane_cursor_flip_init seeded a migrant at ({'inbox', 'bc'};
         '0' where no flip was recorded -- newborns, and hashes flipped before the record
         existed). Twins at or behind a seed are the flip gap the straggler net delivers.
@@ -1433,7 +1433,7 @@ class Bus:
                 return {"inbox": str(vals[0] or "0"), "bc": str(vals[1] or "0")}
         return {"inbox": "0", "bc": "0"}
 
-    def _lane_keys(self, lane: str) -> Dict[str, str]:
+    def _lane_keys(self, lane: str) -> dict[str, str]:
         """Logical inbox/bc pair -> this agent's stream keys on `lane`."""
         from core.comm import packet_spec
 
@@ -1458,7 +1458,7 @@ class Bus:
         cur = self.read_lane_cursor()
         if any(v != "0" for v in cur.values()):
             return False  # not virgin -> real progress, never rewind
-        fields: Dict[str, str] = {}
+        fields: dict[str, str] = {}
         for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
             keys = self._lane_keys(lane)
             for logical, field in (("inbox", fi), ("bc", fb)):
@@ -1514,7 +1514,7 @@ class Bus:
             return False  # truly new -- no ritual (pin R7 semantics)
         return self.lane_cursor_flip_init()
 
-    def _to_msg(self, sid: str, fields: Dict[str, Any]) -> Message:
+    def _to_msg(self, sid: str, fields: dict[str, Any]) -> Message:
         parts = [Part.from_dict(d) for d in (_loads(fields.get("parts")) or []) if isinstance(d, dict)]
         meta = _loads(fields.get("meta")) or {}
         # T133: CARRY THE PACKET SHA. This module's own dedup doctrine a few hundred lines up is
@@ -1539,7 +1539,7 @@ class Bus:
         )
 
     # ------------------------------------------------ T043 consume-door loud events
-    def _integrity_drop(self, sid: str, fields: Dict[str, Any], why: str) -> None:
+    def _integrity_drop(self, sid: str, fields: dict[str, Any], why: str) -> None:
         """A packet failed the consume-door len/sha check: DROP it (never deliver) and record a
         LOUD durable event + stderr line. The cursor still advances past it. RB-29 EXTENSION
         (pin 9): because a corrupt reply is dropped HERE, and expectations.sweep reads replies
@@ -1621,7 +1621,7 @@ class Bus:
     def _reasm_key(self) -> str:
         return f"{self.ns}:reasm:{self.agent_id}"
 
-    def _reasm_persist(self, whole_id: str, slot: Optional[Dict[str, Any]]) -> None:
+    def _reasm_persist(self, whole_id: str, slot: dict[str, Any] | None) -> None:
         """Mirror one in-flight reassembly slot to a Redis hash (slot=None deletes it on
         completion/timeout), so a consumer restart still fires the LOUD timeout for a partial
         (deepseek GATE RED fix: no silent loss on restart). Best-effort; never fails a drain."""
@@ -1653,10 +1653,10 @@ class Bus:
             pass
 
 
-_INSTANCES: Dict[Any, Bus] = {}
+_INSTANCES: dict[Any, Bus] = {}
 
 
-def get_bus(agent_id: Optional[str] = None) -> Bus:
+def get_bus(agent_id: str | None = None) -> Bus:
     """Module cache, one Bus per (namespace, agent identity) -- T069 reconciled spec
     (docs/library/report/20260715_t069-singleton-isolation-reconciliation_1a7cdb.md).
 

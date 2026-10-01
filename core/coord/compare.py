@@ -33,7 +33,8 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
+from collections.abc import Callable
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -56,7 +57,7 @@ def _norm_path(k: str) -> str:
 
 #: key_type -> how to compare two of them. A type with no normalizer compares literally,
 #: which is a decision the type is making rather than an omission.
-NORMALIZERS: Dict[str, Callable[[str], str]] = {
+NORMALIZERS: dict[str, Callable[[str], str]] = {
     "verb": _norm_verb,
     "path": _norm_path,
 }
@@ -72,16 +73,16 @@ class KeySet:
 
     name: str
     key_type: str
-    keys: Set[str] = field(default_factory=set)
+    keys: set[str] = field(default_factory=set)
     complete: bool = True
-    failed: Dict[str, str] = field(default_factory=dict)
+    failed: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.failed:
             # A source that errored did not collect everything, whatever it returned.
             self.complete = False
 
-    def view(self) -> Dict[str, Any]:
+    def view(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "key_type": self.key_type,
@@ -91,7 +92,7 @@ class KeySet:
         }
 
 
-def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
+def diff(a: KeySet, b: KeySet) -> dict[str, Any]:
     """A MINUS B, B MINUS A, and the intersection -- with both sides' provenance.
 
     Both directions are reported separately because they are DIFFERENT findings: "in the
@@ -124,8 +125,8 @@ def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
     # formatting as much as their contents. Originals are kept so a finding is reported
     # in the spelling its own system uses.
     nrm = NORMALIZERS.get(a.key_type, lambda k: str(k))
-    a_map: Dict[str, str] = {}
-    b_map: Dict[str, str] = {}
+    a_map: dict[str, str] = {}
+    b_map: dict[str, str] = {}
     for k in a.keys:
         a_map.setdefault(nrm(k), k)
     for k in b.keys:
@@ -136,7 +137,7 @@ def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
     both = sorted(a_map[n] for n in (set(a_map) & set(b_map)))
     identical = not only_a and not only_b
 
-    reasons: List[str] = []
+    reasons: list[str] = []
     if not a.complete:
         reasons.append(f"'{a.name}' is incomplete")
     if not b.complete:
@@ -164,13 +165,13 @@ def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
 
 
 # ----------------------------------------------------------------- domain collectors
-def _verbs_cli(**_) -> Set[str]:
+def _verbs_cli(**_) -> set[str]:
     from agent_cli import list_verbs
 
     return {n for n, _h in list_verbs(None)}
 
 
-def _verbs_mcp(**_) -> Set[str]:
+def _verbs_mcp(**_) -> set[str]:
     import ast
 
     with open(os.path.join(_ROOT, "ai_setup_mcp.py"), encoding="utf-8") as fh:
@@ -185,7 +186,7 @@ def _verbs_mcp(**_) -> Set[str]:
     return out
 
 
-def _files_tracked(**_) -> Set[str]:
+def _files_tracked(**_) -> set[str]:
     r = subprocess.run(
         ["git", "ls-files"], cwd=_ROOT, capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL
     )
@@ -194,13 +195,13 @@ def _files_tracked(**_) -> Set[str]:
     return {ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()}
 
 
-def _files_touched(since: Optional[float] = None, **_) -> Set[str]:
+def _files_touched(since: float | None = None, **_) -> set[str]:
     from core.coord.timeline import _file_rows
 
     return {r["summary"] for r in _file_rows(since=since)}
 
 
-def _lessons_all(**_) -> Set[str]:
+def _lessons_all(**_) -> set[str]:
     from core.learning.store import get_learning_store_instance
 
     store = get_learning_store_instance()
@@ -212,7 +213,7 @@ def _lessons_all(**_) -> Set[str]:
 
 #: name -> (collector, key_type). The key_type is what makes a comparison legal; two
 #: domains may only be diffed when they speak about the same kind of thing.
-DOMAINS: Dict[str, Tuple[Callable, str]] = {
+DOMAINS: dict[str, tuple[Callable, str]] = {
     "verbs:cli": (_verbs_cli, "verb"),
     "verbs:mcp": (_verbs_mcp, "verb"),
     "files:tracked": (_files_tracked, "path"),
@@ -240,6 +241,6 @@ def select(domain: str, **kw) -> KeySet:
         return KeySet(name=domain, key_type=key_type, keys=set(), failed={"collect": f"{e.__class__.__name__}: {e}"})
 
 
-def run(a_domain: str, b_domain: str, **kw) -> Dict[str, Any]:
+def run(a_domain: str, b_domain: str, **kw) -> dict[str, Any]:
     """select + select + diff, the ordinary path."""
     return diff(select(a_domain, **kw), select(b_domain, **kw))

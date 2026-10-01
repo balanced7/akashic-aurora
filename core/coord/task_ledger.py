@@ -80,7 +80,7 @@ PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, P
 STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, PARKED)
 
 # who may move where. DONE/ABANDONED are terminal (empty set).
-TRANSITIONS: Dict[str, set] = {
+TRANSITIONS: dict[str, set] = {
     # 2026-08-11: PARKED reachable from PROPOSED -- "still valid, just not now". The only exits
     # were ABANDONED (asserts the intent DIED when it merely DRIFTED) and the three-event detour
     # APPROVED -> CLAIMED -> PARKED, which manufactures a file claim to record one decision. Same
@@ -222,7 +222,7 @@ class LedgerConflict(LedgerError):
     the one refusal that is."""
 
 
-def _rev_of(data: Dict[str, Any]) -> int:
+def _rev_of(data: dict[str, Any]) -> int:
     """The write-REVISION a ledger payload carries: advanced by every save, of any kind.
 
     Files written before the rev anchor (77e485bb23) carry only `seq`. Read that AS the
@@ -235,7 +235,7 @@ def _rev_of(data: Dict[str, Any]) -> int:
 
 
 class TaskLedger:
-    def __init__(self, path: Optional[str] = None, client: Any = "auto"):
+    def __init__(self, path: str | None = None, client: Any = "auto"):
         # T352: AKASHIC_TASKS_PATH is the isolation door for drills that walk the
         # REAL verbs -- resolved at construction (not import) so a test can point a
         # subprocess-shelled CLI *and* its own in-process readers at one tmp store.
@@ -245,7 +245,7 @@ class TaskLedger:
         # client: "auto" resolves the bus Redis client lazily; None disables the mirror (git-only,
         # used by tests); or pass an object with get/set for an injected/fake client.
         self._client = client
-        self.tasks: Dict[str, Dict[str, Any]] = {}
+        self.tasks: dict[str, dict[str, Any]] = {}
         self._seq = 0
         # T270 / 77e485bb23 CAS: `_base_rev` is the on-disk write-REVISION this instance last
         # loaded or wrote. save() refuses to clobber a peer's newer write by comparing the
@@ -262,11 +262,11 @@ class TaskLedger:
             self._client = _bus_client()  # resolve once
         return self._client
 
-    def _payload(self) -> Dict[str, Any]:
+    def _payload(self) -> dict[str, Any]:
         """The on-disk shape: the id allocator, the write-revision, the rows."""
         return {"seq": self._seq, "rev": self._base_rev, "tasks": list(self.tasks.values())}
 
-    def _mirror(self, payload: Optional[Dict[str, Any]] = None) -> None:
+    def _mirror(self, payload: dict[str, Any] | None = None) -> None:
         """Write-through the whole ledger to Redis (fast reads). Best-effort; git file is the truth."""
         c = self._mirror_client()
         if c is None:
@@ -373,23 +373,23 @@ class TaskLedger:
             pass
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------
-    def get(self, tid: str) -> Optional[Dict[str, Any]]:
+    def get(self, tid: str) -> dict[str, Any] | None:
         return self.tasks.get(tid)
 
-    def by_status(self, status: str) -> List[Dict[str, Any]]:
+    def by_status(self, status: str) -> list[dict[str, Any]]:
         return [t for t in self.tasks.values() if t["status"] == status]
 
-    def in_progress(self) -> List[Dict[str, Any]]:
+    def in_progress(self) -> list[dict[str, Any]]:
         return [t for t in self.tasks.values() if t["status"] in ACTIVE]
 
     def is_done(self, tid: str) -> bool:
         t = self.tasks.get(tid)
         return bool(t) and t["status"] == DONE
 
-    def files_held(self, exclude: Optional[str] = None) -> Dict[str, str]:
+    def files_held(self, exclude: str | None = None) -> dict[str, str]:
         """path -> task_id for every file a FILE_HOLDING task holds (exclude one task if given).
         T083-C5-1: parked tasks keep their claims -- shelved work must not lose its files."""
-        held: Dict[str, str] = {}
+        held: dict[str, str] = {}
         for t in self.tasks.values():
             if t["id"] == exclude or t["status"] not in FILE_HOLDING:
                 continue
@@ -404,12 +404,12 @@ class TaskLedger:
         *,
         desc: str = "",
         owner: str = "",
-        deps: Optional[List[str]] = None,
-        files: Optional[List[str]] = None,
+        deps: list[str] | None = None,
+        files: list[str] | None = None,
         acceptance: str = "",
         by: str = "claude",
         at: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Add a task in PROPOSED. `at` is an ISO timestamp passed in (this module never reads the clock,
         so it stays pure + testable). Unknown deps are allowed at propose time; the CLAIM gate enforces
         that deps are DONE, so a not-yet-created dep just keeps the task un-claimable until it exists+done."""
@@ -454,7 +454,7 @@ class TaskLedger:
         self_verified: str = "",
         operator_ruling: str = "",
         pauses: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """The one guarded mutation. Validates the move against every gate, then applies + persists.
         Raises LedgerError (naming the gate) on any violation — nothing partial is written."""
         t = self.tasks.get(tid)
@@ -638,7 +638,7 @@ def unpark(ledger, tid, **kw):
 
 
 # --- the width gauge's READ half (ruling 369243, observability; defer 2955dae7eb) --------------
-def _authority_recorded(t: Dict[str, Any]) -> bool:
+def _authority_recorded(t: dict[str, Any]) -> bool:
     """True when the row carries a RECORDED cost or authority for its width: pauses= on the row or
     in its history, or operator_ruling= in its history -- the two doors the two-watch gate accepts."""
     if str(t.get("pauses") or "").strip():
@@ -646,7 +646,7 @@ def _authority_recorded(t: Dict[str, Any]) -> bool:
     return any(str(h.get("pauses") or h.get("operator_ruling") or "").strip() for h in (t.get("history") or []))
 
 
-def open_watches(path: Optional[str] = None) -> Dict[str, Any]:
+def open_watches(path: str | None = None) -> dict[str, Any]:
     """Read-only door for the doctor: the open-watch count against WATCH_CAP, with ids.
 
     Git-only (client=None: no Redis mirror, nothing written), resolved through the same
@@ -681,7 +681,7 @@ def open_watches(path: Optional[str] = None) -> Dict[str, Any]:
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
-def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
+def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> dict[str, Any]:
     """Read the current ledger FAST. Prefers the Redis mirror (one GET); falls back to the git file
     (the source of truth) if Redis is empty or unreachable. Returns {"seq", "tasks": [...]}"."""
     c = _bus_client() if client == "auto" else client
@@ -704,7 +704,7 @@ def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]
 STALE_PROPOSED_DAYS = 7  # default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS
 
 
-def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
+def _age_days(t: dict[str, Any], now_ts: float) -> Any:
     """Days since the task was last TOUCHED (updated stamp; created as fallback). None if unparseable."""
     from datetime import datetime
 
@@ -718,7 +718,7 @@ def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
 TASK_SETTLED_STATUSES = frozenset({"done", "parked", "abandoned"})
 
 
-def settled_tasks(text: str) -> Tuple[List[str], List[str]]:
+def settled_tasks(text: str) -> tuple[list[str], list[str]]:
     """(settled, live): T-numbers named in `text` whose ledger status contradicts acting
     on them (done/parked/abandoned, rendered 'T075 PARKED') vs those still open. Unknown
     ids read LIVE (fail toward answering/acting). Fail-open ([], []) when the ledger is
@@ -730,7 +730,7 @@ def settled_tasks(text: str) -> Tuple[List[str], List[str]]:
     if not ids:
         return [], []
     try:
-        status: Dict[str, str] = {}
+        status: dict[str, str] = {}
         for v in state_view().values():
             if isinstance(v, list):
                 for t in v:
@@ -743,7 +743,7 @@ def settled_tasks(text: str) -> Tuple[List[str], List[str]]:
         return [], []
 
 
-def premise_settled(kind: str, age_ms: Optional[int], text: str, *, min_age_ms: Optional[int] = None) -> List[str]:
+def premise_settled(kind: str, age_ms: int | None, text: str, *, min_age_ms: int | None = None) -> list[str]:
     """The premise-gate's pure verdict: the settled list when a short-circuit should
     fire, else []. Fires ONLY when: the kind is an ask, the message is OLDER than the
     age floor (a fresh ask about closed work is deliberate; an old one is a backlog
@@ -767,7 +767,7 @@ def premise_settled(kind: str, age_ms: Optional[int], text: str, *, min_age_ms: 
 
 def state_view(
     path: str = LEDGER_PATH, client: Any = "auto", *, now: Any = None, stale_days: int = STALE_PROPOSED_DAYS
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """The read-state-first view (used by boot/wake in Slice C). 'next' = APPROVED tasks whose deps
     are all DONE (claimable now). This is the curated current truth agents read, not the backlog.
 

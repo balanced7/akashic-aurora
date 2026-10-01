@@ -92,7 +92,7 @@ class Verdict:
 
 @dataclass
 class Review:
-    verdicts: List[Verdict] = field(default_factory=list)
+    verdicts: list[Verdict] = field(default_factory=list)
     starved: bool = True
     banner: str = ""
 
@@ -120,7 +120,7 @@ def _atom_exists(anchor: str, root: Path) -> bool:
     return any(tail in p.name for p in lib.rglob("*.md"))
 
 
-def _task_status(anchor: str, root: Path) -> Optional[str]:
+def _task_status(anchor: str, root: Path) -> str | None:
     import json
 
     f = root / "state" / "coord" / "tasks.json"
@@ -136,7 +136,7 @@ def _task_status(anchor: str, root: Path) -> Optional[str]:
     return None
 
 
-def _commit_exists(anchor: str, root: Path) -> Optional[bool]:
+def _commit_exists(anchor: str, root: Path) -> bool | None:
     try:
         r = subprocess.run(
             ["git", "-C", str(root), "cat-file", "-t", anchor], capture_output=True, text=True, timeout=15
@@ -146,7 +146,7 @@ def _commit_exists(anchor: str, root: Path) -> Optional[bool]:
         return None  # git unavailable -> blindness, not absence
 
 
-def resolve(anchor: str, *, root: Path = ROOT, receipts: Optional[Dict[str, str]] = None) -> Verdict:
+def resolve(anchor: str, *, root: Path = ROOT, receipts: dict[str, str] | None = None) -> Verdict:
     """One anchor -> one verdict. Never raises; an error is UNCHECKABLE, not a pass."""
     kind = classify(anchor)
     try:
@@ -205,7 +205,7 @@ def resolve(anchor: str, *, root: Path = ROOT, receipts: Optional[Dict[str, str]
     return Verdict(anchor, "unknown", "UNCHECKABLE", "unrecognised anchor form")
 
 
-def mine(lesson: Dict[str, Any]) -> List[str]:
+def mine(lesson: dict[str, Any]) -> list[str]:
     """Anchors declared in `cites`, else mined from the text (pre-`cites` lessons)."""
     cites = lesson.get("cites")
     if isinstance(cites, (list, tuple)) and cites:
@@ -220,7 +220,7 @@ def mine(lesson: Dict[str, Any]) -> List[str]:
     return out
 
 
-def review(lesson: Dict[str, Any], *, root: Path = ROOT, receipts: Optional[Dict[str, str]] = None) -> Review:
+def review(lesson: dict[str, Any], *, root: Path = ROOT, receipts: dict[str, str] | None = None) -> Review:
     """A whole lesson -> verdicts + an advisory banner. Decides nothing, retires nothing."""
     anchors_found = mine(lesson or {})
     verdicts = [resolve(a, root=root, receipts=receipts) for a in anchors_found]

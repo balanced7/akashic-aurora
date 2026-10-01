@@ -32,7 +32,8 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 BUDGET_CHARS_DEFAULT = 2000
 ENTRY_CLIP = 240
@@ -53,7 +54,7 @@ def budget_chars() -> int:
         return BUDGET_CHARS_DEFAULT
 
 
-def _text_of(lesson: Dict[str, Any]) -> str:
+def _text_of(lesson: dict[str, Any]) -> str:
     return " ".join(str(lesson.get(k) or "") for k in ("experiment_name", "category", "what_tried", "recommendation"))
 
 
@@ -61,7 +62,7 @@ def _keywords(s: str) -> set:
     return set(_WORD.findall(s.lower()))
 
 
-def _ts(lesson: Dict[str, Any]) -> float:
+def _ts(lesson: dict[str, Any]) -> float:
     raw = lesson.get("timestamp")
     if isinstance(raw, (int, float)):
         return float(raw)
@@ -71,7 +72,7 @@ def _ts(lesson: Dict[str, Any]) -> float:
         return 0.0
 
 
-def base_score(lesson: Dict[str, Any], task: str) -> float:
+def base_score(lesson: dict[str, Any], task: str) -> float:
     """The ladder, exactly one tier per lesson (highest that matches)."""
     text = _text_of(lesson)
     task_ids = set(_TASK_ID.findall(task or ""))
@@ -94,7 +95,7 @@ def base_score(lesson: Dict[str, Any], task: str) -> float:
     return 0.0
 
 
-def _default_credit_fn() -> Callable[[str], Dict[str, int]]:
+def _default_credit_fn() -> Callable[[str], dict[str, int]]:
     """The existing funnel counters (fail-open to neutral)."""
     try:
         from core.recall.at_action import _load_use, _store
@@ -105,7 +106,7 @@ def _default_credit_fn() -> Callable[[str], Dict[str, int]]:
         return lambda source: {}
 
 
-def score(lesson: Dict[str, Any], task: str, now: float, credit_fn: Callable[[str], Dict[str, int]]) -> float:
+def score(lesson: dict[str, Any], task: str, now: float, credit_fn: Callable[[str], dict[str, int]]) -> float:
     from core.recall.at_action import usefulness_factor
 
     base = base_score(lesson, task)
@@ -118,7 +119,7 @@ def score(lesson: Dict[str, Any], task: str, now: float, credit_fn: Callable[[st
     return (base + recency) * factor
 
 
-def render_entry(entry: Dict[str, Any], max_chars: int = ENTRY_CLIP) -> str:
+def render_entry(entry: dict[str, Any], max_chars: int = ENTRY_CLIP) -> str:
     """The boot line for one selected lesson -- deterministic, clip CONFESSED (R1-c)."""
     line = (
         f"- [{entry.get('category') or 'general'}] {entry.get('source')}: "
@@ -132,10 +133,10 @@ def render_entry(entry: Dict[str, Any], max_chars: int = ENTRY_CLIP) -> str:
 def select_within_budget(
     store: Any,
     task: str,
-    cap_chars: Optional[int] = None,
-    now: Optional[float] = None,
-    credit_fn: Optional[Callable[[str], Dict[str, int]]] = None,
-) -> List[Dict[str, Any]]:
+    cap_chars: int | None = None,
+    now: float | None = None,
+    credit_fn: Callable[[str], dict[str, int]] | None = None,
+) -> list[dict[str, Any]]:
     """Rank every live lesson by the ladder and greedily fill the FIXED budget.
     Returns entries in the legacy loader's shape (+score) so the aggregator,
     skeleton and render paths stay byte-compatible. The TOP hit is always
@@ -164,7 +165,7 @@ def select_within_budget(
     # residue below never-seen real lessons even there.
     relevant = [t for t in scored if t[1] > 0.0]
     pool = relevant if relevant else scored[:3]
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     used = 0
     for sc, _b, _t, l in pool:
         entry = {

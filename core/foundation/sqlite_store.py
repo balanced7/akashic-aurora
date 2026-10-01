@@ -127,7 +127,7 @@ _DATA_TABLES = ("kv", "hash", "list", "set_members", "zset")
 class SqliteStore(Store):
     """File-backed Store on SQLite in WAL mode. Safe across processes AND instances."""
 
-    def __init__(self, path: Optional[str] = None, busy_timeout_ms: int = 10_000, echo_json_path: Optional[str] = None):
+    def __init__(self, path: str | None = None, busy_timeout_ms: int = 10_000, echo_json_path: str | None = None):
         base = os.path.join(_repo_root_str(), "session_logs")
         os.makedirs(base, exist_ok=True)
         self._path = path or os.path.join(base, "store_state.db")
@@ -141,8 +141,8 @@ class SqliteStore(Store):
         # Guards THIS object's connection handle. Cross-process safety comes from SQLite,
         # not from here -- unlike FileStore, where the RLock was mistaken for the guarantee.
         self._lock = threading.RLock()
-        self._degraded: Optional[str] = None
-        self._conn: Optional[sqlite3.Connection] = None
+        self._degraded: str | None = None
+        self._conn: sqlite3.Connection | None = None
         self._connect()
 
     # ---------------------------------------------------------------- lifecycle
@@ -220,7 +220,7 @@ class SqliteStore(Store):
             return False
 
     # ------------------------------------------------- snapshot (reconciliation)
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """Point-in-time copy of every structure + expiry, in EXACTLY FileStore's
         snapshot shape -- HybridStore.reconcile() and the migration verifier consume
         this interchangeably with the FileStore one (T118 D6). Expired keys are swept
@@ -229,7 +229,7 @@ class SqliteStore(Store):
             if self._conn is None:
                 return {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "expiry": {}}
             self.purge_expired()
-            out: Dict[str, Any] = {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "expiry": {}}
+            out: dict[str, Any] = {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "expiry": {}}
             for k, v in self._conn.execute("SELECT key,value FROM kv"):
                 out["kv"][k] = v
             for k, f, v in self._conn.execute("SELECT key,field,value FROM hash"):
@@ -267,7 +267,7 @@ class SqliteStore(Store):
             tmp = f"{self._echo_path}.tmp.{os.getpid()}"
             with open(tmp, "w", encoding="utf-8") as f:
                 _json.dump(payload, f)
-            last: Optional[Exception] = None
+            last: Exception | None = None
             for attempt in range(5):  # Windows: brief reader holds are contention
                 try:
                     os.replace(tmp, self._echo_path)
@@ -320,7 +320,7 @@ class SqliteStore(Store):
             return len(rows)
 
     # ------------------------------------------------------------------- kv
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         with self._lock:
             if self._conn is None:
                 return None
@@ -401,9 +401,9 @@ class SqliteStore(Store):
     def hset(
         self,
         key: str,
-        field: Optional[str] = None,
-        value: Optional[str] = None,
-        mapping: Optional[Dict[str, str]] = None,
+        field: str | None = None,
+        value: str | None = None,
+        mapping: dict[str, str] | None = None,
     ) -> int:
         with self._lock:
             if self._conn is None:
@@ -423,7 +423,7 @@ class SqliteStore(Store):
                 )
             return added
 
-    def hget(self, key: str, field: str) -> Optional[str]:
+    def hget(self, key: str, field: str) -> str | None:
         with self._lock:
             if self._conn is None:
                 return None
@@ -431,7 +431,7 @@ class SqliteStore(Store):
             row = self._conn.execute("SELECT value FROM hash WHERE key=? AND field=?", (key, field)).fetchone()
             return row[0] if row else None
 
-    def hgetall(self, key: str) -> Dict[str, str]:
+    def hgetall(self, key: str) -> dict[str, str]:
         with self._lock:
             if self._conn is None:
                 return {}
@@ -479,7 +479,7 @@ class SqliteStore(Store):
         end = min(end, n - 1)
         return start, end
 
-    def lrange(self, key: str, start: int, end: int) -> List[str]:
+    def lrange(self, key: str, start: int, end: int) -> list[str]:
         with self._lock:
             if self._conn is None:
                 return []
@@ -559,7 +559,7 @@ class SqliteStore(Store):
             return n
 
     # ----------------------------------------------------------------- zset
-    def zadd(self, key: str, mapping: Dict[str, float]) -> int:
+    def zadd(self, key: str, mapping: dict[str, float]) -> int:
         with self._lock:
             if self._conn is None:
                 return 0
@@ -581,7 +581,7 @@ class SqliteStore(Store):
                 return 0
             return self._conn.execute("SELECT COUNT(*) FROM zset WHERE key=?", (key,)).fetchone()[0]
 
-    def zrange(self, key: str, start: int, end: int, desc: bool = False, withscores: bool = False) -> List[Any]:
+    def zrange(self, key: str, start: int, end: int, desc: bool = False, withscores: bool = False) -> list[Any]:
         with self._lock:
             if self._conn is None:
                 return []
@@ -597,7 +597,7 @@ class SqliteStore(Store):
             ).fetchall()
             return [(m, sc) for m, sc in rows] if withscores else [m for m, _ in rows]
 
-    def zscore(self, key: str, member: str) -> Optional[float]:
+    def zscore(self, key: str, member: str) -> float | None:
         with self._lock:
             if self._conn is None:
                 return None
@@ -615,7 +615,7 @@ class SqliteStore(Store):
         except (TypeError, ValueError):
             return default
 
-    def zrangebyscore(self, key: str, min_score: Any, max_score: Any) -> List[str]:
+    def zrangebyscore(self, key: str, min_score: Any, max_score: Any) -> list[str]:
         with self._lock:
             if self._conn is None:
                 return []
@@ -661,7 +661,7 @@ class SqliteStore(Store):
                 n += cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
             return n
 
-    def hgetall_prefix(self, prefix: str) -> Dict[str, Dict[str, str]]:
+    def hgetall_prefix(self, prefix: str) -> dict[str, dict[str, str]]:
         """Every matching hash in ONE indexed SELECT -- the whole point of being on SQL.
 
         The old read path listed an index and then issued one hgetall PER LESSON: 455 lessons
@@ -672,7 +672,7 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is None:
                 return {}
-            out: Dict[str, Dict[str, str]] = {}
+            out: dict[str, dict[str, str]] = {}
             rows = self._conn.execute(
                 "SELECT key, field, value FROM hash WHERE key >= ? AND key < ? ORDER BY key", (prefix, prefix + "￿")
             ).fetchall()
@@ -687,7 +687,7 @@ class SqliteStore(Store):
             return out
 
     # ------------------------------------------------------------- keyspace
-    def keys(self, pattern: str = "*") -> List[str]:
+    def keys(self, pattern: str = "*") -> list[str]:
         """fnmatch, deliberately -- NOT SQLite GLOB. The differential harness compares this
         against FileStore, and GLOB's semantics differ enough to diverge on real patterns."""
         with self._lock:
@@ -703,7 +703,7 @@ class SqliteStore(Store):
             return sorted(k for k in found if fnmatch.fnmatch(k, pattern))
 
     # ----------------------------------------------- optimistic concurrency
-    def cas(self, key: str, expected: Optional[str], value: str) -> bool:
+    def cas(self, key: str, expected: str | None, value: str) -> bool:
         """Genuinely atomic, and cross-PROCESS -- the property FileStore.cas only appeared to
         have. It compared against its own in-memory dict under a per-instance threading lock,
         so a cross-process probe saw every call return True, zero conflicts, and the other

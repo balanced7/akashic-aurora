@@ -26,7 +26,8 @@ Proposals (the curator, C5, decides what to do with them):
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -36,15 +37,15 @@ from core.primitives.embedder import Embedder, get_embedder
 @dataclass
 class Cluster:
     id: str
-    atom_ids: List[str]
+    atom_ids: list[str]
     cohesion: float  # mean cosine of members to the centroid (0..1)
     label: str  # the most-central member's text (human handle)
-    centroid: List[float] = field(default_factory=list)
+    centroid: list[float] = field(default_factory=list)
     salient: bool = False  # a preserved high-importance atom/anchor
     split_score: float = 0.0  # >0 if internally bimodal (distinctness of the two halves)
-    split_parts: Optional[Tuple[List[str], List[str]]] = None
+    split_parts: tuple[list[str], list[str]] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "atom_ids": self.atom_ids,
@@ -57,11 +58,11 @@ class Cluster:
 
 @dataclass
 class Clustering:
-    clusters: List[Cluster]
-    outliers: List[str]  # low-importance loners (noise; not a resource)
+    clusters: list[Cluster]
+    outliers: list[str]  # low-importance loners (noise; not a resource)
 
-    def assignment(self) -> Dict[str, str]:
-        out: Dict[str, str] = {}
+    def assignment(self) -> dict[str, str]:
+        out: dict[str, str] = {}
         for c in self.clusters:
             for a in c.atom_ids:
                 out[a] = c.id
@@ -71,11 +72,11 @@ class Clustering:
 @dataclass
 class Proposal:
     kind: str  # "merge" | "split"
-    cluster_ids: List[str]
+    cluster_ids: list[str]
     score: float  # 0..1 (centroid sim for merge; distinctness for split)
     reason: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
             "cluster_ids": self.cluster_ids,
@@ -92,7 +93,7 @@ def _cluster_id(atom_ids: Sequence[str]) -> str:
 class Clusterer:
     def __init__(
         self,
-        embedder: Optional[Embedder] = None,
+        embedder: Embedder | None = None,
         *,
         sim_threshold: float = 0.45,
         min_cluster: int = 3,
@@ -110,7 +111,7 @@ class Clusterer:
         self.split_threshold = split_threshold  # two halves with inter-centroid cos below this = bimodal
 
     # ------------------------------------------------------------------ cluster
-    def cluster(self, atoms: Sequence[Dict[str, Any]]) -> Clustering:
+    def cluster(self, atoms: Sequence[dict[str, Any]]) -> Clustering:
         """atoms: dicts with `id`, `text`, optional `importance`. Returns a Clustering. Never raises."""
         ids = [str(a.get("id", i)) for i, a in enumerate(atoms)]
         imp = [float(a.get("importance", 1) or 1) for a in atoms]
@@ -137,12 +138,12 @@ class Clusterer:
                     if ra != rb:
                         parent[max(ra, rb)] = min(ra, rb)  # lower root -> deterministic
 
-        comps: Dict[int, List[int]] = {}
+        comps: dict[int, list[int]] = {}
         for a in range(n):
             comps.setdefault(find(a), []).append(a)
 
-        clusters: List[Cluster] = []
-        outliers: List[str] = [ids[i] for i in range(len(atoms)) if i not in have]
+        clusters: list[Cluster] = []
+        outliers: list[str] = [ids[i] for i in range(len(atoms)) if i not in have]
 
         for members in sorted(comps.values(), key=lambda ms: min(have[m] for m in ms)):
             keep, ejected = self._eject_ill_fitting_salient(members, V, imp, have)
@@ -161,8 +162,8 @@ class Clusterer:
         return Clustering(clusters, sorted(set(outliers)))
 
     def _eject_ill_fitting_salient(
-        self, members: List[int], V, imp: List[float], have: List[int]
-    ) -> Tuple[List[int], List[int]]:
+        self, members: list[int], V, imp: list[float], have: list[int]
+    ) -> tuple[list[int], list[int]]:
         """A high-importance member that fits the cluster poorly is pulled out (never absorbed)."""
         if len(members) <= 1:
             return list(members), []
@@ -182,7 +183,7 @@ class Clusterer:
         nrm = np.linalg.norm(c)
         return c / nrm if nrm > 0 else c
 
-    def _build_cluster(self, local: List[int], V, atoms, ids, have: List[int], *, salient: bool = False) -> Cluster:
+    def _build_cluster(self, local: list[int], V, atoms, ids, have: list[int], *, salient: bool = False) -> Cluster:
         rows = V[local]
         centroid = self._centroid(rows)
         coss = [float(rows[k] @ centroid) for k in range(len(local))]
@@ -203,7 +204,7 @@ class Clusterer:
             split_parts=split_parts,
         )
 
-    def _bimodality(self, atom_ids: List[str], rows) -> Tuple[float, Optional[Tuple[List[str], List[str]]]]:
+    def _bimodality(self, atom_ids: list[str], rows) -> tuple[float, tuple[list[str], list[str]] | None]:
         """Split by the two least-similar 'poles'; bimodal if both halves are >=min_cluster and
         their centroids are distinct (inter-cosine < split_threshold). Deterministic."""
         n = len(atom_ids)
@@ -223,9 +224,9 @@ class Clusterer:
         return 1.0 - inter, ([atom_ids[k] for k in ga], [atom_ids[k] for k in gb])
 
     # ------------------------------------------------------------------ propose (flag-only)
-    def propose(self, clustering: Clustering) -> List[Proposal]:
+    def propose(self, clustering: Clustering) -> list[Proposal]:
         """Flag-only merge/split candidates, worst-first by score. NEVER mutates."""
-        out: List[Proposal] = []
+        out: list[Proposal] = []
         cl = [c for c in clustering.clusters if not c.salient and c.centroid]
         for i in range(len(cl)):
             for j in range(i + 1, len(cl)):
@@ -248,10 +249,10 @@ class Clusterer:
         return out
 
 
-_INSTANCE: Optional[Clusterer] = None
+_INSTANCE: Clusterer | None = None
 
 
-def get_clusterer(embedder: Optional[Embedder] = None) -> Clusterer:
+def get_clusterer(embedder: Embedder | None = None) -> Clusterer:
     global _INSTANCE
     if embedder is not None:
         return Clusterer(embedder)

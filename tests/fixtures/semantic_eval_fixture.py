@@ -24,13 +24,13 @@ from typing import Any, Dict, List
 from fixtures.counter_fixture import gold_cases
 
 
-def _text(item: Dict[str, Any]) -> str:
+def _text(item: dict[str, Any]) -> str:
     return item.get("recommendation") or item.get("actual") or item.get("what_tried") or item.get("text", "")
 
 
-def contradiction_pairs() -> List[Dict[str, Any]]:
+def contradiction_pairs() -> list[dict[str, Any]]:
     """Labeled (a, b, contradicts) pairs derived from the counter fixture's adjudicated cases."""
-    pairs: List[Dict[str, Any]] = []
+    pairs: list[dict[str, Any]] = []
     for c in gold_cases():
         th = c["thesis"]
         a = _text(th)
@@ -51,7 +51,7 @@ _AP = {
 }
 
 
-def action_applicability_cases() -> List[Dict[str, Any]]:
+def action_applicability_cases() -> list[dict[str, Any]]:
     """Labeled (action, anti_pattern, instantiates) cases: does the action DO the known-bad thing?"""
 
     def C(action, ap, instantiates):

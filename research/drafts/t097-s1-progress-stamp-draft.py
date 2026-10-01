@@ -38,7 +38,7 @@ def _client():
     return Bus()._client
 
 
-def stamp(agent: str, phase: str, detail: Optional[Dict[str, Any]] = None) -> None:
+def stamp(agent: str, phase: str, detail: dict[str, Any] | None = None) -> None:
     """Record that <agent>'s turn machinery reached <phase> NOW. Fail-soft, emit-only."""
     try:
         payload = {"ts": time.time(), "phase": str(phase)[:64]}
@@ -49,7 +49,7 @@ def stamp(agent: str, phase: str, detail: Optional[Dict[str, Any]] = None) -> No
         pass
 
 
-def read(agent: str) -> Optional[Dict[str, Any]]:
+def read(agent: str) -> dict[str, Any] | None:
     """The raw last stamp for <agent>, or None. Adds computed age_s. Fail-soft."""
     try:
         raw = _client().get(_KEY_PREFIX + agent)

@@ -23,7 +23,7 @@ from core.coord import intent
 ROUND_TIMEOUT = intent.PROPOSAL_TIMEOUT  # seconds
 
 
-def open_round(triggered_by: str, context: str = "", bus: Optional[Bus] = None) -> Dict[str, Any]:
+def open_round(triggered_by: str, context: str = "", bus: Bus | None = None) -> dict[str, Any]:
     """Open a negotiation round. Broadcasts a 'propose' request to all agents with the triggering
     context (the user's message). Agents have ROUND_TIMEOUT seconds to call propose()."""
     b = bus or Bus("coordinator")
@@ -41,7 +41,7 @@ def open_round(triggered_by: str, context: str = "", bus: Optional[Bus] = None) 
     return {"round": rid, "timeout": ROUND_TIMEOUT, "opened": True}
 
 
-def close_round(bus: Optional[Bus] = None) -> Dict[str, Any]:
+def close_round(bus: Bus | None = None) -> dict[str, Any]:
     """Close the current round. Returns the final state (verdict + all proposals + conflicts).
     Broadcasts the verdict so agents know whether to proceed, coordinate, or defer."""
     state = intent.round_state()
@@ -63,7 +63,7 @@ def close_round(bus: Optional[Bus] = None) -> Dict[str, Any]:
     return state
 
 
-def auto_close(triggered_by: str, context: str = "", bus: Optional[Bus] = None) -> Dict[str, Any]:
+def auto_close(triggered_by: str, context: str = "", bus: Bus | None = None) -> dict[str, Any]:
     """Full round: open → wait ROUND_TIMEOUT → close → return verdict. Call this after user input.
     This is the one-shot convenience function the UI or agent loop calls."""
     result = open_round(triggered_by=triggered_by, context=context, bus=bus)

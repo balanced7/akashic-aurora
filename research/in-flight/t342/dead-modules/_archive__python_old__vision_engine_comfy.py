@@ -80,7 +80,7 @@ def check_comfyui_running() -> bool:
         return False
 
 
-def upload_image(image_path: str) -> Tuple[bool, str]:
+def upload_image(image_path: str) -> tuple[bool, str]:
     with open(image_path, "rb") as f:
         image_data = f.read()
     req = request.Request(
@@ -95,7 +95,7 @@ def upload_image(image_path: str) -> Tuple[bool, str]:
         return False, ""
 
 
-def queue_prompt(prompt: dict) -> Optional[str]:
+def queue_prompt(prompt: dict) -> str | None:
     p = {"prompt": prompt}
     data = json.dumps(p).encode("utf-8")
     req = request.Request(f"{COMFYUI_URL}/prompt", data=data)
@@ -108,7 +108,7 @@ def queue_prompt(prompt: dict) -> Optional[str]:
         return None
 
 
-def get_history(prompt_id: str) -> Optional[dict]:
+def get_history(prompt_id: str) -> dict | None:
     try:
         with request.urlopen(f"{COMFYUI_URL}/history/{prompt_id}", timeout=30) as resp:
             return json.loads(resp.read())
@@ -127,7 +127,7 @@ def wait_for_completion(prompt_id: str, timeout: int = 300) -> bool:
     return False
 
 
-def get_image_output(history: dict, node_id: str) -> Optional[bytes]:
+def get_image_output(history: dict, node_id: str) -> bytes | None:
     try:
         outputs = history.get(prompt_id_from_history(history), {}).get("outputs", {})
         if node_id in outputs:
@@ -148,7 +148,7 @@ def get_image_output(history: dict, node_id: str) -> Optional[bytes]:
     return None
 
 
-def prompt_id_from_history(history: dict) -> Optional[str]:
+def prompt_id_from_history(history: dict) -> str | None:
     for key in history.keys():
         return key
     return None
@@ -178,7 +178,7 @@ class ComfyVisionEngine:
         self._redis = get_redis()
         self._workflow_cache = {}
 
-    def analyze(self, image: Image.Image, task: str = "ocr") -> Dict[str, Any]:
+    def analyze(self, image: Image.Image, task: str = "ocr") -> dict[str, Any]:
         img_hash = hashlib.md5(image.tobytes()).hexdigest()[:12]
         cache_key = f"{REDIS_PREFIX}analysis:{task}:{img_hash}"
 
@@ -240,7 +240,7 @@ class ComfyVisionEngine:
 
         return result
 
-    def analyze_screen(self, task: str = "ocr") -> Dict[str, Any]:
+    def analyze_screen(self, task: str = "ocr") -> dict[str, Any]:
         image = capture_screen()
         if image is None:
             return {"error": "Screen capture failed"}
@@ -249,7 +249,7 @@ class ComfyVisionEngine:
         return result
 
 
-def capture_screen() -> Optional[Image.Image]:
+def capture_screen() -> Image.Image | None:
     try:
         return ImageGrab.grab(include_layered_windows=False)
     except Exception as e:
@@ -291,7 +291,7 @@ def save_to_redis(image: Image.Image, tag: str = "capture") -> str:
     return disk_path
 
 
-def capture_and_analyze(task: str = "ocr") -> Dict[str, Any]:
+def capture_and_analyze(task: str = "ocr") -> dict[str, Any]:
     image = capture_screen()
     if image is None:
         return {"error": "Screen capture failed"}
@@ -311,7 +311,7 @@ def capture_and_analyze(task: str = "ocr") -> Dict[str, Any]:
     return result
 
 
-def get_cached_analysis(img_hash: str, task: str = "ocr") -> Optional[Dict]:
+def get_cached_analysis(img_hash: str, task: str = "ocr") -> dict | None:
     r = get_redis()
     if not r:
         return None

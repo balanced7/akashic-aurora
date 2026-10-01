@@ -35,7 +35,8 @@ import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
+from collections.abc import Callable, Sequence
 
 from arsenal import nashville
 from arsenal.jam import DEF_API
@@ -115,7 +116,7 @@ def _rotations(steps, names):
     return out
 
 
-SCALE_NAMES: Dict[frozenset, str] = {}
+SCALE_NAMES: dict[frozenset, str] = {}
 SCALE_NAMES.update(
     _rotations(SCALE_OF["major"], ("major", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian"))
 )
@@ -145,7 +146,7 @@ class BridgeUnavailable(RuntimeError):
 
 
 # ============================================================================================== the bridge
-def run_bridge(request: dict) -> List[dict]:
+def run_bridge(request: dict) -> list[dict]:
     node = shutil.which("node")
     if not node:
         raise BridgeUnavailable("the voicing bridge is unavailable (node not on PATH)")
@@ -186,7 +187,7 @@ def bridge_has_band() -> bool:
         return _BAND_PROBE["has"]
 
 
-_POOL: Optional[ThreadPoolExecutor] = None
+_POOL: ThreadPoolExecutor | None = None
 
 
 def _pool() -> ThreadPoolExecutor:
@@ -217,7 +218,7 @@ def _spelled(letter: int, pc: int, mode: str) -> str:
     return f"{text} {mode}"
 
 
-def tone_name(slot: dict, role: str, relative_to: str = "root") -> Optional[str]:
+def tone_name(slot: dict, role: str, relative_to: str = "root") -> str | None:
     """A landing or check note spelled from the chord's own tones (jam-rulings: "Bb, the b3rd of Gm(add9)"; Cb, not B,
     over Abm(add9); Ebb over Cbm(add9)): the role's letter counted up from the root (or bass) the slot's name spells,
     through nashville's shared speller (_spell_from), never a key-wide sharp or flat table. None when the name does not
@@ -241,7 +242,7 @@ def tone_name(slot: dict, role: str, relative_to: str = "root") -> Optional[str]
     return nashville._name(sp) if abs(sp[1]) <= 2 else None
 
 
-def transpose_key(card_key: str, target: Optional[str]) -> Tuple[str, List[str]]:
+def transpose_key(card_key: str, target: str | None) -> tuple[str, list[str]]:
     """The card key moved to the target's tonic, keeping the card's mode (a transposition plays the same music)."""
     card = key_of(card_key, "key")
     if target is None or target == card["name"] or target == card_key:
@@ -274,7 +275,7 @@ def shift_of(card_key: str, key: str) -> int:
     return (key_of(key)["tonic"] - key_of(card_key)["tonic"] + 6) % 12 - 6
 
 
-def shift_notes(notes: Sequence[int], s: int) -> Tuple[List[int], Optional[str], List[int]]:
+def shift_notes(notes: Sequence[int], s: int) -> tuple[list[int], str | None, list[int]]:
     """(notes, fold, dropped): exact notes moved by s semitones, folded an octave to stay inside E1..G7 (DATA 2.6)."""
     out = sorted(n + s for n in notes)
     fold = None
@@ -312,7 +313,7 @@ def note_midi(token: str) -> int:
     return n
 
 
-def parse_notes(text: str) -> List[int]:
+def parse_notes(text: str) -> list[int]:
     notes = [note_midi(t) for t in re.split(r"[\s,]+", str(text).strip()) if t]
     if not notes:
         raise ValueError("no notes given")
@@ -323,12 +324,12 @@ def midi_name(n: int, flats: bool = True) -> str:
     return f"{(PC_FLAT if flats else PC_SHARP)[n % 12]}{n // 12 - 1}"
 
 
-def parse_line(text: str) -> List[dict]:
+def parse_line(text: str) -> list[dict]:
     """The CLI string form (4.1): "1maj9:4 | [6 major] | 1add9:4 | rest:2". Items are separated by "|" (or spaces
     inside a segment); item:beats sets a chord's length (default 4); [degree mode] is a key item; rest:N a rest."""
     if not isinstance(text, str) or not text.strip():
         raise ValueError("the chord line is empty")
-    items: List[dict] = []
+    items: list[dict] = []
     for seg in text.split("|"):
         seg = seg.strip()
         if not seg:
@@ -382,7 +383,7 @@ _SUFFIX_ALIASES = (
 )
 
 
-def suffix_tones(suffix: str) -> Dict[str, int]:
+def suffix_tones(suffix: str) -> dict[str, int]:
     """{role: semitones above the root} for a chord suffix ("m11", "maj7#11", "7sus4", "6/9"), or ValueError."""
     s = suffix or ""
     for a, b in _SUFFIX_ALIASES:
@@ -462,7 +463,7 @@ def suffix_tones(suffix: str) -> Dict[str, int]:
             third = None
         elif tok in ("no5", "omit5"):
             fifth = None
-    out: Dict[str, int] = {"root": 0}
+    out: dict[str, int] = {"root": 0}
     if third is not None:
         out["third"] = third
     if sus is not None:
@@ -483,7 +484,7 @@ def suffix_tones(suffix: str) -> Dict[str, int]:
     return out
 
 
-def chord_facts(name: Optional[str]) -> Optional[dict]:
+def chord_facts(name: str | None) -> dict | None:
     """{root_pc, bass_pc, semis, tones_pc, suffix} for a chord name, or None when it is not a readable chord."""
     parsed = nashville.parse_chord(name) if name else None
     if not parsed or parsed["kind"] != "chord":
@@ -525,18 +526,18 @@ def _rel(pcs, root) -> frozenset:
     return frozenset((p - root) % 12 for p in pcs)
 
 
-def _is_dominant(semis: Dict[str, int]) -> bool:
+def _is_dominant(semis: dict[str, int]) -> bool:
     return semis.get("third") == 4 and semis.get("seventh") == 10
 
 
 def slot_scale(
     slot_pcs: Sequence[int],
     root: int,
-    semis: Dict[str, int],
+    semis: dict[str, int],
     section: dict,
     section_scale: str,
-    next_root: Optional[int],
-) -> Tuple[List[int], str]:
+    next_root: int | None,
+) -> tuple[list[int], str]:
     """(scale pcs as a set-like list, class) for one slot in its section (MUSIC 9.5)."""
     from arsenal.practice import classify  # the practice verbs' own rules; imported late (it is a large module)
 
@@ -587,7 +588,7 @@ def slot_scale(
     return [(base + i) % 12 for i in steps], klass
 
 
-def _complete_scale(scale: Sequence[int], chord_pcs: Sequence[int], root: int, semis: Dict[str, int]) -> List[int]:
+def _complete_scale(scale: Sequence[int], chord_pcs: Sequence[int], root: int, semis: dict[str, int]) -> list[int]:
     """Any chord tone missing from the scale replaces the scale note beside it with the same letter (MUSIC 9.5)."""
     out = set(scale)
     natural = {"third": 4, "fifth": 7, "sixth": 9, "seventh": 10, "ninth": 2, "eleventh": 5, "thirteenth": 9}
@@ -618,7 +619,7 @@ def scale_name(scale: Sequence[int], root: int, root_text: str, section: dict) -
 
 
 # ======================================================================================= the stand-in band
-def _upper_order(semis: Dict[str, int], slash: bool) -> Tuple[List[str], List[str]]:
+def _upper_order(semis: dict[str, int], slash: bool) -> tuple[list[str], list[str]]:
     """(full roles, comp roles) in the order MUSIC 4.2 requires them."""
     third = "third" if "third" in semis else ("sus" if "sus" in semis else None)
     seventh = "seventh" if "seventh" in semis else ("sixth" if "sixth" in semis else None)
@@ -642,7 +643,7 @@ def _upper_order(semis: Dict[str, int], slash: bool) -> Tuple[List[str], List[st
     return full, comp
 
 
-def _place(pcs_roles: List[Tuple[int, str]], low: int) -> Tuple[List[int], List[str]]:
+def _place(pcs_roles: list[tuple[int, str]], low: int) -> tuple[list[int], list[str]]:
     placed = sorted((low + (pc - low) % 12, role) for pc, role in pcs_roles)
     if len(placed) >= 3 and placed[-1][0] - placed[-2][0] == 1:  # never a minor 2nd between the top two voices
         top = placed.pop()
@@ -650,11 +651,11 @@ def _place(pcs_roles: List[Tuple[int, str]], low: int) -> Tuple[List[int], List[
     return [n for n, _ in placed], [r for _, r in placed]
 
 
-def stub_band(facts: Sequence[dict]) -> List[dict]:
+def stub_band(facts: Sequence[dict]) -> list[dict]:
     """A stand-in for the bridge's band style: {full, comp, bass: notes; roles: {full, comp, bass}} per slot. The bass
     sits on the bass pitch class in C2..B2; full's upper voices in F3..E4, comp's in E3..Eb4 (inside the 10.1 limits,
     above every low-interval limit); an upper_same slot keeps the previous upper voices and moves only the bass."""
-    out: List[dict] = []
+    out: list[dict] = []
     prev = None
     for i, f in enumerate(facts):
         bass_pc = f["bass_pc"]
@@ -726,15 +727,15 @@ def stub_band(facts: Sequence[dict]) -> List[dict]:
 class Resolver:
     def __init__(
         self,
-        bridge: Callable[[dict], List[dict]] = run_bridge,
-        band: Optional[bool] = None,
+        bridge: Callable[[dict], list[dict]] = run_bridge,
+        band: bool | None = None,
         cache_size: int = CACHE_SIZE,
     ):
         """bridge: a callable taking a bridge request and returning its results (tests pass a fake). band: True or
         False forces the bridge's band style on or off; None asks the bridge file (bridge_has_band)."""
         self._bridge = bridge
         self._band = band
-        self._cache: "OrderedDict[tuple, str]" = OrderedDict()
+        self._cache: OrderedDict[tuple, str] = OrderedDict()
         self._cache_size = cache_size
         self._lock = threading.Lock()
         self.stats = {"hits": 0, "misses": 0}
@@ -743,11 +744,11 @@ class Resolver:
     def resolve(
         self,
         card: dict,
-        key: Optional[str] = None,
-        variant: Optional[str] = None,
-        backing: Optional[str] = None,
-        voicing: Optional[str] = None,
-        slot: Optional[int] = None,
+        key: str | None = None,
+        variant: str | None = None,
+        backing: str | None = None,
+        voicing: str | None = None,
+        slot: int | None = None,
     ) -> dict:
         band = self._band_on()
         ck = (
@@ -767,13 +768,13 @@ class Resolver:
 
     def resolve_chords(
         self,
-        items: List[dict],
+        items: list[dict],
         key: str,
         meter: int = 4,
         backing: str = "comp",
         voicing: str = "spread",
-        slot: Optional[int] = None,
-        title: Optional[str] = None,
+        slot: int | None = None,
+        title: str | None = None,
     ) -> dict:
         try:
             S._chord_line(items, "chords")
@@ -792,7 +793,7 @@ class Resolver:
         ck = ("chords", json.dumps(items, sort_keys=True), key, meter, backing, voicing, slot, band)
         return self._cached(ck, lambda: self._build(pseudo, None, None, backing, voicing, slot, band, False))
 
-    def page_reads(self, card: dict) -> List[dict]:
+    def page_reads(self, card: dict) -> list[dict]:
         """What the page names each chord of every line, in the card key and voicing (DATA 2.7)."""
         out = []
         lines = ([None] if card.get("chords") else []) + [v["id"] for v in card.get("variants") or []]
@@ -841,7 +842,7 @@ class Resolver:
                 self._cache.popitem(last=False)
         return json.loads(text)
 
-    def _call(self, request: dict, field: str) -> List[dict]:
+    def _call(self, request: dict, field: str) -> list[dict]:
         try:
             return self._bridge(request)
         except ResolveError as exc:
@@ -851,11 +852,11 @@ class Resolver:
     def _build(
         self,
         card: dict,
-        key: Optional[str],
-        variant: Optional[str],
-        backing: Optional[str],
-        voicing: Optional[str],
-        slot: Optional[int],
+        key: str | None,
+        variant: str | None,
+        backing: str | None,
+        voicing: str | None,
+        slot: int | None,
         band: bool,
         is_card: bool,
     ) -> dict:
@@ -873,7 +874,7 @@ class Resolver:
 
         # sections and slots
         sections = [{"i": 0, "key": k_name, "from_beat": 0}]
-        raw: List[dict] = []
+        raw: list[dict] = []
         beat = 0.0
         for idx, it in enumerate(items):
             at = f"{where[idx]}"
@@ -1003,7 +1004,7 @@ class Resolver:
             warnings.append(STUB_WARNING)
 
         # scales per section
-        slots: List[dict] = []
+        slots: list[dict] = []
         sec_scale = {}
         for sec in sections:
             k = key_of(sec["key"])
@@ -1151,7 +1152,7 @@ class Resolver:
         return d
 
     @staticmethod
-    def _band_request(raw: List[dict], sections: List[dict]) -> dict:
+    def _band_request(raw: list[dict], sections: list[dict]) -> dict:
         """The bridge's band voicer over the whole line as a ring (J1, jam-spec 10.1). Request: {items: [{text, key,
         upper?}], key: null, voicing: "band", line: "ring"}, one item per slot: its number in its section's key, or
         its exact notes when it has no number, with upper "same" where the card says so (never on the line's first
@@ -1174,7 +1175,7 @@ class Resolver:
         }
 
     @staticmethod
-    def _band_parse(future, facts: List[dict]) -> Optional[List[dict]]:
+    def _band_parse(future, facts: list[dict]) -> list[dict] | None:
         """The band results read into voicings. An item error (a cluster the band cannot voice), a missing field or an
         older bridge returns None, and the stand-in voices the line."""
         try:
@@ -1201,7 +1202,7 @@ class Resolver:
             return None
 
 
-def _chord_pcs(r: dict) -> List[int]:
+def _chord_pcs(r: dict) -> list[int]:
     facts = r["facts"]
     tones = facts.get("tones_pc") or {}
     if tones:
@@ -1212,7 +1213,7 @@ def _chord_pcs(r: dict) -> List[int]:
     return list(r.get("note_pcs") or [facts["bass_pc"]])
 
 
-def _root_text(name: Optional[str], root_pc: int, k: dict) -> str:
+def _root_text(name: str | None, root_pc: int, k: dict) -> str:
     parsed = nashville.parse_chord(name) if name else None
     if parsed and parsed.get("root") and nashville._pc(parsed["root"]) == root_pc:
         return nashville._name(parsed["root"])
@@ -1244,7 +1245,7 @@ def _exact_reads(r: dict) -> dict:
     return {"name": page_name, "number": page_number, "match": match}
 
 
-def _line_items(card: dict, variant: Optional[str]) -> List[dict]:
+def _line_items(card: dict, variant: str | None) -> list[dict]:
     if variant is None:
         return list(card.get("chords") or [])
     for v in card.get("variants") or []:
@@ -1253,7 +1254,7 @@ def _line_items(card: dict, variant: Optional[str]) -> List[dict]:
     return []
 
 
-def _pick_line(card: dict, variant: Optional[str], settings: dict):
+def _pick_line(card: dict, variant: str | None, settings: dict):
     """(items, meter, field path per item, variant id or None) for the line to resolve."""
     meter = settings["tempo"]["beats_per_bar"]
     variants = card.get("variants") or []

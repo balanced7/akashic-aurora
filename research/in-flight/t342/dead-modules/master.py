@@ -323,7 +323,7 @@ class Master:
         ):
             self._trigger_escalation(title, verdict, proposal)
 
-    def _trigger_escalation(self, title: str, verdict: Dict, proposal: Dict):
+    def _trigger_escalation(self, title: str, verdict: dict, proposal: dict):
         """
         Trigger escalation to external review API.
 
@@ -341,7 +341,7 @@ class Master:
         try:
             active_buffer = r"E:\AI-Setup\blackboard_data\active_buffer.json"
             if os.path.exists(active_buffer):
-                with open(active_buffer, "r") as f:
+                with open(active_buffer) as f:
                     for line in f:
                         try:
                             data = json.loads(line)

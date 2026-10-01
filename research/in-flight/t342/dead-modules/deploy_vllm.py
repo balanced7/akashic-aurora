@@ -67,7 +67,7 @@ def check_rocm_pytorch() -> bool:
         return False
 
 
-def get_gpu_vram() -> Optional[float]:
+def get_gpu_vram() -> float | None:
     """Get total GPU VRAM in GB"""
     try:
         result = subprocess.run(["rocm-smi", "--showid", "--json"], capture_output=True, text=True, timeout=5)

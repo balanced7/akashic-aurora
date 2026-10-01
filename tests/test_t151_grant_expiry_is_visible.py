@@ -30,7 +30,7 @@ Run: py -m pytest tests/test_t151_grant_expiry_is_visible.py -q
 
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -39,11 +39,11 @@ from core.trust import registry as REG  # noqa: E402
 
 
 def _iso(dt):
-    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _recs(**over):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     base = [
         {"agent_id": "perm", "role": "member", "caps": ["read"], "expires_at": None},
         {"agent_id": "soon", "role": "member", "caps": ["read", "write"], "expires_at": _iso(now + timedelta(hours=6))},

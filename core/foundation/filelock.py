@@ -23,7 +23,8 @@ import contextlib
 import os
 import time
 from pathlib import Path
-from typing import Iterator, Union
+from typing import Union
+from collections.abc import Iterator
 
 try:  # Windows
     import msvcrt
@@ -67,7 +68,7 @@ def _unlock(fh) -> None:
 
 
 @contextlib.contextmanager
-def exclusive(target: Union[str, os.PathLike], *, timeout: float = DEFAULT_TIMEOUT_S) -> Iterator[bool]:
+def exclusive(target: str | os.PathLike, *, timeout: float = DEFAULT_TIMEOUT_S) -> Iterator[bool]:
     """Hold an exclusive cross-process lock for `target` while the block runs.
 
     Yields True when the lock is genuinely held, False when this platform offers no

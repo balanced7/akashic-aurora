@@ -70,7 +70,7 @@ NON_CARGO_KINDS = {
 }
 
 
-def classify_body(text: str, kind: str = "") -> Optional[str]:
+def classify_body(text: str, kind: str = "") -> str | None:
     """Return a flag-reason for an atomless design-shaped body, else None (clean)."""
     if not text or (kind or "").lower() in NON_CARGO_KINDS:
         return None
@@ -89,13 +89,13 @@ def classify_body(text: str, kind: str = "") -> Optional[str]:
     return f"design-shaped ({headings} heading(s), {bullets} bullet(s), {len(text)} chars) with NO durable pointer"
 
 
-def _body_of(fields: Dict[str, Any]) -> Tuple[str, str]:
+def _body_of(fields: dict[str, Any]) -> tuple[str, str]:
     """(text, kind) from a stream envelope; field names vary across eras."""
     text = str(fields.get("text") or fields.get("content") or "")
     return text, str(fields.get("kind") or "")
 
 
-def scan_live(per_stream: int = 100, hours: float = 0.0) -> List[str]:
+def scan_live(per_stream: int = 100, hours: float = 0.0) -> list[str]:
     """Photograph recent messages on every non-telemetry stream in the namespace.
     hours > 0 bounds the window (stream ids are ms timestamps) -- the wrap-gate mode:
     history stays a one-time census; the gate judges only fresh sends."""
@@ -106,7 +106,7 @@ def scan_live(per_stream: int = 100, hours: float = 0.0) -> List[str]:
     bus = get_bus("claude")
     client, ns = bus._client, bus.ns
     min_id = f"{int((_time.time() - hours * 3600) * 1000)}-0" if hours > 0 else "-"
-    rows: List[str] = []
+    rows: list[str] = []
     seen_keys: set = set()
     for key in client.scan_iter(match=f"{ns}:*", count=200):
         k = str(key)

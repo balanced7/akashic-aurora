@@ -118,7 +118,7 @@ class MessageInbox:
         return inbox_path
 
     @staticmethod
-    def add_message(agent_id: str, message: Dict):
+    def add_message(agent_id: str, message: dict):
         """Add message to agent's inbox"""
         inbox_path = MessageInbox.ensure_inbox(agent_id)
 
@@ -130,7 +130,7 @@ class MessageInbox:
         messages = []
         if os.path.exists(inbox_file):
             try:
-                with open(inbox_file, "r") as f:
+                with open(inbox_file) as f:
                     messages = json.load(f)
             except:
                 pass
@@ -149,7 +149,7 @@ class MessageInbox:
         unread = []
         if os.path.exists(unread_file):
             try:
-                with open(unread_file, "r") as f:
+                with open(unread_file) as f:
                     unread = json.load(f)
             except:
                 pass
@@ -165,7 +165,7 @@ class MessageInbox:
         return message
 
     @staticmethod
-    def get_messages(agent_id: str, limit: int = 20) -> List[Dict]:
+    def get_messages(agent_id: str, limit: int = 20) -> list[dict]:
         """Get all messages from inbox"""
         inbox_file = os.path.join(MessageInbox.get_inbox_path(agent_id), "inbox.json")
 
@@ -173,7 +173,7 @@ class MessageInbox:
             return []
 
         try:
-            with open(inbox_file, "r") as f:
+            with open(inbox_file) as f:
                 messages = json.load(f)
             return messages[-limit:]
         except:
@@ -188,14 +188,14 @@ class MessageInbox:
             return 0
 
         try:
-            with open(unread_file, "r") as f:
+            with open(unread_file) as f:
                 unread = json.load(f)
             return len(unread)
         except:
             return 0
 
     @staticmethod
-    def get_latest(agent_id: str) -> Optional[Dict]:
+    def get_latest(agent_id: str) -> dict | None:
         """Get latest message"""
         latest_file = os.path.join(MessageInbox.get_inbox_path(agent_id), "latest.json")
 
@@ -203,13 +203,13 @@ class MessageInbox:
             return None
 
         try:
-            with open(latest_file, "r") as f:
+            with open(latest_file) as f:
                 return json.load(f)
         except:
             return None
 
     @staticmethod
-    def mark_read(agent_id: str, msg_ids: List[str] = None):
+    def mark_read(agent_id: str, msg_ids: list[str] = None):
         """Mark messages as read"""
         unread_file = os.path.join(MessageInbox.get_inbox_path(agent_id), "unread.json")
 
@@ -217,7 +217,7 @@ class MessageInbox:
             return
 
         try:
-            with open(unread_file, "r") as f:
+            with open(unread_file) as f:
                 unread = json.load(f)
 
             if msg_ids:
@@ -378,7 +378,7 @@ class BackgroundMonitor:
                     # Update heartbeat file
                     hb_file = os.path.join(COORD_DIR, "state", f"{self.agent_id}.json")
                     if os.path.exists(hb_file):
-                        with open(hb_file, "r") as f:
+                        with open(hb_file) as f:
                             state = json.load(f)
                         state["last_heartbeat"] = datetime.now().isoformat()
                         with open(hb_file, "w") as f:
@@ -417,7 +417,7 @@ class BackgroundMonitor:
 # ============================================================================
 
 
-def check_inbox(agent_id: str = None) -> Dict:
+def check_inbox(agent_id: str = None) -> dict:
     """
     Check inbox for messages - call this from OpenCode.
 
@@ -440,7 +440,7 @@ def get_my_agent_id() -> str:
 
     if os.path.exists(identity_file):
         try:
-            with open(identity_file, "r") as f:
+            with open(identity_file) as f:
                 data = json.load(f)
             return data.get("agent_id", "unknown")
         except:
@@ -449,7 +449,7 @@ def get_my_agent_id() -> str:
     return "unknown"
 
 
-def mark_inbox_read(agent_id: str = None, msg_ids: List[str] = None):
+def mark_inbox_read(agent_id: str = None, msg_ids: list[str] = None):
     """Mark messages as read"""
     if not agent_id:
         agent_id = get_my_agent_id()

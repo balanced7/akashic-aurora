@@ -15,7 +15,8 @@ Best-effort + fail-soft throughout: a bookend hiccup must never break boot, a CL
 
 import json
 import random
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import now_iso as _now_iso
@@ -29,7 +30,7 @@ EPISODE_OPEN_KEY = "narr:episode:open"  # JSON {chapter_id, start, track} -- the
 _DEFAULT_TRACK = "ai-setup"
 
 
-def _now(now: Optional[str]) -> str:
+def _now(now: str | None) -> str:
     return now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
 
@@ -40,7 +41,7 @@ def _dur(start_iso: str, end_iso: str) -> int:
         return 0
 
 
-def _load_open(store: Store) -> Optional[Dict[str, Any]]:
+def _load_open(store: Store) -> dict[str, Any] | None:
     try:
         raw = store.get(EPISODE_OPEN_KEY)
         return json.loads(raw) if raw else None
@@ -48,9 +49,7 @@ def _load_open(store: Store) -> Optional[Dict[str, Any]]:
         return None
 
 
-def open_episode(
-    store: Optional[Store] = None, *, now: Optional[str] = None, track: Optional[str] = None
-) -> Optional[Chapter]:
+def open_episode(store: Store | None = None, *, now: str | None = None, track: str | None = None) -> Chapter | None:
     """Open a fresh episode: a new Chapter with an OPEN span (span_end=None) that beats accrue to.
     Sets the `narr:episode:open` pointer. Returns the Chapter (or None on failure). Never raises."""
     try:
@@ -66,7 +65,7 @@ def open_episode(
         return None
 
 
-def _current_chapter(store: Store, *, now: str, auto_open: bool) -> Optional[Chapter]:
+def _current_chapter(store: Store, *, now: str, auto_open: bool) -> Chapter | None:
     rec = _load_open(store)
     ch = load_chapter_from_store(store, rec["chapter_id"]) if rec else None
     if ch is None and auto_open:  # no pointer, or it dangles -> open one (migration-safe)
@@ -74,9 +73,7 @@ def _current_chapter(store: Store, *, now: str, auto_open: bool) -> Optional[Cha
     return ch
 
 
-def current_episode(
-    store: Optional[Store] = None, *, now: Optional[str] = None, auto_open: bool = True
-) -> Dict[str, Any]:
+def current_episode(store: Store | None = None, *, now: str | None = None, auto_open: bool = True) -> dict[str, Any]:
     """The live current episode as the UI contract (`episode current --json`). Auto-opens one if none
     exists (so the panel always has a current). `suggestion` stays None HERE: the door (agent_cli
     `episode current`) composes it from episode_suggester.suggest() -- suggester imports this module
@@ -104,14 +101,14 @@ def current_episode(
 # ---- drafting {title, description, why} over a closed span (deterministic + optional writer seam) ----
 
 
-def _draft_title(beats: List[Any]) -> str:
+def _draft_title(beats: list[Any]) -> str:
     if not beats:
         return "Untitled episode"
     top = max(beats, key=lambda b: getattr(b, "weight", 1) or 1)
     return (top.summary or "Untitled episode")[:120]
 
 
-def _draft_description(beats: List[Any]) -> str:
+def _draft_description(beats: list[Any]) -> str:
     """The few most-salient non-session beats, joined -- a deterministic one-liner of WHAT happened."""
     sal = sorted(
         [b for b in beats if getattr(b, "kind", "") != "session"],
@@ -121,7 +118,7 @@ def _draft_description(beats: List[Any]) -> str:
     return " · ".join(b.summary for b in sal if b.summary)[:400]
 
 
-def _draft_why(beats: List[Any], *, writer: Optional[Callable] = None) -> str:
+def _draft_why(beats: list[Any], *, writer: Callable | None = None) -> str:
     """WHY = the episode's intent. Primary source (DeepSeek review): the LATEST decision/mark beat in
     the span (the "we're doing this because..." moment), task title secondary. An optional injected
     `writer(basis, beats)->str` LLM seam may paraphrase; default stays deterministic + fail-soft."""
@@ -140,7 +137,7 @@ def _draft_why(beats: List[Any], *, writer: Optional[Callable] = None) -> str:
 _BOUNDARY_SOURCE_PREFIX = "episode:close:"
 
 
-def content_beats(beats: List[Any]) -> List[Any]:
+def content_beats(beats: list[Any]) -> list[Any]:
     """Drop episode-BOUNDARY marker beats (the `mark` each close emits). The close-mark lands on the
     exact timestamp the next episode opens, so it falls inside the NEXT span's window -- and being
     kind=mark it would otherwise become that episode's drafted `why` ("Episode closed: ...") and a
@@ -149,7 +146,7 @@ def content_beats(beats: List[Any]) -> List[Any]:
     return [b for b in beats if not str(getattr(b, "source", "")).startswith(_BOUNDARY_SOURCE_PREFIX)]
 
 
-def draft_fields(beats: List[Any], *, writer: Optional[Callable] = None) -> Dict[str, str]:
+def draft_fields(beats: list[Any], *, writer: Callable | None = None) -> dict[str, str]:
     """The {title, description, why} draft over a span's CONTENT beats -- the ONE drafting source,
     used by close_episode and by the S3 suggester (contract #6: a suggestion matches the draft)."""
     beats = content_beats(beats)
@@ -161,16 +158,16 @@ def draft_fields(beats: List[Any], *, writer: Optional[Callable] = None) -> Dict
 
 
 def close_episode(
-    store: Optional[Store] = None,
+    store: Store | None = None,
     *,
-    now: Optional[str] = None,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    why: Optional[str] = None,
+    now: str | None = None,
+    title: str | None = None,
+    description: str | None = None,
+    why: str | None = None,
     finalize: bool = False,
-    writer: Optional[Callable] = None,
+    writer: Callable | None = None,
     open_next: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Close the current episode: draft {title, description, why} over its span's beats (user-supplied
     fields win over the draft), stamp span_end, emit a `mark` boundary beat, and open the next episode.
     Returns {draft, new_current_chapter} (the UI contract). `finalize=True` = the one-shot agent path
@@ -219,8 +216,8 @@ def close_episode(
 
 
 def close_open_episode_for_session_end(
-    store: Optional[Store] = None, *, now: Optional[str] = None, writer: Optional[Callable] = None
-) -> Dict[str, Any]:
+    store: Store | None = None, *, now: str | None = None, writer: Callable | None = None
+) -> dict[str, Any]:
     """T081-W8: resolve the open episode at SESSION END so it never dangles across sessions -- the
     '189h Untitled episode' bug, where sessions came and went while one episode stayed open. Prior
     art: OpenTelemetry spans auto-close when their context exits; an episode's context IS the
@@ -261,14 +258,14 @@ def _clear_open(store: Store) -> None:
 
 
 def accept_episode(
-    store: Optional[Store],
+    store: Store | None,
     chapter_id: str,
     *,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    why: Optional[str] = None,
-    now: Optional[str] = None,
-) -> Dict[str, Any]:
+    title: str | None = None,
+    description: str | None = None,
+    why: str | None = None,
+    now: str | None = None,
+) -> dict[str, Any]:
     """Finalize a closed episode: apply any per-field edits and mark it immutable (`final=True`).
     Idempotent -- re-accepting overwrites the same fields. Returns {chapter} or {error}. Never raises."""
     try:

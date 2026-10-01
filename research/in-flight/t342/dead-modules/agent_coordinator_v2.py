@@ -83,8 +83,8 @@ class AgentManifest:
     intent_detail: str = ""  # More detailed description
 
     # Scope - what files/areas being worked on
-    scope: List[str] = field(default_factory=list)  # ["auth.py", "models/user.py"]
-    areas: List[str] = field(default_factory=list)  # ["authentication", "security"]
+    scope: list[str] = field(default_factory=list)  # ["auth.py", "models/user.py"]
+    areas: list[str] = field(default_factory=list)  # ["authentication", "security"]
 
     # Status
     status: AgentStatus = AgentStatus.IDLE
@@ -95,9 +95,9 @@ class AgentManifest:
     started_at: str = ""
 
     # Dependencies
-    dependencies: List[str] = field(default_factory=list)  # Agent IDs we need help from
-    blocked_by: List[str] = field(default_factory=list)  # What's blocking us
-    waiting_for: List[str] = field(default_factory=list)  # Tasks we're waiting on
+    dependencies: list[str] = field(default_factory=list)  # Agent IDs we need help from
+    blocked_by: list[str] = field(default_factory=list)  # What's blocking us
+    waiting_for: list[str] = field(default_factory=list)  # Tasks we're waiting on
 
     # Current work
     current_task: str = ""
@@ -108,7 +108,7 @@ class AgentManifest:
     last_updated: str = ""
     session_id: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "agent_id": self.agent_id,
             "role": self.role,
@@ -131,7 +131,7 @@ class AgentManifest:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "AgentManifest":
+    def from_dict(cls, d: dict) -> "AgentManifest":
         return cls(
             agent_id=d["agent_id"],
             role=d.get("role", "unknown"),
@@ -177,7 +177,7 @@ class AgentCoordinator:
 
     def __init__(self):
         self.agent_id = self._get_my_agent_id()
-        self._manifest: Optional[AgentManifest] = None
+        self._manifest: AgentManifest | None = None
         self._init_manifest()
 
     def _get_my_agent_id(self) -> str:
@@ -185,7 +185,7 @@ class AgentCoordinator:
         identity_file = os.path.join(COORD_DIR, "state", "identity.json")
         if os.path.exists(identity_file):
             try:
-                with open(identity_file, "r") as f:
+                with open(identity_file) as f:
                     data = json.load(f)
                 return data.get("agent_id", f"agent_{uuid.uuid4().hex[:8]}")
             except:
@@ -208,15 +208,15 @@ class AgentCoordinator:
     def update_manifest(
         self,
         intent: str = None,
-        scope: List[str] = None,
-        areas: List[str] = None,
+        scope: list[str] = None,
+        areas: list[str] = None,
         status: AgentStatus = None,
         priority: Priority = None,
         eta_minutes: int = None,
         current_task: str = None,
         progress_percent: float = None,
-        blocked_by: List[str] = None,
-        waiting_for: List[str] = None,
+        blocked_by: list[str] = None,
+        waiting_for: list[str] = None,
     ) -> AgentManifest:
         """
         Update this agent's manifest and broadcast to others.
@@ -292,7 +292,7 @@ class AgentCoordinator:
         """Get this agent's manifest"""
         return self._manifest
 
-    def get_all_manifests(self, include_self: bool = True) -> List[AgentManifest]:
+    def get_all_manifests(self, include_self: bool = True) -> list[AgentManifest]:
         """
         Get all active agents' manifests.
         """
@@ -310,7 +310,7 @@ class AgentCoordinator:
                 continue
 
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     data = json.load(f)
 
                 manifest = AgentManifest.from_dict(data)
@@ -324,7 +324,7 @@ class AgentCoordinator:
 
         return manifests
 
-    def get_manifest_by_agent(self, agent_id: str) -> Optional[AgentManifest]:
+    def get_manifest_by_agent(self, agent_id: str) -> AgentManifest | None:
         """Get a specific agent's manifest"""
         manifest_file = os.path.join(MANIFEST_DIR, f"{agent_id}.json")
 
@@ -332,7 +332,7 @@ class AgentCoordinator:
             return None
 
         try:
-            with open(manifest_file, "r") as f:
+            with open(manifest_file) as f:
                 data = json.load(f)
             return AgentManifest.from_dict(data)
         except:
@@ -349,7 +349,7 @@ class AgentCoordinator:
         purpose: str = "",
         ttl_seconds: int = 300,
         priority: Priority = Priority.NORMAL,
-    ) -> Optional[ResourceLock]:
+    ) -> ResourceLock | None:
         """
         Lock a file or area for exclusive or shared access.
 
@@ -403,7 +403,7 @@ class AgentCoordinator:
 
             fpath = os.path.join(LOCK_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     data = json.load(f)
 
                 if data.get("resource") == resource and data.get("agent_id") == self.agent_id:
@@ -417,7 +417,7 @@ class AgentCoordinator:
 
         return False
 
-    def _get_resource_lock(self, resource: str) -> Optional[ResourceLock]:
+    def _get_resource_lock(self, resource: str) -> ResourceLock | None:
         """Get existing lock on a resource"""
         for fname in os.listdir(LOCK_DIR):
             if not fname.endswith(".json"):
@@ -425,7 +425,7 @@ class AgentCoordinator:
 
             fpath = os.path.join(LOCK_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     data = json.load(f)
 
                 if data.get("resource") == resource:
@@ -441,7 +441,7 @@ class AgentCoordinator:
 
         return None
 
-    def get_all_locks(self) -> List[ResourceLock]:
+    def get_all_locks(self) -> list[ResourceLock]:
         """Get all active locks"""
         locks = []
         now = datetime.now()
@@ -452,7 +452,7 @@ class AgentCoordinator:
 
             fpath = os.path.join(LOCK_DIR, fname)
             try:
-                with open(fpath, "r") as f:
+                with open(fpath) as f:
                     data = json.load(f)
 
                 if datetime.fromisoformat(data["expires_at"]) < now:
@@ -474,7 +474,7 @@ class AgentCoordinator:
             return False
         return True
 
-    def _broadcast_lock(self, lock_data: Dict, action: str):
+    def _broadcast_lock(self, lock_data: dict, action: str):
         """Broadcast lock change"""
         try:
             from fast_agent_comm import get_fast_comm
@@ -490,7 +490,7 @@ class AgentCoordinator:
     # CONFLICT DETECTION
     # =========================================================================
 
-    def check_scoped_conflicts(self, scope: List[str], areas: List[str]) -> List[Dict]:
+    def check_scoped_conflicts(self, scope: list[str], areas: list[str]) -> list[dict]:
         """
         Check if proposed scope conflicts with other agents' work.
 
@@ -532,7 +532,7 @@ class AgentCoordinator:
 
     def find_available_agents(
         self, role: str = None, status: AgentStatus = None, not_busy: bool = True
-    ) -> List[AgentManifest]:
+    ) -> list[AgentManifest]:
         """Find agents that match criteria"""
         matching = []
 
@@ -553,8 +553,8 @@ class AgentCoordinator:
     # =========================================================================
 
     def request_help(
-        self, help_type: str, description: str, scope: List[str] = None, priority: Priority = Priority.NORMAL
-    ) -> Optional[str]:
+        self, help_type: str, description: str, scope: list[str] = None, priority: Priority = Priority.NORMAL
+    ) -> str | None:
         """
         Request help from another agent.
 
@@ -587,7 +587,7 @@ class AgentCoordinator:
 
         return None
 
-    def offer_help(self, to_agent: str, help_type: str, description: str) -> Optional[str]:
+    def offer_help(self, to_agent: str, help_type: str, description: str) -> str | None:
         """Offer help to a specific agent"""
         try:
             from fast_agent_comm import get_fast_comm
@@ -609,7 +609,7 @@ class AgentCoordinator:
     # STATUS
     # =========================================================================
 
-    def get_system_status(self) -> Dict:
+    def get_system_status(self) -> dict:
         """Get full coordination system status"""
         manifests = self.get_all_manifests()
         locks = self.get_all_locks()
@@ -679,7 +679,7 @@ def get_coordinator() -> AgentCoordinator:
     return AgentCoordinator()
 
 
-def declare_intent(intent: str, scope: List[str] = None, areas: List[str] = None):
+def declare_intent(intent: str, scope: list[str] = None, areas: list[str] = None):
     """Quick function to declare intent"""
     coord = get_coordinator()
     coord.update_manifest(intent=intent, scope=scope or [], areas=areas or [], status=AgentStatus.BUSY)
@@ -692,7 +692,7 @@ def lock_file(file_path: str, purpose: str = "") -> bool:
     return lock is not None
 
 
-def check_conflicts(scope: List[str], areas: List[str]) -> List[Dict]:
+def check_conflicts(scope: list[str], areas: list[str]) -> list[dict]:
     """Quick function to check conflicts"""
     coord = get_coordinator()
     return coord.check_scoped_conflicts(scope, areas)
@@ -700,13 +700,13 @@ def check_conflicts(scope: List[str], areas: List[str]) -> List[Dict]:
 
 def declare_operation(
     intent: str,
-    scope: List[str] = None,
-    areas: List[str] = None,
+    scope: list[str] = None,
+    areas: list[str] = None,
     alert_type: str = "intent_declared",
     eta_minutes: int = 0,
     risk_level: str = "low",
-    operations: List[str] = None,
-) -> Optional[Dict]:
+    operations: list[str] = None,
+) -> dict | None:
     """
     Declare an operation that updates both manifest AND creates an operational alert.
 
@@ -756,7 +756,7 @@ def declare_operation(
         return None
 
 
-def complete_operation(alert_id: str = None, scope: List[str] = None):
+def complete_operation(alert_id: str = None, scope: list[str] = None):
     """
     Complete an operation - marks alert done and updates manifest to idle.
 

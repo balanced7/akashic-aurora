@@ -64,10 +64,10 @@ _ASSIGN_RE = {
 }
 
 
-def _read_config_defaults(path: str) -> Dict[str, Optional[float]]:
+def _read_config_defaults(path: str) -> dict[str, float | None]:
     """WARN_AT / REFUSE_AT defaults from kimi_chat.py by source read (NEVER import —
     the module pulls an SDK client at import time; audit stays side-effect-free)."""
-    out: Dict[str, Optional[float]] = {"WARN_AT": None, "REFUSE_AT": None}
+    out: dict[str, float | None] = {"WARN_AT": None, "REFUSE_AT": None}
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read()
@@ -92,7 +92,7 @@ def _read_config_defaults(path: str) -> Dict[str, Optional[float]]:
     return out
 
 
-def _read_meter(path: str) -> Optional[Dict[str, Any]]:
+def _read_meter(path: str) -> dict[str, Any] | None:
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
@@ -111,11 +111,11 @@ class SpendDomain:
         *,
         meter_path: str = DEFAULT_METER,
         config_path: str = DEFAULT_CONFIG,
-        warn_at: Optional[float] = None,
-        refuse_at: Optional[float] = None,
-        expect_refuse: Optional[float] = None,
+        warn_at: float | None = None,
+        refuse_at: float | None = None,
+        expect_refuse: float | None = None,
         stale_reconcile_s: float = STALE_RECONCILE_S,
-        now: Optional[float] = None,
+        now: float | None = None,
     ):
         """warn_at/refuse_at: config OVERRIDE (tests inject; production reads the file).
         expect_refuse: the operator/brief's believed refuse line (None = row skipped)."""
@@ -128,7 +128,7 @@ class SpendDomain:
         self._now = now
 
     # -- surfaces -----------------------------------------------------------
-    def _config(self) -> Dict[str, Optional[float]]:
+    def _config(self) -> dict[str, float | None]:
         cfg = _read_config_defaults(self._config_path)
         if self._warn_override is not None:
             cfg["WARN_AT"] = self._warn_override
@@ -137,10 +137,10 @@ class SpendDomain:
         return cfg
 
     # -- domain entry -------------------------------------------------------
-    def run(self) -> List[Row]:
+    def run(self) -> list[Row]:
         from core.toolbelt.audit import Row  # lazy: see IMPORT-CYCLE LAW above
 
-        rows: List[Row] = []
+        rows: list[Row] = []
         now = self._now if self._now is not None else time.time()
         cfg = self._config()
         meter = _read_meter(self._meter_path)

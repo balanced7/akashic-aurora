@@ -36,7 +36,8 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE_DIR = ROOT / "state" / "jobs"
@@ -96,7 +97,7 @@ def _job_dir(state_dir: os.PathLike[str] | str, job_id: str) -> Path:
     return _as_path(state_dir) / _validate_job_id(job_id)
 
 
-def _paths(state_dir: os.PathLike[str] | str, job_id: str) -> Dict[str, Path]:
+def _paths(state_dir: os.PathLike[str] | str, job_id: str) -> dict[str, Path]:
     root = _job_dir(state_dir, job_id)
     return {
         "root": root,
@@ -111,7 +112,7 @@ def _paths(state_dir: os.PathLike[str] | str, job_id: str) -> Dict[str, Path]:
     }
 
 
-def _atomic_json(path: Path, payload: Dict[str, Any]) -> None:
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     """Single-record atomic write.  Append-only logs intentionally use normal files."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
@@ -139,7 +140,7 @@ def _atomic_json(path: Path, payload: Dict[str, Any]) -> None:
             pass
 
 
-def _read_json(path: Path) -> Dict[str, Any]:
+def _read_json(path: Path) -> dict[str, Any]:
     try:
         with open(path, encoding="utf-8") as fh:
             value = json.load(fh)
@@ -148,7 +149,7 @@ def _read_json(path: Path) -> Dict[str, Any]:
         return {}
 
 
-def write_child_outcome(path: os.PathLike[str] | str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def write_child_outcome(path: os.PathLike[str] | str, payload: dict[str, Any]) -> dict[str, Any]:
     """Publish a child-owned point-of-no-return receipt atomically."""
     record = {
         "schema": SCHEMA,
@@ -216,8 +217,8 @@ def publish_fence(path: os.PathLike[str] | str, *, blocking: bool = True):
                 _unlock_fence_file(fh)
 
 
-def _safe_env_snapshot() -> Dict[str, str]:
-    out: Dict[str, str] = {}
+def _safe_env_snapshot() -> dict[str, str]:
+    out: dict[str, str] = {}
     for key, value in os.environ.items():
         upper = key.upper()
         if _SENSITIVE_ENV.search(upper):
@@ -230,7 +231,7 @@ def _safe_env_snapshot() -> Dict[str, str]:
 # ---- exact process identity ---------------------------------------------------------------
 
 
-def _win_process_info_from_handle(handle: Any) -> tuple[bool, Optional[str]]:
+def _win_process_info_from_handle(handle: Any) -> tuple[bool, str | None]:
     """Return liveness + creation FILETIME for this already-open process handle."""
     if sys.platform != "win32" or not handle:
         return False, None
@@ -264,7 +265,7 @@ def _win_process_info_from_handle(handle: Any) -> tuple[bool, Optional[str]]:
     return True, token
 
 
-def _win_process_info(pid: int) -> tuple[bool, Optional[str]]:
+def _win_process_info(pid: int) -> tuple[bool, str | None]:
     """Return (alive, creation FILETIME token) without third-party dependencies."""
     if sys.platform != "win32":
         return False, None
@@ -282,7 +283,7 @@ def _win_process_info(pid: int) -> tuple[bool, Optional[str]]:
         _win_close_handle(handle)
 
 
-def _posix_process_info(pid: int) -> tuple[bool, Optional[str]]:
+def _posix_process_info(pid: int) -> tuple[bool, str | None]:
     try:
         # /proc starttime (field 22) protects against PID reuse on Linux.
         stat = Path(f"/proc/{int(pid)}/stat").read_text(encoding="ascii")
@@ -297,7 +298,7 @@ def _posix_process_info(pid: int) -> tuple[bool, Optional[str]]:
             return False, None
 
 
-def _process_info(pid: Any) -> tuple[bool, Optional[str]]:
+def _process_info(pid: Any) -> tuple[bool, str | None]:
     try:
         value = int(pid)
     except (TypeError, ValueError):
@@ -307,7 +308,7 @@ def _process_info(pid: Any) -> tuple[bool, Optional[str]]:
     return _win_process_info(value) if sys.platform == "win32" else _posix_process_info(value)
 
 
-def _matches_identity(pid: Any, expected: Optional[str]) -> bool:
+def _matches_identity(pid: Any, expected: str | None) -> bool:
     alive, actual = _process_info(pid)
     return bool(alive and expected and actual and str(expected) == str(actual))
 
@@ -431,7 +432,7 @@ def _win_handle_in_job(job_handle: Any, process_handle: Any) -> bool:
     return bool(kernel32.IsProcessInJob(process_handle, job_handle, ctypes.byref(member)) and member.value)
 
 
-def _win_process_in_job(handle: Any, pid: int, identity: Optional[str]) -> bool:
+def _win_process_in_job(handle: Any, pid: int, identity: str | None) -> bool:
     """Verify identity and membership on one exact process handle."""
     from ctypes import wintypes
 
@@ -450,7 +451,7 @@ def _win_process_in_job(handle: Any, pid: int, identity: Optional[str]) -> bool:
         _win_close_handle(process)
 
 
-def _win_named_job_contains(name: str, pid: int, identity: Optional[str]) -> bool:
+def _win_named_job_contains(name: str, pid: int, identity: str | None) -> bool:
     try:
         handle = _win_open_job(name)
     except OSError:
@@ -461,7 +462,7 @@ def _win_named_job_contains(name: str, pid: int, identity: Optional[str]) -> boo
         _win_close_handle(handle)
 
 
-def _win_assign_exact_to_job(handle: Any, pid: int, identity: str) -> Dict[str, Any]:
+def _win_assign_exact_to_job(handle: Any, pid: int, identity: str) -> dict[str, Any]:
     from ctypes import wintypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -551,7 +552,7 @@ def _win_job_members(handle: Any) -> list[int]:
     raise JobError("Job Object process list exceeded the 4096-process safety bound")
 
 
-def _win_terminate_owned_job(handle: Any, pid: int, identity: str) -> Dict[str, Any]:
+def _win_terminate_owned_job(handle: Any, pid: int, identity: str) -> dict[str, Any]:
     """Terminate retained membership and confirm that the OS-owned set becomes empty."""
     before = _win_job_members(handle)
     root_alive, root_actual_identity = _win_process_info(pid)
@@ -640,7 +641,7 @@ def protect_owned_job_during_publish():
         _win_close_handle(handle)
 
 
-def _win_process_snapshot() -> Dict[int, int]:
+def _win_process_snapshot() -> dict[int, int]:
     """Return {pid: parent_pid} through Toolhelp; no WMI/taskkill dependency."""
     if sys.platform != "win32":
         return {}
@@ -673,7 +674,7 @@ def _win_process_snapshot() -> Dict[int, int]:
     snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS
     if not snapshot or snapshot == ctypes.c_void_p(-1).value:
         raise OSError(ctypes.get_last_error(), "CreateToolhelp32Snapshot failed")
-    rows: Dict[int, int] = {}
+    rows: dict[int, int] = {}
     try:
         entry = PROCESSENTRY32W()
         entry.dwSize = ctypes.sizeof(entry)
@@ -687,8 +688,8 @@ def _win_process_snapshot() -> Dict[int, int]:
     return rows
 
 
-def _win_tree_members(rows: Dict[int, int], root_pid: int) -> list[tuple[int, int]]:
-    children: Dict[int, list[int]] = {}
+def _win_tree_members(rows: dict[int, int], root_pid: int) -> list[tuple[int, int]]:
+    children: dict[int, list[int]] = {}
     for pid, parent in rows.items():
         children.setdefault(parent, []).append(pid)
     members: list[tuple[int, int]] = []
@@ -706,7 +707,7 @@ def _win_tree_members(rows: Dict[int, int], root_pid: int) -> list[tuple[int, in
     return members
 
 
-def _win_terminate_exact(pid: int, identity: str) -> Dict[str, Any]:
+def _win_terminate_exact(pid: int, identity: str) -> dict[str, Any]:
     from ctypes import wintypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -776,8 +777,8 @@ def _win_terminate_exact(pid: int, identity: str) -> Dict[str, Any]:
     }
 
 
-def _win_kill_tree(pid: int, identity: str) -> Dict[str, Any]:
-    actions: list[Dict[str, Any]] = []
+def _win_kill_tree(pid: int, identity: str) -> dict[str, Any]:
+    actions: list[dict[str, Any]] = []
     refused = False
     for _ in range(3):
         rows = _win_process_snapshot()
@@ -822,7 +823,7 @@ def _win_kill_tree(pid: int, identity: str) -> Dict[str, Any]:
     }
 
 
-def _kill_tree(pid: int, identity: Optional[str]) -> Dict[str, Any]:
+def _kill_tree(pid: int, identity: str | None) -> dict[str, Any]:
     """Force-kill one exact process tree.  Refuse when creation identity is ambiguous."""
     alive, actual = _process_info(pid)
     if not alive:
@@ -942,7 +943,7 @@ def _wmi_create_pair(commands: Iterable[list[str]]) -> list[int]:
 
 
 def _detached_create(argv: list[str]) -> int:
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "cwd": str(ROOT),
         "stdin": subprocess.DEVNULL,
         "stdout": subprocess.DEVNULL,
@@ -971,14 +972,14 @@ def _detached_create(argv: list[str]) -> int:
 # ---- status synthesis --------------------------------------------------------------------
 
 
-def _heartbeat_stale(record: Dict[str, Any], key: str, stale_after: float) -> bool:
+def _heartbeat_stale(record: dict[str, Any], key: str, stale_after: float) -> bool:
     try:
         return (time.time() - float(record.get(key) or 0.0)) > float(stale_after)
     except (TypeError, ValueError):
         return True
 
 
-def _startup_expired(spec: Dict[str, Any]) -> bool:
+def _startup_expired(spec: dict[str, Any]) -> bool:
     try:
         if time.monotonic() >= float(spec["startup_deadline_monotonic"]):
             return True
@@ -992,7 +993,7 @@ def _startup_expired(spec: Dict[str, Any]) -> bool:
 
 def read_status(
     job_id: str, state_dir: os.PathLike[str] | str = DEFAULT_STATE_DIR, stale_after: float = 10.0
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     p = _paths(state_dir, job_id)
     spec = _read_json(p["spec"])
     if not spec:
@@ -1009,7 +1010,7 @@ def read_status(
 
     receipt_path = p["status"] if status else (p["launch"] if launch else p["spec"])
 
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "schema": SCHEMA,
         "job_id": job_id,
         "state": "launching",
@@ -1277,7 +1278,7 @@ def launch_job(
     grace_seconds: float = 5.0,
     heartbeat_seconds: float = 1.0,
     broker: str = "auto",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     job_id = _validate_job_id(job_id)
     if not command:
         raise JobError("launch needs a command after --")
@@ -1309,7 +1310,7 @@ def launch_job(
 
     if not new:
         deadline = time.monotonic() + 1.0
-        existing: Dict[str, Any] = {}
+        existing: dict[str, Any] = {}
         while time.monotonic() < deadline:
             existing = _read_json(p["spec"])
             if existing:
@@ -1388,7 +1389,7 @@ def launch_job(
 
 def request_cancel(
     job_id: str, *, state_dir: os.PathLike[str] | str = DEFAULT_STATE_DIR, reason: str = "operator request"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     p = _paths(state_dir, job_id)
     if not p["spec"].exists():
         raise JobError(f"unknown job {job_id!r}")
@@ -1418,8 +1419,8 @@ def request_cancel(
 
 
 def _wait_watchdog_ready(
-    p: Dict[str, Path], deadline: float, stale_after: float = 2.0, expected_job_name: Optional[str] = None
-) -> Dict[str, Any]:
+    p: dict[str, Path], deadline: float, stale_after: float = 2.0, expected_job_name: str | None = None
+) -> dict[str, Any]:
     while time.monotonic() < deadline:
         rec = _read_json(p["watchdog"])
         if (
@@ -1445,7 +1446,7 @@ def _supervise(job_id: str, state_dir: Path) -> int:
     if not spec:
         return 2
     hb = float(spec["heartbeat_seconds"])
-    status: Dict[str, Any] = {
+    status: dict[str, Any] = {
         "schema": SCHEMA,
         "job_id": job_id,
         "state": "starting",
@@ -1529,8 +1530,8 @@ def _supervise(job_id: str, state_dir: Path) -> int:
         env["AKASHIC_JOB_OBJECT_NAME"] = expected_job_name
         env["AKASHIC_JOB_ENFORCEMENT"] = "win32_job_object"
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-    proc: Optional[subprocess.Popen[Any]] = None
-    child_identity: Optional[str] = None
+    proc: subprocess.Popen[Any] | None = None
+    child_identity: str | None = None
     try:
         p["log"].parent.mkdir(parents=True, exist_ok=True)
         with open(p["log"], "a", encoding="utf-8", buffering=1, errors="replace") as log:
@@ -1636,7 +1637,7 @@ def _supervise(job_id: str, state_dir: Path) -> int:
                             time.sleep(min(0.02, hb))
                     outcome_state = str(outcome.get("state") or "")
                     pushed = outcome.get("primary_effect") == "pushed"
-                    extra: Dict[str, Any] = {}
+                    extra: dict[str, Any] = {}
                     if pushed:
                         extra.update(outcome)
                     if outcome_state == "succeeded" and pushed:
@@ -1712,7 +1713,7 @@ def _supervise(job_id: str, state_dir: Path) -> int:
                 _atomic_json(p["status"], status)
                 time.sleep(hb)
     except Exception as exc:
-        cleanup: Dict[str, Any] = {}
+        cleanup: dict[str, Any] = {}
         child_alive = False
         if proc is not None:
             if proc.poll() is None:
@@ -1763,7 +1764,7 @@ def _supervise(job_id: str, state_dir: Path) -> int:
         return 2
 
 
-def _force_owned_job(job_handle: Any, child_pid: int, child_identity: str) -> Dict[str, Any]:
+def _force_owned_job(job_handle: Any, child_pid: int, child_identity: str) -> dict[str, Any]:
     if sys.platform == "win32" and job_handle:
         return _win_terminate_owned_job(job_handle, child_pid, child_identity)
     return _kill_tree(child_pid, child_identity)
@@ -1775,7 +1776,7 @@ def _watchdog(job_id: str, state_dir: Path) -> int:
     if not spec:
         return 2
     hb = float(spec["heartbeat_seconds"])
-    record: Dict[str, Any] = {
+    record: dict[str, Any] = {
         "schema": SCHEMA,
         "job_id": job_id,
         "state": "watching",
@@ -1802,7 +1803,7 @@ def _watchdog(job_id: str, state_dir: Path) -> int:
             )
             _atomic_json(p["watchdog"], record)
             startup_deadline = float(spec["startup_deadline_monotonic"])
-            assignment: Dict[str, Any] = {}
+            assignment: dict[str, Any] = {}
             while time.monotonic() < startup_deadline:
                 status = _read_json(p["status"])
                 supervisor_pid = status.get("supervisor_pid")
@@ -1899,15 +1900,15 @@ def _watchdog(job_id: str, state_dir: Path) -> int:
 
 
 def _watchdog_loop(
-    job_id: str, p: Dict[str, Path], spec: Dict[str, Any], record: Dict[str, Any], job_handle: Any = None
+    job_id: str, p: dict[str, Path], spec: dict[str, Any], record: dict[str, Any], job_handle: Any = None
 ) -> int:
     hb = float(spec["heartbeat_seconds"])
     stale_after = max(0.2, hb * 4.0)
-    child_pid: Optional[int] = None
-    child_identity: Optional[str] = None
-    deadline_monotonic: Optional[float] = None
-    quiesce_started: Optional[float] = None
-    terminal_outcome_seen: Optional[float] = None
+    child_pid: int | None = None
+    child_identity: str | None = None
+    deadline_monotonic: float | None = None
+    quiesce_started: float | None = None
+    terminal_outcome_seen: float | None = None
 
     while True:
         now_mono = time.monotonic()
@@ -2450,7 +2451,7 @@ def _watchdog_loop(
 # ---- CLI ----------------------------------------------------------------------------------
 
 
-def _print(payload: Dict[str, Any]) -> None:
+def _print(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, sort_keys=True, ensure_ascii=True, default=str), flush=True)
 
 
@@ -2485,7 +2486,7 @@ def _parser() -> argparse.ArgumentParser:
     return ap
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.verb == "launch":

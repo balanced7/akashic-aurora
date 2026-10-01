@@ -15,8 +15,9 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
-from typing import Any, Callable, Iterable, Mapping, Optional
+from datetime import datetime, timezone, UTC
+from typing import Any, Optional
+from collections.abc import Callable, Iterable, Mapping
 
 ENVELOPE_CAP = 8 * 1024
 DEFAULT_WAL_PAUSE_BYTES = 100 * 1024 * 1024
@@ -56,7 +57,7 @@ def _sha256(value: Any) -> str:
 
 def _now() -> tuple[str, int]:
     stamp_ns = time.time_ns()
-    stamp = datetime.fromtimestamp(stamp_ns / 1_000_000_000, timezone.utc)
+    stamp = datetime.fromtimestamp(stamp_ns / 1_000_000_000, UTC)
     return stamp.isoformat().replace("+00:00", "Z"), stamp_ns
 
 
@@ -131,7 +132,7 @@ class CategoryContract:
             delivery=self.delivery,
         )
 
-    def with_facets(self, **facets: Any) -> "CategoryContract":
+    def with_facets(self, **facets: Any) -> CategoryContract:
         merged = dict(self.facets)
         merged.update(facets)
         return replace(self, facets=merged)
@@ -209,7 +210,7 @@ class _SQLiteRegister:
 
     def __init__(self, path: os.PathLike[str] | str):
         self.path = os.path.realpath(os.fspath(path))
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._degraded_reason = ""
         parent = os.path.dirname(self.path) or os.curdir
         if not os.path.isdir(parent):
@@ -310,7 +311,7 @@ class ObservationStore(_SQLiteRegister):
             """
         )
 
-    def _find(self, cohort_id: str) -> Optional[dict[str, Any]]:
+    def _find(self, cohort_id: str) -> dict[str, Any] | None:
         if not self.available:
             return None
         row = (
@@ -334,7 +335,7 @@ class ObservationStore(_SQLiteRegister):
         self,
         envelope: Mapping[str, Any],
         *,
-        before_commit: Optional[Callable[[], Any]] = None,
+        before_commit: Callable[[], Any] | None = None,
     ) -> dict[str, Any]:
         conn = self._require_connection()
         value = dict(_jsonable(envelope))
@@ -400,7 +401,7 @@ class ObservationStore(_SQLiteRegister):
         result["content_hash"] = content_hash
         return result
 
-    def list_envelopes(self, *, subject: Optional[str] = None, purpose: Optional[str] = None) -> list[dict[str, Any]]:
+    def list_envelopes(self, *, subject: str | None = None, purpose: str | None = None) -> list[dict[str, Any]]:
         if not self.available:
             return []
         clauses: list[str] = []
@@ -430,7 +431,7 @@ class ObservationStore(_SQLiteRegister):
         row = self._require_connection().execute("SELECT COUNT(*) AS n FROM envelopes").fetchone()
         return int(row["n"])
 
-    def compact(self, cohort_id: str, reason: str) -> Optional[dict[str, Any]]:
+    def compact(self, cohort_id: str, reason: str) -> dict[str, Any] | None:
         manifests = self._compact_rows([cohort_id], reason=reason)
         return manifests[0] if manifests else None
 
@@ -515,9 +516,9 @@ class ObservationStore(_SQLiteRegister):
     def list_manifests(
         self,
         *,
-        limit: Optional[int] = None,
-        subject: Optional[str] = None,
-        purpose: Optional[str] = None,
+        limit: int | None = None,
+        subject: str | None = None,
+        purpose: str | None = None,
     ) -> list[dict[str, Any]]:
         if not self.available:
             return []
@@ -705,7 +706,7 @@ def record_envelope(
     cohort_version: int,
     watcher_incarnation: str,
     decisions: Mapping[str, Any],
-    before_commit: Optional[Callable[[], Any]] = None,
+    before_commit: Callable[[], Any] | None = None,
 ) -> dict[str, Any]:
     value = _functional_envelope(
         source_fingerprint=source_fingerprint,
@@ -858,11 +859,11 @@ class ShadowShelfReader:
     def __init__(
         self,
         observation_store: ObservationStore,
-        judgment_store: Optional[JudgmentStore],
+        judgment_store: JudgmentStore | None,
     ) -> None:
         self.observation_store = observation_store
         self.judgment_store = judgment_store
-        self._head_resolver: Optional[Callable[[str], Any]] = None
+        self._head_resolver: Callable[[str], Any] | None = None
 
     def set_contract_head_resolver(self, resolver: Callable[[str], Any]) -> None:
         self._head_resolver = resolver

@@ -110,13 +110,13 @@ def _resolve_engine():
 
 
 def recall_context(
-    session_key: Optional[str],
-    path: Optional[str] = None,
-    command: Optional[str] = None,
+    session_key: str | None,
+    path: str | None = None,
+    command: str | None = None,
     *,
     limit: int = 3,
-    exclude_sources: Optional[set] = None,
-) -> Dict[str, Any]:
+    exclude_sources: set | None = None,
+) -> dict[str, Any]:
     """Recall-at-action for an external runtime: the few highest-signal lessons (+ locks + verbs)
     for a point of action, under a stable, plugin-facing contract.
 

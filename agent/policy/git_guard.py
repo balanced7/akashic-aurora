@@ -56,7 +56,7 @@ def _tokens(segment: str):
         return segment.split()
 
 
-def check_git_command(command: str) -> Tuple[bool, str]:
+def check_git_command(command: str) -> tuple[bool, str]:
     """Inspect a shell command. Return (allowed, reason).
 
     allowed=False means the caller (a hook) should DENY the command. The reason is

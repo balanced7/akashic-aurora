@@ -200,7 +200,7 @@ class VisionEngine:
 
             print("[vision] Model unloaded, VRAM freed")
 
-    def analyze_screen(self, image: Image.Image, task: str = "caption", max_tokens: int = 1024) -> Dict[str, Any]:
+    def analyze_screen(self, image: Image.Image, task: str = "caption", max_tokens: int = 1024) -> dict[str, Any]:
         """
         Analyze a screenshot with Florence-2 using explicit tensor handling.
 
@@ -296,7 +296,7 @@ class VisionEngine:
         except Exception as e:
             return {"error": str(e), "task": task}
 
-    def full_analysis(self, image: Image.Image) -> Dict[str, Any]:
+    def full_analysis(self, image: Image.Image) -> dict[str, Any]:
         """
         Run multiple analysis tasks on a single image.
 
@@ -315,7 +315,7 @@ class VisionEngine:
 
         return results
 
-    def phrase_grounding(self, image: Image.Image, phrase: str) -> Dict[str, Any]:
+    def phrase_grounding(self, image: Image.Image, phrase: str) -> dict[str, Any]:
         """
         Answer "Where is X?" questions about the screen.
 
@@ -367,7 +367,7 @@ class VisionEngine:
             return {"error": str(e), "task": "phrase_grounding"}
 
 
-def capture_active_window() -> Optional[Image.Image]:
+def capture_active_window() -> Image.Image | None:
     """
     Capture screenshot of the currently active window.
 
@@ -414,7 +414,7 @@ def capture_active_window() -> Optional[Image.Image]:
     return None
 
 
-def capture_region(bbox: tuple) -> Optional[Image.Image]:
+def capture_region(bbox: tuple) -> Image.Image | None:
     """
     Capture a specific region of the screen.
 
@@ -477,7 +477,7 @@ def encode_image_base64(image: Image.Image, max_size: int = 2048) -> str:
     return encoded
 
 
-def quick_error_detection(image: Image.Image) -> Dict[str, Any]:
+def quick_error_detection(image: Image.Image) -> dict[str, Any]:
     """
     Quick error detection using Florence-2.
 
@@ -513,7 +513,7 @@ def quick_error_detection(image: Image.Image) -> Dict[str, Any]:
     return result
 
 
-def get_screen_context_for_analyst(image: Image.Image) -> Dict[str, Any]:
+def get_screen_context_for_analyst(image: Image.Image) -> dict[str, Any]:
     """
     Get comprehensive screen context formatted for Analyst consumption.
 
@@ -548,7 +548,7 @@ def get_screen_context_for_analyst(image: Image.Image) -> Dict[str, Any]:
     return context
 
 
-def create_vision_signal_payload(context: Dict[str, Any]) -> str:
+def create_vision_signal_payload(context: dict[str, Any]) -> str:
     """
     Create a formatted signal payload for the blackboard.
 
@@ -564,7 +564,7 @@ def create_vision_signal_payload(context: Dict[str, Any]) -> str:
     return json.dumps(payload, indent=2)
 
 
-def extract_keyframes(video_path: str, max_frames: int = 8) -> List[Image.Image]:
+def extract_keyframes(video_path: str, max_frames: int = 8) -> list[Image.Image]:
     """
     Extract keyframes from video for VLM analysis.
 
@@ -637,7 +637,7 @@ def extract_keyframes(video_path: str, max_frames: int = 8) -> List[Image.Image]
         return []
 
 
-def analyze_video_keyframes(keyframes: List[Image.Image], task: str = "detailed_caption") -> Dict[str, Any]:
+def analyze_video_keyframes(keyframes: list[Image.Image], task: str = "detailed_caption") -> dict[str, Any]:
     """
     Analyze a list of keyframes with Florence-2.
 

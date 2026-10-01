@@ -37,7 +37,7 @@ def new_resource_id() -> str:
     return f"res_{uuid.uuid4().hex[:12]}"
 
 
-def version_hash(atom_ids: List[str], summary: str) -> str:
+def version_hash(atom_ids: list[str], summary: str) -> str:
     """A content fingerprint (membership + summary) for idempotent regenerate / change-detection."""
     blob = "|".join(sorted(str(a) for a in atom_ids)) + "::" + (summary or "")
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
@@ -48,10 +48,10 @@ class BiTemporal(Protocol):
     """The structural contract the shared lifecycle needs -- satisfied by Chapter AND Resource."""
 
     id: str
-    valid_from: Optional[str]
-    valid_to: Optional[str]
-    recorded_at: Optional[str]
-    relates: List[Edge]
+    valid_from: str | None
+    valid_to: str | None
+    recorded_at: str | None
+    relates: list[Edge]
 
 
 @dataclass
@@ -61,24 +61,24 @@ class Resource:
     id: str
     title: str = ""
     summary: str = ""
-    atom_ids: List[str] = field(default_factory=list)  # lossless provenance (no atom orphaned)
-    centroid: List[float] = field(default_factory=list)  # embedding handle
+    atom_ids: list[str] = field(default_factory=list)  # lossless provenance (no atom orphaned)
+    centroid: list[float] = field(default_factory=list)  # embedding handle
     confidence: float = 0.5  # drives Ranker weight + the C6 gate
-    valid_from: Optional[str] = None  # bi-temporal (world time)
-    valid_to: Optional[str] = None  # open = active; closed = superseded (canonical)
-    recorded_at: Optional[str] = None  # bi-temporal (system time)
-    relates: List[Edge] = field(default_factory=list)  # replaces / is_version_of / part_of
+    valid_from: str | None = None  # bi-temporal (world time)
+    valid_to: str | None = None  # open = active; closed = superseded (canonical)
+    recorded_at: str | None = None  # bi-temporal (system time)
+    relates: list[Edge] = field(default_factory=list)  # replaces / is_version_of / part_of
     version_hash: str = ""
-    parent: Optional[str] = None  # tree link (a higher-level Resource)
+    parent: str | None = None  # tree link (a higher-level Resource)
 
     def compute_version(self) -> str:
         return version_hash(self.atom_ids, self.summary)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Resource":
+    def from_dict(cls, d: dict[str, Any]) -> "Resource":
         d = dict(d)
         d["relates"] = _as_edges(d.get("relates"))
         return cls(**d)
@@ -86,12 +86,12 @@ class Resource:
 
 def new_resource(
     *,
-    atom_ids: List[str],
+    atom_ids: list[str],
     title: str = "",
     summary: str = "",
-    centroid: Optional[List[float]] = None,
+    centroid: list[float] | None = None,
     confidence: float = 0.5,
-    id: Optional[str] = None,
+    id: str | None = None,
 ) -> Resource:
     """Mint a Resource with a fresh stable id and a computed version_hash."""
     r = Resource(

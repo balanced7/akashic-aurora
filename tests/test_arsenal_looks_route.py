@@ -365,7 +365,7 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
             try:
                 while chunk := sock.recv(65536):
                     data += chunk
-            except socket.timeout:
+            except TimeoutError:
                 kept_open = True
         statuses = re.findall(rb"HTTP/1\.[01] (\d{3}) ", data)  # (a body ends without a newline: not anchored)
         assert statuses == [b"404"] and not kept_open and b"Connection: close" in data, (method, path, data)

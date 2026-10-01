@@ -29,10 +29,10 @@ from core.primitives.ranker import Ranker
 def load_learnings_for_boot(
     task: str,
     *,
-    learning_store: Optional[LearningStore] = None,
-    now: Optional[float] = None,
-    cap_chars: Optional[int] = None,
-) -> List[Dict[str, Any]]:
+    learning_store: LearningStore | None = None,
+    now: float | None = None,
+    cap_chars: int | None = None,
+) -> list[dict[str, Any]]:
     """T071-R1 boot door: MOST-RELEVANT lessons under the fixed relevance budget
     (context/relevance_budget.py; deepseek Part 5 governs). Kill switch R1-d:
     AKASHIC_RELEVANCE_BUDGET=0 serves the legacy recency/Ranker selection, same
@@ -84,7 +84,7 @@ def _confidence_base(raw: Any) -> int:
     return 5 if val >= 0.75 else (3 if val >= 0.4 else 2)
 
 
-def _importance_of(learning: Dict[str, Any]) -> int:
+def _importance_of(learning: dict[str, Any]) -> int:
     base = _confidence_base(learning.get("confidence", "medium"))
     success = str(learning.get("success", "")).lower()
     if success == "yes":
@@ -94,7 +94,7 @@ def _importance_of(learning: Dict[str, Any]) -> int:
     return base
 
 
-def _text_of(learning: Dict[str, Any]) -> str:
+def _text_of(learning: dict[str, Any]) -> str:
     parts = [
         learning.get("experiment_name", ""),
         learning.get("category", ""),
@@ -108,10 +108,10 @@ def load_learnings_ranked_by_relevance(
     task: str,
     top_k: int = 5,
     *,
-    learning_store: Optional[LearningStore] = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    learning_store: LearningStore | None = None,
+    ranker: Ranker | None = None,
+    now: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Load the `top_k` learnings most relevant to `task`, ranked.
 
@@ -139,7 +139,7 @@ def load_learnings_ranked_by_relevance(
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for s in ranked:
         l = s.item["_learning"]
         results.append(

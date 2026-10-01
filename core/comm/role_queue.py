@@ -128,7 +128,7 @@ class Claim:
     agent: str
     msg_id: str
     consumer: str
-    fields: Dict[str, Any] = field(default_factory=dict)
+    fields: dict[str, Any] = field(default_factory=dict)
     token: str = ""  # consumer#generation -- what commit() must match (P3+P6)
 
 
@@ -138,10 +138,10 @@ def publish(
     kind: str,
     content: Any = None,
     *,
-    meta: Optional[Dict[str, Any]] = None,
-    freshness_s: Optional[float] = None,
+    meta: dict[str, Any] | None = None,
+    freshness_s: float | None = None,
     client=None,
-) -> Optional[str]:
+) -> str | None:
     """Add one role-work item. Returns the message id (the durable message identity)."""
     client = client or _connect()
     stream = _stream_key(ns, agent)
@@ -156,7 +156,7 @@ def publish(
     return str(client.xadd(stream, env))
 
 
-def _is_stale(fields: Dict[str, Any], now: Optional[float] = None) -> bool:
+def _is_stale(fields: dict[str, Any], now: float | None = None) -> bool:
     fu = str(fields.get("fresh_until") or "")
     if not fu:
         return False
@@ -166,7 +166,7 @@ def _is_stale(fields: Dict[str, Any], now: Optional[float] = None) -> bool:
         return False
 
 
-def _drop_stale(client, ns: str, agent: str, msg_id: str, fields: Dict[str, Any]) -> None:
+def _drop_stale(client, ns: str, agent: str, msg_id: str, fields: dict[str, Any]) -> None:
     """P4: ack + clear fence + LOUD. Dropped-as-stale is a decision, never a silence."""
     stream, group = _stream_key(ns, agent), _group(agent)
     try:
@@ -186,7 +186,7 @@ def _drop_stale(client, ns: str, agent: str, msg_id: str, fields: Dict[str, Any]
         pass
 
 
-def claim_next(ns: str, agent: str, consumer: str, *, block_ms: int = 0, client=None) -> Optional[Claim]:
+def claim_next(ns: str, agent: str, consumer: str, *, block_ms: int = 0, client=None) -> Claim | None:
     """Claim the next role-work item for `consumer`. Exactly-once per group (P1); stale
     items are dropped, never delivered (P4); the fence names the claimant (P3)."""
     client = client or _connect()
@@ -209,7 +209,7 @@ def claim_next(ns: str, agent: str, consumer: str, *, block_ms: int = 0, client=
     return None
 
 
-def reclaim_stalled(ns: str, agent: str, consumer: str, *, min_idle_s: float, client=None) -> List[Claim]:
+def reclaim_stalled(ns: str, agent: str, consumer: str, *, min_idle_s: float, client=None) -> list[Claim]:
     """P2: take over claims idle past `min_idle_s` (stalled OR dead claimants -- XAUTOCLAIM
     moves PEL ownership; the fence transfers with it, which is what fences the old writer)."""
     client = client or _connect()
@@ -221,7 +221,7 @@ def reclaim_stalled(ns: str, agent: str, consumer: str, *, min_idle_s: float, cl
         return []
     # redis-py returns (next_start, entries) or (next_start, entries, deleted) per version.
     entries = res[1] if isinstance(res, (list, tuple)) and len(res) >= 2 else []
-    out: List[Claim] = []
+    out: list[Claim] = []
     for sid, fields in entries or []:
         msg_id, fields = str(sid), dict(fields or {})
         if _is_stale(fields):
@@ -258,7 +258,7 @@ def commit(claim: Claim, *, client=None) -> bool:
     return True
 
 
-def claim_state(ns: str, agent: str, msg_id: str, *, client=None) -> Dict[str, Any]:
+def claim_state(ns: str, agent: str, msg_id: str, *, client=None) -> dict[str, Any]:
     """P5: the projection. Derived from PEL + fence ONLY -- any fresh reader computes the
     same answer; nothing here is a cache that could diverge from the durable layer."""
     client = client or _connect()

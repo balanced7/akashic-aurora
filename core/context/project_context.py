@@ -46,7 +46,7 @@ class Milestone:
     status: str  # pending|in_progress|completed|blocked
     created_at: str
     priority: int = 0
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 @dataclass
@@ -56,10 +56,10 @@ class Task:
     description: str
     status: str  # todo|in_progress|done|blocked
     created_at: str
-    assignee: Optional[str] = None
-    milestone_id: Optional[str] = None
+    assignee: str | None = None
+    milestone_id: str | None = None
     updated_at: str = ""
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 @dataclass
@@ -69,8 +69,8 @@ class Blocker:
     severity: str  # low|medium|high|critical
     status: str  # active|resolved
     created_at: str
-    resolved_at: Optional[str] = None
-    task_id: Optional[str] = None
+    resolved_at: str | None = None
+    task_id: str | None = None
 
 
 class ProjectContextManager:
@@ -104,7 +104,7 @@ class ProjectContextManager:
 
     # ============ ARCHITECTURAL CONTEXT ============
 
-    def establish_architecture_with_relationships(self, architecture: Dict) -> bool:
+    def establish_architecture_with_relationships(self, architecture: dict) -> bool:
         """
         Establish architecture documentation with component relationships.
 
@@ -120,11 +120,11 @@ class ProjectContextManager:
         return True
 
     # Backward compatibility alias
-    def set_architecture(self, architecture: Dict) -> bool:
+    def set_architecture(self, architecture: dict) -> bool:
         """Deprecated: Use establish_architecture_with_relationships() instead"""
         return self.establish_architecture_with_relationships(architecture)
 
-    def load_architecture_documentation(self) -> Optional[Dict]:
+    def load_architecture_documentation(self) -> dict | None:
         """
         Load architectural documentation.
 
@@ -137,11 +137,11 @@ class ProjectContextManager:
         return json.loads(data) if data else None
 
     # Backward compatibility alias
-    def get_architecture(self) -> Optional[Dict]:
+    def get_architecture(self) -> dict | None:
         """Deprecated: Use load_architecture_documentation() instead"""
         return self.load_architecture_documentation()
 
-    def update_architecture_component_details(self, component: str, details: Dict) -> None:
+    def update_architecture_component_details(self, component: str, details: dict) -> None:
         """
         Update a specific component in architecture.
 
@@ -157,7 +157,7 @@ class ProjectContextManager:
         self.establish_architecture_with_relationships(arch)
 
     # Backward compatibility alias
-    def update_architecture_component(self, component: str, details: Dict) -> None:
+    def update_architecture_component(self, component: str, details: dict) -> None:
         """Deprecated: Use update_architecture_component_details() instead"""
         return self.update_architecture_component_details(component, details)
 
@@ -197,7 +197,7 @@ class ProjectContextManager:
         """Deprecated: Use record_milestone_marking_progress() instead"""
         return self.record_milestone_marking_progress(name, description, priority)
 
-    def load_milestones_filtered_by_status(self, status: Optional[str] = None) -> List[Milestone]:
+    def load_milestones_filtered_by_status(self, status: str | None = None) -> list[Milestone]:
         """
         Load milestones optionally filtered by status.
 
@@ -221,7 +221,7 @@ class ProjectContextManager:
         return sorted(milestones, key=lambda x: (-x.priority, x.created_at))
 
     # Backward compatibility alias
-    def get_milestones(self, status: Optional[str] = None) -> List[Milestone]:
+    def get_milestones(self, status: str | None = None) -> list[Milestone]:
         """Deprecated: Use load_milestones_filtered_by_status() instead"""
         return self.load_milestones_filtered_by_status(status)
 
@@ -268,7 +268,7 @@ class ProjectContextManager:
     # ============ MID PICTURE (Tasks) ============
 
     def register_task_derived_from_milestone(
-        self, title: str, description: str, milestone_id: Optional[str] = None, assignee: Optional[str] = None
+        self, title: str, description: str, milestone_id: str | None = None, assignee: str | None = None
     ) -> str:
         """
         Register a task derived from a milestone.
@@ -301,14 +301,12 @@ class ProjectContextManager:
 
     # Backward compatibility alias
     def add_task(
-        self, title: str, description: str, milestone_id: Optional[str] = None, assignee: Optional[str] = None
+        self, title: str, description: str, milestone_id: str | None = None, assignee: str | None = None
     ) -> str:
         """Deprecated: Use register_task_derived_from_milestone() instead"""
         return self.register_task_derived_from_milestone(title, description, milestone_id, assignee)
 
-    def load_tasks_filtered_by_status(
-        self, status: Optional[str] = None, milestone_id: Optional[str] = None
-    ) -> List[Task]:
+    def load_tasks_filtered_by_status(self, status: str | None = None, milestone_id: str | None = None) -> list[Task]:
         """
         Load tasks optionally filtered by status and milestone.
 
@@ -336,7 +334,7 @@ class ProjectContextManager:
         return sorted(tasks, key=lambda x: x.created_at, reverse=True)
 
     # Backward compatibility alias
-    def get_tasks(self, status: Optional[str] = None, milestone_id: Optional[str] = None) -> List[Task]:
+    def get_tasks(self, status: str | None = None, milestone_id: str | None = None) -> list[Task]:
         """Deprecated: Use load_tasks_filtered_by_status() instead"""
         return self.load_tasks_filtered_by_status(status, milestone_id)
 
@@ -368,7 +366,7 @@ class ProjectContextManager:
     # ============ BLOCKERS ============
 
     def record_blocker_preventing_task(
-        self, description: str, severity: str = "medium", task_id: Optional[str] = None
+        self, description: str, severity: str = "medium", task_id: str | None = None
     ) -> str:
         """
         Record a blocker preventing task progress.
@@ -398,11 +396,11 @@ class ProjectContextManager:
         return blocker_id
 
     # Backward compatibility alias
-    def add_blocker(self, description: str, severity: str = "medium", task_id: Optional[str] = None) -> str:
+    def add_blocker(self, description: str, severity: str = "medium", task_id: str | None = None) -> str:
         """Deprecated: Use record_blocker_preventing_task() instead"""
         return self.record_blocker_preventing_task(description, severity, task_id)
 
-    def load_blockers_filtered_by_status(self, status: Optional[str] = None) -> List[Blocker]:
+    def load_blockers_filtered_by_status(self, status: str | None = None) -> list[Blocker]:
         """
         Load blockers optionally filtered by status.
 
@@ -426,7 +424,7 @@ class ProjectContextManager:
         return sorted(blockers, key=lambda x: x.created_at, reverse=True)
 
     # Backward compatibility alias
-    def get_blockers(self, status: Optional[str] = None) -> List[Blocker]:
+    def get_blockers(self, status: str | None = None) -> list[Blocker]:
         """Deprecated: Use load_blockers_filtered_by_status() instead"""
         return self.load_blockers_filtered_by_status(status)
 
@@ -478,7 +476,7 @@ class ProjectContextManager:
         """Deprecated: Use set_current_task_with_details() instead"""
         return self.set_current_task_with_details(task, details)
 
-    def load_current_task_in_progress(self) -> Optional[Dict]:
+    def load_current_task_in_progress(self) -> dict | None:
         """
         Load current task in progress.
 
@@ -492,7 +490,7 @@ class ProjectContextManager:
         return json.loads(data) if data else None
 
     # Backward compatibility alias
-    def get_current_task(self) -> Optional[Dict]:
+    def get_current_task(self) -> dict | None:
         """Deprecated: Use load_current_task_in_progress() instead"""
         return self.load_current_task_in_progress()
 
@@ -519,7 +517,7 @@ class ProjectContextManager:
 
     # ============ COMPREHENSIVE CONTEXT ============
 
-    def derive_full_context_for_agent_repriming(self) -> Dict:
+    def derive_full_context_for_agent_repriming(self) -> dict:
         """
         Derive full context for agent re-priming.
 
@@ -584,11 +582,11 @@ class ProjectContextManager:
         }
 
     # Backward compatibility alias
-    def get_full_context(self) -> Dict:
+    def get_full_context(self) -> dict:
         """Deprecated: Use derive_full_context_for_agent_repriming() instead"""
         return self.derive_full_context_for_agent_repriming()
 
-    def _load_recent_actions_from_sessions(self) -> List[Dict]:
+    def _load_recent_actions_from_sessions(self) -> list[dict]:
         """
         Load recent actions from all sessions.
 
@@ -618,7 +616,7 @@ class ProjectContextManager:
         return recent[:20]
 
     # Backward compatibility alias
-    def _get_recent_actions(self) -> List[Dict]:
+    def _get_recent_actions(self) -> list[dict]:
         """Deprecated internal: Use _load_recent_actions_from_sessions() instead"""
         return self._load_recent_actions_from_sessions()
 

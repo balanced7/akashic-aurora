@@ -52,7 +52,8 @@ import socket
 import threading
 import time
 import zlib
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
+from collections.abc import Callable
 
 # Loopback only, always. This is a control plane: it must never be reachable off-box.
 _HOST = "127.0.0.1"
@@ -105,16 +106,16 @@ class ControlChannel:
     anything, including a shell one-liner, when nothing else about the process is working.
     """
 
-    def __init__(self, agent: str, *, port: Optional[int] = None):
+    def __init__(self, agent: str, *, port: int | None = None):
         self.agent = str(agent)
         self.port = int(port or port_for(self.agent))
-        self._handlers: Dict[str, Callable[[str], str]] = {}
-        self._sock: Optional[socket.socket] = None
-        self._thread: Optional[threading.Thread] = None
+        self._handlers: dict[str, Callable[[str], str]] = {}
+        self._sock: socket.socket | None = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
-        self.started_at: Optional[float] = None
-        self.last_command: Optional[str] = None
-        self.last_command_at: Optional[float] = None
+        self.started_at: float | None = None
+        self.last_command: str | None = None
+        self.last_command_at: float | None = None
         self._register_builtins()
 
     # ---------------------------------------------------------------- handlers
@@ -192,7 +193,7 @@ class ControlChannel:
         while not self._stop.is_set():
             try:
                 conn, _addr = self._sock.accept()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except OSError:
                 break  # socket closed under us -> done
@@ -203,7 +204,7 @@ class ControlChannel:
                 conn.sendall((reply + "\n").encode("utf-8"))
             except Exception as e:
                 try:
-                    conn.sendall(f"ERR {type(e).__name__}: {e}\n".encode("utf-8"))
+                    conn.sendall(f"ERR {type(e).__name__}: {e}\n".encode())
                 except Exception:
                     pass
             finally:
@@ -227,7 +228,7 @@ class ControlChannel:
 
 
 # -------------------------------------------------------------------- client
-def send(agent: str, command: str, *, timeout: float = 3.0, port: Optional[int] = None) -> Optional[str]:
+def send(agent: str, command: str, *, timeout: float = 3.0, port: int | None = None) -> str | None:
     """Speak to an agent's control channel. None when nobody is listening.
 
     None is the honest answer for 'no control channel' and is NOT the same as an error reply --

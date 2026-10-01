@@ -126,7 +126,7 @@ def drain(agent: str, by: str = "user", reason: str = "") -> bool:
         return False
 
 
-def drain_requested(agent: str) -> Optional[Dict[str, Any]]:
+def drain_requested(agent: str) -> dict[str, Any] | None:
     """The runner's loop-top probe. None when no live request (or bus offline)."""
     c = _client()
     if c is None:
@@ -149,7 +149,7 @@ def clear_drain(agent: str) -> None:
 
 
 # ------------------------------------------------------------------ pause
-def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None, soft: bool = False) -> bool:
+def pause(reason: str = "", by: str = "user", ttl: int | None = None, soft: bool = False) -> bool:
     """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.
     RB-30 (T030 L5): `ttl` seconds makes the pause SELF-HEAL -- automated backstops
     (rate-limit guards) must never freeze the fleet forever if everyone forgets them.
@@ -183,7 +183,7 @@ def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None, soft: b
         return False
 
 
-def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> str:
+def format_pause_line(status: dict[str, Any], now: float | None = None) -> str:
     """PURE render of pause_status() (RB-30 H5): a leftover freeze must be LOUD at every
     surface that renders fleet state (boot, bifrost-sync, fleet doctor). Age is computed
     AT RENDER from the stored ts -- the store stays clock-free (T025 doctrine). Returns
@@ -276,7 +276,7 @@ def is_frozen(agent: str) -> bool:
         return False
 
 
-def pause_status() -> Dict[str, Any]:
+def pause_status() -> dict[str, Any]:
     """{paused, soft, online, reason?, by?, ts?} -- for the UI/CLI status line. A HARD
     pause wins the render when both are somehow set: it is the stronger claim, and a
     surface must never describe a fleet as merely winding down while it is actually
@@ -380,13 +380,13 @@ def is_halted(agent: str) -> bool:
         return False
 
 
-def halted_agents() -> Dict[str, Any]:
+def halted_agents() -> dict[str, Any]:
     """{agent: {reason, by, ts}} for each agent under a TARGETED halt (a global pause is separate, via
     pause_status()). The UI unions the two to show who is frozen and why."""
     c = _client()
     if c is None:
         return {}
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     try:
         for k in c.keys(_halt_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]
@@ -402,7 +402,7 @@ def halted_agents() -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------ loop guard
-def next_hops(incoming_meta: Optional[dict]) -> int:
+def next_hops(incoming_meta: dict | None) -> int:
     """The hop count to stamp on the reply to a message: incoming hops + 1 (0 if unset)."""
     try:
         return int((incoming_meta or {}).get("hops", 0)) + 1
@@ -410,7 +410,7 @@ def next_hops(incoming_meta: Optional[dict]) -> int:
         return 1
 
 
-def hops_exceeded(incoming_meta: Optional[dict], max_hops: int = MAX_HOPS) -> bool:
+def hops_exceeded(incoming_meta: dict | None, max_hops: int = MAX_HOPS) -> bool:
     """True iff this message is already too deep in an auto-reply chain to answer (return to a human)."""
     try:
         return int((incoming_meta or {}).get("hops", 0)) >= max_hops
@@ -426,7 +426,7 @@ class RateLimiter:
         self.max = max(1, int(max_per_min))
         self.events: deque = deque()
 
-    def allow(self, now: Optional[float] = None) -> bool:
+    def allow(self, now: float | None = None) -> bool:
         """Record an event and return True if under the limit; False if the window is full."""
         now = time.time() if now is None else now
         while self.events and now - self.events[0] > 60:
@@ -473,12 +473,12 @@ def clear_activity(agent: str) -> bool:
         return False
 
 
-def get_activities() -> Dict[str, Any]:
+def get_activities() -> dict[str, Any]:
     """{agent: {state, detail, ts}} for every agent currently doing something (non-expired)."""
     c = _client()
     if c is None:
         return {}
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     try:
         for k in c.keys(_activity_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]

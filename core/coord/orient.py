@@ -17,7 +17,8 @@ The module is deliberately strict:
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable, Mapping
 
 from core.primitives.epistemic import derive_epistemic_view
 
@@ -38,7 +39,7 @@ _DEPTHS = {"surface", "evidence"}
 _TARGET_KINDS = {"verb", "seat", "thread"}
 
 
-def _default_providers() -> Dict[str, Callable[..., Any]]:
+def _default_providers() -> dict[str, Callable[..., Any]]:
     from core.comm.awareness import build_snapshot
     from core.comm.thread_capture import collect_thread
     from core.coord.ground import ground
@@ -46,7 +47,7 @@ def _default_providers() -> Dict[str, Callable[..., Any]]:
     return {"snapshot": build_snapshot, "ground": ground, "capture": collect_thread}
 
 
-def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
+def _parse_target(subject: str, target: str) -> dict[str, str] | None:
     raw = str(target or "").strip()
     if not raw:
         return None
@@ -76,7 +77,7 @@ def _assert_pure(payload: Mapping[str, Any], label: str) -> None:
         raise RuntimeError(f"orient refuses an effectful {label} provider: {effects!r}; orientation is read-only")
 
 
-def _epistemic(sources: Any, *, effects: Any = ()) -> Dict[str, Any]:
+def _epistemic(sources: Any, *, effects: Any = ()) -> dict[str, Any]:
     refs = [str(item) for item in (sources or []) if str(item or "").strip()]
     if not refs:
         refs = ["orient.scene:provider-result"]
@@ -93,7 +94,7 @@ def _epistemic(sources: Any, *, effects: Any = ()) -> Dict[str, Any]:
     return derive_epistemic_view(evidence).to_dict()
 
 
-def _landmark(row: Mapping[str, Any]) -> Dict[str, Any]:
+def _landmark(row: Mapping[str, Any]) -> dict[str, Any]:
     sources = list(row.get("source") or [])
     effects = list(row.get("effects") or [])
     return {
@@ -110,7 +111,7 @@ def _landmark(row: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _contour(card: Mapping[str, Any]) -> Dict[str, Any]:
+def _contour(card: Mapping[str, Any]) -> dict[str, Any]:
     folded_fields = len(card.get("details") or {}) + len(card.get("source") or [])
     return {
         "name": card.get("name"),
@@ -165,7 +166,7 @@ def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:
     return str(result.get("schema") or result.get("mode") or "focus observed")
 
 
-def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> Dict[str, Any]:
+def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> dict[str, Any]:
     if target["kind"] == "thread":
         step = {
             "verb": "capture",
@@ -187,7 +188,7 @@ def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> Di
     }
 
 
-def _return_route(subject: str) -> Dict[str, Any]:
+def _return_route(subject: str) -> dict[str, Any]:
     return {
         "name": "return",
         "style": "return_tether",
@@ -206,8 +207,8 @@ def build_orientation(
     density: str = "compact",
     depth: str = "surface",
     per_stream: int = 1000,
-    providers: Optional[Mapping[str, Callable[..., Any]]] = None,
-) -> Dict[str, Any]:
+    providers: Mapping[str, Callable[..., Any]] | None = None,
+) -> dict[str, Any]:
     """Build one pure ``orient.scene.v1`` view for an explicit subject."""
     subject = str(subject or "").strip()
     if not subject:

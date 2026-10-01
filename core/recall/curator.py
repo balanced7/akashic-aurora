@@ -36,7 +36,7 @@ BENCH_MIN_AGE_DAYS = 10.0  # ...and its time. Both, or it stays.
 _CREDIT_FIELDS = ("helped", "useful", "engaged")
 
 
-def _age_days(rec: Dict[str, Any], now: float) -> Optional[float]:
+def _age_days(rec: dict[str, Any], now: float) -> float | None:
     """Record age in days, or None when the timestamp is missing/unparseable (-> not benchable:
     we only bench what is PROVABLY old). timeutil.to_epoch (naive==UTC) matches how records are
     stamped -- raw .timestamp() would read them as local (the self-echo flight-test bug)."""
@@ -52,7 +52,7 @@ def _age_days(rec: Dict[str, Any], now: float) -> Optional[float]:
         return None
 
 
-def _credit(use: Dict[str, Any]) -> int:
+def _credit(use: dict[str, Any]) -> int:
     return sum(int(use.get(f, 0) or 0) for f in _CREDIT_FIELDS)
 
 
@@ -61,7 +61,7 @@ FORGE_WATCH_MIN_IMPRESSIONS = 8  # ...or this many fresh impressions, whichever 
 FORGE_PROPOSAL_TTL_DAYS = 7.0  # unreviewed optimizer proposals expire (F2, sec.5)
 
 
-def _forge_watch_rows(recs, store, now: float) -> Dict[str, List[Dict[str, Any]]]:
+def _forge_watch_rows(recs, store, now: float) -> dict[str, list[dict[str, Any]]]:
     """Tier-1 watch (F4) over provisional Forge edits + expiry sweep over stale proposals.
     ROLLBACK triggers (one-sided, reversibility absorbs the sparse-credit noise -- sec.11):
       - any NEW noise vote since the apply-time baseline, or
@@ -74,7 +74,7 @@ def _forge_watch_rows(recs, store, now: float) -> Dict[str, List[Dict[str, Any]]
     from core.foundation.timeutil import to_epoch
     from core.recall.at_action import _load_use
 
-    rows: Dict[str, List[Dict[str, Any]]] = {"rollback": [], "confirm": [], "expire": []}
+    rows: dict[str, list[dict[str, Any]]] = {"rollback": [], "confirm": [], "expire": []}
     for rec in recs:
         name = rec.get("experiment_name")
         if not name:
@@ -122,15 +122,15 @@ def curation_report(
     *,
     store=None,
     learning_store=None,
-    now: Optional[float] = None,
+    now: float | None = None,
     min_surfaced: int = BENCH_MIN_SURFACED,
     min_age_days: float = BENCH_MIN_AGE_DAYS,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """What the curator WOULD do (read-only): {bench, unbench, credited_ghosts, ghost_prune_count,
     surface_active, corpus} + the Forge sections {forge_rollback, forge_confirm, forge_expire}
     (F4 watch + F2 proposal expiry). Each row carries its evidence so the operator (or the
     wrap nudge) can see WHY. Fail-soft to an empty report."""
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "bench": [],
         "unbench": [],
         "credited_ghosts": [],
@@ -192,7 +192,7 @@ def curation_report(
     return out
 
 
-def apply_curation(report: Optional[Dict[str, Any]] = None, *, store=None, learning_store=None) -> Dict[str, Any]:
+def apply_curation(report: dict[str, Any] | None = None, *, store=None, learning_store=None) -> dict[str, Any]:
     """Stamp the report: bench/unbench via learning_store (reversible state, never a delete) and
     prune ZERO-credit ghost counters. Returns {benched, unbenched, ghosts_pruned, kept_ghosts}.
     Recomputes the report when not given (apply-what-you-see is the CLI's job: it passes one)."""

@@ -97,7 +97,7 @@ class KnowledgeBase:
 
     # ============ MODEL MANAGEMENT ============
 
-    def register_model(self, name: str, description: str = "", capabilities: List[str] = None) -> bool:
+    def register_model(self, name: str, description: str = "", capabilities: list[str] = None) -> bool:
         """Register a new AI model in the knowledge base"""
         if not self.client:
             return False
@@ -121,7 +121,7 @@ class KnowledgeBase:
             print(f"Error registering model: {e}")
             return False
 
-    def get_all_models(self) -> List[str]:
+    def get_all_models(self) -> list[str]:
         """Get list of all registered models"""
         if not self.client:
             return []
@@ -130,7 +130,7 @@ class KnowledgeBase:
         except:
             return []
 
-    def get_model_info(self, name: str) -> Optional[Dict]:
+    def get_model_info(self, name: str) -> dict | None:
         """Get model metadata"""
         if not self.client:
             return None
@@ -208,7 +208,7 @@ class KnowledgeBase:
 
         return redis_success
 
-    def read(self, key: str) -> Optional[Any]:
+    def read(self, key: str) -> Any | None:
         """Read a learning by key"""
         if not self.client:
             return None
@@ -222,7 +222,7 @@ class KnowledgeBase:
         except:
             return None
 
-    def get_learning_metadata(self, key: str) -> Optional[Dict]:
+    def get_learning_metadata(self, key: str) -> dict | None:
         """Get metadata about a learning (who wrote it, when, etc.)"""
         if not self.client:
             return None
@@ -235,7 +235,7 @@ class KnowledgeBase:
         except:
             return None
 
-    def search(self, pattern: str, category: str = None) -> List[Dict]:
+    def search(self, pattern: str, category: str = None) -> list[dict]:
         """
         Search learnings by key pattern using pipeline for efficiency.
         OPTIMIZED: Uses Redis pipeline instead of N individual calls.
@@ -276,7 +276,7 @@ class KnowledgeBase:
         except:
             return []
 
-    def vector_search(self, query: str, top_k: int = 5, model: str = None) -> List[Dict]:
+    def vector_search(self, query: str, top_k: int = 5, model: str = None) -> list[dict]:
         """
         Vector similarity search across all learnings.
         Uses FAISS for fast nearest-neighbor search.
@@ -373,7 +373,7 @@ class KnowledgeBase:
         except:
             return False
 
-    def read_doc(self, doc_name: str) -> Optional[str]:
+    def read_doc(self, doc_name: str) -> str | None:
         """Read documentation"""
         if not self.client:
             return None
@@ -384,7 +384,7 @@ class KnowledgeBase:
         except:
             return None
 
-    def get_all_docs(self) -> List[str]:
+    def get_all_docs(self) -> list[str]:
         """List all documentation"""
         if not self.client:
             return []
@@ -407,7 +407,7 @@ class KnowledgeBase:
         except:
             return False
 
-    def get_context(self, key: str) -> Optional[Any]:
+    def get_context(self, key: str) -> Any | None:
         """Get shared context"""
         if not self.client:
             return None
@@ -418,7 +418,7 @@ class KnowledgeBase:
         except:
             return None
 
-    def get_all_context(self) -> Dict:
+    def get_all_context(self) -> dict:
         """Get all shared context"""
         if not self.client:
             return {}
@@ -431,7 +431,7 @@ class KnowledgeBase:
 
     # ============ MODEL CONTEXT ============
 
-    def get_model_context(self, model_name: str) -> Dict:
+    def get_model_context(self, model_name: str) -> dict:
         """Get complete context for a model (learnings + info)"""
         if not self.client:
             return {}
@@ -456,7 +456,7 @@ class KnowledgeBase:
 
     # ============ SYSTEM STATUS ============
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get knowledge base status"""
         if not self.client:
             return {"status": "offline", "models": 0, "learnings": 0}
@@ -472,7 +472,7 @@ class KnowledgeBase:
         except:
             return {"status": "error"}
 
-    def backup(self) -> Dict:
+    def backup(self) -> dict:
         """Export all data for backup"""
         if not self.client:
             return {}

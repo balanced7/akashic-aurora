@@ -48,7 +48,7 @@ import sys
 import tempfile
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 
@@ -89,7 +89,7 @@ CORE_VERBS = ("boot", "status", "learn", "recall", "handoff", "note")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _head_sha() -> str:
@@ -279,7 +279,7 @@ def _child_flow(timeout_s: float) -> dict:
                             "file:line). If it passes, your server is stale -- restart it.",
                         )
                     return _verdict(GREEN, "complete", el, "", f"boot returned {len(text)} chars", "MCP path healthy.")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             el = time.time() - t0
             if stage == "boot":
                 # The signature of C7-4: handshake fine, work runs, reply never returns.

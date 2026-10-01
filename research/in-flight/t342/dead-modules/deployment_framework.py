@@ -29,7 +29,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 # ============================================================================
 # CONFIGURATION
@@ -76,7 +77,7 @@ class HealthCheckResult:
     status: ComponentStatus
     timestamp: str
     message: str
-    details: Dict = field(default_factory=dict)
+    details: dict = field(default_factory=dict)
     duration_ms: float = 0
 
     @property
@@ -90,10 +91,10 @@ class ComponentSpec:
     image: str
     container_name: str
     health_check: Callable
-    ports: Dict[str, int] = field(default_factory=dict)
-    volumes: Dict[str, str] = field(default_factory=dict)
-    environment: Dict[str, str] = field(default_factory=dict)
-    depends_on: List[str] = field(default_factory=list)
+    ports: dict[str, int] = field(default_factory=dict)
+    volumes: dict[str, str] = field(default_factory=dict)
+    environment: dict[str, str] = field(default_factory=dict)
+    depends_on: list[str] = field(default_factory=list)
     restart_policy: str = "unless-stopped"
     required: bool = True
 
@@ -103,7 +104,7 @@ class ComponentSpec:
 # ============================================================================
 
 
-def log(level: str, component: str, message: str, details: Dict = None):
+def log(level: str, component: str, message: str, details: dict = None):
     """Enterprise logging with structured output."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     entry = {
@@ -125,7 +126,7 @@ def log(level: str, component: str, message: str, details: Dict = None):
         pass
 
 
-def run_wsl(cmd: List[str], timeout: int = 30) -> Tuple[str, int]:
+def run_wsl(cmd: list[str], timeout: int = 30) -> tuple[str, int]:
     """Execute command in WSL2 with timeout."""
     full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + cmd
     try:
@@ -137,7 +138,7 @@ def run_wsl(cmd: List[str], timeout: int = 30) -> Tuple[str, int]:
         return str(e), -1
 
 
-def run_docker(cmd: List[str], timeout: int = 30) -> Tuple[str, int]:
+def run_docker(cmd: list[str], timeout: int = 30) -> tuple[str, int]:
     """Run docker command in WSL2."""
     return run_wsl(["docker"] + cmd, timeout)
 
@@ -429,11 +430,11 @@ class DeploymentManager:
     """
 
     def __init__(self):
-        self.components: Dict[str, ComponentSpec] = {}
-        self.health_checks: Dict[str, Callable] = {}
+        self.components: dict[str, ComponentSpec] = {}
+        self.health_checks: dict[str, Callable] = {}
         self.state = DeploymentState.INITIAL
-        self.last_health_check: Dict[str, HealthCheckResult] = {}
-        self.deployment_log: List[Dict] = []
+        self.last_health_check: dict[str, HealthCheckResult] = {}
+        self.deployment_log: list[dict] = []
 
         # Register default components
         self._register_default_components()
@@ -519,7 +520,7 @@ class DeploymentManager:
             log("ERROR", component_name, f"Health check failed: {e}")
             return result
 
-    def run_all_health_checks(self) -> Dict[str, HealthCheckResult]:
+    def run_all_health_checks(self) -> dict[str, HealthCheckResult]:
         """Run all registered health checks."""
         results = {}
         for component_name in self.components:
@@ -579,7 +580,7 @@ class DeploymentManager:
         except:
             pass
 
-    def get_system_health(self) -> Tuple[ComponentStatus, Dict]:
+    def get_system_health(self) -> tuple[ComponentStatus, dict]:
         """
         Get overall system health.
         Returns (overall_status, detailed_results)

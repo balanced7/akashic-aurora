@@ -45,13 +45,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _pack_cases():
-    with io.open(os.path.join(ROOT, P.PACK_PATH), encoding="utf-8") as f:
+    with open(os.path.join(ROOT, P.PACK_PATH), encoding="utf-8") as f:
         return {c["case"]: c for c in P.parse_pack(f.read())}
 
 
 # --------------------------------------------------------------- A1 anti-fitting
 def test_a1_the_module_names_no_case_numbers():
-    src = io.open(os.path.join(ROOT, "core", "recall", "gate_rules.py"), encoding="utf-8").read()
+    src = open(os.path.join(ROOT, "core", "recall", "gate_rules.py"), encoding="utf-8").read()
     hits = re.findall(r"\bcase[ _]?(\d+)\b", src, re.I)
     assert not hits, (
         f"FITTING SURFACE: the rule module references census case number(s) {hits}. "

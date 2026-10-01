@@ -26,6 +26,7 @@ from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
 from core.foundation.ledger import FileLedger
 from core.foundation.store import FileStore
+from datetime import UTC
 
 
 def _ledger():
@@ -146,7 +147,7 @@ def test_flat_latency_at_scale():
     store.zadd("events:raw:tindex", {f"id{i}": base + i for i in range(100_000)})
     target = base + 50_000
     # Build the iso as tz-aware UTC so to_epoch round-trips back to `target` (the zset score).
-    iso = datetime.fromtimestamp(target, tz=timezone.utc).isoformat()
+    iso = datetime.fromtimestamp(target, tz=UTC).isoformat()
     store.set(f"events:raw:byid:id50000", json.dumps({"id": "id50000", "at": iso, "summary": "needle"}))
     t0 = time.perf_counter()
     got = idx.window(iso, iso)  # 1-event-wide window deep in the middle

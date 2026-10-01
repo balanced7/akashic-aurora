@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any, Dict, Optional, Tuple
 
 from core.comm import packet_spec
@@ -32,13 +32,13 @@ POLICY_VERSION = f"kind-lane:{hashlib.sha256(_POLICY_CANONICAL.encode('utf-8')).
 @dataclass(frozen=True)
 class RoutingDecision:
     kind: str
-    lane: Optional[str]
+    lane: str | None
     known: bool
     rule_id: str
     policy_version: str = POLICY_VERSION
     mode: str = MODE
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
             "lane": self.lane,
@@ -67,11 +67,11 @@ def metric_key(namespace: str) -> str:
     return f"{namespace}:route:shadow:stats"
 
 
-def _labels() -> Tuple[str, ...]:
+def _labels() -> tuple[str, ...]:
     return tuple(sorted(str(kind) for kind in packet_spec.KIND_LANE)) + (UNKNOWN_RULE,)
 
 
-def metric_field_schema() -> Tuple[str, ...]:
+def metric_field_schema() -> tuple[str, ...]:
     """All counter fields this module can create (a static cardinality ceiling)."""
     labels = _labels()
     fields = [f"decision:{label}" for label in labels]
@@ -87,7 +87,7 @@ def _label(decision: RoutingDecision) -> str:
     return decision.kind if decision.kind in packet_spec.KIND_LANE else UNKNOWN_RULE
 
 
-def _observation_fields(decision: RoutingDecision, outcome: str, family: str) -> Optional[Tuple[str, str]]:
+def _observation_fields(decision: RoutingDecision, outcome: str, family: str) -> tuple[str, str] | None:
     label = _label(decision)
     if family == "mirror" and outcome in MIRROR_OUTCOMES:
         outcome_field = f"mirror:{label}:{outcome}"
@@ -102,7 +102,7 @@ def _observation_fields(decision: RoutingDecision, outcome: str, family: str) ->
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def record_observation(
@@ -156,9 +156,9 @@ def _text(value: Any) -> str:
     return str(value)
 
 
-def route_stats(client: Any, namespace: str) -> Dict[str, Any]:
+def route_stats(client: Any, namespace: str) -> dict[str, Any]:
     """Read the bounded counter hash as a stable JSON-friendly object."""
-    raw: Dict[Any, Any] = {}
+    raw: dict[Any, Any] = {}
     online = client is not None
     if client is not None:
         try:
@@ -166,7 +166,7 @@ def route_stats(client: Any, namespace: str) -> Dict[str, Any]:
         except Exception:
             online = False
     normalized = {_text(key): value for key, value in raw.items()}
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     for field in metric_field_schema():
         if field not in normalized:
             continue

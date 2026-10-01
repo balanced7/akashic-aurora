@@ -115,7 +115,7 @@ def _ledger():
         return None
 
 
-def _task(task_id: str) -> Optional[Dict[str, Any]]:
+def _task(task_id: str) -> dict[str, Any] | None:
     led = _ledger()
     if led is None:
         return None
@@ -128,7 +128,7 @@ def _task(task_id: str) -> Optional[Dict[str, Any]]:
 # --------------------------------------------------------------------------- the pointer ---
 
 
-def set_focus(session_id: str, task_id: str, agent: str = "") -> Dict[str, Any]:
+def set_focus(session_id: str, task_id: str, agent: str = "") -> dict[str, Any]:
     """Point this session at a task. Refuses an id the ledger does not know, because a focus on a
     typo would silently attribute a day's work to nothing."""
     tid = str(task_id).strip().upper()
@@ -171,7 +171,7 @@ def set_focus(session_id: str, task_id: str, agent: str = "") -> Dict[str, Any]:
     }
 
 
-def clear_focus(session_id: str) -> Dict[str, Any]:
+def clear_focus(session_id: str) -> dict[str, Any]:
     """Check out. Returns what the session accumulated, so the act of leaving reports something."""
     st = current(session_id) or {}
     c = _client()
@@ -189,7 +189,7 @@ def clear_focus(session_id: str) -> Dict[str, Any]:
     }
 
 
-def current(session_id: str) -> Optional[Dict[str, Any]]:
+def current(session_id: str) -> dict[str, Any] | None:
     c = _client()
     if c is None:
         return None
@@ -213,7 +213,7 @@ def current(session_id: str) -> Optional[Dict[str, Any]]:
 # ------------------------------------------------------------------------- attribution ---
 
 
-def _declared(task_id: str) -> List[str]:
+def _declared(task_id: str) -> list[str]:
     t = _task(task_id) or {}
     out = []
     for f in t.get("files") or []:
@@ -223,7 +223,7 @@ def _declared(task_id: str) -> List[str]:
     return out
 
 
-def touches(target: str, declared: List[str]) -> bool:
+def touches(target: str, declared: list[str]) -> bool:
     """Does this tool call touch the task's declared ground?
 
     Deliberately GENEROUS: a declared directory counts for everything under it, a declared file
@@ -243,7 +243,7 @@ def touches(target: str, declared: List[str]) -> bool:
     return False
 
 
-def record_call(session_id: str, tool: str = "", target: str = "") -> Optional[str]:
+def record_call(session_id: str, tool: str = "", target: str = "") -> str | None:
     """Count one SUCCESSFUL tool call against the focused task. Returns the tid, or None.
 
     Writes land on task_costs' own accumulator key, so task_ledger's DONE transition finalizes
@@ -278,7 +278,7 @@ def record_call(session_id: str, tool: str = "", target: str = "") -> Optional[s
 # ------------------------------------------------------------------------------ the nudge ---
 
 
-def drift_note(session_id: str) -> Optional[str]:
+def drift_note(session_id: str) -> str | None:
     """One line when this session's calls have stopped touching the focused task, else None.
 
     Says what was observed and offers both exits, because the honest reading is often "the focus
@@ -314,7 +314,7 @@ def drift_note(session_id: str) -> Optional[str]:
         return None
 
 
-def dismiss(session_id: str) -> Dict[str, Any]:
+def dismiss(session_id: str) -> dict[str, Any]:
     """The operator said 'not now'. Counted, because the retirement rule is a measurement."""
     c = _client()
     if c is not None:
@@ -326,7 +326,7 @@ def dismiss(session_id: str) -> Dict[str, Any]:
     return current(session_id) or {"ok": True}
 
 
-def quiet(session_id: str) -> Dict[str, Any]:
+def quiet(session_id: str) -> dict[str, Any]:
     """Silence drift notes for this session, keeping attribution on. The common honest case:
     the focus IS right and the work legitimately ranges outside the declared files."""
     c = _client()
@@ -338,7 +338,7 @@ def quiet(session_id: str) -> Dict[str, Any]:
     return current(session_id) or {"ok": True}
 
 
-def health() -> Dict[str, Any]:
+def health() -> dict[str, Any]:
     """Is the detector earning its keep? The retirement rule, as a number anyone can read."""
     c = _client()
     if c is None:

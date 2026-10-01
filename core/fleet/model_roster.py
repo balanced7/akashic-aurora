@@ -24,10 +24,10 @@ _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models.json")
 _STATUS_RANK = {"active": 0, "tested": 1, "candidate": 2, "gated": 3}
 
 
-def _load() -> Dict[str, Any]:
+def _load() -> dict[str, Any]:
     """The raw roster document. Fail-soft: any read/parse problem yields an empty roster, never a raise."""
     try:
-        with open(_DATA, "r", encoding="utf-8") as fh:
+        with open(_DATA, encoding="utf-8") as fh:
             doc = json.load(fh)
         if isinstance(doc, dict) and isinstance(doc.get("models"), list):
             return doc
@@ -40,7 +40,7 @@ def default_host() -> str:
     return str(_load().get("default_host") or "http://127.0.0.1:11434")
 
 
-def models(*, status: Optional[str] = None, capability: Optional[str] = None) -> List[Dict[str, Any]]:
+def models(*, status: str | None = None, capability: str | None = None) -> list[dict[str, Any]]:
     """The roster rows, optionally filtered by status and/or a single capability label. Best-first
     (status rank, then throughput desc). Read-only copies -- callers can't mutate the source."""
     rows = [dict(m) for m in _load().get("models", []) if isinstance(m, dict) and m.get("tag")]
@@ -52,7 +52,7 @@ def models(*, status: Optional[str] = None, capability: Optional[str] = None) ->
     return rows
 
 
-def get(tag: str) -> Optional[Dict[str, Any]]:
+def get(tag: str) -> dict[str, Any] | None:
     """The spec for one tag, or None. Exact-match on the Ollama tag."""
     if not tag:
         return None
@@ -63,12 +63,12 @@ def get(tag: str) -> Optional[Dict[str, Any]]:
 
 
 def select(
-    capability: Optional[str] = None,
+    capability: str | None = None,
     *,
     status: str = "active",
-    max_vram: Optional[float] = None,
-    min_context: Optional[int] = None,
-) -> Optional[Dict[str, Any]]:
+    max_vram: float | None = None,
+    min_context: int | None = None,
+) -> dict[str, Any] | None:
     """Pick the best model for a job by declared capability + hard constraints. Deterministic (ranks by
     throughput among those that fit), NOT learned -- a value-optimized router is future work gated on
     the R016 capability map + usage data (the F2 Goodhart caution). Fail-soft: None when nothing fits.
@@ -93,7 +93,7 @@ def select(
     return out[0] if out else None
 
 
-def probe_availability(host: Optional[str] = None, *, opener: Any = None, timeout: float = 5.0) -> Dict[str, Any]:
+def probe_availability(host: str | None = None, *, opener: Any = None, timeout: float = 5.0) -> dict[str, Any]:
     """OPT-IN live check: which roster tags are actually pulled into Ollama right now (`GET /api/tags`).
     The ONLY function here that touches the network. Fail-soft: on any error returns ok=False and an
     empty present set (the roster's declared specs remain usable). `opener` is injectable for tests."""

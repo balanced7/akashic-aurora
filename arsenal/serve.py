@@ -83,9 +83,9 @@ def clip_id_for(path) -> str:
 class Library:
     """Media files under the library roots, rescanned at most every ten seconds."""
 
-    def __init__(self, roots: List[str]):
+    def __init__(self, roots: list[str]):
         self.roots = [Path(r).resolve() for r in roots]
-        self._clips: Dict[str, dict] = {}
+        self._clips: dict[str, dict] = {}
         self._scanned = 0.0
         self._lock = threading.Lock()
 
@@ -120,17 +120,17 @@ class Library:
             self._clips = {c["id"]: c for c in found[:MAX_CLIPS]}
             self._scanned = time.monotonic()
 
-    def clips(self) -> List[dict]:
+    def clips(self) -> list[dict]:
         self._scan()
         return sorted(self._clips.values(), key=lambda c: c["mtime"], reverse=True)
 
-    def get(self, clip_id: str) -> Optional[dict]:
+    def get(self, clip_id: str) -> dict | None:
         self._scan()
         if clip_id not in self._clips:
             self._scan(force=True)
         return self._clips.get(clip_id)
 
-    def resolve(self, name: str, size: int) -> Optional[dict]:
+    def resolve(self, name: str, size: int) -> dict | None:
         for attempt in (False, True):
             self._scan(force=attempt)
             for clip in self._clips.values():
@@ -143,10 +143,10 @@ class Jobs:
     """Background feature analysis per clip: 202 while computing, 200 when ready, 500 once on error."""
 
     def __init__(self):
-        self._jobs: Dict[str, dict] = {}
+        self._jobs: dict[str, dict] = {}
         self._lock = threading.Lock()
 
-    def features(self, clip: dict) -> Tuple[int, dict]:
+    def features(self, clip: dict) -> tuple[int, dict]:
         with self._lock:
             job = self._jobs.get(clip["id"])
             if job is None:
@@ -178,7 +178,7 @@ class Jobs:
 class App:
     def __init__(
         self,
-        roots: List[str],
+        roots: list[str],
         takes_root=None,
         presets_dir=None,
         performance_root=None,
@@ -193,7 +193,7 @@ class App:
         # None switches the practice-log routes off: they answer 404 "no route", like a server from before them.
         self.performance = PerformanceStore(performance_root) if performance_log else None
         self.jobs = Jobs()
-        self.probes: Dict[str, dict] = {}
+        self.probes: dict[str, dict] = {}
         self.cues = CueHub()  # Claude's hand on the piano page (arsenal/pianocue.py)
         # The jam space: deck, runs and their routes (arsenal/jam). Its files sit beside the practice log's
         # (state/arsenal/jam by default; <performance root>/../jam for a server given --performance-root). Nothing is
@@ -240,7 +240,7 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write(f"[arsenal] {fmt % args}\n")
 
     # ----------------------------------------------------------------- responses
-    def _send(self, status: int, body: bytes, content_type: str, headers: Optional[dict] = None) -> None:
+    def _send(self, status: int, body: bytes, content_type: str, headers: dict | None = None) -> None:
         self.send_response(status)
         if self._body_unread():
             self.send_header("Connection", "close")  # (send_header sets close_connection too)
@@ -567,7 +567,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"error": f"no take {take_id}"})
 
     # ------------------------------------------------------------ practice log
-    def _performance_post(self, session: Optional[str], action: str) -> None:
+    def _performance_post(self, session: str | None, action: str) -> None:
         """open, events and close (PIANO-V2-SPEC section 4): 400 malformed, 404 unknown, 409 closed.
 
         Optional for uploads that must not double up (the browser's offline buffer): open takes client_id and
@@ -631,7 +631,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": str(exc)})
         return self._json(200, self.app.cues.publish(cue))
 
-    def _cue_stream(self, query: Optional[dict] = None) -> None:
+    def _cue_stream(self, query: dict | None = None) -> None:
         """GET /api/piano/cues: an event stream held open on this connection's own thread until the page goes away.
 
         The Last-Event-ID header wins; ?lastEventId=N is the fallback for a page that had to open a fresh EventSource
@@ -798,7 +798,7 @@ class Server(ThreadingHTTPServer):
 
 def serve(
     port: int = 8793,
-    roots: Optional[List[str]] = None,
+    roots: list[str] | None = None,
     takes_root=None,
     performance_root=None,
     performance_log: bool = True,

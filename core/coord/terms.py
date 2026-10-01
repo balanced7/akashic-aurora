@@ -136,7 +136,7 @@ def _prose_of(src: str) -> str:
     return " ".join(out)
 
 
-def score(rec: Dict[str, Any], n_files: int) -> float:
+def score(rec: dict[str, Any], n_files: int) -> float:
     """How much does this term look like SHARED VOCABULARY rather than English?
 
     First live run ranked by raw spread and returned 2,982 candidates topped by "every",
@@ -158,11 +158,11 @@ def score(rec: Dict[str, Any], n_files: int) -> float:
     return round(idf * max(1, len(rec.get("dirs") or ())), 4)
 
 
-def extract(root: Optional[str] = None, min_files: int = 3, subdir: str = "") -> Dict[str, Dict[str, Any]]:
+def extract(root: str | None = None, min_files: int = 3, subdir: str = "") -> dict[str, dict[str, Any]]:
     """term -> {files, hits, dirs, where}. One unreadable file costs that file, never
     the scan."""
     base = os.path.join(root or _ROOT, subdir) if subdir else (root or _ROOT)
-    seen: Dict[str, Dict[str, Any]] = {}
+    seen: dict[str, dict[str, Any]] = {}
     n_files = 0
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
@@ -197,7 +197,7 @@ def extract(root: Optional[str] = None, min_files: int = 3, subdir: str = "") ->
     return out
 
 
-def lexicon_terms(path: Optional[str] = None) -> Set[str]:
+def lexicon_terms(path: str | None = None) -> set[str]:
     """Terms the LEXICON actually defines: headings, backticked heads, and bold leads."""
     p = path or os.path.join(_ROOT, "docs", "LEXICON.md")
     try:
@@ -205,7 +205,7 @@ def lexicon_terms(path: Optional[str] = None) -> Set[str]:
             text = fh.read()
     except OSError:
         return set()
-    out: Set[str] = set()
+    out: set[str] = set()
     for pat in (
         r"^#{1,6}\s+`?([A-Za-z][\w .\-/]*)`?\s*$",
         r"^\s*[-*]?\s*\*\*([A-Za-z][\w .\-/]*)\*\*",
@@ -219,12 +219,12 @@ def lexicon_terms(path: Optional[str] = None) -> Set[str]:
     return out
 
 
-def _terms_code(**_) -> Set[str]:
+def _terms_code(**_) -> set[str]:
     """Shared vocabulary in core/: discussed in 3+ distinct files."""
     return set(extract(min_files=3, subdir="core").keys())
 
 
-def _terms_lexicon(**_) -> Set[str]:
+def _terms_lexicon(**_) -> set[str]:
     return lexicon_terms()
 
 

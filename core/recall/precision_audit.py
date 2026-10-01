@@ -75,14 +75,14 @@ MISSES_OK = 0.20
 MISSES_DOMINANT = 0.40
 
 
-def harvest(imp_dir: str = "", limit: int = 0) -> List[Dict[str, Any]]:
+def harvest(imp_dir: str = "", limit: int = 0) -> list[dict[str, Any]]:
     """Read the impression ledger into (action, surfaced) records.
 
     NO NEW INSTRUMENTATION: the hook has been writing {"t": <target>, "s": [<sources>]} per
     firing all along. The audit corpus already existed -- it just had no reader.
     """
     d = imp_dir or _DEFAULT_IMP
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for path in sorted(glob.glob(os.path.join(d, "*"))):
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
@@ -112,14 +112,14 @@ def harvest(imp_dir: str = "", limit: int = 0) -> List[Dict[str, Any]]:
     return out[-limit:] if limit else out
 
 
-def sample(items: List[Dict[str, Any]], n: int = 30, seed: int = 1) -> List[Dict[str, Any]]:
+def sample(items: list[dict[str, Any]], n: int = 30, seed: int = 1) -> list[dict[str, Any]]:
     """Seed-deterministic draw: a published number that cannot be re-drawn cannot be audited."""
     if n >= len(items):
         return list(items)
     return random.Random(seed).sample(list(items), n)
 
 
-def render_pack(items: List[Dict[str, Any]], bodies: Optional[Dict[str, str]] = None) -> str:
+def render_pack(items: list[dict[str, Any]], bodies: dict[str, str] | None = None) -> str:
     """A BLIND labelling pack.
 
     Deliberately omits usefulness counters, credit history and seat identity. A labeller who can
@@ -159,18 +159,18 @@ def render_pack(items: List[Dict[str, Any]], bodies: Optional[Dict[str, str]] = 
 
 
 def score(
-    labels: Dict[str, Dict[str, str]],
+    labels: dict[str, dict[str, str]],
     *,
     total_surfaced: int = 0,
-    misses: Optional[Dict[str, Dict[str, List[str]]]] = None,
-) -> Dict[str, Any]:
+    misses: dict[str, dict[str, list[str]]] | None = None,
+) -> dict[str, Any]:
     """Precision + coverage + agreement + the recall arm. Never precision alone.
 
     `labels`: {labeller: {"<case>:<slot>": "on"|"off"|"skip"}}
     `misses`: {labeller: {"<case>": [source_or_description, ...]}}
     """
     misses = misses or {}
-    per_item: Dict[str, List[str]] = {}
+    per_item: dict[str, list[str]] = {}
     for who, marks in (labels or {}).items():
         for key, val in (marks or {}).items():
             v = str(val).lower().strip()
@@ -192,7 +192,7 @@ def score(
 
     # MAJORITY per item; a tie is DISPUTED and goes to a fence round rather than a coin flip.
     on = off = 0
-    disputed: List[str] = []
+    disputed: list[str] = []
     for key, votes in per_item.items():
         n_on, n_off = votes.count("on"), votes.count("off")
         if n_on and n_off:

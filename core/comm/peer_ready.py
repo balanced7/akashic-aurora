@@ -47,7 +47,7 @@ BLIND = [
 ]
 
 
-def resolve_tag(peer: str, registry: List[Dict[str, Any]]) -> Dict[str, Any]:
+def resolve_tag(peer: str, registry: list[dict[str, Any]]) -> dict[str, Any]:
     """Which registry tag launches this peer? PURE (no I/O), so the ambiguity rule is
     testable without a launcher.
 
@@ -96,7 +96,7 @@ def _attending(peer: str) -> tuple:
 
 def ensure_peer(
     peer: str, *, wait_s: float = 60.0, poll_s: float = 2.0, launcher=None, sleep=time.sleep
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Make `peer` attending if it can be, and say plainly what happened. Never raises.
 
     `action` is the honest account, and every value is a state a caller can act on:

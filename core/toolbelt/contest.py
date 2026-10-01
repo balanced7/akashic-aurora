@@ -35,7 +35,8 @@ I verify, I second, I contest -- in both directions.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 # toast's verifier is the shared truth: a contest proves itself the same way a toast does.
 try:
@@ -53,7 +54,7 @@ def render_contest_line(frm: str, to: str, receipt: str, hops: str, tier: str) -
     return f"{tag} {body} (same receipt: {receipt.strip()})"
 
 
-def render_contest_verse(frm: str, hops: str, tier: str, found_by: str, when: Optional[str] = None) -> str:
+def render_contest_verse(frm: str, hops: str, tier: str, found_by: str, when: str | None = None) -> str:
     """One appended verse for the durable note -- the chorus line."""
     return (
         f"\ncontested ({tier}) -- {when or time.strftime('%Y-%m-%d %H:%M')}\n"
@@ -70,11 +71,11 @@ def send(
     hops: str,
     *,
     force: bool = False,
-    bus_send: Optional[Callable[[str, str, str], Any]] = None,
-    note_read: Optional[Callable[[str], Optional[str]]] = None,
-    note_write: Optional[Callable[[str, str], Any]] = None,
-    store: Optional[Any] = None,
-) -> Dict[str, Any]:
+    bus_send: Callable[[str, str, str], Any] | None = None,
+    note_read: Callable[[str], str | None] | None = None,
+    note_write: Callable[[str, str], Any] | None = None,
+    store: Any | None = None,
+) -> dict[str, Any]:
     """One contest: prove, append, ping. Refuses loudly on an unproven receipt unless forced.
 
     bus_send(to, kind, text) -- the live ping.
@@ -110,7 +111,7 @@ def send(
     title = note_title(to, receipt)
     line = render_contest_line(frm, to, receipt, hops, tier)
     verse = render_contest_verse(frm, hops, tier, found_by)
-    res: Dict[str, Any] = {
+    res: dict[str, Any] = {
         "tier": tier,
         "found_by": found_by,
         "line": line,
@@ -122,7 +123,7 @@ def send(
     # (b) APPEND -- read the existing toast note (CAS re-read), append the verse, write back.
     if note_read is None:
 
-        def note_read(_title: str) -> Optional[str]:
+        def note_read(_title: str) -> str | None:
             from core.learning.agent_memory import get_agent_memory
 
             mem = get_agent_memory()
@@ -171,7 +172,7 @@ def send(
     return res
 
 
-def render_result(res: Dict[str, Any]) -> str:
+def render_result(res: dict[str, Any]) -> str:
     return (
         f"contest [{res['tier']}] ({res['found_by']})\n"
         f"  bus : {res['bus']}\n"

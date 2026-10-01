@@ -106,7 +106,7 @@ def test_the_ref_resolves_from_a_THIRD_party():
 def test_below_threshold_with_a_hard_cap_chunks_into_n_parts():
     """Discord's 2000 cannot be negotiated, so N whole-line parts is the only faithful answer.
     Reusing Heimdall's T368 logic rather than minting a ninth clipper."""
-    body = "\n".join("line {} ".format(i) + "z" * 80 for i in range(60))
+    body = "\n".join(f"line {i} " + "z" * 80 for i in range(60))
     parts = _clip().clip(body, surface="discord", hard_cap=2000).parts
     assert len(parts) > 1
     assert all(len(p) <= 2000 for p in parts)
@@ -139,7 +139,7 @@ def test_the_recovery_COMMAND_IS_RUN_not_merely_printed():
         errors="replace",
         timeout=120,
     )
-    assert out.returncode == 0, "the recovery command does not run: {}".format(out.stderr[:300])
+    assert out.returncode == 0, f"the recovery command does not run: {out.stderr[:300]}"
     assert "v" * 200 in (out.stdout or ""), "it ran, but it did not return the body"
 
 
@@ -177,6 +177,6 @@ def test_the_ratchet_does_not_fire_on_a_list_slice():
     victim.write_text("def top(hits):\n    return hits[:25]   # a LIST slice, not a clip\n", encoding="utf-8")
     try:
         out = subprocess.run([sys.executable, str(checker)], cwd=str(REPO), capture_output=True, text=True, timeout=180)
-        assert out.returncode == 0, "the ratchet fired on a list slice: {}".format(out.stdout[-300:])
+        assert out.returncode == 0, f"the ratchet fired on a list slice: {out.stdout[-300:]}"
     finally:
         victim.unlink(missing_ok=True)

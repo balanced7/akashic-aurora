@@ -29,7 +29,7 @@ from typing import Optional
 _ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 
-def check_sender(agent_id: Optional[str]) -> Optional[str]:
+def check_sender(agent_id: str | None) -> str | None:
     """None when `agent_id` is a plausible seat id; else the refusal to print.
 
     Returns DATA, never raises: every caller is a door that must print one honest line and

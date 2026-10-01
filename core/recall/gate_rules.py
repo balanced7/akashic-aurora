@@ -134,14 +134,14 @@ def _mutates(text: str) -> bool:
 _PREFIX = re.compile(r"^(?:\s*(?:cd|set-location)\s+\S+\s*(?:&&|;)?\s*)*(?:\s*(?:py|pyw|python|python3)\s+)?", re.I)
 
 
-def _features_count(text: str) -> Optional[Dict[str, Any]]:
+def _features_count(text: str) -> dict[str, Any] | None:
     sinks = [pat for pat in _COUNT_SINKS if re.search(pat, text, re.I)]
     if sinks:
         return {"sinks": len(sinks)}
     return None
 
 
-def _features_door(text: str) -> Optional[Dict[str, Any]]:
+def _features_door(text: str) -> dict[str, Any] | None:
     head = _PREFIX.sub("", str(text))
     if not re.match(r"agent_cli\.py", head, re.I):
         return None  # the door is not the primary invocation
@@ -220,7 +220,7 @@ def _whole_command_readonly(text: str) -> bool:
     return all(any(rx.match(_PREFIX.sub("", seg)) or rx.match(seg) for rx in _STAGE_RE) for seg in segs)
 
 
-def match(*, query_shape: str, action: str, **_forward_compat) -> Optional[Dict[str, Any]]:
+def match(*, query_shape: str, action: str, **_forward_compat) -> dict[str, Any] | None:
     """The first principle this action satisfies, or None (= the gate must not
     silence on shape grounds; the floor and FAITH gates still apply downstream).
 

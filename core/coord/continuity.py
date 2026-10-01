@@ -13,9 +13,10 @@ resident record, lesson, note, atom, or event is written by this view.
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable, Iterable, Mapping
 
 
 def _pyl() -> str:
@@ -68,7 +69,7 @@ _CURRENCY = {
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _same_subject(left: Any, right: Any) -> bool:
@@ -78,7 +79,7 @@ def _same_subject(left: Any, right: Any) -> bool:
     return str(left or "").strip() == str(right or "").strip()
 
 
-def _mapping(value: Any) -> Dict[str, Any]:
+def _mapping(value: Any) -> dict[str, Any]:
     if is_dataclass(value):
         return asdict(value)
     if isinstance(value, Mapping):
@@ -97,12 +98,12 @@ def _source_batch(
     items: Iterable[Any],
     source: str,
     *,
-    total: Optional[int] = None,
-    scanned: Optional[int] = None,
+    total: int | None = None,
+    scanned: int | None = None,
     truncated: bool = False,
     ordering: str = "source order",
-    blind: Optional[Iterable[str]] = None,
-) -> Dict[str, Any]:
+    blind: Iterable[str] | None = None,
+) -> dict[str, Any]:
     rows = [_mapping(item) for item in items]
     return {
         "items": rows,
@@ -115,7 +116,7 @@ def _source_batch(
     }
 
 
-def _read_designation(subject: str) -> Dict[str, Any]:
+def _read_designation(subject: str) -> dict[str, Any]:
     from core.fleet import residents
 
     history = residents.history(subject)
@@ -133,7 +134,7 @@ def _read_designation(subject: str) -> Dict[str, Any]:
     )
 
 
-def _read_lessons(subject: str) -> Dict[str, Any]:
+def _read_lessons(subject: str) -> dict[str, Any]:
     from core.learning.learning_store import get_learning_store
 
     rows = get_learning_store().load_learnings_contributed_by_agent(subject)
@@ -144,7 +145,7 @@ def _read_lessons(subject: str) -> Dict[str, Any]:
     )
 
 
-def _read_notes(_subject: str) -> Dict[str, Any]:
+def _read_notes(_subject: str) -> dict[str, Any]:
     from core.learning.agent_memory import get_agent_memory
 
     rows = get_agent_memory().get_decisions(days=3650)
@@ -156,7 +157,7 @@ def _read_notes(_subject: str) -> Dict[str, Any]:
     )
 
 
-def _read_handoffs(_subject: str) -> Dict[str, Any]:
+def _read_handoffs(_subject: str) -> dict[str, Any]:
     from core.signals.agent_signal_ledger import AgentSignalLedger
 
     cap = 10_000
@@ -176,7 +177,7 @@ def _read_handoffs(_subject: str) -> Dict[str, Any]:
     )
 
 
-def _read_artifacts(_subject: str) -> Dict[str, Any]:
+def _read_artifacts(_subject: str) -> dict[str, Any]:
     from core.foundation.store import create_store
     from core.library.atoms import AtomFamily
 
@@ -188,7 +189,7 @@ def _read_artifacts(_subject: str) -> Dict[str, Any]:
     )
 
 
-def _read_movement(subject: str) -> Dict[str, Any]:
+def _read_movement(subject: str) -> dict[str, Any]:
     from core.events.event_log import PER_AGENT_MAXLEN, get_event_log
 
     rows = get_event_log().scan(agent=subject)
@@ -207,7 +208,7 @@ def _read_movement(subject: str) -> Dict[str, Any]:
     )
 
 
-def _default_sources() -> Dict[str, Callable[[str], Mapping[str, Any]]]:
+def _default_sources() -> dict[str, Callable[[str], Mapping[str, Any]]]:
     return {
         "designation": _read_designation,
         "lessons": _read_lessons,
@@ -218,7 +219,7 @@ def _default_sources() -> Dict[str, Callable[[str], Mapping[str, Any]]]:
     }
 
 
-def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]], subject: str) -> Dict[str, Any]:
+def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]], subject: str) -> dict[str, Any]:
     try:
         raw = dict(provider(subject) or {})
         rows = [_mapping(item) for item in (raw.get("items") or [])]
@@ -245,17 +246,17 @@ def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]], subjec
         }
 
 
-def _sort(rows: Iterable[Dict[str, Any]], *fields: str) -> List[Dict[str, Any]]:
+def _sort(rows: Iterable[dict[str, Any]], *fields: str) -> list[dict[str, Any]]:
     def key(row: Mapping[str, Any]):
         return tuple(str(row.get(field) or "") for field in fields)
 
     return sorted(rows, key=key, reverse=True)
 
 
-def _designation_rows(rows: Iterable[Dict[str, Any]], subject: str) -> tuple[List[Dict[str, Any]], List[str]]:
+def _designation_rows(rows: Iterable[dict[str, Any]], subject: str) -> tuple[list[dict[str, Any]], list[str]]:
     own = [row for row in rows if _same_subject(row.get("agent_id"), subject)]
     ratified = [row for row in own if str(row.get("state") or "").lower() == "ratified"]
-    blind: List[str] = []
+    blind: list[str] = []
     unratified = len(own) - len(ratified)
     if unratified:
         blind.append(f"{unratified} unratified resident record(s) excluded; nomination is not designation")
@@ -286,7 +287,7 @@ def _designation_rows(rows: Iterable[Dict[str, Any]], subject: str) -> tuple[Lis
     return [item], blind
 
 
-def _lesson_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, Any]]:
+def _lesson_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     own = [row for row in rows if _same_subject(row.get("agent_id") or row.get("agent"), subject)]
     own = _sort(own, "timestamp", "id")
     out = []
@@ -315,7 +316,7 @@ def _lesson_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str,
     return out
 
 
-def _note_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, Any]]:
+def _note_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     prefix = f"scratch:{subject}:"
     own = [row for row in rows if str(row.get("title") or "").startswith(prefix)]
     own = _sort(own, "created_at", "id")
@@ -337,7 +338,7 @@ def _note_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, A
     return out
 
 
-def _handoff_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, Any]]:
+def _handoff_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     matched = []
     for row in rows:
         if str(row.get("signal_type") or "").lower() != "handoff":
@@ -365,7 +366,7 @@ def _handoff_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str
     return _sort(matched, "timestamp", "id")
 
 
-def _artifact_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, Any]]:
+def _artifact_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     matched = []
     for row in rows:
         header = row.get("header") if isinstance(row.get("header"), Mapping) else {}
@@ -390,7 +391,7 @@ def _artifact_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[st
     return _sort(matched, "date", "id")
 
 
-def _movement_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, Any]]:
+def _movement_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     matched = []
     for row in rows:
         if not _same_subject(row.get("agent_id"), subject):
@@ -433,12 +434,12 @@ def _claim(name: str, *, present: bool, incomplete: bool) -> str:
 def _region(
     name: str,
     batch: Mapping[str, Any],
-    rows: List[Dict[str, Any]],
+    rows: list[dict[str, Any]],
     *,
     limit: int,
     observed_at: str,
-    extra_blind: Optional[Iterable[str]] = None,
-) -> Dict[str, Any]:
+    extra_blind: Iterable[str] | None = None,
+) -> dict[str, Any]:
     shown = rows[: max(0, limit)]
     source_incomplete = bool(batch.get("truncated"))
     display_incomplete = len(rows) > len(shown)
@@ -475,7 +476,7 @@ def _region(
     }
 
 
-def _drill(name: str, subject: str, shown: List[Mapping[str, Any]]) -> str:
+def _drill(name: str, subject: str, shown: list[Mapping[str, Any]]) -> str:
     """One bounded escape hatch; never expand a whole archive when an exact ref exists."""
     if name == "lessons" and shown:
         return f"{_pyl()} agent_cli.py recall --full {shown[0].get('source')} --json"
@@ -487,10 +488,10 @@ def _drill(name: str, subject: str, shown: List[Mapping[str, Any]]) -> str:
 def build_profile(
     subject: str,
     *,
-    sources: Optional[Mapping[str, Callable[[str], Mapping[str, Any]]]] = None,
-    limits: Optional[Mapping[str, int]] = None,
-    observed_at: Optional[str] = None,
-) -> Dict[str, Any]:
+    sources: Mapping[str, Callable[[str], Mapping[str, Any]]] | None = None,
+    limits: Mapping[str, int] | None = None,
+    observed_at: str | None = None,
+) -> dict[str, Any]:
     """Assemble one seat's bounded continuity profile without deciding who it is."""
     subject = str(subject or "").strip()
     if not subject:
@@ -522,7 +523,7 @@ def build_profile(
         region["drill"] = _drill(name, subject, region["items"])
         regions.append(region)
 
-    top_blind: List[str] = []
+    top_blind: list[str] = []
     failed = 0
     for region in regions:
         if region["state"] == "unknown" and batches[region["name"]].get("error"):

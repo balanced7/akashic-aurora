@@ -21,6 +21,7 @@ import redis  # noqa: E402
 
 from core import world_seed as S  # noqa: E402
 from core.world import WORLDS  # noqa: E402
+from datetime import UTC
 
 
 def _client(world: str):
@@ -67,7 +68,7 @@ def main() -> int:
     if args.apply:
         from datetime import datetime, timezone
 
-        S.write_manifest(dst, plan, counts, datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        S.write_manifest(dst, plan, counts, datetime.now(UTC).isoformat(timespec="seconds"))
 
     print(plan.render(counts=counts, applied=args.apply))
     print(

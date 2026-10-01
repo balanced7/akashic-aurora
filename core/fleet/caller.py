@@ -34,12 +34,12 @@ def call(
     tag: str,
     prompt: str,
     *,
-    system: Optional[str] = None,
+    system: str | None = None,
     max_tokens: int = 512,
     temperature: float = 0.2,
     fmt: Any = None,
     timeout: float = 120.0,
-    host: Optional[str] = None,
+    host: str | None = None,
     opener: Any = None,
 ) -> str:
     """Run `prompt` through the local model `tag` and return its text.

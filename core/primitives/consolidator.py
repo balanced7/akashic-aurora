@@ -34,8 +34,8 @@ class Consolidator:
 
     def __init__(
         self,
-        ranker: Optional[Ranker] = None,
-        distiller: Optional[Distiller] = None,
+        ranker: Ranker | None = None,
+        distiller: Distiller | None = None,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
     ):
         self.ranker = ranker or Ranker()
@@ -54,7 +54,7 @@ class Consolidator:
         timestamp: Any = None,
         relationship_type: Any = None,
         **extra: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """The canonical item contract every caller projects its records into. The fields the
         Ranker + Distiller read (text/importance/timestamp/source/relationship_type), plus any
         caller-specific extras passed through verbatim."""
@@ -69,11 +69,11 @@ class Consolidator:
 
     def consolidate(
         self,
-        items: List[Dict[str, Any]],
+        items: list[dict[str, Any]],
         *,
         instruction: str = "",
         kind: str = "",
-        now: Optional[float] = None,
+        now: float | None = None,
         query: str = "",
     ) -> Distillation:
         """items (best-first not required -- the Ranker orders them) -> a Distillation. `now` is a
@@ -84,7 +84,7 @@ class Consolidator:
         return self.distiller.distill(ranked, token_budget=self.token_budget, instruction=instruction, kind=kind)
 
 
-_INSTANCE: Optional[Consolidator] = None
+_INSTANCE: Consolidator | None = None
 
 
 def get_consolidator() -> Consolidator:

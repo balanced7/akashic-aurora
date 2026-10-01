@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
+from collections.abc import Callable
 
 HALT = "halt"
 STEER = "steer"
@@ -64,9 +65,7 @@ _RESUME_RE = re.compile(
 )
 
 
-def classify_intent(
-    text: Any, *, llm: Optional[Callable[[str], str]] = None, threshold: float = 0.55
-) -> Dict[str, Any]:
+def classify_intent(text: Any, *, llm: Callable[[str], str] | None = None, threshold: float = 0.55) -> dict[str, Any]:
     """Classify a human interjection as halt|steer|ask with a confidence and a one-line reason.
     Precedence HALT > ASK > STEER (a brake word dominates a refinement word). If `llm` is given and the
     heuristic is unsure (confidence < threshold), escalate to the model for a nuanced call."""
@@ -122,7 +121,7 @@ _LLM_PROMPT = (
 )
 
 
-def _llm_classify(text: str, llm: Callable[[str], str]) -> Optional[Dict[str, Any]]:
+def _llm_classify(text: str, llm: Callable[[str], str]) -> dict[str, Any] | None:
     """Escalate an ambiguous message to a cheap model. `llm(prompt) -> str` (JSON). Fail-soft -> None."""
     try:
         raw = llm(_LLM_PROMPT + text)

@@ -76,7 +76,7 @@ def _events_for_ref(eq, ref: str, *, fallback_kind: str, fallback_top_k: int):
     return eq.search("", kind=fallback_kind, top_k=fallback_top_k)
 
 
-def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any]]:
+def _promoted_record(msg_id: str, *, event_query=None) -> dict[str, Any] | None:
     """The bifrost_msg event carrying ref bifrost:<msg_id>, or None. RB-4: exact by-ref
     index lookup (was a top_k=100000 linear scan). Never raises."""
     try:
@@ -94,7 +94,7 @@ def _promoted_record(msg_id: str, *, event_query=None) -> Optional[Dict[str, Any
     return None
 
 
-def resolve_ack_ref(agent: str, ref: str) -> Optional[str]:
+def resolve_ack_ref(agent: str, ref: str) -> str | None:
     """T063 completion: resolve EVERY id form the sibling verbs print to an ackable stream id.
 
     Forms accepted (pin: tests/test_t063_ack_ref_roundtrip.py):
@@ -224,13 +224,13 @@ def promoted_page(limit: int = 20, **kw):
     return evs[:n], len(evs) > n
 
 
-def acks_for(msg_ids, *, event_query=None) -> Dict[str, List[Dict[str, Any]]]:
+def acks_for(msg_ids, *, event_query=None) -> dict[str, list[dict[str, Any]]]:
     """msg_id -> [ {by, at, note}, ... ] for every ack referencing those bus ids.
     RB-4: EXACT per-message by-ref lookup, unbounded per message -- the newest-500 scan
     is gone, so a message acked before 500 newer acks existed still reads as handled
     (S2/R17 root fix; acceptance pinned in test_window_confession). Never raises."""
     wanted = {str(m) for m in msg_ids}
-    out: Dict[str, List[Dict[str, Any]]] = {m: [] for m in wanted}
+    out: dict[str, list[dict[str, Any]]] = {m: [] for m in wanted}
     try:
         from core.events.event_query import get_event_query
 
@@ -249,12 +249,12 @@ def promoted(
     limit: int = 20,
     *,
     event_query=None,
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    since: str | None = None,
+    until: str | None = None,
     with_acks: bool = False,
     now: Any = None,
     unhandled_hours: int = UNHANDLED_HOURS,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Durable salient bus messages (the read side). Time-queryable + survives a Redis restart via
     the File ledger. Returns the raw promoted events (each carries its `detail`). Never raises.
 
@@ -316,12 +316,12 @@ def _closed_task_ids() -> set:
 
 def promote_interjection(
     text: Any,
-    verdict: Optional[dict],
+    verdict: dict | None,
     to: str,
     *,
     paused: bool = False,
     by: str = "user",
-    msg_id: Optional[str] = None,
+    msg_id: str | None = None,
     event_log=None,
 ) -> bool:
     """A human interjection typed into the live console -> a durable Ledger record. `verdict` is the
@@ -392,8 +392,8 @@ def promote_drop(path: str, size_bytes: Any, *, by: str = "user", event_log=None
 
 
 def console_events(
-    limit: int = 20, *, kinds=None, event_query=None, since: Optional[str] = None, until: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    limit: int = 20, *, kinds=None, event_query=None, since: str | None = None, until: str | None = None
+) -> list[dict[str, Any]]:
     """Durable console control-plane events (interjection/bus_control/file_drop), newest first. The read
     side of the console capture -- time-queryable and Redis-restart-survivable (File ledger). Never raises."""
     wanted = tuple(kinds) if kinds else CONSOLE_KINDS
@@ -401,7 +401,7 @@ def console_events(
         from core.events.event_query import get_event_query
 
         eq = event_query if event_query is not None else get_event_query()
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for k in wanted:
             out.extend(eq.search("", kind=k, since=since, until=until, top_k=limit))
         out.sort(key=lambda e: str(e.get("at", "")), reverse=True)

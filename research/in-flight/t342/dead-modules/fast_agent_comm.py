@@ -24,7 +24,8 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -54,11 +55,11 @@ class FastMessage:
     content: Any
     priority: int
     timestamp: str
-    reply_to: Optional[str] = None
-    expires_at: Optional[str] = None
-    metadata: Optional[Dict] = None
+    reply_to: str | None = None
+    expires_at: str | None = None
+    metadata: dict | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "msg_id": self.msg_id,
             "from_agent": self.from_agent,
@@ -73,7 +74,7 @@ class FastMessage:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict) -> "FastMessage":
+    def from_dict(cls, d: dict) -> "FastMessage":
         return cls(
             msg_id=d["msg_id"],
             from_agent=d["from_agent"],
@@ -107,8 +108,8 @@ class FastAgentComm:
         self._redis = None
         self._available = False
         self._agent_id = None
-        self._pending_responses: Dict[str, threading.Event] = {}
-        self._pending_results: Dict[str, Any] = {}
+        self._pending_responses: dict[str, threading.Event] = {}
+        self._pending_results: dict[str, Any] = {}
 
         self._init_redis()
 
@@ -168,9 +169,9 @@ class FastAgentComm:
         msg_type: str,
         content: Any,
         priority: MessagePriority = MessagePriority.NORMAL,
-        metadata: Dict = None,
+        metadata: dict = None,
         reply_to: str = None,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Send direct message to specific agent.
         Returns message ID if successful.
@@ -207,8 +208,8 @@ class FastAgentComm:
             return None
 
     def send_broadcast(
-        self, msg_type: str, content: Any, priority: MessagePriority = MessagePriority.NORMAL, metadata: Dict = None
-    ) -> Optional[str]:
+        self, msg_type: str, content: Any, priority: MessagePriority = MessagePriority.NORMAL, metadata: dict = None
+    ) -> str | None:
         """Broadcast to all agents"""
         if not self._available or not self._agent_id:
             return None
@@ -236,7 +237,7 @@ class FastAgentComm:
             print(f"[fast_comm] Broadcast failed: {e}")
             return None
 
-    def send_request(self, to_agent: str, msg_type: str, content: Any, timeout: float = 30) -> Optional[Any]:
+    def send_request(self, to_agent: str, msg_type: str, content: Any, timeout: float = 30) -> Any | None:
         """
         Send request and wait for response.
         Uses correlation ID for matching responses.
@@ -299,7 +300,7 @@ class FastAgentComm:
     # RECEIVE MESSAGES
     # =========================================================================
 
-    def receive(self, timeout: float = 0, block: bool = True) -> List[FastMessage]:
+    def receive(self, timeout: float = 0, block: bool = True) -> list[FastMessage]:
         """
         Receive messages for this agent.
 
@@ -354,7 +355,7 @@ class FastAgentComm:
 
         return messages
 
-    def get_recent(self, count: int = 10) -> List[FastMessage]:
+    def get_recent(self, count: int = 10) -> list[FastMessage]:
         """Get recent messages (last N)"""
         if not self._available:
             return []
@@ -382,7 +383,7 @@ class FastAgentComm:
     # UTILITY
     # =========================================================================
 
-    def get_stream_info(self) -> Dict:
+    def get_stream_info(self) -> dict:
         """Get stream statistics"""
         if not self._available:
             return {}
@@ -448,19 +449,19 @@ def get_fast_comm() -> FastAgentComm:
     return FastAgentComm.get_instance()
 
 
-def send_to(agent_id: str, msg_type: str, content: Any) -> Optional[str]:
+def send_to(agent_id: str, msg_type: str, content: Any) -> str | None:
     """Send direct message"""
     comm = get_fast_comm()
     return comm.send_direct(agent_id, msg_type, content)
 
 
-def broadcast(msg_type: str, content: Any) -> Optional[str]:
+def broadcast(msg_type: str, content: Any) -> str | None:
     """Broadcast to all agents"""
     comm = get_fast_comm()
     return comm.send_broadcast(msg_type, content)
 
 
-def receive_all(timeout: float = 0) -> List[FastMessage]:
+def receive_all(timeout: float = 0) -> list[FastMessage]:
     """Receive all messages for this agent"""
     return get_fast_comm().receive(timeout=timeout)
 

@@ -84,13 +84,13 @@ def _is_executable(line: str) -> bool:
     return True
 
 
-def scan(text: str) -> List[Dict[str, Any]]:
+def scan(text: str) -> list[dict[str, Any]]:
     """Findings: [{line_no, family, snippet, why}] -- one per unconditional control-key
     write with no same-family read-guard within GUARD_WINDOW lines above. Non-executable
     lines (comments, defs, docstrings) are skipped -- a lint that cries wolf gets ignored
     (kimi's own guard-design law, applied to itself)."""
     lines = str(text or "").splitlines()
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     guarded_surfaces: set = set()  # control SURFACES read (is_/was_/generic) since last def
     generic_guard = False  # a family-agnostic guard read seen in this def
     in_docstring = False  # inside a triple-quoted block (prose, never a write)
@@ -129,7 +129,7 @@ def scan(text: str) -> List[Dict[str, Any]]:
     return out
 
 
-def render(findings: List[Dict[str, Any]]) -> str:
+def render(findings: list[dict[str, Any]]) -> str:
     if not findings:
         return "clobber-scan: clean -- no unguarded control-key writes"
     rows = [f"clobber-scan: {len(findings)} unguarded control-key write(s)"]

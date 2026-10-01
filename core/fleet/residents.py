@@ -121,7 +121,7 @@ def _corrupt_row(where: str, index: int, raw: str) -> None:
     )
 
 
-def _receipt_author(experiment: str) -> Optional[str]:
+def _receipt_author(experiment: str) -> str | None:
     """Who authored the lesson `experiment`, or None when the lesson genuinely is not there.
 
     None means ABSENT -- a real answer about a real lookup. A store that could not be
@@ -145,10 +145,10 @@ def _receipt_author(experiment: str) -> Optional[str]:
     return str(rec.get("agent_id") or rec.get("agent") or "").strip() or None
 
 
-def _records(agent_id: str) -> List[Dict[str, Any]]:
+def _records(agent_id: str) -> list[dict[str, Any]]:
     key = _LOG_KEY.format(agent=agent_id)
     raw = _store().lrange(key, 0, -1) or []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
@@ -157,7 +157,7 @@ def _records(agent_id: str) -> List[Dict[str, Any]]:
     return out
 
 
-def _append(agent_id: str, record: Dict[str, Any]) -> Dict[str, Any]:
+def _append(agent_id: str, record: dict[str, Any]) -> dict[str, Any]:
     st = _store()
     st.rpush(_LOG_KEY.format(agent=agent_id), json.dumps(record, ensure_ascii=False))
     try:
@@ -176,14 +176,14 @@ def nominate(
     *,
     nominee: str,
     callsign: str,
-    receipts: List[str],
+    receipts: list[str],
     by: str,
     vendor: str = "",
     family: str = "",
     team: str = "",
-    number: Optional[int] = None,
+    number: int | None = None,
     note: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Record a nomination. Raises ValueError when a ceremony rule is broken.
 
     Refusals are LOUD and NAMED -- they say which rule, which party, and which receipt, because
@@ -253,7 +253,7 @@ def nominate(
     )
 
 
-def ratify(*, nominee: str, callsign: str, by: str) -> Dict[str, Any]:
+def ratify(*, nominee: str, callsign: str, by: str) -> dict[str, Any]:
     """Promote a nomination to the active designation. Rule 3: a human ratifies.
 
     Refuses a callsign nobody nominated -- ratification confirms a draft, it does not author
@@ -287,12 +287,12 @@ def ratify(*, nominee: str, callsign: str, by: str) -> Dict[str, Any]:
     return _append(nominee, out)
 
 
-def history(agent_id: str) -> List[Dict[str, Any]]:
+def history(agent_id: str) -> list[dict[str, Any]]:
     """Every record for this resident, oldest first. Nothing is ever removed."""
     return _records(agent_id)
 
 
-def get(agent_id: str) -> Optional[Dict[str, Any]]:
+def get(agent_id: str) -> dict[str, Any] | None:
     """The CURRENT designation, or None when this seat is not a resident.
 
     None is the ordinary answer for most seats and is not an error: residency is a deliberate
@@ -304,7 +304,7 @@ def get(agent_id: str) -> Optional[Dict[str, Any]]:
     current = dict(ratified[-1])
     # `formerly:` is DERIVED from the log rather than maintained beside it, so the two can never
     # disagree. Order preserved, duplicates collapsed, the active name excluded.
-    formerly: List[str] = []
+    formerly: list[str] = []
     for r in ratified[:-1]:
         cs = r.get("callsign")
         if cs and cs != current.get("callsign") and cs not in formerly:
@@ -326,7 +326,7 @@ def get(agent_id: str) -> Optional[Dict[str, Any]]:
 #: only by ratification ceremony, so a short TTL is generous and the hot path stays a dict
 #: lookup. Rebuilt lazily; a store outage returns the last good map rather than an empty one
 #: (an empty map silently un-routes every callsign -- the exact failure this closes).
-_ALIAS_CACHE: Dict[str, Any] = {"at": 0.0, "alias": {}, "ids": set()}
+_ALIAS_CACHE: dict[str, Any] = {"at": 0.0, "alias": {}, "ids": set()}
 _ALIAS_TTL = 120.0
 
 
@@ -336,7 +336,7 @@ def _invalidate_alias_cache() -> None:
     _ALIAS_CACHE = {"at": 0.0, "alias": {}, "ids": set()}
 
 
-def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:
+def _alias_index(now: float | None = None) -> dict[str, Any]:
     now = time.time() if now is None else now
     if _ALIAS_CACHE["alias"] and (now - float(_ALIAS_CACHE["at"])) < _ALIAS_TTL:
         return _ALIAS_CACHE
@@ -345,7 +345,7 @@ def _alias_index(now: Optional[float] = None) -> Dict[str, Any]:
         keys = _store().keys(prefix + "*") or []
     except Exception:
         return _ALIAS_CACHE  # last good map beats no map
-    alias: Dict[str, str] = {}
+    alias: dict[str, str] = {}
     ids = set()
     for k in keys:
         agent_id = str(k)[len(prefix) :]
@@ -422,8 +422,8 @@ def designation(agent_id: str) -> str:
 
 
 def place(
-    *, agent: str, family: str = "", team: str = "", number: Optional[int] = None, vendor: str = "", by: str = ""
-) -> Dict[str, Any]:
+    *, agent: str, family: str = "", team: str = "", number: int | None = None, vendor: str = "", by: str = ""
+) -> dict[str, Any]:
     """Post a resident to a family, a team and a number. NOT a re-naming.
 
     Naming and posting are different acts. Ceremony rule 1 forbids naming yourself; it says
@@ -475,18 +475,18 @@ def place(
     )
 
 
-def placement_history(agent_id: str) -> List[Dict[str, Any]]:
+def placement_history(agent_id: str) -> list[dict[str, Any]]:
     """Every posting this resident has held, oldest first. Nothing is removed."""
     return [r for r in _records(agent_id) if r.get("state") == PLACED]
 
 
-def current_placement(agent_id: str) -> Optional[Dict[str, Any]]:
+def current_placement(agent_id: str) -> dict[str, Any] | None:
     """The latest posting, projected -- or None, which is the ordinary state."""
     h = placement_history(agent_id)
     return h[-1] if h else None
 
 
-def family_members(family: str) -> List[str]:
+def family_members(family: str) -> list[str]:
     """Who is currently posted to `family`. Empty is empty, never everyone.
 
     A family you cannot enumerate is decoration: the family half of routing needs members to
@@ -507,7 +507,7 @@ def family_members(family: str) -> List[str]:
     return sorted(out)
 
 
-def team_members(team: str) -> List[str]:
+def team_members(team: str) -> list[str]:
     """Who is currently posted to `team`. The standing disposition, not the per-exercise side
     -- that is an assignment event (T259) and deliberately a different plane."""
     want = str(team or "").strip().lower()
@@ -558,7 +558,7 @@ def catchup_pack(agent_id: str, topic: str, k: int = 6):
     return "\n".join(lines), {"resident": True, "catchup": ids}
 
 
-def assign(*, agent: str, role: str, side: str = "", exercise: str = "", by: str = "") -> Dict[str, Any]:
+def assign(*, agent: str, role: str, side: str = "", exercise: str = "", by: str = "") -> dict[str, Any]:
     """Record that a resident is OPERATING AS `role` -- an event, never a field.
 
     Identity is permanent; the job is situational. Rook stays Rook while operating as Jester
@@ -599,9 +599,9 @@ def assign(*, agent: str, role: str, side: str = "", exercise: str = "", by: str
     return rec
 
 
-def _role_records() -> List[Dict[str, Any]]:
+def _role_records() -> list[dict[str, Any]]:
     raw = _store().lrange(_ROLES_KEY, 0, -1) or []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
@@ -612,12 +612,12 @@ def _role_records() -> List[Dict[str, Any]]:
 
 def roles(
     *,
-    agent: Optional[str] = None,
-    role: Optional[str] = None,
-    side: Optional[str] = None,
-    exercise: Optional[str] = None,
-    provenance: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    agent: str | None = None,
+    role: str | None = None,
+    side: str | None = None,
+    exercise: str | None = None,
+    provenance: str | None = None,
+) -> list[dict[str, Any]]:
     """The projection: every assignment matching every given filter, oldest first.
 
     "All Jesters on Red of exercise 7" is roles(role="Jester", side="Red", exercise="E7").
@@ -641,18 +641,18 @@ def roles(
     return out
 
 
-def role_history(agent_id: str) -> List[Dict[str, Any]]:
+def role_history(agent_id: str) -> list[dict[str, Any]]:
     """Every assignment this resident has ever held, oldest first. Nothing is ever removed."""
     return roles(agent=agent_id)
 
 
-def current_role(agent_id: str) -> Optional[Dict[str, Any]]:
+def current_role(agent_id: str) -> dict[str, Any] | None:
     """The LATEST assignment, projected -- or None, which is the ordinary state, not an error."""
     hist = role_history(agent_id)
     return hist[-1] if hist else None
 
 
-def _default_lesson_lookup(slug: str) -> Dict[str, Any]:
+def _default_lesson_lookup(slug: str) -> dict[str, Any]:
     """The store read behind W150's inline receipts. Import-at-call so the module
     attribute is live (tests fake the store by patching learning_store); ANY failure
     is the caller's cue to render the bare slug -- never a boot cost."""

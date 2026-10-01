@@ -50,7 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 SWEEP_PATTERNS = ("t-*", "t056_*", "t117dbg:*", "census_test")
 
 
-def _doomed(store) -> List[str]:
+def _doomed(store) -> list[str]:
     out = []
     for key in store.keys("*"):
         if any(fnmatch.fnmatch(str(key), p) for p in SWEEP_PATTERNS):
@@ -86,14 +86,14 @@ def _typed_value(store, key):
     return {"type": "empty", "value": None}
 
 
-def sweep(store, audit_path, apply: bool = False) -> List[str]:
+def sweep(store, audit_path, apply: bool = False) -> list[str]:
     """Returns the doomed key list. apply=False (default) touches nothing."""
     doomed = _doomed(store)
     if not apply or not doomed:
         return doomed
     audit_path = Path(audit_path)
     audit_path.parent.mkdir(parents=True, exist_ok=True)
-    record: Dict[str, Dict] = {k: _typed_value(store, k) for k in doomed}
+    record: dict[str, dict] = {k: _typed_value(store, k) for k in doomed}
     tmp = Path(f"{audit_path}.tmp.{os.getpid()}")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=1)

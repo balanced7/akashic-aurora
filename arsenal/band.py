@@ -155,7 +155,8 @@ import re
 import struct
 import sys
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
+from collections.abc import Iterable, Sequence
 
 from . import nashville as nv
 
@@ -250,7 +251,7 @@ def _num(x: float):
     return int(x) if x == int(x) else x
 
 
-def parse_meter(text) -> Tuple[int, int]:
+def parse_meter(text) -> tuple[int, int]:
     if isinstance(text, (list, tuple)):
         n, d = text
     else:
@@ -290,7 +291,7 @@ def _clean(text: str) -> str:
     return str(text).strip().replace("♭", "b").replace("♯", "#").replace("Δ", "maj")
 
 
-def suffix_tones(suffix: str) -> Dict[str, int]:
+def suffix_tones(suffix: str) -> dict[str, int]:
     """A chord suffix -> {role: semitones above the root}. Roles: 1 3 5 (or 2/4 for sus), 7 or 6, 9 b9 #9 11 #11
     13 b13. "maj9#11", "m11", "13sus4", "7(#9,b13)", "m7b5", "dim7", "6/9", "add9", "5" (power), "11" (dominant
     eleventh, third left out), "alt"."""
@@ -407,7 +408,7 @@ _NUMBER_RE = re.compile(r"^(#{1,2}|b{1,2})?([1-7])(?!\d)(.*)$")
 _NUMBER_BASS_RE = re.compile(r"^(.*)/(#{1,2}|b{1,2})?([1-7])$")
 
 
-def _acc(text: Optional[str]) -> int:
+def _acc(text: str | None) -> int:
     text = text or ""
     return len(text) if text.startswith("#") else -len(text)
 
@@ -417,7 +418,7 @@ def _spelled(letter: int, pc: int) -> str:
     return nv.LETTERS[letter] + ("#" * acc if acc > 0 else "b" * -acc)
 
 
-def _key_info(key: Optional[str]) -> Optional[Dict]:
+def _key_info(key: str | None) -> dict | None:
     if key is None:
         return None
     k = nv.parse_key(key)
@@ -427,13 +428,13 @@ def _key_info(key: Optional[str]) -> Optional[Dict]:
     return {**k, "letter": letter}
 
 
-def _degree(key: Dict, acc: int, degree: int) -> Tuple[int, str]:
+def _degree(key: dict, acc: int, degree: int) -> tuple[int, str]:
     letter = (key["letter"] + degree - 1) % 7
     pc = (key["tonic"] + nv.LETTER_PC[degree - 1] + acc) % 12
     return pc, _spelled(letter, pc)
 
 
-def parse_chord_token(token: str, key: Optional[Dict]) -> Dict:
+def parse_chord_token(token: str, key: dict | None) -> dict:
     """One chord (a name, or a Nashville number with a key) -> {name, root, bass, suffix, tones}."""
     tok = _clean(token)
     m = _NUMBER_RE.match(tok)
@@ -463,7 +464,7 @@ def parse_chord_token(token: str, key: Optional[Dict]) -> Dict:
     return {"name": name, "root": root, "bass": bass, "suffix": suffix, "tones": suffix_tones(suffix)}
 
 
-def _split_duration(token: str) -> Tuple[str, Optional[float]]:
+def _split_duration(token: str) -> tuple[str, float | None]:
     m = re.fullmatch(r"(.+):(\d+(?:\.\d+)?)", token)
     if not m:
         return token, None
@@ -473,14 +474,14 @@ def _split_duration(token: str) -> Tuple[str, Optional[float]]:
     return m.group(1), beats
 
 
-def parse_loop(text: str, key: Optional[str] = None, meter=(4, 4)) -> List[Dict]:
+def parse_loop(text: str, key: str | None = None, meter=(4, 4)) -> list[dict]:
     """A chord loop -> one cycle of chords, each {name, root, bass, suffix, tones, beat, dur, input}."""
     k = _key_info(key)
     bpb = beats_per_bar(meter)
     text = _clean(text)
     if not text:
         raise BandError("the chord loop is empty")
-    groups: List[Tuple[List[str], bool]] = []
+    groups: list[tuple[list[str], bool]] = []
     if "|" in text:
         for seg in text.split("|"):
             toks = [t for t in re.split(r"\s+", seg.strip()) if t and t != "-"]
@@ -519,7 +520,7 @@ def parse_loop(text: str, key: Optional[str] = None, meter=(4, 4)) -> List[Dict]
     return cycle
 
 
-def estimate_key(cycle: List[Dict]) -> str:
+def estimate_key(cycle: list[dict]) -> str:
     """The major or minor key that numbers the most chords diatonically (ties: the last chord's root as tonic,
     then the first's, then major)."""
     best = None
@@ -544,7 +545,7 @@ def estimate_key(cycle: List[Dict]) -> str:
     return best[1]
 
 
-def _expand(cycle: List[Dict], total: float) -> List[Dict]:
+def _expand(cycle: list[dict], total: float) -> list[dict]:
     cycle_len = cycle[-1]["beat"] + cycle[-1]["dur"]
     out, offset = [], 0.0
     while offset < total - 1e-9:
@@ -557,7 +558,7 @@ def _expand(cycle: List[Dict], total: float) -> List[Dict]:
     return out
 
 
-def _segments(timeline: List[Dict], bpb: float, total: float) -> List[Tuple[float, float, Dict, Dict]]:
+def _segments(timeline: list[dict], bpb: float, total: float) -> list[tuple[float, float, dict, dict]]:
     """Chords cut at bar lines: (start, end, chord, the chord sounding at `end`, wrapping to the loop top)."""
     starts = []
     for c in timeline:
@@ -580,11 +581,11 @@ def _segments(timeline: List[Dict], bpb: float, total: float) -> List[Tuple[floa
 
 
 # ===================================================================================================== lanes
-def normalize_notes(notes: Iterable[Dict], length: float) -> List[Dict]:
+def normalize_notes(notes: Iterable[dict], length: float) -> list[dict]:
     """Snap to ticks, clamp velocities, keep notes inside the loop, drop a quieter same-pitch duplicate, cut a note
     short where the next note of its pitch starts, and sort by (beat, note)."""
     ordered = sorted(notes, key=lambda n: (q(n["beat"]), int(n["note"]), -int(n["vel"])))
-    last: Dict[int, Dict] = {}
+    last: dict[int, dict] = {}
     kept = []
     for n in ordered:
         b = q(n["beat"])
@@ -621,7 +622,7 @@ class Humanizer:
 
     def __init__(self, seed: str, lane: str, bpb: float):
         self.seed, self.lane, self.bpb = str(seed), lane, float(bpb)
-        self._bars: Dict[int, random.Random] = {}
+        self._bars: dict[int, random.Random] = {}
 
     def bar_of(self, beat: float) -> int:
         return int(math.floor(q(beat) / self.bpb + 1e-9))
@@ -636,7 +637,7 @@ class Humanizer:
         return max(1, min(127, int(round(vel)) + self.rng(beat).randint(-spread, spread)))
 
 
-def _place(pc: int, prev: Optional[int], lo: int = BASS_RANGE[0], hi: int = BASS_RANGE[1], center: float = 35.5) -> int:
+def _place(pc: int, prev: int | None, lo: int = BASS_RANGE[0], hi: int = BASS_RANGE[1], center: float = 35.5) -> int:
     options = [p for p in range(lo, hi + 1) if p % 12 == pc % 12]
     return min(options, key=lambda p: ((abs(p - prev) if prev is not None else 0) + 0.3 * abs(p - center), p))
 
@@ -646,20 +647,20 @@ def _nearest_in_range(pc: int, near: int, lo: int = BASS_RANGE[0], hi: int = BAS
     return min(options, key=lambda p: (abs(p - near), -p))
 
 
-def _chord_pcs(chord: Dict, roles=("1", "3", "4", "2", "5", "7", "6")) -> List[int]:
+def _chord_pcs(chord: dict, roles=("1", "3", "4", "2", "5", "7", "6")) -> list[int]:
     return sorted({(chord["root"] + chord["tones"][r]) % 12 for r in roles if r in chord["tones"]} | {chord["bass"]})
 
 
 def bass_lane(
-    timeline: List[Dict],
+    timeline: list[dict],
     style: str,
     bpb: float,
     total: float,
     human: Humanizer,
-    pedal_pc: Optional[int] = None,
+    pedal_pc: int | None = None,
     scale_pcs: Sequence[int] = (),
     feel: str = "straight",
-) -> List[Dict]:
+) -> list[dict]:
     """One bass line over `timeline`. The line is played through once to find the note it ends on, then generated
     for real starting from there, so the loop's seam is voice-led like every other change. feel "triplet" (under
     the brushes' triplet ride) puts the gospel runs on triplets."""
@@ -687,7 +688,7 @@ def bass_lane(
     return normalize_notes(notes, total)
 
 
-def _tie_anticipations(notes: List[Dict]) -> List[Dict]:
+def _tie_anticipations(notes: list[dict]) -> list[dict]:
     """An anticipation (a note marked "tie" with the beat it lands on) holds over the change: the next note of its
     pitch that starts on that beat is folded into it. At the end of a pass there is no such note, so the top of the
     loop strikes its 1 again."""
@@ -707,17 +708,17 @@ def _tie_anticipations(notes: List[Dict]) -> List[Dict]:
 
 
 def _bass_pass(
-    timeline: List[Dict],
+    timeline: list[dict],
     style: str,
     bpb: float,
     total: float,
     human: Humanizer,
-    prev: Optional[int],
+    prev: int | None,
     scale_pcs: Sequence[int],
     feel: str = "straight",
-) -> Tuple[List[Dict], Optional[int]]:
+) -> tuple[list[dict], int | None]:
     lo, hi = BASS_RANGE
-    notes: List[Dict] = []
+    notes: list[dict] = []
     bars_total = max(1, int(round(total / bpb)))
     phrase = 4 if bars_total >= 8 and bars_total % 4 == 0 else 2 if bars_total % 2 == 0 else 1
 
@@ -979,7 +980,7 @@ def _bass_pass(
     return _tie_anticipations(notes), prev
 
 
-def _tile(notes: List[Dict], cycle_len: float, total: float, human: Humanizer) -> List[Dict]:
+def _tile(notes: list[dict], cycle_len: float, total: float, human: Humanizer) -> list[dict]:
     """Repeat one pass of a line to fill the loop, cutting the last pass at `total`; repeats get a light new
     velocity shading (drawn from the repeat's own bars) so the copies do not sound stamped."""
     out = []
@@ -998,7 +999,7 @@ def _swing16(position: float, amount: float) -> float:
     return position + ((amount - 0.5) * 0.5 if k % 2 else 0.0)
 
 
-def swing_amount(drums: str, bpb: float, swing: Optional[float]) -> float:
+def swing_amount(drums: str, bpb: float, swing: float | None) -> float:
     """The 16th swing drum_lane plays for this style and meter (0.5 = straight): only neo-soul in 4/4 swings its
     hats and ghost snares (NEO_SOUL_SWING unless --swing says otherwise)."""
     if drums != "neo-soul" or bpb != 4:
@@ -1028,7 +1029,7 @@ def _swing_warp(beat: float, amount: float) -> float:
     return base + 0.25 + d + (x - 0.25) * (0.25 - d) / 0.25
 
 
-def _swing_notes(notes: List[Dict], amount: float, bpb: float) -> List[Dict]:
+def _swing_notes(notes: list[dict], amount: float, bpb: float) -> list[dict]:
     """Bass, comp or pad notes in the drums' swing: a note starting on an odd 16th starts with the hat there, and
     its end follows the swing's time map, never past where the next onset of the lane now starts."""
     if amount == 0.5 or not notes:
@@ -1052,13 +1053,13 @@ def _swing_notes(notes: List[Dict], amount: float, bpb: float) -> List[Dict]:
 
 
 def drum_lane(
-    style: str, bpb: float, total: float, human: Humanizer, swing: Optional[float] = None, fill: bool = False
-) -> List[Dict]:
+    style: str, bpb: float, total: float, human: Humanizer, swing: float | None = None, fill: bool = False
+) -> list[dict]:
     if style == "none":
         return []
     if style not in DRUM_STYLES:
         raise BandError(f"unknown drum style {style!r}; one of {', '.join(DRUM_STYLES)}")
-    notes: List[Dict] = []
+    notes: list[dict] = []
     bars = int(round(total / bpb))
     swing = NEO_SOUL_SWING if (swing is None and style == "neo-soul") else (0.5 if swing is None else swing)
     soft = style in ("ballad", "brushes", "ambient")
@@ -1174,7 +1175,7 @@ COMP_RHYTHMS = {
 }
 
 
-def voicing_pcs(chord: Dict, size: int) -> List[int]:
+def voicing_pcs(chord: dict, size: int) -> list[int]:
     """The pitch classes a keys voicing uses, most important first: the 3rd (or sus tone) and the 7th (or 6th),
     an altered 5th, colour tones (b9 #9 13 b13 #11 11 9), the 5th, then the root only when fewer than four other
     tones exist. A slash chord's bass is not doubled when three other tones remain."""
@@ -1185,7 +1186,7 @@ def voicing_pcs(chord: Dict, size: int) -> List[int]:
     order += [r for r in ("b9", "#9", "13", "b13", "#11", "11", "9") if r in tones]
     if "5" in tones and "5" not in order:
         order.append("5")
-    pcs: List[int] = []
+    pcs: list[int] = []
     for r in order:
         pc = (root + tones[r]) % 12
         if pc not in pcs and pc != root % 12:
@@ -1204,7 +1205,7 @@ def is_muddy(v: Sequence[int]) -> bool:
     return any(b - a == 1 and a < MUD_FLOOR for a, b in zip(v, v[1:]))
 
 
-def _roughness(v: Sequence[int], chord: Dict) -> float:
+def _roughness(v: Sequence[int], chord: dict) -> float:
     pen = 0.0
     for a, b in zip(v, v[1:]):
         iv = b - a
@@ -1225,7 +1226,7 @@ def _movement(prev: Sequence[int], cur: Sequence[int]) -> float:
     return (there + back) / 2.0
 
 
-def _voicing_candidates(chord: Dict, shape: Dict) -> List[Tuple[float, List[int]]]:
+def _voicing_candidates(chord: dict, shape: dict) -> list[tuple[float, list[int]]]:
     """(standing cost, voicing) for one chord, cheapest first: roughness, spacing and the pull to the lane's centre.
     Muddy voicings are refused unless nothing else fits the span."""
     lo, hi = shape.get("range", KEYS_RANGE)
@@ -1259,7 +1260,7 @@ def _lead_cost(a: Sequence[int], b: Sequence[int]) -> float:
     return _movement(a, b) + 0.3 * abs(b[-1] - a[-1])
 
 
-def voice_lead(chords: List[Dict], lane: str, ring: bool = True) -> List[List[int]]:
+def voice_lead(chords: list[dict], lane: str, ring: bool = True) -> list[list[int]]:
     """Voicings in C3..B4 (a "shell": C3..E4) for a chord sequence with the least total movement between neighbours
     (top voice weighted a little extra), plus a pull toward the lane's register centre, even spacing and no muddy
     low intervals. lane is a KEYS_SHAPE name: comp, pad or shell. ring=True counts the move from the last chord back
@@ -1276,7 +1277,7 @@ def voice_lead(chords: List[Dict], lane: str, ring: bool = True) -> List[List[in
     best = None
     for j0, (c0, _) in enumerate(cands[0]):
         cost = [c0 + edges[0][j0][j] + cands[1][j][0] for j in range(len(cands[1]))]
-        back: List[List[int]] = [[j0] * len(cands[1])]
+        back: list[list[int]] = [[j0] * len(cands[1])]
         for i in range(1, n - 1):
             nxt_cost, nxt_back = [], []
             for k in range(len(cands[i + 1])):
@@ -1296,10 +1297,10 @@ def voice_lead(chords: List[Dict], lane: str, ring: bool = True) -> List[List[in
     return best[1]
 
 
-def _comp_strikes(timeline: List[Dict], style: str, bpb: float, total: float, swing: float = 0.5) -> List[List]:
+def _comp_strikes(timeline: list[dict], style: str, bpb: float, total: float, swing: float = 0.5) -> list[list]:
     """[beat, length, velocity, voices, cycle index] for the comp lane in the drum style's rhythm (COMP_RHYTHMS),
     strikes on odd 16ths moved late with the drums' swing."""
-    strikes: List[List] = []
+    strikes: list[list] = []
     for s, e, c, _ in _segments(timeline, bpb, total):
         d = e - s
         i = c["cycle_index"]
@@ -1335,8 +1336,8 @@ def _comp_strikes(timeline: List[Dict], style: str, bpb: float, total: float, sw
 
 
 def keys_lane(
-    timeline: List[Dict],
-    cycle: List[Dict],
+    timeline: list[dict],
+    cycle: list[dict],
     lane: str,
     bpb: float,
     total: float,
@@ -1344,13 +1345,13 @@ def keys_lane(
     style: str = "none",
     swing: float = 0.5,
     shell: bool = False,
-) -> List[Dict]:
+) -> list[dict]:
     """The comp (rhythm by drum style) or pad (held chords) lane. Voicings are led around the part of the chord
     loop the pattern plays, as a ring; shell=True voices the comp as two-note shells (KEYS_SHAPE["shell"]). Onsets
     on odd 16ths follow the drums' swing."""
     played = max(c["cycle_index"] for c in timeline) + 1
     voicings = voice_lead(cycle[:played], "shell" if shell and lane == "comp" else lane)
-    notes: List[Dict] = []
+    notes: list[dict] = []
 
     def strike(beat, length, voicing, vel):
         for p in voicing:
@@ -1370,14 +1371,14 @@ def keys_lane(
 PHRASE_WEIGHT = (0.5, 0.75, 0.5, 2.25)  # arsenal/fl/vfx/arsenal_band.py PHRASE_WEIGHT: bar 4 of a phrase rests most
 
 
-def dropout_bars(seed_id: str, bars: int, amount: float) -> List[int]:
+def dropout_bars(seed_id: str, bars: int, amount: float) -> list[int]:
     """The 0-based bars that rest under --dropout `amount`: never bar 0, never two in a row, each decided by
     random.Random("<id>/dropout/<bar>") so the holes are the same every time the set is built. As in the VFX band, a
     rest leans on the last bar of each 4-bar phrase (bars 4, 8, ... counted from 1), then the 2nd: a bar's chance is
     1 - (1 - amount) ** PHRASE_WEIGHT[bar % 4], so 0 still means none and 1 every other bar."""
     if not 0 <= amount <= 1:
         raise BandError("--dropout runs from 0 (no rest bars) to 1 (every other bar rests)")
-    out: List[int] = []
+    out: list[int] = []
     for bar in range(1, int(bars)):
         if out and out[-1] == bar - 1:
             continue
@@ -1387,7 +1388,7 @@ def dropout_bars(seed_id: str, bars: int, amount: float) -> List[int]:
     return out
 
 
-def _rest_bars(notes: List[Dict], rests: Sequence[int], bpb: float, total: float, sustain: bool) -> List[Dict]:
+def _rest_bars(notes: list[dict], rests: Sequence[int], bpb: float, total: float, sustain: bool) -> list[dict]:
     """Silence whole bars in a lane, as the VFX band's Dropout does. A note that starts in a bar's last 8th and
     rings over its bar line is a push and belongs to the next bar: a push into a rest bar rests, a push out of one
     plays whole. Any other note sounding into a rest bar is cut at its bar line. With sustain (comp, pad) the part
@@ -1430,21 +1431,21 @@ def slug(text: str) -> str:
 
 def make_pattern_set(
     loop: str,
-    key: Optional[str] = None,
-    bpm: Optional[float] = None,
-    bars: Optional[int] = None,
+    key: str | None = None,
+    bpm: float | None = None,
+    bars: int | None = None,
     bass: str = "roots-on-1",
     drums: str = "ballad",
     comp: bool = False,
     pad: bool = False,
     fill: bool = False,
-    swing: Optional[float] = None,
+    swing: float | None = None,
     meter="4/4",
-    title: Optional[str] = None,
-    pid: Optional[str] = None,
+    title: str | None = None,
+    pid: str | None = None,
     dropout: float = 0.0,
     shell: bool = False,
-) -> Dict:
+) -> dict:
     """Generate a pattern set (the contract above) from a chord loop. Deterministic: the same arguments give the
     same set, humanised velocities (seeded per id, bar and lane) and dropout bars included. shell=True voices the
     comp as two-note shells below E4."""
@@ -1518,9 +1519,9 @@ def make_pattern_set(
     }
 
 
-def validate_pattern_set(ps) -> Dict:
+def validate_pattern_set(ps) -> dict:
     """Check a pattern set against the contract; raise BandError listing every problem."""
-    problems: List[str] = []
+    problems: list[str] = []
     if not isinstance(ps, dict):
         raise BandError("a pattern set is a JSON object")
     if ps.get("version") != VERSION:
@@ -1594,7 +1595,7 @@ def validate_pattern_set(ps) -> Dict:
     return ps
 
 
-def lint(ps: Dict) -> List[str]:
+def lint(ps: dict) -> list[str]:
     """Register and overlap warnings (the generator never produces them; hand-edited sets might)."""
     out = []
     ranges = {"bass": BASS_RANGE, "comp": KEYS_RANGE, "pad": KEYS_RANGE}
@@ -1603,7 +1604,7 @@ def lint(ps: Dict) -> List[str]:
         if bad:
             out.append(f"{lane}: notes outside {midi_name(lo)}..{midi_name(hi)}: {bad}")
     for lane in LANES:
-        ends: Dict[int, float] = {}
+        ends: dict[int, float] = {}
         for n in sorted(ps["lanes"][lane]["notes"], key=lambda n: (n["beat"], n["note"])):
             if ends.get(n["note"], -1) > n["beat"] + 1e-9:
                 out.append(f"{lane}: note {n['note']} overlaps itself at beat {n['beat']}")
@@ -1691,7 +1692,7 @@ SEEDS = (
 )
 
 
-def seed(seed_id: str) -> Dict:
+def seed(seed_id: str) -> dict:
     for s in SEEDS:
         if s["id"] == seed_id:
             return make_pattern_set(
@@ -1713,7 +1714,7 @@ def seed(seed_id: str) -> Dict:
 
 
 # ================================================================================================= store + playlist
-def state_root(arg: Optional[str] = None) -> Path:
+def state_root(arg: str | None = None) -> Path:
     return Path(arg or os.environ.get(STATE_ENV) or DEFAULT_STATE)
 
 
@@ -1724,7 +1725,7 @@ def _write_atomic(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
-def dump_json(ps: Dict) -> str:
+def dump_json(ps: dict) -> str:
     """Pattern-set JSON with one note per line (readable diffs, small files)."""
     head = {k: v for k, v in ps.items() if k not in ("chords", "lanes")}
     lines = ["{"]
@@ -1748,7 +1749,7 @@ def dump_json(ps: Dict) -> str:
 
 
 class PatternStore:
-    def __init__(self, root: Optional[str] = None):
+    def __init__(self, root: str | None = None):
         self.root = state_root(root)
         self.patterns = self.root / "patterns"
         self.playlist_path = self.root / "playlist.json"
@@ -1758,14 +1759,14 @@ class PatternStore:
             raise BandError(f"not a pattern id: {pid!r}")
         return self.patterns / f"{pid}.json"
 
-    def save(self, ps: Dict, out_dir: Optional[Path] = None) -> Path:
+    def save(self, ps: dict, out_dir: Path | None = None) -> Path:
         """Write the set, stamped with "generator": GENERATOR_VERSION so a later band.py can tell it is out of date."""
         validate_pattern_set(ps)
         path = (Path(out_dir) / f"{ps['id']}.json") if out_dir else self.path(ps["id"])
         _write_atomic(path, dump_json({**ps, GENERATOR_KEY: GENERATOR_VERSION}))
         return path
 
-    def stale_note(self, pid: str) -> Optional[str]:
+    def stale_note(self, pid: str) -> str | None:
         """A warning when the stored file for pid was written by an older generator than this band.py (a file with no
         stamp predates stamps: generator 1). None for a current file, or when nothing is stored (the seed is used)."""
         path = self.path(pid)
@@ -1787,12 +1788,12 @@ class PatternStore:
             f"{GENERATOR_VERSION}), so its notes may be out of date; if it came from band.py, rebuild it: {again}"
         )
 
-    def stored(self) -> List[str]:
+    def stored(self) -> list[str]:
         if not self.patterns.is_dir():
             return []
         return sorted(p.stem for p in self.patterns.glob("*.json") if ID_RE.match(p.stem))
 
-    def load(self, pid: str) -> Dict:
+    def load(self, pid: str) -> dict:
         """A stored pattern set, or a seed of that id (a stored file wins)."""
         path = self.path(pid)
         if path.is_file():
@@ -1812,7 +1813,7 @@ class PatternStore:
         return self.path(pid).is_file() or any(s["id"] == pid for s in SEEDS)
 
     # ---- playlist: {"version": 1, "current": 0-based index, "items": [ids]}
-    def playlist(self) -> Dict:
+    def playlist(self) -> dict:
         if not self.playlist_path.is_file():
             return {"version": VERSION, "current": 0, "items": []}
         data = json.loads(self.playlist_path.read_text(encoding="utf-8"))
@@ -1821,10 +1822,10 @@ class PatternStore:
         current = current if isinstance(current, int) and 0 <= current < max(1, len(items)) else 0
         return {"version": VERSION, "current": current, "items": items}
 
-    def save_playlist(self, pl: Dict) -> None:
+    def save_playlist(self, pl: dict) -> None:
         _write_atomic(self.playlist_path, json.dumps(pl, indent=2) + "\n")
 
-    def playlist_add(self, pid: str, at: Optional[int] = None) -> Dict:
+    def playlist_add(self, pid: str, at: int | None = None) -> dict:
         if not self.exists(pid):
             raise BandError(f"no pattern set {pid!r}; make it first, or try: {_pyl()} -m arsenal.band list")
         pl = self.playlist()
@@ -1837,7 +1838,7 @@ class PatternStore:
         self.save_playlist(pl)
         return pl
 
-    def playlist_rm(self, target: str) -> Tuple[Dict, str]:
+    def playlist_rm(self, target: str) -> tuple[dict, str]:
         pl = self.playlist()
         if target in pl["items"]:
             index = pl["items"].index(target)
@@ -1851,7 +1852,7 @@ class PatternStore:
         self.save_playlist(pl)
         return pl, removed
 
-    def playlist_current(self, position: int) -> Dict:
+    def playlist_current(self, position: int) -> dict:
         pl = self.playlist()
         if not 1 <= position <= len(pl["items"]):
             raise BandError(f"the playlist has positions 1..{len(pl['items'])}")
@@ -1877,7 +1878,7 @@ def _meta(kind: int, payload: bytes) -> bytes:
     return bytes((0xFF, kind)) + vlq(len(payload)) + payload
 
 
-def _track(events: List[Tuple[int, int, bytes]], end_tick: int) -> bytes:
+def _track(events: list[tuple[int, int, bytes]], end_tick: int) -> bytes:
     """events: (tick, order, message); order 0 meta, 1 note-off, 2 note-on, so a repeated pitch releases first."""
     data = bytearray()
     last = 0
@@ -1888,7 +1889,7 @@ def _track(events: List[Tuple[int, int, bytes]], end_tick: int) -> bytes:
     return b"MTrk" + struct.pack(">I", len(data)) + bytes(data)
 
 
-def key_signature(key: str) -> Tuple[int, int]:
+def key_signature(key: str) -> tuple[int, int]:
     """(sharps as + / flats as -, 0 major | 1 minor) for a key name."""
     k = nv.parse_key(key)
     if not k:
@@ -1899,7 +1900,7 @@ def key_signature(key: str) -> Tuple[int, int]:
     return sf, 0 if k["mode"] == "major" else 1
 
 
-def _conductor_events(ps: Dict, markers: bool) -> List[Tuple[int, int, bytes]]:
+def _conductor_events(ps: dict, markers: bool) -> list[tuple[int, int, bytes]]:
     n, d = ps["meter"]
     usec = max(1, min(0xFFFFFF, int(round(60_000_000 / float(ps["bpm_hint"])))))
     sf, mi = key_signature(ps["key"])
@@ -1914,7 +1915,7 @@ def _conductor_events(ps: Dict, markers: bool) -> List[Tuple[int, int, bytes]]:
     return ev
 
 
-def _note_events(notes: List[Dict], channel: int) -> List[Tuple[int, int, bytes]]:
+def _note_events(notes: list[dict], channel: int) -> list[tuple[int, int, bytes]]:
     ev = []
     for n in notes:
         on = int(round(n["beat"] * PPQ))
@@ -1924,7 +1925,7 @@ def _note_events(notes: List[Dict], channel: int) -> List[Tuple[int, int, bytes]
     return ev
 
 
-def midi_bytes(ps: Dict, lane: Optional[str] = None) -> bytes:
+def midi_bytes(ps: dict, lane: str | None = None) -> bytes:
     """A Standard MIDI File, type 1 at 480 PPQ. lane=None: a conductor track (name, tempo, meter, key, chord
     markers) and one track per lane. lane="bass": one track holding the tempo, meter, key and that lane's notes."""
     end = int(round(ps["length_beats"] * PPQ))
@@ -1934,13 +1935,13 @@ def midi_bytes(ps: Dict, lane: Optional[str] = None) -> bytes:
             ev = [(0, 0, _meta(0x03, name.encode("utf-8")))] + _note_events(ps["lanes"][name]["notes"], CHANNELS[name])
             tracks.append(_track(ev, end))
     else:
-        ev = [(0, 0, _meta(0x03, f"{ps['title']} - {lane}".encode("utf-8")))] + _conductor_events(ps, False)
+        ev = [(0, 0, _meta(0x03, f"{ps['title']} - {lane}".encode()))] + _conductor_events(ps, False)
         tracks = [_track(ev + _note_events(ps["lanes"][lane]["notes"], CHANNELS[lane]), end)]
     header = b"MThd" + struct.pack(">IHHH", 6, 1, len(tracks), PPQ)
     return header + b"".join(tracks)
 
 
-def export_mid(ps: Dict, out_dir: Path) -> List[Path]:
+def export_mid(ps: dict, out_dir: Path) -> list[Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
@@ -1956,7 +1957,7 @@ def export_mid(ps: Dict, out_dir: Path) -> List[Path]:
 
 
 # ================================================================================================= VFX module
-def _check_vfx_limits(patterns: List[Dict]) -> None:
+def _check_vfx_limits(patterns: list[dict]) -> None:
     if not patterns:
         raise BandError("no pattern sets to export")
     if len(patterns) > VFX_MAX_PATTERNS:
@@ -1968,7 +1969,7 @@ def _check_vfx_limits(patterns: List[Dict]) -> None:
                 raise BandError(f"{ps['id']}: the {lane} lane has more than {VFX_MAX_NOTES} notes; use fewer bars")
 
 
-def vfx_module_text(patterns: List[Dict], current: int = 0, live_path: Optional[str] = None) -> str:
+def vfx_module_text(patterns: list[dict], current: int = 0, live_path: str | None = None) -> str:
     """The baked `arsenal_patterns` module that arsenal/fl/vfx/arsenal_band.py imports: VERSION, LIVE_PATH,
     DRUM_MAPS and PATTERNS. JSON syntax is valid Python here (the sets hold only strings, numbers, lists and
     dicts), and json.dumps escapes anything outside ASCII, so the file stays ASCII as FL wants."""
@@ -1992,17 +1993,17 @@ def vfx_module_text(patterns: List[Dict], current: int = 0, live_path: Optional[
     return "".join(ch if ord(ch) < 128 else "?" for ch in text)
 
 
-def vfx_live_text(patterns: List[Dict], current: int = 0) -> str:
+def vfx_live_text(patterns: list[dict], current: int = 0) -> str:
     """The live playlist the band's "Live file" checkbox follows: {"version", "rev", "current", "patterns"}."""
     _check_vfx_limits(patterns)
     body = json.dumps(patterns, sort_keys=True)
-    rev = hashlib.sha1(f"{current}:{body}".encode("utf-8")).hexdigest()[:12]
+    rev = hashlib.sha1(f"{current}:{body}".encode()).hexdigest()[:12]
     return json.dumps({"version": VERSION, "rev": rev, "current": int(current), "patterns": patterns}) + "\n"
 
 
 def export_vfx(
-    store: PatternStore, out: Optional[Path] = None, live_path: Optional[str] = None, write_seeds: bool = True
-) -> Tuple[Path, Path, List[str], int]:
+    store: PatternStore, out: Path | None = None, live_path: str | None = None, write_seeds: bool = True
+) -> tuple[Path, Path, list[str], int]:
     """Write arsenal_patterns.py and arsenal_live.json (beside it) from the playlist, or from the seeds when the
     playlist is empty; then, unless write_seeds is False, the seeds are also saved into the store as `seeds
     --write` does (same-id files overwritten), so show, export-mid and the playlist find them. Returns (module,
@@ -2029,7 +2030,7 @@ def _flats(key: str) -> bool:
     return not k or k["bias"] <= 0
 
 
-def _chord_at(chords: List[Dict], beat: float) -> Optional[Dict]:
+def _chord_at(chords: list[dict], beat: float) -> dict | None:
     current = None
     for c in chords:
         if c["beat"] <= beat + 1e-9:
@@ -2037,7 +2038,7 @@ def _chord_at(chords: List[Dict], beat: float) -> Optional[Dict]:
     return current
 
 
-def _bass_symbol(note: int, chord: Optional[Dict]) -> str:
+def _bass_symbol(note: int, chord: dict | None) -> str:
     if chord is None:
         return "o"
     try:
@@ -2053,7 +2054,7 @@ def _bass_symbol(note: int, chord: Optional[Dict]) -> str:
     return "/" if note % 12 == parsed["bass"] else "a"
 
 
-def render_grid(ps: Dict, bars_per_line: int = 4) -> str:
+def render_grid(ps: dict, bars_per_line: int = 4) -> str:
     """The lanes as a 16th-note grid. Bass: R 3 5 7 6 = chord tones, x = a colour tone, a = approach or passing
     tone, - = held. Drums: X loud, x, g ghost (under 50). Keys: # struck, - held. Off-grid notes (swing, triplets)
     sit in their nearest 16th."""
@@ -2071,10 +2072,10 @@ def render_grid(ps: Dict, bars_per_line: int = 4) -> str:
     def cell(beat: float) -> int:
         return min(total_cells - 1, max(0, int(round(beat * 4))))
 
-    def row_blank() -> List[str]:
+    def row_blank() -> list[str]:
         return ["."] * total_cells
 
-    rows: List[Tuple[str, List[str]]] = []
+    rows: list[tuple[str, list[str]]] = []
     chord_row = [" "] * total_cells
     for i, c in enumerate(ps["chords"]):
         start = cell(c["beat"])
@@ -2141,7 +2142,7 @@ def render_grid(ps: Dict, bars_per_line: int = 4) -> str:
         lo, hi = first * bpb, last * bpb
         if bass:
             names = [midi_name(n["note"], flats) for n in bass if lo <= n["beat"] < hi]
-            collapsed: List[str] = []
+            collapsed: list[str] = []
             for nm in names:
                 if collapsed and collapsed[-1].split("x")[0] == nm:
                     head, _, count = collapsed[-1].partition("x")
@@ -2175,14 +2176,14 @@ def _utf8_streams() -> None:
                 pass
 
 
-def _range_text(notes: List[Dict], flats: bool) -> str:
+def _range_text(notes: list[dict], flats: bool) -> str:
     if not notes:
         return ""
     lo, hi = min(n["note"] for n in notes), max(n["note"] for n in notes)
     return f", {midi_name(lo, flats)}..{midi_name(hi, flats)}"
 
 
-def summary_lines(ps: Dict) -> List[str]:
+def summary_lines(ps: dict) -> list[str]:
     flats = _flats(ps["key"])
     bars = int(round(ps["length_beats"] / beats_per_bar(ps["meter"])))
     out = [

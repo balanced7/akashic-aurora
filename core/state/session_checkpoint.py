@@ -71,12 +71,12 @@ class SessionState:
 
     def create_checkpoint_version_of_current_state(
         self,
-        task: Optional[str] = None,
+        task: str | None = None,
         progress: int = 0,
-        blockers: Optional[List[str]] = None,
+        blockers: list[str] | None = None,
         decisions_made: int = 0,
-        outputs: Optional[Dict[str, Any]] = None,
-        notes: Optional[str] = None,
+        outputs: dict[str, Any] | None = None,
+        notes: str | None = None,
     ) -> bool:
         """
         Create a checkpoint version of current agent state.
@@ -141,17 +141,17 @@ class SessionState:
     # Backward compatibility alias
     def save_checkpoint(
         self,
-        task: Optional[str] = None,
+        task: str | None = None,
         progress: int = 0,
-        blockers: Optional[List[str]] = None,
+        blockers: list[str] | None = None,
         decisions_made: int = 0,
-        outputs: Optional[Dict[str, Any]] = None,
-        notes: Optional[str] = None,
+        outputs: dict[str, Any] | None = None,
+        notes: str | None = None,
     ) -> bool:
         """Deprecated: Use create_checkpoint_version_of_current_state() instead"""
         return self.create_checkpoint_version_of_current_state(task, progress, blockers, decisions_made, outputs, notes)
 
-    def load_checkpoint_created_after_crash(self) -> Optional[Dict[str, Any]]:
+    def load_checkpoint_created_after_crash(self) -> dict[str, Any] | None:
         """
         Load the most recent checkpoint created after crash.
 
@@ -163,7 +163,7 @@ class SessionState:
         return self._load_state_from_checkpoint_file()
 
     # Backward compatibility alias
-    def load_checkpoint(self) -> Optional[Dict[str, Any]]:
+    def load_checkpoint(self) -> dict[str, Any] | None:
         """Deprecated: Use load_checkpoint_created_after_crash() instead"""
         return self.load_checkpoint_created_after_crash()
 
@@ -183,7 +183,7 @@ class SessionState:
         """Deprecated: Use checkpoint_exists_for_recovery() instead"""
         return self.checkpoint_exists_for_recovery()
 
-    def get_task_from_last_checkpoint(self) -> Optional[str]:
+    def get_task_from_last_checkpoint(self) -> str | None:
         """
         Get the last task being worked on from checkpoint.
 
@@ -198,7 +198,7 @@ class SessionState:
         return None
 
     # Backward compatibility alias
-    def get_last_task(self) -> Optional[str]:
+    def get_last_task(self) -> str | None:
         """Deprecated: Use get_task_from_last_checkpoint() instead"""
         return self.get_task_from_last_checkpoint()
 
@@ -221,7 +221,7 @@ class SessionState:
         """Deprecated: Use get_progress_from_last_checkpoint() instead"""
         return self.get_progress_from_last_checkpoint()
 
-    def get_blockers_from_last_checkpoint(self) -> List[str]:
+    def get_blockers_from_last_checkpoint(self) -> list[str]:
         """
         Get current blockers from last checkpoint.
 
@@ -236,11 +236,11 @@ class SessionState:
         return []
 
     # Backward compatibility alias
-    def get_blockers(self) -> List[str]:
+    def get_blockers(self) -> list[str]:
         """Deprecated: Use get_blockers_from_last_checkpoint() instead"""
         return self.get_blockers_from_last_checkpoint()
 
-    def load_all_checkpoints_created_in_session(self) -> List[Dict[str, Any]]:
+    def load_all_checkpoints_created_in_session(self) -> list[dict[str, Any]]:
         """
         Load all historical checkpoint versions created in this session.
 
@@ -253,14 +253,14 @@ class SessionState:
         if self.checkpoint_dir.exists():
             for checkpoint_file in sorted(self.checkpoint_dir.glob("checkpoint_*.json")):
                 try:
-                    with open(checkpoint_file, "r", encoding="utf-8") as f:
+                    with open(checkpoint_file, encoding="utf-8") as f:
                         checkpoints.append(json.load(f))
                 except Exception as e:
                     self.logger.warning(f"Could not load checkpoint {checkpoint_file}: {e}")
         return checkpoints
 
     # Backward compatibility alias
-    def get_all_checkpoints(self) -> List[Dict[str, Any]]:
+    def get_all_checkpoints(self) -> list[dict[str, Any]]:
         """Deprecated: Use load_all_checkpoints_created_in_session() instead"""
         return self.load_all_checkpoints_created_in_session()
 
@@ -330,7 +330,7 @@ class SessionState:
         """Deprecated: Use print_recovery_info_from_checkpoint() instead"""
         return self.print_recovery_info_from_checkpoint()
 
-    def _load_state_from_checkpoint_file(self) -> Optional[Dict[str, Any]]:
+    def _load_state_from_checkpoint_file(self) -> dict[str, Any] | None:
         """
         Load state from checkpoint file (internal).
 
@@ -338,14 +338,14 @@ class SessionState:
         """
         try:
             if self.state_file.exists():
-                with open(self.state_file, "r", encoding="utf-8") as f:
+                with open(self.state_file, encoding="utf-8") as f:
                     return json.load(f)
         except Exception as e:
             self.logger.warning(f"Could not load state: {e}")
         return None
 
     # Backward compatibility alias for internal use
-    def _load_state(self) -> Optional[Dict[str, Any]]:
+    def _load_state(self) -> dict[str, Any] | None:
         """Deprecated internal method: Use _load_state_from_checkpoint_file()"""
         return self._load_state_from_checkpoint_file()
 
@@ -362,7 +362,7 @@ class CheckpointRecovery:
     """
 
     @staticmethod
-    def derive_recovery_plan_from_checkpoint(agent_id: str) -> Optional[Dict[str, Any]]:
+    def derive_recovery_plan_from_checkpoint(agent_id: str) -> dict[str, Any] | None:
         """
         Derive a recovery plan for the agent from its checkpoint.
 
@@ -395,7 +395,7 @@ class CheckpointRecovery:
         }
 
     @staticmethod
-    def get_recovery_plan(agent_id: str) -> Optional[Dict[str, Any]]:
+    def get_recovery_plan(agent_id: str) -> dict[str, Any] | None:
         """Deprecated: Use derive_recovery_plan_from_checkpoint() instead"""
         return CheckpointRecovery.derive_recovery_plan_from_checkpoint(agent_id)
 

@@ -29,11 +29,11 @@ from typing import Any, Dict, Optional
 _OFF = {"action": "idle", "task": None, "reason": "shift loop disabled (AKASHIC_SHIFT_LOOP=0)"}
 
 
-def _idle(reason: str) -> Dict[str, Any]:
+def _idle(reason: str) -> dict[str, Any]:
     return {"action": "idle", "task": None, "reason": reason}
 
 
-def _statuses() -> Dict[str, str]:
+def _statuses() -> dict[str, str]:
     """The reduced view next_beat needs: {task_id: status}. Reads the git-durable ledger,
     same source the shift daemon uses -- deliberately NOT a second gather implementation."""
     from core.coord import task_ledger as TL
@@ -47,7 +47,7 @@ def _statuses() -> Dict[str, str]:
     }
 
 
-def turn_beat(agent: Any, statuses: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+def turn_beat(agent: Any, statuses: dict[str, str] | None = None) -> dict[str, Any]:
     """One autonomous decision for this turn. Never raises; always returns a decision.
 
     `statuses` is injectable so a caller (or a pin) can supply the view; when omitted it

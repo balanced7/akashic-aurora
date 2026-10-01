@@ -85,9 +85,7 @@ def instance_token(agent: str) -> str:
     return f"{agent}:{os.getpid()}:{uuid.uuid4().hex[:12]}"
 
 
-def acquire_waiting(
-    agent: str, token: str, ttl: Optional[int] = None, wait_s: Optional[float] = None, on_wait=None
-) -> bool:
+def acquire_waiting(agent: str, token: str, ttl: int | None = None, wait_s: float | None = None, on_wait=None) -> bool:
     """acquire(), but willing to outwait a DEAD predecessor's key instead of refusing outright.
 
     THE FRICTION THIS REMOVES, paid for repeatedly on 2026-08-02: kill a runner, relaunch it three
@@ -118,7 +116,7 @@ def acquire_waiting(
         time.sleep(1.0)
 
 
-def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
+def acquire(agent: str, token: str, ttl: int | None = None) -> bool:
     """Try to become THE runner for `agent`. Returns True if we now hold the lock (either it was free,
     or a prior holder's key had expired). False means another live runner holds it -- do not start.
     Fail-open: if the bus is offline we return True (nothing to race with).
@@ -159,7 +157,7 @@ def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
         return True
 
 
-def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
+def heartbeat(agent: str, token: str, ttl: int | None = None) -> bool:
     """Refresh our hold (extend the TTL) -- call once per loop iteration. Only refreshes if WE still hold
     it (guards against clobbering a successor that took over after a stall). Returns True if refreshed.
     `ttl` overrides LOCK_TTL in raw seconds (RB-21: session refreshes pass SESSION_CONSUMER_TTL)."""
@@ -230,7 +228,7 @@ def release(agent: str, token: str) -> bool:
 # Holder tokens are "session:<id>"-prefixed so refusal messages can teach legibly.
 
 
-def session_holder_token() -> Optional[str]:
+def session_holder_token() -> str | None:
     """The stable session identity for consumer claims: the harness exports its session
     id to every subprocess, so one session's claims cohere across CLI invocations.
     None when no session env exists -- each door chooses its own fallback bucket
@@ -239,7 +237,7 @@ def session_holder_token() -> Optional[str]:
     return f"session:{sid}" if sid else None
 
 
-def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
+def claim_consumer(agent: str, holder_token: str, ttl: int | None = None):
     """Claim (or refresh) the single-consumer seat for `agent` as a SESSION.
     Returns (ok, generation, holder_info): ok=True with OUR tenure generation, or
     ok=False with the live holder's record for the teaching error.
@@ -304,7 +302,7 @@ def stand_down(agent: str, holder_token: str) -> bool:
     return ok
 
 
-def refresh_consumer(agent: str, holder_token: str, ttl: Optional[int] = None) -> bool:
+def refresh_consumer(agent: str, holder_token: str, ttl: int | None = None) -> bool:
     """Best-effort seat refresh (stop-hook firing / any activity moment). No-ops safely
     when we do not hold the seat -- heartbeat() refuses a foreign token."""
     return heartbeat(agent, holder_token, ttl=int(ttl or SESSION_CONSUMER_TTL))
@@ -320,10 +318,10 @@ def free_if_dead(
     *,
     grace_s: int = 300,
     stale_s: int = 900,
-    now: Optional[float] = None,
-    tmp: Optional[str] = None,
+    now: float | None = None,
+    tmp: str | None = None,
     pid_alive=None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """T083-C1-1: free a SESSION-held consumer seat whose holder is PROVABLY dead -- the crash
     net's slow leg made fast. clean_death (T075 M1-beta) already frees the seat on a GRACEFUL
     SessionEnd; a crash-killed session leaves its seat to TTL (up to 30 min of blocked consumes,
@@ -495,7 +493,7 @@ def clear_if_pid(agent: str, pid) -> bool:
         return True
 
 
-def holder(agent: str) -> Optional[dict]:
+def holder(agent: str) -> dict | None:
     """{token, pid, ts} of the current runner for `agent`, or None. For diagnostics / the UI roster."""
     c = _client()
     if c is None:

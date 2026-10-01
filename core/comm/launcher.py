@@ -93,8 +93,8 @@ class AgentSpec:
     agent_id: str
     runtime: str  # "python_runner" | "powershell" | "claude_headless" | "shell"
     description: str
-    command: List[str]  # executable + base args (e.g. ["py", "scripts/bifrost_runner_deepseek.py", "--agentic"])
-    env: Dict[str, str] = field(default_factory=dict)
+    command: list[str]  # executable + base args (e.g. ["py", "scripts/bifrost_runner_deepseek.py", "--agentic"])
+    env: dict[str, str] = field(default_factory=dict)
     cwd: str = ""  # relative to repo root, or absolute; "" = repo root
     auto_restart: bool = False
     enabled: bool = True  # False = greyed out in the UI
@@ -106,11 +106,11 @@ class AgentProcess:
 
     agent_id: str
     pid: int = 0
-    handle: Optional[subprocess.Popen] = None
-    drainers: Optional[list] = None  # pipe-drainer threads (T019); joined at exit for final flush
+    handle: subprocess.Popen | None = None
+    drainers: list | None = None  # pipe-drainer threads (T019); joined at exit for final flush
     status: str = "never_launched"  # running | exited | crashed | killed | never_launched
     started_at: str = ""
-    exit_code: Optional[int] = None
+    exit_code: int | None = None
     exit_reason: str = ""  # clean | token_exhausted | error | killed | auth_error
     exit_seen_at: str = ""
     stdout_tail: str = ""  # last ~500 chars of stdout for diagnostics
@@ -122,7 +122,7 @@ class AgentProcess:
 # ------------------------------------------------------------------ registry
 
 
-def _default_registry() -> Dict[str, AgentSpec]:
+def _default_registry() -> dict[str, AgentSpec]:
     """The built-in launchable agents. Override/augment via security/launcher.json."""
     repo = str(HERE)
     py = sys.executable or "py"
@@ -184,7 +184,7 @@ def _default_registry() -> Dict[str, AgentSpec]:
     }
 
 
-def _load_registry() -> Dict[str, AgentSpec]:
+def _load_registry() -> dict[str, AgentSpec]:
     """Merge the built-in defaults with any overrides in security/launcher.json."""
     specs = _default_registry()
     try:
@@ -307,16 +307,16 @@ class Launcher:
     """Singleton: spawns and monitors agent processes."""
 
     def __init__(self):
-        self._specs: Dict[str, AgentSpec] = {}
-        self._procs: Dict[str, AgentProcess] = {}
+        self._specs: dict[str, AgentSpec] = {}
+        self._procs: dict[str, AgentProcess] = {}
         self._lock = threading.Lock()
         self._monitor_stop = threading.Event()
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._restart_attempts: Dict[str, int] = {}  # agent_id -> consecutive restart count (L3c backoff)
-        self._restart_last: Dict[str, float] = {}  # agent_id -> ts of last restart (for the reset window)
+        self._monitor_thread: threading.Thread | None = None
+        self._restart_attempts: dict[str, int] = {}  # agent_id -> consecutive restart count (L3c backoff)
+        self._restart_last: dict[str, float] = {}  # agent_id -> ts of last restart (for the reset window)
         self._auto_revive: set = set()  # agent_ids armed for auto-revive-on-wedge (L3b, opt-in, default off)
-        self._auto_attempts: Dict[str, int] = {}  # L3b-auto: auto-revive storm counter (separate from manual)
-        self._auto_last: Dict[str, float] = {}  # L3b-auto: ts of last auto-revive
+        self._auto_attempts: dict[str, int] = {}  # L3b-auto: auto-revive storm counter (separate from manual)
+        self._auto_last: dict[str, float] = {}  # L3b-auto: ts of last auto-revive
         self._reviving: set = set()  # L3b-auto: agents with an auto-revive in flight (double-trigger guard)
         self._reload()
 
@@ -326,7 +326,7 @@ class Launcher:
 
     # -- public API ----------------------------------------------------------
 
-    def registry(self) -> List[Dict[str, Any]]:
+    def registry(self) -> list[dict[str, Any]]:
         """All launchable agents + their current run status. For the UI."""
         from core.comm import liveness  # L3a: observe-only wedge view (fail-open; None when no record)
 
@@ -362,7 +362,7 @@ class Launcher:
                 )
         return out
 
-    def launch(self, tag: str, *, prompt: str = "", extra_args: List[str] | None = None) -> Dict[str, Any]:
+    def launch(self, tag: str, *, prompt: str = "", extra_args: list[str] | None = None) -> dict[str, Any]:
         """Spawn the agent identified by `tag`. Returns {ok, agent_id, pid, error?}.
 
         If the agent is already running, returns ok=False with a reason.
@@ -473,7 +473,7 @@ class Launcher:
         self._save_session_to_disk()  # persist: tomorrow's 1-click restore
         return {"ok": True, "agent_id": spec.agent_id, "pid": handle.pid, "tag": tag}
 
-    def kill(self, tag: str) -> Dict[str, Any]:
+    def kill(self, tag: str) -> dict[str, Any]:
         """Terminate the running agent. Graceful first (SIGTERM/CTRL_BREAK), then force (SIGKILL/Terminate)."""
         spec = self._specs.get(tag)
         if spec is None:
@@ -541,7 +541,7 @@ class Launcher:
         if dead_pid is not None:
             runner_lock.clear_if_pid(aid, dead_pid)
 
-    def revive(self, tag: str, reason: str = "manual") -> Dict[str, Any]:
+    def revive(self, tag: str, reason: str = "manual") -> dict[str, Any]:
         """Recover a wedged or dead runner: kill it (if up), free its singleton lock, relaunch.
         This is the primitive behind the UI 'Revive' button and (when armed) the auto-revive monitor."""
         spec = self._specs.get(tag)
@@ -583,7 +583,7 @@ class Launcher:
             except Exception:
                 pass
 
-    def arm_revive(self, tag: str, on: bool = True) -> Dict[str, Any]:
+    def arm_revive(self, tag: str, on: bool = True) -> dict[str, Any]:
         """Opt in/out of automatic revive-on-wedge for this agent (default OFF -> observe-only).
         PERSISTED in Redis, so it survives a UI/supervisor restart and can be toggled from the UI OR
         the CLI. CONTRACT: this governs recovery from a WEDGE (agent alive but stuck past the
@@ -596,7 +596,7 @@ class Launcher:
         self._set_armed(spec.agent_id, on)
         return {"ok": True, "tag": tag, "agent_id": spec.agent_id, "auto_revive": on}
 
-    def status(self, tag: str) -> Dict[str, Any]:
+    def status(self, tag: str) -> dict[str, Any]:
         """Quick status for one agent tag."""
         for row in self.registry():
             if row["tag"] == tag:
@@ -626,7 +626,7 @@ class Launcher:
         except Exception:
             return False
 
-    def session_snapshot(self) -> Dict[str, Any]:
+    def session_snapshot(self) -> dict[str, Any]:
         """What a restore would do — for the UI 'Restore' button to preview."""
         try:
             if not SESSION_FILE.exists():
@@ -658,7 +658,7 @@ class Launcher:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def restore_session(self) -> Dict[str, Any]:
+    def restore_session(self) -> dict[str, Any]:
         """Re-launch every agent tag saved from the last session. Skips agents already running.
         Returns {ok, results: [{tag, launched, error?}], total, launched_count}."""
         snapshot = self.session_snapshot()
@@ -868,7 +868,7 @@ class Launcher:
 
 # ------------------------------------------------------------------ singleton
 
-_LAUNCHER: Optional[Launcher] = None
+_LAUNCHER: Launcher | None = None
 
 
 def get_launcher() -> Launcher:

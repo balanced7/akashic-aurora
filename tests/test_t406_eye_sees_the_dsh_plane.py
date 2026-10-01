@@ -46,6 +46,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from datetime import UTC
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -338,7 +339,7 @@ def test_dsh_epoch_milliseconds_parse():
     # 1790300029000 ms -> 2026-09-24 local. Assert the year rather than an exact instant.
     from datetime import datetime, timezone
 
-    year = datetime.fromtimestamp(ev["ts"], tz=timezone.utc).year
+    year = datetime.fromtimestamp(ev["ts"], tz=UTC).year
     assert year == 2026, f"timestamp decoded to year {year} -- ms was probably read as seconds"
 
 

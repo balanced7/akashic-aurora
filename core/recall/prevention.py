@@ -45,7 +45,8 @@ from __future__ import annotations
 import glob
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 VERDICTS = ("COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE")
 
@@ -68,10 +69,10 @@ def _stage_dir() -> str:
     return getattr(aa, "_STAGE_DIR", "")
 
 
-def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+def read_stage_rows(stage_dir: str | None = None) -> list[dict[str, Any]]:
     """Every durable stage row. Sorted for determinism (P7)."""
     base = stage_dir or _stage_dir()
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     if not base or not os.path.isdir(base):
         return rows
     for path in sorted(glob.glob(os.path.join(base, "*.jsonl"))):
@@ -93,7 +94,7 @@ def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
     return rows
 
 
-def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
+def load_repeats(store: Any = None) -> dict[str, list[dict[str, Any]]]:
     """Repeats indexed by lesson source. The VIOLATED evidence side of the join.
 
     `recall_outcome` is the field that earns its place: fired = a READING failure,
@@ -101,7 +102,7 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
     was violated -- a suppressed repeat says the lesson never reached the seat, which is a
     targeting defect, not a compliance one, and must not be scored as a violation here.
     """
-    out: Dict[str, List[Dict[str, Any]]] = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     from core.learning.learning_store import LearningStore
 
     ls = store or LearningStore()
@@ -129,7 +130,7 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
     return out
 
 
-def _epoch(value: Any) -> Optional[float]:
+def _epoch(value: Any) -> float | None:
     """Best-effort epoch seconds from either a float (stage) or ISO string (repeat)."""
     if value in (None, ""):
         return None
@@ -147,10 +148,10 @@ def _epoch(value: Any) -> Optional[float]:
 
 def observe(
     *,
-    stage_dir: Optional[str] = None,
-    repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-    sources_resolver: Optional[Callable[[str], bool]] = None,
-) -> List[Dict[str, Any]]:
+    stage_dir: str | None = None,
+    repeats: dict[str, list[dict[str, Any]]] | None = None,
+    sources_resolver: Callable[[str], bool] | None = None,
+) -> list[dict[str, Any]]:
     """One observation per (prevention candidate, surfaced lesson). Never a judgment.
 
     TEMPORAL ATTRIBUTION (fixed after the first live run reported 170 violations from 8
@@ -166,7 +167,7 @@ def observe(
     reps = load_repeats() if repeats is None else repeats
     rows = read_stage_rows(stage_dir)
 
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for rec in rows:
         if not (rec.get("ok") and rec.get("surfaced") and not rec.get("flipped")):
             continue
@@ -184,13 +185,13 @@ def observe(
             )
 
     # index candidates by source, ascending in time, for nearest-preceding attribution
-    by_src: Dict[str, List[Dict[str, Any]]] = {}
+    by_src: dict[str, list[dict[str, Any]]] = {}
     for c in candidates:
         by_src.setdefault(c["source"], []).append(c)
     for lst in by_src.values():
         lst.sort(key=lambda c: _epoch(c["at"]) or 0.0)
 
-    unattributed: List[str] = []
+    unattributed: list[str] = []
     for src, rlist in (reps or {}).items():
         fired = [r for r in rlist if str(r.get("recall_outcome") or "").lower().startswith("fired")]
         for rep in fired:
@@ -221,9 +222,7 @@ def observe(
     return candidates
 
 
-def report(
-    *, stage_dir: Optional[str] = None, repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None
-) -> Dict[str, Any]:
+def report(*, stage_dir: str | None = None, repeats: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
     """The contrastive prevention report. Rates only over SETTLED rows; coverage always rides."""
     rows = read_stage_rows(stage_dir)
     obs = observe(stage_dir=stage_dir, repeats=repeats)
@@ -245,7 +244,7 @@ def report(
     # meaning "the only thing this instrument can see is violations". A rate over a degenerate
     # denominator is worse than no rate: it is a confident lie. Rates return when the Eye can
     # mint COMPLIED (next slice); until then, counts and coverage only.
-    rates: Dict[str, float] = {}
+    rates: dict[str, float] = {}
 
     # The contrastive arms, reported as RAW rates with their confounds attached -- never as a
     # causal claim. Success-when-surfaced vs success-when-not is the shape the stage log was
@@ -261,7 +260,7 @@ def report(
         ),
     }
 
-    per_lesson: Dict[str, Dict[str, int]] = {}
+    per_lesson: dict[str, dict[str, int]] = {}
     for o in obs:
         d = per_lesson.setdefault(o["source"], {v: 0 for v in VERDICTS})
         d[o["verdict"]] += 1

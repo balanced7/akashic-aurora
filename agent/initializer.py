@@ -39,11 +39,11 @@ logger = logging.getLogger("agent_init")
 
 def derive_agent_context_from_startup_sources(
     agent_id: str,
-    task_keyword: Optional[str] = None,
+    task_keyword: str | None = None,
     redis_host: str = DEFAULT_REDIS_HOST,
     redis_port: int = DEFAULT_REDIS_PORT,
     verbose: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Derive agent context from startup sources (Redis primary, Files fallback).
 
@@ -230,11 +230,11 @@ def initialize_agent_with_full_diagnostics(agent_id: str, task_keyword: str = No
 
 def initialize_and_load_context(
     agent_id: str,
-    task_keyword: Optional[str] = None,
+    task_keyword: str | None = None,
     redis_host: str = DEFAULT_REDIS_HOST,
     redis_port: int = DEFAULT_REDIS_PORT,
     verbose: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Deprecated: Use derive_agent_context_from_startup_sources() instead"""
     return derive_agent_context_from_startup_sources(agent_id, task_keyword, redis_host, redis_port, verbose)
 

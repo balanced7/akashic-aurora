@@ -22,7 +22,7 @@ _NAME_RE = re.compile(rf"^{_NAME}$")
 
 
 class GraphError(ValueError):
-    def __init__(self, problems: List[str]):
+    def __init__(self, problems: list[str]):
         super().__init__("; ".join(problems) if problems else "invalid graph")
         self.problems = list(problems)
 
@@ -31,7 +31,7 @@ def _is_int(value) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def _split(endpoint) -> Tuple[str, str, Optional[str]]:
+def _split(endpoint) -> tuple[str, str, str | None]:
     """'node.port' or 'node.port.feature' -> (node, port, feature or None)."""
     parts = str(endpoint).split(".")
     if len(parts) not in (2, 3) or not all(_NAME_RE.match(p) for p in parts):
@@ -44,10 +44,10 @@ class Graph:
     api: str
     name: str
     mode: str
-    assets: Dict[str, dict]
-    nodes: Dict[str, dict]
-    edges: List[Tuple[str, str]]
-    bindings: List[dict]
+    assets: dict[str, dict]
+    nodes: dict[str, dict]
+    edges: list[tuple[str, str]]
+    bindings: list[dict]
 
     def to_json(self) -> dict:
         return {
@@ -60,20 +60,20 @@ class Graph:
             "bindings": copy.deepcopy(self.bindings),
         }
 
-    def module_of(self, node: str) -> Optional[str]:
+    def module_of(self, node: str) -> str | None:
         return (self.nodes.get(node) or {}).get("use")
 
-    def node_edges(self) -> List[Tuple[str, str]]:
+    def node_edges(self) -> list[tuple[str, str]]:
         """Edges as (source node, destination node) pairs."""
         return [(src.split(".")[0], dst.split(".")[0]) for src, dst in self.edges]
 
     # ---------------------------------------------------------------- validation
-    def validate(self, registry: Registry) -> List[str]:
-        problems: List[str] = []
+    def validate(self, registry: Registry) -> list[str]:
+        problems: list[str] = []
         if self.mode not in MODES:
             problems.append(f"mode {self.mode!r} is not one of {', '.join(MODES)}")
 
-        known: Dict[str, str] = {}
+        known: dict[str, str] = {}
         for name, node in self.nodes.items():
             use = (node or {}).get("use")
             if not use:
@@ -86,7 +86,7 @@ class Graph:
                 continue
             known[name] = use
 
-        feeds: Dict[str, List[str]] = {}
+        feeds: dict[str, list[str]] = {}
         for src, dst in self.edges:
             out_port = self._edge_port(src, "outputs", known, registry, problems, f"edge {src} -> {dst}")
             in_port = self._edge_port(dst, "inputs", known, registry, problems, f"edge {src} -> {dst}")
@@ -113,13 +113,13 @@ class Graph:
             self._check_binding(binding, known, registry, problems)
         return problems
 
-    def require_valid(self, registry: Registry) -> "Graph":
+    def require_valid(self, registry: Registry) -> Graph:
         problems = self.validate(registry)
         if problems:
             raise GraphError(problems)
         return self
 
-    def _edge_port(self, endpoint, side, known, registry, problems, label) -> Optional[dict]:
+    def _edge_port(self, endpoint, side, known, registry, problems, label) -> dict | None:
         try:
             node, port, feature = _split(endpoint)
         except GraphError as exc:
@@ -201,15 +201,15 @@ class Graph:
         elif rng[0] < lo_p or rng[1] > hi_p:
             problems.append(f"{label}: range {list(rng)} is outside {t_param}'s declared range {param['range']}")
 
-    def _find_cycle(self) -> Optional[List[str]]:
-        succ: Dict[str, List[str]] = {n: [] for n in self.nodes}
+    def _find_cycle(self) -> list[str] | None:
+        succ: dict[str, list[str]] = {n: [] for n in self.nodes}
         for s, d in self.node_edges():
             if s in succ and d in succ:
                 succ[s].append(d)
-        state: Dict[str, int] = {}
-        stack: List[str] = []
+        state: dict[str, int] = {}
+        stack: list[str] = []
 
-        def visit(n: str) -> Optional[List[str]]:
+        def visit(n: str) -> list[str] | None:
             state[n] = 1
             stack.append(n)
             for m in succ[n]:
@@ -236,7 +236,7 @@ def load_graph(obj) -> Graph:
         raise GraphError(["a graph must be a JSON object"])
     if obj.get("api") != GRAPH_API:
         raise GraphError([f"api must be {GRAPH_API!r}, got {obj.get('api')!r}"])
-    problems: List[str] = []
+    problems: list[str] = []
     nodes = obj.get("nodes") or {}
     if not isinstance(nodes, dict):
         problems.append("nodes must map a name to {use, with}")
@@ -244,7 +244,7 @@ def load_graph(obj) -> Graph:
     for name in nodes:
         if not _NAME_RE.match(str(name)):
             problems.append(f"node name {name!r} must start with a letter and use letters, digits, _ or -")
-    edges: List[Tuple[str, str]] = []
+    edges: list[tuple[str, str]] = []
     for edge in obj.get("edges") or []:
         if isinstance(edge, (list, tuple)) and len(edge) == 2 and all(isinstance(x, str) for x in edge):
             edges.append((edge[0], edge[1]))
@@ -282,7 +282,7 @@ def _number(text: str):
     return int(value) if value.is_integer() and "." not in text else value
 
 
-def _map_options(body: Optional[str], lineno: int) -> dict:
+def _map_options(body: str | None, lineno: int) -> dict:
     if not body:
         return {}
     options = {}
@@ -315,7 +315,7 @@ def _map_options(body: Optional[str], lineno: int) -> dict:
     return options
 
 
-def parse_text(src: str, registry: Optional[Registry] = None) -> dict:
+def parse_text(src: str, registry: Registry | None = None) -> dict:
     """The text form -> canonical graph JSON. See FIRST-LIGHT-SPEC.md for the grammar."""
     registry = registry or load_registry()
     graph = {"api": GRAPH_API, "name": "", "mode": "live_audio", "assets": {}, "nodes": {}, "edges": [], "bindings": []}
@@ -342,7 +342,7 @@ def parse_text(src: str, registry: Optional[Registry] = None) -> dict:
     return graph
 
 
-def _chain_link(a: str, b: str, graph: dict, registry: Registry, lineno: int) -> List[str]:
+def _chain_link(a: str, b: str, graph: dict, registry: Registry, lineno: int) -> list[str]:
     for name in (a, b):
         if name not in graph["nodes"]:
             raise GraphError([f"line {lineno}: {name!r} is used in a chain before a node line declares it"])

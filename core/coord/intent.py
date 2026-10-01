@@ -65,7 +65,7 @@ def _key(agent: str, intent: str) -> str:
     return f"{_intent_prefix()}{agent}:{slug(intent)}"
 
 
-def _norm_scope(scope) -> List[str]:
+def _norm_scope(scope) -> list[str]:
     if scope is None:
         return []
     if isinstance(scope, str):
@@ -73,13 +73,13 @@ def _norm_scope(scope) -> List[str]:
     return [str(s).strip() for s in scope if str(s).strip()]
 
 
-def active(agent: Optional[str] = None, client: Any = None) -> List[Dict[str, Any]]:
+def active(agent: str | None = None, client: Any = None) -> list[dict[str, Any]]:
     """Every live intent (the intent influence map), or just one agent's. Expired ones are already
     gone (Redis TTL). Fail-open: no Redis -> []."""
     c = client or _client()
     if c is None:
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         pattern = f"{_intent_prefix()}{agent}:*" if agent else f"{_intent_prefix()}*"
         for k in c.keys(pattern) or []:
@@ -94,14 +94,14 @@ def active(agent: Optional[str] = None, client: Any = None) -> List[Dict[str, An
     return out
 
 
-def conflicts(agent: str, intent: str, client: Any = None) -> List[Dict[str, Any]]:
+def conflicts(agent: str, intent: str, client: Any = None) -> list[dict[str, Any]]:
     """Active intents that collide with (agent, intent): the SAME normalized tag held by a PEER.
     Same agent re-declaring is NOT a conflict (re-entrant refresh)."""
     tag = slug(intent)
     return [i for i in active(client=client) if slug(i.get("intent", "")) == tag and i.get("agent") != agent]
 
 
-def declare(agent: str, intent: str, scope=None, ttl: int = DEFAULT_TTL, client: Any = None) -> Dict[str, Any]:
+def declare(agent: str, intent: str, scope=None, ttl: int = DEFAULT_TTL, client: Any = None) -> dict[str, Any]:
     """Declare an intent. ADMITS (registers it, peers now see it on the map) unless a peer already holds
     the same intent -> then YIELDS (does not register; the agent should coordinate or defer). Re-entrant:
     the same agent re-declaring its own intent just refreshes the TTL. Fail-open: no Redis -> admitted."""
@@ -154,7 +154,7 @@ def _proposal_ns() -> str:
 PROPOSAL_TTL = 60  # proposal records auto-expire after a minute
 
 
-def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, Any]:
+def propose(agent: str, plan: dict[str, Any], client: Any = None) -> dict[str, Any]:
     """Submit a proposal for the current negotiation round. The plan MUST include:
       - what: short description of the task
       - scope: list of files/dirs/topics
@@ -180,7 +180,7 @@ def propose(agent: str, plan: Dict[str, Any], client: Any = None) -> Dict[str, A
     return {"ok": True, "round": _round_state(c)}
 
 
-def round_state(client: Any = None) -> Dict[str, Any]:
+def round_state(client: Any = None) -> dict[str, Any]:
     """Current state of the negotiation round: every proposal + conflict map."""
     return _round_state(client or _client())
 
@@ -190,11 +190,11 @@ def _round_id() -> str:
     return time.strftime("%Y%m%d%H%M")
 
 
-def _round_state(c) -> Dict[str, Any]:
+def _round_state(c) -> dict[str, Any]:
     if c is None:
         return {"proposals": [], "conflicts": [], "verdict": "offline", "agents": []}
     rid = _round_id()
-    proposals: List[Dict[str, Any]] = []
+    proposals: list[dict[str, Any]] = []
     try:
         for k in c.keys(f"{_proposal_ns()}:{rid}:*") or []:
             raw = c.get(k)
@@ -231,14 +231,14 @@ def _round_state(c) -> Dict[str, Any]:
     }
 
 
-def _scope_conflicts(proposals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _scope_conflicts(proposals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Find files claimed by more than one agent. Returns list of {file, agents, same_intent}.
 
     Intent matching v1 (honest): uses the explicit 'intent' TAG field if present, falling back to
     slug('what') only for backward compat. The TAG is the coordination key; 'what' is human-readable
     description. This avoids the fuzzy-intent trap (slug('restyle header') != slug('restyle the header'))
     by requiring agents to use the same tag for the same work. Fuzzy semantic overlap is deferred."""
-    file_agents: Dict[str, List[Dict[str, Any]]] = {}
+    file_agents: dict[str, list[dict[str, Any]]] = {}
     for p in proposals:
         for f in p.get("scope", []):
             file_agents.setdefault(f, []).append(p)

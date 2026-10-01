@@ -13,9 +13,10 @@ continuity evidence to become an identity verdict.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Iterable, Mapping
 
 
 def _pyl() -> str:
@@ -37,7 +38,7 @@ _STATES = {"observed", "partial", "absent", "refused", "unknown"}
 # in the current implementations.  A missing entry means UNKNOWN, never open.
 # Keeping the map per-door is load-bearing: bifrost_send is ACL-gated on the
 # ToolBox while its CLI and MCP twins currently send directly.
-_DOOR_CAP_REQUIREMENTS: Dict[str, Dict[str, Tuple[str, ...]]] = {
+_DOOR_CAP_REQUIREMENTS: dict[str, dict[str, tuple[str, ...]]] = {
     "bifrost_send": {"toolbox": ("bus.send",)},
     "bifrost_nudge": {"toolbox": ("bus.nudge",)},
     "learn": {"toolbox": ("kb.learn",)},
@@ -49,14 +50,14 @@ _DOOR_CAP_REQUIREMENTS: Dict[str, Dict[str, Tuple[str, ...]]] = {
 
 # Explicitly open read seams.  An empty requirement is different from an
 # unknown requirement: it was checked, and no subject capability gate exists.
-_OPEN_READ_DOORS: Dict[str, Tuple[str, ...]] = {
+_OPEN_READ_DOORS: dict[str, tuple[str, ...]] = {
     "sweep": ("cli", "mcp", "toolbox"),
     "ground": ("cli", "mcp", "toolbox"),
 }
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _norm(value: str) -> str:
@@ -70,9 +71,9 @@ def _rung(
     source: str,
     observed_at: str,
     *,
-    details: Optional[Mapping[str, Any]] = None,
+    details: Mapping[str, Any] | None = None,
     drill: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if name not in _RUNG_ORDER:
         raise ValueError(f"unknown evidence rung {name!r}")
     if state not in _STATES:
@@ -88,7 +89,7 @@ def _rung(
     }
 
 
-def _parse_target(target: str) -> Tuple[str, str]:
+def _parse_target(target: str) -> tuple[str, str]:
     raw = str(target or "").strip()
     if ":" not in raw:
         raise ValueError("ground target must be typed, e.g. verb:sweep")
@@ -105,14 +106,14 @@ def _parse_target(target: str) -> Tuple[str, str]:
     return kind, name
 
 
-def _surface_inventory() -> Dict[str, Any]:
+def _surface_inventory() -> dict[str, Any]:
     """Read the live door-parity authority, one source at a time.
 
     The checker remains the declared surface authority; importing its constants
     avoids creating a second manifest.  Individual readers fail independently so
     a moved ToolBox class cannot erase CLI/MCP evidence.
     """
-    errors: Dict[str, str] = {}
+    errors: dict[str, str] = {}
     try:
         from scripts.checkers import check_door_parity as dp
     except Exception as exc:
@@ -156,14 +157,14 @@ def _surface_inventory() -> Dict[str, Any]:
     }
 
 
-def _door_rows(name: str, inv: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+def _door_rows(name: str, inv: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     aliases = inv.get("aliases") or {}
     addresses = {
         "cli": name,
         "mcp": (aliases.get("mcp") or {}).get(name, name),
         "toolbox": (aliases.get("toolbox") or {}).get(name, name),
     }
-    rows: Dict[str, Dict[str, Any]] = {}
+    rows: dict[str, dict[str, Any]] = {}
     for door in ("cli", "mcp", "toolbox"):
         address = addresses[door]
         present = address in ((inv.get("doors") or {}).get(door) or set())
@@ -182,7 +183,7 @@ def _door_rows(name: str, inv: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
     return rows
 
 
-def _expected_doors(classification: Optional[str]) -> Tuple[str, ...]:
+def _expected_doors(classification: str | None) -> tuple[str, ...]:
     return {
         "shared": ("cli", "mcp", "toolbox"),
         "cli_only": ("cli",),
@@ -191,9 +192,9 @@ def _expected_doors(classification: Optional[str]) -> Tuple[str, ...]:
     }.get(str(classification or ""), ())
 
 
-def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any], Dict[str, str]]:
-    errors: Dict[str, str] = {}
-    out: Dict[str, Any] = {}
+def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> tuple[dict[str, Any], dict[str, str]]:
+    errors: dict[str, str] = {}
+    out: dict[str, Any] = {}
 
     # CLI: the live parser's dispatch callable, not a regex hit.
     cli_row = dict(doors["cli"])
@@ -245,7 +246,7 @@ def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any],
     return out, errors
 
 
-def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any]]) -> Tuple[str, Dict[str, Any], str]:
+def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any]]) -> tuple[str, dict[str, Any], str]:
     errors = ""
     try:
         from core.trust import registry
@@ -261,10 +262,10 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
         caps, role, path_scope, kinds, expires = [], "UNKNOWN", [], [], None
         errors = f"{type(exc).__name__}: {exc}"
 
-    per_door: Dict[str, Any] = {}
+    per_door: dict[str, Any] = {}
     required_union: set[str] = set()
     missing_union: set[str] = set()
-    known_states: List[str] = []
+    known_states: list[str] = []
     reqs = _DOOR_CAP_REQUIREMENTS.get(name, {})
     opens = set(_OPEN_READ_DOORS.get(name, ()))
     for door in ("cli", "mcp", "toolbox"):
@@ -273,7 +274,7 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
             continue
         required = list(reqs.get(door, ()))
         required_union.update(required)
-        missing: List[str] = []
+        missing: list[str] = []
         if door in opens:
             state, claim = "observed", "read seam has no subject capability gate"
         elif required:
@@ -316,13 +317,13 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
     return aggregate, details, errors
 
 
-def _test_references(name: str, *, cap_files: int = 500, cap_hits: int = 20) -> Dict[str, Any]:
+def _test_references(name: str, *, cap_files: int = 500, cap_hits: int = 20) -> dict[str, Any]:
     tests_dir = _ROOT / "tests"
     files = sorted(tests_dir.glob("test_*.py")) if tests_dir.exists() else []
     scanned = files[: max(0, int(cap_files))]
     needles = {name, name.replace("_", "-")}
-    hits: List[str] = []
-    failed: Dict[str, str] = {}
+    hits: list[str] = []
+    failed: dict[str, str] = {}
     total_hits = 0
     for path in scanned:
         try:
@@ -345,7 +346,7 @@ def _test_references(name: str, *, cap_files: int = 500, cap_hits: int = 20) -> 
     }
 
 
-def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, Any]:
+def ground(target: str, *, subject: str, continuity: bool = False) -> dict[str, Any]:
     """Build one non-mutating, subject-bound evidence ladder."""
     subject = str(subject or "").strip()
     if not subject:

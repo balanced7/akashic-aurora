@@ -31,9 +31,9 @@ def bump(store: Any, metric: str, n: int = 1) -> None:
         pass
 
 
-def snapshot(store: Any) -> Dict[str, Any]:
+def snapshot(store: Any) -> dict[str, Any]:
     """All health counters as a dict (ints where parseable). Never raises -> {} on any hiccup."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     if store is None:
         return out
     try:

@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Tuple
 _TASK_IDS = re.compile(r"\bT\d{3}\b")
 
 
-def _terminal_task_settle(content: Any) -> Optional[str]:
+def _terminal_task_settle(content: Any) -> str | None:
     """T076c root spigot: if the ask's text references task ids and ALL of them are
     TERMINAL in the ledger (done/abandoned), the ask is an echo of finished work --
     return the settle reason. No ids / any unknown id / any probe error -> None
@@ -109,7 +109,7 @@ def reply_has_settled(client, sender: str, reply_id: Any) -> bool:
         return False
 
 
-def _id_tuple(sid: str) -> Tuple[int, int]:
+def _id_tuple(sid: str) -> tuple[int, int]:
     """Stream ids compare as (ms, seq) -- string compare lies across digit widths."""
     try:
         ms, _, seq = str(sid).partition("-")
@@ -126,8 +126,8 @@ def arm(
     content: Any,
     within_s: int,
     *,
-    peer_state: Optional[str] = None,
-    peer_why: Optional[str] = None,
+    peer_state: str | None = None,
+    peer_why: str | None = None,
 ) -> bool:
     """Record a reply expectation for an already-sent message. Clamps within_s to
     >= MIN_WITHIN_S. The anchor is the sender-inbox tail AT ARM TIME (the sender's own
@@ -168,7 +168,7 @@ def arm(
         return False
 
 
-def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
+def snapshot(sender: str) -> dict[str, dict[str, Any]]:
     """READ-ONLY view of the armed records (T196a). Observation split from action
     (T025): never consumes, never advances, never settles, never heals -- the sweep
     owns every transition, including dropping unparseable records; a reader SKIPS
@@ -177,7 +177,7 @@ def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
     if c is None:
         return {}
     try:
-        out: Dict[str, Dict[str, Any]] = {}
+        out: dict[str, dict[str, Any]] = {}
         for oid, v in (c.hgetall(_key(str(sender))) or {}).items():
             try:
                 out[str(oid)] = json.loads(v)
@@ -188,7 +188,7 @@ def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
-def _peer_at_death(to: Any) -> Optional[str]:
+def _peer_at_death(to: Any) -> str | None:
     """T197: was the peer attending AT THE MOMENT THE ASK GAVE UP?
 
     The second half of the pair, and the reason the pair exists. deepseek's fence
@@ -211,7 +211,7 @@ def _peer_at_death(to: Any) -> Optional[str]:
         return None
 
 
-def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
+def _emit_dead(sender: str, orig_id: str, rec: dict[str, Any]) -> None:
     """Durable exhaustion record; the sweep's caller prints the loud line."""
     try:
         from core.events.event_log import capture_event
@@ -244,7 +244,7 @@ def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
         pass
 
 
-def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any]) -> None:
+def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: dict[str, Any]) -> None:
     """Durable ANSWERED evidence (T196b). DEAD and ECHO settles already leave firehose
     events; ANSWERED -- the state most asks end in -- left only a TTL'd marker and a
     trimmable stream entry (bus maxlen ~10k). Terminal truth must not live in evidence
@@ -296,7 +296,7 @@ def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any])
 ANSWER_KINDS = {"reply", "handoff", "completion"}
 
 
-def _answers_since(sender: str, anchor: str) -> List[Any]:
+def _answers_since(sender: str, anchor: str) -> list[Any]:
     """Directed ANSWER-kind messages in the sender's inbox stream AFTER `anchor` -- read
     from the stream position, not the cursor, so consumption cannot hide them. The bc
     lane is pinned at its current tail (broadcast answers are room chatter, never
@@ -312,7 +312,7 @@ def _answers_since(sender: str, anchor: str) -> List[Any]:
         return []
 
 
-def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[str]:
+def _resolve_link(answers_id: Any, recs: dict[str, dict[str, Any]]) -> str | None:
     """The expectation `answers_id` refers to, tolerating the DUAL-WRITE ID PAIR.
 
     One send lands on both the lane stream and the legacy stream under two ids. The
@@ -366,7 +366,7 @@ _SETTLE_LUA = (
 )
 
 
-def _settle_once(c, sender: str, key: str, oid: str, rid, rec: Dict[str, Any]) -> bool:
+def _settle_once(c, sender: str, key: str, oid: str, rid, rec: dict[str, Any]) -> bool:
     try:
         horizon = max(
             172800, int(float(rec.get("within_s", MIN_WITHIN_S))) * (int(rec.get("redrives_left", 0)) + 2) * 4
@@ -377,11 +377,11 @@ def _settle_once(c, sender: str, key: str, oid: str, rid, rec: Dict[str, Any]) -
         return False  # expectation stays armed; never half-settle
 
 
-def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
+def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
     """One render-time pass: clear answered, redrive expired, kill exhausted.
     Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
     pins never sleep. Never raises."""
-    out: Dict[str, List[str]] = {"redriven": [], "dead": [], "cleared": [], "settled": []}
+    out: dict[str, list[str]] = {"redriven": [], "dead": [], "cleared": [], "settled": []}
     c = _client()
     if c is None:
         return out
@@ -391,7 +391,7 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         if not raw:
             return out
         now = time.time() if now is None else float(now)
-        recs: Dict[str, Dict[str, Any]] = {}
+        recs: dict[str, dict[str, Any]] = {}
         for oid, v in raw.items():
             try:
                 recs[str(oid)] = json.loads(v)
@@ -526,7 +526,7 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         return out
 
 
-def format_sweep_lines(res: Dict[str, List[str]]) -> List[str]:
+def format_sweep_lines(res: dict[str, list[str]]) -> list[str]:
     """Render-side: loud lines for what the sweep did (empty list = quiet)."""
     lines = []
     for oid in res.get("settled", []):

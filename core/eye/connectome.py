@@ -55,7 +55,7 @@ from core.eye.index import _connect, get_event
 # other routes, and naming them beats leaving them blank: absence must keep meaning exactly
 # one thing (pre-contract). Filed as a divergence for ratification at the next gate, per the
 # anti-fossil license -- the forms are a floor, and an unnamed edge would be a fossil.
-FORMED_VIA: Tuple[str, ...] = (
+FORMED_VIA: tuple[str, ...] = (
     # grammar sec 5, verbatim
     "fence",
     "recall-firing",
@@ -68,7 +68,7 @@ FORMED_VIA: Tuple[str, ...] = (
     "adjacency",  # guessed from position                 -> inferred
 )
 
-_EVIDENCE_OF: Dict[str, str] = {
+_EVIDENCE_OF: dict[str, str] = {
     "transcript": "recorded",
     "text-identity": "derived",
     "adjacency": "inferred",
@@ -98,7 +98,7 @@ def _norm(text: str) -> str:
 
 
 # ---------------------------------------------------------------- build
-def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
+def build(db_path: Path | None = None) -> dict[str, Any]:
     """(Re)build the edge table from the indexed events. Idempotent by construction: the
     table is dropped and rewritten, and the primary key would collapse a duplicate anyway.
 
@@ -142,10 +142,10 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
             # the edge stays RECORDED; `hops` is what makes the compression visible.
             by_uuid = {e["uuid"]: e for e in evs if e["uuid"]}
             raw = dict(con.execute("SELECT uuid, parent_uuid FROM chain WHERE session=?", (s,)).fetchall())
-            chained: Set[str] = set()
+            chained: set[str] = set()
             for e in evs:
                 cur_uuid, hops = e["parent"], 1
-                seen_uuids: Set[str] = set()
+                seen_uuids: set[str] = set()
                 while cur_uuid and cur_uuid not in by_uuid and cur_uuid not in seen_uuids:
                     seen_uuids.add(cur_uuid)
                     cur_uuid = raw.get(cur_uuid)
@@ -173,7 +173,7 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
             # Scoped to a session: identical text in two sessions is two utterances (that
             # is exactly what `freq` measures across sessions, and conflating them would
             # destroy the axis).
-            groups: Dict[str, List[Dict[str, Any]]] = {}
+            groups: dict[str, list[dict[str, Any]]] = {}
             for e in evs:
                 if e["voice"] != "operator":
                     continue  # the duplicate-recording law is an operator-lane fact
@@ -243,7 +243,7 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
-def edges(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def edges(db_path: Path | None = None) -> list[dict[str, Any]]:
     con = _connect(db_path)
     _ensure_schema(con)
     try:
@@ -268,7 +268,7 @@ def edges(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     ]
 
 
-def _insert_pre_contract_edge(src: str, dst: str, edge_kind: str, db_path: Optional[Path] = None) -> None:
+def _insert_pre_contract_edge(src: str, dst: str, edge_kind: str, db_path: Path | None = None) -> None:
     """Test seam ONLY: an edge as it would exist from before the formation contract --
     no formed_by, no formed_at, no formed_via. Production never writes one of these; the
     exclusion trap (grammar sec 5 / fence r1 C4) exists precisely because history does."""
@@ -282,7 +282,7 @@ def _insert_pre_contract_edge(src: str, dst: str, edge_kind: str, db_path: Optio
 
 
 # ---------------------------------------------------------------- the utterance set
-def utterance_group(event_id: str, db_path: Optional[Path] = None) -> List[str]:
+def utterance_group(event_id: str, db_path: Path | None = None) -> list[str]:
     """Every record carrying the same utterance as this one, including itself.
 
     THE reusable primitive of this slice. A lone record returns a singleton -- never an
@@ -295,7 +295,7 @@ def utterance_group(event_id: str, db_path: Optional[Path] = None) -> List[str]:
         con.close()
 
 
-def _group(con, event_id: str) -> List[str]:
+def _group(con, event_id: str) -> list[str]:
     """Connected component over same_utterance edges (undirected). Small by nature -- an
     utterance is recorded a handful of times, never thousands."""
     seen = {event_id}
@@ -319,7 +319,7 @@ def _group(con, event_id: str) -> List[str]:
 
 
 # ---------------------------------------------------------------- the walk
-def _steps(con, node: str, up: bool) -> List[Dict[str, Any]]:
+def _steps(con, node: str, up: bool) -> list[dict[str, Any]]:
     """EVERY edge out of this node in the given direction. `follows` points child ->
     parent, so upstream reads src=node and downstream reads dst=node; `adjacent` rides the
     same direction carrying its inferred grade.
@@ -356,9 +356,7 @@ def _steps(con, node: str, up: bool) -> List[Dict[str, Any]]:
     ]
 
 
-def trace(
-    event_id: str, db_path: Optional[Path] = None, depth: int = 20, formed_via: Optional[str] = None
-) -> Dict[str, Any]:
+def trace(event_id: str, db_path: Path | None = None, depth: int = 20, formed_via: str | None = None) -> dict[str, Any]:
     """The connectome walk: where did this come from, and what came after it.
 
     Upstream is the formation chain (nearest ancestor first); downstream is the
@@ -395,18 +393,18 @@ def trace(
                     start, bridged_via = other, other
                     break
 
-        unevaluable: Set[Tuple[str, str, str]] = set()
+        unevaluable: set[tuple[str, str, str]] = set()
         inferred = 0
 
-        def walk(up: bool) -> List[Dict[str, Any]]:
+        def walk(up: bool) -> list[dict[str, Any]]:
             """Breadth-first, so nearest kin come first and a branching parent keeps all
             of its children. Bounded by `depth` NODES -- the corpus has long chains and an
             unbounded walk is a context bomb, not a sensorium."""
             nonlocal inferred
-            out: List[Dict[str, Any]] = []
+            out: list[dict[str, Any]] = []
             guard, frontier = {start}, [start]
             while frontier and len(out) < max(1, int(depth)):
-                nxt: List[str] = []
+                nxt: list[str] = []
                 for cur in frontier:
                     for step in _steps(con, cur, up=up):
                         if step["event_id"] in guard:

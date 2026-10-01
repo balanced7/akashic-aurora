@@ -50,7 +50,7 @@ _INCARNATION_SUFFIX = re.compile(r"_([0-9a-f]{6,})$", re.I)
 
 CLASSES = ("SEAT_SILENT", "SEAT_DOWN", "STALE_INCARNATION", "UNKNOWN_PEER", "UNCLASSIFIED")
 
-RECOVERY: Dict[str, str] = {
+RECOVERY: dict[str, str] = {
     # Attending the whole time and still nothing came back. More transport will not help;
     # the fault is downstream of delivery.
     "SEAT_SILENT": (
@@ -90,7 +90,7 @@ RECOVERY: Dict[str, str] = {
 }
 
 
-def base_form(peer: Any) -> Optional[str]:
+def base_form(peer: Any) -> str | None:
     """The bare seat behind an incarnation id, or None when there is no suffix.
     `codex_root_019fab2d` -> `codex_root`; `codex_root` -> None."""
     p = str(peer or "")
@@ -101,11 +101,11 @@ def base_form(peer: Any) -> Optional[str]:
 def classify(
     peer: Any,
     *,
-    attending: Optional[bool],
-    base_attending: Optional[bool],
-    launchable: Optional[bool],
-    known_seat: Optional[bool],
-) -> Dict[str, Any]:
+    attending: bool | None,
+    base_attending: bool | None,
+    launchable: bool | None,
+    known_seat: bool | None,
+) -> dict[str, Any]:
     """Which of the four situations is this, and what should the caller do?
 
     PURE -- every observation is supplied by the caller, so the taxonomy is testable

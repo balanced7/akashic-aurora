@@ -53,7 +53,7 @@ class CanaryState(str, Enum):
     # about the read, never about the session.
 
 
-def _read_foreground_name() -> Tuple[Optional[int], Optional[str]]:
+def _read_foreground_name() -> tuple[int | None, str | None]:
     """One REAL foreground read: name via UIA, hwnd as the validity proxy.
 
     Returns (hwnd_or_none, name_or_none). The signature distinctions:

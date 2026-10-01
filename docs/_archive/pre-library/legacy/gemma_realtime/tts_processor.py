@@ -11,7 +11,8 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Callable, Optional
+from typing import Optional
+from collections.abc import AsyncIterator, Callable
 
 
 @dataclass

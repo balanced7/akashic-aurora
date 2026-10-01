@@ -99,7 +99,7 @@ def is_nudged(agent: str) -> bool:
         return False
 
 
-def nudge_status(agent: str) -> Optional[Dict[str, Any]]:
+def nudge_status(agent: str) -> dict[str, Any] | None:
     """{by, reason, ts} for a pending nudge, or None if there isn't one / bus offline."""
     c = _client()
     if c is None:

@@ -53,7 +53,7 @@ EMBED_BATCH = 256
 
 
 DEFAULT_TAG = "all-MiniLM-L6-v2"
-_DEFAULT_EMBEDDER: Dict[str, object] = {}
+_DEFAULT_EMBEDDER: dict[str, object] = {}
 
 
 def load_default_embedder():
@@ -113,7 +113,7 @@ class IngestReport:
     chunks_written: int = 0
     embedded: int = 0
     vector_note: str = ""
-    failed: List[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)
 
     def render(self) -> str:
         line = (
@@ -135,8 +135,8 @@ class Hit:
     shelf: str
     title: str
     breadcrumb: str
-    url: Optional[str]
-    page: Optional[int]
+    url: str | None
+    page: int | None
     score: float
     text: str
 
@@ -144,14 +144,14 @@ class Hit:
 @dataclass
 class SearchResult:
     query: str
-    terms: List[str]
-    hits: List[Hit]
+    terms: list[str]
+    hits: list[Hit]
     searched_chunks: int
-    shelves: List[str]
+    shelves: list[str]
     truncated: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     mode: str = "bm25"
-    note: Optional[str] = None
+    note: str | None = None
 
     def render(self) -> str:
         text = self._render()
@@ -198,7 +198,7 @@ class SearchResult:
         )
 
 
-def terms_of(query: str) -> List[str]:
+def terms_of(query: str) -> list[str]:
     words = [w.lower() for w in re.findall(r"\w+", query or "")]
     content = [w for w in words if w not in _STOP and (len(w) > 1 or w.isdigit())]
     chosen = content or [w for w in words if len(w) > 1]
@@ -291,7 +291,7 @@ class Shelf:
     # ---- ingest --------------------------------------------------------------------
 
     @staticmethod
-    def _load_manifest(root: Path) -> Dict[str, str]:
+    def _load_manifest(root: Path) -> dict[str, str]:
         """file name -> source url, from a fetcher's _manifest.json when one is present.
 
         Only names that occur ONCE are kept: One UI has several intro.html pages in different
@@ -327,13 +327,13 @@ class Shelf:
                 )
             if name:
                 pairs.append((name, e["url"]))
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for name, _ in pairs:
             counts[name] = counts.get(name, 0) + 1
         return {name: url for name, url in pairs if counts[name] == 1}
 
     @staticmethod
-    def _mirror_url(root: Path, p: Path) -> Optional[str]:
+    def _mirror_url(root: Path, p: Path) -> str | None:
         """A page saved under a host-named folder (docs.example.com/guide/x.html) gets that url."""
         parts = [root.name] + list(p.relative_to(root).parts)
         for i, part in enumerate(parts[:-1]):
@@ -342,7 +342,7 @@ class Shelf:
         return None
 
     def ingest(
-        self, shelf: str, root, html_selector: Optional[str] = None, max_chars: int = 1800, prune: bool = True
+        self, shelf: str, root, html_selector: str | None = None, max_chars: int = 1800, prune: bool = True
     ) -> IngestReport:
         root = Path(root)
         rep = IngestReport(shelf=shelf)
@@ -443,7 +443,7 @@ class Shelf:
 
     # ---- search --------------------------------------------------------------------
 
-    def _bm25(self, c: sqlite3.Connection, terms: List[str], shelf: Optional[str], n: int):
+    def _bm25(self, c: sqlite3.Connection, terms: list[str], shelf: str | None, n: int):
         """[(chunk_id, bm25)] best first; raises sqlite3.Error for the caller to report."""
         if not terms:
             return []
@@ -455,7 +455,7 @@ class Shelf:
         )
         return c.execute(sql, [match] + ([shelf] if shelf else []) + [n]).fetchall()
 
-    def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: Optional[str], n: int):
+    def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: str | None, n: int):
         """[(chunk_id, cosine)] best first, above VECTOR_FLOOR only; [] when nothing is embedded."""
         import heapq
 
@@ -468,7 +468,7 @@ class Shelf:
             [tag] + ([shelf] if shelf else []),
         )
         q = None
-        best: List = []  # min-heap of (cosine, chunk_id), at most n
+        best: list = []  # min-heap of (cosine, chunk_id), at most n
         while True:
             rows = cur.fetchmany(max(1, int(VECTOR_BATCH)))
             if not rows:
@@ -488,7 +488,7 @@ class Shelf:
         return [(cid, s) for s, cid in sorted(best, key=lambda t: (-t[0], t[1]))]
 
     def search(
-        self, query: str, shelf: Optional[str] = None, limit: int = 8, max_chars: int = 6000, mode: str = "bm25"
+        self, query: str, shelf: str | None = None, limit: int = 8, max_chars: int = 6000, mode: str = "bm25"
     ) -> SearchResult:
         terms = terms_of(query)
         # Over-fetch so duplicates can be dropped without shortening the answer: sites repeat
@@ -519,7 +519,7 @@ class Shelf:
                 meaning = self._by_meaning(c, fn, query, shelf, CANDIDATES)
                 if not meaning:
                     res.note = "no passages are embedded yet (run manual ingest): keyword ranking only"
-                fused: Dict[int, float] = {}
+                fused: dict[int, float] = {}
                 for ranking in (keyword, meaning):
                     for rank, (cid, _) in enumerate(ranking, 1):
                         fused[cid] = fused.get(cid, 0.0) + 1.0 / (RRF_K + rank)
@@ -565,7 +565,7 @@ class Shelf:
             used += len(text)
         return res
 
-    def stats(self) -> Dict[str, object]:
+    def stats(self) -> dict[str, object]:
         with self._conn() as c:
             per = {
                 s: {"docs": d, "chunks": n}

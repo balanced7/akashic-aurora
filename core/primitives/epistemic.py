@@ -25,7 +25,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, Dict, Generic, Mapping, Optional, Tuple, Type, TypeVar
+from typing import Any, Dict, Generic, Optional, Tuple, Type, TypeVar
+from collections.abc import Mapping
 
 
 class Authority(str, Enum):
@@ -104,7 +105,7 @@ class BasisRef:
     def supports(self) -> bool:
         return bool(self.ref) and self.status is BasisStatus.RECORDED
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return {"ref": self.ref, "status": self.status.value}
 
 
@@ -116,9 +117,9 @@ class AxisState(Generic[ValueT]):
     """One independently typed component of the product."""
 
     value: ValueT
-    basis: Tuple[BasisRef, ...] = ()
+    basis: tuple[BasisRef, ...] = ()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "value": str(self.value.value),
             "basis": [receipt.to_dict() for receipt in self.basis],
@@ -127,10 +128,10 @@ class AxisState(Generic[ValueT]):
 
 @dataclass(frozen=True)
 class CurrencyState(AxisState[Currency]):
-    checked_at: Optional[str] = None
-    valid_until: Optional[str] = None
+    checked_at: str | None = None
+    valid_until: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         out = super().to_dict()
         if self.checked_at is not None:
             out["checked_at"] = self.checked_at
@@ -141,9 +142,9 @@ class CurrencyState(AxisState[Currency]):
 
 @dataclass(frozen=True)
 class IdentityAxisState(AxisState[IdentityState]):
-    scope: Optional[str] = None
+    scope: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         out = super().to_dict()
         if self.scope is not None:
             out["scope"] = self.scope
@@ -160,7 +161,7 @@ class EpistemicView:
     identity_state: IdentityAxisState
     risk: AxisState[Risk]
 
-    def to_dict(self) -> Dict[str, Dict[str, Any]]:
+    def to_dict(self) -> dict[str, dict[str, Any]]:
         # Keep this order stable for human inspection and byte-level handoffs.
         return {
             "authority": self.authority.to_dict(),
@@ -182,7 +183,7 @@ def _basis_status(value: Any) -> BasisStatus:
         return BasisStatus.UNKNOWN
 
 
-def _basis_refs(raw: Any) -> Tuple[BasisRef, ...]:
+def _basis_refs(raw: Any) -> tuple[BasisRef, ...]:
     if raw is None:
         return ()
     if isinstance(raw, (str, bytes, Mapping, BasisRef)):
@@ -214,7 +215,7 @@ def _basis_refs(raw: Any) -> Tuple[BasisRef, ...]:
     return tuple(refs)
 
 
-def _optional_text(value: Any) -> Optional[str]:
+def _optional_text(value: Any) -> str | None:
     text = str(value or "").strip()
     return text or None
 
@@ -224,7 +225,7 @@ EnumT = TypeVar("EnumT", bound=Enum)
 
 def _axis(
     raw: Any,
-    enum_type: Type[EnumT],
+    enum_type: type[EnumT],
 ) -> AxisState[EnumT]:
     component = raw if isinstance(raw, Mapping) else {}
     basis = _basis_refs(component.get("basis"))
@@ -259,7 +260,7 @@ def _identity(raw: Any) -> IdentityAxisState:
 
 
 def derive_epistemic_view(
-    evidence: Optional[Mapping[str, Any]] = None,
+    evidence: Mapping[str, Any] | None = None,
 ) -> EpistemicView:
     """Derive a total view from typed evidence without strengthening it.
 
@@ -295,7 +296,7 @@ def _field(record: Any, name: str, default: Any = None) -> Any:
     return getattr(record, name, default)
 
 
-def _mechanical_identity(meta: Mapping[str, Any]) -> Optional[IdentityAxisState]:
+def _mechanical_identity(meta: Mapping[str, Any]) -> IdentityAxisState | None:
     """Derive only identity facts that the Bifrost transport mechanically knows."""
 
     rehomed_from = _optional_text(meta.get("rehomed_from"))

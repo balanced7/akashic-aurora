@@ -57,12 +57,12 @@ def _nudge_dir() -> str:
     return os.path.join(root, "nudge")
 
 
-def _agent(agent_id: Optional[str]) -> Optional[str]:
+def _agent(agent_id: str | None) -> str | None:
     return agent_id or os.getenv("AKASHIC_AGENT_ID")
 
 
 def recall_block(
-    session_key: str, seen_key: str, path: Optional[str], command: Optional[str], agent_id: Optional[str] = None
+    session_key: str, seen_key: str, path: str | None, command: str | None, agent_id: str | None = None
 ) -> str:
     """Unseen lessons + lock warnings for this target; marks seen/impressions and
     ledgers the push. Lifted in behavior from the two in-hook copies."""
@@ -93,7 +93,7 @@ def recall_block(
         return ""  # recall must never brick the action
 
 
-def outcome_block(session_key: str, seen_key: str, target: str, success: bool, agent_id: Optional[str] = None) -> str:
+def outcome_block(session_key: str, seen_key: str, target: str, success: bool, agent_id: str | None = None) -> str:
     """Resolve the outcome; on a flip, credit + capture + return the JIT nudge under
     the rate limit. Lifted in behavior from cursor_posttooluse's outcome flow."""
     if not target:
@@ -126,7 +126,7 @@ def outcome_block(session_key: str, seen_key: str, target: str, success: bool, a
         return ""  # outcome credit must never brick the action
 
 
-def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: Optional[str] = None) -> str:
+def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: str | None = None) -> str:
     """Plan-altitude context for a fresh prompt, or "" for silence. Lifted in behavior
     from claude_userpromptsubmit.build_plan_recall."""
     if os.getenv("AKASHIC_PLAN_RECALL", "1") == "0":

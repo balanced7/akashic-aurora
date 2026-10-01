@@ -37,7 +37,8 @@ from __future__ import annotations
 import os
 import subprocess
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -53,7 +54,7 @@ BLIND = [
 ]
 
 
-def _epoch(v: Any) -> Optional[float]:
+def _epoch(v: Any) -> float | None:
     """Best-effort epoch. None when undateable -- never 0, which would silently move
     unknown-time evidence to the dawn of the record and rewrite the story."""
     if v is None or v == "":
@@ -83,7 +84,7 @@ def _epoch(v: Any) -> Optional[float]:
         return None
 
 
-def _norm(row: Dict[str, Any], domain: str) -> Dict[str, Any]:
+def _norm(row: dict[str, Any], domain: str) -> dict[str, Any]:
     return {
         "ts": _epoch(row.get("ts")),
         "domain": domain,
@@ -95,7 +96,7 @@ def _norm(row: Dict[str, Any], domain: str) -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------ domain sources
-def _events_rows(since: Optional[float] = None, agent: str = "", **_) -> List[Dict]:
+def _events_rows(since: float | None = None, agent: str = "", **_) -> list[dict]:
     from core.events.event_log import EventLog
 
     out = []
@@ -112,7 +113,7 @@ def _events_rows(since: Optional[float] = None, agent: str = "", **_) -> List[Di
     return out
 
 
-def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict]:
+def _git_rows(since: float | None = None, limit: int = 200, **_) -> list[dict]:
     # ENCODING IS EXPLICIT, and this is a correctness fix rather than tidiness. `text=True`
     # alone decodes with the LOCALE codec -- cp1252 on this box -- so one commit subject
     # carrying a character outside cp1252 raised UnicodeDecodeError and took the ENTIRE git
@@ -142,7 +143,7 @@ def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict
     return out
 
 
-def _task_rows(since: Optional[float] = None, **_) -> List[Dict]:
+def _task_rows(since: float | None = None, **_) -> list[dict]:
     import json
 
     with open(os.path.join(_ROOT, "state", "coord", "tasks.json"), encoding="utf-8") as f:
@@ -184,7 +185,7 @@ _SKIP_DIRS = {
 FILE_SCAN_LIMIT = int(os.environ.get("AKASHIC_TIMELINE_FILE_LIMIT", "4000"))
 
 
-def _birth(st) -> Optional[float]:
+def _birth(st) -> float | None:
     """When the file was born, or None where the platform cannot say.
 
     DELIBERATELY NOT st_ctime. That attribute means CREATION time on Windows and INODE
@@ -200,9 +201,7 @@ def _birth(st) -> Optional[float]:
         return None
 
 
-def _file_rows(
-    root: Optional[str] = None, limit: Optional[int] = None, since: Optional[float] = None, **_
-) -> List[Dict]:
+def _file_rows(root: str | None = None, limit: int | None = None, since: float | None = None, **_) -> list[dict]:
     """The OBSERVED plane: what was actually touched, and when.
 
     Catches the activity that left no other trace -- a sibling agent's mid-flight edits,
@@ -215,7 +214,7 @@ def _file_rows(
     """
     base = root or _ROOT
     cap = int(limit if limit is not None else FILE_SCAN_LIMIT)
-    out: List[Dict] = []
+    out: list[dict] = []
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fn in filenames:
@@ -243,15 +242,13 @@ def _file_rows(
     return out
 
 
-def default_sources() -> List[Tuple[str, Callable]]:
+def default_sources() -> list[tuple[str, Callable]]:
     """The domains, registered BY NAME so a missing one shows up in coverage rather than
     being quietly absent from the design."""
     return [("events", _events_rows), ("git", _git_rows), ("tasks", _task_rows), ("files", _file_rows)]
 
 
-def gather(
-    *, sources: Optional[List[Tuple[str, Callable]]] = None, since: Optional[float] = None, **kw
-) -> Dict[str, Any]:
+def gather(*, sources: list[tuple[str, Callable]] | None = None, since: float | None = None, **kw) -> dict[str, Any]:
     """Merge every domain into one time-ordered set. Never raises.
 
     Returns {rows, coverage, blind}. `rows` is DATA (dicts a later compare can diff),
@@ -259,10 +256,10 @@ def gather(
     window -- because a set difference is only as true as the coverage of both sides.
     """
     srcs = sources if sources is not None else default_sources()
-    rows: List[Dict[str, Any]] = []
-    read: List[str] = []
-    failed: Dict[str, str] = {}
-    counts: Dict[str, int] = {}
+    rows: list[dict[str, Any]] = []
+    read: list[str] = []
+    failed: dict[str, str] = {}
+    counts: dict[str, int] = {}
 
     for name, fn in srcs:
         try:

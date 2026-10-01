@@ -35,7 +35,7 @@ TERMINAL_TO_STATE = {
 
 # state -> (terminal, what the caller should do RIGHT NOW). The lie each state prevents
 # lives in the spec's table; the caller_should is that lie's antidote rendered as advice.
-STATES: Dict[str, tuple] = {
+STATES: dict[str, tuple] = {
     "OPEN.DISPATCHED": (False, "wait or do other work -- nothing observable says the peer saw it yet"),
     "OPEN.NOTED": (False, "read the note -- it neither answers nor kills the ask; the expectation stays armed (RB-29)"),
     "OPEN.REDRIVING": (False, "the peer is probably not consuming -- consider a nudge or an alternate peer"),
@@ -50,7 +50,7 @@ STATES: Dict[str, tuple] = {
 }
 
 
-def _candidates(ask_id: Any) -> List[str]:
+def _candidates(ask_id: Any) -> list[str]:
     """The id the caller holds plus its alias chain (bounded, <=2 hops -- the same walk
     _resolve_link does, for the same reason): a dual-write sibling or a redrive id must
     resolve to the armed ask instead of lying UNKNOWN."""
@@ -73,7 +73,7 @@ def _candidates(ask_id: Any) -> List[str]:
     return out
 
 
-def _peer_traffic_since(sender: str, rec: Dict[str, Any]) -> Dict[str, bool]:
+def _peer_traffic_since(sender: str, rec: dict[str, Any]) -> dict[str, bool]:
     """Non-consuming peek at the sender's inbox after the ask's anchor: did the peer
     send a NON-answer (-> NOTED), and is an ANSWER visible that no sweep folded yet?
     Read from the stream position, never the cursor (consumption-immune, the
@@ -94,7 +94,7 @@ def _peer_traffic_since(sender: str, rec: Dict[str, Any]) -> Dict[str, bool]:
         return {"noted": False, "answer_visible": False}
 
 
-def _span(later: Any, earlier: Any) -> Optional[float]:
+def _span(later: Any, earlier: Any) -> float | None:
     if later is None or earlier is None:
         return None
     try:
@@ -103,7 +103,7 @@ def _span(later: Any, earlier: Any) -> Optional[float]:
         return None
 
 
-def state_of(sender: str, ask_id: Any, *, log=None, now: Optional[float] = None) -> Dict[str, Any]:
+def state_of(sender: str, ask_id: Any, *, log=None, now: float | None = None) -> dict[str, Any]:
     """One durable ask's honest state. Read-only; `log` injectable (needs .scan(agent=))
     so tests construct evidence instead of writing it; `now` injectable so pins never
     sleep. Always returns a dict whose state is one of STATES -- including UNKNOWN,
@@ -112,7 +112,7 @@ def state_of(sender: str, ask_id: Any, *, log=None, now: Optional[float] = None)
     sender = str(sender)
     cands = _candidates(ask_id)
 
-    def _result(state: str, resolved: str, **extra) -> Dict[str, Any]:
+    def _result(state: str, resolved: str, **extra) -> dict[str, Any]:
         terminal, should = STATES[state]
         base = {
             "ask_id": str(ask_id),

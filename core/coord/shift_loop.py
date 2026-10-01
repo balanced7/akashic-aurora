@@ -34,7 +34,7 @@ from typing import Any, Dict, Optional
 # hypothesis, not a fact) — the next waker verifies against the ledger before acting.
 SHIFT_STATE_TITLE = "shift-state"
 
-_DEFAULT_SHIFT_STATE: Dict[str, Any] = {
+_DEFAULT_SHIFT_STATE: dict[str, Any] = {
     "opened": "",  # "<who> @ <iso>"
     "claimed": "none",  # task id, or 'none'
     "landed": "nothing yet",  # git sha, or 'nothing yet'
@@ -44,14 +44,14 @@ _DEFAULT_SHIFT_STATE: Dict[str, Any] = {
 }
 
 
-def new_shift_state(**overrides) -> Dict[str, Any]:
+def new_shift_state(**overrides) -> dict[str, Any]:
     """A fresh shift-state note body (a dict; the caller serializes it via its own note door)."""
     out = dict(_DEFAULT_SHIFT_STATE)
     out.update({k: v for k, v in overrides.items() if k in _DEFAULT_SHIFT_STATE})
     return out
 
 
-def shift_state_is_complete(s: Dict[str, Any]) -> bool:
+def shift_state_is_complete(s: dict[str, Any]) -> bool:
     """A handoff is complete when it names a claim/state AND gives the next waker a reason
     to continue (context or a cadence note). A bare `{}` is a non-handoff."""
     if not s or not s.get("opened"):
@@ -66,7 +66,7 @@ def shift_state_is_complete(s: Dict[str, Any]) -> bool:
 
 def next_beat(
     *,
-    statuses: Dict[str, str],
+    statuses: dict[str, str],
     files_held_by_other: bool = False,
     deps_done: bool = True,
     current_task_done: bool = True,

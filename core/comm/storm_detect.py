@@ -45,9 +45,9 @@ class StormDetector:
     def __init__(
         self,
         *,
-        depth_threshold: Optional[int] = None,
-        depth_window: Optional[int] = None,
-        repeat_threshold: Optional[int] = None,
+        depth_threshold: int | None = None,
+        depth_window: int | None = None,
+        repeat_threshold: int | None = None,
     ):
         self.depth_threshold = depth_threshold if depth_threshold is not None else _int_env("STORM_DEPTH_THRESHOLD", 50)
         self.depth_window = depth_window if depth_window is not None else _int_env("STORM_DEPTH_WINDOW", 3)
@@ -57,7 +57,7 @@ class StormDetector:
         self._depths: deque = deque(maxlen=self.depth_window)
         self._last_ids: deque = deque(maxlen=self.repeat_threshold)
 
-    def feed(self, work_depth: int, msg_ids: List[str]) -> Optional[Dict[str, Any]]:
+    def feed(self, work_depth: int, msg_ids: list[str]) -> dict[str, Any] | None:
         """Feed one sample (lane depth + batch message ids). Returns a storm signature
         dict if a storm is detected, or None. The caller should clear the storm
         immediately — the detector does NOT auto-reset (a second call with the same

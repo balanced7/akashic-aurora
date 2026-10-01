@@ -25,14 +25,14 @@ class Chunk:
     seq: int
     title: str  # document title
     breadcrumb: str  # "Doc › Heading › Subheading"
-    url: Optional[str]  # source url (or file uri) with the section's #anchor
-    page: Optional[int]
+    url: str | None  # source url (or file uri) with the section's #anchor
+    page: int | None
     text: str
 
 
-def _split(text: str, max_chars: int) -> List[str]:
+def _split(text: str, max_chars: int) -> list[str]:
     paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-    pieces: List[str] = []
+    pieces: list[str] = []
     for p in paras:
         if len(p) <= max_chars:
             pieces.append(p)
@@ -56,7 +56,7 @@ def _split(text: str, max_chars: int) -> List[str]:
                 cur = f"{cur} {s}".strip()
         if cur:
             pieces.append(cur)
-    out: List[str] = []
+    out: list[str] = []
     cur = ""
     for piece in pieces:
         if cur and len(cur) + 2 + len(piece) > max_chars:
@@ -70,12 +70,12 @@ def _split(text: str, max_chars: int) -> List[str]:
 
 
 def chunk_document(
-    doc: Document, max_chars: int = 1800, min_chars: int = 300, source_uri: Optional[str] = None
-) -> List[Chunk]:
+    doc: Document, max_chars: int = 1800, min_chars: int = 300, source_uri: str | None = None
+) -> list[Chunk]:
     base = doc.url or source_uri
-    chunks: List[Chunk] = []
+    chunks: list[Chunk] = []
 
-    def url_for(sec: Section) -> Optional[str]:
+    def url_for(sec: Section) -> str | None:
         if not base:
             return None
         return f"{base}#{sec.anchor}" if sec.anchor else base
@@ -93,7 +93,7 @@ def chunk_document(
                 )
             )
 
-    pending: Optional[Section] = None
+    pending: Section | None = None
     pending_text = ""
     for sec in doc.sections:
         if pending is not None:

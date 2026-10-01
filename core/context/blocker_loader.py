@@ -22,9 +22,9 @@ def load_blockers_preventing_progress(
     top_k: int = 10,
     *,
     context_manager: Any = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    ranker: Ranker | None = None,
+    now: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Load active blockers, ranked by severity x recency (x relevance to `task`).
 

@@ -47,7 +47,8 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
+from collections.abc import Iterable
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 PLANE_DIRNAME = "private"
@@ -98,13 +99,13 @@ _TOO_GENERIC = {
 _MIN_MARKER = 6
 
 
-def plane_root(root: Optional[Path] = None) -> Path:
+def plane_root(root: Path | None = None) -> Path:
     return (Path(root) if root else _REPO_ROOT) / PLANE_DIRNAME
 
 
-def _tokens_from_name(name: str) -> Set[str]:
+def _tokens_from_name(name: str) -> set[str]:
     """Atom short-hashes and multi-word slugs are the distinctive parts of a filename."""
-    out: Set[str] = set()
+    out: set[str] = set()
     stem = re.sub(r"\.(md|jsonl?|txt|ya?ml)$", "", name, flags=re.I)
     # trailing short hash, e.g. ..._ff00aa (SYNTHETIC example on purpose -- the first draft
     # of this comment used a real private id and the guard blocked its own commit)
@@ -128,14 +129,14 @@ def _tokens_from_name(name: str) -> Set[str]:
     return out
 
 
-def markers(root: Optional[Path] = None) -> Set[str]:
+def markers(root: Path | None = None) -> set[str]:
     """Every distinctive token identifying something that lives in the private plane.
 
     Derived from filenames plus any `id`/`title` fields inside jsonl records, because the
     store copy is the one that generators regenerate from -- and that copy is what published
     itself in the live incident."""
     base = plane_root(root)
-    out: Set[str] = set()
+    out: set[str] = set()
     if not base.is_dir():
         return out
     for p in base.rglob("*"):
@@ -161,7 +162,7 @@ def markers(root: Optional[Path] = None) -> Set[str]:
     return {m for m in out if len(m) >= _MIN_MARKER and m.lower() not in _TOO_GENERIC}
 
 
-def _inside_plane(path: Path, root: Optional[Path] = None) -> bool:
+def _inside_plane(path: Path, root: Path | None = None) -> bool:
     try:
         path.resolve().relative_to(plane_root(root).resolve())
         return True
@@ -169,7 +170,7 @@ def _inside_plane(path: Path, root: Optional[Path] = None) -> bool:
         return False
 
 
-def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def scan(paths: Iterable[str], root: Path | None = None) -> list[dict[str, Any]]:
     """Findings for tracked files carrying a private marker.
 
     Files INSIDE the plane are never flagged: the guard protects the boundary, not the room,
@@ -177,7 +178,7 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
     marks = markers(root)
     if not marks:
         return []
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     for raw in paths:
         p = Path(raw)
         if not p.is_absolute():
@@ -210,7 +211,7 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
     return findings
 
 
-def scan_text(text: str, label: str = "text", root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def scan_text(text: str, label: str = "text", root: Path | None = None) -> list[dict[str, Any]]:
     """Findings for a blob of prose that is about to become durable and public.
 
     ADDED 2026-08-16, AFTER THE MISS THAT PROVED IT NECESSARY. The first purge rewrote file
@@ -227,7 +228,7 @@ def scan_text(text: str, label: str = "text", root: Optional[Path] = None) -> Li
     if not marks or not text:
         return []
     low = str(text).lower()
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for m in sorted(marks):
         if m in low:
             out.append(
@@ -245,7 +246,7 @@ def scan_text(text: str, label: str = "text", root: Optional[Path] = None) -> Li
     return out
 
 
-def report(paths: Iterable[str], root: Optional[Path] = None) -> Dict[str, Any]:
+def report(paths: Iterable[str], root: Path | None = None) -> dict[str, Any]:
     """The frame that ships with the number. An empty result must be distinguishable from a
     guard that never ran -- absence of findings is not evidence of a clean tree."""
     marks = markers(root)

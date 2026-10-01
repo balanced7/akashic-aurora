@@ -44,7 +44,7 @@ def _worklive_prefix() -> str:
     return f"{_ns()}:worklive:"
 
 
-_CODE_SHA: Optional[str] = None
+_CODE_SHA: str | None = None
 
 
 def _safe_code_sha() -> str:

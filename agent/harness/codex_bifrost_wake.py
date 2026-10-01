@@ -16,9 +16,10 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
+from typing import Any, Dict, FrozenSet, List, Optional
+from collections.abc import Callable, Mapping
 
 from agent.harness.codex_app_server import (
     CodexAppServer,
@@ -137,7 +138,7 @@ AURORA_COMBO_CATALOG_TOOL = {
 }
 
 
-def _aurora_read_combo_tool(names: List[str]) -> Dict[str, Any]:
+def _aurora_read_combo_tool(names: list[str]) -> dict[str, Any]:
     """Build the per-turn schema from the subject seat's currently safe combos."""
     return {
         "type": "function",
@@ -163,7 +164,7 @@ def _aurora_read_combo_tool(names: List[str]) -> Dict[str, Any]:
     }
 
 
-def _safe_read_args_refusal(verb: str, args: List[str]) -> Optional[str]:
+def _safe_read_args_refusal(verb: str, args: list[str]) -> str | None:
     """Return why argv is outside Sunshine's bridge-local read grammar, else None."""
     grammar = AURORA_SAFE_READ_GRAMMAR.get(verb)
     if grammar is None:
@@ -211,7 +212,7 @@ class SubjectIdentity:
     """One authoritative identity snapshot, resolved once for one admitted turn."""
 
     agent_id: str
-    callsign: Optional[str]
+    callsign: str | None
     status: str
     authority: str
 
@@ -270,10 +271,10 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _usage_accounting(usage: Mapping[str, Any]) -> Dict[str, Any]:
+def _usage_accounting(usage: Mapping[str, Any]) -> dict[str, Any]:
     """Label whole-turn usage separately from the final model step.
 
     App Server reports both ``total`` and ``last``. They are identical for a
@@ -325,11 +326,11 @@ class WakePolicy:
     """The deterministic gate that is allowed to spend a model turn."""
 
     agent: str
-    allowed_senders: FrozenSet[str]
-    expected_answers: FrozenSet[str] = frozenset()
-    direct_kinds: FrozenSet[str] = DIRECT_ACTION_KINDS
-    answer_kinds: FrozenSet[str] = ANSWER_KINDS
-    required_source: Optional[str] = None
+    allowed_senders: frozenset[str]
+    expected_answers: frozenset[str] = frozenset()
+    direct_kinds: frozenset[str] = DIRECT_ACTION_KINDS
+    answer_kinds: frozenset[str] = ANSWER_KINDS
+    required_source: str | None = None
 
     def accepts(self, message: Message) -> bool:
         if message.to != self.agent or message.frm not in self.allowed_senders:
@@ -354,11 +355,11 @@ class WakeState:
     path: Path
     agent: str
     last_seen: str
-    thread_id: Optional[str] = None
-    source_thread_id: Optional[str] = None
+    thread_id: str | None = None
+    source_thread_id: str | None = None
     binding_kind: str = "unbound"
-    bound_at: Optional[str] = None
-    records: List[Dict[str, Any]] = field(default_factory=list)
+    bound_at: str | None = None
+    records: list[dict[str, Any]] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
 
     @classmethod
@@ -368,10 +369,10 @@ class WakeState:
         *,
         agent: str,
         baseline: str,
-        thread_id: Optional[str] = None,
-        source_thread_id: Optional[str] = None,
-        binding_kind: Optional[str] = None,
-    ) -> "WakeState":
+        thread_id: str | None = None,
+        source_thread_id: str | None = None,
+        binding_kind: str | None = None,
+    ) -> WakeState:
         target = Path(path).expanduser().resolve()
         if target.exists():
             try:
@@ -469,7 +470,7 @@ class WakeState:
         self,
         thread_id: str,
         *,
-        source_thread_id: Optional[str] = None,
+        source_thread_id: str | None = None,
         binding_kind: str = "watcher-created-persistent",
     ) -> None:
         """Bind once. Replacing a conversation is an explicit migration, never recovery."""
@@ -526,7 +527,7 @@ def decode_stream_message(bus: Bus, mid: str, fields: Mapping[str, Any]) -> Mess
     return bus._to_msg(str(mid), normalized)
 
 
-def decode_exact_message(bus: Bus, mid: str) -> Optional[Message]:
+def decode_exact_message(bus: Bus, mid: str) -> Message | None:
     """Fetch one direct message by id.  No inbox/cursor door is called."""
     if bus._client is None:
         raise WakeError("Bifrost is offline")
@@ -544,8 +545,8 @@ def build_wake_prompt(
     message: Message,
     *,
     identity: SubjectIdentity,
-    continuity_thread_id: Optional[str] = None,
-    continuity_source_thread_id: Optional[str] = None,
+    continuity_thread_id: str | None = None,
+    continuity_source_thread_id: str | None = None,
     continuity_binding: str = "unbound",
 ) -> str:
     """Render the exact subject, identity snapshot, and peer message."""
@@ -641,9 +642,9 @@ class CodexBifrostWake:
         self.server_factory = server_factory
         self.identity_resolver = identity_resolver
         self.toolbelt_factory = toolbelt_factory
-        self._server: Optional[CodexAppServer] = None
-        self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
-        self._loaded_thread_id: Optional[str] = None
+        self._server: CodexAppServer | None = None
+        self._server_identity_signature: tuple[str, str, str, str] | None = None
+        self._loaded_thread_id: str | None = None
         self._stop = threading.Event()
         self._toolbox = ToolBox(
             self.cwd,
@@ -656,7 +657,7 @@ class CodexBifrostWake:
         )
 
     @property
-    def dynamic_tools(self) -> List[Dict[str, Any]]:
+    def dynamic_tools(self) -> list[dict[str, Any]]:
         """Tools advertised to the model; launch posture is visible at admission time."""
         if not self.allow_exec:
             return []
@@ -666,7 +667,7 @@ class CodexBifrostWake:
             tools.append(_aurora_read_combo_tool(safe_names))
         return tools
 
-    def _combo_admission_rows(self) -> tuple[List[Dict[str, Any]], Optional[str]]:
+    def _combo_admission_rows(self) -> tuple[list[dict[str, Any]], str | None]:
         """Evaluate subject-owned active combos without executing a primitive."""
         try:
             belt = self.toolbelt_factory(self.policy.agent)
@@ -674,9 +675,9 @@ class CodexBifrostWake:
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             return [], f"{type(exc).__name__}: {exc}"
 
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         for name in names:
-            row: Dict[str, Any] = {
+            row: dict[str, Any] = {
                 "name": name,
                 "evidence": "UNKNOWN",
                 "family": "UNSORTED",
@@ -748,17 +749,17 @@ class CodexBifrostWake:
             body = body[: AURORA_COMBO_OUTPUT_CHARS - len(marker)] + marker
         return body, True
 
-    def _safe_combo_catalog(self) -> Dict[str, List[List[str]]]:
+    def _safe_combo_catalog(self) -> dict[str, list[list[str]]]:
         """Resolve safe zero-argument combos; registry blindness fails this surface closed."""
         rows, error = self._combo_admission_rows()
         if error is not None:
             return {}
         return {str(row["name"]): [list(step) for step in row["steps"]] for row in rows if row["admitted"]}
 
-    def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
+    def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> dict[str, Any]:
         """Execute one structured read verb through the bridge and ToolBox walls."""
 
-        def response(success: bool, text: str) -> Dict[str, Any]:
+        def response(success: bool, text: str) -> dict[str, Any]:
             return {
                 "success": bool(success),
                 "contentItems": [{"type": "inputText", "text": str(text)}],
@@ -793,7 +794,7 @@ class CodexBifrostWake:
                     f"REFUSED by Codex bridge safe read grammar: combo {name!r} is not a "
                     "currently safe zero-argument combo for this subject seat.",
                 )
-            rendered: List[str] = []
+            rendered: list[str] = []
             total = len(steps)
             for index, argv in enumerate(steps, start=1):
                 command = shlex.join(["py", "agent_cli.py", *argv])
@@ -923,7 +924,7 @@ class CodexBifrostWake:
         )
         return thread
 
-    def handle(self, mid: str, fields: Mapping[str, Any]) -> Dict[str, Any]:
+    def handle(self, mid: str, fields: Mapping[str, Any]) -> dict[str, Any]:
         mid = str(mid)
         if self.state.seen(mid):
             return {"mid": mid, "outcome": "duplicate"}
@@ -1039,7 +1040,7 @@ class CodexBifrostWake:
         message: Message,
         result: TurnResult,
         identity: SubjectIdentity,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         usage = result.token_usage or {}
         usage_accounting = _usage_accounting(usage)
         if result.status != "completed" or not result.text.strip():
@@ -1169,7 +1170,7 @@ class CodexBifrostWake:
                     if once:
                         break
                     continue
-                retry_delay: Optional[float] = None
+                retry_delay: float | None = None
                 for _stream, messages in rows:
                     for mid, fields in messages:
                         result = self.handle(str(mid), fields)

@@ -29,7 +29,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from types import SimpleNamespace
 
 import pytest
@@ -180,7 +180,7 @@ def test_h4_original_clock_drives_stale_gate_after_rehome(isolated_bus):
     ns, client = isolated_bus
     now_ms = int(time.time() * 1000)
     old_ms = now_ms - (7 * 3600 * 1000)
-    original_ts = datetime.fromtimestamp(old_ms / 1000.0, timezone.utc).isoformat()
+    original_ts = datetime.fromtimestamp(old_ms / 1000.0, UTC).isoformat()
     original_mid = _add_seat_packet(client, ns, "old-request", stream_id=f"{old_ms}-0", sent_at=original_ts)
     _make_dead(client, ns)
 

@@ -115,7 +115,7 @@ def _vault(name: str) -> str:
         return ""
 
 
-def _cli_logged_in(exe: str) -> Optional[bool]:
+def _cli_logged_in(exe: str) -> bool | None:
     """`claude auth status` as a tri-state: True, False, or None for 'could not tell'.
 
     Budget MEASURED at 0.29-0.31s over five runs -- 10s is generous, and instant beside the
@@ -128,7 +128,7 @@ def _cli_logged_in(exe: str) -> Optional[bool]:
         return None
 
 
-def _credential_horizon() -> Optional[float]:
+def _credential_horizon() -> float | None:
     """Days left on the refresh token behind !spawn. Env-overridable so a pin can pin it."""
     path = Path(os.getenv("AKASHIC_CLAUDE_CREDENTIALS") or (Path.home() / ".claude" / ".credentials.json"))
     try:
@@ -303,7 +303,7 @@ def _parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def _bus_startup_problem(bus) -> Optional[str]:
+def _bus_startup_problem(bus) -> str | None:
     """Return why this process's own Bifrost connection is not usable.
 
     A fresh outside health probe answers whether Redis is reachable *now*; it

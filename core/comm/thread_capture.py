@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Iterable, Mapping, Sequence
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LINK_FIELDS = (
@@ -29,7 +30,7 @@ _LINK_FIELDS = (
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _text(value: Any) -> str:
@@ -82,7 +83,7 @@ def _fallback_sha(fields: Mapping[str, Any]) -> str:
     return "fallback:" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
 
 
-def _stream_keys(namespace: str, subject: str) -> Tuple[str, ...]:
+def _stream_keys(namespace: str, subject: str) -> tuple[str, ...]:
     return (
         f"{namespace}:inbox:{subject}",
         f"{namespace}:work:inbox:{subject}",
@@ -91,7 +92,7 @@ def _stream_keys(namespace: str, subject: str) -> Tuple[str, ...]:
     )
 
 
-def _entry(stream: str, sid: Any, raw_fields: Mapping[str, Any]) -> Dict[str, Any]:
+def _entry(stream: str, sid: Any, raw_fields: Mapping[str, Any]) -> dict[str, Any]:
     fields = {_text(k): v for k, v in dict(raw_fields or {}).items()}
     meta = _loads(fields.get("meta"), {})
     if not isinstance(meta, dict):
@@ -119,11 +120,11 @@ def _entry(stream: str, sid: Any, raw_fields: Mapping[str, Any]) -> Dict[str, An
     }
 
 
-def _copy_sort(row: Mapping[str, Any]) -> Tuple[str, str]:
+def _copy_sort(row: Mapping[str, Any]) -> tuple[str, str]:
     return (_text(row.get("stream")), _text(row.get("id")))
 
 
-def _logical_sort(row: Mapping[str, Any]) -> Tuple[str, str]:
+def _logical_sort(row: Mapping[str, Any]) -> tuple[str, str]:
     copies = row.get("copies") or []
     first = min((_text(c.get("id")) for c in copies), default="")
     return (_text(row.get("ts")) or "9999", first)
@@ -131,7 +132,7 @@ def _logical_sort(row: Mapping[str, Any]) -> Tuple[str, str]:
 
 def collect_thread(
     subject: str, thread_ref: str, *, client: Any = None, namespace: str = "bifrost", per_stream: int = 1000
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return a bounded ``capture.thread.v1`` observation.
 
     ``client`` is injectable for pins.  Production obtains the existing Redis
@@ -181,9 +182,9 @@ def collect_thread(
             "effects": [],
         }
 
-    stream_rows: List[Dict[str, Any]] = []
-    candidates: List[Dict[str, Any]] = []
-    failures: Dict[str, str] = {}
+    stream_rows: list[dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
+    failures: dict[str, str] = {}
     entries_total = 0
     total_known = True
     for key in _stream_keys(ns, subject):
@@ -201,7 +202,7 @@ def collect_thread(
             failures[key] = f"{type(exc).__name__}: {exc}"
             stream_rows.append({"stream": key, "total": None, "scanned": 0, "truncated": None, "error": failures[key]})
 
-    by_sha: Dict[str, Dict[str, Any]] = {}
+    by_sha: dict[str, dict[str, Any]] = {}
     for row in candidates:
         sha = row["sha"]
         if sha not in by_sha:
@@ -242,7 +243,7 @@ def collect_thread(
                 known.update(row["links"])
                 changed = True
 
-    messages: List[Dict[str, Any]] = []
+    messages: list[dict[str, Any]] = []
     copies_matched = 0
     for sha in chosen:
         row = by_sha[sha]
@@ -265,7 +266,7 @@ def collect_thread(
     messages.sort(key=_logical_sort)
 
     truncated_any = any(r.get("truncated") is True for r in stream_rows)
-    blind: List[str] = []
+    blind: list[str] = []
     for key, why in sorted(failures.items()):
         blind.append(f"archive source {key} unreadable: {why}")
     if truncated_any:
@@ -347,16 +348,16 @@ def atom_payload(
     snapshot: Mapping[str, Any],
     *,
     title: str,
-    cites: Optional[Sequence[str]] = None,
+    cites: Sequence[str] | None = None,
     type_: str = "chronicle",
-    arc: Optional[str] = None,
-) -> Dict[str, Any]:
+    arc: str | None = None,
+) -> dict[str, Any]:
     if not snapshot.get("found"):
         raise ValueError("cannot mint an atom from a thread that was not found")
     title = _text(title).strip()
     if not title:
         raise ValueError("capture --as-doc needs --title")
-    speakers: List[str] = []
+    speakers: list[str] = []
     for row in snapshot.get("messages") or []:
         who = _text(row.get("frm")).strip()
         if who and who not in speakers:
@@ -389,13 +390,13 @@ def mint_thread_atom(
     snapshot: Mapping[str, Any],
     *,
     title: str,
-    cites: Optional[Sequence[str]] = None,
+    cites: Sequence[str] | None = None,
     type_: str = "chronicle",
-    arc: Optional[str] = None,
+    arc: str | None = None,
     family: Any = None,
     render_fn: Any = None,
-    repo_root: Optional[str] = None,
-) -> Dict[str, Any]:
+    repo_root: str | None = None,
+) -> dict[str, Any]:
     """Mint through ``AtomFamily`` and return the atom/projection receipt."""
     root = str(repo_root or _ROOT)
     payload = atom_payload(snapshot, title=title, cites=cites, type_=type_, arc=arc)
@@ -423,11 +424,11 @@ def attach_thread_atom(
     snapshot: Mapping[str, Any],
     *,
     title: str,
-    cites: Optional[Sequence[str]] = None,
+    cites: Sequence[str] | None = None,
     type_: str = "chronicle",
-    arc: Optional[str] = None,
+    arc: str | None = None,
     **mint_kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Attach one mint receipt, or a structured refusal, to a capture result.
 
     Native MCP and ToolBox callers share this boundary so a missing thread

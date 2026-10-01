@@ -34,13 +34,13 @@ _CLOSURE_RE = re.compile(r"\b(fixed|resolved|shipped|built|closes|done)\b", re.I
 _EVIDENCE_RE = re.compile(r"\b[PBQRSFK]\d{1,2}\b|\bT\d{2,3}\b|\b[0-9a-f]{7,40}\b|\btests?/[\w./-]+\.py\b")
 
 
-def _root(root: Optional[str] = None) -> Path:
+def _root(root: str | None = None) -> Path:
     return Path(root) if root else Path(__file__).resolve().parents[2]
 
 
-def check_file_line_cites(text: str, root: Optional[str] = None) -> List[str]:
+def check_file_line_cites(text: str, root: str | None = None) -> list[str]:
     """A1: every path:line citation resolves. Returns human-readable failures."""
-    failures: List[str] = []
+    failures: list[str] = []
     base = _root(root)
     for rel, line_s in _CITE_RE.findall(str(text or "")):
         try:
@@ -58,10 +58,10 @@ def check_file_line_cites(text: str, root: Optional[str] = None) -> List[str]:
     return failures
 
 
-def check_event_cites(text: str) -> List[str]:
+def check_event_cites(text: str) -> list[str]:
     """A2: every event citation resolves in the event store. A resolver ERROR is
     fail-open (skip); only a clean not-found is a fabrication finding."""
-    failures: List[str] = []
+    failures: list[str] = []
     refs = [
         "event:" + m.split("event:", 1)[-1] if False else m
         for m in (mm.group(0) for mm in _EVENT_RE.finditer(str(text or "")))
@@ -84,7 +84,7 @@ def check_event_cites(text: str) -> List[str]:
     return failures
 
 
-def check_closure_evidence(text: str) -> List[str]:
+def check_closure_evidence(text: str) -> list[str]:
     """A3 (warning-only): closure language should name a pin, task id, commit, or test
     path so the recipient can verify the claim."""
     t = str(text or "")
@@ -96,7 +96,7 @@ def check_closure_evidence(text: str) -> List[str]:
     return []
 
 
-def run_preflight(text: str, root: Optional[str] = None) -> Tuple[bool, str, str]:
+def run_preflight(text: str, root: str | None = None) -> tuple[bool, str, str]:
     """The orchestrator: returns (held, feedback, warnings). held=True means A1/A2
     findings exist -- the caller should feed `feedback` back for ONE fix round, then
     send anyway LOUDLY (two-cycle fail-open). `warnings` is A3, never holds."""

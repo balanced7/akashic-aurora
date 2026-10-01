@@ -53,7 +53,7 @@ DEFAULT_THRESHOLD = 80.0
 WINDOW = 30
 
 
-def _stats(n: int) -> Dict[str, Any]:
+def _stats(n: int) -> dict[str, Any]:
     """Measured M3 compliance. Injectable so the pins never shell out to git.
 
     T123: this used to mutate the import path to reach scripts/checkers and pull the checker

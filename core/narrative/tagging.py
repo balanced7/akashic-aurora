@@ -38,7 +38,7 @@ def confidence_for(source: str) -> float:
     return BASIS_CONFIDENCE.get(source, 0.5)
 
 
-def _as_unit_confidence(c: Any) -> Optional[float]:
+def _as_unit_confidence(c: Any) -> float | None:
     """Coerce `c` to a FINITE confidence clamped to [0,1], or None if it isn't a finite
     number. This is the D3 guard: a non-finite confidence (``inf``/``nan``) must never enter
     the resolver -- `inf` would beat every real tag and silently degrade `current()`, breaking
@@ -62,19 +62,19 @@ class TagEntry:
     at: str = ""  # iso timestamp (iso8601 sorts lexically = chronologically)
     confirmed: bool = False  # a human/agent pin -- auto-processes must never override
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "TagEntry":
+    def from_dict(cls, d: dict[str, Any]) -> "TagEntry":
         return cls(**dict(d))
 
 
 class TagHistory:
     """An append-only history of tag opinions for one node. The current tag is derived."""
 
-    def __init__(self, entries: Optional[List[TagEntry]] = None):
-        self.entries: List[TagEntry] = list(entries or [])
+    def __init__(self, entries: list[TagEntry] | None = None):
+        self.entries: list[TagEntry] = list(entries or [])
 
     # --- writes (append-only) ---
     def append(self, entry: TagEntry) -> TagEntry:
@@ -87,7 +87,7 @@ class TagHistory:
         *,
         source: str = "unknown",
         at: str = "",
-        confidence: Optional[float] = None,
+        confidence: float | None = None,
         confirmed: bool = False,
     ) -> TagEntry:
         if confirmed:
@@ -107,7 +107,7 @@ class TagHistory:
             )
         )
 
-    def rollback_to(self, value: str, *, at: str) -> Optional[TagEntry]:
+    def rollback_to(self, value: str, *, at: str) -> TagEntry | None:
         """Re-assert a PRIOR value so it becomes current again -- by APPENDING (the older
         entries stay; reversibility without destruction, I3+I4). A rollback is a DELIBERATE
         correction, so it's pinned (confirmed=1.0) -- it must win over the bad auto-tag it
@@ -119,7 +119,7 @@ class TagHistory:
         return self.append(TagEntry(value=value, confidence=1.0, source="rollback", at=at, confirmed=True))
 
     # --- reads (derived) ---
-    def current(self) -> Optional[TagEntry]:
+    def current(self) -> TagEntry | None:
         """The most trustworthy opinion: max by (confirmed, confidence, recency).
         Corrupt/valueless entries are ignored, not fatal. Empty -> None."""
         valid = [e for e in self.entries if e.value]
@@ -136,12 +136,12 @@ class TagHistory:
         return cur.confidence if cur else default
 
     # --- serialization ---
-    def to_list(self) -> List[Dict[str, Any]]:
+    def to_list(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.entries]
 
     @classmethod
     def from_list(cls, raw: Any) -> "TagHistory":
-        out: List[TagEntry] = []
+        out: list[TagEntry] = []
         for d in raw or []:
             try:
                 e = d if isinstance(d, TagEntry) else TagEntry(**d)

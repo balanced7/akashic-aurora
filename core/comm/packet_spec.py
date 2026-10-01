@@ -88,7 +88,7 @@ def frag_reassembly_ttl() -> int:
 
 
 # ------------------------------------------------------------------ canonical len+sha
-def canonical_bytes(fields: Dict[str, Any]) -> bytes:
+def canonical_bytes(fields: dict[str, Any]) -> bytes:
     """The exact bytes hashed for integrity: the seven v1 wire fields as literal strings,
     in the spec's EXPLICIT canonical order (frm,to,kind,content,ts,meta,parts), compact-
     separated. Missing field => empty string (a v1 envelope always carries all seven, but be
@@ -105,14 +105,14 @@ def canonical_bytes(fields: Dict[str, Any]) -> bytes:
     return json.dumps(canon, sort_keys=False, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
-def compute_len_sha(fields: Dict[str, Any]) -> Tuple[int, str]:
+def compute_len_sha(fields: dict[str, Any]) -> tuple[int, str]:
     """(byte length, sha256 hex) over the canonical serialization. The len is ALSO the size
     the MTU bounds -- one honest number for both 'is it too big' and 'did it arrive whole'."""
     b = canonical_bytes(fields)
     return len(b), hashlib.sha256(b).hexdigest()
 
 
-def stamp(env: Dict[str, Any], *, length: Optional[int] = None, sha: Optional[str] = None) -> Dict[str, Any]:
+def stamp(env: dict[str, Any], *, length: int | None = None, sha: str | None = None) -> dict[str, Any]:
     """SEND door: stamp v + len + sha onto the envelope (mutates and returns it). Redis stream
     fields are strings, so the integrity fields are stringified too. Pass a precomputed
     (length, sha) to avoid re-hashing on the hot path when the caller already ran the MTU check."""
@@ -124,7 +124,7 @@ def stamp(env: Dict[str, Any], *, length: Optional[int] = None, sha: Optional[st
     return env
 
 
-def verify_integrity(fields: Dict[str, Any]) -> Tuple[bool, str]:
+def verify_integrity(fields: dict[str, Any]) -> tuple[bool, str]:
     """CONSUME door + reply filter: recompute len+sha over the canonical fields and compare
     to the stamped values. Returns (ok, reason).
 
@@ -152,7 +152,7 @@ def verify_integrity(fields: Dict[str, Any]) -> Tuple[bool, str]:
 
 
 # ------------------------------------------------------------------------- MTU gate
-def mtu_refusal_text(size: int, limit: Optional[int] = None) -> str:
+def mtu_refusal_text(size: int, limit: int | None = None) -> str:
     """The EXACT teaching text a refused oversize send emits (pin 1 asserts it verbatim)."""
     limit = max_message_bytes() if limit is None else limit
     return (
@@ -173,7 +173,7 @@ def within_mtu(nbytes: int) -> bool:
 MTU_GATED_TOOLS = ("write_file", "edit_file", "knowledge_note")
 
 
-def tool_args_within_mtu(name: str, args: Any) -> Tuple[bool, str]:
+def tool_args_within_mtu(name: str, args: Any) -> tuple[bool, str]:
     """The runner tool-bridge gate (pin 8): (ok, refusal_text). For a storage-intake tool, refuse
     LOUD when the serialized args exceed the packet MTU -- replacing the old ~4k silent clip at the
     bite site with a visible refusal the model can act on. Non-gated tools always pass."""
@@ -250,7 +250,7 @@ LANE_MAXLEN = {"work": 10000, "sig": 5000, "trace": 5000}
 DEFAULT_TRACE_SPOT_INTERVAL = 1000
 
 
-def lane_for(kind: Any) -> Optional[str]:
+def lane_for(kind: Any) -> str | None:
     """The pure router: lane for a kind, or None when unmapped. STRANGLER PHASE: None means
     legacy-only + loud (a sender must never break on a census miss); the spec's unknown-kind
     REFUSAL is the end state and activates at the T039b/d cutover."""
@@ -448,7 +448,7 @@ def lane_wants_integrity(lane: str, tick: int = 0) -> bool:
     return n > 0 and tick > 0 and tick % n == 0
 
 
-def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
+def lane_stream_key(ns: str, lane: str, to: str | None = None) -> str:
     """Per-lane key: the lane dimension inserted before the topology suffix (design B5).
     trace is ONE shared ring (no per-agent inbox, no bell, no cursor)."""
     if lane == "trace":
@@ -491,7 +491,7 @@ def stale_gate_ms() -> int:
     return _int_env("BIFROST_STALE_MS", DEFAULT_STALE_MS)
 
 
-def _timestamp_ms(value: Any) -> Optional[int]:
+def _timestamp_ms(value: Any) -> int | None:
     """Normalize an epoch-seconds/ms or ISO-8601 timestamp to epoch milliseconds."""
     if value in (None, ""):
         return None
@@ -506,7 +506,7 @@ def _timestamp_ms(value: Any) -> Optional[int]:
         return None
 
 
-def _message_meta(message: Any) -> Dict[str, Any]:
+def _message_meta(message: Any) -> dict[str, Any]:
     raw = message.get("meta") if isinstance(message, dict) else getattr(message, "meta", None)
     if isinstance(raw, dict):
         return raw
@@ -517,7 +517,7 @@ def _message_meta(message: Any) -> Dict[str, Any]:
         return {}
 
 
-def msg_age_ms(message_or_id: Any, now_ms: int) -> Optional[int]:
+def msg_age_ms(message_or_id: Any, now_ms: int) -> int | None:
     """Age from a message's authoritative clock.
 
     A normal packet uses its stream id ``{ms}-{seq}``. A re-homed packet first uses
@@ -548,7 +548,7 @@ def never_drop_when_stale(kind: Any) -> bool:
     return str(kind or "").strip().lower() in NEVER_DROP_WHEN_STALE
 
 
-def partition_stale(messages, *, now_ms: int, stale_ms: int, id_of=None, kind_of=None) -> Tuple[list, list, list]:
+def partition_stale(messages, *, now_ms: int, stale_ms: int, id_of=None, kind_of=None) -> tuple[list, list, list]:
     """The D2 gate's pure half: (fresh, stale_asks, stale_skips). stale_ms<=0 disables (P2).
     Stale ASKS are never dropped -- the caller surfaces them as ONE triage notice and never
     auto-acks (P4); stale non-asks skip the responder, and the caller's existing cursor sweep
@@ -601,7 +601,7 @@ def _blob_store():
     return get_blob_store()
 
 
-def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Dict[str, Any]]:
+def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> tuple[str, dict[str, Any]]:
     """T113: the ToolBox send door, LOSSLESS. Returns (text_for_the_wire, meta_to_merge).
 
     The bound stays -- 8000 chars in one runner turn is a real rendering concern -- but
@@ -647,7 +647,7 @@ def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Di
     }
 
 
-def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str, Any]]:
+def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> dict[str, Any] | None:
     """P2: durable CLIPPED stamp for envelope meta -- returns a dict with clip facts when
     the text exceeds the bound, or None when it fits. Callers merge this into their
     envelope meta so the clip fact survives transport (RB-5 durable, not just the text
@@ -659,7 +659,7 @@ def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str,
 
 
 # --------------------------------------------------------------------- fragmentation
-def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def parse_frag(fields: dict[str, Any]) -> dict[str, Any] | None:
     """The frag header {seq,of,whole_id,whole_len,whole_sha} from an envelope, or None if the
     packet is not a fragment. Tolerates the header arriving as a dict or a json string."""
     raw = fields.get("frag")
@@ -674,12 +674,12 @@ def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _chunk_by_bytes(s: str, max_bytes: int) -> List[str]:
+def _chunk_by_bytes(s: str, max_bytes: int) -> list[str]:
     """Greedy split of a str into pieces each <= max_bytes when UTF-8 encoded, NEVER splitting
     a multibyte char. O(len(s)). Concatenating the pieces reproduces s exactly."""
     max_bytes = max(1, max_bytes)
-    chunks: List[str] = []
-    cur: List[str] = []
+    chunks: list[str] = []
+    cur: list[str] = []
     cur_bytes = 0
     for ch in s:
         cb = len(ch.encode("utf-8"))
@@ -693,7 +693,7 @@ def _chunk_by_bytes(s: str, max_bytes: int) -> List[str]:
     return chunks or [""]
 
 
-def fragment(fields: Dict[str, Any], *, max_bytes: Optional[int] = None) -> List[Dict[str, Any]]:
+def fragment(fields: dict[str, Any], *, max_bytes: int | None = None) -> list[dict[str, Any]]:
     """Split an oversize envelope into N fragment envelopes (opt-in: the send door calls this
     only when allow_frag=True and the packet exceeds the MTU). Each fragment replicates the
     small routing fields (frm,to,kind,ts,meta,parts), carries a slice of the content STRING,
@@ -711,7 +711,7 @@ def fragment(fields: Dict[str, Any], *, max_bytes: Optional[int] = None) -> List
     budget = max(1, limit - overhead)
     pieces = _chunk_by_bytes(content, budget)
     of = len(pieces)
-    frags: List[Dict[str, Any]] = []
+    frags: list[dict[str, Any]] = []
     for seq, piece in enumerate(pieces):
         fenv = {k: fields.get(k) for k in CANONICAL_FIELDS}
         fenv["content"] = piece
@@ -740,11 +740,11 @@ class Reassembler:
 
     def __init__(self, persist=None) -> None:
         # whole_id -> {"of", "pieces": {seq: content}, "first": float, "whole_len", "whole_sha"}
-        self._buf: Dict[str, Dict[str, Any]] = {}
-        self._done: "OrderedDict[str, None]" = OrderedDict()  # bounded LRU of finished whole_ids
+        self._buf: dict[str, dict[str, Any]] = {}
+        self._done: OrderedDict[str, None] = OrderedDict()  # bounded LRU of finished whole_ids
         self._persist = persist  # callable(whole_id, slot|None); None => in-memory only
 
-    def rehydrate(self, slots: Dict[str, Dict[str, Any]]) -> None:
+    def rehydrate(self, slots: dict[str, dict[str, Any]]) -> None:
         """Load persisted partial slots at startup (crash recovery). seq keys are normalized back
         to int (json stringifies dict keys).
 
@@ -780,7 +780,7 @@ class Reassembler:
         while len(self._done) > _DONE_CAP:
             self._done.popitem(last=False)
 
-    def add(self, fields: Dict[str, Any], *, now: float) -> Tuple[Optional[Dict[str, Any]], Optional[Tuple[str, str]]]:
+    def add(self, fields: dict[str, Any], *, now: float) -> tuple[dict[str, Any] | None, tuple[str, str] | None]:
         """Feed one fragment. Returns (whole|None, problem|None):
         - whole: the reassembled, whole-verified envelope, when this frag completes the set.
         - problem: (kind, detail) with kind in {orphan, whole-corrupt, stale} for a LOUD log
@@ -833,11 +833,11 @@ class Reassembler:
         stamp(whole)  # deliver a clean v2 packet
         return whole, None
 
-    def sweep_expired(self, now: float) -> List[Tuple[str, List[int]]]:
+    def sweep_expired(self, now: float) -> list[tuple[str, list[int]]]:
         """Drop wholes past TTL; return [(whole_id, [missing seqs])] for a LOUD fragment_timeout
         event. Call at drain time (cheap: iterates only in-flight partial sets)."""
         ttl = frag_reassembly_ttl()
-        dead: List[Tuple[str, List[int]]] = []
+        dead: list[tuple[str, list[int]]] = []
         for wid, slot in list(self._buf.items()):
             if now - slot["first"] > ttl:
                 missing = [i for i in range(slot["of"]) if i not in slot["pieces"]]

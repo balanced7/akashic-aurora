@@ -40,13 +40,14 @@ from __future__ import annotations
 import os
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 from core.comm import remote_relay as RR
 from core.outcome import BoundaryOutcome
 
 
-def _reachable(url: str, timeout: float = 4.0) -> Optional[bool]:
+def _reachable(url: str, timeout: float = 4.0) -> bool | None:
     """TCP-connect a peer's endpoint. None when there is nothing to probe.
 
     Deliberately a connect and not a signed POST: "is the door there" and "does the door admit
@@ -65,13 +66,13 @@ def _reachable(url: str, timeout: float = 4.0) -> Optional[bool]:
         return False
 
 
-def status(*, probe: bool = True) -> Dict[str, Any]:
+def status(*, probe: bool = True) -> dict[str, Any]:
     """The whole remote plane as one dict. NEVER RAISES.
 
     `probe=False` is the cheap render and reports reachability as None rather than guessing —
     the panel must not imply a measurement it did not take.
     """
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "measured_at": int(time.time()),
         "probed": bool(probe),
         "peers": [],
@@ -125,7 +126,7 @@ def status(*, probe: bool = True) -> Dict[str, Any]:
 
 #: What a UI may offer. `danger` drives confirmation and colour; `what` is shown to the human
 #: BEFORE they press it, because a button whose consequence is only in the source is a trap.
-_ACTIONS: List[Dict[str, str]] = [
+_ACTIONS: list[dict[str, str]] = [
     {
         "id": "tick_outbox",
         "label": "Retry queued mail",
@@ -150,7 +151,7 @@ _ACTIONS: List[Dict[str, str]] = [
 ]
 
 
-def actions() -> List[Dict[str, str]]:
+def actions() -> list[dict[str, str]]:
     return [dict(a) for a in _ACTIONS]
 
 
@@ -158,9 +159,9 @@ def act(
     action_id: Any,
     *,
     confirm: bool = False,
-    bus_send: Optional[Callable[..., Any]] = None,
-    process_table: Optional[Callable[[], List[Dict[str, Any]]]] = None,
-    kill: Optional[Callable[[int], bool]] = None,
+    bus_send: Callable[..., Any] | None = None,
+    process_table: Callable[[], list[dict[str, Any]]] | None = None,
+    kill: Callable[[int], bool] | None = None,
 ) -> BoundaryOutcome:
     """Perform one remediation. NEVER RAISES.
 
@@ -197,7 +198,7 @@ def act(
         return BoundaryOutcome.caught(e, where="bridge_status.act")
 
 
-def _drain(bus_send: Optional[Callable[..., Any]]) -> BoundaryOutcome:
+def _drain(bus_send: Callable[..., Any] | None) -> BoundaryOutcome:
     """Put parked peer mail on the local bus with the guest-tier posture.
 
     Attributed in the body, authority:none in the meta, provenance from the VERIFIED ROUTE
@@ -252,7 +253,7 @@ _LISTENER_PROGRAM = re.compile(
 )
 
 
-def _process_table() -> List[Dict[str, Any]]:
+def _process_table() -> list[dict[str, Any]]:
     """The host's process table as {pid, ppid, name, cmdline} rows. RAW on purpose: the
     selection lives in select_listener_pids, one pure Python function a pin can feed a fake
     table, rather than a predicate string handed to PowerShell where nothing can test it.
@@ -278,7 +279,7 @@ def _process_table() -> List[Dict[str, Any]]:
     raw = json.loads(r.stdout) if (r.stdout or "").strip() else []
     if isinstance(raw, dict):  # ConvertTo-Json unwraps a 1-row table
         raw = [raw]
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for p in raw:
         try:
             rows.append(
@@ -295,8 +296,8 @@ def _process_table() -> List[Dict[str, Any]]:
 
 
 def select_listener_pids(
-    rows: List[Dict[str, Any]], *, self_pid: Optional[int] = None, self_ppid: Optional[int] = None
-) -> Tuple[List[int], List[Tuple[int, str]]]:
+    rows: list[dict[str, Any]], *, self_pid: int | None = None, self_ppid: int | None = None
+) -> tuple[list[int], list[tuple[int, str]]]:
     """(targets, refused) from a process table. PURE -- no host access -- so the predicate and
     the self-protection are pinnable against a fake table.
 
@@ -312,7 +313,7 @@ def select_listener_pids(
     """
     me = int(os.getpid() if self_pid is None else self_pid)
     parent = int(os.getppid() if self_ppid is None else self_ppid)
-    ppid_of: Dict[int, int] = {}
+    ppid_of: dict[int, int] = {}
     for r in rows:
         try:
             ppid_of[int(r["pid"])] = int(r.get("ppid") or 0)
@@ -328,8 +329,8 @@ def select_listener_pids(
         cur = nxt
     lineage.add(parent)  # even when the table lacks the caller's own row
 
-    targets: List[int] = []
-    refused: List[Tuple[int, str]] = []
+    targets: list[int] = []
+    refused: list[tuple[int, str]] = []
     for r in rows:
         try:
             pid = int(r["pid"])
@@ -359,7 +360,7 @@ def _taskkill(pid: int) -> bool:
 
 
 def _restart_listener(
-    *, process_table: Optional[Callable[[], List[Dict[str, Any]]]] = None, kill: Optional[Callable[[int], bool]] = None
+    *, process_table: Callable[[], list[dict[str, Any]]] | None = None, kill: Callable[[int], bool] | None = None
 ) -> BoundaryOutcome:
     """Stop the local listener. Reports what it actually observed, not what it attempted.
 

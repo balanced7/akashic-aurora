@@ -86,7 +86,7 @@ class CliError(Exception):
 class Client:
     """The server's routes over HTTP; with no server and offline=True, the same routes in-process."""
 
-    def __init__(self, port: int, jam_root: Optional[str] = None, offline: bool = False, err=None):
+    def __init__(self, port: int, jam_root: str | None = None, offline: bool = False, err=None):
         self.port = port
         self.jam_root = jam_root
         self.offline_ok = offline
@@ -94,9 +94,7 @@ class Client:
         self.err = err or sys.stderr
         self._api = None
 
-    def call(
-        self, method: str, path: str, body: Optional[dict] = None, query: Optional[dict] = None
-    ) -> Tuple[int, dict]:
+    def call(self, method: str, path: str, body: dict | None = None, query: dict | None = None) -> tuple[int, dict]:
         query = {k: v for k, v in (query or {}).items() if v is not None}
         if self.offline:
             return self._local(method, path, body, query)
@@ -146,7 +144,7 @@ class Client:
         return self._api.handle(method, path, {k: [str(v)] for k, v in query.items()}, body)
 
 
-def _check(status: int, reply: dict, flags: Optional[dict] = None) -> dict:
+def _check(status: int, reply: dict, flags: dict | None = None) -> dict:
     if status == 200:
         return reply
     message = (reply or {}).get("error") or f"the server answered {status}"
@@ -172,7 +170,7 @@ def _one_based(value: str, flag: str) -> int:
     return int(value) - 1
 
 
-def _find_card(client: Client, ref: str) -> Optional[dict]:
+def _find_card(client: Client, ref: str) -> dict | None:
     """The stored card an id or unique prefix names, or None when nothing matches."""
     if S.ID_RE.match(ref or ""):
         status, reply = client.call("GET", f"/api/piano/deck/cards/{ref}")
@@ -194,7 +192,7 @@ def _card(client: Client, ref: str) -> dict:
     return card
 
 
-def _target(client: Client, text: str, key: Optional[str]) -> dict:
+def _target(client: Client, text: str, key: str | None) -> dict:
     """{card_id} or {chords, key} for a CARD|CHORDS argument."""
     card = _find_card(client, text)
     if card is not None:
@@ -220,7 +218,7 @@ def _jam_page(client: Client) -> None:
         raise CliError(RELOAD if st.get("listeners") else NO_LISTENER.format(port=client.port), NO_PAGE)
 
 
-def _slot_rows(d: dict, backing: Optional[str] = None, loop: bool = False) -> List[str]:
+def _slot_rows(d: dict, backing: str | None = None, loop: bool = False) -> list[str]:
     rows = []
     m = d["beats_per_bar"]
     show = backing or d["backing"]
@@ -330,11 +328,11 @@ def _replay_flag(text: str) -> dict:
     return {"session": m.group(1), "at": m.group(2), "seconds": float(m.group(3)), "speed": 1}
 
 
-def _chord_items(line_items: List[dict]) -> List[dict]:
+def _chord_items(line_items: list[dict]) -> list[dict]:
     return [it for it in line_items if "key" not in it and "rest" not in it]
 
 
-def _apply_line_flags(chords: List[dict], args) -> None:
+def _apply_line_flags(chords: list[dict], args) -> None:
     items = _chord_items(chords)
     for spec in args.notes_for or []:
         if "=" not in spec:
@@ -354,7 +352,7 @@ def _apply_line_flags(chords: List[dict], args) -> None:
         items[i]["upper"] = "same"
 
 
-def _names_line(text: str, key: Optional[str]) -> List[dict]:
+def _names_line(text: str, key: str | None) -> list[dict]:
     from arsenal import nashville
 
     if not key:
@@ -376,7 +374,7 @@ def _names_line(text: str, key: Optional[str]) -> List[dict]:
     return items
 
 
-def _card_from_flags(args, base: Optional[dict] = None) -> dict:
+def _card_from_flags(args, base: dict | None = None) -> dict:
     card = dict(base or {})
     for flag, field in (
         ("id", "id"),
@@ -1012,7 +1010,7 @@ def _cmd_template(args, client: Client, out) -> int:
 
 
 def moment_from_log(
-    store, session: str, at: Optional[str], until: Optional[str], key: str = "auto", last: bool = False
+    store, session: str, at: str | None, until: str | None, key: str = "auto", last: bool = False
 ) -> dict:
     """The harmonic window at AT (or the longest overlapping AT..UNTIL, or the last one) read into a moment: the
     distinct MIDI notes heard for at least half the window, none below its main bass note, at most 16 (DATA 2.10)."""

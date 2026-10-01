@@ -71,7 +71,7 @@ def change_score(prev: tuple, cur: tuple) -> float:
     return round(0.5 * mad + 0.5 * l1, 6)
 
 
-def scores_for(sigs: List[tuple]) -> List[float]:
+def scores_for(sigs: list[tuple]) -> list[float]:
     """One score per frame after the first; scores[i] describes the step INTO frame i+1."""
     return [change_score(sigs[i - 1], sigs[i]) for i in range(1, len(sigs))]
 
@@ -91,13 +91,13 @@ class Segment:
 
 
 def segment(
-    scores: List[float],
-    times: List[float],
+    scores: list[float],
+    times: list[float],
     *,
     low: float = DEFAULT_LOW,
     high: float = DEFAULT_HIGH,
     settle_frames: int = DEFAULT_SETTLE_FRAMES,
-) -> List[Segment]:
+) -> list[Segment]:
     """Hysteresis segmentation of the score curve.
 
     A run of frames at or below ``low`` (at least ``settle_frames`` long) is SETTLED; a run
@@ -108,7 +108,7 @@ def segment(
     """
     if not scores:
         return []
-    segs: List[Segment] = []
+    segs: list[Segment] = []
     i, n = 0, len(scores)
     quiet_run = 0
     cur_kind = "settled" if scores[0] <= low else "transition"
@@ -131,7 +131,7 @@ def segment(
     return [s for s in segs if s.duration_ms >= 0]
 
 
-def _mk(kind: str, a: int, b: int, scores: List[float], times: List[float]) -> Segment:
+def _mk(kind: str, a: int, b: int, scores: list[float], times: list[float]) -> Segment:
     b = max(a, b)
     window = scores[a : b + 1] or [0.0]
     t0 = times[a]
@@ -146,9 +146,9 @@ def _mk(kind: str, a: int, b: int, scores: List[float], times: List[float]) -> S
     )
 
 
-def pick_representatives(segs: List[Segment], scores: List[float], times: List[float]) -> List[dict]:
+def pick_representatives(segs: list[Segment], scores: list[float], times: list[float]) -> list[dict]:
     """One frame per settled run (its middle) and one per transition (its peak)."""
-    picks: List[dict] = []
+    picks: list[dict] = []
     for seg in segs:
         a_idx = _index_at(times, seg.start_s)
         b_idx = min(_index_at(times, seg.end_s), len(scores) - 1)
@@ -169,7 +169,7 @@ def pick_representatives(segs: List[Segment], scores: List[float], times: List[f
     return picks
 
 
-def _index_at(times: List[float], t: float) -> int:
+def _index_at(times: list[float], t: float) -> int:
     if not times:
         return 0
     return int(np.clip(np.searchsorted(times, t, side="left"), 0, len(times) - 1))
@@ -210,16 +210,16 @@ def palette_delta(a: tuple, b: tuple) -> float:
 
 
 def dedupe(
-    picks: List[dict],
+    picks: list[dict],
     hashes: dict,
     palettes: dict,
     *,
     max_hamming: int = DEFAULT_MAX_HAMMING,
     max_palette: float = DEFAULT_MAX_PALETTE,
-) -> List[dict]:
+) -> list[dict]:
     """Drop picks whose frame is visually the same moment as one already kept: same structure
     (dHash within max_hamming) AND same palette (max channel delta within max_palette)."""
-    kept: List[dict] = []
+    kept: list[dict] = []
     for p in picks:
         idx = p["frame_index"]
         h, pal = hashes.get(idx), palettes.get(idx)
@@ -254,7 +254,7 @@ def _write_png(rgb: np.ndarray, path: Path) -> bool:
         return False
 
 
-def _contact_sheet(frames: List[np.ndarray], cols: int = 3) -> Optional[np.ndarray]:
+def _contact_sheet(frames: list[np.ndarray], cols: int = 3) -> np.ndarray | None:
     """A labelled-by-position mosaic: every kept frame at the same size, row by row."""
     if not frames:
         return None
@@ -281,8 +281,8 @@ def analyse(
     max_hamming: int = DEFAULT_MAX_HAMMING,
 ) -> dict:
     """Decode cheap, score, segment, pick, de-dup. Returns the manifest (no files written)."""
-    times: List[float] = []
-    sigs: List[tuple] = []
+    times: list[float] = []
+    sigs: list[tuple] = []
     frames_at_pick: dict = {}
     palettes_at_pick: dict = {}
     src = Path(path)
@@ -338,7 +338,7 @@ def storyboard(
     *,
     fps: float = DEFAULT_FPS,
     width: int = DEFAULT_WIDTH,
-    out_dir: Optional[str] = None,
+    out_dir: str | None = None,
     write_frames: bool = False,
     **kw,
 ) -> dict:
@@ -350,7 +350,7 @@ def storyboard(
     manifest["out_dir"] = str(out)
 
     keep = {p["frame_index"] for p in manifest["picks"]}
-    thumbs: List[np.ndarray] = []
+    thumbs: list[np.ndarray] = []
     if keep:
         with av.open(str(path)) as container:
             stream = container.streams.video[0]

@@ -36,7 +36,8 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 import torch
 
@@ -102,7 +103,7 @@ class ModelLifecycleManager:
     """
 
     def __init__(self):
-        self.models: Dict[str, ModelInfo] = {}
+        self.models: dict[str, ModelInfo] = {}
         self.vision_engine = None
         self.vision_loaded = False
 
@@ -116,7 +117,7 @@ class ModelLifecycleManager:
         """Register a model with its VRAM footprint"""
         self.models[name] = ModelInfo(name=name, size_gb=size_gb, priority=priority)
 
-    def get_vram_usage(self) -> Optional[float]:
+    def get_vram_usage(self) -> float | None:
         """
         Get current VRAM usage in GB.
 
@@ -153,7 +154,7 @@ class ModelLifecycleManager:
 
         return None
 
-    def get_loaded_models(self) -> List[str]:
+    def get_loaded_models(self) -> list[str]:
         """Get list of currently loaded model names"""
         return [name for name, info in self.models.items() if info.loaded_at > 0 and info.priority != Priority.IDLE]
 
@@ -172,7 +173,7 @@ class ModelLifecycleManager:
 
         return available >= model.size_gb
 
-    def get_models_to_unload(self, target_model: str) -> List[str]:
+    def get_models_to_unload(self, target_model: str) -> list[str]:
         """
         Get list of models that should be unloaded to make room.
 
@@ -300,7 +301,7 @@ class ModelLifecycleManager:
             if loaded:
                 self.unload_vision_model()
 
-    def check_vram_and_warn(self) -> Dict[str, Any]:
+    def check_vram_and_warn(self) -> dict[str, Any]:
         """
         Check VRAM and return warning status.
 
@@ -330,7 +331,7 @@ class ModelLifecycleManager:
             "timestamp": datetime.now().isoformat(),
         }
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get full lifecycle manager status"""
         vram_status = self.check_vram_and_warn()
 
@@ -345,7 +346,7 @@ class ModelLifecycleManager:
 
         return {"vram": vram_status, "models": model_status, "vision_engine_ready": self.vision_loaded}
 
-    def suggest_swap(self, desired_priority: Priority) -> Dict[str, Any]:
+    def suggest_swap(self, desired_priority: Priority) -> dict[str, Any]:
         """
         Suggest what models to swap for a given priority.
 

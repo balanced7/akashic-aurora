@@ -49,7 +49,7 @@ def _client():
     return get_bus("triage")._client
 
 
-def park(agent: str, msg: Dict[str, Any], *, reason: str, by: str) -> Dict[str, Any]:
+def park(agent: str, msg: dict[str, Any], *, reason: str, by: str) -> dict[str, Any]:
     """Bottom one ask to the agent's bench. Durable append + LOUD sender-notify + receipt.
     Returns the bench entry (parked_id) so the caller may advance its cursor past the ask."""
     c = _client()
@@ -92,7 +92,7 @@ def park(agent: str, msg: Dict[str, Any], *, reason: str, by: str) -> Dict[str, 
     return entry
 
 
-def list_parked(agent: str) -> List[Dict[str, Any]]:
+def list_parked(agent: str) -> list[dict[str, Any]]:
     c = _client()
     if c is None:
         return []
@@ -109,7 +109,7 @@ def count(agent: str) -> int:
         return 0
 
 
-def unpark(agent: str, parked_id: str) -> Optional[Dict[str, Any]]:
+def unpark(agent: str, parked_id: str) -> dict[str, Any] | None:
     """Scry-to-bottom's return path: remove ONE entry from the bench and hand it back
     INTACT. The bench forgets what it returned; the caller re-processes the ask."""
     c = _client()

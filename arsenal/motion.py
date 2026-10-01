@@ -41,7 +41,7 @@ def load(manifest) -> dict:
     return manifest
 
 
-def _read(transitions: int, per_min: Optional[float]) -> str:
+def _read(transitions: int, per_min: float | None) -> str:
     if per_min is None:
         return "unknown"
     if transitions == 0:
@@ -53,7 +53,7 @@ def _read(transitions: int, per_min: Optional[float]) -> str:
     return "frantic"
 
 
-def _median(values: List[float]) -> Optional[float]:
+def _median(values: list[float]) -> float | None:
     return float(np.median(values)) if values else None
 
 
@@ -118,7 +118,7 @@ def profile(manifest) -> dict:
     }
 
 
-def profile_many(directory, *, pattern: str = "storyboard.json") -> List[dict]:
+def profile_many(directory, *, pattern: str = "storyboard.json") -> list[dict]:
     """Every stored storyboard under a directory (recursive) -- the bank-wide comparison."""
     d = Path(directory)
     if not d.is_dir():

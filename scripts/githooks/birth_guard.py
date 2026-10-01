@@ -77,7 +77,7 @@ def classify(relpath: str) -> str:
     return "allow"
 
 
-def staged_added(paths: "list[str] | None" = None) -> list[str]:
+def staged_added(paths: list[str] | None = None) -> list[str]:
     """New .md in the index. `paths` pathspec-limits the query -- C2-4.
 
     The index is SHARED between seats. Called bare (the pre-commit hook) this judges the whole
@@ -93,7 +93,7 @@ def staged_added(paths: "list[str] | None" = None) -> list[str]:
     return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     mode = os.environ.get("AKASHIC_BIRTH_GUARD", "").strip().lower()
     if mode == "off":

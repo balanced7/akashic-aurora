@@ -112,7 +112,7 @@ def _stem(tok: str) -> str:
     return tok
 
 
-def _content_terms(query: str) -> List[str]:
+def _content_terms(query: str) -> list[str]:
     """Query words that carry meaning, folded to stems. Single characters go too: they cannot
     discriminate and they were half the flood."""
     return [_stem(t) for t in _TOKEN.findall(str(query or "").lower()) if t not in _STOPWORDS and len(t) > 1]
@@ -201,7 +201,7 @@ def draft_anti_pattern_slug(
     source = (root_cause or "").strip() or (what_tried or "").strip() or (recommendation or "").strip()
     if not source:
         return ""
-    words: List[str] = []
+    words: list[str] = []
     for w in re.findall(r"[A-Za-z0-9]+", source.lower()):
         if len(w) > 3 and w not in _DRAFT_STOP and w not in words:
             words.append(w)
@@ -262,7 +262,7 @@ class LearningStore:
             return "no"
         return cls._SUCCESS_SYNONYMS.get(str(raw).strip().lower(), "no")
 
-    def __init__(self, store: Optional[Store] = None, redis_client: Optional[Any] = None):
+    def __init__(self, store: Store | None = None, redis_client: Any | None = None):
         """
         Initialize the Learning Store.
 
@@ -306,7 +306,7 @@ class LearningStore:
             if not legacy_file.exists():
                 return
             imported = 0
-            with open(legacy_file, "r", encoding="utf-8") as f:
+            with open(legacy_file, encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -327,7 +327,7 @@ class LearningStore:
             self.logger.warning(f"Legacy learning import skipped: {e}")
 
     # ----- write -----
-    def persist_learning_derived_from_experiment(self, learning_signal: Dict[str, Any]) -> bool:
+    def persist_learning_derived_from_experiment(self, learning_signal: dict[str, Any]) -> bool:
         """
         Persist learning derived from experiment to the Store.
 
@@ -349,7 +349,7 @@ class LearningStore:
             return False
 
     # Backward compatibility alias
-    def record_learning(self, learning_signal: Dict[str, Any]) -> bool:
+    def record_learning(self, learning_signal: dict[str, Any]) -> bool:
         """Deprecated: Use persist_learning_derived_from_experiment() instead"""
         return self.persist_learning_derived_from_experiment(learning_signal)
 
@@ -368,7 +368,7 @@ class LearningStore:
     #: it replaces. `repeat_report()` refuses to emit one and says so in its own payload.
     REPEAT_INDEX = "learn:repeats"
 
-    def record_repeat(self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "") -> Dict[str, Any]:
+    def record_repeat(self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "") -> dict[str, Any]:
         """Record that a lesson which ALREADY EXISTED was violated anyway.
 
         `recall_outcome` is the field that earns its place: a repeat where recall FIRED is a
@@ -421,7 +421,7 @@ class LearningStore:
     # `repeat_report()["count"]` already answers it. A second way to ask the same question is
     # a second thing to keep in agreement.
 
-    def repeat_report(self) -> Dict[str, Any]:
+    def repeat_report(self) -> dict[str, Any]:
         """The multifaceted record, deliberately not a score.
 
         Returns a count, the lessons ranked by how often they were violated, and the split by
@@ -433,7 +433,7 @@ class LearningStore:
         violated anyway is a targeting failure WITH A KNOWN RIGHT ANSWER, which is the rarest
         thing in the corpus and exactly the training set the recall trigger problem needs.
         """
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         try:
             for rid in self.store.smembers(self.REPEAT_INDEX) or []:
                 rec = self.store.hgetall(f"learn:repeat:{rid}") or {}
@@ -442,8 +442,8 @@ class LearningStore:
         except Exception:
             pass
 
-        by_lesson: Dict[str, int] = {}
-        by_outcome: Dict[str, int] = {}
+        by_lesson: dict[str, int] = {}
+        by_outcome: dict[str, int] = {}
         for e in entries:
             by_lesson[e.get("of", "?")] = by_lesson.get(e.get("of", "?"), 0) + 1
             o = e.get("recall_outcome") or "unrecorded"
@@ -545,7 +545,7 @@ class LearningStore:
             self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
             return False
 
-    def mark_related(self, experiment_id: str, related: List[Dict[str, Any]]) -> bool:
+    def mark_related(self, experiment_id: str, related: list[dict[str, Any]]) -> bool:
         """Persist the near-duplicate edges `find_related` computed at capture time. The write door
         has ALWAYS warned on overlap (advisory print) -- but the edge itself evaporated with the
         console line, so the consolidation/merge pass it points at had nothing durable to act on.
@@ -582,7 +582,7 @@ class LearningStore:
             self.logger.error(f"mark_related failed for {experiment_id}: {e}")
             return False
 
-    def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: List[str]) -> bool:
+    def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: list[str]) -> bool:
         """Append a rejected Forge edit to the record's durable negative-feedback buffer
         (design decision 6, locked KEEP as a plain field). The optimizer prompt includes
         this buffer so a failed edit is never re-proposed; capped to the last 8 rejections
@@ -654,8 +654,8 @@ class LearningStore:
         self,
         experiment_id: str,
         new_recommendation: str,
-        gate_summary: Dict[str, Any],
-        baseline: Optional[Dict[str, Any]] = None,
+        gate_summary: dict[str, Any],
+        baseline: dict[str, Any] | None = None,
     ) -> bool:
         """Apply a gate-PASSED, human-approved Forge edit: swap the recommendation text,
         retaining the incumbent for rollback (reversible by construction -- the same bet
@@ -731,7 +731,7 @@ class LearningStore:
         has no rename today, so that is a named follow-up rather than a silent omission.
         """
         prefix = "learn:experiment:"
-        rows: Dict[str, str] = {}
+        rows: dict[str, str] = {}
         for key, val in (self.store.hgetall_prefix(prefix) or {}).items():
             if prefix not in key:
                 continue
@@ -746,7 +746,7 @@ class LearningStore:
         self.store.delete("learn:experiments:all")
         self.store.rpush("learn:experiments:all", *ordered)
 
-    def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
+    def _index_learning(self, learning_signal: dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).
 
@@ -841,7 +841,7 @@ class LearningStore:
             )
 
     # ----- read helpers -----
-    def _load_experiment(self, exp_id: str) -> Dict[str, Any]:
+    def _load_experiment(self, exp_id: str) -> dict[str, Any]:
         """Load one experiment hash and parse its metrics JSON."""
         data = self.store.hgetall(f"learn:experiment:{exp_id}")
         for field in ("metrics", "files_affected"):
@@ -854,8 +854,8 @@ class LearningStore:
 
     # ----- read: search -----
     def search_learnings_by_keyword(
-        self, keyword: str, domain: Optional[str] = None, agent: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, keyword: str, domain: str | None = None, agent: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Search learnings by keyword, optionally scoped to one domain and/or one agent.
 
@@ -920,12 +920,12 @@ class LearningStore:
             return []
 
     # Backward compatibility alias
-    def get_learnings(self, query: str) -> List[Dict[str, Any]]:
+    def get_learnings(self, query: str) -> list[dict[str, Any]]:
         """Deprecated: Use search_learnings_by_keyword() instead"""
         return self.search_learnings_by_keyword(query)
 
     # search_learnings_by_keywords is kept as a distinct public name (same logic)
-    def search_learnings_by_keywords(self, keywords: str) -> List[Dict[str, Any]]:
+    def search_learnings_by_keywords(self, keywords: str) -> list[dict[str, Any]]:
         """
         Search learnings by keywords.
 
@@ -934,12 +934,12 @@ class LearningStore:
         return self.search_learnings_by_keyword(keywords)
 
     # Backward compatibility alias
-    def search_learnings(self, keywords: str) -> List[Dict[str, Any]]:
+    def search_learnings(self, keywords: str) -> list[dict[str, Any]]:
         """Deprecated: Use search_learnings_by_keywords() instead"""
         return self.search_learnings_by_keywords(keywords)
 
     # ----- read: category analysis -----
-    def analyze_learning_patterns_in_category(self, category: str) -> Dict[str, Any]:
+    def analyze_learning_patterns_in_category(self, category: str) -> dict[str, Any]:
         """
         Analyze what consistently works vs doesn't in a category.
 
@@ -972,12 +972,12 @@ class LearningStore:
             return {}
 
     # Backward compatibility alias
-    def get_patterns(self, category: str) -> Dict[str, Any]:
+    def get_patterns(self, category: str) -> dict[str, Any]:
         """Deprecated: Use analyze_learning_patterns_in_category() instead"""
         return self.analyze_learning_patterns_in_category(category)
 
     # ----- read: anti-patterns -----
-    def load_documented_anti_patterns(self, topic: Optional[str] = None) -> List[Dict[str, Any]]:
+    def load_documented_anti_patterns(self, topic: str | None = None) -> list[dict[str, Any]]:
         """
         Load documented anti-patterns (things that don't work), by severity.
 
@@ -1013,12 +1013,12 @@ class LearningStore:
             return []
 
     # Backward compatibility alias
-    def get_anti_patterns(self, topic: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_anti_patterns(self, topic: str | None = None) -> list[dict[str, Any]]:
         """Deprecated: Use load_documented_anti_patterns() instead"""
         return self.load_documented_anti_patterns(topic)
 
     # ----- read: recommendations -----
-    def load_recommendations_for_task(self, task: str) -> List[Dict[str, Any]]:
+    def load_recommendations_for_task(self, task: str) -> list[dict[str, Any]]:
         """
         Load recommendations for a task from past learnings, by success.
 
@@ -1055,12 +1055,12 @@ class LearningStore:
             return []
 
     # Backward compatibility alias
-    def get_recommendations(self, task: str) -> List[Dict[str, Any]]:
+    def get_recommendations(self, task: str) -> list[dict[str, Any]]:
         """Deprecated: Use load_recommendations_for_task() instead"""
         return self.load_recommendations_for_task(task)
 
     # ----- read: category summary -----
-    def summarize_learnings_by_category(self) -> Dict[str, Dict[str, Any]]:
+    def summarize_learnings_by_category(self) -> dict[str, dict[str, Any]]:
         """
         Summarize learnings grouped by category.
 
@@ -1077,12 +1077,12 @@ class LearningStore:
             return {}
 
     # Backward compatibility alias
-    def get_category_summary(self) -> Dict[str, Dict[str, Any]]:
+    def get_category_summary(self) -> dict[str, dict[str, Any]]:
         """Deprecated: Use summarize_learnings_by_category() instead"""
         return self.summarize_learnings_by_category()
 
     # ----- read: by agent -----
-    def load_learnings_contributed_by_agent(self, agent_id: str) -> List[Dict[str, Any]]:
+    def load_learnings_contributed_by_agent(self, agent_id: str) -> list[dict[str, Any]]:
         """
         Load all learnings contributed by a specific agent.
 
@@ -1100,12 +1100,12 @@ class LearningStore:
             return []
 
     # Backward compatibility alias
-    def get_agent_learnings(self, agent_id: str) -> List[Dict[str, Any]]:
+    def get_agent_learnings(self, agent_id: str) -> list[dict[str, Any]]:
         """Deprecated: Use load_learnings_contributed_by_agent() instead"""
         return self.load_learnings_contributed_by_agent(agent_id)
 
     # ----- read: all -----
-    def load_all_learnings_from_store(self) -> List[Dict[str, Any]]:
+    def load_all_learnings_from_store(self) -> list[dict[str, Any]]:
         """
         Load all learnings from the Store (newest first).
 
@@ -1143,12 +1143,12 @@ class LearningStore:
             return []
 
     # Backward compatibility alias
-    def get_all_learnings(self) -> List[Dict[str, Any]]:
+    def get_all_learnings(self) -> list[dict[str, Any]]:
         """Deprecated: Use load_all_learnings_from_store() instead"""
         return self.load_all_learnings_from_store()
 
     # ----- stats -----
-    def get_learning_store_stats(self) -> Dict[str, Any]:
+    def get_learning_store_stats(self) -> dict[str, Any]:
         """
         Statistics about the learning store.
 
@@ -1170,7 +1170,7 @@ class LearningStore:
             return {"status": "error", "message": str(e)}
 
     # Backward compatibility alias
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Deprecated: Use get_learning_store_stats() instead"""
         return self.get_learning_store_stats()
 
@@ -1182,7 +1182,7 @@ def _dim_tokens(s: Any) -> set:
     return {t.lower() for t in _DIM_TOKEN_RE.findall(str(s or "")) if len(t) > 3}
 
 
-def _dims_of(rec: Dict[str, Any]) -> Dict[str, set]:
+def _dims_of(rec: dict[str, Any]) -> dict[str, set]:
     """The five comparison dimensions for near-duplicate detection, adapted from Every's
     ce-compound overlap rule (docs/library/design/20260701_field-survey-what-the-best-practitioners_3c9d20.md C5): problem / root cause /
     solution / referenced paths / kind. Purely lexical on purpose -- deterministic, no
@@ -1207,13 +1207,13 @@ def _overlap(a: set, b: set) -> float:
 
 
 def find_related(
-    signal: Dict[str, Any],
-    existing: List[Dict[str, Any]],
+    signal: dict[str, Any],
+    existing: list[dict[str, Any]],
     *,
     threshold: float = 0.5,
     min_dims: int = 2,
     exclude_name: str = "",
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Deterministic near-duplicate scan for a lesson about to be recorded. Returns
     [{'experiment_name', 'dims', 'matched'}] sorted by dims desc, for records matching the
     candidate on >= min_dims of the five dimensions. The write door uses it as an ADVISORY
@@ -1230,7 +1230,7 @@ def find_related(
             "anti_pattern": signal.get("anti_pattern"),
         }
     )
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for rec in existing or []:
         name = str(rec.get("experiment_name") or "")
         if not name or name == exclude_name:
@@ -1243,7 +1243,7 @@ def find_related(
     return out
 
 
-def is_graduated(rec: Dict[str, Any]) -> bool:
+def is_graduated(rec: dict[str, Any]) -> bool:
     """True when a lesson's rule is enforced by automation (see mark_graduated). The contract:
     graduated lessons stay OUT of recall SURFACES (recall-at cache, boot ranking) but stay IN
     full-corpus queries (list / recall / --full) wearing a [graduated] tag -- history preserved,
@@ -1251,7 +1251,7 @@ def is_graduated(rec: Dict[str, Any]) -> bool:
     return bool(str((rec or {}).get("graduated") or "").strip())
 
 
-def is_benched(rec: Dict[str, Any]) -> bool:
+def is_benched(rec: dict[str, Any]) -> bool:
     """True when the curator has benched this lesson (surfaced-often-never-credited; see
     mark_benched). Same surface contract as graduation: out of recall surfaces, in full-corpus
     queries with a [benched] tag. Reversed automatically on new credit."""
@@ -1259,10 +1259,10 @@ def is_benched(rec: Dict[str, Any]) -> bool:
 
 
 # Global instance
-_learning_store: Optional[LearningStore] = None
+_learning_store: LearningStore | None = None
 
 
-def get_learning_store_instance(redis_client: Optional[Any] = None, store: Optional[Store] = None) -> LearningStore:
+def get_learning_store_instance(redis_client: Any | None = None, store: Store | None = None) -> LearningStore:
     """
     Get or create the global learning store instance.
 
@@ -1285,12 +1285,12 @@ def get_learning_store_instance(redis_client: Optional[Any] = None, store: Optio
 
 
 # Backward compatibility alias
-def get_learning_store(redis_client: Optional[Any] = None) -> LearningStore:
+def get_learning_store(redis_client: Any | None = None) -> LearningStore:
     """Deprecated: Use get_learning_store_instance() instead"""
     return get_learning_store_instance(redis_client=redis_client)
 
 
-def persist_learning_to_store(learning_signal: Dict[str, Any]) -> bool:
+def persist_learning_to_store(learning_signal: dict[str, Any]) -> bool:
     """
     Persist a learning signal to the global learning store.
 
@@ -1300,12 +1300,12 @@ def persist_learning_to_store(learning_signal: Dict[str, Any]) -> bool:
 
 
 # Backward compatibility alias
-def record_learning(learning_signal: Dict[str, Any]) -> bool:
+def record_learning(learning_signal: dict[str, Any]) -> bool:
     """Deprecated: Use persist_learning_to_store() instead"""
     return persist_learning_to_store(learning_signal)
 
 
-def search_learnings_in_store(keyword: str) -> List[Dict[str, Any]]:
+def search_learnings_in_store(keyword: str) -> list[dict[str, Any]]:
     """
     Search learnings in the global store by keyword.
 
@@ -1315,12 +1315,12 @@ def search_learnings_in_store(keyword: str) -> List[Dict[str, Any]]:
 
 
 # Backward compatibility alias
-def get_learnings(query: str) -> List[Dict[str, Any]]:
+def get_learnings(query: str) -> list[dict[str, Any]]:
     """Deprecated: Use search_learnings_in_store() instead"""
     return search_learnings_in_store(query)
 
 
-def load_recommendations_from_store(task: str) -> List[Dict[str, Any]]:
+def load_recommendations_from_store(task: str) -> list[dict[str, Any]]:
     """
     Load recommendations from the global store for a task.
 
@@ -1330,12 +1330,12 @@ def load_recommendations_from_store(task: str) -> List[Dict[str, Any]]:
 
 
 # Backward compatibility alias
-def get_recommendations(task: str) -> List[Dict[str, Any]]:
+def get_recommendations(task: str) -> list[dict[str, Any]]:
     """Deprecated: Use load_recommendations_from_store() instead"""
     return load_recommendations_from_store(task)
 
 
-def load_anti_patterns_from_store(topic: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_anti_patterns_from_store(topic: str | None = None) -> list[dict[str, Any]]:
     """
     Load anti-patterns from the global store.
 
@@ -1345,6 +1345,6 @@ def load_anti_patterns_from_store(topic: Optional[str] = None) -> List[Dict[str,
 
 
 # Backward compatibility alias
-def get_anti_patterns(topic: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_anti_patterns(topic: str | None = None) -> list[dict[str, Any]]:
     """Deprecated: Use load_anti_patterns_from_store() instead"""
     return load_anti_patterns_from_store(topic)

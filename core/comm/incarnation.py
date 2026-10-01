@@ -59,7 +59,7 @@ def _now_ts() -> str:
     return time.strftime(_TS_FMT)
 
 
-def _age_min(ts: str, now: Optional[float] = None) -> Optional[float]:
+def _age_min(ts: str, now: float | None = None) -> float | None:
     try:
         then = datetime.strptime(str(ts), _TS_FMT).timestamp()
     except Exception:
@@ -67,7 +67,7 @@ def _age_min(ts: str, now: Optional[float] = None) -> Optional[float]:
     return max(0.0, ((now if now is not None else time.time()) - then) / 60.0)
 
 
-def _ledger_claims(agent: str, limit: int = 4) -> List[str]:
+def _ledger_claims(agent: str, limit: int = 4) -> list[str]:
     """Task ids this AGENT holds open (claimed/in_progress/verifying). Agent-level on
     purpose: per-SESSION claim attribution is T072's plumbing, and a card must not
     pretend to a precision the ledger cannot give."""
@@ -93,8 +93,8 @@ def _resolve_client(c, allow_fallback: bool):
 def publish_card(
     agent: str,
     session_id: str,
-    pid: Optional[int] = None,
-    claims: Optional[List[str]] = None,
+    pid: int | None = None,
+    claims: list[str] | None = None,
     c=None,
     allow_fallback: bool = True,
 ) -> bool:
@@ -134,7 +134,7 @@ def delete_card(agent: str, session_id: str, c=None, allow_fallback: bool = True
 
 
 def refresh_card(
-    agent: str, session_id: str, claims: Optional[List[str]] = None, c=None, allow_fallback: bool = True
+    agent: str, session_id: str, claims: list[str] | None = None, c=None, allow_fallback: bool = True
 ) -> bool:
     """Every stop-hook firing re-arms the TTL. Keeps the birth stamp and claims (unless
     new ones are given); a MISSING card self-heals by republishing (R12: a Redis outage
@@ -164,13 +164,13 @@ def refresh_card(
         return False
 
 
-def read_cards(agent: str, c=None, allow_fallback: bool = True, now: Optional[float] = None) -> List[Dict]:
+def read_cards(agent: str, c=None, allow_fallback: bool = True, now: float | None = None) -> list[dict]:
     """All live cards for `agent`, status DERIVED at read time (R11): refreshed within
     IDLE_AFTER_MIN = active, older = idle. TTL expiry already removed the dead."""
     cli = _resolve_client(c, allow_fallback)
     if cli is None:
         return []
-    out: List[Dict] = []
+    out: list[dict] = []
     try:
         for key in cli.scan_iter(match=f"{_ns()}:incarnation:{agent}:*"):
             try:
@@ -189,7 +189,7 @@ def read_cards(agent: str, c=None, allow_fallback: bool = True, now: Optional[fl
     return out
 
 
-def daemon_runtimes(agent: str, c=None, allow_fallback: bool = True) -> Dict[str, Any]:
+def daemon_runtimes(agent: str, c=None, allow_fallback: bool = True) -> dict[str, Any]:
     """Read the agent's daemon presence card and return its 'runtimes' field, or {}.
     T077 A3: the daemon's presence card carries live runner status; every consumer
     (doctor, whisper) reads this one key instead of probing the runner directly."""
@@ -208,12 +208,12 @@ def daemon_runtimes(agent: str, c=None, allow_fallback: bool = True) -> Dict[str
 
 def live_incarnations(
     agent: str,
-    my_session: Optional[str] = None,
-    tmp: Optional[str] = None,
-    now: Optional[float] = None,
+    my_session: str | None = None,
+    tmp: str | None = None,
+    now: float | None = None,
     c=None,
     allow_fallback: bool = True,
-) -> List[Dict]:
+) -> list[dict]:
     """All OTHER live sessions of `agent`, freshest first:
     [{session_id, age_min, has_seat, (status, claims when carded)}].
 
@@ -226,7 +226,7 @@ def live_incarnations(
     base = tmp or tempfile.gettempdir()
     fresh = wake_seat.fresh_minutes()
     t_now = now if now is not None else time.time()
-    by_sid: Dict[str, Dict] = {}
+    by_sid: dict[str, dict] = {}
 
     for card in read_cards(agent, c=c, allow_fallback=allow_fallback, now=t_now):
         sid = str(card.get("session_id") or "")
@@ -269,7 +269,7 @@ def live_incarnations(
     return out
 
 
-def _fmt_one(agent: str, s: Dict) -> str:
+def _fmt_one(agent: str, s: dict) -> str:
     from core.comm.seat_identity import sid8 as _sid8
 
     sid8 = _sid8(s.get("session_id", ""))
@@ -279,7 +279,7 @@ def _fmt_one(agent: str, s: Dict) -> str:
     return f"{agent}#{sid8}, {idle}{seat}"
 
 
-def siblings_line(agent: str, siblings: List[Dict]) -> str:
+def siblings_line(agent: str, siblings: list[dict]) -> str:
     """'solo' | '1 live sibling (claude#b0b7771d, 45m idle)' | 'N live siblings (...)'."""
     if not siblings:
         return "solo"

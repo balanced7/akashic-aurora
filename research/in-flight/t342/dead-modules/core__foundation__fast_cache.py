@@ -37,7 +37,8 @@ import sys
 import time
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 
 import redis
 
@@ -135,7 +136,7 @@ def load_data_from_ram_disk(filename: str, subdir: str = "cache", use_cache: boo
 
     filepath = os.path.join(RAM_DISK, subdir, filename)
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
         _ramdisk_cache[filename] = {"data": data, "time": time.time()}
         return data

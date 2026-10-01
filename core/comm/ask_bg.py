@@ -61,7 +61,7 @@ def prompt_path(handle: str) -> Path:
     return ASK_DIR / f"{handle}.prompt"
 
 
-def write_record(handle: str, rec: Dict[str, Any]) -> None:
+def write_record(handle: str, rec: dict[str, Any]) -> None:
     """Best-effort durable write. Never raises: losing bookkeeping must not lose the ask."""
     try:
         ASK_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,7 +74,7 @@ def write_record(handle: str, rec: Dict[str, Any]) -> None:
         pass
 
 
-def read_record(handle: str) -> Optional[Dict[str, Any]]:
+def read_record(handle: str) -> dict[str, Any] | None:
     """The record, or None for an unknown handle. None is NOT an empty answer -- a typo and
     a silent helper are different facts and must render differently."""
     try:
@@ -83,7 +83,7 @@ def read_record(handle: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def finish(handle: str, result: Dict[str, Any]) -> None:
+def finish(handle: str, result: dict[str, Any]) -> None:
     """Attach the child's structured result -- the same shape `ask --json` produces, so the
     background and foreground paths cannot drift into reporting different things."""
     rec = read_record(handle) or {"handle": handle}
@@ -94,7 +94,7 @@ def finish(handle: str, result: Dict[str, Any]) -> None:
     _emit_completed(handle, rec, result)
 
 
-def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) -> None:
+def _emit_completed(handle: str, rec: dict[str, Any], result: dict[str, Any]) -> None:
     """One durable event per finished ask (T206).
 
     WHY AN EVENT AND NOT MAIL. A background ask is PULL -- the caller must remember to
@@ -149,7 +149,7 @@ def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) ->
         pass
 
 
-def _alive(pid: Any) -> Optional[bool]:
+def _alive(pid: Any) -> bool | None:
     """Is that pid still running? None when we cannot tell -- and cannot-tell must not be
     reported as dead, or a healthy child gets declared orphaned."""
     try:
@@ -193,7 +193,7 @@ def _alive(pid: Any) -> Optional[bool]:
         return None
 
 
-def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def summarize(rec: dict[str, Any] | None) -> dict[str, Any]:
     """One state and one next step. Four readings, deliberately distinct."""
     if not rec:
         return {"state": "UNKNOWN", "next": "no ask by that handle -- check the id, or `ask --list` to see recent ones"}
@@ -270,10 +270,10 @@ def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def list_records(limit: int = 20) -> List[Dict[str, Any]]:
+def list_records(limit: int = 20) -> list[dict[str, Any]]:
     """Recent asks, newest first. Bounded, because an unbounded listing of a growing
     directory is how a listing surface stops being read."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         for p in ASK_DIR.glob("*.json"):
             try:

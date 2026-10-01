@@ -64,7 +64,7 @@ def _section(title: str, rows) -> str:
     return f"## {title}\n{body}"
 
 
-def build_pack(*, for_wearer: str = "", done_limit: int = 12, memory_limit: int = 12) -> Tuple[str, Dict[str, Any]]:
+def build_pack(*, for_wearer: str = "", done_limit: int = 12, memory_limit: int = 12) -> tuple[str, dict[str, Any]]:
     """The scout's world, rebuilt from live sources -- never cached, never curated.
 
     Returns (text, meta). meta["sections"] carries a count per section so the surface
@@ -74,7 +74,7 @@ def build_pack(*, for_wearer: str = "", done_limit: int = 12, memory_limit: int 
     pack's CONTENT is deliberately identical for every wearer -- that is what makes the
     role's knowledge the role's.
     """
-    sections: Dict[str, int] = {}
+    sections: dict[str, int] = {}
     parts = []
 
     # IN FLIGHT + RECENTLY DONE -- the ledger, read the way the conductor reads it.
@@ -140,8 +140,8 @@ def scout_ask(
     blind: bool = False,
     question_shape: str = "descriptive",
     client=None,
-    model: Optional[str] = None,
-) -> Dict[str, Any]:
+    model: str | None = None,
+) -> dict[str, Any]:
     """One door: wear the role, read the world, answer, file the verdict.
 
     Resident tier by default (the wearer's own archive rides via T261); blind=True runs

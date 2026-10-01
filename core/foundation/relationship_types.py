@@ -35,7 +35,7 @@ class RelationshipTypeDefinition:
     inverse: str  # Inverse relationship
     description: str  # What this relationship means
     domain: str  # Subject domain (e.g., "structural", "causal", "temporal")
-    examples: List[str]  # Example usage
+    examples: list[str]  # Example usage
 
 
 class RelationshipType(Enum):
@@ -685,7 +685,7 @@ class RelationshipType(Enum):
     )
 
 
-def get_relationship_by_name(name: str) -> Optional[RelationshipTypeDefinition]:
+def get_relationship_by_name(name: str) -> RelationshipTypeDefinition | None:
     """Get relationship type by short name or formal name"""
     name_lower = name.lower().replace(" ", "_")
 
@@ -700,7 +700,7 @@ def get_relationship_by_name(name: str) -> Optional[RelationshipTypeDefinition]:
     return None
 
 
-def get_relationships_by_domain(domain: str) -> List[tuple]:
+def get_relationships_by_domain(domain: str) -> list[tuple]:
     """Get all relationships in a specific domain"""
     domain_lower = domain.lower()
     results = []
@@ -712,7 +712,7 @@ def get_relationships_by_domain(domain: str) -> List[tuple]:
     return sorted(results, key=lambda x: x[1].short_name)
 
 
-def list_all_domains() -> List[str]:
+def list_all_domains() -> list[str]:
     """List all available domains"""
     domains = set()
     for rel in RelationshipType:

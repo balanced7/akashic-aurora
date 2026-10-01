@@ -61,7 +61,7 @@ def _repo_root_str() -> str:
 #                      action here, no halt.
 #   structure "hash"/"kv": the family's declared shape (anomalies reported).
 #   structure "auto":  mixed shapes under one family; probe per key.
-ROSTER: Dict[str, Tuple[str, Optional[str]]] = {
+ROSTER: dict[str, tuple[str, str | None]] = {
     # census 2026-07-28: Redis 540 / SQLite 455 / File 23 -- Redis is recovery source
     "learn:experiment": ("redis", "hash"),
     # category indexes + experiments:all list -- projections but load-bearing (the
@@ -99,7 +99,7 @@ class ReconcileHalt(SystemExit):
     """Raised (before any write) when a family no one has ruled on shows up."""
 
 
-def _roster_family(key: str) -> Optional[str]:
+def _roster_family(key: str) -> str | None:
     """Longest ROSTER prefix that matches on a ':' boundary, else None. Family depth
     is namespace-specific (learn:experiment:NAME is a two-segment family; an
     artifact:art_... atom is a one-segment family), so matching is against the
@@ -127,12 +127,12 @@ def _is_ephemeral(key: str) -> bool:
         return False
 
 
-def _classify(authority_store) -> Tuple[Dict[str, List[str]], Dict[str, int]]:
+def _classify(authority_store) -> tuple[dict[str, list[str]], dict[str, int]]:
     """(rostered redis-authoritative family -> keys, unknown family -> key count).
     Ephemeral and file-authoritative keys drop out here; unknowns are counted per
     first-segment group, never guessed at."""
-    per_family: Dict[str, List[str]] = {}
-    unknown: Dict[str, int] = {}
+    per_family: dict[str, list[str]] = {}
+    unknown: dict[str, int] = {}
     for key in authority_store.keys("*"):
         if _is_ephemeral(key):
             continue
@@ -146,7 +146,7 @@ def _classify(authority_store) -> Tuple[Dict[str, List[str]], Dict[str, int]]:
     return per_family, unknown
 
 
-def _halt(unknown: Dict[str, int]) -> "ReconcileHalt":
+def _halt(unknown: dict[str, int]) -> ReconcileHalt:
     shown = sorted(unknown.items(), key=lambda kv: -kv[1])
     head = ", ".join(f"{fam} ({n} key(s))" for fam, n in shown[:20])
     more = f" +{len(shown) - 20} more group(s)" if len(shown) > 20 else ""
@@ -167,7 +167,7 @@ def _quiet(fn, default):
         return default
 
 
-def _probe(store, key) -> Tuple[Optional[str], Any]:
+def _probe(store, key) -> tuple[str | None, Any]:
     """(structure, value) for whatever this key holds on this store; (None, None)
     when empty everywhere. Store-agnostic: probes the five structure verbs rather
     than trusting any backend's private type table."""
@@ -189,7 +189,7 @@ def _probe(store, key) -> Tuple[Optional[str], Any]:
     return None, None
 
 
-def _read_source(authority_store, fam: str, key: str) -> Tuple[Optional[str], Any, bool]:
+def _read_source(authority_store, fam: str, key: str) -> tuple[str | None, Any, bool]:
     """(structure, value, is_anomaly) honoring the family's DECLARED shape: a
     declared-hash family with a non-hash key is a shape anomaly (reported, skipped);
     'auto' families accept whatever the probe finds."""
@@ -202,13 +202,13 @@ def _read_source(authority_store, fam: str, key: str) -> Tuple[Optional[str], An
     return src_t, src, False
 
 
-def plan(authority_store, durable_store) -> Dict[str, Any]:
+def plan(authority_store, durable_store) -> dict[str, Any]:
     """Read-only: what --apply would do. Halts on unknown families exactly as apply
     does -- a plan that silently skips what apply would refuse is a lying plan."""
     per_family, unknown = _classify(authority_store)
     if unknown:
         raise _halt(unknown)
-    report: Dict[str, Any] = {"copy": {}, "divergent": {}, "type_anomalies": []}
+    report: dict[str, Any] = {"copy": {}, "divergent": {}, "type_anomalies": []}
     for fam, keys in per_family.items():
         for key in keys:
             src_t, src, anomaly = _read_source(authority_store, fam, key)
@@ -225,7 +225,7 @@ def plan(authority_store, durable_store) -> Dict[str, Any]:
     return report
 
 
-def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
+def apply(authority_store, durable_store, escrow_path) -> dict[str, Any]:
     """Escrow-then-reconcile. Additive for keys the durable side lacks; divergent
     twins take the authority value AFTER the displaced variant lands in the escrow
     file. Escrow is written before the first overwrite (crash order matters)."""
@@ -233,9 +233,9 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
     if unknown:
         raise _halt(unknown)
 
-    report: Dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [], "untouched_equal": 0}
-    to_copy: List[Tuple[str, str, str, Any]] = []  # (family, key, structure, value)
-    displaced: Dict[str, Any] = {}
+    report: dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [], "untouched_equal": 0}
+    to_copy: list[tuple[str, str, str, Any]] = []  # (family, key, structure, value)
+    displaced: dict[str, Any] = {}
 
     for fam, keys in per_family.items():
         for key in keys:

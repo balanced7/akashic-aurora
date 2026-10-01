@@ -46,7 +46,8 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Iterable, Sequence
 
 from core.outcome import BoundaryOutcome
 
@@ -74,7 +75,7 @@ _CODE_SUFFIXES = (".py", ".md")
 #: A pack that answers "67 files" to a question that meant "source files" is the same
 #: one-word-two-meanings disease the whole tool exists to find, so the plane is carried on
 #: every occurrence rather than resolved silently at scan time.
-PLANES: Dict[str, Tuple[str, ...]] = {
+PLANES: dict[str, tuple[str, ...]] = {
     "source": ("core", "scripts", "agent", "security", "mcp_servers"),
     "test": ("tests",),
     "doc": ("docs", "charters", "design"),
@@ -118,7 +119,7 @@ _NOISE_DIRS = {
 }
 
 
-def _plane_of(rel: str) -> Optional[str]:
+def _plane_of(rel: str) -> str | None:
     """Which plane a repo-relative path belongs to, or None if it is out of corpus.
 
     Top-level .py files (agent_cli.py, ai_setup_mcp.py) are source: they are the doors.
@@ -145,14 +146,14 @@ class EvidencePack:
     """
 
     term: str
-    occurrences: List[Dict[str, Any]] = field(default_factory=list)
+    occurrences: list[dict[str, Any]] = field(default_factory=list)
     blob: str = ""
     sha: str = ""
     truncated: bool = False
-    blind: List[str] = field(default_factory=list)
+    blind: list[str] = field(default_factory=list)
 
 
-def _word_re(term: str) -> "re.Pattern[str]":
+def _word_re(term: str) -> re.Pattern[str]:
     r"""Word-boundary matcher.
 
     L2, and it cost a whole re-run to learn: `git grep` without -w fed the fan
@@ -177,8 +178,8 @@ def _iter_repo_files(root: str) -> Iterable[str]:
 def evidence_pack(
     term: str,
     *,
-    corpus: Optional[Dict[str, str]] = None,
-    root: Optional[str] = None,
+    corpus: dict[str, str] | None = None,
+    root: str | None = None,
     planes: Sequence[str] = ("source",),
     max_occurrences: int = DEFAULT_MAX_OCCURRENCES,
 ) -> EvidencePack:
@@ -190,15 +191,15 @@ def evidence_pack(
     a pin that supplies its own inputs tests the mechanism, not the wiring.
     """
     rx = _word_re(term)
-    occ: List[Dict[str, Any]] = []
+    occ: list[dict[str, Any]] = []
     total = 0
     truncated = False
-    off_plane: Dict[str, int] = {}
+    off_plane: dict[str, int] = {}
 
     if corpus is None:
         root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         root = os.path.dirname(root) if os.path.basename(root) == "core" else root
-        files: Iterable[Tuple[str, str]] = ((p, _read(p)) for p in _iter_repo_files(root))
+        files: Iterable[tuple[str, str]] = ((p, _read(p)) for p in _iter_repo_files(root))
         rel_to = root
     else:
         files = list(corpus.items())
@@ -209,7 +210,7 @@ def evidence_pack(
     # whatever sorts first, which is truncation rather than sampling -- measured: 'open' at
     # cap 120 reached the fan as 26 of 163 files with agent_cli.py supplying 47 of them, so
     # the honest answer to that sample was "it means opening a file".
-    per_file: Dict[str, List[Dict[str, Any]]] = {}
+    per_file: dict[str, list[dict[str, Any]]] = {}
     for path, text in files:
         if not text:
             continue
@@ -288,13 +289,13 @@ def evidence_pack(
 
 def _read(path: str) -> str:
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             return f.read()
     except (OSError, UnicodeError):
         return ""
 
 
-def _render_blob(term: str, occ: Sequence[Dict[str, Any]]) -> str:
+def _render_blob(term: str, occ: Sequence[dict[str, Any]]) -> str:
     """The exact bytes a helper reads. Rendering is part of the address on purpose: two
     curators given the same occurrences but a different rendering did NOT read the same
     thing, and the gate should catch that too."""
@@ -322,10 +323,10 @@ class JunctionPack:
     """
 
     term: str
-    junctions: List[Dict[str, Any]] = field(default_factory=list)
+    junctions: list[dict[str, Any]] = field(default_factory=list)
     blob: str = ""
     sha: str = ""
-    blind: List[str] = field(default_factory=list)
+    blind: list[str] = field(default_factory=list)
 
 
 #: A term is WRITTEN when it is assigned, stored under a key, or returned as a field.
@@ -374,8 +375,8 @@ def _matches(patterns: Sequence[str], term: str, line: str) -> bool:
 def junction_pack(
     term: str,
     *,
-    corpus: Optional[Dict[str, str]] = None,
-    root: Optional[str] = None,
+    corpus: dict[str, str] | None = None,
+    root: str | None = None,
     planes: Sequence[str] = ("source",),
     context: int = 2,
     max_sites: int = 40,
@@ -400,8 +401,8 @@ def junction_pack(
         # first crossing for `drained` was bifrost_pull.py -> core/coord/sift.py, pointing
         # at a regex. Self-reference is not a junction.
         files = [(f, t) for f, t in files if not f.endswith("core/coord/sift.py")]
-    writes: List[Dict[str, Any]] = []
-    reads: List[Dict[str, Any]] = []
+    writes: list[dict[str, Any]] = []
+    reads: list[dict[str, Any]] = []
 
     for shown, text in files:
         lines = text.splitlines()
@@ -417,15 +418,15 @@ def junction_pack(
             elif _matches(_READ_PATTERNS, term, line):
                 reads.append(rec)
 
-    junctions: List[Dict[str, Any]] = []
+    junctions: list[dict[str, Any]] = []
     if writes and reads:
         # One junction record per (write-file, read-file) crossing, capped. A crossing
         # BETWEEN files is the interesting case: same-file write/read is usually one author
         # holding one meaning, which is precisely the case that does NOT fork.
-        by_wfile: Dict[str, List[Dict]] = {}
+        by_wfile: dict[str, list[dict]] = {}
         for w in writes:
             by_wfile.setdefault(w["file"], []).append(w)
-        by_rfile: Dict[str, List[Dict]] = {}
+        by_rfile: dict[str, list[dict]] = {}
         for r in reads:
             by_rfile.setdefault(r["file"], []).append(r)
         for wf in sorted(by_wfile):
@@ -468,9 +469,9 @@ def junction_pack(
     return JunctionPack(term=term, junctions=junctions, blob=blob, sha=_sha(blob), blind=blind)
 
 
-def _collect(corpus, root, planes) -> List[Tuple[str, str]]:
+def _collect(corpus, root, planes) -> list[tuple[str, str]]:
     """Shared file walk for both pack types, so they cannot drift apart on membership."""
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     if corpus is not None:
         return [(p, t) for p, t in corpus.items()]
     root = root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -483,7 +484,7 @@ def _collect(corpus, root, planes) -> List[Tuple[str, str]]:
     return out
 
 
-def _render_junction_blob(term: str, junctions: Sequence[Dict[str, Any]]) -> str:
+def _render_junction_blob(term: str, junctions: Sequence[dict[str, Any]]) -> str:
     lines = [f"=== JUNCTION CANDIDATES for {term!r}: where it is WRITTEN vs READ ===", ""]
     if not junctions:
         lines.append("(none found -- see BLIND; the pairing is lexical)")
@@ -504,7 +505,7 @@ def _render_junction_blob(term: str, junctions: Sequence[Dict[str, Any]]) -> str
 #: same model got it right the day before when the question was decomposed. So: the
 #: decomposition does the work, and should/better/more/fewer is the tell you are in the
 #: danger zone. The jester is the deliberate exception, and is read as an argument.
-DEFAULT_HATS: Dict[str, str] = {
+DEFAULT_HATS: dict[str, str] = {
     "outsider": (
         "You have no knowledge of this project. Using ONLY the evidence given, list what "
         "distinct THINGS this word refers to. Group the lines by the thing they describe. "
@@ -614,7 +615,7 @@ CURATOR_CONTRACT = (
 _TALLY_RE = re.compile(r"^\s*TALLY\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE)
 
 
-def parse_tally(answer: str) -> Dict[str, int]:
+def parse_tally(answer: str) -> dict[str, int]:
     """Recover the vote split a curator reported. {} when it reported none.
 
     The TALLY line exists because the first cost-blind sample's two false positives were
@@ -624,13 +625,13 @@ def parse_tally(answer: str) -> Dict[str, int]:
     m = _TALLY_RE.search(answer or "")
     if not m:
         return {}
-    out: Dict[str, int] = {}
+    out: dict[str, int] = {}
     for k, n in re.findall(r"(FORK|NO_FORK|UNCLEAR)\s*=\s*(\d+)", m.group(1), re.IGNORECASE):
         out[k.upper()] = int(n)
     return out
 
 
-def curator_prompt(term: str, analyses: Sequence[Dict[str, str]]) -> Tuple[str, str]:
+def curator_prompt(term: str, analyses: Sequence[dict[str, str]]) -> tuple[str, str]:
     """Build a curator's prompt and the address of what it read.
 
     Returns (prompt, evidence_sha). The sha covers the ANALYSES BUNDLE -- the bytes this
@@ -654,7 +655,7 @@ def curator_prompt(term: str, analyses: Sequence[Dict[str, str]]) -> Tuple[str, 
 CONSENSUS_FLOOR = 1 / 3
 
 
-def settle_verdict(dossier: Dict[str, Any]) -> str:
+def settle_verdict(dossier: dict[str, Any]) -> str:
     """The verdict a dossier is entitled to, given the margin it won by.
 
     MEASURED, first cost-blind sample (pre-registered at da5fbc7): two of three FORK
@@ -698,7 +699,7 @@ def parse_verdict(answer: str) -> str:
     return v if v in {"FORK", "NO_FORK", "UNCLEAR"} else "UNCLEAR"
 
 
-def curator_pairs(term: str, hats: Sequence[str], evidence_sha: str = "") -> List[Tuple[Dict, Dict]]:
+def curator_pairs(term: str, hats: Sequence[str], evidence_sha: str = "") -> list[tuple[dict, dict]]:
     """Pair hats WITHIN one term.
 
     claude#42d00626's point 2, and it is a computability constraint rather than a
@@ -710,7 +711,7 @@ def curator_pairs(term: str, hats: Sequence[str], evidence_sha: str = "") -> Lis
     overlapping scheme would double-count a single hat's idiosyncrasy as agreement.
     """
     hs = list(hats)
-    out: List[Tuple[Dict, Dict]] = []
+    out: list[tuple[dict, dict]] = []
     for i in range(0, len(hs) - 1, 2):
         a = {"term": term, "hat": hs[i], "evidence_sha": evidence_sha}
         b = {"term": term, "hat": hs[i + 1], "evidence_sha": evidence_sha}
@@ -719,7 +720,7 @@ def curator_pairs(term: str, hats: Sequence[str], evidence_sha: str = "") -> Lis
 
 
 # ====================================================================== tier 3: compare
-def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+def compare_dossiers(dossiers: Sequence[dict[str, Any]]) -> dict[str, Any]:
     """Diff same-term dossiers; return dissent FIRST, and gate the flip rate on identity.
 
     THE GATE. Before any rate is computed, every dossier for a term must carry the same
@@ -732,12 +733,12 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     disagreement here may also be real ambiguity, which is why the output is a TABLE the
     reader adjudicates, never a verdict.
     """
-    by_term: Dict[str, List[Dict[str, Any]]] = {}
+    by_term: dict[str, list[dict[str, Any]]] = {}
     for d in dossiers:
         by_term.setdefault(d["term"], []).append(d)
 
     # --- identity gate, before anything is counted
-    diverged: List[str] = []
+    diverged: list[str] = []
     for term, ds in sorted(by_term.items()):
         shas = sorted({str(d.get("evidence_sha", "")) for d in ds})
         if len(shas) > 1:
@@ -758,9 +759,9 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             "blind": ["no comparison was performed; nothing here is a finding"],
         }
 
-    dissents: List[Dict[str, Any]] = []
-    agreements: List[Dict[str, Any]] = []
-    undecided: List[Dict[str, Any]] = []
+    dissents: list[dict[str, Any]] = []
+    agreements: list[dict[str, Any]] = []
+    undecided: list[dict[str, Any]] = []
     for term, ds in sorted(by_term.items()):
         verdicts = {str(d.get("verdict", "")).upper() for d in ds}
         row = {
@@ -828,7 +829,7 @@ def compare_dossiers(dossiers: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 # ========================================================================== the aggregate
-def summarise(*, n: int, n_ok: int, blind: Sequence[str], ref: Optional[str] = None, **detail) -> BoundaryOutcome:
+def summarise(*, n: int, n_ok: int, blind: Sequence[str], ref: str | None = None, **detail) -> BoundaryOutcome:
     """Three states, never two.
 
     ask_many's docstring bought this line: "a binary fan verdict discards the partial

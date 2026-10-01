@@ -32,7 +32,8 @@ must never break capture (the Ledger write already succeeded; the event is safe 
 
 import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Iterable
 
 from core.foundation.store import Store, create_store
 
@@ -58,12 +59,12 @@ def byref_key(ref: str) -> str:
 class EventIndex:
     """A time-ordered, range-queryable projection of the raw firehose, on the Store."""
 
-    def __init__(self, store: Optional[Store] = None, *, maxlen: int = DEFAULT_MAXLEN):
+    def __init__(self, store: Store | None = None, *, maxlen: int = DEFAULT_MAXLEN):
         self.store = store if store is not None else create_store()
         self.maxlen = maxlen
 
     # ------------------------------------------------------------------ write
-    def add(self, event: Dict[str, Any]) -> bool:
+    def add(self, event: dict[str, Any]) -> bool:
         """Index one captured event (must carry `id` + `at`). Best-effort -- returns
         True if indexed, False on any refusal/hiccup. NEVER raises."""
         try:
@@ -110,7 +111,7 @@ class EventIndex:
             pass
 
     # ------------------------------------------------------------------ read
-    def window(self, start_iso: str, end_iso: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def window(self, start_iso: str, end_iso: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         """Every indexed event whose `at` is in [start, end] (inclusive), OLDEST-first.
 
         Total recall within retention (the bug this fixes): a range-scan, not a capped
@@ -121,7 +122,7 @@ class EventIndex:
             if lo > hi:
                 lo, hi = hi, lo
             ids = self.store.zrangebyscore(TINDEX, lo, hi)  # ascending by score
-            out: List[Dict[str, Any]] = []
+            out: list[dict[str, Any]] = []
             for eid in ids:
                 ev = self.get(eid)
                 if ev is not None:
@@ -132,7 +133,7 @@ class EventIndex:
         except Exception:
             return []
 
-    def get(self, event_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, event_id: str) -> dict[str, Any] | None:
         """Resolve one event's payload by id (O(1)). None if absent/corrupt."""
         raw = self.store.get(byid_key(str(event_id)))
         if not raw:
@@ -142,7 +143,7 @@ class EventIndex:
         except (ValueError, TypeError):
             return None
 
-    def events_for_ref(self, ref: str) -> List[Dict[str, Any]]:
+    def events_for_ref(self, ref: str) -> list[dict[str, Any]]:
         """Every indexed event carrying `ref`, oldest-first -- exact and unbounded per
         ref (RB-4). Dangling members (payload evicted between srem passes) are filtered
         through get(), the same honesty pattern window() uses. [] on any hiccup."""
@@ -164,7 +165,7 @@ class EventIndex:
             return 0
 
     # ------------------------------------------------------------------ heal
-    def rebuild(self, events: Iterable[Dict[str, Any]]) -> int:
+    def rebuild(self, events: Iterable[dict[str, Any]]) -> int:
         """(Re)build the index from a full event replay -- backfills events captured before
         the index existed, or repopulates a cold/lost index. Idempotent: re-adding an event
         overwrites its entry, never duplicates (zset member = id; byref member = id). RB-4

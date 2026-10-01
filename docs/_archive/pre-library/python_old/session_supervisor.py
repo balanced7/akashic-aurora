@@ -73,7 +73,7 @@ def _tcp_open(host: str, port: int, timeout: float = 2.0) -> bool:
         return False
 
 
-def _wsl_redis_get(key: str) -> Optional[str]:
+def _wsl_redis_get(key: str) -> str | None:
     try:
         p = subprocess.run(
             [
@@ -95,9 +95,9 @@ def _wsl_redis_get(key: str) -> Optional[str]:
         return None
 
 
-def infra_status() -> Dict[str, Any]:
+def infra_status() -> dict[str, Any]:
     """Lightweight health snapshot (no writes)."""
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "timestamp": datetime.now().isoformat(),
         "allow_infra_start": allow_infra_start(),
         "wsl_redis_6380": False,
@@ -136,7 +136,7 @@ def infra_status() -> Dict[str, Any]:
     return out
 
 
-def _service_closure(seed: Set[str]) -> Set[str]:
+def _service_closure(seed: set[str]) -> set[str]:
     from stack_manager.config import SERVICES
 
     out = set(seed)
@@ -154,11 +154,11 @@ def _service_closure(seed: Set[str]) -> Set[str]:
     return out
 
 
-def _launch_plan(closed: Set[str]) -> List[List[str]]:
+def _launch_plan(closed: set[str]) -> list[list[str]]:
     from stack_manager.dag import resolve_tiers
 
     skip = {"win-mcp"}
-    plan: List[List[str]] = []
+    plan: list[list[str]] = []
     for tier in resolve_tiers():
         batch = sorted((closed - skip) & tier)
         if batch:
@@ -166,7 +166,7 @@ def _launch_plan(closed: Set[str]) -> List[List[str]]:
     return plan
 
 
-def ensure_infra(tier: str, agent: str = "") -> Dict[str, Any]:
+def ensure_infra(tier: str, agent: str = "") -> dict[str, Any]:
     """
     Launch infra subset. ``tier``:
       - minimal — WSL keeper + Redis HA only
@@ -177,7 +177,7 @@ def ensure_infra(tier: str, agent: str = "") -> Dict[str, Any]:
     from stack_manager.launcher import launch_service, wait_for_healthy
 
     tier_l = (tier or "standard").strip().lower()
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "tier_requested": tier_l,
         "agent": (agent or "").strip().lower(),
         "allowed": allow_infra_start(),
@@ -225,7 +225,7 @@ def bootstrap_context_snapshot(
     session_id: str = "",
     stream_tail: int = 6,
     decision_titles: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Redis + WSL migration digest for MCP ``breakthrough_bootstrap``."""
     sid_eff = session_id.strip()
     if not sid_eff and SESSION_STATE_FILE.exists():
@@ -234,7 +234,7 @@ def bootstrap_context_snapshot(
         except Exception:
             sid_eff = ""
 
-    snap: Dict[str, Any] = {
+    snap: dict[str, Any] = {
         "timestamp": datetime.now().isoformat(),
         "session_id_effective": sid_eff,
         "migration_summary": _wsl_redis_get("migration:summary"),

@@ -27,17 +27,18 @@ two implementations of a format drift, which is a lesson this repo has paid for 
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, List, Tuple
+from collections.abc import Iterable
 
 API = "roll/1"
 
 
-def pack_events(events: Iterable[Dict[str, Any]], session: str = "", keep_chords: bool = False) -> str:
+def pack_events(events: Iterable[dict[str, Any]], session: str = "", keep_chords: bool = False) -> str:
     """Note/pedal events -> roll/1 text. Pure: takes the events, returns the document."""
-    ons: Dict[int, List[Tuple[int, int]]] = {}
-    notes: List[Tuple[int, int, int, int]] = []
-    pedal: List[Tuple[int, int]] = []
-    chords: List[Tuple[int, str, str]] = []
+    ons: dict[int, list[tuple[int, int]]] = {}
+    notes: list[tuple[int, int, int, int]] = []
+    pedal: list[tuple[int, int]] = []
+    chords: list[tuple[int, str, str]] = []
     tmax = 0
     pdown = None
     for e in events:
@@ -91,10 +92,10 @@ def pack_events(events: Iterable[Dict[str, Any]], session: str = "", keep_chords
 
 def unpack(text: str):
     """Read it back. A format nobody round-trips is a format that silently rots."""
-    meta: Dict[str, str] = {}
-    notes: List[Tuple[int, int, int, int]] = []
-    pedal: List[Tuple[int, int]] = []
-    chords: List[Tuple[int, str, str]] = []
+    meta: dict[str, str] = {}
+    notes: list[tuple[int, int, int, int]] = []
+    pedal: list[tuple[int, int]] = []
+    chords: list[tuple[int, str, str]] = []
     sec = "n"
     for line in text.splitlines():
         if line.startswith(f"#{API}"):

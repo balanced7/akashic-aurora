@@ -211,7 +211,7 @@ def test_every_chunk_note_is_lesson_shaped_in_the_first_place():
     names = [f for f in os.listdir(CHUNKS) if f.endswith(".glsl")]
     assert len(names) >= 30
     for f in names:
-        with open(os.path.join(CHUNKS, f), "r", encoding="utf-8") as fh:
+        with open(os.path.join(CHUNKS, f), encoding="utf-8") as fh:
             head = fh.readline().strip()
         assert head.startswith("//!"), f
         meta = json.loads(head[3:])

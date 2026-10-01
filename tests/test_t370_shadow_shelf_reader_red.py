@@ -152,7 +152,7 @@ def test_same_path_across_store_types_refuses(tmp_path):
     try:
         Jud(shared)
         assert False, "opening a judgment store on the observation path must refuse loudly"
-    except (ValueError, RuntimeError, IOError, OSError):
+    except (ValueError, RuntimeError, OSError):
         pass
 
 

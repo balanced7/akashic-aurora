@@ -61,7 +61,7 @@ process.stdout.write(JSON.stringify(out));
 
 def _page() -> str:
     """The PAGE template exactly as served: AST-extract, zero import side effects."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):

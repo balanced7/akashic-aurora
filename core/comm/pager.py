@@ -96,7 +96,7 @@ def clear_key(key: str, c=None, allow_fallback: bool = True) -> int:
         return 0
 
 
-def unread_pages(c=None, allow_fallback: bool = True) -> List[Dict[str, Any]]:
+def unread_pages(c=None, allow_fallback: bool = True) -> list[dict[str, Any]]:
     """Peek (never consumes) -- newest first."""
     cli = _client(c, allow_fallback)
     if cli is None:
@@ -125,7 +125,7 @@ def ack_pages(c=None, allow_fallback: bool = True) -> bool:
         return False
 
 
-def hook_lines(c=None, allow_fallback: bool = True, now: Optional[float] = None) -> List[str]:
+def hook_lines(c=None, allow_fallback: bool = True, now: float | None = None) -> list[str]:
     """Render for hook injection: '[PAGE] agent: text (Nm ago)'. Empty = silent."""
     now_f = float(now if now is not None else time.time())
     lines = []

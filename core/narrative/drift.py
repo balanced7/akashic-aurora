@@ -52,7 +52,7 @@ def _similar(a: str, b: str) -> float:
     return len(wa & wb) / len(wa | wb) if wa and wb else 0.0
 
 
-def _active_track() -> Optional[str]:
+def _active_track() -> str | None:
     try:
         from core.narrative.beat_log import ROUTER_ACTIVE, get_beat_log
 
@@ -61,7 +61,7 @@ def _active_track() -> Optional[str]:
         return None
 
 
-def _recent_beats(limit: int = 40) -> List:
+def _recent_beats(limit: int = 40) -> list:
     try:
         from core.narrative.beat_log import get_beat_log
 
@@ -77,8 +77,8 @@ def drift_check(
     task: str = "",
     paths=None,
     category: str = "",
-    active: Optional[str] = "auto",
-    recent_beats: Optional[List] = None,
+    active: str | None = "auto",
+    recent_beats: list | None = None,
     dup_threshold: float = 0.6,
     router=None,
 ) -> DriftVerdict:

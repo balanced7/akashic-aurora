@@ -37,7 +37,8 @@ import copy
 import json
 import math
 import re
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
+from collections.abc import Iterable, Sequence
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DEF_API, RUN_API, SEED_API, SEED_MOMENTS_API, tempomap
@@ -350,7 +351,7 @@ def _need(obj: dict, key: str, where: str):
     return obj[key]
 
 
-def _text(obj: dict, key: str, where: str, limit: int, required: bool = False, nullable: bool = True) -> Optional[str]:
+def _text(obj: dict, key: str, where: str, limit: int, required: bool = False, nullable: bool = True) -> str | None:
     field = _path(where, key)
     if key not in obj or (obj[key] is None and nullable and not required):
         if required:
@@ -374,7 +375,7 @@ def _enum(value, field: str, allowed: Sequence, nullable: bool = False):
     return value
 
 
-def _int(value, field: str, lo: Optional[int] = None, hi: Optional[int] = None, nullable: bool = False):
+def _int(value, field: str, lo: int | None = None, hi: int | None = None, nullable: bool = False):
     if value is None and nullable:
         return None
     if not _is_int(value) or (lo is not None and value < lo) or (hi is not None and value > hi):
@@ -385,10 +386,10 @@ def _int(value, field: str, lo: Optional[int] = None, hi: Optional[int] = None, 
 def _num(
     value,
     field: str,
-    lo: Optional[float] = None,
-    hi: Optional[float] = None,
+    lo: float | None = None,
+    hi: float | None = None,
     nullable: bool = False,
-    above: Optional[float] = None,
+    above: float | None = None,
 ):
     if value is None and nullable:
         return None
@@ -422,7 +423,7 @@ def _bool(value, field: str, nullable: bool = False):
     return value
 
 
-def _list(value, field: str, lo: int = 0, hi: Optional[int] = None) -> list:
+def _list(value, field: str, lo: int = 0, hi: int | None = None) -> list:
     if not isinstance(value, list):
         raise JamSchemaError(field, f"must be a list (got {value!r:.60})")
     if len(value) < lo:
@@ -586,7 +587,7 @@ def _tempo(value, field: str, partial: bool = False) -> dict:
     return value
 
 
-def _line_for(card: dict, variant: Optional[str], field: str) -> list:
+def _line_for(card: dict, variant: str | None, field: str) -> list:
     if variant is None:
         return card.get("chords") or []
     for v in card.get("variants") or []:
@@ -866,9 +867,9 @@ def card_settings(card: dict) -> dict:
     }
 
 
-def card_texts(card: dict) -> List[Tuple[str, str]]:
+def card_texts(card: dict) -> list[tuple[str, str]]:
     """Every text of a card Daniel reads, as (field path, text), for the wording guards (sections 11.4 and 12)."""
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
 
     def add(path, value):
         if isinstance(value, str) and value:
@@ -897,7 +898,7 @@ def card_texts(card: dict) -> List[Tuple[str, str]]:
     return out
 
 
-def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDDEN) -> List[Tuple[str, str]]:
+def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDDEN) -> list[tuple[str, str]]:
     """(field path, word) for every forbidden word (whole word, any case) in the card's texts."""
     out = []
     for path, text in card_texts(card):
@@ -907,7 +908,7 @@ def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDD
     return out
 
 
-def pair_problems(cards: Sequence[dict]) -> List[Tuple[str, str]]:
+def pair_problems(cards: Sequence[dict]) -> list[tuple[str, str]]:
     """(card id, sentence) for every question and answer pair that does not close: the partner is missing from the
     cards, does not name this card back, or has the same role. The sentence reads after "<id>.pair "."""
     by_id = {c.get("id"): c for c in cards if isinstance(c, dict)}

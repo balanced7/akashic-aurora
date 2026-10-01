@@ -23,9 +23,10 @@ import hashlib
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Iterable, Mapping
 
 from core.foundation import filelock
 from core.paths import repo_root
@@ -65,7 +66,7 @@ class CollegeError(ValueError):
     """A contract refusal.  No event is appended after this is raised."""
 
 
-def college_root(root: Optional[os.PathLike | str] = None) -> Path:
+def college_root(root: os.PathLike | str | None = None) -> Path:
     """Resolve the one bounded course root; an env override keeps tests isolated."""
     if root is not None:
         return Path(root)
@@ -75,20 +76,20 @@ def college_root(root: Optional[os.PathLike | str] = None) -> Path:
     return repo_root() / "artifacts" / "college"
 
 
-def _course_dir(course: str, root: Optional[os.PathLike | str]) -> Path:
+def _course_dir(course: str, root: os.PathLike | str | None) -> Path:
     ident = str(course or "").strip()
     if not _COURSE_RE.fullmatch(ident):
         raise CollegeError("course id must be 1..80 lowercase letters, digits, dot, dash, or underscore")
     return college_root(root) / ident
 
 
-def _now(value: Optional[str]) -> str:
+def _now(value: str | None) -> str:
     if value is not None:
         stamp = str(value).strip()
         if not stamp:
             raise CollegeError("now must be a non-empty timestamp when supplied")
         return stamp
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _text(data: Mapping[str, Any], key: str, *, limit: int, required: bool = True) -> str:
@@ -121,13 +122,13 @@ def _actor(value: str, *, required: bool = True) -> str:
     return actor
 
 
-def _string_list(data: Mapping[str, Any], key: str) -> List[str]:
+def _string_list(data: Mapping[str, Any], key: str) -> list[str]:
     raw = data.get(key, [])
     if raw is None:
         return []
     if not isinstance(raw, list) or not all(isinstance(v, str) for v in raw):
         raise CollegeError(f"{key} must be a JSON list of strings")
-    values: List[str] = []
+    values: list[str] = []
     for item in raw:
         item = item.strip()
         if not item:
@@ -149,11 +150,11 @@ def _event_hash(event_without_hash: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical(event_without_hash)).hexdigest()
 
 
-def _read_events(path: Path, *, course: str) -> Tuple[List[Dict[str, Any]], bool, List[str]]:
+def _read_events(path: Path, *, course: str) -> tuple[list[dict[str, Any]], bool, list[str]]:
     if not path.exists():
         return [], True, []
-    rows: List[Dict[str, Any]] = []
-    problems: List[str] = []
+    rows: list[dict[str, Any]] = []
+    problems: list[str] = []
     expected_prev = ZERO_HASH
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -190,10 +191,10 @@ def _read_events(path: Path, *, course: str) -> Tuple[List[Dict[str, Any]], bool
 
 
 def _append_event(
-    path: Path, events: List[Dict[str, Any]], *, course: str, kind: str, actor: str, payload: Dict[str, Any], at: str
-) -> Dict[str, Any]:
+    path: Path, events: list[dict[str, Any]], *, course: str, kind: str, actor: str, payload: dict[str, Any], at: str
+) -> dict[str, Any]:
     seq = len(events) + 1
-    event: Dict[str, Any] = {
+    event: dict[str, Any] = {
         "schema": EVENT_SCHEMA,
         "seq": seq,
         "event_id": f"e{seq:06d}",
@@ -214,13 +215,13 @@ def _append_event(
     return event
 
 
-def _fold(events: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
-    course: Optional[Dict[str, Any]] = None
-    sources: Dict[str, Dict[str, Any]] = {}
-    lecture: Optional[Dict[str, Any]] = None
-    audits: List[Dict[str, Any]] = []
-    teachbacks: List[Dict[str, Any]] = []
-    errata: List[Dict[str, Any]] = []
+def _fold(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    course: dict[str, Any] | None = None
+    sources: dict[str, dict[str, Any]] = {}
+    lecture: dict[str, Any] | None = None
+    audits: list[dict[str, Any]] = []
+    teachbacks: list[dict[str, Any]] = []
+    errata: list[dict[str, Any]] = []
     for event in events:
         payload = dict(event.get("payload") or {})
         payload.update(
@@ -261,7 +262,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _safe_lecture_path(raw: str, root: Optional[os.PathLike | str]) -> Path:
+def _safe_lecture_path(raw: str, root: os.PathLike | str | None) -> Path:
     """Resolve a lecture input without creating a new read/exfiltration door."""
     if not isinstance(raw, str) or not raw.strip():
         raise CollegeError("path must be a non-empty string")
@@ -298,14 +299,14 @@ def _safe_lecture_path(raw: str, root: Optional[os.PathLike | str]) -> Path:
 def _view(
     course: str,
     course_dir: Path,
-    events: List[Dict[str, Any]],
+    events: list[dict[str, Any]],
     *,
     chain_ok: bool,
-    chain_problems: List[str],
+    chain_problems: list[str],
     action: str,
-    effects: Optional[List[Dict[str, Any]]] = None,
+    effects: list[dict[str, Any]] | None = None,
     subject: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     state = _fold(events)
     started = state["course"] or {}
     course_card = {
@@ -324,8 +325,8 @@ def _view(
 
     lecture_event = state["lecture"]
     lecture_path = course_dir / "lecture.md"
-    lecture_integrity: Optional[bool] = None
-    lecture_card: Dict[str, Any] = {"sealed": False, "path": str(lecture_path)}
+    lecture_integrity: bool | None = None
+    lecture_card: dict[str, Any] = {"sealed": False, "path": str(lecture_path)}
     if lecture_event:
         actual_sha = _sha256(lecture_path) if lecture_path.is_file() else None
         lecture_integrity = actual_sha == lecture_event.get("sha256")
@@ -341,7 +342,7 @@ def _view(
             }
         )
 
-    gaps: List[str] = []
+    gaps: list[str] = []
     if not chain_ok:
         gaps.append("event chain integrity failed: " + "; ".join(chain_problems[:3]))
     if verified_primary == 0:
@@ -400,18 +401,18 @@ def _require_course(state: Mapping[str, Any]) -> Mapping[str, Any]:
     return course
 
 
-def _known_sources(state: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+def _known_sources(state: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     return dict(state.get("sources") or {})
 
 
-def _require_source_ids(state: Mapping[str, Any], ids: List[str]) -> None:
+def _require_source_ids(state: Mapping[str, Any], ids: list[str]) -> None:
     known = _known_sources(state)
     missing = [source_id for source_id in ids if source_id not in known]
     if missing:
         raise CollegeError("unknown source_ids: " + ", ".join(missing))
 
 
-def _require_verified_source_ids(state: Mapping[str, Any], ids: List[str]) -> None:
+def _require_verified_source_ids(state: Mapping[str, Any], ids: list[str]) -> None:
     _require_source_ids(state, ids)
     known = _known_sources(state)
     unverified = [source_id for source_id in ids if known[source_id].get("status") != "verified"]
@@ -419,7 +420,7 @@ def _require_verified_source_ids(state: Mapping[str, Any], ids: List[str]) -> No
         raise CollegeError("audit receipts require verified source_ids: " + ", ".join(unverified))
 
 
-def _require_intact_lecture(state: Mapping[str, Any], course_dir: Path) -> Tuple[Mapping[str, Any], str]:
+def _require_intact_lecture(state: Mapping[str, Any], course_dir: Path) -> tuple[Mapping[str, Any], str]:
     lecture = state.get("lecture")
     if not lecture:
         raise CollegeError("operation requires a sealed lecture")
@@ -448,12 +449,12 @@ def _atomic_write_new(path: Path, body: bytes) -> None:
 def run_college(
     action: str,
     course: str,
-    data: Optional[Dict[str, Any]] = None,
+    data: dict[str, Any] | None = None,
     *,
     actor: str = "",
-    root: Optional[os.PathLike | str] = None,
-    now: Optional[str] = None,
-) -> Dict[str, Any]:
+    root: os.PathLike | str | None = None,
+    now: str | None = None,
+) -> dict[str, Any]:
     """Run one college action through the native structured provider.
 
     Write actions are serialized by a cross-process lock and append exactly one
@@ -502,9 +503,9 @@ def run_college(
         if not chain_ok:
             raise CollegeError("refusing write because event chain integrity failed: " + problems[0])
         state = _fold(events)
-        payload: Dict[str, Any]
+        payload: dict[str, Any]
         kind: str
-        extra_effects: List[Dict[str, Any]] = []
+        extra_effects: list[dict[str, Any]] = []
 
         if action == "start":
             if events:

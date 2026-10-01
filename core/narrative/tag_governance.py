@@ -36,10 +36,10 @@ from core.narrative.tagging import TagHistory
 
 
 class TagGovernor:
-    def __init__(self, store: Optional[Store] = None):
+    def __init__(self, store: Store | None = None):
         self.store = store if store is not None else create_store()
 
-    def _load(self, beat_id: str) -> Optional[Beat]:
+    def _load(self, beat_id: str) -> Beat | None:
         raw = self.store.get(beat_key(beat_id))
         if not raw:
             return None
@@ -48,7 +48,7 @@ class TagGovernor:
         except (ValueError, TypeError):
             return None
 
-    def _apply(self, beat: Beat, hist: TagHistory, at: str) -> Tuple[bool, str]:
+    def _apply(self, beat: Beat, hist: TagHistory, at: str) -> tuple[bool, str]:
         """Persist the (possibly updated) history; if current changed, move the track
         index. Facts untouched. Returns (changed, current)."""
         before = beat.track
@@ -67,9 +67,9 @@ class TagGovernor:
         *,
         source: str = "unknown",
         at: str,
-        confidence: Optional[float] = None,
+        confidence: float | None = None,
         confirmed: bool = False,
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Append a tag opinion (append-only). `current` changes ONLY if this opinion wins
         the survivorship max -- so a low-confidence record can't override a high/confirmed
         one. Returns (changed, current_value)."""
@@ -80,11 +80,11 @@ class TagGovernor:
         hist.add(value, source=source, at=at, confidence=confidence, confirmed=confirmed)
         return self._apply(beat, hist, at)
 
-    def confirm(self, beat_id: str, value: str, *, at: str) -> Tuple[bool, Optional[str]]:
+    def confirm(self, beat_id: str, value: str, *, at: str) -> tuple[bool, str | None]:
         """A human/agent pin: confirmed, confidence 1.0. Auto-records can never override it."""
         return self.record(beat_id, value, source="human", at=at, confirmed=True)
 
-    def rollback(self, beat_id: str, value: str, *, at: str) -> Tuple[bool, Optional[str]]:
+    def rollback(self, beat_id: str, value: str, *, at: str) -> tuple[bool, str | None]:
         """Undo a bad auto-tag: re-assert a PRIOR value (append-only, pinned). I4."""
         beat = self._load(beat_id)
         if beat is None:
@@ -94,13 +94,13 @@ class TagGovernor:
             return (False, hist.current_value(default=beat.track))
         return self._apply(beat, hist, at)
 
-    def current(self, beat_id: str) -> Optional[str]:
+    def current(self, beat_id: str) -> str | None:
         beat = self._load(beat_id)
         if beat is None:
             return None
         return TagHistory.from_list(beat.tag_history).current_value(default=beat.track or "unknown")
 
-    def _move_index(self, beat_id: str, old_track: Optional[str], new_track: Optional[str], score: float) -> None:
+    def _move_index(self, beat_id: str, old_track: str | None, new_track: str | None, score: float) -> None:
         """Move the beat between per-track indexes. NEVER deletes the beat itself (I1)."""
         if old_track:
             self.store.zrem(f"narr:track:{old_track}:beats", beat_id)
@@ -113,10 +113,10 @@ class TagGovernor:
                 )
 
 
-_INSTANCE: Optional[TagGovernor] = None
+_INSTANCE: TagGovernor | None = None
 
 
-def get_tag_governor(store: Optional[Store] = None) -> TagGovernor:
+def get_tag_governor(store: Store | None = None) -> TagGovernor:
     global _INSTANCE
     if store is not None:
         return TagGovernor(store)

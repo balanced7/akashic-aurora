@@ -17,10 +17,11 @@ baseline on the fixture (ARI) or it doesn't ship.
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Pattern, Tuple
+from typing import List, Optional, Tuple
+from re import Pattern
 
 
-def compile_keyword_group(kws: Tuple[str, ...]) -> Pattern:
+def compile_keyword_group(kws: tuple[str, ...]) -> Pattern:
     """One case-insensitive WORD-BOUNDARY regex matching any keyword/phrase in the group.
 
     D2 fix: matching was raw substring (`kw in text`), so a keyword fired *inside* a larger
@@ -33,7 +34,7 @@ def compile_keyword_group(kws: Tuple[str, ...]) -> Pattern:
 
 
 # --- path prefix/substring -> track (domain repos before the ai-setup system itself) ---
-PATH_RULES: List[Tuple[str, str]] = [
+PATH_RULES: list[tuple[str, str]] = [
     ("stemroller", "stemroller"),
     ("demucs", "stemroller"),
     ("comfyui", "vision"),
@@ -55,7 +56,7 @@ PATH_RULES: List[Tuple[str, str]] = [
 ]
 
 # --- strong domain keywords (product/domain names) -> track (beat the category) ---
-STRONG_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
+STRONG_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     # NOTE: "zluda" is deliberately NOT here -- it's shared GPU infra (the StemRoller
     # AMD fork AND the ComfyUI/vision stack both use ZLUDA), so it's too ambiguous to
     # force a track. (Regression: a "ZLUDA build failed during dogfood" beat must NOT
@@ -82,7 +83,7 @@ AI_SETUP_CATEGORIES = {
 }
 
 # --- generic topic keywords (weaker than category) -> track ---
-GENERIC_KEYWORDS: List[Tuple[Tuple[str, ...], str]] = [
+GENERIC_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (
         ("raptor", "graphrag", "prior art", "prior-art", "zettelkasten", "arxiv", "disentanglement", "paper", "zep"),
         "research",
@@ -109,7 +110,7 @@ UNKNOWN_TRACK = "unknown"
 
 @dataclass
 class RouteHint:
-    paths: List[str] = field(default_factory=list)  # commit touched files
+    paths: list[str] = field(default_factory=list)  # commit touched files
     category: str = ""  # learning/decision category
     task: str = ""  # the agent's active task keyword
 
@@ -132,10 +133,10 @@ class TrackRouter:
         self.generic = generic
         # Precompile each keyword group to a word-boundary regex (D2). Paths stay substring
         # (file-path fragments like "core/" are meant to match as substrings, not words).
-        self._strong_re: List[Tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in strong]
-        self._generic_re: List[Tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in generic]
+        self._strong_re: list[tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in strong]
+        self._generic_re: list[tuple[Pattern, str]] = [(compile_keyword_group(kws), tk) for kws, tk in generic]
 
-    def _infer(self, beat, hint: RouteHint) -> Tuple[Optional[str], str]:
+    def _infer(self, beat, hint: RouteHint) -> tuple[str | None, str]:
         # 1. paths
         for p in hint.paths or []:
             pl = str(p).lower()
@@ -159,7 +160,7 @@ class TrackRouter:
                 return track, "generic"
         return None, "persist"
 
-    def route_one(self, beat, hint: Optional[RouteHint] = None, active: Optional[str] = None) -> RouteResult:
+    def route_one(self, beat, hint: RouteHint | None = None, active: str | None = None) -> RouteResult:
         inferred, basis = self._infer(beat, hint or RouteHint())
         if inferred is None:
             track = active or UNKNOWN_TRACK
@@ -168,7 +169,7 @@ class TrackRouter:
         return RouteResult(inferred, switched, inferred, basis)
 
     @staticmethod
-    def _smooth(tracks: List[str]) -> List[str]:
+    def _smooth(tracks: list[str]) -> list[str]:
         """1-beat median filter: a lone beat differing from two agreeing neighbours is
         noise, not a domain switch -> relabel to the neighbours (segmentation smoothing).
         Removes the spurious double-switch a single ambiguous beat would otherwise cause."""
@@ -178,7 +179,7 @@ class TrackRouter:
                 t[i] = t[i - 1]
         return t
 
-    def route_sequence(self, items, active: Optional[str] = None, smooth: bool = True) -> List[RouteResult]:
+    def route_sequence(self, items, active: str | None = None, smooth: bool = True) -> list[RouteResult]:
         """items: iterable of (beat, hint). Returns a RouteResult per item, threading
         the active track through (domain persistence). `smooth=True` applies the
         isolated-blip filter -- this is how the Chronicler routes a window in batch
@@ -198,7 +199,7 @@ class TrackRouter:
         return out
 
 
-_INSTANCE: Optional[TrackRouter] = None
+_INSTANCE: TrackRouter | None = None
 
 
 def get_track_router() -> TrackRouter:

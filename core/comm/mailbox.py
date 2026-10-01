@@ -31,7 +31,8 @@ import json
 import os
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 from core.comm import packet_spec
 
@@ -58,7 +59,7 @@ TIER_RANK = {"unhandled": 0, "consumed": 1, "auto_acked": 2, "replied": 2, "acke
 
 # source name -> (stream key template, cursor hash kind, cursor field)
 #   cursor hash kind: "lane" -> {ns}:cursor:lane:{agent} ; "legacy" -> {ns}:cursor:{agent}
-_SOURCES: Tuple[Tuple[str, str, str, str], ...] = (
+_SOURCES: tuple[tuple[str, str, str, str], ...] = (
     ("work_inbox", "{ns}:work:inbox:{agent}", "lane", "inbox"),
     ("sig_inbox", "{ns}:sig:inbox:{agent}", "lane", "sig_inbox"),
     ("legacy_inbox", "{ns}:inbox:{agent}", "legacy", "inbox"),
@@ -81,7 +82,7 @@ def _connect():
 # ------------------------------------------------------------------ helpers
 
 
-def _sid_tuple(sid: str) -> Tuple[int, int]:
+def _sid_tuple(sid: str) -> tuple[int, int]:
     ms, _, seq = str(sid).partition("-")
     try:
         return (int(ms or 0), int(seq or 0))
@@ -93,7 +94,7 @@ def _sid_lte(a: str, b: str) -> bool:
     return _sid_tuple(a) <= _sid_tuple(b)
 
 
-def _fallback_sha(fields: Dict[str, str]) -> str:
+def _fallback_sha(fields: dict[str, str]) -> str:
     basis = "|".join(str(fields.get(k, "")) for k in ("frm", "to", "kind", "content", "ts"))
     return "fb" + hashlib.sha256(basis.encode("utf-8", "replace")).hexdigest()[:40]
 
@@ -110,7 +111,7 @@ def _fallback_sha(fields: Dict[str, str]) -> str:
 _IDENTITY_FIELDS = (("message_id", "message_id"), ("idempotency_key", "idempotency_key"), ("sha", "packet_sha"))
 
 
-def identity_of(fields: Dict[str, str], meta: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
+def identity_of(fields: dict[str, str], meta: dict[str, Any] | None = None) -> tuple[str, str]:
     """Return (identity, basis). Basis is never omitted -- a caller must be able to tell an
     identity the packet ASSERTED from one this module INFERRED off the payload."""
     meta = meta if isinstance(meta, dict) else {}
@@ -121,7 +122,7 @@ def identity_of(fields: Dict[str, str], meta: Optional[Dict[str, Any]] = None) -
     return _fallback_sha(fields), "content_fallback"
 
 
-def _entry_ts_s(fields: Dict[str, str], sid: str) -> float:
+def _entry_ts_s(fields: dict[str, str], sid: str) -> float:
     ts = str(fields.get("ts", ""))
     try:
         return float(ts)
@@ -139,7 +140,7 @@ def _entry_ts_s(fields: Dict[str, str], sid: str) -> float:
             return 0.0
 
 
-def _is_mailbox_kind(kind: str, meta: Dict[str, Any]) -> bool:
+def _is_mailbox_kind(kind: str, meta: dict[str, Any]) -> bool:
     if packet_spec.lane_for(kind) == "trace":
         return False
     try:
@@ -152,7 +153,7 @@ def _is_mailbox_kind(kind: str, meta: Dict[str, Any]) -> bool:
     return True
 
 
-def _keys(ns: str, agent: str) -> Dict[str, str]:
+def _keys(ns: str, agent: str) -> dict[str, str]:
     return {
         "pos": f"{ns}:mailbox:pos:{agent}",
         "z": f"{ns}:mailbox:z:{agent}",
@@ -166,7 +167,7 @@ def _keys(ns: str, agent: str) -> Dict[str, str]:
     }
 
 
-def _unavailable(reason: str) -> Dict[str, Any]:
+def _unavailable(reason: str) -> dict[str, Any]:
     return {
         "available": False,
         "reason": f"{reason} -- fall back to bifrost-sync peek",
@@ -180,7 +181,7 @@ def _unavailable(reason: str) -> Dict[str, Any]:
 # ------------------------------------------------------------------ ingest
 
 
-def _ingest_one(client, ns: str, agent: str, source: str, sid: str, fields: Dict[str, str]) -> Optional[str]:
+def _ingest_one(client, ns: str, agent: str, source: str, sid: str, fields: dict[str, str]) -> str | None:
     kind = str(fields.get("kind", "_unknown") or "_unknown")
     try:
         meta = json.loads(fields.get("meta") or "{}")
@@ -250,7 +251,7 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str, fields: Dict
     return sha
 
 
-def catch_up(ns: str, agent: str, *, client=None, budget: Optional[int] = DEFAULT_BUDGET) -> Dict[str, Any]:
+def catch_up(ns: str, agent: str, *, client=None, budget: int | None = DEFAULT_BUDGET) -> dict[str, Any]:
     """Incremental follower: ingest new entries beyond the per-source index position.
     ``budget=0`` counts lag without ingesting (pin 7). Only ``{ns}:mailbox:*`` is
     written."""
@@ -328,7 +329,7 @@ def _evicted_total(client, ns: str, agent: str) -> int:
 # ------------------------------------------------------------------ resolve
 
 
-def _default_acks(ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+def _default_acks(ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     try:
         from core.comm.promoter import acks_for
 
@@ -346,7 +347,7 @@ def _stream_id_gt(a: Any, b: Any) -> bool:
     field can never win a merge and resurrect handled mail.
     """
 
-    def _parts(v: Any) -> Tuple[int, int]:
+    def _parts(v: Any) -> tuple[int, int]:
         try:
             ms, _, seq = str(v).partition("-")
             return int(ms), int(seq or 0)
@@ -356,7 +357,7 @@ def _stream_id_gt(a: Any, b: Any) -> bool:
     return _parts(a) > _parts(b)
 
 
-def merged_lane_cursor(ns: str, agent: str, *, client=None) -> Dict[str, str]:
+def merged_lane_cursor(ns: str, agent: str, *, client=None) -> dict[str, str]:
     """The agent's lane position, merged across every live incarnation (T108 U3).
 
     ``Bus.lane_cursor_key`` (core/comm/bus.py:1182-1183) suffixes the key with
@@ -388,7 +389,7 @@ def merged_lane_cursor(ns: str, agent: str, *, client=None) -> Dict[str, str]:
     """
     client = client if client is not None else _connect()
     base = f"{ns}:cursor:lane:{agent}"
-    merged: Dict[str, str] = dict(client.hgetall(base) or {})
+    merged: dict[str, str] = dict(client.hgetall(base) or {})
     try:
         siblings = list(client.scan_iter(match=f"{base}#*"))
     except AttributeError:
@@ -403,8 +404,8 @@ def merged_lane_cursor(ns: str, agent: str, *, client=None) -> Dict[str, str]:
 
 
 def _resolve(
-    client, ns: str, agent: str, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]]
-) -> List[Dict[str, Any]]:
+    client, ns: str, agent: str, acks_lookup: Callable[[list[str]], dict[str, Any]] | None
+) -> list[dict[str, Any]]:
     """Tier every live entry. Cursor hashes are read EXACTLY ONCE (snapshot
     semantics, pin 12); acks use the exact per-id lookup; answers ride the global
     map fed at ingest time."""
@@ -414,8 +415,8 @@ def _resolve(
     cursors = {"lane": lane_cursor, "legacy": legacy_cursor}
     answered = client.hgetall(k["answered"]) or {}
     members = client.zrange(k["z"], 0, -1, withscores=True) or []
-    all_ids: List[str] = []
-    raw: List[Dict[str, Any]] = []
+    all_ids: list[str] = []
+    raw: list[dict[str, Any]] = []
     for sha, score in members:
         m = client.hgetall(k["msg"] + str(sha)) or {}
         if not m:
@@ -437,7 +438,7 @@ def _resolve(
             }
         )
     acks = (acks_lookup or _default_acks)(all_ids) if all_ids else {}
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for e in raw:
         tier = "unhandled"
         if any(acks.get(str(sid)) for sid in e["ids"].values()):
@@ -468,11 +469,11 @@ def query(
     agent: str,
     *,
     client=None,
-    acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
+    acks_lookup: Callable[[list[str]], dict[str, Any]] | None = None,
     cap: int = DEFAULT_CAP,
-    catch_up_budget: Optional[int] = DEFAULT_BUDGET,
-    min_evidence: Optional[str] = None,
-) -> Dict[str, Any]:
+    catch_up_budget: int | None = DEFAULT_BUDGET,
+    min_evidence: str | None = None,
+) -> dict[str, Any]:
     """The free question: what is addressed to `agent`, in what state, and why."""
     if not enabled():
         return _unavailable("mailbox disabled (AKASHIC_MAILBOX=0)")
@@ -484,7 +485,7 @@ def query(
         if min_evidence is not None:
             floor = TIER_RANK.get(str(min_evidence), 0)
             entries = [e for e in entries if TIER_RANK.get(e["tier"], 0) <= floor]
-        counts: Dict[str, int] = {"unhandled": 0}
+        counts: dict[str, int] = {"unhandled": 0}
         for e in entries:
             counts[e["tier"]] = counts.get(e["tier"], 0) + 1
         return {
@@ -500,8 +501,8 @@ def query(
 
 
 def rebuild(
-    ns: str, agent: str, *, client=None, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None
-) -> Dict[str, Any]:
+    ns: str, agent: str, *, client=None, acks_lookup: Callable[[list[str]], dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Drop the agent's index and rebuild from the log; report divergence vs the
     incremental state (pin 3: must be 0 -- the determinism receipt)."""
     if not enabled():
@@ -573,8 +574,8 @@ def rebuild(
 
 
 def explain(
-    ns: str, agent: str, ref: str, *, client=None, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None
-) -> Dict[str, Any]:
+    ns: str, agent: str, ref: str, *, client=None, acks_lookup: Callable[[list[str]], dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Evidence chain for one message: which sources carry it, every cursor
     comparison, ack records, answers linkage, and the tier verdict."""
     if not enabled():
@@ -640,7 +641,7 @@ def retention_s_for(kind: str) -> int:
     return LONG_RETENTION_S if str(kind) in LONG_KINDS else SHORT_RETENTION_S
 
 
-def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str, Any]]:
+def body_of(ns: str, agent: str, sha: str, *, client=None) -> dict[str, Any] | None:
     """The full body, from the mailbox's own storage -- not from the ephemeral lane.
 
     Returns None when the entry is unknown (never a fabricated empty body: absent and empty are
@@ -673,7 +674,7 @@ def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str,
     }
 
 
-def orientation_counts(ns: str, agent: str, *, client=None) -> Dict[str, int]:
+def orientation_counts(ns: str, agent: str, *, client=None) -> dict[str, int]:
     """The boot line's whole data need, in THREE Redis calls, regardless of mailbox size.
 
     Deliberately NOT built on query(): that resolves every entry's tier by reading its hash, its
@@ -691,7 +692,7 @@ def orientation_counts(ns: str, agent: str, *, client=None) -> Dict[str, int]:
     return {"total": len(shas), "unopened": unopened, "read_but_undeclared": undeclared}
 
 
-def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> Dict[str, Any]:
+def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> dict[str, Any]:
     """Recover bodies for entries indexed before M1, WITHOUT dropping the index.
 
     Deliberately not `rebuild()`: that drops and re-derives, so every entry whose stream data has
@@ -757,7 +758,7 @@ def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> D
 SHA_STATES = ("exact", "prefix", "ambiguous", "absent")
 
 
-def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
+def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> dict[str, Any]:
     """Turn whatever id a reader is HOLDING into the sha the store is KEYED BY, and say which.
 
     Why this exists, in one line: every id this system prints is a truncation (agent_cli prints
@@ -833,7 +834,7 @@ def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]
     }
 
 
-def _refusal(resolved: Dict[str, Any], asked: str) -> Dict[str, Any]:
+def _refusal(resolved: dict[str, Any], asked: str) -> dict[str, Any]:
     """The refusal a door hands back when an id does not resolve.
 
     Carries `how` as well as `reason` on purpose. Prose that distinguishes four states while code
@@ -851,7 +852,7 @@ def _refusal(resolved: Dict[str, Any], asked: str) -> Dict[str, Any]:
     }
 
 
-def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> tuple[str | None, dict[str, Any] | None]:
     """(full_sha, refusal_dict) -- exactly one is None. The shared door preamble."""
     r = resolve_sha(ns, agent, sha, client=client)
     if r["sha"]:
@@ -859,7 +860,7 @@ def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> Tuple[Optional[
     return None, _refusal(r, sha)
 
 
-def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dict[str, Any]:
+def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> dict[str, Any]:
     """Say SEEN, once, and hand back the full body. Writes exactly one receipt and nothing else.
 
     Idempotent per (message, incarnation): the field key IS the identity, so a retry, a redelivery,
@@ -901,7 +902,7 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dic
     }
 
 
-def seen_by(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
+def seen_by(ns: str, agent: str, sha: str, *, client=None) -> list[dict[str, Any]]:
     """Which incarnations have opened this, and when. The evidence a fresh seat reads to learn
     that a predecessor saw the mail."""
     client = client or _connect()
@@ -915,7 +916,7 @@ def seen_by(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any
 
 def declare_intent(
     ns: str, agent: str, sha: str, intent: str, *, incarnation: str, note: str = "", to: str = "", client=None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Declare what you will DO about this mail. The gap Daniil named: without it, 'read and
     declined' is indistinguishable from 'never seen', and every reader re-adjudicates.
 
@@ -954,7 +955,7 @@ def declare_intent(
     return {"ok": True, "sha": str(sha), **rec}
 
 
-def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
+def intents_of(ns: str, agent: str, sha: str, *, client=None) -> list[dict[str, Any]]:
     """Every declaration made about this message, oldest first.
 
     declare_intent already preserves a superseded declaration under its own key -- "corrections are
@@ -964,7 +965,7 @@ def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, 
     """
     client = client or _connect()
     raw = client.hgetall(_keys(ns, agent)["intent"]) or {}
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for field, val in raw.items():
         f = str(field)
         if f != str(sha) and not f.startswith(f"{sha}|superseded|"):
@@ -979,9 +980,7 @@ def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, 
     return out
 
 
-def open_for_message(
-    agent: str, msg: Any, *, incarnation: str, ns: Optional[str] = None, client=None
-) -> Dict[str, Any]:
+def open_for_message(agent: str, msg: Any, *, incarnation: str, ns: str | None = None, client=None) -> dict[str, Any]:
     """Say SEEN about a message this seat just read, WITHOUT inventing a decision.
 
     The gap the counts exposed on 2026-08-03: kimi 8 seen, deepseek 7, claude 2. The runners record
@@ -1016,7 +1015,7 @@ def open_for_message(
         return {"ok": False, "reason": f"mailbox open failed ({exc})"}
 
 
-def _msg_fields(msg: Any) -> "tuple[Dict[str, str], Dict[str, Any]]":
+def _msg_fields(msg: Any) -> tuple[dict[str, str], dict[str, Any]]:
     def _f(name):
         v = getattr(msg, name, None)
         if v is None and isinstance(msg, dict):
@@ -1032,7 +1031,7 @@ def _msg_fields(msg: Any) -> "tuple[Dict[str, str], Dict[str, Any]]":
     )
 
 
-def _identity_for_message(msg: Any) -> "tuple[str, str]":
+def _identity_for_message(msg: Any) -> tuple[str, str]:
     """Identity computed the SAME way the index computed it at ingest. When these disagree the
     whole layer fails silently -- the caller believes it declared while the surface still reads
     unhandled -- so both doors go through this one function."""
@@ -1063,9 +1062,9 @@ def declare_for_message(
     incarnation: str,
     note: str = "",
     to: str = "",
-    ns: Optional[str] = None,
+    ns: str | None = None,
     client=None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """THE RUNNER SEAM: record that this seat read a message and what it decided to do about it.
 
     This is the call that was missing. `open()` and `declare_intent()` have shipped since M1 with
@@ -1146,7 +1145,7 @@ def retire_ghost_mail(
     is_live=None,
     incarnation: str = "ghost-sweep",
     limit: int = DEFAULT_CAP,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Declare `decline` on old, unadjudicated mail from seats that no longer exist.
 
     THE FAILURE THIS TREATS, from 2026-08-02: kimi spent three turns answering
@@ -1176,7 +1175,7 @@ def retire_ghost_mail(
     # being resolved once per MESSAGE, and a mailbox holding 1500 entries from a dozen distinct
     # senders therefore made ~1400 expensive lookups to answer twelve questions. The sweep is a
     # per-SENDER judgement; asking it per message was the bug.
-    _live_cache: Dict[str, bool] = {}
+    _live_cache: dict[str, bool] = {}
 
     def _live(sender: str) -> bool:
         if sender not in _live_cache:
@@ -1194,7 +1193,7 @@ def retire_ghost_mail(
     truncated = total > len(shas)
 
     declared = client.hgetall(k["intent"]) or {}
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for sha in shas:
         e = client.hgetall(k["msg"] + str(sha)) or {}
         frm = str(e.get("frm") or "")
@@ -1250,7 +1249,7 @@ def retire_ghost_mail(
 
 def maybe_retire_ghosts(
     ns: str, agent: str, *, every_h: float = 12.0, client=None, incarnation: str = "boot-sweep"
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run the ghost sweep on a CADENCE, not on a ritual.
 
     Ghost mail recurs by construction: the index ingests on READ, so it grows as it is queried, and
@@ -1291,7 +1290,7 @@ def maybe_retire_ghosts(
     }
 
 
-def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
+def state_for(ns: str, agent: str, sha: str, *, client=None) -> dict[str, Any]:
     """Everything a fresh incarnation needs about one message, in ONE hop.
 
     `read_but_undeclared` is the receipt's load-bearing state: somebody opened this and did not

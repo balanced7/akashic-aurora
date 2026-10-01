@@ -51,10 +51,10 @@ FLOOR_BUSINESS = {9}
 _CASE_RE = re.compile(r"^## case (\d+)\s+\[(command|path)\]", re.M)
 
 
-def parse_pack(text: str) -> List[Dict[str, Any]]:
+def parse_pack(text: str) -> list[dict[str, Any]]:
     """[{case, kind, action}] from the frozen pack. The ACTION line runs until the
     first surfaced-item slot (` N:a `) or the next case header."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     matches = list(_CASE_RE.finditer(text))
     for i, m in enumerate(matches):
         block = text[m.end() : matches[i + 1].start() if i + 1 < len(matches) else len(text)]
@@ -76,7 +76,7 @@ def classify(case_no: int) -> str:
     return "should_surface"
 
 
-def replay(pack_path: str = PACK_PATH, *, root: Optional[str] = None) -> Dict[str, Any]:
+def replay(pack_path: str = PACK_PATH, *, root: str | None = None) -> dict[str, Any]:
     """Run every pack case through recall_at with production settings; return per-case
     verdicts and the bar-relevant tallies. Read-only against the corpus; outcome rows
     go to a scratch sink."""
@@ -88,7 +88,7 @@ def replay(pack_path: str = PACK_PATH, *, root: Optional[str] = None) -> Dict[st
 
     saved = A._OUTCOME_DIR
     A._OUTCOME_DIR = tempfile.mkdtemp(prefix="r2replay_")  # hermetic: never pollute the live sink
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     try:
         for c in cases:
             kw = {"command": c["action"]} if c["kind"] == "command" else {"path": c["action"]}
@@ -106,7 +106,7 @@ def replay(pack_path: str = PACK_PATH, *, root: Optional[str] = None) -> Dict[st
     finally:
         A._OUTCOME_DIR = saved
 
-    def _tally(bucket: str) -> Dict[str, int]:
+    def _tally(bucket: str) -> dict[str, int]:
         sub = [r for r in rows if r["bucket"] == bucket]
         return {"cases": len(sub), "fired": sum(r["fired"] for r in sub), "silent": sum(not r["fired"] for r in sub)}
 
@@ -126,7 +126,7 @@ def replay(pack_path: str = PACK_PATH, *, root: Optional[str] = None) -> Dict[st
     }
 
 
-def render(result: Dict[str, Any]) -> str:
+def render(result: dict[str, Any]) -> str:
     lines = [
         "# R2 pack replay -- TODAY'S pipeline vs the reconciled bar's case-sets",
         "# (baseline: no gate exists; silence here is the existing floor's doing)",

@@ -118,7 +118,7 @@ def _seen_key(ns: str, agent: str, sid8: str) -> str:
 
 
 def heartbeat(
-    ns: str, agent: str, session_id: str, *, phase: str = "idle", client=None, _beat_ts: Optional[float] = None
+    ns: str, agent: str, session_id: str, *, phase: str = "idle", client=None, _beat_ts: float | None = None
 ) -> bool:
     """Beat this seat's liveness. Monotonic (P5): an older beat_ts never overwrites a
     fresher one. The key stays sid8-sized, while the value retains the full session id
@@ -130,7 +130,7 @@ def heartbeat(
         sid8 = _sid8(full_sid)
         k = _key(ns, agent, sid8)
         now = float(_beat_ts if _beat_ts is not None else time.time())
-        prev: Dict[str, Any] = {}
+        prev: dict[str, Any] = {}
         try:
             prev = json.loads(client.get(k) or "{}")
         except (ValueError, TypeError):
@@ -176,7 +176,7 @@ def heartbeat(
         return {"ok": False, "resumed_after_s": None}
 
 
-def go_offline(ns: str, agent: str, session_id: str, *, client=None, _beat_ts: Optional[float] = None) -> dict:
+def go_offline(ns: str, agent: str, session_id: str, *, client=None, _beat_ts: float | None = None) -> dict:
     """Declared departure (presence-offline API, 2026-08-24). Removes the worklive key
     NOW -- a departing seat must not render STALE for the rest of the TTL -- and stamps
     the seatseen witness with offline_ts so the roster renders OFFLINE (declared) instead
@@ -202,9 +202,7 @@ def go_offline(ns: str, agent: str, session_id: str, *, client=None, _beat_ts: O
         return {"ok": False}
 
 
-def _have_summary(
-    client, ns: str, agent: str, sid8: str, *, bus_cache: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+def _have_summary(client, ns: str, agent: str, sid8: str, *, bus_cache: dict[str, Any] | None = None) -> dict[str, Any]:
     """T3 (torrent bitfield): the seat's consumed-through positions -- inventory POINTERS,
     never payload (T5). kimi F2: keys are DERIVED THROUGH THE BUS DOOR (the organ that owns
     the formats), never a parallel hardcoded f-string; the shared legacy cursor is labeled
@@ -228,7 +226,7 @@ def _have_summary(
     would be a frozen instrument in a long-lived runner. None means "no sharing", which is
     still correct, just as expensive as before.
     """
-    have: Dict[str, Any] = {}
+    have: dict[str, Any] = {}
     try:
         from core.comm.bus import Bus
 
@@ -263,7 +261,7 @@ CHURN_AT = int(os.environ.get("AKASHIC_ROSTER_CHURN_AT", "3") or 3)
 _STATE_RANK = {"LIVE": 3, "STALE": 2, "OFFLINE": 1.5, "DEAD": 1}
 
 
-def by_agent(rows, *, churn_window_s: Optional[float] = None, churn_at: Optional[int] = None) -> List[Dict[str, Any]]:
+def by_agent(rows, *, churn_window_s: float | None = None, churn_at: int | None = None) -> list[dict[str, Any]]:
     """One summary per LOGICAL agent, with churn STATED rather than implied (T183).
 
     WHY THIS IS NOT A COLLAPSE. The obvious version of this function -- one line per agent with a
@@ -283,7 +281,7 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None, churn_at: Optional
     window = float(CHURN_WINDOW_S if churn_window_s is None else churn_window_s)
     threshold = int(CHURN_AT if churn_at is None else churn_at)
 
-    groups: Dict[str, List[Dict[str, Any]]] = {}
+    groups: dict[str, list[dict[str, Any]]] = {}
     for r in rows or []:
         groups.setdefault(str(r.get("agent") or "?"), []).append(r)
 
@@ -295,7 +293,7 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None, churn_at: Optional
         age = r.get("beat_age_s")
         return age is not None and float(age) <= window
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for agent, rs in sorted(groups.items()):
         best = max(rs, key=_rank)
         live = [r for r in rs if str(r.get("state")) == "LIVE"]
@@ -332,7 +330,7 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None, churn_at: Optional
     return out
 
 
-def render_by_agent(ns: str, *, client=None) -> List[str]:
+def render_by_agent(ns: str, *, client=None) -> list[str]:
     """The per-agent render. Churn is the headline; the graveyard total is context."""
     groups = by_agent(roster(ns, client=client))
     lines = [f"# seat roster BY AGENT -- {len(groups)} agent(s) (raw incarnations: `roster` without --by-agent)"]
@@ -361,15 +359,15 @@ def render_by_agent(ns: str, *, client=None) -> List[str]:
     return lines
 
 
-def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[str, Any]]:
+def roster(ns: str, *, client=None, now: float | None = None) -> list[dict[str, Any]]:
     """Every known seat in `ns`, with its PROVEN state. Read-only; derives everything from
     worklive keys + cursor hashes (a projection -- rebuild-safe by construction)."""
     client = client or _connect()
     now = float(now if now is not None else time.time())
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     # One Bus per agent for THIS read only (see _have_summary). Scoped to the call so the
     # roster stays a projection of one observation instant and holds nothing between reads.
-    bus_cache: Dict[str, Any] = {}
+    bus_cache: dict[str, Any] = {}
     try:
         live_keys = {str(k) for k in client.keys(f"{ns}:worklive:*")}
         seen_keys = {str(k) for k in client.keys(f"{ns}:seatseen:*")}
@@ -379,7 +377,7 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
     seen_tails = {k.rsplit(":seatseen:", 1)[-1] for k in seen_keys if "#" in k.rsplit(":seatseen:", 1)[-1]}
     for tail in sorted(live_tails | seen_tails):
         agent, _, sid8 = tail.partition("#")
-        doc: Dict[str, Any] = {}
+        doc: dict[str, Any] = {}
         dead = tail not in live_tails
         try:
             raw = client.get(_seen_key(ns, agent, sid8) if dead else _key(ns, agent, sid8))
@@ -436,7 +434,7 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
     return rows
 
 
-def render_roster(ns: str, *, client=None) -> List[str]:
+def render_roster(ns: str, *, client=None) -> list[str]:
     """Human render with the W84 contract: what this roster CHECKED, and what it did NOT."""
     rows = roster(ns, client=client)
     out = [f"# seat roster ({ns}) -- {len(rows)} seat(s)"]

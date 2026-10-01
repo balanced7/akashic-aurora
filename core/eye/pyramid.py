@@ -44,7 +44,7 @@ def _ensure_schema(con) -> None:
         built_at REAL NOT NULL, tokens INTEGER NOT NULL)""")
 
 
-def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
+def build(db_path: Path | None = None) -> dict[str, Any]:
     """(Re)build L1+L2 for every session. Extractive, deterministic, cheap enough to be
     wholesale at this corpus scale (the incremental refinement rides a later slice --
     stated, not silent)."""
@@ -68,8 +68,8 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
             # TWICE (the queue-operation enqueue + the user record, identical text), and
             # consecutive operator events are one moment, not two exchanges. Caught live on
             # this very session, 2026-08-11; the fixture below pins the duplicate pattern.
-            exchanges: List[List[Dict[str, Any]]] = []
-            cur: List[Dict[str, Any]] = []
+            exchanges: list[list[dict[str, Any]]] = []
+            cur: list[dict[str, Any]] = []
             seen_agent = False
             for e in evs:
                 if e["voice"] == "operator":
@@ -129,7 +129,7 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
     return {"sessions": len(sessions), "l1_nodes": built_l1, "l2_nodes": built_l2, "built_at": round(now, 2)}
 
 
-def nodes(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def nodes(db_path: Path | None = None) -> list[dict[str, Any]]:
     con = _connect(db_path)
     _ensure_schema(con)
     try:
@@ -154,7 +154,7 @@ def nodes(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     ]
 
 
-def zoom(addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def zoom(addr: str, db_path: Path | None = None) -> dict[str, Any]:
     """LOD navigation: a session name -> its L2 digest (+ child L1 ids); an L1 node id ->
     the exchange (+ event refs). Every read carries is_stale -- fog, never silence."""
     con = _connect(db_path)

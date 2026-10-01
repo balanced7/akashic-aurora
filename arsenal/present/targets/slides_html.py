@@ -18,7 +18,7 @@ takes the note (a title attribute, a footnote) instead of the aside.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -34,14 +34,14 @@ BAR_TRACK = 300  # bars: the tallest bar, inside a 480 row
 class _Ctx:
     """What every atom painter needs: tokens, the surface, the template, the mode, the cues."""
 
-    def __init__(self, tk: dict, surf: Dict[str, str], slide: dict, mode: str, cues: Dict[str, str]):
+    def __init__(self, tk: dict, surf: dict[str, str], slide: dict, mode: str, cues: dict[str, str]):
         self.tk = tk
         self.surf = surf
         self.tpl = slide["template"]
         self.sid = slide["id"]
         self.mode = mode  # "artifact" (the subset) or "browser" (ui, print)
         self.cues = cues
-        self.markers: Dict[str, str] = {}  # colour -> marker id, per slide
+        self.markers: dict[str, str] = {}  # colour -> marker id, per slide
 
     @property
     def sans(self) -> str:
@@ -63,15 +63,15 @@ class _Ctx:
         return f' title="{esc(cue)}"' if cue else ""
 
 
-def _style(*parts: Optional[str]) -> str:
+def _style(*parts: str | None) -> str:
     return "; ".join(p for p in parts if p)
 
 
 # ---------------------------------------------------------------- inline pieces
-def runs_html(runs: Any, surf: Dict[str, str]) -> str:
+def runs_html(runs: Any, surf: dict[str, str]) -> str:
     """strong -> <b>, em -> <i>, accent/muted -> a coloured span, code -> <b> (the page allows
     no font on a span: the declared degrade)."""
-    out: List[str] = []
+    out: list[str] = []
     for text, mark in C.runs_list(runs):
         t = esc(text)
         if mark in ("strong", "code"):
@@ -99,7 +99,7 @@ def _eyebrow(ctx: _Ctx, text: str, extra: str = "", attrs: str = "") -> str:
     return f'<p{attrs} style="{st}">{esc(text.upper())}</p>'
 
 
-def _card_style(ctx: _Ctx, tone: Optional[str] = None, *, flex: bool = True, padding: int = 40, gap: int = 16) -> str:
+def _card_style(ctx: _Ctx, tone: str | None = None, *, flex: bool = True, padding: int = 40, gap: int = 16) -> str:
     s = ctx.surf
     paint = [f"background:{s['card']}", f"border:1px solid {s['line']}"]
     colour = None
@@ -213,7 +213,7 @@ def _list(a: dict, ctx: _Ctx, nested: bool) -> str:
 
 def _table(a: dict, ctx: _Ctx) -> str:
     size = ctx.size(a.get("role") or "caption")
-    head: List[str] = []
+    head: list[str] = []
     for i, col in enumerate(a.get("columns") or []):
         st = _style(f"width:{col['share']:g}%", "text-align:left", "padding:14px 20px" if i == 0 else None)
         head.append(f'<th style="{st}">{esc(col.get("title"))}</th>')
@@ -232,7 +232,7 @@ def _table(a: dict, ctx: _Ctx) -> str:
 
 def _code(a: dict, ctx: _Ctx) -> str:
     marks = {m["line"]: (m.get("tone") or "accent") for m in a.get("marks") or [] if isinstance(m, dict)}
-    lines: List[str] = []
+    lines: list[str] = []
     for i, line in enumerate(a.get("lines") or [], 1):
         t = esc(line)
         tone = marks.get(i)
@@ -258,7 +258,7 @@ def _bars(a: dict, ctx: _Ctx) -> str:
     top = max([float(s.get("value", 0)) for s in series] + [0.0])
     mx = float(a.get("max") or top or 1.0)
     unit = str(a.get("unit") or "")
-    cols: List[str] = []
+    cols: list[str] = []
     for s in series:
         tone = s.get("tone")
         colour = C.tone_colour(tone, ctx.surf, default=ctx.surf["secondary"])
@@ -298,7 +298,7 @@ def _bars(a: dict, ctx: _Ctx) -> str:
 
 def _timeline(a: dict, ctx: _Ctx) -> str:
     row = a.get("orientation") == "row"
-    beats: List[str] = []
+    beats: list[str] = []
     for b in a.get("beats") or []:
         st = _card_style(ctx, b.get("tone"), flex=row, padding=24, gap=12)
         text = _style(f"font-size:{ctx.size('caption')}px", "line-height:1.4")
@@ -312,11 +312,11 @@ def _timeline(a: dict, ctx: _Ctx) -> str:
 
 def _comparison(a: dict, ctx: _Ctx) -> str:
     verdict = a.get("verdict") or "none"
-    sides: List[str] = []
+    sides: list[str] = []
     for side in ("left", "right"):
         s = a.get(side) or {}
         tone = s.get("tone") or ("accent" if verdict == side else None)
-        parts: List[str] = []
+        parts: list[str] = []
         if s.get("eyebrow"):
             parts.append(_eyebrow(ctx, str(s["eyebrow"])))
         parts.append(
@@ -338,7 +338,7 @@ def _group(a: dict, ctx: _Ctx) -> str:
         box = "display:flex; flex-direction:column; gap:32px"
     else:
         box = f"display:grid; grid-template-columns:repeat({int(a.get('columns') or 3)}, 1fr); gap:32px"
-    items: List[str] = []
+    items: list[str] = []
     for item in a.get("items") or []:
         if not isinstance(item, dict):
             continue
@@ -367,7 +367,7 @@ def _receipt(a: dict, ctx: _Ctx) -> str:
 
 
 # ---------------------------------------------------------------- the diagram host
-def _stroke(tone: Optional[str], dashed: bool, ctx: _Ctx):
+def _stroke(tone: str | None, dashed: bool, ctx: _Ctx):
     colour = C.tone_colour(tone, ctx.surf, default=ctx.surf["muted"])
     return colour, (dashed or tone == "ghost")
 
@@ -393,7 +393,7 @@ def _marker(ctx: _Ctx, colour: str) -> str:
 def _svg(g: dict, ctx: _Ctx, include_connectors: bool) -> str:
     """Paths (many-bend lines the scene drew) as one <svg> the size of the host, first in the
     host; in browser mode the connectors join it, since nothing else would draw them."""
-    items: List[tuple] = []
+    items: list[tuple] = []
     for p in g["paths"]:
         colour, dashed = _stroke(p.get("tone"), p.get("dashed", False), ctx)
         items.append((C.shorten(p["points"], p["head"]), colour, dashed, p["head"], 4))
@@ -403,7 +403,7 @@ def _svg(g: dict, ctx: _Ctx, include_connectors: bool) -> str:
             items.append((C.shorten(C.polyline(c), c.get("head") or "end"), colour, dashed, c.get("head") or "end", 3))
     if not items:
         return ""
-    body: List[str] = []
+    body: list[str] = []
     for pts, colour, dashed, head, width in items:
         d = "M " + " L ".join(f"{fmt(x)} {fmt(y)}" for x, y in pts)
         attrs = [
@@ -516,7 +516,7 @@ def _dlabel(lb: dict, ctx: _Ctx) -> str:
 
 def _diagram(a: dict, ctx: _Ctx) -> str:
     g = C.diagram_geometry(a)
-    parts: List[str] = []
+    parts: list[str] = []
     svg = _svg(g, ctx, include_connectors=(ctx.mode != "artifact"))
     if svg:
         parts.append(svg)
@@ -568,13 +568,13 @@ def _atom(a: dict, ctx: _Ctx, region: str, nested: bool = False) -> str:
 def section_html(
     scene: dict,
     slide: dict,
-    tk: Optional[dict] = None,
+    tk: dict | None = None,
     *,
     mode: str = "artifact",
     tag: str = "section",
-    elem_id: Optional[str] = None,
-    section: Optional[str] = None,
-    cues: Optional[Dict[str, str]] = None,
+    elem_id: str | None = None,
+    section: str | None = None,
+    cues: dict[str, str] | None = None,
     aside: bool = True,
 ) -> str:
     """One slide as markup. mode="artifact" is the subset (x-connector lines, an <aside>);
@@ -587,7 +587,7 @@ def section_html(
     regions = sc.TEMPLATES[tpl]["regions"]
     has_footer = any(r["name"] == "footer" for r in regions)
     by = C.atoms_by_region(slide)
-    parts: List[str] = []
+    parts: list[str] = []
     if tpl in C.STACK_TEMPLATES:
         parts += [_atom(a, ctx, "stack") for a in by.get("stack", [])]
     elif tpl == "content":
@@ -629,12 +629,12 @@ def section_html(
     return f'<{tag} {" ".join(attrs)} style="{style}">\n' + "\n".join(p for p in parts if p) + f"\n</{tag}>"
 
 
-def deck_manifest(scene: dict, tk: Optional[dict] = None, created_at: Optional[str] = None) -> dict:
+def deck_manifest(scene: dict, tk: dict | None = None, created_at: str | None = None) -> dict:
     """deck.json v4: order, sections, faces (the first family carries the Google Fonts href)."""
     tk = tk or C.tokens(scene)
-    faces: Dict[str, dict] = {}
+    faces: dict[str, dict] = {}
     for i, family in enumerate(tk["families"]):
-        entry: Dict[str, str] = {"family": family}
+        entry: dict[str, str] = {"family": family}
         if i == 0 and tk.get("href"):
             entry["href"] = tk["href"]
         faces[C.slug(family)] = entry
@@ -646,7 +646,7 @@ def deck_manifest(scene: dict, tk: Optional[dict] = None, created_at: Optional[s
     }
     return {
         "v": 4,
-        "createdOnFiles": {"v": 1, "at": created_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+        "createdOnFiles": {"v": 1, "at": created_at or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")},
         "title": scene.get("title", ""),
         "order": order,
         "sections": sections,
@@ -655,12 +655,12 @@ def deck_manifest(scene: dict, tk: Optional[dict] = None, created_at: Optional[s
     }
 
 
-def render(scene: dict, out_dir, **opts) -> List[Path]:
+def render(scene: dict, out_dir, **opts) -> list[Path]:
     """Write <out_dir>/deck.json and <out_dir>/slides/<id>.html for every slide in order."""
     out = Path(out_dir)
     tk = C.tokens(scene)
     starts = C.section_starts(scene)
-    written: List[Path] = []
+    written: list[Path] = []
     for slide in C.ordered_slides(scene):
         markup = section_html(scene, slide, tk, mode="artifact", section=starts.get(slide["id"]))
         written.append(C.write_bytes(out / "slides" / f"{slide['id']}.html", markup + "\n"))

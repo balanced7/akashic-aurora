@@ -102,7 +102,7 @@ def available() -> bool:
         return False
 
 
-def configured_backend() -> Optional[str]:
+def configured_backend() -> str | None:
     """The backend already decided for this checkout, or None if nothing decided yet."""
     env = (os.getenv("AKASHIC_REDIS_BACKEND") or "").strip().lower()
     if env in _BACKENDS:
@@ -184,7 +184,7 @@ class _Persistence:
     def __init__(self, fake_server, path: Path):
         self.server = fake_server
         self.path = path
-        self._dirty: Set[Tuple[int, bytes]] = set()  # (id(Database), key)
+        self._dirty: set[tuple[int, bytes]] = set()  # (id(Database), key)
         self._full = False
         self._mu = threading.Lock()
         self._stop = threading.Event()
@@ -265,7 +265,7 @@ class _Persistence:
         self.flush()
 
 
-_PERSIST: Optional[_Persistence] = None
+_PERSIST: _Persistence | None = None
 
 
 def _install_hooks() -> None:
@@ -354,7 +354,7 @@ def _complete_range_end(name: str, args):
     return args
 
 
-def _write_commands() -> Set[str]:
+def _write_commands() -> set[str]:
     """Every command Redis flags `write`, from fakeredis's own copy of the command table
     (names as fakeredis spells them: 'xgroup create' for subcommands)."""
     import json
@@ -362,7 +362,7 @@ def _write_commands() -> Set[str]:
     import fakeredis
 
     table = json.loads((Path(fakeredis.__file__).parent / "commands.json").read_text("utf-8"))
-    out: Set[str] = set()
+    out: set[str] = set()
 
     def walk(entry, parent=""):
         name, flags = entry[0], entry[2]
@@ -464,7 +464,7 @@ def _no_delay_handler(base):
     return _NoDelay
 
 
-def serve(port: int, host: str = "127.0.0.1", path: Optional[Path] = None) -> int:
+def serve(port: int, host: str = "127.0.0.1", path: Path | None = None) -> int:
     """Run the server in this process until SIGTERM/SIGINT or SHUTDOWN. Returns an exit code."""
     global _PERSIST
     from fakeredis import TcpFakeServer
@@ -575,7 +575,7 @@ def ensure_running(host: str, port: int, timeout: float = 10.0) -> bool:
         return False
 
 
-def status() -> Dict[int, str]:
+def status() -> dict[int, str]:
     """Who answers each declared world port right now."""
     out = {}
     try:

@@ -50,18 +50,18 @@ class PlaneStatus:
 
 def assess(
     root: str,
-    secrets_count: Optional[int],
-    state_count: Optional[int],
-    head_sha: Optional[str],
-    source_dirty: Optional[int],
-    seeded_from: Optional[str] = None,
+    secrets_count: int | None,
+    state_count: int | None,
+    head_sha: str | None,
+    source_dirty: int | None,
+    seeded_from: str | None = None,
     is_source: bool = False,
-    tracked_state_present: Optional[bool] = None,
-) -> List[PlaneStatus]:
+    tracked_state_present: bool | None = None,
+) -> list[PlaneStatus]:
     """Report each plane. Counts are passed in rather than probed so this stays pure and
     the CLI owns every filesystem and git call -- the module can then be pinned without
     a repo, and the probe can be world-scoped by its caller."""
-    out: List[PlaneStatus] = []
+    out: list[PlaneStatus] = []
 
     # --- code -----------------------------------------------------------
     if head_sha is None or source_dirty is None:
@@ -210,7 +210,7 @@ def assess(
     return out
 
 
-def render(rows: List[PlaneStatus], world: str) -> str:
+def render(rows: list[PlaneStatus], world: str) -> str:
     ordered = sorted(rows, key=lambda r: STATUS_ORDER.get(r.status, 9))
     out = [f"WORLD FIDELITY  {world} -- what this checkout can and cannot do"]
     for r in ordered:

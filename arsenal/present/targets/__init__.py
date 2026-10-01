@@ -10,13 +10,14 @@ plane_gap, verify_cdn, slide, created_at).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Dict, List
+from collections.abc import Callable
 
 from . import print_html, slides_html, three_js, ui_element
 
-Render = Callable[..., List[Path]]
+Render = Callable[..., list[Path]]
 
-TARGETS: Dict[str, Render] = {
+TARGETS: dict[str, Render] = {
     slides_html.MODULE_ID: slides_html.render,
     ui_element.MODULE_ID: ui_element.render,
     print_html.MODULE_ID: print_html.render,
@@ -24,7 +25,7 @@ TARGETS: Dict[str, Render] = {
 }
 
 #: what the door accepts after --to
-ALIASES: Dict[str, str] = {
+ALIASES: dict[str, str] = {
     "slides": slides_html.MODULE_ID,
     "slides-html": slides_html.MODULE_ID,
     "html": slides_html.MODULE_ID,
@@ -39,7 +40,7 @@ ALIASES: Dict[str, str] = {
 }
 
 #: where the door puts each target under --out
-SUBDIR: Dict[str, str] = {
+SUBDIR: dict[str, str] = {
     slides_html.MODULE_ID: "project",
     ui_element.MODULE_ID: "ui",
     print_html.MODULE_ID: "print",

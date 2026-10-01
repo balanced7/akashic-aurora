@@ -202,14 +202,14 @@ CONTROL_PLANE_SENDERS = {"conductor"}
 
 """T078 W1: token tracking -- shared between responder closure and turn-close path.
 The agentic responder populates this per-peer; _process_one drains it after each turn."""
-_token_deltas: Dict[str, tuple] = {}  # peer -> (prompt, completion) since last poll
+_token_deltas: dict[str, tuple] = {}  # peer -> (prompt, completion) since last poll
 # T078 W1b: peer -> {cache_hit, cache_miss, context_peak_chars} for the turn just closed.
 # Tokens alone cannot price a turn: a cached prefix bills ~0.1x, so a 1M-token turn may cost
 # less than a 200k one. Drained beside _token_deltas at turn close.
-_cost_shape: Dict[str, dict] = {}
+_cost_shape: dict[str, dict] = {}
 _token_journal = None  # TokenJournal, created at runner start
 # M1-delta: simple run stats tracker (updated per turn in _process_one)
-_RUN_STATS: Dict[str, int] = {"turns": 0}
+_RUN_STATS: dict[str, int] = {"turns": 0}
 
 
 def fold_ledger_update(msg) -> bool:
@@ -460,7 +460,7 @@ def make_agentic_replier(
     agent_id: str,
     allow_write: bool = False,
     allow_exec: bool = False,
-    boot_sources: Optional[set] = None,
+    boot_sources: set | None = None,
 ):
     """Tool-using bridge: DeepSeek can read files, search, inspect git, and query the Akashic knowledge
     base WHILE composing its reply, then posts the final answer to the bus. Reuses the guarded
@@ -1901,7 +1901,7 @@ def main() -> int:
     return 0
 
 
-def _write_exit_summary(path: Optional[str], exit_code: int = 0, verdict: str = "ok", last_error: str = "") -> None:
+def _write_exit_summary(path: str | None, exit_code: int = 0, verdict: str = "ok", last_error: str = "") -> None:
     """M1-delta: write a JSON exit summary for the daemon's summary-injection path.
     Fail-silent: the runner's exit must never be blocked by a broken summary write."""
     if not path:

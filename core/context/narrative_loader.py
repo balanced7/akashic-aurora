@@ -16,7 +16,7 @@ def load_recent_narrative_for_boot(
     *,
     max_chapters: int = 5,
     max_chars: int = 2400,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Compact recent narrative for ``boot`` — active chapters only, newest first."""
     if store is None:
         from core.foundation.store import create_store
@@ -31,7 +31,7 @@ def load_recent_narrative_for_boot(
     except (ValueError, TypeError, json.JSONDecodeError):
         return None
 
-    chapters: List[Chapter] = []
+    chapters: list[Chapter] = []
     for tid in atlas.tracks:
         tr_raw = store.get(track_key(tid))
         if not tr_raw:
@@ -58,7 +58,7 @@ def load_recent_narrative_for_boot(
 
     lines = [f"Atlas: {atlas.summary or '; '.join(atlas.tracks)}"]
     used = len(lines[0])
-    picked: List[Dict[str, Any]] = []
+    picked: list[dict[str, Any]] = []
     for ch in chapters:
         line = f"- [{ch.track}] {ch.title} ({ch.span_start[:10] if ch.span_start else '?'})"
         if used + len(line) > max_chars:

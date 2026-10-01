@@ -67,7 +67,7 @@ def _fetch_notes() -> list:
     return get_agent_memory().get_decisions(days=_NOTE_WINDOW_DAYS)
 
 
-def _live_siblings(agent_id: str, my_session: str = "") -> List[Dict]:
+def _live_siblings(agent_id: str, my_session: str = "") -> list[dict]:
     from core.comm.incarnation import live_incarnations
 
     return live_incarnations(agent_id, my_session=my_session or None)
@@ -176,7 +176,7 @@ def _clip(text: str, n: int = _LINE_CLAMP) -> str:
     return t if len(t) <= n else t[: n - 3] + "..."
 
 
-def _age_parts(created_at: str, now: Optional[float] = None):
+def _age_parts(created_at: str, now: float | None = None):
     """(age_str, age_days) from an ISO timestamp; (None, None) when unparseable."""
     try:
         ts = datetime.fromisoformat(str(created_at)).timestamp()
@@ -328,7 +328,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         notes = _fetch_notes()
     except Exception:
         pass
-    siblings: List[Dict] = []
+    siblings: list[dict] = []
     try:
         siblings = _live_siblings(agent_id, session_id)
     except Exception:
@@ -357,7 +357,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         return ""
 
     # ---- assemble sections in priority order: (key, [payload lines]) --------------
-    sections: List = []
+    sections: list = []
 
     if directive is not None:
         d_line = _note_line("DIRECTIVE", directive, body_clip=110)
@@ -457,7 +457,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
             pass
 
     # ---- render: first line owns the [akashic] tag, the rest indent ---------------
-    lines: List[str] = []
+    lines: list[str] = []
     for _, body in sections:
         lines.extend(body)
     lines = lines[:budget]

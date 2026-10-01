@@ -85,7 +85,7 @@ class LensScore:
     refuted_n: int
     abstained_n: int
     unverified_n: int
-    hit_rate: Optional[float]
+    hit_rate: float | None
     verdict: str  # RATED | UNRATED | UNSCORED | ABSTAINING
     why: str
 
@@ -98,7 +98,7 @@ class LensScore:
         return self.verified_n + self.abstained_n + self.unverified_n
 
 
-def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, LensScore]:
+def score(runs: list[LensRun], min_verified: int = MIN_VERIFIED) -> dict[str, LensScore]:
     """Per-lens outcomes -> honest verdicts. Never invents a rate it has not earned."""
     # SUPERSESSION, last-writer-wins per (fan, lens). Storage is append-only -- a verdict is
     # written, never edited -- but a RUN has exactly one outcome, and the auto-recorded
@@ -108,16 +108,16 @@ def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, Le
     # `unverified`, so one run counted twice and inflated the coverage gap it was supposed
     # to shrink. Two rows claiming one run's state is the same shape as any other dual
     # authority; the fix is that the newest wins at READ time, exactly like the notes plane.
-    latest: Dict[tuple, LensRun] = {}
+    latest: dict[tuple, LensRun] = {}
     for r in runs:
         latest[(r.fan_id, r.lens)] = r  # file order is chronological (append-only)
 
-    by: Dict[str, Dict[str, int]] = {}
+    by: dict[str, dict[str, int]] = {}
     for r in latest.values():
         d = by.setdefault(r.lens, {k: 0 for k in OUTCOMES})
         d[r.outcome] += 1
 
-    out: Dict[str, LensScore] = {}
+    out: dict[str, LensScore] = {}
     for lens, d in by.items():
         ver = d["confirmed"] + d["refuted"]
         total = ver + d["abstained"] + d["unverified"]
@@ -173,7 +173,7 @@ def score(runs: List[LensRun], min_verified: int = MIN_VERIFIED) -> Dict[str, Le
     return out
 
 
-def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_above: float = 0.34) -> Dict[str, str]:
+def gate(scores: dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_above: float = 0.34) -> dict[str, str]:
     """Which lenses to run next time: run | explore | deprioritise. ADVISORY.
 
     Only a RATED lens can be moved off `run`, so a lens is never condemned by the sample
@@ -181,7 +181,7 @@ def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_ab
     getting a share of runs -- without it the ledger stops being a measurement and becomes
     a verdict that can never be revisited.
     """
-    plan: Dict[str, str] = {}
+    plan: dict[str, str] = {}
     for lens, s in scores.items():
         if s.verdict != "RATED" or s.hit_rate is None:
             plan[lens] = "run"
@@ -194,7 +194,7 @@ def gate(scores: Dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_ab
     return plan
 
 
-def render(scores: Dict[str, LensScore], plan: Dict[str, str]) -> str:
+def render(scores: dict[str, LensScore], plan: dict[str, str]) -> str:
     if not scores:
         return (
             "LENS LEDGER -- no runs recorded yet. Score a fan's branches with "
@@ -226,7 +226,7 @@ def render(scores: Dict[str, LensScore], plan: Dict[str, str]) -> str:
     return "\n".join(out)
 
 
-def lens_identity(prompts: List[str], width: int = 60) -> List[str]:
+def lens_identity(prompts: list[str], width: int = 60) -> list[str]:
     """Name each branch by the part of its prompt that DIFFERS from the others.
 
     A lens fan is defined as "same evidence, different questions" (the geometry vocabulary
@@ -254,7 +254,7 @@ def lens_identity(prompts: List[str], width: int = 60) -> List[str]:
     while j < (shortest - i) and len({p[len(p) - 1 - j] for p in prompts}) == 1:
         j += 1
 
-    out: List[str] = []
+    out: list[str] = []
     for k, p in enumerate(prompts):
         delta = p[i : len(p) - j].strip()
         out.append(_slug(delta, width) if delta else f"indistinct-branch-{k}")
@@ -308,8 +308,8 @@ def record(path: Path, run: LensRun) -> None:
         pass
 
 
-def read(path: Path) -> List[LensRun]:
-    out: List[LensRun] = []
+def read(path: Path) -> list[LensRun]:
+    out: list[LensRun] = []
     try:
         for line in Path(path).read_text(encoding="utf-8").splitlines():
             if not line.strip():

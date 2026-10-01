@@ -38,7 +38,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -64,10 +64,10 @@ DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
 # Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
 from core.paths import env_paths as _env_paths  # noqa: E402
 
-DEFAULT_DESTS: List[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
+DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 
 # Planes worth keeping, and the extensions that are the RECORD rather than scratch.
-STATE_PLANES: Dict[str, Tuple[str, ...]] = {
+STATE_PLANES: dict[str, tuple[str, ...]] = {
     "state/spill": (".txt", ".md", ".json", ".jsonl"),
     "state/wire": (".jsonl", ".json"),
     "state/bus-export": (".jsonl",),
@@ -89,7 +89,7 @@ def _safe_name(stream: str) -> str:
     return stream
 
 
-def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dict[str, Any]:
+def export_bus(client, out_dir: Path, cursor_file: Path | None = None) -> dict[str, Any]:
     """Write every stream's NEW entries to `<stream>.jsonl`, resuming from a per-stream
     cursor. Append-only: an entry the bus later trims stays in the file.
 
@@ -131,7 +131,7 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
                             {
                                 "stream": key,
                                 "id": mid,
-                                "exported_at": datetime.now(timezone.utc).isoformat(),
+                                "exported_at": datetime.now(UTC).isoformat(),
                                 "fields": dict(fields),
                             },
                             ensure_ascii=False,
@@ -144,7 +144,7 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
             failed_streams.append({"stream": key, "error": f"{type(exc).__name__}: {exc}"})
     cur_path.parent.mkdir(parents=True, exist_ok=True)
     cur_path.write_text(json.dumps(cursors, indent=1), encoding="utf-8")
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "streams": streams,
         "entries_written": written,
         "out_dir": str(out_dir),
@@ -156,7 +156,7 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
     return report
 
 
-def _sender(fields: Dict[str, Any]) -> str:
+def _sender(fields: dict[str, Any]) -> str:
     """Who sent it. `frm` is the bifrost envelope's field; the others are the shapes the
     events streams and older records use. Checked against the live export, not assumed."""
     for k in ("frm", "from", "agent", "by", "from_agent"):
@@ -166,12 +166,12 @@ def _sender(fields: Dict[str, Any]) -> str:
     return ""
 
 
-def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "", limit: int = 20) -> List[Dict[str, Any]]:
+def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "", limit: int = 20) -> list[dict[str, Any]]:
     """Read the exported bus back. Facets AND together; `q` is a substring within the
     faceted slice -- the query grammar's shape, at the cheapest door that can honour it.
 
     Saved without findable is a tarball, which is why this ships in the same slice."""
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for f in sorted(Path(out_dir).glob("*.jsonl")):
         for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
             if not line.strip():
@@ -199,12 +199,12 @@ def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "", limit: 
     return hits
 
 
-def collect_state(root: Optional[Path] = None) -> Tuple[List[Path], Dict[str, int]]:
+def collect_state(root: Path | None = None) -> tuple[list[Path], dict[str, int]]:
     """The files to archive, and a PER-PLANE count. The count rides the report because an
     archive that cannot say what it covered is how a plane goes quietly uncovered."""
     root = Path(root) if root else _REPO_ROOT
-    files: List[Path] = []
-    planes: Dict[str, int] = {}
+    files: list[Path] = []
+    planes: dict[str, int] = {}
     for plane, exts in STATE_PLANES.items():
         d = root / plane
         planes[plane] = 0
@@ -220,7 +220,7 @@ def collect_state(root: Optional[Path] = None) -> Tuple[List[Path], Dict[str, in
     return files, planes
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dest", action="append", default=[])
     ap.add_argument("--receipt-dir", default="")

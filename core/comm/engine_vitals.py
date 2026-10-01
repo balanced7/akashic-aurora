@@ -43,7 +43,7 @@ def _client(c=None, allow_fallback: bool = True):
         return None
 
 
-def _heartbeat(card: Optional[Dict[str, Any]], now: float) -> str:
+def _heartbeat(card: dict[str, Any] | None, now: float) -> str:
     if not card:
         return "offline"
     try:
@@ -54,7 +54,7 @@ def _heartbeat(card: Optional[Dict[str, Any]], now: float) -> str:
         return "idle"  # a card with an unreadable stamp is present but unproven
 
 
-def _today_journal(agent: str, journal_dir: Optional[str]) -> Dict[str, int]:
+def _today_journal(agent: str, journal_dir: str | None) -> dict[str, int]:
     try:
         base = journal_dir or os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "state"
@@ -68,12 +68,12 @@ def _today_journal(agent: str, journal_dir: Optional[str]) -> Dict[str, int]:
 
 
 def gauge_snapshot(
-    agent: str, c=None, allow_fallback: bool = True, journal_dir: Optional[str] = None, now: Optional[float] = None
-) -> Dict[str, Any]:
+    agent: str, c=None, allow_fallback: bool = True, journal_dir: str | None = None, now: float | None = None
+) -> dict[str, Any]:
     """The Zone-1 snapshot for one agent. Cheap (<=3 backend reads + 1 file
     stat), shape-stable, exception-free."""
     now_f = float(now if now is not None else time.time())
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "heartbeat": "offline",
         "runtimes": {},
         "tokens": {"prompt": 0, "completion": 0},

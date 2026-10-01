@@ -67,8 +67,8 @@ def punctuate_gaps(vtt_text: str, gap_s: float = 0.7) -> str:
     A cue starting after a long pause (> gap_s) opens a new sentence; a quick
     roll joins the current one. Rolling duplicate cues collapse. Deterministic,
     meaning-safe, free -- the raw VTT stays the receipt behind --keep-vtt."""
-    sentences: List[str] = []
-    cur: List[str] = []
+    sentences: list[str] = []
+    cur: list[str] = []
     prev_end = None
     prev_line = None
     for raw in (vtt_text or "").splitlines():
@@ -103,7 +103,7 @@ def _capitalize_sentences(text: str) -> str:
     first word after every sentence terminal that is followed by whitespace. Known limit,
     inherited from the model: abbreviation terminals ('e.g. something') also capitalize
     the following word -- the tier is honest about it, the raw VTT stays the receipt."""
-    res: List[str] = []
+    res: list[str] = []
     cap_next = True
     i, n = 0, len(text)
     while i < n:
@@ -147,7 +147,7 @@ def punctuate_model(text: str) -> str:
 
 def clean_vtt_text(vtt_text: str) -> str:
     """WEBVTT -> plain deduplicated text. Pure; order-preserving; never raises."""
-    lines: List[str] = []
+    lines: list[str] = []
     prev = None
     for ln in (vtt_text or "").splitlines():
         ln = ln.strip()
@@ -168,7 +168,7 @@ def punctuate_captions(text: str) -> str:
     with a period unless terminal punctuation or a closing quote is already
     present. No model, no meaning risk, idempotent -- the DERIVED text; the raw
     VTT stays the receipt behind --keep-vtt."""
-    out: List[str] = []
+    out: list[str] = []
     for ln in (text or "").splitlines():
         s = ln.strip()
         if not s:
@@ -183,7 +183,7 @@ def punctuate_captions(text: str) -> str:
     return "\n".join(out)
 
 
-def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, punctuate: str = "hybrid") -> List[Path]:
+def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, punctuate: str = "hybrid") -> list[Path]:
     """Pull caption files for `url` into out_dir, convert each to .txt, return txt paths.
 
     `punctuate` picks the derived-text pass: hybrid (model boundaries + deterministic
@@ -221,7 +221,7 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, p
     fresh = sorted(set(out.glob("*.vtt")) - before)
     # Prefer the plain .en.vtt over .en-orig.vtt twins (identical content, less noise).
     fresh = [p for p in fresh if not p.name.endswith(".en-orig.vtt")] or fresh
-    txts: List[Path] = []
+    txts: list[Path] = []
     for vtt in fresh:
         txt = vtt.with_suffix("").with_suffix(".txt") if vtt.suffix == ".vtt" else vtt
         txt = Path(str(vtt)[: -len(".vtt")] + ".txt")
@@ -253,7 +253,7 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, p
     return txts
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="YouTube captions -> clean text (captions only, never video)")

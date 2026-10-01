@@ -177,7 +177,7 @@ EXCL_ANTIREPEAT = "antirepeat"  # already shown this SESSION (exclude_sources)
 EXCL_SELF_ECHO = "self_echo"  # the caller authored it within the self-echo window
 
 
-def _note_exclusion(stats: Optional[Dict[str, int]], kinds) -> None:
+def _note_exclusion(stats: dict[str, int] | None, kinds) -> None:
     """Count one excluded ITEM, under EVERY rule that excluded it (T251).
 
     Both call sites used to bump one `excluded` counter, so the measurement that showed
@@ -209,7 +209,7 @@ def _note_exclusion(stats: Optional[Dict[str, int]], kinds) -> None:
         stats[key] = stats.get(key, 0) + 1
 
 
-def _excl_kind(stats: Optional[Dict[str, int]]) -> str:
+def _excl_kind(stats: dict[str, int] | None) -> str:
     """Which rule withheld this call: antirepeat | self_echo | mixed | "" when neither."""
     if not stats:
         return ""
@@ -233,7 +233,7 @@ def _record_outcome(
     agent_id: str = "",
     query_shape: str = "",
     excl_kind: str = "",
-    excl_counts: Optional[Dict[str, int]] = None,
+    excl_counts: dict[str, int] | None = None,
 ) -> None:
     """One row per recall_at call. Best-effort by contract (P6): an exception here must
     never cost the caller its items -- observability must not wedge the path it observes."""
@@ -281,11 +281,11 @@ def _record_outcome(
         pass
 
 
-def silence_rate(window_s: float = 86400.0) -> Dict[str, Any]:
+def silence_rate(window_s: float = 86400.0) -> dict[str, Any]:
     """The number the census bar needs: over the window, {calls, fired, silent, by_reason}.
     Reads the outcome sink; zeros when absent (a missing file is 'no calls recorded', and
     the caller can tell that apart from '0% silent' by calls==0)."""
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "calls": 0,
         "fired": 0,
         "silent": 0,
@@ -367,7 +367,7 @@ _BENCH_PROBE_DAYS = float(os.getenv("AKASHIC_BENCH_PROBE_DAYS", "14") or 14)
 _BENCH_PROBE_MAX = int(os.getenv("AKASHIC_BENCH_PROBE_MAX", "3") or 3)
 
 
-def _bench_probe_due(rec: Dict[str, Any]) -> bool:
+def _bench_probe_due(rec: dict[str, Any]) -> bool:
     """Has this benched lesson been sidelined long enough to deserve one more look?
 
     Breaks the self-seal without abandoning slot economy. Deterministic on purpose: the
@@ -394,7 +394,7 @@ def _bench_probe_due(rec: Dict[str, Any]) -> bool:
     return (datetime.utcnow() - when).total_seconds() >= _BENCH_PROBE_DAYS * 86400
 
 
-def _bench_probe_set(recs: List[Dict[str, Any]], is_benched) -> set:
+def _bench_probe_set(recs: list[dict[str, Any]], is_benched) -> set:
     """WHICH benched lessons probe this pass -- at most _BENCH_PROBE_MAX, oldest bench first.
 
     Added after deepseek's review found the first version UNBOUNDED: every benched lesson past
@@ -418,11 +418,11 @@ def _bench_probe_set(recs: List[Dict[str, Any]], is_benched) -> set:
     return {name for _, name in due[:_BENCH_PROBE_MAX]}
 
 
-def _rec_name(rec: Dict[str, Any]) -> str:
+def _rec_name(rec: dict[str, Any]) -> str:
     return str(rec.get("experiment_name") or rec.get("experiment") or rec.get("name") or "")
 
 
-def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _project_items(recs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     try:
         from core.learning.learning_store import is_benched, is_graduated
     except Exception:
@@ -434,7 +434,7 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             return False
 
     _probe_set = _bench_probe_set(recs, is_benched)
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     for rec in recs:
         # A GRADUATED lesson (rule now enforced by automation -- LearningStore.mark_graduated)
         # never enters the recall cache: the hook/guardrail does its job, so the surface slot
@@ -506,7 +506,7 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return items
 
 
-def _cached_items(learning_store: Optional[Any]) -> List[Dict[str, Any]]:
+def _cached_items(learning_store: Any | None) -> list[dict[str, Any]]:
     """Projected lesson items via a TTL disk cache with stale-fallback. An INJECTED store (tests)
     bypasses the cache for determinism; only the production singleton path is cached."""
     if learning_store is not None:
@@ -560,7 +560,7 @@ _FLIP_DIR = os.path.join(_CACHE_DIR, "flips")
 _INJ_DIR = os.path.join(_CACHE_DIR, "inj")
 
 
-def warm_cache(learning_store: Optional[Any] = None) -> int:
+def warm_cache(learning_store: Any | None = None) -> int:
     """Force-refresh the lesson-item disk cache from the store (ignores TTL). Best-effort; returns the
     item count (0 on failure). Call at session start (SessionStart hook / boot) so the FIRST recall is
     already warm -- the last cold-start corner."""
@@ -612,7 +612,7 @@ def _store():
     return create_store()
 
 
-def _load_use(store, source: str) -> Dict[str, int]:
+def _load_use(store, source: str) -> dict[str, int]:
     try:
         raw = store.get(_USE_PREFIX + str(source))
         return json.loads(raw) if raw else {}
@@ -631,7 +631,7 @@ def _load_use(store, source: str) -> Dict[str, int]:
 _GENERAL_AT = 2
 
 
-def credit_useful(source: str, domain: str, store: Optional[Any] = None) -> Dict[str, Any]:
+def credit_useful(source: str, domain: str, store: Any | None = None) -> dict[str, Any]:
     """Record a useful vote AND the domain it was useful in. Additive: the ordinary `useful` counter
     keeps counting, because the funnel's value gauge reads the same record and a promotion that
     reset it would corrupt the measurement it depends on."""
@@ -650,14 +650,14 @@ def credit_useful(source: str, domain: str, store: Optional[Any] = None) -> Dict
     return use
 
 
-def is_general(source: str, store: Optional[Any] = None, use: Optional[Dict[str, Any]] = None) -> bool:
+def is_general(source: str, store: Any | None = None, use: dict[str, Any] | None = None) -> bool:
     """True once a lesson has earned credit in >= 2 distinct domains. Twice in one domain is a
     popular lesson; that is not the same claim and must not be promoted to one."""
     rec = use if use is not None else _load_use(store if store is not None else _store(), source)
     return len(set(rec.get("useful_domains") or [])) >= _GENERAL_AT
 
 
-def _with_usefulness(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _with_usefulness(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Attach each lesson's usefulness counters (read once at cache-build time -> off the hot path)."""
     try:
         store = _store()
@@ -668,7 +668,7 @@ def _with_usefulness(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return items
 
 
-def _with_mined_triggers(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _with_mined_triggers(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Self-tuning matcher (vNext loop 2): append each lesson's historically-CREDITED flip targets
     to its trigger vocabulary. The durable `flip` events carry (target, credited sources), so every
     FAIL->SUCCESS a lesson helped with teaches the matcher where that lesson actually fires --
@@ -677,7 +677,7 @@ def _with_mined_triggers(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     try:
         from core.events.event_log import get_event_log
 
-        mined: Dict[str, set] = {}
+        mined: dict[str, set] = {}
         for ev in get_event_log().recent(limit=2000):
             if ev.get("kind") != "flip":
                 continue
@@ -701,14 +701,14 @@ def _with_mined_triggers(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return items
 
 
-def _item_tokens(it: Dict[str, Any]) -> set:
+def _item_tokens(it: dict[str, Any]) -> set:
     blob = " ".join(
         filter(None, [str(it.get("text") or ""), str(it.get("trigger") or ""), " ".join(it.get("trigger_terms") or [])])
     )
     return {w.lower() for w in _TOKEN_RE.findall(blob) if len(w) > 3}
 
 
-def _idf_weights(items: List[Dict[str, Any]]) -> Dict[str, float]:
+def _idf_weights(items: list[dict[str, Any]]) -> dict[str, float]:
     """Per-term discriminative weight, computed FROM THE CORPUS (document frequency -> normalized
     IDF in [0,1]). Corpus-common tokens ('system', 'working' -- present in half the lessons) weigh
     ~0; rare tokens weigh ~1. This is the data-driven answer to generic-prompt noise: no hand-tuned
@@ -718,7 +718,7 @@ def _idf_weights(items: List[Dict[str, Any]]) -> Dict[str, float]:
     n = len(items)
     if n < 2:
         return {}
-    df: Dict[str, int] = {}
+    df: dict[str, int] = {}
     for it in items:
         for t in _item_tokens(it):
             df[t] = df.get(t, 0) + 1
@@ -728,7 +728,7 @@ def _idf_weights(items: List[Dict[str, Any]]) -> Dict[str, float]:
     return {t: (math.log((n + 1) / d) / log_n1) for t, d in df.items()}
 
 
-def _damped_overlap(text: str, query: str, weights: Optional[Dict[str, float]] = None) -> float:
+def _damped_overlap(text: str, query: str, weights: dict[str, float] | None = None) -> float:
     """Weighted keyword overlap with two noise defenses (same 0..1 contract as keyword_relevance):
     (1) IDF weighting -- hits and query mass are weighted by corpus rarity, so matching only
     corpus-common tokens scores ~0, and a query with NO discriminative tokens returns 0 outright
@@ -754,7 +754,7 @@ def _damped_overlap(text: str, query: str, weights: Optional[Dict[str, float]] =
     return frac
 
 
-def _trigger_aware_relevance(by_text: Dict[str, Dict[str, Any]]):
+def _trigger_aware_relevance(by_text: dict[str, dict[str, Any]]):
     """Relevance fn for the shared Ranker (its `relevance_fn` seam -- same 0..1 contract as
     keyword_relevance). When a lesson carries a trigger (its own 'Use when' clause + any mined
     credited-target terms), the DESIGNED trigger dominates: 0.6 x trigger overlap + 0.4 x prose
@@ -776,7 +776,7 @@ def _trigger_aware_relevance(by_text: Dict[str, Dict[str, Any]]):
     return fn
 
 
-def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
+def usefulness_factor(use: dict[str, int] | None) -> float:
     """Smoothed ranking multiplier in [0.5, 1.5]. Neutral (1.0) for unseen; ->1.5 for proven-useful;
     ->0.5 for noise-voted or surfaced-often-yet-never-useful (the automatic noise decay)."""
     use = use or {}
@@ -790,7 +790,7 @@ def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
     return 0.5 + rate
 
 
-def canonicalize_source(source: str, *, learning_store: Optional[Any] = None) -> str:
+def canonicalize_source(source: str, *, learning_store: Any | None = None) -> str:
     """One counter key per lesson (sharpening S2a). A bare slug that names a known lesson
     becomes its full pointer (learn:experiment:<slug>); anything namespaced (contains ':')
     or unknown passes through unchanged -- note ids and other source types are not lessons.
@@ -812,7 +812,7 @@ def canonicalize_source(source: str, *, learning_store: Optional[Any] = None) ->
     return s
 
 
-def merge_use_counters(*, store=None, learning_store: Optional[Any] = None) -> int:
+def merge_use_counters(*, store=None, learning_store: Any | None = None) -> int:
     """One-time S2a migration: fold bare-slug counters into their canonical keys (counters
     are mutable Store STATE, not Ledger history -- correcting state is legitimate). Returns
     the number of keys merged. Safe to re-run: no bare keys, no work."""
@@ -837,7 +837,7 @@ def merge_use_counters(*, store=None, learning_store: Optional[Any] = None) -> i
     return merged
 
 
-def prune_ghost_counters(*, store=None, learning_store: Optional[Any] = None) -> Dict[str, Any]:
+def prune_ghost_counters(*, store=None, learning_store: Any | None = None) -> dict[str, Any]:
     """Fold counter debt left by retired lessons (sharpening S2a, second key form): a GHOST is a
     learn:experiment:* counter whose lesson no longer exists in the corpus. Zero-credit ghosts
     (impressions only) are bookkeeping rows pointing at nothing -- deleted (counters are mutable
@@ -845,8 +845,8 @@ def prune_ghost_counters(*, store=None, learning_store: Optional[Any] = None) ->
     outliving its lesson -- that is an adjudication case for S2 supersession (fold the credit into
     the superseding lesson), so it is KEPT and reported, never auto-dropped. Recurs by design:
     every consolidation pass that retires lessons mints new ghosts. Safe to re-run."""
-    pruned: List[str] = []
-    kept: List[str] = []
+    pruned: list[str] = []
+    kept: list[str] = []
     lesson_prefix = "learn:experiment:"
     try:
         if learning_store is None:
@@ -872,7 +872,7 @@ def prune_ghost_counters(*, store=None, learning_store: Optional[Any] = None) ->
     return {"pruned": pruned, "kept_credited": kept}
 
 
-def record_feedback(source: str, kind: str = "useful", *, store=None, domain: Optional[str] = None) -> bool:
+def record_feedback(source: str, kind: str = "useful", *, store=None, domain: str | None = None) -> bool:
     """Record a usefulness signal for a recalled lesson. kind: 'useful'/'noise' (explicit votes),
     'helped' (the automatic contrastive positive -- a FAIL->SUCCESS flip), or 'engaged' (the agent
     pulled the FULL record -- strong interest, weaker than helped; counted + shown in triage and
@@ -896,7 +896,7 @@ def record_feedback(source: str, kind: str = "useful", *, store=None, domain: Op
         return False
 
 
-def full_record(source: str, *, learning_store: Optional[Any] = None) -> Dict[str, Any]:
+def full_record(source: str, *, learning_store: Any | None = None) -> dict[str, Any]:
     """Pull a recalled lesson's WHOLE stored record (what_tried, expected, actual,
     root_cause, metrics, ...), beyond the selected field shown by `render()`.
     `source` is the pointer already carried on every recalled
@@ -950,7 +950,7 @@ def _safe_id(session_id: str) -> str:
     return "".join(c for c in str(session_id) if c.isalnum() or c in "-_")[:128] or "nosession"
 
 
-def normalize_target(path: Optional[str] = None, command: Optional[str] = None) -> str:
+def normalize_target(path: str | None = None, command: str | None = None) -> str:
     """Stable key for a point of action -- MUST be identical at surface (PreToolUse) and resolve
     (PostToolUse) time or the join silently evaporates. Paths -> normcased absolute; commands ->
     lowercased + whitespace-collapsed."""
@@ -1040,15 +1040,15 @@ def _set_outcome(session_id: str, target: str, status: str) -> None:
 
 
 def resolve_action_outcome(
-    session_id: str, target: str, success: bool, *, store=None, agent_id: Optional[str] = None
-) -> Dict[str, Any]:
+    session_id: str, target: str, success: bool, *, store=None, agent_id: str | None = None
+) -> dict[str, Any]:
     """PostToolUse resolver, full report. If `target` SUCCEEDS now after having JUST FAILED:
     (1) credit the lessons surfaced for it with 'helped' (consume-on-credit, so one flip can't be
     farmed), and (2) append the flip to the per-session FLIP LOG -- a flip is the moment a lesson
     was just earned, so it is the raw material for the JIT learn nudge and the wrap-time candidate
     lessons (friction audit D5). Returns {"flipped", "credited", "sources"}; best-effort + fail-soft
     -- a first-try success credits and logs nothing (the contrastive gate)."""
-    out: Dict[str, Any] = {"flipped": False, "credited": 0, "sources": []}
+    out: dict[str, Any] = {"flipped": False, "credited": 0, "sources": []}
     if not session_id or not target:
         return out
     try:
@@ -1103,7 +1103,7 @@ def _log_outcome_stage(
     surfaced_sources,
     flipped: bool,
     credited: int,
-    agent_id: Optional[str] = None,
+    agent_id: str | None = None,
 ) -> None:
     """Record the OUTCOME stage for EVERY resolution -- not only for flips.
 
@@ -1175,9 +1175,9 @@ def _log_outcome_stage(
         pass
 
 
-def session_outcomes(session_id: str) -> List[Dict[str, Any]]:
+def session_outcomes(session_id: str) -> list[dict[str, Any]]:
     """Every resolved outcome this session (oldest first), flipped or not. Fail-soft."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         with open(os.path.join(_STAGE_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
             for line in f:
@@ -1190,7 +1190,7 @@ def session_outcomes(session_id: str) -> List[Dict[str, Any]]:
     return out
 
 
-def prevention_rate(session_id: str) -> Dict[str, Any]:
+def prevention_rate(session_id: str) -> dict[str, Any]:
     """The CONTRASTIVE first-try-success rate -- the metric the rescue-only funnel cannot see.
 
     Compares first-try success WHERE A LESSON SURFACED against first-try success where none
@@ -1209,7 +1209,7 @@ def prevention_rate(session_id: str) -> Dict[str, Any]:
     return _contrast(session_outcomes(session_id))
 
 
-def _contrast(recs) -> Dict[str, Any]:
+def _contrast(recs) -> dict[str, Any]:
     """The contrast math, shared by the session and durable readers so they cannot drift.
 
     Counts the FIRST resolution per (session, target). First-try is the whole point: a
@@ -1242,9 +1242,9 @@ def _contrast(recs) -> Dict[str, Any]:
     }
 
 
-def durable_outcomes(days: float = 30.0) -> List[Dict[str, Any]]:
+def durable_outcomes(days: float = 30.0) -> list[dict[str, Any]]:
     """The durable OUTCOME stream over a window, oldest-first. [] when the store is down."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     cutoff = time.time() - (float(days) * 86400.0)
     try:
         from core.events.event_log import get_event_log
@@ -1266,7 +1266,7 @@ def durable_outcomes(days: float = 30.0) -> List[Dict[str, Any]]:
     return out
 
 
-def prevention_rate_durable(days: float = 30.0) -> Dict[str, Any]:
+def prevention_rate_durable(days: float = 30.0) -> dict[str, Any]:
     """The FLEET-WIDE prevention contrast over a window -- the trend version.
 
     prevention_rate() answers "this session"; a prevention rate only means something as a
@@ -1277,9 +1277,9 @@ def prevention_rate_durable(days: float = 30.0) -> Dict[str, Any]:
     return _contrast(durable_outcomes(days))
 
 
-def session_flips(session_id: str) -> List[Dict[str, Any]]:
+def session_flips(session_id: str) -> list[dict[str, Any]]:
     """FAIL->SUCCESS flips recorded for one session (oldest first). Fail-soft: [] on any error."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         with open(os.path.join(_FLIP_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
             for line in f:
@@ -1335,7 +1335,7 @@ def log_injection(session_id: str, altitude: str, target: str, sources, chars: i
         pass
 
 
-def session_recall_summary(session_id: str) -> Dict[str, int]:
+def session_recall_summary(session_id: str) -> dict[str, int]:
     """This session's recall economy in four ints (vNext loop 3): injections pushed, distinct
     lessons, chars of context spent, and flips that credited a lesson. Read from the session's own
     injection + flip files; zeros when absent. Feeds the durable `session_signals` event so recall
@@ -1368,11 +1368,11 @@ def session_recall_summary(session_id: str) -> Dict[str, int]:
     return out
 
 
-def recent_injections(hours: float = 24.0) -> List[Dict[str, Any]]:
+def recent_injections(hours: float = 24.0) -> list[dict[str, Any]]:
     """Injections across ALL sessions in the last `hours`, oldest first (same shape of reader
     as recent_flips; tempdir-lifetime -- a cost/observability view, not a durable record)."""
     cutoff = time.time() - hours * 3600.0
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         for name in os.listdir(_INJ_DIR):
             p = os.path.join(_INJ_DIR, name)
@@ -1395,7 +1395,7 @@ def recent_injections(hours: float = 24.0) -> List[Dict[str, Any]]:
     return out
 
 
-def injections_by_family(hours: float = 24.0, injections=None) -> Dict[str, Any]:
+def injections_by_family(hours: float = 24.0, injections=None) -> dict[str, Any]:
     """W54 (kimi F3, the activation gauge): group the injection ledger by lesson FAMILY -- the
     experiment name's first token (conductor_brief_intent_law -> 'conductor') -- so a claim about
     an organ's firing rate reads the instrument instead of an anecdote. Numerator = injections
@@ -1403,7 +1403,7 @@ def injections_by_family(hours: float = 24.0, injections=None) -> Dict[str, Any]
     is always present (0/N included): the stance family is the reason this gauge exists. Pass
     `injections` to stay pure (no IO) -- the wrap draft does; omit it to read the live ledger."""
     inj = recent_injections(hours) if injections is None else list(injections)
-    fams: Dict[str, int] = {}
+    fams: dict[str, int] = {}
     for rec in inj:
         seen = set()
         for s in rec.get("s", []) or []:
@@ -1417,11 +1417,11 @@ def injections_by_family(hours: float = 24.0, injections=None) -> Dict[str, Any]
     return {"window_hours": float(hours), "total": len(inj), "families": fams}
 
 
-def recent_flips(hours: float = 12.0) -> List[Dict[str, Any]]:
+def recent_flips(hours: float = 12.0) -> list[dict[str, Any]]:
     """Flips across ALL sessions in the last `hours` (oldest first). The wrap draft reads this --
     the CLI has no hook session_id, and 'this working session' is a time window anyway."""
     cutoff = time.time() - hours * 3600.0
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         for name in os.listdir(_FLIP_DIR):
             p = os.path.join(_FLIP_DIR, name)
@@ -1451,7 +1451,7 @@ def _slug_from_target(target: str) -> str:
     return "fix_" + "_".join(toks[:3]) if toks else "fix_this"
 
 
-def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
+def learn_command_for(target: str, agent_id: str | None = None) -> str:
     """The pre-filled `learn` command skeleton for a flip target -- defaults do the work (friction
     audit fix #3): the agent edits two placeholders instead of authoring a command from scratch."""
     agent = agent_id or os.getenv("AKASHIC_AGENT_ID") or "<agent>"
@@ -1465,7 +1465,7 @@ def learn_command_for(target: str, agent_id: Optional[str] = None) -> str:
     )
 
 
-def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[str] = None, probe=None) -> str:
+def build_learn_nudge(target: str, credited: int, sources, agent_id: str | None = None, probe=None) -> str:
     """The JIT 'learn it?' prompt for a FAIL->SUCCESS flip (friction audit D5: a cue at the moment
     of insight converts lesson capture from memory to a signal prompt). Silent-when-irrelevant is
     the CALLER's job (only call on a real flip); this stays small-when-not: three short lines with
@@ -1510,9 +1510,7 @@ def build_learn_nudge(target: str, credited: int, sources, agent_id: Optional[st
     return "\n".join(lines)
 
 
-def _query_from(
-    path: Optional[str], command: Optional[str], subject: Optional[str] = None, gesture: Optional[str] = None
-) -> str:
+def _query_from(path: str | None, command: str | None, subject: str | None = None, gesture: str | None = None) -> str:
     """Build a keyword query from a path (dir/stem tokens), a command, and/or a composition
     GESTURE and SUBJECT. Keeps tokens len>3 (the Ranker's keyword_relevance ignores shorter ones)
     minus generic noise; order-stable, deduped.
@@ -1523,7 +1521,7 @@ def _query_from(
     recall could not be asked about. Extending this one function rather than adding a second door is
     deliberate -- the hooks already call recall_at and nothing else, so the mediation layer exists.
     """
-    parts: List[str] = []
+    parts: list[str] = []
     if path:
         parts += _TOKEN_RE.findall(path.replace("\\", "/"))
     if command:
@@ -1534,7 +1532,7 @@ def _query_from(
         parts = _TOKEN_RE.findall(gesture)[:16] + parts
     if subject:
         parts += _TOKEN_RE.findall(subject)[:8]
-    out: List[str] = []
+    out: list[str] = []
     for t in parts:
         t = t.lower()
         if len(t) > 3 and t not in _STOP and t not in out:
@@ -1542,9 +1540,7 @@ def _query_from(
     return " ".join(out)
 
 
-def _domain_from_trigger(
-    path: Optional[str], command: Optional[str], subject: Optional[str], gesture: Optional[str]
-) -> Optional[str]:
+def _domain_from_trigger(path: str | None, command: str | None, subject: str | None, gesture: str | None) -> str | None:
     """Which domain is this point of action in? None when there is nothing to go on.
 
     Returning None rather than the default matters: an unscoped call must keep searching everything,
@@ -1561,7 +1557,7 @@ def _domain_from_trigger(
     return infer_domain({"what_tried": blob, "recommendation": ""})
 
 
-def _self_echo(item: Dict[str, Any], agent_id: Optional[str], now: Optional[float]) -> bool:
+def _self_echo(item: dict[str, Any], agent_id: str | None, now: float | None) -> bool:
     """True when this lesson was authored by the CALLING agent within the echo window -- its author
     just lived it, so resurfacing it to them is pure noise (it still surfaces to everyone else,
     and to the author again once the window passes). AKASHIC_RECALL_SELF_ECHO_H tunes; 0 disables."""
@@ -1584,15 +1580,15 @@ def _self_echo(item: Dict[str, Any], agent_id: Optional[str], now: Optional[floa
 
 def _lessons(
     query: str,
-    now: Optional[float],
+    now: float | None,
     limit: int,
     min_relevance: float,
-    learning_store: Optional[Any] = None,
-    exclude_sources: Optional[set] = None,
-    agent_id: Optional[str] = None,
-    stats_out: Optional[Dict[str, int]] = None,
-    domain: Optional[str] = None,
-) -> "tuple[List[Dict[str, Any]], int]":
+    learning_store: Any | None = None,
+    exclude_sources: set | None = None,
+    agent_id: str | None = None,
+    stats_out: dict[str, int] | None = None,
+    domain: str | None = None,
+) -> tuple[list[dict[str, Any]], int]:
     """Rank ACTIVE lessons by TRIGGER-AWARE relevance; keep those above the show-nothing floor,
     minus any already surfaced this session (`exclude_sources` -> anti-repeat), the caller's own
     fresh lessons (self-echo window), and intra-call source dups. Returns (items capped at `limit`,
@@ -1615,7 +1611,7 @@ def _lessons(
         ]
     excl = exclude_sources or set()
     by_text = {str(it.get("text") or ""): it for it in items}
-    cands: List = []
+    cands: list = []
     seen = set()
     ranker = Ranker(relevance_fn=_trigger_aware_relevance(by_text))
     for s in ranker.rank(items, query=query, now=now):  # Ranker excludes superseded (is_active)
@@ -1646,7 +1642,7 @@ def _lessons(
     return [it for _, it in cands[:limit]], len(cands)
 
 
-def _locks(path: Optional[str], agent_id: Optional[str]) -> List[Dict[str, Any]]:
+def _locks(path: str | None, agent_id: str | None) -> list[dict[str, Any]]:
     """A peer holding an advisory lock on this exact path = the single most actionable hint."""
     if not path:
         return []
@@ -1687,14 +1683,14 @@ def _floor_default() -> float:
 # the structural blind spot in `discover`: a capability shipped as a FLAG is invisible to a
 # verb-table read (lesson discover_reads_verbs_not_flags).
 
-_VERB_CACHE: Dict[str, Any] = {"mtime": None, "index": None, "df": None}
+_VERB_CACHE: dict[str, Any] = {"mtime": None, "index": None, "df": None}
 
 
 def _agent_cli_path() -> str:
     return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "agent_cli.py")
 
 
-def verb_index(source_path: Optional[str] = None) -> List[Dict[str, Any]]:
+def verb_index(source_path: str | None = None) -> list[dict[str, Any]]:
     """Every door verb, its purpose, and its flags -- read from agent_cli's AST.
 
     Returns [{verb, purpose, flags:[...]}]. Cached on the source file's mtime because this runs
@@ -1714,10 +1710,10 @@ def verb_index(source_path: Optional[str] = None) -> List[Dict[str, Any]]:
             return _VERB_CACHE["index"]
         import ast
 
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             tree = ast.parse(fh.read())
-        parsers: List[Any] = []  # (lineno, var_name, entry)
-        args: List[Any] = []  # (lineno, var_name, flag_names, help_text)
+        parsers: list[Any] = []  # (lineno, var_name, entry)
+        args: list[Any] = []  # (lineno, var_name, flag_names, help_text)
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
                 fn = node.value.func
@@ -1768,7 +1764,7 @@ def verb_index(source_path: Optional[str] = None) -> List[Dict[str, Any]]:
         return []
 
 
-def _verb_tokens(entry: Dict[str, Any]) -> set:
+def _verb_tokens(entry: dict[str, Any]) -> set:
     text = " ".join(
         [entry.get("verb", "").replace("-", " "), entry.get("purpose", "")] + [str(f) for f in entry.get("flags", [])]
     )
@@ -1779,7 +1775,7 @@ _EXTERNAL_TOOLS = {"git", "npm", "docker", "pip", "node", "cargo", "yarn", "pyte
 _VERB_NOISE = {"claude", "deepseek", "kimi", "agent", "python"}
 
 
-def _verb_exclusions(command: Optional[str]) -> set:
+def _verb_exclusions(command: str | None) -> set:
     """Tokens that must NOT be allowed to summon a verb, and why each class is here.
 
     Measured before this existed: 67% false-positive rate over a sample of sixteen real triggers
@@ -1819,7 +1815,7 @@ def _verb_exclusions(command: Optional[str]) -> set:
     return excl
 
 
-def _verbs(query: str, command: Optional[str] = None, limit: int = 2) -> List[Dict[str, Any]]:
+def _verbs(query: str, command: str | None = None, limit: int = 2) -> list[dict[str, Any]]:
     """Rank verbs against the SAME query the lessons ranked against, and stay quiet by default.
 
     Scoring is inverse-document-frequency over the verb corpus: a token appearing in one verb's
@@ -1842,7 +1838,7 @@ def _verbs(query: str, command: Optional[str] = None, limit: int = 2) -> List[Di
                     df[t] = df.get(t, 0) + 1
             _VERB_CACHE["df"] = df
         q = {t for t in query.split() if t and t not in _verb_exclusions(command)}
-        scored: List[Any] = []
+        scored: list[Any] = []
         for e in index:
             toks = _verb_tokens(e)
             hits = q & toks
@@ -1879,19 +1875,19 @@ _VERB_FLOOR = float(os.environ.get("AKASHIC_VERB_FLOOR", "0.9"))
 
 def recall_at(
     *,
-    path: Optional[str] = None,
-    command: Optional[str] = None,
-    subject: Optional[str] = None,
-    gesture: Optional[str] = None,
-    domain: Optional[str] = None,
-    agent_id: Optional[str] = None,
+    path: str | None = None,
+    command: str | None = None,
+    subject: str | None = None,
+    gesture: str | None = None,
+    domain: str | None = None,
+    agent_id: str | None = None,
     limit: int = 3,
-    min_relevance: Optional[float] = None,
-    now: Optional[float] = None,
-    learning_store: Optional[Any] = None,
-    exclude_sources: Optional[set] = None,
+    min_relevance: float | None = None,
+    now: float | None = None,
+    learning_store: Any | None = None,
+    exclude_sources: set | None = None,
     count_surface: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Given a point of action (path and/or command), return the few highest-signal active items.
     `exclude_sources` (lesson sources already shown this session) enables hook anti-repeat.
     `min_relevance=None` -> the calibrated show-nothing floor (AKASHIC_RECALL_FLOOR); pass an
@@ -1903,7 +1899,7 @@ def recall_at(
         # An explicit domain wins; otherwise the trigger decides; otherwise nothing is scoped and
         # the whole corpus is searched, exactly as before domains existed.
         scope = domain or _domain_from_trigger(path, command, subject, gesture)
-        lstats: Dict[str, int] = {}
+        lstats: dict[str, int] = {}
         lessons, total = (
             _lessons(
                 query,
@@ -1940,8 +1936,8 @@ def recall_at(
             # because two higher-ranked NEIGHBOURS failed. Silence-beats-fabrication is
             # the right law per item: drop the unfaithful, keep the innocent. A silenced
             # HIT is invisible forever; that harm outranks the cost of N small checks.
-            kept: List[Dict[str, Any]] = []
-            confs: List[float] = []
+            kept: list[dict[str, Any]] = []
+            confs: list[float] = []
             for it in lessons:
                 rep = faithfulness_report([it], f"- {it['text']}  (source: {it['source']})")
                 if rep["faithful"]:
@@ -2058,7 +2054,7 @@ def recall_at(
         }
 
 
-def _provenance_tag(item: Dict[str, Any]) -> str:
+def _provenance_tag(item: dict[str, Any]) -> str:
     """A terse, honest status prefix for a recalled lesson — the antidote to opinion-laundering
     (Factor 1). Encodes outcome-status + author + claim-kind from provenance the store already
     holds, so a self-authored, unverified hypothesis can't come back framed as an external verified
@@ -2071,7 +2067,7 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
     success = str(item.get("success", "")).lower()
     author = str(item.get("agent_id") or "").strip()
     field = item.get("field") or ""
-    parts: List[str] = []
+    parts: list[str] = []
     if item.get("bench_probe"):
         # FIRST, because it qualifies everything after it. This lesson was BENCHED for
         # surfacing repeatedly without ever earning credit, and is here only because it is
@@ -2111,7 +2107,7 @@ def _provenance_tag(item: Dict[str, Any]) -> str:
 
 
 def render(
-    result: Dict[str, Any],
+    result: dict[str, Any],
     *,
     header: str = "Recall-at-action (Akashic) - facts relevant to what you're about to do:",
     hint_style: str = "cli",
@@ -2132,7 +2128,7 @@ def render(
             f"({result.get('error')}). This is NOT 'no relevant lessons' -- the check did "
             "not run, so treat this action as unadvised and re-run recall if it matters."
         )
-    lines: List[str] = []
+    lines: list[str] = []
     for lk in result.get("locks", []):
         lines.append(f"[lock] {lk.get('held_by')} holds an advisory lock on this path — coordinate before editing")
     for l in result.get("lessons", []):

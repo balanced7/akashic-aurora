@@ -109,9 +109,9 @@ class ReviewRequest:
     sensitivity: str  # "low" | "medium" | "high"
 
     # Additional data
-    vision_data: Optional[Dict[str, Any]] = None
-    tracebacks: List[str] = field(default_factory=list)
-    code_snippet: Optional[str] = None
+    vision_data: dict[str, Any] | None = None
+    tracebacks: list[str] = field(default_factory=list)
+    code_snippet: str | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2)
@@ -136,7 +136,7 @@ class EscalationManager:
 
     def __init__(self, escalation_dir: str = ESCALATION_DIR):
         self.escalation_dir = escalation_dir
-        self.escalation_history: List[ReviewRequest] = []
+        self.escalation_history: list[ReviewRequest] = []
         self.api_keys = {
             "opencode": os.environ.get("OPENCODE_API_KEY", ""),
             "gemini": os.environ.get("GEMINI_API_KEY", ""),
@@ -216,9 +216,9 @@ class EscalationManager:
         local_attempt: str,
         tier: Tier,
         retry_count: int = 0,
-        vision_data: Optional[Dict] = None,
-        tracebacks: Optional[List[str]] = None,
-        code_snippet: Optional[str] = None,
+        vision_data: dict | None = None,
+        tracebacks: list[str] | None = None,
+        code_snippet: str | None = None,
     ) -> ReviewRequest:
         """
         Create a structured review request.
@@ -318,7 +318,7 @@ Identify the architectural flaw my local reasoning is missing.
 Provide a strategic breakthrough plan.
 """
 
-    def call_opencode_api(self, prompt: str) -> Optional[str]:
+    def call_opencode_api(self, prompt: str) -> str | None:
         """
         Call OpenCode API for review.
 
@@ -348,7 +348,7 @@ Provide a strategic breakthrough plan.
             print(f"[escalation] OpenCode API error: {e}")
             return None
 
-    def call_gemini_api(self, prompt: str) -> Optional[str]:
+    def call_gemini_api(self, prompt: str) -> str | None:
         """
         Call Gemini API for strategic review.
 
@@ -388,10 +388,10 @@ Provide a strategic breakthrough plan.
         observed_failure: str,
         local_attempt: str,
         retry_count: int = 0,
-        vision_data: Optional[Dict] = None,
-        tracebacks: Optional[List[str]] = None,
-        code_snippet: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+        vision_data: dict | None = None,
+        tracebacks: list[str] | None = None,
+        code_snippet: str | None = None,
+    ) -> dict[str, Any] | None:
         """
         Execute escalation to external API.
 
@@ -462,14 +462,14 @@ Provide a strategic breakthrough plan.
 
         return None
 
-    def get_escalation_history(self) -> List[Dict[str, Any]]:
+    def get_escalation_history(self) -> list[dict[str, Any]]:
         """Get history of escalations"""
         history = []
 
         for filename in os.listdir(self.escalation_dir):
             if filename.startswith("request_"):
                 filepath = os.path.join(self.escalation_dir, filename)
-                with open(filepath, "r") as f:
+                with open(filepath) as f:
                     history.append(json.load(f))
 
         return sorted(history, key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -483,7 +483,7 @@ Provide a strategic breakthrough plan.
 
 
 # Global instance
-_escalation_manager: Optional[EscalationManager] = None
+_escalation_manager: EscalationManager | None = None
 
 
 def get_escalation_manager() -> EscalationManager:
@@ -494,20 +494,18 @@ def get_escalation_manager() -> EscalationManager:
     return _escalation_manager
 
 
-def escalate_to_opencode(**kwargs) -> Optional[Dict[str, Any]]:
+def escalate_to_opencode(**kwargs) -> dict[str, Any] | None:
     """Quick escalate to OpenCode"""
     return get_escalation_manager().escalate(Tier.OPENCODE, **kwargs)
 
 
-def escalate_to_gemini(**kwargs) -> Optional[Dict[str, Any]]:
+def escalate_to_gemini(**kwargs) -> dict[str, Any] | None:
     """Quick escalate to Gemini"""
     return get_escalation_manager().escalate(Tier.GEMINI, **kwargs)
 
 
 # SOS Template Generator
-def generate_sos_template(
-    context: str, failure: str, vision_data: Optional[Dict] = None, code: Optional[str] = None
-) -> str:
+def generate_sos_template(context: str, failure: str, vision_data: dict | None = None, code: str | None = None) -> str:
     """
     Generate structured SOS template for external review.
 
@@ -562,10 +560,10 @@ Provide a breakthrough strategy.
 
 def escalate_to_architect(
     issue_description: str,
-    vision_json: Optional[Dict[str, Any]] = None,
+    vision_json: dict[str, Any] | None = None,
     local_attempt: str = "",
     hardware_context: str = "AMD 9950X3D + 9070 XT",
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Send local context + Florence-2 vision data to external Senior Architect reviewer.
 

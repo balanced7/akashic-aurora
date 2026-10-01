@@ -27,7 +27,8 @@ is trivially 100% today -- this critic is the forward gate for an LLM writer tha
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Sequence
 
 from core.primitives.distiller import _SUMMARY_FIELDS, _source_of
 
@@ -67,10 +68,10 @@ def _words(s: str) -> set:
     return {w for w in _WORD_RE.findall((s or "").lower()) if len(w) > 2 and w not in _STOP}
 
 
-def _source_text(items: Sequence[Dict[str, Any]]) -> Dict[str, str]:
+def _source_text(items: Sequence[dict[str, Any]]) -> dict[str, str]:
     """Map each input source -> its concatenated textual content (the same fields the Distiller
     summarizes from), so we can check a line's content/numbers against the record it cites."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for it in items:
         src = _source_of(it)
         if not src:
@@ -81,19 +82,19 @@ def _source_text(items: Sequence[Dict[str, Any]]) -> Dict[str, str]:
 
 
 def faithfulness_report(
-    items: Sequence[Dict[str, Any]],
+    items: Sequence[dict[str, Any]],
     skeleton: str,
-    entries: Optional[Sequence[Dict[str, Any]]] = None,
+    entries: Sequence[dict[str, Any]] | None = None,
     *,
     grounding_tau: float = 0.5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Deterministic per-line grounding check. Returns the full report (verdict + signals)."""
     src_text = _source_text(items)
     known = set(src_text)
     lines = [ln for ln in (skeleton or "").splitlines() if ln.strip()]
     untraceable = unresolved = number_fail = low_grounding = 0
     grounded_sum = 0.0
-    per_line: List[Dict[str, Any]] = []
+    per_line: list[dict[str, Any]] = []
     for ln in lines:
         m = _SOURCE_RE.search(ln)
         if not m:  # a claim with no pointer can't be traced
@@ -141,12 +142,12 @@ def faithfulness_report(
 
 
 def faithfulness_critic(
-    items: Sequence[Dict[str, Any]], skeleton: str, entries: Optional[Sequence[Dict[str, Any]]] = None
-) -> Tuple[bool, List[str]]:
+    items: Sequence[dict[str, Any]], skeleton: str, entries: Sequence[dict[str, Any]] | None = None
+) -> tuple[bool, list[str]]:
     """Distiller-critic adapter -> (ok, notes). HARD-gates fabricated/untraceable pointers + fabricated
     numbers; REPORTS low grounding without failing (paraphrase-safe, the FP trap)."""
     r = faithfulness_report(items, skeleton, entries)
-    notes: List[str] = []
+    notes: list[str] = []
     if r["untraceable"]:
         notes.append(f"unfaithful: {r['untraceable']} claim(s) with no source pointer")
     if r["unresolved"]:

@@ -135,7 +135,7 @@ def _dumps(obj: Any, *, what: str) -> bytes:
 
 
 # -------------------------------------------------------------------------------------- identity
-def generate_identity() -> Dict[str, str]:
+def generate_identity() -> dict[str, str]:
     """A fleet's long-term keys: X25519 to RECEIVE seals at, Ed25519 to sign with. Sending uses an
     ephemeral X25519 per message, so this seal key only ever opens, never seals."""
     sealer = public.PrivateKey.generate()
@@ -149,7 +149,7 @@ def generate_identity() -> Dict[str, str]:
     }
 
 
-def public_half(identity: Dict[str, str]) -> Dict[str, str]:
+def public_half(identity: dict[str, str]) -> dict[str, str]:
     """What you hand the peer. Only `verify_public` must arrive intact out-of-band; `seal_public` is
     where they seal TO you."""
     try:
@@ -163,7 +163,7 @@ def public_half(identity: Dict[str, str]) -> Dict[str, str]:
 
 
 # --------------------------------------------------------------------------------- the envelope
-def _canon(header: Dict[str, Any], fields) -> bytes:
+def _canon(header: dict[str, Any], fields) -> bytes:
     """Canonical bytes over a FIXED field set: sender and verifier must agree byte-for-byte, and a
     field outside the set cannot be signed — so a midpoint cannot smuggle one in and have it
     believed. (Adding one is separately REFUSED at the door; see _check_keys.)"""
@@ -173,7 +173,7 @@ def _canon(header: Dict[str, Any], fields) -> bytes:
     return _dumps({k: header[k] for k in fields}, what="header")
 
 
-def _check_keys(envelope: Dict[str, Any], allowed: frozenset) -> None:
+def _check_keys(envelope: dict[str, Any], allowed: frozenset) -> None:
     extra = set(envelope) - allowed
     if extra:
         raise SealRefused(f"unsigned field(s) present: {','.join(sorted(extra))}")
@@ -199,18 +199,18 @@ def _unpad(padded: bytes) -> bytes:
 
 
 def seal(
-    inner: Dict[str, Any],
+    inner: dict[str, Any],
     *,
-    sender: Dict[str, str],
+    sender: dict[str, str],
     recipient_public: str,
     to: str,
     frm: str,
     seq: int,
     prev: str = "",
     epoch: str = "",
-    created_at: Optional[int] = None,
-    expires_at: Optional[int] = None,
-) -> Dict[str, Any]:
+    created_at: int | None = None,
+    expires_at: int | None = None,
+) -> dict[str, Any]:
     """Seal one inner message into a cache envelope. Pure. Raises only SealRefused.
 
     The kind allowlist applies HERE: moving `kind` inside the ciphertext hides it from the midpoint,
@@ -268,7 +268,7 @@ def seal(
     }
 
 
-def _verify_schema(env: Dict[str, Any]) -> None:
+def _verify_schema(env: dict[str, Any]) -> None:
     """After the signature passes, the FIELDS still have to mean something. A peer can sign a header
     whose `seq` is "7", whose `to` is [], or whose `id` is absent entirely — all of which verified
     cleanly before, and one of which reached the chain as observe_in(seq=None)."""
@@ -287,14 +287,14 @@ def _verify_schema(env: Dict[str, Any]) -> None:
 
 
 def unseal(
-    envelope: Dict[str, Any],
+    envelope: dict[str, Any],
     *,
-    recipient: Dict[str, str],
+    recipient: dict[str, str],
     sender_public: str,
     me: str = "",
-    now: Optional[int] = None,
+    now: int | None = None,
     within_s: int = SKEW_WINDOW_S,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Verify and open one envelope; return the inner message. Pure. Raises only SealRefused.
 
     `sender_public` is the peer's Ed25519 VERIFY key — the one thing that must arrive out-of-band.
@@ -353,7 +353,7 @@ def unseal(
 
 
 # ------------------------------------------------------------------------------------ retirement
-def is_retired(envelope: Dict[str, Any], *, now: Optional[int] = None) -> bool:
+def is_retired(envelope: dict[str, Any], *, now: int | None = None) -> bool:
     """Past its expires_at. Never raises: it is CALLED ON TOMBSTONES, i.e. on data a midpoint
     controls, so a malformed field must be an answer and not an exception."""
     if not isinstance(envelope, dict):
@@ -366,7 +366,7 @@ def is_retired(envelope: Dict[str, Any], *, now: Optional[int] = None) -> bool:
         return False
 
 
-def tombstone(envelope: Dict[str, Any]) -> Dict[str, Any]:
+def tombstone(envelope: dict[str, Any]) -> dict[str, Any]:
     """What the midpoint keeps once a body has been retired to its owner's local storage: the chain
     survives, the content does not live here any more — and `tsig` comes with it, so the record can
     still prove it was ours."""
@@ -375,7 +375,7 @@ def tombstone(envelope: Dict[str, Any]) -> Dict[str, Any]:
     return {**{k: envelope[k] for k in _TOMB_FIELDS if k in envelope}, "tsig": envelope["tsig"], "retired": True}
 
 
-def verify_tombstone(tomb: Dict[str, Any], *, sender_public: str) -> Dict[str, Any]:
+def verify_tombstone(tomb: dict[str, Any], *, sender_public: str) -> dict[str, Any]:
     """Prove a tombstone was minted by the sender, after its body is gone. THE fix for the review's
     critical: without this, a midpoint invents tombstones to paper over messages it withheld, and
     gap detection reports clean."""
@@ -415,14 +415,14 @@ _HEAD_FIELDS = ("v", "kind", "to", "from", "epoch", "seq", "last_id", "created_a
 
 def head(
     *,
-    sender: Dict[str, str],
+    sender: dict[str, str],
     to: str,
     frm: str,
     epoch: str,
     seq: Any,
     last_id: str = "",
-    created_at: Optional[int] = None,
-) -> Dict[str, Any]:
+    created_at: int | None = None,
+) -> dict[str, Any]:
     """Sign a pointer to where this sender's chain has reached. Deposited beside the mailbox."""
     hdr = {
         "v": WIRE_V,
@@ -445,13 +445,13 @@ def head(
 
 
 def verify_head(
-    advert: Dict[str, Any],
+    advert: dict[str, Any],
     *,
     sender_public: str,
     me: str = "",
-    now: Optional[int] = None,
-    max_age_s: Optional[int] = None,
-) -> Dict[str, Any]:
+    now: int | None = None,
+    max_age_s: int | None = None,
+) -> dict[str, Any]:
     """Verify an advert. Raises SealRefused; returns the head. `max_age_s`, when given, refuses a
     head older than that — the caller's judgement, because only the caller knows whether this peer
     is expected to be chatty."""
@@ -544,7 +544,7 @@ class Chain:
         self._read()  # fail fast on a damaged file
 
     # ---- persistence
-    def _read(self) -> Dict[str, Any]:
+    def _read(self) -> dict[str, Any]:
         try:
             raw = self.path.read_text(encoding="utf-8")
         except FileNotFoundError:
@@ -568,7 +568,7 @@ class Chain:
         data.setdefault("in", {})
         return data
 
-    def _write(self, state: Dict[str, Any]) -> None:
+    def _write(self, state: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), prefix=".chain-", suffix=".tmp")
         try:
@@ -590,7 +590,7 @@ class Chain:
             raise
 
     # ---- outbound
-    def next_out(self, peer: str) -> Dict[str, Any]:
+    def next_out(self, peer: str) -> dict[str, Any]:
         """Claim the next seq for this peer. Persisted under the lock and re-read inside it, so two
         processes cannot claim the same number: a re-used seq is a gap indistinguishable from a
         duplicate, which is the one confusion this whole class exists to prevent."""
@@ -621,7 +621,7 @@ class Chain:
     # ---- inbound
     def observe_in(
         self, peer: str, *, seq: Any, mid: str, prev: str = "", epoch: str = "", verified: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Record an arrival; report what it reveals.
 
         `verified` is REQUIRED to be true and defaults to False on purpose: the caller must have
@@ -652,7 +652,7 @@ class Chain:
 
             high = _as_int(row.get("high_water") or 0, what="stored high_water")
             holes = set(_as_int(h, what="stored hole") for h in (row.get("holes") or []))
-            newly_missing: List[int] = []
+            newly_missing: list[int] = []
             chain_broken = False
 
             if seq_i > high:
@@ -675,12 +675,12 @@ class Chain:
             self._write(state)
             return {"missing": newly_missing, "chain_broken": chain_broken, "epoch_changed": epoch_changed}
 
-    def missing(self, peer: str) -> List[int]:
+    def missing(self, peer: str) -> list[int]:
         """Everything below the high-water mark that has still never arrived. O(holes), not O(seq)."""
         row = self._read()["in"].get(str(peer)) or {}
         return sorted(_as_int(h, what="stored hole") for h in (row.get("holes") or []))
 
-    def check_head(self, peer: str, advert: Dict[str, Any], *, verified: bool = False) -> Dict[str, Any]:
+    def check_head(self, peer: str, advert: dict[str, Any], *, verified: bool = False) -> dict[str, Any]:
         """Compare a VERIFIED advert against what we hold. Returns the tail this peer says exists and
         we have never seen — the case seq/prev structurally cannot report, because a withheld tail
         leaves no hole behind it.

@@ -15,17 +15,18 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
+from collections.abc import Callable
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fixtures.semantic_eval_fixture import action_applicability_cases, contradiction_pairs
 
-Judge = Callable[[Dict[str, Any]], bool]
+Judge = Callable[[dict[str, Any]], bool]
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def score_binary(cases: List[Dict[str, Any]], judge: Judge, gold_key: str) -> Dict[str, Any]:
+def score_binary(cases: list[dict[str, Any]], judge: Judge, gold_key: str) -> dict[str, Any]:
     """Precision/recall/accuracy/F1 for a bool judge over labeled cases (gold in `gold_key`)."""
     tp = fp = tn = fn = 0
     for c in cases:
@@ -57,7 +58,7 @@ def score_binary(cases: List[Dict[str, Any]], judge: Judge, gold_key: str) -> Di
     }
 
 
-def null_judge(case: Dict[str, Any]) -> bool:
+def null_judge(case: dict[str, Any]) -> bool:
     """The floor: predict 'no contradiction / does not apply' for everything. A real judge must beat it."""
     return False
 
@@ -111,7 +112,7 @@ def test_metric_can_fail_and_reward():
 
 
 # ----------------------------------------------------------------------------- best-effort LLM probe
-def _llm_contradiction(case: Dict[str, Any]):
+def _llm_contradiction(case: dict[str, Any]):
     """Probe the FUTURE gate early: ask a cheap LLM if B contradicts A. Returns bool, or None on any
     failure (network/quota). Never used by pytest -- only the __main__ dogfood."""
     import subprocess

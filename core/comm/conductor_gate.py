@@ -63,10 +63,12 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
+from collections.abc import Callable
 
 from core.trust import registry
 from core.trust.capabilities import ROLE_TEMPLATES, Cap, caps_from
+from datetime import UTC
 
 # ---------------------------------------------------------------- configuration
 # Succession order: who becomes acting conductor when the conductor is provably absent.
@@ -135,7 +137,7 @@ def _reset_heartbeat() -> None:
     _heartbeat_state["reason"] = ""
 
 
-def _heartbeat(reason: str, *, now: Optional[float] = None) -> bool:
+def _heartbeat(reason: str, *, now: float | None = None) -> bool:
     """Write a rate-limited stand-down line. Returns whether it wrote.
 
     Rate-limited so the fleet's 60s cadence does not drown the log -- but a CHANGED
@@ -219,13 +221,13 @@ class ConductorVerdict:
     reason: str
     conductor_state: str = "unknown"  # ATTENDED / UNATTENDED / UNKNOWN (attendance)
     conductor_watcher: str = "unknown"  # the two-factor orphanhood sub-verdict
-    successors_alive: List[str] = field(default_factory=list)
+    successors_alive: list[str] = field(default_factory=list)
     operator_present: bool = False
     successor: str = ""  # who would carry the mandate (empty unless activate)
     mandate_hours: float = MANDATE_MAX_HOURS
 
 
-def _conductor_two_factor(agent: str = CONDUCTOR, reap_fn: Optional[Callable] = None) -> str:
+def _conductor_two_factor(agent: str = CONDUCTOR, reap_fn: Callable | None = None) -> str:
     """The wake-watcher's two-factor orphanhood verdict for `agent`, consulted as EVIDENCE.
 
     K7/K8 live in core/comm/wake_seat.reap_decision: a seat is provably dead only when its
@@ -268,7 +270,7 @@ def _conductor_two_factor(agent: str = CONDUCTOR, reap_fn: Optional[Callable] = 
         # the live seat is actually read, and K8 (fail toward alive) is only true if a
         # single ambiguous sibling cannot end the scan.
         alive_seen = False
-        orphan_evidence: Optional[str] = None
+        orphan_evidence: str | None = None
         for path, sid in seats:
             pid = ws.read_pid(path)
             if pid is None:
@@ -335,7 +337,7 @@ def _attendance(agent: str, roster_rows=None) -> str:
         return "UNKNOWN"
 
 
-def _operator_recently_present(window_s: Optional[float] = None, bus=None) -> bool:
+def _operator_recently_present(window_s: float | None = None, bus=None) -> bool:
     """Did the human leave recent inbound evidence? FAILS CLOSED (returns False) on any
     read error -- an unreadable bus must READ AS 'not present', which then behaves as 'do
     not activate', never as a false 'present' that hands out authority.
@@ -387,12 +389,12 @@ def _operator_recently_present(window_s: Optional[float] = None, bus=None) -> bo
 
 def evaluate_succession(
     *,
-    agent_self: Optional[str] = None,
-    reap_fn: Optional[Callable] = None,
-    att_fn: Optional[Callable] = None,
-    op_present_fn: Optional[Callable] = None,
+    agent_self: str | None = None,
+    reap_fn: Callable | None = None,
+    att_fn: Callable | None = None,
+    op_present_fn: Callable | None = None,
     bus=None,
-    now: Optional[float] = None,
+    now: float | None = None,
 ) -> ConductorVerdict:
     """The three-condition decision, as a PURE function of injected probes.
 
@@ -508,7 +510,7 @@ def acting_conduct_grant(
     hours: float,
     caps=None,
     path_scope=None,
-    request_ref: Optional[str] = None,
+    request_ref: str | None = None,
 ) -> dict:
     """The ONE minting path an acting conductor has. Bounded in every axis the design names.
 
@@ -584,7 +586,7 @@ def acting_conduct_grant(
     }
     from datetime import datetime, timedelta, timezone
 
-    rec["expires_at"] = (datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rec["expires_at"] = (datetime.now(UTC) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M:%SZ")
     if request_ref:
         rec["request_ref"] = request_ref
 
@@ -621,13 +623,13 @@ def acting_conductor_approve(*, successor: str, agent_id: str, reason: str) -> d
 # ---------------------------------------------------------------- loud activation
 def decide_and_act(
     *,
-    agent_self: Optional[str] = None,
+    agent_self: str | None = None,
     bus=None,
     dry_run: bool = False,
-    reap_fn: Optional[Callable] = None,
-    att_fn: Optional[Callable] = None,
-    op_present_fn: Optional[Callable] = None,
-    now: Optional[float] = None,
+    reap_fn: Callable | None = None,
+    att_fn: Callable | None = None,
+    op_present_fn: Callable | None = None,
+    now: float | None = None,
 ) -> ConductorVerdict:
     """Evaluate, and if activation is warranted, make it LOUD: bus broadcast + ledger event +
     provenance append. Writes the mandate ONLY in the sense of announcing it -- the mandate's
@@ -707,7 +709,7 @@ def decide_and_act(
 # It stays QUIET on stand-down (no ledger/broadcast spam per beat): only an ACTIVATION calls
 # decide_and_act, which is the loud path (broadcast + ledger event + provenance). The optional
 # `now` pins the evaluation for drills/tests.
-def notice_conductor_absence(*, agent_self: str, bus=None, now: Optional[float] = None) -> ConductorVerdict:
+def notice_conductor_absence(*, agent_self: str, bus=None, now: float | None = None) -> ConductorVerdict:
     """Evaluate succession for `agent_self` and (only on activation) emit it loudly."""
     try:
         v = evaluate_succession(agent_self=agent_self, bus=bus, now=now)

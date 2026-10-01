@@ -36,17 +36,17 @@ BASELINE_PATH = os.path.join(_ROOT, "state", "coord", "suite_baseline.json")
 _FAILED_RE = re.compile(r"^FAILED\s+(\S+::\S+?)(?:\s+-\s.*)?$", re.MULTILINE)
 
 
-def ingest_pytest(text: str) -> List[str]:
+def ingest_pytest(text: str) -> list[str]:
     """FAILED node ids from pytest terminal output (the universal receipt format)."""
     return [m.group(1) for m in _FAILED_RE.finditer(str(text or ""))]
 
 
-def _ledger_claims() -> Dict[str, str]:
+def _ledger_claims() -> dict[str, str]:
     """{task_id: status} for non-done ledger tasks (fail-open {})."""
     try:
         from core.coord.task_ledger import state_view
 
-        out: Dict[str, str] = {}
+        out: dict[str, str] = {}
         for v in state_view().values():
             if isinstance(v, list):
                 for t in v:
@@ -57,12 +57,12 @@ def _ledger_claims() -> Dict[str, str]:
         return {}
 
 
-def _task_files() -> Dict[str, List[str]]:
+def _task_files() -> dict[str, list[str]]:
     """{task_id: files[]} for ledger tasks that declare files (fail-open {})."""
     try:
         from core.coord.task_ledger import state_view
 
-        out: Dict[str, List[str]] = {}
+        out: dict[str, list[str]] = {}
         for v in state_view().values():
             if isinstance(v, list):
                 for t in v:
@@ -73,11 +73,11 @@ def _task_files() -> Dict[str, List[str]]:
         return {}
 
 
-def classify(nodes: List[str]) -> Dict[str, str]:
+def classify(nodes: list[str]) -> dict[str, str]:
     """node_id -> lane task id ('' = unclassified). Mechanical: the node's FILE half
     matches a task's declared files. Never guesses."""
     files_by_task = _task_files()
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for n in nodes:
         fpath = str(n).split("::", 1)[0].replace("\\", "/")
         lane = ""
@@ -89,7 +89,7 @@ def classify(nodes: List[str]) -> Dict[str, str]:
     return out
 
 
-def record(nodes: List[str], *, seat: str, sha: str = "") -> Dict[str, Any]:
+def record(nodes: list[str], *, seat: str, sha: str = "") -> dict[str, Any]:
     """Snapshot the receipt: failures + lanes + claims-at-snapshot + provenance."""
     lanes = classify(nodes)
     rec = {
@@ -108,7 +108,7 @@ def record(nodes: List[str], *, seat: str, sha: str = "") -> Dict[str, Any]:
     return rec
 
 
-def read() -> Optional[Dict[str, Any]]:
+def read() -> dict[str, Any] | None:
     try:
         with open(BASELINE_PATH, encoding="utf-8") as f:
             rec = json.load(f)
@@ -117,7 +117,7 @@ def read() -> Optional[Dict[str, Any]]:
         return None
 
 
-def delta(current_nodes: List[str]) -> Dict[str, List[str]]:
+def delta(current_nodes: list[str]) -> dict[str, list[str]]:
     """Node-id set math vs the baseline: {new, fixed, inherited}. No baseline ->
     everything is 'new' (an honest first run, not an error)."""
     rec = read()
@@ -163,7 +163,7 @@ VERDICT_NEXT = {
 }
 
 
-def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None, full_suite: bool = False) -> Dict[str, Any]:
+def verdicts(current_nodes: list[str], *, now_sha: str | None = None, full_suite: bool = False) -> dict[str, Any]:
     """Per-node attribution: is this failure MINE? (T208)
 
     WHY THIS EXISTS, measured 2026-08-06. Four failures were hit while shipping T200 and
@@ -192,7 +192,7 @@ def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None, full_su
     # "I could not check" must never render as "I checked and it matched".
     fresh = bool(rec) and bool(b_sha) and bool(h_sha) and b_sha.startswith(h_sha[:7])
 
-    by_node: Dict[str, Any] = {}
+    by_node: dict[str, Any] = {}
     for n in sorted(set(current_nodes)):
         if n in base:
             v = "INHERITED" if fresh else "LIKELY_INHERITED"
@@ -200,7 +200,7 @@ def verdicts(current_nodes: List[str], *, now_sha: Optional[str] = None, full_su
             v = "YOURS" if fresh else "UNKNOWN"
         by_node[n] = {"verdict": v, "next": VERDICT_NEXT[v]}
 
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     for row in by_node.values():
         counts[row["verdict"]] = counts.get(row["verdict"], 0) + 1
 

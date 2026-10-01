@@ -32,7 +32,7 @@ PRODUCER_TYPES = ("control.event", "control.curve", "analysis.features")
 CAPS_KEYS = ("memory", "primaries", "transfer", "matrix", "range", "alpha_mode", "sample_rate", "channels", "layout")
 
 
-def check_caps(out_caps, in_caps) -> List[str]:
+def check_caps(out_caps, in_caps) -> list[str]:
     """Reasons an output's caps cannot feed an input's; an empty list means compatible.
 
     Only keys the input states are checked, and an input value of "any" accepts anything.

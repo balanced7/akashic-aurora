@@ -29,7 +29,7 @@ _STATUSES = ("loaded", "partial", "absent", "failed")
 
 class GapLedger:
     def __init__(self) -> None:
-        self._rows: List[Tuple[str, str, str]] = []
+        self._rows: list[tuple[str, str, str]] = []
 
     def report(self, plane: str, status: str, why: str = "") -> None:
         """Record one plane's restoration verdict. Never raises; an unknown status

@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 NOTE_TITLE_PREFIX = "toast:"
 MAX_BODY = 400  # gratitude is short; the leaderboard guard is distinct-users love
@@ -51,9 +52,7 @@ def note_title(to: str, receipt: str) -> str:
     return f"{NOTE_TITLE_PREFIX}{_slug(to)}-{_slug(receipt)}"
 
 
-def render_note(
-    frm: str, to: str, receipt: str, hops: str, tier: str, found_by: str, when: Optional[str] = None
-) -> str:
+def render_note(frm: str, to: str, receipt: str, hops: str, tier: str, found_by: str, when: str | None = None) -> str:
     """The durable credit record -- supersession-by-title keeps one note per (to, receipt);
     a re-toast of the same receipt REFRESHES the same note instead of piling up copies."""
     return (
@@ -65,7 +64,7 @@ def render_note(
     )
 
 
-def verify_receipt(to: str, receipt: str, *, store: Optional[Any] = None) -> Tuple[bool, str]:
+def verify_receipt(to: str, receipt: str, *, store: Any | None = None) -> tuple[bool, str]:
     """Is `receipt` a real learning record attributable to agent `to`?
     Returns (ok, found_by). Attribution: exact agent_id match; fuzzy id match (an
     experiment id CONTAINING the slug) still requires the agent_id to match -- a toast
@@ -112,10 +111,10 @@ def send(
     hops: str,
     *,
     force: bool = False,
-    bus_send: Optional[Callable[[str, str, str], Any]] = None,
-    note_write: Optional[Callable[[str, str], Any]] = None,
-    store: Optional[Any] = None,
-) -> Dict[str, Any]:
+    bus_send: Callable[[str, str, str], Any] | None = None,
+    note_write: Callable[[str, str], Any] | None = None,
+    store: Any | None = None,
+) -> dict[str, Any]:
     """One toast, both surfaces. Refuses loudly on a bad receipt unless forced.
     bus_send(to, kind, text) / note_write(title, body) are INJECTED; defaults are the
     real doors (bifrost bus + knowledge notes)."""
@@ -141,7 +140,7 @@ def send(
     line = render_line(frm, to, receipt, hops, tier)
     title = note_title(to, receipt)
     note = render_note(frm, to, receipt, hops, tier, found_by)
-    res: Dict[str, Any] = {
+    res: dict[str, Any] = {
         "tier": tier,
         "found_by": found_by,
         "line": line,
@@ -178,7 +177,7 @@ def send(
     return res
 
 
-def render_result(res: Dict[str, Any]) -> str:
+def render_result(res: dict[str, Any]) -> str:
     return (
         f"toast [{res['tier']}] ({res['found_by']})\n"
         f"  bus : {res['bus']}\n"

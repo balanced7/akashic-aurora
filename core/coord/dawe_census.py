@@ -59,11 +59,11 @@ class VerbShape:
         return self.fused and self.body_lines >= BIG_ENOUGH_TO_HIDE
 
 
-def survey(source: str, prefix: str = "cmd_") -> List[VerbShape]:
+def survey(source: str, prefix: str = "cmd_") -> list[VerbShape]:
     """Shape every top-level `prefix*` function. Pure: takes source, returns data."""
     tree = ast.parse(source)
     local = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    out: List[VerbShape] = []
+    out: list[VerbShape] = []
     for node in tree.body:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -93,7 +93,7 @@ def survey(source: str, prefix: str = "cmd_") -> List[VerbShape]:
     return out
 
 
-def render(shapes: List[VerbShape]) -> str:
+def render(shapes: list[VerbShape]) -> str:
     flagged = sorted((s for s in shapes if s.unverifiable), key=lambda s: -s.body_lines)
     fused_small = [s for s in shapes if s.fused and not s.unverifiable]
     out = [
@@ -143,7 +143,7 @@ class ImportGuard:
     handler: str  # silent | loud | reraise
 
 
-def survey_import_guards(source: str) -> List[ImportGuard]:
+def survey_import_guards(source: str) -> list[ImportGuard]:
     """Every try-block that wraps an import, and what its handler does about failure."""
     tree = ast.parse(source)
     owner = {}
@@ -152,7 +152,7 @@ def survey_import_guards(source: str) -> List[ImportGuard]:
             for c in ast.walk(fn):
                 owner[id(c)] = fn.name
 
-    out: List[ImportGuard] = []
+    out: list[ImportGuard] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Try):
             continue
@@ -179,7 +179,7 @@ def survey_import_guards(source: str) -> List[ImportGuard]:
     return out
 
 
-def render_import_guards(guards: List[ImportGuard]) -> str:
+def render_import_guards(guards: list[ImportGuard]) -> str:
     silent = [g for g in guards if g.handler == "silent"]
     loud = [g for g in guards if g.handler == "loud"]
     by_fn = {}

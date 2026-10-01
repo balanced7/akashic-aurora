@@ -9,7 +9,8 @@ import json
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import AsyncIterator, Callable, Optional
+from typing import Optional
+from collections.abc import AsyncIterator, Callable
 
 import redis
 import requests
@@ -74,8 +75,8 @@ class StreamingLLM:
         prompt: str,
         context: str = "",
         files: list = None,
-        stream_callback: Optional[Callable] = None,
-        audio_callback: Optional[Callable] = None,
+        stream_callback: Callable | None = None,
+        audio_callback: Callable | None = None,
     ) -> AsyncIterator[str]:
         """Stream chat response"""
         self.is_generating = True
@@ -197,7 +198,7 @@ class StreamingLLM:
         except:
             pass
 
-    async def resume(self, modified_prompt: str = None) -> Optional[str]:
+    async def resume(self, modified_prompt: str = None) -> str | None:
         """Get saved interrupted response"""
         if not self.redis_client:
             return None
@@ -212,7 +213,7 @@ class StreamingLLM:
             pass
         return None
 
-    async def generate(self, prompt: str, stream_callback: Optional[Callable] = None) -> AsyncIterator[str]:
+    async def generate(self, prompt: str, stream_callback: Callable | None = None) -> AsyncIterator[str]:
         """Generate with streaming"""
         async for token in self.chat(prompt, stream_callback=stream_callback):
             yield token

@@ -10,7 +10,8 @@ from __future__ import annotations
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Optional
+from collections.abc import Callable, Mapping, Sequence
 
 from core.coord.observations import Observation, Snapshot
 
@@ -56,7 +57,7 @@ def _max_sid(a: Any, b: Any) -> str:
     return str(a) if _sid(a) >= _sid(b) else str(b)
 
 
-def _effective_cursor(client, namespace: str, subject: str) -> Dict[str, str]:
+def _effective_cursor(client, namespace: str, subject: str) -> dict[str, str]:
     shared = client.hgetall(f"{namespace}:cursor:{subject}") or {}
     lane = client.hgetall(f"{namespace}:cursor:lane:{subject}") or {}
     return {
@@ -103,7 +104,7 @@ def _decode_row(subject: str, stream: str, sid: Any, fields: Mapping[str, Any]):
     }, ""
 
 
-def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: Optional[str] = None) -> list[Dict[str, Any]]:
+def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: str | None = None) -> list[dict[str, Any]]:
     """Read a freshness window without touching presence, cursors, or receipts.
 
     Only Redis read operations are used.  Fragment packets are not reassembled here:
@@ -124,7 +125,7 @@ def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: Option
         ("inbox", f"{ns}:inbox:{subject}", cursors["inbox"]),
         ("bc", f"{ns}:broadcast", cursors["bc"]),
     )
-    seen: Dict[tuple[str, str], Dict[str, Any]] = {}
+    seen: dict[tuple[str, str], dict[str, Any]] = {}
     packet_seen = set()
     capped = False
     skipped = {"fragment": 0, "integrity": 0, "decode": 0}
@@ -160,7 +161,7 @@ def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: Option
     else:
         head, tail, hidden = merged, [], 0
 
-    out: list[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     degraded_n = sum(skipped.values())
 
     def append_row(row):
@@ -220,7 +221,7 @@ def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: Option
     return out
 
 
-def _presence(subject: str) -> Dict[str, Any]:
+def _presence(subject: str) -> dict[str, Any]:
     store = _redis_client()
     if store is None:
         return {
@@ -418,11 +419,11 @@ def _unavailable(name: str, subject: str, exc: Exception) -> Observation:
     )
 
 
-def build_snapshot(subject: str, *, providers: Optional[Mapping[str, Callable]] = None) -> Snapshot:
+def build_snapshot(subject: str, *, providers: Mapping[str, Callable] | None = None) -> Snapshot:
     subject = str(subject or "").strip()
     if not subject:
         raise ValueError("awareness subject is required")
-    selected: Dict[str, Callable[[str], Observation]] = {
+    selected: dict[str, Callable[[str], Observation]] = {
         "bus": observe_bus,
         "bench": observe_bench,
         "route": observe_route,

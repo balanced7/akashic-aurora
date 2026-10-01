@@ -104,7 +104,7 @@ class FileAnalyzer:
 
         print(f"[FileAnalyzer] Vision available: {self.vision_available}")
 
-    async def analyze(self, file_data: bytes, filename: str) -> Dict[str, Any]:
+    async def analyze(self, file_data: bytes, filename: str) -> dict[str, Any]:
         """Analyze a file and return description"""
 
         ext = Path(filename).suffix.lower()
@@ -127,7 +127,7 @@ class FileAnalyzer:
         else:
             return await self._analyze_generic(file_data, filename)
 
-    async def _analyze_code(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_code(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze code files"""
         try:
             text = data.decode("utf-8", errors="ignore")
@@ -168,7 +168,7 @@ First 500 chars: {text[:500]}"""
         except Exception as e:
             return {"type": "code", "error": str(e)}
 
-    async def _analyze_image(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_image(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze images with vision"""
         result = {
             "type": "image",
@@ -204,7 +204,7 @@ First 500 chars: {text[:500]}"""
 
         return result
 
-    async def _analyze_pdf(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_pdf(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze PDF files"""
         result = {
             "type": "document",
@@ -238,7 +238,7 @@ Content preview:
 
         return result
 
-    async def _analyze_spreadsheet(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_spreadsheet(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze spreadsheets"""
         result = {
             "type": "spreadsheet",
@@ -267,7 +267,7 @@ Sample data (first 3 rows):"""
 
         return result
 
-    async def _analyze_database(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_database(self, data: bytes, filename: str) -> dict[str, Any]:
         """Analyze database files"""
         result = {
             "type": "database",
@@ -284,7 +284,7 @@ Sample data (first 3 rows):"""
 
         return result
 
-    async def _analyze_audio(self, filename: str) -> Dict[str, Any]:
+    async def _analyze_audio(self, filename: str) -> dict[str, Any]:
         """Analyze audio files"""
         result = {
             "type": "audio",
@@ -294,7 +294,7 @@ Sample data (first 3 rows):"""
 
         return result
 
-    async def _analyze_video(self, filename: str) -> Dict[str, Any]:
+    async def _analyze_video(self, filename: str) -> dict[str, Any]:
         """Analyze video files"""
         result = {
             "type": "video",
@@ -316,7 +316,7 @@ Which would you prefer?""",
 
         return result
 
-    async def _analyze_generic(self, data: bytes, filename: str) -> Dict[str, Any]:
+    async def _analyze_generic(self, data: bytes, filename: str) -> dict[str, Any]:
         """Generic file analysis"""
         return {
             "type": "generic",
@@ -325,7 +325,7 @@ Which would you prefer?""",
             "summary": f"File: {filename} ({len(data)} bytes)",
         }
 
-    async def ask_video_choice(self, filename: str, choice: str) -> Dict[str, Any]:
+    async def ask_video_choice(self, filename: str, choice: str) -> dict[str, Any]:
         """Process user's video analysis choice"""
         result = {"type": "video", "filename": filename, "choice": choice}
 

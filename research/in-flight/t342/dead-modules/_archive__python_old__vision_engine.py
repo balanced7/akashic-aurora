@@ -141,7 +141,7 @@ class VisionEngine:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-    def _analyze_raw(self, image: Image.Image, task: str) -> Dict[str, Any]:
+    def _analyze_raw(self, image: Image.Image, task: str) -> dict[str, Any]:
         """Internal analysis without caching"""
         if not self._loaded:
             if not self.load():
@@ -186,7 +186,7 @@ class VisionEngine:
         except Exception as e:
             return {"error": str(e), "task": task}
 
-    def analyze(self, image: Image.Image, task: str = "caption") -> Dict[str, Any]:
+    def analyze(self, image: Image.Image, task: str = "caption") -> dict[str, Any]:
         """Analyze with Redis caching"""
         # Generate cache key from image hash + task
         img_hash = hashlib.md5(image.tobytes()).hexdigest()[:12]
@@ -217,7 +217,7 @@ class VisionEngine:
         result["cached"] = False
         return result
 
-    def analyze_full(self, image: Image.Image) -> Dict[str, Any]:
+    def analyze_full(self, image: Image.Image) -> dict[str, Any]:
         """Run multiple analyses on same image, cache all"""
         img_hash = hashlib.md5(image.tobytes()).hexdigest()[:12]
         results = {"image_hash": img_hash, "timestamp": datetime.now().isoformat(), "tasks": {}}
@@ -228,7 +228,7 @@ class VisionEngine:
         return results
 
 
-def capture_screen() -> Optional[Image.Image]:
+def capture_screen() -> Image.Image | None:
     """Capture full screen"""
     try:
         return ImageGrab.grab(include_layered_windows=False)
@@ -276,7 +276,7 @@ def save_to_redis(image: Image.Image, tag: str = "capture") -> str:
     return disk_path
 
 
-def get_from_redis(img_hash: str) -> Optional[Dict]:
+def get_from_redis(img_hash: str) -> dict | None:
     """Retrieve screenshot from Redis"""
     r = get_redis()
     if not r:
@@ -288,7 +288,7 @@ def get_from_redis(img_hash: str) -> Optional[Dict]:
     return None
 
 
-def capture_and_analyze(task: str = "caption") -> Dict[str, Any]:
+def capture_and_analyze(task: str = "caption") -> dict[str, Any]:
     """One-shot: capture screen, save to Redis, analyze, cache results"""
     image = capture_screen()
     if image is None:
@@ -316,7 +316,7 @@ def capture_and_analyze(task: str = "caption") -> Dict[str, Any]:
     return result
 
 
-def get_cached_analysis(img_hash: str, task: str = "caption") -> Optional[Dict]:
+def get_cached_analysis(img_hash: str, task: str = "caption") -> dict | None:
     """Get cached analysis from Redis"""
     r = get_redis()
     if not r:
@@ -330,7 +330,7 @@ def get_cached_analysis(img_hash: str, task: str = "caption") -> Optional[Dict]:
     return None
 
 
-def get_recent_captures(limit: int = 10) -> List[Dict]:
+def get_recent_captures(limit: int = 10) -> list[dict]:
     """Get recent screen captures from Redis"""
     r = get_redis()
     if not r:
@@ -366,7 +366,7 @@ def quick_caption() -> str:
     return result.get("result", result.get("error", "Failed"))
 
 
-def get_screen_context() -> Dict[str, Any]:
+def get_screen_context() -> dict[str, Any]:
     """Get full screen context for agent re-priming"""
     image = capture_screen()
     if image is None:

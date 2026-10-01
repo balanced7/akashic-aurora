@@ -44,7 +44,7 @@ def boost(rgb: np.ndarray, lo_pct: float = 1, hi_pct: float = 99) -> np.ndarray:
     return (np.dstack([stretched, stretched, stretched]) * 255).astype(np.uint8)
 
 
-def annuli(rgb: np.ndarray, bands: int = 6, center: Optional[Tuple[float, float]] = None) -> List[float]:
+def annuli(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] | None = None) -> list[float]:
     """Mean luma of `bands` concentric annuli, centre to edge, each one sixth of the normalised
     radius. `center` is (x, y) in pixels; default is the frame centre. Returns a list of means, or
     None entries for an empty annulus (which only happens for a degenerate image)."""
@@ -55,14 +55,14 @@ def annuli(rgb: np.ndarray, bands: int = 6, center: Optional[Tuple[float, float]
     yy, xx = np.mgrid[0:h, 0:w]
     rr = np.sqrt(((yy - cy) / (h / 2)) ** 2 + ((xx - cx) / (w / 2)) ** 2)
     width = 1.0 / bands
-    out: List[float] = []
+    out: list[float] = []
     for i in range(bands):
         band = (rr >= i * width) & (rr < (i + 1) * width)
         out.append(round(float(lum[band].mean()), 6) if band.any() else None)
     return out
 
 
-def radial_summary(rgb: np.ndarray, bands: int = 6, center: Optional[Tuple[float, float]] = None) -> dict:
+def radial_summary(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] | None = None) -> dict:
     """The verdict with the numbers beside it. `banded` is True when brightness RISES away from the
     centre before falling -- the signature of a ring, a mandala or an iris, as opposed to a glow
     (monotone fall) or a flat field. The reason is a sentence, never a bare flag."""

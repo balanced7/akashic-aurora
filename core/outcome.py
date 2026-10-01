@@ -54,9 +54,9 @@ class BoundaryOutcome:
 
     ok: bool
     why: str = ""
-    ref: Optional[str] = None
+    ref: str | None = None
     partial: bool = False
-    detail: Dict[str, Any] = field(default_factory=dict)
+    detail: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # THE WHOLE POINT. A failure or a partial that cannot say why is the defect this type
@@ -74,21 +74,21 @@ class BoundaryOutcome:
         return bool(self.ok and not self.partial)
 
     @classmethod
-    def done(cls, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def done(cls, ref: str | None = None, **detail) -> BoundaryOutcome:
         return cls(ok=True, ref=ref, detail=detail)
 
     @classmethod
-    def failed(cls, why: str, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def failed(cls, why: str, ref: str | None = None, **detail) -> BoundaryOutcome:
         return cls(ok=False, why=why, ref=ref, detail=detail)
 
     @classmethod
-    def partially(cls, why: str, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def partially(cls, why: str, ref: str | None = None, **detail) -> BoundaryOutcome:
         """Happened, incompletely. The state five dialects could not express, and the reason
         109KB of correct analysis died in a log on 2026-08-04."""
         return cls(ok=True, why=why, ref=ref, partial=True, detail=detail)
 
     @classmethod
-    def caught(cls, exc: BaseException, where: str = "", ref: Optional[str] = None) -> "BoundaryOutcome":
+    def caught(cls, exc: BaseException, where: str = "", ref: str | None = None) -> BoundaryOutcome:
         """Fail-open WITHOUT going silent -- the exact shape consume_rearms needed.
 
         Fail-open is correct: a bad spawn must not kill the daemon loop. Silent fail-open is what

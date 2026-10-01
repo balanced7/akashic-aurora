@@ -7,7 +7,8 @@ Handles WebSocket audio streams with VAD and processing
 import asyncio
 import io
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -129,8 +130,8 @@ class AudioWebSocketHandler:
         self.buffer = AudioBuffer()
         self.is_recording = False
         self.clients = set()
-        self.on_transcript: Optional[Callable] = None
-        self.on_interrupt: Optional[Callable] = None
+        self.on_transcript: Callable | None = None
+        self.on_interrupt: Callable | None = None
         self._speech_detected = False
         self._silence_count = 0
 

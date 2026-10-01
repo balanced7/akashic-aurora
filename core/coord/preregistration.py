@@ -33,7 +33,7 @@ def _norm(p: str) -> str:
     return p.replace("\\", "/").lstrip("./")
 
 
-def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
+def audit_stats(n: int, root: str = "") -> dict[str, Any]:
     """M3 metric as NUMBERS: of the last N commits that ADD a tests/test_*.py, how many also
     touched source in the same commit (violations).
 

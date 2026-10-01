@@ -42,7 +42,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from collections.abc import Callable
 
 #: Who "the operator" is when nobody says otherwise. A default, never a truth claim --
 #: whoever holds the root id is not necessarily this name (the same discipline
@@ -68,7 +69,7 @@ def _session_id() -> str:
     return (os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()[:8]
 
 
-def _recent_failures() -> List[Dict[str, Any]]:
+def _recent_failures() -> list[dict[str, Any]]:
     """Recent `discord_feed_post_failed` records. Best-effort by construction: the caller
     treats an exception here as UNKNOWN, never as clean."""
     # The SAME door `agent_cli events --search` uses (agent_cli.py:4966). My first guess
@@ -78,7 +79,7 @@ def _recent_failures() -> List[Dict[str, Any]]:
     from core.events.event_query import get_event_query
 
     rows = get_event_query().search("discord_feed_post_failed", top_k=25)
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     now = time.time()
     for r in rows or []:
         ts = r.get("ts") or r.get("timestamp") or 0
@@ -92,16 +93,16 @@ def _recent_failures() -> List[Dict[str, Any]]:
 
 
 def reply(
-    text: Optional[str],
+    text: str | None,
     *,
-    sender: Optional[str] = None,
-    to: Optional[str] = None,
+    sender: str | None = None,
+    to: str | None = None,
     bus: Any = None,
-    failures: Optional[Callable[[], List[Dict[str, Any]]]] = None,
+    failures: Callable[[], list[dict[str, Any]]] | None = None,
     kind: str = "chat",
-    model: Optional[str] = None,
-    stamp: Optional[Callable[..., bool]] = None,
-) -> Dict[str, Any]:
+    model: str | None = None,
+    stamp: Callable[..., bool] | None = None,
+) -> dict[str, Any]:
     """Answer the operator. `text` is the ONLY positional -- see the module docstring.
 
     `model`, if given, is stamped to the self-report plane (`!model` reads it) on a
@@ -179,7 +180,7 @@ def reply(
     }
 
 
-def _stamp_model(model: Optional[str], *, agent: str, stamper: Optional[Callable[..., bool]] = None) -> bool:
+def _stamp_model(model: str | None, *, agent: str, stamper: Callable[..., bool] | None = None) -> bool:
     """Best-effort self-report so `!model` reflects who is actually answering. An
     unresolvable alias, a missing session id, or a Redis hiccup all degrade to False --
     none of them may turn a delivered reply into a failure (see module docstring)."""
@@ -199,7 +200,7 @@ def _stamp_model(model: Optional[str], *, agent: str, stamper: Optional[Callable
         return False
 
 
-def render(out: Dict[str, Any]) -> str:
+def render(out: dict[str, Any]) -> str:
     """One line for a CLI door."""
     if not out.get("ok"):
         return f"[reply] {out.get('why')}"

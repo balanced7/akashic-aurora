@@ -12,7 +12,7 @@ agent and returns the latest one's payload (task, context, blockers).
 from typing import Any, Dict, Optional
 
 
-def _consumed(handoff: Dict[str, Any], agent: str, learning_store: Any = None) -> bool:
+def _consumed(handoff: dict[str, Any], agent: str, learning_store: Any = None) -> bool:
     """True once the target agent has recorded a LESSON after this handoff was written.
 
     A briefing's job is delivery: the target's next boot surfaces it, the target works. The
@@ -46,7 +46,7 @@ def load_briefing_from_previous_handoff(
     signal_ledger: Any = None,
     learning_store: Any = None,
     scan: int = 10000,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Return the most recent handoff briefing addressed to `agent`, or None.
 

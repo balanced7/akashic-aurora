@@ -31,7 +31,7 @@ from core.narrative.track_router import RouteHint
 SESSION_OPEN_KEY = "narr:session:open"
 
 
-def _capture_session(summary: str, ref: str, *, at: str, detail: Optional[dict] = None) -> None:
+def _capture_session(summary: str, ref: str, *, at: str, detail: dict | None = None) -> None:
     """Auto-logger (Slice 2): mirror a session boundary into the RAW event firehose, so the
     full-fidelity timeline shows session spans too. Best-effort -- never blocks the session."""
     try:
@@ -56,7 +56,7 @@ def _chronicle(store: Store, bl: BeatLog, now: str) -> None:
         bump(store, "chronicle:error")  # the story stopped refreshing -- make it visible
 
 
-def start_session(store: Optional[Store] = None, *, now: Optional[str] = None, chronicle: bool = True) -> dict:
+def start_session(store: Store | None = None, *, now: str | None = None, chronicle: bool = True) -> dict:
     """Open a session, auto-closing any prior open one first.
 
     Returns a small report: ``{"closed_prior": bool, "start": iso}``. Never raises.
@@ -106,7 +106,7 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None, c
     return report
 
 
-def end_session(store: Optional[Store] = None, *, now: Optional[str] = None, chronicle: bool = True) -> dict:
+def end_session(store: Store | None = None, *, now: str | None = None, chronicle: bool = True) -> dict:
     """Explicitly close the current session and re-chronicle.
 
     Idempotent: emits the session-end Beat only when a session is actually open, so

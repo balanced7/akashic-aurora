@@ -26,7 +26,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -59,7 +59,7 @@ def _arc_matches(header_val: str, want: str) -> bool:
 def _read_header(path: str) -> tuple[str, str, str] | None:
     """Return (arc_field, status, date) from the first ~1500 chars, or None."""
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             head = f.read(1500)
     except OSError:
         return None
@@ -97,7 +97,7 @@ def files_for_arc(want: str) -> list[dict]:
                 arc_field, status, date = hdr
                 rel = os.path.relpath(path, ROOT).replace("\\", "/")
                 if not date:  # fall back to mtime for ordering
-                    date = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc).date().isoformat()
+                    date = datetime.fromtimestamp(os.path.getmtime(path), tz=UTC).date().isoformat()
                 out.append({"plane": "file", "date": date, "ref": rel, "status": status, "note": arc_field.strip()})
     return out
 

@@ -37,7 +37,8 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
+from collections.abc import Callable
 
 # ---------------------------------------------------------------------------
 # Row schema
@@ -82,7 +83,7 @@ class Domain(Protocol):
 
     name: str
 
-    def run(self) -> List[Row]: ...
+    def run(self) -> list[Row]: ...
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +91,7 @@ class Domain(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def _parse_kata_ts(tested_against: Optional[str]) -> Optional[float]:
+def _parse_kata_ts(tested_against: str | None) -> float | None:
     """Parse a kata pin like 'kata-20260721-005225' -> Unix timestamp (float).
     Returns None if unparseable or None."""
     if not tested_against:
@@ -105,7 +106,7 @@ def _parse_kata_ts(tested_against: Optional[str]) -> Optional[float]:
         return None
 
 
-def _parse_iso_ts(iso_str: Optional[str]) -> Optional[float]:
+def _parse_iso_ts(iso_str: str | None) -> float | None:
     """Parse an ISO timestamp like '2026-07-21T00:55:11' -> Unix timestamp."""
     if not iso_str:
         return None
@@ -143,7 +144,7 @@ def _registry_dir() -> str:
     )
 
 
-def _load_registry(agent: str) -> Optional[Dict[str, Any]]:
+def _load_registry(agent: str) -> dict[str, Any] | None:
     """Load one agent's registry JSON. Returns None if absent or unparseable."""
     path = os.path.join(_registry_dir(), f"{agent}.json")
     if not os.path.exists(path):
@@ -155,7 +156,7 @@ def _load_registry(agent: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _all_agents() -> List[str]:
+def _all_agents() -> list[str]:
     """Discover agents with registry files."""
     d = _registry_dir()
     if not os.path.isdir(d):
@@ -163,7 +164,7 @@ def _all_agents() -> List[str]:
     return sorted(os.path.splitext(f)[0] for f in os.listdir(d) if f.endswith(".json"))
 
 
-def _detect_argparse_eaten_tokens(steps: List[List[str]]) -> List[Tuple[int, int, str]]:
+def _detect_argparse_eaten_tokens(steps: list[list[str]]) -> list[tuple[int, int, str]]:
     """Find bare '--' tokens in macro steps that argparse would consume as the
     positional separator. Returns list of (step_idx, token_idx, token)."""
     eaten = []
@@ -197,7 +198,7 @@ class VerbsDomain:
 
     def __init__(self, ground_truth_source: str = "registry"):
         self._ground = ground_truth_source
-        self._verbs: Optional[set] = None  # lazy
+        self._verbs: set | None = None  # lazy
 
     @property
     def verbs(self) -> set:
@@ -205,8 +206,8 @@ class VerbsDomain:
             self._verbs = _load_agent_cli_verbs()
         return self._verbs
 
-    def run(self) -> List[Row]:
-        rows: List[Row] = []
+    def run(self) -> list[Row]:
+        rows: list[Row] = []
         for agent in _all_agents():
             reg = _load_registry(agent)
             if not reg:
@@ -232,9 +233,9 @@ class VerbsDomain:
 
         return rows
 
-    def _check_entry(self, agent: str, name: str, entry: Dict[str, Any]) -> List[Row]:
+    def _check_entry(self, agent: str, name: str, entry: dict[str, Any]) -> list[Row]:
         """Run all rules against one registry entry. Returns 0-N rows."""
-        rows: List[Row] = []
+        rows: list[Row] = []
         ref = f"{agent}:{name}"
 
         evidence = entry.get("evidence", "GUESS")
@@ -359,7 +360,7 @@ class VerbsDomain:
 
 
 # Registered domains (append new domains here)
-def _default_domains() -> List[Domain]:
+def _default_domains() -> list[Domain]:
     """Lazy: audit_spend reads kimi_chat.py by REGEX (never imports — the module
     pulls an SDK client at import time). Import here so `import audit` stays light
     and the SPEND domain rides the same row schema."""
@@ -373,13 +374,13 @@ def _default_domains() -> List[Domain]:
     return [VerbsDomain(), SpendDomain(), LexiconDomain()]
 
 
-DOMAINS: List[Domain] = _default_domains()
+DOMAINS: list[Domain] = _default_domains()
 
 
-def run(domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry") -> List[Row]:
+def run(domains: list[Domain] | None = None, ground_truth_source: str = "registry") -> list[Row]:
     """Run all domains (or a subset), collect rows. Read-only; no side effects."""
     doms = domains or DOMAINS
-    rows: List[Row] = []
+    rows: list[Row] = []
     for d in doms:
         try:
             rows.extend(d.run())
@@ -401,17 +402,17 @@ def run(domains: Optional[List[Domain]] = None, ground_truth_source: str = "regi
 
 
 def render(
-    rows: Optional[List[Row]] = None, domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry"
+    rows: list[Row] | None = None, domains: list[Domain] | None = None, ground_truth_source: str = "registry"
 ) -> str:
     """Render rows as a text table. If rows not provided, runs audit first."""
     if rows is None:
         rows = run(domains=domains, ground_truth_source=ground_truth_source)
 
-    by_domain: Dict[str, List[Row]] = {}
+    by_domain: dict[str, list[Row]] = {}
     for r in rows:
         by_domain.setdefault(r.domain, []).append(r)
 
-    verdict_counts: Dict[str, int] = {"MATCH": 0, "DRIFT": 0, "UNKNOWN": 0}
+    verdict_counts: dict[str, int] = {"MATCH": 0, "DRIFT": 0, "UNKNOWN": 0}
     for r in rows:
         if r.verdict in verdict_counts:
             verdict_counts[r.verdict] += 1
@@ -437,8 +438,8 @@ def render(
 
 
 def json_result(
-    rows: Optional[List[Row]] = None, domains: Optional[List[Domain]] = None, ground_truth_source: str = "registry"
-) -> List[Dict[str, Any]]:
+    rows: list[Row] | None = None, domains: list[Domain] | None = None, ground_truth_source: str = "registry"
+) -> list[dict[str, Any]]:
     """Render rows as a list of dicts (for --json output)."""
     if rows is None:
         rows = run(domains=domains, ground_truth_source=ground_truth_source)

@@ -85,7 +85,7 @@ def _slug(opening_path: str) -> str:
 _TRAILING_DATE = re.compile(r"-\d{4}-\d{2}(?:-\d{2})?$")
 
 
-def find_counters(opening_path: str, research_dir: str) -> List[str]:
+def find_counters(opening_path: str, research_dir: str) -> list[str]:
     """Files under research_dir whose TEXT names the opening -- excluding the opening
     itself and files that never mention it. Needles: the basename, its extensionless
     stem, and the date-stripped slug (the brief's 'basename or its slug') -- all long
@@ -97,7 +97,7 @@ def find_counters(opening_path: str, research_dir: str) -> List[str]:
     slug = _TRAILING_DATE.sub("", stem)
     needles = [n for n in dict.fromkeys((opening_base, stem, slug)) if len(n) >= 8]
     opening_real = os.path.realpath(str(opening_path))
-    out: List[str] = []
+    out: list[str] = []
     for root, _dirs, files in os.walk(research_dir):
         for name in files:
             if not name.lower().endswith(".md"):
@@ -115,10 +115,10 @@ def find_counters(opening_path: str, research_dir: str) -> List[str]:
     return sorted(out)
 
 
-def _qids(text: str) -> List[str]:
+def _qids(text: str) -> list[str]:
     """Anchored q-ids in a text (keys only, verdict-agnostic) -- the questions an OPENING
     poses, used to seed the matrix rows so a counterless opening still shows its rows."""
-    out: List[str] = []
+    out: list[str] = []
     for raw in str(text or "").splitlines():
         m = _QID_ANCHOR.match(raw)
         if m:
@@ -126,12 +126,12 @@ def _qids(text: str) -> List[str]:
     return out
 
 
-def extract_positions(text: str) -> Dict[str, str]:
+def extract_positions(text: str) -> dict[str, str]:
     """{qid: VERDICT} from anchored verdict lines. The q-id must anchor the line; the
     verdict is the first vocab word AFTER THE FIRST COLON if the line has one (title-trap
     law), else the first vocab word after the q-id. Prose q-id citations (not anchored)
     never parse. Later lines overwrite earlier for the same q-id (a summary can restate)."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for raw in str(text or "").splitlines():
         m = _QID_ANCHOR.match(raw)
         if not m:
@@ -148,13 +148,13 @@ def extract_positions(text: str) -> Dict[str, str]:
     return out
 
 
-def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
+def matrix(opening_path: str, counter_paths: list[str]) -> dict[str, Any]:
     """The consensus matrix: authors (counters with >=1 verdict), cells[qid][author]=verdict,
     status[qid] in {AGREE, CONFLICT, partial}, rows (all q-ids seen), mentions (named the
     opening but carried no verdict lines). ONE-VOICE-NEVER-AGREE enforced."""
-    authors: List[str] = []
-    mentions: List[str] = []
-    positions: Dict[str, Dict[str, str]] = {}  # author -> {qid: verdict}
+    authors: list[str] = []
+    mentions: list[str] = []
+    positions: dict[str, dict[str, str]] = {}  # author -> {qid: verdict}
     for cp in counter_paths:
         try:
             with open(cp, encoding="utf-8", errors="replace") as f:
@@ -180,8 +180,8 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
     except Exception:
         seed = set()
     rows = sorted(seed | {q for pos in positions.values() for q in pos}, key=lambda q: (q[0], int(q[1:])))
-    cells: Dict[str, Dict[str, str]] = {}
-    status: Dict[str, str] = {}
+    cells: dict[str, dict[str, str]] = {}
+    status: dict[str, str] = {}
     for q in rows:
         row = {a: positions[a][q] for a in authors if q in positions[a]}
         cells[q] = row
@@ -205,7 +205,7 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
     }
 
 
-def render(m: Dict[str, Any]) -> str:
+def render(m: dict[str, Any]) -> str:
     authors = m["authors"]
     lines = [f"# tally: {m['opening']}  ({len(authors)} counter(s): {', '.join(authors) or 'none'})"]
     if m["rows"]:

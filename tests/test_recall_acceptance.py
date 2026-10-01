@@ -93,7 +93,7 @@ def _seed(store, n: int) -> None:
         )
 
 
-def _retrieve(store) -> List[Dict[str, Any]]:
+def _retrieve(store) -> list[dict[str, Any]]:
     from core.learning.learning_store import LearningStore
 
     return LearningStore(store=store).load_all_learnings_from_store()

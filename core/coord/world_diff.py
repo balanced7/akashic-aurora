@@ -78,7 +78,7 @@ LOCAL_LIFE_SHARE = 0.05
 
 
 def classify(
-    prefix: str, present_in_target: bool, manifest: Optional[Dict], n_source: int = 0, n_target: int = 0
+    prefix: str, present_in_target: bool, manifest: dict | None, n_source: int = 0, n_target: int = 0
 ) -> PlaneVerdict:
     """Is this prefix's state between two worlds expected, or news?
 
@@ -158,7 +158,7 @@ def classify(
 MINOR_FLOOR = 25
 
 
-def collapse_minor(rows: List[PlaneRow], manifest: Optional[Dict], floor: int = MINOR_FLOOR):
+def collapse_minor(rows: list[PlaneRow], manifest: dict | None, floor: int = MINOR_FLOOR):
     """Fold tiny, manifest-unknown prefixes into one counted group. Returns (kept, group).
 
     FOUND BY RUNNING IT. The first live prod->alpha run put twenty rows of per-test
@@ -195,7 +195,7 @@ def collapse_minor(rows: List[PlaneRow], manifest: Optional[Dict], floor: int = 
 
 
 def render(
-    rows: List[PlaneRow], source: str, target: str, manifest: Optional[Dict] = None, collapsed: Optional[Dict] = None
+    rows: list[PlaneRow], source: str, target: str, manifest: dict | None = None, collapsed: dict | None = None
 ) -> str:
     """One screen: findings first, expected bulk collapsed but never hidden.
 
@@ -203,7 +203,7 @@ def render(
     'not shouted', never 'not shown' -- a differ that omits what it chose to ignore
     cannot be audited, and then its quiet stops being evidence of anything.
     """
-    out: List[str] = [f"WORLD DIFF  {source} -> {target}"]
+    out: list[str] = [f"WORLD DIFF  {source} -> {target}"]
 
     if manifest:
         out.append(

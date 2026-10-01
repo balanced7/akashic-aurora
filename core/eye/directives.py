@@ -37,7 +37,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
+from collections.abc import Iterable, Sequence
 
 from core.eye.index import _connect, utterance_key
 
@@ -189,7 +190,7 @@ _INTERROGATIVE = (
 )
 
 
-def _marker_starts(text: str) -> List[int]:
+def _marker_starts(text: str) -> list[int]:
     """Token positions where an instruction begins. The clause runs from here forward, so
     "remember to fan out so you dont get bogged" is one candidate rather than forty.
 
@@ -197,7 +198,7 @@ def _marker_starts(text: str) -> List[int]:
     fire on every "i" and "we should" on every "we", which is how "i am heading to sleep"
     and "we have done a lot" ranked as standing directives on the second live run."""
     words = _tokens(text)
-    starts: List[int] = []
+    starts: list[int] = []
     for marker in _STRONG + _WEAK:
         mtok = _tokens(marker)
         if not mtok:
@@ -226,7 +227,7 @@ def directive_shape(text: str) -> str:
     return ""
 
 
-def _tokens(text: str) -> List[str]:
+def _tokens(text: str) -> list[str]:
     return _WORD.findall((text or "").lower())
 
 
@@ -236,7 +237,7 @@ def _content_ratio(words: Sequence[str]) -> float:
     return sum(1 for w in words if w not in _FILLER) / len(words)
 
 
-def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
+def _operator_utterances(db_path: Path | None) -> list[dict[str, Any]]:
     """His voice, deduped to UTTERANCES. The harness records one turn as a queue-operation
     enqueue, a dequeue and a delivered `user` twin; counting rows would treat one sentence
     as three and inflate every verdict built on top.
@@ -263,8 +264,8 @@ def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
         ).fetchall()
     finally:
         con.close()
-    seen: Set[Tuple[str, str]] = set()
-    out: List[Dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, Any]] = []
     for eid, session, text in rows:
         key = utterance_key(session, text)
         if key in seen:
@@ -274,9 +275,7 @@ def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
     return out
 
 
-def candidates(
-    db_path: Optional[Path] = None, *, min_utterances: int = 2, min_sessions: int = 2
-) -> List[Dict[str, Any]]:
+def candidates(db_path: Path | None = None, *, min_utterances: int = 2, min_sessions: int = 2) -> list[dict[str, Any]]:
     """Recurring phrases on the operator axis, boilerplate removed. Mechanical throughout."""
     utts = _operator_utterances(db_path)
     total = len(utts)
@@ -284,8 +283,8 @@ def candidates(
         return []
 
     # phrase -> the utterances containing it (indices, so one utterance counts once)
-    index: Dict[str, Set[int]] = {}
-    shape_of: Dict[int, str] = {}
+    index: dict[str, set[int]] = {}
+    shape_of: dict[int, str] = {}
     for i, u in enumerate(utts):
         shape = directive_shape(u["text"])
         if not shape:
@@ -311,7 +310,7 @@ def candidates(
                     continue
                 index.setdefault(" ".join(gram), set()).add(i)
 
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for phrase, idxs in index.items():
         if len(idxs) < min_utterances:
             continue
@@ -335,7 +334,7 @@ def candidates(
     # overlapping windows of the same directive are one directive, and reporting them
     # separately is exactly the noise the cap exists to prevent.
     hits.sort(key=lambda h: (-len(h["_idxs"]), -len(h["phrase"])))
-    kept: List[Dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
     for h in hits:
         merged = False
         for k in kept:
@@ -387,13 +386,13 @@ def _is_cited(phrase: str, durable: Iterable[str]) -> bool:
 
 
 def unheeded(
-    db_path: Optional[Path] = None,
+    db_path: Path | None = None,
     *,
-    durable_texts: Optional[Iterable[str]] = None,
+    durable_texts: Iterable[str] | None = None,
     limit: int = 2,
     min_utterances: int = 2,
     min_sessions: int = 2,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Recurring operator directives that no durable plane cites.
 
     Returns an envelope that is honest in the empty case: `clear` says the watcher looked
@@ -403,7 +402,7 @@ def unheeded(
     durable = list(durable_texts) if durable_texts is not None else collect_durable()
     cands = candidates(db_path, min_utterances=min_utterances, min_sessions=min_sessions)
 
-    found: List[Dict[str, Any]] = []
+    found: list[dict[str, Any]] = []
     for c in cands:
         if _is_cited(c["phrase"], durable):
             continue
@@ -425,13 +424,13 @@ def unheeded(
     }
 
 
-def collect_durable(root: Optional[Path] = None) -> List[str]:
+def collect_durable(root: Path | None = None) -> list[str]:
     """Every plane where 'we acted on it' would leave a mark: the ledger, lessons, atoms,
     and recent commit subjects. Read-only, and failure of any one source degrades the
     answer rather than the run -- a missing plane means the watcher is MORE likely to
     report something, never less, so the honest direction is preserved."""
     root = Path(root) if root else Path(__file__).resolve().parents[2]
-    out: List[str] = []
+    out: list[str] = []
     for rel in ("state/coord/tasks.json", "session_logs/learnings.jsonl"):
         p = root / rel
         try:

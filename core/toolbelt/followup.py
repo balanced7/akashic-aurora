@@ -93,7 +93,7 @@ def _atomic_write(path: str, text: str) -> None:
     os.replace(tmp, path)
 
 
-def _find_block(lines) -> Optional[Tuple[int, int]]:
+def _find_block(lines) -> tuple[int, int] | None:
     """(heading index, end index) of the Open Questions section; end = next '## '
     heading or EOF. None when the file has no block."""
     head = None
@@ -111,7 +111,7 @@ def _find_block(lines) -> Optional[Tuple[int, int]]:
     return head, end
 
 
-def _existing_qid(lines, head: int, end: int, by: str, to: str, ask: str) -> Optional[str]:
+def _existing_qid(lines, head: int, end: int, by: str, to: str, ask: str) -> str | None:
     """The q-id of an identical OPEN line already in the block (replay detection)."""
     pat = re.compile(
         r"^- (Q\d+) \([^)]*" + re.escape(by) + r" -> " + re.escape(to) + r"[^)]*\) OPEN: " + re.escape(ask) + r"\s*$"
@@ -146,8 +146,8 @@ def _append_question(p: str, line: str) -> bool:
 
 
 def file_followup(
-    path: str, *, by: str, to: str, ask: str, needs: str = "write", root: Optional[str] = None
-) -> Dict[str, Any]:
+    path: str, *, by: str, to: str, ask: str, needs: str = "write", root: str | None = None
+) -> dict[str, Any]:
     """File one followup: q-id'd question into the verdict file's Open Questions block
     + a defer-queue item the responsible seat's next boot surfaces. FILE-HALF-FIRST so
     a refusal never points at an unwritten question; replay-safe per RB-26."""

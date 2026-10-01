@@ -36,7 +36,7 @@ TARGET_LESSONS_30D = 30
 EVENT_SCAN_LIMIT = 5000
 
 
-def _parse_ts(s: Any) -> Optional[datetime]:
+def _parse_ts(s: Any) -> datetime | None:
     """Naive-UTC datetime from a stored ISO string (both stores stamp utcnow().isoformat())."""
     try:
         return datetime.fromisoformat(str(s)[:19])
@@ -49,10 +49,10 @@ def snapshot(
     *,
     store: Any = None,
     learning_store: Any = None,
-    flips: Optional[List[Dict[str, Any]]] = None,
-    injections: Optional[List[Dict[str, Any]]] = None,
-    now: Optional[datetime] = None,
-) -> Dict[str, Any]:
+    flips: list[dict[str, Any]] | None = None,
+    injections: list[dict[str, Any]] | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
     """All-time funnel counters + one recent window. The dict `stats` prints verbatim."""
     if store is None:
         try:
@@ -61,7 +61,7 @@ def snapshot(
             store = create_store()
         except Exception:
             store = None
-    use: Dict[str, Dict[str, Any]] = {}
+    use: dict[str, dict[str, Any]] = {}
     if store is not None:
         try:
             for k in store.keys("recall:use:*"):
@@ -77,7 +77,7 @@ def snapshot(
     noise = sum(int(u.get("noise", 0)) for u in use.values())
     with_track = sum(1 for u in use.values() if int(u.get("helped", 0)) or int(u.get("useful", 0)))
 
-    recs: List[Dict[str, Any]] = []
+    recs: list[dict[str, Any]] = []
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
@@ -140,8 +140,8 @@ def triage(
     *,
     store: Any = None,
     learning_store: Any = None,
-    injections: Optional[List[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
+    injections: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Sharpening-loop S1: rank every tracked lesson by measured value so a REVIEWER can
     decide what to merge, graduate, or retire. READ-ONLY and OBSERVABILITY-ONLY by design:
     this function proposes nothing and prunes nothing -- feeding its output back into
@@ -166,7 +166,7 @@ def triage(
             store = create_store()
         except Exception:
             store = None
-    use: Dict[str, Dict[str, Any]] = {}
+    use: dict[str, dict[str, Any]] = {}
     if store is not None:
         try:
             for k in store.keys("recall:use:*"):
@@ -197,7 +197,7 @@ def triage(
             injections = recent_injections(24 * 7)
         except Exception:
             injections = []
-    win_chars: Dict[str, int] = {}
+    win_chars: dict[str, int] = {}
     for inj in injections or []:
         srcs = [s for s in (inj.get("s") or []) if s]
         if srcs:
@@ -250,7 +250,7 @@ def triage(
     }
 
 
-def summary_line(snap: Dict[str, Any]) -> str:
+def summary_line(snap: dict[str, Any]) -> str:
     """The one-line funnel pulse for boot / SessionStart. ASCII, small-when-not-silent."""
     w = snap.get("window") or {}
     v = snap.get("votes") or {}
@@ -288,8 +288,8 @@ def summary_line(snap: Dict[str, Any]) -> str:
 
 
 def trend(
-    days: int = 7, *, learning_store: Any = None, event_log: Any = None, now: Optional[datetime] = None
-) -> Dict[str, Any]:
+    days: int = 7, *, learning_store: Any = None, event_log: Any = None, now: datetime | None = None
+) -> dict[str, Any]:
     """Per-day lessons/flips over `days`, from DURABLE records only.
 
     The tempdir flip logs prune weekly, so the trend reads the flip EVENTS the PostToolUse
@@ -303,7 +303,7 @@ def trend(
     day_keys = [(now - timedelta(days=i)).date().isoformat() for i in range(days - 1, -1, -1)]
     buckets = {d: {"date": d, "lessons": 0, "flips": 0, "credited": 0} for d in day_keys}
 
-    recs: List[Dict[str, Any]] = []
+    recs: list[dict[str, Any]] = []
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
@@ -324,7 +324,7 @@ def trend(
         if d in buckets:
             buckets[d]["lessons"] += 1
 
-    events: List[Dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
     try:
         if event_log is None:
             from core.events.event_log import get_event_log
