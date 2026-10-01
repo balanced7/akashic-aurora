@@ -159,7 +159,7 @@ def write_config() -> None:
 
 
 def tailnet_ip() -> str:
-    exe = shutil.which("tailscale") or os.path.join(os.environ.get("PROGRAMFILES", ""), "Tailscale", "tailscale.exe")
+    exe = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe")  # noqa: SIM112  # Windows spelling; POSIX lookups are case-sensitive
     try:
         out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
