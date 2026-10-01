@@ -192,7 +192,7 @@ def test_act_never_raises(monkeypatch):
     monkeypatch.setattr(subprocess, "run", recorder)
     for aid in ("tick_outbox", "drain_parked", "restart_listener", "", None, 123):
         try:
-            BS.act(aid, confirm=True, bus_send=lambda **kw: None, process_table=lambda: [], kill=lambda pid: True)
+            BS.act(aid, confirm=True, bus_send=lambda **kw: None, process_table=list, kill=lambda pid: True)
         except Exception as e:  # noqa: BLE001
             pytest.fail(f"act({aid!r}) raised {type(e).__name__}: {e}")
     assert spawned == [], f"act() reached the host from a test: {spawned}"

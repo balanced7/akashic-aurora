@@ -231,8 +231,8 @@ def test_h6_doctor_is_observational_and_does_not_reap(monkeypatch, capsys):
         "examine_fleet",
         lambda agents, page_notes=False: {"agents": [], "findings": [], "summary": "doctor: healthy"},
     )
-    monkeypatch.setattr(doctor, "known_agents", lambda: [])
-    monkeypatch.setattr(doctor, "examine_services", lambda: [])
+    monkeypatch.setattr(doctor, "known_agents", list)
+    monkeypatch.setattr(doctor, "examine_services", list)
     monkeypatch.setattr(reaper, "reap", lambda ns: calls.append(ns) or [])
 
     rc = agent_cli.cmd_doctor(SimpleNamespace(agents=None, page=False, progress=False, json=True))

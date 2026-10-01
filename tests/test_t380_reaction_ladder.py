@@ -68,7 +68,7 @@ def _operator_send(client, ns, text="hello from the car"):
 
 
 def _tracker(client, ns, events_reader=None):
-    return LadderTracker(client=client, ns=ns, operator="daniil", events_reader=events_reader or (lambda: []))
+    return LadderTracker(client=client, ns=ns, operator="daniil", events_reader=events_reader or (list))
 
 
 def _track(t, b, mid, text="hello from the car"):

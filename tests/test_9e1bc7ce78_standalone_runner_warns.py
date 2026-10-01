@@ -116,7 +116,7 @@ def test_p2_bare_launchable_runners_call_the_warning_after_lock_acquisition(runn
 def test_p3_doctor_daemon_drill_carries_the_mode_flags(monkeypatch):
     from core.comm import doctor
 
-    monkeypatch.setattr(doctor, "known_agents", lambda: [])  # no live daemon -> DOWN
+    monkeypatch.setattr(doctor, "known_agents", list)  # no live daemon -> DOWN
     daemon = [f for f in doctor.examine_services() if f.get("agent") == "daemon"]
     assert daemon, "P3: examine_services must still report the daemon service"
     f = daemon[0]

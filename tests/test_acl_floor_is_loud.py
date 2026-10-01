@@ -153,8 +153,8 @@ def _doctor_stdout(monkeypatch, capsys):
         "examine_fleet",
         lambda agents, page_notes=False: {"agents": [], "findings": [], "summary": "doctor: healthy"},
     )
-    monkeypatch.setattr(doctor, "known_agents", lambda: [])
-    monkeypatch.setattr(doctor, "examine_services", lambda: [])
+    monkeypatch.setattr(doctor, "known_agents", list)
+    monkeypatch.setattr(doctor, "examine_services", list)
     try:
         import core.recall.at_action as _aa
 

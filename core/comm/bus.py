@@ -881,7 +881,6 @@ class Bus:
         itself. This stub exists for backward compat; the T039a P0 advisory mirror is retired.
         The shadow_router mirror-family counters that lived here are also retired -- lane delivery
         is now the PRIMARY path, not an advisory shadow, so mirror-outcome counters are moot."""
-        pass
 
     def _ring_bell(self, to: str, mid: str, kind: str) -> None:
         """Doorbell (Bifrost Mesh W1): a payload-free pub/sub notice so a Dispatcher wakes in ~ms.

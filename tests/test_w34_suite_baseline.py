@@ -60,7 +60,7 @@ def test_p2_record_read_roundtrip(qfile, monkeypatch):
 
 
 def test_p3_delta_by_node_id(qfile, monkeypatch):
-    monkeypatch.setattr(sb, "_ledger_claims", lambda: {})
+    monkeypatch.setattr(sb, "_ledger_claims", dict)
     sb.record(["tests/a.py::t1", "tests/a.py::t2", "tests/b.py::t3"], seat="s", sha="x")
     d = sb.delta(["tests/a.py::t1", "tests/b.py::t9", "tests/c.py::t4"])
     assert d["inherited"] == ["tests/a.py::t1"]

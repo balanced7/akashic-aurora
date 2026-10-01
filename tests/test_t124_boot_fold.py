@@ -296,7 +296,7 @@ def test_p9_interiority_appears_in_folded_system():
     This pin is tagged [unobserved] because verifying it requires a
     live runner process or a refactored test harness that exercises
     the main() assembly path. The morning conductor verifies this."""
-    pass  # Integration test — requires live runner; verified by morning conductor
+    # Integration test — requires live runner; verified by morning conductor
 
 
 def test_p10_interiority_does_not_blow_boot_budget():
@@ -305,7 +305,7 @@ def test_p10_interiority_does_not_blow_boot_budget():
     notes, and trimmed onboarding, stays within the total context budget.
     The morning conductor verifies by checking the runner's logged char
     counts."""
-    pass  # Integration test — requires live runner; verified by morning conductor
+    # Integration test — requires live runner; verified by morning conductor
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────

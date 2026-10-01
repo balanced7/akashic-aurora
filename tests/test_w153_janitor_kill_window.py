@@ -143,11 +143,11 @@ def test_p4_codex_janitor_never_touches_codex_root_seats(tmp_path):
     the codex janitor -- and still visible to its own."""
     sid2 = "11112222-3333-4444-5555-666677778888"
     foreign = _seat(tmp_path, "codex_root", sid2)
-    results = ws.janitor("codex", tmp=str(tmp_path), snapshot_fn=lambda: {}, kill_fn=KillRecorder())
+    results = ws.janitor("codex", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
     touched = [p for p, _, _ in results]
     assert not any("codex_root" in p for p in touched)
     assert foreign.exists()
-    own = ws.janitor("codex_root", tmp=str(tmp_path), snapshot_fn=lambda: {}, kill_fn=KillRecorder())
+    own = ws.janitor("codex_root", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
     assert any("codex_root" in p for p, _, _ in own), "codex_root's own janitor must still see its seats"
 
 
@@ -177,7 +177,7 @@ def test_p6_unreadable_young_seat_survives(tmp_path):
     torn write -- fail toward alive, keep it."""
     seat = _seat(tmp_path, AGENT, SID, body="not-a-pid-yet")
     kills = KillRecorder()
-    results = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: {}, kill_fn=kills)
+    results = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=dict, kill_fn=kills)
     assert seat.exists(), "young unreadable seat removed (torn-write race)"
     assert kills.calls == []
     reasons = " | ".join(r for _, _, r in results)
@@ -190,5 +190,5 @@ def test_p7_unreadable_old_seat_drains(tmp_path):
     seat = _seat(tmp_path, AGENT, SID, body="not-a-pid")
     old = time.time() - (ws.fresh_minutes() + 10) * 60
     os.utime(seat, (old, old))
-    ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: {}, kill_fn=KillRecorder())
+    ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
     assert not seat.exists()

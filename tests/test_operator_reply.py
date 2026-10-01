@@ -41,7 +41,7 @@ def test_the_body_is_the_only_argument_and_flags_in_prose_survive():
         "the --dangerous flag only matched a LEADING token; see --text-file",
         sender="claude",
         bus=bus,
-        failures=lambda: [],
+        failures=list,
     )
     assert out["ok"] is True
     assert bus.sent[0]["content"].startswith("the --dangerous flag")
@@ -52,7 +52,7 @@ def test_the_body_is_the_only_argument_and_flags_in_prose_survive():
 def test_sender_is_inferred_not_positional(monkeypatch):
     monkeypatch.setenv("AKASHIC_AGENT_ID", "kimi")
     bus = FakeBus()
-    OR.reply("hello", bus=bus, failures=lambda: [])
+    OR.reply("hello", bus=bus, failures=list)
     assert bus.sent[0]["meta"].get("from_seat") == "kimi" or True
     # The real guarantee: reply() never takes a sender POSITIONAL, so no body can land in
     # a sender slot. Signature-level, checked here so a refactor cannot reintroduce it.
@@ -68,7 +68,7 @@ def test_sender_is_inferred_not_positional(monkeypatch):
 def test_an_empty_body_refuses_rather_than_posting_a_header():
     bus = FakeBus()
     for bad in ("", "   ", None):
-        out = OR.reply(bad, sender="claude", bus=bus, failures=lambda: [])
+        out = OR.reply(bad, sender="claude", bus=bus, failures=list)
         assert out["ok"] is False and "empty" in out["why"].lower()
     assert not bus.sent
 
@@ -92,7 +92,7 @@ def test_a_recorded_post_failure_is_reported_as_FAILED():
 
 def test_absence_of_failure_is_labeled_UNCONFIRMED_never_delivered():
     bus = FakeBus()
-    out = OR.reply("did you see this?", sender="claude", bus=bus, failures=lambda: [])
+    out = OR.reply("did you see this?", sender="claude", bus=bus, failures=list)
     assert out["delivery"] == "SENT_NO_FAILURE_RECORDED", (
         "the pump's counter lied all afternoon; absence of a failure event is NOT proof "
         "the operator read it -- it gets its own honest label"
@@ -114,7 +114,7 @@ def test_a_broken_failure_reader_degrades_to_unknown_and_never_raises():
 def test_an_offline_bus_refuses_loudly():
     bus = FakeBus()
     bus.online = False
-    out = OR.reply("anything", sender="claude", bus=bus, failures=lambda: [])
+    out = OR.reply("anything", sender="claude", bus=bus, failures=list)
     assert out["ok"] is False and "offline" in out["why"].lower()
 
 
@@ -123,7 +123,7 @@ def test_a_none_message_id_is_a_failure_not_a_success():
         def send(self, to, kind, content, meta=None):
             return None
 
-    out = OR.reply("vanished", sender="claude", bus=NoneBus(), failures=lambda: [])
+    out = OR.reply("vanished", sender="claude", bus=NoneBus(), failures=list)
     assert out["ok"] is False, "bus.send returning None is the silent-drop path (T149)"
 
 
@@ -136,7 +136,7 @@ def test_a_model_stamp_rides_a_successful_reply(monkeypatch):
         return True
 
     bus = FakeBus()
-    out = OR.reply("here you go", sender="claude", bus=bus, failures=lambda: [], model="sonnet", stamp=stamp)
+    out = OR.reply("here you go", sender="claude", bus=bus, failures=list, model="sonnet", stamp=stamp)
     assert out["model_stamped"] is True
     assert calls == [("claude", "aa2093d4", "claude-sonnet-5", "claude-code")], (
         "the alias resolves the same way `pin` resolves it, and the session id is "
@@ -150,7 +150,7 @@ def test_no_model_argument_means_no_stamp_attempt():
     def stamp(*a, **kw):
         raise AssertionError("must not be called when model= is omitted")
 
-    out = OR.reply("no stamp please", sender="claude", bus=bus, failures=lambda: [], stamp=stamp)
+    out = OR.reply("no stamp please", sender="claude", bus=bus, failures=list, stamp=stamp)
     assert out["model_stamped"] is False
 
 
@@ -161,7 +161,7 @@ def test_an_unresolvable_model_alias_degrades_without_failing_the_reply(monkeypa
         raise AssertionError("resolve_model_id must fail before the stamper is called")
 
     bus = FakeBus()
-    out = OR.reply("still lands", sender="claude", bus=bus, failures=lambda: [], model="not-a-real-model", stamp=stamp)
+    out = OR.reply("still lands", sender="claude", bus=bus, failures=list, model="not-a-real-model", stamp=stamp)
     assert out["ok"] is True, "an unstampable model must never sink the delivery itself"
     assert out["model_stamped"] is False
 
@@ -173,7 +173,7 @@ def test_a_missing_session_id_degrades_the_stamp_not_the_reply(monkeypatch):
         raise AssertionError("no session id -- must not even try to report")
 
     bus = FakeBus()
-    out = OR.reply("no session here", sender="claude", bus=bus, failures=lambda: [], model="sonnet", stamp=stamp)
+    out = OR.reply("no session here", sender="claude", bus=bus, failures=list, model="sonnet", stamp=stamp)
     assert out["ok"] is True
     assert out["model_stamped"] is False
 
@@ -185,6 +185,6 @@ def test_a_stamper_exception_degrades_quietly(monkeypatch):
         raise RuntimeError("redis down")
 
     bus = FakeBus()
-    out = OR.reply("resilient", sender="claude", bus=bus, failures=lambda: [], model="sonnet", stamp=boom)
+    out = OR.reply("resilient", sender="claude", bus=bus, failures=list, model="sonnet", stamp=boom)
     assert out["ok"] is True
     assert out["model_stamped"] is False

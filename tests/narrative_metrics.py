@@ -92,7 +92,7 @@ def windowdiff(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
         k = _k_from(gold_b)
     k = min(k, m)
     errors = count = 0
-    for i in range(0, m - k + 1):
+    for i in range(m - k + 1):
         if sum(gold_b[i : i + k]) != sum(pred_b[i : i + k]):
             errors += 1
         count += 1
@@ -117,7 +117,7 @@ def pk(gold_b: list[int], pred_b: list[int], k: int = None) -> float:
         k = _k_from(gold_b)
     k = min(k, n - 1)
     errors = count = 0
-    for i in range(0, n - k):
+    for i in range(n - k):
         if (g[i] == g[i + k]) != (p[i] == p[i + k]):
             errors += 1
         count += 1

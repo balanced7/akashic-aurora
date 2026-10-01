@@ -36,7 +36,7 @@ def mem(monkeypatch):
     m = AgentMemory(store=DictStore())
     monkeypatch.setattr("core.learning.agent_memory.get_agent_memory", lambda: m)
     # hermetic: no live task ledger -- forged slugs must never match real active tasks
-    monkeypatch.setattr("core.coord.task_ledger.state_view", lambda: {})
+    monkeypatch.setattr("core.coord.task_ledger.state_view", dict)
     return m
 
 

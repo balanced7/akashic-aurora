@@ -41,7 +41,7 @@ def test_p1_cleaned_seat_sweeps_sidecars(tmp_path):
         agent,
         my_session="mysess",
         tmp=str(tmp_path),
-        snapshot_fn=lambda: {},  # empty snapshot: pid not alive
+        snapshot_fn=dict,  # empty snapshot: pid not alive
         kill_fn=lambda p: True,
     )
     actions = {os.path.basename(p): a for p, a, _ in res}
@@ -69,5 +69,5 @@ def test_p3_missing_sidecar_is_silent(tmp_path):
     with open(pidp, "w") as f:
         f.write("999999")
     # no .seen / .alive written -- the sweep must not raise
-    res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path), snapshot_fn=lambda: {}, kill_fn=lambda p: True)
+    res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=lambda p: True)
     assert res and not os.path.exists(pidp)

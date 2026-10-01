@@ -161,7 +161,7 @@ def test_p5_unmapped_by_design_kinds_have_comment_in_table():
     # to the docstring or a comment near the table, they carry the reason.
     # The actual source check is a manual review item, not automatable here
     # without fragile regex over a multiline dict.
-    pass  # Design assertion — validated by review, not by automated source parse
+    # Design assertion — validated by review, not by automated source parse
 
 
 def test_p6_kind_lane_census_matches_w07_pins():

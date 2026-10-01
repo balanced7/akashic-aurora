@@ -116,7 +116,7 @@ def _hold_every_gate_open(monkeypatch):
     of environment-dependent: it returns the argv of every shell-out main() attempted, which the
     caller asserts stays empty (a raise would be swallowed by the gates' own fail-open excepts).
     """
-    monkeypatch.setattr(pre_commit, "_staged_files", lambda: [])
+    monkeypatch.setattr(pre_commit, "_staged_files", list)
     monkeypatch.setattr(pre_commit, "check_staged", lambda *a, **k: (True, ""))
     monkeypatch.setattr(pre_commit, "_git_author_ident", lambda: "")
     monkeypatch.setattr(pre_commit, "check_author_matches_seat", lambda *a, **k: (True, ""))

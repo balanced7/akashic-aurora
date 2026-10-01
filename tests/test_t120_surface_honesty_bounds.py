@@ -141,7 +141,7 @@ def test_peek_inbox_provides_pending_at_least():
     # The contract: when messages ARE returned, each carries pending_at_least.
     # We test via a mock path: the render_collapsed contract already surfaces
     # the gap marker when messages are windowed.
-    pass  # Integration test — requires live bus; contract validated by code review
+    # Integration test — requires live bus; contract validated by code review
 
 
 # ── TEST 3: boot emits truncation contours ──────────────────────────────
@@ -212,7 +212,7 @@ def test_title_miss_flag_not_in_json_output():
     It is injected by the ToolBox knowledge_recall wrapper, not the CLI --json path."""
     # The cmd_recall --json path dumps raw hits dict; title-miss is only in text output
     # and in the ToolBox wrapper. This is by design — JSON is the data contract.
-    pass  # Design assertion; validated by code review
+    # Design assertion; validated by code review
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────

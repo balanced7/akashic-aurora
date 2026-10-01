@@ -36,7 +36,7 @@ def _whisper(cwd=None, agent_id="test-agent", session_id="", monkeypatch=None, u
         monkeypatch.setattr(ctx, "_draft_fresh", lambda: False)
         monkeypatch.setattr(ctx, "_delta_count", lambda aid: 0)
         monkeypatch.setattr(ctx, "_funnel_line", lambda: "")
-        monkeypatch.setattr(ctx, "_fetch_notes", lambda: [])
+        monkeypatch.setattr(ctx, "_fetch_notes", list)
         monkeypatch.setattr(ctx, "_live_siblings", lambda aid, sid: [])
         monkeypatch.setattr(ctx, "session_in_scope", lambda cwd: True)
         if lane_env is not None:
@@ -79,7 +79,7 @@ def test_w8a_p4_import_failure_falls_back(monkeypatch):
     monkeypatch.setattr(ctx, "_draft_fresh", lambda: False)
     monkeypatch.setattr(ctx, "_delta_count", lambda aid: 0)
     monkeypatch.setattr(ctx, "_funnel_line", lambda: "")
-    monkeypatch.setattr(ctx, "_fetch_notes", lambda: [])
+    monkeypatch.setattr(ctx, "_fetch_notes", list)
     monkeypatch.setattr(ctx, "_live_siblings", lambda aid, sid: [])
     monkeypatch.setattr(ctx, "session_in_scope", lambda cwd: True)
 

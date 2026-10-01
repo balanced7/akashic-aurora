@@ -247,7 +247,7 @@ class _FakeApi:
     online_now = True
 
     def __init__(self, on_block=None):
-        self._on_block = on_block or (lambda: [])
+        self._on_block = on_block or (list)
 
     def online(self):
         return True
