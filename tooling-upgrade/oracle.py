@@ -745,6 +745,17 @@ def _rmtree(path: Path) -> None:
     shutil.rmtree(path, onerror=onerror)
 
 
+def verify_checkout(tree: Path) -> None:
+    """Rehash every checked-out file against the index (not git's stat cache): a byte that
+    changed between git writing the file and the probes reading it -- observed in G1 as a
+    single flipped bit, '}' (0x7d) -> 'u' (0x75), in one file of one run tree -- would
+    otherwise be measured as a behaviour change. Raises, so the run is retried, never recorded."""
+    run(["git", "update-index", "-q", "--really-refresh"], cwd=tree)
+    bad = run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=tree).stdout.strip()
+    if bad:
+        raise RuntimeError("run tree %s does not match its commit after checkout:\n%s" % (tree, bad[:2000]))
+
+
 @contextlib.contextmanager
 def scratch_tree(ref: str, prefix: str = "aurora-scratch-"):
     """Like run_tree, at a random path: for work that never compares help text (measurements),
@@ -796,6 +807,7 @@ def run_tree(ref: str, python: str | None = None):
     tree = base / "aurora-oracle"
     git("worktree", "add", "--detach", str(tree), ref)
     try:
+        verify_checkout(tree)
         # `python`: measure a candidate interpreter (plan G1.P2) without committing a pin.
         run(["uv", "sync", "--frozen", "--quiet"] + (["--python", python] if python else []),
             cwd=tree, env=oracle_env(), check=True, timeout=1800)

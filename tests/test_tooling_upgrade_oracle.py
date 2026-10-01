@@ -452,3 +452,26 @@ def test_sha_pins(tmp_path):
         "      - uses: actions/setup-python@v5\n", encoding="utf-8")
     problems = certify.sha_pin_problems(tmp_path)
     assert len(problems) == 1 and "actions/setup-python@v5" in problems[0]
+
+
+def test_verify_checkout_catches_a_flipped_byte(tmp_path):
+    """A file that differs from its commit after checkout (one bit flipped: '}' -> 'u') must stop
+    the run; git's stat cache alone would call the tree clean."""
+    import subprocess
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update({"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_GLOBAL": os.devnull})
+    def g(*a):
+        subprocess.run(["git", *a], cwd=tmp_path, env=env, check=True, capture_output=True)
+    g("init", "-q")
+    f = tmp_path / "m.py"
+    f.write_text('x = f"{a}{b}"\n', encoding="utf-8")
+    g("add", "m.py")
+    g("commit", "-q", "-m", "c")
+    O.verify_checkout(tmp_path)          # pristine: passes
+    st = f.stat()
+    f.write_bytes(f.read_bytes().replace(b"}{", b"u{"))
+    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns))   # same size and mtime: stat cache is fooled
+    with pytest.raises(RuntimeError, match="does not match its commit"):
+        O.verify_checkout(tmp_path)
