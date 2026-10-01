@@ -146,6 +146,10 @@ PORT_REGISTRY = {
                          "what": "runner control-channel BASE; each seat takes base+n on "
                                  "loopback, so the exact port is dynamic by design",
                          "owner": "core/comm/control_channel.py"},
+    27100:              {"world": "prod",     "bound_by": "app",
+                         "what": "runner control-channel BASE where 47100 falls inside the OS's "
+                                 "ephemeral range (Linux); base+n on loopback, dynamic by design",
+                         "owner": "core/comm/control_channel.py"},
 }
 
 #: Bands, as data rather than prose, so the report can name a port's WORLD from its digits.
