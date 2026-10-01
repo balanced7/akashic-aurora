@@ -108,7 +108,12 @@ def test_a_failed_liveness_probe_is_cannot_tell_never_dead(store, monkeypatch):
     def timeout(*a, **k):
         raise subprocess.TimeoutExpired(cmd="tasklist", timeout=10)
 
-    monkeypatch.setattr(subprocess, "run", timeout)
+    monkeypatch.setattr(subprocess, "run", timeout)          # the Windows probe (tasklist)
+
+    def unprobeable(pid, sig):                                # the POSIX probe (os.kill(pid, 0))
+        raise OSError(5, "I/O error")                         # a failure that proves nothing
+
+    monkeypatch.setattr(ask_bg.os, "kill", unprobeable)
     assert ask_bg._alive(4242) is None, "a failed probe is cannot-tell, never dead"
 
 

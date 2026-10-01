@@ -205,10 +205,12 @@ def test_percentile_and_slope():
     assert soak.linear_slope([1], [5]) is None
 
 
-def test_pipeline_string_quotes_spaced_values():
-    tokens = soak.build_pipeline(Path(r"E:\Video Output E\clip one.mp4"), sync=True, eos_after=-1)
+def test_pipeline_string_quotes_spaced_values(tmp_path):
+    # A native path with spaces on every OS (a drive-letter literal is not a path on Linux).
+    clip = tmp_path / "Video Output E" / "clip one.mp4"
+    tokens = soak.build_pipeline(clip, sync=True, eos_after=-1)
     text = soak.pipeline_string(tokens)
-    assert 'location="E:/Video Output E/clip one.mp4"' in text
+    assert f'location="{clip.as_posix()}"' in text
     assert 'video-sink="fakevideosink name=sink"' in text
     assert "sync=true" in text and "eos-after=-1" in text
     assert "d3d12videosink" not in text and "autovideosink" not in text

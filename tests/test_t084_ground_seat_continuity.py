@@ -11,6 +11,8 @@ import asyncio
 import json
 
 import pytest
+from core.paths import python_launcher as _python_launcher  # noqa: E402
+_PYL = _python_launcher()   # `py` on Windows, `uv run` elsewhere
 
 
 REGION_ORDER = [
@@ -236,9 +238,9 @@ def test_region_drills_never_invent_cli_grammar():
     parser.parse_args(["handoff", "sol", "--list", "--to", "sol", "--json"])
     parser.parse_args(["events", "--agent", "sol", "--limit", "25", "--json"])
 
-    assert regions["designation"]["drill"] == "py agent_cli.py resident show sol"
+    assert regions["designation"]["drill"] == f"{_PYL} agent_cli.py resident show sol"
     assert regions["lessons"]["drill"] == (
-        "py agent_cli.py recall --full learn:experiment:own --json"
+        f"{_PYL} agent_cli.py recall --full learn:experiment:own --json"
     )
     assert "no dedicated exact atom read door" in regions["artifacts"]["drill"]
     assert "docs" not in regions["artifacts"]["drill"]
