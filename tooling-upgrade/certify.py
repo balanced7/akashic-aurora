@@ -847,6 +847,13 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
             print("    " + "\n    ".join(out.strip().splitlines()[-6:]))
             first_fail = first_fail or "check %s (%s)" % (c["id"], why)
 
+    if phase:
+        # Phase self-check (plan 9: "certify.py G<n> --phase <id>"): that phase's pre-registered
+        # checks only. T1-T7, the drills and the oracle belong to the goal-end certificate.
+        print("PHASE %s: %d/%d PASS (worktree clean: %s, branch ok: %s)" % (
+            phase, passed, len(checks), "yes" if worktree_clean() else "no",
+            "yes" if on_branch() else "no"))
+        return 0 if checks and passed == len(checks) and worktree_clean() and on_branch() else 1
     res = tamper(goal)
     t_fail = [t for t, (active, ok, _m) in res.items() if active and not ok]
     for t, (active, ok, msg) in res.items():
