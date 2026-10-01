@@ -161,9 +161,15 @@ def wake_receipts_path(agent: str, base: Optional[str] = None) -> str:
 
 
 def append_wake_receipt(agent: str, receipt: Dict, base: Optional[str] = None) -> bool:
-    """Append one receipt; best-effort, never raises (a receipt must never cost the wake)."""
+    """Append one receipt; best-effort, never raises (a receipt must never cost the wake).
+    Under pytest the MACHINE ledger is never written unless the test names a directory
+    (base or AKASHIC_WAKE_RECEIPTS_DIR): the listener pins drive watch() on a fake clock, and
+    their receipts would otherwise land in state/wake-receipts/ with 1970 timestamps."""
     try:
         import json
+        if (os.environ.get("PYTEST_CURRENT_TEST") and not base
+                and not os.environ.get("AKASHIC_WAKE_RECEIPTS_DIR")):
+            return False
         p = wake_receipts_path(agent, base)
         os.makedirs(os.path.dirname(p), exist_ok=True)
         rec = dict(receipt)

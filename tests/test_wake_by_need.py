@@ -163,3 +163,12 @@ def test_receipt_summary_counts_window(tmp_path):
     s = ws.wake_receipts_summary("claude", since_s=3600, now=now, base=base)
     assert s == {"wakes": 3, "with_mail": 1, "quiet": 1, "cycled": 1, "held_below_floor": 4}
     assert ws.wake_receipts_summary("nobody", base=base)["wakes"] == 0
+
+
+def test_receipts_never_touch_the_machine_ledger_under_pytest(tmp_path, monkeypatch):
+    """The listener pins run watch() on a fake clock; without a named directory the receipt
+    must be refused, not written to state/wake-receipts/ with a 1970 timestamp."""
+    monkeypatch.delenv("AKASHIC_WAKE_RECEIPTS_DIR", raising=False)
+    assert os.environ.get("PYTEST_CURRENT_TEST")
+    assert ws.append_wake_receipt("tnobody", {"outcome": "woke"}) is False
+    assert ws.append_wake_receipt("tnobody", {"outcome": "woke"}, base=str(tmp_path)) is True
